@@ -392,6 +392,28 @@ describe("parse_copilot_log.cjs", () => {
       expect(result.markdown).toContain("375,000");
     });
 
+    it("strips the columnar 'Resume' footer hint from rendered pretty-print output", () => {
+      // Copilot CLI footer includes a "Resume   copilot --resume=<id>" line aligned in the
+      // same column block as Changes/Duration/Tokens. It is CLI chrome, not agent reasoning,
+      // and must not leak into the rendered reasoning/agent-text section.
+      const prettyLog = [
+        "● Bash",
+        "    └ ok",
+        "The work is done.",
+        "",
+        "Changes    +0 -0",
+        "Duration   1m 0s",
+        "Tokens     ↑ 195.4k (166.2k cached) • ↓ 2.9k",
+        "Resume     copilot --resume=d21d3356-9296-4d1b-a392-49e5069e4e3f",
+      ].join("\n");
+
+      const result = parseCopilotLog(prettyLog);
+
+      expect(result.markdown).toContain("The work is done.");
+      expect(result.markdown).not.toContain("--resume=");
+      expect(result.markdown).not.toMatch(/^Resume\s+copilot/m);
+    });
+
     it("handles the new footer without a cached segment", () => {
       const prettyLog = ["● Bash", "    └ ok", "", "Tokens    ↑ 1.2k • ↓ 50"].join("\n");
 
