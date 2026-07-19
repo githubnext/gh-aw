@@ -158,7 +158,7 @@ Read the contents of `contributing-guidelines-truncated.md` from the workspace r
 
 Call the contribution-checker subagent for each PR with this prompt:
 
-Use `model: small` for every contribution-checker subagent call.
+Use `model: claude-haiku-4.5` for every contribution-checker subagent call.
 
 ```
 The CONTRIBUTING.md content for this repository is attached below (already truncated to 2000 chars by the pre-agent step).
