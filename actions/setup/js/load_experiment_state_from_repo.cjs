@@ -22,7 +22,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_SYSTEM } = require("./error_codes.cjs");
+const { ERR_SYSTEM, ERR_API } = require("./error_codes.cjs");
 
 const MAX_STATE_FILE_BYTES = 102400;
 // Keep this allowlist aligned with actions/setup/js/normalize_branch_name.cjs valid characters.
@@ -100,7 +100,7 @@ async function fetchFileFromBranch(octokit, owner, repo, branch, filePath) {
     if (errAny.status === 404) {
       return null;
     }
-    throw err;
+    throw new Error(`${ERR_API}: Failed to fetch file "${filePath}" from branch "${branch}": ${String(err)}`, { cause: err });
   }
 }
 
