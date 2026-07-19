@@ -304,8 +304,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				config.MaxAICredits = topLevelMaxAICredits
 				if model, hasModel := engineObj["model"]; hasModel {
 					if modelStr, ok := model.(string); ok {
-						resolvedModel = modelStr
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
+						if topLevelModel != "" {
+							// Top-level 'model' takes precedence; engine.model is redundant and deprecated.
+							fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
+						} else {
+							// No top-level model: engine.model is used as a fallback (no deprecation warning).
+							resolvedModel = modelStr
+						}
 					}
 				}
 				if topLevelModel != "" {
@@ -331,8 +336,13 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			// Extract optional 'model' field
 			if model, hasModel := engineObj["model"]; hasModel {
 				if modelStr, ok := model.(string); ok {
-					resolvedModel = modelStr
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
+					if topLevelModel != "" {
+						// Top-level 'model' takes precedence; engine.model is redundant and deprecated.
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
+					} else {
+						// No top-level model: engine.model is used as a fallback (no deprecation warning).
+						resolvedModel = modelStr
+					}
 				}
 			}
 			// Top-level 'model' takes precedence over engine.model.
