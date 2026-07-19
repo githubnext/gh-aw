@@ -475,19 +475,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				</div>
 			</div>
 
-			<section class="aw-workshop-progress-card" aria-label="Workshop progress">
-				<div class="aw-workshop-progress-overview">
-					<div class="aw-workshop-progress-stat">
-						<span data-workshop-lesson-percent>0%</span>
-						<p>Complete</p>
-					</div>
-					<p class="aw-workshop-progress-context" data-workshop-lesson-context>Start with the welcome step, then follow the path selected above.</p>
-				</div>
-				<div class="aw-workshop-progress-timeline">
-					<div class="aw-workshop-progress-track"><span data-workshop-lesson-bar style={`width: ${initialFlow.length ? '0%' : '100%'};`} /></div>
-				</div>
-			</section>
-
 			<article class="aw-workshop-step-content sl-markdown-content" data-workshop-step-content set:html={initialStep ? renderTutorialStep(initialStep) : ''} />
 
 			<div class="aw-workshop-panel-footer">
@@ -674,12 +661,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				return step.html || '';
 			};
 
-			const calculateProgressPercent = (stepIndex, flowLength) => {
-				if (stepIndex < 0) return 0;
-				if (flowLength <= 1) return 100;
-				return Math.round((stepIndex / (flowLength - 1)) * 100);
-			};
-
 			const setupScreen = root.querySelector('[data-workshop-setup]');
 			const setupSteps = root.querySelectorAll('[data-workshop-setup-step]');
 			const tutorialScreen = root.querySelector('[data-workshop-tutorial]');
@@ -690,9 +671,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 			const nextButton = root.querySelector('[data-workshop-next]');
 			const stepBodyContainer = root.querySelector('[data-workshop-step-content]');
 			const stepSummary = root.querySelector('[data-workshop-step-summary]');
-			const lessonPercent = root.querySelector('[data-workshop-lesson-percent]');
-			const lessonBar = root.querySelector('[data-workshop-lesson-bar]');
-			const lessonContext = root.querySelector('[data-workshop-lesson-context]');
 			let setupStep = 'workspace';
 
 			const showSetupStep = (stepName, opts = {}) => {
@@ -842,15 +820,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 				const journey = manifest.journeys.find((item) => item.id === state.journeyId) || manifest.journeys[0];
 				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
-				const progressPercent = calculateProgressPercent(stepIndex, visibleFlow.length);
 				if (tunnelPanel) {
 					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
 				}
-				lessonPercent.textContent = `${progressPercent}%`;
-				lessonBar.style.width = `${progressPercent}%`;
-				lessonContext.textContent = stepIndex >= 0
-					? `${stepIndex + 1} of ${visibleFlow.length} in this ${journey.label} run.`
-					: 'Linked step from the workshop source.';
 				stepSummary.textContent = activeStep.summary || 'Follow the guided path for this lesson.';
 				flowTitle.textContent = `${journey.label} x ${scenario.label}`;
 				stepPosition.textContent = stepIndex >= 0 ? `Step ${stepIndex + 1} of ${visibleFlow.length}` : 'Linked step';
@@ -1285,76 +1257,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		line-height: 1.5;
 	}
 
-	.aw-workshop-progress-card {
-		display: grid;
-		gap: 0.85rem;
-		margin-top: 1rem;
-		padding: 1rem;
-		border-radius: 1rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-page);
-	}
-
-	.aw-workshop-progress-overview {
-		display: grid;
-		min-width: 0;
-		grid-template-columns: auto minmax(0, 1fr);
-		gap: 1rem;
-	}
-
-	.aw-workshop-progress-stat {
-		display: grid;
-		gap: 0.15rem;
-		min-width: 6rem;
-	}
-
-	.aw-workshop-progress-stat > span {
-		font-size: 2rem;
-		font-weight: 800;
-		letter-spacing: -0.04em;
-	}
-
-	.aw-workshop-progress-stat > p,
-	.aw-workshop-progress-context {
-		margin: 0;
-		color: var(--aw-text-muted);
-	}
-
-	.aw-workshop-progress-stat > p {
-		font-size: 0.78rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-	}
-
-	.aw-workshop-progress-context {
-		align-self: center;
-		font-size: 0.95rem;
-		line-height: 1.55;
-	}
-
-	.aw-workshop-progress-timeline {
-		position: relative;
-		display: block;
-		align-items: center;
-		min-height: auto;
-	}
-
-	.aw-workshop-progress-track {
-		height: 0.5rem;
-		overflow: hidden;
-		border-radius: 999px;
-		background: color-mix(in srgb, var(--aw-bg-subtle) 80%, var(--aw-border) 20%);
-	}
-
-	.aw-workshop-progress-track > span {
-		display: block;
-		height: 100%;
-		border-radius: inherit;
-		background: var(--sl-color-accent);
-		transition: width 0.25s ease;
-	}
-
 	.aw-workshop-step-content {
 		display: block;
 		min-width: 0;
@@ -1608,7 +1510,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	:root[data-theme='light'] .aw-workshop-card,
-	:root[data-theme='light'] .aw-workshop-progress-card,
 	:root[data-theme='light'] .aw-workshop-step-content,
 	:root[data-theme='light'] .aw-workshop-step-content :global(.aw-workshop-entry-card),
 	:root[data-theme='light'] .aw-workshop-step-markdown,
@@ -1616,12 +1517,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	:root[data-theme='light'] .aw-workshop-nav-button,
 	:root[data-theme='light'] .aw-workshop-tunnel-panel {
 		box-shadow: none;
-	}
-
-	@media (max-width: 72rem) {
-		.aw-workshop-progress-overview {
-			grid-template-columns: 1fr;
-		}
 	}
 
 	@media (max-width: 50rem) {
@@ -1657,7 +1552,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		}
 
 		.aw-workshop-panel-summary,
-		.aw-workshop-progress-card,
 		.aw-workshop-panel-actions {
 			display: none;
 		}

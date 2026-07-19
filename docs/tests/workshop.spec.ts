@@ -51,32 +51,23 @@ async function shouldNavigateToVisibleStep(page: Page, isPresent: boolean, stepK
 }
 
 test.describe('Workshop tutorial', () => {
-	test('progress summary follows the active step instead of saved completion history', async ({ page }) => {
+	test('step position follows the active step instead of saved completion history', async ({ page }) => {
 		await startWorkshop(page);
 
 		const flowKeys = await getFlowStepKeys(page);
 		const flowLength = flowKeys.length;
-		const firstStepPercent = flowLength <= 1 ? 100 : 0;
-		const thirdStepPercent = flowLength <= 1 ? 100 : Math.round((2 / (flowLength - 1)) * 100);
 
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${firstStepPercent}%`);
-		await expect(page.locator('[data-workshop-lesson-context]')).toHaveText(`1 of ${flowLength} in this GitHub.com run.`);
-		await expect(page.locator('.aw-workshop-progress-card')).not.toContainText('Go to step');
 
 		await page.getByRole('button', { name: /Next step/i }).click();
 		await page.getByRole('button', { name: /Next step/i }).click();
 
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 3 of ${flowLength}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${thirdStepPercent}%`);
-		await expect(page.locator('[data-workshop-lesson-context]')).toHaveText(`3 of ${flowLength} in this GitHub.com run.`);
 
 		await page.getByRole('button', { name: /Previous step/i }).click();
 		await page.getByRole('button', { name: /Previous step/i }).click();
 
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${firstStepPercent}%`);
-		await expect(page.locator('[data-workshop-lesson-context]')).toHaveText(`1 of ${flowLength} in this GitHub.com run.`);
 	});
 
 	test('switching entry path clears previous scenario and restarts the flow', async ({ page }) => {
@@ -121,12 +112,10 @@ test.describe('Workshop tutorial', () => {
 			await expect(page.getByRole('button', { name: /Next step|Finish workshop/i })).toBeVisible();
 			if (isZenMobileViewport) {
 				await expect(page.locator('.aw-workshop-flow-header')).toBeHidden();
-				await expect(page.locator('.aw-workshop-progress-card')).toBeHidden();
 				await expect(page.locator('.aw-workshop-panel-summary')).toBeHidden();
 				await expect(page.locator('.aw-workshop-panel-actions')).toBeHidden();
 			} else {
 				await expect(page.locator('.aw-workshop-flow-header')).toBeVisible();
-				await expect(page.locator('.aw-workshop-progress-card')).toBeVisible();
 				await expect(page.locator('.aw-workshop-panel-summary')).toBeVisible();
 				await expect(page.locator('.aw-workshop-panel-actions')).toBeVisible();
 			}
@@ -144,7 +133,6 @@ test.describe('Workshop tutorial', () => {
 					'.aw-workshop',
 					'.aw-workshop-panel-shell',
 					'.aw-workshop-panel-header',
-					'.aw-workshop-progress-card',
 					'.aw-workshop-step-content',
 					'.aw-workshop-panel-footer',
 				];
