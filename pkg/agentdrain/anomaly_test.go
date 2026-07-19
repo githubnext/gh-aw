@@ -256,6 +256,7 @@ func TestAnomalyDetector_Analyze(t *testing.T) {
 }
 
 func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		simThreshold  float64
@@ -307,11 +308,46 @@ func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
 			require.NotNil(t, detector, "NewAnomalyDetector should return a non-nil detector")
 			assert.InDelta(t, tt.simThreshold, detector.threshold, 1e-12, "similarity threshold should be stored as provided")
 			assert.Equal(t, tt.rareThreshold, detector.rareThreshold, "rare cluster threshold should be stored as provided")
+
+			// Verify the stored thresholds are actually applied by Analyze.
+			reportAtThreshold := detector.Analyze(
+				&MatchResult{Similarity: tt.simThreshold},
+				false,
+				&Cluster{Size: tt.rareThreshold + 1},
+			)
+			require.NotNil(t, reportAtThreshold, "Analyze should return a non-nil report")
+			assert.False(t, reportAtThreshold.LowSimilarity, "similarity == threshold should not be flagged as low")
+			assert.False(t, reportAtThreshold.RareCluster, "size above rare threshold should not be flagged as rare")
+
+			reportAtRareBoundary := detector.Analyze(
+				&MatchResult{Similarity: tt.simThreshold},
+				false,
+				&Cluster{Size: tt.rareThreshold},
+			)
+			require.NotNil(t, reportAtRareBoundary, "Analyze should return a non-nil report")
+			assert.True(t, reportAtRareBoundary.RareCluster, "size == rare threshold should be flagged as rare")
+
+			simBelowThreshold := tt.simThreshold
+			if tt.simThreshold > 0 {
+				simBelowThreshold = tt.simThreshold - 0.01
+			}
+			reportBelowThreshold := detector.Analyze(
+				&MatchResult{Similarity: simBelowThreshold},
+				false,
+				&Cluster{Size: tt.rareThreshold + 1},
+			)
+			require.NotNil(t, reportBelowThreshold, "Analyze should return a non-nil report")
+			if tt.simThreshold > 0 {
+				assert.True(t, reportBelowThreshold.LowSimilarity, "similarity just below threshold should be flagged as low")
+			} else {
+				assert.False(t, reportBelowThreshold.LowSimilarity, "no valid similarity can be below threshold 0")
+			}
 		})
 	}
 }
 
 func TestBuildReason(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name          string
 		isNewTemplate bool
@@ -387,6 +423,7 @@ func TestBuildReason(t *testing.T) {
 				LowSimilarity: tt.lowSimilarity,
 				RareCluster:   tt.rareCluster,
 			}
+			require.NotNil(t, r, "test setup should provide a non-nil anomaly report")
 			got := buildReason(r)
 			assert.Equal(t, tt.wantReason, got, "buildReason mismatch")
 		})
@@ -408,6 +445,7 @@ func TestAnalyzeEvent(t *testing.T) {
 		Fields: map[string]string{"status": "ok"},
 	}
 
+	// This is an intentionally stateful integration-style test.
 	// Sub-tests are sequential: each step mutates the shared miner state and depends
 	// on the state from the previous step. Do NOT add t.Parallel() to any of these
 	// sub-tests — doing so would cause a data race on the shared Miner.
@@ -580,5 +618,20 @@ func TestAnalyze_FlagMutualExclusivity(t *testing.T) {
 			assert.GreaterOrEqual(t, report.AnomalyScore, 0.0, "AnomalyScore must stay within [0,1]")
 			assert.LessOrEqual(t, report.AnomalyScore, 1.0, "AnomalyScore must stay within [0,1]")
 		})
+	}
+}
+
+func TestAnalyze_ScoreAlwaysNormalized(t *testing.T) {
+	t.Parallel()
+	d, err := NewAnomalyDetector(1.0, 100)
+	require.NoError(t, err, "NewAnomalyDetector should succeed")
+
+	result := &MatchResult{ClusterID: 1, Similarity: 0.0}
+	cluster := &Cluster{ID: 1, Size: 1}
+	for _, isNew := range []bool{true, false} {
+		report := d.Analyze(result, isNew, cluster)
+		require.NotNil(t, report, "Analyze should return a non-nil report")
+		assert.LessOrEqual(t, report.AnomalyScore, 1.0, "AnomalyScore must not exceed 1.0 (isNew=%v)", isNew)
+		assert.GreaterOrEqual(t, report.AnomalyScore, 0.0, "AnomalyScore must be non-negative (isNew=%v)", isNew)
 	}
 }
