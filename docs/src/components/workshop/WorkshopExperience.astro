@@ -424,7 +424,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					{workshopScenarios.map((scenario) => (
 						<button
 							type="button"
-							class="aw-workshop-card aw-workshop-card-scenario"
+							class="aw-workshop-card aw-workshop-card-scenario-selection"
 							data-workshop-scenario={scenario.id}
 						>
 							<span class="aw-workshop-card-icon" set:html={iconSvg(scenario.icon)} />
@@ -1018,10 +1018,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 <style>
 	.aw-workshop {
 		--aw-workshop-card-min-width: 15.5rem;
-		--aw-workshop-card-bg-strong: 18%;
-		--aw-workshop-card-bg-soft: 14%;
 		--aw-workshop-card-border-strong: 35%;
-		--aw-workshop-card-border-soft: 24%;
 		--aw-workshop-card-gradient-start: 12%;
 		--aw-workshop-card-surface-tint: 8%;
 		display: grid;
@@ -1240,7 +1237,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		transform: translateY(0);
 	}
 
-	.aw-workshop-card-scenario {
+	.aw-workshop-card-scenario-selection {
 		display: grid;
 		grid-template-columns: 2rem 1fr auto;
 		grid-template-areas:
@@ -1291,7 +1288,7 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		white-space: nowrap;
 	}
 
-	.aw-workshop-card-scenario {
+	.aw-workshop-card-scenario-selection {
 		--aw-workshop-card-accent: var(--sl-color-accent-low);
 	}
 
@@ -1326,21 +1323,21 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		transition: opacity 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
 	}
 
-	.aw-workshop-card-scenario:hover,
-	.aw-workshop-card-scenario.is-active {
+	.aw-workshop-card-scenario-selection:hover,
+	.aw-workshop-card-scenario-selection.is-active {
 		transform: translateY(-1px);
 		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
 		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
 	}
 
-	.aw-workshop-card-scenario:hover .aw-workshop-card-fit,
-	.aw-workshop-card-scenario.is-active .aw-workshop-card-fit {
+	.aw-workshop-card-scenario-selection:hover .aw-workshop-card-fit,
+	.aw-workshop-card-scenario-selection.is-active .aw-workshop-card-fit {
 		opacity: 1;
 		max-height: 5rem;
 		transform: translateY(0);
 	}
 
-	.aw-workshop-card-scenario {
+	.aw-workshop-card-scenario-selection {
 		min-height: 12rem;
 	}
 
