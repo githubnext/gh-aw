@@ -120,6 +120,7 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		githubScriptPin,
 		generateInstallCLISteps(ctx, actionMode, opts.Version, opts.ActionTag, opts.Resolver),
 		getCLICmdPrefix(actionMode),
+		opts.CustomCron != "",
 	)
 
 	autoUpdateWorkflowLog.Printf("Writing auto-update workflow to %s", outputFile)
@@ -162,8 +163,20 @@ func buildAutoUpdateSeed(repoSlug string, actionMode ActionMode) string {
 // buildAutoUpdateWorkflowYAML generates the YAML content for agentic-auto-upgrade.yml.
 func buildAutoUpdateWorkflowYAML(
 	cronSchedule, setupActionRef, githubScriptPin, installCLISteps, cliCmdPrefix string,
+	isCustomCron bool,
 ) string {
-	customInstructions := `Alternative regeneration methods:
+	var customInstructions string
+	if isCustomCron {
+		customInstructions = `Alternative regeneration methods:
+  make recompile
+
+Or use the gh-aw CLI directly:
+  ./gh-aw compile --validate --verbose
+
+The workflow is generated when auto_upgrade.cron is set in aw.json.
+The schedule is pinned to the custom cron expression configured in aw.json.`
+	} else {
+		customInstructions = `Alternative regeneration methods:
   make recompile
 
 Or use the gh-aw CLI directly:
@@ -171,6 +184,12 @@ Or use the gh-aw CLI directly:
 
 The workflow is generated when auto_upgrade is set to true in aw.json.
 The weekly schedule is deterministically scattered based on the repository slug.`
+	}
+
+	scheduleComment := "Custom schedule (auto-upgrade)"
+	if !isCustomCron {
+		scheduleComment = "Weekly (auto-upgrade)"
+	}
 
 	header := GenerateWorkflowHeader("", "pkg/workflow/auto_update_workflow.go", customInstructions)
 
@@ -178,7 +197,7 @@ The weekly schedule is deterministically scattered based on the repository slug.
 
 on:
   schedule:
-    - cron: "` + cronSchedule + `"  # Weekly (auto-upgrade)
+    - cron: "` + cronSchedule + `"  # ` + scheduleComment + `
   workflow_dispatch:
 
 permissions:

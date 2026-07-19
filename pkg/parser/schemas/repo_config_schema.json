@@ -50,7 +50,7 @@
               "description": "Custom cron expression for the agentic-auto-upgrade workflow schedule. When set, overrides the default fuzzy weekly schedule. Must be a valid 5-field POSIX cron expression (e.g. '0 9 * * 1' for Monday at 09:00 UTC).",
               "type": "string",
               "minLength": 9,
-              "pattern": "^[0-9*/,\\- ]+ [0-9*/,\\- ]+ [0-9*/,\\- ]+ [0-9*/,\\- ]+ [0-9*/,\\- ]+$",
+              "pattern": "^[0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+ [0-9*/,\\-]+$",
               "examples": ["0 9 * * 1", "30 5 * * 1-5", "0 0 * * 0"]
             }
           }

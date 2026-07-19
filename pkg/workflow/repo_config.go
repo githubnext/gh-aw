@@ -35,6 +35,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -340,6 +341,11 @@ func validateRepoConfigValues(cfg *RepoConfig) error {
 		}
 		cfg.UTC = normalized
 	}
+	if cfg.AutoUpgradeCron != "" {
+		if err := validateCronExpression(cfg.AutoUpgradeCron); err != nil {
+			return fmt.Errorf("invalid %s: auto_upgrade.cron %w", RepoConfigFileName, err)
+		}
+	}
 	if cfg.Maintenance != nil {
 		seenDisabledJobs := map[string]string{}
 		for _, jobName := range cfg.Maintenance.DisabledJobs {
@@ -406,4 +412,87 @@ func (r *RepoConfig) ActionFailureIssueExpiresHours() int {
 		return r.Maintenance.ActionFailureIssueExpires
 	}
 	return DefaultActionFailureIssueExpiresHours
+}
+
+// cronFieldRange describes the allowed numeric range for a cron field.
+type cronFieldRange struct {
+	name string
+	min  int
+	max  int
+}
+
+var cronFieldRanges = []cronFieldRange{
+	{"minute", 0, 59},
+	{"hour", 0, 23},
+	{"day-of-month", 1, 31},
+	{"month", 1, 12},
+	{"day-of-week", 0, 7},
+}
+
+// validateCronExpression validates a 5-field POSIX cron expression.
+// It checks that the expression has exactly 5 space-separated fields and that
+// each field's numeric literals fall within the allowed range for that position.
+func validateCronExpression(expr string) error {
+	fields := strings.Split(expr, " ")
+	if len(fields) != 5 {
+		return fmt.Errorf("must have exactly 5 fields (got %d)", len(fields))
+	}
+	for i, field := range fields {
+		r := cronFieldRanges[i]
+		if err := validateCronField(field, r.min, r.max); err != nil {
+			return fmt.Errorf("field %d (%s): %w", i+1, r.name, err)
+		}
+	}
+	return nil
+}
+
+// validateCronField validates a single cron field value against an allowed range.
+// It supports the following forms: *, n, n-m, n/s, */s, n-m/s, and comma-separated combinations.
+func validateCronField(field string, min, max int) error {
+	for part := range strings.SplitSeq(field, ",") {
+		if err := validateCronPart(part, min, max); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// validateCronPart validates a single part of a cron field (before splitting on comma).
+func validateCronPart(part string, min, max int) error {
+	// Strip optional step value (e.g. "*/5" or "1-5/2").
+	base, step, hasStep := strings.Cut(part, "/")
+	if hasStep {
+		sv, err := strconv.Atoi(step)
+		if err != nil || sv < 1 {
+			return fmt.Errorf("invalid step value %q (must be a positive integer)", step)
+		}
+	}
+	part = base
+
+	if part == "*" {
+		return nil
+	}
+
+	// Range (e.g. "1-5").
+	if lo, hi, ok := strings.Cut(part, "-"); ok {
+		loN, err1 := strconv.Atoi(lo)
+		hiN, err2 := strconv.Atoi(hi)
+		if err1 != nil || err2 != nil {
+			return fmt.Errorf("invalid range %q", part)
+		}
+		if loN < min || hiN > max || loN > hiN {
+			return fmt.Errorf("range %d-%d out of bounds [%d-%d]", loN, hiN, min, max)
+		}
+		return nil
+	}
+
+	// Plain integer.
+	n, err := strconv.Atoi(part)
+	if err != nil {
+		return fmt.Errorf("invalid value %q", part)
+	}
+	if n < min || n > max {
+		return fmt.Errorf("value %d out of bounds [%d-%d]", n, min, max)
+	}
+	return nil
 }

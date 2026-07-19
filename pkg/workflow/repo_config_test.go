@@ -406,6 +406,22 @@ func TestLoadRepoConfig_AutoUpgradeCron(t *testing.T) {
 		_, err := LoadRepoConfig(dir)
 		assert.Error(t, err, "invalid cron in auto_upgrade object should return an error")
 	})
+
+	t.Run("rejects out-of-range cron values", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"cron": "99 99 99 99 99"}}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "out-of-range cron values should return an error")
+	})
+
+	t.Run("rejects six-field cron", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"cron": "0 0 * * * *"}}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "six-field cron should return an error")
+	})
 }
 
 func TestLoadRepoConfig_ActionPins(t *testing.T) {
@@ -457,6 +473,42 @@ func TestLoadRepoConfig_ActionPins(t *testing.T) {
 		_, err := LoadRepoConfig(dir)
 		assert.Error(t, err, "value without @version should fail schema validation")
 	})
+}
+
+func TestValidateCronExpression(t *testing.T) {
+	valid := []string{
+		"0 9 * * 1",
+		"30 5 * * 1-5",
+		"0 0 * * 0",
+		"*/15 * * * *",
+		"0 0 1,15 * *",
+		"59 23 31 12 7",
+		"0 0 * * 1-5/2",
+	}
+	for _, expr := range valid {
+		t.Run("valid: "+expr, func(t *testing.T) {
+			assert.NoError(t, validateCronExpression(expr), "should accept %q", expr)
+		})
+	}
+
+	invalid := []string{
+		"not-a-cron",
+		"99 99 99 99 99",
+		"0 0 * * * *", // 6 fields
+		"0 0 * *",     // 4 fields
+		"60 0 * * *",  // minute out of range
+		"0 24 * * *",  // hour out of range
+		"0 0 0 * *",   // DOM 0 out of range
+		"0 0 * 0 *",   // month 0 out of range
+		"0 0 * 13 *",  // month 13 out of range
+		"0 0 * * 8",   // DOW 8 out of range
+		"0 0 * * 1/0", // step 0 invalid
+	}
+	for _, expr := range invalid {
+		t.Run("invalid: "+expr, func(t *testing.T) {
+			assert.Error(t, validateCronExpression(expr), "should reject %q", expr)
+		})
+	}
 }
 
 // writeAWJSON creates .github/workflows/aw.json with the given JSON content.
