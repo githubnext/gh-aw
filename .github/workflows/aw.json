@@ -1,6 +1,5 @@
 {
-  "auto_upgrade": true,
-  "auto_upgrade_cron": "0 9 * * 1",
+  "auto_upgrade": { "cron": "0 9 * * 1" },
   "ghes": true,
   "maintenance": {
     "action_failure_issue_expires": 12,
