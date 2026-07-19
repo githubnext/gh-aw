@@ -1,20 +1,49 @@
 // @ts-check
 
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkRehype from 'remark-rehype';
+import rehypeStringify from 'rehype-stringify';
+
 /**
- * Remark plugin that converts markdown link syntax (`[text](url)`) to HTML
- * anchor tags inside raw HTML nodes.
+ * Remark plugin that applies markdown transformation to the content of
+ * specific HTML tags that are treated as opaque HTML blocks by remark-parse.
  *
  * CommonMark block-level HTML elements such as `<details>` and `<summary>`
  * are treated as opaque HTML blocks by remark-parse, so any markdown syntax
  * they contain is left as raw text rather than being processed.  This plugin
  * runs after remark-parse to fill that gap: it visits every `html` MDAST node
- * and rewrites markdown links found inside `<summary>` (and similar
- * inline-content elements) to proper `<a href="…">` tags.
+ * and applies a full markdown transformation to the content of `<summary>`
+ * (and similar inline-content elements), producing proper HTML.
  *
  * This is the correct, AST-level fix for GFM alerts that contain
  * `<details>/<summary>` with markdown links — replacing the previous
  * approach of manipulating rendered HTML strings after compilation.
  */
+
+/**
+ * Reusable processor for converting markdown inline content to HTML.
+ * allowDangerousHtml is required to preserve inline HTML (e.g. `<b>`, `<code>`)
+ * that authors place inside target tags alongside their markdown.
+ */
+const inlineProcessor = unified()
+	.use(remarkParse)
+	.use(remarkRehype, { allowDangerousHtml: true })
+	.use(rehypeStringify, { allowDangerousHtml: true });
+
+/**
+ * Apply markdown transformation to text, producing HTML.
+ * remark-parse wraps inline content in a `<p>` element; that wrapper is
+ * stripped so the result can be placed back inside the original HTML tag.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+function applyMarkdownTransformation(text) {
+	const result = String(inlineProcessor.processSync(text));
+	// Strip the outer <p>…</p> wrapper added by remark for a single paragraph.
+	return result.replace(/^<p>([\s\S]*?)<\/p>\n?$/, '$1');
+}
 
 /**
  * @returns {(tree: import('unist').Node) => void}
@@ -32,7 +61,7 @@ function visit(node) {
 	if (!node || typeof node !== 'object') return;
 
 	if (node.type === 'html' && typeof node.value === 'string') {
-		node.value = processMarkdownLinksInHtml(node.value);
+		node.value = processMarkdownInHtml(node.value);
 	}
 
 	const { children } = node;
@@ -42,7 +71,7 @@ function visit(node) {
 }
 
 /**
- * Tags whose text content should have markdown link syntax converted to HTML.
+ * Tags whose text content should have markdown transformed to HTML.
  * These are inline-text contexts that appear as block-level HTML in markdown
  * and therefore bypass normal remark inline processing.
  *
@@ -51,21 +80,16 @@ function visit(node) {
 const INLINE_TEXT_TAGS = ['summary', 'figcaption', 'caption', 'dt', 'dd', 'th', 'td', 'li'];
 
 /**
- * Replace markdown link syntax `[text](url)` with `<a href="url">text</a>`
- * inside the content of specific HTML tags that are expected to carry inline
- * text with markdown links.
+ * Apply markdown transformation inside the content of specific HTML tags.
  *
- * The replacement is intentionally narrow:
  * - Only targets known inline-text tags listed in INLINE_TEXT_TAGS.
- * - Does not process content inside `<code>` or `<pre>` elements.
- * - Text that already contains an `<a` tag is left untouched.
+ * - Text that already contains an `<a` tag is left untouched to avoid
+ *   double-processing.
  *
  * @param {string} html
  * @returns {string}
  */
-function processMarkdownLinksInHtml(html) {
-	// Pattern: opening tag, inner content, closing tag
-	// We build a regex that matches each target tag's opening-to-closing span.
+function processMarkdownInHtml(html) {
 	const tagPattern = INLINE_TEXT_TAGS.join('|');
 	const tagRe = new RegExp(
 		`(<(?:${tagPattern})(?:\\s[^>]*)?>)([\\s\\S]*?)(<\\/(?:${tagPattern})>)`,
@@ -76,35 +100,7 @@ function processMarkdownLinksInHtml(html) {
 		// Skip content that already contains an anchor tag to avoid double-processing.
 		if (/<a[\s>]/i.test(content)) return _match;
 
-		const processed = convertMarkdownLinks(content);
+		const processed = applyMarkdownTransformation(content);
 		return openTag + processed + closeTag;
 	});
-}
-
-/**
- * Convert `[text](url)` markdown link syntax to `<a href="url">text</a>`.
- * Backtick-enclosed spans are preserved as-is so code snippets are not
- * accidentally rewritten.
- *
- * @param {string} text
- * @returns {string}
- */
-function convertMarkdownLinks(text) {
-	// Tokenise the input so that backtick code spans are excluded from link
-	// replacement while the rest of the text is processed normally.
-	// Use [^`]+ (no dotAll) so a single code span cannot span multiple lines.
-	const parts = text.split(/(`[^`]+`)/g);
-	return parts
-		.map((part, index) => {
-			// Even-indexed parts are plain text; odd-indexed parts are code spans.
-			if (index % 2 !== 0) return part;
-			// Match standard markdown links.  The link text pattern [^\]\[]+ rejects
-			// unescaped `[` and `]` characters so we don't accidentally match nested
-			// brackets or partial link syntax.
-			return part.replace(
-				/\[([^\]\[]+)\]\(([^)]+)\)/g,
-				'<a href="$2">$1</a>',
-			);
-		})
-		.join('');
 }

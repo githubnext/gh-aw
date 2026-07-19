@@ -71,7 +71,7 @@ console.log('\nmultiple links inside <summary>:');
 }
 
 // -------------------------------------------------------------------
-// Test: backtick code spans inside <summary> are preserved
+// Test: backtick code spans inside <summary> are converted to <code>
 // -------------------------------------------------------------------
 console.log('\nbacktick code in <summary>:');
 {
@@ -81,8 +81,8 @@ console.log('\nbacktick code in <summary>:');
 	runTransform(tree);
 	assertEqual(
 		tree.children[0].value,
-		'<summary>Install `gh-aw` via <a href="step6.md">Step 6</a></summary>',
-		'code span preserved, link converted',
+		'<summary>Install <code>gh-aw</code> via <a href="step6.md">Step 6</a></summary>',
+		'backtick converted to <code>, link converted',
 	);
 }
 
@@ -97,8 +97,8 @@ console.log('\nlink syntax inside code span is not converted:');
 	runTransform(tree);
 	assertEqual(
 		tree.children[0].value,
-		'<summary>Use `[var](param)` to configure</summary>',
-		'code span link syntax preserved',
+		'<summary>Use <code>[var](param)</code> to configure</summary>',
+		'code span link syntax not converted, backtick rendered as <code>',
 	);
 }
 
@@ -136,7 +136,7 @@ console.log('\nfull GFM alert with <details>/<summary>:');
 	);
 	runTransform(tree);
 	const expected =
-		'<details>\n<summary>Using the <b>CCA</b>? Open a terminal in <a href="06-install-gh-aw.md">Step 6</a> to install `gh-aw`.</summary>\n\n**More info:** See [Step 1](01-prerequisites.md) for the checklist.\n\n</details>';
+		'<details>\n<summary>Using the <b>CCA</b>? Open a terminal in <a href="06-install-gh-aw.md">Step 6</a> to install <code>gh-aw</code>.</summary>\n\n**More info:** See [Step 1](01-prerequisites.md) for the checklist.\n\n</details>';
 	assertEqual(tree.children[0].value, expected, 'link in <summary> converted, body outside tag unchanged');
 }
 
