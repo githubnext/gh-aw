@@ -588,8 +588,17 @@ func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *
 	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set a default.
 	if modelConfigured {
-		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.CopilotCLIModelEnvVar] = workflowData.EngineConfig.Model
+		model := workflowData.EngineConfig.Model
+		// "auto" and "none" are pass-through sentinels: do not inject COPILOT_MODEL so that
+		// the Copilot CLI performs automatic model selection. This is required on plans limited
+		// to automatic selection (e.g. Copilot Free), where every explicit --model value is
+		// rejected by the gateway with HTTP 400.
+		if model == constants.CopilotAutoModelSentinel || model == constants.CopilotNoModelSentinel {
+			copilotExecLog.Printf("Skipping %s injection: model=%q is a pass-through sentinel; Copilot CLI will use automatic selection", constants.CopilotCLIModelEnvVar, model)
+			return
+		}
+		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, model)
+		env[constants.CopilotCLIModelEnvVar] = model
 		return
 	}
 	env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)

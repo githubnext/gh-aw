@@ -319,6 +319,19 @@ const (
 	// This matches the current Copilot default model.
 	CopilotBYOKDefaultModel = "claude-sonnet-4.6"
 
+	// CopilotAutoModelSentinel is the model value that opts out of model pinning
+	// and delegates model selection entirely to the Copilot CLI's automatic routing.
+	// Setting engine.model to this value (or to CopilotNoModelSentinel) suppresses
+	// the COPILOT_MODEL env var injection so the CLI can auto-select the model
+	// for the caller's account plan (e.g. Copilot Free, which rejects explicit model
+	// values for plans limited to automatic selection).
+	CopilotAutoModelSentinel = "auto"
+
+	// CopilotNoModelSentinel is an alias for CopilotAutoModelSentinel.
+	// Setting engine.model to "none" has the same effect as "auto": COPILOT_MODEL
+	// is not injected and the Copilot CLI performs automatic model selection.
+	CopilotNoModelSentinel = "none"
+
 	// CodexDefaultModel is the default model for the Codex agentic engine.
 	// Used as the fallback when no explicit model is configured and the
 	// GH_AW_MODEL_AGENT_CODEX / GH_AW_MODEL_DETECTION_CODEX variable is unset.

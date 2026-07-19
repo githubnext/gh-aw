@@ -472,7 +472,63 @@ func TestGetModelEnvVarName(t *testing.T) {
 	}
 }
 
-// TestCodexModelFlagPositionAfterExec verifies that the --model flag appears after the exec
+// TestCopilotAutoModelSentinelSkipsCOPILOT_MODEL tests that setting model to "auto" or "none"
+// suppresses COPILOT_MODEL injection so the Copilot CLI uses automatic model selection.
+// This is required for Copilot Free plans that only allow automatic model selection.
+func TestCopilotAutoModelSentinelSkipsCOPILOT_MODEL(t *testing.T) {
+	tests := []struct {
+		name  string
+		model string
+	}{
+		{name: "auto sentinel skips COPILOT_MODEL injection", model: "auto"},
+		{name: "none sentinel skips COPILOT_MODEL injection", model: "none"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-auto-model",
+				AI:   "copilot",
+				EngineConfig: &EngineConfig{
+					ID:    "copilot",
+					Model: tt.model,
+				},
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+				},
+				SafeOutputs: &SafeOutputsConfig{},
+			}
+
+			engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get engine: %v", err)
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+			var stepsStr strings.Builder
+			for _, step := range steps {
+				for _, line := range step {
+					stepsStr.WriteString(line)
+					stepsStr.WriteString("\n")
+				}
+			}
+			stepsContent := stepsStr.String()
+
+			// COPILOT_MODEL must NOT appear in the env when the sentinel is set.
+			// The Copilot CLI must be free to use automatic model selection.
+			if strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+":") {
+				t.Errorf("COPILOT_MODEL should NOT be injected when model=%q (auto-select sentinel);\ngot:\n%s", tt.model, stepsContent)
+			}
+
+			// The sentinel value itself must not appear as a model anywhere.
+			if strings.Contains(stepsContent, "COPILOT_MODEL: "+tt.model) {
+				t.Errorf("Sentinel value %q must not appear as COPILOT_MODEL value;\ngot:\n%s", tt.model, stepsContent)
+			}
+		})
+	}
+}
+
 // subcommand in the generated Codex command, not before it.
 // Regression test for: Codex lock compiler places --model flag before exec subcommand.
 func TestCodexModelFlagPositionAfterExec(t *testing.T) {

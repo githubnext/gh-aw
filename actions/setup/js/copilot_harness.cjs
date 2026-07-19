@@ -306,6 +306,12 @@ function applyCopilotModelAliasResolution(options) {
     reflectData: options.awfReflectData,
     logger,
   });
+  // resolveConfiguredCopilotModel returns "" for pass-through sentinels ("auto", "none").
+  // In that case clear COPILOT_MODEL so the Copilot CLI uses automatic model selection.
+  if (resolvedModel === "") {
+    process.env.COPILOT_MODEL = "";
+    return "";
+  }
   if (resolvedModel && resolvedModel !== configuredModel) {
     process.env.COPILOT_MODEL = resolvedModel;
   }

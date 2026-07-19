@@ -117,4 +117,30 @@ describe("resolve_model_alias", () => {
     const result = resolveModelAlias("combo", diamondAliasMap, ["copilot/claude-haiku-4.5"]);
     expect(result).toBe("copilot/claude-haiku-4.5");
   });
+
+  it("resolveConfiguredCopilotModel returns empty string for 'auto' sentinel", () => {
+    const messages = [];
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "auto",
+      aliasMap: ALIAS_MAP,
+      reflectData: null,
+      logger: msg => messages.push(msg),
+    });
+    expect(resolved).toBe("");
+    expect(messages.some(m => m.includes("pass-through sentinel"))).toBe(true);
+  });
+
+  it("resolveConfiguredCopilotModel returns empty string for 'none' sentinel", () => {
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "none",
+      aliasMap: ALIAS_MAP,
+      reflectData: null,
+    });
+    expect(resolved).toBe("");
+  });
+
+  it("resolveConfiguredCopilotModel returns empty string for uppercase sentinel variants", () => {
+    expect(resolveConfiguredCopilotModel({ configuredModel: "AUTO", aliasMap: ALIAS_MAP, reflectData: null })).toBe("");
+    expect(resolveConfiguredCopilotModel({ configuredModel: "None", aliasMap: ALIAS_MAP, reflectData: null })).toBe("");
+  });
 });

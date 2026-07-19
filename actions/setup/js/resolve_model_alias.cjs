@@ -281,6 +281,16 @@ function resolveConfiguredCopilotModel(options) {
   if (!configuredModel) {
     return configuredModel;
   }
+
+  // "auto" and "none" are pass-through sentinels: return empty string so that
+  // COPILOT_MODEL is cleared and the Copilot CLI performs automatic model selection.
+  // This handles plans limited to automatic selection (e.g. Copilot Free).
+  const lowerModel = configuredModel.toLowerCase();
+  if (lowerModel === "auto" || lowerModel === "none") {
+    logger(`copilot model pass-through sentinel '${configuredModel}': clearing COPILOT_MODEL for automatic model selection`);
+    return "";
+  }
+
   if (!aliasMap || typeof aliasMap !== "object") {
     return normalizeForCopilotCLI(configuredModel);
   }
