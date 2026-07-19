@@ -133,11 +133,15 @@ function extractSummary(body) {
 function addEntryMetadata(entries) {
 	return entries.map((entry) => {
 		const { frontmatter, body } = parseFrontmatter(entry.body);
+		// Frontmatter is present in fresh remote entries. Cached entries (loaded from the
+		// generated file on a transient fetch failure) have already had their frontmatter
+		// stripped, so parseFrontmatter returns empty frontmatter — fall back to the
+		// existing field value on the entry before falling back to the default.
 		return {
 			...entry,
 			body,
-			journey: frontmatter['journey'] || 'all',
-			adventure: frontmatter['adventure'] || 'core',
+			journey: frontmatter['journey'] || entry.journey || 'all',
+			adventure: frontmatter['adventure'] || entry.adventure || 'core',
 			title: extractTitle(body, entry.id),
 			summary: extractSummary(body),
 		};
