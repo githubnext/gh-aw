@@ -129,6 +129,7 @@ func TestGetAllCodemods_ContainsExpectedCodemods(t *testing.T) {
 		"run-install-scripts-to-runtimes-node",
 		"mentions-allow-team-members-to-allowed-collaborators",
 		"engine-copilot-sdk-driver-to-driver",
+		"engine-model-to-top-level",
 	}
 
 	for _, expectedID := range expectedIDs {
@@ -245,5 +246,6 @@ func expectedCodemodOrder() []string {
 		"run-install-scripts-to-runtimes-node",
 		"mentions-allow-team-members-to-allowed-collaborators",
 		"engine-copilot-sdk-driver-to-driver",
+		"engine-model-to-top-level",
 	}
 }

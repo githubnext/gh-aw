@@ -1072,9 +1072,9 @@ func TestBuildActivationJobWrapsRepositoryStepErrors(t *testing.T) {
 	data := &WorkflowData{
 		Name:            "test-workflow",
 		NeedsTextOutput: true,
+		Model:           "/bad-provider",
 		EngineConfig: &EngineConfig{
-			ID:    "opencode",
-			Model: "/bad-provider",
+			ID: "opencode",
 		},
 	}
 

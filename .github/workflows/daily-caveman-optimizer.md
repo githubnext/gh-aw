@@ -15,9 +15,9 @@ permissions:
   issues: read
 
 tracker-id: daily-caveman-optimizer
+model: "${{ needs.activation.outputs.model_size }}"
 engine:
   id: claude
-  model: "${{ needs.activation.outputs.model_size }}"
 strict: true
 experiments:
   model_size:

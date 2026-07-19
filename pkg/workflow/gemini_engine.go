@@ -172,7 +172,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// configured. When not configured, the Gemini CLI uses its built-in default model.
 	// This avoids embedding the value directly in the shell command (which fails template injection
 	// validation for GitHub Actions expressions like ${{ inputs.model }}).
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	modelConfigured := workflowData.Model != ""
 
 	// Gemini CLI reads MCP config from .gemini/settings.json (project-level)
 	// The conversion script (convert_gateway_config_gemini.sh) writes settings.json
@@ -328,8 +328,8 @@ touch %s
 	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
 	// When model is not configured, let the Gemini CLI use its built-in default model.
 	if modelConfigured {
-		geminiLog.Printf("Setting %s env var for model: %s", constants.GeminiCLIModelEnvVar, workflowData.EngineConfig.Model)
-		env[constants.GeminiCLIModelEnvVar] = workflowData.EngineConfig.Model
+		geminiLog.Printf("Setting %s env var for model: %s", constants.GeminiCLIModelEnvVar, workflowData.Model)
+		env[constants.GeminiCLIModelEnvVar] = workflowData.Model
 	}
 
 	// Add custom environment variables from engine config.

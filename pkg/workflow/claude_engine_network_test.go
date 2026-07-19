@@ -12,9 +12,9 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 
 	t.Run("InstallationSteps without network permissions", func(t *testing.T) {
 		workflowData := &WorkflowData{
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 		}
 
@@ -27,9 +27,9 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 
 	t.Run("InstallationSteps with network permissions and firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{"example.com", "*.trusted.com"},
@@ -53,10 +53,10 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 
 	t.Run("ExecutionSteps without network permissions", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Name: "test-workflow",
+			Name:  "test-workflow",
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 		}
 
@@ -81,10 +81,10 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 
 	t.Run("ExecutionSteps with network permissions and firewall enabled", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Name: "test-workflow",
+			Name:  "test-workflow",
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{"example.com"},
@@ -123,8 +123,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 
 	t.Run("ExecutionSteps with empty allowed domains and firewall enabled", func(t *testing.T) {
 		config := &EngineConfig{
-			ID:    "claude",
-			Model: "claude-3-5-sonnet-20241022",
+			ID: "claude",
 		}
 
 		networkPermissions := &NetworkPermissions{
@@ -132,7 +131,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			Firewall: &FirewallConfig{Enabled: true},
 		}
 
-		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
+		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", Model: "claude-3-5-sonnet-20241022", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
 		if len(steps) == 0 {
 			t.Fatal("Expected at least one execution step")
 		}
@@ -150,8 +149,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 		// Note: This test uses Claude engine but with non-Claude engine config ID
 		// The behavior should still be based on the actual engine type, not the config ID
 		config := &EngineConfig{
-			ID:    "codex", // Non-Claude engine ID
-			Model: "gpt-4",
+			ID: "codex", // Non-Claude engine ID
 		}
 
 		networkPermissions := &NetworkPermissions{
@@ -159,7 +157,7 @@ func TestClaudeEngineNetworkPermissions(t *testing.T) {
 			Firewall: &FirewallConfig{Enabled: true},
 		}
 
-		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
+		steps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", Model: "gpt-4", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
 		if len(steps) == 0 {
 			t.Fatal("Expected at least one execution step")
 		}
@@ -179,8 +177,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 	t.Run("Full workflow generation with AWF", func(t *testing.T) {
 		engine := NewClaudeEngine()
 		config := &EngineConfig{
-			ID:    "claude",
-			Model: "claude-3-5-sonnet-20241022",
+			ID: "claude",
 		}
 
 		networkPermissions := &NetworkPermissions{
@@ -189,7 +186,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		}
 
 		// Get installation steps
-		steps := engine.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})
+		steps := engine.GetInstallationSteps(&WorkflowData{Model: "claude-3-5-sonnet-20241022", EngineConfig: config, NetworkPermissions: networkPermissions})
 		// With AWF enabled: Node.js setup + AWF install + Claude install = 3 steps
 		// (secret validation is now in the activation job)
 		if len(steps) != 3 {
@@ -203,7 +200,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		}
 
 		// Get execution steps
-		execSteps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
+		execSteps := engine.GetExecutionSteps(&WorkflowData{Name: "test-workflow", Model: "claude-3-5-sonnet-20241022", EngineConfig: config, NetworkPermissions: networkPermissions}, "test-log")
 		if len(execSteps) == 0 {
 			t.Fatal("Expected at least one execution step")
 		}
@@ -241,8 +238,7 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 		engine2 := NewClaudeEngine()
 
 		config := &EngineConfig{
-			ID:    "claude",
-			Model: "claude-3-5-sonnet-20241022",
+			ID: "claude",
 		}
 
 		networkPermissions := &NetworkPermissions{
@@ -250,15 +246,15 @@ func TestNetworkPermissionsIntegration(t *testing.T) {
 			Firewall: &FirewallConfig{Enabled: true},
 		}
 
-		steps1 := engine1.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})
-		steps2 := engine2.GetInstallationSteps(&WorkflowData{EngineConfig: config, NetworkPermissions: networkPermissions})
+		steps1 := engine1.GetInstallationSteps(&WorkflowData{Model: "claude-3-5-sonnet-20241022", EngineConfig: config, NetworkPermissions: networkPermissions})
+		steps2 := engine2.GetInstallationSteps(&WorkflowData{Model: "claude-3-5-sonnet-20241022", EngineConfig: config, NetworkPermissions: networkPermissions})
 
 		if len(steps1) != len(steps2) {
 			t.Errorf("Engine instances should produce same number of steps, got %d and %d", len(steps1), len(steps2))
 		}
 
-		execSteps1 := engine1.GetExecutionSteps(&WorkflowData{Name: "test", EngineConfig: config, NetworkPermissions: networkPermissions}, "log")
-		execSteps2 := engine2.GetExecutionSteps(&WorkflowData{Name: "test", EngineConfig: config, NetworkPermissions: networkPermissions}, "log")
+		execSteps1 := engine1.GetExecutionSteps(&WorkflowData{Name: "test", Model: "claude-3-5-sonnet-20241022", EngineConfig: config, NetworkPermissions: networkPermissions}, "log")
+		execSteps2 := engine2.GetExecutionSteps(&WorkflowData{Name: "test", Model: "claude-3-5-sonnet-20241022", EngineConfig: config, NetworkPermissions: networkPermissions}, "log")
 
 		if len(execSteps1) != len(execSteps2) {
 			t.Errorf("Engine instances should produce same number of execution steps, got %d and %d", len(execSteps1), len(execSteps2))

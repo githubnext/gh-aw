@@ -117,7 +117,7 @@ func TestEngineVersionTypeHandling(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			_, config, _ := compiler.ExtractEngineConfig(tt.frontmatter)
 
 			if config == nil {
 				t.Fatal("Expected config to be non-nil")
@@ -157,7 +157,7 @@ func TestEngineVersionNotProvided(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			_, config, _ := compiler.ExtractEngineConfig(tt.frontmatter)
 
 			if config == nil {
 				t.Fatal("Expected config to be non-nil")
@@ -185,7 +185,7 @@ func TestEngineVersionWithOtherFields(t *testing.T) {
 	}
 
 	compiler := NewCompiler()
-	_, config := compiler.ExtractEngineConfig(frontmatter)
+	_, config, model := compiler.ExtractEngineConfig(frontmatter)
 
 	if config == nil {
 		t.Fatal("Expected config to be non-nil")
@@ -199,8 +199,8 @@ func TestEngineVersionWithOtherFields(t *testing.T) {
 		t.Errorf("Expected version '0.0.369', got %q", config.Version)
 	}
 
-	if config.Model != "gpt-4" {
-		t.Errorf("Expected model 'gpt-4', got %q", config.Model)
+	if model != "gpt-4" {
+		t.Errorf("Expected model 'gpt-4', got %q", model)
 	}
 
 	if len(config.Env) != 1 {
@@ -264,7 +264,7 @@ func TestEngineCommandField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			_, config, _ := compiler.ExtractEngineConfig(tt.frontmatter)
 
 			if config == nil {
 				t.Fatal("Expected config to be non-nil")
@@ -340,7 +340,7 @@ func TestAPITargetExtraction(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, config := compiler.ExtractEngineConfig(tt.frontmatter)
+			_, config, _ := compiler.ExtractEngineConfig(tt.frontmatter)
 
 			if config == nil {
 				t.Fatal("Expected config to be non-nil")

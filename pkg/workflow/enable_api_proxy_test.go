@@ -147,10 +147,10 @@ func TestEngineAWFEnableApiProxy(t *testing.T) {
 			"cli-proxy": true,
 		}
 		workflowData := &WorkflowData{
-			Name: "test-workflow",
+			Name:  "test-workflow",
+			Model: "copilot/claude-sonnet-4-20250514",
 			EngineConfig: &EngineConfig{
-				ID:    "pi",
-				Model: "copilot/claude-sonnet-4-20250514",
+				ID: "pi",
 			},
 			Tools:       toolsRaw,
 			ParsedTools: NewTools(toolsRaw),
