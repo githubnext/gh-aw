@@ -59,7 +59,11 @@ steps:
       fi
 
       batch_size=2
-      start_index=$(( ( (10#$(date -u +%j) - 1) * batch_size ) % ${#packages[@]} ))
+      day_of_year="$(date -u +%j)"
+      day_of_year="${day_of_year#0}"
+      day_of_year="${day_of_year#0}"
+      : "${day_of_year:=1}"
+      start_index=$(( ( (day_of_year - 1) * batch_size ) % ${#packages[@]} ))
       : > /tmp/gh-aw/agent/semantic-function-refactor/targets.txt
       : > /tmp/gh-aw/agent/semantic-function-refactor/go-files.txt
 
