@@ -529,6 +529,71 @@ func TestCopilotAutoModelSentinelSkipsCOPILOT_MODEL(t *testing.T) {
 	}
 }
 
+// TestCopilotAutoModelSentinelInBYOKModeUsesBYOKDefault tests that setting model to "auto" or "none"
+// when BYOK mode is active (COPILOT_PROVIDER_BASE_URL set via engine.env) injects the org-variable
+// expression with the BYOK default model, because BYOK providers require an explicit model id.
+func TestCopilotAutoModelSentinelInBYOKModeUsesBYOKDefault(t *testing.T) {
+	tests := []struct {
+		name  string
+		model string
+	}{
+		{name: "auto sentinel in BYOK mode uses BYOK default", model: "auto"},
+		{name: "none sentinel in BYOK mode uses BYOK default", model: "none"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name: "test-auto-model-byok",
+				AI:   "copilot",
+				EngineConfig: &EngineConfig{
+					ID:    "copilot",
+					Model: tt.model,
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "https://api.example.com/v1",
+					},
+				},
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+				},
+				SafeOutputs: &SafeOutputsConfig{},
+			}
+
+			engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get engine: %v", err)
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+
+			var stepsStr strings.Builder
+			for _, step := range steps {
+				for _, line := range step {
+					stepsStr.WriteString(line)
+					stepsStr.WriteString("\n")
+				}
+			}
+			stepsContent := stepsStr.String()
+
+			// COPILOT_MODEL MUST be injected in BYOK mode even when the sentinel is set.
+			// BYOK providers require an explicit model id.
+			if !strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+":") {
+				t.Errorf("COPILOT_MODEL should be injected when model=%q in BYOK mode (BYOK requires a model id);\ngot:\n%s", tt.model, stepsContent)
+			}
+
+			// The sentinel value itself must not appear as the COPILOT_MODEL value.
+			if strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+": "+tt.model) {
+				t.Errorf("Sentinel value %q must not appear as COPILOT_MODEL value in BYOK mode;\ngot:\n%s", tt.model, stepsContent)
+			}
+
+			// The BYOK default model must appear in the org-variable fallback expression.
+			if !strings.Contains(stepsContent, constants.CopilotBYOKDefaultModel) {
+				t.Errorf("BYOK default model %q must appear in COPILOT_MODEL expression in BYOK mode;\ngot:\n%s", constants.CopilotBYOKDefaultModel, stepsContent)
+			}
+		})
+	}
+}
+
 // TestCodexModelFlagPositionAfterExec verifies that the --model flag appears after the exec
 // subcommand in the generated Codex command, not before it.
 // Regression test for: Codex lock compiler places --model flag before exec subcommand.

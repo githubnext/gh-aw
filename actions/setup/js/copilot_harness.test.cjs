@@ -55,6 +55,7 @@ const {
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
+  applyCopilotModelAliasResolution,
 } = require("./copilot_harness.cjs");
 
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
@@ -2458,6 +2459,42 @@ process.exit(1);`,
       process.env.COPILOT_MODEL = "gpt-5-mini";
       applyCopilotWireAPI({ modelsJson: null, logger: () => {} });
       expect(process.env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+  });
+
+  describe("applyCopilotModelAliasResolution", () => {
+    afterEach(() => {
+      delete process.env.COPILOT_MODEL;
+      delete process.env.COPILOT_PROVIDER_BASE_URL;
+    });
+
+    it("deletes COPILOT_MODEL for 'auto' sentinel in non-BYOK mode", () => {
+      process.env.COPILOT_MODEL = "auto";
+      applyCopilotModelAliasResolution({ awfReflectData: null });
+      expect(process.env.COPILOT_MODEL).toBeUndefined();
+    });
+
+    it("deletes COPILOT_MODEL for 'none' sentinel in non-BYOK mode", () => {
+      process.env.COPILOT_MODEL = "none";
+      applyCopilotModelAliasResolution({ awfReflectData: null });
+      expect(process.env.COPILOT_MODEL).toBeUndefined();
+    });
+
+    it("preserves COPILOT_MODEL for 'auto' sentinel in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
+      process.env.COPILOT_MODEL = "auto";
+      process.env.COPILOT_PROVIDER_BASE_URL = "https://api.example.com/v1";
+      const logs = [];
+      applyCopilotModelAliasResolution({ awfReflectData: null, logger: msg => logs.push(msg) });
+      // BYOK requires a model id — sentinel must not delete COPILOT_MODEL
+      expect(process.env.COPILOT_MODEL).toBe("auto");
+      expect(logs.some(m => m.includes("BYOK"))).toBe(true);
+    });
+
+    it("preserves COPILOT_MODEL for 'none' sentinel in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
+      process.env.COPILOT_MODEL = "none";
+      process.env.COPILOT_PROVIDER_BASE_URL = "https://api.openai.com/v1";
+      applyCopilotModelAliasResolution({ awfReflectData: null });
+      expect(process.env.COPILOT_MODEL).toBe("none");
     });
   });
 });

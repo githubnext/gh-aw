@@ -487,7 +487,7 @@ func (e *CopilotEngine) buildCopilotStepEnv(
 	env := e.buildCopilotBaseStepEnv(workflowData, llmProvider, timeoutValue, flags.byokMode, useCopilotRequests)
 	e.addCopilotWorkflowStepEnv(env, workflowData, flags.sandboxEnabled)
 	e.addCopilotGitHubToolEnv(env, workflowData)
-	e.addCopilotModelEnv(env, workflowData, flags.modelConfigured, modelEnvVar)
+	e.addCopilotModelEnv(env, workflowData, flags.modelConfigured, modelEnvVar, flags.byokMode)
 	e.addCopilotFinalStepEnv(env, workflowData)
 	e.addCopilotSandboxEnv(env, flags.sandboxEnabled)
 	e.addCopilotSDKStepEnv(env, workflowData, copilotSDKServerArgsJSON)
@@ -583,23 +583,29 @@ func (e *CopilotEngine) addCopilotGitHubToolEnv(env map[string]string, workflowD
 	env["GITHUB_MCP_SERVER_TOKEN"] = getEffectiveGitHubToken(customGitHubToken)
 }
 
-func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *WorkflowData, modelConfigured bool, modelEnvVar string) {
+func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *WorkflowData, modelConfigured bool, modelEnvVar string, isBYOKMode bool) {
 	// Set the model environment variable.
 	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set a default.
 	if modelConfigured {
 		model := workflowData.EngineConfig.Model
-		// "auto" and "none" are pass-through sentinels: do not inject COPILOT_MODEL so that
-		// the Copilot CLI performs automatic model selection. This is required on plans limited
-		// to automatic selection (e.g. Copilot Free), where every explicit --model value is
-		// rejected by the gateway with HTTP 400.
-		if model == constants.CopilotAutoModelSentinel || model == constants.CopilotNoModelSentinel {
+		isSentinel := model == constants.CopilotAutoModelSentinel || model == constants.CopilotNoModelSentinel
+		if isSentinel && !isBYOKMode {
+			// "auto" and "none" are pass-through sentinels for non-BYOK mode: do not inject COPILOT_MODEL so that
+			// the Copilot CLI performs automatic model selection. This is required on plans limited
+			// to automatic selection (e.g. Copilot Free), where every explicit --model value is
+			// rejected by the gateway with HTTP 400.
 			copilotExecLog.Printf("Skipping %s injection: model=%q is a pass-through sentinel; Copilot CLI will use automatic selection", constants.CopilotCLIModelEnvVar, model)
 			return
 		}
-		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, model)
-		env[constants.CopilotCLIModelEnvVar] = model
-		return
+		if isSentinel {
+			// BYOK route requires an explicit model id — fall through to the org-variable expression.
+			copilotExecLog.Printf("Ignoring model=%q sentinel in BYOK mode: %s is required; using org-variable default", model, constants.CopilotCLIModelEnvVar)
+		} else {
+			copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, model)
+			env[constants.CopilotCLIModelEnvVar] = model
+			return
+		}
 	}
 	env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
 }

@@ -308,8 +308,13 @@ function applyCopilotModelAliasResolution(options) {
   });
   // resolveConfiguredCopilotModel returns "" for pass-through sentinels ("auto", "none").
   // In that case delete COPILOT_MODEL so the Copilot CLI uses automatic model selection
-  // without any residual empty-string environment variable.
+  // without any residual empty-string environment variable — UNLESS BYOK mode is active,
+  // because BYOK providers require an explicit model id.
   if (resolvedModel === "") {
+    if (process.env.COPILOT_PROVIDER_BASE_URL) {
+      logger(`copilot model pass-through sentinel '${configuredModel}' ignored in BYOK mode: COPILOT_MODEL is required for BYOK providers`);
+      return configuredModel;
+    }
     delete process.env.COPILOT_MODEL;
     return "";
   }
