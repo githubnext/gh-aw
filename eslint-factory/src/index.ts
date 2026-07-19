@@ -19,6 +19,7 @@ import { requireSpawnSyncErrorCheckRule } from "./rules/require-spawnsync-error-
 import { requireNewUrlTryCatchRule } from "./rules/require-new-url-try-catch";
 import { preferCoreLoggingRule } from "./rules/prefer-core-logging";
 import { noCoreErrorThenProcessExitRule } from "./rules/no-core-error-then-process-exit";
+import { noExecInterpolatedCommandRule } from "./rules/no-exec-interpolated-command";
 
 const plugin = {
   meta: {
@@ -47,6 +48,7 @@ const plugin = {
     "require-new-url-try-catch": requireNewUrlTryCatchRule,
     "prefer-core-logging": preferCoreLoggingRule,
     "no-core-error-then-process-exit": noCoreErrorThenProcessExitRule,
+    "no-exec-interpolated-command": noExecInterpolatedCommandRule,
   },
 };
 

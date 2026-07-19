@@ -17,9 +17,9 @@ sandbox:
     sudo: false
 
 tracker-id: lint-monster
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 strict: true
 timeout-minutes: 45
 tools:

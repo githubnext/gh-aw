@@ -12,6 +12,7 @@ name: Dev
 description: Daily status report for gh-aw project
 timeout-minutes: 30
 strict: false
+model: gpt-5.4
 engine:
   id: copilot
   model: auto

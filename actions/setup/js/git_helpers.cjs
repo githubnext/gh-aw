@@ -38,6 +38,54 @@ function getGitAuthEnv(token) {
 }
 
 /**
+ * Ensure the given directory is trusted for git in the current process context.
+ * Injects safe.directory via GIT_CONFIG_COUNT/KEY/VALUE env vars so that all
+ * subsequent git commands in this process inherit the trust without writing to
+ * ~/.gitconfig (no persistent global git config side effects).
+ *
+ * This is specifically needed for the "bridge" path (the Process Safe Outputs step
+ * running outside the Docker container) where HOME or the uid may differ from the
+ * in-container user that originally configured safe.directory in ~/.gitconfig.
+ *
+ * GIT_CONFIG_COUNT/KEY/VALUE is supported since git 2.31.
+ *
+ * @param {string} gitCwd - The directory to trust (e.g. GITHUB_WORKSPACE or a repo checkout path)
+ * @param {Object|Function} [logger] - Optional logger object
+ *   with a debug method (for example the MCP server) or a direct debug function.
+ * @returns {void}
+ */
+function ensureSafeDirectoryTrust(gitCwd, logger) {
+  if (!gitCwd) return;
+
+  // Check if gitCwd is already present in the injected env-var config to avoid
+  // duplicate entries when the handler is called more than once in the same process.
+  // Malformed pre-existing GIT_CONFIG_COUNT values (NaN, negative, fractional,
+  // or unsafe integers) fall back to 0 to avoid corrupting the env-var config chain.
+  const rawCount = process.env.GIT_CONFIG_COUNT || "0";
+  const parsedCount = Number(rawCount);
+  const existingCount = Number.isSafeInteger(parsedCount) && parsedCount >= 0 ? parsedCount : 0;
+  for (let i = 0; i < existingCount; i++) {
+    if (process.env[`GIT_CONFIG_KEY_${i}`] === "safe.directory" && process.env[`GIT_CONFIG_VALUE_${i}`] === gitCwd) {
+      return;
+    }
+  }
+
+  const idx = existingCount;
+  process.env.GIT_CONFIG_COUNT = String(existingCount + 1);
+  process.env[`GIT_CONFIG_KEY_${idx}`] = "safe.directory";
+  process.env[`GIT_CONFIG_VALUE_${idx}`] = gitCwd;
+  let debug;
+  if (typeof logger === "function") {
+    debug = logger;
+  } else if (typeof logger?.debug === "function") {
+    debug = logger.debug.bind(logger);
+  } else if (typeof globalThis.core?.debug === "function") {
+    debug = globalThis.core.debug.bind(globalThis.core);
+  }
+  debug?.(`Configured git safe.directory for bridge context: ${gitCwd}`);
+}
+
+/**
  * Safely execute git command using spawnSync with args array to prevent shell injection.
  *
  * Hardened against indefinite hangs: always runs git with non-interactive
@@ -603,6 +651,7 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
 }
 
 module.exports = {
+  ensureSafeDirectoryTrust,
   execGitSync,
   backfillCommitObjects,
   ensureFullHistoryForBundle,

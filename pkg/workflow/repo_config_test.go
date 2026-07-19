@@ -365,6 +365,65 @@ func TestIsAutoUpgradeEnabled_NilConfig(t *testing.T) {
 	assert.False(t, r.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return false for nil RepoConfig")
 }
 
+func TestLoadRepoConfig_AutoUpgradeCron(t *testing.T) {
+	t.Run("object form with cron enables auto_upgrade", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"cron": "0 9 * * 1"}}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err, "valid aw.json with auto_upgrade object should load without error")
+		require.NotNil(t, cfg.AutoUpgrade, "auto_upgrade should be set")
+		assert.True(t, *cfg.AutoUpgrade, "auto_upgrade object form should imply enabled")
+		assert.True(t, cfg.IsAutoUpgradeEnabled(), "IsAutoUpgradeEnabled should return true for object form")
+		assert.Equal(t, "0 9 * * 1", cfg.AutoUpgradeCron, "cron should be set from nested field")
+	})
+
+	t.Run("object form without cron uses fuzzy schedule", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {}}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err)
+		require.NotNil(t, cfg.AutoUpgrade, "auto_upgrade should be set")
+		assert.True(t, *cfg.AutoUpgrade, "empty object should imply enabled")
+		assert.Empty(t, cfg.AutoUpgradeCron, "AutoUpgradeCron should be empty when cron is omitted")
+	})
+
+	t.Run("boolean true has no cron", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": true}`)
+
+		cfg, err := LoadRepoConfig(dir)
+		require.NoError(t, err)
+		assert.Empty(t, cfg.AutoUpgradeCron, "AutoUpgradeCron should be empty when using boolean form")
+	})
+
+	t.Run("rejects invalid cron pattern", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"cron": "not-a-cron"}}`)
+
+		// Invalid cron is rejected by JSON schema validation in LoadRepoConfig.
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "invalid cron in auto_upgrade object should return an error")
+	})
+
+	t.Run("rejects out-of-range cron values", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"cron": "99 99 99 99 99"}}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "out-of-range cron values should return an error")
+	})
+
+	t.Run("rejects six-field cron", func(t *testing.T) {
+		dir := t.TempDir()
+		writeAWJSON(t, dir, `{"auto_upgrade": {"cron": "0 0 * * * *"}}`)
+
+		_, err := LoadRepoConfig(dir)
+		assert.Error(t, err, "six-field cron should return an error")
+	})
+}
+
 func TestLoadRepoConfig_ActionPins(t *testing.T) {
 	t.Run("loads action_pins mapping", func(t *testing.T) {
 		dir := t.TempDir()
@@ -414,6 +473,42 @@ func TestLoadRepoConfig_ActionPins(t *testing.T) {
 		_, err := LoadRepoConfig(dir)
 		assert.Error(t, err, "value without @version should fail schema validation")
 	})
+}
+
+func TestValidateCronExpression(t *testing.T) {
+	valid := []string{
+		"0 9 * * 1",
+		"30 5 * * 1-5",
+		"0 0 * * 0",
+		"*/15 * * * *",
+		"0 0 1,15 * *",
+		"59 23 31 12 7",
+		"0 0 * * 1-5/2",
+	}
+	for _, expr := range valid {
+		t.Run("valid: "+expr, func(t *testing.T) {
+			assert.NoError(t, validateCronExpression(expr), "should accept %q", expr)
+		})
+	}
+
+	invalid := []string{
+		"not-a-cron",
+		"99 99 99 99 99",
+		"0 0 * * * *", // 6 fields
+		"0 0 * *",     // 4 fields
+		"60 0 * * *",  // minute out of range
+		"0 24 * * *",  // hour out of range
+		"0 0 0 * *",   // DOM 0 out of range
+		"0 0 * 0 *",   // month 0 out of range
+		"0 0 * 13 *",  // month 13 out of range
+		"0 0 * * 8",   // DOW 8 out of range
+		"0 0 * * 1/0", // step 0 invalid
+	}
+	for _, expr := range invalid {
+		t.Run("invalid: "+expr, func(t *testing.T) {
+			assert.Error(t, validateCronExpression(expr), "should reject %q", expr)
+		})
+	}
 }
 
 // writeAWJSON creates .github/workflows/aw.json with the given JSON content.

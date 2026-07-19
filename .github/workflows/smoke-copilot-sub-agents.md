@@ -11,10 +11,10 @@ permissions:
   copilot-requests: write
 name: Smoke Copilot Sub Agents
 strict: true
+model: gpt-5.3-codex
 engine:
   id: copilot
   copilot-sdk: true
-  model: gpt-5.3-codex
   bare: true
 safe-outputs:
   create-issue:

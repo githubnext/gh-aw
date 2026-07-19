@@ -19,10 +19,10 @@ import (
 func TestFirewallWorkflowNetworkConfiguration(t *testing.T) {
 	// Create workflow data with network defaults, firewall enabled, and web-fetch tool
 	workflowData := &WorkflowData{
-		Name: "firewall",
+		Name:  "firewall",
+		Model: "claude-3-5-sonnet-20241022",
 		EngineConfig: &EngineConfig{
-			ID:    "claude",
-			Model: "claude-3-5-sonnet-20241022",
+			ID: "claude",
 		},
 		NetworkPermissions: &NetworkPermissions{
 			Firewall: &FirewallConfig{Enabled: true},

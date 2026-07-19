@@ -174,10 +174,10 @@ func TestBuildParseEvalsResultsStepUsesResolvedExecutionModel(t *testing.T) {
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
-		AI: "claude",
+		AI:    "claude",
+		Model: "claude-sonnet-4.6",
 		EngineConfig: &EngineConfig{
-			ID:    "claude",
-			Model: "claude-sonnet-4.6",
+			ID: "claude",
 		},
 		Evals: &EvalsConfig{
 			Questions: []EvalDefinition{

@@ -155,7 +155,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	providerOverrideBYOK := llmProvider != LLMProviderGitHub && sandboxEnabled
 	isBYOKMode := providerOverrideBYOK || engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
 	isDetectionJob := workflowData.SafeOutputs == nil
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	modelConfigured := workflowData.Model != ""
 	copilotArgs := e.buildCopilotArgs(workflowData)
 	mkdirCommands := buildCopilotMkdirCommands(copilotArgs)
 	modelEnvVar := getCopilotModelEnvVar(isDetectionJob)
@@ -588,7 +588,7 @@ func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *
 	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set a default.
 	if modelConfigured {
-		model := workflowData.EngineConfig.Model
+		model := workflowData.Model
 		isSentinel := model == constants.CopilotAutoModelSentinel || model == constants.CopilotNoModelSentinel
 		if isSentinel && !isBYOKMode {
 			// "auto" and "none" are pass-through sentinels for non-BYOK mode: do not inject COPILOT_MODEL so that

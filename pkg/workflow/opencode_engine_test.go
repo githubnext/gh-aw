@@ -62,10 +62,9 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 
 	t.Run("firewall sets OpenCode gateway base URL and OPENAI_BASE_URL", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				Model: "copilot/gpt-5",
-			},
+			Name:         "test-workflow",
+			Model:        "copilot/gpt-5",
+			EngineConfig: &EngineConfig{},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed: []string{"defaults"},
 				Firewall: &FirewallConfig{
@@ -83,10 +82,9 @@ func TestOpenCodeEngineInstallationAndExecution(t *testing.T) {
 
 	t.Run("firewall passes model through awf-proxy prefix rewrite in OPENCODE_MODEL", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				Model: "copilot/gpt-5",
-			},
+			Name:         "test-workflow",
+			Model:        "copilot/gpt-5",
+			EngineConfig: &EngineConfig{},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed: []string{"defaults"},
 				Firewall: &FirewallConfig{
@@ -109,7 +107,8 @@ func TestOpenCodeEngineProviderProfiles(t *testing.T) {
 
 	t.Run("anthropic model uses anthropic secret", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			EngineConfig: &EngineConfig{Model: "anthropic/claude-sonnet-4"},
+			Model:        "anthropic/claude-sonnet-4",
+			EngineConfig: &EngineConfig{},
 			ParsedTools:  &ToolsConfig{},
 			Tools:        map[string]any{},
 		}
@@ -120,7 +119,8 @@ func TestOpenCodeEngineProviderProfiles(t *testing.T) {
 
 	t.Run("openai model uses codex/openai secrets", func(t *testing.T) {
 		workflowData := &WorkflowData{
-			EngineConfig: &EngineConfig{Model: "openai/gpt-4.1"},
+			Model:        "openai/gpt-4.1",
+			EngineConfig: &EngineConfig{},
 			ParsedTools:  &ToolsConfig{},
 			Tools:        map[string]any{},
 		}

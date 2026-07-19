@@ -33,9 +33,9 @@ safe-outputs:
 description: Generates and maintains specification-driven test suites for each Go package, relying on README.md specifications rather than source code
 emoji: 📋
 max-turns: 100
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 name: Package Specification Enforcer
 strict: true
 timeout-minutes: 30

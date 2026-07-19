@@ -106,7 +106,7 @@ func extractEngineConfigFromFile(filePath string) (string, *workflow.EngineConfi
 	}
 
 	compiler := &workflow.Compiler{}
-	engineSetting, engineConfig := compiler.ExtractEngineConfig(result.Frontmatter)
+	engineSetting, engineConfig, _ := compiler.ExtractEngineConfig(result.Frontmatter)
 
 	if engineConfig != nil && engineConfig.ID != "" {
 		return engineConfig.ID, engineConfig, result.Frontmatter

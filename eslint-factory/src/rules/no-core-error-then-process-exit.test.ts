@@ -37,6 +37,13 @@ describe("no-core-error-then-process-exit", () => {
       ],
       invalid: [
         {
+          // module top-level: no enclosing function (enclosingFn === null), autofix is safe because
+          // there is no caller that could continue after the replacement statement.
+          // The trailing space in the output is inter-statement whitespace left by the fixer.
+          code: `core.error("fatal"); process.exit(1);`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("fatal");\n ' }] }],
+        },
+        {
           // The trailing space in each output is the whitespace between the two original
           // statements that is not part of either ExpressionStatement node's range. The
           // suggestion fixer removes the process.exit() node but leaves the inter-statement
@@ -53,8 +60,37 @@ describe("no-core-error-then-process-exit", () => {
           errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: "core.setFailed(`ERROR: ${message}`);\n " }] }],
         },
         {
+          // pair inside a non-main function: no autofix because `return` only exits the helper,
+          // not the process. The `run` name is not the entrypoint.
           code: `function run() { core.error("oops"); process.exit(1); }`,
-          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'function run() { core.setFailed("oops"); return;\n  }' }] }],
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // pair inside a value-returning helper: no autofix — `return` would make the helper
+          // return `undefined` instead of aborting the process (acceptance criterion a).
+          code: `function requireEnvVar(name) { const value = process.env[name]; if (!value) { core.error(\`ERROR: \${name} required\`); process.exit(1); } return value; }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // nested function main() inside another function: must NOT get autofix -- `return` only
+          // exits the inner `main`, so the outer helper continues (module-scope restriction).
+          code: `function setup() { function main() { core.error("fatal"); process.exit(1); } main(); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // nested const main = () => {} inside another function: must NOT get autofix.
+          code: `function setup() { const main = async () => { core.error("fatal"); process.exit(1); }; main(); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // pair inside async function main() entrypoint: autofix retained (acceptance criterion c).
+          code: `async function main() { core.error("fatal"); process.exit(1); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'async function main() { core.setFailed("fatal"); return;\n  }' }] }],
+        },
+        {
+          // pair inside const main = async () => {} entrypoint: autofix retained.
+          code: `const main = async () => { core.error("fatal"); process.exit(1); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'const main = async () => { core.setFailed("fatal"); return;\n  }' }] }],
         },
         {
           // Computed property: core["error"]
