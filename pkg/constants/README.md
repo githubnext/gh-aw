@@ -532,7 +532,7 @@ dir := constants.GetWorkflowDir() // ".github/workflows"
 ## Dependencies
 
 **Internal**:
-- None
+- `github.com/github/gh-aw/pkg/setutil` — set membership helpers
 
 **External**:
 - None beyond the Go standard library (`io/fs`, `os`, `path/filepath`, `time`).

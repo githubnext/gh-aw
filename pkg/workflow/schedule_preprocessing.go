@@ -190,8 +190,7 @@ func (c *Compiler) preprocessScheduleFields(frontmatter map[string]any, markdown
 		if err != nil {
 			// Check if this is an explicit rejection of unsupported syntax
 			// vs. just not being a valid schedule at all
-			//nolint:errstringmatch // gronx currently exposes unsupported cron syntax only as plain error text.
-			if strings.Contains(err.Error(), "syntax is not supported") {
+			if errors.Is(err, parser.ErrUnsupportedSyntax) {
 				// This is an explicit rejection - return the error
 				return err
 			}
