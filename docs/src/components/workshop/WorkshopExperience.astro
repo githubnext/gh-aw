@@ -862,9 +862,11 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					const stepCountEl = button.querySelector('[data-workshop-step-count]');
 					if (stepCountEl) {
 						const scenarioId = button.getAttribute('data-workshop-scenario');
-						const count = (manifest.scenarioStepCountsByJourney || {})[state.journeyId]?.[scenarioId];
-						if (count != null) {
-							stepCountEl.textContent = `${count} steps`;
+						if (scenarioId) {
+							const count = (manifest.scenarioStepCountsByJourney || {})[state.journeyId]?.[scenarioId];
+							if (count != null) {
+								stepCountEl.textContent = `${count} steps`;
+							}
 						}
 					}
 				});
@@ -1143,6 +1145,10 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		font-weight: 700;
 		letter-spacing: 0.04em;
 		white-space: nowrap;
+	}
+
+	.aw-workshop-card-route:empty {
+		display: none;
 	}
 
 	.aw-workshop-card-scenario {
