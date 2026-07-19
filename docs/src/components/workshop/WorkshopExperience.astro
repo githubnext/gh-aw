@@ -35,7 +35,7 @@ type WorkshopMarkdownModule = {
 
 const workshopGithubBase = workshopSource.githubBaseUrl;
 const workshopImageBase = workshopSource.rawBaseUrl;
-const workshopLocalLinkPrefix = '/gh-aw/workshop/?__gh_aw_workshop_local__=';
+const workshopLocalLinkPrefix = '/gh-aw/workshop/hackathon-blue-bat-18/?__gh_aw_workshop_local__=';
 const workshopMarkdownModules = import.meta.glob('../../generated/workshop-markdown/*.md', { eager: true }) as Record<string, WorkshopMarkdownModule>;
 const primerIcons = octicons as Record<string, { toSVG: (options: Record<string, string | number>) => string }>;
 

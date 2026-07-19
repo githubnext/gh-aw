@@ -295,7 +295,7 @@ export default defineConfig({
 					errorOnLocalLinks: true,
 					exclude: ({ file, link }) =>
 						file.includes('/src/generated/workshop-markdown/')
-						&& link.startsWith('/gh-aw/workshop/?__gh_aw_workshop_local__='),
+						&& link.startsWith('/gh-aw/workshop/hackathon-blue-bat-18/?__gh_aw_workshop_local__='),
 				})
 			],
 			sidebar: [
