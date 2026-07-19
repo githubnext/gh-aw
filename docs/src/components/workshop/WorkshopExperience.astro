@@ -55,18 +55,6 @@ function iconSvg(name: string, size = 20) {
 	return icon.toSVG({ width: size, height: size, 'aria-hidden': 'true' });
 }
 
-// Map the workshop's Primer icon names to the closest built-in Starlight card icons.
-const workshopCardIcons = {
-	browser: 'window',
-	'device-desktop': 'desktop',
-	hubot: 'github',
-	terminal: 'server',
-} as const;
-
-function starlightIcon(name: string) {
-	return workshopCardIcons[name as keyof typeof workshopCardIcons] ?? 'question-circle';
-}
-
 function escapeHtml(value: string) {
 	return value
 		.replace(/&/gu, '&amp;')
@@ -407,9 +395,12 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 									data-workshop-journey={path.journeyId}
 									style={`--aw-workshop-card-accent: ${journey.accent};`}
 								>
-									<Card title={path.label} icon={starlightIcon(path.icon)}>
+									<Card title={path.label}>
 										<div class="aw-workshop-card-entry-meta">
-											<span class="aw-workshop-card-kicker">{path.kicker}</span>
+											<div class="aw-workshop-card-entry-kicker">
+												<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
+												<span class="aw-workshop-card-kicker">{path.kicker}</span>
+											</div>
 											<span class="aw-workshop-card-route">{journey.label}</span>
 										</div>
 										<span class="aw-workshop-card-summary">{path.summary}</span>
@@ -1191,8 +1182,6 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 
 	.aw-workshop-card-entry > :global(.card) {
 		--aw-workshop-card-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
-		--sl-card-border: var(--aw-workshop-card-color);
-		--sl-card-bg: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-bg-strong), transparent);
 		height: 100%;
 		min-height: 15rem;
 		padding: 1rem;
@@ -1206,17 +1195,9 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	.aw-workshop-card-entry > :global(.card .title) {
-		align-items: flex-start;
-		gap: 0.75rem;
 		margin: 0;
 		font-size: 1.18rem;
 		line-height: 1.08;
-	}
-
-	.aw-workshop-card-entry > :global(.card .icon) {
-		margin-top: 0.04rem;
-		border-color: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-border-soft), transparent);
-		background: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-bg-soft), transparent);
 	}
 
 	.aw-workshop-card-entry > :global(.card .body) {
@@ -1232,6 +1213,12 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		align-items: flex-start;
 		justify-content: space-between;
 		gap: 0.55rem 0.75rem;
+	}
+
+	.aw-workshop-card-entry-kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.65rem;
 	}
 
 	.aw-workshop-card-entry:hover > :global(.card),
