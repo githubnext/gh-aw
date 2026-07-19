@@ -255,6 +255,16 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 			logsGitHubAPILog.Printf("gh run list command failed (not ExitError): %v. Command: gh %v", err, args)
 		}
 
+		// When exec.CommandContext cancels the subprocess it returns an *exec.ExitError
+		// ("signal: killed") rather than the context error, so errors.Is checks in
+		// callers would not recognise it. Surface the context error directly so that
+		// errors.Is(err, context.DeadlineExceeded) / errors.Is(err, context.Canceled)
+		// work as expected.
+		if ctxErr := cmdCtx.Err(); ctxErr != nil {
+			logsGitHubAPILog.Printf("gh run list interrupted by context: %v", ctxErr)
+			return nil, 0, ctxErr
+		}
+
 		// Check for different error types with heuristics
 		errMsg := err.Error()
 		outputMsg := string(output)

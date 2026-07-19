@@ -19,6 +19,12 @@ const (
 	defaultMCPLogsToolCount            = 100
 	defaultMCPLogsTimeoutMinutes       = 1
 	mcpLogsRunsPerDefaultTimeoutMinute = 40
+	// defaultMCPLogsMinTimeoutMinutesAllWorkflows is the minimum timeout (in minutes)
+	// used when no workflow_name filter is provided.  Querying all workflow runs at once
+	// requires a single GitHub API call rather than a workflow-scoped call, but for
+	// large repositories the unfiltered endpoint can be significantly slower.  A higher
+	// floor gives the tool enough headroom in those cases.
+	defaultMCPLogsMinTimeoutMinutesAllWorkflows = 5
 )
 
 // appendRepoFlagFromEnv appends "--repo <owner/repo>" to args when GITHUB_REPOSITORY
@@ -67,12 +73,19 @@ func effectiveMCPLogsToolCount(count int) int {
 	return defaultMCPLogsToolCount
 }
 
-func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int) int {
+func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int, workflowName string) int {
 	if requestedTimeout > 0 {
 		return requestedTimeout
 	}
 
-	return defaultMCPLogsToolTimeoutMinutesForCount(count)
+	base := defaultMCPLogsToolTimeoutMinutesForCount(count)
+	if workflowName == "" {
+		// Without a workflow filter the GitHub API must scan all workflow runs, which
+		// is substantially slower for large repositories.  Apply a higher minimum so
+		// the tool is less likely to exhaust the MCP gateway's per-tool timeout.
+		return max(defaultMCPLogsMinTimeoutMinutesAllWorkflows, base)
+	}
+	return base
 }
 
 // The logs tool requires write+ access and checks actor permissions.
@@ -88,11 +101,11 @@ func registerLogsTool(server *mcp.Server, execCmd execCmdFunc, actor string, val
 	if err := AddSchemaDefault(logsSchema, "count", defaultMCPLogsToolCount); err != nil {
 		mcpLog.Printf("Failed to add default for count: %v", err)
 	}
-	// Schema default corresponds to defaultMCPLogsToolCount; runtime timeout
-	// scales with the effective count used for the request.
-	if err := AddSchemaDefault(logsSchema, "timeout", defaultMCPLogsToolTimeoutMinutesForCount(defaultMCPLogsToolCount)); err != nil {
-		mcpLog.Printf("Failed to add default for timeout: %v", err)
-	}
+	// No schema default for timeout: the runtime auto-computes it from the effective
+	// count and workflow_name so that no-workflow queries (which scan across all runs)
+	// receive a higher floor than single-workflow queries.  Setting a static default
+	// here would cause the go-sdk to fill it in before the handler sees the arguments,
+	// bypassing the per-request computation.
 	if err := AddSchemaDefault(logsSchema, "max_tokens", 12000); err != nil {
 		mcpLog.Printf("Failed to add default for max_tokens: %v", err)
 	}
@@ -209,7 +222,7 @@ from where the previous request stopped due to timeout.`,
 
 		// Scale the implicit MCP timeout with the requested fetch window so
 		// larger fleet-wide requests do not hit the default per-tool timeout.
-		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount)
+		timeoutValue := effectiveMCPLogsToolTimeoutMinutes(args.Timeout, effectiveCount, args.WorkflowName)
 		cmdArgs = append(cmdArgs, "--timeout", strconv.Itoa(timeoutValue))
 
 		// Always use --json mode in MCP server
