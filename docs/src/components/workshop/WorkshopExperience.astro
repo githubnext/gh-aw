@@ -1,4 +1,5 @@
 ---
+import { Card, CardGrid } from '@astrojs/starlight/components';
 // @ts-ignore The docs app already uses this runtime package from Astro components.
 import octicons from '@primer/octicons';
 import {
@@ -52,6 +53,21 @@ const primerIcons = octicons as Record<string, { toSVG: (options: Record<string,
 function iconSvg(name: string, size = 20) {
 	const icon = primerIcons[name] ?? primerIcons.workflow;
 	return icon.toSVG({ width: size, height: size, 'aria-hidden': 'true' });
+}
+
+function starlightIcon(name: string) {
+	switch (name) {
+		case 'browser':
+			return 'window';
+		case 'device-desktop':
+			return 'desktop';
+		case 'hubot':
+			return 'github';
+		case 'terminal':
+			return 'server';
+		default:
+			return 'information';
+	}
 }
 
 function escapeHtml(value: string) {
@@ -382,26 +398,30 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 					<h3>How do you want to go through the workshop?</h3>
 					<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
 				</div>
-				<div class="aw-workshop-card-grid">
-					{workshopEntryPaths.map((path) => {
-						const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
-						return (
-						<button
-							type="button"
-							class="aw-workshop-card"
-							data-workshop-entry-path={path.id}
-							data-workshop-journey={path.journeyId}
-							style={`--aw-workshop-card-accent: ${journey.accent};`}
-						>
-							<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
-							<span class="aw-workshop-card-kicker">{path.kicker}</span>
-							<span class="aw-workshop-card-route">{journey.label}</span>
-							<strong class="aw-workshop-card-title">{path.label}</strong>
-							<span class="aw-workshop-card-summary">{path.summary}</span>
-							<small class="aw-workshop-card-fit">{path.fit}</small>
-						</button>
-						);
-					})}
+				<div class="aw-workshop-card-grid aw-workshop-card-grid-entry">
+					<CardGrid>
+						{workshopEntryPaths.map((path) => {
+							const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
+							return (
+								<button
+									type="button"
+									class="aw-workshop-card aw-workshop-card-entry"
+									data-workshop-entry-path={path.id}
+									data-workshop-journey={path.journeyId}
+									style={`--aw-workshop-card-accent: ${journey.accent};`}
+								>
+									<Card title={path.label} icon={starlightIcon(path.icon)}>
+										<div class="aw-workshop-card-entry-meta">
+											<span class="aw-workshop-card-kicker">{path.kicker}</span>
+											<span class="aw-workshop-card-route">{journey.label}</span>
+										</div>
+										<span class="aw-workshop-card-summary">{path.summary}</span>
+										<small class="aw-workshop-card-fit">{path.fit}</small>
+									</Card>
+								</button>
+							);
+						})}
+					</CardGrid>
 				</div>
 			</section>
 		</div>
@@ -1142,6 +1162,92 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 	}
 
 	.aw-workshop-card {
+		width: 100%;
+		border: 0;
+		padding: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+	}
+
+	.aw-workshop-card-entry {
+		text-align: left;
+	}
+
+	.aw-workshop-card-grid-entry :global(.card-grid) {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+		gap: 0.85rem;
+	}
+
+	.aw-workshop-card-grid-entry :global(.card-grid > *) {
+		height: 100%;
+	}
+
+	.aw-workshop-card-entry > :global(.card) {
+		--sl-card-border: var(--aw-workshop-card-accent, var(--sl-color-accent));
+		--sl-card-bg: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 18%, transparent);
+		height: 100%;
+		min-height: 15rem;
+		padding: 1rem;
+		border-radius: 0.9rem;
+		border-color: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 35%, transparent);
+		background:
+			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 12%, transparent), transparent 72%),
+			color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 8%, var(--aw-bg-elevated));
+		gap: 0.75rem;
+		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+	}
+
+	.aw-workshop-card-entry > :global(.card .title) {
+		align-items: flex-start;
+		gap: 0.75rem;
+		margin: 0;
+		font-size: 1.18rem;
+		line-height: 1.08;
+	}
+
+	.aw-workshop-card-entry > :global(.card .icon) {
+		margin-top: 0.04rem;
+		border-color: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 24%, transparent);
+		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 14%, transparent);
+	}
+
+	.aw-workshop-card-entry > :global(.card .body) {
+		display: grid;
+		gap: 0.7rem;
+		height: 100%;
+		font-size: inherit;
+	}
+
+	.aw-workshop-card-entry-meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.55rem 0.75rem;
+	}
+
+	.aw-workshop-card-entry:hover > :global(.card),
+	.aw-workshop-card-entry.is-active > :global(.card) {
+		transform: translateY(-1px);
+		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
+		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
+	}
+
+	.aw-workshop-card-entry:focus-visible {
+		outline: 2px solid var(--aw-workshop-card-accent, var(--sl-color-accent));
+		outline-offset: 4px;
+	}
+
+	.aw-workshop-card-entry:hover .aw-workshop-card-fit,
+	.aw-workshop-card-entry.is-active .aw-workshop-card-fit {
+		opacity: 1;
+		max-height: 5rem;
+		transform: translateY(0);
+	}
+
+	.aw-workshop-card-scenario {
 		display: grid;
 		grid-template-columns: 2rem 1fr auto;
 		grid-template-areas:
@@ -1227,15 +1333,15 @@ const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ??
 		transition: opacity 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
 	}
 
-	.aw-workshop-card:hover,
-	.aw-workshop-card.is-active {
+	.aw-workshop-card-scenario:hover,
+	.aw-workshop-card-scenario.is-active {
 		transform: translateY(-1px);
 		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
 		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
 	}
 
-	.aw-workshop-card:hover .aw-workshop-card-fit,
-	.aw-workshop-card.is-active .aw-workshop-card-fit {
+	.aw-workshop-card-scenario:hover .aw-workshop-card-fit,
+	.aw-workshop-card-scenario.is-active .aw-workshop-card-fit {
 		opacity: 1;
 		max-height: 5rem;
 		transform: translateY(0);
