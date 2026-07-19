@@ -11748,6 +11748,11 @@
         }
       ]
     },
+    "model": {
+      "type": "string",
+      "description": "Optional top-level LLM model override. Sets the model used by the agentic engine for this workflow. Takes precedence over engine.model when both are specified. Supports full model IDs (e.g. 'claude-3-5-sonnet-20241022', 'gpt-5.4') and model aliases (e.g. 'small', 'large').",
+      "examples": ["gpt-5.4", "claude-3-5-sonnet-20241022", "gpt-4"]
+    },
     "evals": {
       "description": "\u26a0\ufe0f Experimental. BinEval binary evaluation questions to run after safe-outputs and before the conclusion job. Can be a plain list of questions (shorthand) or an object with questions, model, and runs-on fields.",
       "oneOf": [
@@ -12250,7 +12255,9 @@
             },
             "model": {
               "type": "string",
-              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted."
+              "description": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4'). Has sensible defaults and can typically be omitted.",
+              "deprecated": true,
+              "x-deprecation-message": "'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."
             },
             "model-provider": {
               "type": "string",
@@ -12976,7 +12983,9 @@
           "properties": {
             "model": {
               "type": "string",
-              "description": "Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to the default engine when engine.id is not specified."
+              "description": "Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to the default engine when engine.id is not specified.",
+              "deprecated": true,
+              "x-deprecation-message": "'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."
             }
           },
           "required": ["model"],

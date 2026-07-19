@@ -4,9 +4,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"strconv"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
@@ -203,6 +205,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 	if topLevelMaxRuns == 0 {
 		topLevelMaxRuns = parseMaxRunsValue(frontmatter["max-runs"])
 	}
+	topLevelModel, _ := frontmatter["model"].(string)
 
 	if engine, exists := frontmatter["engine"]; exists {
 		engineLog.Print("Extracting engine configuration from frontmatter")
@@ -212,6 +215,7 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			engineLog.Printf("Found engine in string format: %s", engineStr)
 			return engineStr, &EngineConfig{
 				ID:                 engineStr,
+				Model:              topLevelModel,
 				MaxTurns:           topLevelMaxTurns,
 				MaxToolDenials:     topLevelMaxToolDenials,
 				MaxRuns:            topLevelMaxRuns,
@@ -298,6 +302,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 				config.MaxRuns = topLevelMaxRuns
 				config.MaxTurnCacheMisses = topLevelMaxTurnCacheMisses
 				config.MaxAICredits = topLevelMaxAICredits
+				if topLevelModel != "" {
+					config.Model = topLevelModel
+				}
 
 				engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
 				return config.ID, config
@@ -319,7 +326,12 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 			if model, hasModel := engineObj["model"]; hasModel {
 				if modelStr, ok := model.(string); ok {
 					config.Model = modelStr
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate."))
 				}
+			}
+			// Top-level 'model' takes precedence over engine.model.
+			if topLevelModel != "" {
+				config.Model = topLevelModel
 			}
 
 			// Extract optional 'model-provider' field.
@@ -592,8 +604,9 @@ func (c *Compiler) ExtractEngineConfig(frontmatter map[string]any) (string, *Eng
 		}
 	}
 
-	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxAICredits != 0 || topLevelMaxRuns > 0 || topLevelMaxTurnCacheMisses > 0 {
+	if topLevelMaxTurns != "" || topLevelMaxToolDenials != "" || topLevelMaxAICredits != 0 || topLevelMaxRuns > 0 || topLevelMaxTurnCacheMisses > 0 || topLevelModel != "" {
 		return "", &EngineConfig{
+			Model:              topLevelModel,
 			MaxTurns:           topLevelMaxTurns,
 			MaxToolDenials:     topLevelMaxToolDenials,
 			MaxRuns:            topLevelMaxRuns,
