@@ -132,7 +132,11 @@ test.describe('Workshop tutorial', () => {
 			}
 
 			const layout = await page.evaluate(() => {
+				const panelShell = document.querySelector('.aw-workshop-panel-shell');
+				const progressCard = document.querySelector('.aw-workshop-progress-card');
 				const stepContent = document.querySelector('.aw-workshop-step-content');
+				const panelShellStyle = panelShell ? window.getComputedStyle(panelShell) : null;
+				const progressCardStyle = progressCard ? window.getComputedStyle(progressCard) : null;
 				const stepContentStyle = stepContent ? window.getComputedStyle(stepContent) : null;
 				const workshopRoot = document.querySelector('.aw-workshop');
 				const panelHeader = document.querySelector('.aw-workshop-panel-header');
@@ -176,6 +180,21 @@ test.describe('Workshop tutorial', () => {
 						panelHeaderLeft: panelHeaderRect?.left ?? 0,
 						panelFooterLeft: panelFooterRect?.left ?? 0,
 					} : null,
+					panelShellStyle: panelShellStyle ? {
+						borderWidth: panelShellStyle.borderWidth,
+						backgroundColor: panelShellStyle.backgroundColor,
+						boxShadow: panelShellStyle.boxShadow,
+						paddingLeft: panelShellStyle.paddingLeft,
+						paddingRight: panelShellStyle.paddingRight,
+					} : null,
+					progressCardStyle: progressCardStyle ? {
+						borderTopWidth: progressCardStyle.borderTopWidth,
+						borderRightWidth: progressCardStyle.borderRightWidth,
+						borderBottomWidth: progressCardStyle.borderBottomWidth,
+						borderLeftWidth: progressCardStyle.borderLeftWidth,
+						backgroundColor: progressCardStyle.backgroundColor,
+						boxShadow: progressCardStyle.boxShadow,
+					} : null,
 					stepContentStyle: stepContentStyle ? {
 						borderWidth: stepContentStyle.borderWidth,
 						borderRadius: stepContentStyle.borderRadius,
@@ -193,6 +212,28 @@ test.describe('Workshop tutorial', () => {
 				expect(bound.left).toBeGreaterThanOrEqual(-PIXEL_TOLERANCE);
 				expect(bound.right).toBeLessThanOrEqual(layout.viewportWidth + PIXEL_TOLERANCE);
 			}
+			expect(layout.panelShellStyle).toEqual({
+				borderWidth: '0px',
+				backgroundColor: 'rgba(0, 0, 0, 0)',
+				boxShadow: 'none',
+				paddingLeft: '0px',
+				paddingRight: '0px',
+			});
+			expect(layout.progressCardStyle).toEqual({
+				borderTopWidth: '0px',
+				borderRightWidth: '0px',
+				borderBottomWidth: '1px',
+				borderLeftWidth: '0px',
+				backgroundColor: 'rgba(0, 0, 0, 0)',
+				boxShadow: 'none',
+			});
+			expect(layout.stepContentStyle).toMatchObject({
+				borderWidth: '0px',
+				borderRadius: '0px',
+				backgroundImage: 'none',
+				backgroundColor: 'rgba(0, 0, 0, 0)',
+				boxShadow: 'none',
+			});
 			if (isZenMobileViewport) {
 				expect(layout.workshopRootStyle).toEqual({ marginTop: '0px' });
 				const panelShell = layout.bounds.find((bound) => bound.selector === '.aw-workshop-panel-shell');
