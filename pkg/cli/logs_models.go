@@ -26,10 +26,11 @@ const (
 	MaxIterations = 20
 	// BatchSize is the number of runs to fetch in each iteration
 	BatchSize = 100
-	// BatchSizeForAllWorkflows is the larger batch size when searching for agentic workflows
-	// There can be a really large number of workflow runs in a repository, so
-	// we are generous in the batch size when used without qualification.
-	BatchSizeForAllWorkflows = 250
+	// BatchSizeForAllWorkflows is the batch size when searching across all agentic workflows.
+	// We cap this at 100 (the GitHub API max per_page) so each batch requires only a single
+	// API call.  Using 250 previously caused three API round-trips per batch, making the
+	// unfiltered list slow enough to exceed the MCP gateway's default 60-second tool timeout.
+	BatchSizeForAllWorkflows = 100
 	// MaxConcurrentDownloads limits the number of parallel artifact downloads
 	MaxConcurrentDownloads = 10
 	// APICallCooldown is the minimum pause between successive batch-fetch iterations to
