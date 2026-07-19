@@ -37,9 +37,9 @@ safe-outputs:
   noop: null
 description: Self-healing companion to the Daily Documentation Updater that detects documentation gaps missed by DDUw and proposes corrections
 emoji: 📝
+model: "${{ needs.activation.outputs.model_size }}"
 engine:
   id: claude
-  model: "${{ needs.activation.outputs.model_size }}"
 name: Daily Documentation Healer
 strict: true
 experiments:
@@ -85,6 +85,7 @@ evals:
   - id: pr-issue-or-noop
     question: Was a documentation pull request or issue created for confirmed gaps, or was noop used appropriately when nothing required action?
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Documentation Healer

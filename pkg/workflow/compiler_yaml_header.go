@@ -34,13 +34,13 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 			agentInfo.AgentID = data.AI
 		}
 		// Agent model: only include if statically configured
-		if data.EngineConfig != nil && data.EngineConfig.Model != "" {
-			agentInfo.AgentModel = data.EngineConfig.Model
+		if data.Model != "" {
+			agentInfo.AgentModel = data.Model
 		}
 		// Detection agent info: only if threat detection has its own engine config
 		if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
 			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
-			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.EngineConfig.Model
+			agentInfo.DetectionAgentModel = data.SafeOutputs.ThreatDetection.Model
 		}
 		agentInfo.EngineVersions = collectEngineVersionsForMetadata(data)
 		agentInfo.AgentImageRunner = resolveAgentImageRunnerIdentifier(data.RawFrontmatter)

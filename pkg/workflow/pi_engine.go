@@ -72,10 +72,10 @@ func (e *PiEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
 // "github-copilot/" is accepted as an alias for "copilot/" since that is the
 // provider name used by Pi CLI's built-in model registry.
 func resolvePiBackend(workflowData *WorkflowData) UniversalLLMBackend {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Model == "" {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.Model == "" {
 		return UniversalLLMBackendCopilot
 	}
-	model := workflowData.EngineConfig.Model
+	model := workflowData.Model
 	if !strings.Contains(model, "/") {
 		// No provider prefix — default to Copilot (backward compatibility).
 		return UniversalLLMBackendCopilot
@@ -301,7 +301,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	}
 
 	// Resolve backend and profile early so we can use them when building piArgs.
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	modelConfigured := workflowData.Model != ""
 	backend := resolvePiBackend(workflowData)
 	profile := getUniversalLLMBackendProfile(backend, hasCopilotRequestsWritePermission(workflowData))
 	firewallEnabled := isFirewallEnabled(workflowData)
@@ -327,7 +327,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 	// the firewall is disabled we use Pi's built-in provider directly.
 	var piModelsJSONSetup string // shell fragment prepended to piCommand when needed
 	if modelConfigured {
-		modelID := extractPiModelID(workflowData.EngineConfig.Model)
+		modelID := extractPiModelID(workflowData.Model)
 
 		// Determine the env var name to use as the "apiKey" in the models.json gateway
 		// config. Pi's resolveConfigValue() reads process.env[apiKey] at runtime to
@@ -404,7 +404,7 @@ func (e *PiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile string)
 		} else {
 			model := ""
 			if modelConfigured {
-				model = workflowData.EngineConfig.Model
+				model = workflowData.Model
 			}
 			// The model was validated before reaching here; a malformed model (leading slash)
 			// must never occur at this point — panic is the correct invariant guard.
@@ -455,7 +455,7 @@ touch %s
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	if modelConfigured {
-		env["GH_AW_PI_MODEL"] = workflowData.EngineConfig.Model
+		env["GH_AW_PI_MODEL"] = workflowData.Model
 	}
 
 	// Inject provider-specific credentials from the backend profile.

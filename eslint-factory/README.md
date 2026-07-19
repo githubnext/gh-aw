@@ -26,6 +26,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`no-unsafe-catch-error-property`](#no-unsafe-catch-error-property) | Disallow unsafe property access on `catch` error bindings |
 | [`no-unsafe-promise-catch-error-property`](#no-unsafe-promise-catch-error-property) | Disallow unsafe property access in promise rejection handlers |
 | [`prefer-get-error-message`](#prefer-get-error-message) | Prefer `getErrorMessage(err)` over the inline ternary pattern |
+| [`prefer-core-logging`](#prefer-core-logging) | Prefer `@actions/core` logging over `console.log` / `console.info` / `console.debug` |
 | [`prefer-number-isnan`](#prefer-number-isnan) | Prefer `Number.isNaN()` over global `isNaN()` |
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
@@ -381,4 +382,22 @@ Why: when `spawnSync` cannot spawn the child process (e.g. `ENOENT`, `ETIMEDOUT`
 - `AssignmentExpression` forms (`result = spawnSync(...)`) and inline chains (`spawnSync(...).status`) are not analyzed.
 - Passing the result object to a helper function that internally checks `.error` is not recognized.
 - Mutable aliases (`let e = result.error; e = undefined; if (e) throw e`) are rejected because the original value may have been discarded before the guard.
+
+### `prefer-core-logging`
+
+Prefer `@actions/core` logging methods (`core.info`, `core.debug`) over `console.log`, `console.info`, and `console.debug`.
+
+`core.*` logging methods integrate with the GitHub Actions annotation system (errors and warnings appear as file annotations in the UI) and produce structured log output. `global.core` is always available via `shim.cjs` in the Node.js context and via `github-script` in the Actions context.
+
+**Covered methods and their replacements:**
+
+| `console.*` method | Suggested replacement |
+|---|---|
+| `console.log` | `core.info` |
+| `console.info` | `core.info` |
+| `console.debug` | `core.debug` |
+
+**Intentionally excluded: `console.error` and `console.warn`**
+
+`console.error` and `console.warn` write to **`process.stderr`**, while `core.error` and `core.warning` emit GitHub Actions workflow commands to **`process.stdout`**. For processes that own stdout as a data/protocol channel — such as stdio MCP servers and transports — replacing stderr logging with stdout logging would corrupt the JSON-RPC stream. Because the stream change is not behavior-preserving, the rule never reports `console.error` or `console.warn` and offers no suggestion to replace them.
 

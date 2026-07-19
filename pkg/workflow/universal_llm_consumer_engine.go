@@ -104,7 +104,7 @@ func getUniversalLLMBackendProfile(backend UniversalLLMBackend, useCopilotReques
 func (e *UniversalLLMConsumerEngine) resolveBackend(workflowData *WorkflowData) UniversalLLMBackend {
 	model := ""
 	if workflowData != nil && workflowData.EngineConfig != nil {
-		model = workflowData.EngineConfig.Model
+		model = workflowData.Model
 	}
 	backend, err := resolveUniversalLLMBackendFromModel(model)
 	if err != nil {
@@ -253,7 +253,7 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 		steps = append(steps, cfg.ConfigStep)
 	}
 
-	modelConfigured := workflowData.EngineConfig != nil && workflowData.EngineConfig.Model != ""
+	modelConfigured := workflowData.Model != ""
 
 	// Build CLI command: <binary> run <extra-args> "<prompt-file>".
 	cliArgs := append([]string{}, cfg.ExtraCLIArgs...)
@@ -270,7 +270,7 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 	if firewallEnabled {
 		model := ""
 		if modelConfigured {
-			model = workflowData.EngineConfig.Model
+			model = workflowData.Model
 		}
 		// Get allowed domains: prefer the pre-warmed cache on WorkflowData to avoid
 		// re-running the expensive map+sort operation.
@@ -345,8 +345,8 @@ func (e *UniversalLLMConsumerEngine) BuildCLIEngineExecutionSteps(
 
 	// Model env var (only when explicitly configured and the engine supports it).
 	if modelConfigured && cfg.ModelEnvVarName != "" {
-		universalLLMConsumerLog.Printf("Setting %s env var for model: %s", cfg.ModelEnvVarName, workflowData.EngineConfig.Model)
-		env[cfg.ModelEnvVarName] = workflowData.EngineConfig.Model
+		universalLLMConsumerLog.Printf("Setting %s env var for model: %s", cfg.ModelEnvVarName, workflowData.Model)
+		env[cfg.ModelEnvVarName] = workflowData.Model
 	}
 
 	// Custom env from engine config (allows provider key override).

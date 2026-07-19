@@ -16,9 +16,9 @@ permissions:
   contents: read
   issues: read
   copilot-requests: write
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 strict: true
 network:
   allowed:

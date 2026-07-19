@@ -15,9 +15,9 @@ on:
 permissions:
   contents: read
 name: Smoke Copilot Small
+model: small
 engine:
   id: copilot
-  model: small
   bare: true
 tools:
   bash:
