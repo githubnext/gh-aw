@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CURRENT_WORKSHOP_SLUG } from '../src/lib/workshop/config';
 
-const WORKSHOP_URL = `/gh-aw/workshops/${CURRENT_WORKSHOP_SLUG}/`;
+const WORKSHOP_URL = `/gh-aw/workshop/`;
 const PIXEL_TOLERANCE = 1;
 const ZEN_MODE_MOBILE_BREAKPOINT = 800;
 
@@ -51,32 +50,23 @@ async function shouldNavigateToVisibleStep(page: Page, isPresent: boolean, stepK
 }
 
 test.describe('Workshop tutorial', () => {
-	test('progress summary follows the active step instead of saved completion history', async ({ page }) => {
+	test('step position follows the active step instead of saved completion history', async ({ page }) => {
 		await startWorkshop(page);
 
 		const flowKeys = await getFlowStepKeys(page);
 		const flowLength = flowKeys.length;
-		const firstStepPercent = flowLength <= 1 ? 100 : 0;
-		const thirdStepPercent = flowLength <= 1 ? 100 : Math.round((2 / (flowLength - 1)) * 100);
 
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${firstStepPercent}%`);
-		await expect(page.locator('[data-workshop-lesson-context]')).toHaveText(`1 of ${flowLength} in this GitHub.com run.`);
-		await expect(page.locator('.aw-workshop-progress-card')).not.toContainText('Go to step');
 
 		await page.getByRole('button', { name: /Next step/i }).click();
 		await page.getByRole('button', { name: /Next step/i }).click();
 
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 3 of ${flowLength}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${thirdStepPercent}%`);
-		await expect(page.locator('[data-workshop-lesson-context]')).toHaveText(`3 of ${flowLength} in this GitHub.com run.`);
 
 		await page.getByRole('button', { name: /Previous step/i }).click();
 		await page.getByRole('button', { name: /Previous step/i }).click();
 
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${firstStepPercent}%`);
-		await expect(page.locator('[data-workshop-lesson-context]')).toHaveText(`1 of ${flowLength} in this GitHub.com run.`);
 	});
 
 	test('switching entry path clears previous scenario and restarts the flow', async ({ page }) => {
@@ -121,22 +111,18 @@ test.describe('Workshop tutorial', () => {
 			await expect(page.getByRole('button', { name: /Next step|Finish workshop/i })).toBeVisible();
 			if (isZenMobileViewport) {
 				await expect(page.locator('.aw-workshop-flow-header')).toBeHidden();
-				await expect(page.locator('.aw-workshop-progress-card')).toBeHidden();
 				await expect(page.locator('.aw-workshop-panel-summary')).toBeHidden();
 				await expect(page.locator('.aw-workshop-panel-actions')).toBeHidden();
 			} else {
 				await expect(page.locator('.aw-workshop-flow-header')).toBeVisible();
-				await expect(page.locator('.aw-workshop-progress-card')).toBeVisible();
 				await expect(page.locator('.aw-workshop-panel-summary')).toBeVisible();
 				await expect(page.locator('.aw-workshop-panel-actions')).toBeVisible();
 			}
 
 			const layout = await page.evaluate(() => {
 				const panelShell = document.querySelector('.aw-workshop-panel-shell');
-				const progressCard = document.querySelector('.aw-workshop-progress-card');
 				const stepContent = document.querySelector('.aw-workshop-step-content');
 				const panelShellStyle = panelShell ? window.getComputedStyle(panelShell) : null;
-				const progressCardStyle = progressCard ? window.getComputedStyle(progressCard) : null;
 				const stepContentStyle = stepContent ? window.getComputedStyle(stepContent) : null;
 				const workshopRoot = document.querySelector('.aw-workshop');
 				const panelHeader = document.querySelector('.aw-workshop-panel-header');
@@ -148,7 +134,6 @@ test.describe('Workshop tutorial', () => {
 					'.aw-workshop',
 					'.aw-workshop-panel-shell',
 					'.aw-workshop-panel-header',
-					'.aw-workshop-progress-card',
 					'.aw-workshop-step-content',
 					'.aw-workshop-panel-footer',
 				];
@@ -187,14 +172,6 @@ test.describe('Workshop tutorial', () => {
 						paddingLeft: panelShellStyle.paddingLeft,
 						paddingRight: panelShellStyle.paddingRight,
 					} : null,
-					progressCardStyle: progressCardStyle ? {
-						borderTopWidth: progressCardStyle.borderTopWidth,
-						borderRightWidth: progressCardStyle.borderRightWidth,
-						borderBottomWidth: progressCardStyle.borderBottomWidth,
-						borderLeftWidth: progressCardStyle.borderLeftWidth,
-						backgroundColor: progressCardStyle.backgroundColor,
-						boxShadow: progressCardStyle.boxShadow,
-					} : null,
 					stepContentStyle: stepContentStyle ? {
 						borderWidth: stepContentStyle.borderWidth,
 						borderRadius: stepContentStyle.borderRadius,
@@ -218,14 +195,6 @@ test.describe('Workshop tutorial', () => {
 				boxShadow: 'none',
 				paddingLeft: '0px',
 				paddingRight: '0px',
-			});
-			expect(layout.progressCardStyle).toEqual({
-				borderTopWidth: '0px',
-				borderRightWidth: '0px',
-				borderBottomWidth: '1px',
-				borderLeftWidth: '0px',
-				backgroundColor: 'rgba(0, 0, 0, 0)',
-				boxShadow: 'none',
 			});
 			expect(layout.stepContentStyle).toMatchObject({
 				borderWidth: '0px',
