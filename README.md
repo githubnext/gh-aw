@@ -119,7 +119,7 @@ To build and test repository custom linters:
 [@AlexanderWert (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AAlexanderWert)
 [@AlexDeMichieli (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AAlexDeMichieli)
 [@alexsiilvaa (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aalexsiilvaa)
-[@alondahari (12)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aalondahari)
+[@alondahari (13)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aalondahari)
 [@alvistar (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aalvistar)
 [@AmoebaChant (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AAmoebaChant)
 [@anthonymastreanvae (10)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aanthonymastreanvae)
@@ -367,17 +367,6 @@ To build and test repository custom linters:
 [@yskopets (51)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Ayskopets)
 [@zarenner (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azarenner)
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
-
-
-### ⚠️ Attribution Candidates Need Review
-
-The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
-
-- **@austenstone** for [[bug] Intake Triage agent job: MODULE_NOT_FOUND for merge_awf_model_multipliers.cjs (5 failures in 8d, v0.77.5)](https://github.com/github/gh-aw/issues/42874) — closed 2026-07-04, no confirmed PR linkage found
-- **@martinbriley** for [Request that the sentiment functionality emit events for sentiment analysis](https://github.com/github/gh-aw/issues/42842) — closed 2026-07-05, no confirmed PR linkage found
-- **@Tarekchehahde** for [Document self-hosted Kubernetes DinD prerequisites for gh-aw (#40107)](https://github.com/github/gh-aw/issues/44987) — closed 2026-07-16, no confirmed PR linkage found
-
-_Note: 2 additional automation-related issues (#41256, #41255) were closed but excluded from this list._
 
 ## Share Feedback
 
