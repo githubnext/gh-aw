@@ -94,6 +94,22 @@ All exported functions are safe for concurrent use. The error-classification fun
 - `FindGitRootFrom` verifies worktree marker file content (must begin with `gitdir:`) in addition to existence, guarding against false positives from unrelated files named `.git`.
 - `ReadFileFromHEAD` requires `git` on `PATH` because reading object data from a bare `git show` invocation is more reliable than re-implementing pack-file parsing in pure Go.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 0 |
+| Constants | 0 |
+| Variables | 1 |
+| Functions and methods | 8 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

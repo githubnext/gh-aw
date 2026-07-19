@@ -25,6 +25,11 @@ Resolution is performed by a `Resolver`, which holds a label matcher function an
 | `RootReference` | struct | Represents a referenced issue or artifact root (node ID, type, URL, labels) |
 | `PullRequestData` | struct | Input data for pull request resolution (node ID, URL, labels, explicit intent, closing issues) |
 | `Resolver` | struct | Stateless resolver that maps labels to intent records |
+| `ExecutionPolicy` | struct | Describes the compiled policy fragment associated with an intent, including autonomy, tool restrictions, write scope, checks, and attempt limits |
+| `RepositoryContext` | struct | Carries repository metadata used when matching policy rules |
+| `PolicyCondition` | struct | Declares the domain, priority, risk, and organization selectors for a policy rule |
+| `PolicyRule` | struct | Pairs a policy-match condition with the execution policy fragment to apply |
+| `PolicyCompiler` | struct | Holds policy rules for callers that compile advisory intent-governance policies |
 
 ### AttributionStatus constants
 
@@ -107,6 +112,22 @@ fmt.Println(record.Source) // "issue_labels"
 ## Thread Safety
 
 `Resolver` holds no mutable state and is safe for concurrent use. `IntentRecord` values are returned by value and do not share mutable state with the caller.
+
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 11 |
+| Constants | 15 |
+| Variables | 0 |
+| Functions and methods | 2 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
 
 ---
 

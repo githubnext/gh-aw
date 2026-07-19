@@ -304,6 +304,22 @@ Update embedded weights by running `gh aw logs --train --output <dir>` and copyi
 - The `Coordinator` routes each `AgentEvent` to its stage-specific `Miner` so that templates from different stages do not interfere.
 - `SaveJSON`/`LoadJSON` serialize the parse tree and cluster list to enable persistence across workflow runs.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 12 |
+| Constants | 4 |
+| Variables | 0 |
+| Functions and methods | 24 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

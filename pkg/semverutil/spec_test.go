@@ -230,6 +230,39 @@ func TestSpec_PublicAPI_Compare(t *testing.T) {
 	}
 }
 
+// TestSpec_PublicAPI_NormalizeGitDescribeSemver validates the documented
+// behavior of NormalizeGitDescribeSemver as described in the semverutil README.md specification.
+func TestSpec_PublicAPI_NormalizeGitDescribeSemver(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "git describe output collapses to release tag",
+			input:    "v1.2.3-27-gabc1234",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "git describe dirty output collapses to release tag",
+			input:    "v1.2.3-27-gabc1234-dirty",
+			expected: "v1.2.3",
+		},
+		{
+			name:     "real prerelease remains unchanged",
+			input:    "v1.2.3-beta.1",
+			expected: "v1.2.3-beta.1",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := NormalizeGitDescribeSemver(tt.input)
+			assert.Equal(t, tt.expected, result, "NormalizeGitDescribeSemver(%q) mismatch", tt.input)
+		})
+	}
+}
+
 // TestSpec_PublicAPI_IsMorePreciseVersion validates the documented behavior of
 // IsMorePreciseVersion as described in the semverutil README.md specification.
 func TestSpec_PublicAPI_IsMorePreciseVersion(t *testing.T) {

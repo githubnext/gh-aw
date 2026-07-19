@@ -88,6 +88,16 @@ semverutil.Compare("v1.0.0", "v1.0.0") // 0  (equal)
 semverutil.Compare("v0.9.0", "v1.0.0") // -1 (v0.9 is older)
 ```
 
+### `NormalizeGitDescribeSemver(v string) string`
+
+Collapses local `git describe` compiler versions such as `v1.2.3-27-gabc1234`, `v1.2.3-27-gabc1234-dirty`, and `v1.2.3-dirty` to their base release tag for compatibility checks. Real prerelease versions remain unchanged.
+
+```go
+semverutil.NormalizeGitDescribeSemver("v1.2.3-27-gabc1234")       // "v1.2.3"
+semverutil.NormalizeGitDescribeSemver("v1.2.3-27-gabc1234-dirty") // "v1.2.3"
+semverutil.NormalizeGitDescribeSemver("v1.2.3-beta.1")            // "v1.2.3-beta.1"
+```
+
 ### `IsMorePreciseVersion(v1, v2 string) bool`
 
 Reports whether `v1` should sort ahead of `v2` in the action-version specificity ordering. Versions with more dot-separated components sort first (e.g. `"v4.3.0"` ahead of `"v4"`), and ties use lexicographic ordering. This is an ordering predicate, not a strict "more precise" check. No validation is performed; callers MUST ensure both inputs are well-formed version tags.
@@ -125,6 +135,9 @@ if ver != nil {
 // Compare versions
 semverutil.Compare("v2.0.0", "v1.9.9") // 1 (v2 is newer)
 
+// Normalize local git-describe versions before compatibility checks
+semverutil.NormalizeGitDescribeSemver("v1.2.3-27-gabc1234") // "v1.2.3"
+
 // Check major-version compatibility
 semverutil.IsCompatible("v5.1.0", "v5") // true
 semverutil.IsCompatible("v6.0.0", "v5") // false
@@ -144,6 +157,22 @@ semverutil.IsCompatible("v6.0.0", "v5") // false
 - The package intentionally delegates to `golang.org/x/mod/semver` for canonical semver logic rather than implementing its own parsing.
 - `ParseVersion` uses `semver.Canonical` before splitting into components, ensuring correct handling of short forms like `v1` (canonicalized to `v1.0.0`).
 - `IsCompatible` returns `false` for invalid versions on either side before comparing majors, preventing two malformed version strings from being treated as compatible.
+
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 1 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 10 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
 
 ## Source Synchronization
 

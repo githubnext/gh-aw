@@ -50,6 +50,22 @@ if tty.IsStderrTerminal() {
 - Prefer this package over calling `term.IsTerminal` directly to keep the TTY detection logic centralized and easily testable.
 - Components that need to adapt output for terminals (spinners, progress bars, colored messages) should call `IsStderrTerminal()` rather than checking `os.Stderr` directly.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 0 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 4 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

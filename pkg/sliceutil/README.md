@@ -71,6 +71,22 @@ keys := sliceutil.SortedKeys(m)
 - `SortedKeys` delegates to `slices.Sorted(maps.Keys(m))` from the standard library and returns a new sorted slice each call.
 - None of the other functions sort their output; callers that require sorted results should call `slices.Sort` on the returned slice.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 0 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 9 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

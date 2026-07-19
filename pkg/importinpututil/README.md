@@ -98,6 +98,22 @@ if !ok {
 - Map keys in JSON output are sorted lexicographically for deterministic output.
 - Typed slices and maps (e.g. `[]string`, `map[string]int`) are normalized to `[]any` / `map[string]any` via reflection before marshalling.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 0 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 2 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ---
 
 *This specification is automatically maintained by the [spec-extractor](../../.github/workflows/spec-extractor.md) workflow.*

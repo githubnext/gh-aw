@@ -61,7 +61,7 @@ The package exports named constants for every label and its default value, group
 | Dependencies | `ObjectiveLabelDependencies` | `ObjectiveValueDependencies` (10) |
 | Low | `ObjectiveLabelLowPriority`, `ObjectiveLabelP3` | `ObjectiveValueLowPriority` (10), `ObjectiveValueP3` (10) |
 | Documentation | `ObjectiveLabelDocumentation` | `ObjectiveValueDocumentation` (5) |
-| No value | `ObjectiveLabelAIGenerated`, `ObjectiveLabelAIInspected`, `ObjectiveLabelSmokeCopilot`, `ObjectiveLabelQuestion`, `ObjectiveLabelGoodFirstIssue` | 0 |
+| No value | `ObjectiveLabelAIGenerated`, `ObjectiveLabelAIInspected`, `ObjectiveLabelSmokeCopilot`, `ObjectiveLabelQuestion`, `ObjectiveLabelGoodFirstIssue` | `ObjectiveValueAIGenerated` (0), `ObjectiveValueAIInspected` (0), `ObjectiveValueSmokeCopilot` (0), `ObjectiveValueQuestion` (0), `ObjectiveValueGoodFirstIssue` (0) |
 
 Multi-label logic option constants:
 
@@ -114,6 +114,22 @@ fmt.Println(defaults) // ObjectiveMapping{labels: 12, logic: max, priorities: 7}
 - The default `MultiLabelLogic` is `"max"`. Callers that do not set this field get max-value semantics automatically.
 - `PriorityLabels` is only consulted when `MultiLabelLogic` is `"first"`; the implementation walks the issue's labels in their existing order and returns the value for the first label that also appears in `PriorityLabels`. If no priority entry matches, it falls back to the first matched value collected from `LabelToValue`.
 - Debug output is controlled by the `DEBUG=github:*` environment variable and is only emitted when that variable is set.
+
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 1 |
+| Constants | 59 |
+| Variables | 0 |
+| Functions and methods | 8 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
 
 ---
 

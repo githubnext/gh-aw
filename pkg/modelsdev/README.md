@@ -49,6 +49,22 @@ _ = outputUSD
 - String catalog costs are treated as already normalized per-token values.
 - Network or parsing failures degrade gracefully to an empty cache so callers can continue without pricing data.
 
+<!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
+## Source-verified export coverage
+
+This appendix is generated from the current non-test Go source files in this package and records any exported top-level symbols that are not already described above.
+
+| Category | Count |
+|----------|------:|
+| Types | 0 |
+| Constants | 0 |
+| Variables | 0 |
+| Functions and methods | 3 |
+| Additional symbols documented in this appendix | 0 |
+
+The sections above already mention every exported top-level symbol in the current source tree.
+<!-- END SOURCE-VERIFIED EXPORT COVERAGE -->
+
 ## Source Synchronization
 
 Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
