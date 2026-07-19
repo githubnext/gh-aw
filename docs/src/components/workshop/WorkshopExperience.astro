@@ -93,6 +93,55 @@ function sanitizeWorkshopHtml(html: string) {
 		.replace(/\s+on[a-zA-Z]+\s*=\s*(?:"[^"]*"|'[^']*')/giu, '');
 }
 
+function transformTables(html: string) {
+	return html.replace(/<table>([\s\S]*?)<\/table>/gu, (tableHtml) => {
+		// Check if this is the entry path table by inspecting the <thead> cells.
+		const theadMatch = tableHtml.match(/<thead>([\s\S]*?)<\/thead>/u);
+		const thMatches = theadMatch ? [...theadMatch[1].matchAll(/<th(?:\s[^>]*)?>([\s\S]*?)<\/th>/gu)] : [];
+		const normalizeHeader = (value: string) => value
+			.replace(/<[^>]+>/gu, '')
+			.replace(/[‘’]/gu, "'")
+			.replace(/…/gu, '...')
+			.replace(/\s+/gu, ' ')
+			.trim();
+
+		if (
+			thMatches.length >= 3
+			&& normalizeHeader(thMatches[0][1]) === "If you're a..."
+			&& normalizeHeader(thMatches[1][1]) === 'Recommended setup adventure'
+			&& normalizeHeader(thMatches[2][1]) === 'Why this path fits'
+		) {
+			const tbodyMatch = tableHtml.match(/<tbody>([\s\S]*?)<\/tbody>/u);
+			const rows: [string, string, string][] = [];
+			if (tbodyMatch) {
+				for (const rowMatch of tbodyMatch[1].matchAll(/<tr>([\s\S]*?)<\/tr>/gu)) {
+					const tdMatches = [...rowMatch[1].matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gu)];
+					if (tdMatches.length >= 3) {
+						rows.push([tdMatches[0][1].trim(), tdMatches[1][1].trim(), tdMatches[2][1].trim()]);
+					}
+				}
+			}
+
+			if (rows.length > 0) {
+				const cards = rows.map(([audience, nextStep, fit]) => [
+					'<article class="aw-workshop-entry-card">',
+					'<p class="aw-workshop-entry-card-kicker">Entry path</p>',
+					`<h4>${audience}</h4>`,
+					`<p class="aw-workshop-entry-card-summary">${fit}</p>`,
+					'<div class="aw-workshop-entry-card-next">',
+					'<span>Recommended next step</span>',
+					`<p>${nextStep}</p>`,
+					'</div>',
+					'</article>',
+				].join(''));
+				return `<section class="aw-workshop-entry-grid">${cards.join('')}</section>`;
+			}
+		}
+
+		return `<div class="aw-workshop-table-wrap">${tableHtml}</div>`;
+	});
+}
+
 function rewriteGfmAlerts(html: string) {
 	// Pattern to detect a blockquote that opens with a GFM alert type marker.
 	const openingPattern = /<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]/giu;
@@ -164,7 +213,8 @@ function rewriteGfmAlerts(html: string) {
 }
 
 function rewriteWorkshopHtml(html: string) {
-	return rewriteGfmAlerts(sanitizeWorkshopHtml(html))
+	return transformTables(rewriteGfmAlerts(sanitizeWorkshopHtml(html))
+
 		.replace(/<(\/?)h([1-4])\b/gu, (_match, slash, level) => {
 			return `<${slash}h${Math.min(Number(level) + 1, 4)}`;
 		})
@@ -177,7 +227,7 @@ function rewriteWorkshopHtml(html: string) {
 		})
 		.replace(/<img([^>]*?)src="([^"]+)"([^>]*)>/gu, (_match, beforeSrc, src, afterSrc) => {
 			return `<img${beforeSrc}src="${escapeHtml(resolveWorkshopAssetUrl(src))}"${afterSrc}>`;
-		});
+		}));
 }
 
 async function renderWorkshopHtml(entryId: string) {
@@ -187,7 +237,14 @@ async function renderWorkshopHtml(entryId: string) {
 	if (!moduleEntry) {
 		throw new Error(`Missing generated workshop markdown for ${entryId}. Expected to find it in src/generated/workshop-markdown/.`);
 	}
-	return rewriteWorkshopHtml(await moduleEntry.compiledContent());
+	let html = rewriteWorkshopHtml(await moduleEntry.compiledContent());
+	if (entryId === '00-welcome.md') {
+		html = html.replace(
+			'I picked the row in the table above that best matches how I want to work today',
+			'I picked the entry path above that best matches how I want to work today',
+		);
+	}
+	return html;
 }
 
 function stripMarkdown(value: string) {

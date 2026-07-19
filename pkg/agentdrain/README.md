@@ -288,6 +288,7 @@ Both `Miner` and `Coordinator` are safe for concurrent use from multiple gorouti
 
 **Internal**:
 - `github.com/github/gh-aw/pkg/logger` — debug logging
+- `github.com/github/gh-aw/pkg/setutil` — set membership helpers
 - `github.com/github/gh-aw/pkg/sliceutil` — slice utilities for cluster management
 
 ## Default Weights

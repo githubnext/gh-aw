@@ -12,6 +12,12 @@ import (
 
 var scheduleLog = logger.New("parser:schedule_parser")
 
+// ErrUnsupportedSyntax is returned by ParseSchedule when the input uses a
+// recognised schedule syntax that is explicitly not supported (e.g. "daily at
+// 2pm"). Callers that need to distinguish this from a completely unrecognised
+// input should test with errors.Is.
+var ErrUnsupportedSyntax = errors.New("unsupported schedule syntax")
+
 // durationPattern matches short duration format: number followed by unit (pre-compiled for performance)
 var durationPattern = regexp.MustCompile(`^(\d+)([hdwm]|mo)$`)
 
@@ -354,7 +360,7 @@ func (p *ScheduleParser) parseDailyBase(hasWeekdaysSuffix bool) (string, error) 
 	case "around":
 		return p.parseDailyAround(hasWeekdaysSuffix)
 	default:
-		return "", errors.New("'daily at <time>' syntax is not supported. Use fuzzy schedules like 'daily' (scattered), 'daily around <time>', or 'daily between <start> and <end>' for load distribution. For fixed times, use standard cron syntax (e.g., '0 14 * * *')")
+		return "", fmt.Errorf("'daily at <time>' syntax is not supported. Use fuzzy schedules like 'daily' (scattered), 'daily around <time>', or 'daily between <start> and <end>' for load distribution. For fixed times, use standard cron syntax (e.g., '0 14 * * *'): %w", ErrUnsupportedSyntax)
 	}
 }
 
@@ -439,7 +445,7 @@ func (p *ScheduleParser) parseWeeklyBase() (string, error) {
 		return fmt.Sprintf("FUZZY:WEEKLY:%s * * *", weekday), nil
 	}
 	if p.tokens[3] != "around" {
-		return "", fmt.Errorf("'weekly on <weekday> at <time>' syntax is not supported. Use fuzzy schedules like 'weekly on %s' (scattered), 'weekly on %s around <time>', or standard cron syntax (e.g., '30 6 * * %s')", weekdayStr, weekdayStr, weekday)
+		return "", fmt.Errorf("'weekly on <weekday> at <time>' syntax is not supported. Use fuzzy schedules like 'weekly on %s' (scattered), 'weekly on %s around <time>', or standard cron syntax (e.g., '30 6 * * %s'): %w", weekdayStr, weekdayStr, weekday, ErrUnsupportedSyntax)
 	}
 
 	timeStr, err := p.extractTime(4)
@@ -469,9 +475,9 @@ func (p *ScheduleParser) parseMonthlyBase() (string, error) {
 		return "", fmt.Errorf("invalid day of month '%s', must be 1-31", day)
 	}
 	if len(p.tokens) > 3 {
-		return "", fmt.Errorf("'monthly on <day> at <time>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 9 %s * *' for the %sth at 9am)", day, day)
+		return "", fmt.Errorf("'monthly on <day> at <time>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 9 %s * *' for the %sth at 9am): %w", day, day, ErrUnsupportedSyntax)
 	}
-	return "", fmt.Errorf("'monthly on <day>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 0 %s * *' for the %sth at midnight)", day, day)
+	return "", fmt.Errorf("'monthly on <day>' syntax is not supported. Use standard cron syntax for monthly schedules (e.g., '0 0 %s * *' for the %sth at midnight): %w", day, day, ErrUnsupportedSyntax)
 }
 
 // extractTime extracts the time specification from tokens starting at startPos

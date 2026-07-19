@@ -83,44 +83,7 @@ else:
 
 ### Trending Analysis Patterns
 
-**Pattern 1: Daily Metrics Tracking**
-
-```python
-#!/usr/bin/env python3
-import pandas as pd, matplotlib.pyplot as plt, seaborn as sns, json, os
-from datetime import datetime
-
-sns.set_style("whitegrid")
-sns.set_palette("husl")
-
-history_file = '/tmp/gh-aw/cache-memory/trending/daily_metrics/history.jsonl'
-today_data = {
-    "timestamp": datetime.now().isoformat(),
-    "issues_opened": 5,
-    "issues_closed": 3,
-    "prs_merged": 2
-}
-
-os.makedirs(os.path.dirname(history_file), exist_ok=True)
-with open(history_file, 'a') as f:
-    f.write(json.dumps(today_data) + '\n')
-
-data = pd.read_json(history_file, lines=True)
-data['date'] = pd.to_datetime(data['timestamp']).dt.date
-daily_stats = data.groupby('date').sum()
-
-fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-daily_stats.plot(ax=ax, marker='o', linewidth=2)
-ax.set_title('Daily Metrics Trends', fontsize=16, fontweight='bold')
-ax.set_xlabel('Date', fontsize=12)
-ax.set_ylabel('Count', fontsize=12)
-ax.legend(loc='best')
-ax.grid(True, alpha=0.3)
-plt.xticks(rotation=45)
-plt.tight_layout()
-plt.savefig('/tmp/gh-aw/python/charts/daily_metrics_trend.png',
-            dpi=300, bbox_inches='tight', facecolor='white')
-```
+**Pattern 1: Daily Metrics Tracking** — append today's data (see "Append New Data" above), then `daily_stats = df.groupby('date').sum()` and plot with `daily_stats.plot(ax=ax, marker='o', linewidth=2)`. See the Complete Example below for the full script.
 
 **Pattern 2: Moving Averages and Smoothing**
 
@@ -214,36 +177,14 @@ print(f"✅ Trend chart generated with {len(df)} data points")
 
 ## Trends Visualization Best Practices
 
-### Example Chart Types
+Temporal and moving-average charts use the Pattern 3 / Pattern 2 code above. Growth rates:
 
-**Temporal Trends**:
-```python
-fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-for column in data.columns:
-    ax.plot(data.index, data[column], marker='o', label=column, linewidth=2)
-ax.set_title('Trends Over Time', fontsize=16, fontweight='bold')
-ax.set_xlabel('Date', fontsize=12)
-ax.set_ylabel('Value', fontsize=12)
-ax.legend(loc='best')
-ax.grid(True, alpha=0.3)
-plt.xticks(rotation=45)
-```
-
-**Growth Rates**:
 ```python
 fig, ax = plt.subplots(figsize=(10, 6), dpi=300)
 growth_data.plot(kind='bar', ax=ax, color=sns.color_palette("husl"))
 ax.set_title('Growth Rates by Period', fontsize=16, fontweight='bold')
 ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8)
 ax.set_ylabel('Growth %', fontsize=12)
-```
-
-**Moving Averages**:
-```python
-fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
-ax.plot(dates, values, label='Actual', alpha=0.5, linewidth=1)
-ax.plot(dates, moving_avg, label='7-day Moving Average', linewidth=2.5)
-ax.fill_between(dates, values, moving_avg, alpha=0.2)
 ```
 
 ### Data Preparation

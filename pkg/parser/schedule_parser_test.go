@@ -1095,3 +1095,39 @@ func TestParseSchedule(t *testing.T) {
 		})
 	}
 }
+
+// TestErrUnsupportedSyntaxIs verifies that all four "explicitly unsupported
+// syntax" branches wrap ErrUnsupportedSyntax so that errors.Is works, and
+// that an ordinary parse error (unrecognised keyword) does not.
+func TestErrUnsupportedSyntaxIs(t *testing.T) {
+	tests := []struct {
+		name            string
+		input           string
+		wantUnsupported bool
+	}{
+		// daily at <time> — first unsupported-syntax branch
+		{name: "daily at time", input: "daily at 2pm", wantUnsupported: true},
+		// weekly on <weekday> at <time> — second unsupported-syntax branch
+		{name: "weekly on weekday at time", input: "weekly on friday at 5pm", wantUnsupported: true},
+		// monthly on <day> — third unsupported-syntax branch
+		{name: "monthly on day", input: "monthly on 15", wantUnsupported: true},
+		// monthly on <day> at <time> — fourth unsupported-syntax branch
+		{name: "monthly on day at time", input: "monthly on 15 at 9am", wantUnsupported: true},
+		// ordinary parse error: unrecognised schedule keyword
+		{name: "ordinary parse error (yearly)", input: "yearly", wantUnsupported: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseSchedule(tt.input)
+			require.Error(t, err)
+			if tt.wantUnsupported {
+				assert.ErrorIs(t, err, ErrUnsupportedSyntax,
+					"expected errors.Is(err, ErrUnsupportedSyntax) for input %q; got: %v", tt.input, err)
+			} else {
+				assert.NotErrorIs(t, err, ErrUnsupportedSyntax,
+					"expected errors.Is(err, ErrUnsupportedSyntax)==false for input %q; got: %v", tt.input, err)
+			}
+		})
+	}
+}

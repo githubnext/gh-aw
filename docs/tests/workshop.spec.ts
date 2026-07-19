@@ -277,6 +277,60 @@ test.describe('Workshop Astro rendering contract', () => {
 		expect(html).toMatch(/<(?:p|h[1-6]|ul|ol|pre|table)\b/i);
 	});
 
+	test('welcome step renders five entry cards with navigable links and updated checklist text', async ({ page }) => {
+		await startWorkshop(page);
+
+		const welcomeContract = await page.evaluate(() => {
+			const node = document.getElementById('aw-workshop-step-data');
+			if (!node) return { cardCount: 0, linkTargets: [] as string[], hasChecklistText: false, hasNavigableTargets: false };
+			const steps = JSON.parse(node.textContent ?? '[]') as Array<{ key?: string; file?: string; html?: string }>;
+			const welcomeStep = steps.find((step) => step.key === '00-welcome' || step.file === '00-welcome.md');
+			const welcomeHtml = welcomeStep?.html ?? '';
+			const cardBodies = [...welcomeHtml.matchAll(/<article class="aw-workshop-entry-card">([\s\S]*?)<\/article>/g)].map((match) => match[1]);
+			const cardCount = cardBodies.length;
+			const recommendedLinkTargets = cardBodies.flatMap((cardHtml) => {
+				const nextSection = cardHtml.match(/<div class="aw-workshop-entry-card-next">([\s\S]*?)<\/div>/)?.[1] ?? '';
+				return [...nextSection.matchAll(/data-workshop-local-link="([^"]+)"/g)].map((match) => decodeURIComponent(match[1]));
+			});
+			const knownTargets = new Set(
+				steps.flatMap((step) => [step.key, step.file?.replace(/\.md$/u, '')]).filter((value): value is string => value != null),
+			);
+			return {
+				cardCount,
+				recommendedLinkTargets,
+				hasChecklistText: welcomeHtml.includes('I picked the entry path above that best matches how I want to work today'),
+				hasNavigableTargets: recommendedLinkTargets.every((target) => {
+					const key = target.replace(/\.md(?:#.*)?$/u, '');
+					return knownTargets.has(key);
+				}),
+			};
+		});
+
+		expect(welcomeContract.cardCount).toBe(5);
+		expect(welcomeContract.recommendedLinkTargets).toHaveLength(5);
+		expect(welcomeContract.hasChecklistText).toBe(true);
+		expect(welcomeContract.hasNavigableTargets).toBe(true);
+	});
+
+	test('non-entry tables remain rendered as tables inside aw-workshop-table-wrap', async ({ page }) => {
+		await startWorkshop(page);
+
+		const wrappedTableCount = await page.evaluate(() => {
+			const node = document.getElementById('aw-workshop-step-data');
+			if (!node) return 0;
+			const steps = JSON.parse(node.textContent ?? '[]') as Array<{ key?: string; html?: string }>;
+			return steps.filter((step) => {
+				const html = step.html ?? '';
+				if (step.key === '00-welcome') return false;
+				return html.includes('<div class="aw-workshop-table-wrap">')
+					&& html.includes('<table>')
+					&& !html.includes('aw-workshop-entry-grid');
+			}).length;
+		});
+
+		expect(wrappedTableCount).toBeGreaterThan(0);
+	});
+
 	test('workshop images embedded in step data resolve to absolute URLs', async ({ page }) => {
 		await startWorkshop(page);
 
