@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 52 active analyzers:
+// All 53 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
 //   - appendoneelement — flags append(s, []T{x}...) calls where a single-element slice literal is spread and can be simplified to append(s, x)
@@ -51,6 +51,7 @@
 //   - timeafterleak — flags time.After in select cases inside loops that leak timer channels
 //   - timesleepnocontext — flags time.Sleep calls in context-aware functions that should propagate cancellation
 //   - tolowerequalfold — flags case-insensitive comparisons via ToLower/ToUpper that should use EqualFold
+//   - trimleftright — flags strings.TrimLeft/TrimRight calls with a multi-character literal cutset where TrimPrefix/TrimSuffix was likely intended
 //   - uncheckedtypeassertion — flags unchecked single-value type assertions
 //   - wgdonenotdeferred — flags non-deferred sync.WaitGroup.Done() calls
 //   - writebytestring — flags w.Write([]byte(s)) calls where s is a string that can be replaced with io.WriteString(w, s)

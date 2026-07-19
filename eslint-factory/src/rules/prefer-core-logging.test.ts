@@ -29,22 +29,22 @@ describe("prefer-core-logging", () => {
           ],
         },
         {
-          code: `console.error("bad thing");`,
-          errors: [
-            {
-              messageId: "preferCoreLogging",
-              data: { method: "error", replacement: "core.error" },
-              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.error", args: `"bad thing"` }, output: `core.error("bad thing");` }],
-            },
-          ],
-        },
-        {
           code: `const foo = "bar"; console.log(foo);`,
           errors: [
             {
               messageId: "preferCoreLogging",
               data: { method: "log", replacement: "core.info" },
               suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `foo` }, output: `const foo = "bar"; core.info(foo);` }],
+            },
+          ],
+        },
+        {
+          code: "console.log(`hello`);",
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: "`hello`" }, output: "core.info(`hello`);" }],
             },
           ],
         },
@@ -100,39 +100,29 @@ describe("prefer-core-logging", () => {
     });
   });
 
-  it("invalid: console.error when core is in scope", () => {
+  it("valid: console.error is not flagged — writes to stderr, not stdout", () => {
     ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
-      valid: [],
-      invalid: [
-        {
-          code: `const core = require("@actions/core"); console.error("bad thing");`,
-          errors: [
-            {
-              messageId: "preferCoreLogging",
-              data: { method: "error", replacement: "core.error" },
-              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.error", args: `"bad thing"` }, output: `const core = require("@actions/core"); core.error("bad thing");` }],
-            },
-          ],
-        },
+      valid: [
+        // console.error writes to stderr; core.error writes workflow commands to stdout.
+        // Replacing stderr logging with stdout logging would corrupt stdio-protocol
+        // channels (e.g. MCP servers), so the rule intentionally exempts console.error.
+        `console.error("bad thing");`,
+        `const core = require("@actions/core"); console.error("bad thing");`,
+        `console.error("MCP transport error:", new Error("oops"));`,
       ],
+      invalid: [],
     });
   });
 
-  it("invalid: console.warn when core is in scope", () => {
+  it("valid: console.warn is not flagged — writes to stderr, not stdout", () => {
     ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
-      valid: [],
-      invalid: [
-        {
-          code: `const core = require("@actions/core"); console.warn("warning");`,
-          errors: [
-            {
-              messageId: "preferCoreLogging",
-              data: { method: "warn", replacement: "core.warning" },
-              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.warning", args: `"warning"` }, output: `const core = require("@actions/core"); core.warning("warning");` }],
-            },
-          ],
-        },
+      valid: [
+        // console.warn writes to stderr; core.warning writes workflow commands to stdout.
+        // Same stream-semantics rationale as console.error above.
+        `console.warn("warning");`,
+        `const core = require("@actions/core"); console.warn("warning");`,
       ],
+      invalid: [],
     });
   });
 
@@ -182,7 +172,45 @@ describe("prefer-core-logging", () => {
             {
               messageId: "preferCoreLogging",
               data: { method: "log", replacement: "core.info" },
-              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `"value:", someVar` }, output: `const core = require("@actions/core"); const someVar = 1; core.info("value:", someVar);` }],
+              suggestions: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: console.log with format specifier is report-only", () => {
+    ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const core = require("@actions/core"); console.log("%s processed");`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `const core = require("@actions/core"); const someVar = 1; console.log("value: %s", someVar);`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: 'const core = require("@actions/core"); const someVar = 1; console.log(`value: ${someVar}`);',
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
             },
           ],
         },

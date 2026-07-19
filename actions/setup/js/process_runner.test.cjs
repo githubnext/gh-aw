@@ -201,6 +201,52 @@ describe("process_runner.cjs", () => {
       expect(logs.some(line => line.includes("post-result watchdog terminating idle process"))).toBe(true);
     });
 
+    it("sets watchdogFired=true when post-result watchdog terminates the process", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", 'process.stdout.write("done"); setInterval(() => {}, 1000);'],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        postResultWatchdog: {
+          shouldArm: () => true,
+          inactivityTimeoutMs: 100,
+          pollIntervalMs: 25,
+          termGraceMs: 200,
+        },
+      });
+      expect(result.watchdogFired).toBe(true);
+      expect(logs.some(line => line.includes("watchdogFired=true"))).toBe(true);
+    });
+
+    it("sets watchdogFired=false when the process exits normally without the watchdog firing", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "process.exit(0)"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+      });
+      expect(result.watchdogFired).toBe(false);
+    });
+
+    it("sets watchdogFired=false when watchdog is configured but does not arm", async () => {
+      const logs = [];
+      const result = await runProcess({
+        command: process.execPath,
+        args: ["-e", "setTimeout(() => process.exit(0), 100);"],
+        attempt: 0,
+        log: msg => logs.push(msg),
+        postResultWatchdog: {
+          shouldArm: () => false,
+          inactivityTimeoutMs: 50,
+          pollIntervalMs: 25,
+          termGraceMs: 100,
+        },
+      });
+      expect(result.watchdogFired).toBe(false);
+    });
+
     it("does not terminate processes when watchdog is not armed", async () => {
       const logs = [];
       const result = await runProcess({

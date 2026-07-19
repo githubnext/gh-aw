@@ -79,7 +79,29 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
-const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
+const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+// Default token count threshold above which a 0-turn failure is classified as "long_run_exit"
+// rather than the generic "partial_execution". Corresponds to ~30+ minutes of Copilot
+// CLI work where the wrapper exits non-zero after the agent has completed substantial work.
+// Override via GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD env var.
+const DEFAULT_LONG_RUN_TOKEN_THRESHOLD = 10000;
+function resolveLongRunTokenThreshold(env = process.env) {
+  const configured = Number(env.GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD);
+  if (!Number.isFinite(configured) || configured < 0) {
+    return DEFAULT_LONG_RUN_TOKEN_THRESHOLD;
+  }
+  return configured;
+}
+const LONG_RUN_TOKEN_THRESHOLD = resolveLongRunTokenThreshold();
+function resolvePostResultWatchdogIdleTimeoutMs(env = process.env) {
+  const configuredTimeoutMs = Number(env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
+  if (!Number.isFinite(configuredTimeoutMs) || configuredTimeoutMs <= 0) {
+    return DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS;
+  }
+  return Math.max(MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, configuredTimeoutMs);
+}
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
 const CAPI_ERROR_400_PATTERN = /CAPIError:\s*400/;
@@ -468,6 +490,24 @@ function extractOutputTail(output, options) {
 }
 
 /**
+ * Sum all `"total_tokens"` values emitted in debug JSON response blocks in CLI output.
+ * The Copilot CLI emits JSON blocks containing token usage data in its stdout/stderr.
+ * Returns 0 when no token data is present (e.g., startup failures that produced no output).
+ * @param {string} output - Combined stdout/stderr from the Copilot CLI
+ * @returns {number}
+ */
+function extractTokenCountFromOutput(output) {
+  if (!output) return 0;
+  let total = 0;
+  const pattern = /"total_tokens"\s*:\s*(\d+)/g;
+  let match;
+  while ((match = pattern.exec(output)) !== null) {
+    total += parseInt(match[1], 10);
+  }
+  return total;
+}
+
+/**
  * Classify a failed Copilot attempt into a short, named failure class.
  * @param {{
  *   hasOutput: boolean,
@@ -483,6 +523,7 @@ function extractOutputTail(output, options) {
  *   isQuotaExceeded?: boolean,
  *   isSDKSessionIdleTimeout?: boolean,
  *   hasNumerousPermissionDenied?: boolean,
+ *   tokenCount?: number,
  * }} detection
  * @returns {string}
  */
@@ -499,6 +540,7 @@ function classifyCopilotFailure(detection) {
   if (detection.isMCPGatewayShutdown) return "mcp_gateway_shutdown";
   if (detection.hasNumerousPermissionDenied) return "permission_denied";
   if (detection.isTransientCAPIError) return "capi_error_400";
+  if (detection.hasOutput && (detection.tokenCount ?? 0) > LONG_RUN_TOKEN_THRESHOLD) return "long_run_exit";
   return detection.hasOutput ? "partial_execution" : "no_output";
 }
 
@@ -1062,6 +1104,7 @@ async function main() {
 
         // Redact --prompt / -p value from logs to avoid leaking prompt content
         const safeArgs = currentArgs.map((arg, i) => (currentArgs[i - 1] === "--prompt" || currentArgs[i - 1] === "-p" ? "<redacted>" : arg));
+        const attemptStart = Date.now();
         // Driver mode: run copilot_sdk_driver.cjs as a normal subprocess. The harness has
         // already started the sidecar; the driver only opens an SDK client connection.
         const result = await runProcess({
@@ -1121,6 +1164,8 @@ async function main() {
         const hasNumerousPermissionDenied = hasNumerousPermissionDeniedIssues(result.output);
         const nonRetryableGuard = detectNonRetryableHarnessGuard(result.output);
         const isInvocationCapExceeded = nonRetryableGuard.maxRunsExceeded;
+        const tokenCount = extractTokenCountFromOutput(result.output);
+        const attemptDurationMs = Date.now() - attemptStart;
         const failureClass = classifyCopilotFailure({
           hasOutput: result.hasOutput,
           isAuthErr,
@@ -1135,6 +1180,7 @@ async function main() {
           isQuotaExceeded,
           isSDKSessionIdleTimeout,
           hasNumerousPermissionDenied,
+          tokenCount,
         });
         const outputTail = extractOutputTail(result.output);
         log(
@@ -1155,6 +1201,8 @@ async function main() {
             ` permissionDeniedCount=${permissionDeniedCount}` +
             ` hasNumerousPermissionDenied=${hasNumerousPermissionDenied}` +
             ` hasOutput=${result.hasOutput}` +
+            ` tokenCount=${tokenCount}` +
+            ` attemptDurationMs=${attemptDurationMs}` +
             ` retriesRemaining=${maxRetries - attempt}`
         );
         if (outputTail) {
@@ -1166,6 +1214,20 @@ async function main() {
         // would not produce different results and could waste resources.
         if (safeOutputsPath && hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
           log(`attempt ${attempt + 1}: noop message found in safe-outputs — not retrying (work is already complete or no work needed)`);
+          lastExitCode = 0;
+          break;
+        }
+
+        // When the run fails with partial_execution and the safe-outputs file already contains a
+        // terminal result, treat the run as a success-with-late-activity rather than a
+        // retryable failure.  This covers the common case where the post-result watchdog fires
+        // because the agent kept running exploratory commands after its deliverable was ready
+        // (watchdogFired=true), as well as any other partial_execution failure that occurs
+        // after the primary task output was already produced.  Retrying would reproduce the
+        // same pattern and exhaust the retry budget without ever posting a final safe-output.
+        if ((failureClass === "partial_execution" || failureClass === "long_run_exit") && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+          const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
+          log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
           lastExitCode = 0;
           break;
         }
@@ -1374,6 +1436,7 @@ if (typeof module !== "undefined" && module.exports) {
     countPermissionDeniedIssues,
     detectCopilotErrors,
     classifyCopilotFailure,
+    extractTokenCountFromOutput,
     shouldRetryFailedExecution,
     extractOutputTail,
     isRetryableProxyAuthenticationFailure,
@@ -1396,6 +1459,7 @@ if (typeof module !== "undefined" && module.exports) {
     applyCopilotModelAliasResolution,
     applyCopilotWireAPI,
     loadAwfConfigData,
+    resolveLongRunTokenThreshold,
   };
 }
 

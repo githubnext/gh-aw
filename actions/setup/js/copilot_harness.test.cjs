@@ -14,6 +14,7 @@ const {
   appendSafeOutputLine,
   buildMissingToolPermissionIssuePayload,
   classifyCopilotFailure,
+  extractTokenCountFromOutput,
   buildMissingToolAlternatives,
   buildInfrastructureIncompletePayload,
   buildCopilotProxyAuthFailureDiagnostic,
@@ -55,6 +56,7 @@ const {
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
+  resolveLongRunTokenThreshold,
 } = require("./copilot_harness.cjs");
 
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
@@ -499,6 +501,124 @@ describe("copilot_harness.cjs", () => {
       it("truncates very large output tails from the front", () => {
         const tail = extractOutputTail(`prefix\n${"x".repeat(40)}`, { maxLines: 5, maxChars: 16 });
         expect(tail).toBe(`…${"x".repeat(15)}`);
+      });
+
+      describe("extractTokenCountFromOutput", () => {
+        it("returns 0 for empty string", () => {
+          expect(extractTokenCountFromOutput("")).toBe(0);
+        });
+
+        it("returns 0 for null/undefined", () => {
+          expect(extractTokenCountFromOutput(null)).toBe(0);
+          expect(extractTokenCountFromOutput(undefined)).toBe(0);
+        });
+
+        it("returns 0 when no total_tokens field is present", () => {
+          expect(extractTokenCountFromOutput("some output with no token data")).toBe(0);
+        });
+
+        it("extracts a single total_tokens value", () => {
+          const output = '{"total_tokens": 5000, "prompt_tokens": 3000}';
+          expect(extractTokenCountFromOutput(output)).toBe(5000);
+        });
+
+        it("sums multiple total_tokens fields", () => {
+          const output = '{"total_tokens": 5000}\n{"total_tokens": 7500}';
+          expect(extractTokenCountFromOutput(output)).toBe(12500);
+        });
+
+        it("handles total_tokens without spaces around colon", () => {
+          const output = '{"total_tokens":4321}';
+          expect(extractTokenCountFromOutput(output)).toBe(4321);
+        });
+
+        it("handles total_tokens with extra spaces", () => {
+          const output = '{"total_tokens"  :  9999}';
+          expect(extractTokenCountFromOutput(output)).toBe(9999);
+        });
+
+        it("ignores non-total_tokens token fields like prompt_tokens and completion_tokens", () => {
+          const output = '{"prompt_tokens": 1000, "completion_tokens": 500}';
+          expect(extractTokenCountFromOutput(output)).toBe(0);
+        });
+
+        it("returns correct sum across multiple JSON blocks in CLI output", () => {
+          const block1 = '{"model":"gpt-4","usage":{"prompt_tokens":3000,"completion_tokens":2000,"total_tokens":5000}}';
+          const block2 = '{"model":"gpt-4","usage":{"prompt_tokens":4000,"completion_tokens":3000,"total_tokens":7000}}';
+          expect(extractTokenCountFromOutput(`${block1}\n${block2}`)).toBe(12000);
+        });
+      });
+
+      describe("long_run_exit classification", () => {
+        it("classifies as long_run_exit when hasOutput and tokenCount exceeds threshold", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, tokenCount: 10001 })).toBe("long_run_exit");
+        });
+
+        it("classifies as partial_execution when tokenCount is exactly at threshold", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, tokenCount: 10000 })).toBe("partial_execution");
+        });
+
+        it("classifies as partial_execution when tokenCount is below threshold", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, tokenCount: 9999 })).toBe("partial_execution");
+        });
+
+        it("classifies as no_output when hasOutput is false even with high tokenCount", () => {
+          expect(classifyCopilotFailure({ hasOutput: false, tokenCount: 50000 })).toBe("no_output");
+        });
+
+        it("classifies as partial_execution when tokenCount is 0", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, tokenCount: 0 })).toBe("partial_execution");
+        });
+
+        it("classifies as partial_execution when tokenCount is absent", () => {
+          expect(classifyCopilotFailure({ hasOutput: true })).toBe("partial_execution");
+        });
+
+        it("named error classes outrank long_run_exit: auth error", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, isAuthErr: true, tokenCount: 50000 })).toBe("no_auth_info");
+        });
+
+        it("named error classes outrank long_run_exit: quota exceeded", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, isQuotaExceeded: true, tokenCount: 50000 })).toBe("capi_quota_exceeded");
+        });
+
+        it("named error classes outrank long_run_exit: invocation cap exceeded", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, isInvocationCapExceeded: true, tokenCount: 50000 })).toBe("invocation_cap_exceeded");
+        });
+
+        it("named error classes outrank long_run_exit: MCP policy", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, isMCPPolicy: true, tokenCount: 50000 })).toBe("mcp_policy_blocked");
+        });
+
+        it("named error classes outrank long_run_exit: capi_error_400", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, isTransientCAPIError: true, tokenCount: 50000 })).toBe("capi_error_400");
+        });
+
+        it("named error classes outrank long_run_exit: sdk_session_idle_timeout", () => {
+          expect(classifyCopilotFailure({ hasOutput: true, isSDKSessionIdleTimeout: true, tokenCount: 50000 })).toBe("sdk_session_idle_timeout");
+        });
+      });
+
+      describe("resolveLongRunTokenThreshold", () => {
+        it("returns default 10000 when env var is unset", () => {
+          expect(resolveLongRunTokenThreshold({})).toBe(10000);
+        });
+
+        it("returns the configured value when GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD is set", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "5000" })).toBe(5000);
+        });
+
+        it("returns default when env var is not a number", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "abc" })).toBe(10000);
+        });
+
+        it("returns default when env var is negative", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "-1" })).toBe(10000);
+        });
+
+        it("returns 0 when env var is '0' (disables long_run_exit classification)", () => {
+          expect(resolveLongRunTokenThreshold({ GH_AW_HARNESS_LONG_RUN_TOKEN_THRESHOLD: "0" })).toBe(0);
+        });
       });
     });
 
@@ -2292,6 +2412,91 @@ process.exit(1);`,
       // Harness exits 1 because no expected output was produced
       expect(result.status).toBe(1);
       expect(result.stderr).toContain("detected numerous permission-denied issues — not retrying");
+    });
+  });
+
+  describe("post-result watchdog suppression when terminal safe-output already produced", () => {
+    it("exits 0 without retrying when a terminal safe-output was already produced and run fails with partial_execution", () => {
+      const tempDir = makeHarnessTempDir("copilot-watchdog-suppression-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub writes a terminal safe-output, then remains alive until SIGTERM.
+      // This exercises the watchdog-fired partial_execution path end-to-end.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add_comment",body:"Daily report posted"}) + "\\n");
+process.stdout.write("Report uploaded. Checking logs...\\n");
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "generate the report", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Only one attempt — no retries when watchdog suppression applies
+      expect(callCount).toBe(1);
+      // Harness exits 0 because the terminal safe-output was already produced
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
+      expect(result.stderr).toContain("late-activity exit suppressed");
+    });
+
+    it("still retries partial_execution when no terminal safe-output was produced (watchdog not armed)", () => {
+      const tempDir = makeHarnessTempDir("copilot-watchdog-no-output-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub produces output but exits 1 without writing any safe-output.
+      // The watchdog cannot fire (no terminal safe-output to arm it), so this
+      // should fall through to the normal partial-execution retry path.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("partial work done\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "generate the report", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          // Override retry config to keep the test fast.
+          GH_AW_HARNESS_MAX_RETRIES: "1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Should retry (2 attempts total with max_retries=1)
+      expect(callCount).toBeGreaterThan(1);
+      // Harness exits 1 because retries are exhausted with no output
+      expect(result.status).toBe(1);
+      expect(result.stderr).not.toContain("late-activity exit suppressed");
     });
   });
 

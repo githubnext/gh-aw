@@ -2,6 +2,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { redactSensitiveConfig } = require("./safe_outputs_config_redact.cjs");
+const { ERR_SYSTEM } = require("./error_codes.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -73,7 +74,7 @@ function loadConfig(server) {
     try {
       fs.mkdirSync(outputDir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${outputDir}: ${String(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${outputDir}: ${String(err)}`, { cause: err });
     }
   }
 

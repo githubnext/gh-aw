@@ -369,10 +369,10 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 	t.Run("No hook cleanup with Claude engine and network permissions (AWF mode)", func(t *testing.T) {
 		// Test data with Claude engine and network permissions with firewall enabled
 		data := &WorkflowData{
-			Name: "test-workflow",
+			Name:  "test-workflow",
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{"example.com", "*.trusted.com"},
@@ -405,10 +405,10 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 		// Test data with Claude engine and defaults network permissions
 		// (This simulates what happens when no network section is specified - defaults to "defaults" mode)
 		data := &WorkflowData{
-			Name: "test-workflow",
+			Name:  "test-workflow",
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed: []string{"defaults"}, // Default network mode
@@ -434,10 +434,10 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 	t.Run("No cleanup with Claude engine but no network permissions", func(t *testing.T) {
 		// Test data with Claude engine but no network permissions
 		data := &WorkflowData{
-			Name: "test-workflow",
+			Name:  "test-workflow",
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 			NetworkPermissions: nil, // No network permissions
 		}
@@ -461,10 +461,10 @@ func TestClaudeEngineNetworkHookCleanup(t *testing.T) {
 	t.Run("No cleanup with empty network permissions (AWF deny-all)", func(t *testing.T) {
 		// Test data with Claude engine and empty network permissions with firewall enabled
 		data := &WorkflowData{
-			Name: "test-workflow",
+			Name:  "test-workflow",
+			Model: "claude-3-5-sonnet-20241022",
 			EngineConfig: &EngineConfig{
-				ID:    "claude",
-				Model: "claude-3-5-sonnet-20241022",
+				ID: "claude",
 			},
 			NetworkPermissions: &NetworkPermissions{
 				Allowed:  []string{}, // Empty allowed list (deny-all)

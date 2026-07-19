@@ -189,8 +189,22 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 		}
 		iteration++
 		logLogsIterationFetch(opts, runtime.fetchAllInRange, iteration, len(processedRuns))
-		batch, err := fetchWorkflowRunBatch(opts, beforeDate, len(processedRuns), runtime.fetchAllInRange)
+		batch, err := fetchWorkflowRunBatch(runtime.activeCtx, opts, beforeDate, len(processedRuns), runtime.fetchAllInRange)
 		if err != nil {
+			// Context deadline exceeded means our own timeout fired mid-call.
+			// Treat it like a graceful timeout: return whatever was collected so far.
+			if errors.Is(err, context.DeadlineExceeded) {
+				timeoutReached = true
+				break
+			}
+			// Context cancelled (e.g. user signal or outer gateway timeout): propagate
+			// the error without partial results.  The caller discards partial runs on
+			// error, so returning them here would be misleading.  We leave
+			// timeoutReached=false because this is an external cancellation, not the
+			// internal --timeout deadline firing.
+			if errors.Is(err, context.Canceled) {
+				return nil, false, false, err
+			}
 			return nil, false, false, err
 		}
 		if len(batch.runs) == 0 {
@@ -277,10 +291,11 @@ func logLogsIterationFetch(opts LogsDownloadOptions, fetchAllInRange bool, itera
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Iteration %d: Need %d more runs with artifacts, fetching more...", iteration, opts.Count-processedCount)))
 }
 
-func fetchWorkflowRunBatch(opts LogsDownloadOptions, beforeDate string, processedCount int, fetchAllInRange bool) (workflowRunBatch, error) {
+func fetchWorkflowRunBatch(ctx context.Context, opts LogsDownloadOptions, beforeDate string, processedCount int, fetchAllInRange bool) (workflowRunBatch, error) {
 	batchSize := computeLogsBatchSize(opts.WorkflowName, opts.Count, processedCount, fetchAllInRange)
 	var oldestFetchedCreatedAt time.Time
 	runs, totalFetched, err := listWorkflowRunsWithPagination(ListWorkflowRunsOptions{
+		Context:                ctx,
 		WorkflowName:           opts.WorkflowName,
 		Limit:                  batchSize,
 		StartDate:              opts.StartDate,

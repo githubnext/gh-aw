@@ -14,9 +14,9 @@ permissions:
   contents: read
   pull-requests: read
   copilot-requests: write
+model: "${{ needs.activation.outputs.model_size }}"
 engine:
   id: copilot
-  model: "${{ needs.activation.outputs.model_size }}"
   max-continuations: 15
 tools:
   cli-proxy: true

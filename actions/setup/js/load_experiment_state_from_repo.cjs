@@ -22,6 +22,7 @@
 const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_SYSTEM, ERR_API } = require("./error_codes.cjs");
 
 const MAX_STATE_FILE_BYTES = 102400;
 // Keep this allowlist aligned with actions/setup/js/normalize_branch_name.cjs valid characters.
@@ -99,7 +100,7 @@ async function fetchFileFromBranch(octokit, owner, repo, branch, filePath) {
     if (errAny.status === 404) {
       return null;
     }
-    throw err;
+    throw new Error(`${ERR_API}: Failed to fetch file "${filePath}" from branch "${branch}": ${String(err)}`, { cause: err });
   }
 }
 
@@ -119,7 +120,7 @@ async function main() {
     try {
       fs.mkdirSync(stateDir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
     }
     return;
   }
@@ -143,7 +144,7 @@ async function main() {
   try {
     fs.mkdirSync(stateDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
   }
 
   if (content === null) {
@@ -171,7 +172,7 @@ async function main() {
   try {
     fs.writeFileSync(stateFile, content, "utf8");
   } catch (err) {
-    throw new Error(`Failed to write file ${stateFile}: ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${stateFile}: ${String(err)}`, { cause: err });
   }
   core.info(`Experiment state written to ${stateFile}`);
 }

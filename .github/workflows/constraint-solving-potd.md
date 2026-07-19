@@ -10,9 +10,9 @@ timeout-minutes: 30
 permissions:
   models: read
 
+model: claude-haiku-4.5
 engine:
   id: copilot
-  model: claude-haiku-4.5
   bare: true
 
 imports:

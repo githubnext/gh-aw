@@ -12,10 +12,10 @@ permissions:
   contents: read
   pull-requests: read
 name: Smoke GitHub Claude
+model: claude-haiku-4.5
 engine:
   id: claude
   model-provider: github
-  model: claude-haiku-4.5
   bare: true
 strict: true
 tools:

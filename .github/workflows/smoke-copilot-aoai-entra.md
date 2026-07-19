@@ -23,9 +23,9 @@ permissions:
   actions: read
 name: Smoke Copilot - AOAI (Entra)
 environment: aoai-model
+model: o4-mini-aw
 engine:
   id: copilot
-  model: o4-mini-aw
   max-continuations: 2
   bare: true
   env:
