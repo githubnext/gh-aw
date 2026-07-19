@@ -44,7 +44,8 @@ func TestPiEngine_GetRequiredSecretNames_CopilotProvider(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/claude-sonnet-4-20250514"},
+		Model:        "copilot/claude-sonnet-4-20250514",
+		EngineConfig: &EngineConfig{ID: "pi"},
 	}
 	secrets := engine.GetRequiredSecretNames(workflowData)
 	assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "copilot/ prefix should require COPILOT_GITHUB_TOKEN")
@@ -54,7 +55,8 @@ func TestPiEngine_GetRequiredSecretNames_AnthropicProvider(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "anthropic/claude-sonnet-4-20250514"},
+		Model:        "anthropic/claude-sonnet-4-20250514",
+		EngineConfig: &EngineConfig{ID: "pi"},
 	}
 	secrets := engine.GetRequiredSecretNames(workflowData)
 	assert.Contains(t, secrets, "ANTHROPIC_API_KEY", "anthropic/ prefix should require ANTHROPIC_API_KEY")
@@ -65,7 +67,8 @@ func TestPiEngine_GetRequiredSecretNames_CodexProvider(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "codex/gpt-4o"},
+		Model:        "codex/gpt-4o",
+		EngineConfig: &EngineConfig{ID: "pi"},
 	}
 	secrets := engine.GetRequiredSecretNames(workflowData)
 	assert.Contains(t, secrets, "CODEX_API_KEY", "codex/ prefix should require CODEX_API_KEY")
@@ -76,7 +79,8 @@ func TestPiEngine_GetRequiredSecretNames_NoPrefix(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "claude-sonnet-4-20250514"},
+		Model:        "claude-sonnet-4-20250514",
+		EngineConfig: &EngineConfig{ID: "pi"},
 	}
 	secrets := engine.GetRequiredSecretNames(workflowData)
 	assert.Contains(t, secrets, "COPILOT_GITHUB_TOKEN", "bare model (no prefix) should default to COPILOT_GITHUB_TOKEN")
@@ -200,7 +204,8 @@ func TestPiEngine_GetExecutionSteps_WithModel(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/claude-sonnet-4"},
+		Model:        "copilot/claude-sonnet-4",
+		EngineConfig: &EngineConfig{ID: "pi"},
 		ParsedTools:  NewTools(map[string]any{}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
@@ -270,7 +275,8 @@ func TestPiEngine_GetExecutionSteps_ProviderPrefixCopilot(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/claude-sonnet-4-20250514"},
+		Model:        "copilot/claude-sonnet-4-20250514",
+		EngineConfig: &EngineConfig{ID: "pi"},
 		ParsedTools:  NewTools(map[string]any{}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
@@ -289,7 +295,8 @@ func TestPiEngine_GetExecutionSteps_ProviderPrefixAnthropic(t *testing.T) {
 	engine := NewPiEngine()
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "anthropic/claude-sonnet-4-20250514"},
+		Model:        "anthropic/claude-sonnet-4-20250514",
+		EngineConfig: &EngineConfig{ID: "pi"},
 		ParsedTools:  NewTools(map[string]any{}),
 	}
 	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/agent-stdio.log")
@@ -312,7 +319,8 @@ func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider(t *testing.T) {
 	}
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/claude-sonnet-4-20250514"},
+		Model:        "copilot/claude-sonnet-4-20250514",
+		EngineConfig: &EngineConfig{ID: "pi"},
 		Tools:        toolsRaw,
 		ParsedTools:  NewTools(toolsRaw),
 		NetworkPermissions: &NetworkPermissions{
@@ -351,7 +359,8 @@ func TestPiEngine_GetExecutionSteps_FirewallAnthropicProvider(t *testing.T) {
 	}
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "anthropic/claude-opus-4-20251101"},
+		Model:        "anthropic/claude-opus-4-20251101",
+		EngineConfig: &EngineConfig{ID: "pi"},
 		Tools:        toolsRaw,
 		ParsedTools:  NewTools(toolsRaw),
 		NetworkPermissions: &NetworkPermissions{
@@ -384,7 +393,8 @@ func TestPiEngine_GetExecutionSteps_FirewallCodexProvider(t *testing.T) {
 	}
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "codex/gpt-4.1"},
+		Model:        "codex/gpt-4.1",
+		EngineConfig: &EngineConfig{ID: "pi"},
 		Tools:        toolsRaw,
 		ParsedTools:  NewTools(toolsRaw),
 		NetworkPermissions: &NetworkPermissions{
@@ -422,7 +432,8 @@ func TestPiEngine_GetExecutionSteps_FirewallCopilotProvider_CopilotRequestsWrite
 	}
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{ID: "pi", Model: "copilot/gpt-5.4"},
+		Model:        "copilot/gpt-5.4",
+		EngineConfig: &EngineConfig{ID: "pi"},
 		Tools:        toolsRaw,
 		ParsedTools:  NewTools(toolsRaw),
 		Permissions:  "permissions:\n  copilot-requests: write",

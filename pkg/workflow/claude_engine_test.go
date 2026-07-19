@@ -515,11 +515,11 @@ func TestClaudeEngineWithVersion(t *testing.T) {
 	engineConfig := &EngineConfig{
 		ID:      "claude",
 		Version: "v1.2.3",
-		Model:   "claude-3-5-sonnet-20241022",
 	}
 
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
+		Model:        "claude-3-5-sonnet-20241022",
 		EngineConfig: engineConfig,
 	}
 
@@ -567,12 +567,12 @@ func TestClaudeEngineWithoutVersion(t *testing.T) {
 
 	// Test without version (should use default)
 	engineConfig := &EngineConfig{
-		ID:    "claude",
-		Model: "claude-3-5-sonnet-20241022",
+		ID: "claude",
 	}
 
 	workflowData := &WorkflowData{
 		Name:         "test-workflow",
+		Model:        "claude-3-5-sonnet-20241022",
 		EngineConfig: engineConfig,
 	}
 

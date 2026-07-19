@@ -727,9 +727,9 @@ func TestBuildDetectionEngineExecutionStepWithThreatDetectionEngine(t *testing.T
 				},
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
+						Model: "gpt-4",
 						EngineConfig: &EngineConfig{
-							ID:    "copilot",
-							Model: "gpt-4",
+							ID: "copilot",
 						},
 					},
 				},
@@ -1166,10 +1166,10 @@ func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
 		{
 			name: "agent field stripped when model is explicitly configured",
 			data: &WorkflowData{
-				AI: "copilot",
+				AI:    "copilot",
+				Model: "claude-opus-4.6",
 				EngineConfig: &EngineConfig{
 					ID:    "copilot",
-					Model: "claude-opus-4.6",
 					Agent: "my-agent",
 				},
 				SafeOutputs: &SafeOutputsConfig{
@@ -1259,10 +1259,10 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		{
 			name: "copilot engine with custom model uses specified model",
 			data: &WorkflowData{
-				AI: "copilot",
+				AI:    "copilot",
+				Model: "gpt-4",
 				EngineConfig: &EngineConfig{
-					ID:    "copilot",
-					Model: "gpt-4",
+					ID: "copilot",
 				},
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{},
@@ -1274,10 +1274,10 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		{
 			name: "pi engine threat detection normalizes provider-scoped model for copilot fallback",
 			data: &WorkflowData{
-				AI: "pi",
+				AI:    "pi",
+				Model: "copilot/gpt-5.4",
 				EngineConfig: &EngineConfig{
-					ID:    "pi",
-					Model: "copilot/gpt-5.4",
+					ID: "pi",
 				},
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{},
@@ -1292,9 +1292,9 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				AI: "claude",
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
+						Model: "gpt-4o",
 						EngineConfig: &EngineConfig{
-							ID:    "copilot",
-							Model: "gpt-4o",
+							ID: "copilot",
 						},
 					},
 				},
@@ -1391,9 +1391,9 @@ func TestBuildDetectionEngineExecutionStepPropagatesAPITarget(t *testing.T) {
 				},
 				SafeOutputs: &SafeOutputsConfig{
 					ThreatDetection: &ThreatDetectionConfig{
+						Model: "gpt-4",
 						EngineConfig: &EngineConfig{
-							ID:    "copilot",
-							Model: "gpt-4",
+							ID: "copilot",
 							// No APITarget set - should be inherited from main engine config
 						},
 					},
@@ -2666,10 +2666,10 @@ func TestBuildDetectionEngineExecutionStepPropagatesModelMappings(t *testing.T) 
 	compiler := NewCompiler()
 
 	data := &WorkflowData{
-		AI: "copilot",
+		AI:    "copilot",
+		Model: "small",
 		EngineConfig: &EngineConfig{
-			ID:    "copilot",
-			Model: "small",
+			ID: "copilot",
 		},
 		ModelMappings: map[string][]string{
 			"small": {"mini"},

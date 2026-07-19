@@ -593,11 +593,11 @@ func TestBuildJobLevelSafeOutputEnvVars(t *testing.T) {
 		{
 			name: "with engine config",
 			workflowData: &WorkflowData{
-				Name: "Test Workflow",
+				Name:  "Test Workflow",
+				Model: "gpt-4",
 				EngineConfig: &EngineConfig{
 					ID:      "copilot",
 					Version: "0.0.375",
-					Model:   "gpt-4",
 				},
 				SafeOutputs: &SafeOutputsConfig{},
 			},

@@ -14,9 +14,9 @@ sandbox:
   agent:
     sudo: false
 
+model: gpt-4.1
 engine:
   id: copilot
-  model: gpt-4.1
 tools:
   cli-proxy: true
   github:
@@ -36,6 +36,7 @@ imports:
 features:
   gh-aw-detection: true
 ---
+
 # GitHub Remote MCP Authentication Test
 
 You are an automated testing agent that verifies GitHub remote MCP server authentication with the GitHub Actions token.

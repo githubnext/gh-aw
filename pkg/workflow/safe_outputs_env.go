@@ -142,7 +142,7 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 	customEnvVars = append(customEnvVars, buildWorkflowMetadataEnvVarsWithTrackerID(data.Name, data.Source, data.TrackerID, buildLocalWorkflowSourceURL(c.markdownPath))...)
 
 	// Add engine metadata (id, version, model) for XML comment marker
-	customEnvVars = append(customEnvVars, buildEngineMetadataEnvVars(data.EngineConfig)...)
+	customEnvVars = append(customEnvVars, buildEngineMetadataEnvVars(data.EngineConfig, data.Model)...)
 
 	// Add common safe output job environment variables (staged/target repo)
 	customEnvVars = append(customEnvVars, buildSafeOutputJobEnvVars(
@@ -167,7 +167,7 @@ func (c *Compiler) buildStandardSafeOutputEnvVars(data *WorkflowData, targetRepo
 
 // buildEngineMetadataEnvVars builds engine metadata environment variables (id, version, model)
 // These are used by the JavaScript footer generation to create XML comment markers for traceability
-func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {
+func buildEngineMetadataEnvVars(engineConfig *EngineConfig, model string) []string {
 	var customEnvVars []string
 
 	if engineConfig == nil {
@@ -189,8 +189,8 @@ func buildEngineMetadataEnvVars(engineConfig *EngineConfig) []string {
 	// Add engine model: prefer explicit compile-time config; fall back to the runtime model
 	// captured by the activation job so safe-output footers can show the actual model used
 	// (e.g. the value of the GH_AW_MODEL_AGENT_* variable) rather than showing nothing.
-	if engineConfig.Model != "" {
-		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: %q\n", engineConfig.Model))
+	if model != "" {
+		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: %q\n", model))
 	} else {
 		customEnvVars = append(customEnvVars, fmt.Sprintf("          GH_AW_ENGINE_MODEL: ${{ needs.%s.outputs.model }}\n", string(constants.AgentJobName)))
 	}

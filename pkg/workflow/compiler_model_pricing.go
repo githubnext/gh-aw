@@ -20,17 +20,17 @@ var compilerModelPricingLog = logger.New("workflow:compiler_model_pricing")
 // Frontmatter-provided pricing always takes precedence; models already present in the
 // embedded actions/setup/js/models.json are skipped by the resolver (the runtime will
 // supply their pricing without an override).
-func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, engineConfig *EngineConfig) map[string]any {
+func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, workflowData *WorkflowData) map[string]any {
 	if c.modelPricingResolver == nil {
 		return modelCosts
 	}
-	if engineConfig == nil || engineConfig.Model == "" {
+	if workflowData == nil || workflowData.Model == "" {
 		return modelCosts
 	}
 
-	provider, model, ok := resolveProviderAndModelForPricing(engineConfig)
+	provider, model, ok := resolveProviderAndModelForPricing(workflowData)
 	if !ok {
-		compilerModelPricingLog.Printf("Skipping external pricing lookup: unable to normalize provider/model for %q", engineConfig.Model)
+		compilerModelPricingLog.Printf("Skipping external pricing lookup: unable to normalize provider/model for %q", workflowData.Model)
 		return modelCosts
 	}
 
@@ -59,6 +59,9 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, engin
 // lookup. It checks the EngineConfig fields in priority order and falls back to a
 // well-known mapping from engine ID.
 func resolveEngineProviderForPricing(engineConfig *EngineConfig) string {
+	if engineConfig == nil {
+		return "github-copilot" // default provider when no engine is specified
+	}
 	if engineConfig.LLMProvider != "" {
 		return normalizeProviderForPricing(engineConfig.LLMProvider)
 	}
@@ -87,9 +90,9 @@ func normalizeProviderForPricing(provider string) string {
 	}
 }
 
-func resolveProviderAndModelForPricing(engineConfig *EngineConfig) (string, string, bool) {
-	provider := resolveEngineProviderForPricing(engineConfig)
-	model := strings.ToLower(strings.TrimSpace(engineConfig.Model))
+func resolveProviderAndModelForPricing(workflowData *WorkflowData) (string, string, bool) {
+	provider := resolveEngineProviderForPricing(workflowData.EngineConfig)
+	model := strings.ToLower(strings.TrimSpace(workflowData.Model))
 	if model == "" {
 		return "", "", false
 	}

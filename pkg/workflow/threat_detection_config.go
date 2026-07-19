@@ -9,6 +9,7 @@ type ThreatDetectionConfig struct {
 	Steps               []any         `yaml:"steps,omitempty"`             // Array of extra job steps to run before engine execution
 	PostSteps           []any         `yaml:"post-steps,omitempty"`        // Array of extra job steps to run after engine execution
 	MaxAICredits        int64         `yaml:"max-ai-credits,omitempty"`    // Maximum AI credits budget for threat-detection engine execution
+	Model               string        `yaml:"model,omitempty"`             // Model override for threat detection engine execution
 	EngineConfig        *EngineConfig `yaml:"engine-config,omitempty"`     // Extended engine configuration for threat detection
 	EngineDisabled      bool          `yaml:"-"`                           // Internal flag: true when engine is explicitly set to false
 	RunsOn              string        `yaml:"runs-on,omitempty"`           // Runner override for the detection job
@@ -174,8 +175,9 @@ func (c *Compiler) parseThreatDetectionObjectConfig(configMap map[string]any) *T
 		} else if engineObj, ok := engine.(map[string]any); ok {
 			threatLog.Print("Parsing threat detection engine configuration")
 			// Handle object format - use extractEngineConfig logic
-			_, engineConfig := c.ExtractEngineConfig(map[string]any{"engine": engineObj})
+			_, engineConfig, model := c.ExtractEngineConfig(map[string]any{"engine": engineObj})
 			threatConfig.EngineConfig = engineConfig
+			threatConfig.Model = model
 		}
 	}
 
