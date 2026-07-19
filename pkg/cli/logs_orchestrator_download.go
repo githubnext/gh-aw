@@ -197,7 +197,10 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 				timeoutReached = true
 				break
 			}
-			// Context cancelled (e.g. user signal): propagate with partial results.
+			// Context cancelled (e.g. user signal or outer gateway timeout): propagate
+			// with partial results.  We intentionally leave timeoutReached=false because
+			// this is an external cancellation, not the internal --timeout deadline firing.
+			// Callers can inspect the returned error to distinguish the two cases.
 			if errors.Is(err, context.Canceled) {
 				return processedRuns, timeoutReached, countLimitReached, err
 			}
