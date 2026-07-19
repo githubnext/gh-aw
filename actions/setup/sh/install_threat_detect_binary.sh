@@ -5,10 +5,13 @@ set +o histexpand
 # Used when `features: gh-aw-detection: true` is set in the workflow frontmatter to enable
 # the external threat-detect binary detection path instead of inline engine execution.
 #
-# Usage: install_threat_detect_binary.sh VERSION
+# Usage: install_threat_detect_binary.sh VERSION [--rootless]
 #
 # Arguments:
-#   VERSION - threat-detect version to install (e.g., v0.2.2)
+#   VERSION    - threat-detect version to install (e.g., v0.2.2)
+#   --rootless - Install to ~/.local/bin without sudo; appends that directory to
+#                $GITHUB_PATH so subsequent steps find the binary.  Use this on
+#                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
 #
 # Platform support:
 #   - Linux (x64, arm64): Downloads pre-built binary
@@ -21,15 +24,53 @@ set +o histexpand
 set -euo pipefail
 
 # Configuration
-THREAT_DETECT_VERSION="${1:-}"
 THREAT_DETECT_REPO="github/gh-aw-threat-detection"
 THREAT_DETECT_INSTALL_DIR="/usr/local/bin"
 THREAT_DETECT_INSTALL_NAME="threat-detect"
 
+# Parse arguments: treat the first non-flag argument as VERSION, all --<flag> arguments as flags.
+THREAT_DETECT_VERSION=""
+ROOTLESS=false
+for arg in "$@"; do
+  case "$arg" in
+    --rootless) ROOTLESS=true ;;
+    --*) echo "WARNING: Unknown flag: $arg" >&2 ;;
+    *)
+      if [ -z "$THREAT_DETECT_VERSION" ]; then
+        THREAT_DETECT_VERSION="$arg"
+      fi
+      ;;
+  esac
+done
+
 if [ -z "$THREAT_DETECT_VERSION" ]; then
   echo "ERROR: threat-detect version is required"
-  echo "Usage: $0 VERSION"
+  echo "Usage: $0 VERSION [--rootless]"
   exit 1
+fi
+
+# In rootless mode, install into the user's home directory instead of /usr/local/bin
+# so that ARC/DinD runners with allowPrivilegeEscalation: false can run without sudo.
+if [ "$ROOTLESS" = "true" ]; then
+  THREAT_DETECT_INSTALL_DIR="${HOME}/.local/bin"
+fi
+
+# maybe_sudo runs a command with sudo unless --rootless was specified.
+# In rootless mode, sudo is not available or needed.
+maybe_sudo() {
+  if [ "$ROOTLESS" = "true" ]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+# Rootless mode preflight: create and verify write access to the install directory.
+if [ "$ROOTLESS" = "true" ]; then
+  if ! { mkdir -p "${THREAT_DETECT_INSTALL_DIR}" && [ -w "${THREAT_DETECT_INSTALL_DIR}" ]; }; then
+    echo "ERROR: --rootless could not create a writable install directory at ${THREAT_DETECT_INSTALL_DIR}" >&2
+    exit 1
+  fi
 fi
 
 # Detect OS and architecture
@@ -106,7 +147,7 @@ install_linux_binary() {
 
   # Make binary executable and install
   chmod +x "${TEMP_DIR}/${binary_name}"
-  sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
+  maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
 }
 
 install_darwin_binary() {
@@ -127,7 +168,7 @@ install_darwin_binary() {
 
   # Make binary executable and install
   chmod +x "${TEMP_DIR}/${binary_name}"
-  sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
+  maybe_sudo mv "${TEMP_DIR}/${binary_name}" "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
 }
 
 case "$OS" in
@@ -142,6 +183,16 @@ case "$OS" in
     exit 1
     ;;
 esac
+
+# In rootless mode, add the install dir to PATH for subsequent steps.
+if [ "$ROOTLESS" = "true" ]; then
+  if [ -n "${GITHUB_PATH:-}" ]; then
+    echo "${THREAT_DETECT_INSTALL_DIR}" >> "${GITHUB_PATH}"
+    echo "  Exported ${THREAT_DETECT_INSTALL_DIR} to GITHUB_PATH"
+  else
+    echo "  GITHUB_PATH not set — binary installed at ${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}"
+  fi
+fi
 
 # Verify installation
 "${THREAT_DETECT_INSTALL_DIR}/${THREAT_DETECT_INSTALL_NAME}" --version

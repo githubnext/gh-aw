@@ -1078,6 +1078,7 @@ jobs:
           export XDG_CONFIG_HOME="$HOME"
           export GH_AW_MCP_CONFIG="$HOME/.copilot/mcp-config.json"
           mkdir -p /tmp/gh-aw
+          GH_AW_PREV_UMASK="$(umask)"
           umask 0177
           cat > /tmp/gh-aw/engine-command.sh <<'GH_AW_ENGINE_COMMAND_EOF'
           #!/usr/bin/env bash
@@ -1087,6 +1088,7 @@ jobs:
 
           GH_AW_ENGINE_COMMAND_EOF
           chmod 700 /tmp/gh-aw/engine-command.sh
+          umask "$GH_AW_PREV_UMASK"
           touch /tmp/gh-aw/agent-step-summary.md
           GH_AW_NODE_BIN=$(command -v node 2>/dev/null || true)
           export GH_AW_NODE_BIN
