@@ -53,8 +53,26 @@ describe("no-core-error-then-process-exit", () => {
           errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: "core.setFailed(`ERROR: ${message}`);\n " }] }],
         },
         {
+          // pair inside a non-main function: no autofix because `return` only exits the helper,
+          // not the process. The `run` name is not the entrypoint.
           code: `function run() { core.error("oops"); process.exit(1); }`,
-          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'function run() { core.setFailed("oops"); return;\n  }' }] }],
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // pair inside a value-returning helper: no autofix — `return` would make the helper
+          // return `undefined` instead of aborting the process (acceptance criterion a).
+          code: `function requireEnvVar(name) { const value = process.env[name]; if (!value) { core.error(\`ERROR: \${name} required\`); process.exit(1); } return value; }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // pair inside async function main() entrypoint: autofix retained (acceptance criterion c).
+          code: `async function main() { core.error("fatal"); process.exit(1); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'async function main() { core.setFailed("fatal"); return;\n  }' }] }],
+        },
+        {
+          // pair inside const main = async () => {} entrypoint: autofix retained.
+          code: `const main = async () => { core.error("fatal"); process.exit(1); }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'const main = async () => { core.setFailed("fatal"); return;\n  }' }] }],
         },
         {
           // Computed property: core["error"]
