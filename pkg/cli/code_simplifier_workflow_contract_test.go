@@ -26,6 +26,5 @@ func TestCodeSimplifierWorkflowSubAgentModelContract(t *testing.T) {
 	assert.Contains(t, text, "## agent: `scope-filter`", "Workflow should define the scope-filter sub-agent")
 	assert.Contains(t, text, "## agent: `simplification-scout`", "Workflow should define the simplification-scout sub-agent")
 	assert.Contains(t, text, "model: claude-haiku-4.5", "Sub-agents should pin a supported Haiku model")
-	assert.NotContains(t, text, "model: small\n---\nInput is a single file path string", "scope-filter sub-agent should not use the unresolved 'small' alias")
-	assert.NotContains(t, text, "model: small\n---\nGiven file content", "simplification-scout sub-agent should not use the unresolved 'small' alias")
+	assert.NotContains(t, text, "model: small", "Sub-agents should not use the unresolved 'small' alias")
 }

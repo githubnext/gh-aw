@@ -25,5 +25,5 @@ func TestPRDescriptionCavemanWorkflowSubAgentModelContract(t *testing.T) {
 	text := string(content)
 	assert.Contains(t, text, "## agent: `chunk-analyzer`", "Workflow should define the chunk-analyzer sub-agent")
 	assert.Contains(t, text, "model: claude-haiku-4.5", "chunk-analyzer sub-agent should pin a supported Haiku model")
-	assert.NotContains(t, text, "## agent: `chunk-analyzer`\n---\ndescription: Analyses one 400-line slice of a unified diff and extracts structured per-file change facts.\nmodel: small", "chunk-analyzer sub-agent should not use the unresolved 'small' alias")
+	assert.NotContains(t, text, "model: small", "chunk-analyzer sub-agent should not use the unresolved 'small' alias")
 }
