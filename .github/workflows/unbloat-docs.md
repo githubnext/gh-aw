@@ -4,8 +4,9 @@ emoji: "📝"
 name: Documentation Unbloat
 description: Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness
 on:
-  # Daily (scattered execution time)
-  schedule: daily
+  # Daily (explicitly staggered to avoid the 22:29 UTC batch)
+  schedule:
+    - cron: "18 0 * * *"
   
   # Command trigger for /unbloat in PR comments
   slash_command:

@@ -78,7 +78,12 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		return nil
 	}
 
-	seed := buildAutoUpdateSeed(opts.RepoSlug)
+	actionMode := opts.ActionMode
+	if actionMode == "" {
+		actionMode = DetectActionMode(opts.Version)
+	}
+
+	seed := buildAutoUpdateSeed(opts.RepoSlug, actionMode)
 	cronSchedule, err := parser.ScatterSchedule("FUZZY:WEEKLY", seed)
 	if err != nil {
 		return fmt.Errorf("failed to scatter FUZZY:WEEKLY schedule for auto-update workflow: %w", err)
@@ -94,10 +99,6 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 		githubScriptPin = getActionPin("actions/github-script")
 	}
 
-	actionMode := opts.ActionMode
-	if actionMode == "" {
-		actionMode = ActionModeDev
-	}
 	ctx := opts.Context
 	if ctx == nil {
 		ctx = context.Background()
@@ -123,9 +124,24 @@ func GenerateAutoUpdateWorkflow(opts GenerateAutoUpdateWorkflowOptions) error {
 }
 
 // buildAutoUpdateSeed returns the deterministic seed string used to scatter the
-// FUZZY:WEEKLY cron schedule. It combines the repo slug with the fixed workflow
-// identifier so that repositories scatter to distinct time slots.
-func buildAutoUpdateSeed(repoSlug string) string {
+// FUZZY:WEEKLY cron schedule.
+//
+// In dev mode a stable "dev/" prefix is used instead of the slug, which may not
+// be available (e.g. in sandbox environments where the git remote URL is a
+// localhost proxy). This mirrors the behaviour of normalizeScheduleString in
+// schedule_preprocessing.go and prevents the generated schedule from changing
+// between dev builds when --schedule-seed is sometimes provided and sometimes not.
+//
+// In all other modes (release, action, script) the repo slug is incorporated so
+// that different repositories scatter to distinct time slots. Note: released
+// binaries auto-detect ActionModeAction, not ActionModeRelease, so checking only
+// IsRelease() would cause ActionModeAction builds to silently use the dev seed.
+func buildAutoUpdateSeed(repoSlug string, actionMode ActionMode) string {
+	if actionMode.IsDev() {
+		// Dev mode: use a fixed prefix that does not depend on git remote detection.
+		return "dev/" + autoUpdateWorkflowIdentifier
+	}
+	// Release/action/script mode: incorporate repo slug for per-repo scattering.
 	if repoSlug != "" {
 		return repoSlug + "/" + autoUpdateWorkflowIdentifier
 	}
