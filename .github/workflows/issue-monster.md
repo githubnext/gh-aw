@@ -400,10 +400,9 @@ sandbox:
   agent:
     sudo: false
 
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
-
 imports:
   - shared/github-guard-policy.md
   - shared/activation-app.md

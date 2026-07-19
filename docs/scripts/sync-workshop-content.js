@@ -8,7 +8,8 @@ const outputFile = join(generatedDir, 'workshop-content.ts');
 const workshopRepo = process.env.GH_AW_WORKSHOP_REPO || 'githubnext/gh-aw-workshop';
 const workshopRef = process.env.GH_AW_WORKSHOP_REF || 'main';
 const localWorkshopSourceDir = process.env.GH_AW_WORKSHOP_SOURCE_DIR;
-const workshopLocalLinkPrefix = '/gh-aw/workshop/?__gh_aw_workshop_local__=';
+const workshopOrgSlug = process.env.GH_AW_WORKSHOP_ORG_SLUG || '2026-07-24-hackathon-blue-bat-18';
+const workshopLocalLinkPrefix = `/gh-aw/workshops/${workshopOrgSlug}/?__gh_aw_workshop_local__=`;
 const publicWorkshopBase = `https://github.com/${workshopRepo}`;
 const publicWorkshopTreeUrl = `${publicWorkshopBase}/tree/${workshopRef}/workshop`;
 const publicWorkshopBlobBaseUrl = `${publicWorkshopBase}/blob/${workshopRef}/workshop/`;
@@ -74,6 +75,20 @@ function loadLocalWorkshopEntries(sourceDir) {
 		}));
 }
 
+function parseFrontmatter(body) {
+	const match = body.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?/u);
+	if (!match) return { frontmatter: {}, body };
+	const yaml = match[1];
+	const frontmatter = /** @type {Record<string, string>} */ ({});
+	for (const line of yaml.split('\n')) {
+		const colonIdx = line.indexOf(':');
+		if (colonIdx > 0) {
+			frontmatter[line.slice(0, colonIdx).trim()] = line.slice(colonIdx + 1).trim();
+		}
+	}
+	return { frontmatter, body: body.slice(match[0].length) };
+}
+
 function stripMarkdown(value) {
 	return String(value)
 		.replace(/!\[([^\]]*)\]\([^)]+\)/gu, '$1')
@@ -117,11 +132,21 @@ function extractSummary(body) {
 }
 
 function addEntryMetadata(entries) {
-	return entries.map((entry) => ({
-		...entry,
-		title: extractTitle(entry.body, entry.id),
-		summary: extractSummary(entry.body),
-	}));
+	return entries.map((entry) => {
+		const { frontmatter, body } = parseFrontmatter(entry.body);
+		// Frontmatter is present in fresh remote entries. Cached entries (loaded from the
+		// generated file on a transient fetch failure) have already had their frontmatter
+		// stripped, so parseFrontmatter returns empty frontmatter — fall back to the
+		// existing field value on the entry before falling back to the default.
+		return {
+			...entry,
+			body,
+			journey: frontmatter['journey'] || entry.journey || 'all',
+			adventure: frontmatter['adventure'] || entry.adventure || 'core',
+			title: extractTitle(body, entry.id),
+			summary: extractSummary(body),
+		};
+	});
 }
 
 function rewriteWorkshopMarkdownForAstro(body, rawBaseUrl = publicWorkshopRawBaseUrl) {
@@ -210,7 +235,8 @@ rmSync(markdownOutputDir, { recursive: true, force: true });
 mkdirSync(markdownOutputDir, { recursive: true });
 
 for (const entry of entries) {
-	writeFileSync(join(markdownOutputDir, entry.id), rewriteWorkshopMarkdownForAstro(entry.body, effectiveRawBaseUrl), 'utf8');
+	const { body } = parseFrontmatter(entry.body);
+	writeFileSync(join(markdownOutputDir, entry.id), rewriteWorkshopMarkdownForAstro(body, effectiveRawBaseUrl), 'utf8');
 }
 
 const output = `${[
@@ -228,6 +254,8 @@ const output = `${[
 	'',
 	'export type WorkshopContentEntry = {',
 	"\tid: string;",
+	"\tjourney: string;",
+	"\tadventure: string;",
 	"\ttitle: string;",
 	"\tsummary: string;",
 	"\tbody: string;",

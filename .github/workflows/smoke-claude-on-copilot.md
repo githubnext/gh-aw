@@ -13,10 +13,10 @@ permissions:
   pull-requests: read
   copilot-requests: write
 name: Smoke Claude on Copilot
+model: claude-sonnet-4.5
 engine:
   id: claude
   model-provider: github
-  model: claude-sonnet-4.5
   bare: true
 strict: true
 tools:

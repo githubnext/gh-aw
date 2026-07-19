@@ -162,7 +162,7 @@ func TestResolveEngineProviderForPricing(t *testing.T) {
 func TestResolveModelPricingIfMissing_NilResolver(t *testing.T) {
 	c := &Compiler{}
 	// No resolver registered — should be a no-op.
-	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "gpt-99", ID: "codex"})
+	result := c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "gpt-99", EngineConfig: &EngineConfig{ID: "codex"}})
 	assert.Nil(t, result)
 }
 
@@ -182,7 +182,7 @@ func TestResolveModelPricingIfMissing_AlreadyPresent(t *testing.T) {
 		called = true
 		return nil, false
 	})
-	result := c.resolveModelPricingIfMissing(existing, &EngineConfig{Model: "gpt-99", ID: "codex"})
+	result := c.resolveModelPricingIfMissing(existing, &WorkflowData{Model: "gpt-99", EngineConfig: &EngineConfig{ID: "codex"}})
 	assert.False(t, called, "resolver should not be called when pricing is already present")
 	assert.Equal(t, existing, result)
 }
@@ -196,7 +196,7 @@ func TestResolveModelPricingIfMissing_InjectsFromResolver(t *testing.T) {
 		return nil, false
 	})
 
-	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "claude-new-model", ID: "claude"})
+	result := c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "claude-new-model", EngineConfig: &EngineConfig{ID: "claude"}})
 	require.NotNil(t, result)
 	providers := result["providers"].(map[string]any)
 	require.Contains(t, providers, "anthropic")
@@ -209,7 +209,7 @@ func TestResolveModelPricingIfMissing_ResolverReturnsNothing(t *testing.T) {
 	c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
 		return nil, false
 	})
-	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "mystery-model", ID: "claude"})
+	result := c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "mystery-model", EngineConfig: &EngineConfig{ID: "claude"}})
 	// Should return the original (nil) map unchanged.
 	assert.Nil(t, result)
 }
@@ -222,9 +222,9 @@ func TestResolveModelPricingIfMissing_SplitsQualifiedModelAndNormalizesProvider(
 		return map[string]float64{"input": 3e-06}, true
 	})
 
-	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{
-		ID:    "unknown-engine",
-		Model: "github_models/claude-sonnet-4.6",
+	result := c.resolveModelPricingIfMissing(nil, &WorkflowData{
+		Model:        "github_models/claude-sonnet-4.6",
+		EngineConfig: &EngineConfig{ID: "unknown-engine"},
 	})
 	require.NotNil(t, result)
 	providers := result["providers"].(map[string]any)
@@ -241,9 +241,9 @@ func TestResolveModelPricingIfMissing_SkipsWhenProviderCannotBeNormalized(t *tes
 		return map[string]float64{"input": 1e-06}, true
 	})
 
-	result := c.resolveModelPricingIfMissing(nil, &EngineConfig{
-		ID:    "unknown-engine",
-		Model: "claude-sonnet-4.6",
+	result := c.resolveModelPricingIfMissing(nil, &WorkflowData{
+		Model:        "claude-sonnet-4.6",
+		EngineConfig: &EngineConfig{ID: "unknown-engine"},
 	})
 
 	assert.False(t, called)
@@ -258,7 +258,7 @@ func TestResolveModelPricingIfMissing_SkipsMalformedQualifiedModel(t *testing.T)
 		return map[string]float64{"input": 1e-06}, true
 	})
 
-	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "/gpt-4.1"}))
-	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &EngineConfig{Model: "openai/"}))
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "/gpt-4.1", EngineConfig: &EngineConfig{}}))
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "openai/", EngineConfig: &EngineConfig{}}))
 	assert.False(t, called)
 }

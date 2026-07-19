@@ -1,6 +1,14 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import WorkshopExperience from '../components/workshop/WorkshopExperience.astro';
+import WorkshopExperience from '../../components/workshop/WorkshopExperience.astro';
+import { WORKSHOP_SLUGS } from '../../lib/workshop/config';
+
+export function getStaticPaths() {
+	return WORKSHOP_SLUGS.map((org) => ({ params: { org } }));
+}
+
+const { org } = Astro.params;
+if (!org) throw new Error('Workshop route: missing org param');
 ---
 
 <StarlightPage
@@ -11,7 +19,7 @@ import WorkshopExperience from '../components/workshop/WorkshopExperience.astro'
 		tableOfContents: false,
 	}}
 >
-	<WorkshopExperience />
+	<WorkshopExperience org={org} />
 </StarlightPage>
 
 <style>

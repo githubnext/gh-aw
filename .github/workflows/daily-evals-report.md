@@ -11,9 +11,9 @@ permissions:
   issues: read
   pull-requests: read
 max-daily-ai-credits: 3000
+model: gpt-5.4
 engine:
   id: codex
-  model: gpt-5.4
 tracker-id: daily-evals-report
 sandbox:
   agent:

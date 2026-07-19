@@ -12,7 +12,13 @@
 
 ### Decision
 
-We will add a new `trimleftright` analyzer at `pkg/linters/trimleftright/` with a conservative heuristic: flag `strings.TrimLeft`/`strings.TrimRight` only when the cutset is a string literal that is (1) multi-rune, (2) fully alphanumeric, and (3) contains at least one repeated rune (for example `"foo"` or `"barr"`). This sharply reduces false positives for idiomatic character-set trimming such as whitespace classes (`" \t\n\r"`), punctuation sets, or unique-rune sets (`"aeiou"`).  
+We will add a new `trimleftright` analyzer at `pkg/linters/trimleftright/` with a heuristic that flags `strings.TrimLeft`/`strings.TrimRight` when the cutset is a string literal that is (1) multi-rune, (2) fully alphanumeric, and (3) does not match a recognised intentional character-class idiom. The recognised exceptions are:
+
+- **Pure decimal-digit sets** (e.g. `"0123456789"`, `"012"`) — digit-class trimming.
+- **Pure ASCII-vowel sets** (e.g. `"aeiou"`, `"aei"`) — vowel-class trimming.
+- **Complete hex-letter alphabet** (all six of `a`–`f` present, in any case, optionally mixed with digits; e.g. `"abcdef"`, `"ABCDEF"`, `"0123456789abcdef"`) — hex-class trimming.
+
+All other multi-rune alphanumeric cutsets — including common prefix/suffix bugs such as `"http"`, `"bar"`, `"abc"`, `"v1"`, `"0x"` — are flagged. This is a broader trigger than the original repeated-rune heuristic, which systematically missed the most common form of the bug (distinct-character cutsets).  
 
 The analyzer will emit diagnostics only (no `SuggestedFix`) because replacing `TrimLeft`/`TrimRight` with `TrimPrefix`/`TrimSuffix` changes semantics and cannot be proven safe from syntax alone. Generated files are excluded and callers can suppress intentional cases with `//nolint:trimleftright`. The analyzer is registered in `cmd/linters/main.go` alongside existing analyzers.
 
@@ -40,7 +46,7 @@ Not chosen because: documentation-only approaches do not catch new instances at 
 #### Negative
 - Any intentional multi-character cutset usage (e.g., trimming a set of punctuation characters) must be explicitly annotated with `//nolint:trimleftright`, adding a small maintenance burden for valid usages.
 - The analyzer adds one more entry to `cmd/linters/main.go` and must be kept in sync with future refactors of the linter registry.
-- The conservative heuristic may miss some genuine mistakes (for example, literal prefixes without repeated runes such as `"bar"`).
+- Partial hex-letter subsets (e.g. `"abc"`, `"abce"`) are flagged even when the intent is genuinely hex-class trimming; such cases should be annotated with `//nolint:trimleftright`.
 
 #### Neutral
 - The linter applies only to string literals; dynamic cutset values (variables, expressions) are not flagged, which is a deliberate scope limitation—inferring intent from non-literal arguments is not feasible at analysis time.

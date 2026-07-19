@@ -15,10 +15,10 @@ on:
 permissions:
   contents: read
 name: Smoke Copilot SDK
+model: gpt-5.4
 engine:
   id: copilot
   copilot-sdk: true
-  model: gpt-5.4
   bare: true
 tools:
   bash:

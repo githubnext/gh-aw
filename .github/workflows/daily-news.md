@@ -16,9 +16,9 @@ permissions:
 
   copilot-requests: write
 tracker-id: daily-news-weekday
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
   bare: true
 
 timeout-minutes: 30  # Reduced from 45 since pre-fetching data is faster

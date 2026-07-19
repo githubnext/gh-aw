@@ -476,7 +476,7 @@ func extractWorkflowNameFromFile(filePath string) (title string, err error) {
 func extractEngineIDFromFrontmatter(frontmatter map[string]any) string {
 	// Use the workflow package's ExtractEngineConfig to handle both string and object formats
 	compiler := &workflow.Compiler{}
-	engineSetting, engineConfig := compiler.ExtractEngineConfig(frontmatter)
+	engineSetting, engineConfig, _ := compiler.ExtractEngineConfig(frontmatter)
 
 	if engineConfig != nil && engineConfig.ID != "" {
 		return engineConfig.ID

@@ -31,9 +31,9 @@ safe-outputs:
   noop: null
 description: Automatically reviews and updates documentation to ensure accuracy and completeness
 emoji: 📝
+model: copilot/gpt-5.4
 engine:
   id: pi
-  model: copilot/gpt-5.4
 name: Daily Documentation Updater
 strict: true
 experiments:
@@ -81,6 +81,7 @@ evals:
   - id: pr_created_or_noop
     question: Was a documentation pull request created with updates, or was noop used when no documentation changes were required?
 ---
+
 {{#runtime-import? .github/shared-instructions.md}}
 
 # Daily Documentation Updater

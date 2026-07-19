@@ -38,7 +38,7 @@ func (c *Compiler) validateEnvSecrets(frontmatter map[string]any) error {
 			// Determine which env var keys may carry secrets: those that the engine itself
 			// requires (e.g. COPILOT_GITHUB_TOKEN for the copilot engine).
 			// The second return value is *EngineConfig (not an error); we only need the engine ID.
-			engineSetting, _ := c.ExtractEngineConfig(frontmatter)
+			engineSetting, _, _ := c.ExtractEngineConfig(frontmatter)
 			allowedEnvVarKeys := c.getEngineBaseEnvVarKeys(engineSetting)
 
 			if err := c.validateEnvSecretsSection(engineObj, "engine.env", allowedEnvVarKeys); err != nil {

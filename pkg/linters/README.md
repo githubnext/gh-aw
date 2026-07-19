@@ -55,7 +55,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `timeafterleak` — reports `time.After` calls used as the channel-receive expression in a `select` case inside a `for` or `range` loop that leak a timer channel on each iteration when another case fires first.
 - `timesleepnocontext` — reports `time.Sleep` calls inside functions that already receive a `context.Context`, where a context-aware `select` should be used instead.
 - `tolowerequalfold` — reports case-insensitive string comparisons using `strings.ToLower`/`ToUpper` that should use `strings.EqualFold`.
-- `trimleftright` — flags `strings.TrimLeft`/`TrimRight` calls with a multi-character literal cutset where `TrimPrefix`/`TrimSuffix` was likely intended.
+- `trimleftright` — reports `strings.TrimLeft`/`TrimRight` calls with a multi-character literal cutset where `TrimPrefix`/`TrimSuffix` was likely intended.
 - `uncheckedtypeassertion` — reports single-value type assertions where unchecked panics are possible.
 - `wgdonenotdeferred` — reports non-deferred `sync.WaitGroup.Done()` calls that can deadlock on panics or early returns.
 - `writebytestring` — reports `w.Write([]byte(s))` calls where `s` is a string, which can be replaced with `io.WriteString` to avoid an unnecessary `[]byte` allocation.
@@ -156,6 +156,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sprintfint"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
+	"github.com/github/gh-aw/pkg/linters/trimleftright"
 )
 
 // Use with multichecker, singlechecker, or custom go/analysis driver.
@@ -183,6 +184,7 @@ _ = sortslice.Analyzer
 _ = sprintfint.Analyzer
 _ = ssljson.Analyzer
 _ = timesleepnocontext.Analyzer
+_ = trimleftright.Analyzer
 ```
 
 ## Dependencies

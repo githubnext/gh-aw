@@ -414,6 +414,11 @@ type FrontmatterConfig struct {
 	CheckoutConfigs  []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
 	CheckoutDisabled bool              `json:"-"`                  // true when checkout: false is set in frontmatter
 
+	// Model is the top-level LLM model override. When set, it takes precedence over
+	// engine.model. Use this field instead of engine.model.
+	// Example: model: gpt-5.4
+	Model string `json:"model,omitempty"`
+
 	// BinEval evaluations: list of binary questions evaluated after safe-outputs.
 	// Can be a plain list (shorthand) or an object with a questions list and optional
 	// engine-config / runs-on overrides.
