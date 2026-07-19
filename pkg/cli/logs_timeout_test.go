@@ -196,7 +196,7 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 			requestedTimeout: 0,
 			count:            250,
 			workflowName:     "",
-			want:             7, // ceil(250/40) = 7 > defaultMCPLogsMinTimeoutMinutesAllWorkflows (5)
+			want:             (250 + mcpLogsRunsPerDefaultTimeoutMinute - 1) / mcpLogsRunsPerDefaultTimeoutMinute, // ceil(250/mcpLogsRunsPerDefaultTimeoutMinute) > defaultMCPLogsMinTimeoutMinutesAllWorkflows
 		},
 	}
 
