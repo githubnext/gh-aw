@@ -18,7 +18,7 @@ const { checkFileProtection, checkFileProtectionPostApply } = require("./manifes
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
 const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
@@ -325,6 +325,13 @@ async function main(config = {}) {
   // This allows pushing to PRs in a different repository than the workflow
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
+
+  // Ensure the workspace is trusted in the bridge process (Process Safe Outputs step).
+  // The bridge runs outside the Docker container as a potentially different user/HOME,
+  // so the in-container `git config --global safe.directory` may not be visible here.
+  // Using GIT_CONFIG_* env vars avoids relying on ~/.gitconfig and covers cases where
+  // the conditional "Configure Git credentials" step was skipped or HOME differs.
+  ensureSafeDirectoryTrust(process.env.GITHUB_WORKSPACE || process.cwd());
 
   // Git network operations authenticate using the credentials actions/checkout
   // persisted into .git/config for the safe_outputs job (persist-credentials: true,
@@ -677,6 +684,12 @@ async function main(config = {}) {
 
     // Base options for all git exec calls - includes cwd when running in a subdirectory checkout
     const baseGitOpts = repoCwd ? { cwd: repoCwd } : {};
+
+    // For cross-repo checkouts, also trust the specific subdirectory. The factory-level call
+    // covers GITHUB_WORKSPACE; this per-message call covers subdirectory checkout paths.
+    if (repoCwd) {
+      ensureSafeDirectoryTrust(repoCwd);
+    }
     let pullRequest;
     try {
       const response = await githubClient.rest.pulls.get({
@@ -1116,7 +1129,7 @@ async function main(config = {}) {
           } catch {
             // Ignore
           }
-          return { success: false, error: "Failed to apply bundle" };
+          return { success: false, error: `Failed to apply bundle: ${getErrorMessage(bundleError)}` };
         }
       } else {
         // Patch transport (non-default): git am --3way

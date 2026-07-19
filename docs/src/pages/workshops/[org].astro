@@ -1,0 +1,29 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+import WorkshopExperience from '../../components/workshop/WorkshopExperience.astro';
+import { WORKSHOP_SLUGS } from '../../lib/workshop/config';
+
+export function getStaticPaths() {
+	return WORKSHOP_SLUGS.map((org) => ({ params: { org } }));
+}
+
+const { org } = Astro.params;
+if (!org) throw new Error('Workshop route: missing org param');
+---
+
+<StarlightPage
+	hasSidebar={false}
+	frontmatter={{
+		title: 'Workshop',
+		description: 'Work through the gh-aw workshop directly in the docs. Choose where you like to work and track your progress as you go.',
+		tableOfContents: false,
+	}}
+>
+	<WorkshopExperience org={org} />
+</StarlightPage>
+
+<style>
+	:global(.pagination-links) {
+		display: none;
+	}
+</style>

@@ -11,6 +11,7 @@ import { unified } from '@astrojs/markdown-remark';
 import remarkStripEmojis from './src/lib/remark/stripEmojis.js';
 import remarkTableDataLabels from './src/lib/remark/tableDataLabels.js';
 import rehypeTableWrapper from './src/lib/rehype/tableWrapper.js';
+import { WORKSHOP_SLUGS } from './src/lib/workshop/config.ts';
 
 /**
  * Creates blog authors config with GitHub profile pictures
@@ -295,7 +296,8 @@ export default defineConfig({
 					errorOnLocalLinks: true,
 					exclude: ({ file, link }) =>
 						file.includes('/src/generated/workshop-markdown/')
-						&& link.startsWith('/gh-aw/workshop/?__gh_aw_workshop_local__='),
+						&& link.includes('?__gh_aw_workshop_local__=')
+						&& WORKSHOP_SLUGS.some((slug) => link.startsWith(`/gh-aw/workshops/${slug}/`)),
 				})
 			],
 			sidebar: [
