@@ -586,9 +586,11 @@ func TestCopilotAutoModelSentinelInBYOKModeUsesBYOKDefault(t *testing.T) {
 				t.Errorf("Sentinel value %q must not appear as COPILOT_MODEL value in BYOK mode;\ngot:\n%s", tt.model, stepsContent)
 			}
 
-			// The BYOK default model must appear in the org-variable fallback expression.
-			if !strings.Contains(stepsContent, constants.CopilotBYOKDefaultModel) {
-				t.Errorf("BYOK default model %q must appear in COPILOT_MODEL expression in BYOK mode;\ngot:\n%s", constants.CopilotBYOKDefaultModel, stepsContent)
+			// The org-variable fallback expression must use the primary model var and BYOK default.
+			// Expected form: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
+			expectedExpr := compilerenv.BuildModelOverrideExpression(constants.EnvVarModelAgentCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+			if !strings.Contains(stepsContent, expectedExpr) {
+				t.Errorf("Expected COPILOT_MODEL to contain the org-variable fallback expression %q in BYOK mode;\ngot:\n%s", expectedExpr, stepsContent)
 			}
 		})
 	}
