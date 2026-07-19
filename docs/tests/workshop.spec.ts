@@ -12,7 +12,7 @@ const workshopDevices = [
 ];
 
 async function startWorkshop(page: Page) {
-	await page.goto('/gh-aw/workshop/hackathon-blue-bat-18/');
+	await page.goto('/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/');
 	await page.waitForLoadState('networkidle');
 	await page.locator('[data-workshop-entry-path="ui-learner"]').click();
 	await page.locator('[data-workshop-scenario="daily-status"]').click();
@@ -188,7 +188,7 @@ test.describe('Workshop tutorial', () => {
 
 test.describe('Workshop URL hash navigation', () => {
 	test('encodes journey and scenario in the URL hash after setup', async ({ page }) => {
-		await page.goto('/gh-aw/workshop/hackathon-blue-bat-18/');
+		await page.goto('/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/');
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
@@ -220,7 +220,7 @@ test.describe('Workshop URL hash navigation', () => {
 		const stepPosition = await page.locator('[data-workshop-step-position]').textContent();
 
 		// Navigate away so storage would otherwise default back to step 1.
-		await page.goto('/gh-aw/workshop/hackathon-blue-bat-18/');
+		await page.goto('/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/');
 		await page.waitForLoadState('networkidle');
 		// Clear session storage so the only source of truth for the step is the URL hash.
 		await page.evaluate(() => sessionStorage.clear());
@@ -235,7 +235,7 @@ test.describe('Workshop URL hash navigation', () => {
 	});
 
 	test('supports browser back navigation from tutorial to setup', async ({ page }) => {
-		await page.goto('/gh-aw/workshop/hackathon-blue-bat-18/');
+		await page.goto('/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/');
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
@@ -250,7 +250,7 @@ test.describe('Workshop URL hash navigation', () => {
 	});
 
 	test('supports browser back navigation from scenario picker to workspace picker', async ({ page }) => {
-		await page.goto('/gh-aw/workshop/hackathon-blue-bat-18/');
+		await page.goto('/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/');
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();

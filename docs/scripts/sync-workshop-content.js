@@ -8,7 +8,7 @@ const outputFile = join(generatedDir, 'workshop-content.ts');
 const workshopRepo = process.env.GH_AW_WORKSHOP_REPO || 'githubnext/gh-aw-workshop';
 const workshopRef = process.env.GH_AW_WORKSHOP_REF || 'main';
 const localWorkshopSourceDir = process.env.GH_AW_WORKSHOP_SOURCE_DIR;
-const workshopLocalLinkPrefix = '/gh-aw/workshop/hackathon-blue-bat-18/?__gh_aw_workshop_local__=';
+const workshopLocalLinkPrefix = '/gh-aw/workshops/2026-07-24-hackathon-blue-bat-18/?__gh_aw_workshop_local__=';
 const publicWorkshopBase = `https://github.com/${workshopRepo}`;
 const publicWorkshopTreeUrl = `${publicWorkshopBase}/tree/${workshopRef}/workshop`;
 const publicWorkshopBlobBaseUrl = `${publicWorkshopBase}/blob/${workshopRef}/workshop/`;
