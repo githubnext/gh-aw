@@ -480,6 +480,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				<div class="aw-workshop-panel-heading">
 					<p class="aw-workshop-panel-meta" data-workshop-step-position>Step 1</p>
 					<p class="aw-workshop-panel-summary" data-workshop-step-summary>{initialStep?.summary ?? 'Start with the welcome step, then follow the path selected above.'}</p>
+					<progress class="aw-workshop-step-progress" data-workshop-step-progress max="100" value="0" aria-label="Workshop step progress"></progress>
 				</div>
 				<div class="aw-workshop-panel-actions">
 					<button type="button" class="aw-workshop-inline-button aw-workshop-inline-button-home" data-workshop-home>
@@ -689,6 +690,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const nextButton = root.querySelector('[data-workshop-next]');
 			const stepBodyContainer = root.querySelector('[data-workshop-step-content]');
 			const stepSummary = root.querySelector('[data-workshop-step-summary]');
+			const stepProgressEl = root.querySelector('[data-workshop-step-progress]');
 			let setupStep = 'workspace';
 
 			const showSetupStep = (stepName, opts = {}) => {
@@ -844,6 +846,12 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				stepSummary.textContent = activeStep.summary || 'Follow the guided path for this lesson.';
 				flowTitle.textContent = `${journey.label} x ${scenario.label}`;
 				stepPosition.textContent = stepIndex >= 0 ? `Step ${stepIndex + 1} of ${visibleFlow.length}` : 'Linked step';
+				if (stepProgressEl) {
+					const total = visibleFlow.length;
+					stepProgressEl.value = total > 0 && stepIndex >= 0
+						? Math.round(((stepIndex + 1) / total) * 100)
+						: 0;
+				}
 				stepBodyContainer.innerHTML = renderTutorialStep(activeStep);
 				root.dataset.workshopFlowKeys = visibleFlow.join(',');
 				root.dataset.workshopCurrentStep = activeStep.key;
@@ -1148,6 +1156,10 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 	}
 
 	.aw-workshop-card-route:empty {
+		display: none;
+	}
+
+	.aw-workshop-step-progress {
 		display: none;
 	}
 
@@ -1615,6 +1627,34 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			width: 100%;
 			justify-content: center;
 			text-align: center;
+		}
+
+		.aw-workshop-step-progress {
+			display: block;
+			width: 100%;
+			height: 3px;
+			margin: 0;
+			border: none;
+			border-radius: 999px;
+			background: var(--aw-border);
+			-webkit-appearance: none;
+			appearance: none;
+		}
+
+		.aw-workshop-step-progress::-webkit-progress-bar {
+			background: var(--aw-border);
+			border-radius: 999px;
+		}
+
+		.aw-workshop-step-progress::-webkit-progress-value {
+			background: var(--sl-color-accent);
+			border-radius: 999px;
+			transition: width 0.3s ease;
+		}
+
+		.aw-workshop-step-progress::-moz-progress-bar {
+			background: var(--sl-color-accent);
+			border-radius: 999px;
 		}
 	}
 
