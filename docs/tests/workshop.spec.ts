@@ -36,7 +36,7 @@ async function goToStepIfVisible(page: Page, targetStepKey: string): Promise<boo
 	const flowKeys = await getFlowStepKeys(page);
 	if (!flowKeys.includes(targetStepKey)) return false;
 
-	for (let index = 0; index < flowKeys.length; index++) {
+	for (let stepAttempt = 0; stepAttempt < flowKeys.length; stepAttempt++) {
 		if ((await getCurrentStepKey(page)) === targetStepKey) return true;
 		const nextButton = page.getByRole('button', { name: /Next step|Finish workshop/i });
 		if (await nextButton.isDisabled()) break;
@@ -44,6 +44,10 @@ async function goToStepIfVisible(page: Page, targetStepKey: string): Promise<boo
 	}
 
 	return (await getCurrentStepKey(page)) === targetStepKey;
+}
+
+async function shouldNavigateToVisibleStep(page: Page, isPresent: boolean, stepKey: string | null): Promise<boolean> {
+	return Boolean(isPresent && stepKey && await goToStepIfVisible(page, stepKey));
 }
 
 test.describe('Workshop tutorial', () => {
@@ -441,7 +445,7 @@ test.describe('Workshop Astro rendering contract', () => {
 		// Raw remark-gfm classes must not appear in any step HTML — they should have been rewritten.
 		expect(result.hasRawMarkers).toBe(false);
 
-		if (result.hasTaskLists && result.firstTaskListStepKey && await goToStepIfVisible(page, result.firstTaskListStepKey)) {
+		if (await shouldNavigateToVisibleStep(page, result.hasTaskLists, result.firstTaskListStepKey)) {
 			const checklist = page.locator('[data-workshop-step-content] ul.aw-workshop-checklist').first();
 			await expect(checklist).toBeVisible();
 		}
@@ -467,7 +471,7 @@ test.describe('Workshop Astro rendering contract', () => {
 		// Raw [!TYPE] markers must not appear in any step HTML.
 		expect(result.hasRawMarkers).toBe(false);
 
-		if (result.hasAlerts && result.firstAlertStepKey && await goToStepIfVisible(page, result.firstAlertStepKey)) {
+		if (await shouldNavigateToVisibleStep(page, result.hasAlerts, result.firstAlertStepKey)) {
 			const aside = page.locator('[data-workshop-step-content] aside[class*="aw-workshop-admonition-"]').first();
 			await expect(aside).toBeVisible();
 		}
