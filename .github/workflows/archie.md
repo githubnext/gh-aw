@@ -19,6 +19,7 @@ permissions:
   copilot-requests: write
 engine:
   id: copilot
+  model: auto
   agent: adr-writer
 strict: true
 imports:

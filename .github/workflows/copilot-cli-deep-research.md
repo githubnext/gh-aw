@@ -28,6 +28,7 @@ description: Deep research analyzing Copilot CLI current state, available featur
 emoji: 🔬
 engine:
   id: copilot
+  model: auto
   copilot-sdk: true
 strict: true
 timeout-minutes: 20

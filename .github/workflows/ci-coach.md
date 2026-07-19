@@ -15,6 +15,7 @@ max-ai-credits: 50000
 tracker-id: ci-coach-daily
 engine:
   id: copilot
+  model: auto
   copilot-sdk: true
 tools:
   cli-proxy: true

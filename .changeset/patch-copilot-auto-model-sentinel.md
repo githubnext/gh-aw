@@ -12,4 +12,7 @@ engine:
   model: auto
 ```
 
-Both `auto` and `none` are pass-through sentinels: they suppress `COPILOT_MODEL` injection so the Copilot CLI performs its own automatic routing, which is the only supported mode on Copilot Free accounts.
+Both `auto` and `none` are pass-through sentinels that suppress `COPILOT_MODEL` injection so the Copilot CLI performs its own automatic routing — the only supported mode on Copilot Free accounts.
+
+**BYOK exception**: when a custom provider URL is configured (`engine.env.COPILOT_PROVIDER_BASE_URL` or equivalent BYOK settings), these sentinels have no effect. BYOK providers require a concrete model ID, so `COPILOT_MODEL` is always injected with a concrete value (defaulting to `CopilotBYOKDefaultModel`) regardless of the sentinel.
+

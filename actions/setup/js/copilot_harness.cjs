@@ -312,8 +312,12 @@ function applyCopilotModelAliasResolution(options) {
   // because BYOK providers require an explicit model id.
   if (resolvedModel === "") {
     if (process.env.COPILOT_PROVIDER_BASE_URL) {
-      logger(`copilot model pass-through sentinel '${configuredModel}' ignored in BYOK mode: COPILOT_MODEL is required for BYOK providers`);
-      return configuredModel;
+      // Replace the sentinel with the BYOK default model so the provider receives
+      // a concrete model ID rather than the reserved "auto"/"none" string.
+      const byokFallback = "claude-sonnet-4.6";
+      logger(`copilot model pass-through sentinel '${configuredModel}' ignored in BYOK mode: using BYOK default model '${byokFallback}'`);
+      process.env.COPILOT_MODEL = byokFallback;
+      return byokFallback;
     }
     delete process.env.COPILOT_MODEL;
     return "";

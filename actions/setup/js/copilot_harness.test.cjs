@@ -2480,21 +2480,23 @@ process.exit(1);`,
       expect(process.env.COPILOT_MODEL).toBeUndefined();
     });
 
-    it("preserves COPILOT_MODEL for 'auto' sentinel in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
+    it("replaces 'auto' sentinel with BYOK default model in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
       process.env.COPILOT_MODEL = "auto";
       process.env.COPILOT_PROVIDER_BASE_URL = "https://api.example.com/v1";
       const logs = [];
       applyCopilotModelAliasResolution({ awfReflectData: null, logger: msg => logs.push(msg) });
-      // BYOK requires a model id — sentinel must not delete COPILOT_MODEL
-      expect(process.env.COPILOT_MODEL).toBe("auto");
+      // BYOK requires a concrete model id — sentinel must be replaced with the BYOK default
+      expect(process.env.COPILOT_MODEL).toBe("claude-sonnet-4.6");
       expect(logs.some(m => m.includes("BYOK"))).toBe(true);
     });
 
-    it("preserves COPILOT_MODEL for 'none' sentinel in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
+    it("replaces 'none' sentinel with BYOK default model in BYOK mode (COPILOT_PROVIDER_BASE_URL set)", () => {
       process.env.COPILOT_MODEL = "none";
       process.env.COPILOT_PROVIDER_BASE_URL = "https://api.openai.com/v1";
-      applyCopilotModelAliasResolution({ awfReflectData: null });
-      expect(process.env.COPILOT_MODEL).toBe("none");
+      const logs = [];
+      applyCopilotModelAliasResolution({ awfReflectData: null, logger: msg => logs.push(msg) });
+      expect(process.env.COPILOT_MODEL).toBe("claude-sonnet-4.6");
+      expect(logs.some(m => m.includes("BYOK"))).toBe(true);
     });
   });
 });

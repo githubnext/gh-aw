@@ -13,13 +13,14 @@ description: Daily status report for gh-aw project
 timeout-minutes: 30
 strict: false
 engine:
-  id: codex
-  model: gpt-5.4
+  id: copilot
+  model: auto
 
 permissions:
   contents: read
   issues: read
   pull-requests: read
+  copilot-requests: write
 
 safe-outputs:
   create-issue:

@@ -325,11 +325,17 @@ const (
 	// the COPILOT_MODEL env var injection so the CLI can auto-select the model
 	// for the caller's account plan (e.g. Copilot Free, which rejects explicit model
 	// values for plans limited to automatic selection).
+	//
+	// Exception: when BYOK mode is active (a custom provider URL is configured),
+	// this sentinel is ignored and COPILOT_MODEL is injected with a concrete model
+	// ID (CopilotBYOKDefaultModel as the final fallback), because BYOK providers
+	// require an explicit model value.
 	CopilotAutoModelSentinel = "auto"
 
 	// CopilotNoModelSentinel is an alias for CopilotAutoModelSentinel.
 	// Setting engine.model to "none" has the same effect as "auto": COPILOT_MODEL
 	// is not injected and the Copilot CLI performs automatic model selection.
+	// See CopilotAutoModelSentinel for the BYOK exception.
 	CopilotNoModelSentinel = "none"
 
 	// CodexDefaultModel is the default model for the Codex agentic engine.

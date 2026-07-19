@@ -19,6 +19,7 @@ permissions:
   copilot-requests: write
 engine:
   id: copilot
+  model: auto
   copilot-sdk: true
 strict: false
 
