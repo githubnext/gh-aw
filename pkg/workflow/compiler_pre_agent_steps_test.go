@@ -18,6 +18,8 @@ func TestPreAgentStepsGeneration(t *testing.T) {
 on: push
 permissions:
   contents: read
+checkout:
+  force-clean-git-credentials: true
 pre-agent-steps:
   - name: Finalize prompt context
     run: echo "finalize"
@@ -50,16 +52,23 @@ Test pre-agent-steps.
 	}
 
 	startMCPGatewayIndex := indexInNonCommentLines(lockContent, "- name: Start MCP Gateway")
+	cleanCheckoutCredentialsIndex := indexInNonCommentLines(lockContent, "- name: Clean git credentials after checkout")
 	preAgentStepIndex := indexInNonCommentLines(lockContent, "- name: Finalize prompt context")
 	aiStepIndex := indexInNonCommentLines(lockContent, "- name: Execute Claude Code CLI")
-	if startMCPGatewayIndex == -1 || preAgentStepIndex == -1 || aiStepIndex == -1 {
+	if startMCPGatewayIndex == -1 || cleanCheckoutCredentialsIndex == -1 || preAgentStepIndex == -1 || aiStepIndex == -1 {
 		t.Fatal("Could not find expected steps in generated workflow")
+	}
+	if cleanCheckoutCredentialsIndex >= preAgentStepIndex {
+		t.Errorf("Pre-agent-step (%d) should appear after Clean git credentials after checkout (%d)", preAgentStepIndex, cleanCheckoutCredentialsIndex)
 	}
 	if preAgentStepIndex >= startMCPGatewayIndex {
 		t.Errorf("Pre-agent-step (%d) should appear before Start MCP Gateway (%d)", preAgentStepIndex, startMCPGatewayIndex)
 	}
 	if preAgentStepIndex >= aiStepIndex {
 		t.Errorf("Pre-agent-step (%d) should appear before AI execution step (%d)", preAgentStepIndex, aiStepIndex)
+	}
+	if strings.Contains(lockContent, "pre-agent-steps: []") || strings.Contains(lockContent, "post-steps: []") || strings.Contains(lockContent, "pre-steps: []") {
+		t.Error("Expected no empty steps block markers when only pre-agent-steps are configured")
 	}
 }
 

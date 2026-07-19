@@ -1,6 +1,6 @@
 ---
 title: Custom Steps and Jobs
-description: "Add deterministic pre-processing steps and custom GitHub Actions jobs to agentic workflows using steps:, pre-agent-steps:, post-steps:, and jobs:"
+description: "Add deterministic pre-processing steps and custom GitHub Actions jobs to agentic workflows using pre-steps:, steps:, pre-agent-steps:, post-steps:, and jobs:"
 sidebar:
   order: 820
 ---
@@ -8,6 +8,15 @@ sidebar:
 Custom steps and jobs let you mix deterministic computation with agentic execution. All custom steps and jobs run **outside the firewall sandbox** with standard GitHub Actions security.
 
 See [DeterministicOps](/gh-aw/patterns/deterministic-ops/) for patterns combining computation with AI reasoning.
+
+## Choosing the Right Step Hook
+
+Use these top-level step hooks in this order:
+
+1. `pre-steps:` — runs before checkout and the rest of the built-in agent-job setup. Use this for short-lived token minting or anything that must happen before repository checkout.
+2. `steps:` — runs after checkout and the normal runtime/bootstrap steps, but before the final pre-agent phase. Use this for deterministic preprocessing that needs the checked-out repository.
+3. `pre-agent-steps:` — runs after framework-owned initialization such as checkout cleanup and base-branch restoration, and before MCP startup and engine execution. Use this for last-moment environment preparation immediately before the agent starts.
+4. `post-steps:` — runs after the engine finishes. Use this for cleanup, summaries, uploads, or follow-up automation.
 
 ## Custom Steps (`steps:`)
 
@@ -20,6 +29,19 @@ steps:
 ```
 
 Use custom steps to precompute data, filter triggers, or prepare context for AI agents. Steps can also short-circuit the agent by writing a `noop` entry to `$GH_AW_SAFE_OUTPUTS` — the harness detects this at startup and exits cleanly without incurring any AI inference cost. See [Skip the Agent from Steps Using `noop`](/gh-aw/reference/cost-management/#skip-the-agent-from-steps-using-noop) for details.
+
+## Custom Pre-Checkout Steps (`pre-steps:`)
+
+Add custom steps at the very beginning of the agent job, before checkout and the rest of the compiler-managed setup.
+
+```yaml wrap
+pre-steps:
+  - name: Mint checkout token
+    id: checkout_app
+    uses: actions/create-github-app-token@v2
+```
+
+Use pre-steps when later checkout or setup must consume outputs from a step in the same job.
 
 ## Custom Pre-Agent Steps (`pre-agent-steps:`)
 
