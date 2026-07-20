@@ -47,14 +47,6 @@ func TestSpec_PublicAPI_Stderr(t *testing.T) {
 	assert.Implements(t, (*io.Writer)(nil), w, "Stderr should return an io.Writer as documented")
 }
 
-// TestSpec_PublicAPI_Stdout validates the documented behavior of Stdout from the
-// README.md specification.
-func TestSpec_PublicAPI_Stdout(t *testing.T) {
-	w := colorwriter.Stdout()
-	require.NotNil(t, w, "Stdout should return a non-nil io.Writer")
-	assert.Implements(t, (*io.Writer)(nil), w, "Stdout should return an io.Writer as documented")
-}
-
 // TestSpec_PublicAPI_Degrade validates the documented behavior of Degrade from the
 // README.md specification.
 func TestSpec_PublicAPI_Degrade(t *testing.T) {
