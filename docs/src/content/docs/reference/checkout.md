@@ -7,7 +7,7 @@ sidebar:
 
 The `checkout:` frontmatter field controls how `actions/checkout` is invoked in the agent job. Configure custom checkout settings, check out multiple repositories, or disable checkout entirely.
 
-By default, the agent checks out the repository where the workflow is running with a shallow fetch (`fetch-depth: 1`). If triggered by a pull request event, it also checks out the PR head ref. For most workflows, this default checkout is sufficient and no `checkout:` configuration is necessary.
+By default, the agent checks out the repository where the workflow is running with a shallow fetch (`fetch-depth: 1`). If triggered by a `pull_request` event, it also checks out the PR head ref. For `pull_request_target` events, checkout of the PR head branch is **disabled by default** — the head branch may be deleted (merged/closed PRs) or inaccessible (fork PRs), causing the step to hard-fail. For most workflows, this default checkout is sufficient and no `checkout:` configuration is necessary.
 
 Use `checkout:` when you need to check out additional branches, check out multiple repositories, or to disable checkout entirely for workflows that don't need to access code or can access code dynamically through the GitHub Tools.
 
@@ -112,13 +112,30 @@ Fetch everything the workflow needs at checkout time using `fetch-depth` and [`f
 
 ## Disabling Checkout (`checkout: false`)
 
-Set `checkout: false` to suppress the default `actions/checkout` step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
+Set `checkout: false` to suppress both the default `actions/checkout` step and the PR-specific "Checkout PR branch" step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:
 
 ```yaml wrap
 checkout: false
 ```
 
 This is equivalent to omitting the checkout step from the agent job. Custom dev-mode steps (such as "Checkout actions folder") are unaffected.
+
+## `pull_request_target` Checkout
+
+For `pull_request_target` workflows, the "Checkout PR branch" step is auto-disabled when no `checkout:` key is present in frontmatter. This prevents hard failures when the PR head branch is deleted (merged/closed events) or inaccessible (fork PRs).
+
+To check out a trusted ref such as the base SHA, opt in explicitly with a `checkout:` mapping:
+
+```yaml wrap
+on:
+  pull_request_target:
+    types: [opened, synchronize]
+checkout:
+  repository: ${{ github.repository }}
+  ref: ${{ github.event.pull_request.base.sha }}
+```
+
+This produces the "Checkout PR branch" step pointing at the safe base ref. Do **not** use `github.event.pull_request.head.sha` or `refs/pull/.../head` in a privileged `pull_request_target` job — that would check out untrusted code in a context with write permissions.
 
 ## Marking a Primary Repository (`current: true`)
 

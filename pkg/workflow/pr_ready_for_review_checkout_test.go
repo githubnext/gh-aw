@@ -276,7 +276,7 @@ Workflow triggered when a PR is closed.
 			description:      "pull_request_target with explicit checkout: false should not generate 'Checkout PR branch' step",
 		},
 		{
-			name: "pull_request_target with trusted checkout mapping - PR checkout step present",
+			name: "pull_request_target with trusted checkout mapping - no PR checkout step",
 			workflowContent: `---
 on:
   pull_request_target:
@@ -293,8 +293,8 @@ checkout:
 # PR review workflow
 Workflow triggered when a PR is opened with a trusted base checkout.
 `,
-			expectPRCheckout: true,
-			description:      "pull_request_target with explicit checkout mapping should generate 'Checkout PR branch' step",
+			expectPRCheckout: false,
+			description:      "pull_request_target with explicit checkout mapping should NOT generate 'Checkout PR branch' step (checkout_pr_branch.cjs fetches refs/pull/<n>/head, not the trusted base SHA)",
 		},
 	}
 
@@ -338,6 +338,17 @@ Workflow triggered when a PR is opened with a trusted base checkout.
 			hasPRCheckout := strings.Contains(lockStr, "Checkout PR branch")
 			if hasPRCheckout != tt.expectPRCheckout {
 				t.Errorf("%s: expected PR checkout step: %v, got: %v", tt.description, tt.expectPRCheckout, hasPRCheckout)
+			}
+
+			// When a PR checkout step IS present, verify it does not reference insecure
+			// PR-head refs (e.g. refs/pull/<n>/head). The trusted-base opt-in must check
+			// out a safe ref such as the base SHA, not the untrusted PR head.
+			if hasPRCheckout {
+				for _, insecurePattern := range []string{"refs/pull", "head.ref", "head_ref"} {
+					if strings.Contains(lockStr, insecurePattern) {
+						t.Errorf("%s: expected trusted base checkout but lock file contains insecure pattern %q", tt.description, insecurePattern)
+					}
+				}
 			}
 		})
 	}
