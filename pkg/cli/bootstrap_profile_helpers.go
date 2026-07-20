@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"html"
 	"net"
 	"os"
 	"os/exec"
@@ -132,9 +133,16 @@ func resolveBootstrapSecretValue(envName, title, description string, optional bo
 	if err != nil {
 		return "", false, err
 	}
+	return normalizeBootstrapPromptSecretValue(value, optional)
+}
+
+func normalizeBootstrapPromptSecretValue(value string, optional bool) (string, bool, error) {
 	value = strings.TrimRight(value, "\r\n")
-	if value == "" && optional {
-		return "", false, nil
+	if value == "" {
+		if optional {
+			return "", false, nil
+		}
+		return "", false, errors.New("secret value cannot be empty. Example: enter a non-empty secret such as github_pat_example")
 	}
 	return value, true, nil
 }
@@ -309,8 +317,7 @@ func bootstrapRandomHex(size int) (string, error) {
 }
 
 func htmlEscape(value string) string {
-	replacer := strings.NewReplacer("&", "&amp;", "\"", "&quot;", "<", "&lt;", ">", "&gt;")
-	return replacer.Replace(value)
+	return html.EscapeString(value)
 }
 
 func openBootstrapBrowser(url string) bool {
@@ -326,6 +333,9 @@ func openBootstrapBrowser(url string) bool {
 	for _, args := range commands {
 		cmd := exec.Command(args[0], args[1:]...)
 		if err := cmd.Start(); err == nil {
+			go func() {
+				_ = cmd.Wait()
+			}()
 			return true
 		}
 	}
@@ -338,8 +348,8 @@ func netListener() (net.Listener, error) {
 
 func firstNonEmpty(values ...string) string {
 	for _, value := range values {
-		if strings.TrimSpace(value) != "" {
-			return value
+		if trimmed := strings.TrimSpace(value); trimmed != "" {
+			return trimmed
 		}
 	}
 	return ""

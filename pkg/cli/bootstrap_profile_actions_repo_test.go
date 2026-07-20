@@ -148,10 +148,10 @@ func TestRunBootstrapCopilotAuthAction(t *testing.T) {
 }
 
 func TestBootstrapRepoMutationHelpers_RejectInvalidRepo(t *testing.T) {
-	if err := upsertBootstrapRepoVariable(context.Background(), "not-a-repo", "NAME", "value"); err == nil {
+	if err := upsertBootstrapRepoVariable("not-a-repo", "NAME", "value"); err == nil {
 		t.Fatal("expected invalid repo slug error for variable upsert")
 	}
-	if err := setBootstrapRepoSecret(context.Background(), "not-a-repo", "NAME", "value"); err == nil {
+	if err := setBootstrapRepoSecret("not-a-repo", "NAME", "value"); err == nil {
 		t.Fatal("expected invalid repo slug error for secret set")
 	}
 }

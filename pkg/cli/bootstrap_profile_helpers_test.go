@@ -183,6 +183,16 @@ func TestResolveBootstrapSecretValue_NonInteractivePaths(t *testing.T) {
 			t.Fatal("expected missing required secret error")
 		}
 	})
+
+	t.Run("interactive empty required input", func(t *testing.T) {
+		value, ok, err := normalizeBootstrapPromptSecretValue("\n", false)
+		if err == nil {
+			t.Fatal("expected empty required secret error")
+		}
+		if ok || value != "" {
+			t.Fatalf("expected empty secret result, got value=%q ok=%t", value, ok)
+		}
+	})
 }
 
 func TestBootstrapHelperUtilities(t *testing.T) {
@@ -201,8 +211,11 @@ func TestBootstrapHelperUtilities(t *testing.T) {
 	if got := firstNonEmpty("", "  ", "value", "other"); got != "value" {
 		t.Fatalf("unexpected firstNonEmpty result: %q", got)
 	}
-	if got := htmlEscape(`a&"<b>`); got != "a&amp;&quot;&lt;b&gt;" {
+	if got := htmlEscape(`a&'"<b>`); got != "a&amp;&#39;&#34;&lt;b&gt;" {
 		t.Fatalf("unexpected htmlEscape result: %q", got)
+	}
+	if got := firstNonEmpty("", "  value  ", "other"); got != "value" {
+		t.Fatalf("unexpected trimmed firstNonEmpty result: %q", got)
 	}
 	if got := buildBootstrapGitHubAppRegistrationURL("octo", "Organization", "state"); !strings.Contains(got, "/organizations/octo/settings/apps/new?state=state") {
 		t.Fatalf("unexpected org registration URL: %q", got)
@@ -235,7 +248,7 @@ func TestBootstrapGitHubAppManifestHelpers(t *testing.T) {
 	if err != nil {
 		t.Fatalf("renderBootstrapGitHubAppRegistrationPage returned error: %v", err)
 	}
-	if !strings.Contains(page, "manifest-form") || !strings.Contains(page, "&quot;name&quot;") {
+	if !strings.Contains(page, "manifest-form") || !strings.Contains(page, "&#34;name&#34;") {
 		t.Fatalf("unexpected registration page: %s", page)
 	}
 }

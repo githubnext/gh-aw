@@ -88,7 +88,7 @@ func listBootstrapRepoSecretNames(ctx context.Context, repo string) ([]string, e
 	return parseBootstrapNames(output), nil
 }
 
-func upsertBootstrapRepoVariable(ctx context.Context, repo, name, value string) error {
+func upsertBootstrapRepoVariable(repo, name, value string) error {
 	target := defaultsTarget{}
 	owner, repoName, err := repoutil.SplitRepoSlug(repo)
 	if err != nil {
@@ -100,7 +100,7 @@ func upsertBootstrapRepoVariable(ctx context.Context, repo, name, value string) 
 	return upsertDefaultsVariable(target, name, value)
 }
 
-func setBootstrapRepoSecret(ctx context.Context, repo, name, value string) error {
+func setBootstrapRepoSecret(repo, name, value string) error {
 	owner, repoName, err := repoutil.SplitRepoSlug(repo)
 	if err != nil {
 		return err

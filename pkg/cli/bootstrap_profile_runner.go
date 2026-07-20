@@ -25,10 +25,14 @@ const (
 )
 
 var (
-	runBootstrapGHContext          = workflow.RunGHContext
-	bootstrapIsInteractive         = tty.IsStderrTerminal
-	bootstrapUpsertVariable        = upsertBootstrapRepoVariable
-	bootstrapSetSecret             = setBootstrapRepoSecret
+	runBootstrapGHContext   = workflow.RunGHContext
+	bootstrapIsInteractive  = tty.IsStderrTerminal
+	bootstrapUpsertVariable = func(_ context.Context, repo, name, value string) error {
+		return upsertBootstrapRepoVariable(repo, name, value)
+	}
+	bootstrapSetSecret = func(_ context.Context, repo, name, value string) error {
+		return setBootstrapRepoSecret(repo, name, value)
+	}
 	bootstrapCreateGitHubApp       = createBootstrapGitHubApp
 	bootstrapCheckOwnerType        = checkSetupRepositoryOwnerType
 	bootstrapExchangeGitHubAppCode = bootstrapExchangeGitHubAppCodeImpl

@@ -159,7 +159,7 @@ func chooseBootstrapGitHubAppMode() (string, error) {
 
 func completeExistingGitHubAppCredentials(existingClientID string, existingPrivateKey string, action repositoryPackageBootstrapAction, repo string) (string, string, error) {
 	clientID := strings.TrimSpace(existingClientID)
-	privateKey := strings.TrimSpace(existingPrivateKey)
+	privateKey := strings.TrimRight(existingPrivateKey, "\r\n")
 	var err error
 	if clientID == "" {
 		clientID, _, err = resolveBootstrapTextValue(bootstrapGitHubAppClientIDEnv, "GitHub App client ID", "Enter the GitHub App client ID to store in "+action.AppIDVariable+".", "", nil, false)
@@ -212,7 +212,9 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 		_ = server.Serve(listener)
 	}()
 	defer func() {
-		_ = server.Shutdown(context.Background())
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = server.Shutdown(shutdownCtx)
 	}()
 
 	printBootstrapGitHubAppManifestReview(appOwner, manifest)
@@ -251,11 +253,11 @@ func setupBootstrapGitHubAppDetails(ctx context.Context, repo, owner, ownerType 
 		}
 	}
 	appName := deriveBootstrapAppName(repo, firstNonEmpty(overrides.Name, action.AppName))
-	homepageURL := strings.TrimSpace(firstNonEmpty(overrides.HomepageURL, action.HomepageURL))
+	homepageURL := firstNonEmpty(overrides.HomepageURL, action.HomepageURL)
 	if homepageURL == "" {
 		homepageURL = "https://github.com/" + repo
 	}
-	description := strings.TrimSpace(firstNonEmpty(overrides.Description, action.Description))
+	description := firstNonEmpty(overrides.Description, action.Description)
 	if description == "" {
 		description = "Bootstrap app for " + repo
 	}
@@ -277,6 +279,14 @@ func buildBootstrapGitHubAppMux(ctx context.Context, csrfState, owner, ownerType
 			http.Error(w, "Missing GitHub App manifest code.", http.StatusBadRequest)
 			select {
 			case flowCh.errCh <- errors.New("GitHub did not return an app manifest code"):
+			default:
+			}
+			return
+		}
+		if !isBootstrapGitHubAppManifestCode(code) {
+			http.Error(w, "Invalid GitHub App manifest code.", http.StatusBadRequest)
+			select {
+			case flowCh.errCh <- errors.New("invalid GitHub App manifest code format"):
 			default:
 			}
 			return
@@ -338,6 +348,19 @@ func loadBootstrapGitHubAppOverrides() (bootstrapGitHubAppOverrides, error) {
 	}
 
 	return overrides, nil
+}
+
+func isBootstrapGitHubAppManifestCode(code string) bool {
+	if code == "" {
+		return false
+	}
+	for _, ch := range code {
+		if ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z' || ch >= '0' && ch <= '9' || ch == '-' || ch == '_' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func bootstrapExchangeGitHubAppCodeImpl(ctx context.Context, code, owner, ownerType, appName, description string) (*bootstrapCreatedGitHubApp, error) {
