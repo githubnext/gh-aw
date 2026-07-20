@@ -103,6 +103,11 @@
             }
           },
           "additionalProperties": true
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this server is required for a successful gateway startup. When absent or true (the default), a connectivity failure causes startup to fail. Set to false to make the server optional: failures are logged as warnings and startup continues if at least one other server connects successfully.",
+          "default": true
         }
       },
       "required": ["container"],
@@ -175,6 +180,11 @@
           },
           "required": ["type"],
           "additionalProperties": false
+        },
+        "required": {
+          "type": "boolean",
+          "description": "Whether this server is required for a successful gateway startup. When absent or true (the default), a connectivity failure causes startup to fail. Set to false to make the server optional: failures are logged as warnings and startup continues if at least one other server connects successfully.",
+          "default": true
         }
       },
       "required": ["type", "url"],

@@ -106,12 +106,11 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
 
-  # Check whether server is marked required in configuration JSON.
-  # When required=true, failures are fatal; when omitted or false, failures are
-  # optional and degrade to warnings.
-  REQUIRED=false
-  if echo "$SERVER_CONFIG" | jq -e '.required == true' >/dev/null 2>&1; then
-    REQUIRED=true
+  # Check whether server is marked optional in configuration JSON.
+  # Servers are required by default; set required: false to degrade failures to warnings.
+  REQUIRED=true
+  if echo "$SERVER_CONFIG" | jq -e '.required == false' >/dev/null 2>&1; then
+    REQUIRED=false
   fi
   
   # Extract server URL (should be HTTP URL pointing to gateway)

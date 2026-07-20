@@ -478,6 +478,7 @@ test_optional_server_failure_degrades_to_warning() {
     },
     "datadog": {
       "type": "http",
+      "required": false,
       "url": "http://127.0.0.1:${port}/mcp/datadog"
     }
   },
@@ -500,10 +501,10 @@ EOF
   rm -rf "$tmpdir"
 }
 
-# Test 12: Required failing server should still fail startup
+# Test 12: Server with no required field should fail startup by default (required is the default)
 test_required_server_failure_is_fatal() {
   echo ""
-  echo "Test 12: Required server failure remains fatal"
+  echo "Test 12: Server failure is fatal by default (required is the default)"
 
   local tmpdir
   tmpdir=$(mktemp -d)
@@ -528,7 +529,6 @@ test_required_server_failure_is_fatal() {
     },
     "datadog": {
       "type": "http",
-      "required": true,
       "url": "http://127.0.0.1:${port}/mcp/datadog"
     }
   },
@@ -541,9 +541,9 @@ test_required_server_failure_is_fatal() {
 EOF
 
   if ! bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >/dev/null 2>&1; then
-    print_result "Required failing server still fails startup" "PASS"
+    print_result "Failing server without required field defaults to fatal" "PASS"
   else
-    print_result "Required failing server should fail startup" "FAIL"
+    print_result "Failing server without required field should default to fatal" "FAIL"
   fi
 
   kill "$server_pid" 2>/dev/null || true
