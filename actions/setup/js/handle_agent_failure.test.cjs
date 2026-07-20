@@ -4,11 +4,6 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
-const TEST_PROMPTS_DIR = new URL("../md/", import.meta.url).pathname;
-
-if (!process.env.GH_AW_PROMPTS_DIR) {
-  process.env.GH_AW_PROMPTS_DIR = TEST_PROMPTS_DIR;
-}
 
 describe("handle_agent_failure", () => {
   let main;
@@ -22,11 +17,8 @@ describe("handle_agent_failure", () => {
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
   const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
-  let originalPromptsDir;
 
   beforeEach(() => {
-    originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
-    process.env.GH_AW_PROMPTS_DIR = TEST_PROMPTS_DIR;
     // Provide minimal GitHub Actions globals expected by require-time code
     global.core = {
       info: vi.fn(),
@@ -61,11 +53,6 @@ describe("handle_agent_failure", () => {
     delete process.env.GITHUB_SHA;
     delete process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
     delete process.env.GH_AW_GROUP_REPORTS;
-    if (originalPromptsDir === undefined) {
-      delete process.env.GH_AW_PROMPTS_DIR;
-    } else {
-      process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
-    }
   });
 
   describe("getActionFailureIssueExpiresHours", () => {
