@@ -16,7 +16,6 @@ async function startWorkshop(page: Page) {
 	await page.goto(WORKSHOP_URL);
 	await page.waitForLoadState('networkidle');
 	await page.locator('[data-workshop-entry-path="ui-learner"]').click();
-	await page.locator('[data-workshop-scenario="daily-status"]').click();
 	await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 }
 
@@ -69,7 +68,7 @@ test.describe('Workshop tutorial', () => {
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
 	});
 
-	test('switching entry path clears previous scenario and restarts the flow', async ({ page }) => {
+	test('switching entry path reapplies the default scenario and restarts the flow', async ({ page }) => {
 		await startWorkshop(page);
 
 		await page.getByRole('button', { name: /Next step/i }).click();
@@ -77,19 +76,15 @@ test.describe('Workshop tutorial', () => {
 
 		await page.getByRole('button', { name: /Change route/i }).click();
 		await page.locator('[data-workshop-entry-path="cli-user"]').click();
-
-		await expect(page.locator('[data-workshop-setup-step="scenario"]')).toBeVisible();
-		await expect(page.locator('[data-workshop-scenario][aria-pressed="true"]')).toHaveCount(0);
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(/Step 1 of/);
 
 		const stateAfterPathChange = await page.evaluate(() => {
 			return window.sessionStorage.getItem('gh-aw-docs-workshop-state');
 		});
 		expect(stateAfterPathChange).toContain('"journeyId":"terminal"');
-		expect(stateAfterPathChange).toContain('"scenarioId":""');
+		expect(stateAfterPathChange).toContain('"scenarioId":"daily-status"');
 		expect(stateAfterPathChange).toContain('"stepKey":"00-welcome"');
-
-		await page.locator('[data-workshop-scenario="daily-docs"]').click();
-		await expect(page.locator('[data-workshop-step-position]')).toHaveText(/Step 1 of/);
 
 		await page.getByRole('button', { name: /Home/i }).click();
 		await expect(page.locator('[data-workshop-setup-step="workspace"]')).toBeVisible();
@@ -230,11 +225,16 @@ test.describe('Workshop URL hash navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
-		expect(page.url()).toMatch(/#j=github$/);
-
-		await page.locator('[data-workshop-scenario="daily-status"]').click();
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 		expect(page.url()).toMatch(/#j=github&s=daily-status&t=.+$/);
+	});
+
+	test('treats journey-only hashes as a tutorial start with the default scenario', async ({ page }) => {
+		await page.goto(`${WORKSHOP_URL}#j=github`);
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		expect(page.url()).toContain('#j=github&s=daily-status');
 	});
 
 	test('encodes current step in the URL hash when navigating steps', async ({ page }) => {
@@ -277,7 +277,6 @@ test.describe('Workshop URL hash navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
-		await page.locator('[data-workshop-scenario="daily-status"]').click();
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 
 		await page.locator('[data-workshop-change]').click();
@@ -287,13 +286,13 @@ test.describe('Workshop URL hash navigation', () => {
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 	});
 
-	test('supports browser back navigation from scenario picker to workspace picker', async ({ page }) => {
+	test('supports browser back navigation from tutorial start to workspace picker', async ({ page }) => {
 		await page.goto(WORKSHOP_URL);
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
-		expect(page.url()).toMatch(/#j=github$/);
-		await expect(page.locator('[data-workshop-setup-step="scenario"]')).toBeVisible();
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		expect(page.url()).toMatch(/#j=github&s=daily-status&t=.+$/);
 
 		await page.goBack();
 		await expect(page.locator('[data-workshop-setup-step="workspace"]')).toBeVisible();
@@ -581,5 +580,144 @@ test.describe('Workshop flow filtering: Copilot scenario-d substitution', () => 
 		const keys = await getFlowStepKeysForRoute(page, 'copilot', 'pr-reviewer');
 		expect(keys).toContain('11d-build-copilot-agents');
 		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
+	});
+});
+
+// ---------------------------------------------------------------------------
+// Journey block visibility tests — verify that CSS-driven journey section
+// visibility works correctly: marker rewriting, attribute state, and
+// visibility transitions when switching paths.
+// ---------------------------------------------------------------------------
+
+test.describe('Workshop journey block visibility', () => {
+	test('data-workshop-visible-journeys contains "all" and journey-specific IDs after starting the tutorial', async ({ page }) => {
+		// ui-learner maps to the github journey, which has contentJourneyIds: ['ui']
+		await startWorkshop(page);
+
+		const visibleJourneys = await page.evaluate(() =>
+			document.querySelector('[data-workshop-root]')?.getAttribute('data-workshop-visible-journeys') ?? '',
+		);
+		// 'all' is always included; 'ui' comes from the github journey's contentJourneyIds
+		expect(visibleJourneys.split(' ')).toContain('all');
+		expect(visibleJourneys.split(' ')).toContain('ui');
+	});
+
+	test('data-workshop-visible-journeys updates when switching to a different entry path', async ({ page }) => {
+		// Start with ui-learner (github journey → contentJourneyIds: ['ui'])
+		await startWorkshop(page);
+
+		const initialJourneys = await page.evaluate(() =>
+			document.querySelector('[data-workshop-root]')?.getAttribute('data-workshop-visible-journeys') ?? '',
+		);
+		expect(initialJourneys.split(' ')).toContain('ui');
+
+		// Switch to the terminal path (contentJourneyIds: ['terminal', 'local'])
+		await page.getByRole('button', { name: /Change route/i }).click();
+		await page.locator('[data-workshop-entry-path="cli-user"]').click();
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+
+		const updatedJourneys = await page.evaluate(() =>
+			document.querySelector('[data-workshop-root]')?.getAttribute('data-workshop-visible-journeys') ?? '',
+		);
+		expect(updatedJourneys.split(' ')).toContain('all');
+		expect(updatedJourneys.split(' ')).toContain('terminal');
+		// 'ui' should no longer be listed (terminal journey does not map to ui content)
+		expect(updatedJourneys.split(' ')).not.toContain('ui');
+	});
+
+	test('no raw journey comment markers survive HTML rewriting in step data', async ({ page }) => {
+		await startWorkshop(page);
+
+		// Any <!-- journey: ... --> or <!-- /journey --> remaining in rendered HTML
+		// means rewriteJourneyBlocks did not run or failed. Raw markers must never
+		// appear in the embedded step-data JSON.
+		const hasRawMarkers = await page.evaluate(() => {
+			const node = document.getElementById('aw-workshop-step-data');
+			if (!node) return false;
+			const steps = JSON.parse(node.textContent?.trim() || '[]') as Array<{ html: string }>;
+			return steps.some((s) => /<!--\s*\/?journey[:\s]/i.test(s.html));
+		});
+
+		expect(hasRawMarkers).toBe(false);
+	});
+
+	test('journey blocks in step data have base class and one class per comma-separated token', async ({ page }) => {
+		await startWorkshop(page);
+
+		// If any step HTML contains journey blocks, verify each wrapper carries the
+		// base class plus a distinct class per token. Passes vacuously when the
+		// current workshop build has no journey-tagged sections.
+		const result = await page.evaluate(() => {
+			const node = document.getElementById('aw-workshop-step-data');
+			if (!node) return { hasJourneyBlocks: false, allValid: true };
+			const steps = JSON.parse(node.textContent?.trim() || '[]') as Array<{ html: string }>;
+
+			const wrapperPattern = /class="([^"]*aw-workshop-journey-block[^"]*)"/g;
+			let hasJourneyBlocks = false;
+			let allValid = true;
+
+			for (const step of steps) {
+				for (const match of step.html.matchAll(wrapperPattern)) {
+					hasJourneyBlocks = true;
+					const classList = match[1].split(/\s+/);
+					// Must have the base class
+					if (!classList.includes('aw-workshop-journey-block')) {
+						allValid = false;
+					}
+					// Must have at least one journey-specific class
+					if (!classList.some((c) => c.startsWith('aw-workshop-journey-block-') && c !== 'aw-workshop-journey-block')) {
+						allValid = false;
+					}
+				}
+			}
+
+			return { hasJourneyBlocks, allValid };
+		});
+
+		expect(result.allValid).toBe(true);
+	});
+
+	test('journey blocks are hidden by default and revealed via CSS when the active journey matches', async ({ page }) => {
+		await startWorkshop(page);
+
+		// Verify CSS-driven visibility using an injected probe element.
+		// The github journey (ui-learner path) maps to contentJourneyIds: ['ui'],
+		// so a block tagged 'ui' should be visible and one tagged 'terminal' should be hidden.
+		const visibility = await page.evaluate(() => {
+			const stepContent = document.querySelector('[data-workshop-step-content]') as HTMLElement | null;
+			if (!stepContent) return null;
+
+			const uiBlock = document.createElement('div');
+			uiBlock.className = 'aw-workshop-journey-block aw-workshop-journey-block-ui';
+			uiBlock.setAttribute('data-test-probe', 'ui');
+
+			const terminalBlock = document.createElement('div');
+			terminalBlock.className = 'aw-workshop-journey-block aw-workshop-journey-block-terminal';
+			terminalBlock.setAttribute('data-test-probe', 'terminal');
+
+			const allBlock = document.createElement('div');
+			allBlock.className = 'aw-workshop-journey-block aw-workshop-journey-block-all';
+			allBlock.setAttribute('data-test-probe', 'all');
+
+			stepContent.appendChild(uiBlock);
+			stepContent.appendChild(terminalBlock);
+			stepContent.appendChild(allBlock);
+
+			return {
+				uiDisplay: window.getComputedStyle(uiBlock).display,
+				terminalDisplay: window.getComputedStyle(terminalBlock).display,
+				allDisplay: window.getComputedStyle(allBlock).display,
+			};
+		});
+
+		expect(visibility).not.toBeNull();
+		if (visibility) {
+			// 'all' blocks are always visible regardless of journey
+			expect(visibility.allDisplay).toBe('contents');
+			// 'ui' block is visible because the github journey includes 'ui' in contentJourneyIds
+			expect(visibility.uiDisplay).toBe('contents');
+			// 'terminal' block is hidden because the github journey does not include 'terminal'
+			expect(visibility.terminalDisplay).toBe('none');
+		}
 	});
 });

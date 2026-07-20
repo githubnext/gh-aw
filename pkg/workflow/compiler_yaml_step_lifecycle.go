@@ -32,17 +32,26 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 		return
 	}
 	lines := strings.Split(stepsYAML, "\n")
+	var blockScalarState yamlBlockScalarState
 	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line
-		trimmed := strings.TrimRight(line, " ")
-		if strings.TrimSpace(trimmed) == "" {
+		// Update block-scalar state using the original source line (before the
+		// 2-space strip below) so that indent-based entry/exit detection is correct.
+		isBS := blockScalarState.update(line)
+		if strings.TrimSpace(line) == "" {
 			yaml.WriteString("\n")
 			continue
 		}
+		// Normalise indentation: nested properties (2+ leading spaces) get an
+		// 8-space indent; top-level step items get a 6-space indent.
+		var prefix, content string
 		if strings.HasPrefix(line, "  ") {
-			yaml.WriteString("        " + line[2:] + "\n")
+			prefix = "        "
+			content = line[2:]
 		} else {
-			yaml.WriteString("      " + line + "\n")
+			prefix = "      "
+			content = line
 		}
+		appendYAMLLine(yaml, prefix, content, isBS)
 	}
 }
 

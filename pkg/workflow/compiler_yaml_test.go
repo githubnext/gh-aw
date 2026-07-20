@@ -1858,3 +1858,241 @@ func TestNormalizeBlankLinesPreservesBlockScalarContent(t *testing.T) {
 		t.Fatalf("block scalar content changed after normalization\nwant: %q\ngot:  %q", want, got)
 	}
 }
+
+// ========================================
+// Tests for yamlBlockScalarState / appendYAMLLine
+// ========================================
+
+// TestYamlBlockScalarStateUpdate verifies that the block-scalar state machine
+// correctly identifies payload lines and structural lines.
+func TestYamlBlockScalarStateUpdate(t *testing.T) {
+	tests := []struct {
+		name   string
+		lines  []string
+		wantBS []bool // expected isBlockScalarContent for each line
+	}{
+		{
+			name: "no block scalar",
+			lines: []string{
+				"- name: foo  ",
+				"  run: echo hello  ",
+			},
+			wantBS: []bool{false, false},
+		},
+		{
+			name: "literal block scalar payload preserved",
+			lines: []string{
+				"  run: |",
+				"    echo hello   ",
+				"    echo world\\  ",
+			},
+			wantBS: []bool{false, true, true},
+		},
+		{
+			name: "blank line inside block scalar does not exit",
+			lines: []string{
+				"  run: |",
+				"    line1   ",
+				"",
+				"    line2   ",
+			},
+			wantBS: []bool{false, true, true, true},
+		},
+		{
+			name: "outdented line exits block scalar",
+			lines: []string{
+				"  run: |",
+				"    content   ",
+				"  other: value  ",
+			},
+			wantBS: []bool{false, true, false},
+		},
+		{
+			name: "folded block scalar (>) also tracked",
+			lines: []string{
+				"  script: >",
+				"    folded content   ",
+			},
+			wantBS: []bool{false, true},
+		},
+		{
+			name: "blank line between header and content stays pending",
+			lines: []string{
+				"  run: |",
+				"",
+				"    content   ",
+			},
+			wantBS: []bool{false, false, true},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var blockScalarState yamlBlockScalarState
+			for i, line := range tt.lines {
+				got := blockScalarState.update(line)
+				if got != tt.wantBS[i] {
+					t.Errorf("line %d %q: update() = %v, want %v", i, line, got, tt.wantBS[i])
+				}
+			}
+		})
+	}
+}
+
+// TestAppendYAMLLine verifies that structural lines are trimmed and block-scalar
+// content is preserved verbatim.
+func TestAppendYAMLLine(t *testing.T) {
+	tests := []struct {
+		name      string
+		yamlLines []string // source lines (no prefix)
+		prefix    string
+		want      string
+	}{
+		{
+			name: "structural trailing spaces are trimmed",
+			yamlLines: []string{
+				"- name: foo   ",
+				"  key: value   ",
+			},
+			prefix: "      ",
+			want:   "      - name: foo\n        key: value\n",
+		},
+		{
+			name: "block scalar payload preserved verbatim",
+			yamlLines: []string{
+				"run: |",
+				"  echo hello   ",
+				"  echo world\\  ",
+			},
+			prefix: "      ",
+			want:   "      run: |\n        echo hello   \n        echo world\\  \n",
+		},
+		{
+			name: "blank lines always bare newlines",
+			yamlLines: []string{
+				"run: |",
+				"  line1   ",
+				"",
+				"  line2   ",
+			},
+			prefix: "      ",
+			want:   "      run: |\n        line1   \n\n        line2   \n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			var blockScalarState yamlBlockScalarState
+			for _, line := range tt.yamlLines {
+				isBS := blockScalarState.update(line)
+				appendYAMLLine(&b, tt.prefix, line, isBS)
+			}
+			if got := b.String(); got != tt.want {
+				t.Errorf("appendYAMLLine output mismatch\ngot:  %q\nwant: %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// ========================================
+// Tests for writeStepsSection
+// ========================================
+
+// TestWriteStepsSection verifies that writeStepsSection trims trailing whitespace
+// from structural YAML lines while preserving block-scalar payload verbatim.
+func TestWriteStepsSection(t *testing.T) {
+	tests := []struct {
+		name      string
+		stepsYAML string
+		wantLines []string // substrings that must appear in the output
+		wantNot   []string // substrings that must NOT appear in the output
+	}{
+		{
+			name:      "structural trailing spaces trimmed",
+			stepsYAML: "pre-steps:\n- name: My Step   \n  run: echo hi   \n",
+			wantLines: []string{"- name: My Step\n", "run: echo hi\n"},
+			wantNot:   []string{"My Step   ", "echo hi   "},
+		},
+		{
+			name: "block scalar payload preserved verbatim",
+			// `\\  ` in the Go string literal represents a literal backslash followed by
+			// two trailing spaces in the actual content. This is the critical case: a shell
+			// line ending in `\  ` (backslash + spaces) must not be trimmed because the
+			// spaces prevent the backslash from acting as a line-continuation character.
+			stepsYAML: "pre-steps:\n- name: Script\n  run: |\n    echo hello   \n    echo world\\  \n",
+			wantLines: []string{"echo hello   ", "echo world\\  "},
+		},
+		{
+			name:      "blank lines emitted as bare newlines",
+			stepsYAML: "pre-steps:\n- name: A\n  run: echo a\n\n- name: B\n  run: echo b\n",
+			wantLines: []string{"- name: A", "- name: B"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			writeStepsSection(&b, tt.stepsYAML)
+			got := b.String()
+
+			for _, want := range tt.wantLines {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected output to contain %q\ngot: %q", want, got)
+				}
+			}
+			for _, notWant := range tt.wantNot {
+				if strings.Contains(got, notWant) {
+					t.Errorf("expected output NOT to contain %q\ngot: %q", notWant, got)
+				}
+			}
+		})
+	}
+}
+
+// TestAddCustomStepsAsIsTrimsStructuralTrailingSpaces verifies that addCustomStepsAsIs
+// trims trailing whitespace from structural YAML lines but preserves block-scalar payload.
+func TestAddCustomStepsAsIsTrimsStructuralTrailingSpaces(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name        string
+		customSteps string
+		wantLines   []string // substrings that must appear
+		wantNot     []string // substrings that must NOT appear
+	}{
+		{
+			name:        "structural trailing spaces are trimmed",
+			customSteps: "steps:\n- name: My Step   \n  uses: actions/checkout@v4   \n",
+			wantLines:   []string{"- name: My Step\n", "uses: actions/checkout@v4\n"},
+			wantNot:     []string{"My Step   ", "checkout@v4   "},
+		},
+		{
+			name: "block scalar run content preserved verbatim",
+			// `\\  ` in the Go string literal represents a literal backslash followed by
+			// two trailing spaces. Trimming would change `\  ` → `\`, flipping the shell
+			// backslash-newline continuation semantics — so payload must be kept verbatim.
+			customSteps: "steps:\n- name: Script\n  run: |\n    echo trailing   \n    echo bs\\  \n",
+			wantLines:   []string{"echo trailing   ", "echo bs\\  "},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			compiler.addCustomStepsAsIs(&b, tt.customSteps)
+			got := b.String()
+
+			for _, want := range tt.wantLines {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected output to contain %q\ngot: %q", want, got)
+				}
+			}
+			for _, notWant := range tt.wantNot {
+				if strings.Contains(got, notWant) {
+					t.Errorf("expected output NOT to contain %q\ngot: %q", notWant, got)
+				}
+			}
+		})
+	}
+}

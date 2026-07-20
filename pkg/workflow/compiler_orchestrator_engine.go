@@ -281,10 +281,17 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	}
 	if engineConfig == nil && len(allEngines) > 0 {
 		orchestratorEngineLog.Printf("Extracting engine config from included file")
-		engineConfig, model, err = c.extractEngineConfigFromJSON(allEngines[0])
+		var extractedModel string
+		engineConfig, extractedModel, err = c.extractEngineConfigFromJSON(allEngines[0])
 		if err != nil {
 			orchestratorEngineLog.Printf("Failed to extract engine config: %v", err)
 			return "", nil, "", fmt.Errorf("failed to extract engine config from included file: %w", err)
+		}
+		// Preserve the model from the main workflow frontmatter if already set;
+		// only fall back to the imported/shared workflow's model when the main
+		// workflow does not specify one (main workflow model takes precedence).
+		if model == "" {
+			model = extractedModel
 		}
 		if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 			return "", nil, "", err

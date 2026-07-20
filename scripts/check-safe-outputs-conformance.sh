@@ -4,8 +4,8 @@ set +o histexpand
 # Safe Outputs Specification Conformance Checker
 # This script implements automated checks for the Safe Outputs specification
 # Specification: docs/src/content/docs/specs/safe-outputs-specification.md
-# Spec Version: 1.24.0 (2026-06-13)
-# Script Version: 1.25.0 (2026-06-22)
+# Spec Version: 1.26.0 (2026-07-16)
+# Script Version: 1.26.0 (2026-07-20)
 
 set -euo pipefail
 
@@ -844,7 +844,13 @@ check_mce_actionable_errors() {
     #   1. Identify the violated constraint with specific name and limit
     #   2. Report the actual value that triggered the violation
     #   3. Provide remediation guidance on how to correct the issue
-    #   4. Use standard error codes (E006-E008 for add_comment limits)
+    #   4. Use standard error codes (E006-E008 for add_comment limits in §8.3 MCE table)
+    #
+    # Note: §8.3 assigns E006=body-length, E007=mentions, E008=links for add_comment MCP
+    # constraint violations. §9.5 defines a separate global error catalog where
+    # E006=INVALID_LABEL, E007=API_ERROR, E008=SANITIZATION_FAILED. These two uses are
+    # distinct contexts: §8.3 codes apply to MCP-layer constraint violations; §9.5 codes
+    # apply to processor-layer validation and API errors.
 
     if [ ! -f "$helpers_file" ]; then
         log_high "MCE-005: Constraint helper module missing: $helpers_file"
@@ -930,6 +936,101 @@ check_mce_core_error_handling() {
     fi
 }
 check_mce_core_error_handling
+
+# SEC-006: Error Code Catalog Completeness (Section 9.5, v1.26.0)
+# Spec v1.26.0 expanded the error catalog to E001-E010, adding E009 (CONFIG_HASH_MISMATCH)
+# and E010 (RATE_LIMIT_EXCEEDED). Implementations MUST use standardized error codes for
+# all validation and execution failures (Section 9.5 normative requirement).
+echo "Running SEC-006: Error Code Catalog Completeness (Section 9.5)..."
+check_error_catalog_completeness() {
+    local spec_file="docs/src/content/docs/specs/safe-outputs-specification.md"
+    local processor_dir="actions/setup/js"
+    local failed=0
+
+    # Verify spec defines the full E001-E010 catalog (introduced in v1.26.0)
+    for code in E009 E010; do
+        if ! grep -q "$code" "$spec_file"; then
+            log_high "SEC-006: Spec does not define error code $code — catalog may be out of date"
+            failed=1
+        fi
+    done
+
+    # Check that E009 (CONFIG_HASH_MISMATCH) and E010 (RATE_LIMIT_EXCEEDED) are referenced
+    # in implementation handler files (processor layer must recognise all catalog codes)
+    if [ -d "$processor_dir" ]; then
+        if ! grep -rqE "E009|CONFIG_HASH_MISMATCH" "$processor_dir"/ 2>/dev/null; then
+            log_medium "SEC-006: No handler references E009 (CONFIG_HASH_MISMATCH) — rate-limit and hash-mismatch error codes may be absent from processor"
+            failed=1
+        fi
+        if ! grep -rqE "E010|RATE_LIMIT_EXCEEDED" "$processor_dir"/ 2>/dev/null; then
+            log_medium "SEC-006: No handler references E010 (RATE_LIMIT_EXCEEDED) — rate-limit retry error code may be absent from processor"
+            failed=1
+        fi
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "SEC-006: Error code catalog E001-E010 is complete and referenced in spec and implementation"
+    fi
+}
+check_error_catalog_completeness
+
+# SEC-007: EH1 Early Failure Detection - Validation Before API (Section 9.5, v1.26.0)
+# Requirement EH1: Validation errors (E001-E006) MUST be detected before any GitHub API calls.
+# Scope: applies to safe-output processor handlers (files that record NDJSON operations).
+echo "Running SEC-007: EH1 Early Failure Detection (Section 9.5)..."
+check_early_failure_detection() {
+    local failed=0
+
+    # Only check files that are safe-output processors (handle recorded NDJSON operations).
+    # These files directly process NDJSON operations (not just import a helper for staged mode).
+    while IFS= read -r handler; do
+        # Must reference NDJSON/safeOutput in processing context (not just import helpers)
+        if ! grep -qE "output\.ndjson|processOperation|safe_outputs_processor|recordOperation" "$handler" 2>/dev/null; then
+            continue
+        fi
+        if ! grep -qE "octokit\.|github\.rest\." "$handler" 2>/dev/null; then
+            continue
+        fi
+        # The handler must contain validation/sanitization before any octokit call.
+        if ! grep -qE "validate|sanitize|enforce|E00[1-6]|INVALID_SCHEMA|LIMIT_EXCEEDED|UNAUTHORIZED_DOMAIN|INVALID_TARGET_REPO|MISSING_PARENT|INVALID_LABEL" "$handler" 2>/dev/null; then
+            log_medium "SEC-007: $handler is a safe-output handler but may lack pre-API validation (EH1 requirement)"
+            failed=1
+        fi
+    done < <(find actions/setup/js -name "*.cjs" ! -name "*test*" 2>/dev/null)
+
+    if [ $failed -eq 0 ]; then
+        log_pass "SEC-007: Safe-output handlers include pre-API validation checks (EH1)"
+    fi
+}
+check_early_failure_detection
+
+# AR2-001: Artifact-Based Communication (Section 3.1, AR2, v1.26.0)
+# AR2: Agent-to-processor communication MUST use GitHub Actions artifacts.
+# Environment variables, network channels, and shared filesystems MUST NOT be used.
+echo "Running AR2-001: Artifact-Based Communication (Section 3.1 AR2)..."
+check_artifact_communication() {
+    local failed=0
+
+    # Check that compiled workflow files use artifact upload/download for safe outputs
+    local upload_count
+    upload_count=$(grep -rl "upload-artifact\|actions/upload-artifact" .github/workflows/ 2>/dev/null | wc -l)
+    if [ "$upload_count" -eq 0 ]; then
+        log_medium "AR2-001: No workflow found using artifact upload — AR2 artifact-based communication may not be implemented"
+        failed=1
+    fi
+
+    local download_count
+    download_count=$(grep -rl "download-artifact\|actions/download-artifact" .github/workflows/ 2>/dev/null | wc -l)
+    if [ "$download_count" -eq 0 ]; then
+        log_medium "AR2-001: No workflow found using artifact download — AR2 artifact-based communication may not be implemented"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "AR2-001: Workflows use GitHub Actions artifacts for agent-to-processor communication (AR2)"
+    fi
+}
+check_artifact_communication
 
 # TYPE-001: merge_pull_request Handler Existence and Default Branch Protection (Section 7.3, v1.17.0)
 echo "Running TYPE-001: merge_pull_request Handler Existence and Default Branch Protection..."

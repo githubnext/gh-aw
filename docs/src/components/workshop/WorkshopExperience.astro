@@ -1,4 +1,5 @@
 ---
+import { Card, CardGrid } from '@astrojs/starlight/components';
 // @ts-ignore The docs app already uses this runtime package from Astro components.
 import octicons from '@primer/octicons';
 import {
@@ -229,8 +230,41 @@ function rewriteGfmTaskLists(html: string) {
 	return result;
 }
 
+function normalizeJourneyToken(value: string) {
+	return value.trim().toLowerCase().replace(/[^a-z0-9-]/gu, '');
+}
+
+const journeyBlockPattern = /<!--\s*journey:\s*([a-z0-9,\s-]+)\s*-->([\s\S]*?)<!--\s*\/journey\s*-->/giu;
+const journeyOpenPattern = /<!--\s*journey:\s*[a-z0-9,\s-]+\s*-->/giu;
+const journeyClosePattern = /<!--\s*\/journey\s*-->/giu;
+
+function parseJourneyTokens(value: string) {
+	return uniqueItems(
+		value
+			.split(',')
+			.map(normalizeJourneyToken)
+			.filter(Boolean),
+	);
+}
+
+function rewriteJourneyBlocks(html: string) {
+	const wrapped = html.replace(
+		journeyBlockPattern,
+		(_match, journeyCsv, body) => {
+			const journeys = parseJourneyTokens(String(journeyCsv));
+			if (journeys.length === 0) return body;
+			const classes = ['aw-workshop-journey-block', ...journeys.map((journey) => `aw-workshop-journey-block-${journey}`)];
+			return `<div class="${classes.join(' ')}">${body}</div>`;
+		},
+	);
+
+	return wrapped
+		.replace(journeyOpenPattern, '')
+		.replace(journeyClosePattern, '');
+}
+
 function rewriteWorkshopHtml(html: string) {
-	return transformTables(rewriteGfmTaskLists(rewriteGfmAlerts(sanitizeWorkshopHtml(html)))
+	return transformTables(rewriteJourneyBlocks(rewriteGfmTaskLists(rewriteGfmAlerts(sanitizeWorkshopHtml(html))))
 
 		.replace(/<(\/?)h([1-4])\b/gu, (_match, slash, level) => {
 			return `<${slash}h${Math.min(Number(level) + 1, 4)}`;
@@ -362,6 +396,8 @@ const workshopSteps: WorkshopStep[] = await Promise.all(workshopEntries.map(asyn
 const initialFlow = buildWorkshopFlow(workshopDefaults.journeyId, workshopDefaults.scenarioId);
 const initialStepKey = initialFlow[0] ?? workshopSteps[0]?.key ?? '';
 const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ?? workshopSteps[0];
+const initialJourney = workshopJourneys.find((item) => item.id === workshopDefaults.journeyId) ?? workshopJourneys[0];
+const initialVisibleJourneyIds = uniqueItems(['all', ...(initialJourney?.contentJourneyIds ?? [])]);
 
 // Precompute step counts for entry path cards using the default scenario (estimate shown before scenario is selected).
 const entryPathStepCounts: Record<string, number> = Object.fromEntries(
@@ -371,23 +407,12 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	]),
 );
 
-// Precompute step counts for every journey + scenario combination for the scenario picker.
-const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Object.fromEntries(
-	workshopJourneys.map((journey) => [
-		journey.id,
-		Object.fromEntries(
-			workshopScenarios.map((scenario) => [
-				scenario.id,
-				buildWorkshopFlow(journey.id, scenario.id).length,
-			]),
-		),
-	]),
-);
 ---
 
 <section
 	class="aw-workshop"
 	data-workshop-root
+	data-workshop-visible-journeys={initialVisibleJourneyIds.join(' ')}
 	data-initial-step={initialStepKey}
 >
 	<div class="aw-workshop-setup" data-workshop-setup>
@@ -398,73 +423,37 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					<h3>How do you want to go through the workshop?</h3>
 					<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
 				</div>
-				<div class="aw-workshop-card-grid">
-					{workshopEntryPaths.map((path) => {
-						const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
-						return (
-						<button
-							type="button"
-							class="aw-workshop-card"
-							data-workshop-entry-path={path.id}
-							data-workshop-journey={path.journeyId}
-							style={`--aw-workshop-card-accent: ${journey.accent};`}
-						>
-							<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
-							<span class="aw-workshop-card-kicker">{path.kicker}</span>
-							<span class="aw-workshop-card-route">{entryPathStepCounts[path.id]} steps</span>
-							<strong class="aw-workshop-card-title">{path.label}</strong>
-							<span class="aw-workshop-card-summary">{path.summary}</span>
-							<small class="aw-workshop-card-fit">{path.fit}</small>
-						</button>
-						);
-					})}
+				<div class="aw-workshop-card-grid aw-workshop-card-grid-entry">
+					<CardGrid>
+						{workshopEntryPaths.map((path) => {
+							const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
+							return (
+								<button
+									type="button"
+									class="aw-workshop-card aw-workshop-card-entry"
+									data-workshop-entry-path={path.id}
+									data-workshop-journey={path.journeyId}
+									style={`--aw-workshop-card-accent: ${journey.accent};`}
+								>
+									<Card title={path.label}>
+										<div class="aw-workshop-card-entry-meta">
+											<div class="aw-workshop-card-entry-kicker">
+												<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
+												<span class="aw-workshop-card-kicker">{path.kicker}</span>
+											</div>
+											<span class="aw-workshop-card-route">{journey.label} · {entryPathStepCounts[path.id]} steps</span>
+										</div>
+										<span class="aw-workshop-card-summary">{path.summary}</span>
+										<small class="aw-workshop-card-fit">{path.fit}</small>
+									</Card>
+								</button>
+							);
+						})}
+					</CardGrid>
 				</div>
 			</section>
 		</div>
 
-		<div class="aw-workshop-setup-step" data-workshop-setup-step="scenario" hidden>
-			<section class="aw-workshop-picker">
-				<div class="aw-workshop-picker-header">
-					<p class="aw-workshop-picker-kicker">Scenario</p>
-					<h3>What do you want to automate?</h3>
-				</div>
-				<div class="aw-workshop-card-grid aw-workshop-card-grid-scenarios">
-					{workshopScenarios.map((scenario) => (
-						<button
-							type="button"
-							class="aw-workshop-card aw-workshop-card-scenario"
-							data-workshop-scenario={scenario.id}
-						>
-							<span class="aw-workshop-card-icon" set:html={iconSvg(scenario.icon)} />
-							<span class="aw-workshop-card-kicker">{scenario.kicker}</span>
-							<span class="aw-workshop-card-route" data-workshop-step-count></span>
-							<strong class="aw-workshop-card-title">{scenario.label}</strong>
-							<span class="aw-workshop-card-summary">{firstSentence(scenario.summary)}</span>
-						</button>
-					))}
-				</div>
-			</section>
-
-			<section class="aw-workshop-tunnel-panel" data-workshop-tunnel-panel hidden>
-				<div>
-					<p class="aw-workshop-picker-kicker">VS Code</p>
-					<h3>VS Code local path</h3>
-					<p>
-						This route follows the local setup path from the workshop content, but keeps you anchored in VS Code. If you prefer browser-based VS Code, you can still use Codespaces and follow the same terminal-style steps.
-					</p>
-				</div>
-				<div class="aw-workshop-tunnel-actions">
-					<a href="https://code.visualstudio.com/docs/sourcecontrol/overview" target="_blank" rel="noreferrer">VS Code git docs</a>
-					<a href="https://docs.github.com/en/codespaces/overview" target="_blank" rel="noreferrer">Codespaces option</a>
-				</div>
-			</section>
-
-			<div class="aw-workshop-setup-nav aw-workshop-setup-nav-start">
-				<button type="button" class="aw-workshop-inline-button" data-workshop-setup-back>
-					Back
-				</button>
-			</div>
-		</div>
 	</div>
 
 	<section class="aw-workshop-flow" data-workshop-tutorial hidden>
@@ -531,7 +520,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			journeys: workshopJourneys,
 			scenarios: workshopScenarios,
 			scenarioAdventures: workshopScenarioAdventures,
-			scenarioStepCountsByJourney,
 		})}
 	/>
 	<script is:inline>
@@ -553,7 +541,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const createDefaultState = () => ({
 				entryPathId: defaultEntryPath?.id,
 				journeyId: defaultEntryPath?.journeyId || manifest.defaults.journeyId,
-				scenarioId: '',
+				scenarioId: manifest.defaults.scenarioId,
 				stepKey: initialStep,
 			});
 
@@ -611,8 +599,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					// an unknown journey/scenario cannot silently open a tutorial with stale state.
 					const journeyId = rawJourneyId && manifest.journeys.find((j) => j.id === rawJourneyId) ? rawJourneyId : null;
 					if (!journeyId) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
-					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : null;
-					if (!scenarioId) return { screen: 'setup-scenario', journeyId, scenarioId: null, stepKey: null };
+					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : manifest.defaults.scenarioId;
 					const stepKey = rawStepKey && stepMap.has(rawStepKey) ? rawStepKey : null;
 					return { screen: 'tutorial', journeyId, scenarioId, stepKey };
 				} catch {
@@ -623,9 +610,9 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const buildHashUrl = (screen, journeyId, scenarioId, stepKey) => {
 				const base = window.location.pathname + window.location.search;
 				if (!journeyId || screen === 'setup-workspace') return base;
-				if (screen === 'setup-scenario' || !scenarioId) return `${base}#j=${encodeURIComponent(journeyId)}`;
-				if (!stepKey) return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}`;
-				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}&t=${encodeURIComponent(stepKey)}`;
+				const effectiveScenarioId = scenarioId || manifest.defaults.scenarioId;
+				if (!stepKey) return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(effectiveScenarioId)}`;
+				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(effectiveScenarioId)}&t=${encodeURIComponent(stepKey)}`;
 			};
 
 			const readState = () => {
@@ -637,7 +624,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					return {
 						entryPathId: selectedEntryPath?.id || defaultEntryPath?.id,
 						journeyId: parsed.journeyId || selectedEntryPath?.journeyId || manifest.defaults.journeyId,
-						scenarioId: typeof parsed.scenarioId === 'string' ? parsed.scenarioId : '',
+						scenarioId: (typeof parsed.scenarioId === 'string' && parsed.scenarioId) || manifest.defaults.scenarioId,
 						stepKey: parsed.stepKey || initialStep,
 					};
 				} catch {
@@ -681,9 +668,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			};
 
 			const setupScreen = root.querySelector('[data-workshop-setup]');
-			const setupSteps = root.querySelectorAll('[data-workshop-setup-step]');
 			const tutorialScreen = root.querySelector('[data-workshop-tutorial]');
-			const tunnelPanel = root.querySelector('[data-workshop-tunnel-panel]');
 			const flowTitle = root.querySelector('[data-workshop-flow-title]');
 			const stepPosition = root.querySelector('[data-workshop-step-position]');
 			const prevButton = root.querySelector('[data-workshop-prev]');
@@ -691,25 +676,13 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const stepBodyContainer = root.querySelector('[data-workshop-step-content]');
 			const stepSummary = root.querySelector('[data-workshop-step-summary]');
 			const stepProgressEl = root.querySelector('[data-workshop-step-progress]');
-			let setupStep = 'workspace';
-
-			const showSetupStep = (stepName, opts = {}) => {
-				setupStep = stepName === 'scenario' ? 'scenario' : 'workspace';
-				setupSteps.forEach((step) => {
-					step.hidden = step.getAttribute('data-workshop-setup-step') !== setupStep;
-				});
-				render();
-				if (opts.pushHistory !== false && setupStep === 'scenario') {
-					history.pushState(null, '', buildHashUrl('setup-scenario', state.journeyId, null, null));
-				}
-			};
 
 			const showSetup = (opts = {}) => {
 				const shouldScroll = opts.scroll !== false;
 				setupScreen.hidden = false;
 				tutorialScreen.hidden = true;
 				root.classList.remove('is-tutorial-active');
-				showSetupStep('workspace', { pushHistory: false });
+				render();
 				if (opts.pushHistory !== false) {
 					history.pushState(null, '', buildHashUrl('setup-workspace', null, null, null));
 				}
@@ -743,14 +716,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const applyHashState = (parsed) => {
 				if (parsed.journeyId) {
 					state.journeyId = parsed.journeyId;
-				}
-				if (parsed.scenarioId) {
-					state.scenarioId = parsed.scenarioId;
-				} else {
-					// No valid scenario in the URL: clear scenario and reset step so the picker
-					// shows no pre-selected value and forward-navigation restarts at the first step.
-					state.scenarioId = '';
-					state.stepKey = getFallbackStepKey();
+					state.scenarioId = parsed.scenarioId || manifest.defaults.scenarioId;
 				}
 				if (parsed.stepKey) {
 					state.stepKey = parsed.stepKey;
@@ -787,26 +753,13 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				state.entryPathId = entryPathId;
 				state.journeyId = journeyId;
 				if (journeyChanged) {
-					state.scenarioId = '';
+					state.scenarioId = manifest.defaults.scenarioId;
 					state.stepKey = getFallbackStepKey(buildFlow(journeyId, manifest.defaults.scenarioId));
 				}
 				ensureCurrentStepIsVisible();
 				saveState();
 				render();
 				track('Workshop Journey Selected', { journey: journeyId, scenario: state.scenarioId });
-			};
-
-			const setScenario = (scenarioId) => {
-				if (typeof scenarioId !== 'string') return;
-				const scenarioChanged = state.scenarioId !== scenarioId;
-				state.scenarioId = scenarioId;
-				if (scenarioChanged) {
-					state.stepKey = getFallbackStepKey(buildFlow(state.journeyId, scenarioId));
-				}
-				ensureCurrentStepIsVisible();
-				saveState();
-				render();
-				track('Workshop Scenario Selected', { journey: state.journeyId, scenario: scenarioId });
 			};
 
 			const navigate = (direction) => {
@@ -840,9 +793,8 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				const journey = manifest.journeys.find((item) => item.id === state.journeyId) || manifest.journeys[0];
 				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
-				if (tunnelPanel) {
-					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
-				}
+				const visibleJourneyIds = ['all', ...((journey && journey.contentJourneyIds) || [])];
+				root.dataset.workshopVisibleJourneys = [...new Set(visibleJourneyIds)].join(' ');
 				stepSummary.textContent = activeStep.summary || 'Follow the guided path for this lesson.';
 				flowTitle.textContent = `${journey.label} x ${scenario.label}`;
 				stepPosition.textContent = stepIndex >= 0 ? `Step ${stepIndex + 1} of ${visibleFlow.length}` : 'Linked step';
@@ -860,23 +812,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					const isActive = button.getAttribute('data-workshop-entry-path') === state.entryPathId;
 					button.classList.toggle('is-active', isActive);
 					button.setAttribute('aria-pressed', String(isActive));
-				});
-
-				root.querySelectorAll('[data-workshop-scenario]').forEach((button) => {
-					const isActive = button.getAttribute('data-workshop-scenario') === state.scenarioId;
-					button.classList.toggle('is-active', isActive);
-					button.setAttribute('aria-pressed', String(isActive));
-
-					const stepCountEl = button.querySelector('[data-workshop-step-count]');
-					if (stepCountEl) {
-						const scenarioId = button.getAttribute('data-workshop-scenario');
-						if (scenarioId) {
-							const count = (manifest.scenarioStepCountsByJourney || {})[state.journeyId]?.[scenarioId];
-							if (count != null) {
-								stepCountEl.textContent = `${count} steps`;
-							}
-						}
-					}
 				});
 
 				const flowIndex = visibleFlow.indexOf(activeStep.key);
@@ -904,20 +839,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 
 				if (target.matches('[data-workshop-entry-path]')) {
 					setJourney(target.getAttribute('data-workshop-journey'), target.getAttribute('data-workshop-entry-path'));
-					showSetupStep('scenario');
-					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
-					return;
-				}
-
-				if (target.matches('[data-workshop-scenario]')) {
-					setScenario(target.getAttribute('data-workshop-scenario'));
 					showTutorial();
-					return;
-				}
-
-				if (target.matches('[data-workshop-setup-back]')) {
-					showSetupStep('workspace');
-					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 					return;
 				}
 
@@ -953,9 +875,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				const scroll = opts.scroll !== false;
 				if (parsed.screen === 'tutorial') {
 					showTutorial({ pushHistory: false });
-				} else if (parsed.screen === 'setup-scenario') {
-					showSetup({ pushHistory: false, scroll });
-					showSetupStep('scenario', { pushHistory: false });
 				} else {
 					showSetup({ pushHistory: false, scroll });
 				}
@@ -980,6 +899,10 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 
 <style>
 	.aw-workshop {
+		--aw-workshop-card-min-width: 15.5rem;
+		--aw-workshop-card-border-strong: 35%;
+		--aw-workshop-card-gradient-start: 12%;
+		--aw-workshop-card-surface-tint: 8%;
 		display: grid;
 		gap: 1.5rem;
 		margin: 2rem 0 1rem;
@@ -1102,11 +1025,95 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 
 	.aw-workshop-card-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
 		gap: 0.85rem;
 	}
 
 	.aw-workshop-card {
+		width: 100%;
+		border: 0;
+		padding: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		text-align: inherit;
+	}
+
+	.aw-workshop-card-entry {
+		text-align: left;
+	}
+
+	.aw-workshop-card-grid-entry :global(.card-grid) {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
+		gap: 0.85rem;
+	}
+
+	.aw-workshop-card-grid-entry :global(.card-grid > *) {
+		height: 100%;
+	}
+
+	.aw-workshop-card-entry > :global(.card) {
+		--aw-workshop-card-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
+		height: 100%;
+		min-height: 15rem;
+		padding: 1rem;
+		border-radius: 0.9rem;
+		border-color: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-border-strong), transparent);
+		background:
+			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-gradient-start), transparent), transparent 72%),
+			color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-surface-tint), var(--aw-bg-elevated));
+		gap: 0.75rem;
+		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+	}
+
+	.aw-workshop-card-entry > :global(.card .title) {
+		margin: 0;
+		font-size: 1.18rem;
+		line-height: 1.08;
+	}
+
+	.aw-workshop-card-entry > :global(.card .body) {
+		display: grid;
+		gap: 0.7rem;
+		height: 100%;
+		font-size: inherit;
+	}
+
+	.aw-workshop-card-entry-meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.55rem 0.75rem;
+	}
+
+	.aw-workshop-card-entry-kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.65rem;
+	}
+
+	.aw-workshop-card-entry:hover > :global(.card),
+	.aw-workshop-card-entry.is-active > :global(.card) {
+		transform: translateY(-1px);
+		border-color: var(--aw-workshop-card-color);
+		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
+	}
+
+	.aw-workshop-card-entry:focus-visible {
+		outline: 2px solid var(--aw-workshop-card-color);
+		outline-offset: 4px;
+	}
+
+	.aw-workshop-card-entry:hover .aw-workshop-card-fit,
+	.aw-workshop-card-entry.is-active .aw-workshop-card-fit {
+		opacity: 1;
+		max-height: 5rem;
+		transform: translateY(0);
+	}
+
+	.aw-workshop-card-scenario-selection {
 		display: grid;
 		grid-template-columns: 2rem 1fr auto;
 		grid-template-areas:
@@ -1163,7 +1170,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		display: none;
 	}
 
-	.aw-workshop-card-scenario {
+	.aw-workshop-card-scenario-selection {
 		--aw-workshop-card-accent: var(--sl-color-accent-low);
 	}
 
@@ -1198,20 +1205,22 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		transition: opacity 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
 	}
 
-	.aw-workshop-card:hover,
-	.aw-workshop-card.is-active {
+	.aw-workshop-card-scenario-selection:hover,
+	.aw-workshop-card-scenario-selection.is-active {
+		transform: translateY(-1px);
 		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
 		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 6%, var(--aw-bg-page));
+		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
 	}
 
-	.aw-workshop-card:hover .aw-workshop-card-fit,
-	.aw-workshop-card.is-active .aw-workshop-card-fit {
+	.aw-workshop-card-scenario-selection:hover .aw-workshop-card-fit,
+	.aw-workshop-card-scenario-selection.is-active .aw-workshop-card-fit {
 		opacity: 1;
 		max-height: 5rem;
 		transform: translateY(0);
 	}
 
-	.aw-workshop-card-scenario {
+	.aw-workshop-card-scenario-selection {
 		min-height: 12rem;
 	}
 
@@ -1305,6 +1314,19 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		display: block;
 		min-width: 0;
 		min-height: 22rem;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-journey-block) {
+		display: none;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-all),
+	.aw-workshop[data-workshop-visible-journeys~='ui'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-ui),
+	.aw-workshop[data-workshop-visible-journeys~='terminal'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-terminal),
+	.aw-workshop[data-workshop-visible-journeys~='local'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-local),
+	.aw-workshop[data-workshop-visible-journeys~='codespace'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-codespace),
+	.aw-workshop[data-workshop-visible-journeys~='copilot'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-copilot) {
+		display: contents;
 	}
 
 	.aw-workshop-step-content :global(h2),

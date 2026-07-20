@@ -43,6 +43,10 @@ tools:
     - "echo *"
     - "wc *"
     - "expr *"
+    - "git status"
+    - "git diff -- docs/src/content/docs/**"
+    - "git add docs/src/content/docs/**"
+    - "git commit -m *"
   github:
     mode: gh-proxy
     lockdown: false
@@ -91,7 +95,12 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
 
 - **There is no `shell` tool.** The command execution tool is named `bash`. Do not call `shell(...)` — it will be denied immediately.
 - **There is no `read` tool.** To inspect a file, use `bash` with `cat`: `cat path/to/file`. Do not call `read(...)` — it will be denied immediately.
-- Do not run **any** git commands in `bash` — this includes `git checkout`, `git branch`, `git add`, `git commit`, `git push`, `git status`, and any other `git *` sub-command. `create_pull_request` handles branching and commit creation automatically.
+- Use only these git commands in `bash`:
+  - `git status`
+  - `git diff -- docs/src/content/docs/**`
+  - `git add docs/src/content/docs/**`
+  - `git commit -m "<message>"`
+- Do not run branch-changing or remote git commands (`git checkout`, `git switch`, `git branch`, `git reset`, `git rebase`, `git merge`, `git cherry-pick`, `git push`, `git pull`, or any `git remote *`).
 
 #### Hard Requirements
 
@@ -192,7 +201,7 @@ PR body must include:
 - Summary of highlighted workflow and why it was chosen.
 - Links used as evidence (issues/PRs/log/audit references).
 - File path of the created blog post.
-- Call `create_pull_request` directly after writing the file; do not run any git commands first.
+- Stage and commit text changes first (`git add` and `git commit`), then call `create_pull_request`.
 
 ### 7) No-action rule
 
