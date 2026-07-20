@@ -112,7 +112,7 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	// custom servers such as azure-devops) and exposes wrappers on PATH. Reflect
 	// that runtime reality in the generated CLI server list so agents can call
 	// these wrappers deterministically instead of guessing command names.
-	if len(servers) > 0 && data.EngineConfig != nil && strings.EqualFold(data.EngineConfig.ID, string(constants.CopilotEngine)) {
+	if len(servers) > 0 && data.EngineConfig != nil && data.EngineConfig.ID == string(constants.CopilotEngine) {
 		if hasGitHubTool(data.ParsedTools) && !isGitHubCLIModeEnabled(data) && !slices.Contains(servers, "github") {
 			servers = append(servers, "github")
 		}
