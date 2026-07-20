@@ -585,6 +585,23 @@ func TestInjectOTLPConfig(t *testing.T) {
 		assert.Equal(t, 1, strings.Count(wd.Env, "env:"), "should have exactly one env: key")
 	})
 
+	t.Run("preserves user-defined OTEL_SERVICE_NAME and does not inject duplicate", func(t *testing.T) {
+		c := newCompiler()
+		wd := &WorkflowData{
+			ParsedFrontmatter: &FrontmatterConfig{
+				Observability: &ObservabilityConfig{
+					OTLP: &OTLPConfig{Endpoint: "https://traces.example.com"},
+				},
+			},
+			Env: "env:\n  OTEL_SERVICE_NAME: my-service",
+		}
+		c.injectOTLPConfig(wd)
+
+		assert.Contains(t, wd.Env, "OTEL_SERVICE_NAME: my-service", "user-defined service name should be preserved")
+		assert.Equal(t, 1, strings.Count(wd.Env, "OTEL_SERVICE_NAME:"), "OTEL_SERVICE_NAME should appear exactly once")
+		assert.Contains(t, wd.Env, "OTEL_EXPORTER_OTLP_ENDPOINT: https://traces.example.com", "endpoint should still be injected")
+	})
+
 	t.Run("OTEL_SERVICE_NAME includes sanitized workflow ID when available", func(t *testing.T) {
 		c := newCompiler()
 		wd := &WorkflowData{

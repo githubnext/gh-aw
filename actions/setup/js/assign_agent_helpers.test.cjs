@@ -1,4 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from "vitest";
+import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
+
+const { runtimePromptsDir } = syncRuntimePromptTemplates(import.meta.url);
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -34,6 +37,20 @@ const { AGENT_LOGIN_NAMES, getAgentName, getAgentLogins, getAvailableAgentLogins
   await import("./assign_agent_helpers.cjs");
 
 describe("assign_agent_helpers.cjs", () => {
+  const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+
+  beforeAll(() => {
+    process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
+  });
+
+  afterAll(() => {
+    if (originalPromptsDir === undefined) {
+      delete process.env.GH_AW_PROMPTS_DIR;
+      return;
+    }
+    process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -437,7 +454,9 @@ describe("assign_agent_helpers.cjs", () => {
       const result = await assignAgentToIssue("id", "agent", [], "copilot", null, null, null, null, null, restClient, taskContext);
 
       expect(result).toBe(false);
-      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Insufficient permissions"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("Copilot assignment permission requirements not met"));
+      expect(mockCore.error).toHaveBeenCalledWith(expect.stringContaining("GH_AW_AGENT_TOKEN"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication"));
     });
   });
 
@@ -445,10 +464,12 @@ describe("assign_agent_helpers.cjs", () => {
     it("should return markdown content with permission requirements", () => {
       const summary = generatePermissionErrorSummary();
 
-      expect(summary).toContain("### ⚠️ Permission Requirements");
-      expect(summary).toContain("Fine-grained personal access token");
+      expect(summary).toContain("### ⚠️ Copilot Assignment Permission Requirements");
+      expect(summary).toContain("GH_AW_AGENT_TOKEN");
+      expect(summary).toContain("GitHub App installation token");
       expect(summary).toContain("actions**, **contents**, **issues**");
       expect(summary).toContain("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees");
+      expect(summary).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
       expect(summary).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
     });
   });
