@@ -2595,7 +2595,7 @@ process.exit(1);`,
         expect(process.env.COPILOT_MODEL).toBeUndefined();
       });
 
-      it("keeps configured sentinel model in BYOK mode", () => {
+      it("preserves sentinel value in BYOK mode", () => {
         process.env.COPILOT_MODEL = "none";
         process.env.COPILOT_PROVIDER_BASE_URL = "https://api.openai.com/v1";
         const resolved = applyCopilotModelAliasResolution({ awfReflectData: null, logger: () => {} });
