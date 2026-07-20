@@ -17,7 +17,7 @@ func TestRunCommandHelpTextConsistency(t *testing.T) {
 	require.NotNil(t, runApprove, "run command should define --approve")
 	require.NotNil(t, compileApprove, "compile command should define --approve")
 	assert.Contains(t, compileApprove.Usage, "safe update changes", "compile --approve should describe compiler safe update approval")
-	assert.Equal(t, "Approve safe update manifest changes when --push triggers an automatic recompile step", runApprove.Usage, "run --approve should explain the --push-triggered recompile behavior")
+	assert.Equal(t, "Approve safe update manifest changes when --push triggers an automatic recompile step. When strict mode is active (the default), the recompile step enforces safe update checking; pass this flag to approve those changes.", runApprove.Usage, "run --approve should explain the --push-triggered recompile behavior with strict mode context")
 }
 
 func TestCompileScheduleSeedHelpUsesConsistentQuotes(t *testing.T) {

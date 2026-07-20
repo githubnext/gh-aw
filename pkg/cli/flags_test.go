@@ -68,14 +68,14 @@ func TestShortFlagConsistency(t *testing.T) {
 			description:  "compile should have force short flag",
 		},
 
-		// -F flag (raw-field in run command)
+		// -F flag (raw-field in run command) - uppercase shorthand removed for CLI consistency
 		{
-			name:         "run command has -F for --raw-field",
+			name:         "run command does not have -F for --raw-field",
 			shortFlag:    "F",
 			longFlag:     "raw-field",
 			commandSetup: func() *cobra.Command { return createRunCommandStub() },
-			shouldExist:  true,
-			description:  "run should have raw-field short flag (uppercase F)",
+			shouldExist:  false,
+			description:  "run should not have an uppercase -F short flag (CLI-wide lowercase convention)",
 		},
 
 		// -j flag (json)
@@ -274,7 +274,7 @@ func createNewCommandStub() *cobra.Command {
 
 func createRunCommandStub() *cobra.Command {
 	cmd := &cobra.Command{Use: "run"}
-	cmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add string parameter")
+	cmd.Flags().StringArray("raw-field", []string{}, "Add string parameter")
 	cmd.Flags().StringP("engine", "e", "", "Override AI engine")
 	cmd.Flags().StringP("repo", "r", "", "Target repository")
 	return cmd
