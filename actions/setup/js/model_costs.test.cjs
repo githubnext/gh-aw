@@ -133,6 +133,13 @@ describe("model_costs.cjs", () => {
     expect(aic).toBeGreaterThan(0);
   });
 
+  it("prices Copilot auto using the bundled model catalog", async () => {
+    const { findModelPricing } = await import("./model_costs.cjs");
+    const autoPricing = findModelPricing("github-copilot", "auto");
+    const sonnetPricing = findModelPricing("github-copilot", "claude-sonnet-4.6");
+    expect(autoPricing).toEqual(sonnetPricing);
+  });
+
   it("subtracts cache reads from input for github-copilot provider (§3.5, no double-charge)", async () => {
     // github-copilot proxies OpenAI and Anthropic models, which bundle cache-read tokens
     // inside the reported input total.  §3.5 requires the cache reads to be subtracted
