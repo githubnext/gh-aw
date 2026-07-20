@@ -21,6 +21,7 @@ permissions:
   actions: read
   
 name: Smoke Claude
+model: claude-sonnet-4.6
 models:
   blocked: ["*opus*"]
 max-turns: 100
