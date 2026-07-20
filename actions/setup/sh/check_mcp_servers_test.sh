@@ -352,6 +352,245 @@ test_validation_functions_exist() {
   fi
 }
 
+# Test 11: Optional failing server should not fail startup when another server is healthy
+test_optional_server_failure_degrades_to_warning() {
+  echo ""
+  echo "Test 11: Optional server failure degrades to warning"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  node - "$port_file" >"$tmpdir/mock.log" 2>&1 <<'NODE' &
+const fs = require("fs");
+const http = require("http");
+
+const portFile = process.argv[2];
+
+const send = (res, code, payload, sessionId) => {
+  const body = JSON.stringify(payload);
+  res.writeHead(code, {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(body),
+    ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
+  });
+  res.end(body);
+};
+
+const server = http.createServer((req, res) => {
+  let raw = "";
+  req.on("data", chunk => {
+    raw += chunk;
+  });
+  req.on("end", () => {
+    let data = {};
+    try {
+      data = JSON.parse(raw || "{}");
+    } catch {
+      data = {};
+    }
+
+    const method = data.method;
+    const reqId = data.id ?? 1;
+
+    if (req.url.endsWith("/github")) {
+      if (method === "initialize") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { protocolVersion: "2024-11-05", capabilities: {}, serverInfo: { name: "github", version: "1.0.0" } } }, "s1");
+      } else if (method === "tools/list") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { tools: [] } });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    if (req.url.endsWith("/datadog")) {
+      if (method === "initialize") {
+        send(res, 403, { errors: ["Forbidden"] });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    send(res, 404, { error: "not found" });
+  });
+});
+
+server.listen(0, "127.0.0.1", () => {
+  fs.writeFileSync(portFile, String(server.address().port), "utf8");
+});
+NODE
+  local server_pid=$!
+
+  local i=0
+  while [ ! -s "$port_file" ] && [ $i -lt 50 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+
+  if [ ! -s "$port_file" ]; then
+    kill "$server_pid" 2>/dev/null || true
+    rm -rf "$tmpdir"
+    print_result "Mock MCP server failed to start" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/github"
+    },
+    "datadog": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/datadog"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+
+  if bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >/dev/null 2>&1; then
+    print_result "Optional failing server does not fail startup" "PASS"
+  else
+    print_result "Optional failing server should not fail startup" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
+# Test 12: Required failing server should still fail startup
+test_required_server_failure_is_fatal() {
+  echo ""
+  echo "Test 12: Required server failure remains fatal"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  node - "$port_file" >"$tmpdir/mock.log" 2>&1 <<'NODE' &
+const fs = require("fs");
+const http = require("http");
+
+const portFile = process.argv[2];
+
+const send = (res, code, payload, sessionId) => {
+  const body = JSON.stringify(payload);
+  res.writeHead(code, {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(body),
+    ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
+  });
+  res.end(body);
+};
+
+const server = http.createServer((req, res) => {
+  let raw = "";
+  req.on("data", chunk => {
+    raw += chunk;
+  });
+  req.on("end", () => {
+    let data = {};
+    try {
+      data = JSON.parse(raw || "{}");
+    } catch {
+      data = {};
+    }
+
+    const method = data.method;
+    const reqId = data.id ?? 1;
+
+    if (req.url.endsWith("/github")) {
+      if (method === "initialize") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { protocolVersion: "2024-11-05", capabilities: {}, serverInfo: { name: "github", version: "1.0.0" } } }, "s1");
+      } else if (method === "tools/list") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { tools: [] } });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    if (req.url.endsWith("/datadog")) {
+      if (method === "initialize") {
+        send(res, 403, { errors: ["Forbidden"] });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    send(res, 404, { error: "not found" });
+  });
+});
+
+server.listen(0, "127.0.0.1", () => {
+  fs.writeFileSync(portFile, String(server.address().port), "utf8");
+});
+NODE
+  local server_pid=$!
+
+  local i=0
+  while [ ! -s "$port_file" ] && [ $i -lt 50 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+
+  if [ ! -s "$port_file" ]; then
+    kill "$server_pid" 2>/dev/null || true
+    rm -rf "$tmpdir"
+    print_result "Mock MCP server failed to start" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/github"
+    },
+    "datadog": {
+      "type": "http",
+      "required": true,
+      "url": "http://127.0.0.1:${port}/mcp/datadog"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+
+  if ! bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >/dev/null 2>&1; then
+    print_result "Required failing server still fails startup" "PASS"
+  else
+    print_result "Required failing server should fail startup" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
 # Run all tests
 echo "=== Testing check_mcp_servers.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -366,6 +605,8 @@ test_valid_http_server
 test_server_without_url
 test_mixed_servers
 test_validation_functions_exist
+test_optional_server_failure_degrades_to_warning
+test_required_server_failure_is_fatal
 
 # Print summary
 echo ""
