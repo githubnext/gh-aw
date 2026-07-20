@@ -4,6 +4,11 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
 
 const require = createRequire(import.meta.url);
+const TEST_PROMPTS_DIR = new URL("../md/", import.meta.url).pathname;
+
+if (!process.env.GH_AW_PROMPTS_DIR) {
+  process.env.GH_AW_PROMPTS_DIR = TEST_PROMPTS_DIR;
+}
 
 describe("handle_agent_failure", () => {
   let main;
@@ -13,11 +18,15 @@ describe("handle_agent_failure", () => {
   let buildFailureIssueTitle;
   let buildSecretVerificationContext;
   let buildAssignmentErrorsContext;
+  let buildAssignCopilotFailureContext;
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
   const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
+  let originalPromptsDir;
 
   beforeEach(() => {
+    originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+    process.env.GH_AW_PROMPTS_DIR = TEST_PROMPTS_DIR;
     // Provide minimal GitHub Actions globals expected by require-time code
     global.core = {
       info: vi.fn(),
@@ -40,6 +49,7 @@ describe("handle_agent_failure", () => {
       buildFailureIssueTitle,
       buildSecretVerificationContext,
       buildAssignmentErrorsContext,
+      buildAssignCopilotFailureContext,
       getActionFailureIssueExpiresHours,
     } = require("./handle_agent_failure.cjs"));
   });
@@ -51,6 +61,11 @@ describe("handle_agent_failure", () => {
     delete process.env.GITHUB_SHA;
     delete process.env.GH_AW_ACTION_FAILURE_ISSUE_EXPIRES_HOURS;
     delete process.env.GH_AW_GROUP_REPORTS;
+    if (originalPromptsDir === undefined) {
+      delete process.env.GH_AW_PROMPTS_DIR;
+    } else {
+      process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+    }
   });
 
   describe("getActionFailureIssueExpiresHours", () => {
@@ -1378,9 +1393,30 @@ describe("handle_agent_failure", () => {
         expect(result).toContain("Issue #42 (agent: copilot): Bad credentials");
         expect(result).toContain("PR #7 (agent: copilot): copilot coding agent is not available for this repository");
         expect(result).toContain("GH_AW_AGENT_TOKEN");
-        expect(result).toContain("Agent tasks: read and write");
-        expect(result).not.toContain("copilot-requests: write");
+        expect(result).toContain("metadata: read");
+        expect(result).toContain("GitHub App installation token");
         expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
+        expect(result).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
+        expect(result).not.toContain("copilot-requests: write");
+      });
+    });
+
+    describe("buildAssignCopilotFailureContext", () => {
+      it("returns empty string when there are no copilot assignment failures", () => {
+        expect(buildAssignCopilotFailureContext(false, "")).toBe("");
+      });
+
+      it("renders standardized copilot assignment remediation guidance", () => {
+        const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:Bad credentials");
+
+        expect(result).toContain("Copilot Assignment Failed");
+        expect(result).toContain("Issue #42: Bad credentials");
+        expect(result).toContain("GH_AW_AGENT_TOKEN");
+        expect(result).toContain("metadata");
+        expect(result).toContain("GitHub App installation token");
+        expect(result).toContain("YOUR_AGENT_PAT");
+        expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
+        expect(result).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
       });
     });
 

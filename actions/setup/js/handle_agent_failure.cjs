@@ -2199,10 +2199,13 @@ function buildAssignmentErrorsContext(assignmentErrors) {
     }
   }
 
-  context += "\nTo resolve this, verify the agent token and Copilot access configuration:\n";
-  context += "- Configure a valid `GH_AW_AGENT_TOKEN` as a fine-grained PAT with **Agent tasks: read and write** permission (GitHub App installation tokens are not supported)\n";
-  context += "- Ensure Copilot coding agent is enabled for this repository and a Copilot Business or Enterprise subscription is active\n";
-  context += "- Docs: https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication\n\n";
+  context += "\nTo resolve this, verify the token and Copilot assignment configuration:\n";
+  context += "- Set `GH_AW_AGENT_TOKEN` to a fine-grained PAT with **metadata: read** and **actions**, **contents**, **issues**, and **pull requests: write**, or use a classic PAT with `repo`\n";
+  context += "- Do not use a GitHub App installation token for Copilot assignment; the API rejects it\n";
+  context += "- Ensure the token owner can access the repository and assign users to issues\n";
+  context += "- Verify Copilot coding agent is enabled for this repository and organization policy allows bot assignments\n";
+  context += "- Docs: https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication\n";
+  context += "- API reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api\n\n";
 
   return context;
 }
