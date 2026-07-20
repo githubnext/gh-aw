@@ -42,10 +42,14 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	var result strings.Builder
 
 	for _, line := range lines {
-		if strings.TrimSpace(line) == "" {
+		// Right-trim so trailing whitespace carried in from source step content
+		// (e.g. embedded shell/js/jq inside a literal block scalar) doesn't survive
+		// into the generated YAML, which yamllint flags as trailing-spaces. Trailing
+		// whitespace is insignificant for the shell/script content these steps carry.
+		if trimmed := strings.TrimRight(line, " \t"); strings.TrimSpace(trimmed) == "" {
 			result.WriteString("\n")
 		} else {
-			result.WriteString("      " + line + "\n")
+			result.WriteString("      " + trimmed + "\n")
 		}
 	}
 

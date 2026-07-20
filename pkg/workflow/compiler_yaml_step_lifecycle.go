@@ -38,10 +38,13 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 			yaml.WriteString("\n")
 			continue
 		}
-		if strings.HasPrefix(line, "  ") {
-			yaml.WriteString("        " + line[2:] + "\n")
+		// Emit the right-trimmed line so trailing whitespace carried in from the
+		// source step content (e.g. embedded shell/jq/js scripts) doesn't survive
+		// into the generated YAML, which yamllint flags as trailing-spaces.
+		if strings.HasPrefix(trimmed, "  ") {
+			yaml.WriteString("        " + trimmed[2:] + "\n")
 		} else {
-			yaml.WriteString("      " + line + "\n")
+			yaml.WriteString("      " + trimmed + "\n")
 		}
 	}
 }
