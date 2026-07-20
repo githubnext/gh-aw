@@ -2184,10 +2184,8 @@ function buildAssignmentErrorsContext(assignmentErrors) {
     return "";
   }
 
-  let context = buildWarningAlertLine("Agent Assignment Failed", "Failed to assign agent to issues or pull requests.");
-  context += "\n**Assignment Errors:**\n";
-
   const errorLines = assignmentErrors.split("\n").filter(line => line.trim());
+  let renderedErrors = "";
   for (const errorLine of errorLines) {
     const parts = errorLine.split(":");
     if (parts.length >= 4) {
@@ -2195,19 +2193,15 @@ function buildAssignmentErrorsContext(assignmentErrors) {
       const number = parts[1];
       const agent = parts[2];
       const error = parts.slice(3).join(":");
-      context += `- ${type === "issue" ? "Issue" : "PR"} #${number} (agent: ${agent}): ${error}\n`;
+      renderedErrors += `- ${type === "issue" ? "Issue" : "PR"} #${number} (agent: ${agent}): ${error}\n`;
     }
   }
 
-  context += "\nTo resolve this, verify the token and Copilot assignment configuration:\n";
-  context += "- Set `GH_AW_AGENT_TOKEN` to a fine-grained PAT with **metadata: read** and **actions**, **contents**, **issues**, and **pull requests: write**, or use a classic PAT with `repo`\n";
-  context += "- Do not use a GitHub App installation token for Copilot assignment; the API rejects it\n";
-  context += "- Ensure the token owner can access the repository and assign users to issues\n";
-  context += "- Verify Copilot coding agent is enabled for this repository and organization policy allows bot assignments\n";
-  context += "- Docs: https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication\n";
-  context += "- API reference: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api\n\n";
-
-  return context;
+  const templatePath = getPromptPath("copilot_assignment_errors_context.md");
+  return renderTemplateFromFile(templatePath, {
+    warning_line: buildWarningAlertLine("Agent Assignment Failed", "Failed to assign agent to issues or pull requests."),
+    assignment_errors: renderedErrors,
+  });
 }
 /**
  * Build a context string when assigning the Copilot coding agent to created issues failed.

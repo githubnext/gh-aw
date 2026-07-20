@@ -2,8 +2,14 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import { cpSync, mkdirSync } from "fs";
+import path from "path";
 
 const require = createRequire(import.meta.url);
+const promptsDir = new URL("../md", import.meta.url).pathname;
+const runtimePromptsDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "prompts");
+mkdirSync(runtimePromptsDir, { recursive: true });
+cpSync(promptsDir, runtimePromptsDir, { recursive: true });
 
 describe("handle_agent_failure", () => {
   let main;
@@ -1374,6 +1380,7 @@ describe("handle_agent_failure", () => {
       });
 
       it("renders assignment failures with token guidance docs", () => {
+        process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
         const result = buildAssignmentErrorsContext("issue:42:copilot:Bad credentials\npr:7:copilot:copilot coding agent is not available for this repository");
 
         expect(result).toContain("Agent Assignment Failed");
@@ -1394,6 +1401,7 @@ describe("handle_agent_failure", () => {
       });
 
       it("renders standardized copilot assignment remediation guidance", () => {
+        process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
         const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:Bad credentials");
 
         expect(result).toContain("Copilot Assignment Failed");

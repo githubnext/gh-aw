@@ -3,6 +3,7 @@
 // @safe-outputs-exempt SEC-004 — body fields are read-only API context, never written back
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 
 /**
  * Shared helper functions for assigning coding agents (like Copilot) to issues.
@@ -429,23 +430,15 @@ async function assignAgentToIssue(
  * @param {string} agentName - Agent name for error messages
  */
 function logPermissionError(agentName) {
-  core.error(`Failed to assign ${agentName}: Copilot assignment permission requirements not met`);
-  core.error("");
-  core.error("Copilot assignment needs a Personal Access Token (PAT) that can update issue assignees:");
-  core.error("  Fine-grained PAT:");
-  core.error("    - Read access to metadata");
-  core.error("    - Read and write access to actions, contents, issues, and pull requests");
-  core.error("  Classic PAT:");
-  core.error("    - repo scope");
-  core.error("");
-  core.error("Remediation:");
-  core.error("  1. Set GH_AW_AGENT_TOKEN to a PAT with the permissions above");
-  core.error("  2. GitHub App installation tokens are not supported for Copilot assignment");
-  core.error("  3. Ensure the token owner can access the repository and assign users to issues");
-  core.error("  4. Verify Copilot coding agent is enabled and org policy allows bot assignments");
-  core.error("");
-  core.info("gh-aw docs: https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
-  core.info("GitHub docs: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
+  const templatePath = getPromptPath("copilot_assignment_permission_error.md");
+  const rendered = renderTemplateFromFile(templatePath, { agent_name: agentName });
+  for (const line of rendered.split("\n")) {
+    if (line.startsWith("gh-aw docs:") || line.startsWith("GitHub docs:")) {
+      core.info(line);
+    } else {
+      core.error(line);
+    }
+  }
 }
 
 /**
@@ -453,25 +446,8 @@ function logPermissionError(agentName) {
  * @returns {string} Markdown content for permission error guidance
  */
 function generatePermissionErrorSummary() {
-  return `
-### ⚠️ Copilot Assignment Permission Requirements
-
-Copilot assignment failed because the workflow token could not update issue assignees via \`POST /repos/{owner}/{repo}/issues/{issue_number}/assignees\`.
-
-**Required token options**
-- **Fine-grained personal access token** — Read access to **metadata** and read/write access to **actions**, **contents**, **issues**, and **pull requests**
-- **Classic personal access token** — **\`repo\`** scope
-
-**Remediation**
-- Set \`GH_AW_AGENT_TOKEN\` to a PAT with one of the permission sets above.
-- Do not use a GitHub App installation token for Copilot assignment; the API rejects it.
-- Ensure the token owner can access the repository and assign users to issues.
-- Verify Copilot coding agent is enabled for the repository and organization policy allows bot assignments.
-
-**References**
-- [gh-aw Copilot Cloud Agent authentication](https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication)
-- [Official GitHub Copilot cloud agent API documentation](https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api)
-`;
+  const templatePath = getPromptPath("copilot_assignment_permission_requirements.md");
+  return renderTemplateFromFile(templatePath, {});
 }
 
 /**
