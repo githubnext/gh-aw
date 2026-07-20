@@ -74,7 +74,14 @@ Focus on:
 
 1. Start with `tools.agentic-workflows` MCP tools to download and analyze recent runs:
    - Use `status` to list workflows/runs.
-   - Use `logs` to download parsed logs for recent runs.
+   - Use `logs` to download parsed logs for recent runs, specifying `artifacts: ["agent"]` to include agent telemetry (turns, token usage, stdout) needed for AgentRx trajectory analysis:
+     ```json
+     {
+       "count": 50,
+       "start_date": "-2d",
+       "artifacts": ["agent"]
+     }
+     ```
    - Use `audit` for selected failing or high-latency runs.
 2. Use only MCP-downloaded run data and logs as the telemetry source, prioritizing `runs[]` session fields over OTEL spans.
 3. Use Python in `/tmp/gh-aw/agent/agentrx` to avoid polluting the repository.
