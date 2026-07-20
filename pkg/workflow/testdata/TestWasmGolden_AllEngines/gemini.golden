@@ -481,7 +481,8 @@ jobs:
               "port": $MCP_GATEWAY_PORT,
               "domain": "${MCP_GATEWAY_DOMAIN}",
               "apiKey": "${MCP_GATEWAY_API_KEY}",
-              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}"
+              "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
+              "startupTimeout": 120
             }
           }
           GH_AW_MCP_CONFIG_NORM_EOF

@@ -115,7 +115,7 @@ func RemoveWorkflows(pattern string, keepOrphans bool, workflowDir string) error
 
 	// Show orphaned includes that will also be removed
 	if len(orphanedIncludes) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nThe following orphaned include files will also be removed (suppress with --keep-orphans):"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nThe following orphaned include files will also be removed (suppress with --no-remove-orphans):"))
 		for _, include := range orphanedIncludes {
 			fmt.Fprintf(os.Stderr, "  %s (orphaned include)\n", include)
 		}

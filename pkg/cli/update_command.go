@@ -35,6 +35,9 @@ If no workflow names are specified, all workflows with a 'source' field are upda
 By default, the update performs a 3-way merge to preserve your local changes.
 Use --no-merge to override local changes with the upstream version.
 
+By default, update also bumps all referenced GitHub Actions to their latest major version.
+Use --no-release-bump to restrict auto-bumping to core actions/* actions only.
+
 For workflow updates, it fetches the latest version based on the current ref:
 - If the ref is a tag, it updates to the latest release (use --major for major version updates)
 - If the ref is a branch, it fetches the latest commit from that branch

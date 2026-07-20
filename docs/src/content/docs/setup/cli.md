@@ -5,7 +5,7 @@ sidebar:
   order: 200
 ---
 
-The `gh aw` CLI extension enables developers to create, manage, and execute AI-powered workflows directly from the command line. It transforms natural language markdown files into GitHub Actions.
+The `gh aw` CLI extension enables developers to create, manage, and execute AI-powered workflows directly from the command line. It transforms natural language Markdown files into GitHub Actions.
 
 ## Most Common Commands
 
@@ -133,7 +133,7 @@ Use `gh aw version` to print the current version.
 
 ### The `--push` Flag
 
-`gh aw run --push` stages all changes, commits them, and pushes before dispatching the workflow. It requires a clean working directory.
+`gh aw run --push` stages workflow files (including transitive imports), commits them, and pushes before dispatching the workflow. It refuses to proceed when unrelated files are already staged.
 
 For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
@@ -178,7 +178,7 @@ When the Copilot engine is selected, the wizard prompts the user to choose an au
 
 #### `add`
 
-Add workflows from The Agentics collection or other repositories to `.github/workflows`. For remote workflows, this command follows frontmatter [`redirect`](/gh-aw/reference/frontmatter/#redirect-redirect) declarations before installation.
+Add workflows from the Agentics collection or other repositories to `.github/workflows`. For remote workflows, this command follows frontmatter [`redirect`](/gh-aw/reference/frontmatter/#redirect-redirect) declarations before installation.
 
 ```bash wrap
 gh aw add githubnext/agentics/ci-doctor           # Add single workflow
@@ -341,7 +341,7 @@ Unlike `gh aw upgrade`, `gh aw compile` does not run codemods unless you pass `-
 
 **Dependabot Integration (`--dependabot`):** Generates dependency manifests and `.github/dependabot.yml` by analyzing runtime tools across all workflows. See [Dependabot Support reference](/gh-aw/reference/dependabot/).
 
-**Strict Mode (`--strict`):** Enforces security best practices: no write permissions (use [safe-outputs](/gh-aw/reference/safe-outputs/)), explicit `network` config, no wildcard domains, pinned Actions, no deprecated fields. See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict).
+**Strict Mode (`--strict`):** Enforces security best practices: no write permissions (use [safe-outputs](/gh-aw/reference/safe-outputs/)), explicit `network` config, no wildcard domains, pinned actions, no deprecated fields. See [Strict Mode reference](/gh-aw/reference/frontmatter/#strict-mode-strict).
 
 **Shared Workflows:** Workflows without an `on` field are detected as shared components. Validated with relaxed schema and skip compilation. See [Imports reference](/gh-aw/reference/imports/).
 
@@ -392,7 +392,7 @@ gh aw trial ./workflow.md --host-repo owner/repo   # Run directly in repository
 gh aw trial ./workflow.md --dry-run                # Preview without executing
 ```
 
-**Options:** `-e/--engine`, `--repeat`, `--delete-host-repo-after`, `--logical-repo/-l`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`, `--append`, `--auto-merge-prs`, `--no-security-scanner`, `--force-delete-host-repo-before`, `--json/-j`, `--timeout`, `--yes/-y`
+**Options:** `-e/--engine`, `--repeat`, `--delete-host-repo-after`, `--logical-repo/-l`, `--clone-repo`, `--trigger-context`, `--host-repo`, `--dry-run`, `--append`, `--auto-merge-prs`, `--no-security-scanner`, `--delete-host-repo-before`, `--json/-j`, `--timeout`, `--yes/-y`
 
 **Secret Handling:** API keys required for the selected engine are automatically checked. If missing from the target repository, they are prompted for interactively and uploaded.
 
@@ -410,7 +410,7 @@ gh aw run workflow --dry-run                # Preview without triggering workflo
 gh aw run workflow --json                   # Output triggered workflow results as JSON
 ```
 
-**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`, `--auto-merge-prs`, `--dry-run`, `--engine/-e`, `--raw-field/-F`, `--repo/-r`, `--approve`
+**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`, `--auto-merge-prs`, `--dry-run`, `--engine/-e`, `--raw-field`, `--repo/-r`, `--approve`
 
 When `--json` is set, a JSON array of triggered workflow results is written to stdout.
 
@@ -698,12 +698,12 @@ gh aw disable ci-doctor --repo owner/repo   # Disable in specific repository
 Remove workflows (both `.md` and `.lock.yml`). Accepts a workflow ID (basename without `.md`) or a substring pattern matching multiple workflows. By default, also removes orphaned include files no longer referenced by any workflow.
 
 ```bash wrap
-gh aw remove my-workflow                 # Remove specific workflow
-gh aw remove test-                       # Remove all workflows containing 'test-' in their name
-gh aw remove my-workflow --keep-orphans  # Remove but keep orphaned include files
+gh aw remove my-workflow                        # Remove specific workflow
+gh aw remove test-                              # Remove all workflows containing 'test-' in their name
+gh aw remove my-workflow --no-remove-orphans    # Remove but keep orphaned include files
 ```
 
-**Options:** `--dir/-d`, `--keep-orphans`
+**Options:** `--dir/-d`, `--no-remove-orphans`
 
 #### `update`
 

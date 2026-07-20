@@ -47,6 +47,7 @@ package workflow
 
 import (
 	"slices"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -156,6 +157,17 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		toolTimeout = workflowData.EngineConfig.MCPToolTimeout
 	}
 
+	// Compute startupTimeout from tools.startup-timeout (integer seconds) or fall back to
+	// constants.DefaultMCPStartupTimeout (120s). Always emitted so that MCP Gateway's
+	// built-in 30-second default cannot silently evict a safeoutputs backend that starts
+	// slightly late. GitHub Actions expressions (non-numeric strings) fall back to the default.
+	startupTimeout := int(constants.DefaultMCPStartupTimeout / time.Second)
+	if workflowData.ToolsStartupTimeout != "" {
+		if n := templatableIntValue(&workflowData.ToolsStartupTimeout); n > 0 {
+			startupTimeout = n
+		}
+	}
+
 	// Derive ForcePublicRepos and SinkVisibilityExemptServers from tools.github.private-to-public-flows.
 	var forcePublicRepos *bool
 	var sinkVisibilityExemptServers []string
@@ -185,6 +197,7 @@ func buildMCPGatewayConfig(workflowData *WorkflowData) *MCPGatewayRuntimeConfig 
 		KeepaliveInterval:           workflowData.SandboxConfig.MCP.KeepaliveInterval, // Keepalive interval from frontmatter (0=default, -1=disabled, >0=custom)
 		SessionTimeout:              sessionTimeout,                                   // Session timeout from engine.mcp.session-timeout (empty = gateway default 6h)
 		ToolTimeout:                 toolTimeout,                                      // Tool timeout from engine.mcp.tool-timeout (empty = gateway built-in default 60s)
+		StartupTimeout:              startupTimeout,                                   // Startup timeout in seconds; always set (default: 120s to override gateway's built-in 30s)
 		ForcePublicRepos:            forcePublicRepos,                                 // nil = default (true); &false = disable runtime public-repos override
 		SinkVisibilityExemptServers: sinkVisibilityExemptServers,                      // Server IDs exempt from default sink-visibility enforcement
 		// OTLPEndpoint and OTLPHeaders are set from workflowData by injectOTLPConfig, which is
