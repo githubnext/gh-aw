@@ -680,6 +680,8 @@ describe("generate_safe_outputs_tools", () => {
     expect(labelsDesc).toContain('"name"');
     expect(labelsDesc).toContain('"rationale"');
     expect(labelsDesc).toContain('"confidence"');
+    // Should show suggest inside the label object example (not as a top-level field)
+    expect(labelsDesc).toContain('"suggest"');
     // Should not say plain strings are forbidden (they are still allowed in omitted mode)
     expect(labelsDesc).not.toMatch(/plain string.*not permitted/i);
     // oneOf schema must be preserved (plain strings still valid)
@@ -730,5 +732,37 @@ describe("generate_safe_outputs_tools", () => {
       expect(tool.inputSchema.properties.rationale.description, `${toolName} rationale description`).not.toMatch(/optional/i);
       expect(tool.inputSchema.properties.confidence.description, `${toolName} confidence description`).not.toMatch(/optional/i);
     }
+  });
+
+  it("strict mode assign_to_agent replaces inline examples with versions that include rationale and confidence", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "assign_to_agent",
+          description: 'Assigns agent. Example usage: assign_to_agent(issue_number=123, agent="copilot") or assign_to_agent(pull_number=456, agent="copilot", pull_request_repo="owner/repo")',
+          inputSchema: {
+            type: "object",
+            properties: {
+              issue_number: { type: "number" },
+              rationale: { type: "string", maxLength: 280, description: "Optional rationale for the assignment (max 280 characters)." },
+              confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], description: "Optional confidence level for the assignment." },
+            },
+          },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ assign_to_agent: { issue_intent: true } }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "assign_to_agent");
+    // Strict mode: inline examples must include rationale and confidence
+    expect(tool.description).toMatch(/assign_to_agent\([^)]*rationale=[^)]*\)/);
+    expect(tool.description).toMatch(/assign_to_agent\([^)]*confidence=[^)]*\)/);
+    // Must still contain the intent required suffix
+    expect(tool.description).toContain("INTENT REQUIRED:");
   });
 });

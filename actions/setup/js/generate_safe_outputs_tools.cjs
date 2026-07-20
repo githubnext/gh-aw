@@ -40,11 +40,14 @@ const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion 
 const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion threading\./g;
 const ISSUE_INTENT_REQUIRED_SUFFIX = "INTENT REQUIRED: rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) are required for each call.";
 const ISSUE_INTENT_OPTIONAL_SUFFIX =
-  "INTENT ENCOURAGED: Include rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) with each call. These fields are optional but strongly encouraged — they improve transparency and should normally be included. Use suggest: true to route for human review.";
+  "INTENT ENCOURAGED: Include rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) with each call. These fields are optional but strongly encouraged — they improve transparency and should normally be included. Use suggest: true alongside rationale and confidence to route for human review.";
 const ADD_LABELS_STRICT_FIELD_DESC =
   'Labels to add. Each label must be an object with required fields: name (string), rationale (string, max 280 chars), and confidence (exactly one of: LOW, MEDIUM, HIGH). Plain string label names are not permitted. Example: [{"name": "bug", "rationale": "The report describes reproducible incorrect behavior.", "confidence": "HIGH"}]. Labels must exist in the repository.';
 const ADD_LABELS_OPTIONAL_FIELD_DESC =
-  'Labels to add. Prefer structured label objects: {"name": "bug", "rationale": "The report describes reproducible incorrect behavior.", "confidence": "HIGH"}. Plain strings are also accepted for compatibility. Include rationale (string, max 280 chars) and confidence (LOW, MEDIUM, or HIGH) to improve transparency. Labels must exist in the repository.';
+  'Labels to add. Prefer structured label objects: {"name": "bug", "rationale": "The report describes reproducible incorrect behavior.", "confidence": "HIGH", "suggest": true}. Plain strings are also accepted for compatibility. Include rationale (string, max 280 chars) and confidence (LOW, MEDIUM, or HIGH) to improve transparency; use suggest: true to route for human review. Labels must exist in the repository.';
+const ASSIGN_TO_AGENT_EXAMPLE_USAGE_REGEX = /Example usage: assign_to_agent\([^)]+\)(?: or assign_to_agent\([^)]+\))?/g;
+const ASSIGN_TO_AGENT_STRICT_EXAMPLE_USAGE =
+  'Example usage: assign_to_agent(issue_number=123, agent="copilot", rationale="Delegate this coding task to the agent.", confidence="HIGH") or assign_to_agent(pull_number=456, agent="copilot", pull_request_repo="owner/repo", rationale="The agent should implement this PR fix.", confidence="HIGH")';
 const RATIONALE_REQUIRED_DESC = "Required rationale for this change (max 280 characters).";
 const CONFIDENCE_REQUIRED_DESC = "Required confidence level for this change. Must be exactly one of: LOW, MEDIUM, HIGH.";
 const ISSUE_INTENT_TOOL_NAMES = new Set(["set_issue_type", "set_issue_field", "add_labels", "close_issue", "assign_to_user", "assign_to_agent"]);
@@ -283,6 +286,10 @@ async function main() {
               }
             }
           }
+        }
+        // Update inline example calls to include required fields for assign_to_agent
+        if (tool.name === "assign_to_agent") {
+          enhancedTool.description = enhancedTool.description.replace(ASSIGN_TO_AGENT_EXAMPLE_USAGE_REGEX, ASSIGN_TO_AGENT_STRICT_EXAMPLE_USAGE);
         }
       } else if (isIssueIntentOmittedForTool(tool.name, config[tool.name])) {
         enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_OPTIONAL_SUFFIX}`.trim();
