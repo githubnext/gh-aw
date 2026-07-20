@@ -1,0 +1,2 @@
+{"id":"personas_generated","question":"Did the agent generate software personas for exploring custom agent behavior?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-07-20T16:08:52.093Z","runid":"29757824025"}
+{"id":"analysis_produced","question":"Was an analysis produced comparing agent responses across different automation tasks?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-20T16:08:52.093Z","runid":"29757824025"}
