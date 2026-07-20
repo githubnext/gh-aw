@@ -106,8 +106,9 @@ while IFS= read -r SERVER_NAME; do
     continue
   fi
 
-  # required=true makes a server startup-critical. Failures of required servers
-  # remain fatal; optional servers can degrade to warnings.
+  # Check whether server is marked required in configuration JSON.
+  # When required=true, failures are fatal; when omitted or false, failures are
+  # optional and degrade to warnings.
   REQUIRED=false
   if echo "$SERVER_CONFIG" | jq -e '.required == true' >/dev/null 2>&1; then
     REQUIRED=true
@@ -260,6 +261,14 @@ elif [ $REQUIRED_SERVERS_FAILED -gt 0 ]; then
   echo "ERROR: $REQUIRED_SERVERS_FAILED required server(s) failed connectivity check"
   echo "Succeeded: $SERVERS_SUCCEEDED, Failed: $SERVERS_FAILED, Skipped: $SERVERS_SKIPPED"
   echo ""
+  echo "One or more startup-critical MCP servers failed ping/initialize/tools/list"
+  echo "after multiple retry attempts with progressive timeouts (10s, 20s, 30s)."
+  echo ""
+  echo "Common causes:"
+  echo "  - Invalid or expired credentials (for example HTTP 401/403 on initialize)"
+  echo "  - MCP server unavailable or rejecting requests"
+  echo "  - Network connectivity or DNS issues"
+  echo ""
   echo "Check the gateway logs and individual server logs for more details:"
   echo "  /tmp/gh-aw/mcp-logs/stderr.log"
   echo "  /tmp/gh-aw/mcp-logs/start-gateway.log"
@@ -267,7 +276,9 @@ elif [ $REQUIRED_SERVERS_FAILED -gt 0 ]; then
 else
   if [ $SERVERS_FAILED -gt 0 ]; then
     echo "WARNING: $SERVERS_FAILED optional server(s) failed connectivity check; continuing startup"
+    echo "✓ Checks completed with warnings ($SERVERS_SUCCEEDED succeeded, $SERVERS_FAILED failed, $SERVERS_SKIPPED skipped)"
+  else
+    echo "✓ All checks passed ($SERVERS_SUCCEEDED succeeded, $SERVERS_SKIPPED skipped)"
   fi
-  echo "✓ All checks passed ($SERVERS_SUCCEEDED succeeded, $SERVERS_FAILED failed, $SERVERS_SKIPPED skipped)"
   exit 0
 fi

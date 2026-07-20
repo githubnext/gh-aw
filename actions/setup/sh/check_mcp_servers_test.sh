@@ -33,6 +33,104 @@ print_result() {
   fi
 }
 
+start_mock_mcp_server() {
+  local port_file="$1"
+  local log_file="$2"
+
+  node - "$port_file" >"$log_file" 2>&1 <<'NODE' &
+const fs = require("fs");
+const http = require("http");
+
+const portFile = process.argv[2];
+
+const send = (res, code, payload, sessionId) => {
+  const body = JSON.stringify(payload);
+  res.writeHead(code, {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(body),
+    ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
+  });
+  res.end(body);
+};
+
+const server = http.createServer((req, res) => {
+  let raw = "";
+  req.on("data", chunk => {
+    raw += chunk;
+  });
+  req.on("end", () => {
+    let data = {};
+    try {
+      data = JSON.parse(raw || "{}");
+    } catch {
+      data = {};
+    }
+
+    const method = data.method;
+    const reqId = data.id ?? 1;
+
+    if (req.url.endsWith("/github")) {
+      if (method === "initialize") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { protocolVersion: "2024-11-05", capabilities: {}, serverInfo: { name: "github", version: "1.0.0" } } }, "s1");
+      } else if (method === "tools/list") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { tools: [] } });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    if (req.url.endsWith("/datadog")) {
+      if (method === "initialize") {
+        send(res, 403, { errors: ["Forbidden"] });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    send(res, 404, { error: "not found" });
+  });
+});
+
+server.listen(0, "127.0.0.1", () => {
+  fs.writeFileSync(portFile, String(server.address().port), "utf8");
+});
+NODE
+  echo "$!"
+}
+
+wait_for_port_file() {
+  local port_file="$1"
+  local i=0
+  while [ ! -s "$port_file" ] && [ $i -lt 50 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+}
+
+start_and_validate_mock_server() {
+  local port_file="$1"
+  local log_file="$2"
+  local server_pid
+
+  server_pid=$(start_mock_mcp_server "$port_file" "$log_file")
+  if [ -z "$server_pid" ] || ! kill -0 "$server_pid" 2>/dev/null; then
+    return 1
+  fi
+
+  wait_for_port_file "$port_file"
+
+  if [ ! -s "$port_file" ]; then
+    if kill -0 "$server_pid" 2>/dev/null; then
+      kill "$server_pid" 2>/dev/null || true
+    fi
+    return 1
+  fi
+
+  echo "$server_pid"
+}
+
 # Test 1: Script syntax is valid
 test_script_syntax() {
   echo ""
@@ -362,78 +460,9 @@ test_optional_server_failure_degrades_to_warning() {
   local port_file="$tmpdir/port"
   local config_file="$tmpdir/config.json"
 
-  node - "$port_file" >"$tmpdir/mock.log" 2>&1 <<'NODE' &
-const fs = require("fs");
-const http = require("http");
-
-const portFile = process.argv[2];
-
-const send = (res, code, payload, sessionId) => {
-  const body = JSON.stringify(payload);
-  res.writeHead(code, {
-    "Content-Type": "application/json",
-    "Content-Length": Buffer.byteLength(body),
-    ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
-  });
-  res.end(body);
-};
-
-const server = http.createServer((req, res) => {
-  let raw = "";
-  req.on("data", chunk => {
-    raw += chunk;
-  });
-  req.on("end", () => {
-    let data = {};
-    try {
-      data = JSON.parse(raw || "{}");
-    } catch {
-      data = {};
-    }
-
-    const method = data.method;
-    const reqId = data.id ?? 1;
-
-    if (req.url.endsWith("/github")) {
-      if (method === "initialize") {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { protocolVersion: "2024-11-05", capabilities: {}, serverInfo: { name: "github", version: "1.0.0" } } }, "s1");
-      } else if (method === "tools/list") {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { tools: [] } });
-      } else {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
-      }
-      return;
-    }
-
-    if (req.url.endsWith("/datadog")) {
-      if (method === "initialize") {
-        send(res, 403, { errors: ["Forbidden"] });
-      } else {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
-      }
-      return;
-    }
-
-    send(res, 404, { error: "not found" });
-  });
-});
-
-server.listen(0, "127.0.0.1", () => {
-  fs.writeFileSync(portFile, String(server.address().port), "utf8");
-});
-NODE
-  local server_pid=$!
-
-  local i=0
-  while [ ! -s "$port_file" ] && [ $i -lt 50 ]; do
-    sleep 0.1
-    i=$((i + 1))
-  done
-
-  if [ ! -s "$port_file" ]; then
-    kill "$server_pid" 2>/dev/null || true
-    rm -rf "$tmpdir"
-    print_result "Mock MCP server failed to start" "FAIL"
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
     return
   fi
 
@@ -481,78 +510,9 @@ test_required_server_failure_is_fatal() {
   local port_file="$tmpdir/port"
   local config_file="$tmpdir/config.json"
 
-  node - "$port_file" >"$tmpdir/mock.log" 2>&1 <<'NODE' &
-const fs = require("fs");
-const http = require("http");
-
-const portFile = process.argv[2];
-
-const send = (res, code, payload, sessionId) => {
-  const body = JSON.stringify(payload);
-  res.writeHead(code, {
-    "Content-Type": "application/json",
-    "Content-Length": Buffer.byteLength(body),
-    ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
-  });
-  res.end(body);
-};
-
-const server = http.createServer((req, res) => {
-  let raw = "";
-  req.on("data", chunk => {
-    raw += chunk;
-  });
-  req.on("end", () => {
-    let data = {};
-    try {
-      data = JSON.parse(raw || "{}");
-    } catch {
-      data = {};
-    }
-
-    const method = data.method;
-    const reqId = data.id ?? 1;
-
-    if (req.url.endsWith("/github")) {
-      if (method === "initialize") {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { protocolVersion: "2024-11-05", capabilities: {}, serverInfo: { name: "github", version: "1.0.0" } } }, "s1");
-      } else if (method === "tools/list") {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { tools: [] } });
-      } else {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
-      }
-      return;
-    }
-
-    if (req.url.endsWith("/datadog")) {
-      if (method === "initialize") {
-        send(res, 403, { errors: ["Forbidden"] });
-      } else {
-        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
-      }
-      return;
-    }
-
-    send(res, 404, { error: "not found" });
-  });
-});
-
-server.listen(0, "127.0.0.1", () => {
-  fs.writeFileSync(portFile, String(server.address().port), "utf8");
-});
-NODE
-  local server_pid=$!
-
-  local i=0
-  while [ ! -s "$port_file" ] && [ $i -lt 50 ]; do
-    sleep 0.1
-    i=$((i + 1))
-  done
-
-  if [ ! -s "$port_file" ]; then
-    kill "$server_pid" 2>/dev/null || true
-    rm -rf "$tmpdir"
-    print_result "Mock MCP server failed to start" "FAIL"
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
     return
   fi
 
