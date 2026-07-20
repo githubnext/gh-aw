@@ -45,8 +45,12 @@ const DEFAULT_HTTP_TIMEOUT_MS = 15000;
 
 /** Timeout (ms) for tool invocation calls (may be long-running) */
 const TOOL_CALL_TIMEOUT_MS = 120000;
-/** Default timeout (minutes) for logs MCP calls when timeout is not provided */
-const LOGS_TOOL_DEFAULT_TIMEOUT_MINUTES = 5;
+/** Default run count for logs MCP calls when count is not provided (mirrors server default) */
+const LOGS_TOOL_DEFAULT_COUNT = 100;
+/** Number of runs per timeout minute for logs auto-scaling (mirrors server: ceil(count/40)) */
+const LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE = 40;
+/** Minimum fallback timeout (minutes) for unfiltered logs calls (no workflow_name) */
+const LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER = 5;
 /** Extra time (ms) to allow response marshalling/transport after tool execution */
 const TOOL_CALL_TIMEOUT_BUFFER_MS = 15000;
 
@@ -365,8 +369,12 @@ async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, se
 /**
  * Resolve MCP bridge timeout for a tool call.
  *
- * The logs tool may legitimately run for multiple minutes. Match the caller's
- * requested timeout when provided, with a small response buffer.
+ * The logs tool may legitimately run for multiple minutes. When an explicit
+ * `timeout` argument is provided, the bridge derives its deadline from that
+ * value plus a response buffer. When `timeout` is omitted, the bridge mirrors
+ * the server's own auto-scaling rule: `ceil(count / 40)` minutes, with a
+ * minimum of 5 minutes when no `workflow_name` filter is supplied (matching
+ * `effectiveMCPLogsToolTimeoutMinutes` in `mcp_tools_privileged.go`).
  *
  * @param {string} toolName
  * @param {Record<string, unknown>} toolArgs
@@ -378,7 +386,20 @@ function getToolCallTimeoutMs(toolName, toolArgs) {
   }
 
   const timeoutCandidate = Number(toolArgs?.timeout);
-  const timeoutMinutes = Number.isFinite(timeoutCandidate) && timeoutCandidate > 0 ? timeoutCandidate : LOGS_TOOL_DEFAULT_TIMEOUT_MINUTES;
+  let timeoutMinutes;
+  if (Number.isFinite(timeoutCandidate) && timeoutCandidate > 0) {
+    // Explicit timeout provided — use it directly.
+    timeoutMinutes = timeoutCandidate;
+  } else {
+    // No explicit timeout: mirror the server's auto-scaling from count.
+    const countCandidate = Number(toolArgs?.count);
+    const effectiveCount = Number.isFinite(countCandidate) && countCandidate > 0 ? countCandidate : LOGS_TOOL_DEFAULT_COUNT;
+    const base = Math.max(1, Math.ceil(effectiveCount / LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE));
+    // Without a workflow filter the GitHub API scans all runs and is substantially
+    // slower for large repositories — apply the same 5-minute floor as the server.
+    timeoutMinutes = toolArgs?.workflow_name ? base : Math.max(LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER, base);
+  }
+
   const resolvedTimeoutMs = Math.ceil(timeoutMinutes * 60 * 1000) + TOOL_CALL_TIMEOUT_BUFFER_MS;
   return Math.max(TOOL_CALL_TIMEOUT_MS, resolvedTimeoutMs);
 }

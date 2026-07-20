@@ -218,8 +218,29 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(getToolCallTimeoutMs("audit", {})).toBe(120000);
   });
 
-  it("uses a longer timeout for logs calls without explicit timeout", () => {
+  it("uses a longer timeout for logs calls without explicit timeout (default count=100, no filter)", () => {
+    // effectiveCount=100, base=ceil(100/40)=3, no workflow_name → max(5,3)=5 minutes
     expect(getToolCallTimeoutMs("logs", {})).toBe(315000);
+  });
+
+  it("scales logs timeout from count when no explicit timeout is set (count=250, no filter)", () => {
+    // effectiveCount=250, base=ceil(250/40)=7, no workflow_name → max(5,7)=7 minutes
+    expect(getToolCallTimeoutMs("logs", { count: 250 })).toBe(435000);
+  });
+
+  it("scales logs timeout from count with workflow_name filter (count=250, filtered)", () => {
+    // effectiveCount=250, base=ceil(250/40)=7, workflow_name present → 7 minutes (no min floor applied)
+    expect(getToolCallTimeoutMs("logs", { count: 250, workflow_name: "ci" })).toBe(435000);
+  });
+
+  it("clamps count-based timeout to global minimum for small filtered counts", () => {
+    // effectiveCount=40, base=ceil(40/40)=1, workflow_name present → 1 minute → 75000ms < 120000ms → clamped
+    expect(getToolCallTimeoutMs("logs", { count: 40, workflow_name: "ci" })).toBe(120000);
+  });
+
+  it("applies 5-minute no-filter floor for small unfiltered counts", () => {
+    // effectiveCount=40, base=1, no workflow_name → max(5,1)=5 minutes
+    expect(getToolCallTimeoutMs("logs", { count: 40 })).toBe(315000);
   });
 
   it("uses logs timeout argument with bridge buffer when provided", () => {
@@ -230,7 +251,8 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(getToolCallTimeoutMs("logs", { timeout: 2.5 })).toBe(165000);
   });
 
-  it("falls back to logs default timeout for invalid timeout values", () => {
+  it("falls back to count-derived timeout for invalid timeout values", () => {
+    // Invalid timeouts fall back to count-based auto-scaling (default count=100 → 5 minutes)
     expect(getToolCallTimeoutMs("logs", { timeout: 0 })).toBe(315000);
     expect(getToolCallTimeoutMs("logs", { timeout: -5 })).toBe(315000);
     expect(getToolCallTimeoutMs("logs", { timeout: "invalid" })).toBe(315000);
