@@ -92,8 +92,8 @@ func TestNewInitCommand(t *testing.T) {
 		t.Error("Expected 'codespaces' flag to be defined")
 		return
 	}
-	if !strings.Contains(codespaceFlag.Usage, "or use with an empty value for the current repo only") {
-		t.Errorf("Expected codespaces flag help text to include article fixes, got %q", codespaceFlag.Usage)
+	if !strings.Contains(codespaceFlag.Usage, "or use without a value for the current repo only") {
+		t.Errorf("Expected codespaces flag help text to mention value-optional usage, got %q", codespaceFlag.Usage)
 	}
 
 	// String flags without NoOptDefVal require an explicit value
@@ -101,9 +101,9 @@ func TestNewInitCommand(t *testing.T) {
 		t.Errorf("Expected codespaces flag default to be '', got %q", codespaceFlag.DefValue)
 	}
 
-	// Verify NoOptDefVal is empty (flag always requires an explicit value, avoids string[=" "] in help)
-	if codespaceFlag.NoOptDefVal != "" {
-		t.Errorf("Expected codespaces flag NoOptDefVal to be '' (empty), got %q", codespaceFlag.NoOptDefVal)
+	// Verify NoOptDefVal is set so --codespaces can be used without a value
+	if codespaceFlag.NoOptDefVal == "" {
+		t.Errorf("Expected codespaces flag NoOptDefVal to be non-empty (optional value), got %q", codespaceFlag.NoOptDefVal)
 	}
 
 	// Check create-pull-request flags

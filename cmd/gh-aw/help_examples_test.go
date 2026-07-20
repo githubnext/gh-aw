@@ -135,7 +135,7 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 				validateExampleToken(t, strings.SplitN(nameValue, "=", 2)[1])
 				continue
 			}
-			if flag.Value.Type() == "bool" {
+			if flag.Value.Type() == "bool" || flag.NoOptDefVal != "" {
 				continue
 			}
 			if i+1 >= len(tokens) {
