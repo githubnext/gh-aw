@@ -37,10 +37,7 @@ describe("require-execsync-try-catch", () => {
 
   it("valid: execSync inside try block passes (ES module)", () => {
     esmRuleTester.run("require-execsync-try-catch", requireExecSyncTryCatchRule, {
-      valid: [
-        `import { execSync } from "child_process"; try { execSync("ls"); } catch (e) {}`,
-        `import { execSync } from "node:child_process"; try { execSync("ls"); } catch (e) {}`,
-      ],
+      valid: [`import { execSync } from "child_process"; try { execSync("ls"); } catch (e) {}`, `import { execSync } from "node:child_process"; try { execSync("ls"); } catch (e) {}`],
       invalid: [],
     });
   });

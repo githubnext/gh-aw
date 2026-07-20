@@ -112,13 +112,7 @@ function isExecSyncCall(node: TSESTree.CallExpression, sourceCode: TSESLint.Sour
   }
 
   // childProcess.execSync(...) or cp.execSync(...)
-  if (
-    callee.type === AST_NODE_TYPES.MemberExpression &&
-    !callee.computed &&
-    callee.object.type === AST_NODE_TYPES.Identifier &&
-    callee.property.type === AST_NODE_TYPES.Identifier &&
-    callee.property.name === "execSync"
-  ) {
+  if (callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.object.type === AST_NODE_TYPES.Identifier && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "execSync") {
     return isChildProcessObjectBinding(callee.object.name, callee.object, sourceCode);
   }
 
@@ -138,9 +132,7 @@ export const requireExecSyncTryCatchRule = createRule({
     },
     schema: [],
     messages: {
-      requireTryCatch:
-        "Wrap execSync({{arg}}) in try/catch — execSync throws when the process exits non-zero or is killed by a signal, " +
-        "and will crash the action if the error is unhandled.",
+      requireTryCatch: "Wrap execSync({{arg}}) in try/catch — execSync throws when the process exits non-zero or is killed by a signal, " + "and will crash the action if the error is unhandled.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },
