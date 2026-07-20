@@ -247,14 +247,23 @@ describe("generate_aw_info.cjs", () => {
   });
 
   it("should not fail when model name does not contain unresolved expressions", async () => {
-    for (const model of ["gpt-4o", ""]) {
+    const cases = [
+      { label: "plain string", model: "gpt-4o" },
+      { label: "empty string", model: "" },
+    ];
+
+    for (const { label, model } of cases) {
       process.env.GH_AW_INFO_MODEL = model;
 
-      await main(mockCore, mockContext);
+      try {
+        await main(mockCore, mockContext);
 
-      expect(mockCore.setFailed).not.toHaveBeenCalled();
-      const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
-      expect(awInfo.model).toBe(model);
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+        expect(awInfo.model).toBe(model);
+      } catch (error) {
+        throw new Error(`${label} case failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
     }
   });
 
