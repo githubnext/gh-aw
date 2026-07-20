@@ -229,8 +229,33 @@ function rewriteGfmTaskLists(html: string) {
 	return result;
 }
 
+function normalizeJourneyToken(value: string) {
+	return value.trim().toLowerCase().replace(/[^a-z0-9-]/gu, '');
+}
+
+function rewriteJourneyBlocks(html: string) {
+	const wrapped = html.replace(
+		/<!--\s*journey:\s*([a-z0-9,\s-]+)\s*-->([\s\S]*?)<!--\s*\/journey\s*-->/giu,
+		(_match, journeyCsv, body) => {
+			const journeys = uniqueItems(
+				String(journeyCsv)
+					.split(',')
+					.map(normalizeJourneyToken)
+					.filter(Boolean),
+			);
+			if (journeys.length === 0) return body;
+			const classes = ['aw-workshop-journey-block', ...journeys.map((journey) => `aw-workshop-journey-block-${journey}`)];
+			return `<div class="${classes.join(' ')}">${body}</div>`;
+		},
+	);
+
+	return wrapped
+		.replace(/<!--\s*journey:\s*[a-z0-9,\s-]+\s*-->/giu, '')
+		.replace(/<!--\s*\/journey\s*-->/giu, '');
+}
+
 function rewriteWorkshopHtml(html: string) {
-	return transformTables(rewriteGfmTaskLists(rewriteGfmAlerts(sanitizeWorkshopHtml(html)))
+	return transformTables(rewriteJourneyBlocks(rewriteGfmTaskLists(rewriteGfmAlerts(sanitizeWorkshopHtml(html))))
 
 		.replace(/<(\/?)h([1-4])\b/gu, (_match, slash, level) => {
 			return `<${slash}h${Math.min(Number(level) + 1, 4)}`;
@@ -362,6 +387,8 @@ const workshopSteps: WorkshopStep[] = await Promise.all(workshopEntries.map(asyn
 const initialFlow = buildWorkshopFlow(workshopDefaults.journeyId, workshopDefaults.scenarioId);
 const initialStepKey = initialFlow[0] ?? workshopSteps[0]?.key ?? '';
 const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ?? workshopSteps[0];
+const initialJourney = workshopJourneys.find((item) => item.id === workshopDefaults.journeyId) ?? workshopJourneys[0];
+const initialVisibleJourneyIds = uniqueItems(['all', ...(initialJourney?.contentJourneyIds ?? [])]);
 
 // Precompute step counts for entry path cards using the default scenario (estimate shown before scenario is selected).
 const entryPathStepCounts: Record<string, number> = Object.fromEntries(
@@ -388,6 +415,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 <section
 	class="aw-workshop"
 	data-workshop-root
+	data-workshop-visible-journeys={initialVisibleJourneyIds.join(' ')}
 	data-initial-step={initialStepKey}
 >
 	<div class="aw-workshop-setup" data-workshop-setup>
@@ -840,6 +868,8 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				const journey = manifest.journeys.find((item) => item.id === state.journeyId) || manifest.journeys[0];
 				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
+				const visibleJourneyIds = ['all', ...((journey && journey.contentJourneyIds) || [])];
+				root.dataset.workshopVisibleJourneys = [...new Set(visibleJourneyIds)].join(' ');
 				if (tunnelPanel) {
 					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
 				}
@@ -1305,6 +1335,19 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		display: block;
 		min-width: 0;
 		min-height: 22rem;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-journey-block) {
+		display: none;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-all),
+	.aw-workshop[data-workshop-visible-journeys~='ui'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-ui),
+	.aw-workshop[data-workshop-visible-journeys~='terminal'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-terminal),
+	.aw-workshop[data-workshop-visible-journeys~='local'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-local),
+	.aw-workshop[data-workshop-visible-journeys~='codespace'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-codespace),
+	.aw-workshop[data-workshop-visible-journeys~='copilot'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-copilot) {
+		display: contents;
 	}
 
 	.aw-workshop-step-content :global(h2),
