@@ -28,7 +28,7 @@ const (
 	CheckStatePending CheckState = "pending"
 	// CheckStateNoChecks indicates no checks have been configured or triggered.
 	CheckStateNoChecks CheckState = "no_checks"
-	// CheckStatePolicyBlocked indicates policy or account gates are blocking the PR.
+	// CheckStatePolicyBlocked indicates policy or account gates blocked the PR.
 	CheckStatePolicyBlocked CheckState = "policy_blocked"
 	// CheckStateSuccess indicates all checks passed.
 	CheckStateSuccess CheckState = "success"

@@ -133,7 +133,7 @@ Use `gh aw version` to print the current version.
 
 ### The `--push` Flag
 
-`gh aw run --push` stages all changes, commits them, and pushes before dispatching the workflow. It requires a clean working directory.
+`gh aw run --push` stages workflow files (including transitive imports), commits them, and pushes before dispatching the workflow. It refuses to proceed when unrelated files are already staged.
 
 For `init`, `update`, and `upgrade`, use `--create-pull-request` instead.
 
@@ -410,7 +410,7 @@ gh aw run workflow --dry-run                # Preview without triggering workflo
 gh aw run workflow --json                   # Output triggered workflow results as JSON
 ```
 
-**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`, `--auto-merge-prs`, `--dry-run`, `--engine/-e`, `--raw-field/-F`, `--repo/-r`, `--approve`
+**Options:** `--repeat`, `--push` (see [--push flag](#the---push-flag)), `--ref`, `--enable-if-needed`, `--json/-j`, `--auto-merge-prs`, `--dry-run`, `--engine/-e`, `--raw-field`, `--repo/-r`, `--approve`
 
 When `--json` is set, a JSON array of triggered workflow results is written to stdout.
 
