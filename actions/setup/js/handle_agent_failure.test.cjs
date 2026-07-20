@@ -1376,18 +1376,27 @@ describe("handle_agent_failure", () => {
       });
 
       it("renders assignment failures with token guidance docs", () => {
-        process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
-        const result = buildAssignmentErrorsContext("issue:42:copilot:Bad credentials\npr:7:copilot:copilot coding agent is not available for this repository");
+        const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+        try {
+          process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
+          const result = buildAssignmentErrorsContext("issue:42:copilot:Bad credentials\npr:7:copilot:copilot coding agent is not available for this repository");
 
-        expect(result).toContain("Agent Assignment Failed");
-        expect(result).toContain("Issue #42 (agent: copilot): Bad credentials");
-        expect(result).toContain("PR #7 (agent: copilot): copilot coding agent is not available for this repository");
-        expect(result).toContain("GH_AW_AGENT_TOKEN");
-        expect(result).toContain("metadata: read");
-        expect(result).toContain("GitHub App installation token");
-        expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
-        expect(result).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
-        expect(result).not.toContain("copilot-requests: write");
+          expect(result).toContain("Agent Assignment Failed");
+          expect(result).toContain("Issue #42 (agent: copilot): Bad credentials");
+          expect(result).toContain("PR #7 (agent: copilot): copilot coding agent is not available for this repository");
+          expect(result).toContain("GH_AW_AGENT_TOKEN");
+          expect(result).toContain("metadata: read");
+          expect(result).toContain("GitHub App installation token");
+          expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
+          expect(result).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
+          expect(result).not.toContain("copilot-requests: write");
+        } finally {
+          if (originalPromptsDir === undefined) {
+            delete process.env.GH_AW_PROMPTS_DIR;
+          } else {
+            process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+          }
+        }
       });
     });
 
@@ -1397,17 +1406,26 @@ describe("handle_agent_failure", () => {
       });
 
       it("renders standardized copilot assignment remediation guidance", () => {
-        process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
-        const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:Bad credentials");
+        const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+        try {
+          process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
+          const result = buildAssignCopilotFailureContext(true, "issue:42:copilot:Bad credentials");
 
-        expect(result).toContain("Copilot Assignment Failed");
-        expect(result).toContain("Issue #42: Bad credentials");
-        expect(result).toContain("GH_AW_AGENT_TOKEN");
-        expect(result).toContain("metadata");
-        expect(result).toContain("GitHub App installation token");
-        expect(result).toContain("YOUR_AGENT_PAT");
-        expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
-        expect(result).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
+          expect(result).toContain("Copilot Assignment Failed");
+          expect(result).toContain("Issue #42: Bad credentials");
+          expect(result).toContain("GH_AW_AGENT_TOKEN");
+          expect(result).toContain("metadata");
+          expect(result).toContain("GitHub App installation token");
+          expect(result).toContain("YOUR_AGENT_PAT");
+          expect(result).toContain("https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication");
+          expect(result).toContain("https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api");
+        } finally {
+          if (originalPromptsDir === undefined) {
+            delete process.env.GH_AW_PROMPTS_DIR;
+          } else {
+            process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+          }
+        }
       });
     });
 

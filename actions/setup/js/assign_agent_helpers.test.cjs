@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, beforeAll, afterAll, vi } from "vitest";
 import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
 
-syncRuntimePromptTemplates(import.meta.url);
+const { runtimePromptsDir } = syncRuntimePromptTemplates(import.meta.url);
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -37,6 +37,20 @@ const { AGENT_LOGIN_NAMES, getAgentName, getAgentLogins, getAvailableAgentLogins
   await import("./assign_agent_helpers.cjs");
 
 describe("assign_agent_helpers.cjs", () => {
+  const originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+
+  beforeAll(() => {
+    process.env.GH_AW_PROMPTS_DIR = runtimePromptsDir;
+  });
+
+  afterAll(() => {
+    if (originalPromptsDir === undefined) {
+      delete process.env.GH_AW_PROMPTS_DIR;
+      return;
+    }
+    process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+  });
+
   beforeEach(() => {
     vi.clearAllMocks();
   });

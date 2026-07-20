@@ -115,7 +115,7 @@ The required token type and permissions depend on whether you own the repository
 ### Using a GitHub App
 
 :::caution[GitHub App tokens are not supported for Copilot assignment]
-The Copilot assignment API only accepts fine-grained PATs — GitHub App installation tokens are rejected regardless of permissions. When `github-app:` is configured in `safe-outputs`, `assign-to-agent` falls back to: explicit `github-token:` in `assign-to-agent`, then `github-token:` at the `safe-outputs` level, then the magic secret chain (`GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN`).
+The Copilot assignment API requires a Personal Access Token (fine-grained PAT with the permissions above, or a classic PAT with `repo`) — GitHub App installation tokens are rejected regardless of permissions. When `github-app:` is configured in `safe-outputs`, `assign-to-agent` falls back to: explicit `github-token:` in `assign-to-agent`, then `github-token:` at the `safe-outputs` level, then the magic secret chain (`GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN`).
 :::
 
 ### Using a magic secret
