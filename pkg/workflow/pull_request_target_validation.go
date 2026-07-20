@@ -59,7 +59,9 @@ var pullRequestTargetGitHubExpressionPattern = regexp.MustCompile(`^\$\{\{\s*([^
 //
 // In strict mode, a warning is always emitted that pull_request_target is inherently dangerous
 // even with checkout disabled, since the workflow still runs with elevated permissions.
-// This strict behavior is disabled when the workflow frontmatter explicitly sets strict: false.
+// When the workflow frontmatter sets strict: false, effectiveStrictMode is lowered so the
+// dangerous-trigger strict-only warning is skipped; the insecure-checkout check still runs
+// and emits a non-strict warning when checkout is not explicitly disabled.
 func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, markdownPath string) error {
 	// Fast path: skip expensive YAML parsing when the On field cannot possibly contain
 	// a pull_request_target trigger. This avoids yaml.Unmarshal on every
@@ -120,9 +122,12 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		c.IncrementWarningCount()
 	}
 
-	// If checkout is disabled, the workflow will not execute PR code — no further action needed.
-	if workflowData.CheckoutDisabled {
-		pullRequestTargetLog.Print("checkout: false is set, skipping insecure-checkout error")
+	// If checkout was explicitly disabled by the user (checkout: false in frontmatter),
+	// the workflow will not execute PR code — no further action needed.
+	// Auto-disabled checkout (when no checkout key is present) does not count as explicit
+	// acknowledgement of the security risk, so the warning/error is still emitted in that case.
+	if workflowData.CheckoutExplicitlyDisabled {
+		pullRequestTargetLog.Print("checkout: false is explicitly set by user, skipping insecure-checkout error")
 		return nil
 	}
 

@@ -52,7 +52,7 @@ Test workflow content.`,
 			warningCount:  1, // sandbox.agent: false
 		},
 		{
-			name: "pull_request_target with no checkout key - non-strict - checkout auto-disabled",
+			name: "pull_request_target with no checkout key - non-strict - insecure checkout warning",
 			frontmatter: `---
 strict: false
 on:
@@ -72,7 +72,7 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: true,
-			warningCount:  1, // checkout is auto-disabled for pull_request_target; only sandbox.agent: false warning
+			warningCount:  2, // sandbox.agent: false warning + insecure-checkout warning (non-strict mode)
 		},
 		{
 			name: "pull_request_target with trusted checkout - non-strict - no warnings no error",
@@ -170,7 +170,7 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
-			name: "pull_request_target with no checkout key - strict - checkout auto-disabled, dangerous-trigger warning only",
+			name: "pull_request_target with no checkout key - strict - insecure checkout error",
 			frontmatter: `---
 on:
   pull_request_target:
@@ -186,9 +186,10 @@ permissions:
 Test workflow content.`,
 			filename:      "prt-checkout-enabled-strict.md",
 			strictMode:    true,
-			expectError:   false,
-			expectWarning: true, // dangerous-trigger warning only; checkout auto-disabled so no insecure-checkout error
-			warningCount:  1,    // dangerous-trigger warning
+			expectError:   true,
+			expectWarning: true,
+			errorContains: "pull_request_target trigger with checkout enabled is extremely insecure",
+			warningCount:  1, // dangerous-trigger warning; insecure-checkout is returned as an error
 		},
 		{
 			name: "pull_request_target with explicit checkout pinned to base sha - strict - warning only",
@@ -340,7 +341,7 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
-			name: "pull_request_target with no checkout key - strict CLI + frontmatter strict false - no warnings",
+			name: "pull_request_target with no checkout key - strict CLI + frontmatter strict false - insecure checkout warning",
 			frontmatter: `---
 strict: false
 on:
@@ -358,8 +359,8 @@ Test workflow content.`,
 			filename:      "prt-checkout-enabled-strict-frontmatter-opt-out.md",
 			strictMode:    true,
 			expectError:   false,
-			expectWarning: false,
-			warningCount:  0, // checkout auto-disabled; strict:false suppresses dangerous-trigger warning; no insecure-checkout warning
+			expectWarning: true,
+			warningCount:  1, // strict: false lowers to non-strict mode (skips dangerous-trigger warning), but insecure-checkout warning still emits
 		},
 		{
 			name: "pull_request trigger (not target) - strict - no diagnostic",
