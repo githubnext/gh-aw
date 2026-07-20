@@ -371,11 +371,7 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 
 function renderEntryPathDescription(path: typeof workshopEntryPaths[number], journeyLabel: string, stepCount: number) {
 	const stepLabel = `${stepCount} step${stepCount === 1 ? '' : 's'}`;
-	return [
-		`<strong>${escapeHtml(journeyLabel)} · ${escapeHtml(stepLabel)}</strong>`,
-		`${escapeHtml(path.kicker)}. ${escapeHtml(path.summary)}`,
-		escapeHtml(path.fit),
-	].join('<br />');
+	return escapeHtml(`${journeyLabel} · ${stepLabel}. ${path.kicker}. ${path.summary} ${path.fit}`);
 }
 
 const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
