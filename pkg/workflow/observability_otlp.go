@@ -732,7 +732,14 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    OTEL_EXPORTER_OTLP_ENDPOINT is set to the first endpoint for backward
 	//    compatibility (MCP gateway, legacy scripts). OTEL_SERVICE_NAME is
 	//    workflow-specific when WorkflowID is available.
-	otlpEnvLines := fmt.Sprintf("  OTEL_EXPORTER_OTLP_ENDPOINT: %s\n  OTEL_SERVICE_NAME: %s", firstEndpoint, serviceName)
+	//    If the user has already defined OTEL_SERVICE_NAME in their env block,
+	//    we respect their value and skip injection to avoid duplicate key errors.
+	otlpEnvLines := "  OTEL_EXPORTER_OTLP_ENDPOINT: " + firstEndpoint
+	if strings.Contains(workflowData.Env, "OTEL_SERVICE_NAME:") {
+		otlpLog.Printf("Skipping OTEL_SERVICE_NAME injection: already defined by user")
+	} else {
+		otlpEnvLines += "\n  OTEL_SERVICE_NAME: " + serviceName
+	}
 	otlpEnvLines += "\n  OTEL_RESOURCE_ATTRIBUTES: '" + escapeYAMLSingleQuoted(otelResourceAttributes(workflowData)) + "'"
 
 	// 3. Inject per-endpoint headers env vars.
