@@ -230,6 +230,42 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.steps.firewall).toBe("squid");
   });
 
+  it("should fail when model name contains an unresolved GitHub Actions expression", async () => {
+    process.env.GH_AW_INFO_MODEL = "${{ vars.COPILOT_MODEL }}";
+
+    await expect(main(mockCore, mockContext)).rejects.toThrow("ERR_CONFIG");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_CONFIG"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("unresolved GitHub Actions expression"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("${{ vars.COPILOT_MODEL }}"));
+  });
+
+  it("should fail when model name contains a partial unresolved expression", async () => {
+    process.env.GH_AW_INFO_MODEL = "${{ vars.MODEL || 'gpt-4' }}";
+
+    await expect(main(mockCore, mockContext)).rejects.toThrow("ERR_CONFIG");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_CONFIG"));
+  });
+
+  it("should not fail when model name is a plain string without expressions", async () => {
+    process.env.GH_AW_INFO_MODEL = "gpt-4o";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.model).toBe("gpt-4o");
+  });
+
+  it("should not fail when model name is empty", async () => {
+    process.env.GH_AW_INFO_MODEL = "";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.model).toBe("");
+  });
+
   it("should fail when a numeric context field contains non-numeric data", async () => {
     const maliciousContext = {
       ...mockContext,
