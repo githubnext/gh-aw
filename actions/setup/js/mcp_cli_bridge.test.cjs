@@ -226,6 +226,16 @@ describe("mcp_cli_bridge.cjs", () => {
     expect(getToolCallTimeoutMs("logs", { timeout: 10 })).toBe(615000);
   });
 
+  it("rounds logs timeout up to the next millisecond", () => {
+    expect(getToolCallTimeoutMs("logs", { timeout: 2.5 })).toBe(165000);
+  });
+
+  it("falls back to logs default timeout for invalid timeout values", () => {
+    expect(getToolCallTimeoutMs("logs", { timeout: 0 })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: -5 })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: "invalid" })).toBe(315000);
+  });
+
   it("treats MCP result envelopes with isError=true as errors", async () => {
     await formatResponse(
       {
