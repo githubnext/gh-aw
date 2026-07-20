@@ -32,6 +32,7 @@
     "image-generation": ["copilot/gpt-image*", "openai/gpt-image*", "openai/chatgpt-image*", "copilot/gemini-*image*", "google/gemini-*image*", "gemini/gemini-*image*", "google/imagen*"],
     "gemma": ["copilot/gemma*", "google/gemma*", "gemini/gemma*"],
     "deep-research": ["copilot/deep-research*", "copilot/o3-deep-research*", "copilot/o4-mini-deep-research*", "google/deep-research*", "gemini/deep-research*", "openai/o3-deep-research*", "openai/o4-mini-deep-research*"],
+    "auto": ["copilot/auto"],
     "small": ["mini"],
     "mini": ["haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"],
     "fable": ["copilot/*fable*", "anthropic/*fable*"],

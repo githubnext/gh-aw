@@ -179,7 +179,7 @@ func MergeImportedModelAliases(importedModels []map[string][]string, frontmatter
 	modelAliasesLog.Printf("Merging model aliases: %d import(s), %d frontmatter override(s)", len(importedModels), len(frontmatterModels))
 
 	// Fast path: the vast majority of workflows have no imported or frontmatter model
-	// aliases.  Avoid deep-copying the 52-entry builtin map (154 string slices) on every
+	// aliases.  Avoid deep-copying the 53-entry builtin map (155 string slices) on every
 	// ParseWorkflowFile call by returning the shared read-only builtin map directly.
 	if len(importedModels) == 0 && len(frontmatterModels) == 0 {
 		result := getBuiltinOnlyAliasMap()

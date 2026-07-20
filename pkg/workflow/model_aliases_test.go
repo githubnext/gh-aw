@@ -21,7 +21,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 		"gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "lyria", "computer-use", "robotics", "deep-research",
 		"nano-banana",
 		"vision", "image-generation",
-		"mini", "large", "any", "agent", "small-agent", "copilot", "claude", "codex", "gemini", "summarization",
+		"mini", "large", "any", "agent", "small-agent", "copilot", "claude", "codex", "gemini", "summarization", "auto",
 	}
 	for _, family := range expectedFamilies {
 		patterns, ok := aliases[family]
@@ -76,7 +76,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash-lite", "mini"}, aliases["summarization"], "summarization should reference fast/lightweight models")
 	assert.Equal(t, []string{"fable", "sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should list fable first, then sonnet, gpt-5-pro, gpt-5, and gemini-pro")
-	assert.NotContains(t, aliases, "auto", "auto should not be exposed as a builtin AWF alias")
+	assert.Equal(t, []string{"copilot/auto"}, aliases["auto"], "auto should be exposed as an exact Copilot model id")
 	assert.Equal(t, []string{"copilot/*fable*", "anthropic/*fable*"}, aliases["fable"], "fable should map to provider-specific fable patterns")
 	assert.Equal(t, []string{"copilot/gpt-5.6*", "openai/gpt-5.6*"}, aliases["gpt-5.6"], "gpt-5.6 should map to provider-specific gpt-5.6 patterns")
 	assert.Equal(t, []string{"copilot/gemini-omni*", "google/gemini-omni*", "gemini/gemini-omni*"}, aliases["gemini-omni"], "gemini-omni should map to provider-specific gemini-omni patterns")
@@ -135,6 +135,7 @@ func TestBuildAWFConfigJSON_ModelsSection(t *testing.T) {
 		// models must appear nested under apiProxy
 		assert.NotEmpty(t, parsed.APIProxy.Models, "models section must be present and non-empty under apiProxy in AWF config JSON")
 		assert.Contains(t, jsonStr, `"models"`, "models key must appear in AWF config JSON")
+		assert.Equal(t, []string{"copilot/auto"}, parsed.APIProxy.Models["auto"], "builtin auto model id should be emitted under apiProxy.models")
 
 		// the alias map is populated in WorkflowData
 		assert.NotEmpty(t, config.WorkflowData.ModelMappings, "ModelMappings should be populated on WorkflowData")
