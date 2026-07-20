@@ -328,8 +328,6 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 7. Use the `pr-processor` sub-agent for each PR; pass only the PR number and compact context.
 8. If a `pr-processor` call returns non-JSON or an error, record `{pr_number: <N>, skip_reason: "sub_agent_error"}` in the `skipped` array of the run-summary issue payload and move to the next PR without retrying.
 9. Do not fetch full PR diffs or large file lists unless absolutely required for a skip decision.
-10. **Never finish without at least one safe-output tool call.** Always call the run-summary `create_issue` (see **Run summary** below) before finishing. If `create_issue` is unavailable, fall back to `noop` with a condensed message containing the run counts (see fallback example in **Run summary**).
-11. Use `safeoutputs <tool> --param value` shell commands for all safe-output operations (`add_comment`, `update_pull_request`, `push_to_pull_request_branch`, `resolve_pull_request_review_thread`, `dismiss_pull_request_review`, `create_issue`, `noop`, `report_incomplete`). Do **not** use `gh pr comment`, `gh pr update-branch`, `gh api ... -X POST`, or any GitHub API write calls outside of `safeoutputs`. Do **not** pipe `safeoutputs` to other commands or run `safeoutputs --help` — the tool schemas are already provided; use the examples below directly.
 
 ## Required skip rules per PR
 
@@ -359,70 +357,54 @@ For each PR that is not skipped:
 0. **Run formatters and push if needed**
    - Checkout the PR branch: `git checkout <headRefName>`
    - Run `make fmt` to format all code (Go, JavaScript, JSON)
-   - Check for changes: `git diff --quiet || echo "dirty"`
-   - If dirty, call `push_to_pull_request_branch` with the PR number to push the formatting fixes
+   - If dirty (`git diff --quiet` exits non-zero), call `push_to_pull_request_branch` with the PR number
    - Return to the original branch: `git checkout -`
    - Skip this step silently if `make fmt` exits non-zero (tools unavailable)
 
 1. **Update branch if possible (skip for CONFLICTING branches)**
-   - If `mergeStateStatus` is `CONFLICTING`, **skip this step entirely** — a branch-update API call would be futile on a branch with merge conflicts.
-   - Otherwise, if the PR is behind its base branch (or otherwise indicates branch update needed), attempt `update_pull_request` with `update_branch: true`.
-   - Use a minimal append body marker so maintainers can trace the action, including `pr-sous-chef` and the run URL.
-   - Example (`update_pull_request` shell call):
-     ```bash
-     safeoutputs update_pull_request --pull_request_number 12345 --update_branch true --body "<!-- pr-sous-chef branch update -->" --operation append
-     ```
+   - If `mergeStateStatus` is `CONFLICTING`, **skip this step entirely**.
+   - Otherwise, attempt `update_pull_request` with `update_branch: true` and a minimal append body marker including `pr-sous-chef` and the run URL.
 
 2. **Post exactly one combined nudge comment**
    - **At most ONE `add_comment` call per PR per run.** Never post two comments to the same PR in a single run.
-   - **If `mergeStateStatus` is `CONFLICTING`**: post a targeted merge-main nudge instead of the generic pr-finisher nudge:
+   - **If `mergeStateStatus` is `CONFLICTING`**: post a targeted merge-main nudge:
      - Include `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line.
      - @copilot mention with an explicit instruction to run `make merge-main` to resolve the merge conflicts.
      - Increment the `merge_main_scheduled` counter.
-     - Example (`add_comment` shell call):
-       ```bash
-       safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot this branch has merge conflicts. Please run `make merge-main` to merge the latest main branch and resolve any conflicts, then push the result.'
-       ```
    - **Otherwise**: inspect PR review threads and comments for unresolved feedback.
-     - If unresolved PR reviews exist, include an explicit unresolved-reviews list in the nudge comment (reviewer + direct link for each unresolved review thread, newest first).
-     - If `failed_checks` in the compact JSON for this PR contains any entries, include an explicit list of failed check names (and their URLs when available) in the nudge comment so the maintainer can investigate them.
-     - Combine all nudges (unresolved review feedback, failed checks, branch-refresh request, completion plan, etc.) into **one single comment** that includes:
-       - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line (required — this is how the cooldown and duplicate-comment checks detect sous-chef).
-       - @copilot mention with a concise, actionable instruction covering all relevant nudges in one message, including a direct instruction to run the `pr-finisher` skill.
+     - If unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved thread, newest first).
+     - If `failed_checks` in the compact JSON contains any entries, include a list of failed check names with URLs.
+     - Combine all nudges into **one single comment** that includes:
+       - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line.
+       - @copilot mention with a concise, actionable instruction covering all relevant nudges, including a direct instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
    - Never emit `add_comment` without a numeric target field (`pr_number`/`pull_request_number`/`issue_number`/`item_number`) when `target: "*"` is configured.
-   - Example (`add_comment` shell call for non-CONFLICTING):
+   - All safe-output calls use `safeoutputs <tool> --param value` shell syntax. Do **not** use `gh pr comment`, `gh api ... -X POST`, or other GitHub API write calls outside of `safeoutputs`.
+   - Examples:
      ```bash
+     # CONFLICTING
+     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot this branch has merge conflicts. Please run `make merge-main` to merge the latest main branch and resolve any conflicts, then push the result.'
+     # Non-conflicting
      safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please run the `pr-finisher` skill, address unresolved review comments, and rerun checks once the branch is up to date.'
      ```
 
 3. **Resolve review threads that already have a response using a safe output**
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
-   - Include a thread in `resolve_review_threads` only when all of the following are true:
-     - the thread is currently unresolved;
-     - the thread contains reviewer feedback;
-     - a later reply in that same thread exists from the PR author or `@copilot` addressing the feedback.
-   - For each thread ID in `resolve_review_threads`, call:
-    ```bash
-    safeoutputs resolve_pull_request_review_thread --thread_id PRRT_kwDOABCD1234
-    ```
-   - If resolving one thread fails, append `{pr_number: <N>, skip_reason: "resolve_review_thread_failed", thread_id: "<thread-id>"}` to the run-summary `skipped` array and continue with remaining thread IDs; do not fail the run solely because one resolution attempt failed.
+   - Include a thread only when all of the following are true: the thread is currently unresolved; contains reviewer feedback; and has a later reply from the PR author or `@copilot`.
+   - For each thread ID, call `safeoutputs resolve_pull_request_review_thread --thread_id <ID>`.
+   - If resolving one thread fails, record the error in the run-summary `skipped` array and continue.
 
 4. **Dismiss stale `github-actions[bot]` blocking reviews when all PR review threads are resolved**
-   - **Slash-command guard**: If triggered via the `/souschef` slash command (`pull_request_comment` event), skip this dismissal step entirely — slash-command runs are acknowledgment nudges and must not perform automated review cleanup.
-   - For `schedule` and `workflow_dispatch` runs, use the `dismiss_reviews` list returned by the `pr-processor` sub-agent. The sub-agent populates this list only when ALL review threads on the PR are resolved (including threads resolved in step 3); leave reviews untouched if any thread remains unresolved.
-   - `dismiss_pull_request_review` uses the `GITHUB_TOKEN`, which is always authenticated as `github-actions[bot]` regardless of the workflow trigger. It can therefore dismiss `github-actions[bot]`-authored reviews on any non-slash-command run.
-   - For each review ID in `dismiss_reviews`, call the native safe-output tool:
-    ```bash
-    safeoutputs dismiss_pull_request_review --pull_request_number 12345 --review_id 4605056464 --justification "Dismissing stale github-actions review because all PR review threads are resolved."
-    ```
-   - If dismissing one review fails, record the failure and continue with the remaining review IDs; do not fail the entire run solely because one dismissal attempt failed.
+   - **Slash-command guard**: Skip this step entirely on `/souschef` slash-command runs.
+   - For `schedule` and `workflow_dispatch` runs, use the `dismiss_reviews` list returned by the `pr-processor` sub-agent (populated only when ALL review threads are resolved).
+   - For each review ID, call `safeoutputs dismiss_pull_request_review --pull_request_number <N> --review_id <ID> --justification "Dismissing stale github-actions review because all PR review threads are resolved."`.
+   - If dismissing one review fails, record the failure and continue.
 
 ### Run summary
 
-At the end, call **exactly one** `create_issue` with a brief run report (this is mandatory and replaces the old `noop` call):
+At the end, call **exactly one** `create_issue` with a brief run report (mandatory):
 
-The issue body **must** begin with the following block (to prevent accidental agent assignment):
+The issue body **must** begin with:
 
 ```
 <!-- gh-aw-pr-sous-chef-report -->
@@ -446,13 +428,7 @@ Then include the run counts as a compact table:
 
 If any PRs were nudged, include a collapsible list of their numbers and titles.
 
-Example (`create_issue` shell call):
-
-```bash
-safeoutputs create_issue --title "Run report — 2 nudged, 1 skipped" --body $'<!-- gh-aw-pr-sous-chef-report -->\n> ⚠️ **This is an automated status report. Do not assign this issue to a Copilot agent.**\n\n...'
-```
-
-If `create_issue` is unavailable, fall back to `noop` with a condensed message containing the run counts, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
+If `create_issue` is unavailable, fall back to `noop` with a condensed message, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
 
 ## Formatting Requirements
 

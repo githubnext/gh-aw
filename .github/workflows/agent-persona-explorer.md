@@ -133,46 +133,23 @@ Store all scenarios in cache memory.
 
 **Token Budget Optimization**: Test a **representative subset of 3-4 scenarios** from the 6 generated above (not all) to reduce token consumption and ensure budget remains for Phase 5 publishing.
 
+**For each scenario analyzed, capture and store:**
+- Scenario identifier
+- Agent's suggested configuration (**summarize, don't include full YAML**)
+- Quality assessment (1-5 scale):
+  - Trigger appropriateness
+  - Tool selection accuracy
+  - Security practices
+  - Prompt clarity
+  - Completeness
+- Notable patterns or issues (be concise)
+
+**Assessment questions:** Does the suggestion include appropriate triggers (`on:`)? Correct tools (github, web-fetch, playwright, etc.)? Proper safe-outputs? Security best practices (minimal permissions, network restrictions)? A clear, actionable prompt?
+
 {{#if experiments.sub_agent_strategy == 'batch' }}
-Invoke the "agentic-workflows" custom agent **once** with all 3-4 selected scenarios presented together in a structured list:
-
-1. **Present all scenarios** in a single prompt listing each scenario by persona name and task description
-2. **Parse the consolidated response** to extract per-scenario assessments:
-   - Does each suggestion include appropriate triggers (`on:`)?
-   - Does it suggest correct tools (github, web-fetch, playwright, etc.)?
-   - Does it configure safe-outputs properly?
-   - Does it apply security best practices (minimal permissions, network restrictions)?
-   - Does it create a clear, actionable prompt?
-3. **Store the analysis** in cache memory with the same structure as the per-scenario mode:
-   - Scenario identifier
-   - Agent's suggested configuration (**summarize, don't include full YAML**)
-   - Quality assessment (1-5 scale):
-     - Trigger appropriateness
-     - Tool selection accuracy
-     - Security practices
-     - Prompt clarity
-     - Completeness
-   - Notable patterns or issues (be concise)
+Invoke the "agentic-workflows" custom agent **once** with all 3-4 selected scenarios presented together in a structured list. Parse the consolidated response to extract per-scenario assessments using the capture/store template above.
 {{else}}
-For each selected scenario, invoke the "agentic-workflows" custom agent tool and:
-
-1. **Present the scenario** as if you were that persona requesting a new workflow
-2. **Capture the response concisely** - Record what the agent suggests:
-   - Does it recommend appropriate triggers (`on:`)?
-   - Does it suggest correct tools (github, web-fetch, playwright, etc.)?
-   - Does it configure safe-outputs properly?
-   - Does it apply security best practices (minimal permissions, network restrictions)?
-   - Does it create a clear, actionable prompt?
-3. **Store the analysis** in cache memory with:
-   - Scenario identifier
-   - Agent's suggested configuration (**summarize, don't include full YAML**)
-   - Quality assessment (1-5 scale):
-     - Trigger appropriateness
-     - Tool selection accuracy
-     - Security practices
-     - Prompt clarity
-     - Completeness
-   - Notable patterns or issues (be concise)
+For each selected scenario, invoke the "agentic-workflows" custom agent tool, present the scenario as if you were that persona requesting a new workflow, then capture and store results using the template above.
 {{/if}}
 
 **Important**: 
