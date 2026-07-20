@@ -6,6 +6,16 @@ on:
   pull_request:
     types: [labeled, ready_for_review]
     names: ["implementation"]
+    paths:
+      - 'src/**'
+      - 'lib/**'
+      - 'pkg/**'
+      - 'internal/**'
+      - 'app/**'
+      - 'core/**'
+      - 'domain/**'
+      - 'services/**'
+      - 'api/**'
   slash_command:
     strategy: centralized
     name: review
