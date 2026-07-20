@@ -32,18 +32,28 @@ Use this section for the detailed day-to-day command flow that was intentionally
 
 ### Validation checkpoints
 
-1. **After first significant code edit**
+Run validation in tiers — catch compile errors early, defer slow tests to the final pass only.
+
+1. **After each significant code edit** (fast, <5s — catch compile errors immediately)
    ```bash
    make build && make fmt
    ```
-2. **Before `report_progress`**
+2. **Before every intermediate `report_progress` call** (fast, <30s — no tests)
+   ```bash
+   make agent-report-progress-no-test
+   ```
+3. **Before the FINAL `report_progress` call** (slower, once per session — includes test-unit)
    ```bash
    make agent-report-progress
    ```
-3. **Before final handoff when time allows**
+4. **Before final handoff when time allows**
    ```bash
    make agent-finish
    ```
+
+> **Key rule:** Run `test-unit` only before the **final** `report_progress` call, not before intermediate saves. Each unnecessary invocation adds 120+ seconds to total validation time.
+
+> **Timeout budget:** `make test-unit` is expected to take up to 120 seconds. If it exceeds that, use `make test-impacted-go` to run only tests for packages affected by the current branch's changes.
 
 ### Change-type command matrix
 

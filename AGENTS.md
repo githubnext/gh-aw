@@ -22,7 +22,8 @@ Everything else should be loaded **lazily** through skills only when needed.
 ## Critical Rules (Always Applicable)
 
 1. If you changed files, use `report_progress` to commit and push.
-2. Before `report_progress`, run `make agent-report-progress` and ensure it passes.
+2. Before **intermediate** `report_progress` calls, run `make agent-report-progress-no-test` (fast, no tests). Before the **final** `report_progress`, run `make agent-report-progress` (includes `test-unit`).
+   - Run `test-unit` only once per PR — at the final push, not on every intermediate save.
 3. After Go changes, run `make fmt`.
 4. After workflow markdown changes (`.md` under `.github/workflows/`), run `make recompile`.
 5. Do not add `.lock.yml` files to `.gitignore`.
