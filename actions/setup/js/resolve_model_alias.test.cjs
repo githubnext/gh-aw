@@ -94,7 +94,7 @@ describe("resolve_model_alias", () => {
     expect(resolved).toBe("");
   });
 
-  it("resolveConfiguredCopilotModel returns empty string for none sentinel (case-insensitive)", () => {
+  it("resolveConfiguredCopilotModel returns empty string for mixed-case NoNe sentinel", () => {
     const resolved = resolveConfiguredCopilotModel({
       configuredModel: "NoNe",
       aliasMap: ALIAS_MAP,

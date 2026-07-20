@@ -332,7 +332,7 @@ function applyCopilotModelAliasResolution(options) {
   if (resolvedModel && resolvedModel !== configuredModel) {
     process.env.COPILOT_MODEL = resolvedModel;
   }
-  return resolvedModel || "";
+  return resolvedModel;
 }
 
 /**
