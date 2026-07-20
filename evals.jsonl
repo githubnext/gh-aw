@@ -1,0 +1,2 @@
+{"id":"docs_reviewed","question":"Did the agent review the project documentation from the perspective of a Claude Code user?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-20T13:22:10.976Z","runid":"29744444605"}
+{"id":"feedback_produced","question":"Was feedback or a report produced identifying documentation gaps for non-Copilot users?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-20T13:22:10.976Z","runid":"29744444605"}
