@@ -45,6 +45,10 @@ const DEFAULT_HTTP_TIMEOUT_MS = 15000;
 
 /** Timeout (ms) for tool invocation calls (may be long-running) */
 const TOOL_CALL_TIMEOUT_MS = 120000;
+/** Default timeout (minutes) for logs MCP calls when timeout is not provided */
+const LOGS_TOOL_DEFAULT_TIMEOUT_MINUTES = 5;
+/** Extra time (ms) to allow response marshalling/transport after tool execution */
+const TOOL_CALL_TIMEOUT_BUFFER_MS = 15000;
 
 /** Timeout (ms) for the notifications/initialized handshake step */
 const NOTIFY_TIMEOUT_MS = 10000;
@@ -331,6 +335,7 @@ async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, se
     headers["Mcp-Session-Id"] = sessionId;
   }
 
+  const callTimeoutMs = getToolCallTimeoutMs(toolName, toolArgs);
   const resp = await httpPostJSON(
     serverUrl,
     headers,
@@ -340,7 +345,7 @@ async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, se
       method: "tools/call",
       params: { name: toolName, arguments: toolArgs },
     },
-    TOOL_CALL_TIMEOUT_MS
+    callTimeoutMs
   );
 
   const elapsedMs = Date.now() - startMs;
@@ -355,6 +360,27 @@ async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, se
   });
 
   return resp;
+}
+
+/**
+ * Resolve MCP bridge timeout for a tool call.
+ *
+ * The logs tool may legitimately run for multiple minutes. Match the caller's
+ * requested timeout when provided, with a small response buffer.
+ *
+ * @param {string} toolName
+ * @param {Record<string, unknown>} toolArgs
+ * @returns {number}
+ */
+function getToolCallTimeoutMs(toolName, toolArgs) {
+  if (toolName !== "logs") {
+    return TOOL_CALL_TIMEOUT_MS;
+  }
+
+  const timeoutCandidate = Number(toolArgs?.timeout);
+  const timeoutMinutes = Number.isFinite(timeoutCandidate) && timeoutCandidate > 0 ? timeoutCandidate : LOGS_TOOL_DEFAULT_TIMEOUT_MINUTES;
+  const resolvedTimeoutMs = Math.ceil(timeoutMinutes * 60 * 1000) + TOOL_CALL_TIMEOUT_BUFFER_MS;
+  return Math.max(TOOL_CALL_TIMEOUT_MS, resolvedTimeoutMs);
 }
 
 /**
@@ -1341,5 +1367,6 @@ module.exports = {
   hasStdinJsonPayload,
   readStdinSync,
   ensureSafeOutputsTools,
+  getToolCallTimeoutMs,
   main,
 };

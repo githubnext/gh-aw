@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { ensureSafeOutputsTools, formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, shouldShowToolHelpForEmptyArgs, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
+import { ensureSafeOutputsTools, formatResponse, getToolCallTimeoutMs, hasStdinJsonPayload, parseToolArgs, readStdinSync, shouldShowToolHelpForEmptyArgs, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -212,6 +212,18 @@ describe("mcp_cli_bridge.cjs", () => {
       start_date: "-1d",
       workflow_name: "daily-issues-report",
     });
+  });
+
+  it("uses default 120s timeout for non-logs tools", () => {
+    expect(getToolCallTimeoutMs("audit", {})).toBe(120000);
+  });
+
+  it("uses a longer timeout for logs calls without explicit timeout", () => {
+    expect(getToolCallTimeoutMs("logs", {})).toBe(315000);
+  });
+
+  it("uses logs timeout argument with bridge buffer when provided", () => {
+    expect(getToolCallTimeoutMs("logs", { timeout: 10 })).toBe(615000);
   });
 
   it("treats MCP result envelopes with isError=true as errors", async () => {
