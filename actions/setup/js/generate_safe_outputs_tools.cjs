@@ -38,7 +38,15 @@ const ADD_COMMENT_DISCUSSIONS_DISABLED_NOTE =
   "NOTE: Discussion comments are disabled for this workflow because discussions:write permission is not available. Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request this permission.";
 const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion threading.";
 const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion threading\./g;
-const ISSUE_INTENT_SUFFIX = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
+const ISSUE_INTENT_REQUIRED_SUFFIX = "INTENT REQUIRED: rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) are required for each call.";
+const ISSUE_INTENT_OPTIONAL_SUFFIX =
+  "INTENT ENCOURAGED: Include rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) with each call. These fields are optional but strongly encouraged \u2014 they improve transparency and should normally be included. Use suggest: true to route for human review.";
+const ADD_LABELS_STRICT_FIELD_DESC =
+  'Labels to add. Each label must be an object with required fields: name (string), rationale (string, max 280 chars), and confidence (exactly one of: LOW, MEDIUM, HIGH). Plain string label names are not permitted. Example: [{"name": "bug", "rationale": "The report describes reproducible incorrect behavior.", "confidence": "HIGH"}]. Labels must exist in the repository.';
+const ADD_LABELS_OPTIONAL_FIELD_DESC =
+  'Labels to add. Prefer structured label objects: {"name": "bug", "rationale": "The report describes reproducible incorrect behavior.", "confidence": "HIGH"}. Plain strings are also accepted for compatibility. Include rationale (string, max 280 chars) and confidence (LOW, MEDIUM, or HIGH) to improve transparency. Labels must exist in the repository.';
+const RATIONALE_REQUIRED_DESC = "Required rationale for this change (max 280 characters).";
+const CONFIDENCE_REQUIRED_DESC = "Required confidence level for this change. Must be exactly one of: LOW, MEDIUM, HIGH.";
 const ISSUE_INTENT_TOOL_NAMES = new Set(["set_issue_type", "set_issue_field", "add_labels", "close_issue", "assign_to_user", "assign_to_agent"]);
 const ISSUE_INTENT_SCHEMA_FIELDS = ["rationale", "confidence", "suggest"];
 
@@ -91,6 +99,39 @@ function stripIssueIntentSchemaFields(tool) {
     if (tool.inputSchema.required.length === 0) {
       delete tool.inputSchema.required;
     }
+  }
+}
+
+/**
+ * Determine whether issue-intent guidance is omitted (neither enabled nor disabled) for a tool.
+ * This is the default state: intent fields are present and optional, but no guidance suffix is added yet.
+ *
+ * @param {string} toolName
+ * @param {unknown} toolConfig
+ * @returns {boolean}
+ */
+function isIssueIntentOmittedForTool(toolName, toolConfig) {
+  if (!ISSUE_INTENT_TOOL_NAMES.has(toolName)) {
+    return false;
+  }
+  return !isIssueIntentEnabledForTool(toolName, toolConfig) && !isIssueIntentDisabledForTool(toolName, toolConfig);
+}
+
+/**
+ * Update the rationale and confidence property descriptions on a tool to say "Required"
+ * instead of "Optional". Only affects the direct properties of inputSchema (not nested schemas).
+ * @param {{inputSchema?: {properties?: Record<string, {description?: string}>}}} tool
+ */
+function makeIntentFieldDescriptionsRequired(tool) {
+  const properties = tool.inputSchema?.properties;
+  if (!properties) {
+    return;
+  }
+  if (properties.rationale && typeof properties.rationale === "object") {
+    properties.rationale = { ...properties.rationale, description: RATIONALE_REQUIRED_DESC };
+  }
+  if (properties.confidence && typeof properties.confidence === "object") {
+    properties.confidence = { ...properties.confidence, description: CONFIDENCE_REQUIRED_DESC };
   }
 }
 
@@ -212,20 +253,40 @@ async function main() {
         enhancedTool.description = (enhancedTool.description || "") + descSuffix;
       }
       if (isIssueIntentEnabledForTool(tool.name, config[tool.name])) {
-        enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_SUFFIX}`.trim();
+        enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_REQUIRED_SUFFIX}`.trim();
+        // Update top-level rationale/confidence descriptions to say "required" instead of "optional"
+        makeIntentFieldDescriptionsRequired(enhancedTool);
         // For add_labels strict mode, replace the labels items schema with an object-only
-        // variant that requires name, rationale, and confidence.
+        // variant that requires name, rationale, and confidence, and update the labels description.
         if (tool.name === "add_labels") {
           const labelsSchema = enhancedTool.inputSchema?.properties?.labels;
-          if (labelsSchema && labelsSchema.items && Array.isArray(labelsSchema.items.oneOf)) {
-            const objectSchema = labelsSchema.items.oneOf.find(/** @param {{type: string}} s */ s => s.type === "object");
-            if (objectSchema) {
-              labelsSchema.items = {
-                ...objectSchema,
-                required: ["name", "rationale", "confidence"],
-              };
-              delete labelsSchema.items.oneOf;
+          if (labelsSchema) {
+            labelsSchema.description = ADD_LABELS_STRICT_FIELD_DESC;
+            if (labelsSchema.items && Array.isArray(labelsSchema.items.oneOf)) {
+              const objectSchema = labelsSchema.items.oneOf.find(/** @param {{type: string}} s */ s => s.type === "object");
+              if (objectSchema) {
+                const strictItems = {
+                  ...objectSchema,
+                  required: ["name", "rationale", "confidence"],
+                  properties: {
+                    ...objectSchema.properties,
+                    ...(objectSchema.properties?.rationale ? { rationale: { ...objectSchema.properties.rationale, description: "Required rationale for the label (max 280 characters)." } } : {}),
+                    ...(objectSchema.properties?.confidence ? { confidence: { ...objectSchema.properties.confidence, description: "Required confidence level for the label. Must be exactly one of: LOW, MEDIUM, HIGH." } } : {}),
+                  },
+                };
+                labelsSchema.items = strictItems;
+                delete labelsSchema.items.oneOf;
+              }
             }
+          }
+        }
+      } else if (isIssueIntentOmittedForTool(tool.name, config[tool.name])) {
+        enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_OPTIONAL_SUFFIX}`.trim();
+        // For add_labels omitted mode, update the labels description to prefer structured objects.
+        if (tool.name === "add_labels") {
+          const labelsSchema = enhancedTool.inputSchema?.properties?.labels;
+          if (labelsSchema) {
+            labelsSchema.description = ADD_LABELS_OPTIONAL_FIELD_DESC;
           }
         }
       }
