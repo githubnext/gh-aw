@@ -8,7 +8,7 @@ require (
 	charm.land/huh/v2 v2.0.3
 	charm.land/lipgloss/v2 v2.0.5
 	github.com/charmbracelet/colorprofile v0.4.3
-	github.com/charmbracelet/x/exp/golden v0.0.0-20260622092256-25656177ba8e
+	github.com/charmbracelet/x/exp/golden v0.0.0-20260720091843-3eef36eaaa28
 	github.com/charmbracelet/x/term v0.2.2
 	github.com/cli/go-gh/v2 v2.13.0
 	github.com/creack/pty v1.1.24
