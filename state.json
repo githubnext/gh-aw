@@ -1,7 +1,7 @@
 {
   "counts": {
     "output_format": {
-      "executive_brief": 22,
+      "executive_brief": 23,
       "full_briefing": 17,
       "annotated_brief": 15
     }
@@ -381,6 +381,13 @@
     {
       "run_id": "29590371002",
       "timestamp": "2026-07-17T15:01:31.915Z",
+      "assignments": {
+        "output_format": "executive_brief"
+      }
+    },
+    {
+      "run_id": "29754584155",
+      "timestamp": "2026-07-20T15:19:42.320Z",
       "assignments": {
         "output_format": "executive_brief"
       }
