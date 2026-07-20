@@ -170,7 +170,7 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
-			name: "pull_request_target with no checkout key - strict - checkout auto-disabled, dangerous-trigger warning only",
+			name: "pull_request_target with no checkout key - strict - insecure checkout error",
 			frontmatter: `---
 on:
   pull_request_target:
@@ -186,9 +186,10 @@ permissions:
 Test workflow content.`,
 			filename:      "prt-checkout-enabled-strict.md",
 			strictMode:    true,
-			expectError:   false,
-			expectWarning: true, // dangerous-trigger warning only; checkout auto-disabled so no insecure-checkout error
-			warningCount:  1,    // dangerous-trigger warning
+			expectError:   true,
+			expectWarning: true,
+			errorContains: "pull_request_target trigger with checkout enabled is extremely insecure",
+			warningCount:  1, // dangerous-trigger warning; insecure-checkout is returned as an error
 		},
 		{
 			name: "pull_request_target with explicit checkout pinned to base sha - strict - warning only",

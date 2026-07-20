@@ -97,11 +97,21 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 	}
 
 	effectiveStrictMode := c.strictMode
+	frontmatterOptOut := false
 	if workflowData.RawFrontmatter != nil {
 		if strictBool, ok := workflowData.RawFrontmatter["strict"].(bool); ok && !strictBool {
 			pullRequestTargetLog.Print("Frontmatter strict: false detected, disabling strict mode error for pull_request_target validation")
 			effectiveStrictMode = false
+			frontmatterOptOut = true
 		}
+	}
+
+	// If the workflow frontmatter explicitly opts out of strict mode (strict: false), skip all
+	// pull_request_target security warnings. The author has acknowledged the risks and chosen to
+	// suppress these diagnostics for their specific use case.
+	if frontmatterOptOut {
+		pullRequestTargetLog.Print("Frontmatter strict: false opt-out detected, skipping all pull_request_target security warnings")
+		return nil
 	}
 
 	// In strict mode, always emit a warning that pull_request_target is a very dangerous trigger,
@@ -120,9 +130,12 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 		c.IncrementWarningCount()
 	}
 
-	// If checkout is disabled, the workflow will not execute PR code — no further action needed.
-	if workflowData.CheckoutDisabled {
-		pullRequestTargetLog.Print("checkout: false is set, skipping insecure-checkout error")
+	// If checkout was explicitly disabled by the user (checkout: false in frontmatter),
+	// the workflow will not execute PR code — no further action needed.
+	// Auto-disabled checkout (when no checkout key is present) does not count as explicit
+	// acknowledgement of the security risk, so the warning/error is still emitted in that case.
+	if workflowData.CheckoutExplicitlyDisabled {
+		pullRequestTargetLog.Print("checkout: false is explicitly set by user, skipping insecure-checkout error")
 		return nil
 	}
 
