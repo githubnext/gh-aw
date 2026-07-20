@@ -101,13 +101,13 @@ function transformTables(html: string) {
 	});
 }
 
-function rewriteGfmAlerts(html: string) {
-	const renderAlert = (type: string, inner: string) => {
-		const cls = `aw-workshop-admonition-${type.toLowerCase()}`;
-		const title = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
-		return `<aside class="${cls}"><p class="aw-workshop-admonition-title">${escapeHtml(title)}</p>${inner.trim()}</aside>`;
-	};
+function renderWorkshopAlert(type: string, inner: string) {
+	const cls = `aw-workshop-admonition-${type.toLowerCase()}`;
+	const title = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+	return `<aside class="${cls}"><p class="aw-workshop-admonition-title">${escapeHtml(title)}</p>${inner.trim()}</aside>`;
+}
 
+function rewriteGfmAlerts(html: string) {
 	// Pattern to detect a blockquote that opens with a GFM alert type marker.
 	const openingPattern = /<blockquote>\s*<p>\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]/giu;
 	let result = '';
@@ -164,7 +164,7 @@ function rewriteGfmAlerts(html: string) {
 		}
 
 		result += html.slice(lastIndex, matchStart);
-		result += renderAlert(type, inner);
+		result += renderWorkshopAlert(type, inner);
 		lastIndex = blockquoteEnd;
 		// Skip the regex past the entire consumed blockquote so it does not
 		// re-match patterns that appear inside the body we just replaced.
@@ -172,9 +172,11 @@ function rewriteGfmAlerts(html: string) {
 	}
 
 	result += html.slice(lastIndex);
+	// Some workshop content emits a standalone alert paragraph instead of a full
+	// blockquote wrapper, so normalize those markers into the same aside UI too.
 	return result.replace(
 		/<p>\s*\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*([\s\S]*?)<\/p>/giu,
-		(_match, type, body) => renderAlert(String(type), `<p>${String(body).trim()}</p>`),
+		(_match, type, body) => renderWorkshopAlert(String(type), `<p>${String(body).trim()}</p>`),
 	);
 }
 
@@ -812,6 +814,8 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 				}
 
 				if (target.matches('[data-workshop-entry-path]')) {
+					// Keep entry-path selection inside the workshop state machine instead
+					// of letting the browser jump to the raw hash target first.
 					event.preventDefault();
 					setJourney(target.getAttribute('data-workshop-journey'), target.getAttribute('data-workshop-entry-path'));
 					showTutorial();
