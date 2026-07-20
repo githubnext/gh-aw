@@ -37,6 +37,11 @@ safe-outputs:
 timeout-minutes: 45
 features:
   gh-aw-detection: true
+evals:
+  - id: cli_versions_checked
+    question: Did the agent check for new versions of agentic CLI tools (Claude Code, GitHub Copilot CLI, Codex, MCP servers, etc.)?
+  - id: updates_applied_or_noop
+    question: Were version updates applied and a PR created, or was noop used when all tools were already up to date?
 ---
 
 # CLI Version Checker

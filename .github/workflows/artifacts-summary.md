@@ -42,6 +42,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: artifacts_analyzed
+    question: Did the agent analyze GitHub Actions artifacts usage across all workflows in the repository?
+  - id: summary_produced
+    question: Was a comprehensive summary report of artifacts usage produced?
 ---
 
 ### Artifacts Summary

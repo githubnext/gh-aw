@@ -83,4 +83,4 @@ curl -sf http://api-proxy:10003/v1/models | jq '[.models[].name | ltrimstr("mode
 ## See Also
 
 - [network.md](network.md) — egress domain configuration
-- [syntax.md](syntax.md) — `engine:` and `engine.model` frontmatter
+- [syntax.md](syntax.md) — `engine:` and top-level `model:` frontmatter

@@ -109,6 +109,11 @@ steps:
         echo "ℹ️ No previous optimization history found."
       fi
 source: githubnext/agentic-ops@c611242a76866fb51d4f7d660c80badc504dd473
+evals:
+  - id: high_aic_workflow_identified
+    question: Did the agent identify a high-AIC workflow and audit its recent runs?
+  - id: recommendations_produced
+    question: Were efficiency improvement recommendations produced, including any inline sub-agent refactor suggestions?
 ---
 
 # Agentic Workflow AIC Usage Optimizer

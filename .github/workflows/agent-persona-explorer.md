@@ -61,6 +61,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: personas_generated
+    question: Did the agent generate software personas for exploring custom agent behavior?
+  - id: analysis_produced
+    question: Was an analysis produced comparing agent responses across different automation tasks?
 ---
 
 # Agent Persona Explorer

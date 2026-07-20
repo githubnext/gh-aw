@@ -84,6 +84,11 @@ pre-agent-steps:
       fi
 features:
   gh-aw-detection: true
+evals:
+  - id: metrics_collected
+    question: Did the agent collect daily code metrics for the repository?
+  - id: metrics_report_created
+    question: Was a report or discussion created with code metrics trends and repository health indicators?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

@@ -56,6 +56,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: activity_collected
+    question: Did the agent collect daily repository activity including commits, PRs, issues, and discussions?
+  - id: chronicle_created
+    question: Was a narrative chronicle discussion or report created summarizing the day's activity?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -67,6 +67,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: cache_logs_analyzed
+    question: Did the agent analyze agentic workflow logs for cache misses and misconfigured caches?
+  - id: issue_created_or_noop
+    question: Was an issue created for cache problems or improvements, or was noop used when no problems were found?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

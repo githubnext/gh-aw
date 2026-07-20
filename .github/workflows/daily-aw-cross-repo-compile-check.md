@@ -51,6 +51,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: repos_compiled
+    question: Did the agent find popular repositories using gh-aw lock files and attempt to compile or upgrade them?
+  - id: compatibility_report_created
+    question: Was a report created identifying compatibility gaps or was the cache updated with results?
 ---
 
 # Daily AW Cross-Repo Compilation Agent

@@ -281,6 +281,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: model_lists_queried
+    question: Did the agent query model inventories from OpenAI, Anthropic, Google, and Copilot APIs?
+  - id: updates_proposed_or_noop
+    question: Were updates to the builtin model alias mapping proposed, or was noop used when no changes were needed?
 ---
 
 # Daily Model Inventory Checker

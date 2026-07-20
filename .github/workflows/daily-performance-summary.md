@@ -43,6 +43,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: performance_data_collected
+    question: Did the agent collect performance data for the 90-day window?
+  - id: summary_with_charts_created
+    question: Was a daily performance summary with trend charts produced?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

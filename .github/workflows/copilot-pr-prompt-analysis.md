@@ -49,6 +49,11 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: true
+evals:
+  - id: prompt_patterns_analyzed
+    question: Did the agent analyze prompt patterns used in Copilot PR interactions?
+  - id: optimization_findings_produced
+    question: Were findings produced identifying common usage patterns and optimization opportunities?
 ---
 
 ### Copilot PR Prompt Pattern Analysis

@@ -285,6 +285,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: spellcheck_completed
+    question: Did the agent run American English spellcheck on AstroStyleLite docs content?
+  - id: pr_created_or_noop
+    question: Was a PR created with spelling corrections, or was noop used when no misspellings were found?
 ---
 
 # Daily AstroStyleLite Markdown Spellcheck

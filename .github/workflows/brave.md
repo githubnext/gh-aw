@@ -37,6 +37,11 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: true
+evals:
+  - id: web_search_performed
+    question: Did the agent perform a web search using the Brave search engine?
+  - id: results_posted
+    question: Were the search results posted as a response to the /brave command?
 ---
 
 # Brave Web Search Agent

@@ -39,6 +39,11 @@ safe-outputs:
     close-older-issues: true
     expires: 7d
     max: 1
+evals:
+  - id: evals_data_analyzed
+    question: Did the agent analyze evals feature adoption and per-question pass rates across agentic workflows?
+  - id: report_created
+    question: Was a data science report produced with quality trends and adoption metrics?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
