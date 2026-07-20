@@ -240,6 +240,10 @@ type AWFAPIProxyConfig struct {
 	// MaxAICredits is the explicit per-run AI credits budget enforced by the API proxy.
 	MaxAICredits int64 `json:"maxAiCredits,omitempty"`
 
+	// DefaultAICreditsPricing is the fallback pricing AWF should use when the
+	// requested model is not present in AWF's built-in pricing table.
+	DefaultAICreditsPricing *AWFDefaultAICreditsPricing `json:"defaultAiCreditsPricing,omitempty"`
+
 	// ModelFallback configures the model fallback policy for unresolved model selections.
 	// When nil, the AWF default (enabled=true, strategy=middle_power) is used.
 	// Set enabled=false to prevent AWF from silently rewriting deployment names, which
@@ -265,6 +269,14 @@ type AWFAPIProxyConfig struct {
 	AllowedModels []string `json:"allowedModels,omitempty"`
 	// DisallowedModels is the explicit denylist policy for model names/patterns.
 	DisallowedModels []string `json:"disallowedModels,omitempty"`
+}
+
+// AWFDefaultAICreditsPricing is the "apiProxy.defaultAiCreditsPricing" section.
+type AWFDefaultAICreditsPricing struct {
+	Input       float64  `json:"input"`
+	Output      float64  `json:"output"`
+	CachedInput float64  `json:"cachedInput,omitempty"`
+	CacheWrite  *float64 `json:"cacheWrite,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
@@ -488,6 +500,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		MaxAICredits:        maxAICredits,
 		EnableTokenSteering: enableTokenSteering && awfSupportsTokenSteering(firewallConfig),
 	}
+	if enableTokenSteering {
+		if pricing := resolveDefaultAICreditsPricing(config.WorkflowData); pricing != nil {
+			apiProxy.DefaultAICreditsPricing = pricing
+			awfConfigLog.Printf("API proxy: defaultAiCreditsPricing configured for model=%q", config.WorkflowData.Model)
+		}
+	}
 
 	if !enableTokenSteering {
 		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-ai-credits is negative (disabled)")
@@ -634,6 +652,100 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	return jsonStr, nil
+}
+
+func resolveDefaultAICreditsPricing(workflowData *WorkflowData) *AWFDefaultAICreditsPricing {
+	if workflowData == nil {
+		return nil
+	}
+	provider, model, ok := resolveProviderAndModelForPricing(workflowData)
+	if !ok {
+		return nil
+	}
+	if pricing, ok := findDefaultAICreditsPricingInModelCosts(workflowData.ModelCosts, provider, model); ok {
+		return pricing
+	}
+	if provider == "github-copilot" && model == "auto" {
+		cacheWrite := 3.75e-06
+		return &AWFDefaultAICreditsPricing{
+			Input:       3e-06,
+			Output:      1.5e-05,
+			CachedInput: 3e-07,
+			CacheWrite:  &cacheWrite,
+		}
+	}
+	return nil
+}
+
+func findDefaultAICreditsPricingInModelCosts(modelCosts map[string]any, provider, model string) (*AWFDefaultAICreditsPricing, bool) {
+	if len(modelCosts) == 0 {
+		return nil, false
+	}
+	rawProviders, ok := modelCosts["providers"].(map[string]any)
+	if !ok {
+		return nil, false
+	}
+	for providerName, providerData := range rawProviders {
+		if !strings.EqualFold(providerName, provider) {
+			continue
+		}
+		providerMap, ok := providerData.(map[string]any)
+		if !ok {
+			continue
+		}
+		rawModels, ok := providerMap["models"].(map[string]any)
+		if !ok {
+			continue
+		}
+		for modelName, modelData := range rawModels {
+			if !strings.EqualFold(modelName, model) {
+				continue
+			}
+			modelMap, ok := modelData.(map[string]any)
+			if !ok {
+				return nil, false
+			}
+			costMap, ok := modelMap["cost"].(map[string]any)
+			if !ok {
+				return nil, false
+			}
+			input, ok := parseDefaultAICreditsPrice(costMap["input"])
+			if !ok {
+				return nil, false
+			}
+			output, ok := parseDefaultAICreditsPrice(costMap["output"])
+			if !ok {
+				return nil, false
+			}
+			pricing := &AWFDefaultAICreditsPricing{
+				Input:  input,
+				Output: output,
+			}
+			if cachedInput, ok := parseDefaultAICreditsPrice(costMap["cache_read"]); ok {
+				pricing.CachedInput = cachedInput
+			}
+			if cacheWrite, ok := parseDefaultAICreditsPrice(costMap["cache_write"]); ok {
+				pricing.CacheWrite = &cacheWrite
+			}
+			return pricing, true
+		}
+	}
+	return nil, false
+}
+
+func parseDefaultAICreditsPrice(value any) (float64, bool) {
+	switch v := value.(type) {
+	case float64:
+		return v, true
+	case string:
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			return 0, false
+		}
+		return parsed, true
+	default:
+		return 0, false
+	}
 }
 
 func resolveAWFContainerAgentTimeoutMinutes(workflowData *WorkflowData) int {

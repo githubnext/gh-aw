@@ -305,6 +305,82 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should bake in frontmatter maxAiCredits (skipping runtime expression)")
 	})
 
+	t.Run("copilot auto sets default AI credits pricing", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				Model: "auto",
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok)
+		pricing, ok := apiProxy["defaultAiCreditsPricing"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, 3e-06, pricing["input"])
+		assert.Equal(t, 1.5e-05, pricing["output"])
+		assert.Equal(t, 3e-07, pricing["cachedInput"])
+		assert.Equal(t, 3.75e-06, pricing["cacheWrite"])
+	})
+
+	t.Run("model cost overlays populate default AI credits pricing", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				Model: "anthropic/custom-model",
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+				},
+				ModelCosts: map[string]any{
+					"providers": map[string]any{
+						"anthropic": map[string]any{
+							"models": map[string]any{
+								"custom-model": map[string]any{
+									"cost": map[string]any{
+										"input":       "0.25",
+										"output":      "0.5",
+										"cache_read":  "0.025",
+										"cache_write": "0.75",
+									},
+								},
+							},
+						},
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok)
+		pricing, ok := apiProxy["defaultAiCreditsPricing"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, 0.25, pricing["input"])
+		assert.Equal(t, 0.5, pricing["output"])
+		assert.Equal(t, 0.025, pricing["cachedInput"])
+		assert.Equal(t, 0.75, pricing["cacheWrite"])
+	})
+
 	t.Run("default max-turn-cache-misses uses built-in default when unset", func(t *testing.T) {
 		// Clear any ambient env override so this test actually exercises the built-in default path.
 		t.Setenv(compilerenv.DefaultMaxTurnCacheMisses, "")
