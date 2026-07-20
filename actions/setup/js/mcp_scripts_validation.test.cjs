@@ -1,16 +1,19 @@
 import { describe, it, expect } from "vitest";
 import fs from "fs";
-import path from "path";
+import { fileURLToPath } from "url";
 
 describe("mcp_scripts_validation.cjs", () => {
   function loadUpdateIssueToolSchema() {
-    // This suite runs from actions/setup/js where safe_outputs_tools.json is mirrored.
-    const toolsPath = path.join(process.cwd(), "safe_outputs_tools.json");
+    const toolsPath = fileURLToPath(new URL("./safe_outputs_tools.json", import.meta.url));
     try {
       const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
+      if (!Array.isArray(tools)) {
+        throw new Error("Expected tools schema to be a JSON array");
+      }
       const updateIssueTool = tools.find(tool => tool.name === "update_issue");
       if (!updateIssueTool) {
-        throw new Error("Expected a tool definition named 'update_issue' in safe_outputs_tools.json");
+        const availableNames = tools.map(tool => tool?.name).filter(Boolean);
+        throw new Error(`Expected a tool definition named 'update_issue' in safe_outputs_tools.json. Found tools: ${availableNames.join(", ")}`);
       }
       return updateIssueTool.inputSchema;
     } catch (error) {
