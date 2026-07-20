@@ -332,4 +332,51 @@ doMore();`,
       invalid: [],
     });
   });
+
+  it("valid: function parameter with core-alias name and no continuation is accepted", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // DI pattern — parameter named `core` with return
+        `function g(core) { core.setFailed("x"); return; }`,
+        // DI pattern — setFailed is the last statement, no next statement
+        `function g(core) { core.setFailed("x"); }`,
+        // DI pattern — coreObj alias as parameter
+        `function g(coreObj) { coreObj.setFailed("x"); return; }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: function parameter with core-alias name missing control transfer", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          // single trailing call → isBlockTerminalCallCleanup suppresses suggestion (same as existing tests)
+          code: `function g(core) { core.setFailed("x"); doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: undefined }],
+        },
+        {
+          code: `function g(core) { core.setFailed("x"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function g(core) { core.setFailed("x"); return; doMore(); keepGoing(); }` }] }],
+        },
+        {
+          code: `function g(coreObj) { coreObj.setFailed("x"); doMore(); keepGoing(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function g(coreObj) { coreObj.setFailed("x"); return; doMore(); keepGoing(); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: function parameter not in CORE_ALIASES is not treated as core (shadow-exclusion)", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // `coreArg` is not in CORE_ALIASES — should not be treated as a core object
+        `function g(coreArg) { coreArg.setFailed("x"); doMore(); }`,
+        // Arbitrary parameter name
+        `function g(myCore) { myCore.setFailed("x"); doMore(); }`,
+      ],
+      invalid: [],
+    });
+  });
 });

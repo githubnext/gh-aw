@@ -6,6 +6,13 @@ import { CORE_ALIASES } from "./core-aliases";
  * object (e.g., `const c = core`). Re-assigned let bindings are rejected.
  * Local shadows (e.g., a parameter also named `c`) are excluded because they
  * are found first in the scope chain and their definition type will not match.
+ *
+ * Additionally, a plain function parameter whose name is in CORE_ALIASES is
+ * accepted to support the dependency-injection pattern:
+ *   `async function f(core) { core.setFailed(msg); }`
+ * Gating: only parameters whose name exactly matches a known alias (i.e. is in
+ * CORE_ALIASES) are accepted, preventing arbitrary parameters from being treated
+ * as core. Destructured parameters (e.g. `{ core }`) are excluded.
  */
 export function isCoreAliasIdentifier(identifier: TSESTree.Identifier, sourceCode: TSESLint.SourceCode): boolean {
   let currentScope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier);
@@ -14,6 +21,17 @@ export function isCoreAliasIdentifier(identifier: TSESTree.Identifier, sourceCod
     if (variable !== undefined) {
       if (variable.defs.length !== 1) return false;
       const def = variable.defs[0];
+      if (def.type === "Parameter") {
+        // Accept a plain function-parameter whose name is a known core alias.
+        // This covers the DI pattern: `function f(core) { core.setFailed(...) }`.
+        // For Parameter defs, `def.node` is the enclosing function node; `def.name`
+        // is the binding pattern (Identifier for simple params, ObjectPattern for
+        // destructured params).  We gate on `def.name.type === Identifier` to exclude
+        // destructured parameters, and on `CORE_ALIASES` to avoid false positives.
+        // `identifier.name` equals the parameter name because the scope look-up
+        // above resolved the variable by that name.
+        return def.name.type === AST_NODE_TYPES.Identifier && CORE_ALIASES.has(identifier.name);
+      }
       if (def.type !== "Variable") return false;
       if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
       const declarator = def.node as TSESTree.VariableDeclarator;

@@ -330,4 +330,38 @@ describe("no-core-setoutput-non-string", () => {
       invalid: [],
     });
   });
+
+  it("valid: function parameter with core-alias name and string value is accepted", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [`function f(core) { core.setOutput("n", "str"); }`, `function f(core) { core.setOutput("n", someVariable); }`, `function f(coreObj) { coreObj.setOutput("n", "str"); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: function parameter with core-alias name and non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function f(core) { core.setOutput("count", items.length); }`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `function f(core) { core.setOutput("count", String(items.length)); }` }] }],
+        },
+        {
+          code: `function f(coreObj) { coreObj.setOutput("flag", true); }`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `function f(coreObj) { coreObj.setOutput("flag", String(true)); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: function parameter not in CORE_ALIASES is not treated as core (shadow-exclusion)", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [
+        // `coreArg` is not in CORE_ALIASES — must not be treated as a core object
+        `function f(coreArg) { coreArg.setOutput("n", 0); }`,
+        `function f(myCore) { myCore.setOutput("n", 0); }`,
+      ],
+      invalid: [],
+    });
+  });
 });
