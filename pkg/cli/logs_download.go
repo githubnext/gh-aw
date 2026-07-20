@@ -410,7 +410,7 @@ func unzipFile(zipPath, destDir string, verbose bool) error {
 
 // extractZipFile extracts a single file from a zip archive
 func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error) {
-	// #nosec G305 - Path traversal is prevented by filepath.Clean and prefix check below
+	// #nosec G305 -- Path traversal is prevented by filepath.Clean and prefix check below
 	// Validate file name doesn't contain path traversal attempts
 	cleanName := filepath.Clean(f.Name)
 	if strings.Contains(cleanName, "..") {
@@ -436,7 +436,7 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 	}
 
 	// Decompression bomb protection - limit individual file size to 1GB
-	// #nosec G110 - Decompression bomb is mitigated by size check below
+	// #nosec G110 -- Decompression bomb is mitigated by size check below
 	const maxFileSize = 1 * 1024 * 1024 * 1024 // 1GB
 	if f.UncompressedSize64 > maxFileSize {
 		return fmt.Errorf("file too large in zip (>1GB): %s (%d bytes)", f.Name, f.UncompressedSize64)

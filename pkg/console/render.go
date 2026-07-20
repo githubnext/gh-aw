@@ -591,15 +591,15 @@ func applyNumberFormat(val reflect.Value, baseValue string) string {
 		case int:
 			return FormatNumber(v)
 		case int64:
-			// #nosec G115 - Converting int64 to int for display formatting
+			// #nosec G115 -- Converting int64 to int for display formatting
 			return FormatNumber(int(v))
 		case int32:
 			return FormatNumber(int(v))
 		case uint:
-			// #nosec G115 - Converting uint to int for display formatting
+			// #nosec G115 -- Converting uint to int for display formatting
 			return FormatNumber(int(v))
 		case uint64:
-			// #nosec G115 - Converting uint64 to int for display formatting
+			// #nosec G115 -- Converting uint64 to int for display formatting
 			return FormatNumber(int(v))
 		case uint32:
 			return FormatNumber(int(v))
@@ -611,7 +611,7 @@ func applyNumberFormat(val reflect.Value, baseValue string) string {
 	case val.Kind() >= reflect.Int && val.Kind() <= reflect.Int64:
 		return FormatNumber(int(val.Int()))
 	case val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64:
-		// #nosec G115 - Converting uint to int for display formatting
+		// #nosec G115 -- Converting uint to int for display formatting
 		return FormatNumber(int(val.Uint()))
 	}
 	return baseValue
@@ -650,10 +650,10 @@ func applyFilesizeFormat(val reflect.Value, baseValue string) string {
 		case int32:
 			return FormatFileSize(int64(v))
 		case uint:
-			// #nosec G115 - Converting uint to int64 for file size display
+			// #nosec G115 -- Converting uint to int64 for file size display
 			return FormatFileSize(int64(v))
 		case uint64:
-			// #nosec G115 - Converting uint64 to int64 for file size display
+			// #nosec G115 -- Converting uint64 to int64 for file size display
 			return FormatFileSize(int64(v))
 		case uint32:
 			return FormatFileSize(int64(v))
@@ -664,7 +664,7 @@ func applyFilesizeFormat(val reflect.Value, baseValue string) string {
 		return FormatFileSize(val.Int())
 	}
 	if val.Kind() >= reflect.Uint && val.Kind() <= reflect.Uint64 {
-		// #nosec G115 - Converting uint to int64 for file size display
+		// #nosec G115 -- Converting uint to int64 for file size display
 		return FormatFileSize(int64(val.Uint()))
 	}
 	return baseValue
