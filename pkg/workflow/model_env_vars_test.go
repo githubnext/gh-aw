@@ -296,7 +296,7 @@ func TestCopilotAutoModelSentinelFallsBackInBYOKMode(t *testing.T) {
 	}
 	stepsContent := stepsStr.String()
 
-	expectedExpression := constants.CopilotCLIModelEnvVar + ": ${{ vars." + constants.EnvVarModelAgentCopilot + " || vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}"
+	expectedExpression := constants.CopilotCLIModelEnvVar + ": " + compilerenv.BuildModelOverrideExpression(constants.EnvVarModelAgentCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
 	if !strings.Contains(stepsContent, expectedExpression) {
 		t.Errorf("Expected BYOK fallback expression for sentinel model, got:\n%s", stepsContent)
 	}
