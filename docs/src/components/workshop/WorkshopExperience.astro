@@ -176,7 +176,7 @@ function rewriteGfmAlerts(html: string) {
 	// blockquote wrapper, so normalize those markers into the same aside UI too.
 	return result.replace(
 		/<p>\s*\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*([\s\S]*?)<\/p>/giu,
-		(_match, type, body) => renderWorkshopAlert(String(type), `<p>${String(body).trim()}</p>`),
+		(_match, type, body) => renderWorkshopAlert(type, `<p>${body.trim()}</p>`),
 	);
 }
 
@@ -371,7 +371,7 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 
 function renderEntryPathDescription(path: typeof workshopEntryPaths[number], journeyLabel: string, stepCount: number) {
 	const stepLabel = `${stepCount} step${stepCount === 1 ? '' : 's'}`;
-	return escapeHtml(`${journeyLabel} · ${stepLabel}. ${path.kicker}. ${path.summary} ${path.fit}`);
+	return escapeHtml(`${journeyLabel} · ${stepLabel} — ${path.kicker}. ${path.summary} ${path.fit}`);
 }
 
 const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(

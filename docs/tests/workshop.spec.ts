@@ -319,7 +319,7 @@ test.describe('Workshop Astro rendering contract', () => {
 
 		const welcomeContract = await page.evaluate(() => {
 			const node = document.getElementById('aw-workshop-step-data');
-			if (!node) return { tableWrapped: false, tableRowCount: 0, linkTargets: [] as string[], hasChecklistText: false, hasNavigableTargets: false };
+			if (!node) return { tableWrapped: false, tableRowCount: 0, recommendedLinkTargets: [] as string[], hasChecklistText: false, hasNavigableTargets: false };
 			const steps = JSON.parse(node.textContent ?? '[]') as Array<{ key?: string; file?: string; html?: string }>;
 			const welcomeStep = steps.find((step) => step.key === '00-welcome' || step.file === '00-welcome.md');
 			const welcomeHtml = welcomeStep?.html ?? '';
