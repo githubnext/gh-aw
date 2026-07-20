@@ -55,9 +55,9 @@ Trial results are saved both locally (in the trials/ directory) and in the host 
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
 			hostRepoSpec, _ := cmd.Flags().GetString("host-repo")
 			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo-after")
-			forceDeleteHostRepo, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
+			legacyForceDelete, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
 			deleteHostRepoBefore, _ := cmd.Flags().GetBool("delete-host-repo-before")
-			forceDeleteHostRepo = forceDeleteHostRepo || deleteHostRepoBefore
+			forceDeleteHostRepo := legacyForceDelete || deleteHostRepoBefore
 			yes, _ := cmd.Flags().GetBool("yes")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
