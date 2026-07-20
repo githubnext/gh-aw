@@ -97,12 +97,12 @@ steps:
           
           # Extract discussions and normalize structure
           echo "$RESULT" | jq -r '
-            .data.repository.discussions.nodes 
+            .data.repository.discussions.nodes
             | map({
-                number, 
+                number,
                 title,
                 body,
-                createdAt, 
+                createdAt,
                 updatedAt,
                 url,
                 category: .category.name,
@@ -180,7 +180,7 @@ This shared component fetches open discussions from the repository, with intelli
 - **Cache Key**: `discussions-data` for workflow-level sharing
 - **Cache Files**: Stored with today's date in the filename (e.g., `discussions-2024-11-18.json`)
 - **Cache Location**: `/tmp/gh-aw/cache-memory/`
-- **Cache Benefits**: 
+- **Cache Benefits**:
   - Multiple workflows running on the same day share the same discussions data
   - Reduces GitHub API rate limit usage
   - Faster workflow execution after first fetch of the day

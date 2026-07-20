@@ -1,4 +1,5 @@
 ---
+import { Card, CardGrid } from '@astrojs/starlight/components';
 // @ts-ignore The docs app already uses this runtime package from Astro components.
 import octicons from '@primer/octicons';
 import {
@@ -229,8 +230,41 @@ function rewriteGfmTaskLists(html: string) {
 	return result;
 }
 
+function normalizeJourneyToken(value: string) {
+	return value.trim().toLowerCase().replace(/[^a-z0-9-]/gu, '');
+}
+
+const journeyBlockPattern = /<!--\s*journey:\s*([a-z0-9,\s-]+)\s*-->([\s\S]*?)<!--\s*\/journey\s*-->/giu;
+const journeyOpenPattern = /<!--\s*journey:\s*[a-z0-9,\s-]+\s*-->/giu;
+const journeyClosePattern = /<!--\s*\/journey\s*-->/giu;
+
+function parseJourneyTokens(value: string) {
+	return uniqueItems(
+		value
+			.split(',')
+			.map(normalizeJourneyToken)
+			.filter(Boolean),
+	);
+}
+
+function rewriteJourneyBlocks(html: string) {
+	const wrapped = html.replace(
+		journeyBlockPattern,
+		(_match, journeyCsv, body) => {
+			const journeys = parseJourneyTokens(String(journeyCsv));
+			if (journeys.length === 0) return body;
+			const classes = ['aw-workshop-journey-block', ...journeys.map((journey) => `aw-workshop-journey-block-${journey}`)];
+			return `<div class="${classes.join(' ')}">${body}</div>`;
+		},
+	);
+
+	return wrapped
+		.replace(journeyOpenPattern, '')
+		.replace(journeyClosePattern, '');
+}
+
 function rewriteWorkshopHtml(html: string) {
-	return transformTables(rewriteGfmTaskLists(rewriteGfmAlerts(sanitizeWorkshopHtml(html)))
+	return transformTables(rewriteJourneyBlocks(rewriteGfmTaskLists(rewriteGfmAlerts(sanitizeWorkshopHtml(html))))
 
 		.replace(/<(\/?)h([1-4])\b/gu, (_match, slash, level) => {
 			return `<${slash}h${Math.min(Number(level) + 1, 4)}`;
@@ -362,6 +396,8 @@ const workshopSteps: WorkshopStep[] = await Promise.all(workshopEntries.map(asyn
 const initialFlow = buildWorkshopFlow(workshopDefaults.journeyId, workshopDefaults.scenarioId);
 const initialStepKey = initialFlow[0] ?? workshopSteps[0]?.key ?? '';
 const initialStep = workshopSteps.find((item) => item.key === initialStepKey) ?? workshopSteps[0];
+const initialJourney = workshopJourneys.find((item) => item.id === workshopDefaults.journeyId) ?? workshopJourneys[0];
+const initialVisibleJourneyIds = uniqueItems(['all', ...(initialJourney?.contentJourneyIds ?? [])]);
 
 // Precompute step counts for entry path cards using the default scenario (estimate shown before scenario is selected).
 const entryPathStepCounts: Record<string, number> = Object.fromEntries(
@@ -388,6 +424,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 <section
 	class="aw-workshop"
 	data-workshop-root
+	data-workshop-visible-journeys={initialVisibleJourneyIds.join(' ')}
 	data-initial-step={initialStepKey}
 >
 	<div class="aw-workshop-setup" data-workshop-setup>
@@ -398,26 +435,33 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					<h3>How do you want to go through the workshop?</h3>
 					<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
 				</div>
-				<div class="aw-workshop-card-grid">
-					{workshopEntryPaths.map((path) => {
-						const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
-						return (
-						<button
-							type="button"
-							class="aw-workshop-card"
-							data-workshop-entry-path={path.id}
-							data-workshop-journey={path.journeyId}
-							style={`--aw-workshop-card-accent: ${journey.accent};`}
-						>
-							<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
-							<span class="aw-workshop-card-kicker">{path.kicker}</span>
-							<span class="aw-workshop-card-route">{entryPathStepCounts[path.id]} steps</span>
-							<strong class="aw-workshop-card-title">{path.label}</strong>
-							<span class="aw-workshop-card-summary">{path.summary}</span>
-							<small class="aw-workshop-card-fit">{path.fit}</small>
-						</button>
-						);
-					})}
+				<div class="aw-workshop-card-grid aw-workshop-card-grid-entry">
+					<CardGrid>
+						{workshopEntryPaths.map((path) => {
+							const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
+							return (
+								<button
+									type="button"
+									class="aw-workshop-card aw-workshop-card-entry"
+									data-workshop-entry-path={path.id}
+									data-workshop-journey={path.journeyId}
+									style={`--aw-workshop-card-accent: ${journey.accent};`}
+								>
+									<Card title={path.label}>
+										<div class="aw-workshop-card-entry-meta">
+											<div class="aw-workshop-card-entry-kicker">
+												<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
+												<span class="aw-workshop-card-kicker">{path.kicker}</span>
+											</div>
+											<span class="aw-workshop-card-route">{journey.label} · {entryPathStepCounts[path.id]} steps</span>
+										</div>
+										<span class="aw-workshop-card-summary">{path.summary}</span>
+										<small class="aw-workshop-card-fit">{path.fit}</small>
+									</Card>
+								</button>
+							);
+						})}
+					</CardGrid>
 				</div>
 			</section>
 		</div>
@@ -432,7 +476,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					{workshopScenarios.map((scenario) => (
 						<button
 							type="button"
-							class="aw-workshop-card aw-workshop-card-scenario"
+							class="aw-workshop-card aw-workshop-card-scenario-selection"
 							data-workshop-scenario={scenario.id}
 						>
 							<span class="aw-workshop-card-icon" set:html={iconSvg(scenario.icon)} />
@@ -840,6 +884,8 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				const journey = manifest.journeys.find((item) => item.id === state.journeyId) || manifest.journeys[0];
 				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
+				const visibleJourneyIds = ['all', ...((journey && journey.contentJourneyIds) || [])];
+				root.dataset.workshopVisibleJourneys = [...new Set(visibleJourneyIds)].join(' ');
 				if (tunnelPanel) {
 					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
 				}
@@ -980,6 +1026,10 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 
 <style>
 	.aw-workshop {
+		--aw-workshop-card-min-width: 15.5rem;
+		--aw-workshop-card-border-strong: 35%;
+		--aw-workshop-card-gradient-start: 12%;
+		--aw-workshop-card-surface-tint: 8%;
 		display: grid;
 		gap: 1.5rem;
 		margin: 2rem 0 1rem;
@@ -1102,11 +1152,95 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 
 	.aw-workshop-card-grid {
 		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, 15.5rem), 1fr));
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
 		gap: 0.85rem;
 	}
 
 	.aw-workshop-card {
+		width: 100%;
+		border: 0;
+		padding: 0;
+		background: none;
+		color: inherit;
+		font: inherit;
+		cursor: pointer;
+		text-align: inherit;
+	}
+
+	.aw-workshop-card-entry {
+		text-align: left;
+	}
+
+	.aw-workshop-card-grid-entry :global(.card-grid) {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
+		gap: 0.85rem;
+	}
+
+	.aw-workshop-card-grid-entry :global(.card-grid > *) {
+		height: 100%;
+	}
+
+	.aw-workshop-card-entry > :global(.card) {
+		--aw-workshop-card-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
+		height: 100%;
+		min-height: 15rem;
+		padding: 1rem;
+		border-radius: 0.9rem;
+		border-color: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-border-strong), transparent);
+		background:
+			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-gradient-start), transparent), transparent 72%),
+			color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-surface-tint), var(--aw-bg-elevated));
+		gap: 0.75rem;
+		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+	}
+
+	.aw-workshop-card-entry > :global(.card .title) {
+		margin: 0;
+		font-size: 1.18rem;
+		line-height: 1.08;
+	}
+
+	.aw-workshop-card-entry > :global(.card .body) {
+		display: grid;
+		gap: 0.7rem;
+		height: 100%;
+		font-size: inherit;
+	}
+
+	.aw-workshop-card-entry-meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: flex-start;
+		justify-content: space-between;
+		gap: 0.55rem 0.75rem;
+	}
+
+	.aw-workshop-card-entry-kicker {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.65rem;
+	}
+
+	.aw-workshop-card-entry:hover > :global(.card),
+	.aw-workshop-card-entry.is-active > :global(.card) {
+		transform: translateY(-1px);
+		border-color: var(--aw-workshop-card-color);
+		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
+	}
+
+	.aw-workshop-card-entry:focus-visible {
+		outline: 2px solid var(--aw-workshop-card-color);
+		outline-offset: 4px;
+	}
+
+	.aw-workshop-card-entry:hover .aw-workshop-card-fit,
+	.aw-workshop-card-entry.is-active .aw-workshop-card-fit {
+		opacity: 1;
+		max-height: 5rem;
+		transform: translateY(0);
+	}
+
+	.aw-workshop-card-scenario-selection {
 		display: grid;
 		grid-template-columns: 2rem 1fr auto;
 		grid-template-areas:
@@ -1163,7 +1297,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		display: none;
 	}
 
-	.aw-workshop-card-scenario {
+	.aw-workshop-card-scenario-selection {
 		--aw-workshop-card-accent: var(--sl-color-accent-low);
 	}
 
@@ -1198,20 +1332,22 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		transition: opacity 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
 	}
 
-	.aw-workshop-card:hover,
-	.aw-workshop-card.is-active {
+	.aw-workshop-card-scenario-selection:hover,
+	.aw-workshop-card-scenario-selection.is-active {
+		transform: translateY(-1px);
 		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
 		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 6%, var(--aw-bg-page));
+		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
 	}
 
-	.aw-workshop-card:hover .aw-workshop-card-fit,
-	.aw-workshop-card.is-active .aw-workshop-card-fit {
+	.aw-workshop-card-scenario-selection:hover .aw-workshop-card-fit,
+	.aw-workshop-card-scenario-selection.is-active .aw-workshop-card-fit {
 		opacity: 1;
 		max-height: 5rem;
 		transform: translateY(0);
 	}
 
-	.aw-workshop-card-scenario {
+	.aw-workshop-card-scenario-selection {
 		min-height: 12rem;
 	}
 
@@ -1305,6 +1441,19 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 		display: block;
 		min-width: 0;
 		min-height: 22rem;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-journey-block) {
+		display: none;
+	}
+
+	.aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-all),
+	.aw-workshop[data-workshop-visible-journeys~='ui'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-ui),
+	.aw-workshop[data-workshop-visible-journeys~='terminal'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-terminal),
+	.aw-workshop[data-workshop-visible-journeys~='local'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-local),
+	.aw-workshop[data-workshop-visible-journeys~='codespace'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-codespace),
+	.aw-workshop[data-workshop-visible-journeys~='copilot'] .aw-workshop-step-content :global(.aw-workshop-journey-block.aw-workshop-journey-block-copilot) {
+		display: contents;
 	}
 
 	.aw-workshop-step-content :global(h2),

@@ -312,15 +312,10 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) > 1 {
+		var blockScalarState yamlBlockScalarState
 		for _, line := range lines[1:] {
-			// Skip empty lines
-			if strings.TrimSpace(line) == "" {
-				yaml.WriteString("\n")
-				continue
-			}
-
-			// Simply add 6 spaces for job context indentation
-			yaml.WriteString("      " + line + "\n")
+			isBS := blockScalarState.update(line)
+			appendYAMLLine(yaml, "      ", line, isBS)
 		}
 	}
 }
@@ -337,9 +332,11 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 
 	insertedRuntime := false
 	i := 1 // Start from index 1 to skip "steps:" line
+	var blockScalarState yamlBlockScalarState
 
 	for i < len(lines) {
 		line := lines[i]
+		isBS := blockScalarState.update(line)
 
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
@@ -349,7 +346,7 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 		}
 
 		// Add the line with proper indentation
-		yaml.WriteString("      " + line + "\n")
+		appendYAMLLine(yaml, "      ", line, isBS)
 
 		// Check if this line starts a step with "- name:" or "- uses:"
 		trimmed := strings.TrimSpace(line)
@@ -389,11 +386,8 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 					}
 
 					// Add the line
-					if nextTrimmed == "" {
-						yaml.WriteString("\n")
-					} else {
-						yaml.WriteString("      " + nextLine + "\n")
-					}
+					nextIsBS := blockScalarState.update(nextLine)
+					appendYAMLLine(yaml, "      ", nextLine, nextIsBS)
 					i++
 				}
 
