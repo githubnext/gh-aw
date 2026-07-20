@@ -204,7 +204,6 @@ describe("no-github-request-interpolated-route", () => {
         "const client = http; client.request(`GET /repos/${owner}/${repo}`);",
         // Unknown .getOctokit() owner must not be treated as toolkit Octokit source
         "const client = unknown.getOctokit(token); client.request(`GET /repos/${owner}/${repo}`);",
-        // Unknown .getOctokit() owner must not be treated as toolkit Octokit source
         "const helperClient = myHelper.getOctokit(token); helperClient.request(`GET /repos/${owner}/${repo}`);",
       ],
       invalid: [],
