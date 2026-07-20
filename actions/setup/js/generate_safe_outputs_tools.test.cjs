@@ -368,7 +368,7 @@ describe("generate_safe_outputs_tools", () => {
     expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentRequiredSuffix);
   });
 
-  it("omits all issue intent suffixes when explicitly disabled per tool", () => {
+  it("omits issue intent guidance when explicitly disabled per tool", () => {
     fs.writeFileSync(toolsSourcePath, JSON.stringify([{ name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: {} } }]));
     fs.writeFileSync(configPath, JSON.stringify({ close_issue: { issue_intent: false } }));
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
@@ -631,7 +631,9 @@ describe("generate_safe_outputs_tools", () => {
     const tool = result.find((/** @type {{name: string}} */ t) => t.name === "add_labels");
     const labelsDesc = tool.inputSchema.properties.labels.description;
 
-    // Must not say plain strings are accepted (the phrase says they are NOT permitted, which is correct)
+    // Ensure the description does not say plain strings are *accepted* in any form
+    // (e.g. "plain strings are accepted", "plain strings remain accepted").
+    // Note: the strict description itself says "not permitted" — that IS the desired phrase.
     expect(labelsDesc).not.toMatch(/plain string[s]? (?:are |remain )?(?:also )?accepted/i);
     expect(labelsDesc).not.toMatch(/either a label name string/i);
     expect(labelsDesc).not.toMatch(/can be either a label name string/i);

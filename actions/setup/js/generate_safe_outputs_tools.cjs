@@ -40,7 +40,7 @@ const ADD_COMMENT_REPLY_SUPPORT_SENTENCE = "Supports reply_to_id for discussion 
 const ADD_COMMENT_REPLY_SUPPORT_REGEX = /\s*Supports reply_to_id for discussion threading\./g;
 const ISSUE_INTENT_REQUIRED_SUFFIX = "INTENT REQUIRED: rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) are required for each call.";
 const ISSUE_INTENT_OPTIONAL_SUFFIX =
-  "INTENT ENCOURAGED: Include rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) with each call. These fields are optional but strongly encouraged \u2014 they improve transparency and should normally be included. Use suggest: true to route for human review.";
+  "INTENT ENCOURAGED: Include rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) with each call. These fields are optional but strongly encouraged — they improve transparency and should normally be included. Use suggest: true to route for human review.";
 const ADD_LABELS_STRICT_FIELD_DESC =
   'Labels to add. Each label must be an object with required fields: name (string), rationale (string, max 280 chars), and confidence (exactly one of: LOW, MEDIUM, HIGH). Plain string label names are not permitted. Example: [{"name": "bug", "rationale": "The report describes reproducible incorrect behavior.", "confidence": "HIGH"}]. Labels must exist in the repository.';
 const ADD_LABELS_OPTIONAL_FIELD_DESC =
@@ -265,14 +265,18 @@ async function main() {
             if (labelsSchema.items && Array.isArray(labelsSchema.items.oneOf)) {
               const objectSchema = labelsSchema.items.oneOf.find(/** @param {{type: string}} s */ s => s.type === "object");
               if (objectSchema) {
+                const sourceProperties = objectSchema.properties ?? {};
+                const strictProperties = { ...sourceProperties };
+                if (strictProperties.rationale) {
+                  strictProperties.rationale = { ...strictProperties.rationale, description: "Required rationale for the label (max 280 characters)." };
+                }
+                if (strictProperties.confidence) {
+                  strictProperties.confidence = { ...strictProperties.confidence, description: "Required confidence level for the label. Must be exactly one of: LOW, MEDIUM, HIGH." };
+                }
                 const strictItems = {
                   ...objectSchema,
                   required: ["name", "rationale", "confidence"],
-                  properties: {
-                    ...objectSchema.properties,
-                    ...(objectSchema.properties?.rationale ? { rationale: { ...objectSchema.properties.rationale, description: "Required rationale for the label (max 280 characters)." } } : {}),
-                    ...(objectSchema.properties?.confidence ? { confidence: { ...objectSchema.properties.confidence, description: "Required confidence level for the label. Must be exactly one of: LOW, MEDIUM, HIGH." } } : {}),
-                  },
+                  properties: strictProperties,
                 };
                 labelsSchema.items = strictItems;
                 delete labelsSchema.items.oneOf;
