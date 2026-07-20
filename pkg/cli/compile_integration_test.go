@@ -24,6 +24,11 @@ var (
 	binaryTempDir    string
 )
 
+const (
+	windowsRemoveRetries    = 10
+	windowsRemoveRetryDelay = 100 * time.Millisecond
+)
+
 // TestMain builds the gh-aw binary once before running tests
 func TestMain(m *testing.M) {
 	// Get project root
@@ -232,7 +237,7 @@ Please check the repository for any open issues and create a summary.
 func removeAllWithRetry(path string) error {
 	attempts := 1
 	if runtime.GOOS == "windows" {
-		attempts = 10
+		attempts = windowsRemoveRetries
 	}
 
 	var err error
@@ -244,7 +249,7 @@ func removeAllWithRetry(path string) error {
 		if runtime.GOOS != "windows" {
 			return err
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(windowsRemoveRetryDelay)
 	}
 
 	return err
