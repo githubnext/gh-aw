@@ -356,6 +356,11 @@ steps:
       echo "  readme_community_section_tier012.md — pre-formatted README section (Tier 0-2 only)"
 features:
   gh-aw-detection: true
+evals:
+  - id: community_contributions_scanned
+    question: Did the agent scan community-labeled issues and attribute contributions using the five-tier strategy?
+  - id: readme_or_wiki_updated
+    question: Was the README community section or the Community Contributors wiki page updated, or was noop used when no changes were needed?
 ---
 
 # Daily Community Attribution Updater

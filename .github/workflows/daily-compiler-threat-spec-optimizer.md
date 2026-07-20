@@ -60,6 +60,11 @@ tools:
 tracker-id: daily-compiler-threat-spec-optimizer
 features:
   gh-aw-detection: true
+evals:
+  - id: threat_coverage_analyzed
+    question: Did the agent reconcile compiler threat coverage with W3C specification-driven detection rules?
+  - id: gap_report_or_issue_created
+    question: Was a gap report or issue created for uncovered threats, or was noop used when coverage was complete?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

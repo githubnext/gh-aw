@@ -64,6 +64,11 @@ experiments:
     weight: [50, 50]
     start_date: "2026-06-09"
 
+evals:
+  - id: errored_calls_analyzed
+    question: Did the agent analyze gateway logs for errored safe output tool calls?
+  - id: issues_created_or_noop
+    question: Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?
 ---
 
 # Safe Output Tool Optimizer

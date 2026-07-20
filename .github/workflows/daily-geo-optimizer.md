@@ -122,6 +122,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: geo_audit_performed
+    question: Did the agent audit the README and documentation site using the geo-optimizer skill?
+  - id: recommendations_or_pr_created
+    question: Were GEO improvement recommendations produced or a PR created, or was noop used when no improvements were needed?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

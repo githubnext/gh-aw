@@ -32,6 +32,11 @@ imports:
     with:
       title-prefix: "[daily secrets] "
   - shared/otlp.md
+evals:
+  - id: secrets_analyzed
+    question: Did the agent analyze secret usage patterns across compiled lock.yml workflow files?
+  - id: report_created
+    question: Was a secrets analysis report produced with findings and recommendations?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

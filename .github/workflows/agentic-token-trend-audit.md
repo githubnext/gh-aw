@@ -89,6 +89,11 @@ steps:
         echo '{"runs":[],"summary":{}}' > /tmp/gh-aw/token-audit/workflow-logs.json
       fi
 timeout-minutes: 25
+evals:
+  - id: date_range_analyzed
+    question: Did the agent analyze AIC usage for the user-specified date range?
+  - id: trend_report_created
+    question: Was a trend report created with per-workflow AIC data for the requested period?
 ---
 
 # On-Demand Agentic Workflow AIC Trend Audit

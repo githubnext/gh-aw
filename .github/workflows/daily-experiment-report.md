@@ -55,6 +55,11 @@ safe-outputs:
 timeout-minutes: 30
 features:
   gh-aw-detection: true
+evals:
+  - id: experiments_analyzed
+    question: Did the agent list active experiments and compute per-variant success rates and statistical significance?
+  - id: discussion_with_recommendations_created
+    question: Was a discussion created with charts, comparison tables, and promote/extend/abandon recommendations?
 ---
 
 # Daily Experiment Report

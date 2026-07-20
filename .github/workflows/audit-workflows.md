@@ -59,6 +59,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: workflow_runs_audited
+    question: Did the agent audit agentic workflow runs from the last 24 hours?
+  - id: issues_identified_or_noop
+    question: Were issues, missing tools, errors, and improvement opportunities identified, or was noop used when no problems were found?
 ---
 
 # Agentic Workflow Audit Agent

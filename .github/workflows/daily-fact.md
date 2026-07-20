@@ -68,6 +68,9 @@ imports:
   - shared/mcp/mempalace.md
 features:
   gh-aw-detection: true
+evals:
+  - id: verse_posted
+    question: Did the agent post a daily poetic verse about the gh-aw project to a discussion thread?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
