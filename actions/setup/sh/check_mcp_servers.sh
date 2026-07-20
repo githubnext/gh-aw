@@ -248,15 +248,7 @@ done <<< "$SERVER_NAMES"
 # Print summary
 print_timing $SCRIPT_START_TIME "Overall MCP server checks"
 echo ""
-if [ $SERVERS_SUCCEEDED -eq 0 ]; then
-  echo "ERROR: No HTTP servers were successfully checked"
-  echo "This could indicate:"
-  echo "  - No HTTP-type MCP servers were configured"
-  echo "  - All configured servers are stdio-type (which are skipped by this check)"
-  echo ""
-  echo "If you expected HTTP servers to be configured, check the gateway configuration."
-  exit 1
-elif [ $REQUIRED_SERVERS_FAILED -gt 0 ]; then
+if [ $REQUIRED_SERVERS_FAILED -gt 0 ]; then
   echo "ERROR: $REQUIRED_SERVERS_FAILED required server(s) failed connectivity check"
   echo "Succeeded: $SERVERS_SUCCEEDED, Failed: $SERVERS_FAILED, Skipped: $SERVERS_SKIPPED"
   echo ""
@@ -267,6 +259,25 @@ elif [ $REQUIRED_SERVERS_FAILED -gt 0 ]; then
   echo "  - Invalid or expired credentials (for example HTTP 401/403 on initialize)"
   echo "  - MCP server unavailable or rejecting requests"
   echo "  - Network connectivity or DNS issues"
+  echo ""
+  echo "Check the gateway logs and individual server logs for more details:"
+  echo "  /tmp/gh-aw/mcp-logs/stderr.log"
+  echo "  /tmp/gh-aw/mcp-logs/start-gateway.log"
+  exit 1
+elif [ $SERVERS_SUCCEEDED -eq 0 ] && [ $SERVERS_FAILED -eq 0 ]; then
+  echo "ERROR: No HTTP servers were successfully checked"
+  echo "This could indicate:"
+  echo "  - No HTTP-type MCP servers were configured"
+  echo "  - All configured servers are stdio-type (which are skipped by this check)"
+  echo ""
+  echo "If you expected HTTP servers to be configured, check the gateway configuration."
+  exit 1
+elif [ $SERVERS_SUCCEEDED -eq 0 ]; then
+  echo "ERROR: All $SERVERS_FAILED optional server(s) failed; no successful connections"
+  echo "Succeeded: 0, Failed: $SERVERS_FAILED, Skipped: $SERVERS_SKIPPED"
+  echo ""
+  echo "All configured HTTP MCP servers are optional but none connected successfully."
+  echo "At least one server must connect for the gateway to be considered healthy."
   echo ""
   echo "Check the gateway logs and individual server logs for more details:"
   echo "  /tmp/gh-aw/mcp-logs/stderr.log"
