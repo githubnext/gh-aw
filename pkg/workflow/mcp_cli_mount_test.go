@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"slices"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -247,10 +246,11 @@ func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *test
 		}
 
 		servers := getMCPCLIServerNames(data)
-		assert.Contains(t, servers, constants.SafeOutputsMCPServerID.String(), "safeoutputs remains present")
-		assert.Contains(t, servers, "github", "github CLI wrapper should be listed for Copilot")
-		assert.Contains(t, servers, "azure-devops", "custom MCP server wrappers should be listed for Copilot")
-		assert.True(t, slices.IsSorted(servers), "server list should remain sorted")
+		assert.Equal(t,
+			[]string{"azure-devops", constants.GitHubMCPServerID.String(), constants.SafeOutputsMCPServerID.String()},
+			servers,
+			"server list should contain all mounted servers in sorted order",
+		)
 	})
 
 	t.Run("copilot with cli-proxy only and github MCP (no safeoutputs) still advertises github", func(t *testing.T) {
@@ -270,9 +270,25 @@ func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *test
 		}
 
 		servers := getMCPCLIServerNames(data)
-		assert.Contains(t, servers, "github", "github CLI wrapper should be listed for Copilot even without safeoutputs")
-		assert.Contains(t, servers, "azure-devops", "custom MCP server wrappers should be listed for Copilot")
-		assert.True(t, slices.IsSorted(servers), "server list should remain sorted")
+		assert.Equal(t,
+			[]string{"azure-devops", constants.GitHubMCPServerID.String()},
+			servers,
+			"server list should contain all mounted servers in sorted order",
+		)
+	})
+
+	t.Run("copilot without any CLI mount trigger returns nil (github not added)", func(t *testing.T) {
+		// Boundary condition: no safeoutputs, no mcpscripts, no cli-proxy.
+		// The Copilot augmentation block must not activate and github must not appear.
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: string(constants.CopilotEngine)},
+			Tools:        map[string]any{"github": true},
+			ParsedTools:  NewTools(map[string]any{"github": true}),
+			// SafeOutputs intentionally nil, CLIProxy false
+		}
+
+		servers := getMCPCLIServerNames(data)
+		assert.Nil(t, servers, "no CLI mount trigger active → Copilot block skipped, github not advertised")
 	})
 
 	t.Run("non-copilot keeps existing behavior", func(t *testing.T) {
