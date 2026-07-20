@@ -464,7 +464,6 @@ describe("sanitize_content_core.cjs – parser internals", () => {
     // when f is idempotent – result should equal single application.
     it("idempotent fn gives same result on second application (fuzz seed)", () => {
       const idempotentFn = s => s.replace(/\{\{/g, "X{{X").replace(/X\{\{X/g, "\\{\\{");
-      // eslint-disable-next-line no-unused-vars
       for (const input of seedCases) {
         const once = applyToNonCodeRegions(input, idempotentFn);
         const twice = applyToNonCodeRegions(once, idempotentFn);
