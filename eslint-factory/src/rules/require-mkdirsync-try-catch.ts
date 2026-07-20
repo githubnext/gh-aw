@@ -25,7 +25,7 @@ export const requireMkdirSyncTryCatchRule = createRule({
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
-    const resolveFsSyncMethod = createFsSyncMethodResolver(sourceCode, FS_SYNC_METHODS);
+    const resolveFsSyncMethod = createFsSyncMethodResolver(sourceCode, FS_SYNC_METHODS, { allowUnboundFsIdentifier: true });
 
     return {
       CallExpression(node) {
