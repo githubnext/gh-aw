@@ -9,7 +9,9 @@ describe("mcp_scripts_validation.cjs", () => {
     try {
       const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
       const updateIssueTool = tools.find(tool => tool.name === "update_issue");
-      expect(updateIssueTool, "update_issue tool should exist in safe_outputs_tools.json").toBeDefined();
+      if (!updateIssueTool) {
+        throw new Error("Expected a tool definition named 'update_issue' in safe_outputs_tools.json");
+      }
       return updateIssueTool.inputSchema;
     } catch (error) {
       throw new Error(`Failed to load or parse safe outputs tool schema at ${toolsPath}. Expected a JSON array containing an 'update_issue' tool definition. Cause: ${error.message}`);
