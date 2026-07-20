@@ -67,6 +67,11 @@ tools:
 tracker-id: mcp-concurrency-analysis
 features:
   gh-aw-detection: true
+evals:
+  - id: concurrency_analyzed
+    question: Did the agent analyze safe-outputs MCP server tools for thread-safety and race conditions?
+  - id: findings_reported_or_noop
+    question: Were concurrency issues reported, or was noop used when all tools were thread-safe?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

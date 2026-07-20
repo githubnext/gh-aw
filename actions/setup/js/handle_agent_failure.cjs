@@ -2184,10 +2184,8 @@ function buildAssignmentErrorsContext(assignmentErrors) {
     return "";
   }
 
-  let context = buildWarningAlertLine("Agent Assignment Failed", "Failed to assign agent to issues or pull requests.");
-  context += "\n**Assignment Errors:**\n";
-
   const errorLines = assignmentErrors.split("\n").filter(line => line.trim());
+  let renderedErrors = "";
   for (const errorLine of errorLines) {
     const parts = errorLine.split(":");
     if (parts.length >= 4) {
@@ -2195,16 +2193,15 @@ function buildAssignmentErrorsContext(assignmentErrors) {
       const number = parts[1];
       const agent = parts[2];
       const error = parts.slice(3).join(":");
-      context += `- ${type === "issue" ? "Issue" : "PR"} #${number} (agent: ${agent}): ${error}\n`;
+      renderedErrors += `- ${type === "issue" ? "Issue" : "PR"} #${number} (agent: ${agent}): ${error}\n`;
     }
   }
 
-  context += "\nTo resolve this, verify the agent token and Copilot access configuration:\n";
-  context += "- Configure a valid `GH_AW_AGENT_TOKEN` as a fine-grained PAT with **Agent tasks: read and write** permission (GitHub App installation tokens are not supported)\n";
-  context += "- Ensure Copilot coding agent is enabled for this repository and a Copilot Business or Enterprise subscription is active\n";
-  context += "- Docs: https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication\n\n";
-
-  return context;
+  const templatePath = getPromptPath("copilot_assignment_errors_context.md");
+  return renderTemplateFromFile(templatePath, {
+    warning_line: buildWarningAlertLine("Agent Assignment Failed", "Failed to assign agent to issues or pull requests."),
+    assignment_errors: renderedErrors.trimEnd(),
+  });
 }
 /**
  * Build a context string when assigning the Copilot coding agent to created issues failed.

@@ -47,6 +47,11 @@ sandbox:
     sudo: false
 tools:
   cli-proxy: true
+evals:
+  - id: ace_link_generated
+    question: Did the agent generate an ACE editor session link in response to the /ace command?
+  - id: comment_posted
+    question: Was a comment posted to the pull request with the ACE editor link?
 ---
 
 Classic action that generates an ACE editor session link on pull request comment slash command.

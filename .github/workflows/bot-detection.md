@@ -835,6 +835,11 @@ safe-outputs:
 timeout-minutes: 10
 strict: true
 
+evals:
+  - id: activity_investigated
+    question: Did the agent investigate suspicious repository activity?
+  - id: triage_issue_updated_or_noop
+    question: Was the triage issue updated with findings, or was noop correctly used when no suspicious activity was detected?
 ---
 
 # Bot Detection

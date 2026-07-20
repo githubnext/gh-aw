@@ -142,6 +142,11 @@ imports:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: security_data_analyzed
+    question: Did the agent analyze firewall traffic and DIFC integrity-filtered events for the reporting period?
+  - id: unified_report_created
+    question: Was a unified security observability report created combining both data sources?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

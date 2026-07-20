@@ -65,6 +65,11 @@ tools:
     toolsets:
     - default
 tracker-id: daily-safe-output-integrator
+evals:
+  - id: safe_output_coverage_checked
+    question: Did the agent inspect test workflows for safe-output coverage and detect any missing types?
+  - id: pr_created_or_noop
+    question: Was a PR created with new test workflows and compilation tests for missing safe-output types, or was noop used when coverage was complete?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -134,6 +134,11 @@ steps:
 
 timeout-minutes: 30
 strict: true
+evals:
+  - id: code_analyzed
+    question: Did the agent analyze recently modified code for simplification opportunities?
+  - id: pr_created_or_noop
+    question: Was a pull request created with simplifications, or was noop used when no improvements were needed?
 ---
 
 # Code Simplifier Agent

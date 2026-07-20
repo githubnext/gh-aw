@@ -39,6 +39,11 @@ tools:
   edit:
 imports:
   - shared/otlp.md
+evals:
+  - id: firewall_data_collected
+    question: Did the agent collect firewall log events for the reporting period?
+  - id: report_with_charts_created
+    question: Was a report created with trend charts and network security analysis?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

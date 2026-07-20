@@ -35,6 +35,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: observability_data_analyzed
+    question: Did the agent analyze logging and telemetry coverage for AWF firewall and MCP Gateway?
+  - id: report_created
+    question: Was an observability report created identifying gaps and trends?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

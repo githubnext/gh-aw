@@ -65,6 +65,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: hippo_learn_executed
+    question: Did the agent run hippo-memory's learn and sleep commands on recent git commits?
+  - id: improvements_suggested
+    question: Were actionable improvement suggestions produced from the consolidated memory store?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
