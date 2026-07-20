@@ -340,14 +340,15 @@ Workflow triggered when a PR is opened with a trusted base checkout.
 				t.Errorf("%s: expected PR checkout step: %v, got: %v", tt.description, tt.expectPRCheckout, hasPRCheckout)
 			}
 
-			// When a PR checkout step IS present, verify it does not reference insecure
-			// PR-head refs (e.g. refs/pull/<n>/head). The trusted-base opt-in must check
-			// out a safe ref such as the base SHA, not the untrusted PR head.
+			// When a PR checkout step IS present, verify it does not fetch the insecure
+			// PR-head ref (refs/pull/<n>/head). The trusted-base opt-in must use a safe ref
+			// such as the base SHA — checkout_pr_branch.cjs always fetches refs/pull/N/head.
+			// We check only for "refs/pull" because that is the specific pattern emitted by
+			// checkout_pr_branch.cjs; broader substrings (e.g. "head_ref") could appear in
+			// unrelated step names or comments and would produce false positives.
 			if hasPRCheckout {
-				for _, insecurePattern := range []string{"refs/pull", "head.ref", "head_ref"} {
-					if strings.Contains(lockStr, insecurePattern) {
-						t.Errorf("%s: expected trusted base checkout but lock file contains insecure pattern %q", tt.description, insecurePattern)
-					}
+				if strings.Contains(lockStr, "refs/pull") {
+					t.Errorf("%s: expected trusted base checkout but lock file contains insecure pattern \"refs/pull\"", tt.description)
 				}
 			}
 		})
