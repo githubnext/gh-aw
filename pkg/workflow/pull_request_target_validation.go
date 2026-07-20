@@ -59,7 +59,9 @@ var pullRequestTargetGitHubExpressionPattern = regexp.MustCompile(`^\$\{\{\s*([^
 //
 // In strict mode, a warning is always emitted that pull_request_target is inherently dangerous
 // even with checkout disabled, since the workflow still runs with elevated permissions.
-// This strict behavior is disabled when the workflow frontmatter explicitly sets strict: false.
+// When the workflow frontmatter sets strict: false, effectiveStrictMode is lowered so the
+// dangerous-trigger strict-only warning is skipped; the insecure-checkout check still runs
+// and emits a non-strict warning when checkout is not explicitly disabled.
 func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, markdownPath string) error {
 	// Fast path: skip expensive YAML parsing when the On field cannot possibly contain
 	// a pull_request_target trigger. This avoids yaml.Unmarshal on every
@@ -97,21 +99,11 @@ func (c *Compiler) validatePullRequestTargetTrigger(workflowData *WorkflowData, 
 	}
 
 	effectiveStrictMode := c.strictMode
-	frontmatterOptOut := false
 	if workflowData.RawFrontmatter != nil {
 		if strictBool, ok := workflowData.RawFrontmatter["strict"].(bool); ok && !strictBool {
 			pullRequestTargetLog.Print("Frontmatter strict: false detected, disabling strict mode error for pull_request_target validation")
 			effectiveStrictMode = false
-			frontmatterOptOut = true
 		}
-	}
-
-	// If the workflow frontmatter explicitly opts out of strict mode (strict: false), skip all
-	// pull_request_target security warnings. The author has acknowledged the risks and chosen to
-	// suppress these diagnostics for their specific use case.
-	if frontmatterOptOut {
-		pullRequestTargetLog.Print("Frontmatter strict: false opt-out detected, skipping all pull_request_target security warnings")
-		return nil
 	}
 
 	// In strict mode, always emit a warning that pull_request_target is a very dangerous trigger,

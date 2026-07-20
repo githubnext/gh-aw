@@ -97,9 +97,7 @@ func (c *Compiler) buildInitialWorkflowData(
 	if toolsResult.parsedFrontmatter != nil {
 		workflowData.CheckoutConfigs = toolsResult.parsedFrontmatter.CheckoutConfigs
 		workflowData.CheckoutDisabled = toolsResult.parsedFrontmatter.CheckoutDisabled
-		if toolsResult.parsedFrontmatter.CheckoutDisabled {
-			workflowData.CheckoutExplicitlyDisabled = true
-		}
+		workflowData.CheckoutExplicitlyDisabled = toolsResult.parsedFrontmatter.CheckoutExplicitlyDisabled
 	} else if rawCheckout, ok := result.Frontmatter["checkout"]; ok {
 		if checkoutValue, ok := rawCheckout.(bool); ok && !checkoutValue {
 			workflowData.CheckoutDisabled = true
