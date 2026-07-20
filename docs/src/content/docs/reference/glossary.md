@@ -174,6 +174,14 @@ The simplest useful unit for measuring workflow effectiveness. An outcome is acc
 
 A cost-quality metric computed as AI Credits (AIC) divided by accepted outcomes. Lower values indicate the workflow consumed fewer AI Credits per accepted result. Outcome efficiency makes the difference between cost savings from genuine efficiency gains and cost savings from doing less useful work. See [Measuring Impact](/gh-aw/reference/measuring-impact/).
 
+### Safe Output Outcome Evaluation
+
+The process of measuring what happened after a safe output was applied, based on observable repository state. For each safe output type (create-issue, create-pull-request, add-comment, etc.), outcome evaluation checks whether the output was accepted — for example, whether a pull request was merged or an issue was resolved — using type-specific evaluation rules. Evaluations are time-bounded (default: 48 hours) and bot-aware. See also: [Safe Output Outcome Evaluation Specification](https://github.com/github/gh-aw/blob/main/specs/safe-output-outcome-evaluation.md) for the normative evaluation logic and OTel attribute definitions. See [Outcomes](/gh-aw/reference/outcomes/) for the evaluation states and their criteria.
+
+### Intent Attribution
+
+The process of connecting a GitHub artifact (pull request, issue, or commit) to the structured work context that motivated it — such as an initiative, priority domain, root issue, or risk classification. Intent attribution provides a deterministic record of why an agent acted, enabling governance decisions (what the agent may do, whether human approval is required) and attribution reporting (which outcomes supported which goals). Attribution is resolved through a priority-ordered chain of signals: explicit intent overrides, linked closing issues, PR body keywords, and fallback heuristics. See also: [Intent Attribution & Agent Governance Specification](https://github.com/github/gh-aw/blob/main/specs/intent-attribution-agent-governance.md) for normative resolution rules and governance requirements.
+
 ### Pwn Request
 
 A critical security vulnerability that occurs when a `pull_request_target` workflow checks out and executes code from a fork PR. Because `pull_request_target` runs in the context of the target (base) branch with full write permissions and access to repository secrets, executing untrusted fork code grants an attacker the ability to exfiltrate secrets or make unauthorized changes. The compiler emits a warning (non-strict mode) or a hard error (strict mode) when `pull_request_target` is used without `checkout: false`. Add `checkout: false` to prevent the insecure checkout; use `pull_request` instead when you do not need write-back access. See the [GitHub Security Lab advisory on pwn requests](https://securitylab.github.com/resources/github-actions-preventing-pwn-requests/).
@@ -1172,6 +1180,10 @@ See [ARC](#arc-actions-runner-controller) and [Sandbox Configuration](/gh-aw/ref
 
 The default coding agent sandbox that isolates AI agent execution in a container with network egress control through domain-based access lists. AWF makes the host filesystem and environment variables available inside the container while restricting outbound network access to configured domains. Enabled with `sandbox.agent: awf` (the default when `sandbox` is not specified). Use `sandbox.agent.version` to pin a specific AWF release for reproducible builds. See [Sandbox Configuration](/gh-aw/reference/sandbox/).
 
+### AWF Config Sources
+
+The canonical set of configuration references in `github/gh-aw-firewall` that gh-aw agents and schema reconciliation workflows MUST consult when generating or validating AWF configuration behavior. The canonical sources include the processing model specification (`docs/awf-config-spec.md`), JSON schemas for each config section, and a set of annotated reference fixtures. Using a non-canonical source for AWF config generation risks schema drift, which the daily schema-consistency-checker workflow detects. See also: [AWF Config Canonical Sources Specification](https://github.com/github/gh-aw/blob/main/specs/awf-config-sources-spec.md) for the normative list of canonical documents and the drift-detection requirements.
+
 ### AWF Reflect Route (`/reflect`)
 
 A runtime HTTP endpoint exposed by the AWF API proxy at `http://api-proxy:10000/reflect`. Returns the currently configured inference providers and their model availability for the active run. Use this route in shared workflows or tools that need to discover gateway endpoints, check provider availability, or select a model dynamically at runtime without hardcoding upstream API URLs. The response includes an `endpoints` array (with `provider`, `base_url`, `configured`, and `models` fields) and a `models_fetch_complete` flag. See [AWF Reflect Route](/gh-aw/experimental/awf-reflect/).
@@ -1393,11 +1405,11 @@ Manual workflow execution via GitHub Actions UI or CLI using `workflow_dispatch`
 
 ### IssueOps
 
-Automated issue management that analyzes, categorizes, and responds to issues when created. Uses issue event triggers with safe outputs for secure automated triage without requiring write permissions for the AI job. See [IssueOps Examples](/gh-aw/patterns/issue-ops/).
+Automated issue management that analyzes, categorizes, and responds to issues when created. Uses issue event triggers with safe outputs for secure automated triage without requiring write permissions for the AI job. See [IssueOps Examples](/gh-aw/patterns/issue-ops/). See also: [Intent Attribution & Agent Governance Specification](https://github.com/github/gh-aw/blob/main/specs/intent-attribution-agent-governance.md) for governance rules governing what an agent may do when acting on an issue.
 
 ### LabelOps
 
-Workflows triggered by label changes on issues and pull requests. Uses labels as triggers, metadata, and state markers with filtering for specific label additions or removals. See [LabelOps Examples](/gh-aw/patterns/label-ops/).
+Workflows triggered by label changes on issues and pull requests. Uses labels as triggers, metadata, and state markers with filtering for specific label additions or removals. See [LabelOps Examples](/gh-aw/patterns/label-ops/). See also: [Replace Label Specification](https://github.com/github/gh-aw/blob/main/specs/replace-label-spec.md) for the normative definition of label-replacement safe output behavior.
 
 ### MemoryOps
 
@@ -1417,7 +1429,7 @@ A [MultiRepoOps](#multirepoops) topology where workflows run from a separate ded
 
 ### SpecOps
 
-Maintaining and propagating W3C-style specifications using the `w3c-specification-writer` agent. Creates formal specifications with RFC 2119 keywords and automatically synchronizes changes to consuming implementations. See [SpecOps](/gh-aw/patterns/spec-ops/).
+Maintaining and propagating W3C-style specifications using the `w3c-specification-writer` agent. Creates formal specifications with RFC 2119 keywords and automatically synchronizes changes to consuming implementations. See [SpecOps](/gh-aw/patterns/spec-ops/). See also: [Compiler Threat Detection Specification](https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md) — an example of a formal specification maintained and propagated using the SpecOps pattern.
 
 ### ResearchPlanAssignOps
 

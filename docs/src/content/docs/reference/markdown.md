@@ -82,7 +82,41 @@ See [Editing Workflows](/gh-aw/guides/editing-workflows/) for complete guidance 
 
 ## Markdown Scanning
 
-The markdown body of workflows (excluding frontmatter) is automatically scanned for malicious content when added via `gh aw add`, during trial mode, and at compile time for imported files. The scanner rejects workflows containing: Unicode abuse (zero-width characters, bidirectional overrides), hidden content (suspicious HTML comments, CSS-hidden elements), obfuscated links (data URIs, `javascript:` URLs, IP-based URLs, URL shorteners), dangerous HTML tags (`<script>`, `<iframe>`, `<object>`, `<form>`, event handlers), embedded executable content (SVG scripts, executable MIME data URIs), and social engineering patterns (prompt injection, base64-encoded commands, pipe-to-shell patterns). These checks cannot be overridden.
+The markdown body of workflows (excluding frontmatter) MUST be scanned for malicious content when added via `gh aw add`, during trial mode, and at compile time for imported files. The scanner MUST reject workflows that contain any of the following threat categories:
+
+- **Unicode abuse**: zero-width characters, bidirectional overrides
+- **Hidden content**: suspicious HTML comments, CSS-hidden elements
+- **Obfuscated links**: data URIs, `javascript:` URLs, IP-based URLs, URL shorteners
+- **Dangerous HTML tags**: `<script>`, `<iframe>`, `<object>`, `<form>`, event handlers
+- **Embedded executable content**: SVG scripts, executable MIME data URIs
+- **Social engineering patterns**: prompt injection, base64-encoded commands, pipe-to-shell patterns
+
+These checks MUST NOT be overridden or suppressed by workflow configuration.
+
+Frontmatter-only files that contain no markdown body SHOULD be exempt from scanning.
+
+See also: [Compiler Threat Detection Specification](https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md) (rule CTR-007) for the normative definition of each scan category and its enforcement requirements.
+
+## Norms
+
+The following normative statements define when and how markdown scanner checks are enforced.
+
+| Check category | Enforcement point | Result when fired | Configurable? |
+|---|---|---|---|
+| Unicode abuse | Compile-time (imported files) and `gh aw add` / trial ingest | **Error** — workflow is rejected | No |
+| Hidden content | Compile-time (imported files) and `gh aw add` / trial ingest | **Error** — workflow is rejected | No |
+| Obfuscated links | Compile-time (imported files) and `gh aw add` / trial ingest | **Error** — workflow is rejected | No |
+| Dangerous HTML tags | Compile-time (imported files) and `gh aw add` / trial ingest | **Error** — workflow is rejected | No |
+| Embedded executable content | Compile-time (imported files) and `gh aw add` / trial ingest | **Error** — workflow is rejected | No |
+| Social engineering patterns | Compile-time (imported files) and `gh aw add` / trial ingest | **Error** — workflow is rejected | No |
+
+Normative requirements:
+
+- Implementations MUST apply all categories listed above at both the `gh aw add` ingest path and the compile-time import path.
+- Scan results MUST be deterministic: the same input MUST always produce the same finding list.
+- Operators MUST NOT configure workflows to bypass scan checks. There is no per-rule suppression mechanism.
+- Implementations MUST NOT scan the root workflow file (the file declaring the workflow's trigger and configuration) — scans apply only to externally-sourced markdown imported via the `imports:` directive or added via `gh aw add`.
+- Implementations SHOULD surface scan findings with the line number, threat category, and a short description of the match to aid diagnosis.
 
 ## Temporary File Paths in Prompts
 

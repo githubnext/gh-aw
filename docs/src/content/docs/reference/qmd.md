@@ -67,6 +67,14 @@ tools:
 ---
 ```
 
+**Missing or expired cache behavior:** When the configured `cache-key` is absent (the cache was never populated or has been evicted by GitHub Actions' 7-day cache expiry policy):
+
+- qmd MUST log a warning describing the missing cache key.
+- The agent job MUST proceed with an empty search index — it MUST NOT abort.
+- `qmd_search` tool calls will return no results until the index is rebuilt.
+- Operators SHOULD monitor for empty index warnings and re-run or pre-populate the cache key when eviction is detected.
+- When `checkouts` or `searches` are also configured alongside a `cache-key`, qmd MUST rebuild the index from those sources during the current run regardless of cache availability.
+
 ### `gpu`
 
 Enable GPU acceleration for the embedding model (`node-llama-cpp`). Defaults to `false`: `NODE_LLAMA_CPP_GPU=false` is injected into the indexing step so GPU probing is skipped on CPU-only runners. Set to `true` only when the indexing runner has a GPU.
@@ -175,6 +183,18 @@ tools:
       - pattern: "docs/**/*.md"
 ---
 ```
+
+## Norms
+
+The following normative statements govern qmd cache-key management, index staleness, and performance expectations.
+
+- Cache keys SHOULD be rotated at least once per week to prevent index drift as documentation sources change. Dynamic cache keys using `${{ github.run_id }}` MUST produce a fresh index on every run. Static cache keys MUST share one index across all runs until the key is manually invalidated or expired.
+- Stale indexes (restored from a cache key whose content has diverged from the source files) are accepted by the agent without error. Operators who require freshness guarantees SHOULD include a content hash or date component in the `cache-key` expression to force periodic rebuilds.
+- Index builds SHOULD complete within 5 minutes for collections up to 10,000 files. Collections that exceed this budget SHOULD use `searches` queries in place of broad `checkouts` patterns to reduce the file set.
+- When a `cache-key` is set without indexing sources, the index MUST be treated as read-only.
+- Any attempt to write to the index in read-only mode MUST be rejected and reported as a tool call error to the agent.
+- The agent job itself MUST continue running after a read-only write rejection; the error MUST NOT abort the job.
+- Implementations MUST NOT fail the agent job when the cache is absent; the agent MUST proceed with an empty search index and log a diagnostic warning (see [`cache-key` → Missing or expired cache behavior](#cache-key)).
 
 ## Related Documentation
 

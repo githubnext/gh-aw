@@ -576,6 +576,42 @@ These are rough estimates to help with budgeting. Actual costs vary by prompt si
 > [!TIP]
 > Create separate `COPILOT_GITHUB_TOKEN` service accounts per repository or team to attribute spend by workflow.
 
+## Safeguards
+
+The following failure modes affect cost measurement and observability. In each case gh-aw continues execution with degraded visibility rather than aborting the workflow.
+
+### AIC Computation Failure (models.dev Unreachable)
+
+When the [models.dev](https://models.dev/) pricing catalog is unavailable at compile time or at run startup:
+
+- AIC values MUST fall back to the bundled pricing snapshot (a copy of the models.dev catalog embedded in the `gh aw` binary at build time).
+- The harness MUST NOT abort a run solely because pricing data could not be refreshed.
+- AIC values derived from the bundled snapshot are displayed with a `(cached prices)` annotation in `gh aw logs` output.
+- Operators SHOULD verify AIC totals in their provider billing dashboard when using stale pricing data.
+
+When no pricing entry exists for the model used in a run (for example, a private or newly released model with no catalog entry):
+
+- AIC MUST be reported as `0`.
+- The run MUST proceed — missing pricing MUST NOT abort the workflow.
+- `gh aw logs` displays `—` in the AIC column for unpriced models.
+- Add a [`models.providers` frontmatter override](/gh-aw/reference/faq/#how-do-i-supply-pricing-for-a-custom-or-private-model) to supply pricing for custom or unlisted models.
+
+### `gh aw logs` Unavailability
+
+When `gh aw logs` cannot fetch workflow run data (for example due to a GitHub API error or missing `actions: read` permission), the CLI MUST print an actionable error message and exit with a non-zero status.
+
+Cost data is not lost in this situation. Run summaries are persisted in the `usage` artifact attached to each workflow run. The artifact contains JSON-formatted run summary data including AIC totals, per-step token counts, and run metadata.
+
+Retrieve historical cost data directly from artifacts when `gh aw logs` is unavailable:
+
+```bash
+gh run download <run-id> --name usage
+```
+
+### OTLP Endpoint Unreachable
+
+When the configured `observability.otlp.endpoint` is unreachable or returns an error, the workflow MUST NOT fail. Span export errors are logged as warnings in the workflow step summary but do not interrupt the agent or safe output jobs. Operators SHOULD monitor OTLP export failures by checking step summary output or by setting up a health probe on the collector endpoint. Cost and token usage data remains available through `gh aw logs` and `gh aw audit` regardless of OTLP availability.
+
 ## Related Documentation
 
 - [Audit Commands](/gh-aw/reference/audit/) - Single-run analysis, diff, and cross-run reporting

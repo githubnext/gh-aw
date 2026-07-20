@@ -86,6 +86,31 @@ cost per unique accepted outcome looks like across the system,
 and which workflows add unique value rather than repeating other
 automation.
 
+Teams SHOULD define explicit acceptance thresholds before deploying
+a workflow to production. The following starting-point thresholds are
+a baseline recommendation — adjust them based on your workflow's task type,
+frequency, and business context:
+
+| Metric | Starting-point threshold | Notes |
+|---|---|---|
+| Completion rate | ≥ 90% | Runs that complete all steps and exit without an unhandled error (exit code 0) |
+| Useful output rate | ≥ 70% | Runs that produce at least one accepted safe output |
+| Acceptance rate | ≥ 50% | Accepted outcomes divided by total safe outputs produced |
+| Cost per accepted outcome | Establish a baseline in the first two weeks, then alert on 2x regression | Use AIC from `gh aw logs` divided by accepted outcome count |
+| Retry rate | ≤ 10% | Runs retried due to failure |
+
+These are baseline recommendations, not hard limits. A triage
+workflow operating at 40% acceptance may still be net-positive if
+the accepted cases save significant reviewer time. Document the
+chosen thresholds in a `MONITORING.md` or in workflow frontmatter
+comments so the team can revisit them as the workflow matures.
+
+> [!NOTE]
+> For spend controls and AIC budget configuration, see
+> [Cost Management](/gh-aw/reference/cost-management/). For
+> downstream result tracking and outcome state definitions, see
+> [Outcomes](/gh-aw/reference/outcomes/).
+
 ## System Overlap and Waste
 
 Waste is any cost, time, or reviewer attention that does not
@@ -105,6 +130,8 @@ system overlap decreasing.
 
 ## Related Documentation
 
-See [Cost management](/gh-aw/reference/cost-management/) for spend
-controls and [Outcomes](/gh-aw/reference/outcomes/) for downstream
-result tracking.
+See [Cost Management](/gh-aw/reference/cost-management/) for spend
+controls and AIC budget configuration — including failure safeguards
+when pricing data is unavailable. See [Outcomes](/gh-aw/reference/outcomes/)
+for downstream result tracking, acceptance criteria, and outcome state
+definitions.
