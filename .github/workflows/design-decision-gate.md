@@ -13,6 +13,10 @@ on:
       - 'pkg/**'
       - 'docs/adr/**'
       - '.design-gate.yml'
+      - 'eslint-factory/**'
+      - 'scripts/**'
+      - 'tools.go'
+      - '.github/workflows/**'
   slash_command:
     strategy: centralized
     name: review
