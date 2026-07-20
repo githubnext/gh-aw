@@ -396,15 +396,13 @@ async function assignAgentToIssue(
 
   try {
     core.info(`Assigning via issues assignees REST API with login: ${agentLogin}`);
+    const assignee = useIssueIntent && intentMetadata && Object.keys(intentMetadata).length > 0 ? { login: agentLogin, ...intentMetadata } : agentLogin;
     const assignParams = {
       owner: targetOwner,
       repo: targetRepo,
       issue_number: issueNumber,
-      assignees: [agentLogin],
+      assignees: [assignee],
     };
-    if (useIssueIntent && intentMetadata && Object.keys(intentMetadata).length > 0) {
-      Object.assign(assignParams, intentMetadata);
-    }
     await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", assignParams);
     return true;
   } catch (error) {
