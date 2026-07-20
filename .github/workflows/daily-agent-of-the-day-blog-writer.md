@@ -43,10 +43,10 @@ tools:
     - "echo *"
     - "wc *"
     - "expr *"
-    - "git status*"
-    - "git diff*"
-    - "git add *"
-    - "git commit *"
+    - "git status"
+    - "git diff -- docs/src/content/docs/**"
+    - "git add docs/src/content/docs/**"
+    - "git commit -m *"
   github:
     mode: gh-proxy
     lockdown: false
@@ -95,7 +95,11 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
 
 - **There is no `shell` tool.** The command execution tool is named `bash`. Do not call `shell(...)` — it will be denied immediately.
 - **There is no `read` tool.** To inspect a file, use `bash` with `cat`: `cat path/to/file`. Do not call `read(...)` — it will be denied immediately.
-- Use only these git commands in `bash`: `git status`, `git diff`, `git add`, and `git commit`.
+- Use only these git commands in `bash`:
+  - `git status`
+  - `git diff -- docs/src/content/docs/**`
+  - `git add docs/src/content/docs/**`
+  - `git commit -m "<message>"`
 - Do not run branch-changing or remote git commands (`git checkout`, `git switch`, `git branch`, `git reset`, `git rebase`, `git merge`, `git cherry-pick`, `git push`, `git pull`, or any `git remote *`).
 
 #### Hard Requirements
