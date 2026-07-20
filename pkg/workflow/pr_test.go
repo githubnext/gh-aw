@@ -76,6 +76,26 @@ pull-requests: read`,
 	}
 }
 
+func TestShouldGeneratePRCheckoutStep_CheckoutDisabled(t *testing.T) {
+	t.Run("returns false when CheckoutDisabled is true even with contents read", func(t *testing.T) {
+		data := &WorkflowData{
+			Permissions:      "contents: read",
+			CheckoutDisabled: true,
+		}
+		result := ShouldGeneratePRCheckoutStep(data)
+		assert.False(t, result, "ShouldGeneratePRCheckoutStep() should return false when CheckoutDisabled is true")
+	})
+
+	t.Run("returns true when CheckoutDisabled is false with contents read", func(t *testing.T) {
+		data := &WorkflowData{
+			Permissions:      "contents: read",
+			CheckoutDisabled: false,
+		}
+		result := ShouldGeneratePRCheckoutStep(data)
+		assert.True(t, result, "ShouldGeneratePRCheckoutStep() should return true when CheckoutDisabled is false and permissions allow")
+	})
+}
+
 func TestGeneratePRReadyForReviewCheckout_IncludesWorkflowDispatchIssueCommentContext(t *testing.T) {
 	compiler := NewCompiler()
 	var yaml strings.Builder

@@ -105,6 +105,23 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
+	// Auto-disable checkout for pull_request_target workflows when not explicitly configured.
+	// For pull_request_target events, the head branch is often deleted (closed/merged PRs)
+	// or inaccessible (fork PRs), causing the "Checkout PR branch" step to fail.
+	// Users who need checkout can explicitly set a checkout configuration in frontmatter.
+	if len(workflowData.CheckoutConfigs) == 0 {
+		if _, checkoutExplicitlySet := result.Frontmatter["checkout"]; !checkoutExplicitlySet {
+			if onVal, ok := result.Frontmatter["on"]; ok {
+				if onMap, ok := onVal.(map[string]any); ok {
+					if _, hasPRT := onMap["pull_request_target"]; hasPRT {
+						workflowBuilderLog.Print("Auto-disabling checkout for pull_request_target workflow")
+						workflowData.CheckoutDisabled = true
+					}
+				}
+			}
+		}
+	}
+
 	// Merge checkout configs from imported shared workflows.
 	// Imported configs are appended after the main workflow's configs so that the main
 	// workflow's entries take precedence when CheckoutManager deduplicates by (repository, path).
