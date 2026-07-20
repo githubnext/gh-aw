@@ -22,7 +22,7 @@ permissions:
   discussions: read
   actions: read
 name: Smoke Copilot
-model: gpt-5.4
+model: auto
 engine:
   id: copilot
   max-continuations: 2

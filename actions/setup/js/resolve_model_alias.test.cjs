@@ -64,6 +64,18 @@ describe("resolve_model_alias", () => {
     expect(resolved).toBe("claude-sonnet-4.6");
   });
 
+  it("preserves the special Copilot auto mode instead of resolving the alias", () => {
+    const reflectData = {
+      endpoints: [{ configured: true, provider: "copilot", models: ["claude-sonnet-4.6", "gpt-5.4"] }],
+    };
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "auto",
+      aliasMap: ALIAS_MAP,
+      reflectData,
+    });
+    expect(resolved).toBe("auto");
+  });
+
   it("resolveConfiguredCopilotModel normalizes provider-qualified concrete id without alias map", () => {
     const resolved = resolveConfiguredCopilotModel({
       configuredModel: "copilot/claude-haiku-4.5",

@@ -286,6 +286,10 @@ function resolveConfiguredCopilotModel(options) {
   }
 
   const aliasKey = splitModelIdentifier(configuredModel).base;
+  if (aliasKey.toLowerCase() === "auto") {
+    logger(`copilot model alias resolution: preserving special Copilot model '${configuredModel}'`);
+    return configuredModel;
+  }
   if (!Object.prototype.hasOwnProperty.call(aliasMap, aliasKey)) {
     return normalizeForCopilotCLI(configuredModel);
   }

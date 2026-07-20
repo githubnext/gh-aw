@@ -18,6 +18,14 @@ func TestFindModelPricing(t *testing.T) {
 	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
 }
 
+func TestFindModelPricingAutoMatchesSonnet46Pricing(t *testing.T) {
+	autoPricing, ok := findModelPricing("anthropic", "auto")
+	require.True(t, ok)
+	sonnetPricing, ok := findModelPricing("anthropic", "claude-sonnet-4.6")
+	require.True(t, ok)
+	assert.Equal(t, sonnetPricing, autoPricing)
+}
+
 func TestComputeModelInferenceAIC(t *testing.T) {
 	aic := computeModelInferenceAIC("anthropic", "claude-sonnet-4.6", 1000, 200, 400, 50, 25)
 	assert.InDelta(t, 0.54825, aic, 1e-9)
