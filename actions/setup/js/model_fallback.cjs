@@ -10,6 +10,12 @@ function resolveModelWithFallback(env, primaryEnvVar) {
   return readTrimmedEnv(env, primaryEnvVar) || readTrimmedEnv(env, MODEL_FALLBACK_ENV_VAR);
 }
 
+/**
+ * @param {NodeJS.ProcessEnv} env
+ * @param {string} primaryEnvVar
+ * @param {(message: string) => void} [logger]
+ * @returns {string}
+ */
 function applyModelFallback(env, primaryEnvVar, logger = () => {}) {
   const primary = readTrimmedEnv(env, primaryEnvVar);
   if (primary) {
