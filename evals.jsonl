@@ -1,0 +1,2 @@
+{"id":"geo_audit_performed","question":"Did the agent audit the README and documentation site using the geo-optimizer skill?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-20T16:55:16.708Z","runid":"29761233522"}
+{"id":"recommendations_or_pr_created","question":"Were GEO improvement recommendations produced or a PR created, or was noop used when no improvements were needed?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-20T16:55:16.708Z","runid":"29761233522"}
