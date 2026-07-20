@@ -35,6 +35,7 @@ const path = require("path");
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
+const { resolveModelWithFallback } = require("./model_fallback.cjs");
 
 const EVALS_DIR = "/tmp/gh-aw/evals";
 const EVALS_LOG_PATH = "/tmp/gh-aw/evals/evals.log";
@@ -118,7 +119,7 @@ async function setupMain() {
  */
 async function parseMain() {
   const questionsRaw = process.env.GH_AW_EVALS_QUESTIONS;
-  const model = process.env.GH_AW_EVALS_MODEL || "";
+  const model = resolveModelWithFallback(process.env, "GH_AW_EVALS_MODEL") || "";
   const runID = process.env.GITHUB_RUN_ID || "unknown";
 
   /** @type {Array<{id: string, question: string}>} */

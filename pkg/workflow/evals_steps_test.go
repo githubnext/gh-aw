@@ -3,10 +3,12 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 // TestBuildEvalsEngineStepsArcDindTopology verifies that the evals job
@@ -195,6 +197,38 @@ func TestBuildParseEvalsResultsStepUsesResolvedExecutionModel(t *testing.T) {
 	}
 	if !strings.Contains(steps, "GITHUB_RUN_ID: ${{ github.run_id }}") {
 		t.Errorf("expected parse step to pass github.run_id through to the eval record writer; got:\n%s", steps)
+	}
+}
+
+func TestBuildParseEvalsResultsStepUsesExpressionModelAndFallbackEnv(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI:    "copilot",
+		Model: "${{ inputs.model }}",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "builds", Question: "Does it build?"},
+			},
+		},
+	}
+
+	steps := strings.Join(compiler.buildParseEvalsResultsStep(data), "")
+	if !strings.Contains(steps, `GH_AW_EVALS_MODEL: ${{ inputs.model }}`) {
+		t.Errorf("expected parse step to preserve expression-backed evals model; got:\n%s", steps)
+	}
+	expectedFallbackEnvLine := fmt.Sprintf(
+		"%s: ${{ vars.%s || vars.%s || '%s' }}",
+		constants.EnvVarModelFallback,
+		constants.EnvVarModelDetectionCopilot,
+		compilerenv.DefaultModelCopilot,
+		constants.CopilotBYOKDefaultModel,
+	)
+	if !strings.Contains(steps, expectedFallbackEnvLine) {
+		t.Errorf("expected parse step to expose evals model fallback env %q; got:\n%s", expectedFallbackEnvLine, steps)
 	}
 }
 
