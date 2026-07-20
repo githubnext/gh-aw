@@ -36,7 +36,6 @@
     "mini": ["haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"],
     "fable": ["copilot/*fable*", "anthropic/*fable*"],
     "large": ["fable", "sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"],
-    "auto": ["large"],
     "any": ["copilot/*", "anthropic/*", "openai/*", "google/*", "gemini/*"],
     "agent": ["sonnet-6x", "gpt-5.4", "gpt-5.3", "gemini-pro", "any"],
     "small-agent": ["haiku", "gpt-5-mini", "gemini-flash"],

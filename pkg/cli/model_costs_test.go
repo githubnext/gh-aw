@@ -18,10 +18,10 @@ func TestFindModelPricing(t *testing.T) {
 	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
 }
 
-func TestFindModelPricingAutoMatchesSonnet46Pricing(t *testing.T) {
-	autoPricing, ok := findModelPricing("anthropic", "auto")
+func TestFindModelPricingGitHubCopilotAutoMatchesSonnet46Pricing(t *testing.T) {
+	autoPricing, ok := findModelPricing("github-copilot", "auto")
 	require.True(t, ok)
-	sonnetPricing, ok := findModelPricing("anthropic", "claude-sonnet-4.6")
+	sonnetPricing, ok := findModelPricing("github-copilot", "claude-sonnet-4.6")
 	require.True(t, ok)
 	assert.Equal(t, sonnetPricing, autoPricing)
 }

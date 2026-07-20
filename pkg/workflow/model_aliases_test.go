@@ -21,7 +21,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 		"gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "lyria", "computer-use", "robotics", "deep-research",
 		"nano-banana",
 		"vision", "image-generation",
-		"mini", "large", "auto", "any", "agent", "small-agent", "copilot", "claude", "codex", "gemini", "summarization",
+		"mini", "large", "any", "agent", "small-agent", "copilot", "claude", "codex", "gemini", "summarization",
 	}
 	for _, family := range expectedFamilies {
 		patterns, ok := aliases[family]
@@ -31,7 +31,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.NotContains(t, aliases, "gpt-4.1", "gpt-4.1 alias should remain removed")
 
 	// Vendor aliases should include at least one copilot/* pattern.
-	// Meta-aliases (mini, large, auto) reference other alias names and are excluded here.
+	// Meta-aliases (mini, large) reference other alias names and are excluded here.
 	vendorFamilies := []string{"sonnet", "sonnet-6x", "haiku", "opus", "gpt-5", "gpt-5.5", "gpt-5.4", "gpt-5.3", "gpt-5.2", "gpt-5-mini", "gpt-5-nano", "gpt-5-codex", "gpt-5-pro", "mai-code", "mai-code-1-flash-picker", "reasoning", "gemini-flash", "gemini-flash-lite", "gemini-pro", "gemini-3-pro", "gemini-3-flash", "gemini-3.1-pro", "gemini-3.1-flash", "gemini-3.5-flash", "antigravity", "lyria", "nano-banana", "computer-use", "robotics", "deep-research"}
 	for _, family := range vendorFamilies {
 		patterns := aliases[family]
@@ -76,7 +76,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash-lite", "mini"}, aliases["summarization"], "summarization should reference fast/lightweight models")
 	assert.Equal(t, []string{"fable", "sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should list fable first, then sonnet, gpt-5-pro, gpt-5, and gemini-pro")
-	assert.Equal(t, []string{"large"}, aliases["auto"], "auto should resolve through large for AWF alias resolution")
+	assert.NotContains(t, aliases, "auto", "auto should not be exposed as a builtin AWF alias")
 	assert.Equal(t, []string{"copilot/*fable*", "anthropic/*fable*"}, aliases["fable"], "fable should map to provider-specific fable patterns")
 	assert.Equal(t, []string{"copilot/gpt-5.6*", "openai/gpt-5.6*"}, aliases["gpt-5.6"], "gpt-5.6 should map to provider-specific gpt-5.6 patterns")
 	assert.Equal(t, []string{"copilot/gemini-omni*", "google/gemini-omni*", "gemini/gemini-omni*"}, aliases["gemini-omni"], "gemini-omni should map to provider-specific gemini-omni patterns")
