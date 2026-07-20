@@ -588,6 +588,17 @@ func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *
 	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set a default.
 	if modelConfigured {
+		// When model is a pure GitHub Actions expression it may resolve to an empty string at
+		// runtime (e.g. ${{ vars.MY_MODEL }} when the variable is not set). Wrap it with the
+		// normal org/enterprise/built-in fallback chain so an empty resolution is treated as
+		// omitted rather than propagated as an empty model value.
+		if isExpression(workflowData.Model) {
+			innerExpr := extractExpressionInner(workflowData.Model)
+			expr := compilerenv.BuildModelOverrideExpressionWithUserOverride(innerExpr, modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+			copilotExecLog.Printf("Setting %s env var for expression-backed model: %s", constants.CopilotCLIModelEnvVar, expr)
+			env[constants.CopilotCLIModelEnvVar] = expr
+			return
+		}
 		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.Model)
 		env[constants.CopilotCLIModelEnvVar] = workflowData.Model
 		return

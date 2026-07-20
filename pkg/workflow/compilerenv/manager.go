@@ -229,6 +229,17 @@ func BuildModelOverrideExpressionEmptyFallback(primaryVar, enterpriseDefaultVar 
 	return fmt.Sprintf("${{ vars.%s || vars.%s || '' }}", primaryVar, enterpriseDefaultVar)
 }
 
+// BuildModelOverrideExpressionWithUserOverride builds a vars expression that places a
+// user-supplied runtime expression first, followed by the normal org/enterprise/built-in
+// fallback chain. Use this when engine.model or model is a GitHub Actions expression that
+// may resolve to an empty string (e.g. ${{ vars.MY_MODEL }} when the variable is unset).
+// userExprInner is the raw content between "${{" and "}}" of the user expression.
+// When builtinFallback is empty the expression ends with || ”.
+func BuildModelOverrideExpressionWithUserOverride(userExprInner, primaryVar, enterpriseDefaultVar, builtinFallback string) string {
+	escaped := strings.ReplaceAll(builtinFallback, "'", "''")
+	return fmt.Sprintf("${{ %s || vars.%s || vars.%s || '%s' }}", userExprInner, primaryVar, enterpriseDefaultVar, escaped)
+}
+
 // ResolvePolicyModelsAllowed returns configured allowed model policy entries.
 // When the env var is unset/empty, ok=false and callers should use frontmatter policy.
 func (m *Manager) ResolvePolicyModelsAllowed() ([]string, bool) {
