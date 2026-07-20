@@ -24,8 +24,8 @@ Repository modes:
 - --host-repo REPO: Uses the specified repository as the host for trial execution instead of creating a temporary one
 - --clone-repo REPO: Clones the specified repository's contents into the trial repository before execution (useful for testing against actual repository state)
 
-All workflows must support workflow_dispatch trigger to be used in trial mode.
-The host repository will be created as private and kept by default unless --delete-host-repo-after is specified.
+All workflows must support the workflow_dispatch trigger to be used in trial mode.
+The host repository will be created as a private repository and retained by default unless --delete-host-repo-after is specified.
 Trial results are saved both locally (in the trials/ directory) and in the host repository for future reference.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/weekly-research                         # Run a single workflow in a temporary trial repository
   ` + string(constants.CLIExtensionPrefix) + ` trial githubnext/agentics/daily-plan githubnext/agentics/weekly-research # Compare multiple workflows
@@ -55,7 +55,9 @@ Trial results are saved both locally (in the trials/ directory) and in the host 
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
 			hostRepoSpec, _ := cmd.Flags().GetString("host-repo")
 			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo-after")
-			forceDeleteHostRepo, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
+			legacyForceDelete, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
+			deleteHostRepoBefore, _ := cmd.Flags().GetBool("delete-host-repo-before")
+			forceDeleteHostRepo := legacyForceDelete || deleteHostRepoBefore
 			yes, _ := cmd.Flags().GetBool("yes")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -111,8 +113,10 @@ Trial results are saved both locally (in the trials/ directory) and in the host 
 	cmd.Flags().String("clone-repo", "", "Clone the contents of the specified repository into the host repository before execution (useful for testing against actual repository state)")
 
 	cmd.Flags().String("host-repo", "", "Custom host repository slug (defaults to '<username>/gh-aw-trial'). Use '.' for current repository")
-	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (kept by default)")
-	cmd.Flags().Bool("force-delete-host-repo-before", false, "Force delete the host repository before creation if it already exists")
+	cmd.Flags().Bool("delete-host-repo-after", false, "Delete the host repository after completion (retained by default)")
+	cmd.Flags().Bool("delete-host-repo-before", false, "Delete the host repository before creation if it already exists")
+	cmd.Flags().Bool("force-delete-host-repo-before", false, "Delete the host repository before creation if it already exists")
+	_ = cmd.Flags().MarkDeprecated("force-delete-host-repo-before", "use --delete-host-repo-before instead")
 	cmd.Flags().BoolP("yes", "y", false, "Auto-accept trial confirmations (required in CI)")
 	cmd.Flags().Bool("dry-run", false, "Preview trial execution without creating repos or running workflows")
 	cmd.Flags().Int("timeout", 30, "Execution timeout in minutes (0 = no timeout)")

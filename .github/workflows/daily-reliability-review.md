@@ -44,6 +44,11 @@ imports:
   - shared/mcp/sentry.md
 features:
   gh-aw-detection: true
+evals:
+  - id: failures_analyzed
+    question: Did the agent analyze agentic workflow failures and regressions using Sentry traces?
+  - id: reliability_report_created
+    question: Was a daily reliability review report created with actionable findings?
 ---
 
 # Daily Reliability Review

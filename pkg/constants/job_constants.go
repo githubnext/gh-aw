@@ -185,6 +185,12 @@ const SarifArtifactDownloadPath = "/tmp/gh-aw/sarif/"
 const SarifFileName = "code-scanning-alert.sarif"
 
 // MCP server ID constants
+
+// GitHubMCPServerID is the identifier for the GitHub MCP server.
+// Using this constant provides a single source of truth for the GitHub MCP server
+// identifier and makes refactoring easier.
+const GitHubMCPServerID MCPServerID = "github"
+
 const SafeOutputsMCPServerID MCPServerID = "safeoutputs"
 
 // MCPScriptsMCPServerID is the identifier for the mcp-scripts MCP server

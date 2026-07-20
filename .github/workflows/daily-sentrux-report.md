@@ -37,6 +37,11 @@ engine:
   id: copilot
   copilot-sdk: true
 
+evals:
+  - id: codebase_quality_analyzed
+    question: Did the agent run sentrux to analyze architecture health, quality signals, and structural trends?
+  - id: quality_report_created
+    question: Was a daily codebase quality report produced with metrics and trends?
 ---
 
 # Daily Sentrux Codebase Quality Report

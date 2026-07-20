@@ -76,6 +76,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: experiment_issue_created
+    question: Did the agent create a GitHub issue with an A/B experiment campaign for a selected workflow?
+  - id: workflow_targeted
+    question: Did the agent identify and target a workflow that lacks an experiments section?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

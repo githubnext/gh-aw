@@ -410,9 +410,10 @@ type FrontmatterConfig struct {
 	// Controls how actions/checkout is invoked.
 	// Can be a single CheckoutConfig object or an array of CheckoutConfig objects.
 	// Set to false to disable the default checkout step entirely.
-	Checkout         any               `json:"checkout,omitempty"` // Raw value (object, array, or false)
-	CheckoutConfigs  []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
-	CheckoutDisabled bool              `json:"-"`                  // true when checkout: false is set in frontmatter
+	Checkout                   any               `json:"checkout,omitempty"` // Raw value (object, array, or false)
+	CheckoutConfigs            []*CheckoutConfig `json:"-"`                  // Parsed checkout configs (not in JSON)
+	CheckoutDisabled           bool              `json:"-"`                  // true when checkout: false is set in frontmatter
+	CheckoutExplicitlyDisabled bool              `json:"-"`                  // true only when checkout: false is explicitly written by the user in frontmatter
 
 	// Model is the top-level LLM model override. When set, it takes precedence over
 	// engine.model. Use this field instead of engine.model.

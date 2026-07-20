@@ -158,6 +158,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: workflow_runs_sampled
+    question: Did the agent sample recent agentic workflow runs and inspect their ambient context?
+  - id: recommendations_produced
+    question: Were recommendations produced for prompt, skill, and agent changes to reduce ambient context size?
 ---
 
 # Daily Ambient Context Optimizer

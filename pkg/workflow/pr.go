@@ -10,8 +10,16 @@ import (
 var prLog = logger.New("workflow:pr")
 
 // ShouldGeneratePRCheckoutStep returns true if the checkout-pr step should be generated
-// based on the workflow permissions. The step requires contents read access.
+// based on the workflow permissions and checkout configuration.
+// The step requires contents read access and checkout must not be disabled.
+// For pull_request_target-only workflows (where pull_request is not also a trigger),
+// the step is always suppressed regardless of checkout configuration:
+// checkout_pr_branch.cjs fetches refs/pull/<n>/head (the untrusted PR head),
+// which replaces any safe base-SHA checkout and is inaccessible for fork PRs.
 func ShouldGeneratePRCheckoutStep(data *WorkflowData) bool {
+	if data.CheckoutDisabled || data.IsPullRequestTarget {
+		return false
+	}
 	if data.CachedPermissions != nil {
 		return data.CachedPermissions.HasContentsReadAccess()
 	}

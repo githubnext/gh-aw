@@ -52,7 +52,7 @@ Test workflow content.`,
 			warningCount:  1, // sandbox.agent: false
 		},
 		{
-			name: "pull_request_target with checkout enabled - non-strict - should warn",
+			name: "pull_request_target with no checkout key - non-strict - insecure checkout warning",
 			frontmatter: `---
 strict: false
 on:
@@ -72,7 +72,7 @@ Test workflow content.`,
 			strictMode:    false,
 			expectError:   false,
 			expectWarning: true,
-			warningCount:  2, // 1 for insecure checkout + 1 for sandbox.agent: false
+			warningCount:  2, // sandbox.agent: false warning + insecure-checkout warning (non-strict mode)
 		},
 		{
 			name: "pull_request_target with trusted checkout - non-strict - no warnings no error",
@@ -170,7 +170,7 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
-			name: "pull_request_target with checkout enabled - strict - error (extremely insecure)",
+			name: "pull_request_target with no checkout key - strict - insecure checkout error",
 			frontmatter: `---
 on:
   pull_request_target:
@@ -187,9 +187,9 @@ Test workflow content.`,
 			filename:      "prt-checkout-enabled-strict.md",
 			strictMode:    true,
 			expectError:   true,
-			expectWarning: true, // dangerous-trigger warning is still emitted before the error
+			expectWarning: true,
 			errorContains: "pull_request_target trigger with checkout enabled is extremely insecure",
-			warningCount:  1, // dangerous-trigger warning
+			warningCount:  1, // dangerous-trigger warning; insecure-checkout is returned as an error
 		},
 		{
 			name: "pull_request_target with explicit checkout pinned to base sha - strict - warning only",
@@ -341,7 +341,7 @@ Test workflow content.`,
 			warningCount:  1, // dangerous-trigger warning
 		},
 		{
-			name: "pull_request_target with checkout enabled - strict CLI + frontmatter strict false - warning only",
+			name: "pull_request_target with no checkout key - strict CLI + frontmatter strict false - insecure checkout warning",
 			frontmatter: `---
 strict: false
 on:
@@ -360,7 +360,7 @@ Test workflow content.`,
 			strictMode:    true,
 			expectError:   false,
 			expectWarning: true,
-			warningCount:  1, // insecure-checkout warning only
+			warningCount:  1, // strict: false lowers to non-strict mode (skips dangerous-trigger warning), but insecure-checkout warning still emits
 		},
 		{
 			name: "pull_request trigger (not target) - strict - no diagnostic",

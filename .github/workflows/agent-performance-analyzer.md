@@ -66,6 +66,11 @@ experiments:
     issue: 33280
 features:
   gh-aw-detection: true
+evals:
+  - id: performance_analyzed
+    question: Did the agent analyze AI agent performance and quality metrics across the repository?
+  - id: report_produced
+    question: Was a report or discussion produced summarizing agent effectiveness findings?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

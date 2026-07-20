@@ -13,11 +13,18 @@ func TestRunCommandHelpTextConsistency(t *testing.T) {
 	assert.Contains(t, runCmd.Long, "this command enters interactive mode and shows", "run command interactive mode text should be explicit")
 
 	runApprove := runCmd.Flags().Lookup("approve")
+	runPush := runCmd.Flags().Lookup("push")
+	runRawField := runCmd.Flags().Lookup("raw-field")
 	compileApprove := compileCmd.Flags().Lookup("approve")
 	require.NotNil(t, runApprove, "run command should define --approve")
+	require.NotNil(t, runPush, "run command should define --push")
+	require.NotNil(t, runRawField, "run command should define --raw-field")
 	require.NotNil(t, compileApprove, "compile command should define --approve")
 	assert.Contains(t, compileApprove.Usage, "safe update changes", "compile --approve should describe compiler safe update approval")
-	assert.Equal(t, "Approve safe update manifest changes when --push triggers an automatic recompile step", runApprove.Usage, "run --approve should explain the --push-triggered recompile behavior")
+	assert.Equal(t, "Approve safe update manifest changes when --push triggers an automatic recompile step. When strict mode is active (the default), the recompile step enforces safe update checking; pass this flag to approve those changes.", runApprove.Usage, "run --approve should explain the --push-triggered recompile behavior with strict mode context")
+	assert.Equal(t, "Commit and push workflow files (including transitive imports) before running. Refuses to proceed when unrelated files are already staged.", runPush.Usage, "run --push should describe the staged-files precondition precisely")
+	assert.Equal(t, "F", runRawField.Shorthand, "run --raw-field should keep the legacy -F shorthand for compatibility")
+	assert.Equal(t, "use --raw-field instead", runRawField.ShorthandDeprecated, "run -F shorthand should be marked deprecated")
 }
 
 func TestCompileScheduleSeedHelpUsesConsistentQuotes(t *testing.T) {

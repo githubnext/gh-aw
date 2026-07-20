@@ -53,6 +53,7 @@ const { emitMissingToolPermissionIssue, hasExpectedSafeOutputs, hasNoopInSafeOut
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
+const { applyModelFallback } = require("./model_fallback.cjs");
 
 // Pattern to detect Anthropic API overload errors (HTTP 529).
 // Matches "overloaded_error" from the Anthropic error type field, and the
@@ -318,6 +319,7 @@ function stripContinueArgs(args) {
  */
 async function buildClaudeChildEnv() {
   const childEnv = { ...process.env };
+  applyModelFallback(childEnv, "ANTHROPIC_MODEL", log);
   const provider = normalizeReflectProviderName(process.env.GH_AW_LLM_PROVIDER, "anthropic");
   try {
     const raw = fs.readFileSync(AWF_REFLECT_OUTPUT_PATH, "utf8");
@@ -611,6 +613,7 @@ if (typeof module !== "undefined" && module.exports) {
     hasExpectedSafeOutputs,
     resolveRetryConfig,
     resolveStartupRetryLimit,
+    applyModelFallback,
   };
 }
 

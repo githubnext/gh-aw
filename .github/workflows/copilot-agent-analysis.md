@@ -63,6 +63,11 @@ tools:
     mode: gh-proxy
 features:
   gh-aw-detection: true
+evals:
+  - id: copilot_usage_analyzed
+    question: Did the agent analyze GitHub Copilot coding agent usage patterns in pull requests?
+  - id: insights_report_produced
+    question: Was a report produced with insights on agent effectiveness and behavior patterns?
 ---
 # Copilot Agent PR Analysis
 

@@ -92,7 +92,7 @@ Common Tasks:
   ` + string(constants.CLIExtensionPrefix) + ` compile               		# Compile all workflows
   ` + string(constants.CLIExtensionPrefix) + ` run my-workflow       		# Execute a workflow
   ` + string(constants.CLIExtensionPrefix) + ` status                		# Check workflow status
-  ` + string(constants.CLIExtensionPrefix) + ` logs my-workflow      		# View execution logs
+  ` + string(constants.CLIExtensionPrefix) + ` logs my-workflow      		# Download and analyze execution logs
   ` + string(constants.CLIExtensionPrefix) + ` audit <run-id-or-url> 		# Audit and compare workflow runs
 
 For detailed help on any command, use:
@@ -173,10 +173,10 @@ The workflow-id is the basename of the Markdown file without the .md extension.
 You can provide a substring to match multiple workflows, or a specific workflow-id.
 
 By default, this command also removes orphaned include files that are no longer referenced
-by any workflow. Use --keep-orphans to skip this cleanup.`,
-	Example: `  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow              # Remove specific workflow
-  ` + string(constants.CLIExtensionPrefix) + ` remove test-                    # Remove all workflows containing 'test-' in name
-  ` + string(constants.CLIExtensionPrefix) + ` remove old- --keep-orphans      # Remove workflows but keep orphaned includes
+by any workflow. Use --no-remove-orphans to skip this cleanup.`,
+	Example: `  ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow                    # Remove specific workflow
+  ` + string(constants.CLIExtensionPrefix) + ` remove test-                          # Remove all workflows containing 'test-' in name
+  ` + string(constants.CLIExtensionPrefix) + ` remove old- --no-remove-orphans       # Remove workflows but keep orphaned includes
   ` + string(constants.CLIExtensionPrefix) + ` remove my-workflow --dir .github/workflows/shared  # Remove from custom directory`,
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var pattern string
@@ -184,6 +184,8 @@ by any workflow. Use --keep-orphans to skip this cleanup.`,
 			pattern = args[0]
 		}
 		keepOrphans, _ := cmd.Flags().GetBool("keep-orphans")
+		noRemoveOrphans, _ := cmd.Flags().GetBool("no-remove-orphans")
+		keepOrphans = keepOrphans || noRemoveOrphans
 		workflowDir, _ := cmd.Flags().GetString("dir")
 		return cli.RemoveWorkflows(pattern, keepOrphans, workflowDir)
 	},
@@ -432,7 +434,7 @@ This command only works with workflows that have workflow_dispatch triggers.
   ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --repeat 3  # Run 4 times total (1 initial + 3 repeats)
   ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --enable-if-needed  # Enable if disabled, run, then restore state
   ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --auto-merge-prs  # Auto-merge any PRs created during execution
-  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver -F name=value -F env=prod  # Pass workflow inputs
+  ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --raw-field name=value --raw-field env=prod  # Pass workflow inputs
   ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --push  # Commit, push, and dispatch the workflow
   ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --dry-run  # Preview without triggering workflow runs
   ` + string(constants.CLIExtensionPrefix) + ` run daily-perf-improver --json  # Output results in JSON format`,
@@ -711,7 +713,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	cli.RegisterEngineFlagCompletion(initCmd)
 
 	// Add flags to new command
-	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing files without confirmation")
+	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
 	newCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
 	cli.RegisterEngineFlagCompletion(newCmd)
@@ -774,7 +776,9 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(compileCmd)
 
 	// Add flags to remove command
+	removeCmd.Flags().Bool("no-remove-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+	_ = removeCmd.Flags().MarkDeprecated("keep-orphans", "use --no-remove-orphans instead")
 	removeCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	// Register completions for remove command
 	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
@@ -795,10 +799,11 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Pass a workflow dispatch input in key=value format (can be specified multiple times)")
-	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running")
+	_ = runCmd.Flags().MarkShorthandDeprecated("raw-field", "use --raw-field instead")
+	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running. Refuses to proceed when unrelated files are already staged.")
 	runCmd.Flags().Bool("dry-run", false, "Preview workflow execution without triggering runs on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
-	runCmd.Flags().Bool("approve", false, "Approve safe update manifest changes when --push triggers an automatic recompile step")
+	runCmd.Flags().Bool("approve", false, "Approve safe update manifest changes when --push triggers an automatic recompile step. When strict mode is active (the default), the recompile step enforces safe update checking; pass this flag to approve those changes.")
 	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)

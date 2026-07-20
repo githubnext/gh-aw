@@ -73,7 +73,7 @@ gh aw run <workflow-name>           # Run by short name
 gh aw run <workflow-name>.md        # Alternative: explicit .md extension
 gh aw run <workflow-name> --ref main              # Run on a specific branch/tag/SHA
 gh aw run <workflow-name> --repeat 3              # Run 4 times total (1 + 3 repeats)
-gh aw run <workflow-name> -F key=value            # Pass a specific input (alias: --raw-field)
+gh aw run <workflow-name> --raw-field key=value   # Pass a specific input
 ```
 
 **MCP equivalent**: Not available. Fallback: use the GitHub MCP server's `create_workflow_dispatch` with `workflow_id: <workflow-name>.lock.yml`.

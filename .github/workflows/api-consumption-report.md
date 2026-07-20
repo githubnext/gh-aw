@@ -43,6 +43,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: api_usage_collected
+    question: Did the agent collect GitHub REST API consumption data across agentic workflows?
+  - id: report_with_charts_created
+    question: Was a report or discussion created with trending charts and quota analysis?
 ---
 
 # GitHub API Consumption Report Agent

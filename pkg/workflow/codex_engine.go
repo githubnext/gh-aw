@@ -487,6 +487,9 @@ mkdir -p "$CODEX_HOME/logs"
 	// When model is configured (static or GitHub Actions expression), set the env var directly.
 	// When not configured, use the GitHub variable fallback so users can set a default.
 	if modelConfigured {
+		if containsExpression(workflowData.Model) {
+			env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
+		}
 		codexEngineLog.Printf("Setting %s env var for model: %s", modelEnvVar, workflowData.Model)
 		env[modelEnvVar] = workflowData.Model
 	} else {

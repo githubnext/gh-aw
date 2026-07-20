@@ -38,6 +38,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: cli_tools_tested
+    question: Did the agent run exploratory tests on the audit, logs, and compile CLI tools?
+  - id: test_results_reported
+    question: Were the test results reported with any issues or anomalies identified?
 ---
 
 ### Daily CLI Tools Exploratory Tester

@@ -359,7 +359,7 @@ Maps PR check rollups to one of the following normalized states:
   failed         - one or more checks failed
   pending        - checks are still running or queued
   no_checks      - no checks configured or triggered
-  policy_blocked - policy or account gates are blocking the PR
+  policy_blocked - policy or account gates blocked the PR
 
 Returns JSON with two state fields:
   state          - aggregate state across all check runs and commit statuses

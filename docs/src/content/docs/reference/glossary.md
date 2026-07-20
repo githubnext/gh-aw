@@ -131,9 +131,17 @@ safe-outputs:
 
 Custom MCP tools defined inline in workflow frontmatter using JavaScript or shell scripts. Enables lightweight tool creation while maintaining controlled secret access. Tools are generated at runtime and mounted as an MCP server with typed input parameters, default values, and environment variables. Configured via `mcp-scripts:` section. Use the `dependencies:` field to declare third-party npm or PyPI packages installed before first invocation. See [MCP Scripts Reference](/gh-aw/reference/mcp-scripts/).
 
+### DeepSec
+
+An on-demand agentic security scanning pattern that bootstraps a bounded vulnerability review and files one issue for actionable findings. DeepSec workflows accept configurable `limit` (maximum files to investigate), `thinking-level` (`low`, `medium`, `high`, `xhigh`), and `agent` (backend engine: `codex`, `claude`, `pi`) inputs. Typically triggered manually via `workflow_dispatch` and configured with `strict: true` and a scoped network allowlist. Results are written as a labeled issue using the `create-issue` safe output.
+
 ### SARIF
 
 Static Analysis Results Interchange Format - a standardized JSON format for reporting results from static analysis tools. Used by GitHub Code Scanning to display security vulnerabilities and code quality issues. Workflows can generate SARIF files using the `create-code-scanning-alert` safe output.
+
+### VulnHunter
+
+An open-source vulnerability hunting methodology from Capital One that provides structured guidance for agentic security analysis. When used in GitHub Agentic Workflows, a preparatory job downloads the VulnHunter source tree and bundles it with a clean repository snapshot as an artifact. The agent job mounts the bundle and applies the VulnHunter methodology to produce structured findings. See [Daily VulnHunter Scan](https://github.com/github/gh-aw/blob/main/.github/workflows/daily-vulnhunter-scan.md) for a reference implementation.
 
 ### Safe Outputs
 

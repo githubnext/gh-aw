@@ -38,6 +38,11 @@ imports:
 
 
   - shared/otlp.md
+evals:
+  - id: report_outputs_cross_checked
+    question: Did the agent cross-check other daily report agents' outputs for consistency and anomalies?
+  - id: regulatory_report_created_or_noop
+    question: Was a regulatory report created with findings, or was noop used when all outputs were consistent?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

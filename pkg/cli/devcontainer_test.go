@@ -242,15 +242,28 @@ func TestEnsureDevcontainerConfigWithCurrentRepo(t *testing.T) {
 
 	// Check if any repository has workflows: write (should be current repo)
 	hasWorkflowsWrite := false
+	hasDiscussionsWrite := false
+	hasIssuesWrite := false
 	for _, repo := range config.Customizations.Codespaces.Repositories {
 		if repo.Permissions["workflows"] == "write" {
 			hasWorkflowsWrite = true
-			break
+		}
+		if repo.Permissions["discussions"] == "write" {
+			hasDiscussionsWrite = true
+		}
+		if repo.Permissions["issues"] == "write" {
+			hasIssuesWrite = true
 		}
 	}
 
 	if !hasWorkflowsWrite {
 		t.Error("Expected at least one repository to have workflows: write permission")
+	}
+	if !hasDiscussionsWrite {
+		t.Error("Expected at least one repository to have discussions: write permission")
+	}
+	if !hasIssuesWrite {
+		t.Error("Expected at least one repository to have issues: write permission")
 	}
 }
 

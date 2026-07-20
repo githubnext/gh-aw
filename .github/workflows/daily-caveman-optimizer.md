@@ -71,6 +71,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: instruction_file_optimized
+    question: Did the agent apply caveman optimization to an instruction file in .github/aw or .github/agents?
+  - id: pr_created_or_noop
+    question: Was a PR created with concise improvements, or was noop used when no improvements were needed?
 ---
 
 # Daily Caveman Optimizer 🪨

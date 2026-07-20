@@ -312,4 +312,38 @@ describe("no-core-exportvariable-non-string", () => {
       invalid: [],
     });
   });
+
+  it("valid: function parameter with core-alias name and string value is accepted", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [`function f(core) { core.exportVariable("MY_VAR", "hello"); }`, `function f(core) { core.exportVariable("MY_VAR", someVariable); }`, `function f(coreObj) { coreObj.exportVariable("MY_VAR", "hello"); }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: function parameter with core-alias name and non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `function f(core) { core.exportVariable("X", 5); }`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `function f(core) { core.exportVariable("X", String(5)); }` }] }],
+        },
+        {
+          code: `function f(coreObj) { coreObj.exportVariable("MY_FLAG", true); }`,
+          errors: [{ messageId: "nonStringValue", suggestions: [{ messageId: "wrapWithString", output: `function f(coreObj) { coreObj.exportVariable("MY_FLAG", String(true)); }` }] }],
+        },
+      ],
+    });
+  });
+
+  it("valid: function parameter not in CORE_ALIASES is not treated as core (shadow-exclusion)", () => {
+    cjsRuleTester.run("no-core-exportvariable-non-string", noCoreExportVariableNonStringRule, {
+      valid: [
+        // `coreArg` is not in CORE_ALIASES — must not be treated as a core object
+        `function f(coreArg) { coreArg.exportVariable("X", 5); }`,
+        `function f(myCore) { myCore.exportVariable("X", 5); }`,
+      ],
+      invalid: [],
+    });
+  });
 });

@@ -121,11 +121,13 @@ await main();`
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: '%s'\n", escapeYAMLSingleQuoted(questionsJSON)),
-		fmt.Sprintf("          GH_AW_EVALS_MODEL: %q\n", model),
+	}
+	steps = appendEvalsModelEnvLines(steps, c.getEvalsEngineID(data), model)
+	steps = append(steps,
 		"          GH_AW_EVALS_PHASE: setup\n",
 		"        with:\n",
 		"          script: |\n",
-	}
+	)
 	steps = append(steps, FormatJavaScriptForYAML(script)...)
 	return steps
 }
@@ -277,12 +279,14 @@ await main();`
 		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
 		"        env:\n",
 		fmt.Sprintf("          GH_AW_EVALS_QUESTIONS: '%s'\n", escapeYAMLSingleQuoted(questionsJSON)),
-		fmt.Sprintf("          GH_AW_EVALS_MODEL: %q\n", model),
+	}
+	steps = appendEvalsModelEnvLines(steps, c.getEvalsEngineID(data), model)
+	steps = append(steps,
 		"          GH_AW_EVALS_PHASE: parse\n",
 		"          GITHUB_RUN_ID: ${{ github.run_id }}\n",
 		"        with:\n",
 		"          script: |\n",
-	}
+	)
 	steps = append(steps, FormatJavaScriptForYAML(script)...)
 	return steps
 }
@@ -406,6 +410,35 @@ func (c *Compiler) resolveEvalsExecutionModel(data *WorkflowData) string {
 	}
 
 	return model
+}
+
+func appendEvalsModelEnvLines(steps []string, engineID, model string) []string {
+	hasExpression := containsExpression(model)
+	modelValue := fmt.Sprintf("%q", model)
+	if hasExpression {
+		modelValue = model
+	}
+	steps = append(steps, fmt.Sprintf("          GH_AW_EVALS_MODEL: %s\n", modelValue))
+	if !hasExpression {
+		return steps
+	}
+	if fallback := buildEvalsModelFallbackExpression(engineID); fallback != "" {
+		steps = append(steps, fmt.Sprintf("          %s: %s\n", constants.EnvVarModelFallback, fallback))
+	}
+	return steps
+}
+
+func buildEvalsModelFallbackExpression(engineID string) string {
+	switch engineID {
+	case string(constants.CopilotEngine):
+		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+	case string(constants.ClaudeEngine):
+		return compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
+	case string(constants.CodexEngine):
+		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionCodex, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
+	default:
+		return ""
+	}
 }
 
 func (c *Compiler) collectEvalsSecretReferences(data *WorkflowData) []string {

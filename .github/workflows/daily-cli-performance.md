@@ -79,6 +79,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: benchmarks_run
+    question: Did the agent run CLI performance benchmarks and track performance trends?
+  - id: report_created_or_regression_flagged
+    question: Was a performance report produced, or was a regression flagged when performance degraded?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

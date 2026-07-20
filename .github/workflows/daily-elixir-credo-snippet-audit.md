@@ -84,6 +84,11 @@ steps:
       MIX_ENV=dev mix credo --version
 features:
   gh-aw-detection: true
+evals:
+  - id: elixir_snippets_linted
+    question: Did the agent use Credo to lint Elixir snippets found in repository markdown files?
+  - id: fixes_proposed_or_noop
+    question: Were fixes proposed in a PR or issue, or was noop used when no linting violations were found?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

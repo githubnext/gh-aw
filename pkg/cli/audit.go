@@ -111,7 +111,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")
-	cmd.Flags().Bool("evals", false, "Skip runs that do not contain evals results (evals.jsonl); automatically downloads the usage artifact (which includes evals) when --artifacts is narrowed")
+	cmd.Flags().Bool("evals", false, "Filter to runs containing evals results (evals.jsonl); automatically downloads the usage artifact (which includes evals) when --artifacts is narrowed")
 	RegisterDirFlagCompletion(cmd, "output")
 }
 
