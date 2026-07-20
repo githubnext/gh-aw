@@ -2015,7 +2015,11 @@ func TestWriteStepsSection(t *testing.T) {
 			wantNot:   []string{"My Step   ", "echo hi   "},
 		},
 		{
-			name:      "block scalar payload preserved verbatim",
+			name: "block scalar payload preserved verbatim",
+			// `\\  ` in the Go string literal represents a literal backslash followed by
+			// two trailing spaces in the actual content. This is the critical case: a shell
+			// line ending in `\  ` (backslash + spaces) must not be trimmed because the
+			// spaces prevent the backslash from acting as a line-continuation character.
 			stepsYAML: "pre-steps:\n- name: Script\n  run: |\n    echo hello   \n    echo world\\  \n",
 			wantLines: []string{"echo hello   ", "echo world\\  "},
 		},
@@ -2064,7 +2068,10 @@ func TestAddCustomStepsAsIsTrimsStructuralTrailingSpaces(t *testing.T) {
 			wantNot:     []string{"My Step   ", "checkout@v4   "},
 		},
 		{
-			name:        "block scalar run content preserved verbatim",
+			name: "block scalar run content preserved verbatim",
+			// `\\  ` in the Go string literal represents a literal backslash followed by
+			// two trailing spaces. Trimming would change `\  ` → `\`, flipping the shell
+			// backslash-newline continuation semantics — so payload must be kept verbatim.
 			customSteps: "steps:\n- name: Script\n  run: |\n    echo trailing   \n    echo bs\\  \n",
 			wantLines:   []string{"echo trailing   ", "echo bs\\  "},
 		},
