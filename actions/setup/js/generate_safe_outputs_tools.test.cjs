@@ -543,16 +543,51 @@ describe("generate_safe_outputs_tools", () => {
     fs.writeFileSync(
       toolsSourcePath,
       JSON.stringify([
-        { name: "set_issue_type", description: "Sets issue type.", inputSchema: { type: "object", properties: { rationale: { type: "string" }, confidence: { type: "string" } } } },
-        { name: "set_issue_field", description: "Sets issue field.", inputSchema: { type: "object", properties: { rationale: { type: "string" }, confidence: { type: "string" } } } },
+        {
+          name: "set_issue_type",
+          description: "Sets issue type.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the change (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the change." } },
+          },
+        },
+        {
+          name: "set_issue_field",
+          description: "Sets issue field.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the change (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the change." } },
+          },
+        },
         {
           name: "add_labels",
           description: "Adds labels.",
           inputSchema: { type: "object", properties: { labels: { type: "array", items: { oneOf: [{ type: "string" }, { type: "object", required: ["name"], properties: { name: { type: "string" } } }] } } } },
         },
-        { name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: { rationale: { type: "string" }, confidence: { type: "string" } } } },
-        { name: "assign_to_user", description: "Assigns users.", inputSchema: { type: "object", properties: { rationale: { type: "string" }, confidence: { type: "string" } } } },
-        { name: "assign_to_agent", description: "Assigns agent.", inputSchema: { type: "object", properties: { rationale: { type: "string" }, confidence: { type: "string" } } } },
+        {
+          name: "close_issue",
+          description: "Closes issue.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for closing the issue (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for closing the issue." } },
+          },
+        },
+        {
+          name: "assign_to_user",
+          description: "Assigns users.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the assignment (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the assignment." } },
+          },
+        },
+        {
+          name: "assign_to_agent",
+          description: "Assigns agent.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the assignment (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the assignment." } },
+          },
+        },
       ])
     );
     // All tools with omitted issue_intent (no issue_intent key)
@@ -581,12 +616,19 @@ describe("generate_safe_outputs_tools", () => {
       expect(tool.description, `${name} should have encouraged suffix`).toContain(optionalSuffix);
       expect(tool.description, `${name} should not have required suffix`).not.toContain(requiredSuffix);
     }
-    // Rationale and confidence should remain optional (not added to required array)
+    // Rationale and confidence should remain optional (not added to required array, descriptions unchanged)
     for (const name of toolNames.filter(n => n !== "add_labels")) {
       const tool = result.find((/** @type {{name: string, inputSchema: {required?: string[]}}} */ t) => t.name === name);
       const required = tool.inputSchema.required ?? [];
       expect(required, `${name} rationale should not be required`).not.toContain("rationale");
       expect(required, `${name} confidence should not be required`).not.toContain("confidence");
+      const props = tool.inputSchema.properties;
+      if (props?.rationale?.description) {
+        expect(props.rationale.description, `${name} rationale description should remain optional`).toMatch(/optional/i);
+      }
+      if (props?.confidence?.description) {
+        expect(props.confidence.description, `${name} confidence description should remain optional`).toMatch(/optional/i);
+      }
     }
   });
 
@@ -731,7 +773,15 @@ describe("generate_safe_outputs_tools", () => {
       const tool = result.find((/** @type {{name: string}} */ t) => t.name === toolName);
       expect(tool.inputSchema.properties.rationale.description, `${toolName} rationale description`).not.toMatch(/optional/i);
       expect(tool.inputSchema.properties.confidence.description, `${toolName} confidence description`).not.toMatch(/optional/i);
+      // rationale and confidence must be in required so JSON Schema validators enforce them
+      expect(tool.inputSchema.required, `${toolName} rationale should be in required`).toContain("rationale");
+      expect(tool.inputSchema.required, `${toolName} confidence should be in required`).toContain("confidence");
+      // Pre-existing required fields must still be present
     }
+    const closeIssueTool = result.find((/** @type {{name: string}} */ t) => t.name === "close_issue");
+    expect(closeIssueTool.inputSchema.required, "close_issue should still require body").toContain("body");
+    const assignToUserTool = result.find((/** @type {{name: string}} */ t) => t.name === "assign_to_user");
+    expect(assignToUserTool.inputSchema.required, "assign_to_user should still require issue_number").toContain("issue_number");
   });
 
   it("strict mode assign_to_agent replaces inline examples with versions that include rationale and confidence", () => {

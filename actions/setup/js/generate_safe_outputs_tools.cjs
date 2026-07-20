@@ -122,19 +122,31 @@ function isIssueIntentOmittedForTool(toolName, toolConfig) {
 
 /**
  * Update the rationale and confidence property descriptions on a tool to say "Required"
- * instead of "Optional". Only affects the direct properties of inputSchema (not nested schemas).
- * @param {{inputSchema?: {properties?: Record<string, {description?: string}>}}} tool
+ * instead of "Optional", and add them to inputSchema.required so JSON Schema validators enforce them.
+ * Only affects the direct properties of inputSchema (not nested schemas).
+ * @param {{inputSchema?: {properties?: Record<string, {description?: string}>, required?: string[]}}} tool
  */
 function makeIntentFieldDescriptionsRequired(tool) {
-  const properties = tool.inputSchema?.properties;
+  const schema = tool.inputSchema;
+  const properties = schema?.properties;
   if (!properties) {
     return;
   }
+  const toRequire = [];
   if (properties.rationale && typeof properties.rationale === "object") {
     properties.rationale = { ...properties.rationale, description: RATIONALE_REQUIRED_DESC };
+    toRequire.push("rationale");
   }
   if (properties.confidence && typeof properties.confidence === "object") {
     properties.confidence = { ...properties.confidence, description: CONFIDENCE_REQUIRED_DESC };
+    toRequire.push("confidence");
+  }
+  if (toRequire.length > 0 && schema) {
+    const required = new Set(schema.required ?? []);
+    for (const field of toRequire) {
+      required.add(field);
+    }
+    schema.required = [...required];
   }
 }
 
@@ -257,7 +269,8 @@ async function main() {
       }
       if (isIssueIntentEnabledForTool(tool.name, config[tool.name])) {
         enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_REQUIRED_SUFFIX}`.trim();
-        // Update top-level rationale/confidence descriptions to say "required" instead of "optional"
+        // Update top-level rationale/confidence descriptions to say "required" instead of "optional",
+        // and add them to inputSchema.required so JSON Schema validators enforce them.
         makeIntentFieldDescriptionsRequired(enhancedTool);
         // For add_labels strict mode, replace the labels items schema with an object-only
         // variant that requires name, rationale, and confidence, and update the labels description.
@@ -276,13 +289,11 @@ async function main() {
                 if (strictProperties.confidence) {
                   strictProperties.confidence = { ...strictProperties.confidence, description: "Required confidence level for the label. Must be exactly one of: LOW, MEDIUM, HIGH." };
                 }
-                const strictItems = {
+                labelsSchema.items = {
                   ...objectSchema,
                   required: ["name", "rationale", "confidence"],
                   properties: strictProperties,
                 };
-                labelsSchema.items = strictItems;
-                delete labelsSchema.items.oneOf;
               }
             }
           }
@@ -291,18 +302,18 @@ async function main() {
         if (tool.name === "assign_to_agent") {
           enhancedTool.description = enhancedTool.description.replace(ASSIGN_TO_AGENT_EXAMPLE_USAGE_REGEX, ASSIGN_TO_AGENT_STRICT_EXAMPLE_USAGE);
         }
+      } else if (isIssueIntentDisabledForTool(tool.name, config[tool.name])) {
+        stripIssueIntentSchemaFields(enhancedTool);
       } else if (isIssueIntentOmittedForTool(tool.name, config[tool.name])) {
         enhancedTool.description = `${enhancedTool.description || ""} ${ISSUE_INTENT_OPTIONAL_SUFFIX}`.trim();
-        // For add_labels omitted mode, update the labels description to prefer structured objects.
+        // For add_labels omitted mode, update the labels description to prefer structured objects,
+        // but only when the source schema actually supports plain strings via items.oneOf.
         if (tool.name === "add_labels") {
           const labelsSchema = enhancedTool.inputSchema?.properties?.labels;
-          if (labelsSchema) {
+          if (labelsSchema && Array.isArray(labelsSchema.items?.oneOf)) {
             labelsSchema.description = ADD_LABELS_OPTIONAL_FIELD_DESC;
           }
         }
-      }
-      if (isIssueIntentDisabledForTool(tool.name, config[tool.name])) {
-        stripIssueIntentSchemaFields(enhancedTool);
       }
 
       if (tool.name === "add_comment") {
