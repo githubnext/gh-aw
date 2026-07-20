@@ -3,6 +3,18 @@ import fs from "fs";
 import path from "path";
 
 describe("mcp_scripts_validation.cjs", () => {
+  function loadUpdateIssueToolSchema() {
+    const toolsPath = path.join(process.cwd(), "safe_outputs_tools.json");
+    try {
+      const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
+      const updateIssueTool = tools.find(tool => tool.name === "update_issue");
+      expect(updateIssueTool, "update_issue tool should exist in safe_outputs_tools.json").toBeDefined();
+      return updateIssueTool.inputSchema;
+    } catch (error) {
+      throw new Error(`Failed to load or parse safe outputs tool schema at ${toolsPath}: ${error.message}`);
+    }
+  }
+
   describe("validateRequiredFields", () => {
     it("should return empty array when no required fields", async () => {
       const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
@@ -336,26 +348,21 @@ describe("mcp_scripts_validation.cjs", () => {
 
     it("should allow update_issue body above 10KB when schema declares maxLength", async () => {
       const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
-      const toolsPath = path.join(process.cwd(), "safe_outputs_tools.json");
-      const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
-      const updateIssueTool = tools.find(tool => tool.name === "update_issue");
+      const updateIssueSchema = loadUpdateIssueToolSchema();
 
-      expect(updateIssueTool).toBeDefined();
-      expect(updateIssueTool.inputSchema.properties.body.maxLength).toBe(65536);
+      expect(updateIssueSchema.properties.body.maxLength).toBe(65536);
 
       const args = { body: "a".repeat(MAX_STRING_INPUT_BYTES + 1) };
-      const violations = validateStringInputLengths(args, updateIssueTool.inputSchema);
+      const violations = validateStringInputLengths(args, updateIssueSchema);
       expect(violations).toEqual([]);
     });
 
     it("should enforce update_issue body schema maxLength boundary", async () => {
       const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
-      const toolsPath = path.join(process.cwd(), "safe_outputs_tools.json");
-      const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
-      const updateIssueTool = tools.find(tool => tool.name === "update_issue");
+      const updateIssueSchema = loadUpdateIssueToolSchema();
 
       const args = { body: "a".repeat(65537) };
-      const violations = validateStringInputLengths(args, updateIssueTool.inputSchema);
+      const violations = validateStringInputLengths(args, updateIssueSchema);
       expect(violations).toHaveLength(1);
       expect(violations[0]).toMatchObject({ field: "body", limit: 65536, unit: "characters" });
     });
