@@ -22,12 +22,6 @@ func Stderr() io.Writer {
 	return New(os.Stderr, os.Environ())
 }
 
-// Stdout returns a color-profile-aware writer for os.Stdout using the current
-// process environment.
-func Stdout() io.Writer {
-	return New(os.Stdout, os.Environ())
-}
-
 // Degrade returns s with ANSI sequences downgraded (or stripped) according to
 // the current process environment (NO_COLOR, COLORTERM, TERM). It is intended
 // for use with string-returning format helpers: render the style first, then

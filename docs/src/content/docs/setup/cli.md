@@ -153,8 +153,8 @@ gh aw init --engine claude              # Skip Copilot-specific artifacts
 gh aw init --no-mcp                     # Skip MCP server integration
 gh aw init --no-skill                   # Skip dispatcher skill creation
 gh aw init --no-agent                   # Skip custom agent creation
-gh aw init --codespaces ""              # Configure Codespaces for current repo only
-gh aw init --codespaces repo1,repo2     # Configure Codespaces with additional repos
+gh aw init --codespaces                 # Configure Codespaces for current repo only
+gh aw init --codespaces=repo1,repo2     # Configure Codespaces with additional repos
 gh aw init --completions                # Install shell completions
 gh aw init --create-pull-request        # Initialize and open a pull request
 ```
