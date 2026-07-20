@@ -106,6 +106,31 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 		servers = append(servers, constants.MCPScriptsMCPServerID.String())
 	}
 
+	// Copilot always runs with --disable-builtin-mcps. When at least one CLI mount
+	// trigger is active (safeoutputs/mcpscripts or cli-proxy), the mount script
+	// discovers all MCP servers from the gateway manifest (including GitHub and
+	// custom servers such as azure-devops) and exposes wrappers on PATH. Reflect
+	// that runtime reality in the generated CLI server list so agents can call
+	// these wrappers deterministically instead of guessing command names.
+	if len(servers) > 0 && data.EngineConfig != nil && strings.EqualFold(data.EngineConfig.ID, string(constants.CopilotEngine)) {
+		if hasGitHubTool(data.ParsedTools) && !isGitHubCLIModeEnabled(data) && !slices.Contains(servers, "github") {
+			servers = append(servers, "github")
+		}
+
+		for toolName, toolValue := range data.Tools {
+			if internalMCPServerNames[toolName] {
+				continue
+			}
+			mcpConfig, ok := toolValue.(map[string]any)
+			if !ok {
+				continue
+			}
+			if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp && !slices.Contains(servers, toolName) {
+				servers = append(servers, toolName)
+			}
+		}
+	}
+
 	if len(servers) == 0 {
 		mcpCLIMountLog.Print("No MCP CLI servers configured")
 		return nil

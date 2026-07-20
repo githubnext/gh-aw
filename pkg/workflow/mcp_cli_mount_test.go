@@ -5,8 +5,10 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"slices"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -226,4 +228,47 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?##\s+`, prompt, "prompt must not contain H2 Markdown headings")
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?###\s+`, prompt, "prompt must not contain H3 Markdown headings")
 	assert.Contains(t, prompt, "Use `<server> --help` for tool names, parameters, and examples before calling any command.")
+}
+
+func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *testing.T) {
+	t.Run("copilot adds github and custom MCP servers when CLI mounts are active", func(t *testing.T) {
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: string(constants.CopilotEngine)},
+			Tools: map[string]any{
+				"github": true,
+				"azure-devops": map[string]any{
+					"command": "azure-devops-mcp",
+				},
+			},
+			ParsedTools: NewTools(map[string]any{"github": true}),
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+		}
+
+		servers := getMCPCLIServerNames(data)
+		assert.Contains(t, servers, constants.SafeOutputsMCPServerID.String(), "safeoutputs remains present")
+		assert.Contains(t, servers, "github", "github CLI wrapper should be listed for Copilot")
+		assert.Contains(t, servers, "azure-devops", "custom MCP server wrappers should be listed for Copilot")
+		assert.True(t, slices.IsSorted(servers), "server list should remain sorted")
+	})
+
+	t.Run("non-copilot keeps existing behavior", func(t *testing.T) {
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: string(constants.ClaudeEngine)},
+			Tools: map[string]any{
+				"github": true,
+				"azure-devops": map[string]any{
+					"command": "azure-devops-mcp",
+				},
+			},
+			ParsedTools: NewTools(map[string]any{"github": true}),
+			SafeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+		}
+
+		servers := getMCPCLIServerNames(data)
+		assert.Equal(t, []string{constants.SafeOutputsMCPServerID.String()}, servers)
+	})
 }
