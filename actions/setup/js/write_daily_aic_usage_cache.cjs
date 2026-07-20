@@ -18,9 +18,6 @@ const { findJSONLFiles, sumAICFromUsageJSONLFiles } = require("./daily_aic_workf
 const { AIC_USAGE_CACHE_FILE_PATH, CACHE_RETENTION_MS, pruneStaleJSONLCacheLines } = require("./daily_aic_cache_helpers.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-/** Path where the restored (and updated) usage cache lives on the runner. */
-const CACHE_FILE_PATH = AIC_USAGE_CACHE_FILE_PATH;
-
 /**
  * Directory prepared by the "Collect usage artifact files" step in the conclusion job.
  * Contains agent_usage.jsonl and agent/token_usage.jsonl which mirror the contents of
@@ -48,7 +45,7 @@ function logCache(message, details) {
  * @returns {Promise<void>}
  */
 async function mainWithPaths(cacheFilePath, usageDir) {
-  const cachePath = cacheFilePath || CACHE_FILE_PATH;
+  const cachePath = cacheFilePath || AIC_USAGE_CACHE_FILE_PATH;
   const usageDirPath = usageDir || USAGE_DIR;
   try {
     const runId = Number(process.env.GITHUB_RUN_ID || 0);
