@@ -30,9 +30,10 @@ var internalMCPServerNames = map[string]bool{
 	constants.GitHubMCPServerID.String(): true, // GitHub MCP server is handled differently and should not be CLI-mounted
 }
 
-// appendCustomMCPServerIfEligible appends toolName to servers if toolValue is a
-// map-shaped MCP server configuration, the tool is not in internalMCPServerNames,
-// and the tool is not already present in servers.
+// appendCustomMCPServerIfEligible returns a new slice with toolName appended if
+// toolValue is a map-shaped MCP server configuration, the tool is not in
+// internalMCPServerNames, and the tool is not already present in servers.
+// Returns the original slice otherwise (no mutation).
 // It is the shared implementation used by both the cli-proxy collection loop and
 // the Copilot augmentation sweep, ensuring a single source of truth for "is this
 // tool a custom MCP server?" logic.

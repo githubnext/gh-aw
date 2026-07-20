@@ -187,8 +187,8 @@ const SarifFileName = "code-scanning-alert.sarif"
 // MCP server ID constants
 
 // GitHubMCPServerID is the identifier for the GitHub MCP server.
-// Using this constant avoids hard-coding the string "github" and ensures that
-// any future rename is caught at compile time rather than silently diverging.
+// Using this constant provides a single source of truth for the GitHub MCP server
+// identifier and makes refactoring easier.
 const GitHubMCPServerID MCPServerID = "github"
 
 const SafeOutputsMCPServerID MCPServerID = "safeoutputs"
