@@ -1,6 +1,26 @@
 import { describe, it, expect } from "vitest";
+import fs from "fs";
+import { fileURLToPath } from "url";
 
 describe("mcp_scripts_validation.cjs", () => {
+  function loadUpdateIssueToolSchema() {
+    const toolsPath = fileURLToPath(new URL("./safe_outputs_tools.json", import.meta.url));
+    try {
+      const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
+      if (!Array.isArray(tools)) {
+        throw new Error("Expected tools schema to be a JSON array");
+      }
+      const updateIssueTool = tools.find(tool => tool.name === "update_issue");
+      if (!updateIssueTool) {
+        const availableNames = tools.map(tool => tool?.name).filter(Boolean);
+        throw new Error(`Expected a tool definition named 'update_issue' in safe_outputs_tools.json. Found tools: ${availableNames.join(", ")}`);
+      }
+      return updateIssueTool.inputSchema;
+    } catch (error) {
+      throw new Error(`Failed to load or parse safe outputs tool schema at ${toolsPath}. Expected a JSON array containing an 'update_issue' tool definition. Cause: ${error.message}`);
+    }
+  }
+
   describe("validateRequiredFields", () => {
     it("should return empty array when no required fields", async () => {
       const { validateRequiredFields } = await import("./mcp_scripts_validation.cjs");
@@ -330,6 +350,27 @@ describe("mcp_scripts_validation.cjs", () => {
 
       const violations = validateStringInputLengths(args, schema);
       expect(violations).toEqual([]);
+    });
+
+    it("should allow update_issue body above 10KB when schema declares maxLength", async () => {
+      const { validateStringInputLengths, MAX_STRING_INPUT_BYTES } = await import("./mcp_scripts_validation.cjs");
+      const updateIssueSchema = loadUpdateIssueToolSchema();
+
+      expect(updateIssueSchema.properties.body.maxLength).toBe(65536);
+
+      const args = { body: "a".repeat(MAX_STRING_INPUT_BYTES + 1) };
+      const violations = validateStringInputLengths(args, updateIssueSchema);
+      expect(violations).toEqual([]);
+    });
+
+    it("should enforce update_issue body schema maxLength boundary", async () => {
+      const { validateStringInputLengths } = await import("./mcp_scripts_validation.cjs");
+      const updateIssueSchema = loadUpdateIssueToolSchema();
+
+      const args = { body: "a".repeat(65537) };
+      const violations = validateStringInputLengths(args, updateIssueSchema);
+      expect(violations).toHaveLength(1);
+      expect(violations[0]).toMatchObject({ field: "body", limit: 65536, unit: "characters" });
     });
   });
 
