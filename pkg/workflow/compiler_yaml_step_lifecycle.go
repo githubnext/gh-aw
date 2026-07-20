@@ -32,11 +32,11 @@ func writeStepsSection(yaml *strings.Builder, stepsYAML string) {
 		return
 	}
 	lines := strings.Split(stepsYAML, "\n")
-	var bs yamlBlockScalarState
+	var blockScalarState yamlBlockScalarState
 	for _, line := range lines[1:] { // skip the "pre-steps:" / "pre-agent-steps:" / "post-steps:" header line
 		// Update block-scalar state using the original source line (before the
 		// 2-space strip below) so that indent-based entry/exit detection is correct.
-		isBS := bs.update(line)
+		isBS := blockScalarState.update(line)
 		if strings.TrimSpace(line) == "" {
 			yaml.WriteString("\n")
 			continue

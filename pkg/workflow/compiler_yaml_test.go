@@ -1928,9 +1928,9 @@ func TestYamlBlockScalarStateUpdate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			var bs yamlBlockScalarState
+			var blockScalarState yamlBlockScalarState
 			for i, line := range tt.lines {
-				got := bs.update(line)
+				got := blockScalarState.update(line)
 				if got != tt.wantBS[i] {
 					t.Errorf("line %d %q: update() = %v, want %v", i, line, got, tt.wantBS[i])
 				}
@@ -1983,9 +1983,9 @@ func TestAppendYAMLLine(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var b strings.Builder
-			var bs yamlBlockScalarState
+			var blockScalarState yamlBlockScalarState
 			for _, line := range tt.yamlLines {
-				isBS := bs.update(line)
+				isBS := blockScalarState.update(line)
 				appendYAMLLine(&b, tt.prefix, line, isBS)
 			}
 			if got := b.String(); got != tt.want {

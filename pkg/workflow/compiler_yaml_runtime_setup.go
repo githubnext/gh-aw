@@ -312,9 +312,9 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) > 1 {
-		var bs yamlBlockScalarState
+		var blockScalarState yamlBlockScalarState
 		for _, line := range lines[1:] {
-			isBS := bs.update(line)
+			isBS := blockScalarState.update(line)
 			appendYAMLLine(yaml, "      ", line, isBS)
 		}
 	}
@@ -332,11 +332,11 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 
 	insertedRuntime := false
 	i := 1 // Start from index 1 to skip "steps:" line
-	var bs yamlBlockScalarState
+	var blockScalarState yamlBlockScalarState
 
 	for i < len(lines) {
 		line := lines[i]
-		isBS := bs.update(line)
+		isBS := blockScalarState.update(line)
 
 		// Skip empty lines
 		if strings.TrimSpace(line) == "" {
@@ -386,7 +386,7 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 					}
 
 					// Add the line
-					nextIsBS := bs.update(nextLine)
+					nextIsBS := blockScalarState.update(nextLine)
 					appendYAMLLine(yaml, "      ", nextLine, nextIsBS)
 					i++
 				}

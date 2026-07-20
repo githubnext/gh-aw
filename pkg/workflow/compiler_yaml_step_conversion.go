@@ -40,10 +40,10 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
 	lines := strings.Split(strings.TrimSpace(yamlStr), "\n")
 	var result strings.Builder
-	var bs yamlBlockScalarState
+	var blockScalarState yamlBlockScalarState
 
 	for _, line := range lines {
-		isBS := bs.update(line)
+		isBS := blockScalarState.update(line)
 		appendYAMLLine(&result, "      ", line, isBS)
 	}
 
