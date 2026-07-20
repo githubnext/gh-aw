@@ -17,6 +17,7 @@ var otlpLog = logger.New("workflow:observability_otlp")
 
 var sentryEndpointExpressionPattern = regexp.MustCompile(`(?i)^\$\{\{\s*secrets\.` + regexp.QuoteMeta(constants.OTELSentryEndpointSecretName) + `\s*\}\}$`)
 var otlpResourceAttributeSecretRefPattern = regexp.MustCompile(`\$\{\{\s*(secrets|vars)\.`)
+var otelServiceNameKeyPattern = regexp.MustCompile(`(?m)^\s*OTEL_SERVICE_NAME:`)
 
 func normalizeOTLPHeadersForEndpoint(raw any, endpoint string) string {
 	if raw == nil {
@@ -735,7 +736,7 @@ func (c *Compiler) injectOTLPConfig(workflowData *WorkflowData) {
 	//    If the user has already defined OTEL_SERVICE_NAME in their env block,
 	//    we respect their value and skip injection to avoid duplicate key errors.
 	otlpEnvLines := "  OTEL_EXPORTER_OTLP_ENDPOINT: " + firstEndpoint
-	if strings.Contains(workflowData.Env, "OTEL_SERVICE_NAME:") {
+	if otelServiceNameKeyPattern.MatchString(workflowData.Env) {
 		otlpLog.Printf("Skipping OTEL_SERVICE_NAME injection: already defined by user")
 	} else {
 		otlpEnvLines += "\n  OTEL_SERVICE_NAME: " + serviceName
