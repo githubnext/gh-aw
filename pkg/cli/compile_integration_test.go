@@ -236,7 +236,7 @@ func removeAllWithRetry(path string) error {
 	}
 
 	var err error
-	for range attempts {
+	for i := 0; i < attempts; i++ {
 		err = os.RemoveAll(path)
 		if err == nil || os.IsNotExist(err) {
 			return nil
