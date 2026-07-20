@@ -203,6 +203,7 @@ describe("no-github-request-interpolated-route", () => {
         // Alias of http module — must not be flagged
         "const client = http; client.request(`GET /repos/${owner}/${repo}`);",
         // Unknown .getOctokit() owner must not be treated as toolkit Octokit source
+        "const client = unknown.getOctokit(token); client.request(`GET /repos/${owner}/${repo}`);",
         "const helperClient = myHelper.getOctokit(token); helperClient.request(`GET /repos/${owner}/${repo}`);",
       ],
       invalid: [],
@@ -285,6 +286,24 @@ describe("no-github-request-interpolated-route", () => {
         },
         {
           code: "const client = actions.getOctokit(token); client.request(`POST /repos/${owner}/${repo}/issues`, { });",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "template literal with interpolations", client: "client" },
+            },
+          ],
+        },
+        {
+          code: "const client = global.getOctokit(token); client.request(`GET /repos/${owner}/${repo}`, { });",
+          errors: [
+            {
+              messageId: "interpolatedRoute",
+              data: { kind: "template literal with interpolations", client: "client" },
+            },
+          ],
+        },
+        {
+          code: "const client = globalState.getOctokit(token); client.request(`GET /repos/${owner}/${repo}`, { });",
           errors: [
             {
               messageId: "interpolatedRoute",
