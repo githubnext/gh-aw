@@ -341,6 +341,15 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			expectShellExpansion: false, // Claude reads ANTHROPIC_MODEL natively, no shell expansion needed
 		},
 		{
+			name:                 "Claude agent keeps composite expression model and adds JS fallback env",
+			engine:               "claude",
+			model:                "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedModelEnvVar:  constants.ClaudeCLIModelEnvVar,
+			expectedModelEnvVal:  "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '' }}",
+			expectShellExpansion: false,
+		},
+		{
 			name:                 "Codex agent keeps composite expression model and adds JS fallback env",
 			engine:               "codex",
 			model:                "${{ inputs.provider }}/${{ inputs.model }}",
