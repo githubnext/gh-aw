@@ -99,6 +99,10 @@ After merging the pull request, you can run the workflow to see it in action. Ei
 - trigger runs manually from the Actions tab in GitHub.com, or
 - use [the `gh aw run` command](/gh-aw/setup/cli/#run) to trigger runs from your terminal.
 
+## Choose the Right Step Lifecycle Hook
+
+When you add deterministic setup or cleanup to a workflow, choose the smallest hook that matches the lifecycle point you need. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/#choosing-the-right-step-hook) for the canonical ordering guide, including the distinction between pre-checkout `pre-steps:` and the later `pre-agent-steps:` phase.
+
 ## Initialize the Repository
 
 Running `gh aw init` is **required** to enable the authoring experience in the GitHub code agent. This step configures your repository so that you can create and modify agentic workflows directly from [github.com](https://github.com) or the GitHub mobile app, using the Copilot coding agent.

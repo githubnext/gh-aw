@@ -75,7 +75,8 @@
       "properties": {
         "enabled": {
           "type": "boolean",
-          "description": "Enable the API proxy sidecar container. When enabled, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_PROVIDER_API_KEY, GEMINI_API_KEY) are held exclusively in the sidecar and excluded from the agent environment. The agent receives proxy-routing base URLs instead. See docs/awf-config-spec.md §9 for credential isolation semantics."
+          "deprecated": true,
+          "description": "[DEPRECATED] The API proxy sidecar is always enabled; this field is ignored. Source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, COPILOT_GITHUB_TOKEN, COPILOT_PROVIDER_API_KEY, GEMINI_API_KEY) are always held exclusively in the sidecar and excluded from the agent environment. The negated CLI form --no-enable-api-proxy is rejected at runtime. See docs/awf-config-spec.md \u00a79.3 for details."
         },
         "enableTokenSteering": {
           "type": "boolean",
@@ -93,7 +94,7 @@
         "maxEffectiveTokens": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input ×1, cache-read ×0.1, output ×4, reasoning ×4. See spec §10."
+          "description": "Maximum cumulative effective tokens allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 403 and error type 'effective_tokens_limit_exceeded'. Tokens are weighted: input \u00d71, cache-read \u00d70.1, output \u00d74, reasoning \u00d74. See spec \u00a710."
         },
         "maxAiCredits": {
           "type": "number",
@@ -118,7 +119,7 @@
             "cachedInput": {
               "type": "number",
               "minimum": 0,
-              "description": "Cached input token price per 1M tokens. Defaults to input × 0.1 if omitted."
+              "description": "Cached input token price per 1M tokens. Defaults to input \u00d7 0.1 if omitted."
             },
             "cacheWrite": {
               "type": ["number", "null"],
@@ -130,7 +131,7 @@
         },
         "modelMultipliers": {
           "type": "object",
-          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec §10.2.",
+          "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec \u00a710.2.",
           "additionalProperties": {
             "type": "number",
             "exclusiveMinimum": 0
@@ -149,7 +150,7 @@
         "maxTurns": {
           "type": "integer",
           "minimum": 1,
-          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec §11."
+          "description": "Maximum number of LLM invocations allowed for a run. When reached, the API proxy rejects subsequent requests with HTTP 429 and error type 'max_runs_exceeded'. See spec \u00a711."
         },
         "maxRuns": {
           "type": "integer",
@@ -251,7 +252,7 @@
         },
         "allowedModels": {
           "type": "array",
-          "description": "Allowlist of permitted model names (glob patterns). When set, only models matching at least one pattern are permitted. Uses case-insensitive glob matching with * as a wildcard. Evaluated after disallowedModels — a model in the denylist is always rejected even if it matches the allowlist. Examples: [\"*sonnet*\", \"*haiku*\"].",
+          "description": "Allowlist of permitted model names (glob patterns). When set, only models matching at least one pattern are permitted. Uses case-insensitive glob matching with * as a wildcard. Evaluated after disallowedModels \u2014 a model in the denylist is always rejected even if it matches the allowlist. Examples: [\"*sonnet*\", \"*haiku*\"].",
           "items": {
             "type": "string"
           }
@@ -265,7 +266,7 @@
         },
         "auth": {
           "type": "object",
-          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC → Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md §9.5.",
+          "description": "Authentication configuration for the API proxy sidecar. Enables OIDC-based credential exchange (e.g., GitHub OIDC \u2192 Azure AD, AWS STS, GCP Workload Identity, or Anthropic Workload Identity Federation). See docs/awf-config-spec.md \u00a79.5.",
           "additionalProperties": false,
           "properties": {
             "type": {
@@ -443,6 +444,16 @@
       "description": "Security and isolation configuration.",
       "additionalProperties": false,
       "properties": {
+        "legacySecurity": {
+          "type": "boolean",
+          "description": "Enable legacy security mode (sudo, host-access, iptables). When omitted or false, strict security is enforced (network-isolation + API proxy credential injection)."
+        },
+        "securityMode": {
+          "type": "string",
+          "enum": ["strict", "compat"],
+          "description": "[DEPRECATED] Use legacySecurity instead. Will be removed in a future release.",
+          "deprecated": true
+        },
         "sslBump": {
           "type": "boolean",
           "description": "Enable SSL bumping (TLS interception) in the Squid proxy. Requires a custom CA certificate."
@@ -649,7 +660,7 @@
     },
     "environment": {
       "type": "object",
-      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence and may override any variable, including AWF-reserved ones. When apiProxy.enabled is true, source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md §8–9 for credential isolation rules.",
+      "description": "Environment variable propagation into the agent container. Merge behavior is: AWF-reserved variables are set by AWF and are not overridden by envAll or envFile; if envAll is true, host environment variables are forwarded next; envFile is then applied only for variables not already present, so it does not override envAll; CLI -e/--env has highest precedence for user-supplied values and may override envAll/envFile. Reserved proxy variables may be overridden only via CLI -e/--env, while other AWF-reserved variables remain protected. Source credentials (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are always excluded from the agent and held in the API proxy sidecar. See docs/awf-config-spec.md \u00a78\u20139 for credential isolation rules.",
       "additionalProperties": false,
       "properties": {
         "envFile": {
@@ -658,14 +669,14 @@
         },
         "envAll": {
           "type": "boolean",
-          "description": "Forward all host environment variables into the agent container. Use with caution — may expose secrets."
+          "description": "Forward all host environment variables into the agent container. Use with caution \u2014 may expose secrets."
         },
         "excludeEnv": {
           "type": "array",
           "items": {
             "type": "string"
           },
-          "description": "Environment variable names to exclude when envAll is true. IMPORTANT: Excluding LLM API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) without setting apiProxy.enabled=true will cause agent authentication failures. Use apiProxy.enabled=true for credential isolation instead of manual exclusion."
+          "description": "Environment variable names to exclude when envAll is true. Note: LLM API keys (OPENAI_API_KEY, ANTHROPIC_API_KEY, etc.) are always excluded from the agent by the API proxy sidecar regardless of this setting."
         }
       }
     },

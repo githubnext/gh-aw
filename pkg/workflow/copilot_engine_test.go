@@ -2802,6 +2802,12 @@ func TestBuildEngineCommandScriptSetup(t *testing.T) {
 	if !strings.Contains(setup, "umask 0177") {
 		t.Fatalf("Expected restrictive umask in script setup, got:\n%s", setup)
 	}
+	if !strings.Contains(setup, `GH_AW_PREV_UMASK="$(umask)"`) {
+		t.Fatalf("Expected script setup to preserve original umask, got:\n%s", setup)
+	}
+	if !strings.Contains(setup, `umask "$GH_AW_PREV_UMASK"`) {
+		t.Fatalf("Expected script setup to restore original umask, got:\n%s", setup)
+	}
 	if !strings.Contains(setup, "chmod 700 /tmp/gh-aw/engine-command.sh") {
 		t.Fatalf("Expected owner-only execute permissions, got:\n%s", setup)
 	}

@@ -1,7 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
-import { CURRENT_WORKSHOP_SLUG } from '../src/lib/workshop/config';
 
-const WORKSHOP_URL = `/gh-aw/workshops/${CURRENT_WORKSHOP_SLUG}/`;
+const WORKSHOP_URL = `/gh-aw/workshop/`;
 const PIXEL_TOLERANCE = 1;
 const ZEN_MODE_MOBILE_BREAKPOINT = 800;
 
@@ -21,36 +20,53 @@ async function startWorkshop(page: Page) {
 	await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 }
 
+async function getFlowStepKeys(page: Page): Promise<string[]> {
+	return page.evaluate(() => {
+		const value = document.querySelector('[data-workshop-root]')?.getAttribute('data-workshop-flow-keys') ?? '';
+		return value ? value.split(',').filter(Boolean) : [];
+	});
+}
+
+async function getCurrentStepKey(page: Page): Promise<string> {
+	return page.evaluate(() => document.querySelector('[data-workshop-root]')?.getAttribute('data-workshop-current-step') ?? '');
+}
+
+async function goToStepIfVisible(page: Page, targetStepKey: string): Promise<boolean> {
+	const flowKeys = await getFlowStepKeys(page);
+	if (!flowKeys.includes(targetStepKey)) return false;
+
+	for (let stepAttempt = 0; stepAttempt < flowKeys.length; stepAttempt++) {
+		if ((await getCurrentStepKey(page)) === targetStepKey) return true;
+		const nextButton = page.getByRole('button', { name: /Next step|Finish workshop/i });
+		if (await nextButton.isDisabled()) break;
+		await nextButton.click();
+	}
+
+	return (await getCurrentStepKey(page)) === targetStepKey;
+}
+
+async function shouldNavigateToVisibleStep(page: Page, isPresent: boolean, stepKey: string | null): Promise<boolean> {
+	return Boolean(isPresent && stepKey && await goToStepIfVisible(page, stepKey));
+}
+
 test.describe('Workshop tutorial', () => {
-	test('progress rail follows the active step instead of saved completion history', async ({ page }) => {
+	test('step position follows the active step instead of saved completion history', async ({ page }) => {
 		await startWorkshop(page);
 
-		const bubbles = page.locator('[data-workshop-step-bubbles] .aw-workshop-step-bubble');
-		const bubbleCount = await bubbles.count();
-		const firstStepPercent = bubbleCount <= 1 ? 100 : 0;
-		const thirdStepPercent = bubbleCount <= 1 ? 100 : Math.round((2 / (bubbleCount - 1)) * 100);
+		const flowKeys = await getFlowStepKeys(page);
+		const flowLength = flowKeys.length;
 
-		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${bubbleCount}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${firstStepPercent}%`);
-		await expect(bubbles.nth(0)).toHaveClass(/is-active/);
-		await expect(bubbles.nth(0)).not.toHaveClass(/is-complete/);
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
 
 		await page.getByRole('button', { name: /Next step/i }).click();
 		await page.getByRole('button', { name: /Next step/i }).click();
 
-		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 3 of ${bubbleCount}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${thirdStepPercent}%`);
-		await expect(bubbles.nth(0)).toHaveClass(/is-complete/);
-		await expect(bubbles.nth(1)).toHaveClass(/is-complete/);
-		await expect(bubbles.nth(2)).toHaveClass(/is-active/);
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 3 of ${flowLength}`);
 
-		await bubbles.nth(0).click();
+		await page.getByRole('button', { name: /Previous step/i }).click();
+		await page.getByRole('button', { name: /Previous step/i }).click();
 
-		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${bubbleCount}`);
-		await expect(page.locator('[data-workshop-lesson-percent]')).toHaveText(`${firstStepPercent}%`);
-		await expect(bubbles.nth(0)).toHaveClass(/is-active/);
-		await expect(bubbles.nth(0)).not.toHaveClass(/is-complete/);
-		await expect(bubbles.nth(1)).not.toHaveClass(/is-complete/);
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
 	});
 
 	test('switching entry path clears previous scenario and restarts the flow', async ({ page }) => {
@@ -95,18 +111,18 @@ test.describe('Workshop tutorial', () => {
 			await expect(page.getByRole('button', { name: /Next step|Finish workshop/i })).toBeVisible();
 			if (isZenMobileViewport) {
 				await expect(page.locator('.aw-workshop-flow-header')).toBeHidden();
-				await expect(page.locator('.aw-workshop-progress-card')).toBeHidden();
 				await expect(page.locator('.aw-workshop-panel-summary')).toBeHidden();
 				await expect(page.locator('.aw-workshop-panel-actions')).toBeHidden();
 			} else {
 				await expect(page.locator('.aw-workshop-flow-header')).toBeVisible();
-				await expect(page.locator('.aw-workshop-progress-card')).toBeVisible();
 				await expect(page.locator('.aw-workshop-panel-summary')).toBeVisible();
 				await expect(page.locator('.aw-workshop-panel-actions')).toBeVisible();
 			}
 
 			const layout = await page.evaluate(() => {
+				const panelShell = document.querySelector('.aw-workshop-panel-shell');
 				const stepContent = document.querySelector('.aw-workshop-step-content');
+				const panelShellStyle = panelShell ? window.getComputedStyle(panelShell) : null;
 				const stepContentStyle = stepContent ? window.getComputedStyle(stepContent) : null;
 				const workshopRoot = document.querySelector('.aw-workshop');
 				const panelHeader = document.querySelector('.aw-workshop-panel-header');
@@ -118,7 +134,6 @@ test.describe('Workshop tutorial', () => {
 					'.aw-workshop',
 					'.aw-workshop-panel-shell',
 					'.aw-workshop-panel-header',
-					'.aw-workshop-progress-card',
 					'.aw-workshop-step-content',
 					'.aw-workshop-panel-footer',
 				];
@@ -150,6 +165,13 @@ test.describe('Workshop tutorial', () => {
 						panelHeaderLeft: panelHeaderRect?.left ?? 0,
 						panelFooterLeft: panelFooterRect?.left ?? 0,
 					} : null,
+					panelShellStyle: panelShellStyle ? {
+						borderWidth: panelShellStyle.borderWidth,
+						backgroundColor: panelShellStyle.backgroundColor,
+						boxShadow: panelShellStyle.boxShadow,
+						paddingLeft: panelShellStyle.paddingLeft,
+						paddingRight: panelShellStyle.paddingRight,
+					} : null,
 					stepContentStyle: stepContentStyle ? {
 						borderWidth: stepContentStyle.borderWidth,
 						borderRadius: stepContentStyle.borderRadius,
@@ -167,6 +189,20 @@ test.describe('Workshop tutorial', () => {
 				expect(bound.left).toBeGreaterThanOrEqual(-PIXEL_TOLERANCE);
 				expect(bound.right).toBeLessThanOrEqual(layout.viewportWidth + PIXEL_TOLERANCE);
 			}
+			expect(layout.panelShellStyle).toEqual({
+				borderWidth: '0px',
+				backgroundColor: 'rgba(0, 0, 0, 0)',
+				boxShadow: 'none',
+				paddingLeft: '0px',
+				paddingRight: '0px',
+			});
+			expect(layout.stepContentStyle).toMatchObject({
+				borderWidth: '0px',
+				borderRadius: '0px',
+				backgroundImage: 'none',
+				backgroundColor: 'rgba(0, 0, 0, 0)',
+				boxShadow: 'none',
+			});
 			if (isZenMobileViewport) {
 				expect(layout.workshopRootStyle).toEqual({ marginTop: '0px' });
 				const panelShell = layout.bounds.find((bound) => bound.selector === '.aw-workshop-panel-shell');
@@ -363,8 +399,7 @@ test.describe('Workshop Astro rendering contract', () => {
 
 		// Locate the first step in the visible flow that contains a data-workshop-local-link,
 		// navigating forward until one is found or the flow ends.
-		const bubbles = page.locator('[data-workshop-step-bubbles] .aw-workshop-step-bubble');
-		const flowLength = await bubbles.count();
+		const flowLength = (await getFlowStepKeys(page)).length;
 
 		let localLink = page.locator('[data-workshop-step-content] [data-workshop-local-link]').first();
 		let found = await localLink.isVisible();
@@ -420,19 +455,9 @@ test.describe('Workshop Astro rendering contract', () => {
 		// Raw remark-gfm classes must not appear in any step HTML — they should have been rewritten.
 		expect(result.hasRawMarkers).toBe(false);
 
-		// If the workshop content includes task lists, navigate to the step and verify the
-		// checklist is rendered with the expected workshop class. The bubble list reflects
-		// only the current route's visibleFlow, so the step may not be present; in that
-		// case the UI assertion is skipped rather than failing on missing navigation.
-		if (result.hasTaskLists && result.firstTaskListStepKey) {
-			const bubble = page.locator(
-				`[data-workshop-step-bubbles] .aw-workshop-step-bubble[data-workshop-step-link="${result.firstTaskListStepKey}"]`
-			);
-			if ((await bubble.count()) > 0) {
-				await bubble.first().click();
-				const checklist = page.locator('[data-workshop-step-content] ul.aw-workshop-checklist').first();
-				await expect(checklist).toBeVisible();
-			}
+		if (await shouldNavigateToVisibleStep(page, result.hasTaskLists, result.firstTaskListStepKey)) {
+			const checklist = page.locator('[data-workshop-step-content] ul.aw-workshop-checklist').first();
+			await expect(checklist).toBeVisible();
 		}
 	});
 
@@ -456,19 +481,9 @@ test.describe('Workshop Astro rendering contract', () => {
 		// Raw [!TYPE] markers must not appear in any step HTML.
 		expect(result.hasRawMarkers).toBe(false);
 
-		// If the workshop content includes GFM alerts, navigate to the step by its
-		// key via the data-workshop-step-link attribute. The bubble list reflects
-		// only the current route's visibleFlow, so the step may not be present; in
-		// that case the UI assertion is skipped rather than clicking the wrong bubble.
-		if (result.hasAlerts && result.firstAlertStepKey) {
-			const bubble = page.locator(
-				`[data-workshop-step-bubbles] .aw-workshop-step-bubble[data-workshop-step-link="${result.firstAlertStepKey}"]`
-			);
-			if ((await bubble.count()) > 0) {
-				await bubble.first().click();
-				const aside = page.locator('[data-workshop-step-content] aside[class*="aw-workshop-admonition-"]').first();
-				await expect(aside).toBeVisible();
-			}
+		if (await shouldNavigateToVisibleStep(page, result.hasAlerts, result.firstAlertStepKey)) {
+			const aside = page.locator('[data-workshop-step-content] aside[class*="aw-workshop-admonition-"]').first();
+			await expect(aside).toBeVisible();
 		}
 	});
 });
@@ -481,7 +496,7 @@ test.describe('Workshop Astro rendering contract', () => {
 // the bubble-rail step keys that it produced.
 // ---------------------------------------------------------------------------
 
-async function getFlowStepKeys(page: Page, journeyId: string, scenarioId: string): Promise<string[]> {
+async function getFlowStepKeysForRoute(page: Page, journeyId: string, scenarioId: string): Promise<string[]> {
 	// Clear any stale session state so only the hash URL drives the flow.
 	await page.goto('/gh-aw/workshop/');
 	await page.waitForLoadState('networkidle');
@@ -493,35 +508,32 @@ async function getFlowStepKeys(page: Page, journeyId: string, scenarioId: string
 	await page.waitForLoadState('networkidle');
 	await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 
-	return page.evaluate((): string[] => {
-		const bubbles = document.querySelectorAll('[data-workshop-step-bubbles] [data-workshop-step-link]');
-		return [...bubbles].map(b => b.getAttribute('data-workshop-step-link') ?? '');
-	});
+	return getFlowStepKeys(page);
 }
 
 test.describe('Workshop flow filtering: scenario isolation', () => {
 	test('github+daily-status includes scenario-a build step and excludes scenario-b/c', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'github', 'daily-status');
+		const keys = await getFlowStepKeysForRoute(page, 'github', 'daily-status');
 		expect(keys).toContain('11a-build-daily-status-ui');
 		expect(keys).not.toContain('11b-build-daily-docs-ui');
 		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
 	});
 
 	test('github+daily-docs includes scenario-b build step and excludes scenario-a/c', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'github', 'daily-docs');
+		const keys = await getFlowStepKeysForRoute(page, 'github', 'daily-docs');
 		expect(keys).toContain('11b-build-daily-docs-ui');
 		expect(keys).not.toContain('11a-build-daily-status-ui');
 		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
 	});
 
 	test('terminal+daily-status includes terminal build step and excludes ui build step', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'terminal', 'daily-status');
+		const keys = await getFlowStepKeysForRoute(page, 'terminal', 'daily-status');
 		expect(keys).toContain('11a-build-daily-status-terminal');
 		expect(keys).not.toContain('11a-build-daily-status-ui');
 	});
 
 	test('terminal+pr-reviewer includes terminal build step and excludes ui build step', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'terminal', 'pr-reviewer');
+		const keys = await getFlowStepKeysForRoute(page, 'terminal', 'pr-reviewer');
 		expect(keys).toContain('11c-build-pr-reviewer-terminal');
 		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
 	});
@@ -529,21 +541,21 @@ test.describe('Workshop flow filtering: scenario isolation', () => {
 
 test.describe('Workshop flow filtering: hub page removal', () => {
 	test('github journey excludes numeric-prefix hub when letter-variant step exists', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'github', 'daily-status');
+		const keys = await getFlowStepKeysForRoute(page, 'github', 'daily-status');
 		// 06-install-gh-aw (all/core hub) should be replaced by 06c-install-ui
 		expect(keys).not.toContain('06-install-gh-aw');
 		expect(keys).toContain('06c-install-ui');
 	});
 
 	test('github journey excludes alphanumeric-prefix hub when journey-specific variant exists', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'github', 'daily-status');
+		const keys = await getFlowStepKeysForRoute(page, 'github', 'daily-status');
 		// 11a-build-daily-status (all/scenario-a hub) should be replaced by 11a-build-daily-status-ui
 		expect(keys).not.toContain('11a-build-daily-status');
 		expect(keys).toContain('11a-build-daily-status-ui');
 	});
 
 	test('terminal journey excludes all-journey hub when terminal-specific variant exists', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'terminal', 'daily-status');
+		const keys = await getFlowStepKeysForRoute(page, 'terminal', 'daily-status');
 		// 11a-build-daily-status (all/scenario-a hub) should be replaced by terminal variant
 		expect(keys).not.toContain('11a-build-daily-status');
 		expect(keys).toContain('11a-build-daily-status-terminal');
@@ -552,7 +564,7 @@ test.describe('Workshop flow filtering: hub page removal', () => {
 
 test.describe('Workshop flow filtering: Copilot scenario-d substitution', () => {
 	test('copilot+daily-status uses scenario-d build steps and excludes ui-journey scenario-a build step', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'copilot', 'daily-status');
+		const keys = await getFlowStepKeysForRoute(page, 'copilot', 'daily-status');
 		// scenario-d build step must be present
 		expect(keys).toContain('11d-build-copilot-agents');
 		// ui-journey scenario-a build step must be absent (copilot exclusion)
@@ -560,13 +572,13 @@ test.describe('Workshop flow filtering: Copilot scenario-d substitution', () => 
 	});
 
 	test('copilot+daily-docs uses scenario-d build steps and excludes ui-journey scenario-b build step', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'copilot', 'daily-docs');
+		const keys = await getFlowStepKeysForRoute(page, 'copilot', 'daily-docs');
 		expect(keys).toContain('11d-build-copilot-agents');
 		expect(keys).not.toContain('11b-build-daily-docs-ui');
 	});
 
 	test('copilot+pr-reviewer uses scenario-d build steps and excludes ui-journey scenario-c build step', async ({ page }) => {
-		const keys = await getFlowStepKeys(page, 'copilot', 'pr-reviewer');
+		const keys = await getFlowStepKeysForRoute(page, 'copilot', 'pr-reviewer');
 		expect(keys).toContain('11d-build-copilot-agents');
 		expect(keys).not.toContain('11c-build-pr-reviewer-ui');
 	});

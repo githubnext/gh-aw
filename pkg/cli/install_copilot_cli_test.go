@@ -183,3 +183,57 @@ exit 97
 	}
 	assert.Equal(t, 1, compatFetches, "compat.json should be fetched exactly once (no double fallback)")
 }
+
+func TestInstallCopilotCLIScriptRootlessModeUsesRealScriptWithToolcacheAndNoSudo(t *testing.T) {
+	wd, err := os.Getwd()
+	require.NoError(t, err, "Failed to get working directory")
+
+	projectRoot := filepath.Join(wd, "..", "..")
+	installScript := filepath.Join(projectRoot, "actions", "setup", "sh", "install_copilot_cli.sh")
+
+	testCases := []struct {
+		name string
+		args []string
+	}{
+		{name: "rootless flag before version", args: []string{"--rootless", "1.2.3"}},
+		{name: "rootless flag after version", args: []string{"1.2.3", "--rootless"}},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			tempDir := t.TempDir()
+			homeDir := filepath.Join(tempDir, "home")
+			require.NoError(t, os.MkdirAll(homeDir, 0o755))
+
+			toolcacheBin := filepath.Join(tempDir, "toolcache", "copilot-cli", "1.2.3", "x64", "bin")
+			require.NoError(t, os.MkdirAll(toolcacheBin, 0o755))
+			require.NoError(t, os.WriteFile(filepath.Join(toolcacheBin, "copilot"), []byte("#!/usr/bin/env bash\necho 'copilot 1.2.3'\n"), 0o755))
+
+			fakeBinDir := filepath.Join(tempDir, "fake-bin")
+			require.NoError(t, os.MkdirAll(fakeBinDir, 0o755))
+
+			sudoScript := filepath.Join(fakeBinDir, "sudo")
+			sudoLog := filepath.Join(tempDir, "sudo.log")
+			require.NoError(t, os.WriteFile(sudoScript, []byte(`#!/usr/bin/env bash
+echo "sudo-called: $*" >> "`+sudoLog+`"
+exit 99
+`), 0o755))
+
+			cmd := exec.Command("bash", append([]string{installScript}, tc.args...)...)
+			cmd.Env = append(os.Environ(),
+				"HOME="+homeDir,
+				"RUNNER_TOOL_CACHE="+filepath.Join(tempDir, "toolcache"),
+				"GITHUB_PATH=",
+				"PATH="+fakeBinDir+":"+os.Getenv("PATH"),
+			)
+
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "install_copilot_cli.sh should succeed in rootless mode with toolcache and no sudo: %s", output)
+
+			assert.Contains(t, string(output), "Using cached GitHub Copilot CLI", "script should use cached copilot CLI")
+			assert.Contains(t, string(output), "GITHUB_PATH not set — installing wrapper at "+filepath.Join(homeDir, ".local", "bin", "copilot"))
+			assert.FileExists(t, filepath.Join(homeDir, ".local", "bin", "copilot"))
+			assert.NoFileExists(t, sudoLog, "sudo should not be called in rootless mode")
+		})
+	}
+}

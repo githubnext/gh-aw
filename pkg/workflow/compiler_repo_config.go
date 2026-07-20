@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"fmt"
 	"maps"
+	"os"
 	"strings"
 )
 
@@ -17,6 +19,19 @@ func (c *Compiler) loadRepoConfig() (*RepoConfig, error) {
 	c.repoConfigLoaded = true
 	if c.repoConfigErr != nil {
 		repoConfigLog.Printf("loadRepoConfig: failed to load repo config: %v", c.repoConfigErr)
+		fmt.Fprintln(
+			os.Stderr,
+			formatCompilerMessage(
+				RepoConfigFileName,
+				"warning",
+				fmt.Sprintf(
+					"failed to load aw.json; compilation will continue with defaults, and action_failure_issue_expires will fall back to %d hours where applicable: %v",
+					DefaultActionFailureIssueExpiresHours,
+					c.repoConfigErr,
+				),
+			),
+		)
+		c.IncrementWarningCount()
 	} else {
 		repoConfigLog.Print("loadRepoConfig: repo config loaded successfully")
 	}

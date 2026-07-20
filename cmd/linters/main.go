@@ -63,6 +63,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
+	"github.com/github/gh-aw/pkg/linters/timenowsub"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
 	"github.com/github/gh-aw/pkg/linters/tolowerequalfold"
 	"github.com/github/gh-aw/pkg/linters/trimleftright"
@@ -121,6 +122,7 @@ func main() {
 		lenstringsplit.Analyzer,
 		timeafterleak.Analyzer,
 		timesleepnocontext.Analyzer,
+		timenowsub.Analyzer,
 		tolowerequalfold.Analyzer,
 		trimleftright.Analyzer,
 		uncheckedtypeassertion.Analyzer,

@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.16  
+**Version**: 1.0.17  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.17` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. |
 | `1.0.16` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. |
 | `1.0.15` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). |
 | `1.0.14` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), and conditional import rejection (`imports.if` rejection for CTR-020). |
@@ -272,7 +273,9 @@ The mappings above are pattern-based references and MUST be validated against co
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-07-06)
+### 7.2 Mapping Audit (2026-07-20)
+
+Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit 7bdc455 (docs: add weekly update blog post for 2026-07-20), merged 2026-07-20. Security-relevant items evaluated: (1) **Weekly update blog post** (`7bdc455`): documentation-only change; no compiler source, parser, or validation logic modified; no new threat class; no new CTR rule required. No compiler changes, security-sensitive diffs, or open security findings were identified in this review cycle.
 
 Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit fe21742 (fix: emit sbx credential refresh step before agent execution), merged 2026-07-12. Security-relevant items evaluated: (1) **`docker-sbx` microVM runtime support** (`pkg/workflow/docker_sbx_install.go`, `pkg/workflow/sandbox_validation.go`): compiler emits KVM check, Docker Hub secrets check, sbx install, sbx auth/daemon-setup, sbx pre-flight smoke, and a new `Refresh sbx credentials` step immediately before AWF agent execution; the refresh step ensures Docker Hub OAuth tokens do not expire between the daemon-setup and agent-creation phases; `sandbox_validation.go` enforces that `docker-sbx` requires `sudo: true` (hard error if absent), compatible runner topology (rejects `arc-dind`), and a minimum AWF version; covered by CTR-004 (sandbox bypass configuration); the `sudo: true` deprecation path in `strict_mode_sandbox_validation.go` is correctly exempted for `docker-sbx`; no new threat class; no new CTR rule required. (2) **Docker Hub secrets via environment variable binding** (`DOCKER_PAT_VAL`, `DOCKER_USERNAME_VAL`): secrets are bound to step-scoped env vars and consumed via `$DOCKER_PAT_VAL` inside the `run:` block; fully compliant with CTR-017 safe binding pattern; no new threat class; no new CTR rule required. (3) **Credential refresh timing** (security improvement): refreshing credentials immediately before `sbx create` prevents authentication failures from token expiry without broadening the workflow's trust surface; no new threat class; no new CTR rule required.
 
@@ -347,6 +350,11 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.17 (2026-07-20)
+
+- Updated Section 7.2 mapping audit to 2026-07-20 covering commit 7bdc455 (docs: add weekly update blog post for 2026-07-20): documentation-only change with no compiler source, parser, or validation logic modifications; no new threat class; no new CTR rules required
+- Updated Section 2 spec-to-implementation sync table with version 1.0.17 entry
 
 ### 1.0.16 (2026-07-13)
 

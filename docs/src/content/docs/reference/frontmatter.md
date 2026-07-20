@@ -107,7 +107,7 @@ imports:
 
 See [Imports](/gh-aw/reference/imports/) for complete documentation on syntax, shared components, APM package dependencies, and composition patterns.
 
-### Custom Steps and Jobs (`steps:`, `pre-agent-steps:`, `post-steps:`, `jobs:`)
+### Custom Steps and Jobs (`pre-steps:`, `steps:`, `pre-agent-steps:`, `post-steps:`, `jobs:`)
 
 Add deterministic steps before or after agentic execution, or define full custom GitHub Actions jobs that run before the agent. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/) for complete documentation.
 

@@ -210,3 +210,35 @@ func TestParseReactionConfigMapAllTargetsDisabled(t *testing.T) {
 		t.Fatal("Expected parseReactionConfig to fail when all reaction targets are disabled")
 	}
 }
+
+func TestParseReactionConfigScalarLeavesTargetPointersNil(t *testing.T) {
+	reaction, issues, pullRequests, discussions, err := parseReactionConfig("rocket")
+	if err != nil {
+		t.Fatalf("parseReactionConfig(scalar) returned unexpected error: %v", err)
+	}
+	if reaction != "rocket" {
+		t.Fatalf("Expected reaction type 'rocket', got %q", reaction)
+	}
+	if issues != nil || pullRequests != nil || discussions != nil {
+		t.Fatalf("Expected scalar reaction config to leave target pointers nil, got issues=%v pullRequests=%v discussions=%v", issues, pullRequests, discussions)
+	}
+}
+
+func TestParseReactionConfigMapDefaultsTypeAndTargets(t *testing.T) {
+	reaction, issues, pullRequests, discussions, err := parseReactionConfig(map[string]any{})
+	if err != nil {
+		t.Fatalf("parseReactionConfig(empty map) returned unexpected error: %v", err)
+	}
+	if reaction != "eyes" {
+		t.Fatalf("Expected default reaction type 'eyes', got %q", reaction)
+	}
+	if issues == nil || !*issues {
+		t.Fatalf("Expected issues target to default to true, got %v", issues)
+	}
+	if pullRequests == nil || !*pullRequests {
+		t.Fatalf("Expected pull-requests target to default to true, got %v", pullRequests)
+	}
+	if discussions == nil || !*discussions {
+		t.Fatalf("Expected discussions target to default to true, got %v", discussions)
+	}
+}

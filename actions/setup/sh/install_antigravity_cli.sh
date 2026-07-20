@@ -2,13 +2,16 @@
 set +o histexpand
 
 # Install Antigravity CLI (agy) from Google Cloud Storage
-# Usage: install_antigravity_cli.sh VERSION
+# Usage: install_antigravity_cli.sh VERSION [--rootless]
 #
 # This script downloads and installs the Antigravity CLI binary directly from
 # Google Cloud Storage (https://storage.googleapis.com/antigravity-public/).
 #
 # Arguments:
-#   VERSION - Antigravity CLI version to install (required)
+#   VERSION    - Antigravity CLI version to install (required)
+#   --rootless - Install to ~/.local/bin without sudo; appends that directory to
+#                $GITHUB_PATH so subsequent steps find the binary.  Use this on
+#                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
 #
 # Security features:
 #   - Downloads binary directly from Google Cloud Storage over HTTPS
@@ -20,14 +23,53 @@ set +o histexpand
 set -euo pipefail
 
 # Configuration
-VERSION="${1:-}"
 GCS_BASE_URL="https://storage.googleapis.com/antigravity-public/antigravity-cli"
 INSTALL_DIR="/usr/local/bin"
 BINARY_NAME="agy"
 
+# Parse arguments: treat the first non-flag argument as VERSION, all --<flag> arguments as flags.
+VERSION=""
+ROOTLESS=false
+for arg in "$@"; do
+  case "$arg" in
+    --rootless) ROOTLESS=true ;;
+    --*) echo "WARNING: Unknown flag: $arg" >&2 ;;
+    *)
+      if [ -z "$VERSION" ]; then
+        VERSION="$arg"
+      fi
+      ;;
+  esac
+done
+
 if [ -z "$VERSION" ]; then
   echo "ERROR: Version argument is required"
+  echo "Usage: $0 VERSION [--rootless]"
   exit 1
+fi
+
+# In rootless mode, install into the user's home directory instead of /usr/local/bin
+# so that ARC/DinD runners with allowPrivilegeEscalation: false can run without sudo.
+if [ "$ROOTLESS" = "true" ]; then
+  INSTALL_DIR="${HOME}/.local/bin"
+fi
+
+# maybe_sudo runs a command with sudo unless --rootless was specified.
+# In rootless mode, sudo is not available or needed.
+maybe_sudo() {
+  if [ "$ROOTLESS" = "true" ]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+# Rootless mode preflight: create and verify write access to the install directory.
+if [ "$ROOTLESS" = "true" ]; then
+  if ! { mkdir -p "${INSTALL_DIR}" && [ -w "${INSTALL_DIR}" ]; }; then
+    echo "ERROR: --rootless could not create a writable install directory at ${INSTALL_DIR}" >&2
+    exit 1
+  fi
 fi
 
 # Detect OS and architecture
@@ -131,7 +173,17 @@ if [ ! -f "${TEMP_DIR}/antigravity" ]; then
   echo "ERROR: Expected binary 'antigravity' not found in the extracted archive"
   exit 1
 fi
-sudo install -m 755 "${TEMP_DIR}/antigravity" "${INSTALL_DIR}/${BINARY_NAME}"
+maybe_sudo install -m 755 "${TEMP_DIR}/antigravity" "${INSTALL_DIR}/${BINARY_NAME}"
+
+# In rootless mode, add the install dir to PATH for subsequent steps.
+if [ "$ROOTLESS" = "true" ]; then
+  if [ -n "${GITHUB_PATH:-}" ]; then
+    echo "${INSTALL_DIR}" >> "${GITHUB_PATH}"
+    echo "  Exported ${INSTALL_DIR} to GITHUB_PATH"
+  else
+    echo "  GITHUB_PATH not set — binary installed at ${INSTALL_DIR}/${BINARY_NAME}"
+  fi
+fi
 
 # Verify installation
 echo "Verifying Antigravity CLI installation..."

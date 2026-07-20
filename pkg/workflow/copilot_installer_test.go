@@ -76,7 +76,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := GenerateCopilotInstallerSteps(tt.version, tt.stepName)
+			steps := GenerateCopilotInstallerSteps(tt.version, tt.stepName, false)
 
 			if len(steps) != 1 {
 				t.Errorf("Expected 1 step, got %d", len(steps))
@@ -180,7 +180,7 @@ func TestGenerateCopilotInstallerSteps_ExpressionVersion(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			steps := GenerateCopilotInstallerSteps(tt.version, "Install GitHub Copilot CLI")
+			steps := GenerateCopilotInstallerSteps(tt.version, "Install GitHub Copilot CLI", false)
 
 			if len(steps) != 1 {
 				t.Errorf("Expected 1 step, got %d", len(steps))
@@ -209,6 +209,42 @@ func TestGenerateCopilotInstallerSteps_ExpressionVersion(t *testing.T) {
 				t.Errorf("Expression version should NOT be embedded directly in shell command, got:\n%s", stepContent)
 			}
 		})
+	}
+}
+
+func TestGenerateCopilotInstallerSteps_Rootless(t *testing.T) {
+	steps := GenerateCopilotInstallerSteps("1.2.3", "Install Copilot CLI", true)
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join(steps[0], "\n")
+
+	if !strings.Contains(stepContent, "--rootless") {
+		t.Errorf("Expected step to contain --rootless flag, got:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, "install_copilot_cli.sh") {
+		t.Errorf("Expected step to use install_copilot_cli.sh, got:\n%s", stepContent)
+	}
+}
+
+func TestGenerateCopilotInstallerSteps_RootlessWithExpression(t *testing.T) {
+	steps := GenerateCopilotInstallerSteps("${{ inputs.version }}", "Install Copilot CLI", true)
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+
+	stepContent := strings.Join(steps[0], "\n")
+
+	if !strings.Contains(stepContent, "--rootless") {
+		t.Errorf("Expected step to contain --rootless flag, got:\n%s", stepContent)
+	}
+
+	if !strings.Contains(stepContent, `"${ENGINE_VERSION}"`) {
+		t.Errorf("Expected step to use ENGINE_VERSION env var, got:\n%s", stepContent)
 	}
 }
 

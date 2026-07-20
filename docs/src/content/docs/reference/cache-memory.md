@@ -47,6 +47,8 @@ tools:
 
 If files with disallowed extensions are found, the workflow will report validation failures.
 
+When a cache is restored for agent execution, gh-aw also strips execute bits from restored working-tree files and removes disallowed file types before the agent can read them. See [ADR-26587](https://github.com/github/gh-aw/blob/main/docs/adr/26587-pre-agent-cache-memory-working-tree-sanitization.md) for the pre-agent sanitization contract behind `allowed-extensions`.
+
 ## Multiple Configurations
 
 ```aw wrap

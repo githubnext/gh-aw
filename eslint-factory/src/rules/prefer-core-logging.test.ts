@@ -38,6 +38,16 @@ describe("prefer-core-logging", () => {
             },
           ],
         },
+        {
+          code: "console.log(`hello`);",
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: "`hello`" }, output: "core.info(`hello`);" }],
+            },
+          ],
+        },
       ],
     });
   });
@@ -162,7 +172,45 @@ describe("prefer-core-logging", () => {
             {
               messageId: "preferCoreLogging",
               data: { method: "log", replacement: "core.info" },
-              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `"value:", someVar` }, output: `const core = require("@actions/core"); const someVar = 1; core.info("value:", someVar);` }],
+              suggestions: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: console.log with format specifier is report-only", () => {
+    ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const core = require("@actions/core"); console.log("%s processed");`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `const core = require("@actions/core"); const someVar = 1; console.log("value: %s", someVar);`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: 'const core = require("@actions/core"); const someVar = 1; console.log(`value: ${someVar}`);',
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
             },
           ],
         },

@@ -13,7 +13,7 @@ Self-hosted runners may require `sudo` depending on the selected engine and conf
 
 - **AWF (Agentic Workflow Firewall)**: Runs rootless in the default network-isolation mode. Egress is enforced via Docker network topology — an internal Docker network (`awf-net`) with no internet route and a dual-homed Squid proxy as the sole egress path. No `sudo` and no `NET_ADMIN` are required on the runner for AWF in this mode. Container-level `iptables`, Squid proxy ACLs, and capability drops provide defense in depth, all managed inside the Docker daemon's domain.
 
-- **Copilot CLI install**: The `install_copilot_cli.sh` script runs as the runner user but escalates via `sudo` for specific file operations (fixing `.copilot` directory ownership, cleaning stale chroot directories, and installing the Copilot binary). ARC pods with `allowPrivilegeEscalation: false` will fail at this step with `sudo: The "no new privileges" flag is set`.
+- **Copilot CLI install**: The `install_copilot_cli.sh` script runs as the runner user. By default it escalates via `sudo` for file operations (fixing `.copilot` directory ownership, cleaning stale chroot directories, and installing the Copilot binary to `/usr/local/bin`). Pass `--rootless` to the script to install to `~/.local/bin` without `sudo`, which is required on ARC pods with `allowPrivilegeEscalation: false`.
 
 ## ARC with Docker-in-Docker (DinD)
 
@@ -279,4 +279,4 @@ The dind sidecar requires `privileged: true` so `dockerd` can run. The runner co
 In network-isolation mode (the default for `topology: arc-dind`), AWF enforces egress via Docker network topology — an internal Docker network with no internet route and a dual-homed Squid proxy. All network enforcement happens inside the Docker daemon's domain (the dind sidecar). The runner container only issues Docker API commands via the socket; it never manipulates host `iptables` or network namespaces.
 
 > [!NOTE]
-> If your cluster enforces `allowPrivilegeEscalation: false` or `no-new-privileges` on the runner container, the Copilot CLI install script will fail. See [Known limitations](/gh-aw/guides/arc-dind-copilot-agent/#known-limitations) in the ARC DinD guide.
+> If your cluster enforces `allowPrivilegeEscalation: false` or `no-new-privileges` on the runner container, pass `--rootless` to the Copilot CLI install script so it installs to `~/.local/bin` without `sudo`. See [Pod security and rootless install](/gh-aw/guides/arc-dind-copilot-agent/#pod-security-and-rootless-install) in the ARC DinD guide.

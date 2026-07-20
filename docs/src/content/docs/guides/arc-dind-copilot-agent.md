@@ -157,7 +157,7 @@ gh aw compile
 | DinD container mode | **Yes** | GitHub Copilot coding agent needs a Docker daemon in the runner pod. |
 | `NET_ADMIN` capability | **No** | Not required. AWF enforces egress via Docker network topology (network isolation mode), not host `iptables`. The DinD sidecar daemon manages all network enforcement internally. |
 | `ghcr.io/actions/actions-runner:latest` | Recommended | Use the official runner image, or a compatible custom image with equivalent runner requirements. |
-| Runner user | **Yes** | Non-root runner users are supported. `sudo` must remain available on the runner container for the Copilot CLI install script (binary installation and file ownership operations). |
+| Runner user | **Yes** | Non-root runner users are supported. By default, `sudo` must be available on the runner container for the Copilot CLI install script. If your cluster enforces `allowPrivilegeEscalation: false`, use the `--rootless` flag — see [Pod security and rootless install](#pod-security-and-rootless-install) below. |
 | DinD sidecar privilege | **Yes** | ARC DinD mode configures a privileged sidecar for Docker daemon operation. |
 | Shared work volume (`/home/runner/_work`) | **Yes** | Runner and Docker daemon share this volume in ARC DinD mode, so workspace mounts work without host path translation. |
 | Specific Kubernetes distribution | **No** | Any conformant cluster works (for example minikube, EKS, AKS, or GKE). |
@@ -205,9 +205,34 @@ To migrate:
 4. Add `runner.topology: arc-dind` to frontmatter.
 5. Run `gh aw compile` and commit the updated lock file.
 
+## Pod security and rootless install
+
+Clusters that enforce `allowPrivilegeEscalation: false` (via PodSecurity Admission or OPA policies) prevent the default Copilot CLI install script from using `sudo`.
+
+Pass `--rootless` to `install_copilot_cli.sh` in your `copilot-setup-steps` to install to `~/.local/bin` without any `sudo` calls. The script adds that directory to `$GITHUB_PATH` so subsequent steps find the binary:
+
+```yaml
+copilot-setup-steps:
+  runs-on: arc-runner-set
+  steps:
+    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      with:
+        repository: github/gh-aw
+        path: gh-aw
+    - name: Install Copilot CLI (rootless)
+      run: bash "${GITHUB_WORKSPACE}/gh-aw/actions/setup/sh/install_copilot_cli.sh" --rootless
+      env:
+        GH_HOST: github.com
+```
+
+In rootless mode:
+- The binary is installed to `~/.local/bin/copilot` (no `sudo` required).
+- `~/.local/bin` is appended to `$GITHUB_PATH` so `copilot` is on `PATH` for all later steps.
+- Ownership and cleanup operations that previously used `sudo` run as the current user (which owns the relevant files in rootless deployments).
+
 ## Known limitations
 
-- **`allowPrivilegeEscalation: false` is not supported.** The Copilot CLI binary installation script (`install_copilot_cli.sh`) uses `sudo` to install to `/usr/local/bin` and fix file ownership. Clusters that enforce `no-new-privileges` via PodSecurity Admission or OPA policies will fail at the install step. Note that the AWF install script already supports rootless installation; this constraint is specific to the Copilot CLI. Rootless Copilot CLI installation support is tracked in [#46046](https://github.com/github/gh-aw/issues/46046).
+- **MCP gateway Docker socket access** — on runners where `DOCKER_HOST` is a TCP endpoint and no Unix socket exists at `/var/run/docker.sock`, the MCP gateway may fail to connect to the Docker daemon (`Docker daemon is not accessible`). As a workaround, expose the DinD sidecar's Unix socket on the runner container at `/var/run/docker.sock` via a shared volume or symlink. See [#44251](https://github.com/github/gh-aw/issues/44251) for tracking.
 
 ## Troubleshooting
 
@@ -226,7 +251,7 @@ The threat-detection job can't find the Copilot binary. This was fixed in gh-aw 
 
 ### `sudo: The "no new privileges" flag is set`
 
-The runner pod's security context has `allowPrivilegeEscalation: false`. Remove that constraint or adjust your PodSecurity policy to allow privilege escalation in the runner container.
+The runner pod's security context has `allowPrivilegeEscalation: false`. Pass `--rootless` to the Copilot CLI install script so it installs without `sudo` — see [Pod security and rootless install](#pod-security-and-rootless-install) above.
 
 ### `awf-cli-proxy could not connect to the external DIFC proxy`
 
