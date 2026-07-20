@@ -45,8 +45,6 @@ tools:
     - "expr *"
     - "git status"
     - "git diff -- docs/src/content/docs/**"
-    - "git add docs/src/content/docs/**"
-    - "git commit -m *"
   github:
     mode: gh-proxy
     lockdown: false
@@ -100,12 +98,11 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
 
 - **There is no `shell` tool.** The command execution tool is named `bash`. Do not call `shell(...)` — it will be denied immediately.
 - **There is no `read` tool.** To inspect a file, use `bash` with `cat`: `cat path/to/file`. Do not call `read(...)` — it will be denied immediately.
-- Use only these git commands in `bash`:
+- Use git in `bash` for read-only inspection only:
   - `git status`
   - `git diff -- docs/src/content/docs/**`
-  - `git add docs/src/content/docs/**`
-  - `git commit -m "<message>"`
-- Do not run branch-changing or remote git commands (`git checkout`, `git switch`, `git branch`, `git reset`, `git rebase`, `git merge`, `git cherry-pick`, `git push`, `git pull`, or any `git remote *`).
+- Do not run git write or branch-management commands yourself (`git checkout`, `git switch`, `git branch`, `git add`, `git commit`, `git reset`, `git rebase`, `git merge`, `git cherry-pick`, `git push`, `git pull`, or any `git remote *`).
+- After editing the blog file, call `create_pull_request` directly. It will package the edited docs files into the PR for you.
 
 #### Hard Requirements
 
@@ -206,7 +203,7 @@ PR body must include:
 - Summary of highlighted workflow and why it was chosen.
 - Links used as evidence (issues/PRs/log/audit references).
 - File path of the created blog post.
-- Stage and commit text changes first (`git add` and `git commit`), then call `create_pull_request`.
+- After verifying only the intended docs files changed, call `create_pull_request` directly. Do not stage, commit, or switch branches yourself.
 
 ### 7) No-action rule
 

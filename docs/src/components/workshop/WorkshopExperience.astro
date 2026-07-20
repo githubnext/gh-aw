@@ -1,5 +1,5 @@
 ---
-import { Card, CardGrid } from '@astrojs/starlight/components';
+import { CardGrid, LinkCard } from '@astrojs/starlight/components';
 // @ts-ignore The docs app already uses this runtime package from Astro components.
 import octicons from '@primer/octicons';
 import {
@@ -87,10 +87,6 @@ function decodeLocalWorkshopStepLink(value: string) {
 	return isLocalWorkshopStepLink(value) ? value : '';
 }
 
-function firstSentence(value: string) {
-	return value.match(/^.*?[.!?](?:\s|$)/u)?.[0].trim() ?? value.trim();
-}
-
 function sanitizeWorkshopHtml(html: string) {
 	return html
 		.replace(/<script\b[^>]*>[\s\S]*?<\/script>/giu, '')
@@ -101,51 +97,14 @@ function sanitizeWorkshopHtml(html: string) {
 
 function transformTables(html: string) {
 	return html.replace(/<table>([\s\S]*?)<\/table>/gu, (tableHtml) => {
-		// Check if this is the entry path table by inspecting the <thead> cells.
-		const theadMatch = tableHtml.match(/<thead>([\s\S]*?)<\/thead>/u);
-		const thMatches = theadMatch ? [...theadMatch[1].matchAll(/<th(?:\s[^>]*)?>([\s\S]*?)<\/th>/gu)] : [];
-		const normalizeHeader = (value: string) => value
-			.replace(/<[^>]+>/gu, '')
-			.replace(/[‘’]/gu, "'")
-			.replace(/…/gu, '...')
-			.replace(/\s+/gu, ' ')
-			.trim();
-
-		if (
-			thMatches.length >= 3
-			&& normalizeHeader(thMatches[0][1]) === "If you're a..."
-			&& normalizeHeader(thMatches[1][1]) === 'Recommended setup adventure'
-			&& normalizeHeader(thMatches[2][1]) === 'Why this path fits'
-		) {
-			const tbodyMatch = tableHtml.match(/<tbody>([\s\S]*?)<\/tbody>/u);
-			const rows: [string, string, string][] = [];
-			if (tbodyMatch) {
-				for (const rowMatch of tbodyMatch[1].matchAll(/<tr>([\s\S]*?)<\/tr>/gu)) {
-					const tdMatches = [...rowMatch[1].matchAll(/<td(?:\s[^>]*)?>([\s\S]*?)<\/td>/gu)];
-					if (tdMatches.length >= 3) {
-						rows.push([tdMatches[0][1].trim(), tdMatches[1][1].trim(), tdMatches[2][1].trim()]);
-					}
-				}
-			}
-
-			if (rows.length > 0) {
-				const cards = rows.map(([audience, nextStep, fit]) => [
-					'<article class="aw-workshop-entry-card">',
-					'<p class="aw-workshop-entry-card-kicker">Entry path</p>',
-					`<h4>${audience}</h4>`,
-					`<p class="aw-workshop-entry-card-summary">${fit}</p>`,
-					'<div class="aw-workshop-entry-card-next">',
-					'<span>Recommended next step</span>',
-					`<p>${nextStep}</p>`,
-					'</div>',
-					'</article>',
-				].join(''));
-				return `<section class="aw-workshop-entry-grid">${cards.join('')}</section>`;
-			}
-		}
-
 		return `<div class="aw-workshop-table-wrap">${tableHtml}</div>`;
 	});
+}
+
+function renderWorkshopAlert(type: string, inner: string) {
+	const cls = `aw-workshop-admonition-${type.toLowerCase()}`;
+	const title = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+	return `<aside class="${cls}"><p class="aw-workshop-admonition-title">${escapeHtml(title)}</p>${inner.trim()}</aside>`;
 }
 
 function rewriteGfmAlerts(html: string) {
@@ -193,8 +152,6 @@ function rewriteGfmAlerts(html: string) {
 		const blockquoteEnd = foundClose + '</blockquote>'.length;
 		const afterType = html.slice(afterTypeStart, foundClose);
 
-		const cls = `aw-workshop-admonition-${type.toLowerCase()}`;
-		const title = type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
 		let inner: string;
 		if (afterType.startsWith('</p>')) {
 			// [!TYPE]</p><p>rest...</p> — type was alone in first paragraph
@@ -207,7 +164,7 @@ function rewriteGfmAlerts(html: string) {
 		}
 
 		result += html.slice(lastIndex, matchStart);
-		result += `<aside class="${cls}"><p class="aw-workshop-admonition-title">${escapeHtml(title)}</p>${inner}</aside>`;
+		result += renderWorkshopAlert(type, inner);
 		lastIndex = blockquoteEnd;
 		// Skip the regex past the entire consumed blockquote so it does not
 		// re-match patterns that appear inside the body we just replaced.
@@ -215,7 +172,12 @@ function rewriteGfmAlerts(html: string) {
 	}
 
 	result += html.slice(lastIndex);
-	return result;
+	// Some workshop content emits a standalone alert paragraph instead of a full
+	// blockquote wrapper, so normalize those markers into the same aside UI too.
+	return result.replace(
+		/<p>\s*\[!(NOTE|TIP|WARNING|IMPORTANT|CAUTION)\]\s*([\s\S]*?)<\/p>/giu,
+		(_match, type, body) => renderWorkshopAlert(type, `<p>${body.trim()}</p>`),
+	);
 }
 
 function rewriteGfmTaskLists(html: string) {
@@ -407,6 +369,24 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	]),
 );
 
+function renderEntryPathDescription(path: typeof workshopEntryPaths[number], journeyLabel: string, stepCount: number) {
+	const stepLabel = `${stepCount} step${stepCount === 1 ? '' : 's'}`;
+	return escapeHtml(`${journeyLabel} · ${stepLabel} — ${path.kicker}. ${path.summary} ${path.fit}`);
+}
+
+const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
+	workshopEntryPaths.map((path) => {
+		const flow = buildWorkshopFlow(path.journeyId, workshopDefaults.scenarioId);
+		const firstStepKey = flow[0] ?? initialStepKey;
+		const hash = new URLSearchParams({
+			j: path.journeyId,
+			s: workshopDefaults.scenarioId,
+			...(firstStepKey ? { t: firstStepKey } : {}),
+		}).toString();
+		return [path.id, `#${hash}`];
+	}),
+);
+
 ---
 
 <section
@@ -416,44 +396,27 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	data-initial-step={initialStepKey}
 >
 	<div class="aw-workshop-setup" data-workshop-setup>
-		<div class="aw-workshop-setup-step" data-workshop-setup-step="workspace">
-			<section class="aw-workshop-picker">
-				<div class="aw-workshop-picker-header">
-					<p class="aw-workshop-picker-kicker">Entry path</p>
-					<h3>How do you want to go through the workshop?</h3>
-					<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
-				</div>
-				<div class="aw-workshop-card-grid aw-workshop-card-grid-entry">
-					<CardGrid>
-						{workshopEntryPaths.map((path) => {
-							const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
-							return (
-								<button
-									type="button"
-									class="aw-workshop-card aw-workshop-card-entry"
-									data-workshop-entry-path={path.id}
-									data-workshop-journey={path.journeyId}
-									style={`--aw-workshop-card-accent: ${journey.accent};`}
-								>
-									<Card title={path.label}>
-										<div class="aw-workshop-card-entry-meta">
-											<div class="aw-workshop-card-entry-kicker">
-												<span class="aw-workshop-card-icon" set:html={iconSvg(path.icon)} />
-												<span class="aw-workshop-card-kicker">{path.kicker}</span>
-											</div>
-											<span class="aw-workshop-card-route">{journey.label} · {entryPathStepCounts[path.id]} steps</span>
-										</div>
-										<span class="aw-workshop-card-summary">{path.summary}</span>
-										<small class="aw-workshop-card-fit">{path.fit}</small>
-									</Card>
-								</button>
-							);
-						})}
-					</CardGrid>
-				</div>
-			</section>
-		</div>
-
+		<section class="aw-workshop-picker">
+			<div class="aw-workshop-picker-header">
+				<p class="aw-workshop-picker-kicker">Entry path</p>
+				<h3>How do you want to go through the workshop?</h3>
+				<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
+			</div>
+			<CardGrid>
+				{workshopEntryPaths.map((path) => {
+					const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
+					return (
+						<LinkCard
+							title={path.label}
+							description={renderEntryPathDescription(path, journey.label, entryPathStepCounts[path.id])}
+							href={entryPathTutorialHashes[path.id]}
+							data-workshop-entry-path={path.id}
+							data-workshop-journey={path.journeyId}
+						/>
+					);
+				})}
+			</CardGrid>
+		</section>
 	</div>
 
 	<section class="aw-workshop-flow" data-workshop-tutorial hidden>
@@ -808,10 +771,14 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 				root.dataset.workshopFlowKeys = visibleFlow.join(',');
 				root.dataset.workshopCurrentStep = activeStep.key;
 
-				root.querySelectorAll('[data-workshop-entry-path]').forEach((button) => {
-					const isActive = button.getAttribute('data-workshop-entry-path') === state.entryPathId;
-					button.classList.toggle('is-active', isActive);
-					button.setAttribute('aria-pressed', String(isActive));
+				root.querySelectorAll('[data-workshop-entry-path]').forEach((entryPathLink) => {
+					const isActive = entryPathLink.getAttribute('data-workshop-entry-path') === state.entryPathId;
+					entryPathLink.classList.toggle('is-active', isActive);
+					if (isActive) {
+						entryPathLink.setAttribute('aria-current', 'true');
+					} else {
+						entryPathLink.removeAttribute('aria-current');
+					}
 				});
 
 				const flowIndex = visibleFlow.indexOf(activeStep.key);
@@ -838,6 +805,9 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 				}
 
 				if (target.matches('[data-workshop-entry-path]')) {
+					// Keep entry-path selection inside the workshop state machine instead
+					// of letting the browser jump to the raw hash target first.
+					event.preventDefault();
 					setJourney(target.getAttribute('data-workshop-journey'), target.getAttribute('data-workshop-entry-path'));
 					showTutorial();
 					return;
@@ -900,9 +870,6 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 <style>
 	.aw-workshop {
 		--aw-workshop-card-min-width: 15.5rem;
-		--aw-workshop-card-border-strong: 35%;
-		--aw-workshop-card-gradient-start: 12%;
-		--aw-workshop-card-surface-tint: 8%;
 		display: grid;
 		gap: 1.5rem;
 		margin: 2rem 0 1rem;
@@ -918,27 +885,31 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 		gap: 0.9rem;
 	}
 
-	.aw-workshop-setup-step {
-		display: grid;
-		gap: 0.9rem;
+	.aw-workshop-picker {
+		border: 1px solid var(--sl-color-hairline);
+		background: var(--sl-color-gray-6);
+		border-radius: 1rem;
+		padding: clamp(1rem, 2vw, 1.35rem);
 	}
 
-	.aw-workshop-picker {
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
-		border-radius: 1rem;
-		box-shadow: none;
+	.aw-workshop-picker :global(.card-grid) {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
+		gap: 0.85rem;
+	}
+
+	.aw-workshop-picker :global(.card-grid > *),
+	.aw-workshop-picker :global(.sl-link-card) {
+		height: 100%;
 	}
 
 	.aw-workshop-picker-kicker,
-	.aw-workshop-panel-meta,
-	.aw-workshop-card-kicker {
+	.aw-workshop-panel-meta {
 		margin: 0;
 		font-size: 0.68rem;
 		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 	}
 
 	.aw-workshop-picker h3,
@@ -946,67 +917,6 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	.aw-workshop-panel-header h3 {
 		margin: 0;
 		letter-spacing: -0.02em;
-	}
-
-	.aw-workshop-card-icon {
-		display: inline-flex;
-		align-items: center;
-		justify-content: center;
-		color: var(--aw-workshop-card-accent, var(--sl-color-accent));
-	}
-
-	.aw-workshop-setup-nav {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.75rem;
-	}
-
-	.aw-workshop-setup-nav-start {
-		justify-content: flex-start;
-	}
-
-	.aw-workshop-tunnel-panel {
-		display: grid;
-		gap: 0.85rem;
-		padding: 0.95rem;
-		border-radius: 1rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-page);
-	}
-
-	.aw-workshop-tunnel-panel h3,
-	.aw-workshop-tunnel-panel p {
-		margin: 0;
-	}
-
-	.aw-workshop-tunnel-panel h3 {
-		margin-top: 0.2rem;
-	}
-
-	.aw-workshop-tunnel-panel p {
-		color: var(--aw-text-muted);
-		line-height: 1.55;
-	}
-
-	.aw-workshop-tunnel-actions {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-	}
-
-	.aw-workshop-tunnel-actions a {
-		color: var(--sl-color-accent-high);
-		font-weight: 700;
-		text-decoration: none;
-	}
-
-	.aw-workshop-tunnel-actions a:hover {
-		text-decoration: underline;
-	}
-
-	.aw-workshop-picker {
-		padding: clamp(1rem, 2vw, 1.35rem);
 	}
 
 	.aw-workshop-picker-header {
@@ -1018,210 +928,13 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 
 	.aw-workshop-picker-help {
 		margin: 0;
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 		font-size: 0.9rem;
 		line-height: 1.4;
 	}
 
-	.aw-workshop-card-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
-		gap: 0.85rem;
-	}
-
-	.aw-workshop-card {
-		width: 100%;
-		border: 0;
-		padding: 0;
-		background: none;
-		color: inherit;
-		font: inherit;
-		cursor: pointer;
-		text-align: inherit;
-	}
-
-	.aw-workshop-card-entry {
-		text-align: left;
-	}
-
-	.aw-workshop-card-grid-entry :global(.card-grid) {
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
-		gap: 0.85rem;
-	}
-
-	.aw-workshop-card-grid-entry :global(.card-grid > *) {
-		height: 100%;
-	}
-
-	.aw-workshop-card-entry > :global(.card) {
-		--aw-workshop-card-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
-		height: 100%;
-		min-height: 15rem;
-		padding: 1rem;
-		border-radius: 0.9rem;
-		border-color: color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-border-strong), transparent);
-		background:
-			linear-gradient(180deg, color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-gradient-start), transparent), transparent 72%),
-			color-mix(in srgb, var(--aw-workshop-card-color) var(--aw-workshop-card-surface-tint), var(--aw-bg-elevated));
-		gap: 0.75rem;
-		transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
-	}
-
-	.aw-workshop-card-entry > :global(.card .title) {
-		margin: 0;
-		font-size: 1.18rem;
-		line-height: 1.08;
-	}
-
-	.aw-workshop-card-entry > :global(.card .body) {
-		display: grid;
-		gap: 0.7rem;
-		height: 100%;
-		font-size: inherit;
-	}
-
-	.aw-workshop-card-entry-meta {
-		display: flex;
-		flex-wrap: wrap;
-		align-items: flex-start;
-		justify-content: space-between;
-		gap: 0.55rem 0.75rem;
-	}
-
-	.aw-workshop-card-entry-kicker {
-		display: inline-flex;
-		align-items: center;
-		gap: 0.65rem;
-	}
-
-	.aw-workshop-card-entry:hover > :global(.card),
-	.aw-workshop-card-entry.is-active > :global(.card) {
-		transform: translateY(-1px);
-		border-color: var(--aw-workshop-card-color);
-		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
-	}
-
-	.aw-workshop-card-entry:focus-visible {
-		outline: 2px solid var(--aw-workshop-card-color);
-		outline-offset: 4px;
-	}
-
-	.aw-workshop-card-entry:hover .aw-workshop-card-fit,
-	.aw-workshop-card-entry.is-active .aw-workshop-card-fit {
-		opacity: 1;
-		max-height: 5rem;
-		transform: translateY(0);
-	}
-
-	.aw-workshop-card-scenario-selection {
-		display: grid;
-		grid-template-columns: 2rem 1fr auto;
-		grid-template-areas:
-			"icon kicker route"
-			"icon title route"
-			"icon summary summary"
-			"fit fit fit";
-		align-items: start;
-		align-content: start;
-		gap: 0.22rem 0.75rem;
-		text-align: left;
-		min-height: 0;
-		min-height: 15rem;
-		padding: 1rem;
-		border-radius: 0.85rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-page);
-		color: inherit;
-		cursor: pointer;
-		transition: border-color 0.2s ease, background 0.2s ease;
-	}
-
-	.aw-workshop-card-icon {
-		grid-area: icon;
-		width: 1.9rem;
-		height: 1.9rem;
-		border-radius: 0.58rem;
-		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 18%, transparent);
-	}
-
-	.aw-workshop-card-kicker {
-		grid-area: kicker;
-	}
-
-	.aw-workshop-card-route {
-		grid-area: route;
-		align-self: start;
-		padding: 0.22rem 0.5rem;
-		border-radius: 999px;
-		border: 1px solid var(--aw-border);
-		background: color-mix(in srgb, var(--aw-bg-subtle) 85%, transparent);
-		color: var(--aw-text-muted);
-		font-size: 0.68rem;
-		font-weight: 700;
-		letter-spacing: 0.04em;
-		white-space: nowrap;
-	}
-
-	.aw-workshop-card-route:empty {
-		display: none;
-	}
-
 	.aw-workshop-step-progress {
 		display: none;
-	}
-
-	.aw-workshop-card-scenario-selection {
-		--aw-workshop-card-accent: var(--sl-color-accent-low);
-	}
-
-	.aw-workshop-card strong {
-		grid-area: title;
-		margin-top: 0.06rem;
-		font-size: 1.18rem;
-		line-height: 1.08;
-		text-wrap: pretty;
-	}
-
-	.aw-workshop-card-summary {
-		grid-area: summary;
-		color: var(--aw-text-muted);
-		font-size: 0.98rem;
-		line-height: 1.55;
-		text-wrap: pretty;
-	}
-
-	.aw-workshop-card-fit {
-		grid-area: fit;
-		margin-top: auto;
-		padding-top: 0.7rem;
-		border-top: 1px solid color-mix(in srgb, var(--aw-border) 82%, transparent);
-		color: var(--aw-text-muted);
-		font-size: 0.79rem;
-		line-height: 1.35;
-		opacity: 0;
-		max-height: 0;
-		overflow: hidden;
-		transform: translateY(-0.2rem);
-		transition: opacity 0.2s ease, max-height 0.2s ease, transform 0.2s ease;
-	}
-
-	.aw-workshop-card-scenario-selection:hover,
-	.aw-workshop-card-scenario-selection.is-active {
-		transform: translateY(-1px);
-		border-color: var(--aw-workshop-card-accent, var(--sl-color-accent));
-		background: color-mix(in srgb, var(--aw-workshop-card-accent, var(--sl-color-accent)) 6%, var(--aw-bg-page));
-		box-shadow: 0 12px 30px rgba(1, 4, 9, 0.2);
-	}
-
-	.aw-workshop-card-scenario-selection:hover .aw-workshop-card-fit,
-	.aw-workshop-card-scenario-selection.is-active .aw-workshop-card-fit {
-		opacity: 1;
-		max-height: 5rem;
-		transform: translateY(0);
-	}
-
-	.aw-workshop-card-scenario-selection {
-		min-height: 12rem;
 	}
 
 	.aw-workshop-flow {
@@ -1257,31 +970,27 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 		height: 2.35rem;
 		min-height: 2.35rem;
 		padding: 0.55rem 0.85rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-page);
+		border: 1px solid var(--sl-color-hairline);
+		background: var(--sl-color-black);
 		color: inherit;
 		text-decoration: none;
 		font: inherit;
 		font-size: 0.95rem;
 		font-weight: 600;
 		cursor: pointer;
-		box-shadow: none;
 		white-space: nowrap;
 	}
 
 	.aw-workshop-inline-button:hover,
 	.aw-workshop-nav-button:hover {
-		border-color: var(--aw-border-strong);
-		background: var(--aw-bg-subtle);
+		border-color: var(--sl-color-gray-5);
+		background: var(--sl-color-gray-6);
 		text-decoration: none;
 	}
 
-	.aw-workshop-inline-button-subtle {
-		color: var(--aw-text-muted);
-	}
-
+	.aw-workshop-inline-button-subtle,
 	.aw-workshop-inline-button-home {
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 	}
 
 	.aw-workshop-button-icon {
@@ -1307,7 +1016,7 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	.aw-workshop-panel-summary {
 		margin: 0;
 		max-width: 62ch;
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 		font-size: 0.96rem;
 		line-height: 1.5;
 	}
@@ -1334,13 +1043,11 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	.aw-workshop-step-content :global(h2),
 	.aw-workshop-step-content :global(h3),
 	.aw-workshop-step-content :global(h4) {
-		margin: 1.2rem 0 0.3rem;
 		letter-spacing: -0.02em;
 	}
 
 	.aw-workshop-step-content :global(h2:first-child) {
 		margin-top: 0;
-		margin-bottom: 0.65rem;
 		font-size: clamp(1.7rem, 2.8vw, 2.3rem);
 		line-height: 1.05;
 	}
@@ -1348,51 +1055,15 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	.aw-workshop-step-content :global(h3),
 	.aw-workshop-step-content :global(h4) {
 		padding-top: 1rem;
-		border-top: 1px solid color-mix(in srgb, var(--aw-border) 78%, transparent);
-	}
-
-	.aw-workshop-step-content :global(p),
-	.aw-workshop-step-content :global(ul),
-	.aw-workshop-step-content :global(ol),
-	.aw-workshop-step-content :global(aside) {
-		margin: 0;
-		line-height: 1.65;
-	}
-
-	.aw-workshop-step-content :global(ul) {
-		padding-left: 1.3rem;
-	}
-
-	.aw-workshop-step-content :global(a) {
-		color: var(--sl-color-text-accent);
-	}
-
-	.aw-workshop-step-content :global(code) {
-		padding: 0.1rem 0.3rem;
-		border-radius: 0.35rem;
-		background: var(--aw-bg-subtle);
-	}
-
-	.aw-workshop-step-content :global(pre) {
-		margin: 0;
-		padding: 1rem;
-		border-radius: 0.8rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
-		overflow-x: auto;
-	}
-
-	.aw-workshop-step-content :global(pre code) {
-		padding: 0;
-		background: transparent;
+		border-top: 1px solid var(--sl-color-hairline);
 	}
 
 	.aw-workshop-step-content :global(aside) {
 		padding: 0.85rem 1rem;
 		border-left: 3px solid var(--sl-color-accent);
 		border-radius: 0.75rem;
-		background: rgba(var(--aw-accent-rgb), 0.09);
-		color: var(--aw-text-muted);
+		background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+		color: var(--sl-color-gray-3);
 	}
 
 	.aw-workshop-step-content :global(.aw-workshop-admonition-title) {
@@ -1425,104 +1096,14 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 		background: rgba(86, 182, 194, 0.09);
 	}
 
-	.aw-workshop-step-content :global(.aw-workshop-details) {
-		display: grid;
-		gap: 0.75rem;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-details summary) {
-		cursor: pointer;
-		font-weight: 700;
-		list-style: none;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-details summary::-webkit-details-marker) {
-		display: none;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-details-body) {
-		display: grid;
-		gap: 0.85rem;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-entry-grid) {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
-		gap: 0.85rem;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-entry-card) {
-		display: grid;
-		gap: 0.6rem;
-		padding: 1rem;
-		border-radius: 0.95rem;
-		border: 1px solid color-mix(in srgb, var(--aw-border) 88%, transparent);
-		background: var(--aw-bg-subtle);
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-entry-card h4),
-	.aw-workshop-step-content :global(.aw-workshop-entry-card p) {
-		margin: 0;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-entry-card-kicker),
-	.aw-workshop-step-content :global(.aw-workshop-entry-card-next span) {
-		font-size: 0.72rem;
-		font-weight: 700;
-		letter-spacing: 0.08em;
-		text-transform: uppercase;
-		color: var(--aw-text-muted);
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-entry-card-summary) {
-		color: var(--aw-text-muted);
-		line-height: 1.5;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-entry-card-next) {
-		display: grid;
-		gap: 0.25rem;
-		padding-top: 0.6rem;
-		border-top: 1px solid color-mix(in srgb, var(--aw-border) 82%, transparent);
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-entry-card-next p) {
-		color: color-mix(in srgb, var(--sl-color-accent-high) 86%, white 14%);
-		font-weight: 600;
-	}
-
-	.aw-workshop-step-content :global(ol) {
-		margin: 0;
-		padding-left: 1.4rem;
-		line-height: 1.65;
-	}
-
 	.aw-workshop-step-content :global(.aw-workshop-table-wrap) {
 		overflow-x: auto;
-	}
-
-	.aw-workshop-step-content :global(table) {
-		border-collapse: collapse;
-		width: 100%;
-		font-size: 0.9rem;
-	}
-
-	.aw-workshop-step-content :global(th),
-	.aw-workshop-step-content :global(td) {
-		padding: 0.4rem 0.7rem;
-		border: 1px solid var(--aw-border);
-		text-align: left;
-	}
-
-	.aw-workshop-step-content :global(th) {
-		background: rgba(var(--aw-accent-rgb), 0.08);
-		font-weight: 700;
 	}
 
 	.aw-workshop-step-content :global(img) {
 		max-width: 100%;
 		border-radius: 0.9rem;
-		border: 1px solid var(--aw-border);
+		border: 1px solid var(--sl-color-hairline);
 	}
 
 	.aw-workshop-step-content :global(.aw-workshop-checklist) {
@@ -1542,17 +1123,6 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 		margin-top: 0.35rem;
 	}
 
-	.aw-workshop-step-markdown {
-		margin: 0;
-		padding: 1rem;
-		border-radius: 1rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
-		overflow-x: auto;
-		white-space: pre-wrap;
-		font: 0.95rem/1.5 var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-	}
-
 	.aw-workshop-panel-footer {
 		margin-top: auto;
 		padding-top: 1.5rem;
@@ -1569,16 +1139,6 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 		background: var(--sl-color-accent);
 		color: var(--sl-color-text-invert);
 		border-color: transparent;
-		box-shadow: none;
-	}
-
-	:root[data-theme='light'] .aw-workshop-card,
-	:root[data-theme='light'] .aw-workshop-step-content :global(.aw-workshop-entry-card),
-	:root[data-theme='light'] .aw-workshop-step-markdown,
-	:root[data-theme='light'] .aw-workshop-inline-button,
-	:root[data-theme='light'] .aw-workshop-nav-button,
-	:root[data-theme='light'] .aw-workshop-tunnel-panel {
-		box-shadow: none;
 	}
 
 	@media (max-width: 50rem) {
@@ -1600,17 +1160,9 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 			padding: 0.85rem;
 		}
 
-		.aw-workshop-card {
-			min-height: 0;
-		}
-
 		.aw-workshop-panel-shell {
 			min-height: 0;
 			padding: 0.45rem 0;
-			border: none;
-			background: transparent;
-			box-shadow: none;
-			backdrop-filter: none;
 		}
 
 		.aw-workshop-panel-summary,
@@ -1619,20 +1171,7 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 		}
 
 		.aw-workshop-step-content {
-			margin-top: 0;
 			padding: 0.85rem;
-			border: none;
-			border-radius: 0;
-			background: transparent;
-			box-shadow: none;
-		}
-
-		.aw-workshop-step-content :global(p),
-		.aw-workshop-step-content :global(ul),
-		.aw-workshop-step-content :global(ol),
-		.aw-workshop-step-content :global(aside) {
-			font-size: 1rem;
-			line-height: 1.72;
 		}
 
 		.aw-workshop-flow-header,
@@ -1660,13 +1199,13 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 			margin: 0;
 			border: none;
 			border-radius: 999px;
-			background: var(--aw-border);
+			background: var(--sl-color-hairline);
 			-webkit-appearance: none;
 			appearance: none;
 		}
 
 		.aw-workshop-step-progress::-webkit-progress-bar {
-			background: var(--aw-border);
+			background: var(--sl-color-hairline);
 			border-radius: 999px;
 		}
 

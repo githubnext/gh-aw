@@ -18,11 +18,12 @@ permissions:
   pull-requests: read
 
 # NOTE: Assigning Copilot coding agent requires:
-# 1. A Personal Access Token (PAT) or GitHub App token with repo scope
+# 1. A Personal Access Token (PAT)
 #    - The standard GITHUB_TOKEN does NOT have permission to assign bot agents
+#    - GitHub App installation tokens are NOT supported for Copilot assignment
 #    - Create a PAT at: https://github.com/settings/tokens
 #    - Add it as a repository secret named GH_AW_AGENT_TOKEN
-#    - Required scopes: repo (full control) or fine-grained: actions, contents, issues, pull-requests (write)
+#    - Required scopes: repo (classic PAT) or fine-grained: metadata (read) plus actions, contents, issues, pull-requests (write)
 # 
 # 2. All four workflow permissions declared above (for the safe output job)
 #
