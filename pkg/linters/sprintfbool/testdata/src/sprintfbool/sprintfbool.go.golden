@@ -16,7 +16,7 @@ func bad(b bool) string {
 
 // badLiteral demonstrates the flagged pattern with a bool literal.
 func badLiteral() string {
-	return strconv.FormatBool(true) // want `use strconv\.FormatBool\(b\) instead of fmt\.Sprintf\("%t", b\)`
+	return strconv.FormatBool(true) // want `use strconv\.FormatBool\(true\) instead of fmt\.Sprintf\("%t", true\)`
 }
 
 // goodStrconvFormatBool is already using the preferred form — no diagnostic expected.
