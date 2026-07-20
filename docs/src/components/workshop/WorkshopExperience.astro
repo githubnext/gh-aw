@@ -233,16 +233,24 @@ function normalizeJourneyToken(value: string) {
 	return value.trim().toLowerCase().replace(/[^a-z0-9-]/gu, '');
 }
 
+const journeyBlockPattern = /<!--\s*journey:\s*([a-z0-9,\s-]+)\s*-->([\s\S]*?)<!--\s*\/journey\s*-->/giu;
+const journeyOpenPattern = /<!--\s*journey:\s*[a-z0-9,\s-]+\s*-->/giu;
+const journeyClosePattern = /<!--\s*\/journey\s*-->/giu;
+
+function parseJourneyTokens(value: string) {
+	return uniqueItems(
+		value
+			.split(',')
+			.map(normalizeJourneyToken)
+			.filter(Boolean),
+	);
+}
+
 function rewriteJourneyBlocks(html: string) {
 	const wrapped = html.replace(
-		/<!--\s*journey:\s*([a-z0-9,\s-]+)\s*-->([\s\S]*?)<!--\s*\/journey\s*-->/giu,
+		journeyBlockPattern,
 		(_match, journeyCsv, body) => {
-			const journeys = uniqueItems(
-				String(journeyCsv)
-					.split(',')
-					.map(normalizeJourneyToken)
-					.filter(Boolean),
-			);
+			const journeys = parseJourneyTokens(String(journeyCsv));
 			if (journeys.length === 0) return body;
 			const classes = ['aw-workshop-journey-block', ...journeys.map((journey) => `aw-workshop-journey-block-${journey}`)];
 			return `<div class="${classes.join(' ')}">${body}</div>`;
@@ -250,8 +258,8 @@ function rewriteJourneyBlocks(html: string) {
 	);
 
 	return wrapped
-		.replace(/<!--\s*journey:\s*[a-z0-9,\s-]+\s*-->/giu, '')
-		.replace(/<!--\s*\/journey\s*-->/giu, '');
+		.replace(journeyOpenPattern, '')
+		.replace(journeyClosePattern, '');
 }
 
 function rewriteWorkshopHtml(html: string) {
@@ -869,7 +877,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				const scenario = manifest.scenarios.find((item) => item.id === state.scenarioId) || manifest.scenarios[0];
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
 				const visibleJourneyIds = ['all', ...((journey && journey.contentJourneyIds) || [])];
-				root.dataset.workshopVisibleJourneys = [...new Set(visibleJourneyIds)].join(' ');
+				root.dataset.workshopVisibleJourneys = uniqueItems(visibleJourneyIds).join(' ');
 				if (tunnelPanel) {
 					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
 				}
