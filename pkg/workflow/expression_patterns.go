@@ -85,19 +85,6 @@ func isExpression(s string) bool {
 	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
 }
 
-// extractExpressionInner extracts and trims the raw content between "${{" and "}}"
-// from a pure GitHub Actions expression. The caller should first verify that
-// isExpression(s) is true. Returns an empty string if s is too short to contain
-// valid inner content.
-func extractExpressionInner(s string) string {
-	const prefixLen = 3 // len("${{")
-	const suffixLen = 2 // len("}}")
-	if len(s) < prefixLen+suffixLen {
-		return ""
-	}
-	return strings.TrimSpace(s[prefixLen : len(s)-suffixLen])
-}
-
 // Core Expression Patterns
 var (
 	// ExpressionPattern matches GitHub Actions expressions: ${{ ... }}

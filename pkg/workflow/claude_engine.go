@@ -474,24 +474,18 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE so users
 	// can set a default via GitHub Actions variables.
 	if modelConfigured {
-		// When model is a pure GitHub Actions expression it may resolve to an empty string at
-		// runtime (e.g. ${{ vars.MY_MODEL }} when the variable is not set). Wrap it with the
-		// normal org/enterprise fallback chain so an empty resolution is treated as omitted.
-		if isExpression(workflowData.Model) {
-			innerExpr := extractExpressionInner(workflowData.Model)
-			isDetectionJob := workflowData.SafeOutputs == nil
-			var claudeModelVar string
-			if isDetectionJob {
-				claudeModelVar = constants.EnvVarModelDetectionClaude
-			} else {
-				claudeModelVar = constants.EnvVarModelAgentClaude
-			}
-			claudeLog.Printf("Setting %s env var for expression-backed model", constants.ClaudeCLIModelEnvVar)
-			env[constants.ClaudeCLIModelEnvVar] = compilerenv.BuildModelOverrideExpressionWithUserOverride(innerExpr, claudeModelVar, compilerenv.DefaultModelClaude, "")
+		isDetectionJob := workflowData.SafeOutputs == nil
+		var claudeModelVar string
+		if isDetectionJob {
+			claudeModelVar = constants.EnvVarModelDetectionClaude
 		} else {
-			claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
-			env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
+			claudeModelVar = constants.EnvVarModelAgentClaude
 		}
+		if containsExpression(workflowData.Model) {
+			env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpressionEmptyFallback(claudeModelVar, compilerenv.DefaultModelClaude)
+		}
+		claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
+		env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
 	} else {
 		// No model configured - use fallback GitHub variable with shell expansion
 		isDetectionJob := workflowData.SafeOutputs == nil

@@ -30,6 +30,7 @@ const fs = require("fs");
 const { runWithCopilotSDK, extractPromptFromArgs } = require("./copilot_sdk_session.cjs");
 const { parsePermissionConfigFromServerArgs } = require("./copilot_sdk_permissions.cjs");
 const { parseMultiProviderJson } = require("./copilot_sdk_multi_provider.cjs");
+const { applyModelFallback } = require("./model_fallback.cjs");
 
 // Re-export the session and permission helpers so that existing callers that
 // require("./copilot_sdk_driver.cjs") (e.g. copilot_harness.cjs) continue to work.
@@ -103,7 +104,7 @@ async function main() {
   const providers = multiProviderConfig.providers;
   /** @type {import("@github/copilot-sdk").ProviderModelConfig[]} */
   const sdkModels = multiProviderConfig.models;
-  let model = process.env.COPILOT_MODEL || multiProviderConfig.model || undefined;
+  let model = applyModelFallback(process.env, "COPILOT_MODEL", log) || multiProviderConfig.model || undefined;
   log(`multi-provider mode: ${providers.length} providers, ${sdkModels.length} models, model=${model ?? "(env)"}`);
   for (const p of providers) {
     log(`  provider: name=${p.name} type=${p.type} baseUrl=${p.baseUrl}${p.wireApi ? ` wireApi=${p.wireApi}` : ""}`);

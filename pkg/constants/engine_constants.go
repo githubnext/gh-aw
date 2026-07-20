@@ -243,6 +243,11 @@ const (
 	// EnvVarModelAgentPi configures the default Pi model for agent execution
 	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
 
+	// EnvVarModelFallback carries the standard org/enterprise/built-in model fallback
+	// expression for the current engine step. Runtime JavaScript harnesses can use this
+	// when a configured model expression resolves to an empty string.
+	EnvVarModelFallback = "GH_AW_MODEL_FALLBACK"
+
 	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	CopilotCLIModelEnvVar = "COPILOT_MODEL"

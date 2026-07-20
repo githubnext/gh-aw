@@ -145,27 +145,6 @@ func TestBuildModelOverrideExpression(t *testing.T) {
 	)
 }
 
-func TestBuildModelOverrideExpressionWithUserOverride(t *testing.T) {
-	// With built-in fallback: user expression is first, then org/enterprise/built-in chain.
-	assert.Equal(
-		t,
-		"${{ vars.MY_MODEL || vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}",
-		BuildModelOverrideExpressionWithUserOverride("vars.MY_MODEL", "GH_AW_MODEL_AGENT_COPILOT", "GH_AW_DEFAULT_MODEL_COPILOT", "claude-sonnet-4.6"),
-	)
-	// Without built-in fallback (empty string): ends with || ''.
-	assert.Equal(
-		t,
-		"${{ inputs.model || vars.GH_AW_MODEL_AGENT_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}",
-		BuildModelOverrideExpressionWithUserOverride("inputs.model", "GH_AW_MODEL_AGENT_CLAUDE", "GH_AW_DEFAULT_MODEL_CLAUDE", ""),
-	)
-	// Single-quotes in fallback are escaped.
-	assert.Equal(
-		t,
-		"${{ vars.M || vars.PRIMARY || vars.ENTERPRISE || 'it''s default' }}",
-		BuildModelOverrideExpressionWithUserOverride("vars.M", "PRIMARY", "ENTERPRISE", "it's default"),
-	)
-}
-
 func TestResolveDefaultMaxTurns(t *testing.T) {
 	t.Run("unset uses fallback", func(t *testing.T) {
 		t.Setenv(DefaultMaxTurns, "")
