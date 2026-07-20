@@ -4,6 +4,7 @@ import path from "path";
 
 describe("mcp_scripts_validation.cjs", () => {
   function loadUpdateIssueToolSchema() {
+    // This suite runs from actions/setup/js where safe_outputs_tools.json is mirrored.
     const toolsPath = path.join(process.cwd(), "safe_outputs_tools.json");
     try {
       const tools = JSON.parse(fs.readFileSync(toolsPath, "utf8"));
@@ -11,7 +12,7 @@ describe("mcp_scripts_validation.cjs", () => {
       expect(updateIssueTool, "update_issue tool should exist in safe_outputs_tools.json").toBeDefined();
       return updateIssueTool.inputSchema;
     } catch (error) {
-      throw new Error(`Failed to load or parse safe outputs tool schema at ${toolsPath}: ${error.message}`);
+      throw new Error(`Failed to load or parse safe outputs tool schema at ${toolsPath}. Expected a JSON array containing an 'update_issue' tool definition. Cause: ${error.message}`);
     }
   }
 
