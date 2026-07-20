@@ -38,7 +38,7 @@ describe("require-mkdirsync-try-catch", () => {
 
   it("valid: non-fs receiver names with mkdirSync are ignored", () => {
     cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
-      valid: [`mockFs.mkdirSync(dir, { recursive: true });`, `storage.mkdirSync(dir);`, `myObj.mkdirSync(path);`],
+      valid: [`mockFs.mkdirSync(dir, { recursive: true });`, `storage.mkdirSync(dir);`, `myObj.mkdirSync(path);`, `const fs = require("mock-fs"); fs.mkdirSync(dir, { recursive: true });`],
       invalid: [],
     });
   });

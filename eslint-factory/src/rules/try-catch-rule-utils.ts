@@ -168,6 +168,18 @@ export function createFsSyncMethodResolver(sourceCode: TSESLint.SourceCode, fsSy
     return false;
   }
 
+  function hasAnyBinding(identifierName: string, scopeNode: TSESTree.Node): boolean {
+    let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
+    while (scope) {
+      const variable = scope.set.get(identifierName);
+      if (variable && variable.defs.length > 0) {
+        return true;
+      }
+      scope = scope.upper;
+    }
+    return false;
+  }
+
   function resolveFsSyncMethodFromIdentifier(node: TSESTree.CallExpression): string | null {
     const callee = node.callee;
     if (callee.type !== AST_NODE_TYPES.Identifier) return null;
@@ -219,7 +231,7 @@ export function createFsSyncMethodResolver(sourceCode: TSESLint.SourceCode, fsSy
 
     if (callee.type === AST_NODE_TYPES.MemberExpression) {
       if (callee.object.type !== AST_NODE_TYPES.Identifier) return null;
-      const canUseUnboundFsIdentifier = options.allowUnboundFsIdentifier === true && callee.object.name === "fs";
+      const canUseUnboundFsIdentifier = options.allowUnboundFsIdentifier === true && callee.object.name === "fs" && !hasAnyBinding(callee.object.name, callee.object);
       if (!canUseUnboundFsIdentifier && !isIdentifierBoundToFsModule(callee.object.name, callee.object)) return null;
       return getFsSyncMethodFromProperty(callee);
     }
