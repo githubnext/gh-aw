@@ -389,6 +389,80 @@ This is a test workflow with imported MCP server.
 	}
 }
 
+// TestCompileWorkflowWithTopLevelModel verifies that a workflow declaring a top-level
+// model: field (without engine.model) compiles successfully. This is the recommended
+// way to set a model since engine.model is deprecated.
+func TestCompileWorkflowWithTopLevelModel(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+model: small
+---
+
+# Test Workflow
+
+This workflow uses the top-level model field to express a model-size preference.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed for top-level model: field: %v", err)
+	}
+}
+
+// TestCompileWorkflowWithImportedTopLevelModel verifies that a workflow importing a shared
+// file that declares only a top-level model: field (without engine or engine.model) compiles
+// successfully. This is the recommended modern alternative to importing shared workflows that
+// use the deprecated engine.model field.
+func TestCompileWorkflowWithImportedTopLevelModel(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-*")
+
+	// Shared workflow that only declares a model preference using the top-level model: field
+	sharedPath := filepath.Join(tempDir, "shared-workflow.md")
+	sharedContent := `---
+model: small
+---
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	workflowContent := `---
+on: issues
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: copilot
+imports:
+  - shared-workflow.md
+---
+
+# Test Workflow
+
+This workflow imports a shared file that declares a model preference via top-level model:.
+`
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("CompileWorkflow failed when imported shared workflow has top-level model: field: %v", err)
+	}
+}
+
 // TestCompileWorkflowWithModelOnlyEngine verifies that a workflow declaring
 // engine.model without engine.id compiles successfully. This allows workflow
 // authors to express a model-size preference (e.g. "small") without committing

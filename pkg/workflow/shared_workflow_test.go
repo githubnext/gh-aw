@@ -396,6 +396,68 @@ This is a main workflow that also has a redirect for update tracking.
 	// It may return a different error (e.g., if the workflow body is missing context), but not these two
 }
 
+// TestSharedWorkflowWithTopLevelModel tests that a shared workflow (no 'on' field) that
+// declares only a top-level model: preference is still correctly detected as a shared
+// workflow and returns SharedWorkflowError. This mirrors TestSharedWorkflowWithoutOn but
+// verifies that the new top-level model: field does not interfere with shared workflow detection.
+func TestSharedWorkflowWithTopLevelModel(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-shared-model-*")
+
+	sharedPath := filepath.Join(tempDir, "shared-model.md")
+	sharedContent := `---
+model: small
+---
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	_, err := compiler.ParseWorkflowFile(sharedPath)
+
+	if err == nil {
+		t.Fatal("Expected SharedWorkflowError, got nil")
+	}
+
+	var sharedErr *workflow.SharedWorkflowError
+	if !errors.As(err, &sharedErr) {
+		t.Fatalf("Expected *workflow.SharedWorkflowError, got %T: %v", err, err)
+	}
+
+	if sharedErr.Path != sharedPath {
+		t.Errorf("Expected path %s, got %s", sharedPath, sharedErr.Path)
+	}
+}
+
+// TestSharedWorkflowWithTopLevelModelAndEngine tests that a shared workflow (no 'on' field)
+// that declares both engine and a top-level model: field is correctly detected as a shared
+// workflow and returns SharedWorkflowError.
+func TestSharedWorkflowWithTopLevelModelAndEngine(t *testing.T) {
+	tempDir := testutil.TempDir(t, "test-shared-model-engine-*")
+
+	sharedPath := filepath.Join(tempDir, "shared-engine-model.md")
+	sharedContent := `---
+engine: copilot
+model: gpt-5
+---
+`
+	if err := os.WriteFile(sharedPath, []byte(sharedContent), 0644); err != nil {
+		t.Fatalf("Failed to write shared workflow file: %v", err)
+	}
+
+	compiler := workflow.NewCompiler()
+	_, err := compiler.ParseWorkflowFile(sharedPath)
+
+	if err == nil {
+		t.Fatal("Expected SharedWorkflowError, got nil")
+	}
+
+	var sharedErr *workflow.SharedWorkflowError
+	if !errors.As(err, &sharedErr) {
+		t.Fatalf("Expected *workflow.SharedWorkflowError, got %T: %v", err, err)
+	}
+}
+
 func TestMainWorkflowWithoutMarkdownContent(t *testing.T) {
 	tempDir := testutil.TempDir(t, "test-main-no-markdown-*")
 
