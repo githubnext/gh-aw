@@ -12,6 +12,3 @@ Remediation:
   2. GitHub App installation tokens are not supported for Copilot assignment
   3. Ensure the token owner can access the repository and assign users to issues
   4. Verify Copilot coding agent is enabled and org policy allows bot assignments
-
-gh-aw docs: https://github.github.com/gh-aw/reference/copilot-cloud-agent/#authentication
-GitHub docs: https://docs.github.com/en/copilot/how-tos/use-copilot-agents/cloud-agent/use-cloud-agent-via-the-api#using-the-issues-api

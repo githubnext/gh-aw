@@ -2200,7 +2200,7 @@ function buildAssignmentErrorsContext(assignmentErrors) {
   const templatePath = getPromptPath("copilot_assignment_errors_context.md");
   return renderTemplateFromFile(templatePath, {
     warning_line: buildWarningAlertLine("Agent Assignment Failed", "Failed to assign agent to issues or pull requests."),
-    assignment_errors: renderedErrors,
+    assignment_errors: renderedErrors.trimEnd(),
   });
 }
 /**

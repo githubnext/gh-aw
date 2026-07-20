@@ -430,14 +430,16 @@ async function assignAgentToIssue(
  * @param {string} agentName - Agent name for error messages
  */
 function logPermissionError(agentName) {
-  const templatePath = getPromptPath("copilot_assignment_permission_error.md");
-  const rendered = renderTemplateFromFile(templatePath, { agent_name: agentName });
-  for (const line of rendered.split("\n")) {
-    if (line.startsWith("gh-aw docs:") || line.startsWith("GitHub docs:")) {
-      core.info(line);
-    } else {
-      core.error(line);
-    }
+  const errorTemplatePath = getPromptPath("copilot_assignment_permission_error.md");
+  const referencesTemplatePath = getPromptPath("copilot_assignment_permission_references.md");
+  const renderedError = renderTemplateFromFile(errorTemplatePath, { agent_name: agentName }).trimEnd();
+  const renderedReferences = renderTemplateFromFile(referencesTemplatePath, {}).trimEnd();
+
+  for (const line of renderedError.split("\n")) {
+    core.error(line);
+  }
+  for (const line of renderedReferences.split("\n")) {
+    core.info(line);
   }
 }
 

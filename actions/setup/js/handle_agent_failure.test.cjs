@@ -2,14 +2,10 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { createRequire } from "module";
-import { cpSync, mkdirSync } from "fs";
-import path from "path";
+import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
 
 const require = createRequire(import.meta.url);
-const promptsDir = new URL("../md", import.meta.url).pathname;
-const runtimePromptsDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "prompts");
-mkdirSync(runtimePromptsDir, { recursive: true });
-cpSync(promptsDir, runtimePromptsDir, { recursive: true });
+const { runtimePromptsDir } = syncRuntimePromptTemplates(import.meta.url);
 
 describe("handle_agent_failure", () => {
   let main;

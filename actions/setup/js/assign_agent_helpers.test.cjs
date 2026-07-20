@@ -1,11 +1,7 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { cpSync, mkdirSync } from "fs";
-import path from "path";
+import { syncRuntimePromptTemplates } from "./test_prompt_templates.js";
 
-const promptsDir = new URL("../md", import.meta.url).pathname;
-const runtimePromptsDir = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw", "prompts");
-mkdirSync(runtimePromptsDir, { recursive: true });
-cpSync(promptsDir, runtimePromptsDir, { recursive: true });
+syncRuntimePromptTemplates(import.meta.url);
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
