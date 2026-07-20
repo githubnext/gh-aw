@@ -392,7 +392,7 @@ For each PR that is not skipped:
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
    - Include a thread only when all of the following are true: the thread is currently unresolved; contains reviewer feedback; and has a later reply from the PR author or `@copilot`.
    - For each thread ID, call `safeoutputs resolve_pull_request_review_thread --thread_id <ID>`.
-   - If resolving one thread fails, record `{pr_number: <N>, skip_reason: "resolve_review_thread_failed"}` in the `skipped` array and continue.
+   - If resolving one thread fails, record `{thread_id: <ID>, skip_reason: "resolve_review_thread_failed"}` in the `skipped` array and continue.
 
 4. **Dismiss stale `github-actions[bot]` blocking reviews when all PR review threads are resolved**
    - **Slash-command guard**: slash-command runs are acknowledgment nudges and must not perform automated review cleanup — skip this step entirely on `/souschef` slash-command runs.
