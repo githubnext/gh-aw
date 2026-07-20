@@ -223,10 +223,10 @@ function injectJsonFlag(args) {
 }
 
 function getCodexModelEnvVar(env = process.env) {
-  if (Object.prototype.hasOwnProperty.call(env, "GH_AW_MODEL_DETECTION_CODEX")) {
+  if ("GH_AW_MODEL_DETECTION_CODEX" in env) {
     return "GH_AW_MODEL_DETECTION_CODEX";
   }
-  if (Object.prototype.hasOwnProperty.call(env, "GH_AW_MODEL_AGENT_CODEX")) {
+  if ("GH_AW_MODEL_AGENT_CODEX" in env) {
     return "GH_AW_MODEL_AGENT_CODEX";
   }
   return "";
