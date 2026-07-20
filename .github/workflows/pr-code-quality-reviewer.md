@@ -7,7 +7,7 @@ on:
   pull_request:
     types: [ready_for_review]
     paths-ignore:
-      - '**/*.md'
+      - '*.md'
       - 'docs/**'
       - '.changeset/**'
       - 'socials/**'

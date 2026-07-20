@@ -7,15 +7,12 @@ on:
     types: [labeled, ready_for_review]
     names: ["implementation"]
     paths:
-      - 'src/**'
-      - 'lib/**'
-      - 'pkg/**'
+      - 'actions/**'
+      - 'cmd/**'
       - 'internal/**'
-      - 'app/**'
-      - 'core/**'
-      - 'domain/**'
-      - 'services/**'
-      - 'api/**'
+      - 'pkg/**'
+      - 'docs/adr/**'
+      - '.design-gate.yml'
   slash_command:
     strategy: centralized
     name: review
