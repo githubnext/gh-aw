@@ -68,6 +68,11 @@ timeout-minutes: 20
 strict: true
 features:
   gh-aw-detection: true
+evals:
+  - id: architecture_analyzed
+    question: Did the agent analyze repository changes to produce an updated architecture diagram?
+  - id: diagram_created_or_noop
+    question: Was an ASCII architecture diagram created or updated, or was noop used when no significant changes were detected?
 ---
 
 ### Architecture Diagram Generator

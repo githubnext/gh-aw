@@ -159,6 +159,11 @@ steps:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: candidate_expanded
+    question: Did the agent expand a centralization candidate into a concrete draft workflow or reusable prompt template?
+  - id: artifact_created
+    question: Was a draft workflow, issue, or template artifact created for the centralization opportunity?
 ---
 
 # Copilot Centralization Drilldown

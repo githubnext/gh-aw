@@ -52,6 +52,11 @@ safe-outputs:
 timeout-minutes: 30
 features:
   gh-aw-detection: true
+evals:
+  - id: approach_evaluated
+    question: Did the multi-agent panel evaluate the proposed technical approach?
+  - id: validation_feedback_provided
+    question: Was structured feedback produced from the Devil's Advocate, Alternatives Scout, Implementation Estimator, and Dead End Detector agents?
 ---
 
 # Approach Validator 🔬

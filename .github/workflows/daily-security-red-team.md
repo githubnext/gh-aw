@@ -57,6 +57,11 @@ imports:
       expires: 3d
 
   - shared/otlp.md
+evals:
+  - id: security_scan_performed
+    question: Did the agent perform a deep red teaming security scan of actions/setup/js and actions/setup/sh directories?
+  - id: findings_reported_or_noop
+    question: Were security findings (backdoors, secret leaks, malicious code) reported, or was noop used when no issues were detected?
 ---
 
 ### Daily Security Red Team Agent

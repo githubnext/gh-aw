@@ -54,6 +54,11 @@ features:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: sessions_analyzed
+    question: Did the agent analyze Copilot sessions from the last 14 days?
+  - id: three_issues_created
+    question: Were three optimization issues created with evidence-backed recommendations?
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 

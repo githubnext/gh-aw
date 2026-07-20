@@ -74,6 +74,11 @@ tools:
   cli-proxy: true
 features:
   gh-aw-detection: true
+evals:
+  - id: pr_conversations_analyzed
+    question: Did the agent perform NLP analysis on Copilot PR conversations?
+  - id: insights_report_produced
+    question: Was a report produced with extracted insights and patterns from user interactions?
 ---
 
 # Copilot PR Conversation NLP Analysis

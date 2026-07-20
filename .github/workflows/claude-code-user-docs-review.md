@@ -50,6 +50,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: docs_reviewed
+    question: Did the agent review the project documentation from the perspective of a Claude Code user?
+  - id: feedback_produced
+    question: Was feedback or a report produced identifying documentation gaps for non-Copilot users?
 ---
 
 # Claude Code User Documentation Review

@@ -78,6 +78,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: blog_entry_generated
+    question: Did the agent generate a daily 'Agent of the Day' blog entry with narrative content and SEO metadata?
+  - id: entry_published
+    question: Was the blog entry published as a discussion or committed to the repository?
 ---
 
 ### Daily Agent of the Day Blog Writer

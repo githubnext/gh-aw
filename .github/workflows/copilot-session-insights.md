@@ -61,6 +61,11 @@ imports:
 timeout-minutes: 45
 features:
   gh-aw-detection: true
+evals:
+  - id: sessions_analyzed
+    question: Did the agent analyze GitHub Copilot coding agent sessions?
+  - id: insights_report_produced
+    question: Was a report produced with usage patterns, success rates, and performance metrics?
 ---
 # Copilot coding agent Session Analysis
 

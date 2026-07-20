@@ -122,6 +122,11 @@ imports:
 
 
   - shared/otlp.md
+evals:
+  - id: ci_state_checked
+    question: Did the agent check whether CI was failing on the main branch?
+  - id: fixes_applied_or_skipped
+    question: Were format, lint, and test fixes applied and a PR created, or was the run correctly skipped when CI was already passing?
 ---
 
 # CI Cleaner
