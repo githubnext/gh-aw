@@ -147,15 +147,28 @@ func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) 
 	}
 }
 
+// copilotSDKRuntimeID returns the runtime ID used by Copilot SDK driver execution.
+// It returns one of: python, typescript, ruby, or node (default/fallback).
+// engine.command takes precedence; otherwise runtime is inferred from engine.driver extension.
 func copilotSDKRuntimeID(workflowData *WorkflowData) string {
 	if workflowData == nil || workflowData.EngineConfig == nil {
 		return "node"
 	}
 	command := workflowData.EngineConfig.Command
-	if command == "" && workflowData.EngineConfig.Driver != "" {
-		command = sdkDriverInstallCommand(workflowData.EngineConfig.Driver)
+	if command != "" {
+		return detectRuntimeFromCopilotCommand(command)
 	}
-	return detectRuntimeFromCopilotCommand(command)
+	ext := strings.ToLower(filepath.Ext(workflowData.EngineConfig.Driver))
+	switch ext {
+	case ".py":
+		return "python"
+	case ".ts", ".mts":
+		return "typescript"
+	case ".rb":
+		return "ruby"
+	default:
+		return "node"
+	}
 }
 
 // GetExecutionSteps returns the GitHub Actions steps for executing GitHub Copilot CLI
@@ -642,10 +655,8 @@ func (e *CopilotEngine) addCopilotSDKStepEnv(env map[string]string, workflowData
 	env[constants.CopilotSDKDriverEnvVar] = "1"
 	env[constants.CopilotSDKServerArgsEnvVar] = copilotSDKServerArgsJSON
 	copilotExecLog.Printf("copilot-sdk driver mode: set %s and %s", constants.CopilotSDKDriverEnvVar, constants.CopilotSDKServerArgsEnvVar)
-	if copilotSDKRuntimeID(workflowData) == "python" {
-		if _, exists := env["PYTHONPATH"]; !exists {
-			env["PYTHONPATH"] = copilotSDKPythonPathExpression
-		}
+	if currentPythonPath, exists := env["PYTHONPATH"]; copilotSDKRuntimeID(workflowData) == "python" && (!exists || currentPythonPath == "") {
+		env["PYTHONPATH"] = copilotSDKPythonPathExpression
 	}
 }
 
