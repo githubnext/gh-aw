@@ -411,9 +411,9 @@ func TestSetupBootstrapGitHubAppDetails(t *testing.T) {
 }
 
 func TestBuildBootstrapGitHubAppMux(t *testing.T) {
-	originalExchange := bootstrapExchangeAppCode
+	originalExchange := bootstrapExchangeGitHubAppCode
 	t.Cleanup(func() {
-		bootstrapExchangeAppCode = originalExchange
+		bootstrapExchangeGitHubAppCode = originalExchange
 	})
 
 	t.Run("register page", func(t *testing.T) {
@@ -461,7 +461,7 @@ func TestBuildBootstrapGitHubAppMux(t *testing.T) {
 	})
 
 	t.Run("callback success", func(t *testing.T) {
-		bootstrapExchangeAppCode = func(context.Context, string, string, string, string, string) (*bootstrapCreatedGitHubApp, error) {
+		bootstrapExchangeGitHubAppCode = func(context.Context, string, string, string, string, string) (*bootstrapCreatedGitHubApp, error) {
 			return &bootstrapCreatedGitHubApp{InstallURL: "https://example.com/install", ClientID: "Iv1.client"}, nil
 		}
 		resultCh := make(chan *bootstrapCreatedGitHubApp, 1)

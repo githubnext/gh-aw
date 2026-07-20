@@ -289,7 +289,7 @@ func buildBootstrapGitHubAppMux(ctx context.Context, csrfState, owner, ownerType
 			}
 			return
 		}
-		createdApp, exchangeErr := bootstrapExchangeAppCode(ctx, code, owner, ownerType, appName, description)
+		createdApp, exchangeErr := bootstrapExchangeGitHubAppCode(ctx, code, owner, ownerType, appName, description)
 		if exchangeErr != nil {
 			http.Error(w, "GitHub App creation completed, but gh aw could not exchange the manifest code.", http.StatusInternalServerError)
 			select {

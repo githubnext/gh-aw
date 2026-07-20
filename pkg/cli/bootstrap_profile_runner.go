@@ -25,13 +25,13 @@ const (
 )
 
 var (
-	runBootstrapGHContext    = workflow.RunGHContext
-	bootstrapIsInteractive   = tty.IsStderrTerminal
-	bootstrapUpsertVariable  = upsertBootstrapRepoVariable
-	bootstrapSetSecret       = setBootstrapRepoSecret
-	bootstrapCreateGitHubApp = createBootstrapGitHubApp
-	bootstrapCheckOwnerType  = checkSetupRepositoryOwnerType
-	bootstrapExchangeAppCode = exchangeBootstrapGitHubAppCode
+	runBootstrapGHContext          = workflow.RunGHContext
+	bootstrapIsInteractive         = tty.IsStderrTerminal
+	bootstrapUpsertVariable        = upsertBootstrapRepoVariable
+	bootstrapSetSecret             = setBootstrapRepoSecret
+	bootstrapCreateGitHubApp       = createBootstrapGitHubApp
+	bootstrapCheckOwnerType        = checkSetupRepositoryOwnerType
+	bootstrapExchangeGitHubAppCode = exchangeBootstrapGitHubAppCode
 )
 
 type bootstrapProfileRunConfig struct {
