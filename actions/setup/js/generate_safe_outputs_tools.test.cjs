@@ -735,12 +735,13 @@ describe("generate_safe_outputs_tools", () => {
   });
 
   it("strict mode assign_to_agent replaces inline examples with versions that include rationale and confidence", () => {
+    const sourceDesc = 'Assigns agent. Example usage: assign_to_agent(issue_number=123, agent="copilot") or assign_to_agent(pull_number=456, agent="copilot", pull_request_repo="owner/repo")';
     fs.writeFileSync(
       toolsSourcePath,
       JSON.stringify([
         {
           name: "assign_to_agent",
-          description: 'Assigns agent. Example usage: assign_to_agent(issue_number=123, agent="copilot") or assign_to_agent(pull_number=456, agent="copilot", pull_request_repo="owner/repo")',
+          description: sourceDesc,
           inputSchema: {
             type: "object",
             properties: {
@@ -759,9 +760,16 @@ describe("generate_safe_outputs_tools", () => {
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
     const tool = result.find((/** @type {{name: string}} */ t) => t.name === "assign_to_agent");
-    // Strict mode: inline examples must include rationale and confidence
-    expect(tool.description).toMatch(/assign_to_agent\([^)]*rationale=[^)]*\)/);
-    expect(tool.description).toMatch(/assign_to_agent\([^)]*confidence=[^)]*\)/);
+    // Source description must not have contained rationale/confidence in examples (ensures replacement is meaningful)
+    expect(sourceDesc).not.toMatch(/assign_to_agent\([^)]*rationale=[^)]*\)/);
+    expect(sourceDesc).not.toMatch(/assign_to_agent\([^)]*confidence=[^)]*\)/);
+    // Strict mode: BOTH inline examples must include rationale and confidence
+    const matches = [...tool.description.matchAll(/assign_to_agent\(([^)]+)\)/g)];
+    expect(matches.length, "should have two assign_to_agent example calls").toBeGreaterThanOrEqual(2);
+    for (const [, args] of matches) {
+      expect(args, "each example call should include rationale").toContain("rationale=");
+      expect(args, "each example call should include confidence").toContain("confidence=");
+    }
     // Must still contain the intent required suffix
     expect(tool.description).toContain("INTENT REQUIRED:");
   });
