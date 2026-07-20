@@ -219,6 +219,13 @@ func RenderJSONMCPConfig(
 			}
 			fmt.Fprintf(&configBuilder, ",\n              \"toolTimeout\": %d", toolTimeoutSeconds)
 		}
+		// Always emit startupTimeout to override MCP Gateway's built-in 30-second default.
+		// Without this field, the gateway evicts safeoutputs backends that start after 30s
+		// and permanently caches zero tools, causing silent data loss. The gh-aw default is
+		// 120 seconds (constants.DefaultMCPStartupTimeout); users can override via tools.startup-timeout.
+		if options.GatewayConfig.StartupTimeout > 0 {
+			fmt.Fprintf(&configBuilder, ",\n              \"startupTimeout\": %d", options.GatewayConfig.StartupTimeout)
+		}
 		// Emit forcePublicRepos: false when private-to-public-flows: allow is declared.
 		// Only emitted when explicitly set to false; omitting the field lets the gateway default (true).
 		// See MCP Gateway Specification Section 4.1.3.8.
