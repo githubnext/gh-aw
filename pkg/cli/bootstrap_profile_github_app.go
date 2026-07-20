@@ -340,7 +340,7 @@ func loadBootstrapGitHubAppOverrides() (bootstrapGitHubAppOverrides, error) {
 	return overrides, nil
 }
 
-func exchangeBootstrapGitHubAppCode(ctx context.Context, code, owner, ownerType, appName, description string) (*bootstrapCreatedGitHubApp, error) {
+func bootstrapExchangeGitHubAppCodeImpl(ctx context.Context, code, owner, ownerType, appName, description string) (*bootstrapCreatedGitHubApp, error) {
 	output, err := workflow.RunGHContext(ctx, "Exchanging GitHub App manifest code...", "api", "-X", "POST", "-H", "Accept: application/vnd.github+json", "/app-manifests/"+code+"/conversions")
 	if err != nil {
 		return nil, err

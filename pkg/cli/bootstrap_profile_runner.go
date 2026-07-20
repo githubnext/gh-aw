@@ -31,7 +31,7 @@ var (
 	bootstrapSetSecret             = setBootstrapRepoSecret
 	bootstrapCreateGitHubApp       = createBootstrapGitHubApp
 	bootstrapCheckOwnerType        = checkSetupRepositoryOwnerType
-	bootstrapExchangeGitHubAppCode = exchangeBootstrapGitHubAppCode
+	bootstrapExchangeGitHubAppCode = bootstrapExchangeGitHubAppCodeImpl
 )
 
 type bootstrapProfileRunConfig struct {
