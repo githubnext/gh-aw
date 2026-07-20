@@ -27,7 +27,28 @@ var mcpCLIMountLog = logger.New("workflow:mcp_cli_mount")
 // internalMCPServerNames lists the MCP servers that are internal infrastructure and
 // should not be exposed as user-facing CLI tools.
 var internalMCPServerNames = map[string]bool{
-	"github": true, // GitHub MCP server is handled differently and should not be CLI-mounted
+	constants.GitHubMCPServerID.String(): true, // GitHub MCP server is handled differently and should not be CLI-mounted
+}
+
+// appendCustomMCPServerIfEligible returns a new slice with toolName appended if
+// toolValue is a map-shaped MCP server configuration, the tool is not in
+// internalMCPServerNames, and the tool is not already present in servers.
+// Returns the original slice otherwise (no mutation).
+// It is the shared implementation used by both the cli-proxy collection loop and
+// the Copilot augmentation sweep, ensuring a single source of truth for "is this
+// tool a custom MCP server?" logic.
+func appendCustomMCPServerIfEligible(servers []string, toolName string, toolValue any) []string {
+	if internalMCPServerNames[toolName] {
+		return servers
+	}
+	mcpConfig, ok := toolValue.(map[string]any)
+	if !ok {
+		return servers
+	}
+	if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp && !slices.Contains(servers, toolName) {
+		servers = append(servers, toolName)
+	}
+	return servers
 }
 
 // getMCPCLIServerNames returns the sorted list of MCP server names that will be
@@ -76,13 +97,7 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 				servers = append(servers, constants.AgenticWorkflowsMCPServerID.String())
 			default:
 				// Include custom MCP servers (not in the internal list)
-				if !internalMCPServerNames[toolName] {
-					if mcpConfig, ok := toolValue.(map[string]any); ok {
-						if hasMcp, _ := hasMCPConfig(mcpConfig); hasMcp {
-							servers = append(servers, toolName)
-						}
-					}
-				}
+				servers = appendCustomMCPServerIfEligible(servers, toolName, toolValue)
 			}
 		}
 
@@ -104,6 +119,28 @@ func getMCPCLIServerNames(data *WorkflowData) []string {
 	}
 	if IsMCPScriptsEnabled(data.MCPScripts) && !slices.Contains(servers, constants.MCPScriptsMCPServerID.String()) {
 		servers = append(servers, constants.MCPScriptsMCPServerID.String())
+	}
+
+	// Copilot always runs with --disable-builtin-mcps. When at least one CLI mount
+	// trigger is active (safeoutputs/mcpscripts or cli-proxy), the mount script
+	// discovers all MCP servers from the gateway manifest (including GitHub and
+	// custom servers such as azure-devops) and exposes wrappers on PATH. Reflect
+	// that runtime reality in the generated CLI server list so agents can call
+	// these wrappers deterministically instead of guessing command names.
+	//
+	// Use cli-proxy as part of the activation condition because the initial
+	// collection deliberately excludes GitHub: a workflow with cli-proxy: true
+	// and only a GitHub MCP tool would have len(servers)==0 at this point,
+	// causing the block to be skipped and `github` to never be advertised.
+	isCLIMountActive := len(servers) > 0 || (data.ParsedTools != nil && data.ParsedTools.CLIProxy)
+	if isCLIMountActive && data.EngineConfig != nil && data.EngineConfig.ID == string(constants.CopilotEngine) {
+		if hasGitHubTool(data.ParsedTools) && !isGitHubCLIModeEnabled(data) && !slices.Contains(servers, constants.GitHubMCPServerID.String()) {
+			servers = append(servers, constants.GitHubMCPServerID.String())
+		}
+
+		for toolName, toolValue := range data.Tools {
+			servers = appendCustomMCPServerIfEligible(servers, toolName, toolValue)
+		}
 	}
 
 	if len(servers) == 0 {

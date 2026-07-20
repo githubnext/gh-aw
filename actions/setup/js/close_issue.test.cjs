@@ -166,8 +166,9 @@ describe("close_issue", () => {
       expect(result.success).toBe(true);
       expect(requestCalls).toHaveLength(1);
       expect(requestCalls[0].route).toBe("PATCH /repos/{owner}/{repo}/issues/{issue_number}");
-      expect(requestCalls[0].params.rationale).toBe("Duplicate confirmed");
-      expect(requestCalls[0].params.confidence).toBe("MEDIUM");
+      expect(requestCalls[0].params.state).toEqual({ value: "closed", rationale: "Duplicate confirmed", confidence: "MEDIUM" });
+      expect(requestCalls[0].params.rationale).toBeUndefined();
+      expect(requestCalls[0].params.confidence).toBeUndefined();
       expect(requestCalls[0].params.headers).toBeUndefined();
     });
 
