@@ -230,6 +230,57 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.steps.firewall).toBe("squid");
   });
 
+  it("should fail when model name contains an unresolved GitHub Actions expression", async () => {
+    process.env.GH_AW_INFO_MODEL = "${{ vars.COPILOT_MODEL }}";
+
+    await expect(main(mockCore, mockContext)).rejects.toThrow("ERR_CONFIG");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_CONFIG"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("unresolved GitHub Actions expression"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(JSON.stringify("${{ vars.COPILOT_MODEL }}")));
+  });
+
+  it("should fail when model name contains a partial unresolved expression", async () => {
+    process.env.GH_AW_INFO_MODEL = "${{ vars.MODEL || 'gpt-4' }}";
+
+    await expect(main(mockCore, mockContext)).rejects.toThrow("ERR_CONFIG");
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_CONFIG"));
+  });
+
+  it("should not fail when model name does not contain unresolved expressions", async () => {
+    const cases = [
+      { label: "plain string", model: "gpt-4o" },
+      { label: "empty string", model: "" },
+    ];
+
+    for (const { label, model } of cases) {
+      process.env.GH_AW_INFO_MODEL = model;
+
+      try {
+        await main(mockCore, mockContext);
+
+        expect(mockCore.setFailed).not.toHaveBeenCalled();
+        const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+        expect(awInfo.model).toBe(model);
+      } catch (error) {
+        throw new Error(`${label} case failed: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
+  });
+
+  it("should not fail when model is a resolved experiment variant string", async () => {
+    // Workflows using experiment variants set model to a GitHub Actions expression in frontmatter
+    // (e.g. model: "${{ needs.activation.outputs.model_size }}").  GitHub Actions evaluates
+    // that expression before passing the value as an environment variable, so by the time
+    // generate_aw_info.cjs runs, GH_AW_INFO_MODEL holds the resolved variant string.
+    process.env.GH_AW_INFO_MODEL = "claude-haiku-4.5";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.model).toBe("claude-haiku-4.5");
+  });
+
   it("should fail when a numeric context field contains non-numeric data", async () => {
     const maliciousContext = {
       ...mockContext,

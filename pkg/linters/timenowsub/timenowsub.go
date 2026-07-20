@@ -132,7 +132,15 @@ func isSafeSinceArg(expr ast.Expr) bool {
 	switch e := expr.(type) {
 	case *ast.Ident:
 		return true
+	case *ast.BasicLit:
+		return true
 	case *ast.ParenExpr:
+		return isSafeSinceArg(e.X)
+	case *ast.SelectorExpr:
+		return isSafeSinceArg(e.X)
+	case *ast.IndexExpr:
+		return isSafeSinceArg(e.X) && isSafeSinceArg(e.Index)
+	case *ast.StarExpr:
 		return isSafeSinceArg(e.X)
 	default:
 		return false

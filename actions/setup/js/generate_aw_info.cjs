@@ -9,6 +9,7 @@ const { validateContextVariables } = require("./validate_context_variables.cjs")
 const validateLockdownRequirements = require("./validate_lockdown_requirements.cjs");
 const { writeMergedModelsJSON } = require("./merge_frontmatter_models.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { ERR_CONFIG } = require("./error_codes.cjs");
 
 /**
  * Generate aw_info.json with workflow run metadata.
@@ -52,11 +53,23 @@ async function main(core, ctx) {
   }
 
   // Build awInfo from env vars (compile-time) + context (runtime)
+  const model = process.env.GH_AW_INFO_MODEL || "";
+
+  // Reject model names that contain an unresolved GitHub Actions expression.
+  // This can happen when a vars.* expression was used for the model in the
+  // workflow frontmatter but the variable is not defined in the repository,
+  // causing GitHub Actions to pass the literal expression string at runtime.
+  if (/\$\{\{/.test(model)) {
+    const message = `${ERR_CONFIG}: GH_AW_INFO_MODEL contains an unresolved GitHub Actions expression: ${JSON.stringify(model)}`;
+    core.setFailed(message);
+    throw new Error(message);
+  }
+
   /** @type {Record<string, unknown>} */
   const awInfo = {
     engine_id: process.env.GH_AW_INFO_ENGINE_ID || "",
     engine_name: process.env.GH_AW_INFO_ENGINE_NAME || "",
-    model: process.env.GH_AW_INFO_MODEL || "",
+    model,
     version: process.env.GH_AW_INFO_VERSION || "",
     agent_version: process.env.GH_AW_INFO_AGENT_VERSION || "",
     workflow_name: process.env.GH_AW_INFO_WORKFLOW_NAME || "",

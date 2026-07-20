@@ -407,18 +407,6 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 	]),
 );
 
-// Precompute step counts for every journey + scenario combination for the scenario picker.
-const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Object.fromEntries(
-	workshopJourneys.map((journey) => [
-		journey.id,
-		Object.fromEntries(
-			workshopScenarios.map((scenario) => [
-				scenario.id,
-				buildWorkshopFlow(journey.id, scenario.id).length,
-			]),
-		),
-	]),
-);
 ---
 
 <section
@@ -466,49 +454,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			</section>
 		</div>
 
-		<div class="aw-workshop-setup-step" data-workshop-setup-step="scenario" hidden>
-			<section class="aw-workshop-picker">
-				<div class="aw-workshop-picker-header">
-					<p class="aw-workshop-picker-kicker">Scenario</p>
-					<h3>What do you want to automate?</h3>
-				</div>
-				<div class="aw-workshop-card-grid aw-workshop-card-grid-scenarios">
-					{workshopScenarios.map((scenario) => (
-						<button
-							type="button"
-							class="aw-workshop-card aw-workshop-card-scenario-selection"
-							data-workshop-scenario={scenario.id}
-						>
-							<span class="aw-workshop-card-icon" set:html={iconSvg(scenario.icon)} />
-							<span class="aw-workshop-card-kicker">{scenario.kicker}</span>
-							<span class="aw-workshop-card-route" data-workshop-step-count></span>
-							<strong class="aw-workshop-card-title">{scenario.label}</strong>
-							<span class="aw-workshop-card-summary">{firstSentence(scenario.summary)}</span>
-						</button>
-					))}
-				</div>
-			</section>
-
-			<section class="aw-workshop-tunnel-panel" data-workshop-tunnel-panel hidden>
-				<div>
-					<p class="aw-workshop-picker-kicker">VS Code</p>
-					<h3>VS Code local path</h3>
-					<p>
-						This route follows the local setup path from the workshop content, but keeps you anchored in VS Code. If you prefer browser-based VS Code, you can still use Codespaces and follow the same terminal-style steps.
-					</p>
-				</div>
-				<div class="aw-workshop-tunnel-actions">
-					<a href="https://code.visualstudio.com/docs/sourcecontrol/overview" target="_blank" rel="noreferrer">VS Code git docs</a>
-					<a href="https://docs.github.com/en/codespaces/overview" target="_blank" rel="noreferrer">Codespaces option</a>
-				</div>
-			</section>
-
-			<div class="aw-workshop-setup-nav aw-workshop-setup-nav-start">
-				<button type="button" class="aw-workshop-inline-button" data-workshop-setup-back>
-					Back
-				</button>
-			</div>
-		</div>
 	</div>
 
 	<section class="aw-workshop-flow" data-workshop-tutorial hidden>
@@ -575,7 +520,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			journeys: workshopJourneys,
 			scenarios: workshopScenarios,
 			scenarioAdventures: workshopScenarioAdventures,
-			scenarioStepCountsByJourney,
 		})}
 	/>
 	<script is:inline>
@@ -597,7 +541,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const createDefaultState = () => ({
 				entryPathId: defaultEntryPath?.id,
 				journeyId: defaultEntryPath?.journeyId || manifest.defaults.journeyId,
-				scenarioId: '',
+				scenarioId: manifest.defaults.scenarioId,
 				stepKey: initialStep,
 			});
 
@@ -655,8 +599,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					// an unknown journey/scenario cannot silently open a tutorial with stale state.
 					const journeyId = rawJourneyId && manifest.journeys.find((j) => j.id === rawJourneyId) ? rawJourneyId : null;
 					if (!journeyId) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
-					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : null;
-					if (!scenarioId) return { screen: 'setup-scenario', journeyId, scenarioId: null, stepKey: null };
+					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : manifest.defaults.scenarioId;
 					const stepKey = rawStepKey && stepMap.has(rawStepKey) ? rawStepKey : null;
 					return { screen: 'tutorial', journeyId, scenarioId, stepKey };
 				} catch {
@@ -667,9 +610,9 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const buildHashUrl = (screen, journeyId, scenarioId, stepKey) => {
 				const base = window.location.pathname + window.location.search;
 				if (!journeyId || screen === 'setup-workspace') return base;
-				if (screen === 'setup-scenario' || !scenarioId) return `${base}#j=${encodeURIComponent(journeyId)}`;
-				if (!stepKey) return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}`;
-				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(scenarioId)}&t=${encodeURIComponent(stepKey)}`;
+				const effectiveScenarioId = scenarioId || manifest.defaults.scenarioId;
+				if (!stepKey) return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(effectiveScenarioId)}`;
+				return `${base}#j=${encodeURIComponent(journeyId)}&s=${encodeURIComponent(effectiveScenarioId)}&t=${encodeURIComponent(stepKey)}`;
 			};
 
 			const readState = () => {
@@ -681,7 +624,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					return {
 						entryPathId: selectedEntryPath?.id || defaultEntryPath?.id,
 						journeyId: parsed.journeyId || selectedEntryPath?.journeyId || manifest.defaults.journeyId,
-						scenarioId: typeof parsed.scenarioId === 'string' ? parsed.scenarioId : '',
+						scenarioId: (typeof parsed.scenarioId === 'string' && parsed.scenarioId) || manifest.defaults.scenarioId,
 						stepKey: parsed.stepKey || initialStep,
 					};
 				} catch {
@@ -725,9 +668,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			};
 
 			const setupScreen = root.querySelector('[data-workshop-setup]');
-			const setupSteps = root.querySelectorAll('[data-workshop-setup-step]');
 			const tutorialScreen = root.querySelector('[data-workshop-tutorial]');
-			const tunnelPanel = root.querySelector('[data-workshop-tunnel-panel]');
 			const flowTitle = root.querySelector('[data-workshop-flow-title]');
 			const stepPosition = root.querySelector('[data-workshop-step-position]');
 			const prevButton = root.querySelector('[data-workshop-prev]');
@@ -735,25 +676,13 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const stepBodyContainer = root.querySelector('[data-workshop-step-content]');
 			const stepSummary = root.querySelector('[data-workshop-step-summary]');
 			const stepProgressEl = root.querySelector('[data-workshop-step-progress]');
-			let setupStep = 'workspace';
-
-			const showSetupStep = (stepName, opts = {}) => {
-				setupStep = stepName === 'scenario' ? 'scenario' : 'workspace';
-				setupSteps.forEach((step) => {
-					step.hidden = step.getAttribute('data-workshop-setup-step') !== setupStep;
-				});
-				render();
-				if (opts.pushHistory !== false && setupStep === 'scenario') {
-					history.pushState(null, '', buildHashUrl('setup-scenario', state.journeyId, null, null));
-				}
-			};
 
 			const showSetup = (opts = {}) => {
 				const shouldScroll = opts.scroll !== false;
 				setupScreen.hidden = false;
 				tutorialScreen.hidden = true;
 				root.classList.remove('is-tutorial-active');
-				showSetupStep('workspace', { pushHistory: false });
+				render();
 				if (opts.pushHistory !== false) {
 					history.pushState(null, '', buildHashUrl('setup-workspace', null, null, null));
 				}
@@ -787,14 +716,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 			const applyHashState = (parsed) => {
 				if (parsed.journeyId) {
 					state.journeyId = parsed.journeyId;
-				}
-				if (parsed.scenarioId) {
-					state.scenarioId = parsed.scenarioId;
-				} else {
-					// No valid scenario in the URL: clear scenario and reset step so the picker
-					// shows no pre-selected value and forward-navigation restarts at the first step.
-					state.scenarioId = '';
-					state.stepKey = getFallbackStepKey();
+					state.scenarioId = parsed.scenarioId || manifest.defaults.scenarioId;
 				}
 				if (parsed.stepKey) {
 					state.stepKey = parsed.stepKey;
@@ -831,26 +753,13 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				state.entryPathId = entryPathId;
 				state.journeyId = journeyId;
 				if (journeyChanged) {
-					state.scenarioId = '';
+					state.scenarioId = manifest.defaults.scenarioId;
 					state.stepKey = getFallbackStepKey(buildFlow(journeyId, manifest.defaults.scenarioId));
 				}
 				ensureCurrentStepIsVisible();
 				saveState();
 				render();
 				track('Workshop Journey Selected', { journey: journeyId, scenario: state.scenarioId });
-			};
-
-			const setScenario = (scenarioId) => {
-				if (typeof scenarioId !== 'string') return;
-				const scenarioChanged = state.scenarioId !== scenarioId;
-				state.scenarioId = scenarioId;
-				if (scenarioChanged) {
-					state.stepKey = getFallbackStepKey(buildFlow(state.journeyId, scenarioId));
-				}
-				ensureCurrentStepIsVisible();
-				saveState();
-				render();
-				track('Workshop Scenario Selected', { journey: state.journeyId, scenario: scenarioId });
 			};
 
 			const navigate = (direction) => {
@@ -886,9 +795,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				const stepIndex = visibleFlow.indexOf(activeStep.key);
 				const visibleJourneyIds = ['all', ...((journey && journey.contentJourneyIds) || [])];
 				root.dataset.workshopVisibleJourneys = [...new Set(visibleJourneyIds)].join(' ');
-				if (tunnelPanel) {
-					tunnelPanel.hidden = state.journeyId !== 'vscode' || setupStep !== 'scenario';
-				}
 				stepSummary.textContent = activeStep.summary || 'Follow the guided path for this lesson.';
 				flowTitle.textContent = `${journey.label} x ${scenario.label}`;
 				stepPosition.textContent = stepIndex >= 0 ? `Step ${stepIndex + 1} of ${visibleFlow.length}` : 'Linked step';
@@ -906,23 +812,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 					const isActive = button.getAttribute('data-workshop-entry-path') === state.entryPathId;
 					button.classList.toggle('is-active', isActive);
 					button.setAttribute('aria-pressed', String(isActive));
-				});
-
-				root.querySelectorAll('[data-workshop-scenario]').forEach((button) => {
-					const isActive = button.getAttribute('data-workshop-scenario') === state.scenarioId;
-					button.classList.toggle('is-active', isActive);
-					button.setAttribute('aria-pressed', String(isActive));
-
-					const stepCountEl = button.querySelector('[data-workshop-step-count]');
-					if (stepCountEl) {
-						const scenarioId = button.getAttribute('data-workshop-scenario');
-						if (scenarioId) {
-							const count = (manifest.scenarioStepCountsByJourney || {})[state.journeyId]?.[scenarioId];
-							if (count != null) {
-								stepCountEl.textContent = `${count} steps`;
-							}
-						}
-					}
 				});
 
 				const flowIndex = visibleFlow.indexOf(activeStep.key);
@@ -950,20 +839,7 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 
 				if (target.matches('[data-workshop-entry-path]')) {
 					setJourney(target.getAttribute('data-workshop-journey'), target.getAttribute('data-workshop-entry-path'));
-					showSetupStep('scenario');
-					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
-					return;
-				}
-
-				if (target.matches('[data-workshop-scenario]')) {
-					setScenario(target.getAttribute('data-workshop-scenario'));
 					showTutorial();
-					return;
-				}
-
-				if (target.matches('[data-workshop-setup-back]')) {
-					showSetupStep('workspace');
-					root.scrollIntoView({ behavior: 'smooth', block: 'start' });
 					return;
 				}
 
@@ -999,9 +875,6 @@ const scenarioStepCountsByJourney: Record<string, Record<string, number>> = Obje
 				const scroll = opts.scroll !== false;
 				if (parsed.screen === 'tutorial') {
 					showTutorial({ pushHistory: false });
-				} else if (parsed.screen === 'setup-scenario') {
-					showSetup({ pushHistory: false, scroll });
-					showSetupStep('scenario', { pushHistory: false });
 				} else {
 					showSetup({ pushHistory: false, scroll });
 				}
