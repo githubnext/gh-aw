@@ -324,6 +324,11 @@ const (
 	// GH_AW_MODEL_AGENT_CODEX / GH_AW_MODEL_DETECTION_CODEX variable is unset.
 	CodexDefaultModel = "gpt-5.4"
 
+	// AgentDefaultModel is the model display string returned for engines whose model is
+	// dynamically determined by the AI provider (e.g. Claude, Gemini, OpenCode, Pi).
+	// It is used as the GH_AW_INFO_MODEL value when no explicit model is configured.
+	AgentDefaultModel = "agent"
+
 	// ClaudeCLIModelEnvVar is the native environment variable name supported by the Claude Code CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	ClaudeCLIModelEnvVar = "ANTHROPIC_MODEL"

@@ -103,6 +103,10 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedConfig:        nil,
 		},
 		{
+			// ExtractEngineConfig returns &EngineConfig{} (empty struct, not nil) when
+			// only a top-level model: is present and no engine: key is specified.
+			// Callers must nil-check config before reading fields in the engine-present path,
+			// but for the model-only path they receive a non-nil empty config.
 			name: "top-level model without engine",
 			frontmatter: map[string]any{
 				"model": "gpt-4",
@@ -211,6 +215,22 @@ func TestExtractEngineConfig(t *testing.T) {
 			expectedEngineSetting: "codex",
 			expectedConfig:        &EngineConfig{ID: "codex"},
 			expectedModel:         "gpt-5",
+		},
+		{
+			// Empty top-level model: "" must NOT override engine.model.
+			// The implementation guards with topLevelModel != "", so an empty
+			// string leaves the engine.model value intact.
+			name: "object format - empty top-level model does not override engine.model",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"id":    "codex",
+					"model": "gpt-4o",
+				},
+				"model": "",
+			},
+			expectedEngineSetting: "codex",
+			expectedConfig:        &EngineConfig{ID: "codex"},
+			expectedModel:         "gpt-4o",
 		},
 		{
 			name: "object format - top-level model alone (no engine.model)",

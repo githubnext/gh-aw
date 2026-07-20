@@ -23,19 +23,19 @@ func TestGetDefaultAgentModel(t *testing.T) {
 		},
 		{
 			engineID:      string(constants.ClaudeEngine),
-			expectedModel: "agent",
+			expectedModel: constants.AgentDefaultModel,
 		},
 		{
 			engineID:      string(constants.GeminiEngine),
-			expectedModel: "agent",
+			expectedModel: constants.AgentDefaultModel,
 		},
 		{
 			engineID:      string(constants.OpenCodeEngine),
-			expectedModel: "agent",
+			expectedModel: constants.AgentDefaultModel,
 		},
 		{
 			engineID:      string(constants.PiEngine),
-			expectedModel: "agent",
+			expectedModel: constants.AgentDefaultModel,
 		},
 		{
 			engineID:      string(constants.CodexEngine),
