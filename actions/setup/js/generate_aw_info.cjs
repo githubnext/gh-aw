@@ -60,7 +60,7 @@ async function main(core, ctx) {
   // workflow frontmatter but the variable is not defined in the repository,
   // causing GitHub Actions to pass the literal expression string at runtime.
   if (/\$\{\{/.test(model)) {
-    const message = `${ERR_CONFIG}: GH_AW_INFO_MODEL contains an unresolved GitHub Actions expression: ${model}`;
+    const message = `${ERR_CONFIG}: GH_AW_INFO_MODEL contains an unresolved GitHub Actions expression: ${JSON.stringify(model)}`;
     core.setFailed(message);
     throw new Error(message);
   }

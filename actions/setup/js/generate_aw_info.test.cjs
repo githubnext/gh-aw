@@ -236,7 +236,7 @@ describe("generate_aw_info.cjs", () => {
     await expect(main(mockCore, mockContext)).rejects.toThrow("ERR_CONFIG");
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_CONFIG"));
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("unresolved GitHub Actions expression"));
-    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("${{ vars.COPILOT_MODEL }}"));
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(JSON.stringify("${{ vars.COPILOT_MODEL }}")));
   });
 
   it("should fail when model name contains a partial unresolved expression", async () => {
@@ -246,24 +246,16 @@ describe("generate_aw_info.cjs", () => {
     expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("ERR_CONFIG"));
   });
 
-  it("should not fail when model name is a plain string without expressions", async () => {
-    process.env.GH_AW_INFO_MODEL = "gpt-4o";
+  it("should not fail when model name does not contain unresolved expressions", async () => {
+    for (const model of ["gpt-4o", ""]) {
+      process.env.GH_AW_INFO_MODEL = model;
 
-    await main(mockCore, mockContext);
+      await main(mockCore, mockContext);
 
-    expect(mockCore.setFailed).not.toHaveBeenCalled();
-    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
-    expect(awInfo.model).toBe("gpt-4o");
-  });
-
-  it("should not fail when model name is empty", async () => {
-    process.env.GH_AW_INFO_MODEL = "";
-
-    await main(mockCore, mockContext);
-
-    expect(mockCore.setFailed).not.toHaveBeenCalled();
-    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
-    expect(awInfo.model).toBe("");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+      const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+      expect(awInfo.model).toBe(model);
+    }
   });
 
   it("should not fail when model is a resolved experiment variant string", async () => {
