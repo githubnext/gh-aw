@@ -417,7 +417,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: "- `agenticworkflows` — run `agenticworkflows --help` to see available tools\n- `arxiv` — run `arxiv --help` to see available tools\n- `ast-grep` — run `ast-grep --help` to see available tools\n- `brave-search` — run `brave-search --help` to see available tools\n- `context7` — run `context7 --help` to see available tools\n- `datadog` — run `datadog --help` to see available tools\n- `deepwiki` — run `deepwiki --help` to see available tools\n- `fabric-rti` — run `fabric-rti --help` to see available tools\n- `markitdown` — run `markitdown --help` to see available tools\n- `memory` — run `memory --help` to see available tools\n- `microsoftdocs` — run `microsoftdocs --help` to see available tools\n- `notion` — run `notion --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools\n- `sentry` — run `sentry --help` to see available tools\n- `serena` — run `serena --help` to see available tools\n- `tavily` — run `tavily --help` to see available tools"
+          GH_AW_MCP_CLI_SERVERS_LIST: "- `agenticworkflows` — run `agenticworkflows --help` to see available tools\n- `arxiv` — run `arxiv --help` to see available tools\n- `ast-grep` — run `ast-grep --help` to see available tools\n- `brave-search` — run `brave-search --help` to see available tools\n- `context7` — run `context7 --help` to see available tools\n- `datadog` — run `datadog --help` to see available tools\n- `deepwiki` — run `deepwiki --help` to see available tools\n- `fabric-rti` — run `fabric-rti --help` to see available tools\n- `github` — run `github --help` to see available tools\n- `markitdown` — run `markitdown --help` to see available tools\n- `memory` — run `memory --help` to see available tools\n- `microsoftdocs` — run `microsoftdocs --help` to see available tools\n- `notion` — run `notion --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools\n- `sentry` — run `sentry --help` to see available tools\n- `serena` — run `serena --help` to see available tools\n- `tavily` — run `tavily --help` to see available tools"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -912,7 +912,7 @@ jobs:
           export DEBUG="*"
 
           export GH_AW_ENGINE="copilot"
-          export GH_AW_MCP_CLI_SERVERS='["agenticworkflows","arxiv","ast-grep","brave-search","context7","datadog","deepwiki","fabric-rti","markitdown","memory","microsoftdocs","notion","safeoutputs","sentry","serena","tavily"]'
+          export GH_AW_MCP_CLI_SERVERS='["agenticworkflows","arxiv","ast-grep","brave-search","context7","datadog","deepwiki","fabric-rti","github","markitdown","memory","microsoftdocs","notion","safeoutputs","sentry","serena","tavily"]'
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
