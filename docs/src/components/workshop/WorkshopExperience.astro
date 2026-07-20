@@ -599,9 +599,7 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 					// an unknown journey/scenario cannot silently open a tutorial with stale state.
 					const journeyId = rawJourneyId && manifest.journeys.find((j) => j.id === rawJourneyId) ? rawJourneyId : null;
 					if (!journeyId) return { screen: 'setup-workspace', journeyId: null, scenarioId: null, stepKey: null };
-					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId)
-						? rawScenarioId
-						: manifest.defaults.scenarioId;
+					const scenarioId = rawScenarioId && manifest.scenarios.find((s) => s.id === rawScenarioId) ? rawScenarioId : manifest.defaults.scenarioId;
 					const stepKey = rawStepKey && stepMap.has(rawStepKey) ? rawStepKey : null;
 					return { screen: 'tutorial', journeyId, scenarioId, stepKey };
 				} catch {
@@ -626,9 +624,7 @@ const entryPathStepCounts: Record<string, number> = Object.fromEntries(
 					return {
 						entryPathId: selectedEntryPath?.id || defaultEntryPath?.id,
 						journeyId: parsed.journeyId || selectedEntryPath?.journeyId || manifest.defaults.journeyId,
-						scenarioId: typeof parsed.scenarioId === 'string' && parsed.scenarioId
-							? parsed.scenarioId
-							: manifest.defaults.scenarioId,
+						scenarioId: (typeof parsed.scenarioId === 'string' && parsed.scenarioId) || manifest.defaults.scenarioId,
 						stepKey: parsed.stepKey || initialStep,
 					};
 				} catch {
