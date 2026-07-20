@@ -253,6 +253,28 @@ func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *test
 		assert.True(t, slices.IsSorted(servers), "server list should remain sorted")
 	})
 
+	t.Run("copilot with cli-proxy only and github MCP (no safeoutputs) still advertises github", func(t *testing.T) {
+		// Regression: len(servers)==0 before the Copilot block because GitHub is
+		// excluded from the initial collection. The activation condition must include
+		// ParsedTools.CLIProxy so this case is not silently skipped.
+		tools := map[string]any{
+			"github":       true,
+			"cli-proxy":    true,
+			"azure-devops": map[string]any{"command": "azure-devops-mcp"},
+		}
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{ID: string(constants.CopilotEngine)},
+			Tools:        tools,
+			ParsedTools:  NewTools(tools),
+			// No SafeOutputs, no MCPScripts → servers is empty before the Copilot block
+		}
+
+		servers := getMCPCLIServerNames(data)
+		assert.Contains(t, servers, "github", "github CLI wrapper should be listed for Copilot even without safeoutputs")
+		assert.Contains(t, servers, "azure-devops", "custom MCP server wrappers should be listed for Copilot")
+		assert.True(t, slices.IsSorted(servers), "server list should remain sorted")
+	})
+
 	t.Run("non-copilot keeps existing behavior", func(t *testing.T) {
 		data := &WorkflowData{
 			EngineConfig: &EngineConfig{ID: string(constants.ClaudeEngine)},
