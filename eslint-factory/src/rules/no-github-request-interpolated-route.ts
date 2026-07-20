@@ -3,7 +3,7 @@ import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils"
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
 const OCTOKIT_CLIENT_NAMES = new Set(["github", "octokit", "githubClient", "octokitClient"]);
-const GET_OCTOKIT_MEMBER_OBJECT_NAMES = new Set(["github", "actions"]);
+const GET_OCTOKIT_MEMBER_OBJECT_NAMES = new Set(["github", "actions", "global", "globalState"]);
 const HTTP_METHOD_PREFIXES = new Set(["GET ", "POST ", "PUT ", "PATCH ", "DELETE ", "HEAD ", "OPTIONS "]);
 
 /**
