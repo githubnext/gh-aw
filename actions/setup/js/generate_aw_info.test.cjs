@@ -266,6 +266,20 @@ describe("generate_aw_info.cjs", () => {
     expect(awInfo.model).toBe("");
   });
 
+  it("should not fail when model is a resolved experiment variant string", async () => {
+    // Workflows using experiment variants set model to a GitHub Actions expression in frontmatter
+    // (e.g. model: "${{ needs.activation.outputs.model_size }}").  GitHub Actions evaluates
+    // that expression before passing the value as an environment variable, so by the time
+    // generate_aw_info.cjs runs, GH_AW_INFO_MODEL holds the resolved variant string.
+    process.env.GH_AW_INFO_MODEL = "claude-haiku-4.5";
+
+    await main(mockCore, mockContext);
+
+    expect(mockCore.setFailed).not.toHaveBeenCalled();
+    const awInfo = JSON.parse(fs.readFileSync(awInfoPath, "utf8"));
+    expect(awInfo.model).toBe("claude-haiku-4.5");
+  });
+
   it("should fail when a numeric context field contains non-numeric data", async () => {
     const maliciousContext = {
       ...mockContext,
