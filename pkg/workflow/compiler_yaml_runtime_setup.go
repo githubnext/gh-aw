@@ -319,11 +319,8 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 				continue
 			}
 
-			// Simply add 6 spaces for job context indentation. Right-trim so any
-			// trailing whitespace carried in from source step content (e.g. embedded
-			// shell/jq/js scripts) doesn't survive into the generated YAML, which
-			// yamllint flags as trailing-spaces.
-			yaml.WriteString("      " + strings.TrimRight(line, " \t") + "\n")
+			// Simply add 6 spaces for job context indentation
+			yaml.WriteString("      " + line + "\n")
 		}
 	}
 }
@@ -351,10 +348,8 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 			continue
 		}
 
-		// Add the line with proper indentation. Right-trim so trailing whitespace
-		// carried in from source step content doesn't survive into the generated
-		// YAML, which yamllint flags as trailing-spaces.
-		yaml.WriteString("      " + strings.TrimRight(line, " \t") + "\n")
+		// Add the line with proper indentation
+		yaml.WriteString("      " + line + "\n")
 
 		// Check if this line starts a step with "- name:" or "- uses:"
 		trimmed := strings.TrimSpace(line)
@@ -397,7 +392,7 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 					if nextTrimmed == "" {
 						yaml.WriteString("\n")
 					} else {
-						yaml.WriteString("      " + strings.TrimRight(nextLine, " \t") + "\n")
+						yaml.WriteString("      " + nextLine + "\n")
 					}
 					i++
 				}
