@@ -171,8 +171,11 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason, intentM
   if (useIssueIntent && hasIntentMetadata) {
     try {
       const { data: issue } = await github.request("PATCH /repos/{owner}/{repo}/issues/{issue_number}", {
-        ...baseParams,
-        ...intentMetadata,
+        owner,
+        repo,
+        issue_number: issueNumber,
+        state: { value: "closed", ...intentMetadata },
+        state_reason: baseParams.state_reason,
       });
       return issue;
     } catch (error) {

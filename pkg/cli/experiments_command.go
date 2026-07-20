@@ -336,7 +336,7 @@ func loadLocalExperimentConfigs(experimentName string) experimentFrontmatterResu
 		return experimentFrontmatterResult{}
 	}
 
-	content, err := os.ReadFile(absFilePath) // #nosec G304 — path confirmed within .github/workflows/
+	content, err := os.ReadFile(absFilePath) // #nosec G304 -- path confirmed within .github/workflows/
 	if err != nil {
 		experimentsLog.Printf("Failed to read workflow file %s: %v", absFilePath, err)
 		return experimentFrontmatterResult{}

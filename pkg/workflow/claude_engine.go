@@ -474,6 +474,16 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE so users
 	// can set a default via GitHub Actions variables.
 	if modelConfigured {
+		isDetectionJob := workflowData.SafeOutputs == nil
+		var claudeModelVar string
+		if isDetectionJob {
+			claudeModelVar = constants.EnvVarModelDetectionClaude
+		} else {
+			claudeModelVar = constants.EnvVarModelAgentClaude
+		}
+		if containsExpression(workflowData.Model) {
+			env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpressionEmptyFallback(claudeModelVar, compilerenv.DefaultModelClaude)
+		}
 		claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
 		env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
 	} else {

@@ -68,16 +68,6 @@ func TestShortFlagConsistency(t *testing.T) {
 			description:  "compile should have force short flag",
 		},
 
-		// -F flag (raw-field in run command)
-		{
-			name:         "run command has -F for --raw-field",
-			shortFlag:    "F",
-			longFlag:     "raw-field",
-			commandSetup: func() *cobra.Command { return createRunCommandStub() },
-			shouldExist:  true,
-			description:  "run should have raw-field short flag (uppercase F)",
-		},
-
 		// -j flag (json)
 		{
 			name:         "compile command has -j for --json",
@@ -269,14 +259,6 @@ func createNewCommandStub() *cobra.Command {
 	cmd := &cobra.Command{Use: "new"}
 	cmd.Flags().BoolP("force", "f", false, "Overwrite existing files")
 	cmd.Flags().BoolP("interactive", "i", false, "Launch interactive wizard")
-	return cmd
-}
-
-func createRunCommandStub() *cobra.Command {
-	cmd := &cobra.Command{Use: "run"}
-	cmd.Flags().StringArrayP("raw-field", "F", []string{}, "Add string parameter")
-	cmd.Flags().StringP("engine", "e", "", "Override AI engine")
-	cmd.Flags().StringP("repo", "r", "", "Target repository")
 	return cmd
 }
 

@@ -58,7 +58,7 @@ All standard `run` command flags work in interactive mode:
 The following flags are NOT supported in interactive mode:
 - `--repeat` - Use the displayed command for repeated runs
 - `--enable-if-needed` - Enable workflows manually first
-- `-F` / `--raw-field` - Inputs are collected interactively
+- `--raw-field` - Inputs are collected interactively
 
 ## CI Detection
 

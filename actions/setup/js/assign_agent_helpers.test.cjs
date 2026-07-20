@@ -410,9 +410,7 @@ describe("assign_agent_helpers.cjs", () => {
         owner: "myorg",
         repo: "myrepo",
         issue_number: 42,
-        assignees: ["copilot-swe-agent[bot]"],
-        rationale: "Agent owns the code path",
-        confidence: "HIGH",
+        assignees: [{ login: "copilot-swe-agent[bot]", rationale: "Agent owns the code path", confidence: "HIGH" }],
       });
     });
 

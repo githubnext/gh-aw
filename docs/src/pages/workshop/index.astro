@@ -1,21 +1,21 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
-import WorkshopExperience from '../../components/workshop/WorkshopExperience.astro';
 ---
 
 <StarlightPage
 	hasSidebar={false}
 	frontmatter={{
 		title: 'Workshop',
-		description: 'Work through the gh-aw workshop directly in the docs. Choose where you like to work and track your progress as you go.',
+		description: 'The gh-aw workshop now lives in the gh-aw-workshop repository.',
 		tableOfContents: false,
 	}}
 >
-	<WorkshopExperience />
+	<p>
+		The full gh-aw workshop has moved to the
+		<a href="https://github.com/githubnext/gh-aw-workshop">gh-aw-workshop repository</a>.
+	</p>
+	<p>
+		Use that repository for the current workshop curriculum, supporting materials, and step-by-step
+		exercises.
+	</p>
 </StarlightPage>
-
-<style>
-	:global(.pagination-links) {
-		display: none;
-	}
-</style>

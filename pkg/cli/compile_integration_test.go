@@ -24,6 +24,11 @@ var (
 	binaryTempDir    string
 )
 
+const (
+	windowsRemoveRetries    = 10
+	windowsRemoveRetryDelay = 100 * time.Millisecond
+)
+
 // TestMain builds the gh-aw binary once before running tests
 func TestMain(m *testing.M) {
 	// Get project root
@@ -150,7 +155,7 @@ func setupIntegrationTest(t *testing.T) *integrationTestSetup {
 		if err != nil {
 			t.Fatalf("Failed to change back to original working directory: %v", err)
 		}
-		err = os.RemoveAll(tempDir)
+		err = removeAllWithRetry(tempDir)
 		if err != nil {
 			t.Fatalf("Failed to remove temp directory: %v", err)
 		}
@@ -227,6 +232,27 @@ Please check the repository for any open issues and create a summary.
 	}
 
 	t.Logf("Successfully compiled workflow to %s", lockFilePath)
+}
+
+func removeAllWithRetry(path string) error {
+	attempts := 1
+	if runtime.GOOS == "windows" {
+		attempts = windowsRemoveRetries
+	}
+
+	var err error
+	for i := 0; i < attempts; i++ {
+		err = os.RemoveAll(path)
+		if err == nil || os.IsNotExist(err) {
+			return nil
+		}
+		if runtime.GOOS != "windows" {
+			return err
+		}
+		time.Sleep(windowsRemoveRetryDelay)
+	}
+
+	return err
 }
 
 func TestCompileWithIncludeWithEmptyFrontmatterUnderPty(t *testing.T) {

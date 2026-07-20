@@ -337,14 +337,14 @@ describe("generate_safe_outputs_tools", () => {
     runScript();
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_agent").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue").description).not.toContain(intentSuffix);
+    const intentRequiredSuffix = "INTENT REQUIRED: rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) are required for each call.";
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_agent").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "create_issue").description).not.toContain(intentRequiredSuffix);
   });
 
   it("adds issue intent suffix even when unrelated runtime features are present", () => {
@@ -362,29 +362,23 @@ describe("generate_safe_outputs_tools", () => {
     runScript({ GH_AW_RUNTIME_FEATURES: "other\nanother=true" });
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentSuffix);
+    const intentRequiredSuffix = "INTENT REQUIRED: rationale (string, max 280 chars) and confidence (exactly one of: LOW, MEDIUM, HIGH) are required for each call.";
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_type").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "set_issue_field").description).toContain(intentRequiredSuffix);
+    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "add_labels").description).toContain(intentRequiredSuffix);
   });
 
-  it("omits issue intent suffix by default and when explicitly disabled per tool", () => {
-    fs.writeFileSync(
-      toolsSourcePath,
-      JSON.stringify([
-        { name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: {} } },
-        { name: "assign_to_user", description: "Assigns users.", inputSchema: { type: "object", properties: {} } },
-      ])
-    );
-    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { issue_intent: false }, assign_to_user: {} }));
+  it("omits issue intent guidance when explicitly disabled per tool", () => {
+    fs.writeFileSync(toolsSourcePath, JSON.stringify([{ name: "close_issue", description: "Closes issue.", inputSchema: { type: "object", properties: {} } }]));
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { issue_intent: false } }));
     fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
 
     runScript();
 
     const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
-    const intentSuffix = "INTENT: Include rationale (string, max 280 chars) and confidence (string, exactly one of: LOW, MEDIUM, HIGH) with each call.";
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue").description).not.toContain(intentSuffix);
-    expect(result.find((/** @type {{name: string, description: string}} */ t) => t.name === "assign_to_user").description).not.toContain(intentSuffix);
+    const closeIssue = result.find((/** @type {{name: string, description: string}} */ t) => t.name === "close_issue");
+    expect(closeIssue.description).not.toContain("INTENT REQUIRED:");
+    expect(closeIssue.description).not.toContain("INTENT ENCOURAGED:");
   });
 
   it("makes add_labels label items object-only with required name/rationale/confidence when issue_intent is true", () => {
@@ -543,5 +537,290 @@ describe("generate_safe_outputs_tools", () => {
     expect(assignToAgent.inputSchema.properties).not.toHaveProperty("suggest");
     expect(assignToAgent.inputSchema.required).not.toContain("rationale");
     expect(assignToAgent.inputSchema.required).not.toContain("confidence");
+  });
+
+  it("adds encouraged intent guidance for all intent-aware tools when issue_intent is omitted", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "set_issue_type",
+          description: "Sets issue type.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the change (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the change." } },
+          },
+        },
+        {
+          name: "set_issue_field",
+          description: "Sets issue field.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the change (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the change." } },
+          },
+        },
+        {
+          name: "add_labels",
+          description: "Adds labels.",
+          inputSchema: { type: "object", properties: { labels: { type: "array", items: { oneOf: [{ type: "string" }, { type: "object", required: ["name"], properties: { name: { type: "string" } } }] } } } },
+        },
+        {
+          name: "close_issue",
+          description: "Closes issue.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for closing the issue (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for closing the issue." } },
+          },
+        },
+        {
+          name: "assign_to_user",
+          description: "Assigns users.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the assignment (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the assignment." } },
+          },
+        },
+        {
+          name: "assign_to_agent",
+          description: "Assigns agent.",
+          inputSchema: {
+            type: "object",
+            properties: { rationale: { type: "string", description: "Optional rationale for the assignment (max 280 characters)." }, confidence: { type: "string", description: "Optional confidence level for the assignment." } },
+          },
+        },
+      ])
+    );
+    // All tools with omitted issue_intent (no issue_intent key)
+    fs.writeFileSync(
+      configPath,
+      JSON.stringify({
+        set_issue_type: {},
+        set_issue_field: {},
+        add_labels: {},
+        close_issue: {},
+        assign_to_user: {},
+        assign_to_agent: {},
+      })
+    );
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const optionalSuffix = "INTENT ENCOURAGED:";
+    const requiredSuffix = "INTENT REQUIRED:";
+    const toolNames = ["set_issue_type", "set_issue_field", "add_labels", "close_issue", "assign_to_user", "assign_to_agent"];
+    for (const name of toolNames) {
+      const tool = result.find((/** @type {{name: string}} */ t) => t.name === name);
+      expect(tool, `${name} should be in result`).toBeDefined();
+      expect(tool.description, `${name} should have encouraged suffix`).toContain(optionalSuffix);
+      expect(tool.description, `${name} should not have required suffix`).not.toContain(requiredSuffix);
+    }
+    // Rationale and confidence should remain optional (not added to required array, descriptions unchanged)
+    for (const name of toolNames.filter(n => n !== "add_labels")) {
+      const tool = result.find((/** @type {{name: string, inputSchema: {required?: string[]}}} */ t) => t.name === name);
+      const required = tool.inputSchema.required ?? [];
+      expect(required, `${name} rationale should not be required`).not.toContain("rationale");
+      expect(required, `${name} confidence should not be required`).not.toContain("confidence");
+      const props = tool.inputSchema.properties;
+      if (props?.rationale?.description) {
+        expect(props.rationale.description, `${name} rationale description should remain optional`).toMatch(/optional/i);
+      }
+      if (props?.confidence?.description) {
+        expect(props.confidence.description, `${name} confidence description should remain optional`).toMatch(/optional/i);
+      }
+    }
+  });
+
+  it("strict mode add_labels description does not permit plain strings and marks fields as required", () => {
+    const addLabelsSourceTool = {
+      name: "add_labels",
+      description: "Adds labels.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          labels: {
+            type: "array",
+            description: "Labels to add (e.g., ['bug', 'priority-high']). Each entry can be either a label name string or an object with name plus optional rationale/confidence/suggest intent metadata.",
+            items: {
+              oneOf: [
+                { type: "string" },
+                {
+                  type: "object",
+                  required: ["name"],
+                  properties: {
+                    name: { type: "string", description: "Label name to apply." },
+                    rationale: { type: "string", maxLength: 280, description: "Optional rationale for the change (max 280 characters)." },
+                    confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], description: "Optional confidence level for the change." },
+                    suggest: { type: "boolean" },
+                  },
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
+        },
+        required: ["labels"],
+      },
+    };
+    fs.writeFileSync(toolsSourcePath, JSON.stringify([addLabelsSourceTool]));
+    fs.writeFileSync(configPath, JSON.stringify({ add_labels: { issue_intent: true } }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "add_labels");
+    const labelsDesc = tool.inputSchema.properties.labels.description;
+
+    // Ensure the description does not say plain strings are *accepted* in any form
+    // (e.g. "plain strings are accepted", "plain strings remain accepted").
+    // Note: the strict description itself says "not permitted" — that IS the desired phrase.
+    expect(labelsDesc).not.toMatch(/plain string[s]? (?:are |remain )?(?:also )?accepted/i);
+    expect(labelsDesc).not.toMatch(/either a label name string/i);
+    expect(labelsDesc).not.toMatch(/can be either a label name string/i);
+    // Must not call rationale or confidence optional
+    expect(labelsDesc).not.toMatch(/optional rationale/i);
+    expect(labelsDesc).not.toMatch(/optional confidence/i);
+    // Must include an object example with all required fields
+    expect(labelsDesc).toContain('"name"');
+    expect(labelsDesc).toContain('"rationale"');
+    expect(labelsDesc).toContain('"confidence"');
+    // Items rationale/confidence nested descriptions must not say "Optional"
+    const items = tool.inputSchema.properties.labels.items;
+    expect(items.properties.rationale.description).not.toMatch(/optional/i);
+    expect(items.properties.confidence.description).not.toMatch(/optional/i);
+  });
+
+  it("omitted mode add_labels description prefers structured label objects and permits plain strings", () => {
+    const addLabelsSourceTool = {
+      name: "add_labels",
+      description: "Adds labels.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          labels: {
+            type: "array",
+            description: "Original description.",
+            items: { oneOf: [{ type: "string" }, { type: "object", required: ["name"], properties: { name: { type: "string" } } }] },
+          },
+        },
+        required: ["labels"],
+      },
+    };
+    fs.writeFileSync(toolsSourcePath, JSON.stringify([addLabelsSourceTool]));
+    fs.writeFileSync(configPath, JSON.stringify({ add_labels: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "add_labels");
+    const labelsDesc = tool.inputSchema.properties.labels.description;
+
+    // Should include a structured object example
+    expect(labelsDesc).toContain('"name"');
+    expect(labelsDesc).toContain('"rationale"');
+    expect(labelsDesc).toContain('"confidence"');
+    // Should show suggest inside the label object example (not as a top-level field)
+    expect(labelsDesc).toContain('"suggest"');
+    // Should not say plain strings are forbidden (they are still allowed in omitted mode)
+    expect(labelsDesc).not.toMatch(/plain string.*not permitted/i);
+    // oneOf schema must be preserved (plain strings still valid)
+    expect(tool.inputSchema.properties.labels.items.oneOf).toBeDefined();
+  });
+
+  it("strict mode updates rationale and confidence property descriptions to say required", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "close_issue",
+          description: "Closes issue.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              body: { type: "string" },
+              rationale: { type: "string", maxLength: 280, description: "Optional rationale for the change (max 280 characters)." },
+              confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], description: "Optional confidence level for the change." },
+              suggest: { type: "boolean" },
+            },
+            required: ["body"],
+          },
+        },
+        {
+          name: "assign_to_user",
+          description: "Assigns users.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              issue_number: { type: "number" },
+              rationale: { type: "string", maxLength: 280, description: "Optional rationale for the assignment (max 280 characters)." },
+              confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], description: "Optional confidence level for the assignment." },
+            },
+            required: ["issue_number"],
+          },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { issue_intent: true }, assign_to_user: { issue_intent: true } }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    for (const toolName of ["close_issue", "assign_to_user"]) {
+      const tool = result.find((/** @type {{name: string}} */ t) => t.name === toolName);
+      expect(tool.inputSchema.properties.rationale.description, `${toolName} rationale description`).not.toMatch(/optional/i);
+      expect(tool.inputSchema.properties.confidence.description, `${toolName} confidence description`).not.toMatch(/optional/i);
+      // rationale and confidence must be in required so JSON Schema validators enforce them
+      expect(tool.inputSchema.required, `${toolName} rationale should be in required`).toContain("rationale");
+      expect(tool.inputSchema.required, `${toolName} confidence should be in required`).toContain("confidence");
+      // Pre-existing required fields must still be present
+    }
+    const closeIssueTool = result.find((/** @type {{name: string}} */ t) => t.name === "close_issue");
+    expect(closeIssueTool.inputSchema.required, "close_issue should still require body").toContain("body");
+    const assignToUserTool = result.find((/** @type {{name: string}} */ t) => t.name === "assign_to_user");
+    expect(assignToUserTool.inputSchema.required, "assign_to_user should still require issue_number").toContain("issue_number");
+  });
+
+  it("strict mode assign_to_agent replaces inline examples with versions that include rationale and confidence", () => {
+    const sourceDesc = 'Assigns agent. Example usage: assign_to_agent(issue_number=123, agent="copilot") or assign_to_agent(pull_number=456, agent="copilot", pull_request_repo="owner/repo")';
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "assign_to_agent",
+          description: sourceDesc,
+          inputSchema: {
+            type: "object",
+            properties: {
+              issue_number: { type: "number" },
+              rationale: { type: "string", maxLength: 280, description: "Optional rationale for the assignment (max 280 characters)." },
+              confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"], description: "Optional confidence level for the assignment." },
+            },
+          },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ assign_to_agent: { issue_intent: true } }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "assign_to_agent");
+    // Source description must not have contained rationale/confidence in examples (ensures replacement is meaningful)
+    expect(sourceDesc).not.toMatch(/assign_to_agent\([^)]*rationale=[^)]*\)/);
+    expect(sourceDesc).not.toMatch(/assign_to_agent\([^)]*confidence=[^)]*\)/);
+    // Strict mode: BOTH inline examples must include rationale and confidence
+    const matches = [...tool.description.matchAll(/assign_to_agent\(([^)]+)\)/g)];
+    expect(matches.length, "should have two assign_to_agent example calls").toBeGreaterThanOrEqual(2);
+    for (const [, args] of matches) {
+      expect(args, "each example call should include rationale").toContain("rationale=");
+      expect(args, "each example call should include confidence").toContain("confidence=");
+    }
+    // Must still contain the intent required suffix
+    expect(tool.description).toContain("INTENT REQUIRED:");
   });
 });

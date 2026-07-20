@@ -6,6 +6,7 @@ const EVALS_DIR = "/tmp/gh-aw/evals";
 const EVALS_LOG_PATH = `${EVALS_DIR}/evals.log`;
 const EVALS_OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
 const require = createRequire(import.meta.url);
+const { MODEL_FALLBACK_ENV_VAR } = require("./model_fallback.cjs");
 const { parseMain, extractAssistantTextFromJsonlLog } = require("./run_evals.cjs");
 
 const mockCore = {
@@ -73,6 +74,19 @@ describe("run_evals.cjs", () => {
 
     const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
     expect(JSON.parse(line).runid).toBe("unknown");
+  });
+
+  it("uses GH_AW_MODEL_FALLBACK when GH_AW_EVALS_MODEL resolves empty", async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
+    vi.stubEnv("GH_AW_EVALS_MODEL", "");
+    vi.stubEnv(MODEL_FALLBACK_ENV_VAR, "claude-sonnet-4.6");
+    vi.stubEnv("GITHUB_RUN_ID", "123456789");
+    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: YES\n", "utf8");
+
+    await parseMain();
+
+    const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
+    expect(JSON.parse(line).model).toBe("claude-sonnet-4.6");
   });
 
   it("parses answers from Pi v3 JSONL turn_end events (positional format)", async () => {

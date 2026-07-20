@@ -224,3 +224,133 @@ Test workflow with pull_request triggers.
 		}
 	}
 }
+
+// TestPullRequestTargetCheckoutDisabledByDefault verifies that pull_request_target workflows
+// do not generate a "Checkout PR branch" step when checkout is not explicitly configured.
+// This prevents the step from hard-failing when head branches are deleted (merged PRs) or
+// inaccessible (fork PRs).
+func TestPullRequestTargetCheckoutDisabledByDefault(t *testing.T) {
+	tests := []struct {
+		name             string
+		workflowContent  string
+		expectPRCheckout bool
+		description      string
+	}{
+		{
+			name: "pull_request_target with no checkout key - no PR checkout step",
+			workflowContent: `---
+on:
+  pull_request_target:
+    types: [closed]
+permissions:
+  contents: read
+  pull-requests: read
+engine: claude
+strict: false
+---
+
+# Thank you note workflow
+Workflow triggered when a PR is closed.
+`,
+			expectPRCheckout: false,
+			description:      "pull_request_target without explicit checkout key should not generate 'Checkout PR branch' step",
+		},
+		{
+			name: "pull_request_target with checkout: false - no PR checkout step",
+			workflowContent: `---
+on:
+  pull_request_target:
+    types: [closed]
+permissions:
+  contents: read
+  pull-requests: read
+engine: claude
+strict: false
+checkout: false
+---
+
+# Thank you note workflow
+Workflow triggered when a PR is closed.
+`,
+			expectPRCheckout: false,
+			description:      "pull_request_target with explicit checkout: false should not generate 'Checkout PR branch' step",
+		},
+		{
+			name: "pull_request_target with trusted checkout mapping - no PR checkout step",
+			workflowContent: `---
+on:
+  pull_request_target:
+    types: [opened]
+permissions:
+  contents: read
+  pull-requests: read
+engine: claude
+checkout:
+  repository: ${{ github.repository }}
+  ref: ${{ github.event.pull_request.base.sha }}
+---
+
+# PR review workflow
+Workflow triggered when a PR is opened with a trusted base checkout.
+`,
+			expectPRCheckout: false,
+			description:      "pull_request_target with explicit checkout mapping should NOT generate 'Checkout PR branch' step (checkout_pr_branch.cjs fetches refs/pull/<n>/head, not the trusted base SHA)",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create temporary directory for test
+			tempDir, err := os.MkdirTemp("", "prt-checkout-test")
+			if err != nil {
+				t.Fatalf("Failed to create temp dir: %v", err)
+			}
+			defer os.RemoveAll(tempDir)
+
+			// Create workflows directory
+			workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+			if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+				t.Fatalf("Failed to create workflows directory: %v", err)
+			}
+
+			// Write test workflow file
+			workflowPath := filepath.Join(workflowsDir, "test-prt-workflow.md")
+			if err := os.WriteFile(workflowPath, []byte(tt.workflowContent), 0644); err != nil {
+				t.Fatalf("Failed to write workflow file: %v", err)
+			}
+
+			// Compile workflow
+			compiler := NewCompiler()
+			compiler.SetActionMode(ActionModeDev)
+			if err := compiler.CompileWorkflow(workflowPath); err != nil {
+				t.Fatalf("Failed to compile workflow: %v", err)
+			}
+
+			// Read generated lock file
+			lockPath := filepath.Join(workflowsDir, "test-prt-workflow.lock.yml")
+			lockContent, err := os.ReadFile(lockPath)
+			if err != nil {
+				t.Fatalf("Failed to read lock file: %v", err)
+			}
+			lockStr := string(lockContent)
+
+			// Check for PR checkout step
+			hasPRCheckout := strings.Contains(lockStr, "Checkout PR branch")
+			if hasPRCheckout != tt.expectPRCheckout {
+				t.Errorf("%s: expected PR checkout step: %v, got: %v", tt.description, tt.expectPRCheckout, hasPRCheckout)
+			}
+
+			// When a PR checkout step IS present, verify it does not fetch the insecure
+			// PR-head ref (refs/pull/<n>/head). The trusted-base opt-in must use a safe ref
+			// such as the base SHA — checkout_pr_branch.cjs always fetches refs/pull/N/head.
+			// We check only for "refs/pull" because that is the specific pattern emitted by
+			// checkout_pr_branch.cjs; broader substrings (e.g. "head_ref") could appear in
+			// unrelated step names or comments and would produce false positives.
+			if hasPRCheckout {
+				if strings.Contains(lockStr, "refs/pull") {
+					t.Errorf("%s: expected trusted base checkout but lock file contains insecure pattern \"refs/pull\"", tt.description)
+				}
+			}
+		})
+	}
+}

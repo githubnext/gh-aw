@@ -138,6 +138,12 @@ func validateExampleTokens(t *testing.T, cmd *cobra.Command, tokens []string) {
 			if flag.Value.Type() == "bool" {
 				continue
 			}
+			if flag.NoOptDefVal != "" {
+				if i+1 < len(tokens) && !strings.HasPrefix(tokens[i+1], "-") {
+					t.Fatalf("flag %q in example for command %q requires =value when an explicit value is shown", "--"+name, cmd.CommandPath())
+				}
+				continue
+			}
 			if i+1 >= len(tokens) {
 				t.Fatalf("flag %q in example for command %q is missing a value", "--"+name, cmd.CommandPath())
 			}

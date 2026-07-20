@@ -18,12 +18,6 @@ func Stderr() io.Writer {
 	return os.Stderr
 }
 
-// Stdout returns os.Stdout directly; color-profile detection is not supported
-// on wasm.
-func Stdout() io.Writer {
-	return os.Stdout
-}
-
 // Degrade returns s unchanged; color-profile detection is not supported on wasm.
 func Degrade(s string, _ []string) string {
 	return s
