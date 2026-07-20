@@ -1994,3 +1994,98 @@ func TestAppendYAMLLine(t *testing.T) {
 		})
 	}
 }
+
+// ========================================
+// Tests for writeStepsSection
+// ========================================
+
+// TestWriteStepsSection verifies that writeStepsSection trims trailing whitespace
+// from structural YAML lines while preserving block-scalar payload verbatim.
+func TestWriteStepsSection(t *testing.T) {
+	tests := []struct {
+		name      string
+		stepsYAML string
+		wantLines []string // substrings that must appear in the output
+		wantNot   []string // substrings that must NOT appear in the output
+	}{
+		{
+			name:      "structural trailing spaces trimmed",
+			stepsYAML: "pre-steps:\n- name: My Step   \n  run: echo hi   \n",
+			wantLines: []string{"- name: My Step\n", "run: echo hi\n"},
+			wantNot:   []string{"My Step   ", "echo hi   "},
+		},
+		{
+			name:      "block scalar payload preserved verbatim",
+			stepsYAML: "pre-steps:\n- name: Script\n  run: |\n    echo hello   \n    echo world\\  \n",
+			wantLines: []string{"echo hello   ", "echo world\\  "},
+		},
+		{
+			name:      "blank lines emitted as bare newlines",
+			stepsYAML: "pre-steps:\n- name: A\n  run: echo a\n\n- name: B\n  run: echo b\n",
+			wantLines: []string{"- name: A", "- name: B"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			writeStepsSection(&b, tt.stepsYAML)
+			got := b.String()
+
+			for _, want := range tt.wantLines {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected output to contain %q\ngot: %q", want, got)
+				}
+			}
+			for _, notWant := range tt.wantNot {
+				if strings.Contains(got, notWant) {
+					t.Errorf("expected output NOT to contain %q\ngot: %q", notWant, got)
+				}
+			}
+		})
+	}
+}
+
+// TestAddCustomStepsAsIsTrimsStructuralTrailingSpaces verifies that addCustomStepsAsIs
+// trims trailing whitespace from structural YAML lines but preserves block-scalar payload.
+func TestAddCustomStepsAsIsTrimsStructuralTrailingSpaces(t *testing.T) {
+	compiler := NewCompiler()
+
+	tests := []struct {
+		name        string
+		customSteps string
+		wantLines   []string // substrings that must appear
+		wantNot     []string // substrings that must NOT appear
+	}{
+		{
+			name:        "structural trailing spaces are trimmed",
+			customSteps: "steps:\n- name: My Step   \n  uses: actions/checkout@v4   \n",
+			wantLines:   []string{"- name: My Step\n", "uses: actions/checkout@v4\n"},
+			wantNot:     []string{"My Step   ", "checkout@v4   "},
+		},
+		{
+			name:        "block scalar run content preserved verbatim",
+			customSteps: "steps:\n- name: Script\n  run: |\n    echo trailing   \n    echo bs\\  \n",
+			wantLines:   []string{"echo trailing   ", "echo bs\\  "},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var b strings.Builder
+			compiler.addCustomStepsAsIs(&b, tt.customSteps)
+			got := b.String()
+
+			for _, want := range tt.wantLines {
+				if !strings.Contains(got, want) {
+					t.Errorf("expected output to contain %q\ngot: %q", want, got)
+				}
+			}
+			for _, notWant := range tt.wantNot {
+				if strings.Contains(got, notWant) {
+					t.Errorf("expected output NOT to contain %q\ngot: %q", notWant, got)
+				}
+			}
+		})
+	}
+}
