@@ -244,18 +244,27 @@ describe("mcp_cli_bridge.cjs", () => {
   });
 
   it("uses logs timeout argument with bridge buffer when provided", () => {
+    // timeout=10min, floor=5min (default count=100, no filter) → max(120000, 315000, 615000) = 615000
     expect(getToolCallTimeoutMs("logs", { timeout: 10 })).toBe(615000);
   });
 
-  it("rounds logs timeout up to the next millisecond", () => {
-    expect(getToolCallTimeoutMs("logs", { timeout: 2.5 })).toBe(165000);
+  it("floors small explicit timeout to the count-derived minimum", () => {
+    // timeout=2.5min → explicit=165000ms; floor=5min → 315000ms; floor wins
+    expect(getToolCallTimeoutMs("logs", { timeout: 2.5 })).toBe(315000);
   });
 
-  it("falls back to count-derived timeout for invalid timeout values", () => {
-    // Invalid timeouts fall back to count-based auto-scaling (default count=100 → 5 minutes)
+  it("caps explicit timeout at LOGS_TOOL_MAX_EXPLICIT_TIMEOUT_MINUTES (60)", () => {
+    // timeout=999min → clamped to 60min → 3615000ms; floor=315000ms; capped value wins
+    expect(getToolCallTimeoutMs("logs", { timeout: 999 })).toBe(3615000);
+  });
+
+  it("rejects non-numeric timeout types and falls back to count-derived timeout", () => {
+    // typeof-check rejects strings and booleans even when Number() would accept them
     expect(getToolCallTimeoutMs("logs", { timeout: 0 })).toBe(315000);
     expect(getToolCallTimeoutMs("logs", { timeout: -5 })).toBe(315000);
     expect(getToolCallTimeoutMs("logs", { timeout: "invalid" })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: "5" })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: true })).toBe(315000);
   });
 
   it("treats MCP result envelopes with isError=true as errors", async () => {

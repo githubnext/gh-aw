@@ -51,6 +51,8 @@ const LOGS_TOOL_DEFAULT_COUNT = 100;
 const LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE = 40;
 /** Minimum fallback timeout (minutes) for unfiltered logs calls (no workflow_name) */
 const LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER = 5;
+/** Maximum allowed explicit timeout (minutes) for logs calls to prevent bridge-resource exhaustion */
+const LOGS_TOOL_MAX_EXPLICIT_TIMEOUT_MINUTES = 60;
 /** Extra time (ms) to allow response marshalling/transport after tool execution */
 const TOOL_CALL_TIMEOUT_BUFFER_MS = 15000;
 
@@ -369,39 +371,51 @@ async function mcpToolsCall(serverUrl, apiKey, sessionId, toolName, toolArgs, se
 /**
  * Resolve MCP bridge timeout for a tool call.
  *
- * The logs tool may legitimately run for multiple minutes. When an explicit
- * `timeout` argument is provided, the bridge derives its deadline from that
- * value plus a response buffer. When `timeout` is omitted, the bridge mirrors
- * the server's own auto-scaling rule: `ceil(count / 40)` minutes, with a
- * minimum of 5 minutes when no `workflow_name` filter is supplied (matching
- * `effectiveMCPLogsToolTimeoutMinutes` in `mcp_tools_privileged.go`).
+ * The logs tool may legitimately run for multiple minutes. The bridge always
+ * computes a count-derived floor that mirrors the server's own auto-scaling
+ * (`ceil(count / 40)` minutes, with a 5-minute minimum when no `workflow_name`
+ * filter is provided — matching `effectiveMCPLogsToolTimeoutMinutes` in
+ * `mcp_tools_privileged.go`). This floor applies to both the implicit path and
+ * any explicit `timeout` argument, so callers that pass a small positive value
+ * still receive a bridge deadline that is at least as long as the server's own
+ * expected runtime. Explicit timeouts are capped at
+ * `LOGS_TOOL_MAX_EXPLICIT_TIMEOUT_MINUTES` to prevent bridge-resource
+ * exhaustion from adversarial or misconfigured calls. The result is always
+ * at least `TOOL_CALL_TIMEOUT_MS` (120 s).
  *
  * @param {string} toolName
  * @param {Record<string, unknown>} toolArgs
- * @returns {number}
+ * @returns {number} Timeout in ms. Always at least TOOL_CALL_TIMEOUT_MS (120 s).
  */
 function getToolCallTimeoutMs(toolName, toolArgs) {
   if (toolName !== "logs") {
     return TOOL_CALL_TIMEOUT_MS;
   }
 
-  const timeoutCandidate = Number(toolArgs?.timeout);
-  let timeoutMinutes;
+  // Compute the count-derived floor that mirrors the server's auto-scaling.
+  // Reject non-numeric types to avoid implicit coercion of booleans/strings.
+  const countCandidate = typeof toolArgs?.count === "number" ? toolArgs.count : NaN;
+  const effectiveCount = Number.isFinite(countCandidate) && countCandidate > 0 ? countCandidate : LOGS_TOOL_DEFAULT_COUNT;
+  const baseMinutes = Math.ceil(effectiveCount / LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE);
+  // Without a workflow filter the GitHub API scans all runs and is substantially
+  // slower for large repositories — apply the same 5-minute floor as the server.
+  const floorMinutes = toolArgs?.workflow_name ? baseMinutes : Math.max(LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER, baseMinutes);
+  const floorMs = Math.ceil(floorMinutes * 60 * 1000) + TOOL_CALL_TIMEOUT_BUFFER_MS;
+
+  // Honor an explicit timeout when present. Reject non-numeric types (e.g.
+  // booleans, strings) so only real numeric values are accepted, and cap at
+  // LOGS_TOOL_MAX_EXPLICIT_TIMEOUT_MINUTES to bound bridge-resource use.
+  const timeoutCandidate = typeof toolArgs?.timeout === "number" ? toolArgs.timeout : NaN;
   if (Number.isFinite(timeoutCandidate) && timeoutCandidate > 0) {
-    // Explicit timeout provided — use it directly.
-    timeoutMinutes = timeoutCandidate;
-  } else {
-    // No explicit timeout: mirror the server's auto-scaling from count.
-    const countCandidate = Number(toolArgs?.count);
-    const effectiveCount = Number.isFinite(countCandidate) && countCandidate > 0 ? countCandidate : LOGS_TOOL_DEFAULT_COUNT;
-    const base = Math.ceil(effectiveCount / LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE);
-    // Without a workflow filter the GitHub API scans all runs and is substantially
-    // slower for large repositories — apply the same 5-minute floor as the server.
-    timeoutMinutes = toolArgs?.workflow_name ? base : Math.max(LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER, base);
+    const clampedMinutes = Math.min(timeoutCandidate, LOGS_TOOL_MAX_EXPLICIT_TIMEOUT_MINUTES);
+    const explicitMs = Math.ceil(clampedMinutes * 60 * 1000) + TOOL_CALL_TIMEOUT_BUFFER_MS;
+    // Floor to the count-derived minimum so tiny explicit values do not produce
+    // a misleadingly short bridge deadline; always at least TOOL_CALL_TIMEOUT_MS.
+    return Math.max(TOOL_CALL_TIMEOUT_MS, floorMs, explicitMs);
   }
 
-  const resolvedTimeoutMs = Math.ceil(timeoutMinutes * 60 * 1000) + TOOL_CALL_TIMEOUT_BUFFER_MS;
-  return Math.max(TOOL_CALL_TIMEOUT_MS, resolvedTimeoutMs);
+  // No valid explicit timeout: use the count-derived floor directly.
+  return Math.max(TOOL_CALL_TIMEOUT_MS, floorMs);
 }
 
 /**
