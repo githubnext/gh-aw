@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
+	"github.com/spf13/pflag"
 )
 
 func TestNewInitCommand(t *testing.T) {
@@ -125,6 +126,55 @@ func TestNewInitCommand(t *testing.T) {
 	}
 }
 
+func TestInitCommandCodespacesFlagParsing(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		args      []string
+		wantValue string
+		wantArgs  []string
+	}{
+		{
+			name:      "bare flag uses no-opt default",
+			args:      []string{"--codespaces"},
+			wantValue: " ",
+			wantArgs:  nil,
+		},
+		{
+			name:      "equals form consumes explicit value",
+			args:      []string{"--codespaces=repo1,repo2"},
+			wantValue: "repo1,repo2",
+			wantArgs:  nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cmd := NewInitCommand()
+			flagSet := pflag.NewFlagSet("init", pflag.ContinueOnError)
+			flagSet.AddFlagSet(cmd.Flags())
+
+			if err := flagSet.Parse(tt.args); err != nil {
+				t.Fatalf("Parse(%v) failed: %v", tt.args, err)
+			}
+
+			gotValue, err := flagSet.GetString("codespaces")
+			if err != nil {
+				t.Fatalf("GetString(codespaces) failed: %v", err)
+			}
+			if gotValue != tt.wantValue {
+				t.Fatalf("codespaces value = %q, want %q", gotValue, tt.wantValue)
+			}
+			if gotArgs := flagSet.Args(); !equalStrings(gotArgs, tt.wantArgs) {
+				t.Fatalf("remaining args = %v, want %v", gotArgs, tt.wantArgs)
+			}
+		})
+	}
+}
+
 func TestInitCommandHelp(t *testing.T) {
 	t.Parallel()
 
@@ -159,6 +209,18 @@ func TestInitCommandHelp(t *testing.T) {
 	if strings.Contains(helpText, "Usage:") {
 		t.Error("Expected init long help text to not embed a Usage section")
 	}
+}
+
+func equalStrings(got, want []string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }
 
 func TestInitCommandInteractiveModeDetection(t *testing.T) {

@@ -18,8 +18,8 @@
             "actions": "write",
             "checks": "write",
             "contents": "write",
-            "discussions": "read",
-            "issues": "read",
+            "discussions": "write",
+            "issues": "write",
             "pull-requests": "write",
             "workflows": "write"
           }
@@ -29,8 +29,8 @@
             "actions": "write",
             "checks": "write",
             "contents": "write",
-            "discussions": "read",
-            "issues": "read",
+            "discussions": "write",
+            "issues": "write",
             "pull-requests": "write",
             "workflows": "write"
           }

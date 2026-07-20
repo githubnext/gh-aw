@@ -49,7 +49,7 @@ With --codespaces flag:
 - Configures permissions for current repo: actions:write, contents:write, discussions:write, issues:write, pull-requests:write, workflows:write
 - Configures permissions for additional repos (in same org): actions:read, contents:read, discussions:read, issues:read, pull-requests:read, workflows:read
 - Adds GitHub Copilot extensions and gh aw CLI installation
-- Use without a value (--codespaces) for current repo only, or with comma-separated repos (--codespaces repo1,repo2)
+- Use without a value (--codespaces) for current repo only, or with comma-separated repos (--codespaces=repo1,repo2)
 
 With --completions flag:
 - Automatically detects your shell (bash, zsh, fish, or PowerShell)
@@ -68,7 +68,7 @@ After running this command, you can:
   ` + string(constants.CLIExtensionPrefix) + ` init --no-skill                     # Skip dispatcher skill creation
   ` + string(constants.CLIExtensionPrefix) + ` init --no-agent                     # Skip custom agent creation
   ` + string(constants.CLIExtensionPrefix) + ` init --codespaces                   # Configure Codespaces for current repo only
-  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces repo1,repo2       # Codespaces with additional repos
+  ` + string(constants.CLIExtensionPrefix) + ` init --codespaces=repo1,repo2       # Codespaces with additional repos
   ` + string(constants.CLIExtensionPrefix) + ` init --completions                  # Install shell completions
   ` + string(constants.CLIExtensionPrefix) + ` init --create-pull-request          # Initialize and create a pull request`,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -102,7 +102,9 @@ After running this command, you can:
 				mcp = mcpFlag
 			}
 
-			// Trim the codespace repos string (explicit value required; use --codespaces "" for current repo only)
+			// Trim the codespace repos string after parsing. With NoOptDefVal set, bare
+			// --codespaces becomes the current-repo sentinel while explicit values use
+			// --codespaces=<repo1,repo2>.
 			codespaceReposStr = strings.TrimSpace(codespaceReposStr)
 
 			// Parse codespace repos from comma-separated string
