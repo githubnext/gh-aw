@@ -487,7 +487,7 @@ func (e *CopilotEngine) buildCopilotStepEnv(
 	env := e.buildCopilotBaseStepEnv(workflowData, llmProvider, timeoutValue, flags.byokMode, useCopilotRequests)
 	e.addCopilotWorkflowStepEnv(env, workflowData, flags.sandboxEnabled)
 	e.addCopilotGitHubToolEnv(env, workflowData)
-	e.addCopilotModelEnv(env, workflowData, flags.modelConfigured, modelEnvVar)
+	e.addCopilotModelEnv(env, workflowData, flags.modelConfigured, modelEnvVar, flags.byokMode)
 	e.addCopilotFinalStepEnv(env, workflowData)
 	e.addCopilotSandboxEnv(env, flags.sandboxEnabled)
 	e.addCopilotSDKStepEnv(env, workflowData, copilotSDKServerArgsJSON)
@@ -583,16 +583,29 @@ func (e *CopilotEngine) addCopilotGitHubToolEnv(env map[string]string, workflowD
 	env["GITHUB_MCP_SERVER_TOKEN"] = getEffectiveGitHubToken(customGitHubToken)
 }
 
-func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *WorkflowData, modelConfigured bool, modelEnvVar string) {
+func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *WorkflowData, modelConfigured bool, modelEnvVar string, isBYOKMode bool) {
 	// Set the model environment variable.
 	// The model is always passed via the native COPILOT_MODEL env var, which the Copilot CLI reads directly.
 	// When model is not configured, map the GitHub org variable to COPILOT_MODEL so users can set a default.
 	if modelConfigured {
-		copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.Model)
-		env[constants.CopilotCLIModelEnvVar] = workflowData.Model
-		return
+		if isCopilotAutoSelectionSentinel(workflowData.Model) {
+			if !isBYOKMode {
+				copilotExecLog.Printf("Omitting %s for sentinel model %q to allow Copilot automatic model selection", constants.CopilotCLIModelEnvVar, workflowData.Model)
+				return
+			}
+			copilotExecLog.Printf("Ignoring sentinel model %q in BYOK mode and falling back to %s defaults", workflowData.Model, constants.CopilotCLIModelEnvVar)
+		} else {
+			copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.Model)
+			env[constants.CopilotCLIModelEnvVar] = workflowData.Model
+			return
+		}
 	}
 	env[constants.CopilotCLIModelEnvVar] = compilerenv.BuildModelOverrideExpression(modelEnvVar, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+}
+
+func isCopilotAutoSelectionSentinel(model string) bool {
+	normalizedModel := strings.TrimSpace(model)
+	return strings.EqualFold(normalizedModel, constants.CopilotAutoModelSentinel) || strings.EqualFold(normalizedModel, constants.CopilotNoModelSentinel)
 }
 
 func (e *CopilotEngine) addCopilotFinalStepEnv(env map[string]string, workflowData *WorkflowData) {

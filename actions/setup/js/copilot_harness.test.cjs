@@ -55,6 +55,7 @@ const {
   shouldRetryFailedExecution,
   writeCopilotOutputs,
   parseCopilotSDKServerArgsFromEnv,
+  applyCopilotModelAliasResolution,
   applyCopilotWireAPI,
   resolveLongRunTokenThreshold,
 } = require("./copilot_harness.cjs");
@@ -2578,6 +2579,30 @@ process.exit(1);`,
       process.env.COPILOT_MODEL = "gpt-5-mini";
       applyCopilotWireAPI({ modelsJson: null, logger: () => {} });
       expect(process.env.COPILOT_PROVIDER_WIRE_API).toBeUndefined();
+    });
+
+    describe("applyCopilotModelAliasResolution", () => {
+      afterEach(() => {
+        delete process.env.COPILOT_MODEL;
+        delete process.env.COPILOT_PROVIDER_BASE_URL;
+      });
+
+      it("deletes COPILOT_MODEL for auto sentinel outside BYOK mode", () => {
+        process.env.COPILOT_MODEL = "auto";
+        const resolved = applyCopilotModelAliasResolution({ awfReflectData: null, logger: () => {} });
+
+        expect(resolved).toBe("");
+        expect(process.env.COPILOT_MODEL).toBeUndefined();
+      });
+
+      it("keeps configured sentinel model in BYOK mode", () => {
+        process.env.COPILOT_MODEL = "none";
+        process.env.COPILOT_PROVIDER_BASE_URL = "https://api.openai.com/v1";
+        const resolved = applyCopilotModelAliasResolution({ awfReflectData: null, logger: () => {} });
+
+        expect(resolved).toBe("none");
+        expect(process.env.COPILOT_MODEL).toBe("none");
+      });
     });
   });
 });

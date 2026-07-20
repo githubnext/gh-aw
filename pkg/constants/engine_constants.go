@@ -246,6 +246,11 @@ const (
 	// CopilotCLIModelEnvVar is the native environment variable name supported by the Copilot CLI
 	// for selecting the model. Setting this env var is equivalent to passing --model to the CLI.
 	CopilotCLIModelEnvVar = "COPILOT_MODEL"
+	// CopilotAutoModelSentinel disables explicit COPILOT_MODEL injection so Copilot can
+	// automatically pick a model based on the query and account capabilities.
+	CopilotAutoModelSentinel = "auto"
+	// CopilotNoModelSentinel is a synonym of CopilotAutoModelSentinel.
+	CopilotNoModelSentinel = "none"
 
 	// COPILOT_PROVIDER_* environment variables activate Bring Your Own Key (BYOK) mode,
 	// routing Copilot CLI requests to an external LLM provider instead of GitHub's routing.

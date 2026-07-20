@@ -11,6 +11,7 @@ import (
 	"runtime"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -261,4 +262,22 @@ func TestResolveModelPricingIfMissing_SkipsMalformedQualifiedModel(t *testing.T)
 	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "/gpt-4.1", EngineConfig: &EngineConfig{}}))
 	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "openai/", EngineConfig: &EngineConfig{}}))
 	assert.False(t, called)
+}
+
+func TestResolveModelPricingIfMissing_SkipsCopilotAutoSelectionSentinels(t *testing.T) {
+	tests := []string{constants.CopilotAutoModelSentinel, constants.CopilotNoModelSentinel}
+	for _, model := range tests {
+		t.Run(model, func(t *testing.T) {
+			c := &Compiler{}
+			called := false
+			c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
+				called = true
+				return map[string]float64{"input": 1e-06}, true
+			})
+
+			result := c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: model, EngineConfig: &EngineConfig{ID: "copilot"}})
+			assert.False(t, called)
+			assert.Nil(t, result)
+		})
+	}
 }

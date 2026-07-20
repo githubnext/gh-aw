@@ -5,6 +5,20 @@
  * COPILOT_MODEL to the Copilot CLI (spec §8 fallback resolution algorithm).
  */
 
+const COPILOT_AUTO_MODEL_SENTINEL = "auto";
+const COPILOT_NONE_MODEL_SENTINEL = "none";
+
+/**
+ * @param {string} model
+ * @returns {boolean}
+ */
+function isCopilotAutomaticSelectionSentinel(model) {
+  const normalized = String(model || "")
+    .trim()
+    .toLowerCase();
+  return normalized === COPILOT_AUTO_MODEL_SENTINEL || normalized === COPILOT_NONE_MODEL_SENTINEL;
+}
+
 /**
  * @param {string} model
  * @returns {{ base: string, params: URLSearchParams }}
@@ -280,6 +294,10 @@ function resolveConfiguredCopilotModel(options) {
   const aliasMap = options.aliasMap;
   if (!configuredModel) {
     return configuredModel;
+  }
+  if (isCopilotAutomaticSelectionSentinel(configuredModel)) {
+    logger(`copilot model alias resolution: '${configuredModel}' treated as automatic-selection sentinel`);
+    return "";
   }
   if (!aliasMap || typeof aliasMap !== "object") {
     return normalizeForCopilotCLI(configuredModel);

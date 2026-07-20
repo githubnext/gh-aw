@@ -225,6 +225,83 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	}
 }
 
+func TestCopilotAutoModelSentinelsOmitNativeModelEnv(t *testing.T) {
+	tests := []string{constants.CopilotAutoModelSentinel, constants.CopilotNoModelSentinel}
+	for _, model := range tests {
+		t.Run(model, func(t *testing.T) {
+			workflowData := &WorkflowData{
+				Name:  "test-auto-model-sentinel",
+				AI:    "copilot",
+				Model: model,
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				Tools: map[string]any{
+					"bash": []any{"echo"},
+				},
+				SafeOutputs: &SafeOutputsConfig{},
+			}
+
+			engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+			if err != nil {
+				t.Fatalf("Failed to get engine: %v", err)
+			}
+
+			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+			var stepsStr strings.Builder
+			for _, step := range steps {
+				for _, line := range step {
+					stepsStr.WriteString(line)
+					stepsStr.WriteString("\n")
+				}
+			}
+			stepsContent := stepsStr.String()
+
+			if strings.Contains(stepsContent, constants.CopilotCLIModelEnvVar+":") {
+				t.Errorf("%s should be omitted for sentinel model %q:\n%s", constants.CopilotCLIModelEnvVar, model, stepsContent)
+			}
+		})
+	}
+}
+
+func TestCopilotAutoModelSentinelFallsBackInBYOKMode(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-auto-model-sentinel-byok",
+		AI:    "copilot",
+		Model: constants.CopilotAutoModelSentinel,
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				constants.CopilotProviderBaseURL: "https://example.invalid/v1",
+			},
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	expectedExpression := constants.CopilotCLIModelEnvVar + ": ${{ vars." + constants.EnvVarModelAgentCopilot + " || vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}"
+	if !strings.Contains(stepsContent, expectedExpression) {
+		t.Errorf("Expected BYOK fallback expression for sentinel model, got:\n%s", stepsContent)
+	}
+}
+
 // TestCopilotFallbackModelMapsToNativeEnvVar tests that when model is not explicitly configured,
 // the Copilot engine maps the GitHub org variable to the native COPILOT_MODEL env var instead
 // of using the broken --model CLI flag.

@@ -307,6 +307,7 @@ function loadAwfConfigData() {
 function applyCopilotModelAliasResolution(options) {
   const logger = options.logger || log;
   const configuredModel = typeof process.env.COPILOT_MODEL === "string" ? process.env.COPILOT_MODEL.trim() : "";
+  const isBYOKMode = typeof process.env.COPILOT_PROVIDER_BASE_URL === "string" && process.env.COPILOT_PROVIDER_BASE_URL.trim() !== "";
   if (!configuredModel) {
     return configuredModel;
   }
@@ -319,10 +320,19 @@ function applyCopilotModelAliasResolution(options) {
     reflectData: options.awfReflectData,
     logger,
   });
+  if (!resolvedModel) {
+    if (!isBYOKMode) {
+      delete process.env.COPILOT_MODEL;
+    } else {
+      logger(`copilot model alias resolution: preserving configured model '${configuredModel}' in BYOK mode`);
+      return configuredModel;
+    }
+    return "";
+  }
   if (resolvedModel && resolvedModel !== configuredModel) {
     process.env.COPILOT_MODEL = resolvedModel;
   }
-  return resolvedModel || configuredModel;
+  return resolvedModel;
 }
 
 /**

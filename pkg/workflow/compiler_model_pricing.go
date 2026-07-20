@@ -6,6 +6,7 @@ import (
 	"maps"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -33,6 +34,10 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, workf
 		compilerModelPricingLog.Printf("Skipping external pricing lookup: unable to normalize provider/model for %q", workflowData.Model)
 		return modelCosts
 	}
+	if provider == "github-copilot" && isCopilotAutomaticSelectionModel(model) {
+		compilerModelPricingLog.Printf("Skipping external pricing lookup for copilot sentinel model %q", model)
+		return modelCosts
+	}
 
 	// If the frontmatter overlay already supplies pricing for this model, leave it intact.
 	if modelCostsHasPricingFor(modelCosts, provider, model) {
@@ -53,6 +58,11 @@ func (c *Compiler) resolveModelPricingIfMissing(modelCosts map[string]any, workf
 
 	compilerModelPricingLog.Printf("Resolved pricing for %s/%s from models.dev — injecting into lock.yml GH_AW_INFO_MODEL_COSTS", provider, model)
 	return mergeModelPricingIntoModelCosts(modelCosts, provider, model, pricing)
+}
+
+func isCopilotAutomaticSelectionModel(model string) bool {
+	normalizedModel := strings.ToLower(strings.TrimSpace(model))
+	return normalizedModel == constants.CopilotAutoModelSentinel || normalizedModel == constants.CopilotNoModelSentinel
 }
 
 // resolveEngineProviderForPricing returns the inference provider string to use for pricing

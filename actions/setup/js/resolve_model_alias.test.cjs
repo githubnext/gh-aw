@@ -85,6 +85,24 @@ describe("resolve_model_alias", () => {
     expect(resolved).toBe("claude-sonnet-4.6");
   });
 
+  it("resolveConfiguredCopilotModel returns empty string for auto sentinel", () => {
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "auto",
+      aliasMap: ALIAS_MAP,
+      reflectData: null,
+    });
+    expect(resolved).toBe("");
+  });
+
+  it("resolveConfiguredCopilotModel returns empty string for none sentinel (case-insensitive)", () => {
+    const resolved = resolveConfiguredCopilotModel({
+      configuredModel: "NoNe",
+      aliasMap: ALIAS_MAP,
+      reflectData: null,
+    });
+    expect(resolved).toBe("");
+  });
+
   it("resolves opusplan alias with effort query param", () => {
     const catalog = ["copilot/claude-opus-4.5"];
     const resolved = resolveModelAlias("opusplan", ALIAS_MAP, catalog);
