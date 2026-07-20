@@ -42,6 +42,9 @@ sandbox:
     sudo: false
 tools:
   cache-memory: true
+  cli-proxy: true
+  github:
+    mode: gh-proxy
 safe-outputs:
   create-issue:
     expires: 7d
@@ -147,13 +150,11 @@ Logs are saved to `/tmp/gh-aw/aw-mcp/logs/`. Each run directory contains:
 
 ---
 
-## Phase 2: Detect Cache Miss Signals
+## Phase 2: Detect Cache Issues
 
 **Only process runs where `uses_cache_memory` is `true`.** Skip any run whose `aw_info.json` does not declare `cache-memory`.
 
-### 2.1 Check Whether the Workflow Uses cache-memory
-
-Read `aw_info.json` and filter to cache-memory workflows only:
+For each run directory, read `aw_info.json` to filter to cache-memory workflows, then scan agent logs for issues:
 
 ```bash
 for run_dir in /tmp/gh-aw/aw-mcp/logs/run-*/; do
@@ -161,30 +162,8 @@ for run_dir in /tmp/gh-aw/aw-mcp/logs/run-*/; do
   [ -f "$info" ] || continue
   workflow=$(jq -r '.workflow_name // .workflow // "unknown"' "$info")
   uses_cache=$(jq -r 'if .tools.cache_memory or (.tools | to_entries[] | select(.key | test("cache.memory"; "i"))) then "yes" else "no" end' "$info" 2>/dev/null || echo "no")
-  # Skip workflows that do not use cache-memory
   [ "$uses_cache" = "yes" ] || continue
-  echo "$workflow uses_cache=$uses_cache run=$(basename $run_dir)"
-done
-```
-
-### 2.2 Detect Cache Miss Patterns
-
-A **cache miss** is indicated by any of the following signals found in the agent logs:
-
-| Signal | Log Pattern |
-|--------|-------------|
-| Cache directory created fresh | `mkdir -p.*cache-memory` followed by no subsequent `ls` showing existing files |
-| Explicit miss log | `Cache miss`, `cache not found`, `Initializing new cache`, `no cache found` |
-| Full re-computation | Workflow re-runs identical expensive operations (API calls, builds, heavy analysis) without referencing cached results |
-| Cache key mismatch | Log lines mentioning stale or incompatible cache keys |
-| Empty cache hit | Cache directory exists but all files are `{}` or `[]` on read |
-
-Scan agent logs:
-
-```bash
-for run_dir in /tmp/gh-aw/aw-mcp/logs/run-*/; do
-  workflow=$(jq -r '.workflow_name // .workflow // "unknown"' "$run_dir/aw_info.json" 2>/dev/null)
-  # Search agent logs for cache miss signals
+  # Scan for cache miss signals
   grep -ri --include="*.log" --include="*.txt" \
     -e "cache miss" -e "cache not found" -e "Initializing new cache" \
     -e "no cache found" -e "mkdir -p.*cache-memory" \
@@ -192,17 +171,25 @@ for run_dir in /tmp/gh-aw/aw-mcp/logs/run-*/; do
 done
 ```
 
-### 2.3 Detect Misconfigured Caches
+**Cache miss signals** (any of these in agent logs):
 
-A **misconfigured cache** occurs when a workflow declares `cache-memory: true` but:
+| Signal | Log Pattern |
+|--------|-------------|
+| Cache directory created fresh | `mkdir -p.*cache-memory` followed by no `ls` showing existing files |
+| Explicit miss log | `Cache miss`, `cache not found`, `Initializing new cache`, `no cache found` |
+| Full re-computation | Workflow re-runs identical expensive operations without referencing cached results |
+| Cache key mismatch | Log lines mentioning stale or incompatible cache keys |
+| Empty cache hit | Cache directory exists but all files are `{}` or `[]` on read |
 
-- Uses a volatile or run-specific cache key (e.g., includes `${{ github.run_id }}`) **without any restore-key fallbacks**, making each run start cold with no way to retrieve prior state
-  > **Note — "last one wins" pattern**: A cache key of `<prefix>-${{ github.run_id }}` combined with a restore key of `<prefix>-` is a **valid and intentional** design. Each run saves its state under a unique key to avoid collisions, while the restore key falls back to the most recent previous entry — achieving "last write wins" without stale data. Only flag `run_id` keys as misconfigured when there are **no restore-key fallbacks**.
-- Never actually writes to `/tmp/gh-aw/cache-memory/` (writes nothing useful to persist)
-- Reads stale data (cache was last updated more than N days ago based on timestamps in the JSON files)
-- Overwrites its own history on every run (no incremental append, just full replace of the same small payload)
+**Misconfigured cache** — workflow declares `cache-memory: true` but:
 
-Check for these in `aw_info.json` cache-memory configuration and in the agent output logs.
+- Uses a volatile cache key with `${{ github.run_id }}` **and no restore-key fallbacks** (guaranteed cold start every run)
+  > **Note — "last one wins" pattern**: `<prefix>-${{ github.run_id }}` + restore key `<prefix>-` is valid. Only flag `run_id` keys as misconfigured when there are **no restore-key fallbacks**.
+- Never writes to `/tmp/gh-aw/cache-memory/` (tool does nothing useful)
+- Reads stale data without checking timestamps
+- Overwrites history on every run (full replace instead of incremental append)
+
+Check `aw_info.json` cache-memory configuration and agent output logs for these patterns.
 
 ---
 
