@@ -15,16 +15,17 @@ import (
 // into an EngineConfig with IsInlineDefinition=true.
 func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 	tests := []struct {
-		name                  string
-		frontmatter           map[string]any
-		expectedID            string
-		expectedVersion       string
-		expectedModel         string
-		expectedProviderID    string
-		expectedSecret        string
-		expectedPermission    string
-		expectInlineFlag      bool
-		expectedEngineSetting string
+		name                     string
+		frontmatter              map[string]any
+		expectedID               string
+		expectedVersion          string
+		expectedModel            string
+		expectedProviderID       string
+		expectedSecret           string
+		expectedPermission       string
+		expectInlineFlag         bool
+		expectedEngineSetting    string
+		expectDeprecationWarning bool // true when engine.model (deprecated) is used
 	}{
 		{
 			name: "runtime only",
@@ -109,12 +110,50 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 			expectedEngineSetting: "claude",
 			expectInlineFlag:      true,
 		},
+		{
+			name: "top-level model overrides deprecated engine.model in inline engine",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"runtime": map[string]any{
+						"id": "codex",
+					},
+					"model": "gpt-4o",
+				},
+				"model": "gpt-5",
+			},
+			expectedID:               "codex",
+			expectedModel:            "gpt-5",
+			expectedEngineSetting:    "codex",
+			expectInlineFlag:         true,
+			expectDeprecationWarning: true,
+		},
+		{
+			name: "deprecated engine.model in inline engine (no top-level model)",
+			frontmatter: map[string]any{
+				"engine": map[string]any{
+					"runtime": map[string]any{
+						"id": "codex",
+					},
+					"model": "gpt-4o",
+				},
+			},
+			expectedID:               "codex",
+			expectedModel:            "gpt-4o",
+			expectedEngineSetting:    "codex",
+			expectInlineFlag:         true,
+			expectDeprecationWarning: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			c := NewCompiler()
-			engineSetting, config, model := c.ExtractEngineConfig(tt.frontmatter)
+			var engineSetting string
+			var config *EngineConfig
+			var model string
+			stderr := captureStderr(func() {
+				engineSetting, config, model = c.ExtractEngineConfig(tt.frontmatter)
+			})
 
 			require.NotNil(t, config, "should return non-nil EngineConfig for inline definition")
 			assert.Equal(t, tt.expectedEngineSetting, engineSetting, "engineSetting should equal runtime.id")
@@ -130,6 +169,14 @@ func TestExtractEngineConfig_InlineDefinition(t *testing.T) {
 				assert.Nil(t, config.InlineProviderAuth, "InlineProviderAuth should be nil when provider.auth is omitted")
 			}
 			assert.Equal(t, tt.expectedPermission, config.PermissionMode, "PermissionMode should match engine.permission-mode")
+
+			if tt.expectDeprecationWarning {
+				assert.Contains(t, stderr, "engine.model' is deprecated",
+					"expected deprecation warning in stderr")
+			} else {
+				assert.NotContains(t, stderr, "engine.model' is deprecated",
+					"unexpected deprecation warning in stderr for non-deprecated path")
+			}
 		})
 	}
 }
