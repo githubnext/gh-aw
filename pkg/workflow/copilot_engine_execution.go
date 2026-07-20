@@ -594,6 +594,7 @@ func (e *CopilotEngine) addCopilotModelEnv(env map[string]string, workflowData *
 				return
 			}
 			copilotExecLog.Printf("Ignoring sentinel model %q in BYOK mode and falling back to %s defaults", workflowData.Model, constants.CopilotCLIModelEnvVar)
+			// In BYOK mode, keep going so the standard GH_AW_MODEL_* fallback expression is emitted below.
 		} else {
 			copilotExecLog.Printf("Setting %s env var for model: %s", constants.CopilotCLIModelEnvVar, workflowData.Model)
 			env[constants.CopilotCLIModelEnvVar] = workflowData.Model

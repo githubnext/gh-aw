@@ -324,9 +324,11 @@ function applyCopilotModelAliasResolution(options) {
     if (!isBYOKMode) {
       delete process.env.COPILOT_MODEL;
     } else {
+      // BYOK providers require a model id, so preserve the configured value instead of clearing it.
       logger(`copilot model alias resolution: preserving configured model '${configuredModel}' in BYOK mode`);
       return configuredModel;
     }
+    // Outside BYOK mode, empty means "omit COPILOT_MODEL" for automatic model selection.
     return "";
   }
   if (resolvedModel && resolvedModel !== configuredModel) {
