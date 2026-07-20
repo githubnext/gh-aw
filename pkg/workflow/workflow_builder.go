@@ -128,6 +128,29 @@ func (c *Compiler) buildInitialWorkflowData(
 		}
 	}
 
+	// Auto-disable checkout for pull_request_target-only workflows when not explicitly configured.
+	// For pull_request_target events, the head branch is often deleted (closed/merged PRs)
+	// or inaccessible (fork PRs), causing the "Checkout PR branch" step to fail.
+	// Users who need checkout can explicitly set a checkout configuration in frontmatter.
+	// This block runs after import merging so that imported checkout configs prevent auto-disable.
+	// Auto-disable is skipped when pull_request (or other checkout-compatible) triggers co-exist,
+	// because those events do have accessible head branches.
+	onVal := result.Frontmatter["on"]
+	hasPRT := frontmatterHasTrigger(onVal, "pull_request_target")
+	hasPR := frontmatterHasTrigger(onVal, "pull_request")
+	if hasPRT && !hasPR {
+		// Mark the workflow as pull_request_target-only so ShouldGeneratePRCheckoutStep
+		// suppresses the checkout_pr_branch.cjs step regardless of checkout configuration.
+		workflowData.IsPullRequestTarget = true
+
+		if !workflowData.CheckoutDisabled && len(workflowData.CheckoutConfigs) == 0 {
+			if _, checkoutExplicitlySet := result.Frontmatter["checkout"]; !checkoutExplicitlySet {
+				workflowBuilderLog.Print("Auto-disabling checkout for pull_request_target workflow")
+				workflowData.CheckoutDisabled = true
+			}
+		}
+	}
+
 	// Populate check-for-updates flag: disabled when check-for-updates: false is set in frontmatter.
 	if toolsResult.parsedFrontmatter != nil && toolsResult.parsedFrontmatter.UpdateCheck != nil {
 		workflowData.UpdateCheckDisabled = !*toolsResult.parsedFrontmatter.UpdateCheck
@@ -902,4 +925,26 @@ func (c *Compiler) processAndMergePostSteps(frontmatter map[string]any, workflow
 		}
 	}
 	return nil
+}
+
+// frontmatterHasTrigger reports whether the given "on:" frontmatter value contains
+// the specified trigger name. It handles all three YAML "on:" forms:
+//   - string scalar:  on: pull_request_target
+//   - sequence:       on: [pull_request_target, push]
+//   - mapping:        on:\n  pull_request_target:\n    types: [closed]
+func frontmatterHasTrigger(onVal any, trigger string) bool {
+	switch v := onVal.(type) {
+	case string:
+		return v == trigger
+	case []any:
+		for _, item := range v {
+			if s, ok := item.(string); ok && s == trigger {
+				return true
+			}
+		}
+	case map[string]any:
+		_, ok := v[trigger]
+		return ok
+	}
+	return false
 }

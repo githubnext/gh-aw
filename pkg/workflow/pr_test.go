@@ -76,6 +76,36 @@ pull-requests: read`,
 	}
 }
 
+func TestShouldGeneratePRCheckoutStep_CheckoutDisabled(t *testing.T) {
+	t.Run("returns false when CheckoutDisabled is true even with contents read", func(t *testing.T) {
+		data := &WorkflowData{
+			Permissions:      "contents: read",
+			CheckoutDisabled: true,
+		}
+		result := ShouldGeneratePRCheckoutStep(data)
+		assert.False(t, result, "ShouldGeneratePRCheckoutStep() should return false when CheckoutDisabled is true")
+	})
+
+	t.Run("returns true when CheckoutDisabled is false with contents read", func(t *testing.T) {
+		data := &WorkflowData{
+			Permissions:      "contents: read",
+			CheckoutDisabled: false,
+		}
+		result := ShouldGeneratePRCheckoutStep(data)
+		assert.True(t, result, "ShouldGeneratePRCheckoutStep() should return true when CheckoutDisabled is false and permissions allow")
+	})
+
+	t.Run("returns false when IsPullRequestTarget is true even with contents read and explicit checkout", func(t *testing.T) {
+		data := &WorkflowData{
+			Permissions:         "contents: read",
+			CheckoutDisabled:    false,
+			IsPullRequestTarget: true,
+		}
+		result := ShouldGeneratePRCheckoutStep(data)
+		assert.False(t, result, "ShouldGeneratePRCheckoutStep() should return false for pull_request_target workflows to prevent refs/pull/<n>/head checkout")
+	})
+}
+
 func TestGeneratePRReadyForReviewCheckout_IncludesWorkflowDispatchIssueCommentContext(t *testing.T) {
 	compiler := NewCompiler()
 	var yaml strings.Builder
@@ -91,4 +121,33 @@ func TestGeneratePRReadyForReviewCheckout_IncludesWorkflowDispatchIssueCommentCo
 	assert.Contains(t, rendered, "github.event_name == 'workflow_dispatch'")
 	assert.Contains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').item_type == 'pull_request'")
 	assert.NotContains(t, rendered, "fromJSON(github.event.inputs.aw_context || '{}').event_type")
+}
+
+func TestFrontmatterHasTrigger(t *testing.T) {
+	tests := []struct {
+		name     string
+		onVal    any
+		trigger  string
+		expected bool
+	}{
+		// scalar string form: on: pull_request_target
+		{name: "scalar matches", onVal: "pull_request_target", trigger: "pull_request_target", expected: true},
+		{name: "scalar no match", onVal: "push", trigger: "pull_request_target", expected: false},
+		// sequence form: on: [pull_request_target, push]
+		{name: "slice matches first", onVal: []any{"pull_request_target", "push"}, trigger: "pull_request_target", expected: true},
+		{name: "slice matches second", onVal: []any{"push", "pull_request_target"}, trigger: "pull_request_target", expected: true},
+		{name: "slice no match", onVal: []any{"push", "schedule"}, trigger: "pull_request_target", expected: false},
+		// mapping form: on:\n  pull_request_target:\n    types: [closed]
+		{name: "map matches", onVal: map[string]any{"pull_request_target": map[string]any{"types": []any{"closed"}}}, trigger: "pull_request_target", expected: true},
+		{name: "map no match", onVal: map[string]any{"push": nil}, trigger: "pull_request_target", expected: false},
+		// nil / unknown
+		{name: "nil returns false", onVal: nil, trigger: "pull_request_target", expected: false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := frontmatterHasTrigger(tt.onVal, tt.trigger)
+			assert.Equal(t, tt.expected, got)
+		})
+	}
 }
