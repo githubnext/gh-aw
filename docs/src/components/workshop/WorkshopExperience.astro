@@ -396,32 +396,27 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 	data-initial-step={initialStepKey}
 >
 	<div class="aw-workshop-setup" data-workshop-setup>
-		<div class="aw-workshop-setup-step" data-workshop-setup-step="workspace">
-			<section class="aw-workshop-picker">
-				<div class="aw-workshop-picker-header">
-					<p class="aw-workshop-picker-kicker">Entry path</p>
-					<h3>How do you want to go through the workshop?</h3>
-					<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
-				</div>
-				<div class="aw-workshop-card-grid aw-workshop-card-grid-entry">
-					<CardGrid>
-						{workshopEntryPaths.map((path) => {
-							const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
-							return (
-								<LinkCard
-									title={path.label}
-									description={renderEntryPathDescription(path, journey.label, entryPathStepCounts[path.id])}
-									href={entryPathTutorialHashes[path.id]}
-									data-workshop-entry-path={path.id}
-									data-workshop-journey={path.journeyId}
-								/>
-							);
-						})}
-					</CardGrid>
-				</div>
-			</section>
-		</div>
-
+		<section class="aw-workshop-picker">
+			<div class="aw-workshop-picker-header">
+				<p class="aw-workshop-picker-kicker">Entry path</p>
+				<h3>How do you want to go through the workshop?</h3>
+				<p class="aw-workshop-picker-help">Choose the route that matches the way you work. Each path starts fresh and switches to its authored step flow behind the scenes.</p>
+			</div>
+			<CardGrid>
+				{workshopEntryPaths.map((path) => {
+					const journey = workshopJourneys.find((item) => item.id === path.journeyId) ?? workshopJourneys[0];
+					return (
+						<LinkCard
+							title={path.label}
+							description={renderEntryPathDescription(path, journey.label, entryPathStepCounts[path.id])}
+							href={entryPathTutorialHashes[path.id]}
+							data-workshop-entry-path={path.id}
+							data-workshop-journey={path.journeyId}
+						/>
+					);
+				})}
+			</CardGrid>
+		</section>
 	</div>
 
 	<section class="aw-workshop-flow" data-workshop-tutorial hidden>
@@ -890,16 +885,21 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		gap: 0.9rem;
 	}
 
-	.aw-workshop-setup-step {
-		display: grid;
-		gap: 0.9rem;
+	.aw-workshop-picker {
+		border: 1px solid var(--sl-color-hairline);
+		background: var(--sl-color-gray-6);
+		border-radius: 1rem;
+		padding: clamp(1rem, 2vw, 1.35rem);
 	}
 
-	.aw-workshop-picker {
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
-		border-radius: 1rem;
-		box-shadow: none;
+	.aw-workshop-picker :global(.card-grid) {
+		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
+		gap: 0.85rem;
+	}
+
+	.aw-workshop-picker :global(.card-grid > *),
+	.aw-workshop-picker :global(.sl-link-card) {
+		height: 100%;
 	}
 
 	.aw-workshop-picker-kicker,
@@ -909,7 +909,7 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		font-weight: 700;
 		letter-spacing: 0.08em;
 		text-transform: uppercase;
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 	}
 
 	.aw-workshop-picker h3,
@@ -917,60 +917,6 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 	.aw-workshop-panel-header h3 {
 		margin: 0;
 		letter-spacing: -0.02em;
-	}
-
-	.aw-workshop-setup-nav {
-		display: flex;
-		justify-content: flex-end;
-		gap: 0.75rem;
-	}
-
-	.aw-workshop-setup-nav-start {
-		justify-content: flex-start;
-	}
-
-	.aw-workshop-tunnel-panel {
-		display: grid;
-		gap: 0.85rem;
-		padding: 0.95rem;
-		border-radius: 1rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-page);
-	}
-
-	.aw-workshop-tunnel-panel h3,
-	.aw-workshop-tunnel-panel p {
-		margin: 0;
-	}
-
-	.aw-workshop-tunnel-panel h3 {
-		margin-top: 0.2rem;
-	}
-
-	.aw-workshop-tunnel-panel p {
-		color: var(--aw-text-muted);
-		line-height: 1.55;
-	}
-
-	.aw-workshop-tunnel-actions {
-		display: flex;
-		align-items: center;
-		gap: 0.75rem;
-		flex-wrap: wrap;
-	}
-
-	.aw-workshop-tunnel-actions a {
-		color: var(--sl-color-accent-high);
-		font-weight: 700;
-		text-decoration: none;
-	}
-
-	.aw-workshop-tunnel-actions a:hover {
-		text-decoration: underline;
-	}
-
-	.aw-workshop-picker {
-		padding: clamp(1rem, 2vw, 1.35rem);
 	}
 
 	.aw-workshop-picker-header {
@@ -982,28 +928,9 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 
 	.aw-workshop-picker-help {
 		margin: 0;
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 		font-size: 0.9rem;
 		line-height: 1.4;
-	}
-
-	.aw-workshop-card-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
-		gap: 0.85rem;
-	}
-
-	.aw-workshop-card-grid-entry :global(.card-grid) {
-		grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--aw-workshop-card-min-width)), 1fr));
-		gap: 0.85rem;
-	}
-
-	.aw-workshop-card-grid-entry :global(.card-grid > *) {
-		height: 100%;
-	}
-
-	.aw-workshop-card-grid-entry :global(.sl-link-card) {
-		height: 100%;
 	}
 
 	.aw-workshop-step-progress {
@@ -1043,31 +970,27 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		height: 2.35rem;
 		min-height: 2.35rem;
 		padding: 0.55rem 0.85rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-page);
+		border: 1px solid var(--sl-color-hairline);
+		background: var(--sl-color-black);
 		color: inherit;
 		text-decoration: none;
 		font: inherit;
 		font-size: 0.95rem;
 		font-weight: 600;
 		cursor: pointer;
-		box-shadow: none;
 		white-space: nowrap;
 	}
 
 	.aw-workshop-inline-button:hover,
 	.aw-workshop-nav-button:hover {
-		border-color: var(--aw-border-strong);
-		background: var(--aw-bg-subtle);
+		border-color: var(--sl-color-gray-5);
+		background: var(--sl-color-gray-6);
 		text-decoration: none;
 	}
 
-	.aw-workshop-inline-button-subtle {
-		color: var(--aw-text-muted);
-	}
-
+	.aw-workshop-inline-button-subtle,
 	.aw-workshop-inline-button-home {
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 	}
 
 	.aw-workshop-button-icon {
@@ -1093,7 +1016,7 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 	.aw-workshop-panel-summary {
 		margin: 0;
 		max-width: 62ch;
-		color: var(--aw-text-muted);
+		color: var(--sl-color-gray-3);
 		font-size: 0.96rem;
 		line-height: 1.5;
 	}
@@ -1120,13 +1043,11 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 	.aw-workshop-step-content :global(h2),
 	.aw-workshop-step-content :global(h3),
 	.aw-workshop-step-content :global(h4) {
-		margin: 1.2rem 0 0.3rem;
 		letter-spacing: -0.02em;
 	}
 
 	.aw-workshop-step-content :global(h2:first-child) {
 		margin-top: 0;
-		margin-bottom: 0.65rem;
 		font-size: clamp(1.7rem, 2.8vw, 2.3rem);
 		line-height: 1.05;
 	}
@@ -1134,51 +1055,15 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 	.aw-workshop-step-content :global(h3),
 	.aw-workshop-step-content :global(h4) {
 		padding-top: 1rem;
-		border-top: 1px solid color-mix(in srgb, var(--aw-border) 78%, transparent);
-	}
-
-	.aw-workshop-step-content :global(p),
-	.aw-workshop-step-content :global(ul),
-	.aw-workshop-step-content :global(ol),
-	.aw-workshop-step-content :global(aside) {
-		margin: 0;
-		line-height: 1.65;
-	}
-
-	.aw-workshop-step-content :global(ul) {
-		padding-left: 1.3rem;
-	}
-
-	.aw-workshop-step-content :global(a) {
-		color: var(--sl-color-text-accent);
-	}
-
-	.aw-workshop-step-content :global(code) {
-		padding: 0.1rem 0.3rem;
-		border-radius: 0.35rem;
-		background: var(--aw-bg-subtle);
-	}
-
-	.aw-workshop-step-content :global(pre) {
-		margin: 0;
-		padding: 1rem;
-		border-radius: 0.8rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
-		overflow-x: auto;
-	}
-
-	.aw-workshop-step-content :global(pre code) {
-		padding: 0;
-		background: transparent;
+		border-top: 1px solid var(--sl-color-hairline);
 	}
 
 	.aw-workshop-step-content :global(aside) {
 		padding: 0.85rem 1rem;
 		border-left: 3px solid var(--sl-color-accent);
 		border-radius: 0.75rem;
-		background: rgba(var(--aw-accent-rgb), 0.09);
-		color: var(--aw-text-muted);
+		background: color-mix(in srgb, var(--sl-color-accent) 10%, transparent);
+		color: var(--sl-color-gray-3);
 	}
 
 	.aw-workshop-step-content :global(.aw-workshop-admonition-title) {
@@ -1211,58 +1096,14 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		background: rgba(86, 182, 194, 0.09);
 	}
 
-	.aw-workshop-step-content :global(.aw-workshop-details) {
-		display: grid;
-		gap: 0.75rem;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-details summary) {
-		cursor: pointer;
-		font-weight: 700;
-		list-style: none;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-details summary::-webkit-details-marker) {
-		display: none;
-	}
-
-	.aw-workshop-step-content :global(.aw-workshop-details-body) {
-		display: grid;
-		gap: 0.85rem;
-	}
-
-	.aw-workshop-step-content :global(ol) {
-		margin: 0;
-		padding-left: 1.4rem;
-		line-height: 1.65;
-	}
-
 	.aw-workshop-step-content :global(.aw-workshop-table-wrap) {
 		overflow-x: auto;
-	}
-
-	.aw-workshop-step-content :global(table) {
-		border-collapse: collapse;
-		width: 100%;
-		font-size: 0.9rem;
-	}
-
-	.aw-workshop-step-content :global(th),
-	.aw-workshop-step-content :global(td) {
-		padding: 0.4rem 0.7rem;
-		border: 1px solid var(--aw-border);
-		text-align: left;
-	}
-
-	.aw-workshop-step-content :global(th) {
-		background: rgba(var(--aw-accent-rgb), 0.08);
-		font-weight: 700;
 	}
 
 	.aw-workshop-step-content :global(img) {
 		max-width: 100%;
 		border-radius: 0.9rem;
-		border: 1px solid var(--aw-border);
+		border: 1px solid var(--sl-color-hairline);
 	}
 
 	.aw-workshop-step-content :global(.aw-workshop-checklist) {
@@ -1282,17 +1123,6 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		margin-top: 0.35rem;
 	}
 
-	.aw-workshop-step-markdown {
-		margin: 0;
-		padding: 1rem;
-		border-radius: 1rem;
-		border: 1px solid var(--aw-border);
-		background: var(--aw-bg-subtle);
-		overflow-x: auto;
-		white-space: pre-wrap;
-		font: 0.95rem/1.5 var(--sl-font-mono, ui-monospace, SFMono-Regular, Menlo, monospace);
-	}
-
 	.aw-workshop-panel-footer {
 		margin-top: auto;
 		padding-top: 1.5rem;
@@ -1309,14 +1139,6 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		background: var(--sl-color-accent);
 		color: var(--sl-color-text-invert);
 		border-color: transparent;
-		box-shadow: none;
-	}
-
-	:root[data-theme='light'] .aw-workshop-step-markdown,
-	:root[data-theme='light'] .aw-workshop-inline-button,
-	:root[data-theme='light'] .aw-workshop-nav-button,
-	:root[data-theme='light'] .aw-workshop-tunnel-panel {
-		box-shadow: none;
 	}
 
 	@media (max-width: 50rem) {
@@ -1341,10 +1163,6 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		.aw-workshop-panel-shell {
 			min-height: 0;
 			padding: 0.45rem 0;
-			border: none;
-			background: transparent;
-			box-shadow: none;
-			backdrop-filter: none;
 		}
 
 		.aw-workshop-panel-summary,
@@ -1353,20 +1171,7 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 		}
 
 		.aw-workshop-step-content {
-			margin-top: 0;
 			padding: 0.85rem;
-			border: none;
-			border-radius: 0;
-			background: transparent;
-			box-shadow: none;
-		}
-
-		.aw-workshop-step-content :global(p),
-		.aw-workshop-step-content :global(ul),
-		.aw-workshop-step-content :global(ol),
-		.aw-workshop-step-content :global(aside) {
-			font-size: 1rem;
-			line-height: 1.72;
 		}
 
 		.aw-workshop-flow-header,
@@ -1394,13 +1199,13 @@ const entryPathTutorialHashes: Record<string, string> = Object.fromEntries(
 			margin: 0;
 			border: none;
 			border-radius: 999px;
-			background: var(--aw-border);
+			background: var(--sl-color-hairline);
 			-webkit-appearance: none;
 			appearance: none;
 		}
 
 		.aw-workshop-step-progress::-webkit-progress-bar {
-			background: var(--aw-border);
+			background: var(--sl-color-hairline);
 			border-radius: 999px;
 		}
 
