@@ -33,6 +33,7 @@ type copilotSDKInstallSpec struct {
 }
 
 const workspaceCommandPrefix = `cd "${GITHUB_WORKSPACE}" && `
+const copilotSDKPythonTargetDir = `"${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/python"`
 
 // getWorkspaceCommandPrefixFor returns the shell cd prefix for engine command generation.
 // When engine.cwd is configured it returns a prefix that changes to ${GH_AW_ENGINE_CWD}
@@ -203,7 +204,7 @@ func getCopilotSDKInstallSpec(command string) copilotSDKInstallSpec {
 	switch runtimeID {
 	case "python":
 		spec.stepName = "Install GitHub Copilot SDK (Python)"
-		spec.command = workspaceCommandPrefix + "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + version
+		spec.command = workspaceCommandPrefix + "mkdir -p " + copilotSDKPythonTargetDir + " && python3 -m pip install --disable-pip-version-check --target " + copilotSDKPythonTargetDir + " github-copilot-sdk==" + version
 	case "typescript":
 		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
 		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " ts-node typescript"

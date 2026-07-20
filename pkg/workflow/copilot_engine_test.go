@@ -2191,7 +2191,7 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 			name:          "python command uses pip sdk install",
 			command:       "python3 main.py",
 			expectedName:  "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:   "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:   "python3 -m pip install --disable-pip-version-check --target \"${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/python\" github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 			expectedSteps: 1,
 		},
 		{
@@ -2240,14 +2240,14 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 			name:          "env wrapper command is detected",
 			command:       "env FOO=bar python script.py",
 			expectedName:  "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:   "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:   "python3 -m pip install --disable-pip-version-check --target \"${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/python\" github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 			expectedSteps: 1,
 		},
 		{
 			name:          "custom command with firewall keeps awf and sdk installs",
 			command:       "python script.py",
 			expectedName:  "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:   "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:   "python3 -m pip install --disable-pip-version-check --target \"${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/python\" github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 			withFirewall:  true,
 			expectedSteps: 2,
 		},
@@ -2311,7 +2311,7 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 			name:         "python driver uses pip sdk install",
 			driver:       "my_driver.py",
 			expectedName: "name: Install GitHub Copilot SDK (Python)",
-			expectedRun:  "python3 -m pip install --disable-pip-version-check github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
+			expectedRun:  "python3 -m pip install --disable-pip-version-check --target \"${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/python\" github-copilot-sdk==" + string(constants.DefaultCopilotSDKVersion),
 		},
 		{
 			name:         "typescript driver installs ts-node toolchain and sdk",
@@ -2356,6 +2356,48 @@ func TestCopilotEngineInstallationWithCopilotSDKDriver(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestCopilotEngineCopilotSDKPythonDriverSetsPythonPath(t *testing.T) {
+	engine := NewCopilotEngine()
+
+	t.Run("python driver sets PYTHONPATH", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				CopilotSDK: true,
+				Driver:     ".github/drivers/copilot_sdk_driver_sample_python.py",
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 execution step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+		if !strings.Contains(stepContent, "PYTHONPATH: ${{ github.workspace }}/.gh-aw/copilot-sdk/python") {
+			t.Fatalf("Expected PYTHONPATH to include python Copilot SDK target path, got:\n%s", stepContent)
+		}
+	})
+
+	t.Run("node driver does not set PYTHONPATH", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				CopilotSDK: true,
+				Driver:     ".github/drivers/copilot_sdk_driver_sample_node.cjs",
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+		if len(steps) != 1 {
+			t.Fatalf("Expected 1 execution step, got %d", len(steps))
+		}
+
+		stepContent := strings.Join(steps[0], "\n")
+		if strings.Contains(stepContent, "PYTHONPATH: ${{ github.workspace }}/.gh-aw/copilot-sdk/python") {
+			t.Fatalf("Did not expect PYTHONPATH override for node driver, got:\n%s", stepContent)
+		}
+	})
 }
 
 // TestGenerateCopilotSessionFileCopyStep verifies the generated step copies session state files.
