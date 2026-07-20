@@ -16,7 +16,6 @@ async function startWorkshop(page: Page) {
 	await page.goto(WORKSHOP_URL);
 	await page.waitForLoadState('networkidle');
 	await page.locator('[data-workshop-entry-path="ui-learner"]').click();
-	await page.locator('[data-workshop-scenario="daily-status"]').click();
 	await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 }
 
@@ -69,7 +68,7 @@ test.describe('Workshop tutorial', () => {
 		await expect(page.locator('[data-workshop-step-position]')).toHaveText(`Step 1 of ${flowLength}`);
 	});
 
-	test('switching entry path clears previous scenario and restarts the flow', async ({ page }) => {
+	test('switching entry path reapplies the default scenario and restarts the flow', async ({ page }) => {
 		await startWorkshop(page);
 
 		await page.getByRole('button', { name: /Next step/i }).click();
@@ -77,19 +76,15 @@ test.describe('Workshop tutorial', () => {
 
 		await page.getByRole('button', { name: /Change route/i }).click();
 		await page.locator('[data-workshop-entry-path="cli-user"]').click();
-
-		await expect(page.locator('[data-workshop-setup-step="scenario"]')).toBeVisible();
-		await expect(page.locator('[data-workshop-scenario][aria-pressed="true"]')).toHaveCount(0);
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		await expect(page.locator('[data-workshop-step-position]')).toHaveText(/Step 1 of/);
 
 		const stateAfterPathChange = await page.evaluate(() => {
 			return window.sessionStorage.getItem('gh-aw-docs-workshop-state');
 		});
 		expect(stateAfterPathChange).toContain('"journeyId":"terminal"');
-		expect(stateAfterPathChange).toContain('"scenarioId":""');
+		expect(stateAfterPathChange).toContain('"scenarioId":"daily-status"');
 		expect(stateAfterPathChange).toContain('"stepKey":"00-welcome"');
-
-		await page.locator('[data-workshop-scenario="daily-docs"]').click();
-		await expect(page.locator('[data-workshop-step-position]')).toHaveText(/Step 1 of/);
 
 		await page.getByRole('button', { name: /Home/i }).click();
 		await expect(page.locator('[data-workshop-setup-step="workspace"]')).toBeVisible();
@@ -230,11 +225,16 @@ test.describe('Workshop URL hash navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
-		expect(page.url()).toMatch(/#j=github$/);
-
-		await page.locator('[data-workshop-scenario="daily-status"]').click();
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 		expect(page.url()).toMatch(/#j=github&s=daily-status&t=.+$/);
+	});
+
+	test('treats journey-only hashes as a tutorial start with the default scenario', async ({ page }) => {
+		await page.goto(`${WORKSHOP_URL}#j=github`);
+		await page.waitForLoadState('networkidle');
+
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		expect(page.url()).toContain('#j=github&s=daily-status');
 	});
 
 	test('encodes current step in the URL hash when navigating steps', async ({ page }) => {
@@ -277,7 +277,6 @@ test.describe('Workshop URL hash navigation', () => {
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
-		await page.locator('[data-workshop-scenario="daily-status"]').click();
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 
 		await page.locator('[data-workshop-change]').click();
@@ -287,13 +286,13 @@ test.describe('Workshop URL hash navigation', () => {
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 	});
 
-	test('supports browser back navigation from scenario picker to workspace picker', async ({ page }) => {
+	test('supports browser back navigation from tutorial start to workspace picker', async ({ page }) => {
 		await page.goto(WORKSHOP_URL);
 		await page.waitForLoadState('networkidle');
 
 		await page.locator('[data-workshop-journey="github"]').click();
-		expect(page.url()).toMatch(/#j=github$/);
-		await expect(page.locator('[data-workshop-setup-step="scenario"]')).toBeVisible();
+		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
+		expect(page.url()).toMatch(/#j=github&s=daily-status&t=.+$/);
 
 		await page.goBack();
 		await expect(page.locator('[data-workshop-setup-step="workspace"]')).toBeVisible();
@@ -615,7 +614,6 @@ test.describe('Workshop journey block visibility', () => {
 		// Switch to the terminal path (contentJourneyIds: ['terminal', 'local'])
 		await page.getByRole('button', { name: /Change route/i }).click();
 		await page.locator('[data-workshop-entry-path="cli-user"]').click();
-		await page.locator('[data-workshop-scenario="daily-status"]').click();
 		await expect(page.locator('[data-workshop-tutorial]')).toBeVisible();
 
 		const updatedJourneys = await page.evaluate(() =>
