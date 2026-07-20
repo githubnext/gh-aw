@@ -2,14 +2,17 @@
 set +o histexpand
 
 # Install GitHub Copilot CLI with SHA256 checksum verification
-# Usage: install_copilot_cli.sh [VERSION]
+# Usage: install_copilot_cli.sh [VERSION] [--rootless]
 #
 # This script downloads and installs the GitHub Copilot CLI directly from GitHub
 # releases with SHA256 checksum verification, following the secure pattern from
 # install_awf_binary.sh to avoid executing unverified downloaded scripts.
 #
 # Arguments:
-#   VERSION - Optional Copilot CLI version to install (default: latest release)
+#   VERSION    - Optional Copilot CLI version to install (default: latest release)
+#   --rootless - Install to ~/.local/bin without sudo; appends that directory to
+#                $GITHUB_PATH so subsequent steps find the binary.  Use this on
+#                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
 #
 # Security features:
 #   - Downloads binary directly from GitHub releases (no installer script execution)
@@ -20,7 +23,6 @@ set -euo pipefail
 
 # Configuration
 SECONDS_PER_DAY=86400
-VERSION="${1:-}"
 COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
 COPILOT_DIR="${HOME}/.copilot"
@@ -34,6 +36,45 @@ COMPAT_MATCHED_MIN_AGENT=""
 COMPAT_MATCHED_MAX_AGENT=""
 COMPAT_CACHE_TTL_DAYS=""
 
+# Parse arguments: treat the first non-flag argument as VERSION, all --<flag> arguments as flags.
+VERSION=""
+ROOTLESS=false
+for arg in "$@"; do
+  case "$arg" in
+    --rootless) ROOTLESS=true ;;
+    --*) echo "WARNING: Unknown flag: $arg" >&2 ;;
+    *)
+      if [ -z "$VERSION" ]; then
+        VERSION="$arg"
+      fi
+      ;;
+  esac
+done
+
+# In rootless mode, install into the user's home directory instead of /usr/local/bin
+# so that ARC/DinD runners with allowPrivilegeEscalation: false can run without sudo.
+if [ "$ROOTLESS" = "true" ]; then
+  INSTALL_DIR="${HOME}/.local/bin"
+fi
+
+# maybe_sudo runs a command with sudo unless --rootless was specified.
+# In rootless mode, sudo is not available or needed.
+maybe_sudo() {
+  if [ "$ROOTLESS" = "true" ]; then
+    "$@"
+  else
+    sudo "$@"
+  fi
+}
+
+# Rootless mode preflight: create and verify write access to the install directory.
+if [ "$ROOTLESS" = "true" ]; then
+  if ! { mkdir -p "${INSTALL_DIR}" && [ -w "${INSTALL_DIR}" ]; }; then
+    echo "ERROR: --rootless could not create a writable install directory at ${INSTALL_DIR}" >&2
+    exit 1
+  fi
+fi
+
 # Fix directory ownership before installation
 # This is needed because a previous AWF run on the same runner may have used
 # `sudo -E awf --enable-chroot ...`, which creates the .copilot directory with
@@ -41,7 +82,7 @@ COMPAT_CACHE_TTL_DAYS=""
 # trying to create subdirectories. See: https://github.com/github/gh-aw/issues/12066
 echo "Ensuring correct ownership of $COPILOT_DIR..."
 mkdir -p "$COPILOT_DIR"
-sudo chown -R "$(id -u):$(id -g)" "$COPILOT_DIR"
+maybe_sudo chown -R "$(id -u):$(id -g)" "$COPILOT_DIR"
 
 # Clean up any stale AWF chroot directories left by previous runs.
 # When AWF ran with `sudo -E awf --enable-host-access`, it created
@@ -51,8 +92,8 @@ sudo chown -R "$(id -u):$(id -g)" "$COPILOT_DIR"
 # reports as "engine terminated unexpectedly" or fatal EACCES errors.
 # Remove them here before the agent starts so the runner is in a clean state.
 echo "Cleaning up stale AWF chroot directories..."
-sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf -- {} + 2>/dev/null || true
-sudo find /tmp -maxdepth 1 -name 'awf-chroot-*' -type d -exec rm -rf -- {} + 2>/dev/null || true
+maybe_sudo find /tmp -maxdepth 1 -name 'awf-*-chroot-home' -type d -exec rm -rf -- {} + 2>/dev/null || true
+maybe_sudo find /tmp -maxdepth 1 -name 'awf-chroot-*' -type d -exec rm -rf -- {} + 2>/dev/null || true
 
 # Detect OS and architecture
 OS="$(uname -s)"
@@ -454,7 +495,7 @@ activate_cached_copilot_bin() {
 #!/usr/bin/env bash
 exec "$cached_copilot_bin" "\$@"
 EOF
-  sudo install -m 0755 "$wrapper_path" "${INSTALL_DIR}/copilot"
+  maybe_sudo install -m 0755 "$wrapper_path" "${INSTALL_DIR}/copilot"
   echo "  Wrapper installed at ${INSTALL_DIR}/copilot"
 }
 
@@ -546,12 +587,31 @@ echo "✓ Checksum verification passed for ${TARBALL_NAME}"
 
 # Extract and install binary
 echo "Installing binary to ${INSTALL_DIR}..."
-sudo tar -xz -C "${INSTALL_DIR}" -f "${TEMP_DIR}/${TARBALL_NAME}"
-sudo chmod +x "${INSTALL_DIR}/copilot"
+maybe_sudo tar -xz -C "${INSTALL_DIR}" -f "${TEMP_DIR}/${TARBALL_NAME}"
+maybe_sudo chmod +x "${INSTALL_DIR}/copilot"
+
+# In rootless mode, add the install dir to PATH for subsequent steps.
+# $GITHUB_PATH is the mechanism for persisting PATH additions across steps in GitHub Actions.
+if [ "$ROOTLESS" = "true" ]; then
+  if [ -n "${GITHUB_PATH:-}" ]; then
+    echo "${INSTALL_DIR}" >> "${GITHUB_PATH}"
+    echo "  Exported ${INSTALL_DIR} to GITHUB_PATH"
+  else
+    echo "WARNING: --rootless install complete but \$GITHUB_PATH is unset; add ${INSTALL_DIR} to PATH manually" >&2
+  fi
+fi
 
 # Verify installation
 echo "Verifying Copilot CLI installation..."
-if command -v copilot >/dev/null 2>&1; then
+if [ "$ROOTLESS" = "true" ]; then
+  if [ -x "${INSTALL_DIR}/copilot" ]; then
+    "${INSTALL_DIR}/copilot" --version
+    echo "✓ Copilot CLI installation complete"
+  else
+    echo "ERROR: Copilot CLI installation failed - binary not found at ${INSTALL_DIR}/copilot"
+    exit 1
+  fi
+elif command -v copilot >/dev/null 2>&1; then
   copilot --version
   echo "✓ Copilot CLI installation complete"
 else

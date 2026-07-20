@@ -1,6 +1,6 @@
 {
-  "version": "2.2",
-  "description": "GitHub MCP server toolsets and their required permissions (updated to match actual MCP server source code in github/github-mcp-server)",
+  "version": "2.3",
+  "description": "GitHub MCP server toolsets and their required permissions (synced to github/github-mcp-server main: search toolset removed and search tools redistributed to repos/orgs/users, experiments toolset removed, semantic search + check_dependency_vulnerabilities + run_secret_scanning removed upstream, list_org_repository_security_advisories moved orgs->security_advisories, get_label dual-registered in issues, create_pull_request_with_copilot added)",
   "toolsets": {
     "actions": {
       "description": "GitHub Actions workflows",
@@ -27,10 +27,10 @@
       "tools": ["get_me", "get_team_members", "get_teams"]
     },
     "copilot": {
-      "description": "GitHub Copilot assignment and review tools",
+      "description": "GitHub Copilot assignment, review, and coding agent tools",
       "read_permissions": [],
       "write_permissions": ["issues", "pull-requests"],
-      "tools": ["assign_copilot_to_issue", "request_copilot_review"]
+      "tools": ["assign_copilot_to_issue", "create_pull_request_with_copilot", "request_copilot_review"]
     },
     "copilot_spaces": {
       "description": "GitHub Copilot Spaces (remote-only)",
@@ -49,12 +49,6 @@
       "read_permissions": ["discussions"],
       "write_permissions": ["discussions"],
       "tools": ["discussion_comment_write", "get_discussion", "get_discussion_comments", "list_discussion_categories", "list_discussions"]
-    },
-    "experiments": {
-      "description": "Experimental features (dynamic toolset management)",
-      "read_permissions": [],
-      "write_permissions": [],
-      "tools": ["enable_toolset", "get_toolset_tools", "list_available_toolsets"]
     },
     "gists": {
       "description": "Gist operations",
@@ -75,10 +69,10 @@
       "tools": ["github_support_docs_search"]
     },
     "issues": {
-      "description": "Issue management",
+      "description": "Issue management (get_label is also registered here alongside labels)",
       "read_permissions": ["issues"],
       "write_permissions": ["issues"],
-      "tools": ["add_issue_comment", "issue_dependency_read", "issue_dependency_write", "issue_read", "issue_write", "list_issue_fields", "list_issue_types", "list_issues", "search_issues", "sub_issue_write"]
+      "tools": ["add_issue_comment", "get_label", "issue_dependency_read", "issue_dependency_write", "issue_read", "issue_write", "list_issue_fields", "list_issue_types", "list_issues", "search_issues", "sub_issue_write"]
     },
     "labels": {
       "description": "Label management",
@@ -93,10 +87,10 @@
       "tools": ["dismiss_notification", "get_notification_details", "list_notifications", "manage_notification_subscription", "manage_repository_notification_subscription", "mark_all_notifications_read"]
     },
     "orgs": {
-      "description": "Organization operations",
+      "description": "Organization operations (organization search)",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": ["list_org_repository_security_advisories"]
+      "tools": ["search_orgs"]
     },
     "projects": {
       "description": "GitHub Projects (requires PAT - not supported by GITHUB_TOKEN)",
@@ -122,7 +116,7 @@
       ]
     },
     "repos": {
-      "description": "Repository operations",
+      "description": "Repository operations (includes repository/code/commit search)",
       "read_permissions": ["contents"],
       "write_permissions": ["contents"],
       "tools": [
@@ -142,26 +136,23 @@
         "list_releases",
         "list_repository_collaborators",
         "list_tags",
-        "push_files"
+        "push_files",
+        "search_code",
+        "search_commits",
+        "search_repositories"
       ]
-    },
-    "search": {
-      "description": "Advanced search across GitHub (keyword and semantic)",
-      "read_permissions": [],
-      "write_permissions": [],
-      "tools": ["search_code", "search_commits", "search_orgs", "search_repositories", "search_users", "semantic_issue_similarity_search", "semantic_issues_search"]
     },
     "secret_protection": {
       "description": "Secret scanning",
       "read_permissions": ["security-events"],
       "write_permissions": [],
-      "tools": ["get_secret_scanning_alert", "list_secret_scanning_alerts", "run_secret_scanning"]
+      "tools": ["get_secret_scanning_alert", "list_secret_scanning_alerts"]
     },
     "security_advisories": {
       "description": "Security advisories",
       "read_permissions": ["security-events"],
       "write_permissions": ["security-events"],
-      "tools": ["check_dependency_vulnerabilities", "get_global_security_advisory", "list_global_security_advisories", "list_repository_security_advisories"]
+      "tools": ["get_global_security_advisory", "list_global_security_advisories", "list_org_repository_security_advisories", "list_repository_security_advisories"]
     },
     "stargazers": {
       "description": "Repository stars",
@@ -170,10 +161,10 @@
       "tools": ["list_starred_repositories", "star_repository", "unstar_repository"]
     },
     "users": {
-      "description": "User information",
+      "description": "User information (user search)",
       "read_permissions": [],
       "write_permissions": [],
-      "tools": []
+      "tools": ["search_users"]
     }
   }
 }

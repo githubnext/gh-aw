@@ -174,15 +174,16 @@ func BuildNpmEngineInstallStepsWithAWF(npmSteps []GitHubActionStep, workflowData
 	}
 
 	// Copy Copilot CLI to daemon-visible path for ARC/DinD.
-	// The install script puts copilot at /usr/local/bin/copilot which is inside the
-	// sysroot image — not the runner's filesystem. On ARC/DinD, the AWF command
-	// references ${RUNNER_TEMP}/gh-aw/bin/copilot which is daemon-visible.
+	// With --rootless, the binary is at ~/.local/bin/copilot; otherwise /usr/local/bin/copilot.
+	// On ARC/DinD, the AWF command references ${RUNNER_TEMP}/gh-aw/bin/copilot which is
+	// daemon-visible, so we copy from wherever the install script placed it.
 	if isFirewallEnabled(workflowData) && isArcDindTopology(workflowData) {
 		copyStep := GitHubActionStep([]string{
 			"      - name: Copy Copilot CLI to daemon-visible path",
 			"        run: |",
 			"          mkdir -p \"${RUNNER_TEMP}/gh-aw/bin\"",
-			"          cp /usr/local/bin/copilot \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
+			`          COPILOT_SRC="$(command -v copilot)"`,
+			"          cp \"$COPILOT_SRC\" \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
 			"          chmod +x \"${RUNNER_TEMP}/gh-aw/bin/copilot\"",
 		})
 		steps = append(steps, copyStep)
