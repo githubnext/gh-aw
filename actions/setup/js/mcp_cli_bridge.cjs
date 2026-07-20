@@ -394,7 +394,7 @@ function getToolCallTimeoutMs(toolName, toolArgs) {
     // No explicit timeout: mirror the server's auto-scaling from count.
     const countCandidate = Number(toolArgs?.count);
     const effectiveCount = Number.isFinite(countCandidate) && countCandidate > 0 ? countCandidate : LOGS_TOOL_DEFAULT_COUNT;
-    const base = Math.max(1, Math.ceil(effectiveCount / LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE));
+    const base = Math.ceil(effectiveCount / LOGS_TOOL_RUNS_PER_TIMEOUT_MINUTE);
     // Without a workflow filter the GitHub API scans all runs and is substantially
     // slower for large repositories — apply the same 5-minute floor as the server.
     timeoutMinutes = toolArgs?.workflow_name ? base : Math.max(LOGS_TOOL_MIN_TIMEOUT_MINUTES_NO_FILTER, base);
