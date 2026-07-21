@@ -132,8 +132,8 @@ func getActionPins() []ActionPin {
 			actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", n)
 		}
 
-		if n := countEntriesWithEmptySHA(data.Entries); n > 0 {
-			panic(fmt.Sprintf("action_pins.json has %d entries with empty SHA — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing", n))
+		if emptyKeys := collectEntriesWithEmptySHA(data.Entries); len(emptyKeys) > 0 {
+			panic(fmt.Sprintf("action_pins.json has %d entries with empty SHA %v — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing", len(emptyKeys), emptyKeys))
 		}
 
 		pins := slices.Collect(maps.Values(data.Entries))
@@ -179,17 +179,18 @@ func countPinKeyMismatches(entries map[string]ActionPin) int {
 	return count
 }
 
-// countEntriesWithEmptySHA returns the number of entries whose SHA field is empty,
+// collectEntriesWithEmptySHA returns the keys of entries whose SHA field is empty,
 // logging each offending entry for diagnostics.
-func countEntriesWithEmptySHA(entries map[string]ActionPin) int {
-	count := 0
+func collectEntriesWithEmptySHA(entries map[string]ActionPin) []string {
+	var keys []string
 	for key, pin := range entries {
 		if pin.SHA == "" {
-			count++
+			keys = append(keys, key)
 			actionPinsLog.Printf("ERROR: Empty SHA in action_pins.json: key=%s repo=%s version=%s", key, pin.Repo, pin.Version)
 		}
 	}
-	return count
+	slices.Sort(keys)
+	return keys
 }
 
 // buildByRepoIndex groups pins by repository and sorts each group by version descending.

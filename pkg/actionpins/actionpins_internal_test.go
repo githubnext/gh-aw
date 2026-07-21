@@ -63,38 +63,38 @@ func TestCountPinKeyMismatches_ReturnsOnlyVersionMismatches(t *testing.T) {
 	})
 }
 
-func TestCountEntriesWithEmptySHA_ReturnsOnlyEmptySHAEntries(t *testing.T) {
-	t.Run("returns zero for empty entries", func(t *testing.T) {
-		assert.Zero(t, countEntriesWithEmptySHA(map[string]ActionPin{}), "Expected empty input to produce zero results")
+func TestCollectEntriesWithEmptySHA_ReturnsOnlyEmptySHAEntries(t *testing.T) {
+	t.Run("returns empty slice for empty entries", func(t *testing.T) {
+		assert.Empty(t, collectEntriesWithEmptySHA(map[string]ActionPin{}), "Expected empty input to produce empty result")
 	})
 
-	t.Run("returns zero when all entries have non-empty SHAs", func(t *testing.T) {
+	t.Run("returns empty slice when all entries have non-empty SHAs", func(t *testing.T) {
 		entries := map[string]ActionPin{
 			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
 			"actions/setup-go@v4": {Repo: "actions/setup-go", Version: "v4", SHA: "def456"},
 		}
-		assert.Zero(t, countEntriesWithEmptySHA(entries), "Expected zero empty SHA entries when all SHAs are populated")
+		assert.Empty(t, collectEntriesWithEmptySHA(entries), "Expected empty result when all SHAs are populated")
 	})
 
-	t.Run("counts entries with empty SHA", func(t *testing.T) {
+	t.Run("returns key of entry with empty SHA", func(t *testing.T) {
 		entries := map[string]ActionPin{
 			"actions/checkout@v5":      {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
 			"ruby/setup-ruby@v1.319.0": {Repo: "ruby/setup-ruby", Version: "v1.319.0", SHA: ""},
 		}
-		assert.Equal(t, 1, countEntriesWithEmptySHA(entries), "Expected one entry with empty SHA to be counted")
+		assert.Equal(t, []string{"ruby/setup-ruby@v1.319.0"}, collectEntriesWithEmptySHA(entries), "Expected the empty-SHA entry key to be returned")
 	})
 
-	t.Run("counts multiple entries with empty SHA", func(t *testing.T) {
+	t.Run("returns sorted keys of multiple entries with empty SHA", func(t *testing.T) {
 		entries := map[string]ActionPin{
 			"actions/checkout@v5":      {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
 			"ruby/setup-ruby@v1.319.0": {Repo: "ruby/setup-ruby", Version: "v1.319.0", SHA: ""},
 			"owner/repo@v2":            {Repo: "owner/repo", Version: "v2", SHA: ""},
 		}
-		assert.Equal(t, 2, countEntriesWithEmptySHA(entries), "Expected two entries with empty SHA to be counted")
+		assert.Equal(t, []string{"owner/repo@v2", "ruby/setup-ruby@v1.319.0"}, collectEntriesWithEmptySHA(entries), "Expected sorted keys of empty-SHA entries")
 	})
 }
 
-func TestFormatPinnedActionReference_PanicsOnEmptySHA(t *testing.T) {
+func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 	assert.Panics(t, func() {
 		FormatPinnedActionReference("ruby/setup-ruby", "", "v1.319.0")
 	}, "Expected FormatPinnedActionReference to panic when SHA is empty")
