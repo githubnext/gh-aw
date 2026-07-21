@@ -408,19 +408,6 @@ func buildGenericPATCreationURL() string {
 	return buildPATCreationURL(nil)
 }
 
-// isAnyGitHubHostEnvVarSet returns true when any of the environment variables
-// consumed by getGitHubHost() is explicitly set.  When at least one is present
-// the caller has made an explicit host choice and the git-remote fallback should
-// not be consulted.
-func isAnyGitHubHostEnvVarSet() bool {
-	for _, envVar := range []string{"GITHUB_SERVER_URL", "GITHUB_ENTERPRISE_HOST", "GITHUB_HOST", "GH_HOST"} {
-		if os.Getenv(envVar) != "" { //nolint:osgetenvlibrary
-			return true
-		}
-	}
-	return false
-}
-
 func buildPATCreationURL(values url.Values) string {
 	hostURL := getGitHubHost()
 	// Only consult the git remote when the caller has not made an explicit host

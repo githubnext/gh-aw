@@ -356,7 +356,7 @@ The `cli` package exports many types used across its command implementations. Th
 | `PerformanceMetrics` | struct | Performance counters for a workflow run |
 | `PolicyAnalysis` | struct | Analysis of guard-policy evaluation results |
 | `PolicyManifest` | struct | A manifest of guard policies applied during a run |
-| `PolicyRule` | struct | A single firewall policy rule from the policy manifest |
+| `FirewallPolicyRule` | struct | A single firewall policy rule from the policy manifest |
 | `PolicySummaryDisplay` | struct | Display-friendly summary of policy evaluation results |
 | `PollResult` | int alias | Result code returned by `PollWithSignalHandling` |
 | `ProcessedRun` | struct | A fully-processed workflow run with parsed artifacts |

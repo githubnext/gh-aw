@@ -337,29 +337,22 @@ func isGHESHost(host string) bool {
 // detectGHESDeployment returns the GHES host if the current repository's git
 // remote points to a GitHub Enterprise Server instance, or "" if it does not.
 // Detection uses the following sources in priority order:
-//  1. GITHUB_SERVER_URL environment variable (set automatically inside GitHub Actions)
-//  2. GH_HOST environment variable (set by the gh CLI)
-//  3. The hostname extracted from the git origin remote URL
+//  1. GITHUB_SERVER_URL, GITHUB_ENTERPRISE_HOST, GITHUB_HOST, GH_HOST environment variables
+//  2. The hostname extracted from the git origin remote URL
 func detectGHESDeployment() string {
-	// Check GITHUB_SERVER_URL first (set inside GitHub Actions runners)
-	if serverURL := os.Getenv("GITHUB_SERVER_URL"); serverURL != "" { //nolint:osgetenvlibrary
-		// serverURL is like "https://ghes.example.com", extract just the host.
-		host := serverURL
-		for _, scheme := range []string{"https://", "http://"} {
-			host = strings.TrimPrefix(host, scheme)
+	// Check env vars in unified priority order (mirrors GetGitHubHost):
+	// GITHUB_SERVER_URL > GITHUB_ENTERPRISE_HOST > GITHUB_HOST > GH_HOST
+	for _, envVar := range []string{"GITHUB_SERVER_URL", "GITHUB_ENTERPRISE_HOST", "GITHUB_HOST", "GH_HOST"} {
+		rawValue := os.Getenv(envVar) //nolint:osgetenvlibrary
+		if rawValue == "" {
+			continue
 		}
+		host := strings.TrimPrefix(rawValue, "https://")
+		host = strings.TrimPrefix(host, "http://")
 		host = strings.TrimSuffix(host, "/")
 		if isGHESHost(host) {
-			initLog.Printf("Detected GHES deployment from GITHUB_SERVER_URL: %s", host)
+			initLog.Printf("Detected GHES deployment from %s: %s", envVar, host)
 			return host
-		}
-	}
-
-	// Check GH_HOST (set when using the gh CLI against an enterprise instance)
-	if ghHost := os.Getenv("GH_HOST"); ghHost != "" { //nolint:osgetenvlibrary
-		if isGHESHost(ghHost) {
-			initLog.Printf("Detected GHES deployment from GH_HOST: %s", ghHost)
-			return ghHost
 		}
 	}
 

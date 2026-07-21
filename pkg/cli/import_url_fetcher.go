@@ -8,7 +8,6 @@ import (
 	"mime"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 
@@ -305,26 +304,22 @@ func logResponseBodyVerbose(resp *http.Response) {
 }
 
 func importAuthGHHost() string {
-	ghHost := os.Getenv("GH_HOST") //nolint:osgetenvlibrary
-	if ghHost == "" {
+	// Use unified resolution (GITHUB_SERVER_URL > GITHUB_ENTERPRISE_HOST > GITHUB_HOST > GH_HOST).
+	// Return "" when no host env var is set so that callers do not add a
+	// redundant entry for github.com, which is already in defaultImportAuthHosts.
+	if !isAnyGitHubHostEnvVarSet() {
 		return ""
 	}
-	// GH_HOST may carry a scheme prefix; extract just the hostname.
-	if u, parseErr := url.Parse(ghHost); parseErr == nil && u.Host != "" {
-		return strings.ToLower(u.Hostname())
+	// getGitHubHost (defined in this package) returns a normalized https://… URL;
+	// url.Parse is used only to extract the hostname so that port numbers are stripped.
+	resolved := getGitHubHost()
+	u, parseErr := url.Parse(resolved)
+	if parseErr != nil || u.Hostname() == "" {
+		// getGitHubHost always returns a well-formed URL; an error here is unexpected.
+		importURLFetcherLog.Printf("importAuthGHHost: unexpected url.Parse failure for %q: %v", resolved, parseErr)
+		return ""
 	}
-	// No scheme present — treat the whole value as a bare hostname (possibly
-	// with port). Strip any accidental scheme prefix or trailing path.
-	bare := strings.TrimPrefix(ghHost, "https://")
-	bare = strings.TrimPrefix(bare, "http://")
-	if idx := strings.IndexByte(bare, '/'); idx != -1 {
-		bare = bare[:idx]
-	}
-	parsed, err := url.Parse("https://" + bare)
-	if err == nil && parsed.Host != "" {
-		return strings.ToLower(parsed.Hostname())
-	}
-	return strings.ToLower(bare)
+	return strings.ToLower(u.Hostname())
 }
 
 // sanitizeHTTPError strips the request URL from a *url.Error (the error type

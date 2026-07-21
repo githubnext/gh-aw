@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -239,7 +240,7 @@ func TestFetchJobDetailsWithCountsIncludesSteps(t *testing.T) {
 
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	jobs, failedJobs, err := fetchJobDetailsWithCounts(28307653871, false)
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, false)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1)
 	assert.Equal(t, 1, failedJobs, "failed job count should include failed jobs")
@@ -270,7 +271,7 @@ func TestFetchJobDetailsWithCountsNullConclusion(t *testing.T) {
 
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	jobs, failedJobs, err := fetchJobDetailsWithCounts(28307653871, false)
+	jobs, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), 28307653871, false)
 	require.NoError(t, err)
 	require.Len(t, jobs, 1, "in-progress jobs with null conclusion should not be dropped")
 	assert.Equal(t, 0, failedJobs, "in-progress job should not count as failed")

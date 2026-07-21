@@ -387,8 +387,8 @@ tools:
     allowed: [issue_read]
 ---`,
 			expectedYAML: `  pull_request:
-    # forks: # Fork filtering applied via job conditions
-      # - specific/repo # Fork filtering applied via job conditions`,
+# forks: # Fork filtering applied via job conditions
+# - specific/repo # Fork filtering applied via job conditions`,
 			description: "Should comment out forks array even when it's the only field",
 		},
 		{
@@ -409,7 +409,7 @@ tools:
     allowed: [issue_read]
 ---`,
 			expectedYAML: `  pull_request:
-    # forks: specific/repo # Fork filtering applied via job conditions`,
+# forks: specific/repo # Fork filtering applied via job conditions`,
 			description: "Should comment out forks single string",
 		},
 		{
@@ -430,7 +430,7 @@ tools:
     allowed: [issue_read]
 ---`,
 			expectedYAML: `  pull_request:
-    # forks: "*" # Fork filtering applied via job conditions`,
+# forks: "*" # Fork filtering applied via job conditions`,
 			description: "Should comment out forks wildcard string",
 		},
 	}

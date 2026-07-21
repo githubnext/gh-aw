@@ -33,3 +33,10 @@ func getGitHubHostForRepo(repo string) string {
 	// For all other repositories, use the configured GitHub host
 	return getGitHubHost()
 }
+
+// isAnyGitHubHostEnvVarSet returns true when at least one of the environment
+// variables consulted by getGitHubHost is explicitly set to a non-empty value.
+// Delegates to parser.IsAnyGitHubHostEnvVarSet() for the shared implementation.
+func isAnyGitHubHostEnvVarSet() bool {
+	return parser.IsAnyGitHubHostEnvVarSet()
+}
