@@ -272,6 +272,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
+          GH_AW_MCP_CLI_SERVERS_LIST: ${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}
           GH_AW_NEEDS_CHECK_UPDATES_OUTPUTS_UPDATES_SUMMARY: ${{ needs.check_updates.outputs.updates_summary }}
         # poutine:ignore untrusted_checkout_exec
         run: |
@@ -358,7 +359,7 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: "- `github` — run `github --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools"
+          GH_AW_MCP_CLI_SERVERS_LIST: ${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}
           GH_AW_NEEDS_CHECK_UPDATES_OUTPUTS_UPDATES_SUMMARY: ${{ needs.check_updates.outputs.updates_summary }}
           GH_AW_NEEDS_PRE_ACTIVATION_OUTPUTS_ACTIVATED: ${{ needs.pre_activation.outputs.activated }}
         with:
