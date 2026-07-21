@@ -24,9 +24,9 @@ name: Smoke Claude
 models:
   blocked: ["*opus*"]
 max-turns: 100
+model: claude-sonnet-4-6
 engine:
   id: claude
-  model: claude-sonnet-4-6
   bare: true
 inlined-imports: true
 imports:
