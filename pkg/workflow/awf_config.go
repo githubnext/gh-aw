@@ -87,6 +87,15 @@ var awfConfigSchema string
 
 var awfConfigLog = logger.New("workflow:awf_config")
 
+func defaultCopilotFallbackAICreditsPricing() *AWFAICreditsPricing {
+	return &AWFAICreditsPricing{
+		Input:       3.0,
+		Output:      15.0,
+		CachedInput: 0.3,
+		CacheWrite:  3.75,
+	}
+}
+
 // Cached compiled AWF config schema to avoid recompiling on every validation.
 var (
 	compiledAWFConfigSchemaOnce sync.Once
@@ -240,6 +249,10 @@ type AWFAPIProxyConfig struct {
 	// MaxAICredits is the explicit per-run AI credits budget enforced by the API proxy.
 	MaxAICredits int64 `json:"maxAiCredits,omitempty"`
 
+	// DefaultAICreditsPricing provides conservative fallback pricing for models that
+	// are not present in AWF's built-in catalog when AI credits enforcement is active.
+	DefaultAICreditsPricing *AWFAICreditsPricing `json:"defaultAiCreditsPricing,omitempty"`
+
 	// ModelFallback configures the model fallback policy for unresolved model selections.
 	// When nil, the AWF default (enabled=true, strategy=middle_power) is used.
 	// Set enabled=false to prevent AWF from silently rewriting deployment names, which
@@ -265,6 +278,14 @@ type AWFAPIProxyConfig struct {
 	AllowedModels []string `json:"allowedModels,omitempty"`
 	// DisallowedModels is the explicit denylist policy for model names/patterns.
 	DisallowedModels []string `json:"disallowedModels,omitempty"`
+}
+
+// AWFAICreditsPricing is the "apiProxy.defaultAiCreditsPricing" section of the AWF config file.
+type AWFAICreditsPricing struct {
+	Input       float64 `json:"input"`
+	Output      float64 `json:"output"`
+	CachedInput float64 `json:"cachedInput,omitempty"`
+	CacheWrite  float64 `json:"cacheWrite,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
@@ -461,6 +482,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	// BuildAWFCommand (see injectMaxAICreditsExpression in awf_helpers.go).
 	maxAICredits := int64(0)
 	maxRuns := constants.DefaultMaxRuns
+	isCopilotBYOK := isCopilotBYOKConfigured(config.WorkflowData)
 	// GetMaxTurnCacheMisses handles nil receiver and env-var fallback, so pre-init
 	// via the nil receiver avoids a redundant os.Getenv when EngineConfig is set.
 	maxTurnCacheMisses := (*EngineConfig)(nil).GetMaxTurnCacheMisses()
@@ -475,8 +497,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	// Token steering is enabled by default. Setting max-ai-credits to a negative
 	// value (-1) omits that budget from the AWF config and disables token steering.
 	// When maxAICredits is 0 (runtime default), token steering stays enabled here.
-	enableTokenSteering := maxAICredits >= 0
-	if maxAICredits < 0 {
+	// BYOK Copilot runs must bypass the AI credits guard entirely because requests
+	// are routed to a user-provided endpoint rather than GitHub AI credits.
+	enableTokenSteering := maxAICredits >= 0 && !isCopilotBYOK
+	if maxAICredits < 0 || isCopilotBYOK {
 		// Negative signals "disabled" — omit the budget from the AWF config.
 		maxAICredits = 0
 	}
@@ -490,9 +514,18 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	if !enableTokenSteering {
-		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-ai-credits is negative (disabled)")
+		if isCopilotBYOK {
+			awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering and maxAiCredits: Copilot BYOK provider routing is configured")
+		} else {
+			awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: max-ai-credits is negative (disabled)")
+		}
 	} else if !awfSupportsTokenSteering(firewallConfig) {
 		awfConfigLog.Printf("Skipping apiProxy.enableTokenSteering: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFTokenSteeringMinVersion)
+	}
+
+	if config.EngineName == "copilot" && !isCopilotBYOK {
+		apiProxy.DefaultAICreditsPricing = defaultCopilotFallbackAICreditsPricing()
+		awfConfigLog.Printf("API proxy: configured defaultAiCreditsPricing fallback for unresolved Copilot models")
 	}
 
 	if mf := extractModelFallback(config.WorkflowData); mf != nil {

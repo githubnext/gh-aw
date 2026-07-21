@@ -303,6 +303,20 @@ func TestApplyDefaultMaxAICreditsEnvToMap(t *testing.T) {
 		_, exists := env[awfMaxAICreditsVarName]
 		assert.False(t, exists)
 	})
+
+	t.Run("does not set expression for copilot BYOK runs", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+				},
+			},
+		})
+		_, exists := env[awfMaxAICreditsVarName]
+		assert.False(t, exists)
+	})
 }
 
 // TestExtractAPITargetAuthHeader tests the extractAPITargetAuthHeader function that reads

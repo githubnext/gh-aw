@@ -154,6 +154,9 @@ func applyDefaultMaxAICreditsEnvToMap(env map[string]string, workflowData *Workf
 	if env == nil {
 		return
 	}
+	if isCopilotBYOKConfigured(workflowData) {
+		return
+	}
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxAICredits != 0 {
 		return
 	}
@@ -347,7 +350,8 @@ fi`,
 		// For detection runs, use the detection-specific variable/fallback;
 		// for standard agent runs, use the main-agent variable/fallback.
 		var maxAICreditsExportLine string
-		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
+		if (config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0) &&
+			!isCopilotBYOKConfigured(config.WorkflowData) {
 			defaultMaxAICredits := strconv.FormatInt(constants.DefaultMaxAICredits, 10)
 			if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
 				defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
@@ -363,6 +367,8 @@ fi`,
 				maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
 			}
 			awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
+		} else if isCopilotBYOKConfigured(config.WorkflowData) {
+			awfHelpersLog.Printf("Skipping maxAiCredits runtime injection: Copilot BYOK provider routing is configured")
 		}
 		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
 		// When the generated JSON contains compiler-owned runtime variables such as

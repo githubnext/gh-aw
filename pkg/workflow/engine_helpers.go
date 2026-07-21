@@ -35,6 +35,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -100,6 +101,15 @@ func engineEnvHasKey(workflowData *WorkflowData, key string) bool {
 	}
 	_, ok := workflowData.EngineConfig.Env[key]
 	return ok
+}
+
+// isCopilotBYOKConfigured reports whether Copilot BYOK provider routing is configured
+// via engine.env. When true, Copilot requests are routed to a user-supplied endpoint
+// instead of GitHub AI credits infrastructure.
+func isCopilotBYOKConfigured(workflowData *WorkflowData) bool {
+	return engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL) ||
+		engineEnvHasKey(workflowData, constants.CopilotProviderAPIKey) ||
+		engineEnvHasKey(workflowData, constants.CopilotProviderBearerToken)
 }
 
 // applyEngineCwdEnv sets the GH_AW_ENGINE_CWD environment variable in the given env map

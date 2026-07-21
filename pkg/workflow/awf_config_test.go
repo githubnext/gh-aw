@@ -263,6 +263,29 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"maxAiCredits"`, "apiProxy should omit maxAiCredits when unset (resolved at runtime via vars expression)")
 	})
 
+	t.Run("copilot config emits default ai credits pricing fallback", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"defaultAiCreditsPricing"`, "apiProxy should emit a fallback pricing block for unresolved Copilot models")
+		assert.Contains(t, jsonStr, `"input":3`, "fallback pricing should include the default input price")
+		assert.Contains(t, jsonStr, `"cachedInput":0.3`, "fallback pricing should include the default cached input price")
+		assert.Contains(t, jsonStr, `"cacheWrite":3.75`, "fallback pricing should include the default cache-write price")
+		assert.Contains(t, jsonStr, `"output":15`, "fallback pricing should include the default output price")
+	})
+
 	t.Run("enterprise default max-ai-credits env var is NOT used at compile time (resolved at action runtime)", func(t *testing.T) {
 		t.Setenv(compilerenv.DefaultMaxAICredits, "2k")
 		config := AWFCommandConfig{
@@ -303,6 +326,31 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.Contains(t, jsonStr, `"maxAiCredits":333`, "apiProxy should bake in frontmatter maxAiCredits (skipping runtime expression)")
+	})
+
+	t.Run("copilot BYOK omits ai credits guardrail config", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:           "copilot",
+					MaxAICredits: 333,
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"maxAiCredits"`, "BYOK requests should bypass the AI credits budget guardrail entirely")
+		assert.NotContains(t, jsonStr, `"enableTokenSteering"`, "BYOK requests should not enable AI credits token steering")
+		assert.NotContains(t, jsonStr, `"defaultAiCreditsPricing"`, "BYOK requests should not require fallback AI credits pricing")
 	})
 
 	t.Run("default max-turn-cache-misses uses built-in default when unset", func(t *testing.T) {
@@ -1414,6 +1462,31 @@ func TestBuildAWFCommand_ResolvesMaxAICreditsFromEnv(t *testing.T) {
 			assert.NotContains(t, command, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS")
 		})
 	}
+}
+
+func TestBuildAWFCommand_SkipsMaxAICreditsForCopilotBYOK(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:                 "copilot",
+		EngineCommand:              "copilot --prompt-file /tmp/prompt.txt",
+		LogFile:                    "/tmp/gh-aw/agent-stdio.log",
+		AllowedDomains:             "github.com,api.github.com",
+		ResolveMaxAICreditsFromEnv: true,
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "http://localhost:11434/v1",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	command := BuildAWFCommand(config)
+	assert.NotContains(t, command, "GH_AW_MAX_AI_CREDITS", "BYOK runs should not inject a runtime AI credits budget")
+	assert.NotContains(t, command, `"maxAiCredits":`, "BYOK runs should not emit maxAiCredits in the generated AWF config JSON")
 }
 
 func TestBuildAWFCommand_PreservesGitHubExpressionOperatorsInConfigJSON(t *testing.T) {
