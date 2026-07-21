@@ -37,6 +37,8 @@ In single-run mode, a job URL without a step anchor extracts the first failing s
 | `--verbose` | off | Print detailed progress information |
 | `--format <fmt>` | `pretty` | Diff output format: `pretty` or `markdown` (multi-run only) |
 
+Top-level fields in `--json` output are stable; nested sub-fields may be extended but are not removed without deprecation. Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments`.
+
 **Single-run examples:**
 
 ```bash
@@ -71,7 +73,7 @@ gh aw audit 12345 12346 --repo owner/repo      # Specify repository
 
 **Single-run report sections** (rendered in Markdown or JSON): Overview, Comparison, Task/Domain, Behavior Fingerprint, Agentic Assessments, Metrics, Key Findings, Recommendations, Observability Insights, Performance Metrics, Engine Config, Prompt Analysis, Session Analysis, Safe Output Summary, MCP Server Health, Jobs, Downloaded Files, Missing Tools, Missing Data, Noops, MCP Failures, Firewall Analysis, Policy Analysis, Redacted Domains, Errors, Warnings, Tool Usage, MCP Tool Usage, Created Items.
 
-The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run:
+The Metrics section includes an `ambient_context` object when available. Ambient context captures the first LLM inference footprint for the run. It is absent when token-usage data is unavailable for the run — for example, when neither `token-usage.jsonl` nor the fallback `agent_usage.json` can be found in the downloaded artifacts, which is common for older runs and runs without firewall/usage artifacts:
 - `ambient_context.input_tokens` — input tokens for the first invocation
 - `ambient_context.cached_tokens` — cache-read tokens reused by the first invocation
 - `ambient_context.effective_tokens` — legacy ET field (`input_tokens + cached_tokens`) retained for compatibility
@@ -99,9 +101,11 @@ This feature is built into the `gh aw logs` command via the `--format` flag.
 | `--stdin` | off | Read run IDs or URLs from stdin (one per line) instead of run-discovery; content filters still apply |
 | `--verbose` | off | Print detailed progress |
 
+Top-level fields in `--json` output are stable; nested sub-fields may be extended but are not removed without deprecation.
+
 The report output includes an executive summary, domain inventory, metrics trends, MCP server health, and per-run breakdown. It detects cross-run anomalies such as domain access spikes, elevated MCP error rates, and connection rate changes.
 
-For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, and legacy `effective_tokens`).
+For each run in detailed logs JSON output, an `ambient_context` object is included when token usage data is available. It reflects only the first LLM invocation in the run (`input_tokens`, `cached_tokens`, and legacy `effective_tokens`). It is absent when the downloaded artifacts do not contain usable `token-usage.jsonl` or fallback `agent_usage.json` data for that run.
 
 **`--stdin` mode:** Pass `--stdin` to supply an explicit list of run IDs or URLs instead of letting the command discover runs from the GitHub API. Date, count, and workflow-name filters are ignored; `--engine`, `--firewall`, `--safe-output`, and other content filters still apply. Blank lines and `#`-prefixed lines are ignored. Bare numeric IDs require `--repo owner/repo`.
 
@@ -267,4 +271,4 @@ permissions:
 4. Update `/tmp/gh-aw/cache-memory/audit-trends.json` with rolling averages (cost, tokens, error count, deny rate), keeping only the last 30 days.
 ```
 
-Top-level fields (`key_findings`, `recommendations`, `metrics`, `firewall_analysis`, `mcp_tool_usage`) are stable; nested sub-fields may be extended but are not removed without deprecation. Add `--parse` to populate `behavior_fingerprint` and `agentic_assessments`. Cross-run JSON can be large — extract only the slices your model needs.
+Cross-run JSON can be large — extract only the slices your model needs.

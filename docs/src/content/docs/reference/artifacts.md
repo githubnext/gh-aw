@@ -11,9 +11,9 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 
 | Artifact Name | Constant | Type | Description |
 |---------------|----------|------|-------------|
-| `agent` | `constants.AgentArtifactName` | Multi-file | Unified agent job outputs (logs, safe outputs, token usage summary) |
+| `agent` | `constants.AgentArtifactName`<br/>Source: `pkg/constants/job_constants.go` | Multi-file | Unified agent job outputs (logs, safe outputs, token usage summary) |
 | `activation` | `constants.ActivationArtifactName` | Multi-file | Activation job output (`aw_info.json`, `prompt.txt`, rate limits) |
-| `firewall-audit-logs` | `constants.FirewallAuditArtifactName` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
+| `firewall-audit-logs` | `constants.FirewallAuditArtifactName`<br/>Source: `pkg/constants/constants.go` | Multi-file | AWF firewall audit/observability logs (token usage, network policy, audit trail) |
 | `detection` | `constants.DetectionArtifactName` | Single-file | Threat detection log (`detection.log`) |
 | `safe-output` | `constants.SafeOutputArtifactName` | Legacy/back-compat | Historical standalone safe output artifact (`safe_output.jsonl`); in current compiled workflows this content is included in the unified `agent` artifact instead |
 | `agent-output` | `constants.AgentOutputArtifactName` | Legacy/back-compat | Historical standalone agent output artifact (`agent_output.json`); in current compiled workflows this content is included in the unified `agent` artifact instead |
@@ -24,6 +24,15 @@ GitHub Agentic Workflows upload several artifacts during workflow execution. Thi
 | `evals` | `constants.EvalsArtifactName` | Single-file | BinEval evaluation results (`evals.jsonl`) uploaded by the evals job when `evals` are declared in the workflow frontmatter |
 | `safe-outputs-items` | `constants.SafeOutputItemsArtifactName` | Single-file | Safe output items manifest |
 | `code-scanning-sarif` | `constants.SarifArtifactName` | Single-file | SARIF file for code scanning results |
+
+> [!IMPORTANT]
+> Sync note: This table mirrors artifact-name constants in `pkg/constants/job_constants.go` and `pkg/constants/constants.go`. When those constant values change, update this page and the downstream artifact references in `docs/src/content/docs/reference/audit.md` and `docs/src/content/docs/reference/cost-management.md`.
+
+## Legacy artifact names
+
+:::caution[Deprecated]
+`safe-output` and `agent-output` became legacy in the gh-aw `v0.34.x` unified-agent-artifact rollout. New downstream consumers should migrate to the unified `agent` artifact now; `gh aw logs` and `gh aw audit` keep reading the legacy names only for back-compat with older runs. Removal is planned no earlier than gh-aw `v1.0`.
+:::
 
 ## Artifact Sets
 
