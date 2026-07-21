@@ -1007,6 +1007,27 @@ func TestBranchPrefixInArrayConfig(t *testing.T) {
 	assert.Equal(t, "my-prefix/logs", config.Memories[1].BranchName, "Expected branch name 'my-prefix/logs'")
 }
 
+func TestRepoMemoryCustomIDDerivesBranchName(t *testing.T) {
+	toolsMap := map[string]any{
+		"repo-memory": map[string]any{
+			"id": "my-agent",
+		},
+	}
+
+	toolsConfig, err := ParseToolsConfig(toolsMap)
+	require.NoError(t, err, "Failed to parse tools config")
+
+	compiler := NewCompiler()
+	config, err := compiler.extractRepoMemoryConfig(toolsConfig, "my-workflow")
+	require.NoError(t, err, "Failed to extract repo-memory config")
+	require.NotNil(t, config, "Expected non-nil config")
+	require.Len(t, config.Memories, 1, "Expected a single repo memory entry")
+
+	memory := config.Memories[0]
+	assert.Equal(t, "my-agent", memory.ID, "Expected explicit id to be preserved")
+	assert.Equal(t, "memory/my-agent", memory.BranchName, "Expected branch name to derive from explicit id")
+}
+
 // TestBranchPrefixWithExplicitBranchName tests that explicit branch-name overrides prefix
 func TestBranchPrefixWithExplicitBranchName(t *testing.T) {
 	toolsMap := map[string]any{

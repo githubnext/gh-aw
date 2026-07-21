@@ -3,10 +3,16 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // TestRunWorkflowOnGitHub_InputValidation tests input validation in RunWorkflowOnGitHub
@@ -185,6 +191,29 @@ func TestRunWorkflowsOnGitHub_ContextCancellation(t *testing.T) {
 	if !strings.Contains(err.Error(), "context canceled") && !errors.Is(err, context.Canceled) {
 		t.Errorf("Expected context cancellation error, got: %v", err)
 	}
+}
+
+func TestValidateLocalWorkflowForRun_PropagatesVerbose(t *testing.T) {
+	workflowPath, err := filepath.Abs(filepath.Join("..", "..", ".github", "workflows", "smoke-call-workflow.md"))
+	require.NoError(t, err, "should resolve workflow path")
+
+	oldStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err, "should create stderr pipe")
+	os.Stderr = w
+
+	runErr := validateLocalWorkflowForRun(workflowPath, nil, true)
+
+	require.NoError(t, w.Close(), "should close write end of stderr pipe")
+	os.Stderr = oldStderr
+
+	var buf bytes.Buffer
+	_, err = buf.ReadFrom(r)
+	require.NoError(t, err, "should read captured stderr")
+
+	require.NoError(t, runErr, "local workflow validation should succeed for a runnable direct path")
+	assert.Contains(t, buf.String(), "Found workflow file at path",
+		"verbose workflow validation should preserve resolveWorkflowFile diagnostics")
 }
 
 // TestRunWorkflowOnGitHub_FlagCombinations tests various flag combinations

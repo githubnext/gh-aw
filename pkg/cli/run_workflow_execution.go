@@ -67,6 +67,11 @@ type workflowRunPreparation struct {
 	lockFilePath string
 }
 
+type workflowRunExecutionResult struct {
+	runInfo    *WorkflowRunInfo
+	runInfoErr error
+}
+
 // RunWorkflowOnGitHub runs an agentic workflow on GitHub Actions
 func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunOptions) error {
 	executionLog.Printf("Starting workflow run: workflow=%s, enable=%v, engineOverride=%s, repo=%s, ref=%s, push=%v, wait=%v, inputs=%v", workflowIdOrName, opts.Enable, opts.EngineOverride, opts.RepoOverride, opts.RefOverride, opts.Push, opts.WaitForCompletion, opts.Inputs)
@@ -92,12 +97,12 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 	if opts.DryRun {
 		return handleWorkflowDryRun(prep.lockFileName, args, opts)
 	}
-	output, runInfo, runErr, err := executeWorkflowRun(ctx, prep.lockFileName, args, opts)
+	runResult, err := executeWorkflowRun(ctx, prep.lockFileName, args, opts)
 	if err != nil {
 		return err
 	}
-	handleWorkflowRunInfo(output, runInfo, runErr, opts)
-	return waitForWorkflowRunCompletion(ctx, opts, runInfo, runErr, workflowStartTime, ref)
+	handleWorkflowRunInfo(runResult.runInfo, runResult.runInfoErr, opts)
+	return waitForWorkflowRunCompletion(ctx, opts, runResult.runInfo, runResult.runInfoErr, workflowStartTime, ref)
 }
 
 func checkWorkflowRunContext(ctx context.Context, workflowIdOrName string) error {
@@ -151,14 +156,17 @@ func prepareWorkflowRun(ctx context.Context, workflowIdOrName string, opts RunOp
 func validateWorkflowForRun(workflowIdOrName string, opts RunOptions) error {
 	if opts.RepoOverride != "" {
 		executionLog.Printf("Validating remote workflow: %s in repo %s", workflowIdOrName, opts.RepoOverride)
-		return validateRemoteWorkflow(workflowIdOrName, opts.RepoOverride, opts.Verbose)
+		if err := validateRemoteWorkflow(workflowIdOrName, opts.RepoOverride, opts.Verbose); err != nil {
+			return fmt.Errorf("failed to validate remote workflow: %w", err)
+		}
+		return nil
 	}
-	return validateLocalWorkflowForRun(workflowIdOrName, opts.Inputs)
+	return validateLocalWorkflowForRun(workflowIdOrName, opts.Inputs, opts.Verbose)
 }
 
-func validateLocalWorkflowForRun(workflowIdOrName string, inputs []string) error {
+func validateLocalWorkflowForRun(workflowIdOrName string, inputs []string, verbose bool) error {
 	executionLog.Printf("Validating local workflow: %s", workflowIdOrName)
-	workflowFile, err := resolveWorkflowFile(workflowIdOrName, false)
+	workflowFile, err := resolveWorkflowFile(workflowIdOrName, verbose)
 	if err != nil {
 		return err
 	}
@@ -389,13 +397,13 @@ func handleWorkflowDryRun(lockFileName string, args []string, opts RunOptions) e
 	return nil
 }
 
-func executeWorkflowRun(ctx context.Context, lockFileName string, args []string, opts RunOptions) (string, *WorkflowRunInfo, error, error) {
+func executeWorkflowRun(ctx context.Context, lockFileName string, args []string, opts RunOptions) (*workflowRunExecutionResult, error) {
 	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatCommandMessage("gh "+strings.Join(args, " ")))
 	}
 	stdout, err := workflow.ExecGHContext(ctx, args...).Output()
 	if err != nil {
-		return "", nil, nil, formatWorkflowRunError(err)
+		return nil, formatWorkflowRunError(err)
 	}
 	output := strings.TrimSpace(string(stdout))
 	if output != "" {
@@ -404,7 +412,10 @@ func executeWorkflowRun(ctx context.Context, lockFileName string, args []string,
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully triggered workflow: "+lockFileName))
 	executionLog.Printf("Workflow triggered successfully: %s", lockFileName)
 	runInfo, runErr := resolveWorkflowRunInfo(lockFileName, output, opts)
-	return output, runInfo, runErr, nil
+	return &workflowRunExecutionResult{
+		runInfo:    runInfo,
+		runInfoErr: runErr,
+	}, nil
 }
 
 func formatWorkflowRunError(err error) error {
@@ -430,7 +441,7 @@ func resolveWorkflowRunInfo(lockFileName, output string, opts RunOptions) (*Work
 	return getLatestWorkflowRunWithRetry(lockFileName, opts.RepoOverride, opts.Verbose)
 }
 
-func handleWorkflowRunInfo(output string, runInfo *WorkflowRunInfo, runErr error, opts RunOptions) {
+func handleWorkflowRunInfo(runInfo *WorkflowRunInfo, runErr error, opts RunOptions) {
 	if runErr == nil && runInfo != nil && runInfo.URL != "" {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("🔗 View workflow run: "+runInfo.URL))
 		executionLog.Printf("Workflow run URL: %s (ID: %d)", runInfo.URL, runInfo.DatabaseID)

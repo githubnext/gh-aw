@@ -620,7 +620,13 @@ func buildActivityReportCacheSteps(renderCtx sideRepoMaintenanceRenderContext) s
           GH_AW_CMD_PREFIX: ` + getCLICmdPrefix(renderCtx.actionMode) + `
           GH_AW_TARGET_REPO_SLUG: "` + renderCtx.repoSlug + `"
         run: |
-          ${GH_AW_CMD_PREFIX} logs             --repo "${GH_AW_TARGET_REPO_SLUG}"             --start-date -1w             --count 500             --output ./.cache/gh-aw/activity-report-logs             --format markdown             --report-file ./.cache/gh-aw/activity-report-logs/report.md
+          ${GH_AW_CMD_PREFIX} logs \
+            --repo "${GH_AW_TARGET_REPO_SLUG}" \
+            --start-date -1w \
+            --count 500 \
+            --output ./.cache/gh-aw/activity-report-logs \
+            --format markdown \
+            --report-file ./.cache/gh-aw/activity-report-logs/report.md
 
       - name: Save activity report logs cache
         if: ${{ always() }}
