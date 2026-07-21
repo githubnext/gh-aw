@@ -310,8 +310,11 @@ async function main(config = {}) {
           const provided = String(item.state_reason);
           if (configStateReason) {
             // Scalar config: state_reason is fixed by config; the agent cannot override it.
-            // The field was not exposed in the tool schema, so silently enforce the
-            // configured value regardless of what the agent supplied.
+            // The field was not exposed in the tool schema, so enforce the configured value
+            // regardless of what the agent supplied.
+            if (provided.toLowerCase() !== configStateReason.toLowerCase()) {
+              core.debug(`state_reason "${provided}" supplied by agent overridden by scalar config value "${configStateReason}"`);
+            }
             stateReason = configStateReason;
           } else if (configStateReasons) {
             // List config: validate against the configured subset.

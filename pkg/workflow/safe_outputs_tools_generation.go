@@ -319,14 +319,14 @@ func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[st
 		for _, v := range enumValues {
 			if supported[v] {
 				valid = append(valid, v)
+			} else {
+				safeOutputsConfigLog.Printf("Warning: allowed-state-reason value %q is not a supported GitHub API value; valid values: %v", v, closeIssueStateReasonValues)
 			}
-			// Invalid values are silently dropped here; the upstream schema
-			// validation (main_workflow_schema.json) will surface an error to the
-			// workflow author before compilation reaches this point.
 		}
 		if len(valid) == 0 {
 			// All values were invalid; fall back to the full set so that compilation
 			// succeeds, relying on schema validation to have already warned the author.
+			safeOutputsConfigLog.Printf("Warning: all allowed-state-reason values were invalid; falling back to full supported set")
 			valid = closeIssueStateReasonValues
 		}
 		enumValues = valid

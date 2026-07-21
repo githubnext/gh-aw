@@ -13,6 +13,7 @@ describe("close_issue", () => {
       info: () => {},
       warning: () => {},
       error: () => {},
+      debug: () => {},
       messages: [],
       infos: [],
       warnings: [],
