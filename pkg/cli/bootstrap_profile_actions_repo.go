@@ -7,12 +7,17 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/stringutil"
 )
 
+var bootstrapActionsRepoLog = logger.New("cli:bootstrap_profile_actions_repo")
+
 func runBootstrapRepoVariableAction(ctx context.Context, repo string, action repositoryPackageBootstrapAction, state *bootstrapProfileExistingState) (bool, error) {
+	bootstrapActionsRepoLog.Printf("Running repo variable action: repo=%s, name=%s", repo, action.Name)
 	if _, exists := state.variables[action.Name]; exists {
+		bootstrapActionsRepoLog.Printf("Skipping variable %s: already set on repo", action.Name)
 		return false, nil
 	}
 	value, ok, err := resolveBootstrapTextValue(bootstrapRepositoryVariableEnvName(action.Name), action.Prompt, action.Description, action.Default, action.Enum, action.Optional)
@@ -30,7 +35,9 @@ func runBootstrapRepoVariableAction(ctx context.Context, repo string, action rep
 }
 
 func runBootstrapRepoSecretAction(ctx context.Context, repo string, action repositoryPackageBootstrapAction, state *bootstrapProfileExistingState) (bool, error) {
+	bootstrapActionsRepoLog.Printf("Running repo secret action: repo=%s, name=%s", repo, action.Name)
 	if _, exists := state.secrets[action.Name]; exists {
+		bootstrapActionsRepoLog.Printf("Skipping secret %s: already set on repo", action.Name)
 		return false, nil
 	}
 	value, ok, err := resolveBootstrapSecretValue(bootstrapRepositorySecretEnvName(action.Name), action.Prompt, action.Description, action.Optional)
@@ -48,7 +55,9 @@ func runBootstrapRepoSecretAction(ctx context.Context, repo string, action repos
 }
 
 func runBootstrapCopilotAuthAction(ctx context.Context, repo string, action repositoryPackageBootstrapAction, state *bootstrapProfileExistingState, usesActionsToken bool) (bool, error) {
+	bootstrapActionsRepoLog.Printf("Running Copilot auth action: repo=%s, usesActionsToken=%v", repo, usesActionsToken)
 	if usesActionsToken {
+		bootstrapActionsRepoLog.Print("Skipping Copilot PAT setup: workflows already support Actions token auth")
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping Copilot PAT setup because selected workflows already support GitHub Actions token auth."))
 		return false, nil
 	}

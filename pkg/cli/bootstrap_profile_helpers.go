@@ -18,11 +18,14 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/tty"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var bootstrapProfileHelpersLog = logger.New("cli:bootstrap_profile_helpers")
 
 func runBootstrapRequireOwnerType(ctx context.Context, repo string, action repositoryPackageBootstrapAction) error {
 	owner, _, err := repoutil.SplitRepoSlug(repo)
@@ -69,13 +72,16 @@ func parseBootstrapNames(output []byte) []string {
 }
 
 func resolveBootstrapTextValue(envName, title, description, defaultValue string, allowed []string, optional bool) (string, bool, error) {
+	bootstrapProfileHelpersLog.Printf("Resolving text value: env=%s, optional=%v, hasDefault=%v", envName, optional, defaultValue != "")
 	if envValue := strings.TrimSpace(os.Getenv(envName)); envValue != "" {
+		bootstrapProfileHelpersLog.Printf("Resolved %s from environment variable", envName)
 		if err := validateBootstrapEnumValue(envValue, allowed, optional); err != nil {
 			return "", false, err
 		}
 		return envValue, true, nil
 	}
 	if !tty.IsStderrTerminal() {
+		bootstrapProfileHelpersLog.Printf("Resolving %s non-interactively (stderr is not a terminal)", envName)
 		if defaultValue != "" {
 			if err := validateBootstrapEnumValue(defaultValue, allowed, optional); err != nil {
 				return "", false, err
@@ -321,6 +327,7 @@ func htmlEscape(value string) string {
 }
 
 func openBootstrapBrowser(url string) bool {
+	bootstrapProfileHelpersLog.Printf("Opening browser for bootstrap URL: goos=%s", runtime.GOOS)
 	commands := [][]string{{"gh", "browse", url}}
 	switch runtime.GOOS {
 	case "darwin":
@@ -333,12 +340,14 @@ func openBootstrapBrowser(url string) bool {
 	for _, args := range commands {
 		cmd := exec.Command(args[0], args[1:]...)
 		if err := cmd.Start(); err == nil {
+			bootstrapProfileHelpersLog.Printf("Launched browser via %q", args[0])
 			go func() {
 				_ = cmd.Wait()
 			}()
 			return true
 		}
 	}
+	bootstrapProfileHelpersLog.Print("Failed to launch a browser: no launcher command succeeded")
 	return false
 }
 

@@ -167,7 +167,7 @@ env:
   ALPHA_WORKFLOW: alpha
 steps:
   - name: Deterministic uses step
-    uses: actions/cache/restore@v4
+    uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9
     with:
       zeta-input: zeta
       alpha-input: alpha

@@ -419,6 +419,57 @@ func TestLayoutSpecMaintainerHasToolBudgetAwareness(t *testing.T) {
 	}
 }
 
+func TestDailyAgentOfTheDayBlogWriterHasGitDenialMitigationAllowlist(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "daily-agent-of-the-day-blog-writer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	for _, expected := range []string{
+		`  - "cd * && git status"`,
+		`  - "git add *"`,
+		`  - "git add * && git commit *"`,
+		`  - "cd * && git checkout -b * && git add * && git commit *"`,
+	} {
+		if !strings.Contains(workflow, expected) {
+			t.Fatalf("Expected Daily Agent of the Day Blog Writer workflow to contain %q", expected)
+		}
+	}
+}
+
+func TestLayoutSpecMaintainerHasGitDenialMitigationAllowlist(t *testing.T) {
+	repoRoot, err := findRepoRoot()
+	if err != nil {
+		t.Fatalf("Failed to find repo root: %v", err)
+	}
+
+	workflowFile := filepath.Join(repoRoot, ".github", "workflows", "layout-spec-maintainer.md")
+	content, err := os.ReadFile(workflowFile)
+	if err != nil {
+		t.Fatalf("Failed to read workflow file: %v", err)
+	}
+
+	workflow := string(content)
+	for _, expected := range []string{
+		"  - cd * && git status",
+		"  - cd * && git checkout -b *",
+		"  - git -C * checkout -b *",
+		"  - cd * && git add * && git diff --cached --stat",
+		"  - cd * && git add * && git status",
+	} {
+		if !strings.Contains(workflow, expected) {
+			t.Fatalf("Expected Layout Specification Maintainer workflow to contain %q", expected)
+		}
+	}
+}
+
 func TestDailySPDDSpecPlannerAllowsReadOnlyFileInspection(t *testing.T) {
 	repoRoot, err := findRepoRoot()
 	if err != nil {

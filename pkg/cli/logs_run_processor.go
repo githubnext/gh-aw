@@ -231,7 +231,7 @@ func processSingleRunDownload(
 			if params.evalsArtifactRequested && !runHasEvals(runOutputDir, params.verbose) {
 				tryDownloadEvalsArtifactFallback(ctx, run.DatabaseID, runOutputDir, perRunParams)
 			}
-			analyzeRunArtifacts(result, runOutputDir, params.verbose, params.artifactFilter)
+			analyzeRunArtifacts(ctx, result, runOutputDir, params.verbose, params.artifactFilter)
 		}
 	} else {
 		logsOrchestratorLog.Printf("Cache hit for run %d, using cached summary", run.DatabaseID)
@@ -329,7 +329,7 @@ func tryLoadCachedRunResult(
 // analyzeRunArtifacts populates a DownloadResult with all analysis data derived from
 // freshly-downloaded artifacts in runOutputDir.  Called only when the download succeeded
 // and no valid cached summary was found.
-func analyzeRunArtifacts(result *DownloadResult, runOutputDir string, verbose bool, artifactFilter []string) {
+func analyzeRunArtifacts(ctx context.Context, result *DownloadResult, runOutputDir string, verbose bool, artifactFilter []string) {
 	metrics := extractRunMetricsAndMetadata(result, runOutputDir, verbose)
 
 	usageActivitySummary, usageActivityErr := loadUsageActivitySummary(runOutputDir)
@@ -350,7 +350,7 @@ func analyzeRunArtifacts(result *DownloadResult, runOutputDir string, verbose bo
 
 	applyRunUsageMetrics(result, &metrics, runOutputDir, verbose, usageActivitySummary, hasFirewallArtifact)
 
-	finalizeAndSaveRunSummary(result, runOutputDir, metrics, verbose)
+	finalizeAndSaveRunSummary(ctx, result, runOutputDir, metrics, verbose)
 }
 
 // extractRunMetricsAndMetadata extracts log metrics, infers missing workflow path, and
@@ -488,8 +488,8 @@ func applyRunUsageMetrics(result *DownloadResult, metrics *LogMetrics, runOutput
 // finalizeAndSaveRunSummary fetches job details, derives the agentic analysis, builds the
 // RunSummary struct, and writes it to disk.  It also sets the agentic-analysis fields on
 // result directly so they are available to the caller.
-func finalizeAndSaveRunSummary(result *DownloadResult, runOutputDir string, metrics LogMetrics, verbose bool) {
-	jobDetails, jobErr := fetchJobDetails(result.Run.DatabaseID, verbose)
+func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runOutputDir string, metrics LogMetrics, verbose bool) {
+	jobDetails, jobErr := fetchJobDetails(ctx, result.Run.DatabaseID, verbose)
 	if jobErr != nil && verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details for run %d: %v", result.Run.DatabaseID, jobErr)))
 	} else {

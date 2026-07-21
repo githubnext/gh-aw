@@ -20,7 +20,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | Alias | Fallback patterns (tried in order) |
 |-------|-------------------------------------|
 | `sonnet` | `copilot/*sonnet*`, `anthropic/*sonnet*` |
-| `sonnet-6x` | `copilot/*sonnet-4.5*`, `copilot/*sonnet-4.6*`, `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*` |
+| `sonnet-6x` | `copilot/*sonnet-4.5*`, `copilot/*sonnet-4.6*`, `copilot/*sonnet-5*`, `copilot/*sonnet-4-5-*`, `anthropic/*sonnet-4-5-*`, `copilot/*sonnet-4-6*`, `anthropic/*sonnet-4-6*`, `anthropic/*sonnet-5*` |
 | `haiku` | `copilot/*haiku*`, `anthropic/*haiku*` |
 | `opus` | `copilot/*opus*`, `anthropic/*opus*` |
 | `gpt-5` | `copilot/gpt-5*`, `openai/gpt-5*` |
@@ -38,6 +38,7 @@ Vendor aliases map a short name to one or more provider-scoped glob patterns. Th
 | `mai-code-1-flash-picker` | `copilot/MAI-Code-1-Flash-picker*`, `copilot/mai-code-1-flash-picker*`, `openai/MAI-Code-1-Flash-picker*` |
 | `kimi` | `copilot/kimi*`, `openai/kimi*` |
 | `kiwi` | `copilot/kiwi*`, `openai/kiwi*` |
+| `raptor-mini` | `copilot/raptor*`, `openai/raptor*` |
 | `gpt-5-pro` | `copilot/gpt-5*pro*`, `openai/gpt-5*pro*` |
 | `reasoning` | `copilot/o1*`, `copilot/o3*`, `copilot/o4*`, `openai/o1*`, `openai/o3*`, `openai/o4*` |
 | `gemini-flash` | `copilot/gemini-*flash*`, `google/gemini-*flash*`, `gemini/gemini-*flash*` |
