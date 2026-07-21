@@ -433,9 +433,10 @@ func TestDailyAgentOfTheDayBlogWriterHasGitDenialMitigationAllowlist(t *testing.
 
 	workflow := string(content)
 	for _, expected := range []string{
-		`- "cd * && git status"`,
-		`- "git add * && git commit *"`,
-		`- "cd * && git checkout -b * && git add * && git commit *"`,
+		`  - "cd * && git status"`,
+		`  - "git add *"`,
+		`  - "git add * && git commit *"`,
+		`  - "cd * && git checkout -b * && git add * && git commit *"`,
 	} {
 		if !strings.Contains(workflow, expected) {
 			t.Fatalf("Expected Daily Agent of the Day Blog Writer workflow to contain %q", expected)
