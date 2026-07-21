@@ -237,7 +237,6 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-
 	noLintIndex, err := nolint.Index(pass)
 	if err != nil {
 		return nil, err
@@ -249,58 +248,55 @@ func run(pass *analysis.Pass) (any, error) {
 	knownConsts := collectKnownPathConsts(pass)
 
 	for cur := range insp.Root().Preorder((*ast.BasicLit)(nil)) {
-		lit, ok := cur.Node().(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
-			continue
-		}
-
-		pos := pass.Fset.PositionFor(lit.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			continue
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "hardcodedfilepath") {
-			continue
-		}
-
-		raw := unquoteStringLit(lit.Value)
-		if !isPathLike(raw) {
-			continue
-		}
-		if hasFormatVerb(raw) {
-			continue
-		}
-
-		// Skip literals that are the value of a const declaration — those are
-		// the canonical definitions, not inline usages.
-		if isConstDeclValue(cur) {
-			continue
-		}
-
-		// Detect whether the literal is a direct argument of a log/print call.
-		inLog := enclosingCallIsLogPrint(pass, cur)
-
-		if ref, found := knownConsts[raw]; found {
-			msg := fmt.Sprintf(
-				"hard-coded file path %q: use constant %s instead of inline string literal",
-				raw, ref,
-			)
-			if inLog {
-				msg += " (path appears in log/print call — keeping consistent via constant is especially important)"
-			}
-			pass.ReportRangef(lit, "%s", msg)
-		} else {
-			msg := fmt.Sprintf(
-				"hard-coded file path %q: consider extracting as a named constant",
-				raw,
-			)
-			if inLog {
-				msg += " (path appears in log/print call)"
-			}
-			pass.ReportRangef(lit, "%s", msg)
-		}
+		checkHardcodedFilePath(pass, cur, generatedFiles, noLintIndex, knownConsts)
 	}
-
 	return nil, nil
+}
+
+// checkHardcodedFilePath inspects a single string literal and reports a
+// diagnostic when it is a hard-coded file path that should be a named constant.
+func checkHardcodedFilePath(pass *analysis.Pass, cur inspector.Cursor, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex, knownConsts map[string]constRef) {
+	lit, ok := cur.Node().(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return
+	}
+	pos := pass.Fset.PositionFor(lit.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "hardcodedfilepath") {
+		return
+	}
+	raw := unquoteStringLit(lit.Value)
+	if !isPathLike(raw) {
+		return
+	}
+	if hasFormatVerb(raw) {
+		return
+	}
+	if isConstDeclValue(cur) {
+		return
+	}
+	inLog := enclosingCallIsLogPrint(pass, cur)
+	if ref, found := knownConsts[raw]; found {
+		msg := fmt.Sprintf(
+			"hard-coded file path %q: use constant %s instead of inline string literal",
+			raw, ref,
+		)
+		if inLog {
+			msg += " (path appears in log/print call — keeping consistent via constant is especially important)"
+		}
+		pass.ReportRangef(lit, "%s", msg)
+	} else {
+		msg := fmt.Sprintf(
+			"hard-coded file path %q: consider extracting as a named constant",
+			raw,
+		)
+		if inLog {
+			msg += " (path appears in log/print call)"
+		}
+		pass.ReportRangef(lit, "%s", msg)
+	}
 }
 
 // isConstDeclValue reports whether the cursor's node is the value expression

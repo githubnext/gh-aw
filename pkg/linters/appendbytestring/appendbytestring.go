@@ -38,68 +38,70 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		analyzeAppendByteString(pass, n, generatedFiles, noLintIndex)
+	})
+	return nil, nil
+}
+
+// analyzeAppendByteString checks whether a call is an append(b, []byte(s)...)
+// that can be simplified to append(b, s...) and reports a diagnostic if so.
+func analyzeAppendByteString(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
+	// Match append(b, x...) with exactly 2 arguments and an ellipsis.
+	ident, ok := call.Fun.(*ast.Ident)
+	if !ok || ident.Name != "append" {
+		return
+	}
+	if len(call.Args) != 2 || !call.Ellipsis.IsValid() {
+		return
+	}
 
-		// Match append(b, x...) with exactly 2 arguments and an ellipsis.
-		ident, ok := call.Fun.(*ast.Ident)
-		if !ok || ident.Name != "append" {
-			return
-		}
-		if len(call.Args) != 2 || !call.Ellipsis.IsValid() {
-			return
-		}
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "appendbytestring") {
+		return
+	}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "appendbytestring") {
-			return
-		}
+	// The first argument must be []byte.
+	if !astutil.IsByteSlice(pass, call.Args[0]) {
+		return
+	}
 
-		// The first argument must be []byte.
-		if !astutil.IsByteSlice(pass, call.Args[0]) {
-			return
-		}
+	// The second argument must be a []byte(s) conversion where s is a string.
+	conv, ok := call.Args[1].(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	if !astutil.IsByteSliceConversion(pass, conv) {
+		return
+	}
+	if len(conv.Args) != 1 {
+		return
+	}
+	strArg := conv.Args[0]
+	if !astutil.IsStringType(pass, strArg) {
+		return
+	}
 
-		// The second argument must be a []byte(s) conversion where s is a string.
-		conv, ok := call.Args[1].(*ast.CallExpr)
-		if !ok {
-			return
-		}
-		if !astutil.IsByteSliceConversion(pass, conv) {
-			return
-		}
-		if len(conv.Args) != 1 {
-			return
-		}
-		strArg := conv.Args[0]
-		if !astutil.IsStringType(pass, strArg) {
-			return
-		}
+	sText := astutil.NodeText(pass.Fset, strArg)
+	if sText == "" {
+		return
+	}
 
-		sText := astutil.NodeText(pass.Fset, strArg)
-		if sText == "" {
-			return
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:            call.Pos(),
-			End:            call.End(),
-			Message:        fmt.Sprintf("append(b, []byte(%s)...) can be simplified to append(b, %s...); the []byte conversion is unnecessary", sText, sText),
-			SuggestedFixes: buildFix(pass, conv, strArg),
-		})
+	pass.Report(analysis.Diagnostic{
+		Pos:            call.Pos(),
+		End:            call.End(),
+		Message:        fmt.Sprintf("append(b, []byte(%s)...) can be simplified to append(b, %s...); the []byte conversion is unnecessary", sText, sText),
+		SuggestedFixes: buildFix(pass, conv, strArg),
 	})
-
-	return nil, nil
 }
 
 // buildFix returns a SuggestedFix rewriting append(b, []byte(s)...) to append(b, s...).

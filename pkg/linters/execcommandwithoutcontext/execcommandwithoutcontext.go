@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -41,63 +42,66 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
-		call, ok := cur.Node().(*ast.CallExpr)
-		if !ok {
-			continue
-		}
-		sel, ok := execCommandSelector(pass, call)
-		if !ok {
-			continue
-		}
+		checkExecCommandCall(pass, cur, generatedFiles, noLintIndex)
+	}
+	return nil, nil
+}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+// checkExecCommandCall inspects a single call expression and reports a diagnostic
+// when exec.Command is used inside a context-receiving function.
+func checkExecCommandCall(pass *analysis.Pass, cur inspector.Cursor, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := cur.Node().(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	sel, ok := execCommandSelector(pass, call)
+	if !ok {
+		return
+	}
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "execcommandwithoutcontext") {
+		return
+	}
+	for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
+		funcNode := encl.Node()
+		funcType := astutil.EnclosingFuncType(funcNode)
+		if funcType == nil {
 			continue
 		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "execcommandwithoutcontext") {
+		ctxParamName, hasCtx := astutil.ContextParamName(pass, funcType)
+		if !hasCtx {
+			if _, isFuncLit := funcNode.(*ast.FuncLit); isFuncLit && !astutil.IsGoOrDeferClosure(encl) {
+				break
+			}
 			continue
 		}
-
-		for encl := range cur.Enclosing((*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)) {
-			funcNode := encl.Node()
-			funcType := astutil.EnclosingFuncType(funcNode)
-			if funcType == nil {
-				continue
-			}
-			ctxParamName, hasCtx := astutil.ContextParamName(pass, funcType)
-			if !hasCtx {
-				if _, isFuncLit := funcNode.(*ast.FuncLit); isFuncLit && !astutil.IsGoOrDeferClosure(encl) {
-					break
-				}
-				continue
-			}
-			pass.Report(analysis.Diagnostic{
-				Pos:     call.Pos(),
-				End:     call.End(),
-				Message: fmt.Sprintf("use exec.CommandContext(%s, ...) instead of exec.Command to propagate context cancellation", ctxParamName),
-				SuggestedFixes: []analysis.SuggestedFix{
-					{
-						Message: fmt.Sprintf("Replace exec.Command with exec.CommandContext(%s, ...)", ctxParamName),
-						TextEdits: []analysis.TextEdit{
-							{
-								Pos:     sel.Sel.Pos(),
-								End:     sel.Sel.End(),
-								NewText: []byte("CommandContext"),
-							},
-							{
-								Pos:     call.Lparen + 1,
-								End:     call.Lparen + 1,
-								NewText: []byte(ctxParamName + ", "),
-							},
+		pass.Report(analysis.Diagnostic{
+			Pos:     call.Pos(),
+			End:     call.End(),
+			Message: fmt.Sprintf("use exec.CommandContext(%s, ...) instead of exec.Command to propagate context cancellation", ctxParamName),
+			SuggestedFixes: []analysis.SuggestedFix{
+				{
+					Message: fmt.Sprintf("Replace exec.Command with exec.CommandContext(%s, ...)", ctxParamName),
+					TextEdits: []analysis.TextEdit{
+						{
+							Pos:     sel.Sel.Pos(),
+							End:     sel.Sel.End(),
+							NewText: []byte("CommandContext"),
+						},
+						{
+							Pos:     call.Lparen + 1,
+							End:     call.Lparen + 1,
+							NewText: []byte(ctxParamName + ", "),
 						},
 					},
 				},
-			})
-			break
-		}
+			},
+		})
+		break
 	}
-
-	return nil, nil
 }
 
 // execCommandSelector reports the selector expression for calls to
