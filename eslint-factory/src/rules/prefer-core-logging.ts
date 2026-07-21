@@ -54,12 +54,7 @@ function getStaticStringValue(node: TSESTree.CallExpressionArgument): string | n
   return parts.join("");
 }
 
-function hasConsoleFormatSpecifier(node: TSESTree.CallExpressionArgument | undefined): boolean {
-  const value = node ? getStaticStringValue(node) : null;
-  if (value === null) {
-    return false;
-  }
-
+function hasConsoleFormatSpecifier(value: string): boolean {
   for (let i = 0; i < value.length - 1; i++) {
     if (value[i] === "%" && value[i - 1] !== "%" && "sdifojO".includes(value[i + 1] ?? "")) {
       return true;
@@ -75,15 +70,17 @@ function canSuggestCoreReplacement(node: TSESTree.CallExpression): boolean {
     return false;
   }
 
+  const value = getStaticStringValue(arg);
+
   // Only suggest when the single argument is statically known to be a string.
   // Identifiers, object literals, numeric literals, etc. coerce differently in
   // core.info (string coercion → "[object Object]") vs console.log (util.inspect),
   // so we skip the suggestion for non-string arguments to avoid silent output degradation.
-  if (getStaticStringValue(arg) === null) {
+  if (value === null) {
     return false;
   }
 
-  return !hasConsoleFormatSpecifier(arg);
+  return !hasConsoleFormatSpecifier(value);
 }
 
 export const preferCoreLoggingRule = createRule({
