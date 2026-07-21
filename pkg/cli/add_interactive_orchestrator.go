@@ -83,7 +83,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	config.Ctx = ctx
 
 	// Auto-detect GHES host from git remote if not already set
-	if !isAnyGitHubHostEnvVarSet() {
+	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
 		detectedHost := getHostFromOriginRemote()
 		if detectedHost != "github.com" {
 			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)

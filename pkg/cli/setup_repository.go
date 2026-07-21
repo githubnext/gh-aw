@@ -18,7 +18,7 @@ import (
 var setupRepositoryLog = logger.New("cli:setup_repository")
 
 func configureDefaultGHHostFromOriginRemoteIfUnset() {
-	if isAnyGitHubHostEnvVarSet() {
+	if os.Getenv("GH_HOST") != "" { //nolint:osgetenvlibrary
 		return
 	}
 
