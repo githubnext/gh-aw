@@ -123,6 +123,54 @@ func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionFalse(t *testing.T
 	}
 }
 
+func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionUnset(t *testing.T) {
+	tmpDir := t.TempDir()
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
+	outputFile := filepath.Join(tmpDir, "github_output.txt")
+	missingResult := filepath.Join(tmpDir, "missing_detection_result.json")
+
+	emptyBinDir := filepath.Join(tmpDir, "empty-bin")
+	if err := os.MkdirAll(emptyBinDir, 0755); err != nil {
+		t.Fatalf("failed to create empty bin dir: %v", err)
+	}
+
+	// Build an environment that does NOT include RUN_DETECTION at all,
+	// verifying that the ${RUN_DETECTION:-false} default also triggers the guard.
+	filteredEnv := make([]string, 0, len(os.Environ()))
+	for _, e := range os.Environ() {
+		if !strings.HasPrefix(e, "RUN_DETECTION=") {
+			filteredEnv = append(filteredEnv, e)
+		}
+	}
+	filteredEnv = append(filteredEnv,
+		"GITHUB_OUTPUT="+outputFile,
+		"PATH="+emptyBinDir+":"+os.Getenv("PATH"),
+	)
+
+	cmd := exec.Command("bash", scriptPath, missingResult)
+	cmd.Env = filteredEnv
+
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("script should exit 0 when RUN_DETECTION is unset: %v\nOutput: %s", err, out)
+	}
+
+	outputData, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read GITHUB_OUTPUT: %v", err)
+	}
+	outputText := string(outputData)
+	if !strings.Contains(outputText, "conclusion=skipped") {
+		t.Fatalf("expected conclusion=skipped in GITHUB_OUTPUT, got: %s", outputText)
+	}
+	if !strings.Contains(outputText, "success=true") {
+		t.Fatalf("expected success=true in GITHUB_OUTPUT, got: %s", outputText)
+	}
+	if !strings.Contains(outputText, "reason=") {
+		t.Fatalf("expected reason= in GITHUB_OUTPUT, got: %s", outputText)
+	}
+}
+
 func TestConcludeThreatDetectionScript_InvokesThreatDetectConclude(t *testing.T) {
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
