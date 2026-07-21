@@ -162,3 +162,5 @@ The YAML frontmatter supports these fields:
 
   - Never commit plaintext secrets
   - For reusable workflows, use `jobs.<job_id>.secrets` instead
+- **`excluded-env:`** - Optional list of environment variable names to unconditionally exclude from the AWF agent container via `--exclude-env` (array of strings). Use when an env var carries a credential the compiler cannot auto-detect (for example a `workflow_dispatch` input holding a token). Names are deduplicated and merged with those auto-detected from `secrets.*` and `needs.*.outputs.*` references.
+  - Example: `excluded-env: [MY_DISPATCH_TOKEN, GH_TOKEN]`
