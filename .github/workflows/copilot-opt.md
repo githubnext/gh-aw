@@ -65,7 +65,8 @@ steps:
       PROMPT_FILE="/tmp/gh-aw/aw-prompts/prompt.txt"
       if [ -f "$PROMPT_FILE" ]; then
         PROMPT_CHARS=$(wc -c < "$PROMPT_FILE")
-        ESTIMATED_TOKENS=$((PROMPT_CHARS / 4))
+        # Conservative approximation: ~3 chars/token (technical content)
+        ESTIMATED_TOKENS=$((PROMPT_CHARS / 3))
         if [ "$ESTIMATED_TOKENS" -gt 50000 ]; then
           echo "::warning::First-turn token budget: ~${ESTIMATED_TOKENS} estimated tokens (${PROMPT_CHARS} chars) exceeds 50k threshold. Consider moving more phase details to skill blocks to reduce initial context."
         else
@@ -76,14 +77,17 @@ steps:
     run: |
       LOG_DIR="/tmp/gh-aw/agent/session-data/logs"
       THRESHOLD=10240
+      FIRST_CHUNK=5120
+      LAST_CHUNK=1024
       if [ -d "$LOG_DIR" ]; then
         for f in "$LOG_DIR"/*; do
           if [ -f "$f" ]; then
             SIZE=$(wc -c < "$f")
             if [ "$SIZE" -gt "$THRESHOLD" ]; then
-              STRIPPED=$(( (SIZE - 6144) / 1024 ))
-              echo "Trimming large session log: $f (${SIZE} bytes, stripping ~${STRIPPED}KB of boilerplate)"
-              { head -c 5120 "$f"; printf "\n...[%dKB stripped — fetch raw on demand if needed]\n" "$STRIPPED"; tail -c 1024 "$f"; } > "${f}.trimmed"
+              # THRESHOLD (10240) > FIRST_CHUNK+LAST_CHUNK (6144), so no chunk overlap possible
+              REMOVED_KB=$(( (SIZE - FIRST_CHUNK - LAST_CHUNK) / 1024 ))
+              echo "Trimming large session log: $f (${SIZE} bytes, stripping ~${REMOVED_KB}KB of boilerplate)"
+              { head -c "$FIRST_CHUNK" "$f"; printf "...[%dKB stripped — fetch raw on demand if needed]\n" "$REMOVED_KB"; tail -c "$LAST_CHUNK" "$f"; } > "${f}.trimmed"
               mv "${f}.trimmed" "$f"
             fi
           fi
