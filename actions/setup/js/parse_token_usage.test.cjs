@@ -299,6 +299,9 @@ describe("parse_token_usage", () => {
       expect(typeof agentUsage.ai_credits).toBe("number");
       // primary_model is the actual model from token-usage data (not a user alias)
       expect(agentUsage.primary_model).toBe("claude-sonnet-4-6");
+      // GH_AW_PRIMARY_MODEL is exported so footer attribution can use the real model name
+      expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_PRIMARY_MODEL", "claude-sonnet-4-6");
+      expect(mockCore.setOutput).toHaveBeenCalledWith("primary_model", "claude-sonnet-4-6");
     });
 
     test("handles multiple model entries", async () => {
