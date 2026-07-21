@@ -326,6 +326,13 @@ type auditRunConfig struct {
 	evalsArtifactRequested bool
 }
 
+// auditAnalysisResults is populated concurrently during audit collection.
+// Each field is written by exactly one goroutine (or one launch* helper that
+// exclusively owns a disjoint field set) before collectAuditAnalysisResults
+// waits on the shared WaitGroup and reads the aggregate result.
+//
+// Keep launch* helper field ownership disjoint: sharing a field between
+// goroutines without adding synchronization would introduce a data race.
 type auditAnalysisResults struct {
 	metrics                 LogMetrics
 	failedJobCount          int
@@ -370,7 +377,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if err != nil {
 		return err
 	}
-	results := collectAuditAnalysisResults(run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName, cfg.artifactFilter))
+	results := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName, cfg.artifactFilter))
 	run = applyAuditMetrics(run, results)
 	processedRun := buildProcessedAuditRun(run, results)
 	saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
@@ -653,10 +660,10 @@ func prepareRunForAnalysis(run WorkflowRun, cfg auditRunConfig, useLocalCache bo
 	return run
 }
 
-func collectAuditAnalysisResults(run WorkflowRun, runOutputDir string, verbose bool, hasFirewallArtifact bool) auditAnalysisResults {
+func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutputDir string, verbose bool, hasFirewallArtifact bool) auditAnalysisResults {
 	results := auditAnalysisResults{}
 	var wg sync.WaitGroup
-	launchCoreAuditAnalyses(&wg, &results, run, runOutputDir, verbose)
+	launchCoreAuditAnalyses(ctx, &wg, &results, run, runOutputDir, verbose)
 	if hasFirewallArtifact {
 		launchFirewallAuditAnalyses(&wg, &results, runOutputDir, verbose)
 	}
@@ -665,13 +672,14 @@ func collectAuditAnalysisResults(run WorkflowRun, runOutputDir string, verbose b
 	return results
 }
 
-func launchCoreAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
+// launchCoreAuditAnalyses exclusively writes missingTools, missingData, noops, mcpFailures, and accessAnalysis.
+func launchCoreAuditAnalyses(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
 	// Resolve experiment assignment once so all goroutines reuse the same values
 	// rather than each reading state.json independently.
 	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
 
 	launchMetricsAnalysis(wg, results, runOutputDir, verbose, run.WorkflowPath)
-	launchJobDetailsAnalysis(wg, results, run.DatabaseID, verbose)
+	launchJobDetailsAnalysis(ctx, wg, results, run.DatabaseID, verbose)
 	runAuditAnalysis(wg, verbose, "extractMissingToolsFromRun", "Failed to extract missing tools", func(v []MissingToolReport) {
 		results.missingTools = v
 	}, func() ([]MissingToolReport, error) {
@@ -699,6 +707,7 @@ func launchCoreAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, 
 	})
 }
 
+// launchMetricsAnalysis exclusively writes results.metrics.
 func launchMetricsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool, workflowPath string) {
 	wg.Go(func() {
 		metrics, err := extractLogMetrics(runOutputDir, verbose, workflowPath)
@@ -713,9 +722,10 @@ func launchMetricsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, ru
 	})
 }
 
-func launchJobDetailsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
+// launchJobDetailsAnalysis exclusively writes results.jobDetails and results.failedJobCount.
+func launchJobDetailsAnalysis(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
 	wg.Go(func() {
-		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(runID, verbose)
+		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
 		if err != nil {
 			auditLog.Printf("fetchJobDetailsWithCounts failed: %v", err)
 			if verbose {
@@ -728,6 +738,7 @@ func launchJobDetailsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults,
 	})
 }
 
+// launchFirewallAuditAnalyses exclusively writes policyAnalysis, mcpToolUsage, and tokenUsageSummary.
 func launchFirewallAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool) {
 	launchFirewallAnalysis(wg, results, runOutputDir, verbose)
 	runAuditAnalysis(wg, verbose, "analyzeFirewallPolicy", "Failed to analyze firewall policy", func(v *PolicyAnalysis) {
@@ -747,6 +758,7 @@ func launchFirewallAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResul
 	})
 }
 
+// launchFirewallAnalysis exclusively writes results.firewallAnalysis.
 func launchFirewallAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool) {
 	wg.Go(func() {
 		firewallAnalysis, err := analyzeFirewallLogs(runOutputDir, verbose)
@@ -767,6 +779,7 @@ func launchFirewallAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, r
 	})
 }
 
+// launchSupplementalAuditAnalyses exclusively writes redactedDomainsAnalysis, rateLimitUsage, artifacts, and safeItemsCount.
 func launchSupplementalAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool) {
 	runAuditAnalysis(wg, verbose, "analyzeRedactedDomains", "Failed to analyze redacted domains", func(v *RedactedDomainsAnalysis) {
 		results.redactedDomainsAnalysis = v
