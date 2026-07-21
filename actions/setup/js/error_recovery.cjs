@@ -54,6 +54,22 @@ const RATE_LIMIT_RETRY_CONFIG = {
 };
 
 /**
+ * Message indicators used to detect GitHub API rate-limit errors.
+ * Matched case-insensitively against lower-cased error messages.
+ * Entries are kept lower-case because we lower-case input messages before substring matching.
+ * @type {string[]}
+ */
+const RATE_LIMIT_INDICATORS = ["rate limit", "secondary rate limit", "abuse detection", "too many requests"];
+
+/**
+ * @param {string} messageLower - Lower-cased error message
+ * @returns {boolean} True when message indicates GitHub rate limiting
+ */
+function hasRateLimitIndicator(messageLower) {
+  return RATE_LIMIT_INDICATORS.some(pattern => messageLower.includes(pattern));
+}
+
+/**
  * Determine if an error is transient and worth retrying
  * @param {any} error - The error to check
  * @returns {boolean} True if the error is transient and should be retried
@@ -81,10 +97,7 @@ function isTransientError(error) {
     "502 bad gateway",
     "503 service unavailable",
     "504 gateway timeout",
-    "rate limit", // GitHub API rate limiting
-    "secondary rate limit", // GitHub secondary rate limits
-    "abuse detection", // GitHub abuse detection
-    "too many requests", // HTTP 429
+    ...RATE_LIMIT_INDICATORS, // GitHub rate limiting signals (including HTTP 429 text)
     "temporarily unavailable",
     "no server is currently available", // GitHub API server unavailability
   ];
@@ -165,13 +178,14 @@ function isRateLimitError(error) {
   const status = error?.response?.status ?? error?.status ?? null;
   const headers = error?.response?.headers ?? error?.headers ?? null;
   const remainingHeader = headers?.["x-ratelimit-remaining"];
-  const isSecondaryRateLimit = status === 403 && remainingHeader != null && parseInt(remainingHeader, 10) === 0;
-  if (status === 429 || isSecondaryRateLimit) {
+  const retryAfterHeader = headers?.["retry-after"];
+  const hasRateLimitHeaders = status === 403 && (retryAfterHeader != null || (remainingHeader != null && parseInt(remainingHeader, 10) === 0));
+  if (status === 429 || hasRateLimitHeaders) {
     return true;
   }
 
   const errorMsg = getErrorMessage(error).toLowerCase();
-  return errorMsg.includes("rate limit") || errorMsg.includes("secondary rate limit") || errorMsg.includes("too many requests") || errorMsg.includes("abuse detection");
+  return hasRateLimitIndicator(errorMsg);
 }
 
 /**
@@ -223,7 +237,9 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       // If this was the last attempt, throw the enhanced error
       if (attempt === fullConfig.maxRetries) {
         core.warning(`${operationName} failed after ${fullConfig.maxRetries} retry attempts: ${errorMsg}`);
-        if (fullConfig.maxRetries >= 3 && isRateLimitError(error)) {
+        // E010 applies only when retry budget is at least 3 retries.
+        const hasEnoughRetriesForE010 = fullConfig.maxRetries >= 3;
+        if (hasEnoughRetriesForE010 && isRateLimitError(error)) {
           throw enhanceError(error, {
             operation: operationName,
             attempt: attempt + 1,

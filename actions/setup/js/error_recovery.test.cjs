@@ -116,6 +116,23 @@ describe("error_recovery", () => {
       expect(operation).toHaveBeenCalledTimes(4); // Initial + 3 retries
     });
 
+    it("should emit E010 for exhausted retries on 403 with retry-after header", async () => {
+      const rateLimitError = {
+        message: "secondary rate limit",
+        response: { status: 403, headers: { "retry-after": "1" } },
+      };
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+    });
+
+    it("should emit E010 for exhausted retries on abuse-detection message without status", async () => {
+      const rateLimitError = new Error("Abuse detection mechanism triggered");
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+    });
+
     it("should use exponential backoff", async () => {
       const operation = vi.fn().mockRejectedValueOnce(new Error("Network timeout")).mockRejectedValueOnce(new Error("Network timeout")).mockResolvedValue("success");
 
