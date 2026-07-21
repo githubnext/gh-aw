@@ -20,6 +20,12 @@ max-daily-ai-credits: 10000
   pull_request:
     types:
     - ready_for_review
+    paths-ignore:
+    - '*.md'
+    - 'docs/**'
+    - '.changeset/**'
+    - 'socials/**'
+    - 'scratchpad/**'
   slash_command:
     events:
     - pull_request_comment

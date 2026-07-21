@@ -59,7 +59,7 @@ target the correct host.`,
 		},
 	}
 
-	cmd.Flags().StringP("repo", "r", "", "Target repository in owner/repo format")
+	cmd.Flags().StringP("repo", "r", "", "Target repository in [HOST/]owner/repo format")
 	cmd.Flags().StringP("dir", "d", "", "Checkout directory to inspect (defaults to the repo name)")
 	cmd.Flags().String("require-owner-type", "any", "Require a specific owner type: any, org, or user")
 	addJSONFlag(cmd)

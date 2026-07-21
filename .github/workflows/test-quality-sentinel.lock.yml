@@ -828,7 +828,7 @@ jobs:
 
           mkdir -p "$HOME/.copilot"
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_85a63772247bf2dc_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_68eeb25b7d03cd21_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
               "github": {
@@ -887,6 +887,7 @@ jobs:
               "domain": "${MCP_GATEWAY_DOMAIN}",
               "apiKey": "${MCP_GATEWAY_API_KEY}",
               "payloadDir": "${MCP_GATEWAY_PAYLOAD_DIR}",
+              "startupTimeout": 120,
               "opentelemetry": {
                 "endpoint": "${OTEL_EXPORTER_OTLP_ENDPOINT}",
                 "traceId": "${GITHUB_AW_OTEL_TRACE_ID}",
@@ -894,7 +895,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_85a63772247bf2dc_EOF
+          GH_AW_MCP_CONFIG_68eeb25b7d03cd21_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
@@ -985,6 +986,7 @@ jobs:
           GH_AW_LLM_PROVIDER: github
           GH_AW_MAX_AI_CREDITS: ${{ vars.GH_AW_DEFAULT_MAX_AI_CREDITS || '1000' }}
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
+          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_AGENT_COPILOT || vars.GH_AW_DEFAULT_MODEL_COPILOT || 'claude-sonnet-4.6' }}
           GH_AW_PHASE: agent
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_SAFE_OUTPUTS: ${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}

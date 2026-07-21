@@ -54,6 +54,7 @@ const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractD
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { MODEL_NOT_SUPPORTED_PATTERN: INVALID_MODEL_ERROR_PATTERN } = require("./detect_agent_errors.cjs");
 const { resolveRetryConfig } = require("./harness_retry_config.cjs");
+const { applyModelFallback, injectModelFlagAfterExec } = require("./model_fallback.cjs");
 
 // Pattern to detect OpenAI rate-limit errors.
 // Matches the JSON error type field ("rate_limit_exceeded"), the HTTP status code
@@ -219,6 +220,16 @@ function injectJsonFlag(args) {
   if (args.length === 0 || args[0] !== "exec") return args;
   if (args.includes("--json")) return args;
   return ["exec", "--json", ...args.slice(1)];
+}
+
+function getCodexModelEnvVar(env = process.env) {
+  if ("GH_AW_MODEL_DETECTION_CODEX" in env) {
+    return "GH_AW_MODEL_DETECTION_CODEX";
+  }
+  if ("GH_AW_MODEL_AGENT_CODEX" in env) {
+    return "GH_AW_MODEL_AGENT_CODEX";
+  }
+  return "";
 }
 
 /**
@@ -424,6 +435,10 @@ async function main() {
     log(`fatal: ${e.message}`);
     process.exit(1);
   }
+
+  const codexModelEnvVar = getCodexModelEnvVar(process.env);
+  const resolvedModel = codexModelEnvVar ? applyModelFallback(process.env, codexModelEnvVar, log) : "";
+  resolvedArgs = injectModelFlagAfterExec(resolvedArgs, resolvedModel);
 
   // Safe arg list for logging: when --prompt-file was present, the last element of
   // resolvedArgs is the resolved prompt content. Replace it with a placeholder so that
@@ -641,6 +656,9 @@ if (typeof module !== "undefined" && module.exports) {
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     resolveRetryConfig,
+    applyModelFallback,
+    injectModelFlagAfterExec,
+    getCodexModelEnvVar,
   };
 }
 

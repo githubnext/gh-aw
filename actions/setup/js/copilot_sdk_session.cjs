@@ -36,6 +36,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { buildCopilotSDKPermissionHandler, getEnvPositiveIntOrDefault, parseMaxToolDenialsLimit, MAX_TOOL_DENIALS_DEFAULT } = require("./copilot_sdk_permissions.cjs");
+const { resolveModelWithFallback } = require("./model_fallback.cjs");
 const { extractShellCommandFromToolData } = require("./tool_call_details.cjs");
 
 // Default timeout for a single sendAndWait call: 10 minutes.
@@ -254,7 +255,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     // Build session config using the multi-provider surface.
     /** @type {import("@github/copilot-sdk").SessionConfig} */
     const sessionConfig = {
-      model: model || process.env.COPILOT_MODEL || undefined,
+      model: model || resolveModelWithFallback(process.env, "COPILOT_MODEL") || undefined,
       providers,
       models: providerModels,
       onPermissionRequest,

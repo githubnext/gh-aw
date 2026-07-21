@@ -28,7 +28,7 @@ const (
 	CheckStatePending CheckState = "pending"
 	// CheckStateNoChecks indicates no checks have been configured or triggered.
 	CheckStateNoChecks CheckState = "no_checks"
-	// CheckStatePolicyBlocked indicates policy or account gates are blocking the PR.
+	// CheckStatePolicyBlocked indicates policy or account gates blocked the PR.
 	CheckStatePolicyBlocked CheckState = "policy_blocked"
 	// CheckStateSuccess indicates all checks passed.
 	CheckStateSuccess CheckState = "success"
@@ -85,7 +85,7 @@ Maps PR check rollups to one of the following normalized states:
   failed         - one or more checks failed
   pending        - checks are still running or queued
   no_checks      - no checks configured or triggered
-  policy_blocked - policy or account gates are blocking the PR
+  policy_blocked - policy or account gates blocked the PR
 
 ` + "Raw check run and commit status signals are included in JSON output." + `
 

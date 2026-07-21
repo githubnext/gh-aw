@@ -65,6 +65,7 @@ const { runSafeOutputsCLI, buildMissingToolAlternatives, emitMissingToolPermissi
 const { countPermissionDeniedIssues, hasNumerousPermissionDeniedIssues, extractDeniedCommands, buildMissingToolPermissionIssuePayload } = require("./permission_denied_helpers.cjs");
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard, emitSoftTimeoutSignal, isAuthenticationFailedError: isCommonAuthenticationFailedError } = require("./harness_retry_guard.cjs");
 const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
+const { applyModelFallback } = require("./model_fallback.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
 
@@ -950,6 +951,7 @@ async function main() {
     }
   }
 
+  applyModelFallback(process.env, "COPILOT_MODEL", log);
   applyCopilotModelAliasResolution({ awfReflectData, logger: log });
   applyCopilotWireAPI({ modelsJson: loadModelsJson(), logger: log });
 
@@ -1456,6 +1458,7 @@ if (typeof module !== "undefined" && module.exports) {
     parseCopilotSDKServerArgsFromEnv,
     isCAPIQuotaExceededError,
     hasTerminalSafeOutput,
+    applyModelFallback,
     applyCopilotModelAliasResolution,
     applyCopilotWireAPI,
     loadAwfConfigData,

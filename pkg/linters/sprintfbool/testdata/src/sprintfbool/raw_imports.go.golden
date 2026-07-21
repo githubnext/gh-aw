@@ -1,0 +1,13 @@
+package sprintfbool
+
+import (
+	"strconv"
+)
+
+func badRawImports(b bool) string {
+	return strconv.FormatBool(b) // want `use strconv\.FormatBool\(b\) instead of fmt\.Sprintf\("%t", b\)`
+}
+
+func goodRawImports(b bool) string {
+	return strconv.FormatBool(b)
+}

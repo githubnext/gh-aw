@@ -212,6 +212,9 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	if strings.Contains(stepsContent, constants.EnvVarModelAgentCopilot+":") {
 		t.Errorf("Fallback env var %s should not be present when model is explicitly configured", constants.EnvVarModelAgentCopilot)
 	}
+	if strings.Contains(stepsContent, constants.EnvVarModelFallback+":") {
+		t.Errorf("Fallback env var %s should not be present for a literal configured model", constants.EnvVarModelFallback)
+	}
 
 	// The model should be passed via the native COPILOT_MODEL env var (not via --model flag)
 	expectedEnvLine := constants.CopilotCLIModelEnvVar + ": gpt-4"
@@ -305,40 +308,54 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 		name                 string
 		engine               string
 		model                string
-		expectedEnvVar       string
-		expectedEnvVal       string
+		expectedModelEnvVar  string
+		expectedModelEnvVal  string
+		expectedFallbackVal  string
 		expectShellExpansion bool // whether command should use ${VAR:+ --model "$VAR"}
 	}{
 		{
-			name:                 "Copilot agent with inputs.model expression uses native COPILOT_MODEL",
+			name:                 "Copilot agent keeps pure expression model and adds JS fallback env",
 			engine:               "copilot",
 			model:                "${{ inputs.model }}",
-			expectedEnvVar:       constants.CopilotCLIModelEnvVar,
-			expectedEnvVal:       "${{ inputs.model }}",
+			expectedModelEnvVar:  constants.CopilotCLIModelEnvVar,
+			expectedModelEnvVal:  "${{ inputs.model }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentCopilot + " || vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 			expectShellExpansion: false, // Copilot reads COPILOT_MODEL natively, no shell expansion needed
 		},
 		{
-			name:                 "Copilot agent with vars.model expression uses native COPILOT_MODEL",
+			name:                 "Copilot agent keeps composite expression model and adds JS fallback env",
 			engine:               "copilot",
-			model:                "${{ vars.MY_MODEL }}",
-			expectedEnvVar:       constants.CopilotCLIModelEnvVar,
-			expectedEnvVal:       "${{ vars.MY_MODEL }}",
+			model:                "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedModelEnvVar:  constants.CopilotCLIModelEnvVar,
+			expectedModelEnvVal:  "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentCopilot + " || vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
 			expectShellExpansion: false,
 		},
 		{
-			name:                 "Claude agent with inputs.model expression uses native ANTHROPIC_MODEL",
+			name:                 "Claude agent keeps expression model and adds JS fallback env",
 			engine:               "claude",
 			model:                "${{ inputs.model }}",
-			expectedEnvVar:       constants.ClaudeCLIModelEnvVar,
-			expectedEnvVal:       "${{ inputs.model }}",
+			expectedModelEnvVar:  constants.ClaudeCLIModelEnvVar,
+			expectedModelEnvVal:  "${{ inputs.model }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '' }}",
 			expectShellExpansion: false, // Claude reads ANTHROPIC_MODEL natively, no shell expansion needed
 		},
 		{
-			name:                 "Codex agent with inputs.model expression",
+			name:                 "Claude agent keeps composite expression model and adds JS fallback env",
+			engine:               "claude",
+			model:                "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedModelEnvVar:  constants.ClaudeCLIModelEnvVar,
+			expectedModelEnvVal:  "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '' }}",
+			expectShellExpansion: false,
+		},
+		{
+			name:                 "Codex agent keeps composite expression model and adds JS fallback env",
 			engine:               "codex",
-			model:                "${{ inputs.model }}",
-			expectedEnvVar:       constants.EnvVarModelAgentCodex,
-			expectedEnvVal:       "${{ inputs.model }}",
+			model:                "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedModelEnvVar:  constants.EnvVarModelAgentCodex,
+			expectedModelEnvVal:  "${{ inputs.provider }}/${{ inputs.model }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentCodex + " || vars." + compilerenv.DefaultModelCodex + " || '" + constants.CodexDefaultModel + "' }}",
 			expectShellExpansion: true, // Codex has no native model env var, uses shell expansion
 		},
 	}
@@ -381,18 +398,22 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			}
 
 			// The env var must be set to the expression value
-			expectedEnvLine := tt.expectedEnvVar + ": " + tt.expectedEnvVal
-			if !strings.Contains(stepsContent, expectedEnvLine) {
-				t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+			expectedModelEnvLine := tt.expectedModelEnvVar + ": " + tt.expectedModelEnvVal
+			if !strings.Contains(stepsContent, expectedModelEnvLine) {
+				t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedModelEnvLine, stepsContent)
+			}
+			expectedFallbackEnvLine := constants.EnvVarModelFallback + ": " + tt.expectedFallbackVal
+			if !strings.Contains(stepsContent, expectedFallbackEnvLine) {
+				t.Errorf("Expected fallback env line '%s' not found in steps:\n%s", expectedFallbackEnvLine, stepsContent)
 			}
 
 			// Check shell expansion expectation
-			shellExpansionPattern := "${" + tt.expectedEnvVar + ":+"
+			shellExpansionPattern := "${" + tt.expectedModelEnvVar + ":+"
 			hasShellExpansion := strings.Contains(stepsContent, shellExpansionPattern)
 			if tt.expectShellExpansion && !hasShellExpansion {
-				t.Errorf("Expected conditional env var usage '${%s:+' not found in steps:\n%s", tt.expectedEnvVar, stepsContent)
+				t.Errorf("Expected conditional env var usage '${%s:+' not found in steps:\n%s", tt.expectedModelEnvVar, stepsContent)
 			} else if !tt.expectShellExpansion && hasShellExpansion {
-				t.Errorf("Unexpected conditional env var usage '${%s:+' found in steps (should use native env var):\n%s", tt.expectedEnvVar, stepsContent)
+				t.Errorf("Unexpected conditional env var usage '${%s:+' found in steps (should use native env var):\n%s", tt.expectedModelEnvVar, stepsContent)
 			}
 		})
 	}
@@ -430,10 +451,14 @@ func TestExpressionModelDetectionJobUsesEnvVar(t *testing.T) {
 	}
 	stepsContent := stepsStr.String()
 
-	// Detection job for Copilot should use COPILOT_MODEL (native CLI env var)
-	expectedEnvLine := constants.CopilotCLIModelEnvVar + ": ${{ inputs.model }}"
-	if !strings.Contains(stepsContent, expectedEnvLine) {
-		t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+	// Detection job for Copilot should keep the configured expression and expose the runtime fallback.
+	expectedModelEnvLine := constants.CopilotCLIModelEnvVar + ": ${{ inputs.model }}"
+	if !strings.Contains(stepsContent, expectedModelEnvLine) {
+		t.Errorf("Expected env line '%s' not found in steps:\n%s", expectedModelEnvLine, stepsContent)
+	}
+	expectedFallbackEnvLine := constants.EnvVarModelFallback + ": ${{ vars." + constants.EnvVarModelDetectionCopilot + " || vars." + compilerenv.DefaultModelCopilot + " || '" + constants.CopilotBYOKDefaultModel + "' }}"
+	if !strings.Contains(stepsContent, expectedFallbackEnvLine) {
+		t.Errorf("Expected fallback env line '%s' not found in steps:\n%s", expectedFallbackEnvLine, stepsContent)
 	}
 
 	// Must not embed expression directly in shell command

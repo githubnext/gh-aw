@@ -779,3 +779,83 @@ func TestRenderJSONMCPConfig_ToolTimeout(t *testing.T) {
 		})
 	}
 }
+
+// TestRenderJSONMCPConfig_StartupTimeout verifies that startupTimeout is emitted
+// in the gateway JSON section when set on the MCPGatewayRuntimeConfig.
+func TestRenderJSONMCPConfig_StartupTimeout(t *testing.T) {
+	tests := []struct {
+		name           string
+		startupTimeout int
+		wantField      bool
+		wantValue      int
+	}{
+		{
+			name:           "emits default startupTimeout of 120",
+			startupTimeout: 120,
+			wantField:      true,
+			wantValue:      120,
+		},
+		{
+			name:           "emits custom startupTimeout of 180",
+			startupTimeout: 180,
+			wantField:      true,
+			wantValue:      180,
+		},
+		{
+			name:           "omits startupTimeout when zero",
+			startupTimeout: 0,
+			wantField:      false,
+		},
+		{
+			name:           "emits minimum startupTimeout of 1",
+			startupTimeout: 1,
+			wantField:      true,
+			wantValue:      1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gatewayConfig := &MCPGatewayRuntimeConfig{
+				Domain:         "localhost",
+				APIKey:         "test-api-key",
+				StartupTimeout: tt.startupTimeout,
+			}
+
+			workflowData := &WorkflowData{
+				Name:            "test-workflow",
+				FrontmatterHash: "abc123",
+			}
+
+			var output strings.Builder
+			err := RenderJSONMCPConfig(
+				&output,
+				map[string]any{},
+				[]string{},
+				workflowData,
+				JSONMCPConfigOptions{
+					ConfigPath:    "/tmp/test/mcp-servers.json",
+					GatewayConfig: gatewayConfig,
+					Renderers:     MCPToolRenderers{},
+				},
+			)
+
+			if err != nil {
+				t.Fatalf("RenderJSONMCPConfig returned error: %v", err)
+			}
+
+			result := output.String()
+			hasField := strings.Contains(result, `"startupTimeout":`)
+			if hasField != tt.wantField {
+				t.Errorf("startupTimeout field presence = %v, want %v\noutput:\n%s", hasField, tt.wantField, result)
+			}
+
+			if tt.wantField {
+				expected := fmt.Sprintf(`"startupTimeout": %d`, tt.wantValue)
+				if !strings.Contains(result, expected) {
+					t.Errorf("expected %q in output\noutput:\n%s", expected, result)
+				}
+			}
+		})
+	}
+}

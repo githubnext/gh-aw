@@ -6,6 +6,17 @@ on:
   pull_request:
     types: [labeled, ready_for_review]
     names: ["implementation"]
+    paths:
+      - 'actions/**'
+      - 'cmd/**'
+      - 'internal/**'
+      - 'pkg/**'
+      - 'docs/adr/**'
+      - '.design-gate.yml'
+      - 'eslint-factory/**'
+      - 'scripts/**'
+      - 'tools.go'
+      - '.github/workflows/**'
   slash_command:
     strategy: centralized
     name: review

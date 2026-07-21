@@ -473,6 +473,7 @@ type MCPGatewayRuntimeConfig struct {
 	KeepaliveInterval    int               `yaml:"keepalive-interval,omitempty"`     // Keepalive ping interval in seconds for HTTP MCP backends (0=default 1500s, -1=disabled, >0=custom)
 	SessionTimeout       string            `yaml:"session-timeout,omitempty"`        // Session timeout for MCP gateway sessions as a Go duration string (e.g. "4h", "30m"); empty = gateway default (precedence: stdin config > MCP_GATEWAY_SESSION_TIMEOUT env var > built-in default 6h)
 	ToolTimeout          string            `yaml:"tool-timeout,omitempty"`           // Timeout for individual MCP tool calls as a Go duration string (e.g. "2m", "30s"); empty = gateway built-in default (60s)
+	StartupTimeout       int               `yaml:"-"`                                // Startup timeout in seconds for all MCP backends; always emitted to override gateway's built-in 30s default (gh-aw default: 120s, from tools.startup-timeout)
 	OTLPEndpoint         string            `yaml:"-"`                                // OTLP collector endpoint (derived from observability.otlp, not user-settable)
 	OTLPHeaders          string            `yaml:"-"`                                // Raw OTLP HTTP headers string (derived from observability.otlp, not user-settable)
 	// ForcePublicRepos controls the gateway's runtime public-repo override.

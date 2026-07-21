@@ -94,7 +94,7 @@ gh aw trial githubnext/agentics/my-workflow \
 
 ```bash
 gh aw trial ./my-workflow.md --delete-host-repo-after        # Delete after completion
-gh aw trial ./my-workflow.md --force-delete-host-repo-before # Clean slate before running
+gh aw trial ./my-workflow.md --delete-host-repo-before # Clean slate before running
 ```
 
 ## Understanding Trial Results

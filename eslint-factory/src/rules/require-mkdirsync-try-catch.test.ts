@@ -36,7 +36,7 @@ describe("require-mkdirsync-try-catch", () => {
     });
   });
 
-  it("valid: non-fs objects with mkdirSync name are ignored", () => {
+  it("valid: non-fs receiver names with mkdirSync are ignored", () => {
     cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
       valid: [`mockFs.mkdirSync(dir, { recursive: true });`, `storage.mkdirSync(dir);`, `myObj.mkdirSync(path);`, `const fs = require("mock-fs"); fs.mkdirSync(dir, { recursive: true });`],
       invalid: [],
@@ -54,6 +54,21 @@ describe("require-mkdirsync-try-catch", () => {
     cjsRuleTester.run("require-mkdirsync-try-catch", requireMkdirSyncTryCatchRule, {
       valid: [],
       invalid: [
+        {
+          code: `fs.mkdirSync(dir, { recursive: true });`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              data: { arg: "dir" },
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `try {\n  fs.mkdirSync(dir, { recursive: true });\n} catch (err) {\n  // TODO: handle filesystem failure for this fs.mkdirSync call.\n  throw new Error(\n    "fs.mkdirSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
         {
           code: `const fs = require("fs"); fs.mkdirSync(dir, { recursive: true });`,
           errors: [

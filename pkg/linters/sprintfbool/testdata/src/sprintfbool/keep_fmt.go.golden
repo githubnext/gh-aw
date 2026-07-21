@@ -1,0 +1,14 @@
+package sprintfbool
+
+import (
+	"fmt"
+	"strconv"
+)
+
+func badKeepFmt(b bool) string {
+	return strconv.FormatBool(b) // want `use strconv\.FormatBool\(b\) instead of fmt\.Sprintf\("%t", b\)`
+}
+
+func stillUsesFmt(b bool) string {
+	return fmt.Sprintf("%v", b)
+}
