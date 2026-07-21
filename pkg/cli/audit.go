@@ -675,6 +675,9 @@ func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutput
 	if err := g.Wait(); err != nil {
 		return results, err
 	}
+	if err := ctx.Err(); err != nil {
+		return results, err
+	}
 	return results, nil
 }
 
@@ -743,6 +746,9 @@ func launchJobDetailsAnalysis(g *errgroup.Group, gctx context.Context, results *
 		}
 		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(gctx, runID, verbose)
 		if err != nil {
+			if err := gctx.Err(); err != nil {
+				return err
+			}
 			auditLog.Printf("fetchJobDetailsWithCounts failed: %v", err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
@@ -839,6 +845,9 @@ func runAuditAnalysis[T any](g *errgroup.Group, gctx context.Context, verbose bo
 		}
 		value, err := fn()
 		if err != nil {
+			if err := gctx.Err(); err != nil {
+				return err
+			}
 			auditLog.Printf("%s failed: %v", name, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s: %v", warning, err)))
