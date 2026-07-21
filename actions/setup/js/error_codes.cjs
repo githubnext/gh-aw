@@ -45,8 +45,20 @@ const ERR_SYSTEM = "ERR_SYSTEM";
 /** @type {string} Safe output validation/input errors (legacy numeric taxonomy) */
 const SAFE_OUTPUT_E001 = "E001";
 
+/** @type {string} Safe output lock file frontmatter hash mismatch (legacy numeric taxonomy) */
+const SAFE_OUTPUT_E009 = "E009";
+
+/** @type {string} Safe output retry exhaustion due to rate limiting (legacy numeric taxonomy) */
+const SAFE_OUTPUT_E010 = "E010";
+
 /** @type {string} Safe output operation/runtime failures (legacy numeric taxonomy) */
 const SAFE_OUTPUT_E099 = "E099";
+
+/** @type {string} Named code for lock file frontmatter hash mismatch */
+const CONFIG_HASH_MISMATCH = "CONFIG_HASH_MISMATCH";
+
+/** @type {string} Named code for rate limit retry exhaustion */
+const RATE_LIMIT_EXCEEDED = "RATE_LIMIT_EXCEEDED";
 
 module.exports = {
   ERR_VALIDATION,
@@ -57,5 +69,9 @@ module.exports = {
   ERR_PARSE,
   ERR_SYSTEM,
   SAFE_OUTPUT_E001,
+  SAFE_OUTPUT_E009,
+  SAFE_OUTPUT_E010,
   SAFE_OUTPUT_E099,
+  CONFIG_HASH_MISMATCH,
+  RATE_LIMIT_EXCEEDED,
 };

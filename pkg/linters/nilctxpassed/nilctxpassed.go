@@ -8,6 +8,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -38,64 +39,59 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	for cur := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
-		call, ok := cur.Node().(*ast.CallExpr)
-		if !ok {
-			continue
-		}
-
-		callPos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(callPos.Filename, generatedFiles) {
-			continue
-		}
-
-		sig := calleeSignature(pass, call)
-		if sig == nil {
-			continue
-		}
-
-		params := sig.Params()
-		for i, arg := range call.Args {
-			var paramType types.Type
-			if sig.Variadic() && params.Len() > 0 && i >= params.Len()-1 {
-				if call.Ellipsis.IsValid() && i == len(call.Args)-1 {
-					// Spread call passes the whole variadic slice (e.g. f(nil...)),
-					// not an individual variadic element.
-					continue
-				}
-				// Variadic: the last param is a slice; check its element type.
-				sliceType, ok := params.At(params.Len() - 1).Type().(*types.Slice)
-				if !ok {
-					continue
-				}
-				paramType = sliceType.Elem()
-			} else if i < params.Len() {
-				paramType = params.At(i).Type()
-			} else {
-				continue
-			}
-
-			if !isContextContext(paramType) {
-				continue
-			}
-
-			if !isBuiltinNil(pass, arg) {
-				continue
-			}
-
-			argPos := pass.Fset.PositionFor(arg.Pos(), false)
-			if nolint.HasDirectiveForLinter(argPos, noLintIndex, "nilctxpassed") {
-				continue
-			}
-
-			pass.Report(analysis.Diagnostic{
-				Pos:     arg.Pos(),
-				End:     arg.End(),
-				Message: "nil passed as context.Context; use context.Background() or context.TODO() instead",
-			})
-		}
+		checkCallForNilContext(pass, cur, generatedFiles, noLintIndex)
 	}
-
 	return nil, nil
+}
+
+// checkCallForNilContext inspects a single call expression and reports a
+// diagnostic for each argument that passes nil as a context.Context.
+func checkCallForNilContext(pass *analysis.Pass, cur inspector.Cursor, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := cur.Node().(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	callPos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(callPos.Filename, generatedFiles) {
+		return
+	}
+	sig := calleeSignature(pass, call)
+	if sig == nil {
+		return
+	}
+	params := sig.Params()
+	for i, arg := range call.Args {
+		var paramType types.Type
+		if sig.Variadic() && params.Len() > 0 && i >= params.Len()-1 {
+			if call.Ellipsis.IsValid() && i == len(call.Args)-1 {
+				continue
+			}
+			sliceType, ok := params.At(params.Len() - 1).Type().(*types.Slice)
+			if !ok {
+				continue
+			}
+			paramType = sliceType.Elem()
+		} else if i < params.Len() {
+			paramType = params.At(i).Type()
+		} else {
+			continue
+		}
+		if !isContextContext(paramType) {
+			continue
+		}
+		if !isBuiltinNil(pass, arg) {
+			continue
+		}
+		argPos := pass.Fset.PositionFor(arg.Pos(), false)
+		if nolint.HasDirectiveForLinter(argPos, noLintIndex, "nilctxpassed") {
+			continue
+		}
+		pass.Report(analysis.Diagnostic{
+			Pos:     arg.Pos(),
+			End:     arg.End(),
+			Message: "nil passed as context.Context; use context.Background() or context.TODO() instead",
+		})
+	}
 }
 
 // isContextContext reports whether t is the context.Context interface type,

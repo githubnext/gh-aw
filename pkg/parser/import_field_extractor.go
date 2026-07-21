@@ -321,22 +321,7 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 		// Object engine — extract engine.mcp.* settings first, then decide
 		// whether to add to engines based on whether an engine ID is present.
 		if mcpVal, hasMCP := v["mcp"]; hasMCP {
-			if mcpMap, ok := mcpVal.(map[string]any); ok {
-				// Extract tool-timeout (first-wins across all imports)
-				if acc.mergedEngineMCPToolTimeout == "" {
-					if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
-						acc.mergedEngineMCPToolTimeout = ttStr
-						parserLog.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", fullPath, ttStr)
-					}
-				}
-				// Extract session-timeout (first-wins across all imports)
-				if acc.mergedEngineMCPSessionTimeout == "" {
-					if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
-						acc.mergedEngineMCPSessionTimeout = stStr
-						parserLog.Printf("Extracted engine.mcp.session-timeout from import %s: %s", fullPath, stStr)
-					}
-				}
-			}
+			acc.extractEngineMCPSettings(mcpVal, fullPath)
 		}
 		// Only add to engines list if this config specifies an actual engine
 		// (i.e. it carries an 'id' or 'runtime' field). Configs with only
@@ -363,6 +348,27 @@ func (acc *importAccumulator) extractEngineConfig(fm map[string]any, fullPath st
 		// Unexpected type — marshal and add to preserve existing behavior.
 		if engineJSON, merr := json.Marshal(engineVal); merr == nil {
 			acc.engines = append(acc.engines, string(engineJSON))
+		}
+	}
+}
+
+// extractEngineMCPSettings extracts engine.mcp.tool-timeout and engine.mcp.session-timeout
+// from mcpVal (first-wins across all imports).
+func (acc *importAccumulator) extractEngineMCPSettings(mcpVal any, fullPath string) {
+	mcpMap, ok := mcpVal.(map[string]any)
+	if !ok {
+		return
+	}
+	if acc.mergedEngineMCPToolTimeout == "" {
+		if ttStr, ok := mcpMap["tool-timeout"].(string); ok && ttStr != "" {
+			acc.mergedEngineMCPToolTimeout = ttStr
+			parserLog.Printf("Extracted engine.mcp.tool-timeout from import %s: %s", fullPath, ttStr)
+		}
+	}
+	if acc.mergedEngineMCPSessionTimeout == "" {
+		if stStr, ok := mcpMap["session-timeout"].(string); ok && stStr != "" {
+			acc.mergedEngineMCPSessionTimeout = stStr
+			parserLog.Printf("Extracted engine.mcp.session-timeout from import %s: %s", fullPath, stStr)
 		}
 	}
 }

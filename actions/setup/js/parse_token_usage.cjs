@@ -200,6 +200,11 @@ async function main() {
     };
     fs.writeFileSync(AGENT_USAGE_PATH, JSON.stringify(agentUsage) + "\n");
 
+    if (primaryModel) {
+      core.exportVariable("GH_AW_PRIMARY_MODEL", primaryModel);
+      core.setOutput("primary_model", primaryModel);
+      core.info(`Primary model: ${primaryModel}`);
+    }
     if (summary.totalAIC > 0) {
       const aic = summary.totalAIC.toFixed(3);
       core.exportVariable("GH_AW_AIC", aic);
