@@ -125,12 +125,15 @@ func (p *ProgressBar) Update(current int64) string {
 	percent := float64(current) / float64(p.total)
 
 	if !isTTY() {
-		// Fallback for non-TTY: "50% (512MB/1024MB)"
+		// Non-TTY: hand-build "50% (512MB/1024MB)".
+		// In TTY mode the percentage is rendered by bubbles via ViewAs (ShowPercentage
+		// defaults to true), so the two branches stay consistent without duplication.
 		return fmt.Sprintf("%d%% (%s/%s)",
 			int(percent*100),
 			formatBytes(current),
 			formatBytes(p.total))
 	}
 
+	// TTY: delegate to bubbles — ViewAs renders the gradient bar and percentage.
 	return p.progress.ViewAs(percent)
 }
