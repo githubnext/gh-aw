@@ -7,7 +7,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_API } = require("./error_codes.cjs");
+const { ERR_API, SAFE_OUTPUT_E010, RATE_LIMIT_EXCEEDED } = require("./error_codes.cjs");
 const { logRetryEvent } = require("./github_rate_limit_logger.cjs");
 
 /**
@@ -54,6 +54,22 @@ const RATE_LIMIT_RETRY_CONFIG = {
 };
 
 /**
+ * Message indicators used to detect GitHub API rate-limit errors.
+ * Matched case-insensitively against lower-cased error messages.
+ * Entries are kept lower-case because we lower-case input messages before substring matching.
+ * @type {string[]}
+ */
+const RATE_LIMIT_INDICATORS = ["rate limit", "secondary rate limit", "abuse detection", "too many requests"];
+
+/**
+ * @param {string} messageLower - Lower-cased error message
+ * @returns {boolean} True when message indicates GitHub rate limiting
+ */
+function hasRateLimitIndicator(messageLower) {
+  return RATE_LIMIT_INDICATORS.some(pattern => messageLower.includes(pattern));
+}
+
+/**
  * Determine if an error is transient and worth retrying
  * @param {any} error - The error to check
  * @returns {boolean} True if the error is transient and should be retried
@@ -69,6 +85,13 @@ function isTransientError(error) {
     return true;
   }
 
+  // Status-based rate-limit detection handles cases where the message text is
+  // not descriptive enough (e.g. Octokit errors with status 429 and a generic
+  // "Request failed" message). Must be checked before the text patterns.
+  if (isRateLimitError(error)) {
+    return true;
+  }
+
   // Network-related errors that are likely transient
   const transientPatterns = [
     "network",
@@ -81,9 +104,7 @@ function isTransientError(error) {
     "502 bad gateway",
     "503 service unavailable",
     "504 gateway timeout",
-    "rate limit", // GitHub API rate limiting
-    "secondary rate limit", // GitHub secondary rate limits
-    "abuse detection", // GitHub abuse detection
+    ...RATE_LIMIT_INDICATORS, // GitHub rate limiting signals (including HTTP 429 text)
     "temporarily unavailable",
     "no server is currently available", // GitHub API server unavailability
   ];
@@ -156,6 +177,25 @@ function getRetryAfterMs(error) {
 }
 
 /**
+ * Determine whether an error is specifically a GitHub API rate-limit error.
+ * @param {any} error - The error to classify
+ * @returns {boolean} True when the error indicates primary or secondary rate limiting
+ */
+function isRateLimitError(error) {
+  const status = error?.response?.status ?? error?.status ?? null;
+  const headers = error?.response?.headers ?? error?.headers ?? null;
+  const remainingHeader = headers?.["x-ratelimit-remaining"];
+  const retryAfterHeader = headers?.["retry-after"];
+  const hasRateLimitHeaders = status === 403 && (retryAfterHeader != null || (remainingHeader != null && parseInt(remainingHeader, 10) === 0));
+  if (status === 429 || hasRateLimitHeaders) {
+    return true;
+  }
+
+  const errorMsg = getErrorMessage(error).toLowerCase();
+  return hasRateLimitIndicator(errorMsg);
+}
+
+/**
  * Execute an operation with retry logic and exponential backoff
  * @template T
  * @param {() => Promise<T>} operation - The async operation to execute
@@ -204,6 +244,18 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       // If this was the last attempt, throw the enhanced error
       if (attempt === fullConfig.maxRetries) {
         core.warning(`${operationName} failed after ${fullConfig.maxRetries} retry attempts: ${errorMsg}`);
+        // E010 applies only when retry budget is at least 3 retries.
+        const hasEnoughRetriesForE010 = fullConfig.maxRetries >= 3;
+        if (hasEnoughRetriesForE010 && isRateLimitError(error)) {
+          throw enhanceError(error, {
+            operation: operationName,
+            attempt: attempt + 1,
+            maxRetries: fullConfig.maxRetries,
+            retryable: true,
+            code: `${SAFE_OUTPUT_E010} ${RATE_LIMIT_EXCEEDED}`,
+            suggestion: "RATE_LIMIT_EXCEEDED: GitHub API rate limit persisted after 3 retries.",
+          });
+        }
         throw enhanceError(error, {
           operation: operationName,
           attempt: attempt + 1,
