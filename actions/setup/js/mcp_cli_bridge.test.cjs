@@ -3,7 +3,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { ensureSafeOutputsTools, formatResponse, hasStdinJsonPayload, parseToolArgs, readStdinSync, shouldShowToolHelpForEmptyArgs, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
+import { ensureSafeOutputsTools, formatResponse, getToolCallTimeoutMs, hasStdinJsonPayload, parseToolArgs, readStdinSync, shouldShowToolHelpForEmptyArgs, showHelp, showToolHelp, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -212,6 +212,59 @@ describe("mcp_cli_bridge.cjs", () => {
       start_date: "-1d",
       workflow_name: "daily-issues-report",
     });
+  });
+
+  it("uses default 120s timeout for non-logs tools", () => {
+    expect(getToolCallTimeoutMs("audit", {})).toBe(120000);
+  });
+
+  it("uses a longer timeout for logs calls without explicit timeout (default count=100, no filter)", () => {
+    // effectiveCount=100, base=ceil(100/40)=3, no workflow_name → max(5,3)=5 minutes
+    expect(getToolCallTimeoutMs("logs", {})).toBe(315000);
+  });
+
+  it("scales logs timeout from count when no explicit timeout is set (count=250, no filter)", () => {
+    // effectiveCount=250, base=ceil(250/40)=7, no workflow_name → max(5,7)=7 minutes
+    expect(getToolCallTimeoutMs("logs", { count: 250 })).toBe(435000);
+  });
+
+  it("scales logs timeout from count with workflow_name filter (count=250, filtered)", () => {
+    // effectiveCount=250, base=ceil(250/40)=7, workflow_name present → 7 minutes (no min floor applied)
+    expect(getToolCallTimeoutMs("logs", { count: 250, workflow_name: "ci" })).toBe(435000);
+  });
+
+  it("clamps count-based timeout to global minimum for small filtered counts", () => {
+    // effectiveCount=40, base=ceil(40/40)=1, workflow_name present → 1 minute → 75000ms < 120000ms → clamped
+    expect(getToolCallTimeoutMs("logs", { count: 40, workflow_name: "ci" })).toBe(120000);
+  });
+
+  it("applies 5-minute no-filter floor for small unfiltered counts", () => {
+    // effectiveCount=40, base=1, no workflow_name → max(5,1)=5 minutes
+    expect(getToolCallTimeoutMs("logs", { count: 40 })).toBe(315000);
+  });
+
+  it("uses logs timeout argument with bridge buffer when provided", () => {
+    // timeout=10min, floor=5min (default count=100, no filter) → max(120000, 315000, 615000) = 615000
+    expect(getToolCallTimeoutMs("logs", { timeout: 10 })).toBe(615000);
+  });
+
+  it("floors small explicit timeout to the count-derived minimum", () => {
+    // timeout=2.5min → explicit=165000ms; floor=5min → 315000ms; floor wins
+    expect(getToolCallTimeoutMs("logs", { timeout: 2.5 })).toBe(315000);
+  });
+
+  it("caps explicit timeout at LOGS_TOOL_MAX_EXPLICIT_TIMEOUT_MINUTES (60)", () => {
+    // timeout=999min → clamped to 60min → 3615000ms; floor=315000ms; capped value wins
+    expect(getToolCallTimeoutMs("logs", { timeout: 999 })).toBe(3615000);
+  });
+
+  it("rejects non-numeric timeout types and falls back to count-derived timeout", () => {
+    // typeof-check rejects strings and booleans even when Number() would accept them
+    expect(getToolCallTimeoutMs("logs", { timeout: 0 })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: -5 })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: "invalid" })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: "5" })).toBe(315000);
+    expect(getToolCallTimeoutMs("logs", { timeout: true })).toBe(315000);
   });
 
   it("treats MCP result envelopes with isError=true as errors", async () => {

@@ -6,6 +6,12 @@ description: Reviews pull requests using Impeccable skills and applies the most 
 on:
   pull_request:
     types: [ready_for_review]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.changeset/**'
+      - 'socials/**'
+      - 'scratchpad/**'
   workflow_dispatch:
 permissions:
   contents: read

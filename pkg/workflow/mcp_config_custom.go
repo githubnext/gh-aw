@@ -132,7 +132,7 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			// JSON format - use MCP Gateway schema format (container-based) OR legacy command-based
 			// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio servers SHOULD be containerized
 			// But we also support legacy command-based tools for backwards compatibility
-			propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry"}
+			propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry", "required"}
 		}
 	case "http":
 		if renderer.Format == "toml" {
@@ -142,9 +142,9 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			// JSON format - include tools field for MCP gateway tool filtering (all engines)
 			// For HTTP MCP with secrets in headers, env passthrough is needed
 			if len(headerSecrets) > 0 {
-				propertyOrder = []string{"type", "url", "headers", "auth", "tools", "env"}
+				propertyOrder = []string{"type", "url", "headers", "auth", "tools", "env", "required"}
 			} else {
-				propertyOrder = []string{"type", "url", "headers", "auth", "tools"}
+				propertyOrder = []string{"type", "url", "headers", "auth", "tools", "required"}
 			}
 		}
 	default:
@@ -218,6 +218,11 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 			}
 		case "registry":
 			if mcpConfig.Registry != "" {
+				existingProperties = append(existingProperties, prop)
+			}
+		case "required":
+			// Only emit when explicitly set to false (false = optional; default/absent = required)
+			if mcpConfig.Required != nil && !*mcpConfig.Required {
 				existingProperties = append(existingProperties, prop)
 			}
 		}
@@ -499,6 +504,16 @@ func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig ma
 				}
 				fmt.Fprintf(yaml, "%s\"registry\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Registry, comma)
 			}
+		case "required":
+			// Only emitted for JSON format when Required is explicitly false (optional server).
+			// Absent field means the default (required), so we never emit "required": true.
+			if renderer.Format == "json" && mcpConfig.Required != nil && !*mcpConfig.Required {
+				comma := ","
+				if isLast {
+					comma = ""
+				}
+				fmt.Fprintf(yaml, "%s\"required\": false%s\n", renderer.IndentLevel, comma)
+			}
 		}
 	}
 
@@ -568,6 +583,7 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 		"registry":       {},
 		"allowed":        {},
 		"toolsets":       {}, // Added for MCPServerConfig struct
+		"required":       {}, // Whether the server is required at startup (false = optional, default = required)
 	}
 
 	for key := range toolConfig {
@@ -710,6 +726,13 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 	// Extract allowed tools
 	if allowed, hasAllowed := config.GetStringArray("allowed"); hasAllowed {
 		result.Allowed = allowed
+	}
+
+	// Extract required field: when explicitly set to false the server is optional at startup
+	if requiredVal, hasRequired := config.GetAny("required"); hasRequired {
+		if requiredBool, ok := requiredVal.(bool); ok {
+			result.Required = &requiredBool
+		}
 	}
 
 	// Automatically assign well-known containers for stdio MCP servers based on command
