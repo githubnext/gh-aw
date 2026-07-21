@@ -53,56 +53,56 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	for cursor := range insp.Root().Preorder((*ast.CallExpr)(nil)) {
-		call, ok := cursor.Node().(*ast.CallExpr)
-		if !ok {
-			continue
-		}
+		checkHTTPCall(pass, cursor, generatedFiles, noLintIndex)
+	}
+	return nil, nil
+}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			continue
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "httpnoctx") {
-			continue
-		}
-
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok {
-			continue
-		}
-		if contextFreeMethods[sel.Sel.Name] {
-			if isHTTPClientReceiver(pass, sel.X) {
-				pass.ReportRangef(call,
-					"(*http.Client).%s does not accept a context; use http.NewRequestWithContext + client.Do to propagate cancellation",
-					sel.Sel.Name,
-				)
-				continue
-			}
-
-			if isHTTPPackage(pass, sel.X) {
-				pass.ReportRangef(call,
-					"http.%s does not accept a context; use http.NewRequestWithContext + http.DefaultClient.Do to propagate cancellation",
-					sel.Sel.Name,
-				)
-				continue
-			}
-		}
-
-		if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cursor) {
+// checkHTTPCall inspects a single call expression and reports a diagnostic
+// when it is a context-free HTTP request path.
+func checkHTTPCall(pass *analysis.Pass, cursor inspector.Cursor, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := cursor.Node().(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "httpnoctx") {
+		return
+	}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	if contextFreeMethods[sel.Sel.Name] {
+		if isHTTPClientReceiver(pass, sel.X) {
 			pass.ReportRangef(call,
-				"http.NewRequest does not propagate context; use http.NewRequestWithContext when context.Context is in scope",
+				"(*http.Client).%s does not accept a context; use http.NewRequestWithContext + client.Do to propagate cancellation",
+				sel.Sel.Name,
 			)
-			continue
+			return
 		}
-
-		if sel.Sel.Name == "Do" && isHTTPDefaultClient(pass, sel.X) {
+		if isHTTPPackage(pass, sel.X) {
 			pass.ReportRangef(call,
-				"http.DefaultClient.Do uses a timeout-less client; use a dedicated *http.Client with Timeout set",
+				"http.%s does not accept a context; use http.NewRequestWithContext + http.DefaultClient.Do to propagate cancellation",
+				sel.Sel.Name,
 			)
+			return
 		}
 	}
-
-	return nil, nil
+	if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cursor) {
+		pass.ReportRangef(call,
+			"http.NewRequest does not propagate context; use http.NewRequestWithContext when context.Context is in scope",
+		)
+		return
+	}
+	if sel.Sel.Name == "Do" && isHTTPDefaultClient(pass, sel.X) {
+		pass.ReportRangef(call,
+			"http.DefaultClient.Do uses a timeout-less client; use a dedicated *http.Client with Timeout set",
+		)
+	}
 }
 
 // isHTTPClientReceiver reports whether expr has type *http.Client.

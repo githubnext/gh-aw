@@ -34,7 +34,7 @@ describe("prefer-core-logging", () => {
             {
               messageId: "preferCoreLogging",
               data: { method: "log", replacement: "core.info" },
-              suggestions: [{ messageId: "replaceWithCoreMethod", data: { replacement: "core.info", args: `foo` }, output: `const foo = "bar"; core.info(foo);` }],
+              suggestions: [],
             },
           ],
         },
@@ -206,6 +206,58 @@ describe("prefer-core-logging", () => {
         },
         {
           code: 'const core = require("@actions/core"); const someVar = 1; console.log(`value: ${someVar}`);',
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: console.log with non-string single argument is report-only (no autofix suggestion)", () => {
+    ruleTester.run("prefer-core-logging", preferCoreLoggingRule, {
+      valid: [],
+      invalid: [
+        {
+          // identifier — type unknown at static analysis time; core.info coerces to "[object Object]"
+          code: `const user = {}; console.log(user);`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          // object literal — core.info({ id: 1 }) coerces to "[object Object]"
+          code: `console.log({ id: 1 });`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          // numeric identifier — type is unknown statically; no safe suggestion
+          code: `const count = 5; console.log(count);`,
+          errors: [
+            {
+              messageId: "preferCoreLogging",
+              data: { method: "log", replacement: "core.info" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          // numeric literal directly — not a string
+          code: `console.log(42);`,
           errors: [
             {
               messageId: "preferCoreLogging",
