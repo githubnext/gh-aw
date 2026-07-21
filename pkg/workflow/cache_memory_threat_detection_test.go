@@ -15,10 +15,11 @@ import (
 // an update_cache_memory job to save the cache after detection succeeds
 func TestCacheMemoryWithThreatDetection(t *testing.T) {
 	tests := []struct {
-		name              string
-		frontmatter       string
-		expectedInLock    []string
-		notExpectedInLock []string
+		name                                string
+		frontmatter                         string
+		expectedInLock                      []string
+		notExpectedInLock                   []string
+		expectUpdateCacheMemoryActionsWrite bool
 	}{
 		{
 			name: "cache-memory with threat detection enabled",
@@ -61,13 +62,12 @@ Test workflow with cache-memory and threat detection enabled.`,
 				"- name: Download cache-memory artifact (default)",
 				"- name: Save cache-memory to cache (default)",
 				"uses: actions/cache/save@",
-				// update_cache_memory job must have actions: write for cache reservation
-				"actions: write",
 			},
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache in agent job
 				"- name: Restore cache-memory file share data\n      uses: actions/cache@",
 			},
+			expectUpdateCacheMemoryActionsWrite: true,
 		},
 		{
 			name: "cache-memory without threat detection",
@@ -244,6 +244,39 @@ Test workflow with restore-only cache-memory and threat detection enabled.`,
 					t.Errorf("Expected lock YAML NOT to contain %q, but it did.\nContext around match (lines %d-%d):\n%s", notExpected, start+1, end, context)
 				}
 			}
+
+			if tt.expectUpdateCacheMemoryActionsWrite {
+				jobBlock := extractJobBlock(lockContent, "update_cache_memory")
+				if jobBlock == "" {
+					t.Fatal("Expected update_cache_memory job block to exist")
+				}
+				if !strings.Contains(jobBlock, "actions: write") {
+					t.Errorf("Expected update_cache_memory job block to contain %q, got:\n%s", "actions: write", jobBlock)
+				}
+			}
 		})
 	}
+}
+
+func extractJobBlock(lockContent, jobName string) string {
+	lines := strings.Split(lockContent, "\n")
+	jobHeader := "  " + jobName + ":"
+	var block []string
+	inJob := false
+
+	for _, line := range lines {
+		if !inJob {
+			if line == jobHeader {
+				inJob = true
+				block = append(block, line)
+			}
+			continue
+		}
+		if strings.HasPrefix(line, "  ") && !strings.HasPrefix(line, "    ") && strings.HasSuffix(line, ":") {
+			break
+		}
+		block = append(block, line)
+	}
+
+	return strings.Join(block, "\n")
 }

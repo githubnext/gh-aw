@@ -83,7 +83,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	// actions: write is required for GitHub's cache-reservation backend to allow cache saves.
 	// The daily-AIC usage cache save step uses actions/cache/save which requires this permission.
-	if hasMaxDailyAICGuardrail(data) && data.WorkflowID != "" {
+	if needsDailyAICCachePermission(data) {
 		conclusionPerms.Set(PermissionActions, PermissionWrite)
 	}
 	return &Job{

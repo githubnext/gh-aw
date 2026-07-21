@@ -2371,6 +2371,50 @@ func TestUpdateCacheMemoryJobHasActionsWritePermission(t *testing.T) {
 	}
 }
 
+func TestUpdateCacheMemoryJobHasActionsWritePermissionInDevMode(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	compiler.stepOrderTracker = NewStepOrderTracker()
+	activationJob, _ := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	compiler.jobManager.AddJob(activationJob)
+
+	agentJob, _ := compiler.buildMainJob(data, true)
+	compiler.jobManager.AddJob(agentJob)
+
+	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+
+	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
+	if err != nil {
+		t.Fatalf("buildUpdateCacheMemoryJob() error: %v", err)
+	}
+	if updateCacheMemoryJob == nil {
+		t.Fatal("Expected update_cache_memory job to be created")
+	}
+
+	if !strings.Contains(updateCacheMemoryJob.Permissions, "actions: write") {
+		t.Errorf("dev-mode update_cache_memory job must preserve 'actions: write', got: %q", updateCacheMemoryJob.Permissions)
+	}
+	if !strings.Contains(updateCacheMemoryJob.Permissions, "contents: read") {
+		t.Errorf("dev-mode update_cache_memory job must include 'contents: read', got: %q", updateCacheMemoryJob.Permissions)
+	}
+}
+
 // ========================================
 // Edge Case Tests
 // ========================================

@@ -1561,4 +1561,27 @@ func TestConclusionJobActionsWritePermissionForDailyAICCache(t *testing.T) {
 			t.Errorf("conclusion job should NOT have 'actions: write' when WorkflowID is empty, got: %q", job.Permissions)
 		}
 	})
+
+	t.Run("no actions: write when guardrail is explicitly disabled", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:           "Test Workflow",
+			WorkflowID:     "my-workflow",
+			RawFrontmatter: disableAICGuardrailFrontmatter(),
+			SafeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if strings.Contains(job.Permissions, "actions: write") {
+			t.Errorf("conclusion job should NOT have 'actions: write' when the daily-AIC guardrail is disabled, got: %q", job.Permissions)
+		}
+	})
 }

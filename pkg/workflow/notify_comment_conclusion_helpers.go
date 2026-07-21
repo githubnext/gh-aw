@@ -11,6 +11,10 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
+func needsDailyAICCachePermission(data *WorkflowData) bool {
+	return hasMaxDailyAICGuardrail(data) && data.WorkflowID != ""
+}
+
 // buildConclusionSetupSteps extracts the common setup, token minting, and artifact steps.
 func (c *Compiler) buildConclusionSetupSteps(data *WorkflowData) []string {
 	var steps []string
@@ -47,7 +51,7 @@ func (c *Compiler) buildConclusionSetupSteps(data *WorkflowData) []string {
 	// In workflow_call context, use the per-invocation prefix to avoid artifact name clashes.
 	steps = append(steps, buildAgentOutputDownloadSteps(artifactPrefixExprForDownstreamJob(data), c.getActionPin)...)
 	steps = append(steps, buildUsageArtifactUploadSteps(artifactPrefixExprForDownstreamJob(data), data.Evals != nil && data.Evals.HasEvals(), c.getActionPin)...)
-	if hasMaxDailyAICGuardrail(data) && data.WorkflowID != "" {
+	if needsDailyAICCachePermission(data) {
 		steps = append(steps, buildDailyAICUsageCacheSteps(data, c.getActionPin)...)
 	}
 
