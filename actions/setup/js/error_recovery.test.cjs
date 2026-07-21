@@ -51,6 +51,12 @@ describe("error_recovery", () => {
       expect(isTransientError(new Error("  <!DOCTYPE html><html>..."))).toBe(true);
     });
 
+    it("should identify status-only 429 errors as transient even with a non-descriptive message", () => {
+      // Octokit can produce errors where status=429 but the message contains no rate-limit text.
+      expect(isTransientError({ status: 429, message: "Request failed" })).toBe(true);
+      expect(isTransientError({ response: { status: 429 }, message: "Request failed" })).toBe(true);
+    });
+
     it("should not identify validation errors as transient", () => {
       expect(isTransientError(new Error("Invalid input"))).toBe(false);
       expect(isTransientError(new Error("Field is required"))).toBe(false);
@@ -131,6 +137,16 @@ describe("error_recovery", () => {
       const operation = vi.fn().mockRejectedValue(rateLimitError);
 
       await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+    });
+
+    it("should emit E010 for status-only 429 with non-descriptive message persisting after 3 retries", async () => {
+      // Verifies that an Octokit-style error with status=429 and a generic message
+      // is retried (isTransientError returns true via isRateLimitError) and emits E010 on exhaustion.
+      const rateLimitError = { status: 429, message: "Request failed" };
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+      expect(operation).toHaveBeenCalledTimes(4); // Initial + 3 retries
     });
 
     it("should use exponential backoff", async () => {

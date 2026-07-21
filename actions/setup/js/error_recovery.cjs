@@ -85,6 +85,13 @@ function isTransientError(error) {
     return true;
   }
 
+  // Status-based rate-limit detection handles cases where the message text is
+  // not descriptive enough (e.g. Octokit errors with status 429 and a generic
+  // "Request failed" message). Must be checked before the text patterns.
+  if (isRateLimitError(error)) {
+    return true;
+  }
+
   // Network-related errors that are likely transient
   const transientPatterns = [
     "network",
