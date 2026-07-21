@@ -81,6 +81,62 @@ function isCoreErrorStatement(node: TSESTree.Statement, sourceCode: SourceCode):
 }
 
 /**
+ * Returns true when `node` is an expression statement containing a call to
+ * `core.setFailed(...)` (direct, computed, or aliased).
+ */
+function isCoreSetFailedStatement(node: TSESTree.Statement, sourceCode: SourceCode): boolean {
+  if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
+  const expr = node.expression;
+  if (expr.type !== AST_NODE_TYPES.CallExpression) return false;
+  const callee = expr.callee;
+  if (callee.type !== AST_NODE_TYPES.MemberExpression) return false;
+
+  const obj = callee.object;
+  const prop = callee.property;
+  const isSetFailedNonComputed = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setFailed";
+  const isSetFailedComputed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setFailed";
+  if (!isSetFailedNonComputed && !isSetFailedComputed) return false;
+  if (obj.type !== AST_NODE_TYPES.Identifier) return false;
+
+  return isCoreLikeIdentifier(obj.name) || isCoreAliasIdentifier(obj, sourceCode);
+}
+
+/**
+ * Returns true when `node` is a control-transfer statement that definitively
+ * exits the current block: return, throw, break, continue, or process.exit(...).
+ *
+ * Any `process.exit(...)` call is treated as a barrier regardless of the exit
+ * code value — process.exit(0) and process.exit(variable) both terminate the
+ * process, so subsequent statements are unreachable and should not be flagged.
+ */
+function isControlTransferStatement(node: TSESTree.Statement): boolean {
+  // prettier-ignore
+  if (
+    node.type === AST_NODE_TYPES.ReturnStatement ||
+    node.type === AST_NODE_TYPES.ThrowStatement ||
+    node.type === AST_NODE_TYPES.BreakStatement ||
+    node.type === AST_NODE_TYPES.ContinueStatement
+  ) {
+    return true;
+  }
+  // process.exit(...) — any call, regardless of exit code
+  if (node.type === AST_NODE_TYPES.ExpressionStatement && node.expression.type === AST_NODE_TYPES.CallExpression) {
+    const callee = node.expression.callee;
+    if (
+      callee.type === AST_NODE_TYPES.MemberExpression &&
+      !callee.computed &&
+      callee.object.type === AST_NODE_TYPES.Identifier &&
+      callee.object.name === "process" &&
+      callee.property.type === AST_NODE_TYPES.Identifier &&
+      callee.property.name === "exit"
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Returns true when `node` is `process.exit(expr)` where `expr` evaluates to
  * a non-zero literal integer (e.g. process.exit(1), process.exit(2)).
  * Returns false for process.exit(0) which is a deliberate clean exit.
@@ -139,40 +195,56 @@ export const noCoreErrorThenProcessExitRule = createRule({
     function checkStatements(stmts: readonly TSESTree.Statement[]): void {
       for (let i = 0; i < stmts.length - 1; i++) {
         const current = stmts[i];
-        const next = stmts[i + 1];
-        if (isCoreErrorStatement(current, sourceCode) && isProcessExitNonZero(next)) {
-          // The autofix suggestion is only safe when the pair is at module top level or directly
-          // inside a `main()` entrypoint. Inside helper functions, `return;` only exits the helper
-          // and lets the caller continue — it does NOT abort the process like `process.exit` does.
-          const enclosingFn = getImmediateEnclosingFunction(current, sourceCode);
-          const safeToFix = enclosingFn === null || isFunctionNamedMain(enclosingFn);
+        if (!isCoreErrorStatement(current, sourceCode)) continue;
 
-          context.report({
-            node: current,
-            messageId: "noCoreErrorThenProcessExit",
-            suggest: safeToFix
-              ? [
-                  {
-                    messageId: "replaceWithSetFailed",
-                    fix(fixer: TSESLint.RuleFixer) {
-                      const errorCall = (current as TSESTree.ExpressionStatement).expression as TSESTree.CallExpression;
-                      const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
+        // Scan forward for process.exit(nonzero), stopping at setFailed or control-transfer.
+        // Adjacent (j === i+1) keeps autofix; non-adjacent reports without suggestion.
+        for (let j = i + 1; j < stmts.length; j++) {
+          const candidate = stmts[j];
 
-                      // Detect the core object name (e.g. "core")
-                      const callee = errorCall.callee as TSESTree.MemberExpression;
-                      const objectName = sourceCode.getText(callee.object);
+          if (isProcessExitNonZero(candidate)) {
+            const isAdjacent = j === i + 1;
+            // The autofix suggestion is only safe when the pair is at module top level or directly
+            // inside a `main()` entrypoint. Inside helper functions, `return;` only exits the helper
+            // and lets the caller continue — it does NOT abort the process like `process.exit` does.
+            // For non-adjacent pairs we omit the suggestion to avoid a fixer that leaves intervening
+            // statements between a deleted process.exit and the new setFailed.
+            const enclosingFn = getImmediateEnclosingFunction(current, sourceCode);
+            const safeToFix = isAdjacent && (enclosingFn === null || isFunctionNamedMain(enclosingFn));
 
-                      // At module top-level (enclosingFn === null) there is nothing to `return` from,
-                      // so we just replace with setFailed. Inside main() we append `return;` to exit
-                      // the entrypoint in the same way process.exit would.
-                      const replacement = enclosingFn !== null ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
+            context.report({
+              node: current,
+              messageId: "noCoreErrorThenProcessExit",
+              suggest: safeToFix
+                ? [
+                    {
+                      messageId: "replaceWithSetFailed",
+                      fix(fixer: TSESLint.RuleFixer) {
+                        const errorCall = (current as TSESTree.ExpressionStatement).expression as TSESTree.CallExpression;
+                        const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
 
-                      return [fixer.replaceText(current, replacement + "\n"), fixer.remove(next)];
+                        // Detect the core object name (e.g. "core")
+                        const callee = errorCall.callee as TSESTree.MemberExpression;
+                        const objectName = sourceCode.getText(callee.object);
+
+                        // At module top-level (enclosingFn === null) there is nothing to `return` from,
+                        // so we just replace with setFailed. Inside main() we append `return;` to exit
+                        // the entrypoint in the same way process.exit would.
+                        const replacement = enclosingFn !== null ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
+
+                        return [fixer.replaceText(current, replacement + "\n"), fixer.remove(candidate)];
+                      },
                     },
-                  },
-                ]
-              : [],
-          });
+                  ]
+                : [],
+            });
+            break;
+          }
+
+          // Stop scanning if setFailed already handles the failure or a control-transfer exits the block.
+          if (isCoreSetFailedStatement(candidate, sourceCode) || isControlTransferStatement(candidate)) {
+            break;
+          }
         }
       }
     }

@@ -45,63 +45,64 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		analyzeTrimLeftRight(pass, n, generatedFiles, noLintIndex)
+	})
+	return nil, nil
+}
+
+// analyzeTrimLeftRight checks whether a call is a strings.TrimLeft or
+// strings.TrimRight with a suspicious multi-character cutset and reports a
+// diagnostic suggesting TrimPrefix or TrimSuffix.
+func analyzeTrimLeftRight(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "trimleftright") {
+		return
+	}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "trimleftright") {
-			return
-		}
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok {
+		return
+	}
+	funcName := sel.Sel.Name
+	if funcName != "TrimLeft" && funcName != "TrimRight" {
+		return
+	}
+	if !astutil.IsPkgSelector(pass, sel, "strings") {
+		return
+	}
+	if len(call.Args) != 2 {
+		return
+	}
 
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok {
-			return
-		}
-		funcName := sel.Sel.Name
-		if funcName != "TrimLeft" && funcName != "TrimRight" {
-			return
-		}
-		if !astutil.IsPkgSelector(pass, sel, "strings") {
-			return
-		}
-		if len(call.Args) != 2 {
-			return
-		}
+	cutset, isCutset := stringLitValue(call.Args[1])
+	if !isCutset || !looksSuspiciousCutset(cutset) {
+		return
+	}
 
-		// Only flag suspicious cutsets: multi-rune all-alphanumeric literals
-		// that do not look like intentional character-set trimming.
-		cutset, isCutset := stringLitValue(call.Args[1])
-		if !isCutset || !looksSuspiciousCutset(cutset) {
-			return
-		}
+	var suggested string
+	switch funcName {
+	case "TrimLeft":
+		suggested = "TrimPrefix"
+	case "TrimRight":
+		suggested = "TrimSuffix"
+	}
 
-		var suggested string
-		switch funcName {
-		case "TrimLeft":
-			suggested = "TrimPrefix"
-		case "TrimRight":
-			suggested = "TrimSuffix"
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos: call.Pos(),
-			End: call.End(),
-			Message: "strings." + funcName + " with a multi-character cutset treats each character independently; " +
-				"use strings." + suggested + " if you intend to remove the exact string",
-		})
+	pass.Report(analysis.Diagnostic{
+		Pos: call.Pos(),
+		End: call.End(),
+		Message: "strings." + funcName + " with a multi-character cutset treats each character independently; " +
+			"use strings." + suggested + " if you intend to remove the exact string",
 	})
-
-	return nil, nil
 }
 
 // stringLitValue returns the unquoted string value of a string-literal AST node.
