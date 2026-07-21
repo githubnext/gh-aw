@@ -35,6 +35,7 @@ describe("error_recovery", () => {
     it("should identify rate limit errors as transient", () => {
       expect(isTransientError(new Error("Rate limit exceeded"))).toBe(true);
       expect(isTransientError(new Error("Secondary rate limit hit"))).toBe(true);
+      expect(isTransientError(new Error("Too Many Requests"))).toBe(true);
       expect(isTransientError(new Error("Abuse detection triggered"))).toBe(true);
     });
 
@@ -48,6 +49,12 @@ describe("error_recovery", () => {
       expect(isTransientError(new Error("<!doctype html>\n<html>..."))).toBe(true);
       // With leading whitespace
       expect(isTransientError(new Error("  <!DOCTYPE html><html>..."))).toBe(true);
+    });
+
+    it("should identify status-only 429 errors as transient even with a non-descriptive message", () => {
+      // Octokit can produce errors where status=429 but the message contains no rate-limit text.
+      expect(isTransientError({ status: 429, message: "Request failed" })).toBe(true);
+      expect(isTransientError({ response: { status: 429 }, message: "Request failed" })).toBe(true);
     });
 
     it("should not identify validation errors as transient", () => {
@@ -101,6 +108,45 @@ describe("error_recovery", () => {
 
       expect(operation).toHaveBeenCalledTimes(3); // Initial + 2 retries
       expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("failed after 2 retry attempts"));
+    });
+
+    it("should emit E010 RATE_LIMIT_EXCEEDED when rate limit persists after 3 retries", async () => {
+      const rateLimitError = {
+        message: "Too Many Requests",
+        response: { status: 429, headers: { "retry-after": "1" } },
+      };
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+
+      expect(operation).toHaveBeenCalledTimes(4); // Initial + 3 retries
+    });
+
+    it("should emit E010 for exhausted retries on 403 with retry-after header", async () => {
+      const rateLimitError = {
+        message: "secondary rate limit",
+        response: { status: 403, headers: { "retry-after": "1" } },
+      };
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+    });
+
+    it("should emit E010 for exhausted retries on abuse-detection message without status", async () => {
+      const rateLimitError = new Error("Abuse detection mechanism triggered");
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+    });
+
+    it("should emit E010 for status-only 429 with non-descriptive message persisting after 3 retries", async () => {
+      // Verifies that an Octokit-style error with status=429 and a generic message
+      // is retried (isTransientError returns true via isRateLimitError) and emits E010 on exhaustion.
+      const rateLimitError = { status: 429, message: "Request failed" };
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+      expect(operation).toHaveBeenCalledTimes(4); // Initial + 3 retries
     });
 
     it("should use exponential backoff", async () => {
