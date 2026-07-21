@@ -106,7 +106,13 @@ function isCoreSetFailedStatement(node: TSESTree.Statement, sourceCode: SourceCo
  * exits the current block: return, throw, break, or continue.
  */
 function isControlTransferStatement(node: TSESTree.Statement): boolean {
-  return node.type === AST_NODE_TYPES.ReturnStatement || node.type === AST_NODE_TYPES.ThrowStatement || node.type === AST_NODE_TYPES.BreakStatement || node.type === AST_NODE_TYPES.ContinueStatement;
+  // prettier-ignore
+  return (
+    node.type === AST_NODE_TYPES.ReturnStatement ||
+    node.type === AST_NODE_TYPES.ThrowStatement ||
+    node.type === AST_NODE_TYPES.BreakStatement ||
+    node.type === AST_NODE_TYPES.ContinueStatement
+  );
 }
 
 /**
@@ -197,8 +203,8 @@ export const noCoreErrorThenProcessExitRule = createRule({
                         const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
 
                         // Detect the core object name (e.g. "core")
-                        const errorCallee = errorCall.callee as TSESTree.MemberExpression;
-                        const objectName = sourceCode.getText(errorCallee.object);
+                        const callee = errorCall.callee as TSESTree.MemberExpression;
+                        const objectName = sourceCode.getText(callee.object);
 
                         // At module top-level (enclosingFn === null) there is nothing to `return` from,
                         // so we just replace with setFailed. Inside main() we append `return;` to exit
