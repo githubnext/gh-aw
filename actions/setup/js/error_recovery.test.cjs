@@ -35,6 +35,7 @@ describe("error_recovery", () => {
     it("should identify rate limit errors as transient", () => {
       expect(isTransientError(new Error("Rate limit exceeded"))).toBe(true);
       expect(isTransientError(new Error("Secondary rate limit hit"))).toBe(true);
+      expect(isTransientError(new Error("Too Many Requests"))).toBe(true);
       expect(isTransientError(new Error("Abuse detection triggered"))).toBe(true);
     });
 
@@ -101,6 +102,18 @@ describe("error_recovery", () => {
 
       expect(operation).toHaveBeenCalledTimes(3); // Initial + 2 retries
       expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("failed after 2 retry attempts"));
+    });
+
+    it("should emit E010 RATE_LIMIT_EXCEEDED when rate limit persists after 3 retries", async () => {
+      const rateLimitError = {
+        message: "Too Many Requests",
+        response: { status: 429, headers: { "retry-after": "1" } },
+      };
+      const operation = vi.fn().mockRejectedValue(rateLimitError);
+
+      await expect(withRetry(operation, { maxRetries: 3, initialDelayMs: 1 }, "test-operation")).rejects.toThrow("E010 RATE_LIMIT_EXCEEDED");
+
+      expect(operation).toHaveBeenCalledTimes(4); // Initial + 3 retries
     });
 
     it("should use exponential backoff", async () => {

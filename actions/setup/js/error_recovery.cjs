@@ -7,7 +7,7 @@
  */
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { ERR_API } = require("./error_codes.cjs");
+const { ERR_API, SAFE_OUTPUT_E010, RATE_LIMIT_EXCEEDED } = require("./error_codes.cjs");
 const { logRetryEvent } = require("./github_rate_limit_logger.cjs");
 
 /**
@@ -84,6 +84,7 @@ function isTransientError(error) {
     "rate limit", // GitHub API rate limiting
     "secondary rate limit", // GitHub secondary rate limits
     "abuse detection", // GitHub abuse detection
+    "too many requests", // HTTP 429
     "temporarily unavailable",
     "no server is currently available", // GitHub API server unavailability
   ];
@@ -156,6 +157,24 @@ function getRetryAfterMs(error) {
 }
 
 /**
+ * Determine whether an error is specifically a GitHub API rate-limit error.
+ * @param {any} error - The error to classify
+ * @returns {boolean} True when the error indicates primary or secondary rate limiting
+ */
+function isRateLimitError(error) {
+  const status = error?.response?.status ?? error?.status ?? null;
+  const headers = error?.response?.headers ?? error?.headers ?? null;
+  const remainingHeader = headers?.["x-ratelimit-remaining"];
+  const isSecondaryRateLimit = status === 403 && remainingHeader != null && parseInt(remainingHeader, 10) === 0;
+  if (status === 429 || isSecondaryRateLimit) {
+    return true;
+  }
+
+  const errorMsg = getErrorMessage(error).toLowerCase();
+  return errorMsg.includes("rate limit") || errorMsg.includes("secondary rate limit") || errorMsg.includes("too many requests") || errorMsg.includes("abuse detection");
+}
+
+/**
  * Execute an operation with retry logic and exponential backoff
  * @template T
  * @param {() => Promise<T>} operation - The async operation to execute
@@ -204,6 +223,16 @@ async function withRetry(operation, config = {}, operationName = "operation") {
       // If this was the last attempt, throw the enhanced error
       if (attempt === fullConfig.maxRetries) {
         core.warning(`${operationName} failed after ${fullConfig.maxRetries} retry attempts: ${errorMsg}`);
+        if (fullConfig.maxRetries >= 3 && isRateLimitError(error)) {
+          throw enhanceError(error, {
+            operation: operationName,
+            attempt: attempt + 1,
+            maxRetries: fullConfig.maxRetries,
+            retryable: true,
+            code: `${SAFE_OUTPUT_E010} ${RATE_LIMIT_EXCEEDED}`,
+            suggestion: "RATE_LIMIT_EXCEEDED: GitHub API rate limit persisted after 3 retries.",
+          });
+        }
         throw enhanceError(error, {
           operation: operationName,
           attempt: attempt + 1,
