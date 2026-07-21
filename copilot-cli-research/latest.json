@@ -1,39 +1,47 @@
 {
-  "timestamp": "2026-07-20T04:54:20Z",
-  "run_id": "29717858191",
-  "total_workflows": 258,
+  "timestamp": "2026-07-21T04:47:42Z",
+  "run_id": "29802123426",
+  "total_workflows": 260,
   "engine_breakdown": {
     "copilot_simple": 37,
-    "max_continuations_users": 11,
+    "copilot_sdk": 65,
+    "max_continuations_users": 0,
     "bare_mode_copilot": 0,
-    "lsp_users": 0,
+    "lsp_users_all": 3,
+    "lsp_users_copilot": 3,
     "mcp_scripts_copilot": 0,
-    "long_running_no_continuations": 5,
+    "long_running_no_continuations": 1,
     "missing_tracker_id": 25,
     "with_custom_agent": 18,
-    "with_model_override": 4,
+    "with_model_override": 79,
     "with_version_pin": 7,
     "with_engine_args": 3,
     "with_network_config": 25,
-    "with_tools_config": 36
+    "with_tools_config": 36,
+    "with_cache_memory": 9,
+    "with_web_fetch": 4,
+    "with_max_tool_denials": 0,
+    "with_harness_retry_tuning": 0,
+    "with_engine_cwd": 0
   },
   "available_agents": 11,
   "key_findings": [
-    "max-continuations: only 11/258 workflows despite 5 long-running (45+ min) copilot workflows",
+    "max-continuations: 0/37 copilot workflows use it (11/260 overall, non-copilot only)",
     "engine.bare: 0 copilot workflows use bare mode despite 11 agents available",
-    "LSP servers: 0 copilot workflows (total 0/258) despite Go/TS codebase",
+    "max-tool-denials: 0 workflows use it despite 65 copilot-sdk workflows",
+    "harness retry tuning: 0 workflows tune retries (default 3 retries)",
     "engine.cwd: never used across any workflow",
-    "engine.harness retry tuning: never used",
-    "max-tool-denials: never used despite SDK workflows",
-    "model-provider: never used (BYOK configured via env only)",
     "25 copilot workflows missing tracker-id (deduplication gap)",
-    "5 long-running copilot workflows (45-180 min) have no max-continuations",
-    "mcp-scripts: 0 copilot workflows use it"
+    "1 long-running copilot workflow (180 min) has no max-continuations: agent-persona-explorer.md",
+    "3 lsp-using workflows all use copilot engine - feature IS being used for JS/TS",
+    "copilot-sdk: 65 workflows (major usage) but 0 tune max-tool-denials"
   ],
   "trend_vs_previous": {
-    "total_workflows": "258 unchanged",
+    "total_workflows": "260 vs 258 (+2)",
+    "copilot_sdk": "65 in current (new metric tracked)",
     "bare_mode_copilot": "0 unchanged",
-    "lsp_servers": "0 unchanged (was 0 in previous run)",
-    "long_running_no_continuations": "5 copilot-specific identified"
+    "max_continuations_copilot": "0 (corrected: was misleading - 11 total are non-copilot)",
+    "lsp_servers_corrected": "3 copilot workflows DO use LSP (eslint-miner, jsweep, smoke-copilot)",
+    "max_tool_denials": "0 unchanged"
   }
 }
