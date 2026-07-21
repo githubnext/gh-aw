@@ -597,7 +597,20 @@ jobs:
                 "create_issue": " CONSTRAINTS: Maximum 10 issue(s) can be created. Title will be prefixed with \"[deps]\". Labels [\"dependencies\" \"go\" \"cookie\"] will be automatically added."
               },
               "repo_params": {},
-              "dynamic_tools": []
+              "dynamic_tools": [],
+              "property_injections": {
+                "close_issue": {
+                  "state_reason": {
+                    "description": "Optional closing state reason. Omit to use the configured default. Select 'duplicate' together with 'duplicate_of' to mark a native duplicate relationship.",
+                    "enum": [
+                      "completed",
+                      "not_planned",
+                      "duplicate"
+                    ],
+                    "type": "string"
+                  }
+                }
+              }
             }
           GH_AW_VALIDATION_JSON: |
             {
