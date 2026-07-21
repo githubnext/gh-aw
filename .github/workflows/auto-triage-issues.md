@@ -3,6 +3,7 @@ emoji: "🔧"
 name: Auto-Triage Issues
 description: Automatically labels new and existing unlabeled issues to improve discoverability and triage efficiency
 on:
+  roles: all
   issues:
     types: [opened, edited]
   schedule:
@@ -34,6 +35,7 @@ tools:
     mode: gh-proxy
     toolsets:
       - issues
+      - labels
     min-integrity: approved
   bash:
     - "jq *"
@@ -61,6 +63,29 @@ steps:
       echo "Partial-labeled issues (type-only, missing component): $(jq length /tmp/gh-aw/agent/partial-labeled-issues.json)"
 safe-outputs:
   add-labels:
+    allowed:
+      - automation
+      - bug
+      - cli
+      - community
+      - compiler
+      - copilot
+      - dependencies
+      - documentation
+      - enhancement
+      - good-first-issue
+      - high-priority
+      - mcp
+      - needs-triage
+      - observability
+      - performance
+      - question
+      - refactoring
+      - safe-outputs
+      - security
+      - testing
+      - threat-detection
+      - workflows
     max: 10
   create-discussion:
     expires: 1d
@@ -104,6 +129,7 @@ When an issue is opened or edited:
 4. **Classify the issue** based on its title and body content
 5. **Apply all labels** (including `community` if applicable) in a single `add_labels` call
 6. If uncertain about classification, add the `needs-triage` label for human review
+7. If a needed label does not exist yet (for example `observability`), create it first with the GitHub labels toolset, then apply all labels in a single `add_labels` call
 
 ### On Scheduled Runs (Every 6 Hours)
 
@@ -170,6 +196,7 @@ Apply component labels based on mentioned areas:
 - `mcp` - Mentions MCP servers, tools, integrations, `tools/list`, MCP gateway, `awmg-mcpg`, CLI-mounted MCP servers
 - `safe-outputs` - Mentions safe-outputs, safeoutputs, `push_to_pull_request_branch`, `add_comment` via safeoutputs, `outputs.jsonl`, safe-output gateway, "unknown tool" on safeoutputs tools, `report_incomplete` (safeoutputs context)
 - `copilot` - Mentions Copilot engine, copilot CLI (`copilot` engine id), `--disable-builtin-mcps`, Copilot coding agent
+- `observability` - Mentions observability, telemetry, OTel, OTLP, spans, tracing, trace continuity, Grafana, Sentry, Application Insights, `status_code`, or mismatched `run.status` telemetry
 - `security` - Mentions security issues, vulnerabilities, CVE, authentication
 - `performance` - Mentions speed, performance, slow, optimization, memory usage
 - `threat-detection` - Mentions threat detection, detection job, `detection_agentic_execution`, safe outputs detection
@@ -177,7 +204,7 @@ Apply component labels based on mentioned areas:
 ### Priority Indicators
 
 - `high-priority` - Contains "critical", "urgent", "blocking", "important", "silent failure", "silent no-op", "silent green", "indistinguishable from", "laundered into", "masks real", "no channel to report", "every call fails"
-- `good first issue` - Explicitly labeled as beginner-friendly or mentions "first time", "newcomer"
+- `good-first-issue` - Explicitly labeled as beginner-friendly or mentions "first time", "newcomer"
 
 ### Community Label
 
@@ -195,7 +222,7 @@ This label identifies issues opened by external community members and read-only 
 
 ### Known Automation Title Patterns (high-confidence, apply immediately)
 
-These title patterns identify machine-generated operational issues. Apply `automation` without further analysis and **do not** apply `needs-triage`:
+These title patterns identify machine-generated operational issues. Apply `automation` immediately and **do not** apply `needs-triage` just because the issue is machine-generated. Continue the rest of the classification flow so the issue still gets the correct type and component labels.
 
 | Title prefix / pattern | Label(s) to apply |
 |---|---|
@@ -203,7 +230,11 @@ These title patterns identify machine-generated operational issues. Apply `autom
 | `[deep-report]` | `automation` |
 | `[auto-triage]` (case-insensitive) | `automation` |
 
-When an issue title matches one of these patterns, apply the specified label(s) and skip all other classification rules for that issue.
+When an issue title matches one of these patterns:
+
+1. Apply the specified automation label(s) immediately.
+2. Continue evaluating the underlying issue content for type, component, and priority labels.
+3. For `[deep-report]` issues, treat the bug title/body after the wrapper prefix as the primary classification signal. Deep Report issues often wrap a real defect that still needs labels like `bug`, `observability`, or `high-priority`.
 
 ### Uncertainty Handling
 
