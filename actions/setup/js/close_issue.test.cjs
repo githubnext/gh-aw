@@ -810,8 +810,8 @@ describe("close_issue", () => {
       expect(updateCalls[0].state_reason).toBe("duplicate");
     });
 
-    it("should use first item in state_reasons list as default when agent omits state_reason", async () => {
-      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+    it("should use first item in allowed_state_reason list as default when agent omits state_reason", async () => {
+      const handler = await main({ max: 10, allowed_state_reason: ["not_planned", "duplicate"] });
       const updateCalls = [];
 
       mockGithub.rest.issues.update = async params => {
@@ -831,8 +831,8 @@ describe("close_issue", () => {
       expect(updateCalls[0].state_reason).toBe("not_planned");
     });
 
-    it("should accept item-level state_reason from state_reasons list", async () => {
-      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+    it("should accept item-level state_reason from allowed_state_reason list", async () => {
+      const handler = await main({ max: 10, allowed_state_reason: ["not_planned", "duplicate"] });
       const updateCalls = [];
 
       mockGithub.rest.issues.update = async params => {
@@ -852,8 +852,8 @@ describe("close_issue", () => {
       expect(updateCalls[0].state_reason).toBe("duplicate");
     });
 
-    it("should reject item-level state_reason not in state_reasons list", async () => {
-      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+    it("should reject item-level state_reason not in allowed_state_reason list", async () => {
+      const handler = await main({ max: 10, allowed_state_reason: ["not_planned", "duplicate"] });
 
       const result = await handler({ issue_number: 100, body: "Completed", state_reason: "COMPLETED" }, {});
 
@@ -1426,8 +1426,8 @@ describe("close_issue", () => {
       expect(mockCore.warnings.some(w => w.includes("not DUPLICATE"))).toBe(true);
     });
 
-    it("should mark native duplicate when using state_reasons list with DUPLICATE and duplicate_of", async () => {
-      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+    it("should mark native duplicate when using allowed_state_reason list with DUPLICATE and duplicate_of", async () => {
+      const handler = await main({ max: 10, allowed_state_reason: ["not_planned", "duplicate"] });
       const graphqlCalls = [];
 
       mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => ({

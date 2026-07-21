@@ -457,7 +457,7 @@ func TestComputePropertyInjectionsOmittedStateReason(t *testing.T) {
 func TestComputePropertyInjectionsListStateReason(t *testing.T) {
 	injections := computePropertyInjections(&SafeOutputsConfig{
 		CloseIssues: &CloseIssuesConfig{
-			StateReasons: []string{"not_planned", "duplicate"},
+			AllowedStateReason: []string{"not_planned", "duplicate"},
 		},
 	})
 
@@ -491,7 +491,7 @@ func TestComputePropertyInjectionsNilCloseIssues(t *testing.T) {
 	assert.Empty(t, injections)
 }
 
-// TestPreprocessStateReasonListSlice verifies that a []any slice is converted to state-reasons.
+// TestPreprocessStateReasonListSlice verifies that a []any slice is converted to allowed-state-reason.
 func TestPreprocessStateReasonListSlice(t *testing.T) {
 	configData := map[string]any{
 		"state-reason": []any{"not_planned", "duplicate"},
@@ -499,10 +499,10 @@ func TestPreprocessStateReasonListSlice(t *testing.T) {
 	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
 	assert.True(t, result)
 	assert.NotContains(t, configData, "state-reason", "state-reason key should be removed")
-	assert.Equal(t, []string{"not_planned", "duplicate"}, configData["state-reasons"])
+	assert.Equal(t, []string{"not_planned", "duplicate"}, configData["allowed-state-reason"])
 }
 
-// TestPreprocessStateReasonListStringSlice verifies that a []string slice is converted to state-reasons.
+// TestPreprocessStateReasonListStringSlice verifies that a []string slice is converted to allowed-state-reason.
 func TestPreprocessStateReasonListStringSlice(t *testing.T) {
 	configData := map[string]any{
 		"state-reason": []string{"completed", "not_planned"},
@@ -510,7 +510,7 @@ func TestPreprocessStateReasonListStringSlice(t *testing.T) {
 	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
 	assert.True(t, result)
 	assert.NotContains(t, configData, "state-reason")
-	assert.Equal(t, []string{"completed", "not_planned"}, configData["state-reasons"])
+	assert.Equal(t, []string{"completed", "not_planned"}, configData["allowed-state-reason"])
 }
 
 // TestPreprocessStateReasonListScalarNotConverted verifies that a scalar string is not touched.

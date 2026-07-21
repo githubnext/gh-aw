@@ -196,11 +196,11 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason, intentM
 async function main(config = {}) {
   // Determine the state-reason configuration mode:
   //   - config.state_reason (string): scalar — fixed reason, agent cannot override
-  //   - config.state_reasons (string[]): list — agent may select from this subset
+  //   - config.allowed_state_reason (string[]): list — agent may select from this subset
   //   - neither set: omitted — agent may select from all three supported values
   const configStateReason = config.state_reason || null;
   /** @type {string[]|null} */
-  const configStateReasons = Array.isArray(config.state_reasons) && config.state_reasons.length > 0 ? config.state_reasons : null;
+  const configStateReasons = Array.isArray(config.allowed_state_reason) && config.allowed_state_reason.length > 0 ? config.allowed_state_reason : null;
 
   // The fallback used when the agent does not supply state_reason at item level.
   // Scalar config → use the configured value.

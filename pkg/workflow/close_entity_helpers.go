@@ -82,9 +82,9 @@ type CloseEntityConfig struct {
 	SafeOutputTargetConfig           `yaml:",inline"`
 	SafeOutputFilterConfig           `yaml:",inline"`
 	SafeOutputDiscussionFilterConfig `yaml:",inline"` // Only used for discussions
-	StateReason                      string           `yaml:"state-reason,omitempty"`  // Only used for issues. Scalar: fixed reason. Mutually exclusive with StateReasons.
-	StateReasons                     []string         `yaml:"state-reasons,omitempty"` // Only used for issues. List: agent selects from this subset. Populated by preprocessing when state-reason is a YAML sequence.
-	AllowBody                        *bool            `yaml:"allow-body,omitempty"`    // If false, any body provided by the agent is dropped with a warning; close proceeds without a comment
+	StateReason                      string           `yaml:"state-reason,omitempty"`         // Only used for issues. Scalar: fixed reason. Mutually exclusive with AllowedStateReason.
+	AllowedStateReason               []string         `yaml:"allowed-state-reason,omitempty"` // Only used for issues. List: agent selects from this subset.
+	AllowBody                        *bool            `yaml:"allow-body,omitempty"`           // If false, any body provided by the agent is dropped with a warning; close proceeds without a comment
 }
 
 // CloseEntityJobParams holds the parameters needed to build a close entity job
@@ -118,13 +118,13 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 	}
 
 	// Pre-process state-reason: when the value is a sequence (list) rather than a scalar,
-	// move it to "state-reasons" so it unmarshals into StateReasons []string instead of
-	// the scalar StateReason string field. This supports the list form:
+	// move it to "allowed-state-reason" so it unmarshals into AllowedStateReason []string
+	// instead of the scalar StateReason string field. This supports the list form:
 	//   state-reason: [not_planned, duplicate]
 	if configData != nil {
 		if raw, exists := configData["state-reason"]; exists {
 			if preprocessStateReasonList(configData, raw, logger) {
-				logger.Printf("state-reason list form detected for %s; moved to state-reasons", params.ConfigKey)
+				logger.Printf("state-reason list form detected for %s; moved to allowed-state-reason", params.ConfigKey)
 			}
 		}
 	}
@@ -171,13 +171,13 @@ func preprocessStateReasonList(configData map[string]any, raw any, logger *logge
 			reasons = append(reasons, s)
 		}
 		if len(reasons) > 0 {
-			configData["state-reasons"] = reasons
+			configData["allowed-state-reason"] = reasons
 		}
 		delete(configData, "state-reason")
 		return true
 	case []string:
 		if len(v) > 0 {
-			configData["state-reasons"] = v
+			configData["allowed-state-reason"] = v
 		}
 		delete(configData, "state-reason")
 		return true

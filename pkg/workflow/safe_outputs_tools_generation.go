@@ -304,7 +304,7 @@ func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[st
 		return injections
 	}
 	// List or omitted: expose state_reason with the permitted enum.
-	enumValues := c.StateReasons
+	enumValues := c.AllowedStateReason
 	if len(enumValues) == 0 {
 		enumValues = closeIssueStateReasonValues
 	}

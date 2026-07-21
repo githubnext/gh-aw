@@ -912,7 +912,7 @@ describe("generate_safe_outputs_tools", () => {
         },
       ])
     );
-    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { state_reasons: ["not_planned", "duplicate"] } }));
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { allowed_state_reason: ["not_planned", "duplicate"] } }));
     fs.writeFileSync(
       toolsMetaPath,
       JSON.stringify({
