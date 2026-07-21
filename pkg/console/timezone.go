@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"sync"
 	"time"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var timezoneLog = logger.New("console:timezone")
 
 var (
 	timeLocationMu sync.RWMutex
@@ -13,6 +17,7 @@ var (
 
 // SetTimeLocation configures the location used when rendering time.Time values.
 func SetTimeLocation(location *time.Location) {
+	timezoneLog.Printf("Setting time location override: location=%v", location)
 	timeLocationMu.Lock()
 	defer timeLocationMu.Unlock()
 	timeLocation = location
@@ -35,6 +40,7 @@ func formatConfiguredTimeValue(timeVal time.Time) string {
 		return timeVal.Format("2006-01-02 15:04:05")
 	}
 
+	timezoneLog.Printf("Formatting time value in configured location: %v", location)
 	localTime := timeVal.In(location)
 	_, offsetSeconds := localTime.Zone()
 	return fmt.Sprintf("%s UTC%s", localTime.Format("2006-01-02 15:04:05"), formatUTCOffset(offsetSeconds))

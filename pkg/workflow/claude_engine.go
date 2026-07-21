@@ -384,8 +384,21 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// Build environment variables map
 	provider := e.ResolveLLMProvider(workflowData)
+	// The anthropic sidecar forwards the token as-is to its configured upstream
+	// (api.anthropic.com for the default provider, api.githubcopilot.com when
+	// model-provider: github is set). Unlike the copilot sidecar (port 10002),
+	// the anthropic sidecar performs no token exchange, so the caller must supply
+	// a bearer token that the upstream accepts. api.githubcopilot.com rejects
+	// GitHub App server-to-server tokens (github.token); it requires a user token
+	// (COPILOT_GITHUB_TOKEN PAT). Therefore, bypass the copilot-requests:write
+	// → github.token shortcut and always use COPILOT_GITHUB_TOKEN for the GitHub
+	// provider on the Claude engine.
+	claudeAPIKeyExpr := llmProviderSecretExpression(provider, workflowData)
+	if provider == LLMProviderGitHub {
+		claudeAPIKeyExpr = "${{ secrets.COPILOT_GITHUB_TOKEN }}"
+	}
 	env := map[string]string{
-		"ANTHROPIC_API_KEY":       llmProviderSecretExpression(provider, workflowData),
+		"ANTHROPIC_API_KEY":       claudeAPIKeyExpr,
 		"DISABLE_TELEMETRY":       "1",
 		"DISABLE_ERROR_REPORTING": "1",
 		"DISABLE_BUG_COMMAND":     "1",

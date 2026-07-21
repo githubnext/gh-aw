@@ -164,7 +164,7 @@ func buildProcessedRun(result DownloadResult, verbose, logFailedJobs bool) Proce
 	}
 
 	// Add failed jobs to error count.
-	if failedJobCount, err := fetchJobStatusesForProcessedRun(run.DatabaseID, verbose); err == nil {
+	if failedJobCount, err := fetchJobStatusesForProcessedRun(context.Background(), run.DatabaseID, verbose); err == nil {
 		run.ErrorCount += failedJobCount
 		if verbose && logFailedJobs && failedJobCount > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))

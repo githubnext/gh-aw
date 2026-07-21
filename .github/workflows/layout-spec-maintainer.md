@@ -48,6 +48,11 @@ tools:
   - grep -r ".*" pkg/workflow/js/
   - grep -r ".*" pkg/workflow/*.go
   - git status
+  - cd * && git status
+  - cd * && git checkout -b *
+  - git -C * checkout -b *
+  - cd * && git add * && git diff --cached --stat
+  - cd * && git add * && git status
   - git diff scratchpad/layout.md
   - cat scratchpad/layout.md
   cli-proxy: true

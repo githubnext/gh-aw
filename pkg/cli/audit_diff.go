@@ -20,10 +20,17 @@ var auditDiffLog = logger.New("cli:audit_diff")
 // >100% increase means the request count more than doubled.
 const volumeChangeThresholdPercent = 100.0
 
+// DiffEntryBase holds common anomaly-flagging fields shared by all diff entry types.
+type DiffEntryBase struct {
+	Status      string `json:"status"`
+	IsAnomaly   bool   `json:"is_anomaly,omitempty"`   // Flagged as anomalous
+	AnomalyNote string `json:"anomaly_note,omitempty"` // Human-readable anomaly explanation
+}
+
 // DomainDiffEntry represents the diff for a single domain between two runs
 type DomainDiffEntry struct {
-	Domain       string `json:"domain"`
-	Status       string `json:"status"`                  // "new", "removed", "status_changed", "volume_changed"
+	Domain string `json:"domain"`
+	DiffEntryBase
 	Run1Allowed  int    `json:"run1_allowed"`            // Allowed requests in run 1
 	Run1Blocked  int    `json:"run1_blocked"`            // Blocked requests in run 1
 	Run2Allowed  int    `json:"run2_allowed"`            // Allowed requests in run 2
@@ -31,8 +38,6 @@ type DomainDiffEntry struct {
 	Run1Status   string `json:"run1_status,omitempty"`   // "allowed", "denied", or "" for new domains
 	Run2Status   string `json:"run2_status,omitempty"`   // "allowed", "denied", or "" for removed domains
 	VolumeChange string `json:"volume_change,omitempty"` // e.g. "+287%" or "-50%"
-	IsAnomaly    bool   `json:"is_anomaly,omitempty"`    // Flagged as anomalous (new denied, status flip to allowed)
-	AnomalyNote  string `json:"anomaly_note,omitempty"`  // Human-readable anomaly explanation
 }
 
 // FirewallDiff represents the complete diff between two runs' firewall behavior
@@ -103,11 +108,11 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 		if !inRun1 && inRun2 {
 			// New domain in run 2
 			entry := DomainDiffEntry{
-				Domain:      domain,
-				Status:      "new",
-				Run2Allowed: stats2.Allowed,
-				Run2Blocked: stats2.Blocked,
-				Run2Status:  classifyFirewallDomainStatus(stats2),
+				Domain:        domain,
+				DiffEntryBase: DiffEntryBase{Status: "new"},
+				Run2Allowed:   stats2.Allowed,
+				Run2Blocked:   stats2.Blocked,
+				Run2Status:    classifyFirewallDomainStatus(stats2),
 			}
 			// Anomaly: new denied domain
 			if stats2.Blocked > 0 {
@@ -119,11 +124,11 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 		} else if inRun1 && !inRun2 {
 			// Removed domain
 			entry := DomainDiffEntry{
-				Domain:      domain,
-				Status:      "removed",
-				Run1Allowed: stats1.Allowed,
-				Run1Blocked: stats1.Blocked,
-				Run1Status:  classifyFirewallDomainStatus(stats1),
+				Domain:        domain,
+				DiffEntryBase: DiffEntryBase{Status: "removed"},
+				Run1Allowed:   stats1.Allowed,
+				Run1Blocked:   stats1.Blocked,
+				Run1Status:    classifyFirewallDomainStatus(stats1),
 			}
 			// Anomaly: the removed domain was denied in the base run.  This indicates a
 			// transient firewall block that prevented the agent from reaching an MCP server
@@ -144,14 +149,14 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 			if status1 != status2 {
 				// Status changed
 				entry := DomainDiffEntry{
-					Domain:      domain,
-					Status:      "status_changed",
-					Run1Allowed: stats1.Allowed,
-					Run1Blocked: stats1.Blocked,
-					Run2Allowed: stats2.Allowed,
-					Run2Blocked: stats2.Blocked,
-					Run1Status:  status1,
-					Run2Status:  status2,
+					Domain:        domain,
+					DiffEntryBase: DiffEntryBase{Status: "status_changed"},
+					Run1Allowed:   stats1.Allowed,
+					Run1Blocked:   stats1.Blocked,
+					Run2Allowed:   stats2.Allowed,
+					Run2Blocked:   stats2.Blocked,
+					Run1Status:    status1,
+					Run2Status:    status2,
 				}
 				// Anomaly: previously denied, now allowed
 				if status1 == "denied" && status2 == "allowed" {
@@ -175,15 +180,15 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 					pctChange := (float64(total2-total1) / float64(total1)) * 100
 					if math.Abs(pctChange) > volumeChangeThresholdPercent {
 						entry := DomainDiffEntry{
-							Domain:       domain,
-							Status:       "volume_changed",
-							Run1Allowed:  stats1.Allowed,
-							Run1Blocked:  stats1.Blocked,
-							Run2Allowed:  stats2.Allowed,
-							Run2Blocked:  stats2.Blocked,
-							Run1Status:   status1,
-							Run2Status:   status2,
-							VolumeChange: formatVolumeChange(total1, total2),
+							Domain:        domain,
+							DiffEntryBase: DiffEntryBase{Status: "volume_changed"},
+							Run1Allowed:   stats1.Allowed,
+							Run1Blocked:   stats1.Blocked,
+							Run2Allowed:   stats2.Allowed,
+							Run2Blocked:   stats2.Blocked,
+							Run1Status:    status1,
+							Run2Status:    status2,
+							VolumeChange:  formatVolumeChange(total1, total2),
 						}
 						diff.VolumeChanges = append(diff.VolumeChanges, entry)
 					}
@@ -222,16 +227,14 @@ func classifyFirewallDomainStatus(stats DomainRequestStats) string {
 
 // MCPToolDiffEntry represents the diff for a single MCP tool between two runs
 type MCPToolDiffEntry struct {
-	ServerName      string `json:"server_name"`
-	ToolName        string `json:"tool_name"`
-	Status          string `json:"status"`                    // "new", "removed", "changed"
+	ServerName string `json:"server_name"`
+	ToolName   string `json:"tool_name"`
+	DiffEntryBase
 	Run1CallCount   int    `json:"run1_call_count,omitempty"` // Call count in run 1
 	Run2CallCount   int    `json:"run2_call_count,omitempty"` // Call count in run 2
 	Run1ErrorCount  int    `json:"run1_error_count,omitempty"`
 	Run2ErrorCount  int    `json:"run2_error_count,omitempty"`
 	CallCountChange string `json:"call_count_change,omitempty"` // e.g. "+2", "-3"
-	IsAnomaly       bool   `json:"is_anomaly,omitempty"`
-	AnomalyNote     string `json:"anomaly_note,omitempty"`
 }
 
 // MCPToolsDiff represents the complete diff of MCP tool invocations between two runs
@@ -280,8 +283,8 @@ type TokenUsageDiff struct {
 // ToolCallDiffEntry represents the diff for a single engine-level tool between two runs.
 // Tool data comes from RunSummary.Metrics.ToolCalls (LogMetrics.ToolCalls).
 type ToolCallDiffEntry struct {
-	Name              string `json:"name"`
-	Status            string `json:"status"`                         // "new", "removed", "changed", "unchanged"
+	Name string `json:"name"`
+	DiffEntryBase
 	Run1CallCount     int    `json:"run1_call_count"`                // Call count in run 1 (0 if new)
 	Run2CallCount     int    `json:"run2_call_count"`                // Call count in run 2 (0 if removed)
 	CallCountChange   string `json:"call_count_change,omitempty"`    // e.g. "+3", "-1"
@@ -453,7 +456,7 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 			entry := MCPToolDiffEntry{
 				ServerName:     s2.ServerName,
 				ToolName:       s2.ToolName,
-				Status:         "new",
+				DiffEntryBase:  DiffEntryBase{Status: "new"},
 				Run2CallCount:  s2.CallCount,
 				Run2ErrorCount: s2.ErrorCount,
 			}
@@ -467,7 +470,7 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 			diff.RemovedTools = append(diff.RemovedTools, MCPToolDiffEntry{
 				ServerName:     s1.ServerName,
 				ToolName:       s1.ToolName,
-				Status:         "removed",
+				DiffEntryBase:  DiffEntryBase{Status: "removed"},
 				Run1CallCount:  s1.CallCount,
 				Run1ErrorCount: s1.ErrorCount,
 			})
@@ -475,7 +478,7 @@ func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
 			entry := MCPToolDiffEntry{
 				ServerName:      s1.ServerName,
 				ToolName:        s1.ToolName,
-				Status:          "changed",
+				DiffEntryBase:   DiffEntryBase{Status: "changed"},
 				Run1CallCount:   s1.CallCount,
 				Run2CallCount:   s2.CallCount,
 				Run1ErrorCount:  s1.ErrorCount,
@@ -679,7 +682,7 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 		case !inRun1 && inRun2:
 			entry = ToolCallDiffEntry{
 				Name:              name,
-				Status:            "new",
+				DiffEntryBase:     DiffEntryBase{Status: "new"},
 				Run2CallCount:     tc2.CallCount,
 				Run2MaxInputSize:  tc2.MaxInputSize,
 				Run2MaxOutputSize: tc2.MaxOutputSize,
@@ -688,7 +691,7 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 		case inRun1 && !inRun2:
 			entry = ToolCallDiffEntry{
 				Name:              name,
-				Status:            "removed",
+				DiffEntryBase:     DiffEntryBase{Status: "removed"},
 				Run1CallCount:     tc1.CallCount,
 				Run1MaxInputSize:  tc1.MaxInputSize,
 				Run1MaxOutputSize: tc1.MaxOutputSize,
@@ -697,7 +700,7 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 		case tc1.CallCount != tc2.CallCount:
 			entry = ToolCallDiffEntry{
 				Name:              name,
-				Status:            "changed",
+				DiffEntryBase:     DiffEntryBase{Status: "changed"},
 				Run1CallCount:     tc1.CallCount,
 				Run2CallCount:     tc2.CallCount,
 				CallCountChange:   formatCountChange(tc1.CallCount, tc2.CallCount),
@@ -710,7 +713,7 @@ func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
 		default:
 			entry = ToolCallDiffEntry{
 				Name:              name,
-				Status:            "unchanged",
+				DiffEntryBase:     DiffEntryBase{Status: "unchanged"},
 				Run1CallCount:     tc1.CallCount,
 				Run2CallCount:     tc2.CallCount,
 				Run1MaxInputSize:  tc1.MaxInputSize,
@@ -775,7 +778,7 @@ func computeBashCommandsDiff(run1Tools, run2Tools map[string]ToolCallInfo) *Bash
 
 		cmd := ToolCallDiffEntry{
 			Name:              name,
-			Status:            status,
+			DiffEntryBase:     DiffEntryBase{Status: status},
 			Run1CallCount:     tc1.CallCount,
 			Run2CallCount:     tc2.CallCount,
 			Run1MaxInputSize:  tc1.MaxInputSize,

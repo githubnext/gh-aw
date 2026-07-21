@@ -201,6 +201,35 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 	assert.NotContains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
 }
 
+func TestClaudeEngineLLMProviderGitHubUsesCopilotTokenEvenWithCopilotRequestsWrite(t *testing.T) {
+	// When copilot-requests: write is set, the standard Copilot engine can use
+	// github.token (the server-to-server GITHUB_TOKEN) because the copilot sidecar
+	// performs token exchange. The Claude engine routes through the anthropic sidecar
+	// which does NOT do token exchange — it forwards the token as-is to
+	// api.githubcopilot.com, which rejects server-to-server tokens with HTTP 400.
+	// Therefore, the Claude engine must always use COPILOT_GITHUB_TOKEN (a PAT)
+	// regardless of the copilot-requests: write permission.
+	engine := NewClaudeEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			LLMProvider: "github",
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true},
+		},
+		Permissions: "copilot-requests: write\npull-requests: read",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	require.Len(t, steps, 1)
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	// Must use COPILOT_GITHUB_TOKEN, NOT github.token, even with copilot-requests:write.
+	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
+	assert.NotContains(t, stepContent, "ANTHROPIC_API_KEY: ${{ github.token }}")
+}
+
 func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
 	engine := NewClaudeEngine()
 

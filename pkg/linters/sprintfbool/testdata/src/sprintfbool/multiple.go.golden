@@ -1,0 +1,11 @@
+package sprintfbool
+
+import "strconv"
+
+func badOne(b bool) string {
+	return strconv.FormatBool(b) // want `use strconv\.FormatBool\(b\) instead of fmt\.Sprintf\("%t", b\)`
+}
+
+func badTwo(b bool) string {
+	return strconv.FormatBool(b) // want `use strconv\.FormatBool\(b\) instead of fmt\.Sprintf\("%t", b\)`
+}

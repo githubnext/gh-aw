@@ -16,13 +16,13 @@ func TestDomainMatchesRule(t *testing.T) {
 	tests := []struct {
 		name     string
 		host     string
-		rule     PolicyRule
+		rule     FirewallPolicyRule
 		expected bool
 	}{
 		{
 			name: "exact match without port",
 			host: "github.com",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{"github.com"},
 			},
 			expected: true,
@@ -30,7 +30,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "exact match with port",
 			host: "github.com:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{"github.com"},
 			},
 			expected: true,
@@ -38,7 +38,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "wildcard match - subdomain",
 			host: "api.github.com:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{".github.com"},
 			},
 			expected: true,
@@ -46,7 +46,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "wildcard match - base domain",
 			host: "github.com:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{".github.com"},
 			},
 			expected: true,
@@ -54,7 +54,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "wildcard match - deep subdomain",
 			host: "api.v2.github.com:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{".github.com"},
 			},
 			expected: true,
@@ -62,7 +62,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "no match - different domain",
 			host: "evil.com:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{".github.com"},
 			},
 			expected: false,
@@ -70,7 +70,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "no match - suffix collision",
 			host: "notgithub.com:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{".github.com"},
 			},
 			expected: false,
@@ -78,7 +78,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "case insensitive match",
 			host: "API.GitHub.COM:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{".github.com"},
 			},
 			expected: true,
@@ -86,7 +86,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "multiple domains in rule",
 			host: "npmjs.org:443",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{".github.com", "npmjs.org"},
 			},
 			expected: true,
@@ -94,7 +94,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "no match - empty domains",
 			host: "example.com",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				Domains: []string{},
 			},
 			expected: false,
@@ -102,7 +102,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "regex match - IP pattern",
 			host: "192.168.1.1",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				ACLName: "dst_ipv4_regex",
 				Domains: []string{`^192\.168\.`},
 			},
@@ -111,7 +111,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "regex match - metachar detection",
 			host: "test.example.com",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				ACLName: "some_acl",
 				Domains: []string{`^.*\.example\.com$`},
 			},
@@ -120,7 +120,7 @@ func TestDomainMatchesRule(t *testing.T) {
 		{
 			name: "regex no match",
 			host: "other.com",
-			rule: PolicyRule{
+			rule: FirewallPolicyRule{
 				ACLName: "dst_ipv4_regex",
 				Domains: []string{`^192\.168\.`},
 			},
@@ -137,7 +137,7 @@ func TestDomainMatchesRule(t *testing.T) {
 }
 
 func TestFindMatchingRule(t *testing.T) {
-	rules := []PolicyRule{
+	rules := []FirewallPolicyRule{
 		{
 			ID:       "allow-github",
 			Order:    1,
@@ -211,7 +211,7 @@ func TestFindMatchingRule(t *testing.T) {
 }
 
 func TestProtocolMatching(t *testing.T) {
-	rules := []PolicyRule{
+	rules := []FirewallPolicyRule{
 		{
 			ID:       "allow-https-only",
 			Order:    1,
@@ -291,7 +291,7 @@ func TestLoadPolicyManifest(t *testing.T) {
 		manifest := PolicyManifest{
 			Version:     1,
 			GeneratedAt: "2026-01-01T00:00:00Z",
-			Rules: []PolicyRule{
+			Rules: []FirewallPolicyRule{
 				{ID: "rule-b", Order: 2, Action: "deny", Domains: []string{".evil.com"}, Description: "Block evil"},
 				{ID: "rule-a", Order: 1, Action: "allow", Domains: []string{".github.com"}, Description: "Allow GitHub"},
 			},
@@ -321,7 +321,7 @@ func TestLoadPolicyManifest(t *testing.T) {
 		ports := "8080,9090"
 		manifest := PolicyManifest{
 			Version:           1,
-			Rules:             []PolicyRule{},
+			Rules:             []FirewallPolicyRule{},
 			HostAccessEnabled: true,
 			AllowHostPorts:    &ports,
 		}
@@ -417,7 +417,7 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 	manifest := &PolicyManifest{
 		Version:     1,
 		GeneratedAt: "2026-01-01T00:00:00Z",
-		Rules: []PolicyRule{
+		Rules: []FirewallPolicyRule{
 			{
 				ID:          "allow-github",
 				Order:       1,
@@ -518,7 +518,7 @@ func TestEnrichWithPolicyRules(t *testing.T) {
 		// any allow rule should be classified as (unattributed-allow), not (implicit-deny)
 		limitedManifest := &PolicyManifest{
 			Version: 1,
-			Rules: []PolicyRule{
+			Rules: []FirewallPolicyRule{
 				{ID: "allow-github", Order: 1, Action: "allow", ACLName: "allowed_domains", Protocol: "both", Domains: []string{".github.com"}, Description: "Allow GitHub"},
 			},
 		}
@@ -699,7 +699,7 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 		manifest := PolicyManifest{
 			Version:     1,
 			GeneratedAt: "2026-01-01T00:00:00Z",
-			Rules: []PolicyRule{
+			Rules: []FirewallPolicyRule{
 				{ID: "allow-github", Order: 1, Action: "allow", ACLName: "allowed_domains", Protocol: "both", Domains: []string{".github.com"}, Description: "Allow GitHub"},
 				{ID: "deny-all", Order: 2, Action: "deny", ACLName: "all", Protocol: "both", Domains: []string{}, Description: "Block all other traffic"},
 			},
@@ -732,7 +732,7 @@ func TestAnalyzeFirewallPolicy(t *testing.T) {
 
 		manifest := PolicyManifest{
 			Version:        1,
-			Rules:          []PolicyRule{{ID: "r1", Order: 1, Action: "allow", Domains: []string{".example.com"}}},
+			Rules:          []FirewallPolicyRule{{ID: "r1", Order: 1, Action: "allow", Domains: []string{".example.com"}}},
 			SSLBumpEnabled: true,
 		}
 		manifestData, err := json.Marshal(manifest)
