@@ -10,9 +10,9 @@ permissions:
   actions: read
   contents: read
   issues: read
+model: claude-sonnet-4.6
 engine:
   id: claude
-  model: claude-sonnet-4.6
 jobs:
   vulnhunter_bundle:
     runs-on: ubuntu-latest
