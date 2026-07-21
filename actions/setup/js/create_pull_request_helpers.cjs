@@ -262,13 +262,20 @@ function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch,
  * @returns {string} One or more blockquote lines for the error section (no leading/trailing blank lines).
  */
 function buildPushErrorSection(rawErrorMessage, sanitizedErrorMessage) {
-  if (!/pushSignedCommits: refusing unsigned push/.test(rawErrorMessage)) {
+  // Only render the structured block for PushSignedCommitsUnsupportedShape errors,
+  // identified by the unique "cannot represent" boilerplate text. PushSignedCommitsPolicyViolation
+  // errors also start with "refusing unsigned push" but lack this boilerplate, so they fall
+  // through to the sanitised original-error fallback.
+  if (!/pushSignedCommits: refusing unsigned push/.test(rawErrorMessage) || !/createCommitOnBranch GraphQL mutation cannot represent/.test(rawErrorMessage)) {
     return `> **Original error:** ${sanitizedErrorMessage}`;
   }
 
-  // Extract the specific cause (e.g. "merge commit detected") embedded in the raw message.
-  const causeMatch = rawErrorMessage.match(/refusing unsigned push for branch '[^']*': ([^.]+)/);
+  // Extract the specific cause (e.g. "merge commit detected") anchored to the boilerplate.
+  // Using '.*?' (lazy) instead of '[^']*' (restricted) handles apostrophes in branch names.
+  const causeMatch = rawErrorMessage.match(/refusing unsigned push for branch '.*?': ([^.]+?)(?=\. GitHub's createCommitOnBranch)/);
   const cause = causeMatch ? causeMatch[1].trim() : "unsupported commit shape";
+
+  const remediationLines = _remediationForCause(cause);
 
   return [
     `> **Error:** Signed commit push refused — ${cause}`,
@@ -279,9 +286,28 @@ function buildPushErrorSection(rawErrorMessage, sanitizedErrorMessage) {
     `> - Submodule entries (mode \`160000\`)`,
     `> - Executable files (mode \`100755\`)`,
     `>`,
-    `> **To fix:** Use \`git rebase\` instead of \`git merge\` to incorporate upstream changes,`,
-    `> or set \`signed-commits: false\` in your workflow step if signed commits are not required.`,
+    ...remediationLines,
   ].join("\n");
+}
+
+/**
+ * Returns cause-specific remediation lines for a signed-commits push refusal.
+ * @param {string} cause - The extracted cause string from the error message.
+ * @returns {string[]} Two blockquote lines: the fix instruction and the unsigned-push alternative.
+ */
+function _remediationForCause(cause) {
+  const c = cause.toLowerCase();
+  let rewriteInstruction;
+  if (c.includes("merge commit")) {
+    rewriteInstruction = "Use `git rebase` instead of `git merge` to rewrite the commit history without merge commits";
+  } else if (c.includes("submodule")) {
+    rewriteInstruction = "Remove the submodule entry from the commit history";
+  } else if (c.includes("symlink")) {
+    rewriteInstruction = "Remove the symlink from the commit history";
+  } else {
+    rewriteInstruction = "Rewrite the commits to use only regular files (mode `100644`) with no merge commits or special entries";
+  }
+  return [`> **To fix:** ${rewriteInstruction},`, `> or set \`signed-commits: false\` in your workflow step if signed commits are not required.`];
 }
 
 /**
