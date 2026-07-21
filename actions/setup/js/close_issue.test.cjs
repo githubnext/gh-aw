@@ -1477,7 +1477,7 @@ describe("close_issue", () => {
       // Verify issue-intent PATCH was called with the intent metadata intact (suggest, rationale, confidence)
       expect(requestCalls).toHaveLength(1);
       expect(requestCalls[0].route).toBe("PATCH /repos/{owner}/{repo}/issues/{issue_number}");
-      expect(requestCalls[0].params.state).toMatchObject({ value: "closed", rationale: "Same CSV defect.", confidence: "HIGH" });
+      expect(requestCalls[0].params.state).toMatchObject({ value: "closed", suggest: true, rationale: "Same CSV defect.", confidence: "HIGH" });
 
       // Verify the native duplicate GraphQL mutation was also executed
       expect(graphqlCalls.length).toBeGreaterThan(0);

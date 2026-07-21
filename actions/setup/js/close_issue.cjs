@@ -312,10 +312,10 @@ async function main(config = {}) {
             // Scalar config: state_reason is fixed by config; the agent cannot override it.
             // The field was not exposed in the tool schema, so enforce the configured value
             // regardless of what the agent supplied.
-            if (provided.toLowerCase() !== configStateReason.toLowerCase()) {
-              core.debug(`state_reason "${provided}" supplied by agent overridden by scalar config value "${configStateReason}"`);
-            }
             stateReason = configStateReason;
+            if (provided.toLowerCase() !== stateReason.toLowerCase()) {
+              core.debug(`state_reason agent value "${provided.toLowerCase()}" overridden by scalar config value "${stateReason.toLowerCase()}"`);
+            }
           } else if (configStateReasons) {
             // List config: validate against the configured subset.
             const upperProvided = provided.toUpperCase();
