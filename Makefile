@@ -27,6 +27,7 @@ GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT ?= 5
 GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE ?= $(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)
 TEST_UNIT_MAX_SECONDS ?= 30
 TEST_UNIT_RUN_FULL ?= 0
+TEST_UNIT_IMPACTED_FALLBACK_MODE ?= sample
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -82,7 +83,7 @@ build-wasm:
 
 # Test the code (runs both unlabelled unit tests and integration tests and long tests)
 .PHONY: test
-test: test-unit-all test-integration
+test: test-unit test-integration
 
 # Test all Go unit tests only (excludes labelled integration tests and long tests)
 .PHONY: test-unit-all
@@ -93,7 +94,7 @@ test-unit-all:
 .PHONY: test-unit
 test-unit:
 	@echo "Running impacted Go unit tests first (time budget: $(TEST_UNIT_MAX_SECONDS)s)..."; \
-	$(MAKE) --no-print-directory test-impacted-go CI_COVERAGE_ENABLED=0 GO_IMPACTED_TEST_MAX_SECONDS=$(TEST_UNIT_MAX_SECONDS) GO_IMPACTED_TEST_FALLBACK_MODE=sample GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE=$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE); \
+	$(MAKE) --no-print-directory test-impacted-go CI_COVERAGE_ENABLED=0 GO_IMPACTED_TEST_MAX_SECONDS=$(TEST_UNIT_MAX_SECONDS) GO_IMPACTED_TEST_FALLBACK_MODE=$(TEST_UNIT_IMPACTED_FALLBACK_MODE) GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE=$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE); \
 	if [ "$(TEST_UNIT_RUN_FULL)" = "1" ]; then \
 		echo "TEST_UNIT_RUN_FULL=1 set; running full Go unit test suite after impacted tests."; \
 		$(MAKE) --no-print-directory test-unit-all; \
@@ -432,11 +433,8 @@ test-impacted-go:
 	if [ "$(GO_IMPACTED_TEST_FALLBACK_MODE)" = "sample" ]; then \
 		SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE)"; \
 		case "$$SAMPLE_PER_PACKAGE" in \
-			''|*[!0-9]*) SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)" ;; \
+			''|*[!0-9]*|0) SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)" ;; \
 		esac; \
-		if [ "$$SAMPLE_PER_PACKAGE" -le 0 ]; then \
-			SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)"; \
-		fi; \
 		echo "No impacted timing data available; running up to $$SAMPLE_PER_PACKAGE sampled top-level tests per impacted package."; \
 		printf '%s\n' "$$CHANGED_GO_PACKAGES" | while IFS= read -r pkg; do \
 			[ -z "$$pkg" ] && continue; \
