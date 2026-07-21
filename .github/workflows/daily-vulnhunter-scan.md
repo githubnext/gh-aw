@@ -12,7 +12,7 @@ permissions:
   issues: read
 engine:
   id: claude
-  model: claude-opus-4.6
+  model: claude-sonnet-4.6
 jobs:
   vulnhunter_bundle:
     runs-on: ubuntu-latest
