@@ -31,6 +31,7 @@ const {
   neutralizeClosingKeywordsForIssueBody,
   generatePatchPreview,
   buildManifestProtectionCreatePrUrl,
+  buildPushErrorSection,
 } = require("./create_pull_request_helpers.cjs");
 
 describe("create_pull_request_helpers - constants", () => {
@@ -478,5 +479,72 @@ describe("buildManifestProtectionCreatePrUrl", () => {
   it("uses the provided github server URL", () => {
     const url = buildManifestProtectionCreatePrUrl("https://github.example.com", repoParts, "main", "feat", "T");
     expect(url.startsWith("https://github.example.com/")).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// buildPushErrorSection
+// ---------------------------------------------------------------------------
+describe("buildPushErrorSection", () => {
+  const SIGNED_COMMITS_RAW =
+    "pushSignedCommits: refusing unsigned push for branch 'my-branch': merge commit detected. " +
+    "GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, symlinks (mode 120000), " +
+    "submodule entries (mode 160000), or executable bits (mode 100755). " +
+    "Rewrite the commits to use only regular files (mode 100644) with no merge commits, " +
+    "or set signed-commits: false if the repository does not require signed commits.";
+  const SIGNED_COMMITS_SANITIZED = SIGNED_COMMITS_RAW.replace(/\s+/g, " ").trim();
+
+  it("returns a generic fallback line for non-signed-commits errors", () => {
+    const raw = "Some other push error occurred";
+    const sanitized = "Some other push error occurred";
+    const result = buildPushErrorSection(raw, sanitized);
+    expect(result).toBe(`> **Original error:** ${sanitized}`);
+  });
+
+  it("returns structured markdown for a signed-commits refusal", () => {
+    const result = buildPushErrorSection(SIGNED_COMMITS_RAW, SIGNED_COMMITS_SANITIZED);
+    expect(result).toContain("> **Error:** Signed commit push refused");
+    expect(result).not.toContain("Original error:");
+  });
+
+  it("extracts the cause from the error message", () => {
+    const result = buildPushErrorSection(SIGNED_COMMITS_RAW, SIGNED_COMMITS_SANITIZED);
+    expect(result).toContain("merge commit detected");
+  });
+
+  it("lists all unsupported commit shapes", () => {
+    const result = buildPushErrorSection(SIGNED_COMMITS_RAW, SIGNED_COMMITS_SANITIZED);
+    expect(result).toContain("Merge commits");
+    expect(result).toContain("Symlinks");
+    expect(result).toContain("Submodule entries");
+    expect(result).toContain("Executable files");
+  });
+
+  it("includes remediation steps mentioning git rebase and signed-commits: false", () => {
+    const result = buildPushErrorSection(SIGNED_COMMITS_RAW, SIGNED_COMMITS_SANITIZED);
+    expect(result).toContain("git rebase");
+    expect(result).toContain("signed-commits: false");
+  });
+
+  it("produces only blockquote lines (each line starts with '>')", () => {
+    const result = buildPushErrorSection(SIGNED_COMMITS_RAW, SIGNED_COMMITS_SANITIZED);
+    const lines = result.split("\n");
+    for (const line of lines) {
+      expect(line.startsWith(">")).toBe(true);
+    }
+  });
+
+  it("uses a generic cause when the branch name pattern does not match", () => {
+    const malformed = "pushSignedCommits: refusing unsigned push: no colon before cause";
+    const result = buildPushErrorSection(malformed, malformed);
+    expect(result).toContain("unsupported commit shape");
+  });
+
+  it("handles submodule change detected cause", () => {
+    const raw =
+      "pushSignedCommits: refusing unsigned push for branch 'feat': submodule change detected. " +
+      "GitHub's createCommitOnBranch GraphQL mutation cannot represent merge commits, ...";
+    const result = buildPushErrorSection(raw, raw);
+    expect(result).toContain("submodule change detected");
   });
 });

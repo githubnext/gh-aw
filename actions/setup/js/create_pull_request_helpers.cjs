@@ -237,6 +237,54 @@ function buildManifestProtectionCreatePrUrl(githubServer, repoParts, baseBranch,
 }
 
 /**
+ * Build a formatted markdown error section for a push-failure note block.
+ *
+ * When the raw error message matches the `pushSignedCommits: refusing unsigned push`
+ * pattern the section is expanded into a structured block that names the cause and
+ * lists remediation steps. For all other errors it degrades gracefully to a single
+ * `**Original error:**` line using the sanitised, whitespace-collapsed form.
+ *
+ * The returned string contains one or more blockquote lines (lines starting with `>`)
+ * with no leading or trailing blank lines. It is designed to be embedded directly
+ * inside a `> [!NOTE]` block in a GitHub issue body, for example:
+ *
+ * ```
+ * > [!NOTE]
+ * > Intro sentence.
+ * >
+ * ${buildPushErrorSection(rawMsg, sanitizedMsg)}
+ * >
+ * > **Workflow Run:** [details](url)
+ * ```
+ *
+ * @param {string} rawErrorMessage - Unprocessed error message; used for pattern detection and cause extraction.
+ * @param {string} sanitizedErrorMessage - Sanitised, whitespace-collapsed message; used as the fallback line.
+ * @returns {string} One or more blockquote lines for the error section (no leading/trailing blank lines).
+ */
+function buildPushErrorSection(rawErrorMessage, sanitizedErrorMessage) {
+  if (!/pushSignedCommits: refusing unsigned push/.test(rawErrorMessage)) {
+    return `> **Original error:** ${sanitizedErrorMessage}`;
+  }
+
+  // Extract the specific cause (e.g. "merge commit detected") embedded in the raw message.
+  const causeMatch = rawErrorMessage.match(/refusing unsigned push for branch '[^']*': ([^.]+)/);
+  const cause = causeMatch ? causeMatch[1].trim() : "unsupported commit shape";
+
+  return [
+    `> **Error:** Signed commit push refused — ${cause}`,
+    `>`,
+    `> GitHub's \`createCommitOnBranch\` GraphQL API cannot represent:`,
+    `> - Merge commits`,
+    `> - Symlinks (mode \`120000\`)`,
+    `> - Submodule entries (mode \`160000\`)`,
+    `> - Executable files (mode \`100755\`)`,
+    `>`,
+    `> **To fix:** Use \`git rebase\` instead of \`git merge\` to incorporate upstream changes,`,
+    `> or set \`signed-commits: false\` in your workflow step if signed commits are not required.`,
+  ].join("\n");
+}
+
+/**
  * Renders protected-files fallback issue body with a prefilled compare URL.
  * @param {string} mainBodyContent
  * @param {string} footerContent
@@ -271,4 +319,5 @@ module.exports = {
   generatePatchPreview,
   buildManifestProtectionCreatePrUrl,
   renderManifestProtectionFallbackBody,
+  buildPushErrorSection,
 };

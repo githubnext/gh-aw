@@ -57,6 +57,7 @@ const {
   generatePatchPreview,
   buildManifestProtectionCreatePrUrl,
   renderManifestProtectionFallbackBody,
+  buildPushErrorSection,
 } = require("./create_pull_request_helpers.cjs");
 
 /**
@@ -1736,6 +1737,7 @@ async function main(config = {}) {
                 const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
+                const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
                 const fallbackBody = `${issueSafeBody}
 
 ---
@@ -1743,7 +1745,7 @@ async function main(config = {}) {
 > [!NOTE]
 > This was originally intended as a pull request, but the git push operation failed.
 >
-> **Original error:** ${pushFailureMessage}
+${pushErrorSection}
 >
 > **Workflow Run:** [View run details and download bundle artifact](${runUrl})
 >
@@ -2101,6 +2103,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 const pushFailureMessage = sanitizeContent(neutralizeClosingKeywordsForIssueBody(getErrorMessage(pushError)), { allowedAliases: allowedMentionAliases })
                   .replace(/\s+/g, " ")
                   .trim();
+                const pushErrorSection = buildPushErrorSection(getErrorMessage(pushError), pushFailureMessage);
                 const fallbackBody = `${issueSafeBody}
 
 ---
@@ -2108,7 +2111,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
 > [!NOTE]
 > This was originally intended as a pull request, but the git push operation failed.
 >
-> **Original error:** ${pushFailureMessage}
+${pushErrorSection}
 >
 > **Workflow Run:** [View run details and download patch artifact](${runUrl})
 >
