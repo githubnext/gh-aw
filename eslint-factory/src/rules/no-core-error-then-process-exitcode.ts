@@ -16,11 +16,7 @@ function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: SourceCo
   const ancestors = sourceCode.getAncestors(node);
   for (let i = ancestors.length - 1; i >= 0; i--) {
     const ancestor = ancestors[i];
-    if (
-      ancestor.type === AST_NODE_TYPES.FunctionDeclaration ||
-      ancestor.type === AST_NODE_TYPES.FunctionExpression ||
-      ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression
-    ) {
+    if (ancestor.type === AST_NODE_TYPES.FunctionDeclaration || ancestor.type === AST_NODE_TYPES.FunctionExpression || ancestor.type === AST_NODE_TYPES.ArrowFunctionExpression) {
       return ancestor as FunctionNode;
     }
   }
@@ -29,15 +25,12 @@ function getImmediateEnclosingFunction(node: TSESTree.Node, sourceCode: SourceCo
 
 function isFunctionNamedMain(fn: FunctionNode): boolean {
   if (fn.type === AST_NODE_TYPES.FunctionDeclaration) {
-    return fn.id?.name === "main" && fn.parent?.type === AST_NODE_TYPES.Program;
+    if (fn.id?.name !== "main") return false;
+    if (fn.parent?.type === AST_NODE_TYPES.Program) return true;
+    return fn.parent?.type === AST_NODE_TYPES.ExportNamedDeclaration && fn.parent.parent?.type === AST_NODE_TYPES.Program;
   }
   const declarator = fn.parent;
-  if (
-    declarator == null ||
-    declarator.type !== AST_NODE_TYPES.VariableDeclarator ||
-    declarator.id.type !== AST_NODE_TYPES.Identifier ||
-    declarator.id.name !== "main"
-  ) {
+  if (declarator == null || declarator.type !== AST_NODE_TYPES.VariableDeclarator || declarator.id.type !== AST_NODE_TYPES.Identifier || declarator.id.name !== "main") {
     return false;
   }
   const varDecl = declarator.parent;
@@ -90,6 +83,14 @@ function isProcessExitCodeNonZero(node: TSESTree.Statement): node is TSESTree.Ex
   return true;
 }
 
+function hasSingleNonSpreadArgument(call: TSESTree.CallExpression): boolean {
+  return call.arguments.length === 1 && call.arguments[0].type !== AST_NODE_TYPES.SpreadElement;
+}
+
+function isProgramStatement(node: TSESTree.ProgramStatement): node is TSESTree.Statement {
+  return node.type !== AST_NODE_TYPES.ImportDeclaration && node.type !== AST_NODE_TYPES.ExportAllDeclaration && node.type !== AST_NODE_TYPES.ExportDefaultDeclaration && node.type !== AST_NODE_TYPES.ExportNamedDeclaration;
+}
+
 export const noCoreErrorThenProcessExitCodeRule = createRule({
   name: "no-core-error-then-process-exitcode",
   meta: {
@@ -122,7 +123,8 @@ export const noCoreErrorThenProcessExitCodeRule = createRule({
         const next = stmts[i + 1];
         if (isCoreErrorStatement(current, sourceCode) && isProcessExitCodeNonZero(next)) {
           const enclosingFn = getImmediateEnclosingFunction(current, sourceCode);
-          const safeToFix = enclosingFn === null || isFunctionNamedMain(enclosingFn);
+          const errorCall = current.expression as TSESTree.CallExpression;
+          const safeToFix = enclosingFn !== null && isFunctionNamedMain(enclosingFn) && hasSingleNonSpreadArgument(errorCall);
 
           context.report({
             node: current,
@@ -132,12 +134,10 @@ export const noCoreErrorThenProcessExitCodeRule = createRule({
                   {
                     messageId: "replaceWithSetFailed",
                     fix(fixer: TSESLint.RuleFixer) {
-                      const errorCall = (current as TSESTree.ExpressionStatement).expression as TSESTree.CallExpression;
                       const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
                       const callee = errorCall.callee as TSESTree.MemberExpression;
                       const objectName = sourceCode.getText(callee.object);
-                      const replacement = enclosingFn !== null ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
-                      return [fixer.replaceText(current, replacement + "\n"), fixer.remove(next)];
+                      return [fixer.replaceText(current, `${objectName}.setFailed(${args}); return;\n`), fixer.remove(next)];
                     },
                   },
                 ]
@@ -155,7 +155,13 @@ export const noCoreErrorThenProcessExitCodeRule = createRule({
         checkStatements(node.consequent);
       },
       Program(node: TSESTree.Program) {
-        checkStatements(node.body.filter((s): s is TSESTree.Statement => s.type !== AST_NODE_TYPES.ImportDeclaration && s.type !== AST_NODE_TYPES.ExportAllDeclaration));
+        for (let i = 0; i < node.body.length - 1; i++) {
+          const current = node.body[i];
+          const next = node.body[i + 1];
+          if (isProgramStatement(current) && isProgramStatement(next)) {
+            checkStatements([current, next]);
+          }
+        }
       },
     };
   },

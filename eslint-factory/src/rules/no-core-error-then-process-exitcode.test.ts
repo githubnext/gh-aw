@@ -27,6 +27,8 @@ describe("no-core-error-then-process-exitcode", () => {
         `core.warning("msg"); process.exitCode = 1;`,
         // Variable assignment — runtime value unknown
         `core.error("msg"); process.exitCode = code;`,
+        // Exports between statements break adjacency at module scope
+        `const helper = 1; core.error("msg"); export { helper }; process.exitCode = 1;`,
         // process.exit (covered by the sibling rule)
         `core.error("msg"); process.exit(1);`,
         // Not a simple assignment: += is not flagged
@@ -35,30 +37,15 @@ describe("no-core-error-then-process-exitcode", () => {
       invalid: [
         {
           code: `core.error("fatal"); process.exitCode = 1;`,
-          errors: [
-            {
-              messageId: "noCoreErrorThenProcessExitCode",
-              suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("fatal");\n ' }],
-            },
-          ],
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
         },
         {
           code: `core.error("something went wrong"); process.exitCode = 1;`,
-          errors: [
-            {
-              messageId: "noCoreErrorThenProcessExitCode",
-              suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("something went wrong");\n ' }],
-            },
-          ],
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
         },
         {
           code: "core.error(`ERROR: ${msg}`); process.exitCode = 1;",
-          errors: [
-            {
-              messageId: "noCoreErrorThenProcessExitCode",
-              suggestions: [{ messageId: "replaceWithSetFailed", output: "core.setFailed(`ERROR: ${msg}`);\n " }],
-            },
-          ],
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
         },
         {
           // Inside a named function — no autofix suggestion because return; only exits the helper
@@ -71,19 +58,34 @@ describe("no-core-error-then-process-exitcode", () => {
           errors: [
             {
               messageId: "noCoreErrorThenProcessExitCode",
-              suggestions: [{ messageId: "replaceWithSetFailed", output: "async function main() { core.setFailed(\"fatal\"); return;\n  }" }],
+              suggestions: [{ messageId: "replaceWithSetFailed", output: 'async function main() { core.setFailed("fatal"); return;\n  }' }],
             },
           ],
         },
         {
-          // exitCode = 2 is also flagged
-          code: `core.error("critical"); process.exitCode = 2;`,
+          // export async function main() should also be recognized as a safe entrypoint
+          code: `export async function main() { core.error("fatal"); process.exitCode = 1; }`,
           errors: [
             {
               messageId: "noCoreErrorThenProcessExitCode",
-              suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("critical");\n ' }],
+              suggestions: [{ messageId: "replaceWithSetFailed", output: 'export async function main() { core.setFailed("fatal"); return;\n  }' }],
             },
           ],
+        },
+        {
+          // Multiple arguments are reported but not auto-fixed because setFailed only accepts the message
+          code: `async function main() { core.error("fatal", { title: "oops" }); process.exitCode = 1; }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+        },
+        {
+          // SwitchCase path reports the pattern without an autofix outside main()
+          code: `switch (x) { case 1: core.error("fatal"); process.exitCode = 1; break; }`,
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+        },
+        {
+          // exitCode = 2 is also flagged
+          code: `core.error("critical"); process.exitCode = 2;`,
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
         },
       ],
     });
