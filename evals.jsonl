@@ -1,0 +1,2 @@
+{"id":"deepsec_scan_completed","question":"Did the agent complete the prepared DeepSec scan workflow or explicitly noop when credentials or actionable findings were unavailable?","answer":"UNKNOWN","model":"claude-sonnet-4.6","timestamp":"2026-07-21T11:42:28.687Z","runid":"29826813143"}
+{"id":"deepsec_issue_or_noop","question":"Did the run create exactly one issue for actionable DeepSec findings, or noop with a concise explanation?","answer":"UNKNOWN","model":"claude-sonnet-4.6","timestamp":"2026-07-21T11:42:28.687Z","runid":"29826813143"}
