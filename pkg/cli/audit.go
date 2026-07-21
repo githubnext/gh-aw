@@ -672,12 +672,8 @@ func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutput
 	return results
 }
 
-<<<<<<< HEAD
-func launchCoreAuditAnalyses(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
-=======
 // launchCoreAuditAnalyses exclusively writes missingTools, missingData, noops, mcpFailures, and accessAnalysis.
-func launchCoreAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
->>>>>>> origin/main
+func launchCoreAuditAnalyses(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
 	// Resolve experiment assignment once so all goroutines reuse the same values
 	// rather than each reading state.json independently.
 	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
@@ -726,12 +722,8 @@ func launchMetricsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, ru
 	})
 }
 
-<<<<<<< HEAD
-func launchJobDetailsAnalysis(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
-=======
 // launchJobDetailsAnalysis exclusively writes results.jobDetails and results.failedJobCount.
-func launchJobDetailsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
->>>>>>> origin/main
+func launchJobDetailsAnalysis(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
 	wg.Go(func() {
 		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
 		if err != nil {
