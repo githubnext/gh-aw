@@ -11,6 +11,7 @@ const { loadAgentOutput } = require("./load_agent_output.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { formatAIC } = require("./model_costs.cjs");
+const { reduceModelNameToIdentifier } = require("./model_aliases.cjs");
 /**
  * Search for or create the parent issue for all agentic workflow no-op runs
  * @returns {Promise<{number: number, node_id: string}>} Parent issue number and node ID
@@ -87,11 +88,12 @@ function buildAICSuffix() {
   const detectionRaw = process.env.GH_AW_THREAT_DETECTION_AIC;
   const agentAIC = agentRaw ? Number.parseFloat(agentRaw) : NaN;
   const detectionAIC = detectionRaw ? Number.parseFloat(detectionRaw) : NaN;
+  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
   const totalAIC = (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) + (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0);
   if (totalAIC <= 0) {
     return "";
   }
-  return ` · ${formatAIC(totalAIC)} AIC`;
+  return ` · ${compressedModelName ? `${compressedModelName} ` : ""}${formatAIC(totalAIC)} AIC`;
 }
 
 /**

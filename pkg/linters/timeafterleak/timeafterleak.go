@@ -124,26 +124,8 @@ func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 		return false
 	}
 
-	// If the enclosing SelectStmt has no other CommClause (no other channel case
-	// and no default), the timer must fire — it cannot be preempted, so there is
-	// no accumulation. A default clause (CommClause with nil Comm) can preempt
-	// the timer and is still flagged.
-	for selCur := range clauseCur.Enclosing((*ast.SelectStmt)(nil)) {
-		sel, ok := selCur.Node().(*ast.SelectStmt)
-		if !ok {
-			break
-		}
-		hasOther := false
-		for _, stmt := range sel.Body.List {
-			if other, isComm := stmt.(*ast.CommClause); isComm && other != cc {
-				hasOther = true
-				break
-			}
-		}
-		if !hasOther {
-			return false
-		}
-		break
+	if isSingleCaseSelect(clauseCur, cc) {
+		return false
 	}
 
 	// Walk up from the CommClause to find an enclosing for or range loop,
@@ -159,6 +141,27 @@ func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 		case *ast.FuncLit:
 			return false
 		}
+	}
+	return false
+}
+
+// isSingleCaseSelect reports whether the CommClause cc is the only clause in
+// its enclosing SelectStmt. Single-case selects are not flagged because the
+// timer must fire — no accumulation is possible.
+// A default clause (CommClause with nil Comm) is counted as another clause,
+// so a select with a timer case plus a default returns false and is reportable.
+func isSingleCaseSelect(clauseCur inspector.Cursor, cc *ast.CommClause) bool {
+	for selCur := range clauseCur.Enclosing((*ast.SelectStmt)(nil)) {
+		sel, ok := selCur.Node().(*ast.SelectStmt)
+		if !ok {
+			break
+		}
+		for _, stmt := range sel.Body.List {
+			if other, isComm := stmt.(*ast.CommClause); isComm && other != cc {
+				return false
+			}
+		}
+		return true
 	}
 	return false
 }

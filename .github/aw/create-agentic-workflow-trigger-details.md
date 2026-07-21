@@ -10,14 +10,7 @@ For recurring reports, audits, and stakeholder digests, set these create-specifi
 - use `add-comment` only when updating an existing issue or pull request instead of creating a new report destination
 - add `workflow_dispatch` when manual reruns, backfills, or preview runs should be possible
 
-Recurring-report lifecycle checklist (compact):
-
-- [ ] enable `close-older-issues: true` for issue-based recurring reports unless the requester explicitly wants parallel open threads
-- [ ] define one explicit report window (for example `last 7 full days ending at run start (UTC)` or `since previous successful run`)
-- [ ] define grouping dimensions that match audience decisions (for example team, area, owner, severity, status)
-- [ ] derive one stable dedup key per scope and window (for example `stakeholder-digest:<scope>:<window-id>`) and search for it before creating a new issue
-
-Follow [triggers.md](triggers.md) for the report window, grouping dimensions, deduplication key, and empty-window `noop` rule, and [workflow-patterns.md](workflow-patterns.md) for the digest/incident skeletons. When the digest depends on missing or inconsistent metadata, group by the next-best available dimension, use an explicit "Unclassified" bucket, and never invent classifications — call `noop` only when the window itself has zero events.
+For the recurring-report window, grouping dimensions, deduplication key, `close-older-issues` lifecycle, and empty-window/missing-metadata `noop` rules, follow the canonical defaults in [report.md](report.md). Use [workflow-patterns.md](workflow-patterns.md) for the digest/incident skeletons.
 
 ## Persona-oriented scenario map
 

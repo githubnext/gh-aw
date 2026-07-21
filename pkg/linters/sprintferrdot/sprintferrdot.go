@@ -57,58 +57,60 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		analyzeErrDotCall(pass, n, generatedFiles, noLintIndex)
+	})
+	return nil, nil
+}
+
+// analyzeErrDotCall checks whether a call expression is a fmt format function
+// that passes .Error() on an error argument redundantly.
+func analyzeErrDotCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
+	formatArgIdx, variadicStart, ok := fmtFormatCallInfo(pass, call)
+	if !ok {
+		return
+	}
+	if formatArgIdx >= len(call.Args) || variadicStart > len(call.Args) {
+		return
+	}
 
-		formatArgIdx, variadicStart, ok := fmtFormatCallInfo(pass, call)
-		if !ok {
-			return
-		}
-		if formatArgIdx >= len(call.Args) || variadicStart > len(call.Args) {
-			return
-		}
+	formatStr, ok := extractStringLit(call.Args[formatArgIdx])
+	if !ok {
+		return
+	}
 
-		formatStr, ok := extractStringLit(call.Args[formatArgIdx])
-		if !ok {
-			return
-		}
+	verbs := parseSimpleFormatVerbs(formatStr)
+	if verbs == nil {
+		return
+	}
 
-		verbs := parseSimpleFormatVerbs(formatStr)
-		if verbs == nil {
-			return
+	variadicArgs := call.Args[variadicStart:]
+	for i, arg := range variadicArgs {
+		if i >= len(verbs) {
+			break
 		}
-
-		variadicArgs := call.Args[variadicStart:]
-		for i, arg := range variadicArgs {
-			if i >= len(verbs) {
-				break
-			}
-			if verbs[i] != 's' && verbs[i] != 'v' {
+		if verbs[i] != 's' && verbs[i] != 'v' {
+			continue
+		}
+		if isErrorDotCall(pass, arg) {
+			if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(arg.Pos(), false), noLintIndex, "sprintferrdot") {
 				continue
 			}
-			if isErrorDotCall(pass, arg) {
-				if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(arg.Pos(), false), noLintIndex, "sprintferrdot") {
-					continue
-				}
-				pass.Reportf(arg.Pos(),
-					"redundant .Error() call: pass the error value directly with %%%c", verbs[i])
-			}
+			pass.Reportf(arg.Pos(),
+				"redundant .Error() call: pass the error value directly with %%%c", verbs[i])
 		}
-	})
-
-	return nil, nil
+	}
 }
 
 // fmtFormatCallInfo returns the format-string argument index and the
