@@ -149,6 +149,9 @@ func getActionPins() []ActionPin {
 	return cachedActionPins
 }
 
+// loadActionPinsData unmarshals embedded action pin data.
+// Panics if the embedded JSON is invalid or any entry has an empty SHA, because
+// those conditions indicate corrupted release data that would produce invalid workflow YAML.
 func loadActionPinsData(raw []byte) ActionPinsData {
 	var data ActionPinsData
 	if err := json.Unmarshal(raw, &data); err != nil {
