@@ -396,18 +396,16 @@ fmt.Fprintln(w, console.FormatListItemStderr("Detail item"))
 
 ```go
 import (
-    "fmt"
-    "os"
     "github.com/github/gh-aw/pkg/console"
 )
 
-// Always write formatted messages to stderr
-fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow compiled successfully"))
-fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Processing 3 files..."))
-fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Network access is unrestricted"))
-fmt.Fprintln(os.Stderr, console.FormatErrorMessage("File not found: workflow.md"))
-fmt.Fprintln(os.Stderr, console.FormatCommandMessage("gh aw compile workflow.md"))
-fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Downloading release..."))
+// Prefer direct stderr print helpers
+console.PrintSuccessMessage("Workflow compiled successfully")
+console.PrintInfoMessage("Processing 3 files...")
+console.PrintWarningMessage("Network access is unrestricted")
+console.PrintErrorMessage("File not found: workflow.md")
+console.PrintCommandMessage("gh aw compile workflow.md")
+console.PrintProgressMessage("Downloading release...")
 ```
 
 ## Error Formatting
