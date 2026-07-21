@@ -83,6 +83,7 @@ type ModelTokenUsageRow struct {
 	AIC              float64 `json:"aic,omitempty"`
 	Requests         int     `json:"requests" console:"header:Requests"`
 	AvgDuration      string  `json:"avg_duration" console:"header:Avg Duration"`
+	reasoningTokens  int
 }
 
 // SubagentModelRequest captures requested/effective model attribution for a sub-agent.
@@ -137,12 +138,13 @@ func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 			AIC:              usage.AIC,
 			Requests:         usage.Requests,
 			AvgDuration:      timeutil.FormatDurationMs(avgDur),
+			reasoningTokens:  usage.ReasoningTokens,
 		})
 	}
 	// Sort by total tokens descending
 	slices.SortFunc(rows, func(a, b ModelTokenUsageRow) int {
-		iTot := a.InputTokens + a.OutputTokens + a.CacheReadTokens + a.CacheWriteTokens
-		jTot := b.InputTokens + b.OutputTokens + b.CacheReadTokens + b.CacheWriteTokens
+		iTot := a.InputTokens + a.OutputTokens + a.CacheReadTokens + a.CacheWriteTokens + a.reasoningTokens
+		jTot := b.InputTokens + b.OutputTokens + b.CacheReadTokens + b.CacheWriteTokens + b.reasoningTokens
 		if iTot > jTot {
 			return -1
 		}
