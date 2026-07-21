@@ -1510,3 +1510,55 @@ func TestConclusionJobNeedsPreActivationFromMessages(t *testing.T) {
 		})
 	}
 }
+
+// TestConclusionJobActionsWritePermissionForDailyAICCache verifies that the conclusion job
+// has actions: write when daily-AIC cache steps are included (WorkflowID is set and the
+// guardrail is not explicitly disabled). Without actions: write, cache saves fail with
+// "cache write denied: token has no writable scopes".
+func TestConclusionJobActionsWritePermissionForDailyAICCache(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("has actions: write when WorkflowID set and guardrail active", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:       "Test Workflow",
+			WorkflowID: "my-workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if !strings.Contains(job.Permissions, "actions: write") {
+			t.Errorf("conclusion job must have 'actions: write' when daily-AIC cache is active, got: %q", job.Permissions)
+		}
+	})
+
+	t.Run("no actions: write when WorkflowID is empty", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:       "Test Workflow",
+			WorkflowID: "", // no WorkflowID → no daily-AIC cache steps
+			SafeOutputs: &SafeOutputsConfig{
+				AddComments: &AddCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if strings.Contains(job.Permissions, "actions: write") {
+			t.Errorf("conclusion job should NOT have 'actions: write' when WorkflowID is empty, got: %q", job.Permissions)
+		}
+	})
+}

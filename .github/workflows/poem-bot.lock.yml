@@ -1408,7 +1408,8 @@ jobs:
       needs.activation.outputs.oauth_token_check_failed == 'true' || needs.activation.outputs.stale_lock_file_failed == 'true' ||
       needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
-    permissions: {}
+    permissions:
+      actions: write
     concurrency:
       group: "gh-aw-conclusion-poem-bot"
       cancel-in-progress: false
@@ -2128,6 +2129,7 @@ jobs:
     if: always() && needs.detection.result == 'success' && needs.agent.result == 'success'
     runs-on: ubuntu-slim
     permissions:
+      actions: write
       contents: read
     env:
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}

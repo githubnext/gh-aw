@@ -1116,6 +1116,7 @@ jobs:
       needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
+      actions: write
       contents: read
     concurrency:
       group: "gh-aw-conclusion-daily-firewall-report"

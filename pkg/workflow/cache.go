@@ -1048,14 +1048,15 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	)
 	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionSuccessCondition()), agentSucceeded))
 
-	// Set up permissions for the cache update job
-	// If using local actions (dev mode without action-tag), we need contents: read to checkout the actions folder
-	permissions := NewPermissionsEmpty().RenderToYAML() // Default: no special permissions needed
+	// Set up permissions for the cache update job.
+	// actions: write is required for GitHub's cache-reservation backend to allow cache saves.
+	// Without it, cache saves fail with "cache write denied: token has no writable scopes".
+	perms := NewPermissionsActionsWrite()
 	if setupActionRef != "" && len(c.generateCheckoutActionsFolder(data)) > 0 {
-		// Need contents: read to checkout the actions folder
-		perms := NewPermissionsContentsRead()
-		permissions = perms.RenderToYAML()
+		// In dev mode (local action path), also need contents: read to checkout the actions folder
+		perms.Set(PermissionContents, PermissionRead)
 	}
+	permissions := perms.RenderToYAML()
 
 	// Set GH_AW_WORKFLOW_ID_SANITIZED so cache keys match those used in the agent job
 	var jobEnv map[string]string

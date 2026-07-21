@@ -2327,6 +2327,50 @@ func TestUpdateCacheMemoryJobConditionRequiresAgentSuccess(t *testing.T) {
 	}
 }
 
+// TestUpdateCacheMemoryJobHasActionsWritePermission verifies that the update_cache_memory job
+// has actions: write permission so GitHub's cache-reservation backend allows cache saves.
+// Without this permission, cache saves fail with "token has no writable scopes".
+func TestUpdateCacheMemoryJobHasActionsWritePermission(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{
+		Name:   "Test Workflow",
+		AI:     "copilot",
+		RunsOn: "runs-on: ubuntu-latest",
+		CacheMemoryConfig: &CacheMemoryConfig{
+			Caches: []CacheMemoryEntry{
+				{ID: "default"},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	compiler.stepOrderTracker = NewStepOrderTracker()
+	activationJob, _ := compiler.buildActivationJob(data, false, "", "test.lock.yml")
+	compiler.jobManager.AddJob(activationJob)
+
+	agentJob, _ := compiler.buildMainJob(data, true)
+	compiler.jobManager.AddJob(agentJob)
+
+	compiler.buildSafeOutputsJobs(data, string(constants.AgentJobName), "test.md")
+
+	updateCacheMemoryJob, err := compiler.buildUpdateCacheMemoryJob(data, true)
+	if err != nil {
+		t.Fatalf("buildUpdateCacheMemoryJob() error: %v", err)
+	}
+	if updateCacheMemoryJob == nil {
+		t.Fatal("Expected update_cache_memory job to be created")
+	}
+
+	// Must have actions: write so cache saves are not rejected with "token has no writable scopes".
+	if !strings.Contains(updateCacheMemoryJob.Permissions, "actions: write") {
+		t.Errorf("update_cache_memory job must have 'actions: write' permission for cache saves, got: %q", updateCacheMemoryJob.Permissions)
+	}
+}
+
 // ========================================
 // Edge Case Tests
 // ========================================

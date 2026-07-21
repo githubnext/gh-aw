@@ -61,6 +61,8 @@ Test workflow with cache-memory and threat detection enabled.`,
 				"- name: Download cache-memory artifact (default)",
 				"- name: Save cache-memory to cache (default)",
 				"uses: actions/cache/save@",
+				// update_cache_memory job must have actions: write for cache reservation
+				"actions: write",
 			},
 			notExpectedInLock: []string{
 				// Should NOT use regular actions/cache in agent job

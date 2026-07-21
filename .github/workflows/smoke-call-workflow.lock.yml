@@ -1112,7 +1112,7 @@ jobs:
     # Imported from called workflow "smoke-workflow-call" because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.
     # Review the called workflow's job-level permissions in ./.github/workflows/smoke-workflow-call.lock.yml.
     permissions:
-      actions: read
+      actions: write
       contents: read
       issues: write
       pull-requests: write
@@ -1142,7 +1142,8 @@ jobs:
       needs.activation.outputs.oauth_token_check_failed == 'true' || needs.activation.outputs.stale_lock_file_failed == 'true' ||
       needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
-    permissions: {}
+    permissions:
+      actions: write
     concurrency:
       group: "gh-aw-conclusion-smoke-call-workflow"
       cancel-in-progress: false
