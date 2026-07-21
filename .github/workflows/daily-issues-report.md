@@ -13,7 +13,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
-  driver: .github/drivers/copilot_sdk_driver_sample_python.py
+  driver: .github/drivers/copilot_sdk_driver_sample_node.cjs
 runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report

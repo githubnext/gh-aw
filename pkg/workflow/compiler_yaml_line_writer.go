@@ -1,6 +1,12 @@
 package workflow
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var yamlLineWriterLog = logger.New("workflow:compiler_yaml_line_writer")
 
 // yamlBlockScalarState tracks whether the scanner is currently inside a YAML
 // literal (|) or folded (>) block scalar. It is used by appendYAMLLine to
@@ -39,6 +45,7 @@ func (s *yamlBlockScalarState) update(sourceLine string) bool {
 				s.bodyIndent = lineIndent
 				s.active = true
 				s.pending = false
+				yamlLineWriterLog.Printf("Entering block scalar payload: headerIndent=%d, bodyIndent=%d", s.headerIndent, s.bodyIndent)
 				return true // first payload line
 			}
 		}
@@ -46,6 +53,7 @@ func (s *yamlBlockScalarState) update(sourceLine string) bool {
 			if lineIndent < s.bodyIndent {
 				// Outdented non-blank line: we have left the block scalar.
 				s.active = false
+				yamlLineWriterLog.Printf("Leaving block scalar payload: lineIndent=%d < bodyIndent=%d", lineIndent, s.bodyIndent)
 				// Fall through to structural handling below.
 			} else {
 				return true // still inside the block scalar
@@ -58,6 +66,7 @@ func (s *yamlBlockScalarState) update(sourceLine string) bool {
 		if headerIndent, ok := blockScalarHeaderIndentForLine(trimmed); ok {
 			s.pending = true
 			s.headerIndent = headerIndent
+			yamlLineWriterLog.Printf("Detected block scalar header: headerIndent=%d", headerIndent)
 		}
 	}
 	return false

@@ -115,6 +115,7 @@ const nodePathSetupCommand = `GH_AW_NPM_GLOBAL_ROOT="$(npm root -g 2>/dev/null |
 const nodeRuntimeResolutionCommand = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommand + `; "$GH_AW_NODE_EXEC"`
 const nodePathSetupCommandForCopilotSDK = `GH_AW_WORKSPACE_NODE_MODULES="${GITHUB_WORKSPACE:-$PWD}/node_modules"; if [ -d "$GH_AW_WORKSPACE_NODE_MODULES" ]; then export NODE_PATH="${GH_AW_WORKSPACE_NODE_MODULES}${NODE_PATH:+:${NODE_PATH}}"; fi; ` + nodePathSetupCommand
 const nodeRuntimeResolutionCommandForCopilotSDK = `GH_AW_NODE_EXEC="${GH_AW_NODE_BIN:-}"; if [ -z "$GH_AW_NODE_EXEC" ] || [ ! -x "$GH_AW_NODE_EXEC" ]; then GH_AW_NODE_EXEC="$(command -v node 2>/dev/null || true)"; fi; if [ -z "$GH_AW_NODE_EXEC" ]; then echo "node runtime missing on this runner — check runtimes.node in workflow YAML" >&2; exit 127; fi; ` + nodePathSetupCommandForCopilotSDK + `; "$GH_AW_NODE_EXEC"`
+const copilotSDKPythonPathExpression = "${{ github.workspace }}/.gh-aw/copilot-sdk/python"
 
 // copilotSDKDriverExecArgs returns the runtime command and driver path argument for the
 // given SDK driver filename.
@@ -143,6 +144,30 @@ func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) 
 	default:
 		// No extension — arbitrary command in PATH; use name directly as command.
 		return driverName, ""
+	}
+}
+
+// copilotSDKRuntimeID returns the runtime ID used by Copilot SDK driver execution.
+// It returns one of: python, typescript, ruby, or node (default/fallback).
+// engine.command takes precedence; otherwise runtime is inferred from engine.driver extension.
+func copilotSDKRuntimeID(workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.EngineConfig == nil {
+		return "node"
+	}
+	command := workflowData.EngineConfig.Command
+	if command != "" {
+		return detectRuntimeFromCopilotCommand(command)
+	}
+	ext := strings.ToLower(filepath.Ext(workflowData.EngineConfig.Driver))
+	switch ext {
+	case ".py":
+		return "python"
+	case ".ts", ".mts":
+		return "typescript"
+	case ".rb":
+		return "ruby"
+	default:
+		return "node"
 	}
 }
 
@@ -633,6 +658,9 @@ func (e *CopilotEngine) addCopilotSDKStepEnv(env map[string]string, workflowData
 	env[constants.CopilotSDKDriverEnvVar] = "1"
 	env[constants.CopilotSDKServerArgsEnvVar] = copilotSDKServerArgsJSON
 	copilotExecLog.Printf("copilot-sdk driver mode: set %s and %s", constants.CopilotSDKDriverEnvVar, constants.CopilotSDKServerArgsEnvVar)
+	if currentPythonPath, exists := env["PYTHONPATH"]; copilotSDKRuntimeID(workflowData) == "python" && (!exists || currentPythonPath == "") {
+		env["PYTHONPATH"] = copilotSDKPythonPathExpression
+	}
 }
 
 func (e *CopilotEngine) buildCopilotExecutionStep(workflowData *WorkflowData, command string, env map[string]string, timeoutValue string) GitHubActionStep {
