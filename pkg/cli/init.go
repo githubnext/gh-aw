@@ -349,7 +349,7 @@ func detectGHESDeployment() string {
 		}
 		host := strings.TrimPrefix(rawValue, "https://")
 		host = strings.TrimPrefix(host, "http://")
-		host = strings.TrimRight(host, "/")
+		host = strings.TrimSuffix(host, "/")
 		if isGHESHost(host) {
 			initLog.Printf("Detected GHES deployment from %s: %s", envVar, host)
 			return host

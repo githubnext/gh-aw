@@ -311,10 +311,21 @@ func importAuthGHHost() string {
 		return ""
 	}
 	// getGitHubHost() returns a normalized https://… URL; parse just the hostname.
-	if u, parseErr := url.Parse(getGitHubHost()); parseErr == nil && u.Host != "" {
+	resolved := getGitHubHost()
+	if u, parseErr := url.Parse(resolved); parseErr == nil && u.Hostname() != "" {
 		return strings.ToLower(u.Hostname())
 	}
-	return ""
+	// Fallback: strip scheme and path manually. getGitHubHost() always returns a
+	// well-formed URL, so this branch is only reached in unexpected edge cases.
+	bare := strings.TrimPrefix(resolved, "https://")
+	bare = strings.TrimPrefix(bare, "http://")
+	if idx := strings.IndexByte(bare, '/'); idx != -1 {
+		bare = bare[:idx]
+	}
+	if idx := strings.IndexByte(bare, ':'); idx != -1 {
+		bare = bare[:idx]
+	}
+	return strings.ToLower(bare)
 }
 
 // sanitizeHTTPError strips the request URL from a *url.Error (the error type
