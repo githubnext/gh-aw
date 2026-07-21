@@ -370,7 +370,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if err != nil {
 		return err
 	}
-	results := collectAuditAnalysisResults(run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName, cfg.artifactFilter))
+	results := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName, cfg.artifactFilter))
 	run = applyAuditMetrics(run, results)
 	processedRun := buildProcessedAuditRun(run, results)
 	saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
@@ -653,10 +653,10 @@ func prepareRunForAnalysis(run WorkflowRun, cfg auditRunConfig, useLocalCache bo
 	return run
 }
 
-func collectAuditAnalysisResults(run WorkflowRun, runOutputDir string, verbose bool, hasFirewallArtifact bool) auditAnalysisResults {
+func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutputDir string, verbose bool, hasFirewallArtifact bool) auditAnalysisResults {
 	results := auditAnalysisResults{}
 	var wg sync.WaitGroup
-	launchCoreAuditAnalyses(&wg, &results, run, runOutputDir, verbose)
+	launchCoreAuditAnalyses(ctx, &wg, &results, run, runOutputDir, verbose)
 	if hasFirewallArtifact {
 		launchFirewallAuditAnalyses(&wg, &results, runOutputDir, verbose)
 	}
@@ -665,13 +665,13 @@ func collectAuditAnalysisResults(run WorkflowRun, runOutputDir string, verbose b
 	return results
 }
 
-func launchCoreAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
+func launchCoreAuditAnalyses(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
 	// Resolve experiment assignment once so all goroutines reuse the same values
 	// rather than each reading state.json independently.
 	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
 
 	launchMetricsAnalysis(wg, results, runOutputDir, verbose, run.WorkflowPath)
-	launchJobDetailsAnalysis(wg, results, run.DatabaseID, verbose)
+	launchJobDetailsAnalysis(ctx, wg, results, run.DatabaseID, verbose)
 	runAuditAnalysis(wg, verbose, "extractMissingToolsFromRun", "Failed to extract missing tools", func(v []MissingToolReport) {
 		results.missingTools = v
 	}, func() ([]MissingToolReport, error) {
@@ -713,9 +713,9 @@ func launchMetricsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, ru
 	})
 }
 
-func launchJobDetailsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
+func launchJobDetailsAnalysis(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
 	wg.Go(func() {
-		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(runID, verbose)
+		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
 		if err != nil {
 			auditLog.Printf("fetchJobDetailsWithCounts failed: %v", err)
 			if verbose {
