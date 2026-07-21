@@ -46,6 +46,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `sortslice` — reports `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc`.
 - `sprintferrdot` — reports redundant `.Error()` calls on error values passed to `fmt` format functions where the fmt package calls `.Error()` automatically.
 - `sprintferrorsnew` — reports `errors.New(fmt.Sprintf(...))` calls that should use `fmt.Errorf` instead.
+- `sprintfbool` — reports `fmt.Sprintf("%t", b)` calls where `b` is a single bool value and suggests using `strconv.FormatBool(b)` instead.
 - `sprintfint` — reports `fmt.Sprintf("%d", ...)` and related conversions that should use `strconv` helpers.
 - `ssljson` — validates `ssl.json` skill artifacts found in `.github/skills/` against the SSL spec (enum membership, graph integrity, transition targets, entry pointer validity).
 - `strconvparseignorederror` — reports `strconv` parsing calls (`Atoi`, `ParseInt`, etc.) where the error return is discarded with `_`.
@@ -108,6 +109,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `sortslice` | Custom `go/analysis` analyzer that flags `sort.Slice` / `sort.SliceStable` calls that should use `slices.SortFunc` / `slices.SortStableFunc` |
 | `sprintferrdot` | Custom `go/analysis` analyzer that flags redundant `.Error()` calls on error values passed to `fmt` format functions |
 | `sprintferrorsnew` | Custom `go/analysis` analyzer that flags `errors.New(fmt.Sprintf(...))` calls that should use `fmt.Errorf` instead |
+| `sprintfbool` | Custom `go/analysis` analyzer that flags `fmt.Sprintf("%t", b)` calls where `b` is a single bool value and suggests using `strconv.FormatBool(b)` instead |
 | `sprintfint` | Custom `go/analysis` analyzer that flags `fmt.Sprintf` integer conversions that should use `strconv` helpers |
 | `ssljson` | Custom `go/analysis` analyzer that validates SSL JSON skill artifacts in `.github/skills/` |
 | `strconvparseignorederror` | Custom `go/analysis` analyzer that flags `strconv` parsing calls where the error return is discarded with `_` |
@@ -155,6 +157,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/rawloginlib"
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
+	"github.com/github/gh-aw/pkg/linters/sprintfbool"
 	"github.com/github/gh-aw/pkg/linters/sprintfint"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
@@ -183,6 +186,7 @@ _ = panicinlibrarycode.Analyzer
 _ = rawloginlib.Analyzer
 _ = regexpcompileinfunction.Analyzer
 _ = sortslice.Analyzer
+_ = sprintfbool.Analyzer
 _ = sprintfint.Analyzer
 _ = ssljson.Analyzer
 _ = timesleepnocontext.Analyzer
@@ -231,6 +235,7 @@ _ = trimleftright.Analyzer
 - `github.com/github/gh-aw/pkg/linters/sortslice` — sort-slice analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/sprintferrdot` — sprintf-err-dot analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/sprintferrorsnew` — sprintf-errors-new analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/sprintfbool` — sprintf-bool analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/sprintfint` — sprintf-int analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/ssljson` — ssl-json analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/strconvparseignorederror` — strconv-parse-ignored-error analyzer subpackage

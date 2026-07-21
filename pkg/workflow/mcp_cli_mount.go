@@ -344,18 +344,11 @@ func buildMCPCLIPromptSection(data *WorkflowData) *PromptSection {
 		return nil
 	}
 
-	// Build the human-readable list of servers with example usage
-	var listLines []string
-	for _, name := range servers {
-		listLines = append(listLines, fmt.Sprintf("- `%s` — run `%s --help` to see available tools", name, name))
-	}
-	serversList := strings.Join(listLines, "\n")
-
 	return &PromptSection{
 		Content: mcpCLIToolsPromptFile,
 		IsFile:  true,
 		EnvVars: map[string]string{
-			"GH_AW_MCP_CLI_SERVERS_LIST": serversList,
+			"GH_AW_MCP_CLI_SERVERS_LIST": "${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}",
 		},
 	}
 }
