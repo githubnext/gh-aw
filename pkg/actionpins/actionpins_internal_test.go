@@ -94,6 +94,22 @@ func TestCollectEntriesWithEmptySHA_ReturnsOnlyEmptySHAEntries(t *testing.T) {
 	})
 }
 
+func TestLoadActionPinsData_PanicsWhenEntrySHAIsEmpty(t *testing.T) {
+	fixture := []byte(`{
+		"entries": {
+			"ruby/setup-ruby@v1.319.0": {
+				"repo": "ruby/setup-ruby",
+				"version": "v1.319.0",
+				"sha": ""
+			}
+		}
+	}`)
+
+	assert.Panics(t, func() {
+		loadActionPinsData(fixture)
+	}, "Expected loadActionPinsData to panic when embedded pin data contains an empty SHA")
+}
+
 func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 	assert.Panics(t, func() {
 		FormatPinnedActionReference("ruby/setup-ruby", "", "v1.319.0")

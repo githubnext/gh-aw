@@ -122,19 +122,7 @@ func getActionPins() []ActionPin {
 	actionPinsOnce.Do(func() {
 		actionPinsLog.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
 
-		var data ActionPinsData
-		if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
-			actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
-			panic(fmt.Sprintf("failed to load action pins: %v", err))
-		}
-
-		if n := countPinKeyMismatches(data.Entries); n > 0 {
-			actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", n)
-		}
-
-		if emptyKeys := collectEntriesWithEmptySHA(data.Entries); len(emptyKeys) > 0 {
-			panic(fmt.Sprintf("action_pins.json has %d entries with empty SHA %v — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing", len(emptyKeys), emptyKeys))
-		}
+		data := loadActionPinsData(actionPinsJSON)
 
 		pins := slices.Collect(maps.Values(data.Entries))
 
@@ -159,6 +147,24 @@ func getActionPins() []ActionPin {
 	})
 
 	return cachedActionPins
+}
+
+func loadActionPinsData(raw []byte) ActionPinsData {
+	var data ActionPinsData
+	if err := json.Unmarshal(raw, &data); err != nil {
+		actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
+		panic(fmt.Sprintf("failed to load action pins: %v", err))
+	}
+
+	if n := countPinKeyMismatches(data.Entries); n > 0 {
+		actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", n)
+	}
+
+	if emptyKeys := collectEntriesWithEmptySHA(data.Entries); len(emptyKeys) > 0 {
+		panic(fmt.Sprintf("action_pins.json has %d entries with empty SHA %v — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing", len(emptyKeys), emptyKeys))
+	}
+
+	return data
 }
 
 // countPinKeyMismatches returns the number of entries where the key version does not
@@ -244,6 +250,8 @@ func getLatestActionPinReference(repo string) string {
 
 // FormatPinnedActionReference formats a pinned action reference with repo, SHA, and version comment.
 // Example: "actions/checkout@abc123 # v4.1.0"
+// Panics if sha is empty, because that would emit invalid workflow YAML and indicates
+// a programming error or corrupted action pin data that should already have been rejected.
 func FormatPinnedActionReference(repo, sha, version string) string {
 	if sha == "" {
 		panic(fmt.Sprintf("FormatPinnedActionReference called with empty SHA for repo=%s version=%s — this would produce invalid workflow YAML", repo, version))
