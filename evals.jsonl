@@ -1,0 +1,2 @@
+{"id":"observability_data_analyzed","question":"Did the agent analyze logging and telemetry coverage for AWF firewall and MCP Gateway?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-07-21T00:15:48.493Z","runid":"29789009312"}
+{"id":"report_created","question":"Was an observability report created identifying gaps and trends?","answer":"UNKNOWN","model":"gpt-5.4","timestamp":"2026-07-21T00:15:48.493Z","runid":"29789009312"}
