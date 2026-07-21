@@ -26,7 +26,7 @@ models:
 max-turns: 100
 engine:
   id: claude
-  model: claude-sonnet-4.6
+  model: claude-sonnet-4-6
   bare: true
 inlined-imports: true
 imports:
