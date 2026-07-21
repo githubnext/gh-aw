@@ -85,448 +85,300 @@ func renderCustomMCPEnvVars(env map[string]string, tomlFormat, requiresCopilotFi
 // This function handles the common logic for rendering MCP configurations across different engines
 func renderSharedMCPConfig(yaml *strings.Builder, toolName string, toolConfig map[string]any, renderer MCPConfigRenderer) error {
 	mcpCustomLog.Printf("Rendering MCP config for tool: %s, format: %s", toolName, renderer.Format)
-
-	// Get MCP configuration in the new format
-	mcpConfig, err := getMCPConfig(toolConfig, toolName)
+	mcpConfig, headerSecrets, err := loadSharedMCPConfig(toolConfig, toolName)
 	if err != nil {
-		mcpCustomLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
-		return fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
+		return err
 	}
-
-	// Stdio servers must use Docker containerization.
-	// If a command is present without a container, the server is not containerized and will
-	// be rejected by the gateway schema validation at startup (for both TOML and JSON formats).
-	// For Python/Node/shell servers, use HTTP transport instead:
-	//   mcp-servers:
-	//     my-server:
-	//       type: http
-	//       url: "http://localhost:8765/mcp"
-	if mcpConfig.Type == "stdio" && mcpConfig.Command != "" && mcpConfig.Command != "docker" {
-		return fmt.Errorf(
-			"tool '%s' stdio MCP server uses command %q which is not supported by MCP Gateway. "+
-				"Stdio servers must be containerized (use 'container' with 'entrypoint'), "+
-				"or switch to HTTP transport for servers that run directly on the runner.\n\n"+
-				"Example (container):\ntools:\n  %s:\n    container: \"my-registry/my-tool:latest\"\n    entrypoint: \"my-tool\"\n    args: [\"--verbose\"]\n\n"+
-				"Example (HTTP — for Python/Node servers installed on the runner):\ntools:\n  %s:\n    type: http\n    url: \"http://localhost:8765/mcp\"",
-			toolName, mcpConfig.Command, toolName, toolName,
-		)
-	}
-
-	// SECURITY: extract secrets from headers for all HTTP MCP engines so that
-	// secret values are passed as data through env vars rather than embedded
-	// directly in the JSON config as syntax.
-	var headerSecrets map[string]string
-	if mcpConfig.Type == "http" {
-		headerSecrets = ExtractSecretsFromMap(mcpConfig.Headers)
-	}
-
-	// Determine properties based on type
-	var propertyOrder []string
-	mcpType := mcpConfig.Type
-
-	switch mcpType {
-	case "stdio":
-		if renderer.Format == "toml" {
-			propertyOrder = []string{"container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "env", "proxy-args", "registry"}
-		} else {
-			// JSON format - use MCP Gateway schema format (container-based) OR legacy command-based
-			// Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio servers SHOULD be containerized
-			// But we also support legacy command-based tools for backwards compatibility
-			propertyOrder = []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry", "required"}
-		}
-	case "http":
-		if renderer.Format == "toml" {
-			// TOML format for HTTP MCP servers uses url and http_headers
-			propertyOrder = []string{"url", "http_headers"}
-		} else {
-			// JSON format - include tools field for MCP gateway tool filtering (all engines)
-			// For HTTP MCP with secrets in headers, env passthrough is needed
-			if len(headerSecrets) > 0 {
-				propertyOrder = []string{"type", "url", "headers", "auth", "tools", "env", "required"}
-			} else {
-				propertyOrder = []string{"type", "url", "headers", "auth", "tools", "required"}
-			}
-		}
-	default:
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpType)))
+	propertyOrder, ok := determineMCPPropertyOrder(toolName, mcpConfig, renderer, headerSecrets)
+	if !ok {
 		return nil
 	}
-
-	// Find which properties actually exist in this config
-	var existingProperties []string
-	for _, prop := range propertyOrder {
-		switch prop {
-		case "type":
-			// Include type field only for engines that require copilot fields
-			existingProperties = append(existingProperties, prop)
-		case "tools":
-			// Include tools field for JSON format when:
-			// - RequiresCopilotFields (Copilot always renders it; when Allowed is empty, the
-			//   rendering code below defaults to the "*" wildcard)
-			// - OR allowed tools are explicitly specified (pass the filter to the MCP gateway)
-			if renderer.RequiresCopilotFields || len(mcpConfig.Allowed) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "container":
-			if mcpConfig.Container != "" {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "entrypoint":
-			if mcpConfig.Entrypoint != "" {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "entrypointArgs":
-			if len(mcpConfig.EntrypointArgs) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "mounts":
-			if len(mcpConfig.Mounts) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "command":
-			if mcpConfig.Command != "" {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "args":
-			if len(mcpConfig.Args) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "env":
-			// Include env if there are existing env vars OR if there are header secrets to passthrough
-			if len(mcpConfig.Env) > 0 || len(headerSecrets) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "url":
-			if mcpConfig.URL != "" {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "headers":
-			if len(mcpConfig.Headers) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "auth":
-			if mcpConfig.Auth != nil {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "http_headers":
-			if len(mcpConfig.Headers) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "proxy-args":
-			if len(mcpConfig.ProxyArgs) > 0 {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "registry":
-			if mcpConfig.Registry != "" {
-				existingProperties = append(existingProperties, prop)
-			}
-		case "required":
-			// Only emit when explicitly set to false (false = optional; default/absent = required)
-			if mcpConfig.Required != nil && !*mcpConfig.Required {
-				existingProperties = append(existingProperties, prop)
-			}
-		}
-	}
-
-	// If no valid properties exist, skip rendering
+	existingProperties := collectExistingMCPProperties(propertyOrder, mcpConfig, renderer, headerSecrets)
 	if len(existingProperties) == 0 {
 		return nil
 	}
+	renderMCPProperties(yaml, existingProperties, mcpConfig, renderer, headerSecrets)
+	renderTrailingGuardPolicies(yaml, toolName, renderer)
+	return nil
+}
 
-	// When guard policies are present in JSON format, they become the actual last field.
-	// The last existing property must have a trailing comma to allow appending guard policies.
-	hasTrailingGuardPolicies := renderer.Format == "json" && len(renderer.GuardPolicies) > 0
+func loadSharedMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryMCPServerConfig, map[string]string, error) {
+	mcpConfig, err := getMCPConfig(toolConfig, toolName)
+	if err != nil {
+		mcpCustomLog.Printf("Failed to parse MCP config for tool %s: %v", toolName, err)
+		return nil, nil, fmt.Errorf("failed to parse MCP config for tool '%s': %w", toolName, err)
+	}
+	if err := validateSharedMCPConfig(toolName, mcpConfig); err != nil {
+		return nil, nil, err
+	}
+	headerSecrets := map[string]string(nil)
+	if mcpConfig.Type == "http" {
+		headerSecrets = ExtractSecretsFromMap(mcpConfig.Headers)
+	}
+	return mcpConfig, headerSecrets, nil
+}
 
-	// Render properties based on format
-	for propIndex, property := range existingProperties {
-		// In JSON format, if guard policies follow, the last existing property is no longer "last"
-		isLast := (propIndex == len(existingProperties)-1) && !hasTrailingGuardPolicies
+func validateSharedMCPConfig(toolName string, mcpConfig *parser.RegistryMCPServerConfig) error {
+	if mcpConfig.Type != "stdio" || mcpConfig.Command == "" || mcpConfig.Command == "docker" {
+		return nil
+	}
+	return fmt.Errorf(
+		"tool '%s' stdio MCP server uses command %q which is not supported by MCP Gateway. "+
+			"Stdio servers must be containerized (use 'container' with 'entrypoint'), "+
+			"or switch to HTTP transport for servers that run directly on the runner.\n\n"+
+			"Example (container):\ntools:\n  %s:\n    container: \"my-registry/my-tool:latest\"\n    entrypoint: \"my-tool\"\n    args: [\"--verbose\"]\n\n"+
+			"Example (HTTP — for Python/Node servers installed on the runner):\ntools:\n  %s:\n    type: http\n    url: \"http://localhost:8765/mcp\"",
+		toolName, mcpConfig.Command, toolName, toolName,
+	)
+}
 
-		switch property {
-		case "type":
-			// Render type field for JSON format (copilot engine)
-			comma := ","
-			if isLast {
-				comma = ""
-			}
-			// Type field - per MCP Gateway Specification v1.0.0
-			// Use "stdio" for containerized servers, "http" for HTTP servers
-			typeValue := mcpConfig.Type
-			fmt.Fprintf(yaml, "%s\"type\": \"%s\"%s\n", renderer.IndentLevel, typeValue, comma)
-		case "tools":
-			// Render tools field for JSON format (copilot engine) - default to all tools
-			comma := ","
-			if isLast {
-				comma = ""
-			}
-			// Check if allowed tools are specified, otherwise default to "*"
-			if len(mcpConfig.Allowed) > 0 {
-				fmt.Fprintf(yaml, "%s\"tools\": [\n", renderer.IndentLevel)
-				for toolIndex, tool := range mcpConfig.Allowed {
-					toolComma := ","
-					if toolIndex == len(mcpConfig.Allowed)-1 {
-						toolComma = ""
-					}
-					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, tool, toolComma)
-				}
-				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-			} else {
-				fmt.Fprintf(yaml, "%s\"tools\": [\n", renderer.IndentLevel)
-				fmt.Fprintf(yaml, "%s  \"*\"\n", renderer.IndentLevel)
-				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-			}
-		case "container":
-			// Container field - per MCP Gateway Specification v1.0.0 section 4.1.2
-			// Required for stdio servers (containerized servers)
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%scontainer = \"%s\"\n", renderer.IndentLevel, mcpConfig.Container)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"container\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Container, comma)
-			}
-		case "entrypoint":
-			// Entrypoint field - per MCP Gateway Specification v1.0.0
-			// Optional entrypoint override for container
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%sentrypoint = \"%s\"\n", renderer.IndentLevel, mcpConfig.Entrypoint)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"entrypoint\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Entrypoint, comma)
-			}
-		case "entrypointArgs":
-			// EntrypointArgs field - per MCP Gateway Specification v1.0.0
-			// Arguments passed to the container entrypoint
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%sentrypointArgs = [", renderer.IndentLevel)
-				for argIndex, arg := range mcpConfig.EntrypointArgs {
-					if argIndex > 0 {
-						yaml.WriteString(", ")
-					}
-					fmt.Fprintf(yaml, "\"%s\"", arg)
-				}
-				yaml.WriteString("]\n")
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"entrypointArgs\": [\n", renderer.IndentLevel)
-				for argIndex, arg := range mcpConfig.EntrypointArgs {
-					argComma := ","
-					if argIndex == len(mcpConfig.EntrypointArgs)-1 {
-						argComma = ""
-					}
-					// Replace template expressions with environment variable references
-					argValue := arg
-					if renderer.RequiresCopilotFields {
-						argValue = ReplaceTemplateExpressionsWithEnvVars(argValue)
-					}
-					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, argValue, argComma)
-				}
-				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-			}
-		case "mounts":
-			// Mounts field - per MCP Gateway Specification v1.0.0
-			// Volume mounts for the container
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%smounts = [", renderer.IndentLevel)
-				for mountIndex, mount := range mcpConfig.Mounts {
-					if mountIndex > 0 {
-						yaml.WriteString(", ")
-					}
-					fmt.Fprintf(yaml, "\"%s\"", mount)
-				}
-				yaml.WriteString("]\n")
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"mounts\": [\n", renderer.IndentLevel)
-				for mountIndex, mount := range mcpConfig.Mounts {
-					mountComma := ","
-					if mountIndex == len(mcpConfig.Mounts)-1 {
-						mountComma = ""
-					}
-					// Replace template expressions with environment variable references
-					mountValue := mount
-					if renderer.RequiresCopilotFields {
-						mountValue = ReplaceTemplateExpressionsWithEnvVars(mountValue)
-					}
-					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, mountValue, mountComma)
-				}
-				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-			}
-		case "command":
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%scommand = \"%s\"\n", renderer.IndentLevel, mcpConfig.Command)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"command\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Command, comma)
-			}
-		case "args":
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%sargs = [\n", renderer.IndentLevel)
-				for _, arg := range mcpConfig.Args {
-					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
-				}
-				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"args\": [\n", renderer.IndentLevel)
-				for argIndex, arg := range mcpConfig.Args {
-					argComma := ","
-					if argIndex == len(mcpConfig.Args)-1 {
-						argComma = ""
-					}
-					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
-				}
-				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-			}
-		case "env":
-			renderedEnv := renderCustomMCPEnvVars(mcpConfig.Env, renderer.Format == "toml", renderer.RequiresCopilotFields)
-			if renderer.Format == "toml" {
-				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv)
-			} else {
-				// Add header secrets for passthrough (copilot only)
-				for varName := range headerSecrets {
-					// Only add if not already in env
-					if _, exists := renderedEnv[varName]; !exists {
-						// SECURITY: use passthrough syntax for all engines so the MCP gateway passes
-						// the env var value to the MCP server rather than the literal secret expression.
-						// The lock-file value is \${VAR_NAME} (single backslash); bash collapses \$ → $
-						// so the heredoc delivers ${VAR_NAME} to the gateway for env-var expansion.
-						renderedEnv[varName] = "\\${" + varName + "}"
-					}
-				}
-				// Use raw (non-json.Marshal) writing for env values because they are placed
-				// inside an unquoted heredoc and may contain pre-escaped shell placeholders
-				// like \${VAR}. Passing those through json.Marshal would double-escape the
-				// backslash (\${VAR} → \\${VAR}), producing invalid JSON after bash processing.
-				writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "env", renderedEnv, !isLast)
-			}
-		case "url":
-			// Rewrite localhost URLs to host.docker.internal when running inside firewall container
-			// This allows MCP servers running on the host to be accessed from the container
-			urlValue := mcpConfig.URL
-			if renderer.RewriteLocalhostToDocker {
-				urlValue = rewriteLocalhostToDockerHost(urlValue)
-			}
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%surl = \"%s\"\n", renderer.IndentLevel, urlValue)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"url\": \"%s\"%s\n", renderer.IndentLevel, urlValue, comma)
-			}
-		case "http_headers":
-			// TOML format for HTTP headers (Codex style)
-			if len(mcpConfig.Headers) > 0 {
-				writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", mcpConfig.Headers)
-			}
-		case "headers":
-			renderedHeaders := make(map[string]string, len(mcpConfig.Headers))
-			for headerKey, headerValue := range mcpConfig.Headers {
-				// SECURITY: replace secret expressions with env var references for all engines.
-				// This prevents the token value from being embedded directly in the script text,
-				// treating it as data rather than syntax.
-				if len(headerSecrets) > 0 {
-					headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
-				}
-				renderedHeaders[headerKey] = headerValue
-			}
-			// Use raw (non-json.Marshal) writing for header values because they are placed
-			// inside an unquoted heredoc and may contain pre-escaped shell placeholders
-			// like \${VAR}. Passing those through json.Marshal would double-escape the
-			// backslash (\${VAR} → \\${VAR}), producing invalid JSON after bash processing.
-			writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
-		case "auth":
-			// Auth field - upstream OIDC authentication config (HTTP servers only, JSON format only)
-			// Guard against nil auth (defensive check, existingProperties should have filtered this out)
-			if mcpConfig.Auth == nil {
-				continue
-			}
-			comma := ","
-			if isLast {
-				comma = ""
-			}
-			fmt.Fprintf(yaml, "%s\"auth\": {\n", renderer.IndentLevel)
-			if mcpConfig.Auth.Audience != "" {
-				fmt.Fprintf(yaml, "%s  \"type\": \"%s\",\n", renderer.IndentLevel, mcpConfig.Auth.Type)
-				fmt.Fprintf(yaml, "%s  \"audience\": \"%s\"\n", renderer.IndentLevel, mcpConfig.Auth.Audience)
-			} else {
-				fmt.Fprintf(yaml, "%s  \"type\": \"%s\"\n", renderer.IndentLevel, mcpConfig.Auth.Type)
-			}
-			fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, comma)
-		case "proxy-args":
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%sproxy_args = [\n", renderer.IndentLevel)
-				for _, arg := range mcpConfig.ProxyArgs {
-					fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, arg)
-				}
-				fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"proxy-args\": [\n", renderer.IndentLevel)
-				for argIndex, arg := range mcpConfig.ProxyArgs {
-					argComma := ","
-					if argIndex == len(mcpConfig.ProxyArgs)-1 {
-						argComma = ""
-					}
-					fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, arg, argComma)
-				}
-				fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, comma)
-			}
-		case "registry":
-			if renderer.Format == "toml" {
-				fmt.Fprintf(yaml, "%sregistry = \"%s\"\n", renderer.IndentLevel, mcpConfig.Registry)
-			} else {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"registry\": \"%s\"%s\n", renderer.IndentLevel, mcpConfig.Registry, comma)
-			}
-		case "required":
-			// Only emitted for JSON format when Required is explicitly false (optional server).
-			// Absent field means the default (required), so we never emit "required": true.
-			if renderer.Format == "json" && mcpConfig.Required != nil && !*mcpConfig.Required {
-				comma := ","
-				if isLast {
-					comma = ""
-				}
-				fmt.Fprintf(yaml, "%s\"required\": false%s\n", renderer.IndentLevel, comma)
-			}
+func determineMCPPropertyOrder(toolName string, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) ([]string, bool) {
+	switch mcpConfig.Type {
+	case "stdio":
+		if renderer.Format == "toml" {
+			return []string{"container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "env", "proxy-args", "registry"}, true
+		}
+		return []string{"type", "container", "entrypoint", "entrypointArgs", "mounts", "command", "args", "tools", "env", "proxy-args", "registry", "required"}, true
+	case "http":
+		if renderer.Format == "toml" {
+			return []string{"url", "http_headers"}, true
+		}
+		if len(headerSecrets) > 0 {
+			return []string{"type", "url", "headers", "auth", "tools", "env", "required"}, true
+		}
+		return []string{"type", "url", "headers", "auth", "tools", "required"}, true
+	default:
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Custom MCP server '%s' has unsupported type '%s'. Supported types: stdio, http", toolName, mcpConfig.Type)))
+		return nil, false
+	}
+}
+
+func collectExistingMCPProperties(propertyOrder []string, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) []string {
+	existingProperties := make([]string, 0, len(propertyOrder))
+	for _, prop := range propertyOrder {
+		if shouldRenderMCPProperty(prop, mcpConfig, renderer, headerSecrets) {
+			existingProperties = append(existingProperties, prop)
 		}
 	}
+	return existingProperties
+}
 
-	// Render guard policies after all properties
-	if hasTrailingGuardPolicies {
-		// JSON format: guard policies are the last field inside the server object
+func shouldRenderMCPProperty(prop string, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) bool {
+	switch prop {
+	case "type":
+		return true
+	case "tools":
+		return renderer.RequiresCopilotFields || len(mcpConfig.Allowed) > 0
+	case "container":
+		return mcpConfig.Container != ""
+	case "entrypoint":
+		return mcpConfig.Entrypoint != ""
+	case "entrypointArgs":
+		return len(mcpConfig.EntrypointArgs) > 0
+	case "mounts":
+		return len(mcpConfig.Mounts) > 0
+	case "command":
+		return mcpConfig.Command != ""
+	case "args":
+		return len(mcpConfig.Args) > 0
+	case "env":
+		return len(mcpConfig.Env) > 0 || len(headerSecrets) > 0
+	case "url":
+		return mcpConfig.URL != ""
+	case "headers", "http_headers":
+		return len(mcpConfig.Headers) > 0
+	case "auth":
+		return mcpConfig.Auth != nil
+	case "proxy-args":
+		return len(mcpConfig.ProxyArgs) > 0
+	case "registry":
+		return mcpConfig.Registry != ""
+	case "required":
+		return mcpConfig.Required != nil && !*mcpConfig.Required
+	default:
+		return false
+	}
+}
+
+func renderMCPProperties(yaml *strings.Builder, properties []string, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
+	hasTrailingGuardPolicies := renderer.Format == "json" && len(renderer.GuardPolicies) > 0
+	for propIndex, property := range properties {
+		isLast := propIndex == len(properties)-1 && !hasTrailingGuardPolicies
+		renderMCPProperty(yaml, property, isLast, mcpConfig, renderer, headerSecrets)
+	}
+}
+
+func renderMCPProperty(yaml *strings.Builder, property string, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
+	switch property {
+	case "type", "container", "entrypoint", "command", "url", "registry", "required":
+		renderMCPScalarProperty(yaml, property, isLast, mcpConfig, renderer)
+	case "tools", "entrypointArgs", "mounts", "args", "proxy-args":
+		renderMCPArrayProperty(yaml, property, isLast, mcpConfig, renderer)
+	case "env", "http_headers", "headers":
+		renderMCPMapProperty(yaml, property, isLast, mcpConfig, renderer, headerSecrets)
+	case "auth":
+		renderMCPAuthProperty(yaml, isLast, mcpConfig, renderer)
+	}
+}
+
+func renderTrailingGuardPolicies(yaml *strings.Builder, toolName string, renderer MCPConfigRenderer) {
+	if renderer.Format == "json" && len(renderer.GuardPolicies) > 0 {
 		renderGuardPoliciesJSON(yaml, renderer.GuardPolicies, renderer.IndentLevel)
 	} else if renderer.Format == "toml" && len(renderer.GuardPolicies) > 0 {
-		// TOML format: guard policies are a separate TOML section after the server config
 		renderGuardPoliciesToml(yaml, renderer.GuardPolicies, toolName)
 	}
+}
 
-	return nil
+func renderMCPScalarProperty(yaml *strings.Builder, property string, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer) {
+	switch property {
+	case "type":
+		renderMCPJSONScalar(yaml, renderer, "type", mcpConfig.Type, isLast)
+	case "container":
+		renderMCPStringScalar(yaml, renderer, "container", mcpConfig.Container, isLast)
+	case "entrypoint":
+		renderMCPStringScalar(yaml, renderer, "entrypoint", mcpConfig.Entrypoint, isLast)
+	case "command":
+		renderMCPStringScalar(yaml, renderer, "command", mcpConfig.Command, isLast)
+	case "url":
+		urlValue := mcpConfig.URL
+		if renderer.RewriteLocalhostToDocker {
+			urlValue = rewriteLocalhostToDockerHost(urlValue)
+		}
+		renderMCPStringScalar(yaml, renderer, "url", urlValue, isLast)
+	case "registry":
+		renderMCPStringScalar(yaml, renderer, "registry", mcpConfig.Registry, isLast)
+	case "required":
+		if renderer.Format == "json" && mcpConfig.Required != nil && !*mcpConfig.Required {
+			fmt.Fprintf(yaml, "%s\"required\": false%s\n", renderer.IndentLevel, renderMCPComma(isLast))
+		}
+	}
+}
+
+func renderMCPStringScalar(yaml *strings.Builder, renderer MCPConfigRenderer, key, value string, isLast bool) {
+	if renderer.Format == "toml" {
+		fmt.Fprintf(yaml, "%s%s = \"%s\"\n", renderer.IndentLevel, key, value)
+		return
+	}
+	renderMCPJSONScalar(yaml, renderer, key, value, isLast)
+}
+
+func renderMCPJSONScalar(yaml *strings.Builder, renderer MCPConfigRenderer, key, value string, isLast bool) {
+	fmt.Fprintf(yaml, "%s\"%s\": \"%s\"%s\n", renderer.IndentLevel, key, value, renderMCPComma(isLast))
+}
+
+func renderMCPArrayProperty(yaml *strings.Builder, property string, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer) {
+	switch property {
+	case "tools":
+		values := mcpConfig.Allowed
+		if len(values) == 0 {
+			values = []string{"*"}
+		}
+		renderMCPArray(yaml, renderer, "tools", values, isLast, false)
+	case "entrypointArgs":
+		renderMCPArray(yaml, renderer, "entrypointArgs", mcpConfig.EntrypointArgs, isLast, renderer.RequiresCopilotFields)
+	case "mounts":
+		renderMCPArray(yaml, renderer, "mounts", mcpConfig.Mounts, isLast, renderer.RequiresCopilotFields)
+	case "args":
+		renderMCPArray(yaml, renderer, "args", mcpConfig.Args, isLast, false)
+	case "proxy-args":
+		renderMCPArray(yaml, renderer, "proxy-args", mcpConfig.ProxyArgs, isLast, false)
+	}
+}
+
+func renderMCPArray(yaml *strings.Builder, renderer MCPConfigRenderer, key string, values []string, isLast bool, replaceTemplates bool) {
+	if renderer.Format == "toml" {
+		renderMCPTOMLArray(yaml, renderer, key, values)
+		return
+	}
+	jsonKey := key
+	if key == "proxy-args" {
+		jsonKey = "proxy-args"
+	}
+	fmt.Fprintf(yaml, "%s\"%s\": [\n", renderer.IndentLevel, jsonKey)
+	for i, value := range values {
+		if replaceTemplates {
+			value = ReplaceTemplateExpressionsWithEnvVars(value)
+		}
+		fmt.Fprintf(yaml, "%s  \"%s\"%s\n", renderer.IndentLevel, value, renderMCPComma(i == len(values)-1))
+	}
+	fmt.Fprintf(yaml, "%s]%s\n", renderer.IndentLevel, renderMCPComma(isLast))
+}
+
+func renderMCPTOMLArray(yaml *strings.Builder, renderer MCPConfigRenderer, key string, values []string) {
+	tomlKey := strings.ReplaceAll(key, "-", "_")
+	if key == "entrypointArgs" || key == "mounts" {
+		fmt.Fprintf(yaml, "%s%s = [", renderer.IndentLevel, tomlKey)
+		for i, value := range values {
+			if i > 0 {
+				yaml.WriteString(", ")
+			}
+			fmt.Fprintf(yaml, "\"%s\"", value)
+		}
+		yaml.WriteString("]\n")
+		return
+	}
+	fmt.Fprintf(yaml, "%s%s = [\n", renderer.IndentLevel, tomlKey)
+	for _, value := range values {
+		fmt.Fprintf(yaml, "%s  \"%s\",\n", renderer.IndentLevel, value)
+	}
+	fmt.Fprintf(yaml, "%s]\n", renderer.IndentLevel)
+}
+
+func renderMCPMapProperty(yaml *strings.Builder, property string, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
+	switch property {
+	case "env":
+		renderMCPEnvMap(yaml, isLast, mcpConfig, renderer, headerSecrets)
+	case "http_headers":
+		writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "http_headers", mcpConfig.Headers)
+	case "headers":
+		renderMCPHeadersMap(yaml, isLast, mcpConfig, renderer, headerSecrets)
+	}
+}
+
+func renderMCPEnvMap(yaml *strings.Builder, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
+	renderedEnv := renderCustomMCPEnvVars(mcpConfig.Env, renderer.Format == "toml", renderer.RequiresCopilotFields)
+	if renderer.Format == "toml" {
+		writeTOMLInlineStringMapSection(yaml, renderer.IndentLevel, "env", renderedEnv)
+		return
+	}
+	for varName := range headerSecrets {
+		if _, exists := renderedEnv[varName]; !exists {
+			renderedEnv[varName] = "\\${" + varName + "}"
+		}
+	}
+	writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "env", renderedEnv, !isLast)
+}
+
+func renderMCPHeadersMap(yaml *strings.Builder, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer, headerSecrets map[string]string) {
+	renderedHeaders := make(map[string]string, len(mcpConfig.Headers))
+	for headerKey, headerValue := range mcpConfig.Headers {
+		if len(headerSecrets) > 0 {
+			headerValue = ReplaceSecretsWithEnvVars(headerValue, headerSecrets)
+		}
+		renderedHeaders[headerKey] = headerValue
+	}
+	writeJSONStringMapSectionRaw(yaml, renderer.IndentLevel, "headers", renderedHeaders, !isLast)
+}
+
+func renderMCPAuthProperty(yaml *strings.Builder, isLast bool, mcpConfig *parser.RegistryMCPServerConfig, renderer MCPConfigRenderer) {
+	if mcpConfig.Auth == nil {
+		return
+	}
+	fmt.Fprintf(yaml, "%s\"auth\": {\n", renderer.IndentLevel)
+	if mcpConfig.Auth.Audience != "" {
+		fmt.Fprintf(yaml, "%s  \"type\": \"%s\",\n", renderer.IndentLevel, mcpConfig.Auth.Type)
+		fmt.Fprintf(yaml, "%s  \"audience\": \"%s\"\n", renderer.IndentLevel, mcpConfig.Auth.Audience)
+	} else {
+		fmt.Fprintf(yaml, "%s  \"type\": \"%s\"\n", renderer.IndentLevel, mcpConfig.Auth.Type)
+	}
+	fmt.Fprintf(yaml, "%s}%s\n", renderer.IndentLevel, renderMCPComma(isLast))
+}
+
+func renderMCPComma(isLast bool) string {
+	if isLast {
+		return ""
+	}
+	return ","
 }
 
 // collectHTTPMCPHeaderSecrets collects all secrets from HTTP MCP tool headers
@@ -550,24 +402,11 @@ func collectHTTPMCPHeaderSecrets(tools map[string]any) map[string]string {
 	return allSecrets
 }
 
-// getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
-func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryMCPServerConfig, error) {
-	mcpCustomLog.Printf("Extracting MCP config for tool: %s", toolName)
-
-	config := MapToolConfig(toolConfig)
-	result := &parser.RegistryMCPServerConfig{
-		BaseMCPServerConfig: types.BaseMCPServerConfig{
-			Env:     make(map[string]string),
-			Headers: make(map[string]string),
-		},
-		Name: toolName,
-	}
-
-	// Validate known properties - fail if unknown properties are found
-	knownProperties := map[string]struct {
-	}{
+// validateMCPKnownProperties checks that all keys in toolConfig are in the known set.
+func validateMCPKnownProperties(toolConfig map[string]any, toolName string) error {
+	knownProperties := map[string]struct{}{
 		"type":           {},
-		"mode":           {}, // Added for MCPServerConfig struct
+		"mode":           {},
 		"command":        {},
 		"container":      {},
 		"version":        {},
@@ -582,184 +421,190 @@ func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryM
 		"auth":           {},
 		"registry":       {},
 		"allowed":        {},
-		"toolsets":       {}, // Added for MCPServerConfig struct
-		"required":       {}, // Whether the server is required at startup (false = optional, default = required)
+		"toolsets":       {},
+		"required":       {},
 	}
-
 	for key := range toolConfig {
 		if !setutil.Contains(knownProperties, key) {
 			mcpCustomLog.Printf("Unknown property '%s' in MCP config for tool '%s'", key, toolName)
-			// Build list of valid properties
 			validProps := sliceutil.SortedKeys(knownProperties)
-			return nil, fmt.Errorf(
+			return fmt.Errorf(
 				"unknown property '%s' in MCP configuration for tool '%s'. Valid properties are: %s. "+
-					"Example:\n"+
-					"mcp-servers:\n"+
-					"  %s:\n"+
-					"    command: \"npx @my/tool\"\n"+
-					"    args: [\"--port\", \"3000\"]",
+					"Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]",
 				key, toolName, strings.Join(validProps, ", "), toolName)
 		}
 	}
+	return nil
+}
 
-	// Infer type from fields if not explicitly provided
+// resolveMCPType determines the MCP server type from explicit or inferred fields.
+func resolveMCPType(config MapToolConfig, toolName string) (string, error) {
 	if typeStr, hasType := config.GetString("type"); hasType {
 		mcpCustomLog.Printf("MCP type explicitly set to: %s", typeStr)
-		// Normalize "local" to "stdio"
 		if typeStr == "local" {
-			result.Type = "stdio"
-		} else {
-			result.Type = typeStr
+			return "stdio", nil
 		}
+		return typeStr, nil
+	}
+	mcpCustomLog.Print("No explicit MCP type, inferring from fields")
+	if _, hasURL := config.GetString("url"); hasURL {
+		mcpCustomLog.Printf("Inferred MCP type as http (has url field)")
+		return "http", nil
+	}
+	if _, hasCommand := config.GetString("command"); hasCommand {
+		mcpCustomLog.Printf("Inferred MCP type as stdio (has command field)")
+		return "stdio", nil
+	}
+	if _, hasContainer := config.GetString("container"); hasContainer {
+		mcpCustomLog.Printf("Inferred MCP type as stdio (has container field)")
+		return "stdio", nil
+	}
+	mcpCustomLog.Printf("Unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
+	return "", fmt.Errorf(
+		"unable to determine MCP type for tool '%s': missing type, url, command, or container. "+
+			"Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). "+
+			"Example:\nmcp-servers:\n  %s:\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]",
+		toolName, toolName)
+}
+
+// extractMCPStdioFields populates stdio-specific fields on result.
+func extractMCPStdioFields(config MapToolConfig, result *parser.RegistryMCPServerConfig) {
+	if command, ok := config.GetString("command"); ok {
+		result.Command = command
+	}
+	if container, ok := config.GetString("container"); ok {
+		result.Container = container
+	}
+	if version, ok := config.GetString("version"); ok {
+		result.Version = version
+	}
+	if args, ok := config.GetStringArray("args"); ok {
+		result.Args = args
+	}
+	if entrypoint, ok := config.GetString("entrypoint"); ok {
+		result.Entrypoint = entrypoint
+	}
+	if entrypointArgs, ok := config.GetStringArray("entrypointArgs"); ok {
+		result.EntrypointArgs = entrypointArgs
+	}
+	if mounts, ok := config.GetStringArray("mounts"); ok {
+		result.Mounts = mounts
+	}
+	if env, ok := config.GetStringMap("env"); ok {
+		result.Env = env
+	}
+	if proxyArgs, ok := config.GetStringArray("proxy-args"); ok {
+		result.ProxyArgs = proxyArgs
+	}
+}
+
+// extractMCPHTTPFields populates HTTP-specific fields on result.
+func extractMCPHTTPFields(config MapToolConfig, toolName string, result *parser.RegistryMCPServerConfig) error {
+	if url, hasURL := config.GetString("url"); hasURL {
+		result.URL = url
 	} else {
-		mcpCustomLog.Print("No explicit MCP type, inferring from fields")
-		// Infer type from presence of fields
-		if _, hasURL := config.GetString("url"); hasURL {
-			result.Type = "http"
-			mcpCustomLog.Printf("Inferred MCP type as http (has url field)")
-		} else if _, hasCommand := config.GetString("command"); hasCommand {
-			result.Type = "stdio"
-			mcpCustomLog.Printf("Inferred MCP type as stdio (has command field)")
-		} else if _, hasContainer := config.GetString("container"); hasContainer {
-			result.Type = "stdio"
-			mcpCustomLog.Printf("Inferred MCP type as stdio (has container field)")
-		} else {
-			mcpCustomLog.Printf("Unable to determine MCP type for tool '%s': missing type, url, command, or container", toolName)
-			return nil, fmt.Errorf(
-				"unable to determine MCP type for tool '%s': missing type, url, command, or container. "+
-					"Must specify one of: 'type' (stdio/http), 'url' (for HTTP MCP), 'command' (for command-based), or 'container' (for Docker-based). "+
-					"Example:\n"+
-					"mcp-servers:\n"+
-					"  %s:\n"+
-					"    command: \"npx @my/tool\"\n"+
-					"    args: [\"--port\", \"3000\"]",
-				toolName, toolName,
-			)
+		mcpCustomLog.Printf("HTTP MCP tool '%s' missing required 'url' field", toolName)
+		return fmt.Errorf(
+			"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
+				"Example:\nmcp-servers:\n  %s:\n    type: http\n    url: \"https://api.example.com/mcp\"\n    headers:\n      Authorization: \"****** secrets.API_KEY }}\"",
+			toolName, toolName)
+	}
+	if headers, ok := config.GetStringMap("headers"); ok {
+		result.Headers = headers
+	}
+	if authVal, hasAuth := config.GetAny("auth"); hasAuth {
+		if authMap, ok := authVal.(map[string]any); ok {
+			authConfig := &types.MCPAuthConfig{}
+			if authType, ok := authMap["type"].(string); ok {
+				authConfig.Type = authType
+			}
+			if audience, ok := authMap["audience"].(string); ok {
+				authConfig.Audience = audience
+			}
+			if authConfig.Type != "" {
+				result.Auth = authConfig
+			}
+		} else if authCfg, ok := authVal.(*types.MCPAuthConfig); ok {
+			result.Auth = authCfg
 		}
 	}
+	return nil
+}
 
-	// Extract common fields (available for both stdio and http)
-	if registry, hasRegistry := config.GetString("registry"); hasRegistry {
+// postProcessMCPConfig applies auto-container assignment and version merging for stdio configs.
+func postProcessMCPConfig(result *parser.RegistryMCPServerConfig) {
+	if result.Type == "stdio" && result.Container == "" && result.Command != "" {
+		if containerConfig := getWellKnownContainer(result.Command); containerConfig != nil {
+			mcpCustomLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
+			result.Container = containerConfig.Image
+			result.Entrypoint = containerConfig.Entrypoint
+			// The command becomes the container entrypoint; original args become entrypointArgs.
+			// Do NOT prepend the command to entrypointArgs — the entrypoint field already carries it.
+			result.EntrypointArgs = result.Args
+			result.Args = nil
+			result.Command = ""
+		}
+	}
+	// Combine container and version into a single image reference.
+	if result.Type == "stdio" && result.Container != "" && result.Version != "" {
+		result.Container = result.Container + ":" + result.Version
+		result.Version = ""
+	}
+}
+
+// getMCPConfig extracts MCP configuration from a tool config and returns a structured MCPServerConfig
+func getMCPConfig(toolConfig map[string]any, toolName string) (*parser.RegistryMCPServerConfig, error) {
+	mcpCustomLog.Printf("Extracting MCP config for tool: %s", toolName)
+
+	config := MapToolConfig(toolConfig)
+	result := &parser.RegistryMCPServerConfig{
+		BaseMCPServerConfig: types.BaseMCPServerConfig{
+			Env:     make(map[string]string),
+			Headers: make(map[string]string),
+		},
+		Name: toolName,
+	}
+
+	if err := validateMCPKnownProperties(toolConfig, toolName); err != nil {
+		return nil, err
+	}
+
+	mcpType, err := resolveMCPType(config, toolName)
+	if err != nil {
+		return nil, err
+	}
+	result.Type = mcpType
+
+	if registry, ok := config.GetString("registry"); ok {
 		result.Registry = registry
 	}
 
-	// Extract fields based on type
 	mcpCustomLog.Printf("Extracting fields for MCP type: %s", result.Type)
 	switch result.Type {
 	case "stdio":
-		if command, hasCommand := config.GetString("command"); hasCommand {
-			result.Command = command
-		}
-		if container, hasContainer := config.GetString("container"); hasContainer {
-			result.Container = container
-		}
-		if version, hasVersion := config.GetString("version"); hasVersion {
-			result.Version = version
-		}
-		if args, hasArgs := config.GetStringArray("args"); hasArgs {
-			result.Args = args
-		}
-		if entrypoint, hasEntrypoint := config.GetString("entrypoint"); hasEntrypoint {
-			result.Entrypoint = entrypoint
-		}
-		if entrypointArgs, hasEntrypointArgs := config.GetStringArray("entrypointArgs"); hasEntrypointArgs {
-			result.EntrypointArgs = entrypointArgs
-		}
-		if mounts, hasMounts := config.GetStringArray("mounts"); hasMounts {
-			result.Mounts = mounts
-		}
-		if env, hasEnv := config.GetStringMap("env"); hasEnv {
-			result.Env = env
-		}
-		if proxyArgs, hasProxyArgs := config.GetStringArray("proxy-args"); hasProxyArgs {
-			result.ProxyArgs = proxyArgs
-		}
+		extractMCPStdioFields(config, result)
 	case "http":
-		if url, hasURL := config.GetString("url"); hasURL {
-			result.URL = url
-		} else {
-			mcpCustomLog.Printf("HTTP MCP tool '%s' missing required 'url' field", toolName)
-			return nil, fmt.Errorf(
-				"http MCP tool '%s' missing required 'url' field. HTTP MCP servers must specify a URL endpoint. "+
-					"Example:\n"+
-					"mcp-servers:\n"+
-					"  %s:\n"+
-					"    type: http\n"+
-					"    url: \"https://api.example.com/mcp\"\n"+
-					"    headers:\n"+
-					"      Authorization: \"Bearer ${{ secrets.API_KEY }}\"",
-				toolName, toolName,
-			)
-		}
-		if headers, hasHeaders := config.GetStringMap("headers"); hasHeaders {
-			result.Headers = headers
-		}
-		if authVal, hasAuth := config.GetAny("auth"); hasAuth {
-			if authMap, ok := authVal.(map[string]any); ok {
-				authConfig := &types.MCPAuthConfig{}
-				if authType, ok := authMap["type"].(string); ok {
-					authConfig.Type = authType
-				}
-				if audience, ok := authMap["audience"].(string); ok {
-					authConfig.Audience = audience
-				}
-				if authConfig.Type != "" {
-					result.Auth = authConfig
-				}
-			} else if authCfg, ok := authVal.(*types.MCPAuthConfig); ok {
-				result.Auth = authCfg
-			}
+		if err := extractMCPHTTPFields(config, toolName, result); err != nil {
+			return nil, err
 		}
 	default:
 		mcpCustomLog.Printf("Unsupported MCP type '%s' for tool '%s'", result.Type, toolName)
 		return nil, fmt.Errorf(
 			"unsupported MCP type '%s' for tool '%s'. Valid types are: stdio, http. "+
-				"Example:\n"+
-				"mcp-servers:\n"+
-				"  %s:\n"+
-				"    type: stdio\n"+
-				"    command: \"npx @my/tool\"\n"+
-				"    args: [\"--port\", \"3000\"]",
+				"Example:\nmcp-servers:\n  %s:\n    type: stdio\n    command: \"npx @my/tool\"\n    args: [\"--port\", \"3000\"]",
 			result.Type, toolName, toolName)
 	}
 
-	// Extract allowed tools
-	if allowed, hasAllowed := config.GetStringArray("allowed"); hasAllowed {
+	if allowed, ok := config.GetStringArray("allowed"); ok {
 		result.Allowed = allowed
 	}
-
-	// Extract required field: when explicitly set to false the server is optional at startup
-	if requiredVal, hasRequired := config.GetAny("required"); hasRequired {
+	if requiredVal, ok := config.GetAny("required"); ok {
 		if requiredBool, ok := requiredVal.(bool); ok {
 			result.Required = &requiredBool
 		}
 	}
 
-	// Automatically assign well-known containers for stdio MCP servers based on command
-	// This ensures all stdio servers work with the MCP Gateway which requires containerization
-	if result.Type == "stdio" && result.Container == "" && result.Command != "" {
-		containerConfig := getWellKnownContainer(result.Command)
-		if containerConfig != nil {
-			mcpCustomLog.Printf("Auto-assigning container for command '%s': %s", result.Command, containerConfig.Image)
-			result.Container = containerConfig.Image
-			result.Entrypoint = containerConfig.Entrypoint
-			// The command becomes the container entrypoint; original args become entrypointArgs.
-			// Do NOT prepend the command to entrypointArgs — the entrypoint field already carries it,
-			// and prepending would cause it to appear twice (e.g. "npx npx @sentry/mcp-server").
-			result.EntrypointArgs = result.Args
-			result.Args = nil   // Clear args since they're now in entrypointArgs
-			result.Command = "" // Clear command since it's now the entrypoint
-		}
-	}
-
-	// Combine container and version fields into a single container image string
-	// Per MCP Gateway Specification, the container field should include the full image reference
-	// including the tag (e.g., "mcp/ast-grep:latest" instead of separate container + version fields)
-	if result.Type == "stdio" && result.Container != "" && result.Version != "" {
-		result.Container = result.Container + ":" + result.Version
-		result.Version = "" // Clear version since it's now part of container
-	}
-
+	postProcessMCPConfig(result)
 	return result, nil
 }
 
