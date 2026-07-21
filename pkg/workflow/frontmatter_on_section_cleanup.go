@@ -745,13 +745,36 @@ func dedentTrailingOnCommentBlock(lines []string) []string {
 		return lines
 	}
 
-	// Only dedent comments at the direct `on:` children level (≤2 spaces / 1 tab).
-	// Comments nested deeper — e.g. `forks:` inside `pull_request:` at 4-space indent —
-	// are part of a nested event section and must keep their indentation so that the
-	// visual structure of the `on:` block is preserved.
+	// Comments at the direct `on:` children level (≤2 spaces / 1 tab) always dedent
+	// to column 0. Comments nested deeper — e.g. `forks:` inside `pull_request:` at
+	// 4-space indent — are usually part of a nested event section that still has real
+	// sibling content at the same indent (a `types:` line next to a commented
+	// `# forks:`), so they keep their indentation to preserve the visual structure of
+	// the `on:` block.
+	//
+	// The exception is a parent key whose children are *entirely* commented out — e.g.
+	// a `deployment_status:` whose only descendants are `# state:` / `# - error`. There
+	// the block's nearest real content line is the shallower parent key, so the comment
+	// aligns with neither that key nor the column-0 top-level key that follows the `on:`
+	// section, and yamllint's comments-indentation rule flags it. In that case dedent to
+	// column 0 (matching the following content) to clear the warning.
 	firstLineIndent := len(lines[start]) - len(strings.TrimLeft(lines[start], " \t"))
 	if firstLineIndent > 2 {
-		return lines
+		// Find the nearest preceding real (non-blank) content line — the anchor the
+		// comment block visually attaches to.
+		anchor := start - 1
+		for anchor >= 0 && strings.TrimSpace(lines[anchor]) == "" {
+			anchor--
+		}
+		if anchor < 0 {
+			return lines
+		}
+		anchorIndent := len(lines[anchor]) - len(strings.TrimLeft(lines[anchor], " \t"))
+		// A sibling at the same (or deeper) indent anchors the block — leave it as-is.
+		// Only a strictly shallower anchor (the parent key) needs dedenting.
+		if anchorIndent >= firstLineIndent {
+			return lines
+		}
 	}
 
 	for i := start; i <= last; i++ {

@@ -120,6 +120,40 @@ func TestDedentTrailingOnCommentBlock(t *testing.T) {
 			},
 		},
 		{
+			name: "deeply nested trailing block whose parent has no real children is dedented",
+			input: []string{
+				"on:",
+				"  deployment_status:",
+				"    # state: # State filtering compiled into if condition",
+				"    # - error # State filtering compiled into if condition",
+				"    # - failure # State filtering compiled into if condition",
+			},
+			want: []string{
+				"on:",
+				"  deployment_status:",
+				"# state: # State filtering compiled into if condition",
+				"# - error # State filtering compiled into if condition",
+				"# - failure # State filtering compiled into if condition",
+			},
+		},
+		{
+			name: "deeply nested trailing block with a real sibling at its indent is left untouched",
+			input: []string{
+				"on:",
+				"  pull_request:",
+				"    types: [opened]",
+				"    # forks: # Fork filtering applied via job conditions",
+				"    # - octocat # Fork filtering applied via job conditions",
+			},
+			want: []string{
+				"on:",
+				"  pull_request:",
+				"    types: [opened]",
+				"    # forks: # Fork filtering applied via job conditions",
+				"    # - octocat # Fork filtering applied via job conditions",
+			},
+		},
+		{
 			name: "tab-indented trailing comment is dedented",
 			input: []string{
 				"on:",
