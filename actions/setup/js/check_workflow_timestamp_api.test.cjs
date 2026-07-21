@@ -173,6 +173,8 @@ model: claude-sonnet-4
       await main();
 
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Lock file"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("E009"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("CONFIG_HASH_MISMATCH"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("frontmatter has changed"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("gh aw compile"));
@@ -241,6 +243,8 @@ jobs:
       await main();
 
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Could not compare frontmatter hashes"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("E009"));
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("CONFIG_HASH_MISMATCH"));
       expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("is outdated"));
       expect(mockCore.summary.addRaw).toHaveBeenCalled();
       expect(mockCore.summary.write).toHaveBeenCalled();
