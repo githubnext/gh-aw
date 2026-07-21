@@ -1,0 +1,2 @@
+{"id":"issues_analyzed","question":"Did the agent analyze recent issues and identify related issue relationships?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-21T06:11:58.956Z","runid":"29805876582"}
+{"id":"sub_issues_linked_or_noop","question":"Were related issues linked as sub-issues, or was noop used when no linkable relationships were found?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-21T06:11:58.956Z","runid":"29805876582"}
