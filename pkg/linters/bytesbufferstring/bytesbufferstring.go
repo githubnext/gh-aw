@@ -39,83 +39,87 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		analyzeStringBytesCall(pass, n, generatedFiles, noLintIndex)
+	})
+	return nil, nil
+}
+
+// analyzeStringBytesCall checks whether a call is a string(buf.Bytes()) that
+// can be simplified to buf.String() and reports a diagnostic if so.
+func analyzeStringBytesCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
+	// Match string(...) type conversion.
+	typeInfo, ok := pass.TypesInfo.Types[call.Fun]
+	if !ok || !typeInfo.IsType() {
+		return
+	}
+	basic, ok := typeInfo.Type.(*types.Basic)
+	if !ok || basic.Kind() != types.String {
+		return
+	}
+	if len(call.Args) != 1 {
+		return
+	}
 
-		// Match string(...) type conversion.
-		typeInfo, ok := pass.TypesInfo.Types[call.Fun]
-		if !ok || !typeInfo.IsType() {
-			return
-		}
-		basic, ok := typeInfo.Type.(*types.Basic)
-		if !ok || basic.Kind() != types.String {
-			return
-		}
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "bytesbufferstring") {
+		return
+	}
 
-		if len(call.Args) != 1 {
-			return
-		}
+	_, sel, ok := matchBufBytesArg(pass, call)
+	if !ok {
+		return
+	}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "bytesbufferstring") {
-			return
-		}
+	receiverText := astutil.NodeText(pass.Fset, sel.X)
+	if receiverText == "" {
+		return
+	}
 
-		// The argument must be buf.Bytes() where buf is a bytes.Buffer value.
-		inner, ok := call.Args[0].(*ast.CallExpr)
-		if !ok {
-			return
-		}
-		sel, ok := inner.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Bytes" {
-			return
-		}
-		if len(inner.Args) != 0 {
-			return
-		}
-		receiverType := pass.TypesInfo.TypeOf(sel.X)
-		if receiverType == nil {
-			return
-		}
-		// Only flag value receivers (bytes.Buffer), not pointer receivers (*bytes.Buffer).
-		// The rewrite string(buf.Bytes()) → buf.String() is not semantics-preserving when
-		// buf is a nil *bytes.Buffer: string(buf.Bytes()) panics, while buf.String() returns
-		// "<nil>". Restricting to value receivers avoids this semantic difference entirely.
-		if !isBytesBufferValue(receiverType) {
-			return
-		}
-
-		receiverText := astutil.NodeText(pass.Fset, sel.X)
-		if receiverText == "" {
-			return
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:     call.Pos(),
-			End:     call.End(),
-			Message: fmt.Sprintf("string(%s.Bytes()) can be simplified to %s.String()", receiverText, receiverText),
-			SuggestedFixes: []analysis.SuggestedFix{{
-				Message: fmt.Sprintf("Replace string(%s.Bytes()) with %s.String()", receiverText, receiverText),
-				TextEdits: []analysis.TextEdit{{
-					Pos:     call.Pos(),
-					End:     call.End(),
-					NewText: []byte(receiverText + ".String()"),
-				}},
+	pass.Report(analysis.Diagnostic{
+		Pos:     call.Pos(),
+		End:     call.End(),
+		Message: fmt.Sprintf("string(%s.Bytes()) can be simplified to %s.String()", receiverText, receiverText),
+		SuggestedFixes: []analysis.SuggestedFix{{
+			Message: fmt.Sprintf("Replace string(%s.Bytes()) with %s.String()", receiverText, receiverText),
+			TextEdits: []analysis.TextEdit{{
+				Pos:     call.Pos(),
+				End:     call.End(),
+				NewText: []byte(receiverText + ".String()"),
 			}},
-		})
+		}},
 	})
+}
 
-	return nil, nil
+// matchBufBytesArg checks whether call.Args[0] is a buf.Bytes() call where
+// buf is a bytes.Buffer value (not pointer). Returns the inner call, selector,
+// and ok=true when matched.
+func matchBufBytesArg(pass *analysis.Pass, call *ast.CallExpr) (*ast.CallExpr, *ast.SelectorExpr, bool) {
+	inner, ok := call.Args[0].(*ast.CallExpr)
+	if !ok {
+		return nil, nil, false
+	}
+	sel, ok := inner.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Bytes" {
+		return nil, nil, false
+	}
+	if len(inner.Args) != 0 {
+		return nil, nil, false
+	}
+	receiverType := pass.TypesInfo.TypeOf(sel.X)
+	if receiverType == nil || !isBytesBufferValue(receiverType) {
+		return nil, nil, false
+	}
+	return inner, sel, true
 }
 
 // isBytesBufferValue reports whether t is exactly bytes.Buffer (value receiver, not pointer).

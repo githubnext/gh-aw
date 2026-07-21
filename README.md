@@ -391,6 +391,4 @@ GitHub Agentic Workflows is supported by companion projects that provide additio
 ## Workshop
 
 > [!TIP]
-> **Ready to learn GitHub Agentic Workflows hands-on?** The [**gh-aw-workshop**](https://github.com/githubnext/gh-aw-workshop) is a self-contained, step-by-step workshop repository designed to teach you how to build, run, and customize agentic workflows from scratch.
->
-> Fork the workshop repository and follow along at your own pace.
+> **Ready to learn GitHub Agentic Workflows hands-on?** The [**Factory Tour Workshop**](https://githubnext.github.io/gh-aw-workshop/) is a self-contained, step-by-step workshop repository designed to teach you how to build, run, and customize agentic workflows from scratch.

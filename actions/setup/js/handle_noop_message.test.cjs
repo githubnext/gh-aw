@@ -763,6 +763,7 @@ This issue helps you:
     process.env.GH_AW_AGENT_CONCLUSION = "success";
     process.env.GH_AW_AIC = "0.100";
     process.env.GH_AW_THREAT_DETECTION_AIC = "0.025";
+    process.env.GH_AW_ENGINE_MODEL = "claude-sonnet-4.6";
 
     const outputFile = path.join(tempDir, "agent_output.json");
     fs.writeFileSync(outputFile, JSON.stringify({ items: [{ type: "noop", message: "No action needed" }] }));
@@ -777,7 +778,7 @@ This issue helps you:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("0.125 AIC");
+    expect(commentCall.body).toContain("sonnet46 0.125 AIC");
   });
 
   it("should not include AIC suffix in comment footer when GH_AW_AIC is not set", async () => {

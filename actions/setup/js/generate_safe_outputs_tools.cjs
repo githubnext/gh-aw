@@ -252,7 +252,7 @@ async function main() {
   }
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
-  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>, required_field_additions?: Record<string, string[]>}} */
+  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>, required_field_additions?: Record<string, string[]>, property_injections?: Record<string, Record<string, unknown>>}} */
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
     try {
@@ -365,6 +365,21 @@ async function main() {
       if (requiredAdditions && requiredAdditions.length > 0) {
         const existingRequired = Array.isArray(enhancedTool.inputSchema?.required) ? enhancedTool.inputSchema.required : [];
         enhancedTool.inputSchema.required = Array.from(new Set([...existingRequired, ...requiredAdditions]));
+      }
+
+      // Inject or override properties in inputSchema based on workflow configuration.
+      // Used for dynamic fields like state_reason whose schema depends on config.
+      const propertyInjections = toolsMeta.property_injections?.[tool.name];
+      if (propertyInjections && typeof propertyInjections === "object") {
+        if (!enhancedTool.inputSchema) {
+          enhancedTool.inputSchema = { type: "object", properties: {} };
+        }
+        if (!enhancedTool.inputSchema.properties) {
+          enhancedTool.inputSchema.properties = {};
+        }
+        for (const [propName, propSchema] of Object.entries(propertyInjections)) {
+          enhancedTool.inputSchema.properties[propName] = propSchema;
+        }
       }
 
       applyAssignMilestoneAlternativeRequirements(enhancedTool);
