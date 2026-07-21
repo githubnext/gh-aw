@@ -88,7 +88,7 @@ function buildAICSuffix() {
   const detectionRaw = process.env.GH_AW_THREAT_DETECTION_AIC;
   const agentAIC = agentRaw ? Number.parseFloat(agentRaw) : NaN;
   const detectionAIC = detectionRaw ? Number.parseFloat(detectionRaw) : NaN;
-  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_ENGINE_MODEL);
+  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
   const totalAIC = (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) + (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0);
   if (totalAIC <= 0) {
     return "";

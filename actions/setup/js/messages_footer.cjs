@@ -97,6 +97,7 @@ function buildAICEntry(label, value, modelAlias) {
  *   aiCredits: number|undefined,
  *   aiCreditsFormatted: string|undefined,
  *   aiCreditsSuffix: string,
+ *   compressedModelName: string|undefined,
  *   agentAiCredits: number|undefined,
  *   agentAiCreditsFormatted: string|undefined,
  *   agentAiCreditsSuffix: string,
@@ -106,7 +107,7 @@ function buildAICEntry(label, value, modelAlias) {
  * }}
  */
 function getAICFromEnv() {
-  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_ENGINE_MODEL);
+  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
   const totalAIC = parsePositiveAIC(process.env.GH_AW_AIC);
   const explicitAgentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
   const threatDetectionAIC = parsePositiveAIC(process.env.GH_AW_THREAT_DETECTION_AIC);
