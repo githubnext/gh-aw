@@ -25,6 +25,7 @@ engine:
   copilot-sdk: true
 imports:
   - shared/otlp.md
+  - shared/quality-gate.md
 tools:
   cli-proxy: true
   agentic-workflows:
