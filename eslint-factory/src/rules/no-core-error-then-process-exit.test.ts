@@ -34,6 +34,18 @@ describe("no-core-error-then-process-exit", () => {
         `core.error("msg"); process.exit(getExitCode());`,
         // String literal argument — not a numeric literal
         `core.error("msg"); process.exit("1");`,
+        // Acceptance criterion: setFailed between error and process.exit stops scanning
+        `core.error("x"); core.setFailed("x"); process.exit(1);`,
+        // return between error and process.exit stops scanning
+        `function run() { core.error("x"); return; process.exit(1); }`,
+        // throw between error and process.exit stops scanning
+        `core.error("x"); throw new Error("x"); process.exit(1);`,
+        // break between error and process.exit stops scanning
+        `switch(x) { case 1: core.error("x"); break; process.exit(1); }`,
+        // process.exit(0) between error and a later nonzero exit stops scanning (clean exit is unreachable)
+        `core.error("x"); process.exit(0); process.exit(1);`,
+        // process.exit(variable) between error and a later nonzero exit stops scanning (variable terminates process)
+        `core.error("x"); process.exit(code); process.exit(1);`,
       ],
       invalid: [
         {
@@ -96,6 +108,22 @@ describe("no-core-error-then-process-exit", () => {
           // Computed property: core["error"]
           code: `core["error"]("msg"); process.exit(1);`,
           errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("msg");\n ' }] }],
+        },
+        // ── Non-adjacent pairs (intervening statements) ─────────────────────────
+        {
+          // Acceptance criterion: intervening log statement does not defeat detection
+          code: `core.error("x"); core.info("y"); process.exit(1);`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // Intervening summary call does not defeat detection
+          code: `core.error("fatal"); core.summary.addRaw("fatal"); process.exit(1);`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
+        },
+        {
+          // Two intervening statements
+          code: `core.error("fatal"); core.info("a"); core.info("b"); process.exit(1);`,
+          errors: [{ messageId: "noCoreErrorThenProcessExit", suggestions: [] }],
         },
       ],
     });

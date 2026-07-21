@@ -122,15 +122,7 @@ func getActionPins() []ActionPin {
 	actionPinsOnce.Do(func() {
 		actionPinsLog.Print("Unmarshaling action pins from embedded JSON (first call, will be cached)")
 
-		var data ActionPinsData
-		if err := json.Unmarshal(actionPinsJSON, &data); err != nil {
-			actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
-			panic(fmt.Sprintf("failed to load action pins: %v", err))
-		}
-
-		if n := countPinKeyMismatches(data.Entries); n > 0 {
-			actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", n)
-		}
+		data := loadActionPinsData(actionPinsJSON)
 
 		pins := slices.Collect(maps.Values(data.Entries))
 
@@ -157,6 +149,27 @@ func getActionPins() []ActionPin {
 	return cachedActionPins
 }
 
+// loadActionPinsData unmarshals embedded action pin data.
+// Panics if the embedded JSON is invalid or any entry has an empty SHA, because
+// those conditions indicate corrupted release data that would produce invalid workflow YAML.
+func loadActionPinsData(raw []byte) ActionPinsData {
+	var data ActionPinsData
+	if err := json.Unmarshal(raw, &data); err != nil {
+		actionPinsLog.Printf("Failed to unmarshal action pins JSON: %v", err)
+		panic(fmt.Sprintf("failed to load action pins: %v", err))
+	}
+
+	if n := countPinKeyMismatches(data.Entries); n > 0 {
+		actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", n)
+	}
+
+	if emptyKeys := collectEntriesWithEmptySHA(data.Entries); len(emptyKeys) > 0 {
+		panic(fmt.Sprintf("action_pins.json has %d entries with empty SHA %v — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing", len(emptyKeys), emptyKeys))
+	}
+
+	return data
+}
+
 // countPinKeyMismatches returns the number of entries where the key version does not
 // match pin.Version, logging each mismatch for diagnostics.
 func countPinKeyMismatches(entries map[string]ActionPin) int {
@@ -173,6 +186,20 @@ func countPinKeyMismatches(entries map[string]ActionPin) int {
 		}
 	}
 	return count
+}
+
+// collectEntriesWithEmptySHA returns the keys of entries whose SHA field is empty,
+// logging each offending entry for diagnostics.
+func collectEntriesWithEmptySHA(entries map[string]ActionPin) []string {
+	var keys []string
+	for key, pin := range entries {
+		if pin.SHA == "" {
+			keys = append(keys, key)
+			actionPinsLog.Printf("ERROR: Empty SHA in action_pins.json: key=%s repo=%s version=%s", key, pin.Repo, pin.Version)
+		}
+	}
+	slices.Sort(keys)
+	return keys
 }
 
 // buildByRepoIndex groups pins by repository and sorts each group by version descending.
@@ -226,7 +253,12 @@ func getLatestActionPinReference(repo string) string {
 
 // FormatPinnedActionReference formats a pinned action reference with repo, SHA, and version comment.
 // Example: "actions/checkout@abc123 # v4.1.0"
+// Panics if sha is empty, because that would emit invalid workflow YAML and indicates
+// a programming error or corrupted action pin data that should already have been rejected.
 func FormatPinnedActionReference(repo, sha, version string) string {
+	if sha == "" {
+		panic(fmt.Sprintf("FormatPinnedActionReference called with empty SHA for repo=%s version=%s — this would produce invalid workflow YAML", repo, version))
+	}
 	return repo + "@" + sha + " # " + version
 }
 

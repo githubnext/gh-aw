@@ -194,14 +194,35 @@ async function closeIssue(github, owner, repo, issueNumber, stateReason, intentM
  * @type {HandlerFactoryFunction}
  */
 async function main(config = {}) {
-  const configStateReason = config.state_reason || "COMPLETED";
+  // Determine the state-reason configuration mode:
+  //   - config.state_reason (string): scalar — fixed reason, agent cannot override
+  //   - config.allowed_state_reason (string[]): list — agent may select from this subset
+  //   - neither set: omitted — agent may select from all three supported values
+  const configStateReason = config.state_reason || null;
+  /** @type {string[]|null} */
+  const configStateReasons = Array.isArray(config.allowed_state_reason) && config.allowed_state_reason.length > 0 ? config.allowed_state_reason : null;
+
+  // The fallback used when the agent does not supply state_reason at item level.
+  // Scalar config → use the configured value.
+  // List config   → use the first item in the list.
+  // Omitted       → default to "COMPLETED" (backward compatible).
+  const defaultStateReason = configStateReason || (configStateReasons ? configStateReasons[0] : "COMPLETED");
+
   const issueIntentEnabled = config.issue_intent !== false;
   const requiredLabels = config.required_labels || [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
-  core.info(`Close issue configuration: max=${config.max || 10}, state_reason=${configStateReason}, issue_intent=${issueIntentEnabled}`);
+  let stateReasonMode;
+  if (configStateReason) {
+    stateReasonMode = `scalar(${configStateReason})`;
+  } else if (configStateReasons) {
+    stateReasonMode = `list(${configStateReasons.join(",")})`;
+  } else {
+    stateReasonMode = "omitted";
+  }
+  core.info(`Close issue configuration: max=${config.max || 10}, state_reason=${stateReasonMode}, issue_intent=${issueIntentEnabled}`);
   if (requiredLabels.length > 0) {
     core.info(`Required labels: ${requiredLabels.join(", ")}`);
   }
@@ -283,8 +304,39 @@ async function main(config = {}) {
       addComment: addIssueComment,
 
       closeEntity(github, owner, repo, entityNumber, item) {
-        // Support item-level state_reason override, falling back to config-level default
-        const stateReason = item.state_reason || configStateReason;
+        // Determine effective state_reason, validating against permitted values when applicable.
+        let stateReason;
+        if (item.state_reason !== undefined && item.state_reason !== null) {
+          const provided = String(item.state_reason);
+          if (configStateReason) {
+            // Scalar config: state_reason is fixed by config; the agent cannot override it.
+            // The field was not exposed in the tool schema, so enforce the configured value
+            // regardless of what the agent supplied.
+            stateReason = configStateReason;
+            if (provided.toLowerCase() !== stateReason.toLowerCase()) {
+              core.debug(`state_reason agent value "${provided.toLowerCase()}" overridden by scalar config value "${stateReason.toLowerCase()}"`);
+            }
+          } else if (configStateReasons) {
+            // List config: validate against the configured subset.
+            const upperProvided = provided.toUpperCase();
+            const upperAllowed = configStateReasons.map(r => r.toUpperCase());
+            if (!upperAllowed.includes(upperProvided)) {
+              throw new Error(`state_reason "${provided}" is not permitted. Allowed values: ${configStateReasons.join(", ")}`);
+            }
+            stateReason = provided.toLowerCase();
+          } else {
+            // Omitted config: validate against all three supported values.
+            const upperProvided = provided.toUpperCase();
+            const supportedUpper = ["COMPLETED", "NOT_PLANNED", "DUPLICATE"];
+            if (!supportedUpper.includes(upperProvided)) {
+              throw new Error(`state_reason "${provided}" is not a supported value. Supported values: completed, not_planned, duplicate`);
+            }
+            stateReason = provided.toLowerCase();
+          }
+        } else {
+          stateReason = defaultStateReason;
+        }
+
         const intentMetadata = issueIntentEnabled ? normalizeIssueIntentMetadata(item) : {};
         core.info(`Closing issue #${entityNumber} with state_reason=${stateReason}`);
 

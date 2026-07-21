@@ -436,3 +436,157 @@ func TestComputeRequiredFieldAdditionsIssueIntentOptIn(t *testing.T) {
 	assert.Equal(t, []string{"rationale", "confidence"}, additions["assign_to_user"])
 	assert.Equal(t, []string{"rationale", "confidence"}, additions["assign_to_agent"])
 }
+
+// TestComputePropertyInjectionsOmittedStateReason verifies that when close-issue has no
+// state-reason configured, state_reason is injected with all three supported values.
+func TestComputePropertyInjectionsOmittedStateReason(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{},
+	})
+
+	require.Contains(t, injections, "close_issue")
+	require.Contains(t, injections["close_issue"], "state_reason")
+	prop, ok := injections["close_issue"]["state_reason"].(map[string]any)
+	require.True(t, ok, "state_reason should be a property map")
+	assert.Equal(t, "string", prop["type"])
+	assert.Equal(t, []string{"completed", "not_planned", "duplicate"}, prop["enum"])
+}
+
+// TestComputePropertyInjectionsListStateReason verifies that a list state-reason injects
+// only the configured values into the state_reason enum.
+func TestComputePropertyInjectionsListStateReason(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			AllowedStateReason: []string{"not_planned", "duplicate"},
+		},
+	})
+
+	require.Contains(t, injections, "close_issue")
+	prop, ok := injections["close_issue"]["state_reason"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, []string{"not_planned", "duplicate"}, prop["enum"])
+}
+
+// TestComputePropertyInjectionsScalarStateReason verifies that a scalar state-reason does
+// NOT inject state_reason (the agent cannot choose).
+func TestComputePropertyInjectionsScalarStateReason(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			StateReason: "not_planned",
+		},
+	})
+
+	assert.NotContains(t, injections, "close_issue", "scalar state-reason should not inject state_reason into tool schema")
+}
+
+// TestComputePropertyInjectionsNilConfig verifies that nil config returns empty map.
+func TestComputePropertyInjectionsNilConfig(t *testing.T) {
+	injections := computePropertyInjections(nil)
+	assert.Empty(t, injections)
+}
+
+// TestComputePropertyInjectionsNilCloseIssues verifies that nil close issues returns empty map.
+func TestComputePropertyInjectionsNilCloseIssues(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{})
+	assert.Empty(t, injections)
+}
+
+// TestPreprocessStateReasonListSlice verifies that a []any slice is converted to allowed-state-reason.
+func TestPreprocessStateReasonListSlice(t *testing.T) {
+	configData := map[string]any{
+		"state-reason": []any{"not_planned", "duplicate"},
+	}
+	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
+	assert.True(t, result)
+	assert.NotContains(t, configData, "state-reason", "state-reason key should be removed")
+	assert.Equal(t, []string{"not_planned", "duplicate"}, configData["allowed-state-reason"])
+}
+
+// TestPreprocessStateReasonListStringSlice verifies that a []string slice is converted to allowed-state-reason.
+func TestPreprocessStateReasonListStringSlice(t *testing.T) {
+	configData := map[string]any{
+		"state-reason": []string{"completed", "not_planned"},
+	}
+	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
+	assert.True(t, result)
+	assert.NotContains(t, configData, "state-reason")
+	assert.Equal(t, []string{"completed", "not_planned"}, configData["allowed-state-reason"])
+}
+
+// TestPreprocessStateReasonListScalarNotConverted verifies that a scalar string is not touched.
+func TestPreprocessStateReasonListScalarNotConverted(t *testing.T) {
+	configData := map[string]any{
+		"state-reason": "not_planned",
+	}
+	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
+	assert.False(t, result)
+	assert.Equal(t, "not_planned", configData["state-reason"], "scalar should remain unchanged")
+	assert.NotContains(t, configData, "state-reasons")
+}
+
+// TestPreprocessStateReasonListEmptyAnySlice verifies that an empty []any leaves configData unchanged.
+// An empty list must not silently escalate to unrestricted (omitted) mode.
+func TestPreprocessStateReasonListEmptyAnySlice(t *testing.T) {
+	configData := map[string]any{
+		"state-reason": []any{},
+	}
+	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
+	assert.False(t, result, "empty []any slice should return false")
+	assert.Contains(t, configData, "state-reason", "state-reason key must be preserved")
+	assert.NotContains(t, configData, "allowed-state-reason")
+}
+
+// TestPreprocessStateReasonListEmptyStringSlice verifies that an empty []string leaves configData unchanged.
+func TestPreprocessStateReasonListEmptyStringSlice(t *testing.T) {
+	configData := map[string]any{
+		"state-reason": []string{},
+	}
+	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
+	assert.False(t, result, "empty []string slice should return false")
+	assert.Contains(t, configData, "state-reason", "state-reason key must be preserved")
+	assert.NotContains(t, configData, "allowed-state-reason")
+}
+
+// TestPreprocessStateReasonListAllNonStringElements verifies that a []any with no string elements
+// leaves configData unchanged, preventing a silent escalation to unrestricted mode.
+func TestPreprocessStateReasonListAllNonStringElements(t *testing.T) {
+	configData := map[string]any{
+		"state-reason": []any{42, true, nil},
+	}
+	result := preprocessStateReasonList(configData, configData["state-reason"], nil)
+	assert.False(t, result, "all-non-string []any should return false")
+	assert.Contains(t, configData, "state-reason", "state-reason key must be preserved")
+	assert.NotContains(t, configData, "allowed-state-reason")
+}
+
+// TestComputePropertyInjectionsFiltersInvalidStateReasons verifies that invalid values in
+// AllowedStateReason are silently dropped so only supported API values reach the tool schema.
+func TestComputePropertyInjectionsFiltersInvalidStateReasons(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			AllowedStateReason: []string{"not_planned", "wontfix", "done"},
+		},
+	})
+
+	require.Contains(t, injections, "close_issue")
+	prop, ok := injections["close_issue"]["state_reason"].(map[string]any)
+	require.True(t, ok)
+	// "wontfix" and "done" are invalid; only "not_planned" survives.
+	assert.Equal(t, []string{"not_planned"}, prop["enum"])
+}
+
+// TestComputePropertyInjectionsAllInvalidFallsBackToFullSet verifies that when ALL configured
+// values are invalid, computePropertyInjections falls back to the full supported set so the
+// tool schema remains functional.
+func TestComputePropertyInjectionsAllInvalidFallsBackToFullSet(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			AllowedStateReason: []string{"done", "wontfix"},
+		},
+	})
+
+	require.Contains(t, injections, "close_issue")
+	prop, ok := injections["close_issue"]["state_reason"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, closeIssueStateReasonValues, prop["enum"])
+}

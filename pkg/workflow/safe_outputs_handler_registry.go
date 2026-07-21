@@ -109,6 +109,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("state_reason", c.StateReason).
+			AddStringSlice("allowed_state_reason", c.AllowedStateReason).
 			AddBoolPtr("allow_body", c.AllowBody).
 			AddBoolPtr("issue_intent", c.IssueIntent).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).

@@ -13,701 +13,587 @@ import (
 func (c *Compiler) commentOutProcessedFieldsInOnSection(yamlStr string, frontmatter map[string]any) string {
 	frontmatterLog.Print("Processing 'on' section to comment out processed fields")
 
-	// Check frontmatter for native label filter markers
-	nativeLabelFilterSections := make(map[string]struct {
-	})
-	if onValue, exists := frontmatter["on"]; exists {
-		if onMap, ok := onValue.(map[string]any); ok {
-			for _, sectionKey := range []string{"issues", "pull_request", "discussion", "issue_comment"} {
-				if sectionValue, hasSec := onMap[sectionKey]; hasSec {
-					if sectionMap, ok := sectionValue.(map[string]any); ok {
-						if marker, hasMarker := sectionMap["__gh_aw_native_label_filter__"]; hasMarker {
-							if useNative, ok := marker.(bool); ok && useNative {
-								nativeLabelFilterSections[sectionKey] = struct {
-								}{}
-								frontmatterLog.Printf("Section %s uses native label filtering", sectionKey)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
+	nativeLabelFilterSections := collectNativeLabelFilterSections(frontmatter)
+	state := newOnSectionCleanupState()
 	lines := strings.Split(yamlStr, "\n")
-	var result []string
-	inPullRequest := false
-	inIssues := false
-	inDiscussion := false
-	inIssueComment := false
-	inDeploymentStatus := false
-	inWorkflowRun := false
-	inWorkflowRunConclusionArray := false
-	inForksArray := false
-	inSkipIfMatch := false
-	inSkipIfNoMatch := false
-	inSkipIfCheckFailing := false
-	inSkipAuthorAssociations := false
-	inSkipRolesArray := false
-	inSkipBotsArray := false
-	inRolesArray := false
-	inBotsArray := false
-	inLabelsArray := false
-	inNeedsArray := false
-	inGitHubApp := false
-	inOnSteps := false
-	inOnPermissions := false
-	// Track the leading indentation of the current run of consecutive commented-out
-	// lines. yamllint's comments-indentation rule flags any comment that is indented
-	// deeper than the comment above it, so we flatten every line of a commented block
-	// to the indentation of the block's first line (which sits at the surrounding
-	// content's level). inCommentBlock is false until the first line of a block is
-	// emitted and is reset whenever a real (uncommented) line is written.
-	commentBlockIndent := ""
-	inCommentBlock := false
-	currentSection := "" // Track which section we're in ("issues", "pull_request", "discussion", or "issue_comment")
-	currentSectionIndent := -1
-	deploymentStatusIndent := -1
-	workflowRunIndent := -1
-	// activateEventSection resets all event-section flags and then activates the selected section.
-	// It also clears every top-level on: extension-array tracker (inBotsArray, inRolesArray,
-	// inSkipIfCheckFailing, etc.) before entering the new section.  This reset is required
-	// because each activateEventSection call ends with "continue", which bypasses the
-	// indent-based deactivation logic further down the loop.  Without the explicit reset here,
-	// a stale flag from a preceding bots:/roles:/skip-if-check-failing: block would cause that
-	// section's list items (e.g. "workflow_run.workflows: - CI") to be incorrectly commented out.
-	activateEventSection := func(section string, indent int) {
-		// Clear all top-level on: extension-array state so no sibling section leaks in.
-		inSkipRolesArray = false
-		inSkipBotsArray = false
-		inRolesArray = false
-		inBotsArray = false
-		inLabelsArray = false
-		inNeedsArray = false
-		// These trackers share the same exit-check-ordering issue: their deactivation
-		// logic runs after the "continue" that terminates each activateEventSection call,
-		// so they must also be reset here explicitly.
-		inSkipIfMatch = false
-		inSkipIfNoMatch = false
-		inSkipIfCheckFailing = false
-		inSkipAuthorAssociations = false
-
-		// Reset the comment-block anchor so the first commented line of the new
-		// section uses its own indentation rather than a stale indent from the
-		// previous section (which would otherwise persist because activateEventSection
-		// ends with "continue" and bypasses the normal else-branch reset).
-		inCommentBlock = false
-		commentBlockIndent = ""
-
-		inPullRequest = section == "pull_request"
-		inIssues = section == "issues"
-		inDiscussion = section == "discussion"
-		inIssueComment = section == "issue_comment"
-		inDeploymentStatus = section == "deployment_status"
-		inWorkflowRun = section == "workflow_run"
-		inWorkflowRunConclusionArray = false
-		inForksArray = false
-
-		switch section {
-		case "pull_request", "issues", "discussion", "issue_comment":
-			currentSection = section
-			currentSectionIndent = indent
-		default:
-			currentSection = ""
-			currentSectionIndent = -1
-		}
-
-		if section == "deployment_status" {
-			deploymentStatusIndent = indent
-		} else {
-			deploymentStatusIndent = -1
-		}
-		if section == "workflow_run" {
-			workflowRunIndent = indent
-		} else {
-			workflowRunIndent = -1
-		}
-	}
+	result := make([]string, 0, len(lines))
 
 	for _, line := range lines {
-		trimmedLine := strings.TrimSpace(line)
-		lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-		// Check if we're entering a pull_request, issues, discussion, or issue_comment section.
-		// Skip these checks when inside on.permissions or on.steps to avoid false matches.
-		// Example: `    issues: read` inside on.permissions was previously matched as the
-		// `issues:` event trigger, incorrectly entering the inIssues state and suppressing
-		// the permission comment-out logic.
-		if !inOnPermissions && !inOnSteps && !inSkipAuthorAssociations {
-			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "pull_request:" {
-				activateEventSection("pull_request", lineIndent)
-				result = append(result, line)
-				continue
-			}
-			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issues:" {
-				activateEventSection("issues", lineIndent)
-				result = append(result, line)
-				continue
-			}
-			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "discussion:" {
-				activateEventSection("discussion", lineIndent)
-				result = append(result, line)
-				continue
-			}
-			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "issue_comment:" {
-				activateEventSection("issue_comment", lineIndent)
-				result = append(result, line)
-				continue
-			}
-			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "deployment_status:" {
-				activateEventSection("deployment_status", lineIndent)
-				result = append(result, line)
-				continue
-			}
-			if (lineIndent == 2 || lineIndent == 4) && trimmedLine == "workflow_run:" {
-				activateEventSection("workflow_run", lineIndent)
-				result = append(result, line)
-				continue
-			}
-		}
-
-		// Check if we're leaving the pull_request, issues, discussion, or issue_comment section (new top-level key or end of indent)
-		if inPullRequest || inIssues || inDiscussion || inIssueComment {
-			// If line is at or above section indentation, we're out of the section.
-			if strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
-				currentSectionIndent >= 0 && lineIndent <= currentSectionIndent {
-				inPullRequest = false
-				inIssues = false
-				inDiscussion = false
-				inIssueComment = false
-				inForksArray = false
-				currentSection = ""
-				currentSectionIndent = -1
-			}
-		}
-
-		// Check if we're leaving the deployment_status section
-		if inDeploymentStatus && strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
-			deploymentStatusIndent >= 0 && lineIndent <= deploymentStatusIndent {
-			inDeploymentStatus = false
-			deploymentStatusIndent = -1
-		}
-
-		// Check if we're leaving the workflow_run section
-		if inWorkflowRun && strings.TrimSpace(line) != "" && !strings.HasPrefix(trimmedLine, "#") &&
-			workflowRunIndent >= 0 && lineIndent <= workflowRunIndent {
-			inWorkflowRun = false
-			inWorkflowRunConclusionArray = false
-			workflowRunIndent = -1
-		}
-
-		// Skip marker lines in the YAML output
-		if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.Contains(trimmedLine, "__gh_aw_native_label_filter__:") {
-			// Don't include the marker line in the output
+		info := newOnSectionLine(line)
+		if state.handleEventSectionEntry(info, &result) {
 			continue
 		}
-
-		// Check if we're entering the forks array
-		if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
-			inForksArray = true
+		state.leaveEventSections(info)
+		if state.shouldSkipNativeLabelFilterMarker(info) {
+			continue
 		}
-
-		// Check if we're entering skip-roles array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "skip-roles:") {
-			// Check if this is an array (next line will be "- ")
-			// We'll set the flag and handle it on the next iteration
-			inSkipRolesArray = true
-		}
-
-		// Check if we're entering skip-bots array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "skip-bots:") {
-			// Check if this is an array (next line will be "- ")
-			// We'll set the flag and handle it on the next iteration
-			inSkipBotsArray = true
-		}
-
-		// Check if we're entering roles field
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "roles:") {
-			// Check if this is an array (next line will be "- ") or inline value
-			inRolesArray = true
-		}
-
-		// Check if we're entering bots array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "bots:") {
-			// Check if this is an array (next line will be "- ") or inline value
-			inBotsArray = true
-		}
-
-		// Check if we're entering labels array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment &&
-			!inOnSteps && !inOnPermissions &&
-			lineIndent == 2 && trimmedLine == "labels:" {
-			inLabelsArray = true
-		}
-
-		// Check if we're entering needs array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment &&
-			!inOnSteps && !inOnPermissions &&
-			lineIndent == 2 && strings.HasPrefix(trimmedLine, "needs:") {
-			inNeedsArray = true
-		}
-
-		// Check if we're entering on.steps array
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && strings.HasPrefix(trimmedLine, "steps:") {
-			inOnSteps = true
-		}
-
-		// Check if we're entering on.permissions object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inOnPermissions &&
-			strings.HasPrefix(trimmedLine, "permissions:") {
-			inOnPermissions = true
-		}
-
-		// Check if we're entering skip-if-match object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfMatch {
-			// Check both uncommented and commented forms
-			if (strings.HasPrefix(trimmedLine, "skip-if-match:") && trimmedLine == "skip-if-match:") ||
-				(strings.HasPrefix(trimmedLine, "# skip-if-match:") && strings.Contains(trimmedLine, "pre-activation job")) {
-				inSkipIfMatch = true
-			}
-		}
-
-		// Check if we're entering skip-if-no-match object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfNoMatch {
-			// Check both uncommented and commented forms
-			if (strings.HasPrefix(trimmedLine, "skip-if-no-match:") && trimmedLine == "skip-if-no-match:") ||
-				(strings.HasPrefix(trimmedLine, "# skip-if-no-match:") && strings.Contains(trimmedLine, "pre-activation job")) {
-				inSkipIfNoMatch = true
-			}
-		}
-
-		// Check if we're entering skip-if-check-failing object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipIfCheckFailing {
-			// Check both uncommented and commented forms
-			if trimmedLine == "skip-if-check-failing:" ||
-				(strings.HasPrefix(trimmedLine, "# skip-if-check-failing:") && strings.Contains(trimmedLine, "pre-activation job")) {
-				inSkipIfCheckFailing = true
-			}
-		}
-
-		// Check if we're entering skip-author-associations object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inSkipAuthorAssociations {
-			if strings.HasPrefix(trimmedLine, "skip-author-associations:") && trimmedLine == "skip-author-associations:" {
-				inSkipAuthorAssociations = true
-			}
-		}
-
-		// Check if we're entering github-app object
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment && !inGitHubApp {
-			// Check both uncommented and commented forms
-			if (strings.HasPrefix(trimmedLine, "github-app:") && trimmedLine == "github-app:") ||
-				(strings.HasPrefix(trimmedLine, "# github-app:") && strings.Contains(trimmedLine, "pre-activation job")) {
-				inGitHubApp = true
-			}
-		}
-
-		// Check if we're leaving skip-if-match object (encountering another top-level field)
-		// Skip this check if we just entered skip-if-match on this line
-		if inSkipIfMatch && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "skip-if-match:") &&
-			!strings.HasPrefix(trimmedLine, "# skip-if-match:") {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			// If this is a field at same level as skip-if-match (2 spaces) and not a comment, we're out of skip-if-match
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipIfMatch = false
-			}
-		}
-
-		// Check if we're leaving skip-if-no-match object (encountering another top-level field)
-		// Skip this check if we just entered skip-if-no-match on this line
-		if inSkipIfNoMatch && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "skip-if-no-match:") &&
-			!strings.HasPrefix(trimmedLine, "# skip-if-no-match:") {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			// If this is a field at same level as skip-if-no-match (2 spaces) and not a comment, we're out of skip-if-no-match
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipIfNoMatch = false
-			}
-		}
-
-		// Check if we're leaving skip-if-check-failing object (encountering another top-level field)
-		// Skip this check if we just entered skip-if-check-failing on this line
-		if inSkipIfCheckFailing && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "skip-if-check-failing:") &&
-			!strings.HasPrefix(trimmedLine, "# skip-if-check-failing:") {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			// If this is a field at same level as skip-if-check-failing (2 spaces) and not a comment, we're out
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipIfCheckFailing = false
-			}
-		}
-
-		// Check if we're leaving skip-author-associations object (encountering another top-level field)
-		if inSkipAuthorAssociations && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "skip-author-associations:") &&
-			!strings.HasPrefix(trimmedLine, "# skip-author-associations:") {
-			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			if currentIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipAuthorAssociations = false
-			}
-		}
-
-		// Check if we're leaving github-app object (encountering another top-level field)
-		// Skip this check if we just entered github-app on this line
-		if inGitHubApp && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "github-app:") &&
-			!strings.HasPrefix(trimmedLine, "# github-app:") {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			// If this is a field at same level as github-app (2 spaces) and not a comment, we're out of github-app
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inGitHubApp = false
-			}
-		}
-
-		// Check if we're leaving the forks array by encountering another top-level field at the same level
-		if inForksArray && inPullRequest && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as the forks field (4 spaces), we're out of the array
-			if lineIndent == 4 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "forks:") {
-				inForksArray = false
-			}
-		}
-
-		// Check if we're leaving the skip-roles array by encountering another top-level field
-		if inSkipRolesArray && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as skip-roles (2 spaces), we're out of the array
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "skip-roles:") && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipRolesArray = false
-			}
-		}
-
-		// Check if we're leaving the skip-bots array by encountering another top-level field
-		if inSkipBotsArray && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as skip-bots (2 spaces), we're out of the array
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "skip-bots:") && !strings.HasPrefix(trimmedLine, "#") {
-				inSkipBotsArray = false
-			}
-		}
-
-		// Check if we're leaving the roles array by encountering another top-level field
-		if inRolesArray && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as roles (2 spaces), we're out of the array
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "roles:") && !strings.HasPrefix(trimmedLine, "#") {
-				inRolesArray = false
-			}
-		}
-
-		// Check if we're leaving the bots array by encountering another top-level field
-		if inBotsArray && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as bots (2 spaces), we're out of the array
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "bots:") && !strings.HasPrefix(trimmedLine, "#") {
-				inBotsArray = false
-			}
-		}
-
-		// Check if we're leaving the labels array by encountering another top-level field
-		if inLabelsArray && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as labels (2 spaces), we're out of the array
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "labels:") && !strings.HasPrefix(trimmedLine, "#") {
-				inLabelsArray = false
-			}
-		}
-
-		// Check if we're leaving the needs array by encountering another top-level field
-		if inNeedsArray && strings.TrimSpace(line) != "" {
-			// Get the indentation of the current line
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-
-			// If this is a non-dash line at the same level as needs (2 spaces), we're out of the array
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "needs:") && !strings.HasPrefix(trimmedLine, "#") {
-				inNeedsArray = false
-			}
-		}
-
-		// Check if we're leaving the on.steps array by encountering another top-level field
-		if inOnSteps && strings.TrimSpace(line) != "" {
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			// If this is a line at the same level as steps (2 spaces) and not a dash or comment, we're out
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "-") && !strings.HasPrefix(trimmedLine, "steps:") && !strings.HasPrefix(trimmedLine, "#") {
-				inOnSteps = false
-			}
-		}
-
-		// Check if we're leaving the on.permissions object by encountering another top-level field
-		if inOnPermissions && strings.TrimSpace(line) != "" &&
-			!strings.HasPrefix(trimmedLine, "permissions:") &&
-			!strings.HasPrefix(trimmedLine, "# permissions:") {
-			lineIndent := len(line) - len(strings.TrimLeft(line, " \t"))
-			if lineIndent == 2 && !strings.HasPrefix(trimmedLine, "#") {
-				inOnPermissions = false
-			}
-		}
-
-		// Determine if we should comment out this line
-		shouldComment := false
-		var commentReason string
-
-		// Check for top-level fields that should be commented out (not inside pull_request, issues, discussion, or issue_comment)
-		if !inPullRequest && !inIssues && !inDiscussion && !inIssueComment {
-			if strings.HasPrefix(trimmedLine, "manual-approval:") {
-				shouldComment = true
-				commentReason = " # Manual approval processed as environment field in activation job"
-			} else if strings.HasPrefix(trimmedLine, "stop-after:") {
-				shouldComment = true
-				commentReason = " # Stop-after processed as stop-time check in pre-activation job"
-			} else if strings.HasPrefix(trimmedLine, "skip-if-match:") {
-				shouldComment = true
-				commentReason = " # Skip-if-match processed as search check in pre-activation job"
-			} else if inSkipIfMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "max:") || strings.HasPrefix(trimmedLine, "scope:")) {
-				// Comment out nested fields in skip-if-match object
-				shouldComment = true
-				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "skip-if-no-match:") {
-				shouldComment = true
-				commentReason = " # Skip-if-no-match processed as search check in pre-activation job"
-			} else if inSkipIfNoMatch && (strings.HasPrefix(trimmedLine, "query:") || strings.HasPrefix(trimmedLine, "min:") || strings.HasPrefix(trimmedLine, "scope:")) {
-				// Comment out nested fields in skip-if-no-match object
-				shouldComment = true
-				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "skip-if-check-failing:") {
-				shouldComment = true
-				commentReason = " # Skip-if-check-failing processed as check status gate in pre-activation job"
-			} else if inSkipIfCheckFailing && (strings.HasPrefix(trimmedLine, "include:") || strings.HasPrefix(trimmedLine, "exclude:") || strings.HasPrefix(trimmedLine, "branch:") || strings.HasPrefix(trimmedLine, "allow-pending:") || strings.HasPrefix(trimmedLine, "-")) {
-				// Comment out nested fields and list items in skip-if-check-failing object
-				shouldComment = true
-				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "skip-author-associations:") {
-				shouldComment = true
-				commentReason = " # Skip-author-associations compiled into pre-activation job if condition"
-			} else if inSkipAuthorAssociations && lineIndent > 2 {
-				shouldComment = true
-				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "skip-roles:") {
-				shouldComment = true
-				commentReason = " # Skip-roles processed as role check in pre-activation job"
-			} else if inSkipRolesArray && strings.HasPrefix(trimmedLine, "-") {
-				// Comment out array items in skip-roles
-				shouldComment = true
-				commentReason = " # Skip-roles processed as role check in pre-activation job"
-			} else if strings.HasPrefix(trimmedLine, "skip-bots:") {
-				shouldComment = true
-				commentReason = " # Skip-bots processed as bot check in pre-activation job"
-			} else if inSkipBotsArray && strings.HasPrefix(trimmedLine, "-") {
-				// Comment out array items in skip-bots
-				shouldComment = true
-				commentReason = " # Skip-bots processed as bot check in pre-activation job"
-			} else if strings.HasPrefix(trimmedLine, "roles:") {
-				shouldComment = true
-				commentReason = " # Roles processed as role check in pre-activation job"
-			} else if inRolesArray && strings.HasPrefix(trimmedLine, "-") {
-				// Comment out array items in roles
-				shouldComment = true
-				commentReason = " # Roles processed as role check in pre-activation job"
-			} else if strings.HasPrefix(trimmedLine, "bots:") {
-				shouldComment = true
-				commentReason = " # Bots processed as bot check in pre-activation job"
-			} else if inBotsArray && strings.HasPrefix(trimmedLine, "-") {
-				// Comment out array items in bots
-				shouldComment = true
-				commentReason = " # Bots processed as bot check in pre-activation job"
-			} else if !inOnSteps && !inOnPermissions && lineIndent == 2 && strings.HasPrefix(trimmedLine, "labels:") {
-				shouldComment = true
-				commentReason = " # Label filtering applied via job conditions"
-			} else if inLabelsArray && strings.HasPrefix(trimmedLine, "-") {
-				// Comment out array items in labels
-				shouldComment = true
-				commentReason = " # Label filtering applied via job conditions"
-			} else if !inOnSteps && !inOnPermissions && lineIndent == 2 && strings.HasPrefix(trimmedLine, "needs:") {
-				shouldComment = true
-				commentReason = " # Needs processed as dependency in pre-activation job"
-			} else if inNeedsArray && strings.HasPrefix(trimmedLine, "-") {
-				// Comment out array items in needs
-				shouldComment = true
-				commentReason = " # Needs processed as dependency in pre-activation job"
-			} else if strings.HasPrefix(trimmedLine, "restore-memory:") {
-				shouldComment = true
-				commentReason = " # Restore-memory enables pre-activation memory restore"
-			} else if strings.HasPrefix(trimmedLine, "steps:") {
-				shouldComment = true
-				commentReason = " # Steps injected into pre-activation job"
-			} else if inOnSteps {
-				// Comment out all content of on.steps (both array items and their nested fields)
-				shouldComment = true
-				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "permissions:") {
-				shouldComment = true
-				commentReason = " # Permissions applied to pre-activation job"
-			} else if inOnPermissions {
-				// Comment out all nested permission scope lines
-				shouldComment = true
-				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "reaction:") {
-				shouldComment = true
-				commentReason = " # Reaction processed as activation job step"
-			} else if strings.HasPrefix(trimmedLine, "github-token:") {
-				shouldComment = true
-				commentReason = " # GitHub token used for reactions and status comments in activation"
-			} else if strings.HasPrefix(trimmedLine, "github-app:") {
-				shouldComment = true
-				commentReason = " # GitHub App used to mint token for reactions and status comments in activation"
-			} else if inGitHubApp && isGitHubAppNestedField(trimmedLine) {
-				// Comment out nested fields and array items in github-app object
-				shouldComment = true
-				commentReason = ""
-			} else if strings.HasPrefix(trimmedLine, "stale-check:") {
-				shouldComment = true
-				commentReason = " # Stale-check processed as frontmatter hash check step in activation job"
-			}
-		}
-
-		if !shouldComment && inPullRequest && strings.Contains(trimmedLine, "draft:") {
-			shouldComment = true
-			commentReason = " # Draft filtering applied via job conditions"
-		} else if inPullRequest && strings.HasPrefix(trimmedLine, "forks:") {
-			shouldComment = true
-			commentReason = " # Fork filtering applied via job conditions"
-		} else if inForksArray && strings.HasPrefix(trimmedLine, "-") {
-			shouldComment = true
-			commentReason = " # Fork filtering applied via job conditions"
-		} else if inDeploymentStatus && strings.HasPrefix(trimmedLine, "state:") {
-			shouldComment = true
-			commentReason = " # State filtering compiled into if condition"
-		} else if inDeploymentStatus && strings.HasPrefix(trimmedLine, "-") {
-			// Comment out array items inside deployment_status.state
-			shouldComment = true
-			commentReason = " # State filtering compiled into if condition"
-		} else if inWorkflowRun && strings.HasPrefix(trimmedLine, "conclusion:") {
-			shouldComment = true
-			commentReason = " # Conclusion filtering compiled into if condition"
-			inWorkflowRunConclusionArray = true
-		} else if inWorkflowRunConclusionArray && strings.HasPrefix(trimmedLine, "-") {
-			// Comment out array items inside workflow_run.conclusion
-			shouldComment = true
-			commentReason = " # Conclusion filtering compiled into if condition"
-		} else if inWorkflowRun && !strings.HasPrefix(trimmedLine, "-") && strings.Contains(trimmedLine, ":") {
-			// Any new field inside workflow_run resets the conclusion array tracker
-			inWorkflowRunConclusionArray = false
-		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.HasPrefix(trimmedLine, "lock-for-agent:") {
-			shouldComment = true
-			commentReason = " # Lock-for-agent processed as issue locking in activation job"
-		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && strings.HasPrefix(trimmedLine, "names:") {
-			// Only comment out names if NOT using native label filtering for this section
-			if !setutil.Contains(nativeLabelFilterSections, currentSection) {
-				shouldComment = true
-				commentReason = " # Label filtering applied via job conditions"
-			}
-		} else if (inPullRequest || inIssues || inDiscussion || inIssueComment) && line != "" {
-			// Check if we're in a names array (after "names:" line)
-			// Look back to see if the previous uncommented line was "names:"
-			// Only do this if NOT using native label filtering for this section
-			if !setutil.Contains(nativeLabelFilterSections, currentSection) {
-				if len(result) > 0 {
-					for i := range slices.Backward(result) {
-						prevLine := result[i]
-						prevTrimmed := strings.TrimSpace(prevLine)
-
-						// Skip empty lines
-						if prevTrimmed == "" {
-							continue
-						}
-
-						// If we find "names:", and current line is an array item, comment it
-						if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
-							if strings.HasPrefix(trimmedLine, "-") {
-								shouldComment = true
-								commentReason = " # Label filtering applied via job conditions"
-							}
-							break
-						}
-
-						// If we find a different field or commented names array item, break
-						if !strings.HasPrefix(prevTrimmed, "#") || !strings.Contains(prevTrimmed, "Label filtering") {
-							break
-						}
-
-						// If it's a commented names array item, continue
-						if strings.HasPrefix(prevTrimmed, "# -") && strings.Contains(prevTrimmed, "Label filtering") {
-							if strings.HasPrefix(trimmedLine, "-") {
-								shouldComment = true
-								commentReason = " # Label filtering applied via job conditions"
-							}
-							continue
-						}
-
-						break
-					}
-				}
-			} // Close native filter check
-		}
-
-		if shouldComment {
-			trimmed := strings.TrimLeft(line, " \t")
-
-			// Forks array items must preserve their own indentation so that commented
-			// array entries appear more deeply indented than the parent "forks:" key,
-			// matching the original YAML structure. Resetting the comment-block anchor
-			// here lets each "- …" item re-anchor to its own indentation level.
-			if inForksArray && strings.HasPrefix(trimmed, "-") {
-				inCommentBlock = false
-				commentBlockIndent = ""
-			}
-
-			// Flatten the indentation of the commented block. The first non-blank
-			// line of a block adopts its natural indentation (which matches the
-			// surrounding content level) as the block anchor; every subsequent line
-			// — including blank lines inside a multi-line `steps:` script — reuses
-			// that same indentation. This keeps the whole block in a single comment
-			// group at a constant indent, so nested fields never appear more deeply
-			// indented than the comment above them (which is what yamllint's
-			// comments-indentation rule flags). Blank source lines are not allowed to
-			// anchor the block, so it always aligns to a real field.
-			if !inCommentBlock && trimmed != "" {
-				commentBlockIndent = ""
-				if len(line) > len(trimmed) {
-					commentBlockIndent = line[:len(line)-len(trimmed)]
-				}
-				inCommentBlock = true
-			}
-
-			commentedLine := commentBlockIndent + "# " + trimmed + commentReason
-			// Strip any trailing whitespace carried from the source content (e.g.
-			// commented-out multi-line `steps:` scripts whose lines end in spaces, or
-			// blank lines that would otherwise become "# " with trailing whitespace).
-			// Trailing whitespace on a comment is never meaningful and yamllint flags
-			// it as trailing-spaces.
-			commentedLine = strings.TrimRight(commentedLine, " \t")
-			result = append(result, commentedLine)
-		} else {
-			inCommentBlock = false
-			commentBlockIndent = ""
-			result = append(result, line)
-		}
+		state.enterSubsections(info)
+		state.leaveSubsections(info)
+		shouldComment, commentReason := state.determineComment(info, result, nativeLabelFilterSections)
+		result = state.appendLine(result, info, shouldComment, commentReason)
 	}
 
 	result = dedentTrailingOnCommentBlock(result)
-
 	return strings.Join(result, "\n")
+}
+
+type onSectionLine struct {
+	raw     string
+	trimmed string
+	indent  int
+}
+
+func newOnSectionLine(raw string) onSectionLine {
+	return onSectionLine{
+		raw:     raw,
+		trimmed: strings.TrimSpace(raw),
+		indent:  len(raw) - len(strings.TrimLeft(raw, " 	")),
+	}
+}
+
+type onSectionCleanupState struct {
+	inPullRequest                bool
+	inIssues                     bool
+	inDiscussion                 bool
+	inIssueComment               bool
+	inDeploymentStatus           bool
+	inWorkflowRun                bool
+	inWorkflowRunConclusionArray bool
+	inForksArray                 bool
+	inSkipIfMatch                bool
+	inSkipIfNoMatch              bool
+	inSkipIfCheckFailing         bool
+	inSkipAuthorAssociations     bool
+	inSkipRolesArray             bool
+	inSkipBotsArray              bool
+	inRolesArray                 bool
+	inBotsArray                  bool
+	inLabelsArray                bool
+	inNeedsArray                 bool
+	inGitHubApp                  bool
+	inOnSteps                    bool
+	inOnPermissions              bool
+	commentBlockIndent           string
+	inCommentBlock               bool
+	currentSection               string
+	currentSectionIndent         int
+	deploymentStatusIndent       int
+	workflowRunIndent            int
+}
+
+func newOnSectionCleanupState() *onSectionCleanupState {
+	return &onSectionCleanupState{
+		currentSectionIndent:   -1,
+		deploymentStatusIndent: -1,
+		workflowRunIndent:      -1,
+	}
+}
+
+func collectNativeLabelFilterSections(frontmatter map[string]any) map[string]struct{} {
+	sections := make(map[string]struct{})
+	onValue, exists := frontmatter["on"]
+	if !exists {
+		return sections
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return sections
+	}
+	for _, sectionKey := range []string{"issues", "pull_request", "discussion", "issue_comment"} {
+		sectionValue, hasSection := onMap[sectionKey]
+		if !hasSection {
+			continue
+		}
+		sectionMap, ok := sectionValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		marker, hasMarker := sectionMap["__gh_aw_native_label_filter__"]
+		useNative, ok := marker.(bool)
+		if hasMarker && ok && useNative {
+			sections[sectionKey] = struct{}{}
+			frontmatterLog.Printf("Section %s uses native label filtering", sectionKey)
+		}
+	}
+	return sections
+}
+
+func (s *onSectionCleanupState) inEventSection() bool {
+	return s.inPullRequest || s.inIssues || s.inDiscussion || s.inIssueComment
+}
+
+func (s *onSectionCleanupState) handleEventSectionEntry(info onSectionLine, result *[]string) bool {
+	section, ok := s.detectEventSection(info)
+	if !ok {
+		return false
+	}
+	s.activateEventSection(section, info.indent)
+	*result = append(*result, info.raw)
+	return true
+}
+
+func (s *onSectionCleanupState) detectEventSection(info onSectionLine) (string, bool) {
+	if s.inOnPermissions || s.inOnSteps || s.inSkipAuthorAssociations {
+		return "", false
+	}
+	if info.indent != 2 && info.indent != 4 {
+		return "", false
+	}
+	switch info.trimmed {
+	case "pull_request:", "issues:", "discussion:", "issue_comment:", "deployment_status:", "workflow_run:":
+		return strings.TrimSuffix(info.trimmed, ":"), true
+	default:
+		return "", false
+	}
+}
+
+func (s *onSectionCleanupState) activateEventSection(section string, indent int) {
+	s.resetTopLevelExtensionState()
+	s.inCommentBlock = false
+	s.commentBlockIndent = ""
+	s.inPullRequest = section == "pull_request"
+	s.inIssues = section == "issues"
+	s.inDiscussion = section == "discussion"
+	s.inIssueComment = section == "issue_comment"
+	s.inDeploymentStatus = section == "deployment_status"
+	s.inWorkflowRun = section == "workflow_run"
+	s.inWorkflowRunConclusionArray = false
+	s.inForksArray = false
+	s.currentSection, s.currentSectionIndent = "", -1
+	if s.inEventSection() {
+		s.currentSection, s.currentSectionIndent = section, indent
+	}
+	s.deploymentStatusIndent = -1
+	if section == "deployment_status" {
+		s.deploymentStatusIndent = indent
+	}
+	s.workflowRunIndent = -1
+	if section == "workflow_run" {
+		s.workflowRunIndent = indent
+	}
+}
+
+func (s *onSectionCleanupState) resetTopLevelExtensionState() {
+	s.inSkipRolesArray = false
+	s.inSkipBotsArray = false
+	s.inRolesArray = false
+	s.inBotsArray = false
+	s.inLabelsArray = false
+	s.inNeedsArray = false
+	s.inSkipIfMatch = false
+	s.inSkipIfNoMatch = false
+	s.inSkipIfCheckFailing = false
+	s.inSkipAuthorAssociations = false
+}
+
+func (s *onSectionCleanupState) leaveEventSections(info onSectionLine) {
+	s.leaveCurrentEventSection(info)
+	s.leaveDeploymentStatusSection(info)
+	s.leaveWorkflowRunSection(info)
+}
+
+func (s *onSectionCleanupState) leaveCurrentEventSection(info onSectionLine) {
+	if !s.inEventSection() || info.trimmed == "" || strings.HasPrefix(info.trimmed, "#") {
+		return
+	}
+	if s.currentSectionIndent >= 0 && info.indent <= s.currentSectionIndent {
+		s.inPullRequest = false
+		s.inIssues = false
+		s.inDiscussion = false
+		s.inIssueComment = false
+		s.inForksArray = false
+		s.currentSection = ""
+		s.currentSectionIndent = -1
+	}
+}
+
+func (s *onSectionCleanupState) leaveDeploymentStatusSection(info onSectionLine) {
+	if !s.inDeploymentStatus || info.trimmed == "" || strings.HasPrefix(info.trimmed, "#") {
+		return
+	}
+	if s.deploymentStatusIndent >= 0 && info.indent <= s.deploymentStatusIndent {
+		s.inDeploymentStatus = false
+		s.deploymentStatusIndent = -1
+	}
+}
+
+func (s *onSectionCleanupState) leaveWorkflowRunSection(info onSectionLine) {
+	if !s.inWorkflowRun || info.trimmed == "" || strings.HasPrefix(info.trimmed, "#") {
+		return
+	}
+	if s.workflowRunIndent >= 0 && info.indent <= s.workflowRunIndent {
+		s.inWorkflowRun = false
+		s.inWorkflowRunConclusionArray = false
+		s.workflowRunIndent = -1
+	}
+}
+
+func (s *onSectionCleanupState) shouldSkipNativeLabelFilterMarker(info onSectionLine) bool {
+	return s.inEventSection() && strings.Contains(info.trimmed, "__gh_aw_native_label_filter__:")
+}
+
+func (s *onSectionCleanupState) enterSubsections(info onSectionLine) {
+	s.enterArraySections(info)
+	s.enterObjectSections(info)
+}
+
+func (s *onSectionCleanupState) enterArraySections(info onSectionLine) {
+	if s.inPullRequest && strings.HasPrefix(info.trimmed, "forks:") {
+		s.inForksArray = true
+	}
+	if !s.inEventSection() && strings.HasPrefix(info.trimmed, "skip-roles:") {
+		s.inSkipRolesArray = true
+	}
+	if !s.inEventSection() && strings.HasPrefix(info.trimmed, "skip-bots:") {
+		s.inSkipBotsArray = true
+	}
+	if !s.inEventSection() && strings.HasPrefix(info.trimmed, "roles:") {
+		s.inRolesArray = true
+	}
+	if !s.inEventSection() && strings.HasPrefix(info.trimmed, "bots:") {
+		s.inBotsArray = true
+	}
+	if !s.inEventSection() && !s.inOnSteps && !s.inOnPermissions && info.indent == 2 && info.trimmed == "labels:" {
+		s.inLabelsArray = true
+	}
+	if !s.inEventSection() && !s.inOnSteps && !s.inOnPermissions && info.indent == 2 && strings.HasPrefix(info.trimmed, "needs:") {
+		s.inNeedsArray = true
+	}
+	if !s.inEventSection() && strings.HasPrefix(info.trimmed, "steps:") {
+		s.inOnSteps = true
+	}
+	if !s.inEventSection() && !s.inOnPermissions && strings.HasPrefix(info.trimmed, "permissions:") {
+		s.inOnPermissions = true
+	}
+}
+
+func (s *onSectionCleanupState) enterObjectSections(info onSectionLine) {
+	if !s.inEventSection() && !s.inSkipIfMatch && ((strings.HasPrefix(info.trimmed, "skip-if-match:") && info.trimmed == "skip-if-match:") ||
+		(strings.HasPrefix(info.trimmed, "# skip-if-match:") && strings.Contains(info.trimmed, "pre-activation job"))) {
+		s.inSkipIfMatch = true
+	}
+	if !s.inEventSection() && !s.inSkipIfNoMatch && ((strings.HasPrefix(info.trimmed, "skip-if-no-match:") && info.trimmed == "skip-if-no-match:") ||
+		(strings.HasPrefix(info.trimmed, "# skip-if-no-match:") && strings.Contains(info.trimmed, "pre-activation job"))) {
+		s.inSkipIfNoMatch = true
+	}
+	if !s.inEventSection() && !s.inSkipIfCheckFailing && (info.trimmed == "skip-if-check-failing:" ||
+		(strings.HasPrefix(info.trimmed, "# skip-if-check-failing:") && strings.Contains(info.trimmed, "pre-activation job"))) {
+		s.inSkipIfCheckFailing = true
+	}
+	if !s.inEventSection() && !s.inSkipAuthorAssociations && strings.HasPrefix(info.trimmed, "skip-author-associations:") && info.trimmed == "skip-author-associations:" {
+		s.inSkipAuthorAssociations = true
+	}
+	if !s.inEventSection() && !s.inGitHubApp && ((strings.HasPrefix(info.trimmed, "github-app:") && info.trimmed == "github-app:") ||
+		(strings.HasPrefix(info.trimmed, "# github-app:") && strings.Contains(info.trimmed, "pre-activation job"))) {
+		s.inGitHubApp = true
+	}
+}
+
+func (s *onSectionCleanupState) leaveSubsections(info onSectionLine) {
+	s.leaveObjectSections(info)
+	s.leaveArraySections(info)
+	s.leaveStepsAndPermissions(info)
+}
+
+func (s *onSectionCleanupState) leaveObjectSections(info onSectionLine) {
+	if s.inSkipIfMatch && isLeavingTopLevelObject(info, "skip-if-match:", "# skip-if-match:") {
+		s.inSkipIfMatch = false
+	}
+	if s.inSkipIfNoMatch && isLeavingTopLevelObject(info, "skip-if-no-match:", "# skip-if-no-match:") {
+		s.inSkipIfNoMatch = false
+	}
+	if s.inSkipIfCheckFailing && isLeavingTopLevelObject(info, "skip-if-check-failing:", "# skip-if-check-failing:") {
+		s.inSkipIfCheckFailing = false
+	}
+	if s.inSkipAuthorAssociations && isLeavingTopLevelObject(info, "skip-author-associations:", "# skip-author-associations:") {
+		s.inSkipAuthorAssociations = false
+	}
+	if s.inGitHubApp && isLeavingTopLevelObject(info, "github-app:", "# github-app:") {
+		s.inGitHubApp = false
+	}
+}
+
+func (s *onSectionCleanupState) leaveArraySections(info onSectionLine) {
+	if s.inForksArray && s.inPullRequest && isLeavingArray(info, "forks:", 4) {
+		s.inForksArray = false
+	}
+	if s.inSkipRolesArray && isLeavingArray(info, "skip-roles:", 2) {
+		s.inSkipRolesArray = false
+	}
+	if s.inSkipBotsArray && isLeavingArray(info, "skip-bots:", 2) {
+		s.inSkipBotsArray = false
+	}
+	if s.inRolesArray && isLeavingArray(info, "roles:", 2) {
+		s.inRolesArray = false
+	}
+	if s.inBotsArray && isLeavingArray(info, "bots:", 2) {
+		s.inBotsArray = false
+	}
+	if s.inLabelsArray && isLeavingArray(info, "labels:", 2) {
+		s.inLabelsArray = false
+	}
+	if s.inNeedsArray && isLeavingArray(info, "needs:", 2) {
+		s.inNeedsArray = false
+	}
+}
+
+func (s *onSectionCleanupState) leaveStepsAndPermissions(info onSectionLine) {
+	if s.inOnSteps && isLeavingArray(info, "steps:", 2) {
+		s.inOnSteps = false
+	}
+	if s.inOnPermissions && isLeavingTopLevelObject(info, "permissions:", "# permissions:") {
+		s.inOnPermissions = false
+	}
+}
+
+func isLeavingTopLevelObject(info onSectionLine, key, commentedKey string) bool {
+	return info.trimmed != "" &&
+		!strings.HasPrefix(info.trimmed, key) &&
+		!strings.HasPrefix(info.trimmed, commentedKey) &&
+		info.indent == 2 &&
+		!strings.HasPrefix(info.trimmed, "#")
+}
+
+func isLeavingArray(info onSectionLine, key string, indent int) bool {
+	return info.trimmed != "" &&
+		info.indent == indent &&
+		!strings.HasPrefix(info.trimmed, "-") &&
+		!strings.HasPrefix(info.trimmed, key) &&
+		!strings.HasPrefix(info.trimmed, "#")
+}
+
+func (s *onSectionCleanupState) determineComment(info onSectionLine, result []string, native map[string]struct{}) (bool, string) {
+	if !s.inEventSection() {
+		if shouldComment, reason := s.determineTopLevelComment(info); shouldComment {
+			return true, reason
+		}
+	}
+	return s.determineEventSectionComment(info, result, native)
+}
+
+func (s *onSectionCleanupState) determineTopLevelComment(info onSectionLine) (bool, string) {
+	if s.inEventSection() {
+		return false, ""
+	}
+	for _, fn := range []func(onSectionLine) (bool, string){
+		s.commentSimpleTopLevelField,
+		s.commentConditionalObjectField,
+		s.commentRoleAndLabelField,
+		s.commentStepPermissionAndAppField,
+	} {
+		if shouldComment, reason := fn(info); shouldComment {
+			return true, reason
+		}
+	}
+	return false, ""
+}
+
+func (s *onSectionCleanupState) commentSimpleTopLevelField(info onSectionLine) (bool, string) {
+	switch {
+	case strings.HasPrefix(info.trimmed, "manual-approval:"):
+		return true, " # Manual approval processed as environment field in activation job"
+	case strings.HasPrefix(info.trimmed, "stop-after:"):
+		return true, " # Stop-after processed as stop-time check in pre-activation job"
+	case strings.HasPrefix(info.trimmed, "restore-memory:"):
+		return true, " # Restore-memory enables pre-activation memory restore"
+	case strings.HasPrefix(info.trimmed, "reaction:"):
+		return true, " # Reaction processed as activation job step"
+	case strings.HasPrefix(info.trimmed, "github-token:"):
+		return true, " # GitHub token used for reactions and status comments in activation"
+	case strings.HasPrefix(info.trimmed, "stale-check:"):
+		return true, " # Stale-check processed as frontmatter hash check step in activation job"
+	default:
+		return false, ""
+	}
+}
+
+func (s *onSectionCleanupState) commentConditionalObjectField(info onSectionLine) (bool, string) {
+	switch {
+	case strings.HasPrefix(info.trimmed, "skip-if-match:"):
+		return true, " # Skip-if-match processed as search check in pre-activation job"
+	case s.inSkipIfMatch && hasAnyPrefixInLine(info.trimmed, "query:", "max:", "scope:"):
+		return true, ""
+	case strings.HasPrefix(info.trimmed, "skip-if-no-match:"):
+		return true, " # Skip-if-no-match processed as search check in pre-activation job"
+	case s.inSkipIfNoMatch && hasAnyPrefixInLine(info.trimmed, "query:", "min:", "scope:"):
+		return true, ""
+	case strings.HasPrefix(info.trimmed, "skip-if-check-failing:"):
+		return true, " # Skip-if-check-failing processed as check status gate in pre-activation job"
+	case s.inSkipIfCheckFailing && (hasAnyPrefixInLine(info.trimmed, "include:", "exclude:", "branch:", "allow-pending:") || strings.HasPrefix(info.trimmed, "-")):
+		return true, ""
+	case strings.HasPrefix(info.trimmed, "skip-author-associations:"):
+		return true, " # Skip-author-associations compiled into pre-activation job if condition"
+	case s.inSkipAuthorAssociations && info.indent > 2:
+		return true, ""
+	default:
+		return false, ""
+	}
+}
+
+func (s *onSectionCleanupState) commentRoleAndLabelField(info onSectionLine) (bool, string) {
+	switch {
+	case strings.HasPrefix(info.trimmed, "skip-roles:"):
+		return true, " # Skip-roles processed as role check in pre-activation job"
+	case s.inSkipRolesArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Skip-roles processed as role check in pre-activation job"
+	case strings.HasPrefix(info.trimmed, "skip-bots:"):
+		return true, " # Skip-bots processed as bot check in pre-activation job"
+	case s.inSkipBotsArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Skip-bots processed as bot check in pre-activation job"
+	case strings.HasPrefix(info.trimmed, "roles:"):
+		return true, " # Roles processed as role check in pre-activation job"
+	case s.inRolesArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Roles processed as role check in pre-activation job"
+	case strings.HasPrefix(info.trimmed, "bots:"):
+		return true, " # Bots processed as bot check in pre-activation job"
+	case s.inBotsArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Bots processed as bot check in pre-activation job"
+	default:
+		return s.commentLabelAndNeedsField(info)
+	}
+}
+
+func (s *onSectionCleanupState) commentLabelAndNeedsField(info onSectionLine) (bool, string) {
+	switch {
+	case !s.inOnSteps && !s.inOnPermissions && info.indent == 2 && strings.HasPrefix(info.trimmed, "labels:"):
+		return true, " # Label filtering applied via job conditions"
+	case s.inLabelsArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Label filtering applied via job conditions"
+	case !s.inOnSteps && !s.inOnPermissions && info.indent == 2 && strings.HasPrefix(info.trimmed, "needs:"):
+		return true, " # Needs processed as dependency in pre-activation job"
+	case s.inNeedsArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Needs processed as dependency in pre-activation job"
+	default:
+		return false, ""
+	}
+}
+
+func (s *onSectionCleanupState) commentStepPermissionAndAppField(info onSectionLine) (bool, string) {
+	switch {
+	case strings.HasPrefix(info.trimmed, "steps:"):
+		return true, " # Steps injected into pre-activation job"
+	case s.inOnSteps:
+		return true, ""
+	case strings.HasPrefix(info.trimmed, "permissions:"):
+		return true, " # Permissions applied to pre-activation job"
+	case s.inOnPermissions:
+		return true, ""
+	case strings.HasPrefix(info.trimmed, "github-app:"):
+		return true, " # GitHub App used to mint token for reactions and status comments in activation"
+	case s.inGitHubApp && isGitHubAppNestedField(info.trimmed):
+		return true, ""
+	default:
+		return false, ""
+	}
+}
+
+func hasAnyPrefixInLine(line string, prefixes ...string) bool {
+	for _, prefix := range prefixes {
+		if strings.HasPrefix(line, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func (s *onSectionCleanupState) determineEventSectionComment(info onSectionLine, result []string, native map[string]struct{}) (bool, string) {
+	if shouldComment, reason := s.commentPullRequestAndTriggerField(info); shouldComment {
+		return true, reason
+	}
+	if s.inWorkflowRun && !strings.HasPrefix(info.trimmed, "-") && strings.Contains(info.trimmed, ":") && !strings.HasPrefix(info.trimmed, "conclusion:") {
+		s.inWorkflowRunConclusionArray = false
+	}
+	if s.inEventSection() {
+		return s.commentLabelFilteringEventField(info, result, native)
+	}
+	return false, ""
+}
+
+func (s *onSectionCleanupState) commentPullRequestAndTriggerField(info onSectionLine) (bool, string) {
+	switch {
+	case s.inPullRequest && strings.Contains(info.trimmed, "draft:"):
+		return true, " # Draft filtering applied via job conditions"
+	case s.inPullRequest && strings.HasPrefix(info.trimmed, "forks:"):
+		return true, " # Fork filtering applied via job conditions"
+	case s.inForksArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Fork filtering applied via job conditions"
+	case s.inDeploymentStatus && strings.HasPrefix(info.trimmed, "state:"):
+		return true, " # State filtering compiled into if condition"
+	case s.inDeploymentStatus && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # State filtering compiled into if condition"
+	case s.inWorkflowRun && strings.HasPrefix(info.trimmed, "conclusion:"):
+		s.inWorkflowRunConclusionArray = true
+		return true, " # Conclusion filtering compiled into if condition"
+	case s.inWorkflowRunConclusionArray && strings.HasPrefix(info.trimmed, "-"):
+		return true, " # Conclusion filtering compiled into if condition"
+	default:
+		return false, ""
+	}
+}
+
+func (s *onSectionCleanupState) commentLabelFilteringEventField(info onSectionLine, result []string, native map[string]struct{}) (bool, string) {
+	if strings.HasPrefix(info.trimmed, "lock-for-agent:") {
+		return true, " # Lock-for-agent processed as issue locking in activation job"
+	}
+	if strings.HasPrefix(info.trimmed, "names:") {
+		if !setutil.Contains(native, s.currentSection) {
+			return true, " # Label filtering applied via job conditions"
+		}
+		return false, ""
+	}
+	if !setutil.Contains(native, s.currentSection) && shouldCommentNamesArrayItem(result, info.trimmed) {
+		return true, " # Label filtering applied via job conditions"
+	}
+	return false, ""
+}
+
+func shouldCommentNamesArrayItem(result []string, trimmedLine string) bool {
+	if trimmedLine == "" || !strings.HasPrefix(trimmedLine, "-") {
+		return false
+	}
+	for i := range slices.Backward(result) {
+		prevTrimmed := strings.TrimSpace(result[i])
+		if prevTrimmed == "" {
+			continue
+		}
+		if strings.Contains(prevTrimmed, "names:") && strings.Contains(prevTrimmed, "# Label filtering") {
+			return true
+		}
+		if !strings.HasPrefix(prevTrimmed, "#") || !strings.Contains(prevTrimmed, "Label filtering") {
+			return false
+		}
+		if strings.HasPrefix(prevTrimmed, "# -") && strings.Contains(prevTrimmed, "Label filtering") {
+			continue
+		}
+		return false
+	}
+	return false
+}
+
+func (s *onSectionCleanupState) appendLine(result []string, info onSectionLine, shouldComment bool, commentReason string) []string {
+	if !shouldComment {
+		s.inCommentBlock = false
+		s.commentBlockIndent = ""
+		return append(result, info.raw)
+	}
+	return append(result, s.renderCommentedLine(info.raw, commentReason))
+}
+
+func (s *onSectionCleanupState) renderCommentedLine(line, commentReason string) string {
+	trimmed := strings.TrimLeft(line, " 	")
+	if s.inForksArray && strings.HasPrefix(trimmed, "-") {
+		s.inCommentBlock = false
+		s.commentBlockIndent = ""
+	}
+	if !s.inCommentBlock && trimmed != "" {
+		s.commentBlockIndent = ""
+		if len(line) > len(trimmed) {
+			s.commentBlockIndent = line[:len(line)-len(trimmed)]
+		}
+		s.inCommentBlock = true
+	}
+	commentedLine := s.commentBlockIndent + "# " + trimmed + commentReason
+	return strings.TrimRight(commentedLine, " 	")
 }
 
 // dedentTrailingOnCommentBlock re-indents the final run of commented-out lines at the
