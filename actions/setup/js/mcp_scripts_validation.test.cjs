@@ -575,7 +575,7 @@ describe("mcp_scripts_validation.cjs", () => {
       const { formatSchemaValidationError } = await import("./mcp_scripts_validation.cjs");
       const message = formatSchemaValidationError("add_labels", { labels: ["bug"] }, { path: "labels[0]", message: "must be a object" });
       expect(message).toContain("Invalid arguments for add_labels:");
-      expect(message).toContain("labels[0] must be an object when issue-intent is enabled.");
+      expect(message).toContain("labels[0] must be an object (string shorthand is not supported).");
       expect(message).toContain("Required fields: name, rationale, confidence");
       expect(message).toContain('Received: \"bug\"');
     });

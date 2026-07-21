@@ -283,7 +283,7 @@ function formatSchemaValidationError(toolName, args, error) {
     if (typeof receivedLabel === "string") {
       return [
         "Invalid arguments for add_labels:",
-        `  ${error.path} must be an object when issue-intent is enabled.`,
+        `  ${error.path} must be an object (string shorthand is not supported).`,
         '  Expected: {"name":"bug","rationale":"Why this label applies","confidence":"HIGH"}',
         "  Required fields: name, rationale, confidence",
         `  Received: ${JSON.stringify(receivedLabel)}`,

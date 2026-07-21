@@ -33,20 +33,73 @@ function isScalarSchema(schema) {
   if (Array.isArray(schema.enum) && schema.enum.length > 0) {
     return true;
   }
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+    return schema.oneOf.every(option => isScalarSchema(option));
+  }
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+    return schema.anyOf.every(option => isScalarSchema(option));
+  }
   return schemaAllowsType(schema, "string") || schemaAllowsType(schema, "number") || schemaAllowsType(schema, "integer") || schemaAllowsType(schema, "boolean");
+}
+
+function scalarKinds(schema) {
+  const kinds = new Set();
+  if (!schema || typeof schema !== "object") {
+    return kinds;
+  }
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+    for (const option of schema.oneOf) {
+      for (const kind of scalarKinds(option)) {
+        kinds.add(kind);
+      }
+    }
+    return kinds;
+  }
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+    for (const option of schema.anyOf) {
+      for (const kind of scalarKinds(option)) {
+        kinds.add(kind);
+      }
+    }
+    return kinds;
+  }
+  if (schemaAllowsType(schema, "string")) {
+    kinds.add("string");
+  }
+  if (schemaAllowsType(schema, "number") || schemaAllowsType(schema, "integer")) {
+    kinds.add("number");
+  }
+  if (schemaAllowsType(schema, "boolean")) {
+    kinds.add("boolean");
+  }
+  return kinds;
 }
 
 function scalarPlaceholder(paramName, schema) {
   if (Array.isArray(schema?.enum) && schema.enum.length > 0) {
     return `<${schema.enum.join("|")}>`;
   }
-  if (schemaAllowsType(schema, "boolean")) {
+  const kinds = scalarKinds(schema);
+  if (kinds.size > 1) {
+    const combined = [];
+    if (kinds.has("boolean")) {
+      combined.push("true|false");
+    }
+    if (kinds.has("number")) {
+      combined.push("number");
+    }
+    if (kinds.has("string")) {
+      combined.push("string");
+    }
+    return `<${combined.join("|")}>`;
+  }
+  if (kinds.has("boolean")) {
     return "<true|false>";
   }
-  if (schemaAllowsType(schema, "integer") || schemaAllowsType(schema, "number")) {
+  if (kinds.has("number")) {
     return "<number>";
   }
-  if (schemaAllowsType(schema, "string")) {
+  if (kinds.has("string")) {
     if (paramName === "rationale") {
       return `<reason, max ${typeof schema.maxLength === "number" ? schema.maxLength : 280} characters>`;
     }
@@ -110,7 +163,7 @@ function exampleValueForKey(key, schema) {
     const result = {};
     const keys = Object.keys(properties);
     for (const propertyKey of keys) {
-      if (required.has(propertyKey) || propertyKey === "rationale" || propertyKey === "confidence") {
+      if (required.has(propertyKey)) {
         result[propertyKey] = exampleValueForKey(propertyKey, properties[propertyKey]);
       }
     }
@@ -146,6 +199,31 @@ function buildOrderedOptionEntries(schema) {
     return a.key.localeCompare(b.key);
   });
   return entries;
+}
+
+function collectRecommendedKeys(schema, properties) {
+  const selected = new Set(Array.isArray(schema?.required) ? schema.required : []);
+  const variants = [];
+  if (Array.isArray(schema?.oneOf)) {
+    variants.push(...schema.oneOf);
+  }
+  if (Array.isArray(schema?.anyOf)) {
+    variants.push(...schema.anyOf);
+  }
+  for (const variant of variants) {
+    const variantRequired = Array.isArray(variant?.required) ? variant.required : [];
+    if (variantRequired.length === 0) {
+      continue;
+    }
+    if (!variantRequired.every(key => key in properties)) {
+      continue;
+    }
+    for (const key of variantRequired) {
+      selected.add(key);
+    }
+    break;
+  }
+  return selected;
 }
 
 function shouldUseJsonMode(schema) {
@@ -186,8 +264,8 @@ function renderToolSignature(serverName, tool, options = {}) {
 function renderToolRecommendedExample(serverName, tool, options = {}) {
   const schema = tool?.inputSchema && typeof tool.inputSchema === "object" ? tool.inputSchema : {};
   const properties = schema.properties && typeof schema.properties === "object" ? schema.properties : {};
-  const required = new Set(Array.isArray(schema.required) ? schema.required : []);
-  const selectedKeys = new Set();
+  const required = collectRecommendedKeys(schema, properties);
+  const selectedKeys = new Set(required);
   Object.keys(properties).forEach(key => {
     if (required.has(key) || key === "rationale" || key === "confidence") {
       selectedKeys.add(key);
