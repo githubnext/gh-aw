@@ -181,6 +181,25 @@ function updateAddCommentDescription(description, addCommentConfig) {
   return updated;
 }
 
+/**
+ * Encode assign_milestone handler requirement: either milestone_number or milestone_title is required.
+ * @param {{name: string, inputSchema?: {properties?: Record<string, unknown>, anyOf?: Array<{required: string[]}>}}} tool
+ */
+function applyAssignMilestoneAlternativeRequirements(tool) {
+  if (tool.name !== "assign_milestone") {
+    return;
+  }
+  const schema = tool.inputSchema;
+  const properties = schema?.properties;
+  if (!schema || !properties || typeof properties !== "object") {
+    return;
+  }
+  if (!("milestone_number" in properties) || !("milestone_title" in properties)) {
+    return;
+  }
+  schema.anyOf = [{ required: ["milestone_number"] }, { required: ["milestone_title"] }];
+}
+
 async function main() {
   const toolsSourcePath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH || `${process.env.RUNNER_TEMP}/gh-aw/actions/safe_outputs_tools.json`;
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
@@ -347,6 +366,8 @@ async function main() {
         const existingRequired = Array.isArray(enhancedTool.inputSchema?.required) ? enhancedTool.inputSchema.required : [];
         enhancedTool.inputSchema.required = Array.from(new Set([...existingRequired, ...requiredAdditions]));
       }
+
+      applyAssignMilestoneAlternativeRequirements(enhancedTool);
 
       return enhancedTool;
     });

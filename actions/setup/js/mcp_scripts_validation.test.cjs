@@ -506,4 +506,78 @@ describe("mcp_scripts_validation.cjs", () => {
       expect(validateStringMinLengths(args, schema)).toEqual([]);
     });
   });
+
+  describe("validateArgumentsAgainstSchema", () => {
+    it("validates nested array item objects and required fields", async () => {
+      const { validateArgumentsAgainstSchema } = await import("./mcp_scripts_validation.cjs");
+      const schema = {
+        type: "object",
+        properties: {
+          labels: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                name: { type: "string" },
+                rationale: { type: "string" },
+                confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+              },
+              required: ["name", "rationale", "confidence"],
+              additionalProperties: false,
+            },
+          },
+        },
+        required: ["labels"],
+      };
+
+      expect(validateArgumentsAgainstSchema({ labels: ["bug"] }, schema)).toMatchObject({
+        path: "labels[0]",
+      });
+    });
+
+    it("validates oneOf/anyOf, enum, and additionalProperties recursively", async () => {
+      const { validateArgumentsAgainstSchema } = await import("./mcp_scripts_validation.cjs");
+      const schema = {
+        type: "object",
+        properties: {
+          labels: {
+            type: "array",
+            items: {
+              oneOf: [
+                { type: "string" },
+                {
+                  type: "object",
+                  properties: {
+                    name: { type: "string" },
+                    confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+                  },
+                  required: ["name", "confidence"],
+                  additionalProperties: false,
+                },
+              ],
+            },
+          },
+        },
+      };
+
+      expect(validateArgumentsAgainstSchema({ labels: [{ name: "bug", confidence: "SURE" }] }, schema)).toMatchObject({
+        path: "labels[0].confidence",
+      });
+      expect(validateArgumentsAgainstSchema({ labels: [{ name: "bug", confidence: "HIGH", extra: true }] }, schema)).toMatchObject({
+        path: "labels[0].extra",
+      });
+      expect(validateArgumentsAgainstSchema({ labels: [{ name: "bug", confidence: "HIGH" }] }, schema)).toBeNull();
+    });
+  });
+
+  describe("formatSchemaValidationError", () => {
+    it("formats strict add_labels object-shape guidance", async () => {
+      const { formatSchemaValidationError } = await import("./mcp_scripts_validation.cjs");
+      const message = formatSchemaValidationError("add_labels", { labels: ["bug"] }, { path: "labels[0]", message: "must be a object" });
+      expect(message).toContain("Invalid arguments for add_labels:");
+      expect(message).toContain("labels[0] must be an object (string shorthand is not supported).");
+      expect(message).toContain("Required fields: name, rationale, confidence");
+      expect(message).toContain('Received: \"bug\"');
+    });
+  });
 });

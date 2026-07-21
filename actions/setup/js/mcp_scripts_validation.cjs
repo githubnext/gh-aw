@@ -120,10 +120,194 @@ function validateStringMinLengths(args, inputSchema) {
   return violations;
 }
 
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function schemaTypeMatches(value, expectedType) {
+  switch (expectedType) {
+    case "object":
+      return isPlainObject(value);
+    case "array":
+      return Array.isArray(value);
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "integer":
+      return typeof value === "number" && Number.isInteger(value);
+    case "boolean":
+      return typeof value === "boolean";
+    case "null":
+      return value === null;
+    default:
+      return true;
+  }
+}
+
+function formatPath(basePath, key) {
+  if (!basePath) {
+    return key;
+  }
+  if (typeof key === "number") {
+    return `${basePath}[${key}]`;
+  }
+  return `${basePath}.${key}`;
+}
+
+function validateSchemaNode(value, schema, path, options = {}) {
+  if (!schema || typeof schema !== "object") {
+    return null;
+  }
+
+  if (Array.isArray(schema.oneOf) && schema.oneOf.length > 0) {
+    let successCount = 0;
+    /** @type {Array<{path: string, message: string, expected?: string, received?: string}>} */
+    const errors = [];
+    for (const subSchema of schema.oneOf) {
+      const error = validateSchemaNode(value, subSchema, path, options);
+      if (!error) {
+        successCount += 1;
+        continue;
+      }
+      errors.push(error);
+    }
+    if (successCount !== 1) {
+      if (errors.length > 0) {
+        errors.sort((a, b) => (b.path || "").length - (a.path || "").length);
+        return errors[0];
+      }
+      return { path, message: "must match exactly one schema option" };
+    }
+    return null;
+  }
+
+  if (Array.isArray(schema.anyOf) && schema.anyOf.length > 0) {
+    /** @type {Array<{path: string, message: string, expected?: string, received?: string}>} */
+    const errors = [];
+    for (const subSchema of schema.anyOf) {
+      const error = validateSchemaNode(value, subSchema, path, options);
+      if (!error) {
+        return null;
+      }
+      errors.push(error);
+    }
+    if (errors.length > 0) {
+      errors.sort((a, b) => (b.path || "").length - (a.path || "").length);
+      return errors[0];
+    }
+    return { path, message: "must match at least one schema option" };
+  }
+
+  if (schema.type) {
+    const allowedTypes = Array.isArray(schema.type) ? schema.type : [schema.type];
+    const typeMatched = allowedTypes.some(type => schemaTypeMatches(value, type));
+    if (!typeMatched) {
+      return {
+        path,
+        message: `must be ${allowedTypes.length === 1 ? `a ${allowedTypes[0]}` : `one of: ${allowedTypes.join(", ")}`}`,
+        expected: allowedTypes.join(" | "),
+        received: JSON.stringify(value),
+      };
+    }
+  }
+
+  if (Array.isArray(schema.enum) && schema.enum.length > 0) {
+    const enumMatched = schema.enum.some(candidate => Object.is(candidate, value));
+    if (!enumMatched) {
+      return {
+        path,
+        message: `must be one of: ${schema.enum.join(", ")}`,
+        expected: JSON.stringify(schema.enum),
+        received: JSON.stringify(value),
+      };
+    }
+  }
+
+  if (isPlainObject(value)) {
+    if (!options.skipRequiredAtRoot || path !== "") {
+      const required = Array.isArray(schema.required) ? schema.required : [];
+      for (const field of required) {
+        if (!(field in value)) {
+          return {
+            path: formatPath(path, field),
+            message: "is required",
+          };
+        }
+      }
+    }
+
+    const properties = isPlainObject(schema.properties) ? schema.properties : {};
+    if (schema.additionalProperties === false) {
+      for (const key of Object.keys(value)) {
+        if (!(key in properties)) {
+          return {
+            path: formatPath(path, key),
+            message: "is not allowed by the schema",
+          };
+        }
+      }
+    }
+
+    for (const [key, propertySchema] of Object.entries(properties)) {
+      if (!(key in value)) {
+        continue;
+      }
+      const nestedError = validateSchemaNode(value[key], propertySchema, formatPath(path, key), options);
+      if (nestedError) {
+        return nestedError;
+      }
+    }
+  }
+
+  if (Array.isArray(value) && schema.items) {
+    for (let i = 0; i < value.length; i++) {
+      const nestedError = validateSchemaNode(value[i], schema.items, formatPath(path, i), options);
+      if (nestedError) {
+        return nestedError;
+      }
+    }
+  }
+
+  return null;
+}
+
+function validateArgumentsAgainstSchema(args, inputSchema) {
+  return validateSchemaNode(args, inputSchema, "", { skipRequiredAtRoot: true });
+}
+
+function formatSchemaValidationError(toolName, args, error) {
+  if (toolName === "add_labels" && typeof error?.path === "string" && /^labels\[\d+\]$/.test(error.path) && Array.isArray(args?.labels)) {
+    const index = Number(error.path.match(/^labels\[(\d+)\]$/)?.[1] || -1);
+    const receivedLabel = index >= 0 ? args.labels[index] : undefined;
+    if (typeof receivedLabel === "string") {
+      return [
+        "Invalid arguments for add_labels:",
+        `  ${error.path} must be an object (string shorthand is not supported).`,
+        '  Expected: {"name":"bug","rationale":"Why this label applies","confidence":"HIGH"}',
+        "  Required fields: name, rationale, confidence",
+        `  Received: ${JSON.stringify(receivedLabel)}`,
+      ].join("\n");
+    }
+  }
+
+  const path = error?.path || "(root)";
+  const details = [`Invalid arguments for ${toolName}:`, `  ${path} ${error?.message || "is invalid"}.`];
+  if (error?.expected) {
+    details.push(`  Expected: ${error.expected}`);
+  }
+  if (error?.received) {
+    details.push(`  Received: ${error.received}`);
+  }
+  return details.join("\n");
+}
+
 module.exports = {
   validateRequiredFields,
   validateStringInputLengths,
   buildStringLengthValidationError,
   validateStringMinLengths,
+  validateArgumentsAgainstSchema,
+  formatSchemaValidationError,
   MAX_STRING_INPUT_BYTES,
 };
