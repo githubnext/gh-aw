@@ -112,7 +112,6 @@ func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionFalse(t *testing.T
 	tmpDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
 	outputFile := filepath.Join(tmpDir, "github_output.txt")
-	envFile := filepath.Join(tmpDir, "github_env.txt")
 	// No result file written — threat-detect is not installed — both should be irrelevant.
 	missingResult := filepath.Join(tmpDir, "missing_detection_result.json")
 
@@ -128,7 +127,6 @@ func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionFalse(t *testing.T
 	cmd.Env = append(os.Environ(),
 		"RUN_DETECTION=false",
 		"GITHUB_OUTPUT="+outputFile,
-		"GITHUB_ENV="+envFile,
 		"PATH="+emptyBinDir+":"+os.Getenv("PATH"),
 	)
 
@@ -150,18 +148,6 @@ func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionFalse(t *testing.T
 	}
 	if !strings.Contains(outputText, "reason=") {
 		t.Fatalf("expected reason= in GITHUB_OUTPUT, got: %s", outputText)
-	}
-
-	envData, err := os.ReadFile(envFile)
-	if err != nil {
-		t.Fatalf("failed to read GITHUB_ENV: %v", err)
-	}
-	envText := string(envData)
-	if !strings.Contains(envText, "GH_AW_DETECTION_CONCLUSION=skipped") {
-		t.Fatalf("expected GH_AW_DETECTION_CONCLUSION=skipped in GITHUB_ENV, got: %s", envText)
-	}
-	if !strings.Contains(envText, "GH_AW_DETECTION_REASON=") {
-		t.Fatalf("expected GH_AW_DETECTION_REASON= in GITHUB_ENV, got: %s", envText)
 	}
 }
 

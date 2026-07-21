@@ -14,8 +14,6 @@ if [ "${RUN_DETECTION:-false}" != "true" ]; then
   echo "conclusion=skipped" >> "${GITHUB_OUTPUT}"
   echo "success=true" >> "${GITHUB_OUTPUT}"
   echo "reason=" >> "${GITHUB_OUTPUT}"
-  echo "GH_AW_DETECTION_CONCLUSION=skipped" >> "${GITHUB_ENV}"
-  echo "GH_AW_DETECTION_REASON=" >> "${GITHUB_ENV}"
   exit 0
 fi
 
