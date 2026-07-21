@@ -6278,10 +6278,24 @@
                   ]
                 },
                 "state-reason": {
-                  "type": "string",
-                  "enum": ["completed", "not_planned", "duplicate"],
-                  "default": "completed",
-                  "description": "Reason for closing the issue (default: completed)"
+                  "oneOf": [
+                    {
+                      "type": "string",
+                      "enum": ["completed", "not_planned", "duplicate"],
+                      "description": "Fixed reason for closing the issue; the agent cannot override this value."
+                    },
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "enum": ["completed", "not_planned", "duplicate"]
+                      },
+                      "minItems": 1,
+                      "uniqueItems": true,
+                      "description": "Restricted subset of allowed reasons; the agent may choose from this list at runtime."
+                    }
+                  ],
+                  "description": "Reason for closing the issue. Scalar: fixed reason (default: completed). Array: agent selects from the listed subset at runtime."
                 }
               },
               "additionalProperties": false,

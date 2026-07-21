@@ -789,7 +789,7 @@ describe("close_issue", () => {
       expect(updateCalls[0].state_reason).toBe("duplicate");
     });
 
-    it("should prefer item-level state_reason over config-level default", async () => {
+    it("should enforce scalar state_reason from config regardless of item-level value", async () => {
       const handler = await main({ max: 10, state_reason: "NOT_PLANNED" });
       const updateCalls = [];
 
@@ -804,10 +804,11 @@ describe("close_issue", () => {
         };
       };
 
+      // Agent provides DUPLICATE but scalar config is NOT_PLANNED — config wins.
       const result = await handler({ issue_number: 100, body: "Duplicate of #50", state_reason: "DUPLICATE" }, {});
 
       expect(result.success).toBe(true);
-      expect(updateCalls[0].state_reason).toBe("duplicate");
+      expect(updateCalls[0].state_reason).toBe("not_planned");
     });
 
     it("should use first item in allowed_state_reason list as default when agent omits state_reason", async () => {
@@ -1429,6 +1430,7 @@ describe("close_issue", () => {
     it("should mark native duplicate when using allowed_state_reason list with DUPLICATE and duplicate_of", async () => {
       const handler = await main({ max: 10, allowed_state_reason: ["not_planned", "duplicate"] });
       const graphqlCalls = [];
+      const requestCalls = [];
 
       mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => ({
         data: {
@@ -1450,6 +1452,18 @@ describe("close_issue", () => {
         },
       });
 
+      mockGithub.request = async (route, params) => {
+        requestCalls.push({ route, params });
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+            node_id: `node_${params.owner}_${params.repo}_${params.issue_number}`,
+          },
+        };
+      };
+
       mockGithub.graphql = async (mutation, variables) => {
         graphqlCalls.push(variables);
         return { markAsDuplicate: { duplicate: { id: variables.duplicateId, number: 1003 } } };
@@ -1458,6 +1472,13 @@ describe("close_issue", () => {
       const result = await handler({ issue_number: 1003, body: "Duplicate report", state_reason: "DUPLICATE", duplicate_of: 50, suggest: true, rationale: "Same CSV defect.", confidence: "HIGH" }, {});
 
       expect(result.success).toBe(true);
+
+      // Verify issue-intent PATCH was called with the intent metadata intact (suggest, rationale, confidence)
+      expect(requestCalls).toHaveLength(1);
+      expect(requestCalls[0].route).toBe("PATCH /repos/{owner}/{repo}/issues/{issue_number}");
+      expect(requestCalls[0].params.state).toMatchObject({ value: "closed", rationale: "Same CSV defect.", confidence: "HIGH" });
+
+      // Verify the native duplicate GraphQL mutation was also executed
       expect(graphqlCalls.length).toBeGreaterThan(0);
       const mutation = graphqlCalls.find(c => "duplicateId" in c || "canonicalId" in c);
       expect(mutation).toBeDefined();

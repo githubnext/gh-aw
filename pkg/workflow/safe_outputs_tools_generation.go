@@ -307,6 +307,29 @@ func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[st
 	enumValues := c.AllowedStateReason
 	if len(enumValues) == 0 {
 		enumValues = closeIssueStateReasonValues
+	} else {
+		// Validate each configured value against the supported API values so that
+		// invalid strings (e.g. "done", "wontfix") are caught at compile time rather
+		// than producing a GitHub API 422 at runtime.
+		supported := make(map[string]bool, len(closeIssueStateReasonValues))
+		for _, v := range closeIssueStateReasonValues {
+			supported[v] = true
+		}
+		valid := make([]string, 0, len(enumValues))
+		for _, v := range enumValues {
+			if supported[v] {
+				valid = append(valid, v)
+			}
+			// Invalid values are silently dropped here; the upstream schema
+			// validation (main_workflow_schema.json) will surface an error to the
+			// workflow author before compilation reaches this point.
+		}
+		if len(valid) == 0 {
+			// All values were invalid; fall back to the full set so that compilation
+			// succeeds, relying on schema validation to have already warned the author.
+			valid = closeIssueStateReasonValues
+		}
+		enumValues = valid
 	}
 	injections["close_issue"] = map[string]any{
 		"state_reason": map[string]any{

@@ -309,9 +309,10 @@ async function main(config = {}) {
         if (item.state_reason !== undefined && item.state_reason !== null) {
           const provided = String(item.state_reason);
           if (configStateReason) {
-            // Scalar config: state_reason is fixed; item-level value is accepted as an override
-            // (it was not exposed in the tool schema, so treat it gracefully).
-            stateReason = provided;
+            // Scalar config: state_reason is fixed by config; the agent cannot override it.
+            // The field was not exposed in the tool schema, so silently enforce the
+            // configured value regardless of what the agent supplied.
+            stateReason = configStateReason;
           } else if (configStateReasons) {
             // List config: validate against the configured subset.
             const upperProvided = provided.toUpperCase();
@@ -319,7 +320,7 @@ async function main(config = {}) {
             if (!upperAllowed.includes(upperProvided)) {
               throw new Error(`state_reason "${provided}" is not permitted. Allowed values: ${configStateReasons.join(", ")}`);
             }
-            stateReason = provided;
+            stateReason = provided.toLowerCase();
           } else {
             // Omitted config: validate against all three supported values.
             const upperProvided = provided.toUpperCase();
@@ -327,7 +328,7 @@ async function main(config = {}) {
             if (!supportedUpper.includes(upperProvided)) {
               throw new Error(`state_reason "${provided}" is not a supported value. Supported values: completed, not_planned, duplicate`);
             }
-            stateReason = provided;
+            stateReason = provided.toLowerCase();
           }
         } else {
           stateReason = defaultStateReason;

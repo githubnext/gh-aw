@@ -154,8 +154,10 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 	return config
 }
 
-// preprocessStateReasonList converts a list-form state-reason value into the state-reasons key.
-// Returns true if the value was a list and was successfully converted.
+// preprocessStateReasonList converts a list-form state-reason value into the allowed-state-reason key.
+// Returns true if the value was a non-empty list and was successfully converted.
+// Returns false and leaves configData unchanged when the value is not a list or when no valid
+// string elements are found — the latter prevents a silent escalation to unrestricted (omitted) mode.
 func preprocessStateReasonList(configData map[string]any, raw any, logger *logger.Logger) bool {
 	switch v := raw.(type) {
 	case []any:
@@ -170,15 +172,26 @@ func preprocessStateReasonList(configData map[string]any, raw any, logger *logge
 			}
 			reasons = append(reasons, s)
 		}
-		if len(reasons) > 0 {
-			configData["allowed-state-reason"] = reasons
+		if len(reasons) == 0 {
+			// No usable strings found; leave configData unchanged so downstream validation
+			// reports an error rather than silently granting unrestricted reason selection.
+			if logger != nil {
+				logger.Printf("state-reason list has no valid string elements; treating as invalid")
+			}
+			return false
 		}
+		configData["allowed-state-reason"] = reasons
 		delete(configData, "state-reason")
 		return true
 	case []string:
-		if len(v) > 0 {
-			configData["allowed-state-reason"] = v
+		if len(v) == 0 {
+			// Empty explicit slice; leave configData unchanged for the same reason as above.
+			if logger != nil {
+				logger.Printf("state-reason list is empty; treating as invalid")
+			}
+			return false
 		}
+		configData["allowed-state-reason"] = v
 		delete(configData, "state-reason")
 		return true
 	}
