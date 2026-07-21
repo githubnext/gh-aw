@@ -81,9 +81,10 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	if hasOTLPGitHubOIDCAuth(data.ParsedFrontmatter, data.RawFrontmatter) {
 		conclusionPerms.Set(PermissionIdToken, PermissionWrite)
 	}
-	// actions: write is required for GitHub's cache-reservation backend to allow cache saves.
-	// The daily-AIC usage cache save step uses actions/cache/save which requires this permission.
-	if needsDailyAICCachePermission(data) {
+	// The daily-AIC usage cache save step must not run with a fully read-only GITHUB_TOKEN.
+	// If safe-outputs already granted some writable scope (for example issues: write for
+	// comment updates), reuse that existing write access instead of broadening the job.
+	if needsDailyAICCachePermission(data) && !conclusionPerms.HasAnyWriteScope() {
 		conclusionPerms.Set(PermissionActions, PermissionWrite)
 	}
 	return &Job{

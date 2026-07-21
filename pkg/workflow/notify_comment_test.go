@@ -1512,13 +1512,31 @@ func TestConclusionJobNeedsPreActivationFromMessages(t *testing.T) {
 }
 
 // TestConclusionJobActionsWritePermissionForDailyAICCache verifies that the conclusion job
-// has actions: write when daily-AIC cache steps are included (WorkflowID is set and the
-// guardrail is not explicitly disabled). Without actions: write, cache saves fail with
-// "cache write denied: token has no writable scopes".
+// adds actions: write only when daily-AIC cache steps are included and the job would
+// otherwise have no writable scope. Existing writable scopes (for example issues: write
+// from add-comments) should be reused instead of broadening permissions.
 func TestConclusionJobActionsWritePermissionForDailyAICCache(t *testing.T) {
 	compiler := NewCompiler()
 
-	t.Run("has actions: write when WorkflowID set and guardrail active", func(t *testing.T) {
+	t.Run("has actions: write when WorkflowID set and no other writable scope exists", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:        "Test Workflow",
+			WorkflowID:  "my-workflow",
+			SafeOutputs: &SafeOutputsConfig{},
+		}
+		job, err := compiler.buildConclusionJob(workflowData, string(constants.AgentJobName), []string{})
+		if err != nil {
+			t.Fatalf("buildConclusionJob returned error: %v", err)
+		}
+		if job == nil {
+			t.Fatal("Expected conclusion job to be non-nil")
+		}
+		if !strings.Contains(job.Permissions, "actions: write") {
+			t.Errorf("conclusion job must have 'actions: write' when daily-AIC cache is active, got: %q", job.Permissions)
+		}
+	})
+
+	t.Run("no actions: write when another writable scope already exists", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name:       "Test Workflow",
 			WorkflowID: "my-workflow",
@@ -1535,8 +1553,11 @@ func TestConclusionJobActionsWritePermissionForDailyAICCache(t *testing.T) {
 		if job == nil {
 			t.Fatal("Expected conclusion job to be non-nil")
 		}
-		if !strings.Contains(job.Permissions, "actions: write") {
-			t.Errorf("conclusion job must have 'actions: write' when daily-AIC cache is active, got: %q", job.Permissions)
+		if strings.Contains(job.Permissions, "actions: write") {
+			t.Errorf("conclusion job should reuse existing writable scopes instead of adding 'actions: write', got: %q", job.Permissions)
+		}
+		if !strings.Contains(job.Permissions, "issues: write") {
+			t.Errorf("conclusion job should preserve existing 'issues: write' permission, got: %q", job.Permissions)
 		}
 	})
 
