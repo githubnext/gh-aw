@@ -5,11 +5,11 @@ sidebar:
   order: 15
 ---
 
-This guide shows how to add web search to workflows using the Tavily Model Context Protocol (MCP) server, an AI-optimized search provider designed for LLM applications. While alternatives exist (Exa, SerpAPI, Brave Search), this guide focuses on Tavily configuration.
+Use the Tavily Model Context Protocol (MCP) server to add web search to workflows. Alternatives such as Exa, SerpAPI, and Brave Search also exist, but this page covers Tavily.
 
 ## Tavily Search
 
-[Tavily](https://tavily.com/) provides AI-optimized search with structured JSON responses, news search capability, and fast response times through the [@tavily/mcp](https://github.com/tavily-ai/tavily-mcp) MCP server.
+[Tavily](https://tavily.com/) provides structured JSON search results, news search, and an MCP server at [@tavily/mcp](https://github.com/tavily-ai/tavily-mcp).
 
 ```aw wrap
 ---
@@ -33,17 +33,19 @@ Search the web for information about: ${{ github.event.issue.title }}
 Use the tavily search tool to find recent information.
 ```
 
-**Setup:**
-1. Sign up at [tavily.com](https://tavily.com/) and get your API key
-2. Add as repository secret: `gh aw secrets set TAVILY_API_KEY --value "<your-api-key>"`
+### Setup
 
-[Tavily Terms of Service](https://tavily.com/terms)
+Sign up at [tavily.com](https://tavily.com/) to get an API key, then add it as a repository secret:
 
-Test your configuration with `gh aw mcp inspect <workflow>`.
+```bash
+gh aw secrets set TAVILY_API_KEY --value "<your-api-key>"
+```
+
+Review the [Tavily Terms of Service](https://tavily.com/terms), then test the workflow with `gh aw mcp inspect <workflow>`.
 
 ## Tool Discovery
 
-To see available tools from the Tavily MCP server:
+Inspect the workflow to see which Tavily tools are available:
 
 ```bash wrap
 # Inspect the MCP server in your workflow
