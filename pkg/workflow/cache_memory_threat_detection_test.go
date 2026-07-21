@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/goccy/go-yaml"
 )
 
 // TestCacheMemoryWithThreatDetection verifies that when threat detection is enabled,
@@ -15,10 +17,11 @@ import (
 // an update_cache_memory job to save the cache after detection succeeds
 func TestCacheMemoryWithThreatDetection(t *testing.T) {
 	tests := []struct {
-		name              string
-		frontmatter       string
-		expectedInLock    []string
-		notExpectedInLock []string
+		name                                string
+		frontmatter                         string
+		expectedInLock                      []string
+		notExpectedInLock                   []string
+		expectUpdateCacheMemoryActionsWrite bool
 	}{
 		{
 			name: "cache-memory with threat detection enabled",
@@ -66,6 +69,7 @@ Test workflow with cache-memory and threat detection enabled.`,
 				// Should NOT use regular actions/cache in agent job
 				"- name: Restore cache-memory file share data\n      uses: actions/cache@",
 			},
+			expectUpdateCacheMemoryActionsWrite: true,
 		},
 		{
 			name: "cache-memory without threat detection",
@@ -242,6 +246,44 @@ Test workflow with restore-only cache-memory and threat detection enabled.`,
 					t.Errorf("Expected lock YAML NOT to contain %q, but it did.\nContext around match (lines %d-%d):\n%s", notExpected, start+1, end, context)
 				}
 			}
+
+			if tt.expectUpdateCacheMemoryActionsWrite {
+				actionsPermission := extractJobPermission(t, lockContent, "update_cache_memory", "actions")
+				if actionsPermission != "write" {
+					t.Errorf("Expected update_cache_memory job permissions.actions = %q, got %q", "write", actionsPermission)
+				}
+			}
 		})
 	}
+}
+
+func extractJobPermission(t *testing.T, lockContent, jobName, permissionName string) string {
+	t.Helper()
+
+	var workflow map[string]any
+	if err := yaml.Unmarshal([]byte(lockContent), &workflow); err != nil {
+		t.Fatalf("Failed to parse lock YAML: %v", err)
+	}
+
+	jobs, ok := workflow["jobs"].(map[string]any)
+	if !ok {
+		t.Fatal("Expected compiled workflow to contain a jobs map")
+	}
+
+	job, ok := jobs[jobName].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected compiled workflow to contain job %q", jobName)
+	}
+
+	permissions, ok := job["permissions"].(map[string]any)
+	if !ok {
+		t.Fatalf("Expected job %q to contain a permissions map", jobName)
+	}
+
+	value, ok := permissions[permissionName].(string)
+	if !ok {
+		t.Fatalf("Expected job %q permission %q to be a string", jobName, permissionName)
+	}
+
+	return value
 }

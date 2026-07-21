@@ -66,6 +66,32 @@ func (p *Permissions) HasCopilotRequestsWrite() bool {
 	return ok && level == PermissionWrite
 }
 
+// HasAnyWriteScope returns true if the permissions grant write access to any
+// GITHUB_TOKEN scope. This is useful for jobs that only need to avoid an
+// otherwise read-only token, regardless of which specific writable scope
+// provides that property.
+func (p *Permissions) HasAnyWriteScope() bool {
+	if p == nil {
+		return false
+	}
+
+	if p.shorthand == "write-all" {
+		return true
+	}
+
+	if p.hasAll && p.allLevel == PermissionWrite {
+		return true
+	}
+
+	for _, level := range p.permissions {
+		if level == PermissionWrite {
+			return true
+		}
+	}
+
+	return false
+}
+
 // hasCopilotRequestsWritePermission returns true when workflow permissions include
 // copilot-requests: write. This controls whether engines should use ${{ github.token }}
 // for Copilot authentication instead of requiring COPILOT_GITHUB_TOKEN.

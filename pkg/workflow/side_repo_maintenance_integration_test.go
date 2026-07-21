@@ -114,6 +114,9 @@ This workflow operates on a separate repository.
 		"generated workflow should set a 20-minute timeout for the activity_report logs download step")
 	assert.Contains(t, contentStr, "${GH_AW_CMD_PREFIX} logs",
 		"generated workflow should run gh aw logs directly")
+	assert.Contains(t, contentStr, `${GH_AW_CMD_PREFIX} logs \
+            --repo "my-org/target-repo" \`,
+		"generated workflow should preserve the multi-line gh aw logs command formatting")
 	assert.Contains(t, contentStr, "--start-date -1w",
 		"generated workflow should download 7 days of logs for activity_report")
 	assert.Contains(t, contentStr, "--count 500",

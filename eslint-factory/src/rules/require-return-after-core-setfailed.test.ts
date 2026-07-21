@@ -379,4 +379,35 @@ doMore();`,
       invalid: [],
     });
   });
+
+  it("valid: trailing hoisted function declaration is not a continuation (FP fix)", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // FunctionDeclaration is hoisted and has no sequential runtime effect
+        `core.setFailed("bad"); function helper() {}`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: bare switch-case fall-through after setFailed is flagged (FN fix)", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // Terminating break prevents fall-through — must remain valid
+        `switch (x) { case 1: core.setFailed("bad"); break; case 2: doMore(); }`,
+        // Fall-through to a case that only contains hoisted declarations — no executable continuation
+        `switch (x) { case 1: core.setFailed("bad"); case 2: function helper() {} }`,
+      ],
+      invalid: [
+        {
+          code: `switch (x) { case 1: core.setFailed("bad"); case 2: doMore(); }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed" }],
+        },
+        {
+          code: `function f(x) { switch (x) { case 1: core.setFailed("bad"); case 2: doMore(); } }`,
+          errors: [{ messageId: "missingReturnAfterSetFailed", suggestions: [{ messageId: "addReturn", output: `function f(x) { switch (x) { case 1: core.setFailed("bad"); return; case 2: doMore(); } }` }] }],
+        },
+      ],
+    });
+  });
 });

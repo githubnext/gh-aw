@@ -104,7 +104,7 @@ The grammar below is recognition-oriented and intentionally limited to parser be
 
 ### 3.1 Splitting Grammar (EBNF)
 
-```ebnf
+```
 command_text   = { unit } ;
 unit           = single_quoted | double_quoted | subshell | operator | other ;
 operator       = "&&" | "||" | "|" | ";" | newline ;
@@ -127,7 +127,7 @@ The optional closing quote in `single_quoted` and `double_quoted` is intentional
 
 ### 3.2 Segment Extraction Grammar (EBNF)
 
-```ebnf
+```
 segment        = ws , { env_assign , ws } , core ;
 env_assign     = ident , "=" , env_value ;
 env_value      = dq_value | sq_value | nonspace* ;

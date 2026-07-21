@@ -26,9 +26,9 @@ permissions:
   contents: read
   issues: read
   actions: read
+model: claude-sonnet-4.6
 engine:
   id: claude
-  model: claude-sonnet-4.6
 strict: true
 timeout-minutes: 90
 network:
@@ -64,6 +64,9 @@ steps:
   - name: Prepare DeepSec workspace
     env:
       AI_GATEWAY_API_KEY: ${{ secrets.AI_GATEWAY_API_KEY }}
+      EXPR_INPUTS_AGENT: ${{ inputs.agent }}
+      EXPR_INPUTS_LIMIT: ${{ inputs.limit }}
+      EXPR_INPUTS_THINKING_LEVEL: ${{ inputs.thinking-level }}
     run: |
       set -euo pipefail
 
@@ -99,9 +102,9 @@ steps:
         printf '%s\n' "- Setup file: $REPO_SNAPSHOT/.deepsec/data/$PROJECT_ID/SETUP.md"
         printf '%s\n' "- DeepSec skill: $REPO_SNAPSHOT/.deepsec/node_modules/deepsec/SKILL.md"
         printf '%s\n' "- AI Gateway configured: $AI_GATEWAY_CONFIGURED"
-        printf '%s\n' "- Requested agent: ${{ inputs.agent }}"
-        printf '%s\n' "- Requested limit: ${{ inputs.limit }}"
-        printf '%s\n' "- Requested thinking level: ${{ inputs.thinking-level }}"
+        printf '%s\n' "- Requested agent: $EXPR_INPUTS_AGENT"
+        printf '%s\n' "- Requested limit: $EXPR_INPUTS_LIMIT"
+        printf '%s\n' "- Requested thinking level: $EXPR_INPUTS_THINKING_LEVEL"
         printf '%s\n' '- Findings directory: /tmp/gh-aw/agent/deepsec/findings'
         printf '%s\n' '- Findings JSON: /tmp/gh-aw/agent/deepsec/findings.json'
       } > "$AGENT_ROOT/context.md"

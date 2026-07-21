@@ -60,7 +60,11 @@ function isExecutableStatement(node: TSESTree.ProgramStatement): node is TSESTre
     node.type !== AST_NODE_TYPES.ExportAllDeclaration &&
     node.type !== AST_NODE_TYPES.ExportDefaultDeclaration &&
     node.type !== AST_NODE_TYPES.ExportNamedDeclaration &&
-    node.type !== AST_NODE_TYPES.TSModuleDeclaration
+    node.type !== AST_NODE_TYPES.TSModuleDeclaration &&
+    // Hoisted declarations have no sequential runtime effect — not a continuation
+    node.type !== AST_NODE_TYPES.FunctionDeclaration &&
+    node.type !== AST_NODE_TYPES.TSInterfaceDeclaration &&
+    node.type !== AST_NODE_TYPES.TSTypeAliasDeclaration
   );
 }
 
@@ -131,8 +135,10 @@ function findContinuationOutsideBlock(setFailedNode: TSESTree.Statement, ancesto
       if (currentIndex >= 0) {
         for (let nextCaseIndex = currentIndex + 1; nextCaseIndex < ancestor.cases.length; nextCaseIndex++) {
           const nextCase = ancestor.cases[nextCaseIndex];
-          const nextStmt = nextCase.consequent[0];
-          if (nextStmt) {
+          // Skip hoisted declarations (FunctionDeclaration, etc.) — they have no sequential
+          // runtime effect and should not count as fall-through continuations.
+          const nextStmt = nextCase.consequent.find(s => isExecutableStatement(s as TSESTree.ProgramStatement));
+          if (nextStmt !== undefined) {
             return nextStmt;
           }
         }
@@ -337,6 +343,12 @@ export const requireReturnAfterCoreSetFailedRule = createRule({
       // The main case is BlockStatement above.
       SwitchCase(node: TSESTree.SwitchCase) {
         checkStatementList(node.consequent, isCoreSetFailedStatement, report);
+        // Fall-through: when setFailed is the last consequent statement with no terminator,
+        // execution falls through to the next case — same pattern as BlockStatement above.
+        const lastStmt = node.consequent[node.consequent.length - 1];
+        if (lastStmt && isCoreSetFailedStatement(lastStmt)) {
+          checkNestedContinuation(lastStmt);
+        }
       },
       WhileStatement(node: TSESTree.WhileStatement) {
         checkDirectControlBody(node.body);

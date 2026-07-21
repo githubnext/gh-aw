@@ -141,7 +141,7 @@ The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", "S
 
 A model identifier string MUST conform to the following ABNF grammar:
 
-```abnf
+```
 model-identifier  = base-identifier [ "?" query-string ]
 
 base-identifier   = bare-name
