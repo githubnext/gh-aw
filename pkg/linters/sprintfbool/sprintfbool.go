@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -26,6 +27,12 @@ type replacement struct {
 	argText   string
 	qualifier string
 	canFix    bool
+}
+
+type candidate struct {
+	call *ast.CallExpr
+	arg  ast.Expr
+	file *ast.File
 }
 
 // Analyzer is the sprintfbool analysis pass.
@@ -51,32 +58,34 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	// seenImportFiles tracks files that have already received an import edit in
-	// this pass, preventing duplicate overlapping edits when a single file
-	// contains multiple flagged calls.
 	seenImportFiles := make(map[token.Pos]bool)
-	orphanFmtByFile := make(map[token.Pos]bool)
+	candidates, targetCallsByFile, filesByPos := collectSprintfBoolCandidates(pass, insp, generatedFiles, noLintIndex)
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
-	}
-
-	type candidate struct {
-		call *ast.CallExpr
-		arg  ast.Expr
-		file *ast.File
-	}
-	candidates := make([]candidate, 0)
-	targetCallsByFile := make(map[token.Pos]int)
+	replacements := make([]replacement, len(candidates))
 	fixableCallsByFile := make(map[token.Pos]int)
-	filesByPos := make(map[token.Pos]*ast.File)
+	for i, c := range candidates {
+		repl := replacementForCall(pass, c.call, c.arg, c.file)
+		replacements[i] = repl
+		if repl.canFix && c.file != nil {
+			fixableCallsByFile[c.file.Pos()]++
+		}
+	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
+	orphanFmtByFile := computeOrphanFmtStatus(pass, filesByPos, targetCallsByFile, fixableCallsByFile)
+	reportSprintfBoolDiagnostics(pass, candidates, replacements, seenImportFiles, orphanFmtByFile)
+
+	return nil, nil
+}
+
+// collectSprintfBoolCandidates traverses the AST and returns all fmt.Sprintf("%t", b) calls.
+func collectSprintfBoolCandidates(pass *analysis.Pass, insp *inspector.Inspector, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) ([]candidate, map[token.Pos]int, map[token.Pos]*ast.File) {
+	candidates := make([]candidate, 0)
+	targetCallsByFile, filesByPos := make(map[token.Pos]int), make(map[token.Pos]*ast.File)
+	insp.Preorder([]ast.Node{(*ast.CallExpr)(nil)}, func(n ast.Node) {
 		call, ok := n.(*ast.CallExpr)
 		if !ok {
 			return
 		}
-
 		pos := pass.Fset.PositionFor(call.Pos(), false)
 		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			return
@@ -84,8 +93,6 @@ func run(pass *analysis.Pass) (any, error) {
 		if nolint.HasDirectiveForLinter(pos, noLintIndex, "sprintfbool") {
 			return
 		}
-
-		// Match fmt.Sprintf(format, arg) with exactly two arguments.
 		sel, ok := call.Fun.(*ast.SelectorExpr)
 		if !ok || sel.Sel.Name != "Sprintf" {
 			return
@@ -96,45 +103,29 @@ func run(pass *analysis.Pass) (any, error) {
 		if len(call.Args) != 2 {
 			return
 		}
-
-		// The format argument must be the string literal "%t".
 		formatLit, ok := call.Args[0].(*ast.BasicLit)
 		if !ok || formatLit.Kind != token.STRING || formatLit.Value != `"%t"` {
 			return
 		}
-
-		// The value argument must have the exact type bool.
 		arg := call.Args[1]
 		argType := pass.TypesInfo.TypeOf(arg)
-		if argType == nil {
+		if argType == nil || argType != types.Typ[types.Bool] {
 			return
 		}
-		if argType != types.Typ[types.Bool] {
-			return
-		}
-
 		file := fileForPos(pass.Files, call.Pos())
 		if file != nil {
 			targetCallsByFile[file.Pos()]++
 			filesByPos[file.Pos()] = file
 		}
-
-		candidates = append(candidates, candidate{
-			call: call,
-			arg:  arg,
-			file: file,
-		})
+		candidates = append(candidates, candidate{call: call, arg: arg, file: file})
 	})
+	return candidates, targetCallsByFile, filesByPos
+}
 
-	replacements := make([]replacement, len(candidates))
-	for i, c := range candidates {
-		repl := replacementForCall(pass, c.call, c.arg, c.file)
-		replacements[i] = repl
-		if repl.canFix && c.file != nil {
-			fixableCallsByFile[c.file.Pos()]++
-		}
-	}
-
+// computeOrphanFmtStatus returns a map of file positions where fmt is imported
+// solely for the flagged Sprintf calls (and thus can be removed after the fix).
+func computeOrphanFmtStatus(pass *analysis.Pass, filesByPos map[token.Pos]*ast.File, targetCallsByFile, fixableCallsByFile map[token.Pos]int) map[token.Pos]bool {
+	orphanFmtByFile := make(map[token.Pos]bool)
 	for filePos, targetCalls := range targetCallsByFile {
 		file := filesByPos[filePos]
 		if file == nil {
@@ -151,7 +142,11 @@ func run(pass *analysis.Pass) (any, error) {
 			countPkgUsesInFile(pass, file, fmtPkg) == targetCalls &&
 			fixableCallsByFile[filePos] == targetCalls
 	}
+	return orphanFmtByFile
+}
 
+// reportSprintfBoolDiagnostics emits one diagnostic per candidate.
+func reportSprintfBoolDiagnostics(pass *analysis.Pass, candidates []candidate, replacements []replacement, seenImportFiles map[token.Pos]bool, orphanFmtByFile map[token.Pos]bool) {
 	for i, c := range candidates {
 		repl := replacements[i]
 		argText := repl.argText
@@ -161,20 +156,10 @@ func run(pass *analysis.Pass) (any, error) {
 		if argText == "" {
 			argText = "b"
 		}
-
 		var fixes []analysis.SuggestedFix
 		if repl.canFix {
-			fixes = buildFormatBoolFix(
-				pass,
-				c.call,
-				repl.argText,
-				repl.qualifier,
-				c.file,
-				seenImportFiles,
-				orphanFmtByFile,
-			)
+			fixes = buildFormatBoolFix(pass, c.call, repl.argText, repl.qualifier, c.file, seenImportFiles, orphanFmtByFile)
 		}
-
 		pass.Report(analysis.Diagnostic{
 			Pos:            c.call.Pos(),
 			End:            c.call.End(),
@@ -182,8 +167,6 @@ func run(pass *analysis.Pass) (any, error) {
 			SuggestedFixes: fixes,
 		})
 	}
-
-	return nil, nil
 }
 
 func buildFormatBoolFix(

@@ -9,6 +9,7 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
+	"golang.org/x/tools/go/ast/inspector"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
@@ -54,13 +55,18 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, nil
 	}
 
-	// Handle regular qualified imports: ioutil.ReadAll(...), ioutil.Discard, etc.
+	checkQualifiedIoutilUsage(pass, root, generatedFiles, noLintIndex)
+	checkDotImportIoutilUsage(pass, root, generatedFiles, noLintIndex)
+	return nil, nil
+}
+
+// checkQualifiedIoutilUsage reports ioutil.X usages via qualified selector expressions.
+func checkQualifiedIoutilUsage(pass *analysis.Pass, root inspector.Cursor, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
 	for cur := range root.Preorder((*ast.SelectorExpr)(nil)) {
 		sel, ok := cur.Node().(*ast.SelectorExpr)
 		if !ok {
 			continue
 		}
-
 		pos := pass.Fset.PositionFor(sel.Pos(), false)
 		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			continue
@@ -68,7 +74,6 @@ func run(pass *analysis.Pass) (any, error) {
 		if nolint.HasDirectiveForLinter(pos, noLintIndex, "ioutildeprecated") {
 			continue
 		}
-
 		pkgIdent, ok := sel.X.(*ast.Ident)
 		if !ok {
 			continue
@@ -81,28 +86,24 @@ func run(pass *analysis.Pass) (any, error) {
 		if !ok || pkgName.Imported().Path() != "io/ioutil" {
 			continue
 		}
-
 		funcName := sel.Sel.Name
 		if replacement, found := replacements[funcName]; found {
 			pass.ReportRangef(sel, "ioutil.%s is deprecated; use %s instead", funcName, replacement)
 		}
 	}
+}
 
-	// Handle dot imports: import . "io/ioutil" followed by bare ReadAll(r) or Discard.
-	// In this case the identifier is an *ast.Ident (not a SelectorExpr), and
-	// TypesInfo.Uses resolves it to an object whose package path is "io/ioutil".
+// checkDotImportIoutilUsage reports bare ioutil identifiers (functions and variables)
+// used via dot-imports (import . "io/ioutil").
+func checkDotImportIoutilUsage(pass *analysis.Pass, root inspector.Cursor, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
 	for cur := range root.Preorder((*ast.Ident)(nil)) {
 		ident, ok := cur.Node().(*ast.Ident)
 		if !ok {
 			continue
 		}
-
-		// Skip identifiers that are the Sel field of a SelectorExpr; those are
-		// already handled by the qualified-import loop above.
 		if _, ok := cur.Parent().Node().(*ast.SelectorExpr); ok {
 			continue
 		}
-
 		pos := pass.Fset.PositionFor(ident.Pos(), false)
 		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			continue
@@ -110,7 +111,6 @@ func run(pass *analysis.Pass) (any, error) {
 		if nolint.HasDirectiveForLinter(pos, noLintIndex, "ioutildeprecated") {
 			continue
 		}
-
 		obj := pass.TypesInfo.Uses[ident]
 		if obj == nil {
 			continue
@@ -119,12 +119,9 @@ func run(pass *analysis.Pass) (any, error) {
 		if pkg == nil || pkg.Path() != "io/ioutil" {
 			continue
 		}
-
 		name := obj.Name()
 		if replacement, found := replacements[name]; found {
 			pass.ReportRangef(ident, "ioutil.%s is deprecated; use %s instead", name, replacement)
 		}
 	}
-
-	return nil, nil
 }
