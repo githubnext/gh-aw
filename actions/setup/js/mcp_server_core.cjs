@@ -31,7 +31,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ReadBuffer } = require("./read_buffer.cjs");
-const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError, validateStringMinLengths } = require("./mcp_scripts_validation.cjs");
+const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError, validateStringMinLengths, validateArgumentsAgainstSchema, formatSchemaValidationError } = require("./mcp_scripts_validation.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createDependencyInstallGate } = require("./mcp_dependencies_manager.cjs");
@@ -784,6 +784,14 @@ async function handleRequest(server, request, defaultHandler) {
         };
       }
 
+      const schemaValidationError = validateArgumentsAgainstSchema(args, tool.inputSchema);
+      if (schemaValidationError) {
+        throw {
+          code: -32602,
+          message: formatSchemaValidationError(name, args, schemaValidationError),
+        };
+      }
+
       // SM-IS-01: Validate per-string input length limits (default 10 KB, or explicit schema maxLength when set).
       const oversizedFields = validateStringInputLengths(args, tool.inputSchema);
       if (oversizedFields.length) {
@@ -950,6 +958,12 @@ async function handleMessage(server, req, defaultHandler) {
           return;
         }
         server.replyError(id, -32602, generateEnhancedErrorMessage(missing, name, tool.inputSchema));
+        return;
+      }
+
+      const schemaValidationError = validateArgumentsAgainstSchema(args, tool.inputSchema);
+      if (schemaValidationError) {
+        server.replyError(id, -32602, formatSchemaValidationError(name, args, schemaValidationError));
         return;
       }
 

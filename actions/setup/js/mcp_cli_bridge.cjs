@@ -36,6 +36,7 @@ require("./shim.cjs");
 const fs = require("fs");
 const path = require("path");
 const http = require("http");
+const { renderToolRecommendedExample, renderToolSignature, summarizeHelpText } = require("./mcp_cli_schema_docs.cjs");
 
 /** Directory for JSONL audit logs (writable inside AWF sandbox via /tmp mount) */
 const AUDIT_LOG_DIR = "/tmp/gh-aw/mcp-cli-audit";
@@ -966,7 +967,10 @@ function showToolHelp(serverName, toolName, tools) {
   const lines = [
     `Command: ${toolName}`,
     `Description: ${summarizeHelpText(tool.description || "No description", TOOL_DESC_MAX_LEN)}`,
-    `Usage: ${serverName} ${toolName} [--param value ...]`,
+    "Usage:",
+    ...renderToolSignature(serverName, tool).split("\n"),
+    "Recommended:",
+    ...renderToolRecommendedExample(serverName, tool).split("\n"),
     `JSON mode: printf '{"param":"value",...}' | ${serverName} ${toolName} .`,
   ];
 
@@ -1006,26 +1010,6 @@ function showToolHelp(serverName, toolName, tools) {
  */
 function shouldShowToolHelpForEmptyArgs(serverName, toolArgs) {
   return serverName === SAFEOUTPUTS_SERVER_NAME && Object.keys(toolArgs).length === 0;
-}
-
-/**
- * Collapse whitespace and trim long help text for compact output.
- *
- * @param {string} value
- * @param {number} maxLen
- * @returns {string}
- */
-function summarizeHelpText(value, maxLen) {
-  const normalized = String(value || "")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!Number.isFinite(maxLen) || maxLen <= 0) {
-    return normalized;
-  }
-  if (normalized.length <= maxLen) {
-    return normalized;
-  }
-  return `${normalized.slice(0, maxLen - 1)}…`;
 }
 
 /**
