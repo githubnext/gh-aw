@@ -13,7 +13,6 @@ const detectorStatusLine = "THREAT_DETECTION_STATUS: reason=engine_error exit=2"
 func TestConcludeThreatDetectionScript_MissingResultContinueOnError(t *testing.T) {
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
 	outputFile := filepath.Join(t.TempDir(), "github_output.txt")
-	envFile := filepath.Join(t.TempDir(), "github_env.txt")
 	missingResult := filepath.Join(t.TempDir(), "missing_detection_result.json")
 
 	cmd := exec.Command("bash", scriptPath, missingResult)
@@ -22,7 +21,6 @@ func TestConcludeThreatDetectionScript_MissingResultContinueOnError(t *testing.T
 		"DETECTION_AGENTIC_EXECUTION_OUTCOME=failure",
 		"GH_AW_DETECTION_CONTINUE_ON_ERROR=TRUE",
 		"GITHUB_OUTPUT="+outputFile,
-		"GITHUB_ENV="+envFile,
 	)
 
 	out, err := cmd.CombinedOutput()
@@ -44,18 +42,6 @@ func TestConcludeThreatDetectionScript_MissingResultContinueOnError(t *testing.T
 	if !strings.Contains(outputText, "reason=agent_failure") {
 		t.Fatalf("expected reason=agent_failure in GITHUB_OUTPUT, got: %s", outputText)
 	}
-
-	envData, err := os.ReadFile(envFile)
-	if err != nil {
-		t.Fatalf("failed to read GITHUB_ENV: %v", err)
-	}
-	envText := string(envData)
-	if !strings.Contains(envText, "GH_AW_DETECTION_CONCLUSION=warning") {
-		t.Fatalf("expected warning conclusion in GITHUB_ENV, got: %s", envText)
-	}
-	if !strings.Contains(envText, "GH_AW_DETECTION_REASON=agent_failure") {
-		t.Fatalf("expected agent_failure reason in GITHUB_ENV, got: %s", envText)
-	}
 	if !strings.Contains(string(out), "continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true") {
 		t.Fatalf("expected warning message about continue-on-error, got: %s", out)
 	}
@@ -65,7 +51,6 @@ func TestConcludeThreatDetectionScript_MissingResultSurfacesDetectorStatus(t *te
 	tempDir := t.TempDir()
 	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "conclude_threat_detection.sh")
 	outputFile := filepath.Join(tempDir, "github_output.txt")
-	envFile := filepath.Join(tempDir, "github_env.txt")
 	missingResult := filepath.Join(tempDir, "missing_detection_result.json")
 	detectionLog := filepath.Join(tempDir, "detection.log")
 
@@ -80,7 +65,6 @@ func TestConcludeThreatDetectionScript_MissingResultSurfacesDetectorStatus(t *te
 		"GH_AW_DETECTION_CONTINUE_ON_ERROR=true",
 		"DETECTION_LOG_FILE="+detectionLog,
 		"GITHUB_OUTPUT="+outputFile,
-		"GITHUB_ENV="+envFile,
 	)
 
 	out, err := cmd.CombinedOutput()
@@ -93,18 +77,6 @@ func TestConcludeThreatDetectionScript_MissingResultSurfacesDetectorStatus(t *te
 	}
 	if !strings.Contains(string(out), "execution outcome: failure") {
 		t.Fatalf("expected warning output to include execution outcome, got: %s", out)
-	}
-
-	envData, err := os.ReadFile(envFile)
-	if err != nil {
-		t.Fatalf("failed to read GITHUB_ENV: %v", err)
-	}
-	envText := string(envData)
-	if !strings.Contains(envText, "GH_AW_DETECTION_CONCLUSION=warning") {
-		t.Fatalf("expected warning conclusion in GITHUB_ENV, got: %s", envText)
-	}
-	if !strings.Contains(envText, "GH_AW_DETECTION_REASON=agent_failure") {
-		t.Fatalf("expected agent_failure reason in GITHUB_ENV, got: %s", envText)
 	}
 }
 

@@ -37,8 +37,6 @@ if [ ! -f "${RESULT_FILE}" ]; then
     echo "conclusion=warning" >> "${GITHUB_OUTPUT}"
     echo "success=false" >> "${GITHUB_OUTPUT}"
     echo "reason=agent_failure" >> "${GITHUB_OUTPUT}"
-    echo "GH_AW_DETECTION_CONCLUSION=warning" >> "${GITHUB_ENV}"
-    echo "GH_AW_DETECTION_REASON=agent_failure" >> "${GITHUB_ENV}"
     exit 0
   fi
   echo "ERR_SYSTEM: ❌ ${result_message}"
