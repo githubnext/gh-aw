@@ -265,7 +265,7 @@ function buildPushErrorSection(rawErrorMessage, sanitizedErrorMessage) {
   // Only render the structured block for PushSignedCommitsUnsupportedShape errors,
   // identified by the unique "cannot represent" boilerplate text. PushSignedCommitsPolicyViolation
   // errors also start with "refusing unsigned push" but lack this boilerplate, so they fall
-  // through to the sanitised original-error fallback.
+  // through to the sanitized original-error fallback.
   if (!/pushSignedCommits: refusing unsigned push/.test(rawErrorMessage) || !/createCommitOnBranch GraphQL mutation cannot represent/.test(rawErrorMessage)) {
     return `> **Original error:** ${sanitizedErrorMessage}`;
   }
