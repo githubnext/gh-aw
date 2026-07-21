@@ -810,6 +810,111 @@ describe("close_issue", () => {
       expect(updateCalls[0].state_reason).toBe("duplicate");
     });
 
+    it("should use first item in state_reasons list as default when agent omits state_reason", async () => {
+      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Closing" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("not_planned");
+    });
+
+    it("should accept item-level state_reason from state_reasons list", async () => {
+      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Duplicate", state_reason: "DUPLICATE" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("duplicate");
+    });
+
+    it("should reject item-level state_reason not in state_reasons list", async () => {
+      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+
+      const result = await handler({ issue_number: 100, body: "Completed", state_reason: "COMPLETED" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/not permitted/i);
+      expect(result.error).toMatch(/COMPLETED/);
+    });
+
+    it("should accept item-level state_reason for omitted config (all three values)", async () => {
+      const handler = await main({ max: 10 });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      for (const reason of ["COMPLETED", "NOT_PLANNED", "DUPLICATE"]) {
+        updateCalls.length = 0;
+        const result = await handler({ issue_number: 100, body: "Closing", state_reason: reason }, {});
+        expect(result.success).toBe(true);
+        expect(updateCalls[0].state_reason).toBe(reason.toLowerCase());
+      }
+    });
+
+    it("should reject invalid state_reason for omitted config", async () => {
+      const handler = await main({ max: 10 });
+
+      const result = await handler({ issue_number: 100, body: "Closing", state_reason: "INVALID" }, {});
+
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/not a supported value/i);
+    });
+
+    it("should default to COMPLETED when omitted config and agent omits state_reason", async () => {
+      const handler = await main({ max: 10 });
+      const updateCalls = [];
+
+      mockGithub.rest.issues.update = async params => {
+        updateCalls.push(params);
+        return {
+          data: {
+            number: params.issue_number,
+            title: "Test Issue",
+            html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          },
+        };
+      };
+
+      const result = await handler({ issue_number: 100, body: "Closing" }, {});
+
+      expect(result.success).toBe(true);
+      expect(updateCalls[0].state_reason).toBe("completed");
+    });
+
     it("should resolve temporary ID in issue_number field", async () => {
       const handler = await main({ max: 10 });
       const updateCalls = [];
@@ -1319,6 +1424,43 @@ describe("close_issue", () => {
       expect(result.success).toBe(true);
       expect(graphqlCalls.length).toBe(0);
       expect(mockCore.warnings.some(w => w.includes("not DUPLICATE"))).toBe(true);
+    });
+
+    it("should mark native duplicate when using state_reasons list with DUPLICATE and duplicate_of", async () => {
+      const handler = await main({ max: 10, state_reasons: ["not_planned", "duplicate"] });
+      const graphqlCalls = [];
+
+      mockGithub.rest.issues.get = async ({ owner, repo, issue_number }) => ({
+        data: {
+          number: issue_number,
+          title: "Test Issue",
+          labels: [],
+          html_url: `https://github.com/${owner}/${repo}/issues/${issue_number}`,
+          state: "open",
+          node_id: `node_${owner}_${repo}_${issue_number}`,
+        },
+      });
+
+      mockGithub.rest.issues.update = async params => ({
+        data: {
+          number: params.issue_number,
+          title: "Test Issue",
+          html_url: `https://github.com/${params.owner}/${params.repo}/issues/${params.issue_number}`,
+          node_id: `node_${params.owner}_${params.repo}_${params.issue_number}`,
+        },
+      });
+
+      mockGithub.graphql = async (mutation, variables) => {
+        graphqlCalls.push(variables);
+        return { markAsDuplicate: { duplicate: { id: variables.duplicateId, number: 1003 } } };
+      };
+
+      const result = await handler({ issue_number: 1003, body: "Duplicate report", state_reason: "DUPLICATE", duplicate_of: 50, suggest: true, rationale: "Same CSV defect.", confidence: "HIGH" }, {});
+
+      expect(result.success).toBe(true);
+      expect(graphqlCalls.length).toBeGreaterThan(0);
+      const mutation = graphqlCalls.find(c => "duplicateId" in c || "canonicalId" in c);
+      expect(mutation).toBeDefined();
     });
   });
 });

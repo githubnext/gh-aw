@@ -222,6 +222,12 @@ type ToolsMeta struct {
 	// inputSchema.required array. Used when a field that is optional in the static
 	// safe_outputs_tools.json should be required for this specific workflow.
 	RequiredFieldAdditions map[string][]string `json:"required_field_additions,omitempty"`
+	// PropertyInjections maps tool name → property name → full JSON Schema property definition.
+	// Used when a property should be injected into a tool's inputSchema at runtime based on
+	// workflow configuration (e.g., a state_reason enum restricted to configured values).
+	// If the property already exists in the static schema its definition is replaced;
+	// otherwise it is added as a new optional property.
+	PropertyInjections map[string]map[string]any `json:"property_injections,omitempty"`
 }
 
 // computeRequiredFieldRemovals returns a map of tool name → required fields to remove
@@ -275,6 +281,41 @@ func computeRequiredFieldAdditions(safeOutputs *SafeOutputsConfig) map[string][]
 
 func issueIntentRequired(issueIntent *bool) bool {
 	return issueIntent != nil && *issueIntent
+}
+
+// closeIssueStateReasonValues is the full set of supported state reasons for close_issue.
+var closeIssueStateReasonValues = []string{"completed", "not_planned", "duplicate"}
+
+// computePropertyInjections returns a map of tool name → property name → property schema
+// for properties that must be injected into the tool schema based on workflow configuration.
+//
+// Currently handles close_issue state_reason:
+//   - Omitted config (no state-reason): inject state_reason with all three supported values.
+//   - List config (state-reason: [...]): inject state_reason with the configured subset.
+//   - Scalar config (state-reason: "..."): no injection (fixed reason, agent cannot choose).
+func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[string]any {
+	injections := make(map[string]map[string]any)
+	if safeOutputs == nil || safeOutputs.CloseIssues == nil {
+		return injections
+	}
+	c := safeOutputs.CloseIssues
+	// Scalar config: agent cannot change state_reason; do not expose the field.
+	if c.StateReason != "" {
+		return injections
+	}
+	// List or omitted: expose state_reason with the permitted enum.
+	enumValues := c.StateReasons
+	if len(enumValues) == 0 {
+		enumValues = closeIssueStateReasonValues
+	}
+	injections["close_issue"] = map[string]any{
+		"state_reason": map[string]any{
+			"type":        "string",
+			"enum":        enumValues,
+			"description": "Optional closing state reason. Omit to use the configured default. Select 'duplicate' together with 'duplicate_of' to mark a native duplicate relationship.",
+		},
+	}
+	return injections
 }
 
 // generateToolsMetaJSON generates the content for tools_meta.json: a compact file
@@ -336,12 +377,16 @@ func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, err
 	requiredFieldRemovals := computeRequiredFieldRemovals(data.SafeOutputs)
 	requiredFieldAdditions := computeRequiredFieldAdditions(data.SafeOutputs)
 
+	// Compute property injections (e.g. state_reason enum for close_issue).
+	propertyInjections := computePropertyInjections(data.SafeOutputs)
+
 	meta := ToolsMeta{
 		DescriptionSuffixes:    descriptionSuffixes,
 		RepoParams:             repoParams,
 		DynamicTools:           dynamicTools,
 		RequiredFieldRemovals:  requiredFieldRemovals,
 		RequiredFieldAdditions: requiredFieldAdditions,
+		PropertyInjections:     propertyInjections,
 	}
 
 	result, err := json.MarshalIndent(meta, "", "  ")

@@ -82,8 +82,9 @@ type CloseEntityConfig struct {
 	SafeOutputTargetConfig           `yaml:",inline"`
 	SafeOutputFilterConfig           `yaml:",inline"`
 	SafeOutputDiscussionFilterConfig `yaml:",inline"` // Only used for discussions
-	StateReason                      string           `yaml:"state-reason,omitempty"` // Only used for issues
-	AllowBody                        *bool            `yaml:"allow-body,omitempty"`   // If false, any body provided by the agent is dropped with a warning; close proceeds without a comment
+	StateReason                      string           `yaml:"state-reason,omitempty"`  // Only used for issues. Scalar: fixed reason. Mutually exclusive with StateReasons.
+	StateReasons                     []string         `yaml:"state-reasons,omitempty"` // Only used for issues. List: agent selects from this subset. Populated by preprocessing when state-reason is a YAML sequence.
+	AllowBody                        *bool            `yaml:"allow-body,omitempty"`    // If false, any body provided by the agent is dropped with a warning; close proceeds without a comment
 }
 
 // CloseEntityJobParams holds the parameters needed to build a close entity job
@@ -116,6 +117,18 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 		return nil
 	}
 
+	// Pre-process state-reason: when the value is a sequence (list) rather than a scalar,
+	// move it to "state-reasons" so it unmarshals into StateReasons []string instead of
+	// the scalar StateReason string field. This supports the list form:
+	//   state-reason: [not_planned, duplicate]
+	if configData != nil {
+		if raw, exists := configData["state-reason"]; exists {
+			if preprocessStateReasonList(configData, raw, logger) {
+				logger.Printf("state-reason list form detected for %s; moved to state-reasons", params.ConfigKey)
+			}
+		}
+	}
+
 	config := parseConfigScaffold(outputMap, params.ConfigKey, logger, func(err error) *CloseEntityConfig {
 		logger.Printf("Failed to unmarshal config: %v", err)
 		// For backward compatibility, handle nil/empty config
@@ -139,6 +152,37 @@ func (c *Compiler) parseCloseEntityConfig(outputMap map[string]any, params Close
 	logger.Printf("Parsed %s configuration: max=%s, target=%s", params.ConfigKey, *config.Max, config.Target)
 
 	return config
+}
+
+// preprocessStateReasonList converts a list-form state-reason value into the state-reasons key.
+// Returns true if the value was a list and was successfully converted.
+func preprocessStateReasonList(configData map[string]any, raw any, logger *logger.Logger) bool {
+	switch v := raw.(type) {
+	case []any:
+		reasons := make([]string, 0, len(v))
+		for _, elem := range v {
+			s, ok := elem.(string)
+			if !ok {
+				if logger != nil {
+					logger.Printf("state-reason list contains non-string element %T; ignoring", elem)
+				}
+				continue
+			}
+			reasons = append(reasons, s)
+		}
+		if len(reasons) > 0 {
+			configData["state-reasons"] = reasons
+		}
+		delete(configData, "state-reason")
+		return true
+	case []string:
+		if len(v) > 0 {
+			configData["state-reasons"] = v
+		}
+		delete(configData, "state-reason")
+		return true
+	}
+	return false
 }
 
 // closeEntityDefinition holds all parameters for a close entity type
