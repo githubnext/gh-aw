@@ -153,12 +153,6 @@
       "version": "v1.314.0",
       "sha": "9eb537ca036ebaed86729dcb9309076e4c5c3b74"
     },
-    "ruby/setup-ruby@v1.319.0": {
-      "repo": "ruby/setup-ruby",
-      "version": "v1.319.0",
-      "sha": "",
-      "released_at": "2026-07-16T06:10:13Z"
-    },
     "safedep/pmg@v1": {
       "repo": "safedep/pmg",
       "version": "v1",

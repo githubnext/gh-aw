@@ -132,6 +132,10 @@ func getActionPins() []ActionPin {
 			actionPinsLog.Printf("Found %d key/version mismatches in action_pins.json", n)
 		}
 
+		if n := countEntriesWithEmptySHA(data.Entries); n > 0 {
+			panic(fmt.Sprintf("action_pins.json has %d entries with empty SHA — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing", n))
+		}
+
 		pins := slices.Collect(maps.Values(data.Entries))
 
 		slices.SortFunc(pins, func(a, b ActionPin) int {
@@ -170,6 +174,19 @@ func countPinKeyMismatches(entries map[string]ActionPin) int {
 				actionPinsLog.Printf("WARNING: Key/version mismatch in action_pins.json: key=%s has version=%s but pin.Version=%s (sha=%s)",
 					key, keyVersion, pin.Version, shortSHA)
 			}
+		}
+	}
+	return count
+}
+
+// countEntriesWithEmptySHA returns the number of entries whose SHA field is empty,
+// logging each offending entry for diagnostics.
+func countEntriesWithEmptySHA(entries map[string]ActionPin) int {
+	count := 0
+	for key, pin := range entries {
+		if pin.SHA == "" {
+			count++
+			actionPinsLog.Printf("ERROR: Empty SHA in action_pins.json: key=%s repo=%s version=%s", key, pin.Repo, pin.Version)
 		}
 	}
 	return count
@@ -227,6 +244,9 @@ func getLatestActionPinReference(repo string) string {
 // FormatPinnedActionReference formats a pinned action reference with repo, SHA, and version comment.
 // Example: "actions/checkout@abc123 # v4.1.0"
 func FormatPinnedActionReference(repo, sha, version string) string {
+	if sha == "" {
+		panic(fmt.Sprintf("FormatPinnedActionReference called with empty SHA for repo=%s version=%s — this would produce invalid workflow YAML", repo, version))
+	}
 	return repo + "@" + sha + " # " + version
 }
 

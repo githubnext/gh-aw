@@ -63,6 +63,43 @@ func TestCountPinKeyMismatches_ReturnsOnlyVersionMismatches(t *testing.T) {
 	})
 }
 
+func TestCountEntriesWithEmptySHA_ReturnsOnlyEmptySHAEntries(t *testing.T) {
+	t.Run("returns zero for empty entries", func(t *testing.T) {
+		assert.Zero(t, countEntriesWithEmptySHA(map[string]ActionPin{}), "Expected empty input to produce zero results")
+	})
+
+	t.Run("returns zero when all entries have non-empty SHAs", func(t *testing.T) {
+		entries := map[string]ActionPin{
+			"actions/checkout@v5": {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
+			"actions/setup-go@v4": {Repo: "actions/setup-go", Version: "v4", SHA: "def456"},
+		}
+		assert.Zero(t, countEntriesWithEmptySHA(entries), "Expected zero empty SHA entries when all SHAs are populated")
+	})
+
+	t.Run("counts entries with empty SHA", func(t *testing.T) {
+		entries := map[string]ActionPin{
+			"actions/checkout@v5":      {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
+			"ruby/setup-ruby@v1.319.0": {Repo: "ruby/setup-ruby", Version: "v1.319.0", SHA: ""},
+		}
+		assert.Equal(t, 1, countEntriesWithEmptySHA(entries), "Expected one entry with empty SHA to be counted")
+	})
+
+	t.Run("counts multiple entries with empty SHA", func(t *testing.T) {
+		entries := map[string]ActionPin{
+			"actions/checkout@v5":      {Repo: "actions/checkout", Version: "v5", SHA: "abc123"},
+			"ruby/setup-ruby@v1.319.0": {Repo: "ruby/setup-ruby", Version: "v1.319.0", SHA: ""},
+			"owner/repo@v2":            {Repo: "owner/repo", Version: "v2", SHA: ""},
+		}
+		assert.Equal(t, 2, countEntriesWithEmptySHA(entries), "Expected two entries with empty SHA to be counted")
+	})
+}
+
+func TestFormatPinnedActionReference_PanicsOnEmptySHA(t *testing.T) {
+	assert.Panics(t, func() {
+		FormatPinnedActionReference("ruby/setup-ruby", "", "v1.319.0")
+	}, "Expected FormatPinnedActionReference to panic when SHA is empty")
+}
+
 func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 	t.Run("initializes nil warnings map", func(t *testing.T) {
 		ctx := &PinContext{}
