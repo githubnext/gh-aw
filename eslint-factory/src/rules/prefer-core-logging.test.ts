@@ -245,7 +245,7 @@ describe("prefer-core-logging", () => {
           ],
         },
         {
-          // numeric literal — core.info(42) coerces to "42" but semantic intent differs
+          // numeric identifier — type is unknown statically; no safe suggestion
           code: `const count = 5; console.log(count);`,
           errors: [
             {
