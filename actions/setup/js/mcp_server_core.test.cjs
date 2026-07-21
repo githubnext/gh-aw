@@ -442,7 +442,7 @@ describe("mcp_server_core.cjs", () => {
       expect(results).toHaveLength(1);
       expect(results[0].error.code).toBe(-32602);
       expect(results[0].error.message).toContain("Invalid arguments for add_labels:");
-      expect(results[0].error.message).toContain("labels[0] must be an object when issue-intent is enabled.");
+      expect(results[0].error.message).toContain("labels[0] must be an object (string shorthand is not supported).");
       expect(handler).not.toHaveBeenCalled();
     });
 
