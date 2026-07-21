@@ -7,8 +7,9 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
+
+	"golang.org/x/sync/errgroup"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -329,7 +330,7 @@ type auditRunConfig struct {
 // auditAnalysisResults is populated concurrently during audit collection.
 // Each field is written by exactly one goroutine (or one launch* helper that
 // exclusively owns a disjoint field set) before collectAuditAnalysisResults
-// waits on the shared WaitGroup and reads the aggregate result.
+// waits on the shared errgroup and reads the aggregate result.
 //
 // Keep launch* helper field ownership disjoint: sharing a field between
 // goroutines without adding synchronization would introduce a data race.
@@ -377,7 +378,10 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	if err != nil {
 		return err
 	}
-	results := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName, cfg.artifactFilter))
+	results, err := collectAuditAnalysisResults(ctx, run, cfg.outputDir, cfg.verbose, artifactMatchesFilter(constants.AgentArtifactName, cfg.artifactFilter))
+	if err != nil {
+		return err
+	}
 	run = applyAuditMetrics(run, results)
 	processedRun := buildProcessedAuditRun(run, results)
 	saveAuditRunSummary(cfg.outputDir, run, processedRun, results, cfg.verbose)
@@ -660,47 +664,49 @@ func prepareRunForAnalysis(run WorkflowRun, cfg auditRunConfig, useLocalCache bo
 	return run
 }
 
-func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutputDir string, verbose bool, hasFirewallArtifact bool) auditAnalysisResults {
+func collectAuditAnalysisResults(ctx context.Context, run WorkflowRun, runOutputDir string, verbose bool, hasFirewallArtifact bool) (auditAnalysisResults, error) {
 	results := auditAnalysisResults{}
-	var wg sync.WaitGroup
-	launchCoreAuditAnalyses(ctx, &wg, &results, run, runOutputDir, verbose)
+	g, gctx := errgroup.WithContext(ctx)
+	launchCoreAuditAnalyses(g, gctx, &results, run, runOutputDir, verbose)
 	if hasFirewallArtifact {
-		launchFirewallAuditAnalyses(&wg, &results, runOutputDir, verbose)
+		launchFirewallAuditAnalyses(g, gctx, &results, runOutputDir, verbose)
 	}
-	launchSupplementalAuditAnalyses(&wg, &results, runOutputDir, verbose)
-	wg.Wait()
-	return results
+	launchSupplementalAuditAnalyses(g, gctx, &results, runOutputDir, verbose)
+	if err := g.Wait(); err != nil {
+		return results, err
+	}
+	return results, nil
 }
 
 // launchCoreAuditAnalyses exclusively writes missingTools, missingData, noops, mcpFailures, and accessAnalysis.
-func launchCoreAuditAnalyses(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
+func launchCoreAuditAnalyses(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
 	// Resolve experiment assignment once so all goroutines reuse the same values
 	// rather than each reading state.json independently.
 	expName, expVariant, _ := firstExperimentAssignment(extractExperimentData(runOutputDir))
 
-	launchMetricsAnalysis(wg, results, runOutputDir, verbose, run.WorkflowPath)
-	launchJobDetailsAnalysis(ctx, wg, results, run.DatabaseID, verbose)
-	runAuditAnalysis(wg, verbose, "extractMissingToolsFromRun", "Failed to extract missing tools", func(v []MissingToolReport) {
+	launchMetricsAnalysis(g, gctx, results, runOutputDir, verbose, run.WorkflowPath)
+	launchJobDetailsAnalysis(g, gctx, results, run.DatabaseID, verbose)
+	runAuditAnalysis(g, gctx, verbose, "extractMissingToolsFromRun", "Failed to extract missing tools", func(v []MissingToolReport) {
 		results.missingTools = v
 	}, func() ([]MissingToolReport, error) {
 		return extractMissingToolsFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
-	runAuditAnalysis(wg, verbose, "extractMissingDataFromRun", "Failed to extract missing data", func(v []MissingDataReport) {
+	runAuditAnalysis(g, gctx, verbose, "extractMissingDataFromRun", "Failed to extract missing data", func(v []MissingDataReport) {
 		results.missingData = v
 	}, func() ([]MissingDataReport, error) {
 		return extractMissingDataFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
-	runAuditAnalysis(wg, verbose, "extractNoopsFromRun", "Failed to extract noops", func(v []NoopReport) {
+	runAuditAnalysis(g, gctx, verbose, "extractNoopsFromRun", "Failed to extract noops", func(v []NoopReport) {
 		results.noops = v
 	}, func() ([]NoopReport, error) {
 		return extractNoopsFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
-	runAuditAnalysis(wg, verbose, "extractMCPFailuresFromRun", "Failed to extract MCP failures", func(v []MCPFailureReport) {
+	runAuditAnalysis(g, gctx, verbose, "extractMCPFailuresFromRun", "Failed to extract MCP failures", func(v []MCPFailureReport) {
 		results.mcpFailures = v
 	}, func() ([]MCPFailureReport, error) {
 		return extractMCPFailuresFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
-	runAuditAnalysis(wg, verbose, "analyzeAccessLogs", "Failed to analyze access logs", func(v *DomainAnalysis) {
+	runAuditAnalysis(g, gctx, verbose, "analyzeAccessLogs", "Failed to analyze access logs", func(v *DomainAnalysis) {
 		results.accessAnalysis = v
 	}, func() (*DomainAnalysis, error) {
 		return analyzeAccessLogs(runOutputDir, verbose)
@@ -708,50 +714,64 @@ func launchCoreAuditAnalyses(ctx context.Context, wg *sync.WaitGroup, results *a
 }
 
 // launchMetricsAnalysis exclusively writes results.metrics.
-func launchMetricsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool, workflowPath string) {
-	wg.Go(func() {
+func launchMetricsAnalysis(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, runOutputDir string, verbose bool, workflowPath string) {
+	g.Go(func() error {
+		if err := gctx.Err(); err != nil {
+			return err
+		}
 		metrics, err := extractLogMetrics(runOutputDir, verbose, workflowPath)
 		if err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract metrics: %v", err)))
 			}
 			results.metrics = LogMetrics{}
-			return
+			return nil
+		}
+		if err := gctx.Err(); err != nil {
+			return err
 		}
 		results.metrics = metrics
+		return nil
 	})
 }
 
 // launchJobDetailsAnalysis exclusively writes results.jobDetails and results.failedJobCount.
-func launchJobDetailsAnalysis(ctx context.Context, wg *sync.WaitGroup, results *auditAnalysisResults, runID int64, verbose bool) {
-	wg.Go(func() {
-		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
+func launchJobDetailsAnalysis(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, runID int64, verbose bool) {
+	g.Go(func() error {
+		if err := gctx.Err(); err != nil {
+			return err
+		}
+		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(gctx, runID, verbose)
 		if err != nil {
 			auditLog.Printf("fetchJobDetailsWithCounts failed: %v", err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch job details: %v", err)))
 			}
-			return
+			return nil
+		}
+		if err := gctx.Err(); err != nil {
+			return err
 		}
 		results.jobDetails = jobDetails
 		results.failedJobCount = failedJobCount
+		return nil
 	})
 }
 
 // launchFirewallAuditAnalyses exclusively writes policyAnalysis, mcpToolUsage, and tokenUsageSummary.
-func launchFirewallAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool) {
-	launchFirewallAnalysis(wg, results, runOutputDir, verbose)
-	runAuditAnalysis(wg, verbose, "analyzeFirewallPolicy", "Failed to analyze firewall policy", func(v *PolicyAnalysis) {
+func launchFirewallAuditAnalyses(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, runOutputDir string, verbose bool) {
+	launchFirewallAnalysis(g, gctx, results, runOutputDir, verbose)
+	runAuditAnalysis(g, gctx, verbose, "analyzeFirewallPolicy", "Failed to analyze firewall policy", func(v *PolicyAnalysis) {
 		results.policyAnalysis = v
 	}, func() (*PolicyAnalysis, error) {
 		return analyzeFirewallPolicy(runOutputDir, verbose)
 	})
-	runAuditAnalysis(wg, verbose, "extractMCPToolUsageData", "Failed to extract MCP tool usage", func(v *MCPToolUsageData) {
+	runAuditAnalysis(g, gctx, verbose, "extractMCPToolUsageData", "Failed to extract MCP tool usage", func(v *MCPToolUsageData) {
 		results.mcpToolUsage = v
 	}, func() (*MCPToolUsageData, error) {
 		return extractMCPToolUsageData(runOutputDir, verbose)
 	})
-	runAuditAnalysis(wg, verbose, "analyzeTokenUsage", "Failed to analyze token usage", func(v *TokenUsageSummary) {
+	runAuditAnalysis(g, gctx, verbose, "analyzeTokenUsage", "Failed to analyze token usage", func(v *TokenUsageSummary) {
 		results.tokenUsageSummary = v
 	}, func() (*TokenUsageSummary, error) {
 		return analyzeTokenUsage(runOutputDir, verbose)
@@ -759,8 +779,11 @@ func launchFirewallAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResul
 }
 
 // launchFirewallAnalysis exclusively writes results.firewallAnalysis.
-func launchFirewallAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool) {
-	wg.Go(func() {
+func launchFirewallAnalysis(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, runOutputDir string, verbose bool) {
+	g.Go(func() error {
+		if err := gctx.Err(); err != nil {
+			return err
+		}
 		firewallAnalysis, err := analyzeFirewallLogs(runOutputDir, verbose)
 		if err != nil {
 			auditLog.Printf("analyzeFirewallLogs failed: %v", err)
@@ -775,43 +798,58 @@ func launchFirewallAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults, r
 				firewallAnalysis.AddMetrics(agentLogFirewall)
 			}
 		}
+		if err := gctx.Err(); err != nil {
+			return err
+		}
 		results.firewallAnalysis = firewallAnalysis
+		return nil
 	})
 }
 
 // launchSupplementalAuditAnalyses exclusively writes redactedDomainsAnalysis, rateLimitUsage, artifacts, and safeItemsCount.
-func launchSupplementalAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool) {
-	runAuditAnalysis(wg, verbose, "analyzeRedactedDomains", "Failed to analyze redacted domains", func(v *RedactedDomainsAnalysis) {
+func launchSupplementalAuditAnalyses(g *errgroup.Group, gctx context.Context, results *auditAnalysisResults, runOutputDir string, verbose bool) {
+	runAuditAnalysis(g, gctx, verbose, "analyzeRedactedDomains", "Failed to analyze redacted domains", func(v *RedactedDomainsAnalysis) {
 		results.redactedDomainsAnalysis = v
 	}, func() (*RedactedDomainsAnalysis, error) {
 		return analyzeRedactedDomains(runOutputDir, verbose)
 	})
-	runAuditAnalysis(wg, verbose, "analyzeGitHubRateLimits", "Failed to analyze GitHub rate limit usage", func(v *GitHubRateLimitUsage) {
+	runAuditAnalysis(g, gctx, verbose, "analyzeGitHubRateLimits", "Failed to analyze GitHub rate limit usage", func(v *GitHubRateLimitUsage) {
 		results.rateLimitUsage = v
 	}, func() (*GitHubRateLimitUsage, error) {
 		return analyzeGitHubRateLimits(runOutputDir, verbose)
 	})
-	runAuditAnalysis(wg, verbose, "listArtifacts", "Failed to list artifacts", func(v []string) {
+	runAuditAnalysis(g, gctx, verbose, "listArtifacts", "Failed to list artifacts", func(v []string) {
 		results.artifacts = v
 	}, func() ([]string, error) {
 		return listArtifacts(runOutputDir)
 	})
-	wg.Go(func() {
+	g.Go(func() error {
+		if err := gctx.Err(); err != nil {
+			return err
+		}
 		results.safeItemsCount = len(extractCreatedItemsFromManifest(runOutputDir))
+		return nil
 	})
 }
 
-func runAuditAnalysis[T any](wg *sync.WaitGroup, verbose bool, name, warning string, setter func(T), fn func() (T, error)) {
-	wg.Go(func() {
+func runAuditAnalysis[T any](g *errgroup.Group, gctx context.Context, verbose bool, name, warning string, setter func(T), fn func() (T, error)) {
+	g.Go(func() error {
+		if err := gctx.Err(); err != nil {
+			return err
+		}
 		value, err := fn()
 		if err != nil {
 			auditLog.Printf("%s failed: %v", name, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s: %v", warning, err)))
 			}
-			return
+			return nil
+		}
+		if err := gctx.Err(); err != nil {
+			return err
 		}
 		setter(value)
+		return nil
 	})
 }
 
