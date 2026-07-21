@@ -201,14 +201,11 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotCredentials(t *testing.T) {
 	assert.NotContains(t, stepContent, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
 }
 
-func TestClaudeEngineLLMProviderGitHubUsesCopilotTokenEvenWithCopilotRequestsWrite(t *testing.T) {
-	// When copilot-requests: write is set, the standard Copilot engine can use
-	// github.token (the server-to-server GITHUB_TOKEN) because the copilot sidecar
-	// performs token exchange. The Claude engine routes through the anthropic sidecar
-	// which does NOT do token exchange — it forwards the token as-is to
-	// api.githubcopilot.com, which rejects server-to-server tokens with HTTP 400.
-	// Therefore, the Claude engine must always use COPILOT_GITHUB_TOKEN (a PAT)
-	// regardless of the copilot-requests: write permission.
+func TestClaudeEngineLLMProviderGitHubWithCopilotRequestsWriteUsesGithubToken(t *testing.T) {
+	// When copilot-requests: write is set, llmProviderSecretExpression returns
+	// github.token (the server-to-server GITHUB_TOKEN), consistent with how all
+	// other engines handle the GitHub provider. The Claude engine follows the same
+	// standard token selection as the rest of the system.
 	engine := NewClaudeEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -225,9 +222,9 @@ func TestClaudeEngineLLMProviderGitHubUsesCopilotTokenEvenWithCopilotRequestsWri
 	require.Len(t, steps, 1)
 	stepContent := strings.Join([]string(steps[0]), "\n")
 
-	// Must use COPILOT_GITHUB_TOKEN, NOT github.token, even with copilot-requests:write.
-	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
-	assert.NotContains(t, stepContent, "ANTHROPIC_API_KEY: ${{ github.token }}")
+	// With copilot-requests: write, the standard github.token is used.
+	assert.Contains(t, stepContent, "ANTHROPIC_API_KEY: ${{ github.token }}")
+	assert.NotContains(t, stepContent, "ANTHROPIC_API_KEY: ${{ secrets.COPILOT_GITHUB_TOKEN }}")
 }
 
 func TestClaudeEngineAllowsMountedMCPCLICommandsInRestrictedBash(t *testing.T) {
