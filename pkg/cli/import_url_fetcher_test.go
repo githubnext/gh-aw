@@ -436,6 +436,20 @@ func TestAttachImportAuthHeader_GHE_ServerURLEnvVar(t *testing.T) {
 	assert.Equal(t, "Bearer srv-token", req.Header.Get("Authorization"), "GITHUB_SERVER_URL must resolve as the auth host")
 }
 
+// GITHUB_HOST resolves the auth host (third-highest priority, above GH_HOST).
+func TestAttachImportAuthHeader_GHE_GitHubHostEnvVar(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "gh-host-token")
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "ghhost.example.com")
+	t.Setenv("GH_HOST", "lowpriority.example.com")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://ghhost.example.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "https://ghhost.example.com/owner/repo/raw/main/wf.md")
+	assert.Equal(t, "Bearer "+"gh-host-token", req.Header.Get("Authorization"), "GITHUB_HOST must resolve as the auth host")
+}
+
 // TestBuildRequestLogString_RedactsAuthorization verifies that the request formatter
 // never exposes the raw token and shows the correct redacted form.
 func TestBuildRequestLogString_RedactsAuthorization(t *testing.T) {
