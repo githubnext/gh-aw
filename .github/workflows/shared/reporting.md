@@ -1,6 +1,7 @@
 ---
-### Report formatting guidelines
 ---
+
+### Report formatting guidelines
 
 ### Report structure guidelines
 
