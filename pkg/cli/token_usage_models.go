@@ -118,6 +118,8 @@ func (s *TokenUsageSummary) AvgDurationMs() int {
 func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 	rows := make([]ModelTokenUsageRow, 0, len(s.ByModel))
 	for model, usage := range s.ByModel {
+		// Defensive guard: sibling aggregation helpers already skip nil entries,
+		// and ModelRows follows that convention to avoid panics in tests/future callers.
 		if usage == nil {
 			continue
 		}

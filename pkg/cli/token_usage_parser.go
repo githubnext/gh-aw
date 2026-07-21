@@ -16,7 +16,7 @@ import (
 )
 
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
-func parseTokenUsageFile(filePath string) (_ *TokenUsageSummary, err error) {
+func parseTokenUsageFile(filePath string) (summary *TokenUsageSummary, err error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
 	file, err := os.Open(filePath)
@@ -29,7 +29,7 @@ func parseTokenUsageFile(filePath string) (_ *TokenUsageSummary, err error) {
 		}
 	}()
 
-	summary := &TokenUsageSummary{
+	summary = &TokenUsageSummary{
 		ByModel: make(map[string]*ModelTokenUsage),
 	}
 
