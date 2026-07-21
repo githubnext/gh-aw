@@ -52,53 +52,53 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.FuncDecl)(nil),
-		(*ast.FuncLit)(nil),
+	nodeFilter := []ast.Node{(*ast.FuncDecl)(nil), (*ast.FuncLit)(nil)}
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		checkFuncBodyLength(pass, n, generatedFiles, noLintIndex)
+	})
+	return nil, nil
+}
+
+// checkFuncBodyLength reports a diagnostic when the body of a function
+// declaration or literal exceeds maxLines.
+func checkFuncBodyLength(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	var body *ast.BlockStmt
+	var name string
+	var reportNode ast.Node
+
+	switch fn := n.(type) {
+	case *ast.FuncDecl:
+		body = fn.Body
+		name = fn.Name.Name
+		reportNode = fn.Name
+	case *ast.FuncLit:
+		body = fn.Body
+		name = "func literal"
+		reportNode = body
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		var body *ast.BlockStmt
-		var name string
-		var reportNode ast.Node
+	if body == nil {
+		return
+	}
 
-		switch fn := n.(type) {
-		case *ast.FuncDecl:
-			body = fn.Body
-			name = fn.Name.Name
-			reportNode = fn.Name
-		case *ast.FuncLit:
-			body = fn.Body
-			name = "func literal"
-			reportNode = body
-		}
+	position := pass.Fset.PositionFor(reportNode.Pos(), false)
+	if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+		return
+	}
 
-		if body == nil {
+	start := pass.Fset.Position(body.Lbrace)
+	end := pass.Fset.Position(body.Rbrace)
+	lines := end.Line - start.Line - 1 // subtract 1: exclude the closing brace line, count only body lines
+
+	if lines > maxLines {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "largefunc") {
 			return
 		}
-
-		position := pass.Fset.PositionFor(reportNode.Pos(), false)
-		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
-			return
-		}
-
-		start := pass.Fset.Position(body.Lbrace)
-		end := pass.Fset.Position(body.Rbrace)
-		// Subtract 1 to exclude the closing brace line itself, counting only body lines.
-		lines := end.Line - start.Line - 1
-
-		if lines > maxLines {
-			if nolint.HasDirectiveForLinter(position, noLintIndex, "largefunc") {
-				return
-			}
-			pkgLog.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
-			pass.ReportRangef(
-				reportNode,
-				"%s is %d lines long (limit: %d); consider breaking it up",
-				name, lines, maxLines,
-			)
-		}
-	})
-
-	return nil, nil
+		pkgLog.Printf("flagging %s: %d lines exceeds limit %d", name, lines, maxLines)
+		pass.ReportRangef(
+			reportNode,
+			"%s is %d lines long (limit: %d); consider breaking it up",
+			name, lines, maxLines,
+		)
+	}
 }

@@ -66,84 +66,91 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 	filesWithImportEdit := make(map[token.Pos]bool)
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		analyzeWriteCall(pass, n, generatedFiles, noLintIndex, filesWithImportEdit)
+	})
+	return nil, nil
+}
+
+// analyzeWriteCall checks whether a call expression is a w.Write([]byte(s))
+// pattern that can be replaced with io.WriteString(w, s).
+func analyzeWriteCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex, filesWithImportEdit map[token.Pos]bool) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
-			return
-		}
+	// Match <expr>.Write(<arg>)
+	sel, ok := call.Fun.(*ast.SelectorExpr)
+	if !ok || sel.Sel.Name != "Write" {
+		return
+	}
+	if len(call.Args) != 1 {
+		return
+	}
 
-		// Match <expr>.Write(<arg>)
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Write" {
-			return
-		}
-		if len(call.Args) != 1 {
-			return
-		}
+	pos := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "writebytestring") {
+		return
+	}
 
-		pos := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "writebytestring") {
-			return
-		}
+	// The single argument must be a []byte(s) conversion where s is a string.
+	conv, ok := call.Args[0].(*ast.CallExpr)
+	if !ok {
+		return
+	}
+	if !astutil.IsByteSliceConversion(pass, conv) {
+		return
+	}
+	strArg := conv.Args[0]
+	if !astutil.IsStringType(pass, strArg) {
+		return
+	}
 
-		// The single argument must be a []byte(s) conversion where s is a string.
-		conv, ok := call.Args[0].(*ast.CallExpr)
-		if !ok {
-			return
-		}
-		if !astutil.IsByteSliceConversion(pass, conv) {
-			return
-		}
-		strArg := conv.Args[0]
-		if !astutil.IsStringType(pass, strArg) {
-			return
-		}
+	// The receiver must implement io.Writer.
+	if !implementsWriter(pass, sel.X) {
+		return
+	}
 
-		// The receiver must implement io.Writer.
-		if !implementsWriter(pass, sel.X) {
-			return
-		}
+	sText := astutil.NodeText(pass.Fset, strArg)
+	wText := astutil.NodeText(pass.Fset, sel.X)
+	if sText == "" || wText == "" {
+		return
+	}
 
-		sText := astutil.NodeText(pass.Fset, strArg)
-		wText := astutil.NodeText(pass.Fset, sel.X)
-		if sText == "" || wText == "" {
-			return
-		}
+	sExpr := buildStringExpr(pass, strArg, sText)
+	writerArg := buildWriterArg(pass, sel.X, wText)
 
-		// io.WriteString requires an exact predeclared string argument. If the
-		// argument is a named string type (e.g. type MyStr string), wrap it with
-		// string(...) so the emitted fix compiles.
-		sExpr := sText
-		if st := pass.TypesInfo.TypeOf(strArg); st != nil && !isExactString(st) {
-			sExpr = "string(" + sText + ")"
-		}
-
-		// When the receiver is an addressable value whose Write method lives on
-		// the pointer type (e.g. var buf bytes.Buffer), io.WriteString requires
-		// the pointer form so that the interface conversion compiles.
-		writerArg := wText
-		if t := pass.TypesInfo.TypeOf(sel.X); t != nil &&
-			!types.Implements(t, writerIface) &&
-			types.Implements(types.NewPointer(t), writerIface) {
-			writerArg = "&" + wText
-		}
-
-		pass.Report(analysis.Diagnostic{
-			Pos:            call.Pos(),
-			End:            call.End(),
-			Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sExpr),
-			SuggestedFixes: buildFix(pass, call, writerArg, sExpr, filesWithImportEdit),
-		})
+	pass.Report(analysis.Diagnostic{
+		Pos:            call.Pos(),
+		End:            call.End(),
+		Message:        fmt.Sprintf("%s.Write([]byte(%s)) can be replaced with io.WriteString(%s, %s) to potentially avoid a []byte allocation if the writer implements io.StringWriter", wText, sText, writerArg, sExpr),
+		SuggestedFixes: buildFix(pass, call, writerArg, sExpr, filesWithImportEdit),
 	})
+}
 
-	return nil, nil
+// buildStringExpr returns the expression text for the io.WriteString string argument.
+// If the argument is a named string type, it wraps it in string(...) for type safety.
+func buildStringExpr(pass *analysis.Pass, strArg ast.Expr, sText string) string {
+	if st := pass.TypesInfo.TypeOf(strArg); st != nil && !isExactString(st) {
+		return "string(" + sText + ")"
+	}
+	return sText
+}
+
+// buildWriterArg returns the expression text for the io.WriteString writer argument.
+// When the receiver's Write method lives on the pointer type, it returns "&wText".
+func buildWriterArg(pass *analysis.Pass, recv ast.Expr, wText string) string {
+	if t := pass.TypesInfo.TypeOf(recv); t != nil &&
+		!types.Implements(t, writerIface) &&
+		types.Implements(types.NewPointer(t), writerIface) {
+		return "&" + wText
+	}
+	return wText
 }
 
 // isExactString reports whether t is the predeclared string type, not a named
@@ -184,13 +191,7 @@ func implementsWriter(pass *analysis.Pass, expr ast.Expr) bool {
 // still reported).
 func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, filesWithImportEdit map[token.Pos]bool) []analysis.SuggestedFix {
 	// Find the file containing this call.
-	var file *ast.File
-	for _, f := range pass.Files {
-		if f.Pos() <= call.Pos() && call.Pos() <= f.End() {
-			file = f
-			break
-		}
-	}
+	file := fileForPos(pass.Files, call.Pos())
 
 	// Determine the local qualifier for "io": use the alias when the package
 	// is already imported under a different name, or the default name when it
@@ -232,23 +233,12 @@ func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, 
 // file containing pos, unless "io" is already imported in that file or an
 // import edit for this file has already been emitted in this pass.
 func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map[token.Pos]bool) (analysis.TextEdit, bool) {
-	var file *ast.File
-	for _, f := range pass.Files {
-		if f.Pos() <= pos && pos <= f.End() {
-			file = f
-			break
-		}
-	}
+	file := fileForPos(pass.Files, pos)
 	if file == nil {
 		return analysis.TextEdit{}, false
 	}
-
 	if filesWithImportEdit[file.Pos()] {
 		return analysis.TextEdit{}, false
-	}
-	markAndReturn := func(edit analysis.TextEdit) (analysis.TextEdit, bool) {
-		filesWithImportEdit[file.Pos()] = true
-		return edit, true
 	}
 
 	for _, imp := range file.Imports {
@@ -257,21 +247,33 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 		}
 	}
 
+	edit, ok := buildIOImportTextEdit(pass, file)
+	if ok {
+		filesWithImportEdit[file.Pos()] = true
+	}
+	return edit, ok
+}
+
+// buildIOImportTextEdit constructs a TextEdit that adds an "io" import to file.
+// It handles three cases: appending to an existing grouped import block,
+// converting a single ungrouped import to a grouped block, or inserting a new
+// standalone import after the package declaration.
+func buildIOImportTextEdit(pass *analysis.Pass, file *ast.File) (analysis.TextEdit, bool) {
+	// Case 1: existing grouped import block — append to its closing paren.
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
 		if !ok || genDecl.Tok != token.IMPORT || !genDecl.Lparen.IsValid() {
 			continue
 		}
-		// Keep the edit minimal by appending at the end of the grouped import;
-		// ordering/formatting can be normalized by formatters if desired.
-		return markAndReturn(analysis.TextEdit{
+		return analysis.TextEdit{
 			Pos:     genDecl.Rparen,
 			End:     genDecl.Rparen,
 			NewText: []byte(importSpecIndent + `"` + ioPkg + `"` + "\n"),
-		})
+		}, true
 	}
 
-	var singleUngroupedImportDecl *ast.GenDecl
+	// Case 2: exactly one ungrouped import — rebuild as a grouped block.
+	var singleDecl *ast.GenDecl
 	importDeclCount := 0
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -280,27 +282,35 @@ func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map
 		}
 		importDeclCount++
 		if !genDecl.Lparen.IsValid() && len(genDecl.Specs) == 1 {
-			singleUngroupedImportDecl = genDecl
+			singleDecl = genDecl
 		}
 	}
-	if importDeclCount == 1 && singleUngroupedImportDecl != nil {
-		specText := astutil.NodeText(pass.Fset, singleUngroupedImportDecl.Specs[0])
+	if importDeclCount == 1 && singleDecl != nil {
+		specText := astutil.NodeText(pass.Fset, singleDecl.Specs[0])
 		if specText != "" {
-			// Rebuild as a grouped import while preserving the existing import spec
-			// text and adding "io".
-			return markAndReturn(analysis.TextEdit{
-				Pos:     singleUngroupedImportDecl.Pos(),
-				End:     singleUngroupedImportDecl.End(),
+			return analysis.TextEdit{
+				Pos:     singleDecl.Pos(),
+				End:     singleDecl.End(),
 				NewText: []byte("import (\n" + importSpecIndent + specText + "\n" + importSpecIndent + `"` + ioPkg + `"` + "\n)"),
-			})
+			}, true
 		}
-		// If we fail to render the existing import spec, fall back to a
-		// standalone import insertion below rather than emitting a broken edit.
+		// Fall through to the standalone insertion below.
 	}
 
-	return markAndReturn(analysis.TextEdit{
+	// Case 3: no existing import block — insert a standalone import after the package name.
+	return analysis.TextEdit{
 		Pos:     file.Name.End(),
 		End:     file.Name.End(),
 		NewText: []byte("\n\nimport \"" + ioPkg + "\""),
-	})
+	}, true
+}
+
+// fileForPos returns the *ast.File from files that contains pos, or nil if not found.
+func fileForPos(files []*ast.File, pos token.Pos) *ast.File {
+	for _, f := range files {
+		if f.Pos() <= pos && pos <= f.End() {
+			return f
+		}
+	}
+	return nil
 }

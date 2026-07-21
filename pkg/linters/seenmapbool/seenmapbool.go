@@ -70,12 +70,32 @@ func run(pass *analysis.Pass) (any, error) {
 // inspectBody walks a function body and reports map[string]bool variables
 // that are only ever assigned the literal true (i.e., used as a set).
 func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.DirectiveIndex) {
-	// Collect map[string]bool local variables defined in this scope.
-	candidates := make(map[types.Object]ast.Node) // object -> declaration node for reporting
+	candidates := collectSeenMapCandidates(pass, body)
+	if len(candidates) == 0 {
+		return
+	}
 
-	// First pass: collect declarations of map[string]bool locals.
-	// Stop at nested FuncLit boundaries so each closure is handled by its own
-	// Preorder visit — preventing duplicate diagnostics.
+	nonSetMaps := findNonSetMaps(pass, body, candidates)
+
+	for obj, declNode := range candidates {
+		if nonSetMaps[obj] {
+			continue
+		}
+		if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(declNode.Pos(), false), noLintIndex, "seenmapbool") {
+			continue
+		}
+		pass.ReportRangef(
+			declNode,
+			"map[string]bool %q used as a set; use map[string]struct{} to avoid allocating a bool per entry",
+			obj.Name(),
+		)
+	}
+}
+
+// collectSeenMapCandidates returns a map of local map[string]bool variables
+// declared in body (via := or var), stopping at nested function literals.
+func collectSeenMapCandidates(pass *analysis.Pass, body *ast.BlockStmt) map[types.Object]ast.Node {
+	candidates := make(map[types.Object]ast.Node)
 	ast.Inspect(body, func(n ast.Node) bool {
 		if n == nil {
 			return false
@@ -85,7 +105,6 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.Di
 		}
 		switch stmt := n.(type) {
 		case *ast.AssignStmt:
-			// seen := make(map[string]bool)  or  seen := map[string]bool{}
 			if stmt.Tok.String() != ":=" {
 				return true
 			}
@@ -106,7 +125,6 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.Di
 				}
 			}
 		case *ast.DeclStmt:
-			// var seen map[string]bool
 			genDecl, ok := stmt.Decl.(*ast.GenDecl)
 			if !ok {
 				return true
@@ -132,15 +150,13 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.Di
 		}
 		return true
 	})
+	return candidates
+}
 
-	if len(candidates) == 0 {
-		return
-	}
-
-	// Second pass: check that every write to these maps only assigns true.
-	// If any non-true assignment is found, remove the map from candidates.
+// findNonSetMaps returns the subset of candidates that are assigned a value
+// other than the literal true (and therefore cannot be treated as sets).
+func findNonSetMaps(pass *analysis.Pass, body *ast.BlockStmt, candidates map[types.Object]ast.Node) map[types.Object]bool {
 	nonSetMaps := make(map[types.Object]bool)
-
 	ast.Inspect(body, func(n ast.Node) bool {
 		assign, ok := n.(*ast.AssignStmt)
 		if !ok {
@@ -162,30 +178,13 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.Di
 			if _, isCandidate := candidates[obj]; !isCandidate {
 				continue
 			}
-			// Check the value being assigned.
-			if i < len(assign.Rhs) {
-				if !isBoolTrue(assign.Rhs[i]) {
-					nonSetMaps[obj] = true
-				}
+			if i < len(assign.Rhs) && !isBoolTrue(assign.Rhs[i]) {
+				nonSetMaps[obj] = true
 			}
 		}
 		return true
 	})
-
-	// Report remaining candidates that are pure sets.
-	for obj, declNode := range candidates {
-		if nonSetMaps[obj] {
-			continue
-		}
-		if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(declNode.Pos(), false), noLintIndex, "seenmapbool") {
-			continue
-		}
-		pass.ReportRangef(
-			declNode,
-			"map[string]bool %q used as a set; use map[string]struct{} to avoid allocating a bool per entry",
-			obj.Name(),
-		)
-	}
+	return nonSetMaps
 }
 
 // isMapStringBool returns true if t is map[string]bool.
