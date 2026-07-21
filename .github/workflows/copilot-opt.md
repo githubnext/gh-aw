@@ -59,6 +59,40 @@ evals:
     question: Did the agent analyze Copilot sessions from the last 14 days?
   - id: three_issues_created
     question: Were three optimization issues created with evidence-backed recommendations?
+steps:
+  - name: Token budget guard
+    run: |
+      PROMPT_FILE="/tmp/gh-aw/aw-prompts/prompt.txt"
+      if [ -f "$PROMPT_FILE" ]; then
+        PROMPT_CHARS=$(wc -c < "$PROMPT_FILE")
+        # Conservative approximation: ~3 chars/token (technical content)
+        ESTIMATED_TOKENS=$((PROMPT_CHARS / 3))
+        if [ "$ESTIMATED_TOKENS" -gt 50000 ]; then
+          echo "::warning::First-turn token budget: ~${ESTIMATED_TOKENS} estimated tokens (${PROMPT_CHARS} chars) exceeds 50k threshold. Consider moving more phase details to skill blocks to reduce initial context."
+        else
+          echo "First-turn token estimate: ~${ESTIMATED_TOKENS} tokens (${PROMPT_CHARS} chars) — within 50k budget."
+        fi
+      fi
+  - name: Trim large session logs
+    run: |
+      LOG_DIR="/tmp/gh-aw/agent/session-data/logs"
+      THRESHOLD=10240
+      FIRST_CHUNK=5120
+      LAST_CHUNK=1024
+      if [ -d "$LOG_DIR" ]; then
+        for f in "$LOG_DIR"/*; do
+          if [ -f "$f" ]; then
+            SIZE=$(wc -c < "$f")
+            if [ "$SIZE" -gt "$THRESHOLD" ]; then
+              # THRESHOLD (10240) > FIRST_CHUNK+LAST_CHUNK (6144), so no chunk overlap possible
+              REMOVED_KB=$(( (SIZE - FIRST_CHUNK - LAST_CHUNK) / 1024 ))
+              echo "Trimming large session log: $f (${SIZE} bytes, stripping ~${REMOVED_KB}KB of boilerplate)"
+              { head -c "$FIRST_CHUNK" "$f"; printf "...[%dKB stripped — fetch raw on demand if needed]\n" "$REMOVED_KB"; tail -c "$LAST_CHUNK" "$f"; } > "${f}.trimmed"
+              mv "${f}.trimmed" "$f"
+            fi
+          fi
+        done
+      fi
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
@@ -134,6 +168,60 @@ Use UTC for all time filtering.
 
 ## Phase 2 — Performance Analysis
 
+Invoke skill `opt-phase-performance` for the full performance analysis procedure. Aggregate across all sessions to identify recurring systemic patterns.
+
+## Phase 3 — PR Cross-Analysis and Duplicate Pattern Detection
+
+This phase is **mandatory**. Invoke skill `opt-phase-pr-analysis` for the full PR cross-analysis and duplicate pattern detection procedure (including jq commands and the retry-blocked topics table).
+
+## Phase 4 — Recommendation Selection
+
+Produce exactly three recommendations ranked by impact. Invoke skill `opt-phase-recommendations` for the full selection rules, domains, and criteria.
+
+## Phase 5 — Issue Creation (Exactly Three)
+
+Create exactly three GitHub issues. Invoke skill `opt-phase-issue-creation` for the full issue template, retry-blocked addendum format, and label rules.
+
+## Items That Should Not Be Addressed
+
+The following items are out of scope because they are not actionable by repository users:
+
+- **Copilot-assigned branch naming conventions** (for example, `-again` / `-yet-again` suffixes)
+  - **Rationale:** Branch names are generated automatically by GitHub Copilot and are not user-configurable in this workflow context.
+  - **Rule:** Do not create recommendations or issues requesting changes to Copilot's auto-generated branch naming behavior.
+
+## Output Constraints
+
+- Do not generate implementation code or modify repository files.
+- Do not create more or fewer than three issues.
+- Keep findings grounded in analyzed data only.
+- Keep recommendations non-overlapping and actionable.
+- Do not create issues for items listed in **Items That Should Not Be Addressed**.
+
+## Final Validation Checklist
+
+Before creating issues, verify:
+
+- [ ] last-14-day filtering was applied
+- [ ] `events.jsonl` parsing was attempted across all in-scope sessions
+- [ ] tool latency/payload, validation timing, context size, orchestration, and prompt drift were analyzed
+- [ ] Phase 3 PR cross-analysis was performed (not skipped)
+- [ ] duplicate PR pattern detection was run and retry-blocked topics table was built
+- [ ] retry-blocked topics (≥2 closed PRs) are reflected in at least one recommendation when present
+- [ ] exactly three recommendations selected
+- [ ] each recommendation has evidence + proposed change + expected impact
+- [ ] retry-blocked issues include the "Prior Failed Attempts" addendum and `copilot-retry-blocked` label
+- [ ] exactly three issue outputs will be created
+
+## Usage
+
+Run manually with `workflow_dispatch`, or let the weekly schedule generate a fresh optimization triage.
+
+## skill: `opt-phase-performance`
+---
+description: Phase 2 — detailed per-session performance analysis procedure
+---
+
 For each session summary:
 
 1. Compute tool latency metrics and flag slow outliers.
@@ -145,7 +233,10 @@ For each session summary:
 
 Aggregate across all sessions to identify recurring systemic patterns.
 
-## Phase 3 — PR Cross-Analysis and Duplicate Pattern Detection
+## skill: `opt-phase-pr-analysis`
+---
+description: Phase 3 — PR cross-analysis and duplicate pattern detection procedure
+---
 
 This phase is **mandatory**. `/tmp/gh-aw/agent/pr-data/copilot-prs.json` is always present from the imported `shared/copilot-pr-data-fetch.md` step.
 
@@ -193,7 +284,10 @@ For each topic with **two or more** closed-without-merge PRs (retry-blocked topi
 
 If PR data is unexpectedly unavailable (file missing or empty), skip Phase 3 and note that in all three issue bodies.
 
-## Phase 4 — Recommendation Selection
+## skill: `opt-phase-recommendations`
+---
+description: Phase 4 — recommendation selection rules, domains, and criteria
+---
 
 Produce exactly three recommendations ranked by impact.
 
@@ -214,7 +308,10 @@ Possible recommendation domains:
 - prompt design corrections to reduce drift
 - **duplicate-PR / retry waste reduction** (use when Phase 3b finds retry-blocked topics)
 
-## Phase 5 — Issue Creation (Exactly Three)
+## skill: `opt-phase-issue-creation`
+---
+description: Phase 5 — issue creation template, retry-blocked addendum format, and label rules
+---
 
 Create exactly three issues with this structure:
 
@@ -271,38 +368,3 @@ Any agent attempting to implement this recommendation MUST read this section and
 ### Labels for Retry-Blocked Issues
 
 When creating an issue that covers a retry-blocked topic, add `copilot-retry-blocked` to the labels list in the `create_issue` safe-output call alongside the standard labels.
-
-## Items That Should Not Be Addressed
-
-The following items are out of scope because they are not actionable by repository users:
-
-- **Copilot-assigned branch naming conventions** (for example, `-again` / `-yet-again` suffixes)
-  - **Rationale:** Branch names are generated automatically by GitHub Copilot and are not user-configurable in this workflow context.
-  - **Rule:** Do not create recommendations or issues requesting changes to Copilot's auto-generated branch naming behavior.
-
-## Output Constraints
-
-- Do not generate implementation code or modify repository files.
-- Do not create more or fewer than three issues.
-- Keep findings grounded in analyzed data only.
-- Keep recommendations non-overlapping and actionable.
-- Do not create issues for items listed in **Items That Should Not Be Addressed**.
-
-## Final Validation Checklist
-
-Before creating issues, verify:
-
-- [ ] last-14-day filtering was applied
-- [ ] `events.jsonl` parsing was attempted across all in-scope sessions
-- [ ] tool latency/payload, validation timing, context size, orchestration, and prompt drift were analyzed
-- [ ] Phase 3 PR cross-analysis was performed (not skipped)
-- [ ] duplicate PR pattern detection was run and retry-blocked topics table was built
-- [ ] retry-blocked topics (≥2 closed PRs) are reflected in at least one recommendation when present
-- [ ] exactly three recommendations selected
-- [ ] each recommendation has evidence + proposed change + expected impact
-- [ ] retry-blocked issues include the "Prior Failed Attempts" addendum and `copilot-retry-blocked` label
-- [ ] exactly three issue outputs will be created
-
-## Usage
-
-Run manually with `workflow_dispatch`, or let the weekly schedule generate a fresh optimization triage.

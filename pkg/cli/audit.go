@@ -741,7 +741,7 @@ func launchJobDetailsAnalysis(g *errgroup.Group, gctx context.Context, results *
 		if err := gctx.Err(); err != nil {
 			return err
 		}
-		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(runID, verbose)
+		jobDetails, failedJobCount, err := fetchJobDetailsWithCounts(gctx, runID, verbose)
 		if err != nil {
 			auditLog.Printf("fetchJobDetailsWithCounts failed: %v", err)
 			if verbose {

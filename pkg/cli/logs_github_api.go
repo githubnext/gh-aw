@@ -76,13 +76,13 @@ func buildCreatedFilter(startDate, endDate, beforeDate string) string {
 // call and returns the full detail slice together with the count of failed jobs.
 // It is the single source of truth for the jobs endpoint; fetchJobDetails and
 // fetchJobStatuses are thin wrappers that each return only the value they need.
-func fetchJobDetailsWithCounts(runID int64, verbose bool) ([]JobInfoWithDuration, int, error) {
+func fetchJobDetailsWithCounts(ctx context.Context, runID int64, verbose bool) ([]JobInfoWithDuration, int, error) {
 	logsGitHubAPILog.Printf("Fetching job details: runID=%d", runID)
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching job details for run %d", runID)))
 	}
 
-	output, err := workflow.RunGHCombined("Fetching job details...", "api",
+	output, err := workflow.RunGHCombinedContext(ctx, "Fetching job details...", "api",
 		fmt.Sprintf("repos/{owner}/{repo}/actions/runs/%d/jobs", runID),
 		"--jq", ".jobs[] | {name: .name, status: .status, conclusion: (.conclusion // \"\"), started_at: .started_at, completed_at: .completed_at, steps: ((.steps // []) | map({name: .name, status: .status, conclusion: (.conclusion // \"\")}))}")
 	if err != nil {
@@ -130,8 +130,8 @@ func fetchJobDetailsWithCounts(runID int64, verbose bool) ([]JobInfoWithDuration
 // fetchJobDetails gets detailed job information including durations for a workflow run.
 // Errors from the underlying API call are suppressed so that callers can continue
 // processing even when job data is unavailable (e.g. missing permissions).
-func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
-	jobs, _, err := fetchJobDetailsWithCounts(runID, verbose)
+func fetchJobDetails(ctx context.Context, runID int64, verbose bool) ([]JobInfoWithDuration, error) {
+	jobs, _, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
 	if err != nil {
 		// Don't fail the entire operation if we can't get job info
 		return nil, nil
@@ -142,8 +142,8 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 // fetchJobStatuses gets the count of failed jobs for a workflow run.
 // Errors from the underlying API call are suppressed so that callers can continue
 // processing even when job data is unavailable (e.g. missing permissions).
-func fetchJobStatuses(runID int64, verbose bool) (int, error) {
-	_, failedJobs, err := fetchJobDetailsWithCounts(runID, verbose)
+func fetchJobStatuses(ctx context.Context, runID int64, verbose bool) (int, error) {
+	_, failedJobs, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
 	if err != nil {
 		// Don't fail the entire operation if we can't get job info
 		return 0, nil
