@@ -1,0 +1,2 @@
+{"id":"elixir_snippets_linted","question":"Did the agent use Credo to lint Elixir snippets found in repository markdown files?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-21T08:02:17.456Z","runid":"29812278308"}
+{"id":"fixes_proposed_or_noop","question":"Were fixes proposed in a PR or issue, or was noop used when no linting violations were found?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-21T08:02:17.456Z","runid":"29812278308"}
