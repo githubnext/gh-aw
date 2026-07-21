@@ -123,6 +123,4 @@ jobs:
             }
 ---
 
-# Daily Copilot Branch Cleaner
-
-Runs once per day and deletes branches whose names start with `copilot/` when the head commit is older than 24 hours.
+Classic action that deletes stale `copilot/` branches based on the age of their head commit.
