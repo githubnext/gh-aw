@@ -395,6 +395,8 @@ doMore();`,
       valid: [
         // Terminating break prevents fall-through — must remain valid
         `switch (x) { case 1: core.setFailed("bad"); break; case 2: doMore(); }`,
+        // Fall-through to a case that only contains hoisted declarations — no executable continuation
+        `switch (x) { case 1: core.setFailed("bad"); case 2: function helper() {} }`,
       ],
       invalid: [
         {

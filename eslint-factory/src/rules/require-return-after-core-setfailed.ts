@@ -135,8 +135,10 @@ function findContinuationOutsideBlock(setFailedNode: TSESTree.Statement, ancesto
       if (currentIndex >= 0) {
         for (let nextCaseIndex = currentIndex + 1; nextCaseIndex < ancestor.cases.length; nextCaseIndex++) {
           const nextCase = ancestor.cases[nextCaseIndex];
-          const nextStmt = nextCase.consequent[0];
-          if (nextStmt) {
+          // Skip hoisted declarations (FunctionDeclaration, etc.) — they have no sequential
+          // runtime effect and should not count as fall-through continuations.
+          const nextStmt = nextCase.consequent.find(s => isExecutableStatement(s as TSESTree.ProgramStatement));
+          if (nextStmt !== undefined) {
             return nextStmt;
           }
         }
