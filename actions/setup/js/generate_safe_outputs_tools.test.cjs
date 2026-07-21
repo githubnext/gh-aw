@@ -167,6 +167,34 @@ describe("generate_safe_outputs_tools", () => {
     expect(createIssueTool.inputSchema.required).toEqual(expect.arrayContaining(["title", "temporary_id"]));
   });
 
+  it("adds anyOf alternative requirements for assign_milestone", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "assign_milestone",
+          description: "Assign milestone.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              issue_number: { type: "number" },
+              milestone_number: { type: "number" },
+              milestone_title: { type: "string" },
+            },
+            required: ["issue_number"],
+          },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ assign_milestone: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(result[0].inputSchema.anyOf).toEqual([{ required: ["milestone_number"] }, { required: ["milestone_title"] }]);
+  });
+
   it("appends dynamic tools from tools_meta", () => {
     fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 1 } }));
     fs.writeFileSync(
@@ -822,5 +850,120 @@ describe("generate_safe_outputs_tools", () => {
     }
     // Must still contain the intent required suffix
     expect(tool.description).toContain("INTENT REQUIRED:");
+  });
+
+  it("injects property_injections from tools_meta into tool inputSchema", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "close_issue",
+          description: "Closes issue.",
+          inputSchema: {
+            type: "object",
+            required: ["body"],
+            properties: {
+              body: { type: "string", description: "Closing comment." },
+            },
+            additionalProperties: false,
+          },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: {} }));
+    fs.writeFileSync(
+      toolsMetaPath,
+      JSON.stringify({
+        description_suffixes: {},
+        repo_params: {},
+        dynamic_tools: [],
+        property_injections: {
+          close_issue: {
+            state_reason: {
+              type: "string",
+              enum: ["completed", "not_planned", "duplicate"],
+              description: "Optional closing state reason.",
+            },
+          },
+        },
+      })
+    );
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "close_issue");
+    expect(tool).toBeDefined();
+    expect(tool.inputSchema.properties.state_reason).toBeDefined();
+    expect(tool.inputSchema.properties.state_reason.type).toBe("string");
+    expect(tool.inputSchema.properties.state_reason.enum).toEqual(["completed", "not_planned", "duplicate"]);
+    // Injected property should NOT be required
+    expect(tool.inputSchema.required || []).not.toContain("state_reason");
+  });
+
+  it("injects property_injections with restricted enum for list state-reason config", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "close_issue",
+          description: "Closes issue.",
+          inputSchema: { type: "object", required: ["body"], properties: { body: { type: "string" } }, additionalProperties: false },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { allowed_state_reason: ["not_planned", "duplicate"] } }));
+    fs.writeFileSync(
+      toolsMetaPath,
+      JSON.stringify({
+        description_suffixes: {},
+        repo_params: {},
+        dynamic_tools: [],
+        property_injections: {
+          close_issue: {
+            state_reason: {
+              type: "string",
+              enum: ["not_planned", "duplicate"],
+              description: "Optional closing state reason.",
+            },
+          },
+        },
+      })
+    );
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "close_issue");
+    expect(tool.inputSchema.properties.state_reason.enum).toEqual(["not_planned", "duplicate"]);
+  });
+
+  it("does not inject state_reason when property_injections is absent (scalar state-reason config)", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "close_issue",
+          description: "Closes issue.",
+          inputSchema: { type: "object", required: ["body"], properties: { body: { type: "string" } }, additionalProperties: false },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ close_issue: { state_reason: "not_planned" } }));
+    fs.writeFileSync(
+      toolsMetaPath,
+      JSON.stringify({
+        description_suffixes: {},
+        repo_params: {},
+        dynamic_tools: [],
+        // No property_injections — scalar state-reason config
+      })
+    );
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    const tool = result.find((/** @type {{name: string}} */ t) => t.name === "close_issue");
+    expect(tool.inputSchema.properties.state_reason).toBeUndefined();
   });
 });

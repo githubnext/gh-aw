@@ -403,6 +403,13 @@ async function assignAgentToIssue(
       issue_number: issueNumber,
       assignees: [assignee],
     };
+    const agentAssignment = {};
+    if (pullRequestRepoSlug != null) agentAssignment.target_repo = pullRequestRepoSlug;
+    if (baseBranch != null) agentAssignment.base_branch = baseBranch;
+    if (customInstructions != null) agentAssignment.custom_instructions = customInstructions;
+    if (customAgent != null) agentAssignment.custom_agent = customAgent;
+    if (model != null) agentAssignment.model = model;
+    if (Object.keys(agentAssignment).length > 0) assignParams.agent_assignment = agentAssignment;
     await githubClient.request("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", assignParams);
     return true;
   } catch (error) {

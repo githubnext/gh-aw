@@ -42,6 +42,10 @@ type formatVerb struct {
 	verb   rune
 }
 
+// formatArgOffset is the index of the first format argument in fmt.Errorf calls.
+// call.Args[0] is the format string; real arguments start at index 1.
+const formatArgOffset = 1
+
 // Analyzer is the errorfwrapv analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "errorfwrapv",
@@ -52,8 +56,6 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
-	const formatArgOffset = 1 // call.Args[0] is the format string.
-
 	if errorIface == nil {
 		return nil, errors.New("failed to resolve built-in error interface from types.Universe")
 	}
@@ -71,104 +73,115 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	nodeFilter := []ast.Node{
-		(*ast.CallExpr)(nil),
+	nodeFilter := []ast.Node{(*ast.CallExpr)(nil)}
+	insp.Preorder(nodeFilter, func(n ast.Node) {
+		analyzeFmtErrorfCall(pass, n, generatedFiles, noLintIndex)
+	})
+	return nil, nil
+}
+
+// analyzeFmtErrorfCall checks whether a call expression is a fmt.Errorf that
+// misuses error arguments (via %v or without %w) and reports a diagnostic.
+func analyzeFmtErrorfCall(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	call, ok := n.(*ast.CallExpr)
+	if !ok {
+		return
 	}
 
-	insp.Preorder(nodeFilter, func(n ast.Node) {
-		call, ok := n.(*ast.CallExpr)
-		if !ok {
+	position := pass.Fset.PositionFor(call.Pos(), false)
+	if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+		return
+	}
+	if !astutil.IsFmtErrorf(pass, call) {
+		return
+	}
+	if len(call.Args) == 0 {
+		return
+	}
+	lit, ok := call.Args[0].(*ast.BasicLit)
+	if !ok || lit.Kind != token.STRING {
+		return
+	}
+
+	verbs := parseFormatVerbs(lit.Value)
+	errorArgVerbs, wrappedErrorArgs, hasVerbV := classifyErrorArgs(pass, call, verbs)
+
+	if hasVerbV {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
 			return
 		}
+		pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")
+		return
+	}
 
-		position := pass.Fset.PositionFor(call.Pos(), false)
-		if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
-			return
+	if len(call.Args) <= formatArgOffset {
+		return
+	}
+
+	for i := formatArgOffset; i < len(call.Args); i++ {
+		tv, ok := pass.TypesInfo.Types[call.Args[i]]
+		if !ok || tv.Type == nil {
+			continue
 		}
-
-		if !astutil.IsFmtErrorf(pass, call) {
-			return
+		if !types.Implements(tv.Type, errorIface) {
+			continue
 		}
-
-		if len(call.Args) == 0 {
-			return
+		if wrappedErrorArgs[i] {
+			continue
 		}
-
-		lit, ok := call.Args[0].(*ast.BasicLit)
-		if !ok || lit.Kind != token.STRING {
-			return
-		}
-		suppressed := nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv")
-
-		verbs := parseFormatVerbs(lit.Value)
-		errorArgVerbs := make(map[int][]rune)
-		wrappedErrorArgs := make(map[int]bool)
-		for _, fv := range verbs {
-			callArgIdx := fv.argIdx + formatArgOffset
-			if callArgIdx >= len(call.Args) {
+		if verbsForArg, ok := errorArgVerbs[i]; ok {
+			if !needsWrapping(verbsForArg) {
 				continue
 			}
-			tv, ok := pass.TypesInfo.Types[call.Args[callArgIdx]]
-			if !ok || tv.Type == nil {
-				continue
-			}
-			if !types.Implements(tv.Type, errorIface) {
-				continue
-			}
-			errorArgVerbs[callArgIdx] = append(errorArgVerbs[callArgIdx], fv.verb)
-			if fv.verb == 'w' {
-				wrappedErrorArgs[callArgIdx] = true
-			}
-			if fv.verb != 'v' {
-				continue
-			}
-			if suppressed {
-				return
-			}
-			pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")
-			// Keep diagnostics to one per call to avoid noisy duplicate reports.
+		}
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
 			return
 		}
+		pass.ReportRangef(call, "fmt.Errorf passes an error argument without %%w; use %%w to preserve the error chain")
+		// Keep diagnostics to one per call to avoid noisy duplicate reports.
+		return
+	}
+}
 
-		if len(call.Args) <= formatArgOffset {
-			return
+// classifyErrorArgs iterates over format verbs and classifies error arguments.
+// It returns errorArgVerbs (verb list per arg index), wrappedErrorArgs (args
+// that already use %w), and hasVerbV (whether any error arg uses %v).
+func classifyErrorArgs(pass *analysis.Pass, call *ast.CallExpr, verbs []formatVerb) (errorArgVerbs map[int][]rune, wrappedErrorArgs map[int]bool, hasVerbV bool) {
+	errorArgVerbs = make(map[int][]rune)
+	wrappedErrorArgs = make(map[int]bool)
+	for _, fv := range verbs {
+		callArgIdx := fv.argIdx + formatArgOffset
+		if callArgIdx >= len(call.Args) {
+			continue
 		}
-
-		for i := formatArgOffset; i < len(call.Args); i++ {
-			tv, ok := pass.TypesInfo.Types[call.Args[i]]
-			if !ok || tv.Type == nil {
-				continue
-			}
-			if !types.Implements(tv.Type, errorIface) {
-				continue
-			}
-			if wrappedErrorArgs[i] {
-				continue
-			}
-			verbsForArg, ok := errorArgVerbs[i]
-			if ok {
-				needsWrap := false
-				for _, verb := range verbsForArg {
-					if verb == 'T' || verb == 'p' {
-						continue
-					}
-					needsWrap = true
-					break
-				}
-				if !needsWrap {
-					continue
-				}
-			}
-			if suppressed {
-				return
-			}
-			pass.ReportRangef(call, "fmt.Errorf passes an error argument without %%w; use %%w to preserve the error chain")
-			// Keep diagnostics to one per call to avoid noisy duplicate reports.
-			return
+		tv, ok := pass.TypesInfo.Types[call.Args[callArgIdx]]
+		if !ok || tv.Type == nil {
+			continue
 		}
-	})
+		if !types.Implements(tv.Type, errorIface) {
+			continue
+		}
+		errorArgVerbs[callArgIdx] = append(errorArgVerbs[callArgIdx], fv.verb)
+		if fv.verb == 'w' {
+			wrappedErrorArgs[callArgIdx] = true
+		}
+		if fv.verb == 'v' {
+			hasVerbV = true
+		}
+	}
+	return
+}
 
-	return nil, nil
+// needsWrapping reports whether a slice of format verbs for an error argument
+// requires a %w replacement. Verbs %T and %p are considered display-only and
+// do not require wrapping.
+func needsWrapping(verbs []rune) bool {
+	for _, verb := range verbs {
+		if verb != 'T' && verb != 'p' {
+			return true
+		}
+	}
+	return false
 }
 
 func parseFormatVerbs(s string) []formatVerb {

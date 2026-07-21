@@ -4,7 +4,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { AWF_GATEWAY_IP, parseMCPResponseBody, recoverSafeOutputsToolsIfNeeded, toContainerUrl } from "./mount_mcp_as_cli.cjs";
+import { AWF_GATEWAY_IP, buildMCPCLIServersPromptList, parseMCPResponseBody, recoverSafeOutputsToolsIfNeeded, toContainerUrl } from "./mount_mcp_as_cli.cjs";
 
 describe("mount_mcp_as_cli.cjs", () => {
   it("parses JSON object responses unchanged", () => {
@@ -96,5 +96,35 @@ describe("mount_mcp_as_cli.cjs", () => {
         process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = originalPath;
       }
     }
+  });
+
+  it("renders schema-derived safeoutputs docs for prompt substitution", () => {
+    const docs = buildMCPCLIServersPromptList([
+      {
+        name: "safeoutputs",
+        tools: [
+          {
+            name: "set_issue_type",
+            inputSchema: {
+              type: "object",
+              properties: {
+                issue_number: { type: "integer" },
+                issue_type: { type: "string" },
+                rationale: { type: "string", maxLength: 280 },
+                confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+              },
+              required: ["issue_number", "issue_type"],
+            },
+          },
+        ],
+      },
+      { name: "mcpscripts", tools: [] },
+    ]);
+
+    expect(docs).toContain("schema-derived command syntax");
+    expect(docs).toContain("--issue_number <number>");
+    expect(docs).toContain("[--rationale <reason, max 280 characters>]");
+    expect(docs).toContain('--confidence \"HIGH\"');
+    expect(docs).toContain("`mcpscripts` — run `mcpscripts --help`");
   });
 });

@@ -26,6 +26,7 @@ const fs = require("fs");
 const http = require("http");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { renderSafeOutputsPromptDocs } = require("./mcp_cli_schema_docs.cjs");
 
 const MANIFEST_FILE = path.join(process.env.RUNNER_TEMP || "/home/runner/work/_temp", "gh-aw/mcp-cli/manifest.json");
 // Use RUNNER_TEMP so the bin and tools directories are inside the AWF sandbox mount
@@ -91,6 +92,23 @@ function recoverSafeOutputsToolsIfNeeded(tools, core) {
 const SERVER_VALIDATORS = {
   [SAFEOUTPUTS_SERVER_NAME]: (tools, core) => recoverSafeOutputsToolsIfNeeded(tools, core),
 };
+
+/**
+ * Build prompt documentation for mounted MCP CLI servers.
+ *
+ * @param {Array<{name: string, tools: Array<{name: string, description?: string, inputSchema?: unknown}>}>} mountedServerTools
+ * @returns {string}
+ */
+function buildMCPCLIServersPromptList(mountedServerTools) {
+  return mountedServerTools
+    .map(server => {
+      if (server.name !== SAFEOUTPUTS_SERVER_NAME) {
+        return `- \`${server.name}\` — run \`${server.name} --help\` to see available tools`;
+      }
+      return renderSafeOutputsPromptDocs(server.name, server.tools);
+    })
+    .join("\n");
+}
 
 /**
  * Validate that a server name is safe to use as a filename and in shell scripts.
@@ -435,6 +453,8 @@ async function main() {
   }
 
   const mountedServers = [];
+  /** @type {Array<{name: string, tools: Array<{name: string, description?: string, inputSchema?: unknown}>}>} */
+  const mountedServerTools = [];
   const skippedServers = [];
 
   for (const server of servers) {
@@ -484,6 +504,7 @@ async function main() {
     try {
       fs.writeFileSync(scriptPath, generateCLIWrapperScript(name, containerUrl, toolsFile, apiKey, bridgeScript), { mode: 0o755 });
       mountedServers.push(name);
+      mountedServerTools.push({ name, tools });
       core.info(`  ✓ Mounted as: ${scriptPath}`);
     } catch (err) {
       core.warning(`  Failed to write CLI wrapper for ${name}: ${getErrorMessage(err)}`);
@@ -516,6 +537,8 @@ async function main() {
   }
   core.info(`CLI bin directory added to PATH: ${CLI_BIN_DIR}`);
   core.setOutput("mounted-servers", mountedServers.join(","));
+  const docs = buildMCPCLIServersPromptList(mountedServerTools);
+  core.setOutput("mcp-cli-servers-list", docs);
 }
 
 module.exports = {
@@ -530,4 +553,5 @@ module.exports = {
   loadToolsFromJSONFile,
   recoverSafeOutputsToolsIfNeeded,
   SERVER_VALIDATORS,
+  buildMCPCLIServersPromptList,
 };

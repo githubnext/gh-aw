@@ -19,6 +19,7 @@ tracker-id: daily-model-resolution
 model: gpt-5.4-mini
 engine:
   id: copilot
+  copilot-sdk: true
 strict: true
 tools:
   agentic-workflows: true

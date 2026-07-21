@@ -181,6 +181,25 @@ function updateAddCommentDescription(description, addCommentConfig) {
   return updated;
 }
 
+/**
+ * Encode assign_milestone handler requirement: either milestone_number or milestone_title is required.
+ * @param {{name: string, inputSchema?: {properties?: Record<string, unknown>, anyOf?: Array<{required: string[]}>}}} tool
+ */
+function applyAssignMilestoneAlternativeRequirements(tool) {
+  if (tool.name !== "assign_milestone") {
+    return;
+  }
+  const schema = tool.inputSchema;
+  const properties = schema?.properties;
+  if (!schema || !properties || typeof properties !== "object") {
+    return;
+  }
+  if (!("milestone_number" in properties) || !("milestone_title" in properties)) {
+    return;
+  }
+  schema.anyOf = [{ required: ["milestone_number"] }, { required: ["milestone_title"] }];
+}
+
 async function main() {
   const toolsSourcePath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_SOURCE_PATH || `${process.env.RUNNER_TEMP}/gh-aw/actions/safe_outputs_tools.json`;
   const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH || `${process.env.RUNNER_TEMP}/gh-aw/safeoutputs/config.json`;
@@ -233,7 +252,7 @@ async function main() {
   }
 
   // Load tools meta (description suffixes, repo params, dynamic tools)
-  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>, required_field_additions?: Record<string, string[]>}} */
+  /** @type {{description_suffixes?: Record<string, string>, repo_params?: Record<string, {type: string, description: string}>, dynamic_tools?: Array<unknown>, required_field_removals?: Record<string, string[]>, required_field_additions?: Record<string, string[]>, property_injections?: Record<string, Record<string, unknown>>}} */
   let toolsMeta = { description_suffixes: {}, repo_params: {}, dynamic_tools: [] };
   if (fs.existsSync(toolsMetaPath)) {
     try {
@@ -347,6 +366,23 @@ async function main() {
         const existingRequired = Array.isArray(enhancedTool.inputSchema?.required) ? enhancedTool.inputSchema.required : [];
         enhancedTool.inputSchema.required = Array.from(new Set([...existingRequired, ...requiredAdditions]));
       }
+
+      // Inject or override properties in inputSchema based on workflow configuration.
+      // Used for dynamic fields like state_reason whose schema depends on config.
+      const propertyInjections = toolsMeta.property_injections?.[tool.name];
+      if (propertyInjections && typeof propertyInjections === "object") {
+        if (!enhancedTool.inputSchema) {
+          enhancedTool.inputSchema = { type: "object", properties: {} };
+        }
+        if (!enhancedTool.inputSchema.properties) {
+          enhancedTool.inputSchema.properties = {};
+        }
+        for (const [propName, propSchema] of Object.entries(propertyInjections)) {
+          enhancedTool.inputSchema.properties[propName] = propSchema;
+        }
+      }
+
+      applyAssignMilestoneAlternativeRequirements(enhancedTool);
 
       return enhancedTool;
     });
