@@ -40,101 +40,97 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.IfStmt)(nil)}
-
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		ifStmt, ok := n.(*ast.IfStmt)
-		if !ok {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(ifStmt.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "mapdeletecheck") {
-			return
-		}
-
-		// Must have an init statement: _, ok := m[k]
-		// Must have a simple condition: ok (or the bool variable from the assignment)
-		// Must have a single-statement body: delete(m, k)
-		// Must have no else clause.
-
-		if ifStmt.Else != nil {
-			return
-		}
-
-		mapExpr, keyExpr, okIdent := matchMapIndexAssign(pass, ifStmt.Init)
-		if okIdent == nil {
-			return
-		}
-
-		// The condition must be the ok identifier from the init.
-		condIdent, ok := ifStmt.Cond.(*ast.Ident)
-		if !ok {
-			return
-		}
-		// Make sure the condition refers to the same object as the init.
-		condObj := pass.TypesInfo.Uses[condIdent]
-		okObj := pass.TypesInfo.Defs[okIdent]
-		if condObj == nil || okObj == nil || condObj != okObj {
-			return
-		}
-
-		// The body must be exactly one statement: delete(m, k)
-		if len(ifStmt.Body.List) != 1 {
-			return
-		}
-		exprStmt, ok := ifStmt.Body.List[0].(*ast.ExprStmt)
-		if !ok {
-			return
-		}
-		delCall, ok := exprStmt.X.(*ast.CallExpr)
-		if !ok {
-			return
-		}
-		delIdent, ok := delCall.Fun.(*ast.Ident)
-		if !ok || delIdent.Name != "delete" {
-			return
-		}
-		delBuiltin, ok := pass.TypesInfo.Uses[delIdent].(*types.Builtin)
-		if !ok || delBuiltin.Name() != "delete" {
-			return
-		}
-		if len(delCall.Args) != 2 {
-			return
-		}
-
-		// delete(m, k) must use the same map and key as the index expression.
-		if !sameExpr(pass, delCall.Args[0], mapExpr) {
-			return
-		}
-		if !sameExpr(pass, delCall.Args[1], keyExpr) {
-			return
-		}
-
-		mText := astutil.NodeText(pass.Fset, mapExpr)
-		kText := astutil.NodeText(pass.Fset, keyExpr)
-
-		diag := analysis.Diagnostic{
-			Pos:     ifStmt.Pos(),
-			End:     ifStmt.End(),
-			Message: "redundant existence check before delete: delete(" + mText + ", " + kText + ") is already a no-op when the key is absent; remove the if statement",
-		}
-		if !astutil.HasOverlappingComment(pass.Files, ifStmt.Pos(), ifStmt.End()) {
-			diag.SuggestedFixes = []analysis.SuggestedFix{{
-				Message: "Replace if-check with plain delete",
-				TextEdits: []analysis.TextEdit{{
-					Pos:     ifStmt.Pos(),
-					End:     ifStmt.End(),
-					NewText: []byte("delete(" + mText + ", " + kText + ")"),
-				}},
-			}}
-		}
-		pass.Report(diag)
+		analyzeIfStmt(pass, n, generatedFiles, noLintIndex)
 	})
-
 	return nil, nil
+}
+
+// analyzeIfStmt checks whether an if statement is a redundant membership check
+// before a delete call and reports a diagnostic if so.
+func analyzeIfStmt(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	ifStmt, ok := n.(*ast.IfStmt)
+	if !ok {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(ifStmt.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "mapdeletecheck") {
+		return
+	}
+	if ifStmt.Else != nil {
+		return
+	}
+
+	mapExpr, keyExpr, okIdent := matchMapIndexAssign(pass, ifStmt.Init)
+	if okIdent == nil {
+		return
+	}
+
+	condIdent, ok := ifStmt.Cond.(*ast.Ident)
+	if !ok {
+		return
+	}
+	condObj := pass.TypesInfo.Uses[condIdent]
+	okObj := pass.TypesInfo.Defs[okIdent]
+	if condObj == nil || okObj == nil || condObj != okObj {
+		return
+	}
+
+	if !matchDeleteCallStmt(pass, ifStmt.Body, mapExpr, keyExpr) {
+		return
+	}
+
+	mText := astutil.NodeText(pass.Fset, mapExpr)
+	kText := astutil.NodeText(pass.Fset, keyExpr)
+
+	diag := analysis.Diagnostic{
+		Pos:     ifStmt.Pos(),
+		End:     ifStmt.End(),
+		Message: "redundant existence check before delete: delete(" + mText + ", " + kText + ") is already a no-op when the key is absent; remove the if statement",
+	}
+	if !astutil.HasOverlappingComment(pass.Files, ifStmt.Pos(), ifStmt.End()) {
+		diag.SuggestedFixes = []analysis.SuggestedFix{{
+			Message: "Replace if-check with plain delete",
+			TextEdits: []analysis.TextEdit{{
+				Pos:     ifStmt.Pos(),
+				End:     ifStmt.End(),
+				NewText: []byte("delete(" + mText + ", " + kText + ")"),
+			}},
+		}}
+	}
+	pass.Report(diag)
+}
+
+// matchDeleteCallStmt reports whether body contains exactly one statement of
+// the form delete(mapExpr, keyExpr) using the same map and key expressions.
+func matchDeleteCallStmt(pass *analysis.Pass, body *ast.BlockStmt, mapExpr, keyExpr ast.Expr) bool {
+	if len(body.List) != 1 {
+		return false
+	}
+	exprStmt, ok := body.List[0].(*ast.ExprStmt)
+	if !ok {
+		return false
+	}
+	delCall, ok := exprStmt.X.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	delIdent, ok := delCall.Fun.(*ast.Ident)
+	if !ok || delIdent.Name != "delete" {
+		return false
+	}
+	delBuiltin, ok := pass.TypesInfo.Uses[delIdent].(*types.Builtin)
+	if !ok || delBuiltin.Name() != "delete" {
+		return false
+	}
+	if len(delCall.Args) != 2 {
+		return false
+	}
+	return sameExpr(pass, delCall.Args[0], mapExpr) && sameExpr(pass, delCall.Args[1], keyExpr)
 }
 
 // matchMapIndexAssign returns map expression, key expression, and ok identifier

@@ -40,117 +40,129 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	nodeFilter := []ast.Node{(*ast.RangeStmt)(nil)}
-
 	insp.Preorder(nodeFilter, func(n ast.Node) {
-		rangeStmt, ok := n.(*ast.RangeStmt)
-		if !ok {
-			return
-		}
-
-		pos := pass.Fset.PositionFor(rangeStmt.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			return
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "mapclearloop") {
-			return
-		}
-
-		// The range expression must be a map type.
-		mapType := pass.TypesInfo.TypeOf(rangeStmt.X)
-		if mapType == nil {
-			return
-		}
-		if _, ok := mapType.Underlying().(*types.Map); !ok {
-			return
-		}
-
-		// The key variable must be present (not blank or absent).
-		keyIdent, ok := rangeStmt.Key.(*ast.Ident)
-		if !ok || keyIdent.Name == "_" {
-			return
-		}
-		keyObj := pass.TypesInfo.Defs[keyIdent]
-		if keyObj == nil {
-			keyObj = pass.TypesInfo.Uses[keyIdent]
-		}
-		if keyObj == nil {
-			return
-		}
-
-		// The value variable must be absent or blank.
-		if rangeStmt.Value != nil {
-			valueIdent, ok := rangeStmt.Value.(*ast.Ident)
-			if !ok || valueIdent.Name != "_" {
-				return
-			}
-		}
-
-		// The body must contain exactly one statement: delete(m, k).
-		if len(rangeStmt.Body.List) != 1 {
-			return
-		}
-		exprStmt, ok := rangeStmt.Body.List[0].(*ast.ExprStmt)
-		if !ok {
-			return
-		}
-		callExpr, ok := exprStmt.X.(*ast.CallExpr)
-		if !ok {
-			return
-		}
-		delIdent, ok := callExpr.Fun.(*ast.Ident)
-		if !ok || delIdent.Name != "delete" {
-			return
-		}
-		delBuiltin, ok := pass.TypesInfo.Uses[delIdent].(*types.Builtin)
-		if !ok || delBuiltin.Name() != "delete" {
-			return
-		}
-		if len(callExpr.Args) != 2 {
-			return
-		}
-
-		// First arg to delete must be the same map as the range expression.
-		if !sameObject(pass, callExpr.Args[0], rangeStmt.X) {
-			return
-		}
-
-		// Second arg to delete must be the key variable from the range.
-		delKeyIdent, ok := callExpr.Args[1].(*ast.Ident)
-		if !ok {
-			return
-		}
-		delKeyObj := pass.TypesInfo.Uses[delKeyIdent]
-		if delKeyObj == nil || delKeyObj != keyObj {
-			return
-		}
-
-		mText := astutil.NodeText(pass.Fset, rangeStmt.X)
-		if mText == "" {
-			return
-		}
-		if !builtinVisibleAtPos(pass.Pkg, rangeStmt.Pos(), "clear") {
-			return
-		}
-
-		diag := analysis.Diagnostic{
-			Pos:     rangeStmt.Pos(),
-			End:     rangeStmt.End(),
-			Message: "range-delete loop over map can be replaced with clear(" + mText + ")",
-		}
-		if !astutil.HasOverlappingComment(pass.Files, rangeStmt.Pos(), rangeStmt.End()) {
-			diag.SuggestedFixes = []analysis.SuggestedFix{{
-				Message: "Replace range-delete loop with clear",
-				TextEdits: []analysis.TextEdit{{
-					Pos:     rangeStmt.Pos(),
-					End:     rangeStmt.End(),
-					NewText: []byte("clear(" + mText + ")"),
-				}},
-			}}
-		}
-		pass.Report(diag)
+		analyzeRangeStmt(pass, n, generatedFiles, noLintIndex)
 	})
-
 	return nil, nil
+}
+
+// analyzeRangeStmt checks whether a range statement is a clearable range-delete
+// loop and reports a diagnostic if so.
+func analyzeRangeStmt(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
+	rangeStmt, ok := n.(*ast.RangeStmt)
+	if !ok {
+		return
+	}
+
+	pos := pass.Fset.PositionFor(rangeStmt.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "mapclearloop") {
+		return
+	}
+
+	mapType := pass.TypesInfo.TypeOf(rangeStmt.X)
+	if mapType == nil {
+		return
+	}
+	if _, ok := mapType.Underlying().(*types.Map); !ok {
+		return
+	}
+
+	keyObj, ok := extractRangeKeyObj(pass, rangeStmt)
+	if !ok {
+		return
+	}
+
+	if !matchDeleteBody(pass, rangeStmt, keyObj) {
+		return
+	}
+
+	mText := astutil.NodeText(pass.Fset, rangeStmt.X)
+	if mText == "" {
+		return
+	}
+	if !builtinVisibleAtPos(pass.Pkg, rangeStmt.Pos(), "clear") {
+		return
+	}
+
+	diag := analysis.Diagnostic{
+		Pos:     rangeStmt.Pos(),
+		End:     rangeStmt.End(),
+		Message: "range-delete loop over map can be replaced with clear(" + mText + ")",
+	}
+	if !astutil.HasOverlappingComment(pass.Files, rangeStmt.Pos(), rangeStmt.End()) {
+		diag.SuggestedFixes = []analysis.SuggestedFix{{
+			Message: "Replace range-delete loop with clear",
+			TextEdits: []analysis.TextEdit{{
+				Pos:     rangeStmt.Pos(),
+				End:     rangeStmt.End(),
+				NewText: []byte("clear(" + mText + ")"),
+			}},
+		}}
+	}
+	pass.Report(diag)
+}
+
+// matchDeleteBody reports whether rangeStmt.Body contains exactly one
+// delete(m, k) call where k is the range key object and m is the range map.
+func matchDeleteBody(pass *analysis.Pass, rangeStmt *ast.RangeStmt, keyObj types.Object) bool {
+	if len(rangeStmt.Body.List) != 1 {
+		return false
+	}
+	exprStmt, ok := rangeStmt.Body.List[0].(*ast.ExprStmt)
+	if !ok {
+		return false
+	}
+	callExpr, ok := exprStmt.X.(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	delIdent, ok := callExpr.Fun.(*ast.Ident)
+	if !ok || delIdent.Name != "delete" {
+		return false
+	}
+	delBuiltin, ok := pass.TypesInfo.Uses[delIdent].(*types.Builtin)
+	if !ok || delBuiltin.Name() != "delete" {
+		return false
+	}
+	if len(callExpr.Args) != 2 {
+		return false
+	}
+	if !sameObject(pass, callExpr.Args[0], rangeStmt.X) {
+		return false
+	}
+	delKeyIdent, ok := callExpr.Args[1].(*ast.Ident)
+	if !ok {
+		return false
+	}
+	delKeyObj := pass.TypesInfo.Uses[delKeyIdent]
+	return delKeyObj != nil && delKeyObj == keyObj
+}
+
+// extractRangeKeyObj validates the key and value variables of a range statement
+// and returns the key object. The key must be non-blank; the value must be absent
+// or blank. Returns (nil, false) when the conditions are not met.
+func extractRangeKeyObj(pass *analysis.Pass, rangeStmt *ast.RangeStmt) (types.Object, bool) {
+	keyIdent, ok := rangeStmt.Key.(*ast.Ident)
+	if !ok || keyIdent.Name == "_" {
+		return nil, false
+	}
+	keyObj := pass.TypesInfo.Defs[keyIdent]
+	if keyObj == nil {
+		keyObj = pass.TypesInfo.Uses[keyIdent]
+	}
+	if keyObj == nil {
+		return nil, false
+	}
+	if rangeStmt.Value != nil {
+		valueIdent, ok := rangeStmt.Value.(*ast.Ident)
+		if !ok || valueIdent.Name != "_" {
+			return nil, false
+		}
+	}
+	return keyObj, true
 }
 
 // builtinVisibleAtPos reports whether name resolves to a builtin object at pos.
