@@ -103,16 +103,37 @@ function isCoreSetFailedStatement(node: TSESTree.Statement, sourceCode: SourceCo
 
 /**
  * Returns true when `node` is a control-transfer statement that definitively
- * exits the current block: return, throw, break, or continue.
+ * exits the current block: return, throw, break, continue, or process.exit(...).
+ *
+ * Any `process.exit(...)` call is treated as a barrier regardless of the exit
+ * code value — process.exit(0) and process.exit(variable) both terminate the
+ * process, so subsequent statements are unreachable and should not be flagged.
  */
 function isControlTransferStatement(node: TSESTree.Statement): boolean {
   // prettier-ignore
-  return (
+  if (
     node.type === AST_NODE_TYPES.ReturnStatement ||
     node.type === AST_NODE_TYPES.ThrowStatement ||
     node.type === AST_NODE_TYPES.BreakStatement ||
     node.type === AST_NODE_TYPES.ContinueStatement
-  );
+  ) {
+    return true;
+  }
+  // process.exit(...) — any call, regardless of exit code
+  if (node.type === AST_NODE_TYPES.ExpressionStatement && node.expression.type === AST_NODE_TYPES.CallExpression) {
+    const callee = node.expression.callee;
+    if (
+      callee.type === AST_NODE_TYPES.MemberExpression &&
+      !callee.computed &&
+      callee.object.type === AST_NODE_TYPES.Identifier &&
+      callee.object.name === "process" &&
+      callee.property.type === AST_NODE_TYPES.Identifier &&
+      callee.property.name === "exit"
+    ) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /**

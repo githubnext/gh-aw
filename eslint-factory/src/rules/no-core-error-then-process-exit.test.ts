@@ -42,6 +42,10 @@ describe("no-core-error-then-process-exit", () => {
         `core.error("x"); throw new Error("x"); process.exit(1);`,
         // break between error and process.exit stops scanning
         `switch(x) { case 1: core.error("x"); break; process.exit(1); }`,
+        // process.exit(0) between error and a later nonzero exit stops scanning (clean exit is unreachable)
+        `core.error("x"); process.exit(0); process.exit(1);`,
+        // process.exit(variable) between error and a later nonzero exit stops scanning (variable terminates process)
+        `core.error("x"); process.exit(code); process.exit(1);`,
       ],
       invalid: [
         {
