@@ -401,6 +401,51 @@ describe("mcp_server_core.cjs", () => {
       expect(results[0].error.message).toContain("Supported parameters for this tool");
     });
 
+    it("rejects strict add_labels string arrays synchronously before handler execution", async () => {
+      const { registerTool, handleMessage } = await import("./mcp_server_core.cjs");
+      const handler = vi.fn(() => ({ content: [{ type: "text", text: "ok" }] }));
+      registerTool(server, {
+        name: "add_labels",
+        description: "Add labels",
+        inputSchema: {
+          type: "object",
+          properties: {
+            item_number: { type: "integer" },
+            labels: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  rationale: { type: "string" },
+                  confidence: { type: "string", enum: ["LOW", "MEDIUM", "HIGH"] },
+                },
+                required: ["name", "rationale", "confidence"],
+              },
+            },
+          },
+          required: ["item_number", "labels"],
+        },
+        handler,
+      });
+
+      await handleMessage(server, {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "add_labels",
+          arguments: { item_number: 123, labels: ["bug"] },
+        },
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0].error.code).toBe(-32602);
+      expect(results[0].error.message).toContain("Invalid arguments for add_labels:");
+      expect(results[0].error.message).toContain("labels[0] must be an object (string shorthand is not supported).");
+      expect(handler).not.toHaveBeenCalled();
+    });
+
     it("should return error for unknown method", async () => {
       const { handleMessage } = await import("./mcp_server_core.cjs");
 

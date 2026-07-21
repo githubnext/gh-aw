@@ -217,6 +217,7 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 	section := buildMCPCLIPromptSection(data)
 	require.NotNil(t, section)
 	assert.Equal(t, mcpCLIToolsPromptFile, section.Content)
+	assert.Equal(t, "${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}", section.EnvVars["GH_AW_MCP_CLI_SERVERS_LIST"])
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
@@ -226,7 +227,7 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 	prompt := string(content)
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?##\s+`, prompt, "prompt must not contain H2 Markdown headings")
 	assert.NotRegexp(t, `(?m)^\s*(>\s*)?###\s+`, prompt, "prompt must not contain H3 Markdown headings")
-	assert.Contains(t, prompt, "Use `<server> --help` for tool names, parameters, and examples before calling any command.")
+	assert.Contains(t, prompt, "Use `<server> --help` and `<server> <tool> --help` for the same schema-derived signatures and examples before calling any command.")
 }
 
 func TestGetMCPCLIServerNames_CopilotIncludesManifestServersInPromptList(t *testing.T) {
