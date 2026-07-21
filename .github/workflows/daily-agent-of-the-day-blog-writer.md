@@ -44,6 +44,10 @@ tools:
     - "wc *"
     - "expr *"
     - "git status"
+    - "cd * && git status"
+    - "git add *"
+    - "git add * && git commit *"
+    - "cd * && git checkout -b * && git add * && git commit *"
     - "git diff -- docs/src/content/docs/**"
   github:
     mode: gh-proxy
