@@ -336,6 +336,9 @@ func TestAttachImportAuthHeader_DocsGitHub_NoToken(t *testing.T) {
 func TestAttachImportAuthHeader_GHE_BareHostname(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghe-token")
 	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "")
 	t.Setenv("GH_HOST", "ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://ghe.example.com/owner/repo/raw/main/wf.md", nil)
@@ -347,6 +350,9 @@ func TestAttachImportAuthHeader_GHE_BareHostname(t *testing.T) {
 func TestAttachImportAuthHeader_GHE_HTTPSScheme(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghe-token")
 	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "")
 	t.Setenv("GH_HOST", "https://ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://ghe.example.com/owner/repo/raw/main/wf.md", nil)
@@ -358,6 +364,9 @@ func TestAttachImportAuthHeader_GHE_HTTPSScheme(t *testing.T) {
 func TestAttachImportAuthHeader_GHE_HTTPSchemePrefix(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghe-token")
 	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "")
 	t.Setenv("GH_HOST", "http://ghe.example.com")
 
 	// HTTPS request → token sent.
@@ -375,6 +384,9 @@ func TestAttachImportAuthHeader_GHE_HTTPSchemePrefix(t *testing.T) {
 func TestAttachImportAuthHeader_GHE_DifferentHost(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "ghe-token")
 	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "")
 	t.Setenv("GH_HOST", "ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://other.example.com/workflow.md", nil)
@@ -386,11 +398,56 @@ func TestAttachImportAuthHeader_GHE_DifferentHost(t *testing.T) {
 func TestAttachImportAuthHeader_GitHubAlongsideGHE(t *testing.T) {
 	t.Setenv("GITHUB_TOKEN", "dual-token")
 	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "")
 	t.Setenv("GH_HOST", "ghe.example.com")
 
 	req, _ := http.NewRequest(http.MethodGet, "https://github.com/owner/repo/raw/main/wf.md", nil)
 	attachImportAuthHeader(req, "https://github.com/owner/repo/raw/main/wf.md")
 	assert.Equal(t, "Bearer dual-token", req.Header.Get("Authorization"), "github.com must still be allowed when GH_HOST is also set")
+}
+
+// GITHUB_ENTERPRISE_HOST resolves the auth host (unified resolution).
+func TestAttachImportAuthHeader_GHE_EnterpriseHostEnvVar(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "ent-token")
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "ent.example.com")
+	t.Setenv("GITHUB_HOST", "other.example.com")
+	t.Setenv("GH_HOST", "gh.example.com")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://ent.example.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "https://ent.example.com/owner/repo/raw/main/wf.md")
+	assert.Equal(t, "Bearer ent-token", req.Header.Get("Authorization"), "GITHUB_ENTERPRISE_HOST must resolve as the auth host")
+}
+
+// GITHUB_SERVER_URL resolves the auth host (highest priority).
+func TestAttachImportAuthHeader_GHE_ServerURLEnvVar(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "srv-token")
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "https://srv.example.com")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "ent.example.com")
+	t.Setenv("GITHUB_HOST", "")
+	t.Setenv("GH_HOST", "")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://srv.example.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "https://srv.example.com/owner/repo/raw/main/wf.md")
+	assert.Equal(t, "Bearer srv-token", req.Header.Get("Authorization"), "GITHUB_SERVER_URL must resolve as the auth host")
+}
+
+// GITHUB_HOST resolves the auth host (third-highest priority, above GH_HOST).
+func TestAttachImportAuthHeader_GHE_GitHubHostEnvVar(t *testing.T) {
+	t.Setenv("GITHUB_TOKEN", "gh-host-token")
+	t.Setenv("GH_TOKEN", "")
+	t.Setenv("GITHUB_SERVER_URL", "")
+	t.Setenv("GITHUB_ENTERPRISE_HOST", "")
+	t.Setenv("GITHUB_HOST", "ghhost.example.com")
+	t.Setenv("GH_HOST", "lowpriority.example.com")
+
+	req, _ := http.NewRequest(http.MethodGet, "https://ghhost.example.com/owner/repo/raw/main/wf.md", nil)
+	attachImportAuthHeader(req, "https://ghhost.example.com/owner/repo/raw/main/wf.md")
+	assert.Equal(t, "Bearer "+"gh-host-token", req.Header.Get("Authorization"), "GITHUB_HOST must resolve as the auth host")
 }
 
 // TestBuildRequestLogString_RedactsAuthorization verifies that the request formatter
