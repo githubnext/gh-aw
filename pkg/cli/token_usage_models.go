@@ -118,6 +118,9 @@ func (s *TokenUsageSummary) AvgDurationMs() int {
 func (s *TokenUsageSummary) ModelRows() []ModelTokenUsageRow {
 	rows := make([]ModelTokenUsageRow, 0, len(s.ByModel))
 	for model, usage := range s.ByModel {
+		if usage == nil {
+			continue
+		}
 		avgDur := 0
 		if usage.Requests > 0 {
 			avgDur = usage.DurationMs / usage.Requests

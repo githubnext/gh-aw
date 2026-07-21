@@ -192,7 +192,8 @@ func findAgentStdioFile(runDir string) string {
 	return found
 }
 
-func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
-	_ = tokenUsageFile
+// correlateToolCallsWithTokenDelta intentionally keeps EffectiveTokenDelta unset.
+// TODO: correlate tool calls to token-usage spans when attribution data is available.
+func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, _ string) []MCPToolCall {
 	return toolCalls
 }

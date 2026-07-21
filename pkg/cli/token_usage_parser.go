@@ -16,14 +16,18 @@ import (
 )
 
 // parseTokenUsageFile parses a token-usage.jsonl file and returns the aggregated summary.
-func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
+func parseTokenUsageFile(filePath string) (_ *TokenUsageSummary, err error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
 	file, err := os.Open(filePath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open token usage file: %w", err)
 	}
-	defer file.Close()
+	defer func() {
+		if closeErr := file.Close(); closeErr != nil && err == nil {
+			err = fmt.Errorf("failed to close token usage file: %w", closeErr)
+		}
+	}()
 
 	summary := &TokenUsageSummary{
 		ByModel: make(map[string]*ModelTokenUsage),
@@ -213,6 +217,8 @@ func findTokenUsageFile(runDir string) string {
 		}
 	}
 
+	var found string
+
 	// Walk sandbox directory for any token-usage.jsonl
 	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -223,16 +229,16 @@ func findTokenUsageFile(runDir string) string {
 			return nil
 		}
 		if info.Name() == "token-usage.jsonl" || info.Name() == "token_usage.jsonl" {
-			primary = path
+			found = path
 			return filepath.SkipAll
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
-	if primary != filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath) {
-		tokenUsageLog.Printf("Found token usage file via walk: %s", primary)
-		return primary
+	if found != "" {
+		tokenUsageLog.Printf("Found token usage file via walk: %s", found)
+		return found
 	}
 
 	tokenUsageLog.Print("No token usage file found")
@@ -331,8 +337,7 @@ func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {
 		summary.TotalCacheReadTokens > 0 ||
 		summary.TotalCacheWriteTokens > 0 ||
 		entry.ReasoningTokens > 0
-	hasTokenData := hasRawTokenData
-	if hasTokenData {
+	if hasRawTokenData {
 		summary.TotalRequests = 1
 		summary.ByModel[model] = &ModelTokenUsage{
 			Provider: provider,
