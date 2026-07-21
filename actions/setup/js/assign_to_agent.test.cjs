@@ -1496,7 +1496,7 @@ describe("assign_to_agent", () => {
     // Get global PR repository ID and default branch (for default-pr-repo)
     mockGithub.rest.repos.get.mockResolvedValueOnce({ data: { node_id: "default-pr-repo-id", default_branch: "main" } });
     // Get item PR repository
-    mockGithub.rest.repos.get.mockResolvedValueOnce({ data: { node_id: "item-pull-request-repo-id", default_branch: "main" } });
+    mockGithub.rest.repos.get.mockResolvedValueOnce({ data: { node_id: "item-pull-request-repo-id", default_branch: "develop" } });
     // Find agent
     mockGithub.rest.issues.checkUserCanBeAssigned.mockResolvedValueOnce({});
     mockGithub.rest.users.getByUsername.mockResolvedValueOnce({ data: { id: 99999 } });
@@ -1511,7 +1511,16 @@ describe("assign_to_agent", () => {
 
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Using per-item pull request repository: test-owner/item-pull-request-repo"));
 
-    expect(mockGithub.request).toHaveBeenCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", expect.objectContaining({ owner: "test-owner", repo: "test-repo", issue_number: 42 }));
+    expect(mockGithub.request).toHaveBeenLastCalledWith("POST /repos/{owner}/{repo}/issues/{issue_number}/assignees", {
+      owner: "test-owner",
+      repo: "test-repo",
+      issue_number: 42,
+      assignees: ["copilot-swe-agent[bot]"],
+      agent_assignment: {
+        target_repo: "test-owner/item-pull-request-repo",
+        base_branch: "develop",
+      },
+    });
   });
 
   it("should reject per-item pull_request_repo not in allowed list", async () => {

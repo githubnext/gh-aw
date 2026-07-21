@@ -244,6 +244,7 @@ async function main(config = {}) {
 
     // Handle per-item pull_request_repo override
     let effectivePullRequestRepoSlug = basePullRequestRepoSlug;
+    let effectivePullRequestBaseBranch = effectiveBaseBranch;
     let hasValidatedPerItemPullRequestRepoOverride = false;
     const hasPullRequestRepoOverrideField = message.pull_request_repo != null;
     const trimmedPullRequestRepoOverride = typeof message.pull_request_repo === "string" ? message.pull_request_repo.trim() : "";
@@ -260,8 +261,9 @@ async function main(config = {}) {
           return { success: false, error };
         }
         try {
-          await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
+          const resolvedPullRequestRepo = await resolvePullRequestRepo(githubClient, pullRequestRepoParts[0], pullRequestRepoParts[1], configuredBaseBranch);
           effectivePullRequestRepoSlug = itemPullRequestRepo;
+          effectivePullRequestBaseBranch = resolvedPullRequestRepo.effectiveBaseBranch;
           hasValidatedPerItemPullRequestRepoOverride = true;
           core.info(`Using per-item pull request repository: ${itemPullRequestRepo}`);
         } catch (error) {
@@ -389,7 +391,7 @@ async function main(config = {}) {
       if (model) core.info(`Using model: ${model}`);
       if (customAgent) core.info(`Using custom agent: ${customAgent}`);
       if (customInstructions) core.info(`Using custom instructions: ${customInstructions.substring(0, 100)}${customInstructions.length > 100 ? "..." : ""}`);
-      if (effectiveBaseBranch) core.info(`Using base branch: ${effectiveBaseBranch}`);
+      if (effectivePullRequestBaseBranch) core.info(`Using base branch: ${effectivePullRequestBaseBranch}`);
 
       const success = await assignAgentToIssue(
         assignableId,
@@ -400,7 +402,7 @@ async function main(config = {}) {
         model,
         customAgent,
         customInstructions,
-        effectiveBaseBranch,
+        effectivePullRequestBaseBranch,
         githubClient,
         taskContext,
         effectivePullRequestRepoSlug,
