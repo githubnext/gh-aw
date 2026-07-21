@@ -167,6 +167,34 @@ describe("generate_safe_outputs_tools", () => {
     expect(createIssueTool.inputSchema.required).toEqual(expect.arrayContaining(["title", "temporary_id"]));
   });
 
+  it("adds anyOf alternative requirements for assign_milestone", () => {
+    fs.writeFileSync(
+      toolsSourcePath,
+      JSON.stringify([
+        {
+          name: "assign_milestone",
+          description: "Assign milestone.",
+          inputSchema: {
+            type: "object",
+            properties: {
+              issue_number: { type: "number" },
+              milestone_number: { type: "number" },
+              milestone_title: { type: "string" },
+            },
+            required: ["issue_number"],
+          },
+        },
+      ])
+    );
+    fs.writeFileSync(configPath, JSON.stringify({ assign_milestone: {} }));
+    fs.writeFileSync(toolsMetaPath, JSON.stringify({ description_suffixes: {}, repo_params: {}, dynamic_tools: [] }));
+
+    runScript();
+
+    const result = JSON.parse(fs.readFileSync(outputPath, "utf8"));
+    expect(result[0].inputSchema.anyOf).toEqual([{ required: ["milestone_number"] }, { required: ["milestone_title"] }]);
+  });
+
   it("appends dynamic tools from tools_meta", () => {
     fs.writeFileSync(configPath, JSON.stringify({ create_issue: { max: 1 } }));
     fs.writeFileSync(
