@@ -75,11 +75,10 @@ func analyzeStringBytesCall(pass *analysis.Pass, n ast.Node, generatedFiles file
 		return
 	}
 
-	inner, sel, ok := matchBufBytesArg(pass, call)
+	_, sel, ok := matchBufBytesArg(pass, call)
 	if !ok {
 		return
 	}
-	_ = inner
 
 	receiverText := astutil.NodeText(pass.Fset, sel.X)
 	if receiverText == "" {
