@@ -141,16 +141,27 @@ func TestConcludeThreatDetectionScript_SkippedWhenRunDetectionFalse(t *testing.T
 	if err != nil {
 		t.Fatalf("failed to read GITHUB_OUTPUT: %v", err)
 	}
-	if !strings.Contains(string(outputData), "conclusion=skipped") {
-		t.Fatalf("expected conclusion=skipped in GITHUB_OUTPUT, got: %s", outputData)
+	outputText := string(outputData)
+	if !strings.Contains(outputText, "conclusion=skipped") {
+		t.Fatalf("expected conclusion=skipped in GITHUB_OUTPUT, got: %s", outputText)
+	}
+	if !strings.Contains(outputText, "success=true") {
+		t.Fatalf("expected success=true in GITHUB_OUTPUT, got: %s", outputText)
+	}
+	if !strings.Contains(outputText, "reason=") {
+		t.Fatalf("expected reason= in GITHUB_OUTPUT, got: %s", outputText)
 	}
 
 	envData, err := os.ReadFile(envFile)
 	if err != nil {
 		t.Fatalf("failed to read GITHUB_ENV: %v", err)
 	}
-	if !strings.Contains(string(envData), "GH_AW_DETECTION_CONCLUSION=skipped") {
-		t.Fatalf("expected GH_AW_DETECTION_CONCLUSION=skipped in GITHUB_ENV, got: %s", envData)
+	envText := string(envData)
+	if !strings.Contains(envText, "GH_AW_DETECTION_CONCLUSION=skipped") {
+		t.Fatalf("expected GH_AW_DETECTION_CONCLUSION=skipped in GITHUB_ENV, got: %s", envText)
+	}
+	if !strings.Contains(envText, "GH_AW_DETECTION_REASON=") {
+		t.Fatalf("expected GH_AW_DETECTION_REASON= in GITHUB_ENV, got: %s", envText)
 	}
 }
 
