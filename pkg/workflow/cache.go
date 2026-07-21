@@ -919,6 +919,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	cacheLog.Printf("Building update_cache_memory job for %d caches (threatDetectionEnabled=%v)", len(data.CacheMemoryConfig.Caches), threatDetectionEnabled)
 
 	var steps []string
+	hasCacheSaveStep := false
 
 	// Build steps for each cache
 	// In workflow_call context, use the per-invocation prefix from the agent job.
@@ -1013,6 +1014,7 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 		fmt.Fprintf(&saveStep, "          key: %s\n", cacheKey)
 		fmt.Fprintf(&saveStep, "          path: %s\n", cacheDir)
 		steps = append(steps, saveStep.String())
+		hasCacheSaveStep = true
 	}
 
 	// If no writable caches, return nil
@@ -1049,9 +1051,12 @@ func (c *Compiler) buildUpdateCacheMemoryJob(data *WorkflowData, threatDetection
 	jobCondition := RenderCondition(BuildAnd(BuildAnd(BuildFunctionCall("always"), buildDetectionSuccessCondition()), agentSucceeded))
 
 	// Set up permissions for the cache update job.
-	// actions: write is required for GitHub's cache-reservation backend to allow cache saves.
+	// actions: write is required only when this job actually emits cache-save steps.
 	// Without it, cache saves fail with "cache write denied: token has no writable scopes".
-	perms := NewPermissionsActionsWrite()
+	perms := NewPermissionsEmpty()
+	if hasCacheSaveStep {
+		perms.Set(PermissionActions, PermissionWrite)
+	}
 	if setupActionRef != "" && len(c.generateCheckoutActionsFolder(data)) > 0 {
 		// In dev mode (local action path), also need contents: read to checkout the actions folder
 		perms.Set(PermissionContents, PermissionRead)
