@@ -69,17 +69,21 @@ function hasConsoleFormatSpecifier(node: TSESTree.CallExpressionArgument | undef
   return false;
 }
 
-function isInterpolatedTemplateLiteral(node: TSESTree.CallExpressionArgument): boolean {
-  return node.type === AST_NODE_TYPES.TemplateLiteral && node.expressions.length > 0;
-}
-
 function canSuggestCoreReplacement(node: TSESTree.CallExpression): boolean {
   const arg = node.arguments[0];
   if (node.arguments.length !== 1 || !arg) {
     return false;
   }
 
-  return !isInterpolatedTemplateLiteral(arg) && !hasConsoleFormatSpecifier(arg);
+  // Only suggest when the single argument is statically known to be a string.
+  // Identifiers, object literals, numeric literals, etc. coerce differently in
+  // core.info (string coercion → "[object Object]") vs console.log (util.inspect),
+  // so we skip the suggestion for non-string arguments to avoid silent output degradation.
+  if (getStaticStringValue(arg) === null) {
+    return false;
+  }
+
+  return !hasConsoleFormatSpecifier(arg);
 }
 
 export const preferCoreLoggingRule = createRule({
