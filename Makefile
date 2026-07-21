@@ -23,7 +23,8 @@ CI_UNIT_RUN_ID ?=
 GO_IMPACTED_TEST_MAX_SECONDS ?= 60
 GO_IMPACTED_TEST_PATTERN_MAX_CHARS ?= 8000
 GO_IMPACTED_TEST_FALLBACK_MODE ?= package
-GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE ?= 5
+GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT ?= 5
+GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE ?= $(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)
 TEST_UNIT_MAX_SECONDS ?= 30
 TEST_UNIT_RUN_FULL ?= 0
 
@@ -91,7 +92,7 @@ test-unit-all:
 # Test impacted Go unit tests first for faster feedback (target budget: ~30s)
 .PHONY: test-unit
 test-unit:
-	@echo "Running impacted Go unit tests first (target budget: $(TEST_UNIT_MAX_SECONDS)s)..."; \
+	@echo "Running impacted Go unit tests first (timing-aware target budget: $(TEST_UNIT_MAX_SECONDS)s)..."; \
 	$(MAKE) --no-print-directory test-impacted-go CI_COVERAGE_ENABLED=0 GO_IMPACTED_TEST_MAX_SECONDS=$(TEST_UNIT_MAX_SECONDS) GO_IMPACTED_TEST_FALLBACK_MODE=sample GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE=$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE); \
 	if [ "$(TEST_UNIT_RUN_FULL)" = "1" ]; then \
 		echo "TEST_UNIT_RUN_FULL=1 set; running full Go unit test suite after impacted tests."; \
@@ -431,15 +432,15 @@ test-impacted-go:
 	if [ "$(GO_IMPACTED_TEST_FALLBACK_MODE)" = "sample" ]; then \
 		SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE)"; \
 		case "$$SAMPLE_PER_PACKAGE" in \
-			''|*[!0-9]*) SAMPLE_PER_PACKAGE=5 ;; \
+			''|*[!0-9]*) SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)" ;; \
 		esac; \
 		if [ "$$SAMPLE_PER_PACKAGE" -le 0 ]; then \
-			SAMPLE_PER_PACKAGE=5; \
+			SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)"; \
 		fi; \
 		echo "No timing-aware impacted test data available; running up to $$SAMPLE_PER_PACKAGE sampled top-level tests per impacted package."; \
 		printf '%s\n' "$$CHANGED_GO_PACKAGES" | while IFS= read -r pkg; do \
 			[ -z "$$pkg" ] && continue; \
-			TEST_PATTERN=$$(go test -list '^Test' "$$pkg" 2>/dev/null | grep '^Test' | head -n "$$SAMPLE_PER_PACKAGE" | paste -sd'|' -); \
+			TEST_PATTERN=$$(go test -list '^Test' "$$pkg" 2>/dev/null | head -n "$$SAMPLE_PER_PACKAGE" | paste -sd'|' -); \
 			if [ -z "$$TEST_PATTERN" ]; then \
 				echo "No top-level tests discovered in $$pkg; skipping sampled run for this package."; \
 				continue; \
@@ -1232,7 +1233,7 @@ help:
 	@echo "  build-awmg       - Build the awmg (MCP gateway) binary for current platform"
 	@echo "  build-all        - Build binaries for all platforms (gh-aw and awmg)"
 	@echo "  test             - Run Go tests (unit + integration)"
-	@echo "  test-unit        - Run impacted Go unit tests first (target ~30s); set TEST_UNIT_RUN_FULL=1 to append full suite"
+	@echo "  test-unit        - Run impacted Go unit tests first (target ~$(TEST_UNIT_MAX_SECONDS)s); configurable via TEST_UNIT_MAX_SECONDS and TEST_UNIT_RUN_FULL=1 for full suite"
 	@echo "  test-unit-all    - Run full Go unit test suite"
 	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
