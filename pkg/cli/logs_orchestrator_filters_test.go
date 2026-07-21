@@ -13,7 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func stubFetchJobStatusesForProcessedRun(t *testing.T, fn func(int64, bool) (int, error)) {
+func stubFetchJobStatusesForProcessedRun(t *testing.T, fn func(context.Context, int64, bool) (int, error)) {
 	t.Helper()
 	previous := fetchJobStatusesForProcessedRun
 	fetchJobStatusesForProcessedRun = fn
@@ -211,7 +211,7 @@ func TestApplyRunFilters_FilteredIntegrity(t *testing.T) {
 // the ProcessedRun fields from a DownloadResult.
 func TestBuildProcessedRun(t *testing.T) {
 	t.Run("basic fields are propagated", func(t *testing.T) {
-		stubFetchJobStatusesForProcessedRun(t, func(int64, bool) (int, error) { return 0, nil })
+		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		now := time.Now()
 		tmpDir := t.TempDir()
 		awCtx := &AwContext{Repo: "owner/repo"}
@@ -235,7 +235,7 @@ func TestBuildProcessedRun(t *testing.T) {
 	})
 
 	t.Run("duration and action minutes are computed", func(t *testing.T) {
-		stubFetchJobStatusesForProcessedRun(t, func(int64, bool) (int, error) { return 0, nil })
+		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		base := time.Date(2024, 1, 1, 12, 0, 0, 0, time.UTC)
 		result := DownloadResult{
 			Run: WorkflowRun{
@@ -253,7 +253,7 @@ func TestBuildProcessedRun(t *testing.T) {
 	})
 
 	t.Run("zero timestamps leave duration unset", func(t *testing.T) {
-		stubFetchJobStatusesForProcessedRun(t, func(int64, bool) (int, error) { return 0, nil })
+		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		result := DownloadResult{
 			Run:      WorkflowRun{DatabaseID: 7},
 			LogsPath: t.TempDir(),
@@ -264,7 +264,7 @@ func TestBuildProcessedRun(t *testing.T) {
 	})
 
 	t.Run("effective tokens are propagated", func(t *testing.T) {
-		stubFetchJobStatusesForProcessedRun(t, func(int64, bool) (int, error) { return 0, nil })
+		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		usage := &TokenUsageSummary{TotalEffectiveTokens: 5000}
 		result := DownloadResult{
 			Run:        WorkflowRun{DatabaseID: 3},
@@ -276,7 +276,7 @@ func TestBuildProcessedRun(t *testing.T) {
 	})
 
 	t.Run("zero effective tokens not propagated", func(t *testing.T) {
-		stubFetchJobStatusesForProcessedRun(t, func(int64, bool) (int, error) { return 0, nil })
+		stubFetchJobStatusesForProcessedRun(t, func(context.Context, int64, bool) (int, error) { return 0, nil })
 		usage := &TokenUsageSummary{TotalEffectiveTokens: 0}
 		result := DownloadResult{
 			Run:        WorkflowRun{DatabaseID: 4},
@@ -288,7 +288,7 @@ func TestBuildProcessedRun(t *testing.T) {
 	})
 
 	t.Run("failed job count is added via test seam", func(t *testing.T) {
-		stubFetchJobStatusesForProcessedRun(t, func(runID int64, verbose bool) (int, error) {
+		stubFetchJobStatusesForProcessedRun(t, func(_ context.Context, runID int64, verbose bool) (int, error) {
 			assert.Equal(t, int64(88), runID)
 			assert.False(t, verbose)
 			return 2, nil

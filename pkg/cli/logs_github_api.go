@@ -130,8 +130,8 @@ func fetchJobDetailsWithCounts(ctx context.Context, runID int64, verbose bool) (
 // fetchJobDetails gets detailed job information including durations for a workflow run.
 // Errors from the underlying API call are suppressed so that callers can continue
 // processing even when job data is unavailable (e.g. missing permissions).
-func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
-	jobs, _, err := fetchJobDetailsWithCounts(context.Background(), runID, verbose)
+func fetchJobDetails(ctx context.Context, runID int64, verbose bool) ([]JobInfoWithDuration, error) {
+	jobs, _, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
 	if err != nil {
 		// Don't fail the entire operation if we can't get job info
 		return nil, nil
@@ -142,8 +142,8 @@ func fetchJobDetails(runID int64, verbose bool) ([]JobInfoWithDuration, error) {
 // fetchJobStatuses gets the count of failed jobs for a workflow run.
 // Errors from the underlying API call are suppressed so that callers can continue
 // processing even when job data is unavailable (e.g. missing permissions).
-func fetchJobStatuses(runID int64, verbose bool) (int, error) {
-	_, failedJobs, err := fetchJobDetailsWithCounts(context.Background(), runID, verbose)
+func fetchJobStatuses(ctx context.Context, runID int64, verbose bool) (int, error) {
+	_, failedJobs, err := fetchJobDetailsWithCounts(ctx, runID, verbose)
 	if err != nil {
 		// Don't fail the entire operation if we can't get job info
 		return 0, nil
