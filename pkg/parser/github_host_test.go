@@ -1,3 +1,5 @@
+//go:build !integration
+
 package parser
 
 import (
@@ -24,19 +26,19 @@ func TestGetGitHubHost(t *testing.T) {
 			expectedHost:   "https://acme.ghe.com/redacted",
 		},
 		{
-			name:           "host without scheme gets https prefix",
+			name:           "GITHUB_ENTERPRISE_HOST wins over GITHUB_HOST and GH_HOST",
 			serverURL:      "",
 			enterpriseHost: "acme.ghe.com",
-			githubHost:     "",
-			ghHost:         "",
+			githubHost:     "github-host.ghe.com",
+			ghHost:         "gh-host.ghe.com",
 			expectedHost:   "https://acme.ghe.com",
 		},
 		{
-			name:           "trailing slash stripped",
+			name:           "GITHUB_HOST wins over GH_HOST",
 			serverURL:      "",
 			enterpriseHost: "",
 			githubHost:     "acme.ghe.com/",
-			ghHost:         "",
+			ghHost:         "gh-host.ghe.com",
 			expectedHost:   "https://acme.ghe.com",
 		},
 		{
