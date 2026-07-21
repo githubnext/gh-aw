@@ -1112,7 +1112,7 @@ jobs:
     # Imported from called workflow "smoke-workflow-call" because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.
     # Review the called workflow's job-level permissions in ./.github/workflows/smoke-workflow-call.lock.yml.
     permissions:
-      actions: write
+      actions: read
       contents: read
       issues: write
       pull-requests: write
