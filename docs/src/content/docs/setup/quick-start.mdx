@@ -101,6 +101,10 @@ This will take you through an interactive process to:
     **Setting up `ANTHROPIC_API_KEY`:**
     1. Create an API key in [Anthropic Console](https://console.anthropic.com/settings/keys).
     2. Add it as a repository secret from your repository root with `gh secret set ANTHROPIC_API_KEY < /path/to/key.txt`, or use the GitHub UI. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for more detail.
+
+    :::note
+    Claude subscription OAuth tokens (`CLAUDE_CODE_OAUTH_TOKEN`) are not supported and are ignored if set. Use an `ANTHROPIC_API_KEY` instead. See [Authentication](/gh-aw/reference/auth/#anthropic_api_key) for keyless alternatives.
+    :::
   </TabItem>
   <TabItem label="Codex">
     **Setting up `OPENAI_API_KEY`:**

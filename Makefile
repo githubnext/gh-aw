@@ -1170,12 +1170,19 @@ sbom:
 agent-finish: deps-dev fmt lint build build-wasm test-all validate-otel-contract fix recompile dependabot generate-schema-docs generate-agent-factory security-scan
 	@echo "Agent finished tasks successfully."
 
-# Lightweight pre-PR gate — run before every report_progress / create_pull_request call.
+# Fast pre-PR gate — run before every intermediate report_progress call.
+# Skips test-unit for speed; use agent-report-progress for the final report_progress call.
+# stale-lock guard (fast, no binary) + build + fmt + lint + workflow drift check.
+.PHONY: agent-report-progress-no-test
+agent-report-progress-no-test: check-stale-lock-files build fmt lint check-workflow-drift
+	@echo "Pre-PR validation passed (zero lint errors, lock files in sync). Safe to call report_progress."
+
+# Full pre-PR gate with tests — run once before the final report_progress call.
 # Includes formatting + lint validation to prevent lint-fix PR churn:
 # stale-lock guard (fast, no binary) + build + fmt + lint + test-unit + workflow drift check.
 .PHONY: agent-report-progress
 agent-report-progress: check-stale-lock-files build fmt lint test-unit check-workflow-drift
-	@echo "Pre-PR validation passed (zero lint errors, lock files in sync). Safe to call report_progress."
+	@echo "Pre-PR validation passed (zero lint errors, lock files in sync, tests pass). Safe to call report_progress."
 
 # Extended pre-PR gate with lock-file-only linting.
 .PHONY: agent-report-progress-lint
@@ -1268,8 +1275,9 @@ help:
 	@echo "  preview-docs     - Preview built documentation with Astro"
 	@echo "  clean-docs       - Clean documentation artifacts (dist, node_modules, .astro)"
 
-	@echo "  agent-finish            - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
-	@echo "  agent-report-progress   - Lightweight pre-PR gate: check-stale-lock-files + build + fmt + lint + test-unit + check-workflow-drift"
-	@echo "  agent-report-progress-lint - Pre-PR gate + gh aw lint lock-file check"
+	@echo "  agent-finish                - Complete validation sequence (build, test, fix, recompile, fmt, lint, security-scan)"
+	@echo "  agent-report-progress-no-test - Fast pre-PR gate (no test-unit): check-stale-lock-files + build + fmt + lint + check-workflow-drift"
+	@echo "  agent-report-progress       - Full pre-PR gate (final save only): same as above + test-unit"
+	@echo "  agent-report-progress-lint  - Full pre-PR gate + gh aw lint lock-file check"
 	@echo "  sbom             - Generate SBOM in SPDX and CycloneDX formats (requires syft)"
 	@echo "  help             - Show this help message"

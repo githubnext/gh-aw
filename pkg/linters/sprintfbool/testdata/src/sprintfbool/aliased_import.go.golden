@@ -1,0 +1,13 @@
+package sprintfbool
+
+import (
+	sc "strconv"
+)
+
+func badAliased(b bool) string {
+	return sc.FormatBool(b) // want `use strconv\.FormatBool\(b\) instead of fmt\.Sprintf\("%t", b\)`
+}
+
+func goodAliasedAlready(b bool) string {
+	return sc.FormatBool(b)
+}

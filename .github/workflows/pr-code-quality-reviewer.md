@@ -6,6 +6,12 @@ description: Comprehensive code quality review covering bugs, performance, style
 on:
   pull_request:
     types: [ready_for_review]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.changeset/**'
+      - 'socials/**'
+      - 'scratchpad/**'
   slash_command:
     strategy: centralized
     name: review

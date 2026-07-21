@@ -54,6 +54,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/seenmapbool"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
+	"github.com/github/gh-aw/pkg/linters/sprintfbool"
 	"github.com/github/gh-aw/pkg/linters/sprintferrdot"
 	"github.com/github/gh-aw/pkg/linters/sprintferrorsnew"
 	"github.com/github/gh-aw/pkg/linters/sprintfint"
@@ -112,6 +113,7 @@ func main() {
 		sortslice.Analyzer,
 		sprintferrdot.Analyzer,
 		sprintferrorsnew.Analyzer,
+		sprintfbool.Analyzer,
 		sprintfint.Analyzer,
 		strconvparseignorederror.Analyzer,
 		stringreplaceminusone.Analyzer,

@@ -33,6 +33,104 @@ print_result() {
   fi
 }
 
+start_mock_mcp_server() {
+  local port_file="$1"
+  local log_file="$2"
+
+  node - "$port_file" >"$log_file" 2>&1 <<'NODE' &
+const fs = require("fs");
+const http = require("http");
+
+const portFile = process.argv[2];
+
+const send = (res, code, payload, sessionId) => {
+  const body = JSON.stringify(payload);
+  res.writeHead(code, {
+    "Content-Type": "application/json",
+    "Content-Length": Buffer.byteLength(body),
+    ...(sessionId ? { "Mcp-Session-Id": sessionId } : {}),
+  });
+  res.end(body);
+};
+
+const server = http.createServer((req, res) => {
+  let raw = "";
+  req.on("data", chunk => {
+    raw += chunk;
+  });
+  req.on("end", () => {
+    let data = {};
+    try {
+      data = JSON.parse(raw || "{}");
+    } catch {
+      data = {};
+    }
+
+    const method = data.method;
+    const reqId = data.id ?? 1;
+
+    if (req.url.endsWith("/github")) {
+      if (method === "initialize") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { protocolVersion: "2024-11-05", capabilities: {}, serverInfo: { name: "github", version: "1.0.0" } } }, "s1");
+      } else if (method === "tools/list") {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: { tools: [] } });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    if (req.url.endsWith("/datadog")) {
+      if (method === "initialize") {
+        send(res, 403, { errors: ["Forbidden"] });
+      } else {
+        send(res, 200, { jsonrpc: "2.0", id: reqId, result: {} });
+      }
+      return;
+    }
+
+    send(res, 404, { error: "not found" });
+  });
+});
+
+server.listen(0, "127.0.0.1", () => {
+  fs.writeFileSync(portFile, String(server.address().port), "utf8");
+});
+NODE
+  echo "$!"
+}
+
+wait_for_port_file() {
+  local port_file="$1"
+  local i=0
+  while [ ! -s "$port_file" ] && [ $i -lt 50 ]; do
+    sleep 0.1
+    i=$((i + 1))
+  done
+}
+
+start_and_validate_mock_server() {
+  local port_file="$1"
+  local log_file="$2"
+  local server_pid
+
+  server_pid=$(start_mock_mcp_server "$port_file" "$log_file")
+  if [ -z "$server_pid" ] || ! kill -0 "$server_pid" 2>/dev/null; then
+    return 1
+  fi
+
+  wait_for_port_file "$port_file"
+
+  if [ ! -s "$port_file" ]; then
+    if kill -0 "$server_pid" 2>/dev/null; then
+      kill "$server_pid" 2>/dev/null || true
+    fi
+    return 1
+  fi
+
+  echo "$server_pid"
+}
+
 # Test 1: Script syntax is valid
 test_script_syntax() {
   echo ""
@@ -352,6 +450,166 @@ test_validation_functions_exist() {
   fi
 }
 
+# Test 11: Optional failing server should not fail startup when another server is healthy
+test_optional_server_failure_degrades_to_warning() {
+  echo ""
+  echo "Test 11: Optional server failure degrades to warning"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/github"
+    },
+    "datadog": {
+      "type": "http",
+      "required": false,
+      "url": "http://127.0.0.1:${port}/mcp/datadog"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+
+  if bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >/dev/null 2>&1; then
+    print_result "Optional failing server does not fail startup" "PASS"
+  else
+    print_result "Optional failing server should not fail startup" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
+# Test 12: Server with no required field should fail startup by default (required is the default)
+test_required_server_failure_is_fatal() {
+  echo ""
+  echo "Test 12: Server failure is fatal by default (required is the default)"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "github": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/github"
+    },
+    "datadog": {
+      "type": "http",
+      "url": "http://127.0.0.1:${port}/mcp/datadog"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+
+  if ! bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >/dev/null 2>&1; then
+    print_result "Failing server without required field defaults to fatal" "PASS"
+  else
+    print_result "Failing server without required field should default to fatal" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
+# Test 13: All optional servers fail => startup should fail (no successful connections)
+test_all_optional_servers_fail_is_error() {
+  echo ""
+  echo "Test 13: All optional servers fail => startup fails with clear error"
+
+  local tmpdir
+  tmpdir=$(mktemp -d)
+  local port_file="$tmpdir/port"
+  local config_file="$tmpdir/config.json"
+
+  local server_pid
+  if ! server_pid=$(start_and_validate_mock_server "$port_file" "$tmpdir/mock.log"); then
+    print_result "Mock MCP server failed to start (check $tmpdir/mock.log)" "FAIL"
+    return
+  fi
+
+  local port
+  port=$(cat "$port_file")
+
+  # Only the datadog server (returns 403 on initialize), marked optional
+  cat > "$config_file" <<EOF
+{
+  "mcpServers": {
+    "datadog": {
+      "type": "http",
+      "required": false,
+      "url": "http://127.0.0.1:${port}/mcp/datadog"
+    }
+  },
+  "gateway": {
+    "port": 8080,
+    "domain": "localhost",
+    "apiKey": "test-key"
+  }
+}
+EOF
+
+  local output_file="$tmpdir/output.txt"
+  local run_result=0
+  bash "$SCRIPT_PATH" "$config_file" "http://127.0.0.1:${port}" "test-key" >"$output_file" 2>&1 || run_result=$?
+
+  if [ $run_result -ne 0 ]; then
+    print_result "All optional servers failing causes startup to fail" "PASS"
+  else
+    print_result "All optional servers failing should cause startup to fail" "FAIL"
+  fi
+
+  # Check that the error message is about all optional servers failing, not about missing config
+  if grep -q "optional server" "$output_file"; then
+    print_result "Error message correctly references optional server failure" "PASS"
+  else
+    print_result "Error message should reference optional server failure (not 'no HTTP servers configured')" "FAIL"
+  fi
+
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  rm -rf "$tmpdir"
+}
+
 # Run all tests
 echo "=== Testing check_mcp_servers.sh ==="
 echo "Script: $SCRIPT_PATH"
@@ -366,6 +624,9 @@ test_valid_http_server
 test_server_without_url
 test_mixed_servers
 test_validation_functions_exist
+test_optional_server_failure_degrades_to_warning
+test_required_server_failure_is_fatal
+test_all_optional_servers_fail_is_error
 
 # Print summary
 echo ""
