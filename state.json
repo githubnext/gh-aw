@@ -2,7 +2,7 @@
   "counts": {
     "model_size": {
       "claude-sonnet-4.6": 107,
-      "claude-haiku-4.5": 121
+      "claude-haiku-4.5": 122
     }
   },
   "runs": [
@@ -1600,6 +1600,13 @@
       "timestamp": "2026-07-21T11:56:59.718Z",
       "assignments": {
         "model_size": "claude-sonnet-4.6"
+      }
+    },
+    {
+      "run_id": "29837952667",
+      "timestamp": "2026-07-21T14:13:00.143Z",
+      "assignments": {
+        "model_size": "claude-haiku-4.5"
       }
     }
   ]
