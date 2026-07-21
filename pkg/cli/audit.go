@@ -672,7 +672,7 @@ func collectAuditAnalysisResults(run WorkflowRun, runOutputDir string, verbose b
 	return results
 }
 
-// launchCoreAuditAnalyses exclusively writes missingTools, missingData, noops, mcpFailures, and accessAnalysis; metrics and job fields are delegated to subhelpers below.
+// launchCoreAuditAnalyses exclusively writes missingTools, missingData, noops, mcpFailures, and accessAnalysis.
 func launchCoreAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, run WorkflowRun, runOutputDir string, verbose bool) {
 	// Resolve experiment assignment once so all goroutines reuse the same values
 	// rather than each reading state.json independently.
@@ -738,7 +738,7 @@ func launchJobDetailsAnalysis(wg *sync.WaitGroup, results *auditAnalysisResults,
 	})
 }
 
-// launchFirewallAuditAnalyses exclusively writes policyAnalysis, mcpToolUsage, and tokenUsageSummary; firewallAnalysis is delegated to launchFirewallAnalysis.
+// launchFirewallAuditAnalyses exclusively writes policyAnalysis, mcpToolUsage, and tokenUsageSummary.
 func launchFirewallAuditAnalyses(wg *sync.WaitGroup, results *auditAnalysisResults, runOutputDir string, verbose bool) {
 	launchFirewallAnalysis(wg, results, runOutputDir, verbose)
 	runAuditAnalysis(wg, verbose, "analyzeFirewallPolicy", "Failed to analyze firewall policy", func(v *PolicyAnalysis) {
