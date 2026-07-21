@@ -93,7 +93,8 @@ func checkQualifiedIoutilUsage(pass *analysis.Pass, root inspector.Cursor, gener
 	}
 }
 
-// checkDotImportIoutilUsage reports bare ioutil function names used via dot-imports.
+// checkDotImportIoutilUsage reports bare ioutil identifiers (functions and variables)
+// used via dot-imports (import . "io/ioutil").
 func checkDotImportIoutilUsage(pass *analysis.Pass, root inspector.Cursor, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
 	for cur := range root.Preorder((*ast.Ident)(nil)) {
 		ident, ok := cur.Node().(*ast.Ident)

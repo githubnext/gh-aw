@@ -88,7 +88,7 @@ func checkFuncBodyLength(pass *analysis.Pass, n ast.Node, generatedFiles fileche
 
 	start := pass.Fset.Position(body.Lbrace)
 	end := pass.Fset.Position(body.Rbrace)
-	lines := end.Line - start.Line - 1
+	lines := end.Line - start.Line - 1 // subtract 1: exclude the closing brace line, count only body lines
 
 	if lines > maxLines {
 		if nolint.HasDirectiveForLinter(position, noLintIndex, "largefunc") {

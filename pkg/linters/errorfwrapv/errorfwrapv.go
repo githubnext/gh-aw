@@ -103,12 +103,11 @@ func analyzeFmtErrorfCall(pass *analysis.Pass, n ast.Node, generatedFiles filech
 		return
 	}
 
-	suppressed := nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv")
 	verbs := parseFormatVerbs(lit.Value)
 	errorArgVerbs, wrappedErrorArgs, hasVerbV := classifyErrorArgs(pass, call, verbs)
 
 	if hasVerbV {
-		if suppressed {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
 			return
 		}
 		pass.ReportRangef(call, "fmt.Errorf formats an error argument with %%v; use %%w to preserve the error chain")
@@ -135,7 +134,7 @@ func analyzeFmtErrorfCall(pass *analysis.Pass, n ast.Node, generatedFiles filech
 				continue
 			}
 		}
-		if suppressed {
+		if nolint.HasDirectiveForLinter(position, noLintIndex, "errorfwrapv") {
 			return
 		}
 		pass.ReportRangef(call, "fmt.Errorf passes an error argument without %%w; use %%w to preserve the error chain")

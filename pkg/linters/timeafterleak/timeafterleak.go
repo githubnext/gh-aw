@@ -148,8 +148,8 @@ func isInsideLoopSelectComm(cur inspector.Cursor) bool {
 // isSingleCaseSelect reports whether the CommClause cc is the only clause in
 // its enclosing SelectStmt. Single-case selects are not flagged because the
 // timer must fire — no accumulation is possible.
-// A default clause (CommClause with nil Comm) can preempt the timer and is
-// not counted as "another case" here; thus such selects are still flagged.
+// A default clause (CommClause with nil Comm) is counted as another clause,
+// so a select with a timer case plus a default returns false and is reportable.
 func isSingleCaseSelect(clauseCur inspector.Cursor, cc *ast.CommClause) bool {
 	for selCur := range clauseCur.Enclosing((*ast.SelectStmt)(nil)) {
 		sel, ok := selCur.Node().(*ast.SelectStmt)
