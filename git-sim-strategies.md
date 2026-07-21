@@ -121,11 +121,14 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **128** → tiny-none-many-xlarge-clean-merge_msg (idx128), then remaining
-many-xlarge ahead/diverged (129-134). many-large DONE 117-125. many-xlarge STARTED
-126-127 (clean-single/multi, PASS, ~38 KB headroom — TIGHTEST YET). many-medium COMPLETE
-108-116. many-small 99-107. many-micro 90-98. FILES=many runs 90-179, batch 180-269.
-**many-xlarge MEASURED ~4057.4-4057.9 KB <4096 (confirmed safe, only ~38 KB slack).**
+Next index: **132** → tiny-none-many-xlarge-DIVERGED single/multi/merge_msg (idx132-134),
+which FINISHES FILES=many (90-179 halfway: xlarge done, only diverged trio left of xlarge).
+**idx128-131 DONE, all PASS:** clean-merge_msg(128) 4057.41 KB, ahead-single(129) 4057,
+ahead-multi(130) 4057.9 (disjoint ~1.014×), ahead-merge_msg(131) 4058. All 20 files, ff
+rc0, merges empty, topic-name filename leak reconfirmed on both merge_msg cells (128,131).
+many-large DONE 117-125. many-xlarge NOW 126-131 (clean+ahead all PASS, ~38 KB headroom —
+TIGHTEST YET). many-medium 108-116. many-small 99-107. many-micro 90-98. batch 180-269.
+**many-xlarge MEASURED ~4057.4-4058 KB <4096 (confirmed safe, only ~38 KB slack).**
 batch-xlarge ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200
 here) — watch the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far
 ahead — no real `rejected` expected before then unless a PATCH tier is tuned >4096,
