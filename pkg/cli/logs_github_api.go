@@ -191,9 +191,45 @@ type ListWorkflowRunsOptions struct {
 // The processedCount and targetCount parameters are used to display progress in the spinner message.
 func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun, int, error) {
 	logsGitHubAPILog.Printf("Listing workflow runs: workflow=%s, limit=%d, startDate=%s, endDate=%s, ref=%s", opts.WorkflowName, opts.Limit, opts.StartDate, opts.EndDate, opts.Ref)
-	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
+	args := buildListWorkflowRunsArgs(opts)
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
+	}
 
-	// Add filters
+	spinnerMsg := workflowRunsSpinnerMessage(opts)
+	spinner := console.NewSpinner(spinnerMsg)
+	if !opts.Verbose {
+		spinner.Start()
+	}
+	defer stopWorkflowRunsSpinner(spinner, opts.Verbose)
+
+	cmdCtx := opts.Context
+	if cmdCtx == nil {
+		cmdCtx = context.Background()
+	}
+	output, err := runWorkflowRunsCommand(cmdCtx, args)
+	if err != nil {
+		return nil, 0, handleListWorkflowRunsError(cmdCtx, args, output, err, opts.Verbose)
+	}
+
+	runs, err := parseWorkflowRunsOutput(output)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
+	}
+
+	// Store the total count fetched from API before filtering
+	totalFetched := len(runs)
+	setOldestFetchedCreatedAt(opts.OldestFetchedCreatedAt, runs)
+	agenticRuns, err := filterListedWorkflowRuns(runs, opts)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return agenticRuns, totalFetched, nil
+}
+
+func buildListWorkflowRunsArgs(opts ListWorkflowRunsOptions) []string {
+	args := []string{"run", "list", "--json", "databaseId,number,url,status,conclusion,workflowName,createdAt,startedAt,updatedAt,event,headBranch,headSha,displayTitle"}
 	if opts.WorkflowName != "" {
 		args = append(args, "--workflow", opts.WorkflowName)
 	}
@@ -203,181 +239,147 @@ func listWorkflowRunsWithPagination(opts ListWorkflowRunsOptions) ([]WorkflowRun
 	if opts.Limit > 0 {
 		args = append(args, "--limit", strconv.Itoa(opts.Limit))
 	}
-	// Build a single --created filter that covers the full date range.
-	// gh run list's --created flag is a single string (not a slice); passing it
-	// multiple times only keeps the last value and silently drops earlier bounds.
-	// buildCreatedFilter combines all bounds into one expression so that every
-	// bound is honoured.
 	if createdFilter := buildCreatedFilter(opts.StartDate, opts.EndDate, opts.BeforeDate); createdFilter != "" {
 		args = append(args, "--created", createdFilter)
 	}
-	// Add ref filter (uses --branch flag which also works for tags)
 	if opts.Ref != "" {
 		args = append(args, "--branch", opts.Ref)
 	}
-	// Add repo filter
 	if opts.RepoOverride != "" {
 		args = append(args, "--repo", opts.RepoOverride)
 	}
+	return args
+}
 
-	if opts.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Executing: gh "+strings.Join(args, " ")))
-	}
-
-	// Start spinner for network operation
-	spinnerMsg := workflowRunsSpinnerMessage(opts)
-	spinner := console.NewSpinner(spinnerMsg)
-	if !opts.Verbose {
-		spinner.Start()
-	}
-
-	cmdCtx := opts.Context
-	if cmdCtx == nil {
-		cmdCtx = context.Background()
-	}
-	cmd := workflow.ExecGHContext(cmdCtx, args...)
-	output, err := cmd.CombinedOutput()
-
-	if err != nil {
-		// Stop spinner on error
-		if !opts.Verbose {
-			spinner.Stop()
-		}
-
-		// Extract detailed error information including exit code
-		var exitCode int
-		var exitErr *exec.ExitError
-		if errors.As(err, &exitErr) {
-			exitCode = exitErr.ExitCode()
-			logsGitHubAPILog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
-			logsGitHubAPILog.Printf("combined output: %s", string(output))
-		} else {
-			logsGitHubAPILog.Printf("gh run list command failed (not ExitError): %v. Command: gh %v", err, args)
-		}
-
-		// When exec.CommandContext cancels the subprocess it returns an *exec.ExitError
-		// ("signal: killed") rather than the context error, so errors.Is checks in
-		// callers would not recognise it. Surface the context error directly so that
-		// errors.Is(err, context.DeadlineExceeded) / errors.Is(err, context.Canceled)
-		// work as expected.
-		if ctxErr := cmdCtx.Err(); ctxErr != nil {
-			logsGitHubAPILog.Printf("gh run list interrupted by context: %v", ctxErr)
-			return nil, 0, ctxErr
-		}
-
-		// Check for different error types with heuristics
-		errMsg := err.Error()
-		outputMsg := string(output)
-		combinedMsg := errMsg + " " + outputMsg
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(outputMsg))
-		}
-
-		// Check for invalid field errors first (before auth errors).
-		// GitHub CLI may capitalise the message differently across versions, so
-		// use a case-insensitive comparison. Note that some gh versions emit
-		// "Unknown JSON field: ..." (with "JSON" between "Unknown" and "field"),
-		// so we also check for "unknown json field" and "unknown json" explicitly.
-		combinedMsgLower := strings.ToLower(combinedMsg)
-		if strings.Contains(combinedMsgLower, "invalid field") ||
-			strings.Contains(combinedMsgLower, "unknown field") ||
-			strings.Contains(combinedMsgLower, "unknown json field") ||
-			strings.Contains(combinedMsgLower, "unknown json") ||
-			strings.Contains(combinedMsgLower, "field not found") ||
-			strings.Contains(combinedMsgLower, "no such field") {
-			return nil, 0, fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, string(output))
-		}
-
-		// Check for authentication errors.
-		// "exit status 1" is intentionally omitted: gh exits 1 for many non-auth
-		// errors (e.g. unsupported JSON fields), so matching it caused misleading
-		// "authentication required" messages for unrelated failures.
-		if isPermissionErrorStr(combinedMsg) {
-			return nil, 0, errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
-		}
-
-		if len(output) > 0 {
-			return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %s", exitCode, string(output))
-		}
-		return nil, 0, fmt.Errorf("failed to list workflow runs (exit code %d): %w", exitCode, err)
-	}
-
-	var runs []WorkflowRun
-	if err := json.Unmarshal(output, &runs); err != nil {
-		// Stop spinner on parse error
-		if !opts.Verbose {
-			spinner.Stop()
-		}
-		return nil, 0, fmt.Errorf("failed to parse workflow runs: %w", err)
-	}
-
-	// Stop spinner silently - don't show per-iteration messages
-	if !opts.Verbose {
+func stopWorkflowRunsSpinner(spinner *console.SpinnerWrapper, verbose bool) {
+	if !verbose {
 		spinner.Stop()
 	}
+}
 
-	// Store the total count fetched from API before filtering
-	totalFetched := len(runs)
-	if opts.OldestFetchedCreatedAt != nil {
-		var oldest time.Time
-		if totalFetched > 0 {
-			oldest = runs[totalFetched-1].CreatedAt
-		}
-		*opts.OldestFetchedCreatedAt = oldest
+func runWorkflowRunsCommand(ctx context.Context, args []string) ([]byte, error) {
+	cmd := workflow.ExecGHContext(ctx, args...)
+	return cmd.CombinedOutput()
+}
+
+func handleListWorkflowRunsError(cmdCtx context.Context, args []string, output []byte, err error, verbose bool) error {
+	exitCode := extractWorkflowRunsExitCode(err, args, output)
+	if ctxErr := cmdCtx.Err(); ctxErr != nil {
+		logsGitHubAPILog.Printf("gh run list interrupted by context: %v", ctxErr)
+		return ctxErr
 	}
 
-	// Filter only agentic workflow runs when no specific workflow is specified
-	// If a workflow name was specified, we already filtered by it in the API call
-	var agenticRuns []WorkflowRun
-	if opts.WorkflowName == "" {
-		// No specific workflow requested, filter to only agentic workflows
-		// Get the list of agentic workflow names from .lock.yml files
-		agenticWorkflowNames, err := getAgenticWorkflowNames(opts.Verbose)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to get agentic workflow names: %w", err)
-		}
-
-		for _, run := range runs {
-			if slices.Contains(agenticWorkflowNames, run.WorkflowName) {
-				agenticRuns = append(agenticRuns, run)
-			}
-		}
-	} else {
-		// Specific workflow requested, return all runs (they're already filtered by GitHub API)
-		agenticRuns = runs
+	outputMsg := string(output)
+	combinedMsg := err.Error() + " " + outputMsg
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(outputMsg))
 	}
+	if hasInvalidWorkflowRunsFieldError(combinedMsg) {
+		return fmt.Errorf("invalid field in JSON query (exit code %d): %s", exitCode, outputMsg)
+	}
+	if isPermissionErrorStr(combinedMsg) {
+		return errors.New("GitHub CLI authentication required. Run 'gh auth login' first")
+	}
+	if len(output) > 0 {
+		return fmt.Errorf("failed to list workflow runs (exit code %d): %s", exitCode, outputMsg)
+	}
+	return fmt.Errorf("failed to list workflow runs (exit code %d): %w", exitCode, err)
+}
 
-	// Apply run ID filtering if specified
-	if opts.BeforeRunID > 0 || opts.AfterRunID > 0 {
-		var filteredRuns []WorkflowRun
-		for _, run := range agenticRuns {
-			// Apply before-run-id filter (exclusive)
-			if opts.BeforeRunID > 0 && run.DatabaseID >= opts.BeforeRunID {
-				continue
-			}
-			// Apply after-run-id filter (exclusive)
-			if opts.AfterRunID > 0 && run.DatabaseID <= opts.AfterRunID {
-				continue
-			}
+func extractWorkflowRunsExitCode(err error, args []string, output []byte) int {
+	var exitCode int
+	var exitErr *exec.ExitError
+	if errors.As(err, &exitErr) {
+		exitCode = exitErr.ExitCode()
+		logsGitHubAPILog.Printf("gh run list command failed with exit code %d. Command: gh %v", exitCode, args)
+		logsGitHubAPILog.Printf("combined output: %s", string(output))
+		return exitCode
+	}
+	logsGitHubAPILog.Printf("gh run list command failed (not ExitError): %v. Command: gh %v", err, args)
+	return exitCode
+}
+
+func hasInvalidWorkflowRunsFieldError(message string) bool {
+	message = strings.ToLower(message)
+	return strings.Contains(message, "invalid field") ||
+		strings.Contains(message, "unknown field") ||
+		strings.Contains(message, "unknown json field") ||
+		strings.Contains(message, "unknown json") ||
+		strings.Contains(message, "field not found") ||
+		strings.Contains(message, "no such field")
+}
+
+func parseWorkflowRunsOutput(output []byte) ([]WorkflowRun, error) {
+	var runs []WorkflowRun
+	if err := json.Unmarshal(output, &runs); err != nil {
+		return nil, err
+	}
+	return runs, nil
+}
+
+func setOldestFetchedCreatedAt(oldestFetchedCreatedAt *time.Time, runs []WorkflowRun) {
+	if oldestFetchedCreatedAt == nil {
+		return
+	}
+	var oldest time.Time
+	if len(runs) > 0 {
+		oldest = runs[len(runs)-1].CreatedAt
+	}
+	*oldestFetchedCreatedAt = oldest
+}
+
+func filterListedWorkflowRuns(runs []WorkflowRun, opts ListWorkflowRunsOptions) ([]WorkflowRun, error) {
+	agenticRuns, err := filterAgenticWorkflowRuns(runs, opts)
+	if err != nil {
+		return nil, err
+	}
+	agenticRuns = filterWorkflowRunsByID(agenticRuns, opts.BeforeRunID, opts.AfterRunID)
+	return filterOutSkippedWorkflowRuns(agenticRuns), nil
+}
+
+func filterAgenticWorkflowRuns(runs []WorkflowRun, opts ListWorkflowRunsOptions) ([]WorkflowRun, error) {
+	if opts.WorkflowName != "" {
+		return runs, nil
+	}
+	agenticWorkflowNames, err := getAgenticWorkflowNames(opts.Verbose)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get agentic workflow names: %w", err)
+	}
+	filteredRuns := make([]WorkflowRun, 0, len(runs))
+	for _, run := range runs {
+		if slices.Contains(agenticWorkflowNames, run.WorkflowName) {
 			filteredRuns = append(filteredRuns, run)
 		}
-		agenticRuns = filteredRuns
 	}
+	return filteredRuns, nil
+}
 
-	// Filter out skipped and cancelled runs — they carry no useful agentic data
-	// and should not count toward the requested run count.
-	{
-		filtered := agenticRuns[:0]
-		for _, run := range agenticRuns {
-			if run.Conclusion == "skipped" || run.Conclusion == "cancelled" {
-				continue
-			}
-			filtered = append(filtered, run)
+func filterWorkflowRunsByID(runs []WorkflowRun, beforeRunID, afterRunID int64) []WorkflowRun {
+	if beforeRunID <= 0 && afterRunID <= 0 {
+		return runs
+	}
+	filteredRuns := make([]WorkflowRun, 0, len(runs))
+	for _, run := range runs {
+		if beforeRunID > 0 && run.DatabaseID >= beforeRunID {
+			continue
 		}
-		agenticRuns = filtered
+		if afterRunID > 0 && run.DatabaseID <= afterRunID {
+			continue
+		}
+		filteredRuns = append(filteredRuns, run)
 	}
+	return filteredRuns
+}
 
-	return agenticRuns, totalFetched, nil
+func filterOutSkippedWorkflowRuns(runs []WorkflowRun) []WorkflowRun {
+	filtered := runs[:0]
+	for _, run := range runs {
+		if run.Conclusion == "skipped" || run.Conclusion == "cancelled" {
+			continue
+		}
+		filtered = append(filtered, run)
+	}
+	return filtered
 }
 
 func workflowRunsSpinnerMessage(opts ListWorkflowRunsOptions) string {

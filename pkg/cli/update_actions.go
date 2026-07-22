@@ -43,6 +43,27 @@ type actionUpdateDeps struct {
 	getActionSHAForTag     func(ctx context.Context, repo, tag string) (string, error)
 }
 
+type entrySnapshot struct {
+	key   string
+	entry workflow.ActionCacheEntry
+}
+
+type actionUpdateSummary struct {
+	updatedActions []string
+	failedActions  []actionUpdateFailure
+	skippedActions []string
+}
+
+type actionCacheEntryContext struct {
+	deps               actionUpdateDeps
+	actionCache        *workflow.ActionCache
+	allowMajor         bool
+	verbose            bool
+	disableReleaseBump bool
+	coolDown           time.Duration
+	summary            *actionUpdateSummary
+}
+
 func defaultActionUpdateDeps() actionUpdateDeps {
 	return actionUpdateDeps{
 		getLatestRelease:       getLatestActionRelease,
@@ -71,199 +92,227 @@ func UpdateActions(ctx context.Context, allowMajor, verbose, disableReleaseBump 
 
 func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbose, disableReleaseBump bool, coolDown time.Duration) error {
 	updateLog.Print("Starting action updates")
+	printUpdateActionsStart(verbose)
+	actionCache, err := loadActionCache(verbose)
+	if err != nil || actionCache == nil {
+		return err
+	}
 
+	summary := actionUpdateSummary{}
+	entryContext := actionCacheEntryContext{
+		deps:               deps,
+		actionCache:        actionCache,
+		allowMajor:         allowMajor,
+		verbose:            verbose,
+		disableReleaseBump: disableReleaseBump,
+		coolDown:           coolDown,
+		summary:            &summary,
+	}
+	for _, snapshotEntry := range snapshotActionCacheEntries(actionCache) {
+		if err := processActionCacheEntry(ctx, snapshotEntry, entryContext); err != nil {
+			return err
+		}
+	}
+
+	printActionUpdateSummary(summary, verbose)
+	return saveUpdatedActionCache(actionCache, summary.updatedActions)
+}
+
+func printUpdateActionsStart(verbose bool) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking for GitHub Actions updates..."))
 	}
+}
 
-	// Load the action cache (actions-lock.json) using the shared ActionCache helpers
-	// so that cached inputs/descriptions for safe-outputs.actions entries are preserved.
+func loadActionCache(verbose bool) (*workflow.ActionCache, error) {
 	actionsLockPath := filepath.Join(".github", "aw", "actions-lock.json")
 	if _, err := os.Stat(actionsLockPath); os.IsNotExist(err) {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Actions lock file not found: "+actionsLockPath))
 		}
-		return nil // Not an error, just skip
+		return nil, nil
 	}
 
 	actionCache := workflow.NewActionCache(".")
 	if err := actionCache.Load(); err != nil {
-		return fmt.Errorf("failed to parse actions lock file: %w", err)
+		return nil, fmt.Errorf("failed to parse actions lock file: %w", err)
 	}
-
 	updateLog.Printf("Loaded %d action entries from actions-lock.json", len(actionCache.Entries))
+	return actionCache, nil
+}
 
-	// Track updates
-	var updatedActions []string
-	var failedActions []actionUpdateFailure
-	var skippedActions []string
-
-	// Snapshot entries before iteration to avoid mutating the map mid-loop.
-	type entrySnapshot struct {
-		key   string
-		entry workflow.ActionCacheEntry
-	}
+func snapshotActionCacheEntries(actionCache *workflow.ActionCache) []entrySnapshot {
 	snapshot := make([]entrySnapshot, 0, len(actionCache.Entries))
 	for key, entry := range actionCache.Entries {
 		snapshot = append(snapshot, entrySnapshot{key: key, entry: entry})
 	}
+	return snapshot
+}
 
-	for _, s := range snapshot {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		entry := s.entry
-		updateLog.Printf("Checking action: %s@%s", entry.Repo, entry.Version)
+func processActionCacheEntry(ctx context.Context, snapshotEntry entrySnapshot, entryCtx actionCacheEntryContext) error {
+	if ctx.Err() != nil {
+		return ctx.Err()
+	}
+	entry := snapshotEntry.entry
+	updateLog.Printf("Checking action: %s@%s", entry.Repo, entry.Version)
 
-		// By default all actions are force-updated to the latest major version.
-		// When disableReleaseBump is set, only core actions (actions/*) bypass the --major flag.
-		effectiveAllowMajor := !disableReleaseBump || allowMajor || isCoreAction(entry.Repo)
-
-		// Check for latest release using the injectable function (also used by updateActionRefsInContent)
-		latestVersion, latestSHA, err := deps.getLatestRelease(ctx, entry.Repo, entry.Version, effectiveAllowMajor, verbose)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %s: %v", entry.Repo, err)))
-			}
-			failedActions = append(failedActions, actionUpdateFailure{name: entry.Repo, err: err.Error()})
-			continue
-		}
-
-		// For gh-aw native actions (github/gh-aw/* and github/gh-aw-actions/*), the action
-		// versions are published in lock-step with the CLI. Never update these actions beyond
-		// the version of the currently running CLI — doing so would pin a newer (possibly
-		// pre-release) action that may be incompatible with the user's installed CLI.
-		if isGhAwNativeAction(entry.Repo) {
-			cliVersion := GetVersion()
-			cliVer := parseVersion(cliVersion)
-			latestVer := parseVersion(latestVersion)
-			if cliVer != nil && latestVer != nil && latestVer.IsNewer(cliVer) {
-				cappedVersion := semverutil.EnsureVPrefix(cliVersion)
-				updateLog.Printf("Capping %s update to CLI version %s (latest available %s exceeds running CLI)", entry.Repo, cappedVersion, latestVersion)
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s: capping update target to CLI version %s (latest %s is newer than running CLI)", entry.Repo, cappedVersion, latestVersion)))
-				}
-				cappedSHA, shaErr := deps.getActionSHAForTag(ctx, gitutil.ExtractBaseRepo(entry.Repo), cappedVersion)
-				if shaErr != nil {
-					updateLog.Printf("Cannot resolve SHA for %s@%s (CLI version cap): %v; skipping update", entry.Repo, cappedVersion, shaErr)
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: cannot resolve SHA for CLI version %s: %v", entry.Repo, cappedVersion, shaErr)))
-					failedActions = append(failedActions, actionUpdateFailure{
-						name: entry.Repo,
-						err:  fmt.Sprintf("cannot resolve SHA for CLI version %s: %v", cappedVersion, shaErr),
-					})
-					continue
-				}
-				latestVersion = cappedVersion
-				latestSHA = cappedSHA
-			}
-		}
-
-		// Prevent downgrades: if the proposed version is older than the current, skip.
-		// This can happen when GitHub Releases do not include every tag
-		// (e.g., v1.1.3 was pushed as a tag-only release without a formal GitHub
-		// Release, so the Releases API only returns v1.1.0 as the latest).
-		currentVer := parseVersion(entry.Version)
-		latestVer := parseVersion(latestVersion)
-		if currentVer != nil && latestVer != nil && currentVer.IsNewer(latestVer) {
-			updateLog.Printf("Skipping %s: proposed version %s is older than current %s (would be a downgrade)", entry.Repo, latestVersion, entry.Version)
-			msg := fmt.Sprintf("%s: skipping proposed update from %s to %s (would be a downgrade)",
-				entry.Repo, entry.Version, latestVersion)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
-			skippedActions = append(skippedActions, entry.Repo)
-			continue
-		}
-
-		// Check if update is available
-		if latestVersion == entry.Version && latestSHA == entry.SHA {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s@%s is up to date", entry.Repo, entry.Version)))
-			}
-			skippedActions = append(skippedActions, entry.Repo)
-			continue
-		}
-
-		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
-		if !isExemptFromCoolDown(entry.Repo) {
-			var coolDownResult coolDownCheckResult
-			if cachedDate, ok := actionCache.GetReleasedAt(entry.Repo, latestVersion); ok {
-				// Use cached release date to avoid an extra API call.
-				coolDownResult = checkReleaseCoolDownWithDate(entry.Repo, latestVersion, cachedDate, coolDown)
-			} else {
-				// Fetch from API and cache the date for future runs.
-				coolDownResult = checkReleaseCoolDown(ctx, entry.Repo, latestVersion, coolDown)
-				if !coolDownResult.PublishedAt.IsZero() {
-					actionCache.SetReleasedAt(entry.Repo, latestVersion, coolDownResult.PublishedAt)
-				}
-			}
-			if coolDownResult.InCoolDown {
-				cooldownLog.Printf("Action %s: %s", entry.Repo, coolDownResult.Message)
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", entry.Repo, coolDownResult.Message)))
-				skippedActions = append(skippedActions, entry.Repo)
-				continue
-			}
-		}
-
-		// Update the entry using ActionCache.Set which:
-		// - Preserves cached inputs/descriptions when the SHA is unchanged (moving tag)
-		// - Clears cached inputs/descriptions when the SHA changes, prompting a re-fetch
-		//   of the updated action.yml on the next compile
-		oldSHAStr := entry.SHA
-		if len(oldSHAStr) > 7 {
-			oldSHAStr = oldSHAStr[:7]
-		}
-		newSHAStr := latestSHA
-		if len(newSHAStr) > 7 {
-			newSHAStr = newSHAStr[:7]
-		}
-		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, oldSHAStr, latestVersion, newSHAStr)
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
-
-		// Remove the old key when the version changes, using the original map key from
-		// the snapshot to handle any key/version mismatches in the stored cache file.
-		if latestVersion != entry.Version {
-			actionCache.DeleteByKey(s.key)
-		}
-		// Set the new entry; ActionCache.Set handles inputs/description preservation.
-		actionCache.Set(entry.Repo, latestVersion, latestSHA)
-
-		updatedActions = append(updatedActions, entry.Repo)
+	latestVersion, latestSHA, err := resolveLatestActionUpdate(ctx, entryCtx.deps, entry, entryCtx.allowMajor, entryCtx.verbose, entryCtx.disableReleaseBump)
+	if err != nil {
+		recordActionUpdateFailure(entryCtx.summary, entryCtx.verbose, entry.Repo, err)
+		return nil
+	}
+	if shouldSkipActionDowngrade(entry, latestVersion) {
+		recordActionDowngradeSkip(entryCtx.summary, entry, latestVersion)
+		return nil
+	}
+	if latestVersion == entry.Version && latestSHA == entry.SHA {
+		recordActionUpToDateSkip(entryCtx.summary, entryCtx.verbose, entry)
+		return nil
+	}
+	if shouldSkipActionForCoolDown(ctx, entryCtx.actionCache, entry.Repo, latestVersion, entryCtx.coolDown, entryCtx.verbose) {
+		entryCtx.summary.skippedActions = append(entryCtx.summary.skippedActions, entry.Repo)
+		return nil
 	}
 
-	// Show summary
-	fmt.Fprintln(os.Stderr, "")
+	applyActionCacheUpdate(entryCtx.actionCache, snapshotEntry, entry, latestVersion, latestSHA)
+	entryCtx.summary.updatedActions = append(entryCtx.summary.updatedActions, entry.Repo)
+	return nil
+}
 
-	if len(updatedActions) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %d action(s):", len(updatedActions))))
-		for _, action := range updatedActions {
+func resolveLatestActionUpdate(ctx context.Context, deps actionUpdateDeps, entry workflow.ActionCacheEntry, allowMajor, verbose, disableReleaseBump bool) (string, string, error) {
+	effectiveAllowMajor := !disableReleaseBump || allowMajor || isCoreAction(entry.Repo)
+	latestVersion, latestSHA, err := deps.getLatestRelease(ctx, entry.Repo, entry.Version, effectiveAllowMajor, verbose)
+	if err != nil {
+		return "", "", err
+	}
+	return capNativeActionToCLIVersion(ctx, deps, entry.Repo, latestVersion, latestSHA, verbose)
+}
+
+func capNativeActionToCLIVersion(ctx context.Context, deps actionUpdateDeps, repo, latestVersion, latestSHA string, verbose bool) (string, string, error) {
+	if !isGhAwNativeAction(repo) {
+		return latestVersion, latestSHA, nil
+	}
+	cliVersion := GetVersion()
+	cliVer := parseVersion(cliVersion)
+	latestVer := parseVersion(latestVersion)
+	if cliVer == nil || latestVer == nil || !latestVer.IsNewer(cliVer) {
+		return latestVersion, latestSHA, nil
+	}
+
+	cappedVersion := semverutil.EnsureVPrefix(cliVersion)
+	updateLog.Printf("Capping %s update to CLI version %s (latest available %s exceeds running CLI)", repo, cappedVersion, latestVersion)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s: capping update target to CLI version %s (latest %s is newer than running CLI)", repo, cappedVersion, latestVersion)))
+	}
+	cappedSHA, err := deps.getActionSHAForTag(ctx, gitutil.ExtractBaseRepo(repo), cappedVersion)
+	if err != nil {
+		updateLog.Printf("Cannot resolve SHA for %s@%s (CLI version cap): %v; skipping update", repo, cappedVersion, err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: cannot resolve SHA for CLI version %s: %v", repo, cappedVersion, err)))
+		return "", "", fmt.Errorf("cannot resolve SHA for CLI version %s: %w", cappedVersion, err)
+	}
+	return cappedVersion, cappedSHA, nil
+}
+
+func recordActionUpdateFailure(summary *actionUpdateSummary, verbose bool, repo string, err error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %s: %v", repo, err)))
+	}
+	summary.failedActions = append(summary.failedActions, actionUpdateFailure{name: repo, err: err.Error()})
+}
+
+func shouldSkipActionDowngrade(entry workflow.ActionCacheEntry, latestVersion string) bool {
+	currentVer := parseVersion(entry.Version)
+	latestVer := parseVersion(latestVersion)
+	return currentVer != nil && latestVer != nil && currentVer.IsNewer(latestVer)
+}
+
+func recordActionDowngradeSkip(summary *actionUpdateSummary, entry workflow.ActionCacheEntry, latestVersion string) {
+	updateLog.Printf("Skipping %s: proposed version %s is older than current %s (would be a downgrade)", entry.Repo, latestVersion, entry.Version)
+	msg := fmt.Sprintf("%s: skipping proposed update from %s to %s (would be a downgrade)", entry.Repo, entry.Version, latestVersion)
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+	summary.skippedActions = append(summary.skippedActions, entry.Repo)
+}
+
+func recordActionUpToDateSkip(summary *actionUpdateSummary, verbose bool, entry workflow.ActionCacheEntry) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s@%s is up to date", entry.Repo, entry.Version)))
+	}
+	summary.skippedActions = append(summary.skippedActions, entry.Repo)
+}
+
+func shouldSkipActionForCoolDown(ctx context.Context, actionCache *workflow.ActionCache, repo, latestVersion string, coolDown time.Duration, verbose bool) bool {
+	if isExemptFromCoolDown(repo) {
+		return false
+	}
+	coolDownResult := lookupActionCoolDown(ctx, actionCache, repo, latestVersion, coolDown)
+	if !coolDownResult.InCoolDown {
+		return false
+	}
+	cooldownLog.Printf("Action %s: %s", repo, coolDownResult.Message)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, coolDownResult.Message)))
+	return true
+}
+
+func lookupActionCoolDown(ctx context.Context, actionCache *workflow.ActionCache, repo, latestVersion string, coolDown time.Duration) coolDownCheckResult {
+	if cachedDate, ok := actionCache.GetReleasedAt(repo, latestVersion); ok {
+		return checkReleaseCoolDownWithDate(repo, latestVersion, cachedDate, coolDown)
+	}
+	result := checkReleaseCoolDown(ctx, repo, latestVersion, coolDown)
+	if !result.PublishedAt.IsZero() {
+		actionCache.SetReleasedAt(repo, latestVersion, result.PublishedAt)
+	}
+	return result
+}
+
+func applyActionCacheUpdate(actionCache *workflow.ActionCache, snapshotEntry entrySnapshot, entry workflow.ActionCacheEntry, latestVersion, latestSHA string) {
+	oldSHAStr := shortActionSHA(entry.SHA)
+	newSHAStr := shortActionSHA(latestSHA)
+	updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, oldSHAStr, latestVersion, newSHAStr)
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
+	if latestVersion != entry.Version {
+		actionCache.DeleteByKey(snapshotEntry.key)
+	}
+	actionCache.Set(entry.Repo, latestVersion, latestSHA)
+}
+
+func shortActionSHA(sha string) string {
+	if len(sha) > 7 {
+		return sha[:7]
+	}
+	return sha
+}
+
+func printActionUpdateSummary(summary actionUpdateSummary, verbose bool) {
+	fmt.Fprintln(os.Stderr, "")
+	if len(summary.updatedActions) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %d action(s):", len(summary.updatedActions))))
+		for _, action := range summary.updatedActions {
 			fmt.Fprintln(os.Stderr, console.FormatListItem(action))
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
-
-	if len(skippedActions) > 0 && verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%d action(s) already up to date", len(skippedActions))))
+	if len(summary.skippedActions) > 0 && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("%d action(s) already up to date", len(summary.skippedActions))))
 		fmt.Fprintln(os.Stderr, "")
 	}
-
-	if len(failedActions) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %d action(s):", len(failedActions))))
-		for _, f := range failedActions {
-			fmt.Fprintf(os.Stderr, "  %s: %s\n", f.name, f.err)
+	if len(summary.failedActions) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to check %d action(s):", len(summary.failedActions))))
+		for _, failure := range summary.failedActions {
+			fmt.Fprintf(os.Stderr, "  %s: %s\n", failure.name, failure.err)
 		}
 		fmt.Fprintln(os.Stderr, "")
 	}
+}
 
-	// Save the updated actions lock file using ActionCache.Save which preserves
-	// all entry fields (including inputs/descriptions for safe-outputs actions).
-	if len(updatedActions) > 0 {
-		if err := actionCache.Save(); err != nil {
-			return fmt.Errorf("failed to save actions lock file: %w", err)
-		}
-
-		updateLog.Printf("Successfully wrote updated actions-lock.json with %d updates", len(updatedActions))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated actions-lock.json file"))
+func saveUpdatedActionCache(actionCache *workflow.ActionCache, updatedActions []string) error {
+	if actionCache == nil || len(updatedActions) == 0 {
+		return nil
 	}
-
+	if err := actionCache.Save(); err != nil {
+		return fmt.Errorf("failed to save actions lock file: %w", err)
+	}
+	updateLog.Printf("Successfully wrote updated actions-lock.json with %d updates", len(updatedActions))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Updated actions-lock.json file"))
 	return nil
 }
 
@@ -276,132 +325,31 @@ func getLatestActionRelease(ctx context.Context, repo, currentVersion string, al
 func getLatestActionReleaseWithDeps(ctx context.Context, deps actionUpdateDeps, repo, currentVersion string, allowMajor, verbose bool) (string, string, error) {
 	updateLog.Printf("Getting latest release for %s@%s (allowMajor=%v)", repo, currentVersion, allowMajor)
 
-	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
 	baseRepo := gitutil.ExtractBaseRepo(repo)
 	updateLog.Printf("Using base repository: %s for action: %s", baseRepo, repo)
 
-	// Use gh CLI to get releases
 	output, err := deps.runGHReleasesAPI(ctx, baseRepo)
 	if err != nil {
-		// Check if this is an authentication error
-		outputStr := string(output)
-		if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
-			updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s", repo)
-			// Try fallback using git ls-remote
-			latestRelease, latestSHA, gitErr := deps.getLatestReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)
-			if gitErr != nil {
-				return "", "", fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git Error: %w", err, gitErr)
-			}
-			return latestRelease, latestSHA, nil
+		releases, handled, fallbackErr := handleActionReleaseAPIError(ctx, deps, repo, currentVersion, allowMajor, verbose, err, output)
+		if handled {
+			return releases.version, releases.sha, fallbackErr
 		}
-		// Include the gh output in the error for better diagnostics
-		if trimmed := strings.TrimSpace(outputStr); trimmed != "" {
-			return "", "", fmt.Errorf("failed to fetch releases: %w: %s", err, trimmed)
-		}
-		return "", "", fmt.Errorf("failed to fetch releases: %w", err)
+		return "", "", fallbackErr
 	}
 
-	releases := strings.Split(strings.TrimSpace(string(output)), "\n")
-	if len(releases) == 0 || releases[0] == "" {
-		// No GitHub Releases found; fall back to tag scanning via git ls-remote.
-		// Some repositories publish tags without creating GitHub Releases — this is safe
-		// to use and the warning below is informational only.
-		updateLog.Printf("No releases found via GitHub API for %s, falling back to git ls-remote tag scan", baseRepo)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(baseRepo+": no GitHub Releases found, falling back to tag scanning (safe to ignore)"))
-		}
-		latestRelease, latestSHA, gitErr := deps.getLatestReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)
-		if gitErr != nil {
-			return "", "", fmt.Errorf("no releases or tags found for %s: %w", baseRepo, gitErr)
-		}
-		return latestRelease, latestSHA, nil
+	releases := splitReleaseLines(output)
+	if len(releases) == 0 {
+		return fallbackToGitActionRelease(ctx, deps, repo, currentVersion, allowMajor, verbose, baseRepo)
 	}
-
-	// Parse current version
-	currentVer := parseVersion(currentVersion)
-
-	// Find all valid stable semantic version releases (skip prereleases such as v1.0.0-beta.1).
-	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease of a
-	// higher base version could be incorrectly selected as the upgrade target.
-	type releaseWithVersion struct {
-		tag     string
-		version *semverutil.SemanticVersion
-	}
-	var validReleases []releaseWithVersion
-	for _, release := range releases {
-		releaseVer := parseVersion(release)
-		if releaseVer != nil && releaseVer.Pre == "" {
-			validReleases = append(validReleases, releaseWithVersion{
-				tag:     release,
-				version: releaseVer,
-			})
-		}
-	}
-
-	if len(validReleases) == 0 {
-		return "", "", errors.New("no valid semantic version releases found")
-	}
-
-	// Sort releases by semver in descending order (highest first)
-	slices.SortFunc(validReleases, func(a, b releaseWithVersion) int {
-		switch {
-		case a.version.IsNewer(b.version):
-			return -1
-		case b.version.IsNewer(a.version):
-			return 1
-		default:
-			return 0
-		}
-	})
-
-	// If current version is not valid, return the highest semver release
-	if currentVer == nil {
-		latestRelease := validReleases[0].tag
-		sha, err := deps.getActionSHAForTag(ctx, baseRepo, latestRelease)
-		if err != nil {
-			return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestRelease, err)
-		}
-		return latestRelease, sha, nil
-	}
-
-	// Find the highest compatible release (respecting major version if !allowMajor)
-	var latestCompatible string
-	var latestCompatibleVersion *semverutil.SemanticVersion
-
-	for _, rel := range validReleases {
-		// Check if compatible based on major version
-		if !allowMajor && rel.version.Major != currentVer.Major {
-			continue
-		}
-
-		// Since releases are sorted by semver descending, first match is highest
-		if latestCompatibleVersion == nil || rel.version.IsNewer(latestCompatibleVersion) {
-			latestCompatible = rel.tag
-			latestCompatibleVersion = rel.version
-		} else if !rel.version.IsNewer(latestCompatibleVersion) &&
-			rel.version.Major == latestCompatibleVersion.Major &&
-			rel.version.Minor == latestCompatibleVersion.Minor &&
-			rel.version.Patch == latestCompatibleVersion.Patch {
-			// If versions are equal, prefer the less precise one (e.g., "v8" over "v8.0.0")
-			// This follows GitHub Actions convention of using major version tags
-			if !rel.version.IsPreciseVersion() && latestCompatibleVersion.IsPreciseVersion() {
-				latestCompatible = rel.tag
-				latestCompatibleVersion = rel.version
-			}
-		}
-	}
-
-	if latestCompatible == "" {
-		return "", "", errors.New("no compatible release found")
-	}
-
-	// Get the SHA for the latest compatible release
-	sha, err := deps.getActionSHAForTag(ctx, baseRepo, latestCompatible)
+	latestRelease, err := selectLatestActionRelease(releases, currentVersion, allowMajor)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestCompatible, err)
+		return "", "", err
 	}
-
-	return latestCompatible, sha, nil
+	sha, err := deps.getActionSHAForTag(ctx, baseRepo, latestRelease)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to get SHA for %s: %w", latestRelease, err)
+	}
+	return latestRelease, sha, nil
 }
 
 // getLatestActionReleaseViaGit gets the latest release using git ls-remote (fallback)
@@ -410,7 +358,6 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching latest release for %s via git ls-remote (current: %s, allow major: %v)", repo, currentVersion, allowMajor)))
 	}
 
-	// Extract base repository (e.g., "actions/cache/restore" -> "actions/cache")
 	baseRepo := gitutil.ExtractBaseRepo(repo)
 	updateLog.Printf("Using base repository: %s for action: %s (git fallback)", baseRepo, repo)
 
@@ -425,17 +372,79 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 		return "", "", fmt.Errorf("failed to fetch releases via git ls-remote: %w", err)
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	var releases []string
-	tagToSHA := make(map[string]string)
+	releases, tagToSHA := parseGitRemoteTags(output)
+	if len(releases) == 0 {
+		return "", "", errors.New("no releases found")
+	}
 
+	latestCompatible, err := selectLatestActionRelease(releases, currentVersion, allowMajor)
+	if err != nil {
+		return "", "", err
+	}
+	if verbose && parseVersion(currentVersion) == nil {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current version is not valid, using highest semver release: %s (via git)", latestCompatible)))
+	} else if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest compatible release: %s (via git)", latestCompatible)))
+	}
+
+	return latestCompatible, tagToSHA[latestCompatible], nil
+}
+
+type actionReleaseResolution struct {
+	version string
+	sha     string
+}
+
+type releaseWithVersion struct {
+	tag     string
+	version *semverutil.SemanticVersion
+}
+
+func handleActionReleaseAPIError(ctx context.Context, deps actionUpdateDeps, repo, currentVersion string, allowMajor, verbose bool, err error, output []byte) (actionReleaseResolution, bool, error) {
+	outputStr := string(output)
+	if gitutil.IsAuthError(outputStr) || gitutil.IsAuthError(err.Error()) {
+		updateLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s", repo)
+		latestRelease, latestSHA, gitErr := deps.getLatestReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)
+		if gitErr != nil {
+			return actionReleaseResolution{}, true, fmt.Errorf("failed to fetch releases via GitHub API and git: API error: %w, Git Error: %w", err, gitErr)
+		}
+		return actionReleaseResolution{version: latestRelease, sha: latestSHA}, true, nil
+	}
+	if trimmed := strings.TrimSpace(outputStr); trimmed != "" {
+		return actionReleaseResolution{}, false, fmt.Errorf("failed to fetch releases: %w: %s", err, trimmed)
+	}
+	return actionReleaseResolution{}, false, fmt.Errorf("failed to fetch releases: %w", err)
+}
+
+func splitReleaseLines(output []byte) []string {
+	trimmed := strings.TrimSpace(string(output))
+	if trimmed == "" {
+		return nil
+	}
+	return strings.Split(trimmed, "\n")
+}
+
+func fallbackToGitActionRelease(ctx context.Context, deps actionUpdateDeps, repo, currentVersion string, allowMajor, verbose bool, baseRepo string) (string, string, error) {
+	updateLog.Printf("No releases found via GitHub API for %s, falling back to git ls-remote tag scan", baseRepo)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(baseRepo+": no GitHub Releases found, falling back to tag scanning (safe to ignore)"))
+	}
+	latestRelease, latestSHA, err := deps.getLatestReleaseViaGit(ctx, repo, currentVersion, allowMajor, verbose)
+	if err != nil {
+		return "", "", fmt.Errorf("no releases or tags found for %s: %w", baseRepo, err)
+	}
+	return latestRelease, latestSHA, nil
+}
+
+func parseGitRemoteTags(output []byte) ([]string, map[string]string) {
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	releases := make([]string, 0, len(lines))
+	tagToSHA := make(map[string]string)
 	for _, line := range lines {
-		// Parse: "<sha> refs/tags/<tag>"
 		parts := strings.Fields(line)
 		if len(parts) >= 2 {
 			sha := parts[0]
 			tagRef := parts[1]
-			// Skip ^{} annotations (they point to the commit object)
 			if strings.HasSuffix(tagRef, "^{}") {
 				continue
 			}
@@ -444,23 +453,27 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 			tagToSHA[tag] = sha
 		}
 	}
+	return releases, tagToSHA
+}
 
-	if len(releases) == 0 {
-		return "", "", errors.New("no releases found")
+func selectLatestActionRelease(releases []string, currentVersion string, allowMajor bool) (string, error) {
+	validReleases := collectValidStableActionReleases(releases)
+	if len(validReleases) == 0 {
+		return "", errors.New("no valid semantic version releases found")
 	}
-
-	// Parse current version
 	currentVer := parseVersion(currentVersion)
-
-	// Find all valid stable semantic version releases (skip prereleases such as v1.0.0-beta.1).
-	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease of a
-	// higher base version could be incorrectly selected as the upgrade target.
-	// git ls-remote --tags returns every tag, so the prerelease check is especially important
-	// for this fallback path.
-	type releaseWithVersion struct {
-		tag     string
-		version *semverutil.SemanticVersion
+	if currentVer == nil {
+		return validReleases[0].tag, nil
 	}
+
+	latestCompatible := pickLatestCompatibleActionRelease(validReleases, currentVer, allowMajor)
+	if latestCompatible == "" {
+		return "", errors.New("no compatible release found")
+	}
+	return latestCompatible, nil
+}
+
+func collectValidStableActionReleases(releases []string) []releaseWithVersion {
 	var validReleases []releaseWithVersion
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
@@ -471,12 +484,6 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 			})
 		}
 	}
-
-	if len(validReleases) == 0 {
-		return "", "", errors.New("no valid semantic version releases found")
-	}
-
-	// Sort releases by semver in descending order (highest first)
 	slices.SortFunc(validReleases, func(a, b releaseWithVersion) int {
 		switch {
 		case a.version.IsNewer(b.version):
@@ -487,28 +494,16 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 			return 0
 		}
 	})
+	return validReleases
+}
 
-	// If current version is not valid, return the highest semver release
-	if currentVer == nil {
-		latestRelease := validReleases[0].tag
-		sha := tagToSHA[latestRelease]
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Current version is not valid, using highest semver release: %s (via git)", latestRelease)))
-		}
-		return latestRelease, sha, nil
-	}
-
-	// Find the highest compatible release (respecting major version if !allowMajor)
+func pickLatestCompatibleActionRelease(validReleases []releaseWithVersion, currentVer *semverutil.SemanticVersion, allowMajor bool) string {
 	var latestCompatible string
 	var latestCompatibleVersion *semverutil.SemanticVersion
-
 	for _, rel := range validReleases {
-		// Check if compatible based on major version
 		if !allowMajor && rel.version.Major != currentVer.Major {
 			continue
 		}
-
-		// Since releases are sorted by semver descending, first match is highest
 		if latestCompatibleVersion == nil || rel.version.IsNewer(latestCompatibleVersion) {
 			latestCompatible = rel.tag
 			latestCompatibleVersion = rel.version
@@ -524,17 +519,7 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 			}
 		}
 	}
-
-	if latestCompatible == "" {
-		return "", "", errors.New("no compatible release found")
-	}
-
-	sha := tagToSHA[latestCompatible]
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Latest compatible release: %s (via git)", latestCompatible)))
-	}
-
-	return latestCompatible, sha, nil
+	return latestCompatible
 }
 
 // getActionSHAForTag gets the commit SHA for a given tag in an action repository.
@@ -592,6 +577,24 @@ var actionRefPattern = regexp.MustCompile(`(uses:\s+)([a-zA-Z0-9][a-zA-Z0-9_-]*/
 type latestReleaseResult struct {
 	version string
 	sha     string
+}
+
+type workflowActionRefMatch struct {
+	prefix   string
+	repo     string
+	ref      string
+	comment  string
+	trailing string
+	indent   string
+}
+
+type workflowActionUpdateContext struct {
+	deps          actionUpdateDeps
+	cache         map[string]latestReleaseResult
+	coolDownCache map[string]coolDownCheckResult
+	allowMajor    bool
+	verbose       bool
+	coolDown      time.Duration
 }
 
 // UpdateActionsInWorkflowFiles scans all workflow .md files under workflowsDir
@@ -652,48 +655,12 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 		if d.IsDir() || !strings.HasSuffix(d.Name(), ".md") {
 			return nil
 		}
-
-		content, err := os.ReadFile(path)
+		updated, err := updateWorkflowFileReferences(ctx, deps, path, d.Name(), cache, coolDownCache, opts)
 		if err != nil {
-			if opts.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read %s: %v", path, err)))
-			}
-			return nil
+			return err
 		}
-
-		updatedActions, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
-		if err != nil {
-			if opts.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update action refs in %s: %v", path, err)))
-			}
-			return nil
-		}
-		updatedSkills, newContent, err := updateSkillRefsInContent(ctx, newContent, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
-		if err != nil {
-			if opts.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update skill refs in %s: %v", path, err)))
-			}
-			return nil
-		}
-
-		if !updatedActions && !updatedSkills {
-			return nil
-		}
-
-		if err := os.WriteFile(path, []byte(newContent), constants.FilePermPublic); err != nil {
-			return fmt.Errorf("failed to write updated workflow %s: %w", path, err)
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action/skill references in "+d.Name()))
-		updatedFiles = append(updatedFiles, path)
-
-		// Recompile the updated workflow (unless --no-compile is set)
-		if !opts.noCompile {
-			if err := compileWorkflowWithRefresh(ctx, path, opts.verbose, false, opts.engineOverride, false, opts.approve); err != nil {
-				if opts.verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
-				}
-			}
+		if updated {
+			updatedFiles = append(updatedFiles, path)
 		}
 		return nil
 	})
@@ -706,6 +673,51 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 	}
 
 	return nil
+}
+
+func updateWorkflowFileReferences(ctx context.Context, deps actionUpdateDeps, path, displayName string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, opts updateActionsOptions) (bool, error) {
+	content, err := os.ReadFile(path)
+	if err != nil {
+		logUpdateWorkflowFileWarning(opts.verbose, "Failed to read", path, err)
+		return false, nil
+	}
+
+	updatedActions, newContent, err := updateActionRefsInContentWithDeps(ctx, deps, string(content), cache, coolDownCache, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
+	if err != nil {
+		logUpdateWorkflowFileWarning(opts.verbose, "Failed to update action refs in", path, err)
+		return false, nil
+	}
+	updatedSkills, newContent, err := updateSkillRefsInContent(ctx, newContent, !opts.disableReleaseBump, opts.verbose, opts.coolDown)
+	if err != nil {
+		logUpdateWorkflowFileWarning(opts.verbose, "Failed to update skill refs in", path, err)
+		return false, nil
+	}
+	if !updatedActions && !updatedSkills {
+		return false, nil
+	}
+
+	if err := os.WriteFile(path, []byte(newContent), constants.FilePermPublic); err != nil {
+		return false, fmt.Errorf("failed to write updated workflow %s: %w", path, err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action/skill references in "+displayName))
+	recompileUpdatedWorkflowFile(ctx, path, opts)
+	return true, nil
+}
+
+func logUpdateWorkflowFileWarning(verbose bool, prefix, path string, err error) {
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s %s: %v", prefix, path, err)))
+	}
+}
+
+func recompileUpdatedWorkflowFile(ctx context.Context, path string, opts updateActionsOptions) {
+	if opts.noCompile {
+		return
+	}
+	if err := compileWorkflowWithRefresh(ctx, path, opts.verbose, false, opts.engineOverride, false, opts.approve); err != nil && opts.verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
+	}
 }
 
 type skillRefUpdateResolver func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error)
@@ -818,113 +830,151 @@ func updateSkillRefValue(
 func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDeps, content string, cache map[string]latestReleaseResult, coolDownCache map[string]coolDownCheckResult, allowMajor, verbose bool, coolDown time.Duration) (bool, string, error) {
 	changed := false
 	lines := strings.Split(content, "\n")
+	updateCtx := workflowActionUpdateContext{
+		deps:          deps,
+		cache:         cache,
+		coolDownCache: coolDownCache,
+		allowMajor:    allowMajor,
+		verbose:       verbose,
+		coolDown:      coolDown,
+	}
 
 	for i, line := range lines {
-		match := actionRefPattern.FindStringSubmatchIndex(line)
-		if match == nil {
+		match, ok := parseWorkflowActionRefMatch(line)
+		if !ok {
 			continue
 		}
-
-		// Extract matched groups
-		prefix := line[match[2]:match[3]] // "uses: "
-		repo := line[match[4]:match[5]]   // e.g. "actions/checkout"
-		ref := line[match[6]:match[7]]    // SHA or version tag
-		comment := ""
-		if match[8] >= 0 {
-			comment = line[match[8]:match[9]] // e.g. " # v6.0.2"
+		newLine, updated, err := resolveUpdatedWorkflowActionLine(ctx, line, match, updateCtx)
+		if err != nil {
+			return false, "", err
 		}
-		trailing := ""
-		if match[10] >= 0 {
-			trailing = line[match[10]:match[11]]
-		}
-
-		// When release bumps are disabled, skip non-core (non actions/*) action refs.
-		effectiveAllowMajor := allowMajor || isCoreAction(repo)
-		if !effectiveAllowMajor {
+		if !updated {
 			continue
 		}
-
-		// Determine the "current version" to pass to the latest-release resolver.
-		isSHA := IsCommitSHA(ref)
-		currentVersion := ref
-		if isSHA {
-			// Extract version from comment (e.g., " # v6.0.2" -> "v6.0.2")
-			if comment != "" {
-				commentVersion := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(comment), "#"))
-				if commentVersion != "" {
-					currentVersion = commentVersion
-				} else {
-					currentVersion = ""
-				}
-			} else {
-				currentVersion = ""
-			}
-		}
-
-		// Resolve latest version/SHA, using the cache to avoid redundant API calls.
-		// Use "|" as separator since GitHub repo names cannot contain "|".
-		cacheKey := repo + "|" + currentVersion
-		result, cached := cache[cacheKey]
-		if !cached {
-			latestVersion, latestSHA, err := deps.getLatestRelease(ctx, repo, currentVersion, effectiveAllowMajor, verbose)
-			if err != nil {
-				updateLog.Printf("Failed to get latest release for %s: %v", repo, err)
-				continue
-			}
-			result = latestReleaseResult{version: latestVersion, sha: latestSHA}
-			cache[cacheKey] = result
-		}
-		latestVersion := result.version
-		latestSHA := result.sha
-
-		if isSHA {
-			if latestSHA == ref {
-				continue // SHA unchanged
-			}
-		} else {
-			if latestVersion == ref {
-				continue // Version tag unchanged
-			}
-			// Prevent downgrades: if the proposed version is older than the current, skip.
-			currentVer := parseVersion(ref)
-			proposedVer := parseVersion(latestVersion)
-			if currentVer != nil && proposedVer != nil && currentVer.IsNewer(proposedVer) {
-				updateLog.Printf("Skipping %s in workflow file: proposed version %s is older than current %s (would be a downgrade)", repo, latestVersion, ref)
-				continue
-			}
-		}
-
-		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
-		if !isExemptFromCoolDown(repo) {
-			coolDownKey := repo + "@" + latestVersion
-			coolDownResult, coolDownCached := coolDownCache[coolDownKey]
-			if !coolDownCached {
-				coolDownResult = checkReleaseCoolDown(ctx, repo, latestVersion, coolDown)
-				coolDownCache[coolDownKey] = coolDownResult
-			}
-			if coolDownResult.InCoolDown {
-				cooldownLog.Printf("Action ref %s in workflow: %s", repo, coolDownResult.Message)
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, coolDownResult.Message)))
-				}
-				continue
-			}
-		}
-
-		// Build the new uses line
-		var newRef string
-		if isSHA {
-			// SHA-pinned references stay SHA-pinned, updated to latest SHA + version comment
-			newRef = fmt.Sprintf("%s%s%s@%s  # %s%s", line[:match[2]], prefix, repo, latestSHA, latestVersion, trailing)
-		} else {
-			// Version tag references just get the new version tag
-			newRef = fmt.Sprintf("%s%s%s@%s%s%s", line[:match[2]], prefix, repo, latestVersion, comment, trailing)
-		}
-
-		updateLog.Printf("Updating %s from %s to %s in line %d", repo, ref, latestVersion, i+1)
-		lines[i] = newRef
+		updateLog.Printf("Updating %s from %s to %s in line %d", match.repo, match.ref, extractWorkflowActionTargetVersion(newLine), i+1)
+		lines[i] = newLine
 		changed = true
 	}
 
 	return changed, strings.Join(lines, "\n"), nil
+}
+
+func parseWorkflowActionRefMatch(line string) (workflowActionRefMatch, bool) {
+	match := actionRefPattern.FindStringSubmatchIndex(line)
+	if match == nil {
+		return workflowActionRefMatch{}, false
+	}
+	refMatch := workflowActionRefMatch{
+		indent: line[:match[2]],
+		prefix: line[match[2]:match[3]],
+		repo:   line[match[4]:match[5]],
+		ref:    line[match[6]:match[7]],
+	}
+	if match[8] >= 0 {
+		refMatch.comment = line[match[8]:match[9]]
+	}
+	if match[10] >= 0 {
+		refMatch.trailing = line[match[10]:match[11]]
+	}
+	return refMatch, true
+}
+
+func resolveUpdatedWorkflowActionLine(ctx context.Context, originalLine string, match workflowActionRefMatch, updateCtx workflowActionUpdateContext) (string, bool, error) {
+	effectiveAllowMajor := updateCtx.allowMajor || isCoreAction(match.repo)
+	if !effectiveAllowMajor {
+		return originalLine, false, nil
+	}
+
+	currentVersion, isSHA := workflowActionCurrentVersion(match)
+	result, ok := resolveCachedWorkflowActionRelease(ctx, updateCtx.deps, match.repo, currentVersion, effectiveAllowMajor, updateCtx.verbose, updateCtx.cache)
+	if !ok {
+		return originalLine, false, nil
+	}
+	if shouldSkipWorkflowActionRef(match, result, isSHA) {
+		return originalLine, false, nil
+	}
+	if shouldSkipWorkflowActionCoolDown(ctx, updateCtx.coolDownCache, match.repo, result.version, updateCtx.coolDown, updateCtx.verbose) {
+		return originalLine, false, nil
+	}
+	return buildUpdatedWorkflowActionLine(match, result, isSHA), true, nil
+}
+
+func workflowActionCurrentVersion(match workflowActionRefMatch) (string, bool) {
+	isSHA := IsCommitSHA(match.ref)
+	if !isSHA {
+		return match.ref, false
+	}
+	if match.comment == "" {
+		return "", true
+	}
+	commentVersion := strings.TrimSpace(strings.TrimPrefix(strings.TrimSpace(match.comment), "#"))
+	return commentVersion, true
+}
+
+func resolveCachedWorkflowActionRelease(ctx context.Context, deps actionUpdateDeps, repo, currentVersion string, allowMajor, verbose bool, cache map[string]latestReleaseResult) (latestReleaseResult, bool) {
+	cacheKey := repo + "|" + currentVersion
+	if result, ok := cache[cacheKey]; ok {
+		return result, true
+	}
+	latestVersion, latestSHA, err := deps.getLatestRelease(ctx, repo, currentVersion, allowMajor, verbose)
+	if err != nil {
+		updateLog.Printf("Failed to get latest release for %s: %v", repo, err)
+		return latestReleaseResult{}, false
+	}
+	result := latestReleaseResult{version: latestVersion, sha: latestSHA}
+	cache[cacheKey] = result
+	return result, true
+}
+
+func shouldSkipWorkflowActionRef(match workflowActionRefMatch, result latestReleaseResult, isSHA bool) bool {
+	if isSHA {
+		return result.sha == match.ref
+	}
+	if result.version == match.ref {
+		return true
+	}
+	currentVer := parseVersion(match.ref)
+	proposedVer := parseVersion(result.version)
+	if currentVer != nil && proposedVer != nil && currentVer.IsNewer(proposedVer) {
+		updateLog.Printf("Skipping %s in workflow file: proposed version %s is older than current %s (would be a downgrade)", match.repo, result.version, match.ref)
+		return true
+	}
+	return false
+}
+
+func shouldSkipWorkflowActionCoolDown(ctx context.Context, coolDownCache map[string]coolDownCheckResult, repo, latestVersion string, coolDown time.Duration, verbose bool) bool {
+	if isExemptFromCoolDown(repo) {
+		return false
+	}
+	coolDownKey := repo + "@" + latestVersion
+	coolDownResult, ok := coolDownCache[coolDownKey]
+	if !ok {
+		coolDownResult = checkReleaseCoolDown(ctx, repo, latestVersion, coolDown)
+		coolDownCache[coolDownKey] = coolDownResult
+	}
+	if !coolDownResult.InCoolDown {
+		return false
+	}
+	cooldownLog.Printf("Action ref %s in workflow: %s", repo, coolDownResult.Message)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, coolDownResult.Message)))
+	}
+	return true
+}
+
+func buildUpdatedWorkflowActionLine(match workflowActionRefMatch, result latestReleaseResult, isSHA bool) string {
+	if isSHA {
+		return fmt.Sprintf("%s%s%s@%s  # %s%s", match.indent, match.prefix, match.repo, result.sha, result.version, match.trailing)
+	}
+	return fmt.Sprintf("%s%s%s@%s%s%s", match.indent, match.prefix, match.repo, result.version, match.comment, match.trailing)
+}
+
+func extractWorkflowActionTargetVersion(line string) string {
+	if match, ok := parseWorkflowActionRefMatch(line); ok {
+		if version, isSHA := workflowActionCurrentVersion(match); isSHA {
+			return version
+		}
+		return match.ref
+	}
+	return ""
 }

@@ -40,192 +40,247 @@ type InitOptions struct {
 func InitRepository(opts InitOptions) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
-	ctx := opts.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := initRepositoryContext(opts)
 	copilotArtifactsEnabled := opts.Engine == "" || opts.Engine == "copilot"
 
-	// Show welcome banner for interactive mode
-	console.ShowWelcomeBanner("This tool will initialize your repository for GitHub Agentic Workflows.")
+	showInitRepositoryBanner()
+	if err := runInitRepositoryPreflight(opts); err != nil {
+		return err
+	}
+	if err := ensureInitRepositoryGitSetup(opts); err != nil {
+		return err
+	}
+	if err := ensureCopilotInitArtifacts(opts, copilotArtifactsEnabled); err != nil {
+		return err
+	}
+	if err := cleanupSetupAgenticWorkflowsAgent(opts.Verbose); err != nil {
+		return err
+	}
+	if err := ensureInitRepositoryMCP(ctx, opts, copilotArtifactsEnabled); err != nil {
+		return err
+	}
+	if err := ensureInitRepositoryCodespaces(opts); err != nil {
+		return err
+	}
+	if err := ensureInitRepositoryVSCodeSettings(opts.Verbose); err != nil {
+		return err
+	}
+	ensureInitRepositoryShellCompletions(opts)
+	ensureInitRepositoryMaintenanceWorkflow(ctx, opts.Verbose)
+	initLog.Print("Repository initialization completed successfully")
+	if err := createInitRepositoryPRIfRequested(opts); err != nil {
+		return err
+	}
+	displayInitRepositorySuccess(opts.CodespaceRepos)
+	return nil
+}
 
+func initRepositoryContext(opts InitOptions) context.Context {
+	if opts.Ctx != nil {
+		return opts.Ctx
+	}
+	return context.Background()
+}
+
+func showInitRepositoryBanner() {
+	console.ShowWelcomeBanner("This tool will initialize your repository for GitHub Agentic Workflows.")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Setting up repository..."))
 	fmt.Fprintln(os.Stderr, "")
+}
 
-	// If --create-pull-request is enabled, run pre-flight checks before doing any work
+func runInitRepositoryPreflight(opts InitOptions) error {
 	if opts.CreatePR {
 		if err := PreflightCheckForCreatePR(opts.Verbose); err != nil {
 			return err
 		}
 	}
-
-	// Ensure we're in a git repository
 	if !isGitRepo() {
 		initLog.Print("Not in a git repository, initialization failed")
 		return errors.New("not in a git repository")
 	}
 	initLog.Print("Verified git repository")
+	return nil
+}
 
-	// Auto-detect GHES deployment and configure aw.json ghes: true when needed.
+func ensureInitRepositoryGitSetup(opts InitOptions) error {
 	if _, err := ensureGHESRepoConfig(opts.Verbose); err != nil {
 		initLog.Printf("Failed to configure GHES repo config: %v", err)
-		// Non-fatal: continue with the rest of init
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to configure GHES repo config: %v", err)))
 	}
-
 	if opts.NoGitattributes {
 		initLog.Print("Skipping .gitattributes configuration")
-	} else {
-		// Configure .gitattributes
-		initLog.Print("Configuring .gitattributes")
-		if updated, err := ensureGitAttributes(); err != nil {
-			initLog.Printf("Failed to configure .gitattributes: %v", err)
-			return fmt.Errorf("failed to configure .gitattributes: %w", err)
-		} else if updated && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
-		}
+		return nil
 	}
+	initLog.Print("Configuring .gitattributes")
+	updated, err := ensureGitAttributes()
+	if err != nil {
+		initLog.Printf("Failed to configure .gitattributes: %v", err)
+		return fmt.Errorf("failed to configure .gitattributes: %w", err)
+	}
+	if updated && opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .gitattributes"))
+	}
+	return nil
+}
 
-	// Write dispatcher skill for Copilot engine only
-	if copilotArtifactsEnabled {
-		if opts.Skill {
-			initLog.Print("Writing agentic workflows dispatcher skill")
-			if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false, true); err != nil {
-				initLog.Printf("Failed to write dispatcher skill: %v", err)
-				return fmt.Errorf("failed to write dispatcher skill: %w", err)
-			}
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
-			}
-		} else {
-			initLog.Print("Skipping agentic workflows dispatcher skill")
-		}
-		if opts.Agent {
-			initLog.Print("Writing agentic workflows custom agent")
-			if err := ensureAgenticWorkflowsAgent(opts.Verbose, true); err != nil {
-				initLog.Printf("Failed to write agentic workflows custom agent: %v", err)
-				return fmt.Errorf("failed to write agentic workflows custom agent: %w", err)
-			}
-			if opts.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agentic workflows custom agent"))
-			}
-		} else {
-			initLog.Print("Skipping agentic workflows custom agent")
-		}
-		if err := deleteLegacyAgentFiles(opts.Verbose); err != nil {
-			initLog.Printf("Failed to delete legacy agent files: %v", err)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agent files: %v", err)))
-		}
-		if err := deleteAgenticWorkflowDesignerSkillDir(opts.Verbose); err != nil {
-			initLog.Printf("Failed to delete legacy agentic-workflow-designer skill directory: %v", err)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to delete legacy agentic-workflow-designer skill directory: %v", err)))
-		}
-	} else {
+func ensureCopilotInitArtifacts(opts InitOptions, copilotArtifactsEnabled bool) error {
+	if !copilotArtifactsEnabled {
 		initLog.Printf("Skipping Copilot dispatcher skill for engine: %s", opts.Engine)
+		return nil
 	}
+	if err := ensureInitRepositoryDispatcherSkill(opts); err != nil {
+		return err
+	}
+	if err := ensureInitRepositoryAgent(opts); err != nil {
+		return err
+	}
+	warnOnInitRepositoryCleanupError(deleteLegacyAgentFiles(opts.Verbose), "Failed to delete legacy agent files")
+	warnOnInitRepositoryCleanupError(deleteAgenticWorkflowDesignerSkillDir(opts.Verbose), "Failed to delete legacy agentic-workflow-designer skill directory")
+	return nil
+}
 
-	// Delete existing setup agentic workflows agent if it exists
+func ensureInitRepositoryDispatcherSkill(opts InitOptions) error {
+	if !opts.Skill {
+		initLog.Print("Skipping agentic workflows dispatcher skill")
+		return nil
+	}
+	initLog.Print("Writing agentic workflows dispatcher skill")
+	if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false, true); err != nil {
+		initLog.Printf("Failed to write dispatcher skill: %v", err)
+		return fmt.Errorf("failed to write dispatcher skill: %w", err)
+	}
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill"))
+	}
+	return nil
+}
+
+func ensureInitRepositoryAgent(opts InitOptions) error {
+	if !opts.Agent {
+		initLog.Print("Skipping agentic workflows custom agent")
+		return nil
+	}
+	initLog.Print("Writing agentic workflows custom agent")
+	if err := ensureAgenticWorkflowsAgent(opts.Verbose, true); err != nil {
+		initLog.Printf("Failed to write agentic workflows custom agent: %v", err)
+		return fmt.Errorf("failed to write agentic workflows custom agent: %w", err)
+	}
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created agentic workflows custom agent"))
+	}
+	return nil
+}
+
+func warnOnInitRepositoryCleanupError(err error, message string) {
+	if err == nil {
+		return
+	}
+	initLog.Printf("%s: %v", message, err)
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: %s: %v", message, err)))
+}
+
+func cleanupSetupAgenticWorkflowsAgent(verbose bool) error {
 	initLog.Print("Cleaning up setup agentic workflows agent")
-	if err := deleteSetupAgenticWorkflowsAgent(opts.Verbose); err != nil {
+	if err := deleteSetupAgenticWorkflowsAgent(verbose); err != nil {
 		initLog.Printf("Failed to delete setup agentic workflows agent: %v", err)
 		return fmt.Errorf("failed to delete setup agentic workflows agent: %w", err)
 	}
+	return nil
+}
 
-	// Configure MCP if requested
-	if opts.MCP && copilotArtifactsEnabled {
-		initLog.Print("Configuring GitHub Copilot Agent MCP integration")
-
-		// Detect action mode for setup steps generation
-		actionMode := workflow.DetectActionMode(GetVersion())
-		initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
-
-		// Create copilot-setup-steps.yml
-		if err := ensureCopilotSetupSteps(ctx, opts.Verbose, actionMode, GetVersion()); err != nil {
-			initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
-			return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
-		}
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
-		}
-
-		// Create .github/mcp.json
-		if err := ensureMCPConfig(opts.Verbose); err != nil {
-			initLog.Printf("Failed to create MCP config: %v", err)
-			return fmt.Errorf("failed to create MCP config: %w", err)
-		}
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .github/mcp.json"))
-		}
+func ensureInitRepositoryMCP(ctx context.Context, opts InitOptions, copilotArtifactsEnabled bool) error {
+	if !opts.MCP || !copilotArtifactsEnabled {
+		return nil
 	}
-
-	// Configure Codespaces if requested
-	if opts.CodespaceEnabled {
-		initLog.Printf("Configuring GitHub Codespaces devcontainer with additional repos: %v", opts.CodespaceRepos)
-
-		// Create or update .devcontainer/devcontainer.json
-		if err := ensureDevcontainerConfig(opts.Verbose, opts.CodespaceRepos); err != nil {
-			initLog.Printf("Failed to configure devcontainer: %v", err)
-			return fmt.Errorf("failed to configure devcontainer: %w", err)
-		}
-		if opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .devcontainer/devcontainer.json"))
-		}
+	initLog.Print("Configuring GitHub Copilot Agent MCP integration")
+	actionMode := workflow.DetectActionMode(GetVersion())
+	initLog.Printf("Using action mode for copilot-setup-steps.yml: %s", actionMode)
+	if err := ensureCopilotSetupSteps(ctx, opts.Verbose, actionMode, GetVersion()); err != nil {
+		initLog.Printf("Failed to create copilot-setup-steps.yml: %v", err)
+		return fmt.Errorf("failed to create copilot-setup-steps.yml: %w", err)
 	}
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created .github/workflows/copilot-setup-steps.yml"))
+	}
+	if err := ensureMCPConfig(opts.Verbose); err != nil {
+		initLog.Printf("Failed to create MCP config: %v", err)
+		return fmt.Errorf("failed to create MCP config: %w", err)
+	}
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .github/mcp.json"))
+	}
+	return nil
+}
 
-	// Configure VSCode settings
+func ensureInitRepositoryCodespaces(opts InitOptions) error {
+	if !opts.CodespaceEnabled {
+		return nil
+	}
+	initLog.Printf("Configuring GitHub Codespaces devcontainer with additional repos: %v", opts.CodespaceRepos)
+	if err := ensureDevcontainerConfig(opts.Verbose, opts.CodespaceRepos); err != nil {
+		initLog.Printf("Failed to configure devcontainer: %v", err)
+		return fmt.Errorf("failed to configure devcontainer: %w", err)
+	}
+	if opts.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Configured .devcontainer/devcontainer.json"))
+	}
+	return nil
+}
+
+func ensureInitRepositoryVSCodeSettings(verbose bool) error {
 	initLog.Print("Configuring VSCode settings")
-
-	// Update .vscode/settings.json
-	if err := ensureVSCodeSettings(opts.Verbose); err != nil {
+	if err := ensureVSCodeSettings(verbose); err != nil {
 		initLog.Printf("Failed to update VSCode settings: %v", err)
 		return fmt.Errorf("failed to update VSCode settings: %w", err)
 	}
-	if opts.Verbose {
+	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .vscode/settings.json"))
 	}
+	return nil
+}
 
-	// Install shell completions if requested
-	if opts.Completions {
-		initLog.Print("Installing shell completions")
-		fmt.Fprintln(os.Stderr, "")
-
-		if err := InstallShellCompletion(opts.Verbose, opts.RootCmd); err != nil {
-			initLog.Printf("Shell completion installation failed: %v", err)
-			// Don't fail init if completion installation has issues
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Shell completion installation encountered an issue: %v", err)))
-		}
-		fmt.Fprintln(os.Stderr, "")
+func ensureInitRepositoryShellCompletions(opts InitOptions) {
+	if !opts.Completions {
+		return
 	}
+	initLog.Print("Installing shell completions")
+	fmt.Fprintln(os.Stderr, "")
+	if err := InstallShellCompletion(opts.Verbose, opts.RootCmd); err != nil {
+		initLog.Printf("Shell completion installation failed: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Shell completion installation encountered an issue: %v", err)))
+	}
+	fmt.Fprintln(os.Stderr, "")
+}
 
-	// Generate/update maintenance workflow if any workflows use expires field
+func ensureInitRepositoryMaintenanceWorkflow(ctx context.Context, verbose bool) {
 	initLog.Print("Checking for workflows with expires field to generate maintenance workflow")
-	if err := ensureMaintenanceWorkflow(ctx, opts.Verbose); err != nil {
+	if err := ensureMaintenanceWorkflow(ctx, verbose); err != nil {
 		initLog.Printf("Failed to generate maintenance workflow: %v", err)
-		// Don't fail init if maintenance workflow generation has issues
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate maintenance workflow: %v", err)))
 	}
+}
 
-	initLog.Print("Repository initialization completed successfully")
-
-	// If --create-pull-request is enabled, create branch, commit, push, and create PR
-	if opts.CreatePR {
-		initLog.Print("Create PR enabled - preparing to create branch, commit, push, and create PR")
-		fmt.Fprintln(os.Stderr, "")
-
-		prBody := "This PR initializes the repository for agentic workflows by:\n" +
-			"- Configuring .gitattributes\n" +
-			"- Creating GitHub Copilot custom instructions\n" +
-			"- Setting up workflow prompts and skills"
-		if _, err := CreatePRWithChanges("init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose); err != nil {
-			return err
-		}
+func createInitRepositoryPRIfRequested(opts InitOptions) error {
+	if !opts.CreatePR {
+		return nil
 	}
+	initLog.Print("Create PR enabled - preparing to create branch, commit, push, and create PR")
+	fmt.Fprintln(os.Stderr, "")
+	prBody := "This PR initializes the repository for agentic workflows by:\n" +
+		"- Configuring .gitattributes\n" +
+		"- Creating GitHub Copilot custom instructions\n" +
+		"- Setting up workflow prompts and skills"
+	if _, err := CreatePRWithChanges("init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose); err != nil {
+		return err
+	}
+	return nil
+}
 
-	// Display success message with next steps
+func displayInitRepositorySuccess(codespaceRepos []string) {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Repository initialized for agentic workflows!"))
 	fmt.Fprintln(os.Stderr, "")
-	if len(opts.CodespaceRepos) > 0 {
+	if len(codespaceRepos) > 0 {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Codespaces devcontainer configured"))
 		fmt.Fprintln(os.Stderr, "")
 	}
@@ -233,8 +288,6 @@ func InitRepository(opts InitOptions) error {
 	fmt.Fprintln(os.Stderr, "")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Or add an example workflow, see https://github.com/githubnext/agentics"))
 	fmt.Fprintln(os.Stderr, "")
-
-	return nil
 }
 
 // ensureMaintenanceWorkflow checks existing workflows for expires field and generates/updates

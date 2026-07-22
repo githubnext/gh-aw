@@ -49,191 +49,449 @@ func compileSpecificFiles(
 	validationResults *[]ValidationResult,
 ) ([]*workflow.WorkflowData, error) {
 	compileOrchestrationLog.Printf("Compiling %d specific workflow files", len(config.MarkdownFiles))
-
-	// Enable validation automatically when force-refresh-action-pins is used
-	// to verify all resolved action SHAs are valid
 	shouldValidate := config.Validate || config.ForceRefreshActionPins
 	if config.ForceRefreshActionPins && !config.Validate {
 		compileOrchestrationLog.Print("Automatically enabling action SHA validation due to --force-refresh-action-pins")
 	}
 
-	var workflowDataList []*workflow.WorkflowData
-	var compiledCount int
-	var errorCount int
-	var lockFilesForActionlint []string
-	var lockFilesForZizmor []string
-	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	results, err := processSpecificWorkflowFiles(ctx, compiler, config, stats, validationResults, shouldValidate)
+	if err != nil {
+		return results.workflowDataList, err
+	}
 
-	// Compile each specified file
+	return finalizeCompileSpecificFiles(ctx, compiler, config, stats, validationResults, results)
+}
+
+type specificFileLockFiles struct {
+	actionlint []string
+	zizmor     []string
+	dirTools   []string
+}
+
+type specificFileCompileResults struct {
+	workflowDataList []*workflow.WorkflowData
+	compiledCount    int
+	errorCount       int
+	lockFiles        specificFileLockFiles
+}
+
+func newSpecificFileLockFiles() specificFileLockFiles {
+	return specificFileLockFiles{
+		actionlint: []string{},
+		zizmor:     []string{},
+		dirTools:   []string{},
+	}
+}
+
+func checkCompileSpecificFilesContext(ctx context.Context) error {
+	select {
+	case <-ctx.Done():
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+		return ctx.Err()
+	default:
+		return nil
+	}
+}
+
+func newCompileSpecificFilesValidationResult(workflowName string) ValidationResult {
+	return ValidationResult{
+		Workflow: workflowName,
+		Valid:    true,
+		Errors:   []CompileValidationError{},
+		Warnings: []CompileValidationError{},
+	}
+}
+
+func processSpecificWorkflowFiles(ctx context.Context, compiler *workflow.Compiler, config CompileConfig, stats *CompilationStats, validationResults *[]ValidationResult, shouldValidate bool) (specificFileCompileResults, error) {
+	results := specificFileCompileResults{
+		lockFiles: newSpecificFileLockFiles(),
+	}
 	for _, markdownFile := range config.MarkdownFiles {
-		// Respect context cancellation between files (e.g. Ctrl+C)
-		select {
-		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-			return workflowDataList, ctx.Err()
-		default:
+		if err := processSpecificWorkflowFile(ctx, compiler, config, stats, validationResults, shouldValidate, markdownFile, &results); err != nil {
+			return results, err
+		}
+	}
+	return results, nil
+}
+
+func processSpecificWorkflowFile(ctx context.Context, compiler *workflow.Compiler, config CompileConfig, stats *CompilationStats, validationResults *[]ValidationResult, shouldValidate bool, markdownFile string, results *specificFileCompileResults) error {
+	if err := checkCompileSpecificFilesContext(ctx); err != nil {
+		return err
+	}
+	stats.Total++
+	result := newCompileSpecificFilesValidationResult(markdownFile)
+	resolvedFile, ok := resolveSpecificWorkflowFile(config.Verbose, markdownFile, stats, &result, &results.errorCount)
+	if !ok {
+		*validationResults = append(*validationResults, result)
+		return nil
+	}
+	fileResult := compileSpecificWorkflowFile(ctx, compiler, config, shouldValidate, resolvedFile)
+	recordSpecificWorkflowCompileResult(config, stats, resolvedFile, fileResult, results)
+	*validationResults = append(*validationResults, fileResult.validationResult)
+	return nil
+}
+
+func resolveSpecificWorkflowFile(verbose bool, markdownFile string, stats *CompilationStats, result *ValidationResult, errorCount *int) (string, bool) {
+	compileOrchestrationLog.Printf("Resolving workflow file: %s", markdownFile)
+	resolvedFile, err := resolveWorkflowFile(markdownFile, verbose)
+	if err != nil {
+		*errorCount += recordCompileSpecificFilesResolutionError(stats, result, markdownFile, err)
+		return "", false
+	}
+	compileOrchestrationLog.Printf("Resolved to: %s", resolvedFile)
+	result.Workflow = filepath.Base(resolvedFile)
+	return resolvedFile, true
+}
+
+func compileSpecificWorkflowFile(ctx context.Context, compiler *workflow.Compiler, config CompileConfig, shouldValidate bool, resolvedFile string) compileWorkflowFileResult {
+	return compileWorkflowFile(
+		ctx, compiler, resolvedFile, compileWorkflowFileOptions{
+			verbose:    config.Verbose,
+			jsonOutput: config.JSONOutput,
+			noEmit:     config.NoEmit,
+			strict:     config.Strict,
+			validate:   shouldValidate,
+		},
+	)
+}
+
+func recordSpecificWorkflowCompileResult(config CompileConfig, stats *CompilationStats, resolvedFile string, fileResult compileWorkflowFileResult, results *specificFileCompileResults) {
+	if !fileResult.success {
+		results.errorCount += recordCompileSpecificFilesFailure(stats, resolvedFile, fileResult.validationResult)
+		return
+	}
+	results.compiledCount++
+	if fileResult.workflowData != nil {
+		results.workflowDataList = append(results.workflowDataList, fileResult.workflowData)
+	}
+	results.lockFiles.collect(config, fileResult.lockFile)
+}
+
+func recordCompileSpecificFilesResolutionError(stats *CompilationStats, result *ValidationResult, markdownFile string, err error) int {
+	stats.Errors++
+	trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
+	result.Valid = false
+	result.Errors = append(result.Errors, CompileValidationError{
+		Type:    "resolution_error",
+		Message: err.Error(),
+	})
+	return 1
+}
+
+func recordCompileSpecificFilesFailure(stats *CompilationStats, resolvedFile string, validationResult ValidationResult) int {
+	errMsgs := collectCompileSpecificFilesErrorMessages(validationResult)
+	stats.Errors += len(errMsgs)
+	trackWorkflowFailure(stats, resolvedFile, len(errMsgs), errMsgs)
+	return 1
+}
+
+func collectCompileSpecificFilesErrorMessages(validationResult ValidationResult) []string {
+	errMsgs := make([]string, 0, len(validationResult.Errors))
+	for _, validationErr := range validationResult.Errors {
+		errMsgs = append(errMsgs, validationErr.Message)
+	}
+	if len(errMsgs) == 0 {
+		return []string{fallbackCompilationErrorMessage}
+	}
+	return errMsgs
+}
+
+func (f *specificFileLockFiles) collect(config CompileConfig, lockFile string) {
+	if config.NoEmit || lockFile == "" {
+		return
+	}
+	if _, err := os.Stat(lockFile); err != nil {
+		return
+	}
+	if config.Actionlint {
+		f.actionlint = append(f.actionlint, lockFile)
+	}
+	if config.Zizmor {
+		f.zizmor = append(f.zizmor, lockFile)
+	}
+	if config.Poutine || config.RunnerGuard {
+		f.dirTools = append(f.dirTools, lockFile)
+	}
+}
+
+func runSpecificFilesBatchTools(ctx context.Context, config CompileConfig, lockFiles specificFileLockFiles) error {
+	if err := runSpecificFilesActionlint(ctx, config, lockFiles.actionlint); err != nil {
+		return err
+	}
+	if err := runSpecificFilesZizmor(config, lockFiles.zizmor); err != nil {
+		return err
+	}
+	if err := runSpecificFilesDirectoryTools(ctx, config, lockFiles.dirTools); err != nil {
+		return err
+	}
+	return nil
+}
+
+func runSpecificFilesActionlint(ctx context.Context, config CompileConfig, lockFiles []string) error {
+	if !config.Actionlint || config.NoEmit || len(lockFiles) == 0 {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := RunActionlintOnFiles(ctx, lockFiles, config.Verbose && !config.JSONOutput, config.Strict); err != nil && config.Strict {
+		return err
+	}
+	return nil
+}
+
+func runSpecificFilesZizmor(config CompileConfig, lockFiles []string) error {
+	if !config.Zizmor || config.NoEmit || len(lockFiles) == 0 {
+		return nil
+	}
+	if err := RunZizmorOnFiles(lockFiles, config.Verbose && !config.JSONOutput, config.Strict); err != nil && config.Strict {
+		return err
+	}
+	return nil
+}
+
+func runSpecificFilesDirectoryTools(ctx context.Context, config CompileConfig, lockFiles []string) error {
+	if config.NoEmit || len(lockFiles) == 0 {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	workflowDir := filepath.Dir(lockFiles[0])
+	if err := runSpecificFilesDirectoryTool(config.Poutine, "poutine", workflowDir, config, RunPoutineOnDirectory); err != nil {
+		return err
+	}
+	if err := runSpecificFilesDirectoryTool(config.RunnerGuard, "runner-guard", workflowDir, config, RunRunnerGuardOnDirectory); err != nil {
+		return err
+	}
+	return nil
+}
+
+func runSpecificFilesDirectoryTool(enabled bool, toolName, workflowDir string, config CompileConfig, runner func(string, bool, bool) error) error {
+	if !enabled {
+		return nil
+	}
+	if err := runBatchDirectoryTool(toolName, workflowDir, config.Verbose && !config.JSONOutput, config.Strict, runner); err != nil && config.Strict {
+		return err
+	}
+	return nil
+}
+
+func finalizeCompileSpecificFiles(ctx context.Context, compiler *workflow.Compiler, config CompileConfig, stats *CompilationStats, validationResults *[]ValidationResult, results specificFileCompileResults) ([]*workflow.WorkflowData, error) {
+	if err := runSpecificFilesBatchTools(ctx, config, results.lockFiles); err != nil {
+		return results.workflowDataList, err
+	}
+	stats.Warnings = compiler.GetWarningCount()
+	displayScheduleWarnings(compiler, config.JSONOutput)
+	displaySafeUpdateWarnings(compiler, config.JSONOutput)
+	if err := runPostProcessing(compiler, results.workflowDataList, config, results.compiledCount); err != nil {
+		return results.workflowDataList, err
+	}
+	if err := outputResults(stats, validationResults, config); err != nil {
+		return results.workflowDataList, err
+	}
+	if results.errorCount > 0 {
+		return results.workflowDataList, errors.New("compilation failed")
+	}
+	return results.workflowDataList, nil
+}
+
+type compileAllDirectoryContext struct {
+	gitRoot      string
+	workflowsDir string
+	mdFiles      []string
+	purgeData    *purgeTrackingData
+}
+
+type compileAllDirectoryResult struct {
+	workflowDataList []*workflow.WorkflowData
+	successCount     int
+	errorCount       int
+	lockFiles        specificFileLockFiles
+}
+
+func loadCompileAllDirectoryContext(config CompileConfig, workflowDir string) (*compileAllDirectoryContext, error) {
+	gitRoot, err := gitutil.FindGitRoot()
+	if err != nil {
+		return nil, fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
+	}
+	compileOrchestrationLog.Printf("Found git root: %s", gitRoot)
+
+	workflowsDir := filepath.Join(gitRoot, workflowDir)
+	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
+		return nil, fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
+	}
+
+	mdFiles, err := findCompileAllMarkdownFiles(workflowsDir, config.Verbose)
+	if err != nil {
+		return nil, err
+	}
+
+	var purgeData *purgeTrackingData
+	if config.Purge {
+		purgeData = collectPurgeData(workflowsDir, mdFiles, config.Verbose)
+	}
+
+	return &compileAllDirectoryContext{
+		gitRoot:      gitRoot,
+		workflowsDir: workflowsDir,
+		mdFiles:      mdFiles,
+		purgeData:    purgeData,
+	}, nil
+}
+
+func findCompileAllMarkdownFiles(workflowsDir string, verbose bool) ([]string, error) {
+	compileOrchestrationLog.Printf("Scanning for markdown files in %s", workflowsDir)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Scanning for markdown files in "+workflowsDir))
+	}
+
+	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find markdown files: %w", err)
+	}
+	mdFiles, err = filterMarkdownFilesWithFrontmatter(mdFiles)
+	if err != nil {
+		return nil, fmt.Errorf("failed to filter markdown files: %w", err)
+	}
+	if len(mdFiles) == 0 {
+		return nil, fmt.Errorf("no workflow markdown files found in %s (workflow files must start with a frontmatter opener on the first line)", workflowsDir)
+	}
+
+	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
+	}
+
+	return mdFiles, nil
+}
+
+func compileAllDirectoryWorkflowFiles(
+	ctx context.Context,
+	compiler *workflow.Compiler,
+	config CompileConfig,
+	mdFiles []string,
+	stats *CompilationStats,
+	validationResults *[]ValidationResult,
+) (*compileAllDirectoryResult, error) {
+	shouldValidate := config.Validate || config.ForceRefreshActionPins
+	if config.ForceRefreshActionPins && !config.Validate {
+		compileOrchestrationLog.Print("Automatically enabling action SHA validation due to --force-refresh-action-pins")
+	}
+
+	result := &compileAllDirectoryResult{
+		workflowDataList: []*workflow.WorkflowData{},
+		lockFiles:        newSpecificFileLockFiles(),
+	}
+
+	for _, file := range mdFiles {
+		if err := checkCompileSpecificFilesContext(ctx); err != nil {
+			return result, err
 		}
 
 		stats.Total++
-
-		// Initialize validation result
-		result := ValidationResult{
-			Workflow: markdownFile,
-			Valid:    true,
-			Errors:   []CompileValidationError{},
-			Warnings: []CompileValidationError{},
-		}
-
-		// Resolve workflow ID or file path to actual file path
-		compileOrchestrationLog.Printf("Resolving workflow file: %s", markdownFile)
-		resolvedFile, err := resolveWorkflowFile(markdownFile, config.Verbose)
-		if err != nil {
-			// Don't print error here - it will be displayed in the compilation summary
-			// The error is stored in ValidationResult for JSON output and returned for main to display
-			errorCount++
-			stats.Errors++
-			trackWorkflowFailure(stats, markdownFile, 1, []string{err.Error()})
-			result.Valid = false
-			result.Errors = append(result.Errors, CompileValidationError{
-				Type:    "resolution_error",
-				Message: err.Error(),
-			})
-			*validationResults = append(*validationResults, result)
-			continue
-		}
-		compileOrchestrationLog.Printf("Resolved to: %s", resolvedFile)
-
-		// Update result with resolved file name
-		result.Workflow = filepath.Base(resolvedFile)
-
-		// Compile regular workflow file (disable per-file security tools)
 		fileResult := compileWorkflowFile(
-			ctx, compiler, resolvedFile, compileWorkflowFileOptions{
+			ctx, compiler, file, compileWorkflowFileOptions{
 				verbose:    config.Verbose,
 				jsonOutput: config.JSONOutput,
 				noEmit:     config.NoEmit,
 				strict:     config.Strict,
 				validate:   shouldValidate,
-				// zizmor, poutine, actionlint disabled per-file (batched instead)
 			},
 		)
 
 		if !fileResult.success {
-			// Collect error messages from validation result for display in summary
-			var errMsgs []string
-			for _, verr := range fileResult.validationResult.Errors {
-				errMsgs = append(errMsgs, verr.Message)
-			}
-			if len(errMsgs) == 0 {
-				errMsgs = []string{fallbackCompilationErrorMessage}
-			}
-			errorCount++
-			stats.Errors += len(errMsgs)
-			trackWorkflowFailure(stats, resolvedFile, len(errMsgs), errMsgs)
+			result.errorCount += recordCompileSpecificFilesFailure(stats, file, fileResult.validationResult)
 		} else {
-			compiledCount++
+			result.successCount++
 			if fileResult.workflowData != nil {
-				workflowDataList = append(workflowDataList, fileResult.workflowData)
+				result.workflowDataList = append(result.workflowDataList, fileResult.workflowData)
 			}
-
-			// Collect lock files for batch security tools
-			if !config.NoEmit && fileResult.lockFile != "" {
-				if _, err := os.Stat(fileResult.lockFile); err == nil {
-					if config.Actionlint {
-						lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
-					}
-					if config.Zizmor {
-						lockFilesForZizmor = append(lockFilesForZizmor, fileResult.lockFile)
-					}
-					if config.Poutine || config.RunnerGuard {
-						lockFilesForDirTools = append(lockFilesForDirTools, fileResult.lockFile)
-					}
-				}
-			}
+			result.lockFiles.collect(config, fileResult.lockFile)
 		}
 
 		*validationResults = append(*validationResults, fileResult.validationResult)
 	}
 
-	// Run batch actionlint on all collected lock files
-	if config.Actionlint && !config.NoEmit && len(lockFilesForActionlint) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		if err := RunActionlintOnFiles(ctx, lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
-	}
+	return result, nil
+}
 
-	// Run batch zizmor on all collected lock files
-	if config.Zizmor && !config.NoEmit && len(lockFilesForZizmor) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		if err := RunZizmorOnFiles(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
+func runCompileAllDirectoryBatchTools(
+	ctx context.Context,
+	config CompileConfig,
+	workflowsDir string,
+	lockFiles specificFileLockFiles,
+) error {
+	if err := runSpecificFilesActionlint(ctx, config, lockFiles.actionlint); err != nil {
+		return err
 	}
-
-	// Run batch poutine once on the workflow directory
-	// Get the directory from the first lock file (all should be in same directory)
-	if config.Poutine && !config.NoEmit && len(lockFilesForDirTools) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		workflowDir := filepath.Dir(lockFilesForDirTools[0])
-		if err := runBatchDirectoryTool("poutine", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunPoutineOnDirectory); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
+	if err := runSpecificFilesZizmor(config, lockFiles.zizmor); err != nil {
+		return err
 	}
-
-	// Run batch runner-guard once on the workflow directory
-	// Get the directory from the first lock file (all should be in same directory)
-	if config.RunnerGuard && !config.NoEmit && len(lockFilesForDirTools) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		workflowDir := filepath.Dir(lockFilesForDirTools[0])
-		if err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
+	if err := runCompileAllDirectoryTool(ctx, config.Poutine, "poutine", workflowsDir, config, RunPoutineOnDirectory, lockFiles.dirTools); err != nil {
+		return err
 	}
+	if err := runCompileAllDirectoryTool(ctx, config.RunnerGuard, "runner-guard", workflowsDir, config, RunRunnerGuardOnDirectory, lockFiles.dirTools); err != nil {
+		return err
+	}
+	return nil
+}
 
-	// Get warning count from compiler
+func runCompileAllDirectoryTool(
+	ctx context.Context,
+	enabled bool,
+	toolName string,
+	workflowsDir string,
+	config CompileConfig,
+	runner func(string, bool, bool) error,
+	lockFiles []string,
+) error {
+	if !enabled || config.NoEmit || len(lockFiles) == 0 {
+		return nil
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if err := runBatchDirectoryTool(toolName, workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, runner); err != nil && config.Strict {
+		return err
+	}
+	return nil
+}
+
+func finalizeCompileAllDirectoryResults(
+	ctx context.Context,
+	compiler *workflow.Compiler,
+	config CompileConfig,
+	dirCtx *compileAllDirectoryContext,
+	result *compileAllDirectoryResult,
+	stats *CompilationStats,
+	validationResults *[]ValidationResult,
+) error {
+	displayCentralizedSlashCommandRecommendation(compiler, result.workflowDataList, config.JSONOutput)
 	stats.Warnings = compiler.GetWarningCount()
-
-	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
-
-	// Display safe update warnings (emitted as prompts for the calling agent)
 	displaySafeUpdateWarnings(compiler, config.JSONOutput)
 
-	// Post-processing
-	if err := runPostProcessing(compiler, workflowDataList, config, compiledCount); err != nil {
-		return workflowDataList, err
+	if config.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", result.successCount, len(dirCtx.mdFiles))))
+	}
+	if config.Purge && dirCtx.purgeData != nil {
+		runPurgeOperations(dirCtx.workflowsDir, dirCtx.purgeData, config.Verbose)
+	}
+	if err := runPostProcessingForDirectory(ctx, compiler, result.workflowDataList, config, dirCtx.workflowsDir, dirCtx.gitRoot, result.successCount, result.errorCount); err != nil {
+		return err
 	}
 
-	// Output results
+	if config.Stats && len(config.MarkdownFiles) == 0 {
+		config.MarkdownFiles = dirCtx.mdFiles
+	}
 	if err := outputResults(stats, validationResults, config); err != nil {
-		return workflowDataList, err
+		return err
 	}
-
-	// Return error if any compilations failed
-	// Don't return the detailed error message here since it's already printed in the summary
-	// Returning a simple error prevents duplication in the output
-	if errorCount > 0 {
-		return workflowDataList, errors.New("compilation failed")
+	if result.errorCount > 0 {
+		return errors.New("compilation failed")
 	}
-
-	return workflowDataList, nil
+	return nil
 }
 
 // compileAllFilesInDirectory compiles all workflow files in a directory
@@ -245,214 +503,23 @@ func compileAllFilesInDirectory(
 	stats *CompilationStats,
 	validationResults *[]ValidationResult,
 ) ([]*workflow.WorkflowData, error) {
-	// Find git root for consistent behavior
-	gitRoot, err := gitutil.FindGitRoot()
+	dirCtx, err := loadCompileAllDirectoryContext(config, workflowDir)
 	if err != nil {
-		return nil, fmt.Errorf("compile without arguments requires being in a git repository: %w", err)
-	}
-	compileOrchestrationLog.Printf("Found git root: %s", gitRoot)
-
-	// Compile all markdown files in the specified workflow directory
-	workflowsDir := filepath.Join(gitRoot, workflowDir)
-	if _, err := os.Stat(workflowsDir); os.IsNotExist(err) {
-		return nil, fmt.Errorf("the %s directory does not exist in git root (%s)", workflowDir, gitRoot)
+		return nil, err
 	}
 
-	compileOrchestrationLog.Printf("Scanning for markdown files in %s", workflowsDir)
-	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Scanning for markdown files in "+workflowsDir))
-	}
-
-	// Find and filter markdown files (shared helper keeps logic in one place)
-	mdFiles, err := getMarkdownWorkflowFiles(workflowsDir)
+	result, err := compileAllDirectoryWorkflowFiles(ctx, compiler, config, dirCtx.mdFiles, stats, validationResults)
 	if err != nil {
-		return nil, fmt.Errorf("failed to find markdown files: %w", err)
+		return result.workflowDataList, err
 	}
-	mdFiles, err = filterMarkdownFilesWithFrontmatter(mdFiles)
-	if err != nil {
-		return nil, fmt.Errorf("failed to filter markdown files: %w", err)
+	if err := runCompileAllDirectoryBatchTools(ctx, config, dirCtx.workflowsDir, result.lockFiles); err != nil {
+		return result.workflowDataList, err
 	}
-
-	if len(mdFiles) == 0 {
-		return nil, fmt.Errorf("no workflow markdown files found in %s (workflow files must start with a frontmatter opener on the first line)", workflowsDir)
+	if err := finalizeCompileAllDirectoryResults(ctx, compiler, config, dirCtx, result, stats, validationResults); err != nil {
+		return result.workflowDataList, err
 	}
 
-	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))
-	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
-	}
-
-	// Handle purge logic: collect existing files before compilation
-	var purgeData *purgeTrackingData
-	if config.Purge {
-		purgeData = collectPurgeData(workflowsDir, mdFiles, config.Verbose)
-	}
-
-	// Enable validation automatically when force-refresh-action-pins is used
-	// to verify all resolved action SHAs are valid
-	shouldValidate := config.Validate || config.ForceRefreshActionPins
-	if config.ForceRefreshActionPins && !config.Validate {
-		compileOrchestrationLog.Print("Automatically enabling action SHA validation due to --force-refresh-action-pins")
-	}
-
-	// Compile each file
-	var workflowDataList []*workflow.WorkflowData
-	var successCount int
-	var errorCount int
-	var lockFilesForActionlint []string
-	var lockFilesForZizmor []string
-	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
-
-	for _, file := range mdFiles {
-		// Respect context cancellation between files (e.g. Ctrl+C)
-		select {
-		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
-			return workflowDataList, ctx.Err()
-		default:
-		}
-
-		stats.Total++
-
-		// Compile regular workflow file (disable per-file security tools)
-		fileResult := compileWorkflowFile(
-			ctx, compiler, file, compileWorkflowFileOptions{
-				verbose:    config.Verbose,
-				jsonOutput: config.JSONOutput,
-				noEmit:     config.NoEmit,
-				strict:     config.Strict,
-				validate:   shouldValidate,
-				// zizmor, poutine, actionlint disabled per-file (batched instead)
-			},
-		)
-
-		if !fileResult.success {
-			// Collect error messages from validation result
-			var errMsgs []string
-			for _, verr := range fileResult.validationResult.Errors {
-				errMsgs = append(errMsgs, verr.Message)
-			}
-			if len(errMsgs) == 0 {
-				errMsgs = []string{fallbackCompilationErrorMessage}
-			}
-			errorCount++
-			stats.Errors += len(errMsgs)
-			trackWorkflowFailure(stats, file, len(errMsgs), errMsgs)
-		} else {
-			successCount++
-			if fileResult.workflowData != nil {
-				workflowDataList = append(workflowDataList, fileResult.workflowData)
-			}
-
-			// Collect lock files for batch security tools
-			if !config.NoEmit && fileResult.lockFile != "" {
-				if _, err := os.Stat(fileResult.lockFile); err == nil {
-					if config.Actionlint {
-						lockFilesForActionlint = append(lockFilesForActionlint, fileResult.lockFile)
-					}
-					if config.Zizmor {
-						lockFilesForZizmor = append(lockFilesForZizmor, fileResult.lockFile)
-					}
-					if config.Poutine || config.RunnerGuard {
-						lockFilesForDirTools = append(lockFilesForDirTools, fileResult.lockFile)
-					}
-				}
-			}
-		}
-
-		*validationResults = append(*validationResults, fileResult.validationResult)
-	}
-
-	// Run batch actionlint
-	if config.Actionlint && !config.NoEmit && len(lockFilesForActionlint) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		if err := RunActionlintOnFiles(ctx, lockFilesForActionlint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
-	}
-
-	// Run batch zizmor
-	if config.Zizmor && !config.NoEmit && len(lockFilesForZizmor) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		if err := RunZizmorOnFiles(lockFilesForZizmor, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
-	}
-
-	// Run batch poutine once on the workflow directory
-	if config.Poutine && !config.NoEmit && len(lockFilesForDirTools) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		if err := runBatchDirectoryTool("poutine", workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, RunPoutineOnDirectory); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
-	}
-
-	// Run batch runner-guard once on the workflow directory
-	if config.RunnerGuard && !config.NoEmit && len(lockFilesForDirTools) > 0 {
-		if err := ctx.Err(); err != nil {
-			return workflowDataList, err
-		}
-		if err := runBatchDirectoryTool("runner-guard", workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
-			if config.Strict {
-				return workflowDataList, err
-			}
-		}
-	}
-
-	// Emit recommendation when many slash commands are present without centralized strategy.
-	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
-
-	// Get warning count from compiler
-	stats.Warnings = compiler.GetWarningCount()
-
-	// Display schedule warnings
-	displayScheduleWarnings(compiler, config.JSONOutput)
-
-	// Display safe update warnings (emitted as prompts for the calling agent)
-	displaySafeUpdateWarnings(compiler, config.JSONOutput)
-
-	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
-	}
-
-	// Handle purge logic if requested
-	if config.Purge && purgeData != nil {
-		runPurgeOperations(workflowsDir, purgeData, config.Verbose)
-	}
-
-	// Post-processing
-	if err := runPostProcessingForDirectory(ctx, compiler, workflowDataList, config, workflowsDir, gitRoot, successCount, errorCount); err != nil {
-		return workflowDataList, err
-	}
-
-	// Output results.
-	// Populate MarkdownFiles so that outputResults can collect per-workflow stats
-	// (e.g. schedule heatmap) even when the caller did not specify explicit files.
-	if config.Stats && len(config.MarkdownFiles) == 0 {
-		config.MarkdownFiles = mdFiles
-	}
-	if err := outputResults(stats, validationResults, config); err != nil {
-		return workflowDataList, err
-	}
-
-	// Return error if any compilations failed
-	if errorCount > 0 {
-		return workflowDataList, errors.New("compilation failed")
-	}
-
-	return workflowDataList, nil
+	return result.workflowDataList, nil
 }
 
 // purgeTrackingData holds data needed for purge operations

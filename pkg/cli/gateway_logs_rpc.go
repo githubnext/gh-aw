@@ -31,13 +31,21 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 	metrics := &GatewayMetrics{
 		Servers: make(map[string]*GatewayServerMetrics),
 	}
-
-	// Track pending requests by (serverID, id) for duration calculation.
-	// Key format: "<serverID>/<id>"
 	pendingRequests := make(map[string]*rpcPendingRequest)
 
+	if err := scanRPCMessages(file, metrics, pendingRequests, verbose); err != nil {
+		return nil, err
+	}
+
+	calculateGatewayAggregates(metrics)
+	gatewayLogsLog.Printf("Successfully parsed rpc-messages.jsonl: %d servers, %d total requests",
+		len(metrics.Servers), metrics.TotalRequests)
+
+	return metrics, nil
+}
+
+func scanRPCMessages(file *os.File, metrics *GatewayMetrics, pendingRequests map[string]*rpcPendingRequest, verbose bool) error {
 	scanner := bufio.NewScanner(file)
-	// Increase scanner buffer for large payloads
 	buf := make([]byte, maxScannerBufferSize)
 	scanner.Buffer(buf, maxScannerBufferSize)
 	lineNum := 0
@@ -49,178 +57,218 @@ func parseRPCMessages(logPath string, verbose bool) (*GatewayMetrics, error) {
 			continue
 		}
 
-		var entry RPCMessageEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			gatewayLogsLog.Printf("Failed to parse rpc-messages.jsonl line %d: %v", lineNum, err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-					fmt.Sprintf("Failed to parse rpc-messages.jsonl line %d: %v", lineNum, err)))
-			}
+		entry, ok := parseRPCMessageEntry(line, lineNum, verbose)
+		if !ok {
 			continue
 		}
-
-		// Update time range
-		if entry.Timestamp != "" {
-			if t, err := time.Parse(time.RFC3339Nano, entry.Timestamp); err == nil {
-				if metrics.StartTime.IsZero() || t.Before(metrics.StartTime) {
-					metrics.StartTime = t
-				}
-				if metrics.EndTime.IsZero() || t.After(metrics.EndTime) {
-					metrics.EndTime = t
-				}
-			}
-		}
-
-		if entry.ServerID == "" {
-			continue
-		}
-
-		switch {
-		case entry.Type == "DIFC_FILTERED":
-			// DIFC integrity/secrecy filter event — not a REQUEST or RESPONSE
-			metrics.TotalFiltered++
-			server := getOrCreateServer(metrics, entry.ServerID)
-			server.FilteredCount++
-			metrics.FilteredEvents = append(metrics.FilteredEvents, DifcFilteredEvent{
-				Timestamp:         entry.Timestamp,
-				ServerID:          entry.ServerID,
-				ToolName:          entry.ToolName,
-				Description:       entry.Description,
-				Reason:            entry.Reason,
-				SecrecyTags:       entry.SecrecyTags,
-				IntegrityTags:     entry.IntegrityTags,
-				AuthorAssociation: entry.AuthorAssociation,
-				AuthorLogin:       entry.AuthorLogin,
-				HTMLURL:           entry.HTMLURL,
-				Number:            entry.Number,
-			})
-
-		case entry.Direction == "OUT" && entry.Type == "REQUEST":
-			// Outgoing request from AI engine to MCP server
-			var req rpcRequestPayload
-			if err := json.Unmarshal(entry.Payload, &req); err != nil {
-				continue
-			}
-			if req.Method != "tools/call" {
-				continue
-			}
-
-			// Extract tool name
-			var params rpcToolCallParams
-			if err := json.Unmarshal(req.Params, &params); err != nil || params.Name == "" {
-				continue
-			}
-
-			metrics.TotalRequests++
-			server := getOrCreateServer(metrics, entry.ServerID)
-			server.RequestCount++
-			metrics.TotalToolCalls++
-			server.ToolCallCount++
-
-			tool := getOrCreateTool(server, params.Name)
-			tool.CallCount++
-
-			// Store pending request for duration calculation
-			if req.ID != nil && entry.Timestamp != "" {
-				if t, err := time.Parse(time.RFC3339Nano, entry.Timestamp); err == nil {
-					key := fmt.Sprintf("%s/%v", entry.ServerID, req.ID)
-					pendingRequests[key] = &rpcPendingRequest{
-						ServerID:  entry.ServerID,
-						ToolName:  params.Name,
-						Timestamp: t,
-					}
-				}
-			}
-
-		case entry.Direction == "IN" && entry.Type == "RESPONSE":
-			// Incoming response from MCP server to AI engine
-			var resp rpcResponsePayload
-			if err := json.Unmarshal(entry.Payload, &resp); err != nil {
-				continue
-			}
-
-			// Track errors and detect guard policy blocks
-			if resp.Error != nil {
-				metrics.TotalErrors++
-				server := getOrCreateServer(metrics, entry.ServerID)
-				server.ErrorCount++
-
-				// Detect guard policy enforcement errors
-				if isGuardPolicyErrorCode(resp.Error.Code) {
-					metrics.TotalGuardBlocked++
-					server.GuardPolicyBlocked++
-
-					// Determine tool name from pending request if available
-					toolName := ""
-					if resp.ID != nil {
-						key := fmt.Sprintf("%s/%v", entry.ServerID, resp.ID)
-						if pending, ok := pendingRequests[key]; ok {
-							toolName = pending.ToolName
-						}
-					}
-
-					reason := guardPolicyReasonFromCode(resp.Error.Code)
-					if resp.Error.Data != nil && resp.Error.Data.Reason != "" {
-						reason = resp.Error.Data.Reason
-					}
-
-					evt := GuardPolicyEvent{
-						Timestamp: entry.Timestamp,
-						ServerID:  entry.ServerID,
-						ToolName:  toolName,
-						ErrorCode: resp.Error.Code,
-						Reason:    reason,
-						Message:   resp.Error.Message,
-					}
-					if resp.Error.Data != nil {
-						evt.Details = resp.Error.Data.Details
-						evt.Repository = resp.Error.Data.Repository
-					}
-					metrics.GuardPolicyEvents = append(metrics.GuardPolicyEvents, evt)
-				}
-			}
-
-			// Calculate duration by matching with pending request
-			if resp.ID != nil && entry.Timestamp != "" {
-				key := fmt.Sprintf("%s/%v", entry.ServerID, resp.ID)
-				if pending, ok := pendingRequests[key]; ok {
-					delete(pendingRequests, key)
-					if t, err := time.Parse(time.RFC3339Nano, entry.Timestamp); err == nil {
-						durationMs := float64(t.Sub(pending.Timestamp).Milliseconds())
-						if durationMs >= 0 {
-							server := getOrCreateServer(metrics, entry.ServerID)
-							server.TotalDuration += durationMs
-							metrics.TotalDuration += durationMs
-
-							tool := getOrCreateTool(server, pending.ToolName)
-							tool.TotalDuration += durationMs
-							if tool.MaxDuration == 0 || durationMs > tool.MaxDuration {
-								tool.MaxDuration = durationMs
-							}
-							if tool.MinDuration == 0 || durationMs < tool.MinDuration {
-								tool.MinDuration = durationMs
-							}
-
-							if resp.Error != nil {
-								tool.ErrorCount++
-							}
-						}
-					}
-				}
-			}
-		}
+		processRPCMessageEntry(metrics, pendingRequests, entry)
 	}
 
 	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading rpc-messages.jsonl: %w", err)
+		return fmt.Errorf("error reading rpc-messages.jsonl: %w", err)
+	}
+	return nil
+}
+
+func parseRPCMessageEntry(line string, lineNum int, verbose bool) (RPCMessageEntry, bool) {
+	var entry RPCMessageEntry
+	if err := json.Unmarshal([]byte(line), &entry); err != nil {
+		gatewayLogsLog.Printf("Failed to parse rpc-messages.jsonl line %d: %v", lineNum, err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Failed to parse rpc-messages.jsonl line %d: %v", lineNum, err)))
+		}
+		return RPCMessageEntry{}, false
+	}
+	return entry, true
+}
+
+func processRPCMessageEntry(metrics *GatewayMetrics, pendingRequests map[string]*rpcPendingRequest, entry RPCMessageEntry) {
+	updateGatewayMetricsTimeRange(metrics, entry.Timestamp)
+	if entry.ServerID == "" {
+		return
 	}
 
-	calculateGatewayAggregates(metrics)
+	switch {
+	case entry.Type == "DIFC_FILTERED":
+		handleFilteredRPCMessage(metrics, entry)
+	case entry.Direction == "OUT" && entry.Type == "REQUEST":
+		handleRPCRequestMessage(metrics, pendingRequests, entry)
+	case entry.Direction == "IN" && entry.Type == "RESPONSE":
+		handleRPCResponseMessage(metrics, pendingRequests, entry)
+	}
+}
 
-	gatewayLogsLog.Printf("Successfully parsed rpc-messages.jsonl: %d servers, %d total requests",
-		len(metrics.Servers), metrics.TotalRequests)
+func updateGatewayMetricsTimeRange(metrics *GatewayMetrics, timestamp string) {
+	if timestamp == "" {
+		return
+	}
+	parsedTime, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		return
+	}
+	if metrics.StartTime.IsZero() || parsedTime.Before(metrics.StartTime) {
+		metrics.StartTime = parsedTime
+	}
+	if metrics.EndTime.IsZero() || parsedTime.After(metrics.EndTime) {
+		metrics.EndTime = parsedTime
+	}
+}
 
-	return metrics, nil
+func handleFilteredRPCMessage(metrics *GatewayMetrics, entry RPCMessageEntry) {
+	metrics.TotalFiltered++
+	server := getOrCreateServer(metrics, entry.ServerID)
+	server.FilteredCount++
+	metrics.FilteredEvents = append(metrics.FilteredEvents, DifcFilteredEvent{
+		Timestamp:         entry.Timestamp,
+		ServerID:          entry.ServerID,
+		ToolName:          entry.ToolName,
+		Description:       entry.Description,
+		Reason:            entry.Reason,
+		SecrecyTags:       entry.SecrecyTags,
+		IntegrityTags:     entry.IntegrityTags,
+		AuthorAssociation: entry.AuthorAssociation,
+		AuthorLogin:       entry.AuthorLogin,
+		HTMLURL:           entry.HTMLURL,
+		Number:            entry.Number,
+	})
+}
+
+func handleRPCRequestMessage(metrics *GatewayMetrics, pendingRequests map[string]*rpcPendingRequest, entry RPCMessageEntry) {
+	var req rpcRequestPayload
+	if err := json.Unmarshal(entry.Payload, &req); err != nil || req.Method != "tools/call" {
+		return
+	}
+
+	var params rpcToolCallParams
+	if err := json.Unmarshal(req.Params, &params); err != nil || params.Name == "" {
+		return
+	}
+
+	metrics.TotalRequests++
+	server := getOrCreateServer(metrics, entry.ServerID)
+	server.RequestCount++
+	metrics.TotalToolCalls++
+	server.ToolCallCount++
+	getOrCreateTool(server, params.Name).CallCount++
+
+	if requestTime, ok := parseRPCTimestamp(entry.Timestamp); ok && req.ID != nil {
+		pendingRequests[rpcPendingRequestKey(entry.ServerID, req.ID)] = &rpcPendingRequest{
+			ServerID:  entry.ServerID,
+			ToolName:  params.Name,
+			Timestamp: requestTime,
+		}
+	}
+}
+
+func handleRPCResponseMessage(metrics *GatewayMetrics, pendingRequests map[string]*rpcPendingRequest, entry RPCMessageEntry) {
+	var resp rpcResponsePayload
+	if err := json.Unmarshal(entry.Payload, &resp); err != nil {
+		return
+	}
+
+	handleRPCResponseError(metrics, pendingRequests, entry, resp)
+	updateRPCResponseDuration(metrics, pendingRequests, entry, resp)
+}
+
+func handleRPCResponseError(metrics *GatewayMetrics, pendingRequests map[string]*rpcPendingRequest, entry RPCMessageEntry, resp rpcResponsePayload) {
+	if resp.Error == nil {
+		return
+	}
+
+	metrics.TotalErrors++
+	server := getOrCreateServer(metrics, entry.ServerID)
+	server.ErrorCount++
+	if !isGuardPolicyErrorCode(resp.Error.Code) {
+		return
+	}
+
+	metrics.TotalGuardBlocked++
+	server.GuardPolicyBlocked++
+	metrics.GuardPolicyEvents = append(metrics.GuardPolicyEvents, buildGuardPolicyEvent(entry, resp, pendingRequests))
+}
+
+func buildGuardPolicyEvent(entry RPCMessageEntry, resp rpcResponsePayload, pendingRequests map[string]*rpcPendingRequest) GuardPolicyEvent {
+	toolName := ""
+	if resp.ID != nil {
+		if pending, ok := pendingRequests[rpcPendingRequestKey(entry.ServerID, resp.ID)]; ok {
+			toolName = pending.ToolName
+		}
+	}
+
+	reason := guardPolicyReasonFromCode(resp.Error.Code)
+	if resp.Error.Data != nil && resp.Error.Data.Reason != "" {
+		reason = resp.Error.Data.Reason
+	}
+
+	event := GuardPolicyEvent{
+		Timestamp: entry.Timestamp,
+		ServerID:  entry.ServerID,
+		ToolName:  toolName,
+		ErrorCode: resp.Error.Code,
+		Reason:    reason,
+		Message:   resp.Error.Message,
+	}
+	if resp.Error.Data != nil {
+		event.Details = resp.Error.Data.Details
+		event.Repository = resp.Error.Data.Repository
+	}
+	return event
+}
+
+func updateRPCResponseDuration(metrics *GatewayMetrics, pendingRequests map[string]*rpcPendingRequest, entry RPCMessageEntry, resp rpcResponsePayload) {
+	if resp.ID == nil {
+		return
+	}
+	responseTime, ok := parseRPCTimestamp(entry.Timestamp)
+	if !ok {
+		return
+	}
+	key := rpcPendingRequestKey(entry.ServerID, resp.ID)
+	pending, ok := pendingRequests[key]
+	if !ok {
+		return
+	}
+	delete(pendingRequests, key)
+	applyRPCPendingRequestDuration(metrics, entry.ServerID, pending, responseTime, resp.Error != nil)
+}
+
+func applyRPCPendingRequestDuration(metrics *GatewayMetrics, serverID string, pending *rpcPendingRequest, responseTime time.Time, hasError bool) {
+	durationMS := float64(responseTime.Sub(pending.Timestamp).Milliseconds())
+	if durationMS < 0 {
+		return
+	}
+
+	server := getOrCreateServer(metrics, serverID)
+	server.TotalDuration += durationMS
+	metrics.TotalDuration += durationMS
+
+	tool := getOrCreateTool(server, pending.ToolName)
+	tool.TotalDuration += durationMS
+	if tool.MaxDuration == 0 || durationMS > tool.MaxDuration {
+		tool.MaxDuration = durationMS
+	}
+	if tool.MinDuration == 0 || durationMS < tool.MinDuration {
+		tool.MinDuration = durationMS
+	}
+	if hasError {
+		tool.ErrorCount++
+	}
+}
+
+func parseRPCTimestamp(timestamp string) (time.Time, bool) {
+	if timestamp == "" {
+		return time.Time{}, false
+	}
+	parsedTime, err := time.Parse(time.RFC3339Nano, timestamp)
+	if err != nil {
+		return time.Time{}, false
+	}
+	return parsedTime, true
+}
+
+func rpcPendingRequestKey(serverID string, id any) string {
+	return fmt.Sprintf("%s/%v", serverID, id)
 }
 
 // findRPCMessagesPath returns the path to rpc-messages.jsonl if it exists, or "" if not found.
