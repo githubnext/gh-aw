@@ -57,14 +57,16 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	if workflowDir != "" {
 		relDir, relErr := filepath.Rel(gitRoot, workflowDir)
 		if relErr == nil && relDir != ".." && !strings.HasPrefix(relDir, ".."+string(filepath.Separator)) {
-			scanPath = relDir
+			scanPath = filepath.Clean(relDir)
 		}
 	}
 
 	// Build the Docker command
 	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:latest scan <path> --format json
-	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path.
-	// exec.Command with separate args (not shell execution) prevents command injection.
+	// #nosec G204 -- gitRoot is validated as an absolute path above (from git rev-parse, a trusted
+	// source). scanPath is derived from filepath.Rel(gitRoot, workflowDir), cleaned with
+	// filepath.Clean, and validated to not escape the repository root (no ".." prefix).
+	// exec.Command passes args directly to the OS (no shell), preventing shell injection.
 	cmd := exec.Command(
 		"docker",
 		"run",

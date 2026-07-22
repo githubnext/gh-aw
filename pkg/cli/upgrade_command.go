@@ -479,6 +479,16 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
 	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
 
+	// Validate that exe is an absolute path before executing it (defense-in-depth).
+	// exe is always derived from os.Executable() or the pre-rename installPath which is
+	// itself obtained from os.Executable() + filepath.EvalSymlinks (all trusted OS calls).
+	if !filepath.IsAbs(exe) {
+		return fmt.Errorf("executable path is not absolute: %s", exe)
+	}
+
+	// #nosec G204 -- exe is validated as an absolute path above and originates from
+	// os.Executable() or the known install path; newArgs is a copy of the current process
+	// argv (os.Args[1:]) plus a single hardcoded flag, containing no untrusted user input.
 	cmd := exec.Command(exe, newArgs...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
