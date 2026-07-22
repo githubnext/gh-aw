@@ -483,7 +483,7 @@ gh aw logs "ci failure doctor"             # Case-insensitive display name
 gh aw logs --cache-before -1w                        # Evict local cache older than 1 week, then proceed with normal run download
 gh aw logs --cache-before -30d                       # Evict local cache entries older than 30 days
 gh aw logs --cache-before 2024-01-01                 # Evict local cache entries from before a specific date
-gh aw logs my-workflow --cache-before -1mo -c 20     # Clean up, then download 20 runs of a specific workflow
+gh aw logs my-workflow --cache-before -1mo -c 20     # Evict local cache older than 1 month, then download 20 runs of a specific workflow
 ```
 
 Only directories matching the `run-{ID}` naming pattern inside the output directory are considered. The run's creation timestamp is read from `run_summary.json` inside each folder; if that file is absent (e.g., incomplete download), the directory's modification time is used as a fallback.
