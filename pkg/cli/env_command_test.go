@@ -71,7 +71,7 @@ func TestResolveDefaultsTarget(t *testing.T) {
 	t.Run("update requires scope", func(t *testing.T) {
 		_, err := resolveDefaultsTarget("", "", "", "", true)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "scope is required")
+		require.ErrorContains(t, err, "scope is required")
 	})
 
 	t.Run("org scope infers owner from repo", func(t *testing.T) {
@@ -84,7 +84,7 @@ func TestResolveDefaultsTarget(t *testing.T) {
 	t.Run("ent scope requires enterprise", func(t *testing.T) {
 		_, err := resolveDefaultsTarget(defaultsScopeEnt, "", "", "", false)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "--enterprise")
+		require.ErrorContains(t, err, "--enterprise")
 	})
 }
 
@@ -149,7 +149,7 @@ func TestDefaultsFileYAMLNullDelete(t *testing.T) {
 func TestDefaultsParseFileDisallowsUnknownFields(t *testing.T) {
 	_, err := defaultsParseFile("defaults.yml", []byte("default_max_turns: \"42\"\ndefault_model_copliot: gpt-5-mini\n"))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "default_model_copliot")
+	require.ErrorContains(t, err, "default_model_copliot")
 }
 
 func TestDefaultsValidateFile(t *testing.T) {
@@ -189,14 +189,24 @@ func TestDefaultsValidateFile(t *testing.T) {
 			DefaultModelCopilot:          new("   "),
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "default_max_ai_credits must be a non-zero integer when set")
-		assert.Contains(t, err.Error(), "default_max_turn_cache_misses must be a positive integer when set")
-		assert.Contains(t, err.Error(), "default_detection_max_ai_credits must be a non-zero integer when set")
-		assert.Contains(t, err.Error(), "default_max_daily_ai_credits must be a non-zero integer when set")
-		assert.Contains(t, err.Error(), "default_max_turns must be a positive integer when set")
-		assert.Contains(t, err.Error(), "default_timeout_minutes must be a positive integer when set")
-		assert.Contains(t, err.Error(), "default_utc must be a numeric UTC offset")
-		assert.Contains(t, err.Error(), "default_model_copilot cannot be empty when set")
+		validationErr := err
+		for _, tc := range []struct {
+			name               string
+			expectedErrMessage string
+		}{
+			{name: "max_ai_credits", expectedErrMessage: "default_max_ai_credits must be a non-zero integer when set"},
+			{name: "max_turn_cache_misses", expectedErrMessage: "default_max_turn_cache_misses must be a positive integer when set"},
+			{name: "detection_max_ai_credits", expectedErrMessage: "default_detection_max_ai_credits must be a non-zero integer when set"},
+			{name: "max_daily_ai_credits", expectedErrMessage: "default_max_daily_ai_credits must be a non-zero integer when set"},
+			{name: "max_turns", expectedErrMessage: "default_max_turns must be a positive integer when set"},
+			{name: "timeout_minutes", expectedErrMessage: "default_timeout_minutes must be a positive integer when set"},
+			{name: "utc", expectedErrMessage: "default_utc must be a numeric UTC offset"},
+			{name: "model_copilot", expectedErrMessage: "default_model_copilot cannot be empty when set"},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				require.ErrorContains(t, validationErr, tc.expectedErrMessage)
+			})
+		}
 	})
 }
 

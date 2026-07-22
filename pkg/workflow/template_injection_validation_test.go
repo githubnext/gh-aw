@@ -218,13 +218,13 @@ func TestValidateNoTemplateInjection(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected validation to fail but it passed")
 				if tt.errorString != "" {
-					assert.Contains(t, err.Error(), tt.errorString,
+					require.ErrorContains(t, err, tt.errorString,
 						"Error message should contain expected string")
 				}
 				// Verify error message quality
-				assert.Contains(t, err.Error(), "template injection",
+				require.ErrorContains(t, err, "template injection",
 					"Error should mention template injection")
-				assert.Contains(t, err.Error(), "Safe Pattern",
+				assert.ErrorContains(t, err, "Safe Pattern",
 					"Error should provide safe pattern example")
 			} else {
 				assert.NoError(t, err, "Expected validation to pass but got error: %v", err)
@@ -386,9 +386,9 @@ func TestTemplateInjectionRealWorldPatterns(t *testing.T) {
 
 		err := validateNoTemplateInjection(yaml)
 		require.Error(t, err, "Should detect unsafe gateway-pid usage in run command")
-		assert.Contains(t, err.Error(), "steps.*.outputs",
+		require.ErrorContains(t, err, "steps.*.outputs",
 			"Should identify as steps.outputs context")
-		assert.Contains(t, err.Error(), "gateway-pid",
+		require.ErrorContains(t, err, "gateway-pid",
 			"Error should mention the specific expression")
 	})
 
@@ -1006,7 +1006,7 @@ func TestTemplateInjectionYAMLKeyOrdering(t *testing.T) {
 
 			if tt.shouldError {
 				require.Error(t, err, tt.description)
-				assert.Contains(t, err.Error(), "template injection",
+				require.ErrorContains(t, err, "template injection",
 					"Error should mention template injection")
 			} else {
 				assert.NoError(t, err, tt.description)
@@ -1139,7 +1139,7 @@ jobs:
 
 			if tt.shouldError {
 				require.Error(t, err, tt.description)
-				assert.Contains(t, err.Error(), "template injection",
+				require.ErrorContains(t, err, "template injection",
 					"Error should mention template injection")
 			} else {
 				assert.NoError(t, err, tt.description)
@@ -1331,7 +1331,7 @@ func TestTemplateInjectionYAMLParsingEdgeCases(t *testing.T) {
 
 			if tt.shouldError {
 				require.Error(t, err, tt.description)
-				assert.Contains(t, err.Error(), "template injection",
+				require.ErrorContains(t, err, "template injection",
 					"Error should mention template injection")
 			} else {
 				assert.NoError(t, err, tt.description)

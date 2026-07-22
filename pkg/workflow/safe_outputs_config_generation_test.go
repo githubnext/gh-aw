@@ -122,8 +122,8 @@ func TestGenerateSafeOutputsConfigActionsCollisionReturnsError(t *testing.T) {
 
 	_, err := generateSafeOutputsConfig(data)
 	require.Error(t, err, "Expected an error when a custom action name collides with a built-in handler key")
-	assert.Contains(t, err.Error(), "add-labels", "Error should mention the conflicting action name")
-	assert.Contains(t, err.Error(), "add_labels", "Error should mention the conflicting normalized name")
+	require.ErrorContains(t, err, "add-labels", "Error should mention the conflicting action name")
+	require.ErrorContains(t, err, "add_labels", "Error should mention the conflicting normalized name")
 }
 
 // TestGenerateSafeOutputsConfigMissingToolWithIssue tests the missing_tool config.

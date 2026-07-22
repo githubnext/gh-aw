@@ -31,12 +31,15 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
 | [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
 | [`require-mkdirsync-try-catch`](#require-mkdirsync-try-catch) | Require try/catch around `fs.mkdirSync` calls |
 | [`require-new-url-try-catch`](#require-new-url-try-catch) | Require try/catch around `new URL(variable)` calls |
 | [`require-parseInt-radix`](#require-parseInt-radix) | Require an explicit radix argument to `parseInt()` |
 | [`require-return-after-core-setfailed`](#require-return-after-core-setfailed) | Require a control-transfer statement after `core.setFailed()` |
+| [`require-execsync-try-catch`](#require-execsync-try-catch) | Require try/catch around `execSync(...)` calls from `child_process` |
+| [`require-execfilesync-try-catch`](#require-execfilesync-try-catch) | Require try/catch around `execFileSync(...)` calls from `child_process` |
 | [`require-spawnsync-error-check`](#require-spawnsync-error-check) | Require checking `result.error` after `spawnSync` calls |
 
 ### `no-github-request-interpolated-route`
@@ -215,6 +218,33 @@ Flagged form:
 Safe alternative:
 - `throw new Error(\`failed: ${getErrorMessage(err)}\`, { cause: err });`
 
+### `require-fs-io-try-catch`
+
+Require `fs.statSync`, `fs.readdirSync`, `fs.copyFileSync`, `fs.unlinkSync`, and `fs.renameSync` calls to be wrapped in `try/catch`.
+
+Why: these synchronous filesystem methods throw on missing files, permission errors (`EACCES`), busy resources (`EBUSY`), and other I/O failures. An unhandled throw crashes the action without surfacing a useful diagnostic message.
+
+**Detected forms:**
+- `fs.statSync(path)` — direct call on a known `require("fs")` result.
+- `fs["readdirSync"](dir)` — computed string-literal property access.
+- `const { unlinkSync } = require("fs"); unlinkSync(path)` — destructured binding from `require("fs")` or `require("node:fs")`.
+- ESM namespace imports: `import * as fs from "fs"; fs.copyFileSync(src, dest)`.
+- ESM named imports: `import { renameSync } from "fs"; renameSync(src, dest)`.
+- Bare unbound identifiers: `statSync(path)` when `statSync` is not a locally bound variable.
+
+**Out of scope:**
+- Objects whose `require` source is not the Node `fs` / `node:fs` module.
+- `try { ... } finally { ... }` without a `catch` clause is still flagged.
+
+**Safe alternative:**
+```js
+try {
+  fs.statSync(filePath);
+} catch (err) {
+  throw new Error("fs.statSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+```
+
 ### `require-fs-sync-try-catch`
 
 Require `fs.readFileSync`, `fs.writeFileSync`, and `fs.appendFileSync` calls to be wrapped in `try/catch`.
@@ -261,7 +291,7 @@ Why: `mkdirSync` throws synchronously on permission errors, invalid paths, or un
 
 **Out of scope:**
 - Objects whose `require` source is not the Node `fs` / `node:fs` module (e.g. `mockFs.mkdirSync`, `storage.mkdirSync`, or `const fs = require("mock-fs"); fs.mkdirSync`).
-- Other `fs` methods such as `existsSync`, `unlinkSync`, or `statSync` — use `require-fs-sync-try-catch` for `readFileSync`, `writeFileSync`, and `appendFileSync`.
+- Other `fs` methods such as `existsSync` — use `require-fs-sync-try-catch` for `readFileSync`, `writeFileSync`, and `appendFileSync`; use `require-fs-io-try-catch` for `statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync`.
 - `try { ... } finally { ... }` without a `catch` clause is still flagged.
 
 **Safe alternative:**
@@ -401,3 +431,39 @@ Prefer `@actions/core` logging methods (`core.info`, `core.debug`) over `console
 
 `console.error` and `console.warn` write to **`process.stderr`**, while `core.error` and `core.warning` emit GitHub Actions workflow commands to **`process.stdout`**. For processes that own stdout as a data/protocol channel — such as stdio MCP servers and transports — replacing stderr logging with stdout logging would corrupt the JSON-RPC stream. Because the stream change is not behavior-preserving, the rule never reports `console.error` or `console.warn` and offers no suggestion to replace them.
 
+
+### `require-execsync-try-catch`
+
+Require `execSync` calls sourced from `child_process` to be wrapped in `try/catch`.
+
+Why: `execSync` throws an `Error` containing child-process result fields (for example `status`, `signal`, `stdout`, `stderr`) when the child process exits with a non-zero status code or is killed by a signal. An unhandled throw crashes the action without surfacing a useful diagnostic.
+
+**Detected forms:**
+- `const { execSync } = require("child_process"); execSync(...)` — destructured.
+- `const cp = require("child_process"); cp.execSync(...)` — namespace access.
+- `const run = cp.execSync; run(...)` — aliased via member expression.
+- `import { execSync } from "child_process"; execSync(...)` — ESM named import.
+- Both `"child_process"` and `"node:child_process"` specifiers are recognized.
+
+**Not flagged:**
+- `execSync` from any module other than `child_process` / `node:child_process`.
+- Calls already inside an enclosing `try { ... } catch { ... }` block.
+
+### `require-execfilesync-try-catch`
+
+Require `execFileSync` calls sourced from `child_process` to be wrapped in `try/catch`.
+
+Why: `execFileSync` has identical throw-on-failure semantics to `execSync` — it throws an `Error` containing child-process result fields (for example `status`, `signal`, `stdout`, `stderr`) when the child process exits with a non-zero status code or is killed by a signal. An unhandled throw crashes the action without surfacing a useful diagnostic.
+
+**Detected forms:**
+- `const { execFileSync } = require("child_process"); execFileSync(...)` — destructured.
+- `const cp = require("child_process"); cp.execFileSync(...)` — namespace access.
+- `const run = cp.execFileSync; run(...)` — aliased via member expression.
+- `import { execFileSync } from "child_process"; execFileSync(...)` — ESM named import.
+- Both `"child_process"` and `"node:child_process"` specifiers are recognized.
+
+**Not flagged:**
+- `execFileSync` from any module other than `child_process` / `node:child_process`.
+- Calls already inside an enclosing `try { ... } catch { ... }` block.
+
+**Out of scope:** `execFile` (the async, callback-based sibling) is intentionally excluded. The async form accepts a callback and does not throw synchronously; errors are delivered through the callback or the returned `ChildProcess` event emitter, so a synchronous try/catch provides no protection.

@@ -27,7 +27,7 @@ func TestNewDeployCommand_RequiresWorkflowArg(t *testing.T) {
 
 	err := cmd.Args(cmd, []string{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "missing workflow specification")
+	require.ErrorContains(t, err, "missing workflow specification")
 }
 
 func TestNewDeployCommand_RegistersCoreFlags(t *testing.T) {
@@ -86,7 +86,7 @@ func TestNewDeployCommand_RequiresRepoFlag(t *testing.T) {
 	require.NotNil(t, cmd)
 	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "either --repo (owner/repo) or --org must be provided")
+	require.ErrorContains(t, err, "either --repo (owner/repo) or --org must be provided")
 }
 
 func TestRunDeployCommand_RejectsRepoAndOrgTogether(t *testing.T) {
@@ -96,7 +96,7 @@ func TestRunDeployCommand_RejectsRepoAndOrgTogether(t *testing.T) {
 	require.NoError(t, cmd.Flags().Set("org", "octo"))
 	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot specify both --repo and --org")
+	require.ErrorContains(t, err, "cannot specify both --repo and --org")
 }
 
 func TestRunDeployCommand_RequiresOrgWhenReposProvided(t *testing.T) {
@@ -106,7 +106,7 @@ func TestRunDeployCommand_RequiresOrgWhenReposProvided(t *testing.T) {
 
 	err := runDeployCommand(cmd, []string{"githubnext/agentics/ci-doctor"}, func(string) error { return nil })
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--repos requires --org")
+	require.ErrorContains(t, err, "--repos requires --org")
 }
 
 func TestRunDeployCommand_RoutesToOrgRunner(t *testing.T) {
@@ -275,7 +275,7 @@ func TestParseDeployCommandOptions_NameFlagWithMultipleWorkflows(t *testing.T) {
 		return nil
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--name flag cannot be used when adding multiple workflows at once")
+	require.ErrorContains(t, err, "--name flag cannot be used when adding multiple workflows at once")
 	assert.Equal(t, AddOptions{}, opts)
 	assert.Zero(t, coolDown)
 	assert.False(t, validateEngineCalled)
@@ -290,7 +290,7 @@ func TestParseDeployCommandOptions_InvalidCoolDown(t *testing.T) {
 
 	opts, coolDown, err := parseDeployCommandOptions(cmd, []string{"a"}, func(string) error { return nil })
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid --cool-down value")
+	require.ErrorContains(t, err, "invalid --cool-down value")
 	assert.Equal(t, AddOptions{}, opts)
 	assert.Zero(t, coolDown)
 }

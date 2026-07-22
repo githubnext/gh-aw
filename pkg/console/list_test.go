@@ -20,7 +20,7 @@ func TestShowInteractiveList_EmptyItems(t *testing.T) {
 	items := []ListItem{}
 	_, err := ShowInteractiveList("Test", items)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no items to display")
+	require.ErrorContains(t, err, "no items to display")
 }
 
 // Note: Full interactive list testing requires TTY and cannot be automated.

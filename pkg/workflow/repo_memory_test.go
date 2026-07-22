@@ -762,7 +762,7 @@ func TestRepoMemoryMaxPatchSizeValidation(t *testing.T) {
 			if tt.wantError {
 				require.Error(t, err, "Should return an error")
 				if err != nil {
-					assert.Contains(t, err.Error(), tt.errorText, "Error message should match")
+					require.ErrorContains(t, err, tt.errorText, "Error message should match")
 				}
 			} else {
 				require.NoError(t, err, "Should not return an error")
@@ -826,7 +826,7 @@ func TestRepoMemoryMaxPatchSizeValidationArray(t *testing.T) {
 			if tt.wantError {
 				require.Error(t, err, "Should return an error")
 				if err != nil {
-					assert.Contains(t, err.Error(), tt.errorText, "Error message should match")
+					require.ErrorContains(t, err, tt.errorText, "Error message should match")
 				}
 			} else {
 				require.NoError(t, err, "Should not return an error")
@@ -946,7 +946,7 @@ func TestBranchPrefixValidation(t *testing.T) {
 			err := validateBranchPrefix(tt.prefix)
 			if tt.wantErr {
 				require.Error(t, err, "Expected error for prefix: %s", tt.prefix)
-				assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain: %s", tt.errMsg)
+				require.ErrorContains(t, err, tt.errMsg, "Error message should contain: %s", tt.errMsg)
 			} else {
 				require.NoError(t, err, "Expected no error for prefix: %s", tt.prefix)
 			}
@@ -1624,7 +1624,7 @@ func TestValidateFileGlobPatterns(t *testing.T) {
 			err := validateFileGlobPatterns(tt.patterns)
 			if tt.wantErr {
 				require.Error(t, err, "Expected error for patterns: %v", tt.patterns)
-				assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain: %s", tt.errMsg)
+				require.ErrorContains(t, err, tt.errMsg, "Error message should contain: %s", tt.errMsg)
 			} else {
 				require.NoError(t, err, "Expected no error for patterns: %v", tt.patterns)
 			}
@@ -1649,7 +1649,7 @@ func TestFileGlobPatternValidationInConfig(t *testing.T) {
 		compiler := NewCompiler()
 		_, err = compiler.extractRepoMemoryConfig(toolsConfig, "test-workflow")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "must not start with '/'")
+		require.ErrorContains(t, err, "must not start with '/'")
 	})
 
 	t.Run("rejects absolute path in object notation", func(t *testing.T) {
@@ -1663,7 +1663,7 @@ func TestFileGlobPatternValidationInConfig(t *testing.T) {
 		compiler := NewCompiler()
 		_, err = compiler.extractRepoMemoryConfig(toolsConfig, "test-workflow")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "must not start with '/'")
+		require.ErrorContains(t, err, "must not start with '/'")
 	})
 
 	t.Run("accepts valid slashless patterns in array notation", func(t *testing.T) {

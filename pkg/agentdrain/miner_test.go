@@ -264,7 +264,7 @@ func TestTrainEmptyLine(t *testing.T) {
 	result, err := m.Train(" \t\n ")
 	assert.Nil(t, result, "Train should return nil result for whitespace-only input")
 	require.Error(t, err, "Train should return an error for whitespace-only input")
-	assert.Contains(t, err.Error(), "empty line after masking", "Train error should explain empty line after masking")
+	require.ErrorContains(t, err, "empty line after masking", "Train error should explain empty line after masking")
 }
 
 func TestNewMaskerInvalidPattern(t *testing.T) {
@@ -278,7 +278,7 @@ func TestNewMaskerInvalidPattern(t *testing.T) {
 
 	assert.Nil(t, masker, "NewMasker should return nil masker for invalid regex pattern")
 	require.Error(t, err, "NewMasker should fail when a regex pattern is invalid")
-	assert.Contains(t, err.Error(), `mask rule "invalid"`, "NewMasker error should identify the failing rule")
+	require.ErrorContains(t, err, `mask rule "invalid"`, "NewMasker error should identify the failing rule")
 }
 
 func TestConcurrency(t *testing.T) {

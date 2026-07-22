@@ -174,7 +174,7 @@ Content with <tags> and & symbols.
 			} else {
 				require.Error(t, err, "Expected error for %s", tt.name)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			}
 		})
@@ -259,7 +259,7 @@ engine: copilot
 			if tt.shouldError {
 				require.Error(t, err, "Expected error for %s", tt.name)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				if err != nil {
@@ -637,7 +637,7 @@ func TestValidateWorkflowData(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected validation to fail")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				if err != nil {
@@ -730,7 +730,7 @@ func TestGenerateAndValidateYAML(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected YAML generation to fail")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				if err != nil {
@@ -1048,7 +1048,7 @@ func TestReadLockFileFromHEAD_GitStates(t *testing.T) {
 
 		_, err := compiler.readLockFileFromHEAD(filepath.Join(os.TempDir(), "nonexistent.lock.yml"))
 		require.Error(t, err, "Missing git root should return an error")
-		assert.Contains(t, err.Error(), "git root not available", "Error should explain missing git root")
+		require.ErrorContains(t, err, "git root not available", "Error should explain missing git root")
 	})
 
 	t.Run("returns committed content from HEAD", func(t *testing.T) {
@@ -1090,6 +1090,6 @@ func TestReadLockFileFromHEAD_GitStates(t *testing.T) {
 		lockFile := filepath.Join(repoDir, "workflow.lock.yml")
 		_, err := compiler.readLockFileFromHEAD(lockFile)
 		require.Error(t, err, "Reading a non-existent lock file from HEAD should fail")
-		assert.Contains(t, err.Error(), "not found in HEAD commit", "Error should indicate file is absent in HEAD")
+		require.ErrorContains(t, err, "not found in HEAD commit", "Error should indicate file is absent in HEAD")
 	})
 }

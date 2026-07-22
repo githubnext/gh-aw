@@ -314,7 +314,7 @@ func TestLogsCommandStdinRejectsPositionalArgs(t *testing.T) {
 	cmd.SetErr(nil)
 	err := cmd.Execute()
 	require.Error(t, err, "logs --stdin with a positional arg should return an error")
-	assert.Contains(t, err.Error(), "positional arguments are not allowed with --stdin", "error message should explain the conflict")
+	require.ErrorContains(t, err, "positional arguments are not allowed with --stdin", "error message should explain the conflict")
 }
 
 // TestLogsCommand_RepoBypassesLocalWorkflowResolution verifies that specifying

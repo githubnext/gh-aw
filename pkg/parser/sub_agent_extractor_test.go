@@ -214,8 +214,8 @@ func TestExtractInlineSubAgents_DuplicateNameError(t *testing.T) {
 	_, _, err := ExtractInlineSubAgents(markdown)
 
 	require.Error(t, err, "duplicate agent name should produce an error")
-	assert.Contains(t, err.Error(), "duplicate", "error should mention duplicate")
-	assert.Contains(t, err.Error(), "planner", "error should include the duplicate name")
+	require.ErrorContains(t, err, "duplicate", "error should mention duplicate")
+	require.ErrorContains(t, err, "planner", "error should include the duplicate name")
 }
 
 func TestExtractInlineSubAgents_NameVariants(t *testing.T) {

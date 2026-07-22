@@ -77,7 +77,7 @@ func TestMergeEnvWithInvalidJSON(t *testing.T) {
 
 	_, err := mergeEnv(topEnv, `{invalid json}`)
 	require.Error(t, err, "mergeEnv should return an error for invalid JSON")
-	assert.Contains(t, err.Error(), "failed to parse imported env JSON", "Error message should be descriptive")
+	require.ErrorContains(t, err, "failed to parse imported env JSON", "Error message should be descriptive")
 }
 
 func TestMergeEnvNormalizesImportedWorkflowEnvReferences(t *testing.T) {

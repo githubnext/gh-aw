@@ -64,7 +64,9 @@ func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildConte
 	ctx.steps = append(ctx.steps, "        id: check-oauth-tokens\n")
 	ctx.steps = append(ctx.steps, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh\"\n")
 	ctx.steps = append(ctx.steps, "        env:\n")
-	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: %s\n", constants.CopilotGitHubToken, copilotTokenExpr))
+	for _, envLine := range appendEnvVarLine([]string{}, constants.CopilotGitHubToken, copilotTokenExpr) {
+		ctx.steps = append(ctx.steps, envLine+"\n")
+	}
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubToken, constants.EnvVarGitHubToken))
 	ctx.steps = append(ctx.steps, fmt.Sprintf("          %s: ${{ secrets.%s }}\n", constants.EnvVarGitHubMCPServerToken, constants.EnvVarGitHubMCPServerToken))
 }

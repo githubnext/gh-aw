@@ -66,8 +66,8 @@ func TestValidateBlockScalarExpressionSizes(t *testing.T) {
 		lines := strings.Split(sb.String(), "\n")
 		err := validateBlockScalarExpressionSizes(lines, smallMax)
 		require.Error(t, err, "large block with expression should fail")
-		assert.Contains(t, err.Error(), "exceeds maximum allowed size", "error should describe the size issue")
-		assert.Contains(t, err.Error(), "run", "error should identify the block key")
+		require.ErrorContains(t, err, "exceeds maximum allowed size", "error should describe the size issue")
+		require.ErrorContains(t, err, "run", "error should identify the block key")
 	})
 
 	t.Run("expression at beginning of large block fails", func(t *testing.T) {
@@ -108,7 +108,7 @@ func TestValidateBlockScalarExpressionSizes(t *testing.T) {
 		lines := strings.Split(sb.String(), "\n")
 		err := validateBlockScalarExpressionSizes(lines, smallMax)
 		require.Error(t, err, "folded block (>) with expression exceeding limit should fail")
-		assert.Contains(t, err.Error(), "exceeds maximum allowed size", "error message should describe the issue")
+		require.ErrorContains(t, err, "exceeds maximum allowed size", "error message should describe the issue")
 	})
 
 	t.Run("MaxExpressionSize used by compiler validation", func(t *testing.T) {

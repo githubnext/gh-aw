@@ -91,7 +91,7 @@ This file has no frontmatter section.
 
 	require.Error(t, err, "Should error when frontmatter is missing")
 	assert.Nil(t, workflowData)
-	assert.Contains(t, err.Error(), "frontmatter", "Error should mention frontmatter")
+	require.ErrorContains(t, err, "frontmatter", "Error should mention frontmatter")
 }
 
 // TestParseWorkflowFile_InvalidYAML tests error handling for invalid YAML frontmatter
@@ -156,7 +156,7 @@ engine: copilot
 
 	require.Error(t, err, "Main workflow without markdown content should error")
 	assert.Nil(t, workflowData)
-	assert.Contains(t, err.Error(), "markdown content", "Error should mention markdown content")
+	require.ErrorContains(t, err, "markdown content", "Error should mention markdown content")
 }
 
 // TestParseWorkflowFile_EngineExtraction tests engine config extraction

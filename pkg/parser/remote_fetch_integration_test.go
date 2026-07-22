@@ -227,7 +227,7 @@ func TestResolveRemoteSymlinksNoSymlinks(t *testing.T) {
 	require.Error(t, err, "Expected error when no symlinks found")
 	skipOnAuthError(t, err)
 
-	assert.Contains(t, err.Error(), "no symlinks found", "Should indicate no symlinks were found in path")
+	require.ErrorContains(t, err, "no symlinks found", "Should indicate no symlinks were found in path")
 }
 
 // TestDownloadFileFromGitHubSymlinkRoute verifies that downloading a nonexistent file
@@ -240,7 +240,7 @@ func TestDownloadFileFromGitHubSymlinkRoute(t *testing.T) {
 	require.Error(t, err, "Expected error for nonexistent file")
 	skipOnAuthError(t, err)
 
-	assert.Contains(t, err.Error(), "failed to fetch file content", "Should return the original fetch failure")
+	require.ErrorContains(t, err, "failed to fetch file content", "Should return the original fetch failure")
 }
 
 // TestDownloadIncludeFromWorkflowSpecWithCache tests caching behavior
