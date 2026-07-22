@@ -39,6 +39,7 @@ imports:
     with:
       min-integrity: approved
   - shared/otlp.md
+  - shared/pr-diff-data-fetch.md
 tools:
   cli-proxy: true
   github:
@@ -60,41 +61,6 @@ safe-outputs:
     run-started: "🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}..."
     run-success: "✅ [{workflow_name}]({run_url}) completed the code quality review."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} during code quality review."
-pre-agent-steps:
-  - name: Pre-fetch PR diff and review comments
-    env:
-      GH_TOKEN: ${{ github.token }}
-      PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
-      EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
-      PR_DIFF_MAX_LINES: "3000"
-    run: |
-      set -euo pipefail
-      mkdir -p /tmp/gh-aw/agent
-      # Skip fetch if cache already populated this data (actions/cache restore)
-      if [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then
-        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
-        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
-        echo "Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)"
-      else
-        { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
-            --exclude '**/*.lock.yml' \
-            --exclude '**/generated/**' \
-            --exclude '**/dist/**' \
-            --exclude '**/build/**' \
-            || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
-        LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
-        gh pr view "$PR_NUMBER" \
-          --repo $EXPR_GITHUB_REPOSITORY \
-          --json number,title,body,headRefName,additions,deletions,changedFiles,files \
-          > /tmp/gh-aw/agent/pr-meta.json
-        gh api "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
-          --paginate \
-          --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
-          2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \
-          || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json
-        COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
-        echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
-      fi
 timeout-minutes: 15
 evals:
   - id: review_posted
