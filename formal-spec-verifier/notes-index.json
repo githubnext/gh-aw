@@ -20,6 +20,13 @@
       "notation": "TLA+ / Z3 / F*",
       "predicate_count": 15,
       "issue_number": null
+    },
+    "specs/aw-harness.md": {
+      "slug": "aw-harness",
+      "last_formalized": "2026-07-22-15-57-11",
+      "notation": "TLA+ / F* / Z3",
+      "predicate_count": 15,
+      "issue_number": null
     }
   }
 }
