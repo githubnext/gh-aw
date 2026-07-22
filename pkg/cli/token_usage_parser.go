@@ -173,6 +173,19 @@ func parseTokenUsageTimestamp(value string) (time.Time, bool) {
 	return time.Time{}, false
 }
 
+func walkTokenUsageFiles(root string, visit func(path string, info os.FileInfo) error) error {
+	return filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			tokenUsageLog.Printf("walk error at %s: %v", path, err)
+			return nil
+		}
+		if info == nil || info.IsDir() {
+			return nil
+		}
+		return visit(path, info)
+	})
+}
+
 // findTokenUsageFile searches for token-usage.jsonl in the run directory
 func findTokenUsageFile(runDir string) string {
 	usageArtifactCandidate := filepath.Join(runDir, "usage", "agent", "token_usage.jsonl")
@@ -220,14 +233,7 @@ func findTokenUsageFile(runDir string) string {
 	// Walk sandbox directory for any token-usage.jsonl
 	walkFound := func() string {
 		var found string
-		if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				tokenUsageLog.Printf("walk error at %s: %v", path, err)
-				return nil
-			}
-			if info == nil || info.IsDir() {
-				return nil
-			}
+		if walkErr := walkTokenUsageFiles(runDir, func(path string, info os.FileInfo) error {
 			if info.Name() == "token-usage.jsonl" || info.Name() == "token_usage.jsonl" {
 				found = path
 				return filepath.SkipAll
@@ -256,14 +262,7 @@ func findAgentUsageFile(runDir string) string {
 	}
 
 	var found string
-	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			tokenUsageLog.Printf("walk error at %s: %v", path, err)
-			return nil
-		}
-		if info == nil || info.IsDir() {
-			return nil
-		}
+	if walkErr := walkTokenUsageFiles(runDir, func(path string, info os.FileInfo) error {
 		if info.Name() == agentUsageJSONPath {
 			found = path
 			return filepath.SkipAll
