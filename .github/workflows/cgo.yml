@@ -114,11 +114,12 @@ jobs:
 
     - name: Verify integration build
       run: |
-        # Compile all packages including integration-tagged test files.
+        # Compile and link all integration-tagged test binaries without
+        # executing package test binaries or TestMain side effects.
         # Regular unit tests use -tags '!integration', so build errors in
         # integration-tagged files (e.g. unused imports) would otherwise
         # go undetected until the fuzz job runs on main.
-        go test -run='^$' -tags=integration ./...
+        go test -run='^$' -exec=true -tags=integration ./...
 
     - name: Pre-flight check - Validate test dependencies
       run: |
@@ -1384,11 +1385,12 @@ jobs:
 
     - name: Verify integration build
       run: |
-        # Ensure all integration-tagged test files compile cleanly before fuzzing.
+        # Compile and link all integration-tagged test binaries without
+        # executing package test binaries or TestMain side effects.
         # Fuzz tests such as FuzzSanitizeOutput run with -tags=integration; a build
         # error in any integration-tagged file causes the entire fuzz run to fail
         # with a misleading error message.
-        go test -run='^$' -tags=integration ./...
+        go test -run='^$' -exec=true -tags=integration ./...
 
     - name: Run fuzz tests (${{ matrix.group }})
       run: |
