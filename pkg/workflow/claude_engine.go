@@ -423,7 +423,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// The outer harness already owns the full retry/backoff loop for 429/529.
 		// The external threat-detection path (threat-detect --engine claude) has no
 		// harness retry wrapper, so we leave SDK retries at their default there.
-		env["ANTHROPIC_MAX_RETRIES"] = "1"
+		env["ANTHROPIC_MAX_RETRIES"] = "0"
 	}
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()
