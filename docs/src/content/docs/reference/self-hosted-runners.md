@@ -191,18 +191,24 @@ Keys and values must use the `owner/repo@ref` format. Each source version must b
 
 ### Container image substitutions (`container_pins`)
 
-`container_pins` maps source container image references to replacement image references. The mapping is applied before digest-pin resolution, so a privately mirrored image can be used in place of the public source.
+`container_pins` maps source container image references to replacement image targets. The mapping is applied before digest-pin resolution, so a privately mirrored image can be used in place of the public source. Each value is an object with separate `image` and `digest` fields for independent validation:
 
 ```json title=".github/workflows/aw.json"
 {
   "container_pins": {
-    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    "ghcr.io/github/gh-aw-firewall:0.27.22": {
+      "image": "registry.acme.com/gh-aw-firewall:0.27.22",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    "node:lts-alpine": {
+      "image": "registry.acme.com/node:lts-alpine",
+      "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
   }
 }
 ```
 
-Keys are source image references as they appear in compiled workflows. Values must be immutable SHA-256 digest-pinned replacement references using `registry/image:tag@sha256:<64 lowercase hex characters>`.
+Keys are source image references as they appear in compiled workflows. `image` must be a valid image reference without a digest, and `digest` must be a full `sha256:<64 lowercase hex characters>` digest.
 
 ### Combined example
 
@@ -212,7 +218,10 @@ Keys are source image references as they appear in compiled workflows. Values mu
     "actions/checkout@v4": "acme-corp/checkout-mirror@v4"
   },
   "container_pins": {
-    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    "ghcr.io/github/gh-aw-firewall:0.27.22": {
+      "image": "registry.acme.com/gh-aw-firewall:0.27.22",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
   }
 }
 ```

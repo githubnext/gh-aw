@@ -12,7 +12,20 @@ The gh-aw compiler supports `action_pins` in `aw.json` to redirect GitHub Action
 
 ### Decision
 
-We will add a `container_pins` key to `aw.json` that maps source container image references (e.g., `ghcr.io/owner/image:tag`) to SHA-256 digest-pinned replacement image references. The substitution is applied at compile time, before digest-pin resolution, so the compiled `.lock.yml` files bake in the mapped registry. Replacement values are schema-validated to require a full `@sha256:<64-hex-character>` digest, making them immutable. The feature mirrors the existing `action_pins` design: repository-level configuration, exact key matching only, informational console messages per applied mapping (deduplicated), and a defensive copy of the map attached to `WorkflowData` at compile time.
+We will add a `container_pins` key to `aw.json` that maps source container image references (e.g., `ghcr.io/owner/image:tag`) to SHA-256 digest-pinned replacement image objects. Each mapping value is an object with separate `image` (ref name without digest) and `digest` (`sha256:<64-hex>`) fields, so that each component is independently schema-validated. Together they form the immutable pinned reference `image@digest`. The substitution is applied at compile time, before digest-pin resolution, so the compiled `.lock.yml` files bake in the mapped registry. The feature mirrors the existing `action_pins` design: repository-level configuration, exact key matching only, informational console messages per applied mapping (deduplicated), and a defensive copy of the combined mapping attached to `WorkflowData` at compile time.
+
+Example `aw.json`:
+
+```json
+{
+  "container_pins": {
+    "ghcr.io/owner/image:tag": {
+      "image": "registry.acme.com/image:tag",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}
+```
 
 ### Alternatives Considered
 

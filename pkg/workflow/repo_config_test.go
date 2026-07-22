@@ -142,17 +142,37 @@ func TestLoadRepoConfig_ContainerPinsRequireSHA256Digest(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:    "digest-pinned replacement accepted",
-			mapping: `"registry.acme.com/image:v1@sha256:` + digest + `"`,
+			name:    "object with valid image and digest accepted",
+			mapping: `{"image":"registry.acme.com/image:v1","digest":"sha256:` + digest + `"}`,
 		},
 		{
-			name:    "tag-only replacement rejected",
-			mapping: `"registry.acme.com/image:v1"`,
+			name:    "missing digest field rejected",
+			mapping: `{"image":"registry.acme.com/image:v1"}`,
+			wantErr: true,
+		},
+		{
+			name:    "missing image field rejected",
+			mapping: `{"digest":"sha256:` + digest + `"}`,
 			wantErr: true,
 		},
 		{
 			name:    "short digest rejected",
-			mapping: `"registry.acme.com/image:v1@sha256:abc123"`,
+			mapping: `{"image":"registry.acme.com/image:v1","digest":"sha256:abc123"}`,
+			wantErr: true,
+		},
+		{
+			name:    "digest without sha256 prefix rejected",
+			mapping: `{"image":"registry.acme.com/image:v1","digest":"` + digest + `"}`,
+			wantErr: true,
+		},
+		{
+			name:    "image with digest component rejected",
+			mapping: `{"image":"registry.acme.com/image:v1@sha256:` + digest + `","digest":"sha256:` + digest + `"}`,
+			wantErr: true,
+		},
+		{
+			name:    "flat string value rejected",
+			mapping: `"registry.acme.com/image:v1@sha256:` + digest + `"`,
 			wantErr: true,
 		},
 	}
@@ -177,7 +197,7 @@ func TestLoadRepoConfig_ContainerPinsRequireSHA256Digest(t *testing.T) {
 // valid source keys. A key like "image@sha256:..." is rejected by the schema.
 func TestLoadRepoConfig_ContainerPinsKeyNoDigestAllowed(t *testing.T) {
 	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-	const goodValue = `"registry.acme.com/image:v1@sha256:` + digest + `"`
+	const goodValue = `{"image":"registry.acme.com/image:v1","digest":"sha256:` + digest + `"}`
 
 	tests := []struct {
 		name    string
@@ -212,6 +232,21 @@ func TestLoadRepoConfig_ContainerPinsKeyNoDigestAllowed(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestLoadRepoConfig_ContainerPinsObjectFields verifies that the parsed
+// ContainerPins map stores the image and digest fields separately.
+func TestLoadRepoConfig_ContainerPinsObjectFields(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	dir := t.TempDir()
+	writeAWJSON(t, dir, `{"container_pins":{"ghcr.io/owner/image:v1":{"image":"registry.acme.com/image:v1","digest":"sha256:`+digest+`"}}}`)
+
+	cfg, err := LoadRepoConfig(dir)
+	require.NoError(t, err)
+	require.Len(t, cfg.ContainerPins, 1)
+	target := cfg.ContainerPins["ghcr.io/owner/image:v1"]
+	assert.Equal(t, "registry.acme.com/image:v1", target.Image)
+	assert.Equal(t, "sha256:"+digest, target.Digest)
 }
 
 func TestLoadRepoConfig_LabelTriggersDisable(t *testing.T) {

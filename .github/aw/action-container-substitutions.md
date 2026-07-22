@@ -34,20 +34,29 @@ A console message is emitted once per mapped key during compilation:
 
 ## Container substitutions (`container_pins`)
 
-`container_pins` maps source container image references (e.g. `ghcr.io/owner/image:tag`) to replacement image references. The mapping is applied before digest-pin resolution, so a privately mirrored image can be used in place of the public source.
+`container_pins` maps source container image references (e.g. `ghcr.io/owner/image:tag`) to replacement image targets. The mapping is applied before digest-pin resolution, so a privately mirrored image can be used in place of the public source.
+
+Each value is an object with separate `image` (ref name) and `digest` (SHA-256) fields so that each component is validated independently:
 
 ```json title=".github/workflows/aw.json"
 {
   "container_pins": {
-    "ghcr.io/actions/runner:latest": "registry.acme.com/runner:latest@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    "ghcr.io/actions/runner:latest": {
+      "image": "registry.acme.com/runner:latest",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    "node:lts-alpine": {
+      "image": "registry.acme.com/node:lts-alpine",
+      "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
   }
 }
 ```
 
 **Key requirements:**
-- Keys are source image references as they appear in compiled workflows (e.g. `image:tag`, `registry/image:tag`).
-- Values must be immutable SHA-256 digest-pinned replacement references using `registry/image:tag@sha256:<64 lowercase hex characters>`.
+- Keys are source image references as they appear in compiled workflows (e.g. `image:tag`, `registry/image:tag`). Digest-pinned source keys are not supported.
+- `image` must be a valid image reference without a digest component (e.g. `registry.acme.com/image:tag`).
+- `digest` must be a full SHA-256 digest in `sha256:<64 lowercase hex characters>` form.
 
 A console message is emitted once per mapped key during compilation:
 
@@ -64,8 +73,14 @@ A console message is emitted once per mapped key during compilation:
     "actions/setup-node@v4": "acme-corp/setup-node-mirror@v4"
   },
   "container_pins": {
-    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
-    "node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    "ghcr.io/github/gh-aw-firewall:0.27.22": {
+      "image": "registry.acme.com/gh-aw-firewall:0.27.22",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    "node:lts-alpine": {
+      "image": "registry.acme.com/node:lts-alpine",
+      "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
   }
 }
 ```
