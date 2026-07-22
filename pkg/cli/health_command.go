@@ -236,14 +236,19 @@ func displayHealthSummary(runs []WorkflowRun, config HealthConfig) error {
 
 	// Calculate health for each workflow, marking intentional-failure workflows so they
 	// are excluded from the fleet-health / prod-main success-rate rollup in CalculateHealthSummary.
+	// Only classify against the local checkout when no remote repo override is active; when
+	// --repo targets a different repository we cannot reliably read its frontmatter from the
+	// local filesystem, so we fail open (IntentionalFailure stays false).
 	workflowHealths := make([]WorkflowHealth, 0, len(groupedRuns))
 	for workflowName, workflowRuns := range groupedRuns {
 		health := CalculateWorkflowHealth(workflowName, workflowRuns, config.Threshold)
-		// Derive the workflow path from the first available run and check frontmatter.
-		for _, r := range workflowRuns {
-			if r.WorkflowPath != "" {
-				health.IntentionalFailure = workflow.IsIntentionalFailure(r.WorkflowPath)
-				break
+		if config.RepoOverride == "" {
+			// Derive the workflow path from the first available run and check frontmatter.
+			for _, r := range workflowRuns {
+				if r.WorkflowPath != "" {
+					health.IntentionalFailure = workflow.IsIntentionalFailure(r.WorkflowPath)
+					break
+				}
 			}
 		}
 		workflowHealths = append(workflowHealths, health)
@@ -339,7 +344,7 @@ func outputHealthTable(summary HealthSummary, threshold float64) error {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%d workflow(s) below %.0f%% success threshold", summary.BelowThreshold, threshold)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run '%s health <workflow-name>' for details", string(constants.CLIExtensionPrefix))))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All workflows above %.0f%% success threshold", threshold)))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("All evaluated workflows above %.0f%% success threshold", threshold)))
 	}
 
 	return nil
