@@ -73,6 +73,7 @@ type WorkflowRun struct {
 	ActionMinutes       float64 // Billable Actions minutes estimated from wall-clock time
 	TokenUsage          int
 	Turns               int
+	TurnsAvailable      bool // True when turn count was successfully read from artifact logs
 	ErrorCount          int
 	WarningCount        int
 	MissingToolCount    int
@@ -354,6 +355,7 @@ func isFailureConclusion(conclusion string) bool {
 // indicates the CLI wrapper or a pre/post-agent infrastructure step exited non-zero
 // before the agent had a chance to run.  Runs with Turns > 0 are classified as
 // agent-logic failures instead because the agent did execute.
+// TurnsAvailable must be true to confirm the zero is real rather than missing data.
 func isDriverExitFailure(run WorkflowRun) bool {
-	return isFailureConclusion(run.Conclusion) && run.Turns == 0
+	return isFailureConclusion(run.Conclusion) && run.TurnsAvailable && run.Turns == 0
 }

@@ -92,7 +92,9 @@ func CalculateWorkflowHealth(workflowName string, runs []WorkflowRun, threshold 
 			failureCount++
 			if isDriverExitFailure(run) {
 				driverExitCount++
-			} else {
+			} else if run.TurnsAvailable || run.Turns > 0 {
+				// Only count as agent-logic when we have reliable turn data.
+				// Runs without artifact logs (TurnsAvailable=false, Turns=0) are left unclassified.
 				agentLogicFailureCount++
 			}
 		}

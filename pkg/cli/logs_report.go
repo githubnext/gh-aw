@@ -69,10 +69,10 @@ type LogsSummary struct {
 	// TotalDriverExitFailures counts failed runs with zero agent turns — the CLI wrapper
 	// or a pre/post-agent infrastructure step exited non-zero before the agent ran.
 	// These are infra-flakiness signals, not agent-logic regressions.
-	TotalDriverExitFailures int `json:"total_driver_exit_failures,omitempty" console:"header:Driver-Exit Failures,omitempty"`
+	TotalDriverExitFailures int `json:"total_driver_exit_failures" console:"header:Driver-Exit Failures"`
 	// TotalAgentLogicFailures counts failed runs with one or more agent turns — the agent
 	// started and executed but the run still concluded as a failure.
-	TotalAgentLogicFailures       int `json:"total_agent_logic_failures,omitempty" console:"header:Agent-Logic Failures,omitempty"`
+	TotalAgentLogicFailures       int `json:"total_agent_logic_failures" console:"header:Agent-Logic Failures"`
 	RunsWithTemporaryIDChains     int `json:"runs_with_temporary_id_chains,omitempty" console:"-"`
 	RunsWithDelegatedTempTargets  int `json:"runs_with_delegated_temp_targets,omitempty" console:"-"`
 	RunsWithMissingTemporaryIDMap int `json:"runs_with_missing_temporary_id_map,omitempty" console:"-"`
@@ -115,7 +115,7 @@ type RunData struct {
 	// FailureKind classifies the cause of a failed run.
 	// "driver_exit"   – zero agent turns; the CLI wrapper or an infra step exited before the agent ran.
 	// "agent_logic"   – one or more agent turns; the agent ran but the run still failed.
-	// ""              – the run did not fail (success, cancelled, etc.).
+	// ""              – the run did not fail (success), or turn data was unavailable for classification.
 	FailureKind                string                 `json:"failure_kind,omitempty" console:"-"`
 	Duration                   string                 `json:"duration,omitempty" console:"header:Duration,omitempty"`
 	ActionMinutes              float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
@@ -221,11 +221,15 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalSafeItems += run.SafeItemsCount
 
 		// Classify the failure kind for this run and accumulate rollup counts.
+		// isDriverExitFailure requires TurnsAvailable so that runs without artifact data
+		// (ErrNoArtifacts) are not wrongly labelled driver_exit.
+		// Agent-logic requires either reliable turn data (TurnsAvailable) or a confirmed
+		// non-zero turn count (e.g. backfilled from the usage-activity summary).
 		failureKind := ""
 		if isDriverExitFailure(run) {
 			failureKind = "driver_exit"
 			totalDriverExitFailures++
-		} else if isFailureConclusion(run.Conclusion) {
+		} else if isFailureConclusion(run.Conclusion) && (run.TurnsAvailable || run.Turns > 0) {
 			failureKind = "agent_logic"
 			totalAgentLogicFailures++
 		}
