@@ -159,9 +159,9 @@ func TestValidateSafeOutputsStepsShellExpansion_DangerousPatterns(t *testing.T) 
 			}
 			err := validateSafeOutputsStepsShellExpansion(config)
 			require.Error(t, err, "dangerous pattern should be rejected: %s", tt.name)
-			assert.Contains(t, err.Error(), tt.wantErrContain,
+			require.ErrorContains(t, err, tt.wantErrContain,
 				"error message should describe the pattern type")
-			assert.Contains(t, err.Error(), "safe-outputs.steps[0]",
+			require.ErrorContains(t, err, "safe-outputs.steps[0]",
 				"error message should include the step index")
 		})
 	}
@@ -181,7 +181,7 @@ func TestValidateRunScriptForShellExpansion(t *testing.T) {
 	t.Run("error includes step index", func(t *testing.T) {
 		err := validateRunScriptForShellExpansion(3, "$(echo bad)")
 		require.Error(t, err, "command substitution should be rejected")
-		assert.Contains(t, err.Error(), "safe-outputs.steps[3]",
+		require.ErrorContains(t, err, "safe-outputs.steps[3]",
 			"error should include the step index")
 	})
 
@@ -189,13 +189,13 @@ func TestValidateRunScriptForShellExpansion(t *testing.T) {
 		err := validateRunScriptForShellExpansion(0, `URL=$(cat /tmp/url.txt)`)
 		require.Error(t, err, "should reject command substitution")
 		// The snippet includes at least the $( opener
-		assert.Contains(t, err.Error(), "$(", "error should include the offending snippet")
+		require.ErrorContains(t, err, "$(", "error should include the offending snippet")
 	})
 
 	t.Run("error includes remediation guidance", func(t *testing.T) {
 		err := validateRunScriptForShellExpansion(0, "$(echo hi)")
 		require.Error(t, err, "should reject command substitution")
-		assert.Contains(t, err.Error(), "/tmp/gh-aw/agent/",
+		require.ErrorContains(t, err, "/tmp/gh-aw/agent/",
 			"error should include remediation guidance about writing to a file")
 	})
 

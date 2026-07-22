@@ -231,7 +231,7 @@ func TestValidateDispatchRepository_MissingWorkflow(t *testing.T) {
 
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail when workflow is missing")
-	assert.Contains(t, err.Error(), "workflow", "Error should mention workflow field")
+	require.ErrorContains(t, err, "workflow", "Error should mention workflow field")
 }
 
 // TestValidateDispatchRepository_MissingEventType tests error when event_type field is missing
@@ -263,7 +263,7 @@ func TestValidateDispatchRepository_MissingEventType(t *testing.T) {
 
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail when event_type is missing")
-	assert.Contains(t, err.Error(), "event_type", "Error should mention event_type field")
+	require.ErrorContains(t, err, "event_type", "Error should mention event_type field")
 }
 
 // TestValidateDispatchRepository_MissingRepository tests error when no repository is specified
@@ -295,7 +295,7 @@ func TestValidateDispatchRepository_MissingRepository(t *testing.T) {
 
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail when no repository is specified")
-	assert.Contains(t, err.Error(), "repository", "Error should mention repository")
+	require.ErrorContains(t, err, "repository", "Error should mention repository")
 }
 
 // TestValidateDispatchRepository_AllowedRepositories tests valid config with allowed_repositories
@@ -358,7 +358,7 @@ func TestValidateDispatchRepository_InvalidRepoFormat(t *testing.T) {
 
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail for invalid repository format")
-	assert.Contains(t, err.Error(), "invalid", "Error should mention invalid format")
+	require.ErrorContains(t, err, "invalid", "Error should mention invalid format")
 }
 
 // TestValidateDispatchRepository_GitHubExpression tests that GitHub Actions expressions are accepted
@@ -447,7 +447,7 @@ func TestValidateDispatchRepository_EmptyTools(t *testing.T) {
 
 	err = compiler.validateDispatchRepository(workflowData, workflowPath)
 	require.Error(t, err, "Validation should fail with empty tools map")
-	assert.Contains(t, err.Error(), "at least one dispatch tool", "Error should mention tools requirement")
+	require.ErrorContains(t, err, "at least one dispatch tool", "Error should mention tools requirement")
 }
 
 // TestValidateDispatchRepository_NilConfig tests that nil config is OK (no-op)
@@ -664,6 +664,6 @@ safe-outputs:
 
 	err = compiler.CompileWorkflow(workflowFile)
 	require.Error(t, err, "Compilation should fail due to missing workflow field")
-	assert.Contains(t, err.Error(), "dispatch_repository", "Error should mention dispatch_repository")
-	assert.Contains(t, err.Error(), "workflow", "Error should mention workflow field")
+	require.ErrorContains(t, err, "dispatch_repository", "Error should mention dispatch_repository")
+	require.ErrorContains(t, err, "workflow", "Error should mention workflow field")
 }

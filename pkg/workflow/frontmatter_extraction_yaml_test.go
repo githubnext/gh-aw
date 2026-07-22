@@ -198,7 +198,7 @@ func TestExtractIfCondition_InvalidDeploymentStatusStateReturnsError(t *testing.
 	got, err := c.extractIfCondition(frontmatter)
 	require.Error(t, err)
 	assert.Empty(t, got)
-	assert.ErrorContains(t, err, `invalid on.deployment_status.state value "unknown_state"`)
+	require.ErrorContains(t, err, `invalid on.deployment_status.state value "unknown_state"`)
 }
 
 func TestExtractWorkflowRunConclusionConditionHelper(t *testing.T) {

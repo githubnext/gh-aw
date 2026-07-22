@@ -621,7 +621,7 @@ func buildActivityReportCacheSteps(renderCtx sideRepoMaintenanceRenderContext) s
           GH_AW_TARGET_REPO_SLUG: "` + renderCtx.repoSlug + `"
         run: |
           ${GH_AW_CMD_PREFIX} logs \
-            --repo "${GH_AW_TARGET_REPO_SLUG}" \
+            --repo "` + renderCtx.repoSlug + `" \
             --start-date -1w \
             --count 500 \
             --output ./.cache/gh-aw/activity-report-logs \

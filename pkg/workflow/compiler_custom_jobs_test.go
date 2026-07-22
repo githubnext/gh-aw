@@ -199,7 +199,7 @@ func TestBuildCustomJob_InvalidTimeoutMinutesError(t *testing.T) {
 	)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "timeout-minutes")
+	require.ErrorContains(t, err, "timeout-minutes")
 }
 
 func TestBuildCustomJob_UsesReusableWorkflow(t *testing.T) {
@@ -333,7 +333,7 @@ func TestConfigureCustomJobSteps_InvalidStepsType(t *testing.T) {
 	err := compiler.configureCustomJobSteps(job, "my-job", configMap, data)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "steps")
+	require.ErrorContains(t, err, "steps")
 }
 
 func TestConfigureCustomJobSteps_InvalidPreStepsType(t *testing.T) {
@@ -347,7 +347,7 @@ func TestConfigureCustomJobSteps_InvalidPreStepsType(t *testing.T) {
 	err := compiler.configureCustomJobSteps(job, "my-job", configMap, data)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "pre-steps")
+	require.ErrorContains(t, err, "pre-steps")
 }
 
 func TestConfigureCustomJobSteps_InvalidSetupStepsType(t *testing.T) {
@@ -361,7 +361,7 @@ func TestConfigureCustomJobSteps_InvalidSetupStepsType(t *testing.T) {
 	err := compiler.configureCustomJobSteps(job, "my-job", configMap, data)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "setup-steps")
+	require.ErrorContains(t, err, "setup-steps")
 }
 
 // ========================================
@@ -509,7 +509,7 @@ func TestApplyBuiltinJobNeedsAugmentations_UnknownJobError(t *testing.T) {
 
 	err := compiler.applyBuiltinJobNeedsAugmentations(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unknown job")
+	require.ErrorContains(t, err, "unknown job")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_SelfReferenceError(t *testing.T) {
@@ -528,7 +528,7 @@ func TestApplyBuiltinJobNeedsAugmentations_SelfReferenceError(t *testing.T) {
 
 	err := compiler.applyBuiltinJobNeedsAugmentations(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot depend on itself")
+	require.ErrorContains(t, err, "cannot depend on itself")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManagerError(t *testing.T) {
@@ -548,7 +548,7 @@ func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManagerError(t *testing
 
 	err := compiler.applyBuiltinJobNeedsAugmentations(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot augment")
+	require.ErrorContains(t, err, "cannot augment")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_InvalidConfigNotMap(t *testing.T) {
@@ -563,7 +563,7 @@ func TestApplyBuiltinJobNeedsAugmentations_InvalidConfigNotMap(t *testing.T) {
 
 	err := compiler.applyBuiltinJobNeedsAugmentations(data)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "must be an object")
+	require.ErrorContains(t, err, "must be an object")
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_HyphenAliasNormalized(t *testing.T) {
@@ -819,7 +819,7 @@ func TestExtractCustomJobTimeoutMinutes(t *testing.T) {
 			err := extractCustomJobTimeoutMinutes(job, "test-job", tt.configMap)
 			if tt.expectError {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), "timeout-minutes")
+				require.ErrorContains(t, err, "timeout-minutes")
 			} else {
 				require.NoError(t, err)
 				assert.Equal(t, tt.expectedTimeout, job.TimeoutMinutes)
@@ -1170,7 +1170,7 @@ func TestValidateRestrictedBuiltinSetupSteps(t *testing.T) {
 			err := validateRestrictedBuiltinSetupSteps(tt.jobName, tt.hasSetupSteps)
 			if tt.expectError {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), "setup-steps")
+				require.ErrorContains(t, err, "setup-steps")
 			} else {
 				require.NoError(t, err)
 			}
@@ -1261,5 +1261,5 @@ func TestConfigureCustomReusableWorkflow_RestoreMemoryNotSupported(t *testing.T)
 	err := configureCustomReusableWorkflow(job, "call-worker", "./.github/workflows/worker.yml", configMap)
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "restore-memory")
+	require.ErrorContains(t, err, "restore-memory")
 }

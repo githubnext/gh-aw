@@ -130,7 +130,7 @@ func TestAddWorkflows(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected error for test case: %s", tt.name)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				assert.NoError(t, err, "Should not error for test case: %s", tt.name)
@@ -381,14 +381,14 @@ func TestRejectBootstrapProfileForRegularAdd(t *testing.T) {
 	t.Run("rejects regular add for packages with manifest config", func(t *testing.T) {
 		err := rejectBootstrapProfileForRegularAdd([]string{"githubnext/central-agentic-ops"}, profileWithConfig)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "package githubnext/central-agentic-ops declares aw.yml config")
-		assert.Contains(t, err.Error(), "gh aw add-wizard githubnext/central-agentic-ops")
+		require.ErrorContains(t, err, "package githubnext/central-agentic-ops declares aw.yml config")
+		require.ErrorContains(t, err, "gh aw add-wizard githubnext/central-agentic-ops")
 	})
 
 	t.Run("uses requested sources in the add-wizard guidance", func(t *testing.T) {
 		err := rejectBootstrapProfileForRegularAdd([]string{"githubnext/central-agentic-ops", "./local-workflow.md"}, profileWithConfig)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "gh aw add-wizard githubnext/central-agentic-ops ./local-workflow.md")
+		require.ErrorContains(t, err, "gh aw add-wizard githubnext/central-agentic-ops ./local-workflow.md")
 	})
 
 	t.Run("allows packages without manifest config", func(t *testing.T) {
@@ -558,7 +558,7 @@ source: octo/other/.github/workflows/dependabot.md@main
 	skip, err := validateWorkflowDestination(workflowsDir, "dependabot", "githubnext/central-agentic-ops", AddOptions{})
 	require.Error(t, err)
 	assert.False(t, skip)
-	assert.Contains(t, err.Error(), "workflow 'dependabot' already exists")
+	require.ErrorContains(t, err, "workflow 'dependabot' already exists")
 }
 
 // TestAddMultipleWorkflowsNameFlag verifies that --name is not allowed when multiple workflows are specified.
@@ -570,7 +570,7 @@ func TestAddMultipleWorkflowsNameFlag(t *testing.T) {
 
 	err := cmd.Execute()
 	require.Error(t, err, "Should error when --name is used with multiple workflows")
-	assert.Contains(t, err.Error(), "--name flag cannot be used when adding multiple workflows", "Error should mention --name restriction")
+	require.ErrorContains(t, err, "--name flag cannot be used when adding multiple workflows", "Error should mention --name restriction")
 }
 
 // setupMinimalGitRepo initialises a bare-minimum git repo in dir and returns the
@@ -817,7 +817,7 @@ func TestAddWorkflowWithTracking_ActionWorkflow_Force(t *testing.T) {
 	// Without --force: should fail
 	err := addWorkflowWithTracking(context.Background(), resolved, nil, AddOptions{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "already exists")
+	require.ErrorContains(t, err, "already exists")
 
 	// With --force: should overwrite
 	err = addWorkflowWithTracking(context.Background(), resolved, nil, AddOptions{Force: true})
@@ -863,7 +863,7 @@ func TestAddWorkflowsWithTracking_RollsBackWrittenFilesOnWriteFailure(t *testing
 		Quiet:                  true,
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to write destination file")
+	require.ErrorContains(t, err, "failed to write destination file")
 
 	_, statErr := os.Stat(filepath.Join(workflowsDir, "ok.md"))
 	assert.True(t, os.IsNotExist(statErr), "successful writes from this operation should be rolled back on later write failure")
@@ -911,7 +911,7 @@ func TestAddSkillFileWithTracking_RejectsInvalidPaths(t *testing.T) {
 
 		err := addSkillFileWithTracking(resolved, nil, AddOptions{Quiet: true}, gitRoot)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "escapes destination skill directory")
+		require.ErrorContains(t, err, "escapes destination skill directory")
 	})
 
 	t.Run("rejects source path when skill root cannot be determined", func(t *testing.T) {
@@ -926,7 +926,7 @@ func TestAddSkillFileWithTracking_RejectsInvalidPaths(t *testing.T) {
 
 		err := addSkillFileWithTracking(resolved, nil, AddOptions{Quiet: true}, gitRoot)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "failed to determine relative path")
+		require.ErrorContains(t, err, "failed to determine relative path")
 	})
 }
 
@@ -959,7 +959,7 @@ func TestAddCopilotRequestsPermissionToContent(t *testing.T) {
 		content := "---\nengine: copilot\npermissions: read-all\n---\nDo the thing.\n"
 		_, err := addCopilotRequestsPermissionToContent(content)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "non-mapping scalar")
+		require.ErrorContains(t, err, "non-mapping scalar")
 	})
 }
 

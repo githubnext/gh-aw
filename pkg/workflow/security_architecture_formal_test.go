@@ -178,7 +178,7 @@ func TestFormal_P2_AgentHasNoWritePermissions(t *testing.T) {
 			perms.Set(scope, PermissionWrite)
 			err := validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
 			require.Error(t, err, "agent job scope %s:write must be rejected", scope)
-			assert.Contains(t, err.Error(), "write permissions")
+			require.ErrorContains(t, err, "write permissions")
 		})
 	}
 }
@@ -199,7 +199,7 @@ func TestFormal_P3_NetworkDomainAllowlist(t *testing.T) {
 	// A wildcard-only allowlist must be rejected in strict mode (CTR-011).
 	err := compiler.validateStrictNetwork(&NetworkPermissions{Allowed: []string{"*"}})
 	require.Error(t, err, "wildcard-only allowlist must be rejected in strict mode")
-	assert.Contains(t, err.Error(), "wildcard")
+	require.ErrorContains(t, err, "wildcard")
 
 	// An empty network permission set must not cause a validation error.
 	require.NoError(t, compiler.validateNetworkAllowedDomains(nil),
@@ -291,7 +291,7 @@ Simulate a write-permission violation to verify that emit is blocked.
 	yamlOut, err := compiler.CompileToYAML(wd, "workflow.md")
 	require.Error(t, err, "CompileToYAML must return an error when a write-permission violation is present (P6 FailSecure)")
 	assert.Empty(t, yamlOut, "CompileToYAML must return empty YAML — the lock-file must not be emitted — when a security violation is detected")
-	assert.Contains(t, err.Error(), "write permissions", "error must identify the permission violation")
+	require.ErrorContains(t, err, "write permissions", "error must identify the permission violation")
 }
 
 // TestFormal_P7_ConformanceLevelMonotonicity (P7 Monotonicity)
@@ -411,7 +411,7 @@ Simulate a wildcard network violation.
 	compiler2 := NewCompiler(WithNoEmit(true))
 	_, strictErr := compiler2.ParseWorkflowString(mdNet, "workflow.md")
 	require.Error(t, strictErr, "wildcard-only network allowlist must be rejected before any YAML is generated (P9)")
-	assert.Contains(t, strictErr.Error(), "wildcard", "error must identify the wildcard violation")
+	require.ErrorContains(t, strictErr, "wildcard", "error must identify the wildcard violation")
 }
 
 // TestFormal_P10_WriteTokenIsolatedToSafeOutput (P10 TokenIsolation)

@@ -58,7 +58,7 @@ func TestValidateExpressions(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected validateExpressions to return an error")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				assert.NoError(t, err, "validateExpressions should not return an error")
@@ -128,7 +128,7 @@ func TestValidateFeatureConfig(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected validateFeatureConfig to return an error")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				assert.NoError(t, err, "validateFeatureConfig should not return an error")
@@ -342,7 +342,7 @@ func TestValidatePermissions(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected validatePermissions to return an error")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				require.NoError(t, err, "validatePermissions should not return an error")
@@ -416,7 +416,7 @@ func TestValidateToolConfiguration(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected validateToolConfiguration to return an error")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				assert.NoError(t, err, "validateToolConfiguration should not return an error")
@@ -442,7 +442,7 @@ func TestValidatePermissions_UsesCachedPermissionScopeValidation(t *testing.T) {
 	compiler := NewCompiler()
 	_, err := compiler.validatePermissions(workflowData, markdownPath)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), cachedErr.Error())
+	require.ErrorContains(t, err, cachedErr.Error())
 }
 
 func TestValidatePermissions_EmitsCopilotRequestsTipOncePerMarkdownPath(t *testing.T) {
@@ -561,7 +561,7 @@ func TestValidateToolConfiguration_EmitsSandboxWarningBeforeThreatDetectionError
 	})
 
 	require.Error(t, validateErr)
-	assert.Contains(t, validateErr.Error(), "threat detection requires sandbox.agent")
+	require.ErrorContains(t, validateErr, "threat detection requires sandbox.agent")
 	assert.Contains(t, stderr, "Agent sandbox disabled (sandbox.agent: false)")
 	assert.Equal(t, initialWarnings+1, compiler.GetWarningCount())
 }

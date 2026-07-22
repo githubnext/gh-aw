@@ -223,8 +223,8 @@ This workflow tries to dispatch to a non-existent workflow.
 	// Validate the workflow - should fail because nonexistent workflow is not found
 	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
 	require.Error(t, err, "Validation should fail - workflow not found")
-	assert.Contains(t, err.Error(), "not found", "Error should mention workflow not found")
-	assert.Contains(t, err.Error(), "nonexistent", "Error should mention the workflow name")
+	require.ErrorContains(t, err, "not found", "Error should mention workflow not found")
+	require.ErrorContains(t, err, "nonexistent", "Error should mention the workflow name")
 }
 
 // TestDispatchWorkflowWithoutWorkflowDispatchTrigger tests error handling
@@ -291,7 +291,7 @@ This workflow tries to dispatch to ci workflow.
 	// Validate the workflow - should fail because ci doesn't support workflow_dispatch
 	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
 	require.Error(t, err, "Validation should fail - workflow doesn't support workflow_dispatch")
-	assert.Contains(t, err.Error(), "workflow_dispatch", "Error should mention workflow_dispatch")
+	require.ErrorContains(t, err, "workflow_dispatch", "Error should mention workflow_dispatch")
 }
 
 // TestDispatchWorkflowFileExtensionResolution tests that the correct file extension
@@ -451,11 +451,11 @@ No agentic-workflows tool is present.
 
 	// Check that compilation failed due to validation
 	require.Error(t, err, "Compilation should fail for non-existent workflow")
-	assert.Contains(t, err.Error(), "dispatch-workflow validation failed",
+	require.ErrorContains(t, err, "dispatch-workflow validation failed",
 		"Should fail with dispatch-workflow validation error")
-	assert.Contains(t, err.Error(), "not found",
+	require.ErrorContains(t, err, "not found",
 		"Error should mention workflow not found")
-	assert.Contains(t, err.Error(), "nonexistent",
+	require.ErrorContains(t, err, "nonexistent",
 		"Error should mention the workflow name")
 }
 

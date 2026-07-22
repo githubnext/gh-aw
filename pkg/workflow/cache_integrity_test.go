@@ -709,7 +709,7 @@ func TestCacheMemoryAllowedExtensions_ValidationAndEscaping(t *testing.T) {
 		compiler := NewCompiler()
 		_, err = compiler.extractCacheMemoryConfig(toolsConfig)
 		require.Error(t, err, "Should reject invalid extension at parse time")
-		assert.Contains(t, err.Error(), "no-leading-dot", "Error should identify the bad value")
+		require.ErrorContains(t, err, "no-leading-dot", "Error should identify the bad value")
 	})
 
 	t.Run("single-quote escaping in emitted YAML", func(t *testing.T) {

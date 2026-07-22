@@ -57,14 +57,21 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	if workflowDir != "" {
 		relDir, relErr := filepath.Rel(gitRoot, workflowDir)
 		if relErr == nil && relDir != ".." && !strings.HasPrefix(relDir, ".."+string(filepath.Separator)) {
-			scanPath = relDir
+			scanPath = filepath.Clean(relDir)
 		}
 	}
 
+	// Prefix with "./" and convert host separators to forward slashes for the Linux container.
+	// This prevents option injection: without the prefix a workflowDir such as "--help" would
+	// produce a scanPath beginning with "-", which runner-guard could interpret as a flag.
+	containerScanPath := "./" + filepath.ToSlash(scanPath)
+
 	// Build the Docker command
 	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:latest scan <path> --format json
-	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path.
-	// exec.Command with separate args (not shell execution) prevents command injection.
+	// #nosec G204 -- gitRoot is validated as an absolute path above (from git rev-parse, a trusted
+	// source). containerScanPath is derived from filepath.Rel(gitRoot, workflowDir), cleaned with
+	// filepath.Clean, validated to not escape the repository root (no ".." prefix), and prefixed
+	// with "./" to prevent option injection. exec.Command passes args directly to the OS (no shell).
 	cmd := exec.Command(
 		"docker",
 		"run",
@@ -73,7 +80,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 		"-w", "/workdir",
 		RunnerGuardImage,
 		"scan",
-		scanPath,
+		containerScanPath,
 		"--format", "json",
 	)
 
@@ -83,7 +90,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
 		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir %s scan %s --format json",
-			gitRoot, RunnerGuardImage, scanPath)
+			gitRoot, RunnerGuardImage, containerScanPath)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run runner-guard directly: "+dockerCmd))
 	}
 

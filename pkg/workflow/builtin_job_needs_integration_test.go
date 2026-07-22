@@ -92,5 +92,5 @@ Builtin job needs augmentation validation
 
 	err := compiler.CompileWorkflow(workflowFile)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `jobs.detection.needs: unknown job "missing_job"`)
+	require.ErrorContains(t, err, `jobs.detection.needs: unknown job "missing_job"`)
 }

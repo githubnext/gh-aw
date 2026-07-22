@@ -36,7 +36,7 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 			opencodeEngine,
 		)
 		require.Error(t, err, "Missing model should fail for opencode")
-		assert.Contains(t, err.Error(), "engine.model is required for engine 'opencode'")
+		require.ErrorContains(t, err, "engine.model is required for engine 'opencode'")
 	})
 
 	t.Run("opencode requires provider/model format", func(t *testing.T) {
@@ -50,7 +50,7 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 			opencodeEngine,
 		)
 		require.Error(t, err, "Unqualified model should fail for opencode")
-		assert.Contains(t, err.Error(), "provider/model format")
+		require.ErrorContains(t, err, "provider/model format")
 	})
 
 	t.Run("unsupported provider fails", func(t *testing.T) {
@@ -64,7 +64,7 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 			opencodeEngine,
 		)
 		require.Error(t, err, "Unsupported provider should fail")
-		assert.Contains(t, err.Error(), "unsupported provider")
+		require.ErrorContains(t, err, "unsupported provider")
 	})
 
 	t.Run("supported provider passes", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestValidatePiEngineRequirements(t *testing.T) {
 			"github": true,
 		}), NewPiEngine())
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "tools.github.mode: gh-proxy")
+		require.ErrorContains(t, err, "tools.github.mode: gh-proxy")
 	})
 
 	t.Run("pi requires cli-proxy", func(t *testing.T) {
@@ -102,7 +102,7 @@ func TestValidatePiEngineRequirements(t *testing.T) {
 			"github": map[string]any{"mode": "gh-proxy"},
 		}), NewPiEngine())
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "tools.cli-proxy: true")
+		require.ErrorContains(t, err, "tools.cli-proxy: true")
 	})
 
 	t.Run("valid pi tool config passes", func(t *testing.T) {

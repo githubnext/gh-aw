@@ -54,29 +54,36 @@ type ContinuationData struct {
 
 // LogsSummary contains aggregate metrics across all runs
 type LogsSummary struct {
-	TotalRuns                     int     `json:"total_runs" console:"header:Total Runs"`
-	TotalDuration                 string  `json:"total_duration" console:"header:Total Duration"`
-	TotalAIC                      float64 `json:"total_aic,omitempty"`
-	TotalTokens                   int     `json:"total_tokens,omitempty" console:"header:Total Tokens,format:number,omitempty"`
-	TotalActionMinutes            float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
-	TotalTurns                    int     `json:"total_turns" console:"header:Total Turns"`
-	TotalSteeringEvents           int     `json:"total_steering_events,omitempty" console:"header:Total Steering Events,format:number,omitempty"`
-	TotalErrors                   int     `json:"total_errors" console:"header:Total Errors"`
-	TotalWarnings                 int     `json:"total_warnings" console:"header:Total Warnings"`
-	TotalMissingTools             int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
-	TotalMissingData              int     `json:"total_missing_data" console:"header:Total Missing Data"`
-	TotalSafeItems                int     `json:"total_safe_items" console:"header:Total Safe Items"`
-	RunsWithTemporaryIDChains     int     `json:"runs_with_temporary_id_chains,omitempty" console:"-"`
-	RunsWithDelegatedTempTargets  int     `json:"runs_with_delegated_temp_targets,omitempty" console:"-"`
-	RunsWithMissingTemporaryIDMap int     `json:"runs_with_missing_temporary_id_map,omitempty" console:"-"`
-	RunsWithInvalidTemporaryIDMap int     `json:"runs_with_invalid_temporary_id_map,omitempty" console:"-"`
-	TotalTemporaryIDMappings      int     `json:"total_temporary_id_mappings,omitempty" console:"-"`
-	TotalChainedTargets           int     `json:"total_chained_targets,omitempty" console:"-"`
-	TotalChainedFollowupActions   int     `json:"total_chained_followup_actions,omitempty" console:"-"`
-	TotalClosedTempTargets        int     `json:"total_closed_temp_targets,omitempty" console:"-"`
-	TotalEpisodes                 int     `json:"total_episodes" console:"header:Total Episodes"`
-	HighConfidenceEpisodes        int     `json:"high_confidence_episodes" console:"header:High Confidence Episodes"`
-	TotalGitHubAPICalls           int     `json:"total_github_api_calls,omitempty" console:"header:Total GitHub API Calls,format:number,omitempty"`
+	TotalRuns           int     `json:"total_runs" console:"header:Total Runs"`
+	TotalDuration       string  `json:"total_duration" console:"header:Total Duration"`
+	TotalAIC            float64 `json:"total_aic,omitempty"`
+	TotalTokens         int     `json:"total_tokens,omitempty" console:"header:Total Tokens,format:number,omitempty"`
+	TotalActionMinutes  float64 `json:"total_action_minutes" console:"header:Total Action Minutes"`
+	TotalTurns          int     `json:"total_turns" console:"header:Total Turns"`
+	TotalSteeringEvents int     `json:"total_steering_events,omitempty" console:"header:Total Steering Events,format:number,omitempty"`
+	TotalErrors         int     `json:"total_errors" console:"header:Total Errors"`
+	TotalWarnings       int     `json:"total_warnings" console:"header:Total Warnings"`
+	TotalMissingTools   int     `json:"total_missing_tools" console:"header:Total Missing Tools"`
+	TotalMissingData    int     `json:"total_missing_data" console:"header:Total Missing Data"`
+	TotalSafeItems      int     `json:"total_safe_items" console:"header:Total Safe Items"`
+	// TotalDriverExitFailures counts failed runs with zero agent turns — the CLI wrapper
+	// or a pre/post-agent infrastructure step exited non-zero before the agent ran.
+	// These are infra-flakiness signals, not agent-logic regressions.
+	TotalDriverExitFailures int `json:"total_driver_exit_failures" console:"header:Driver-Exit Failures"`
+	// TotalAgentLogicFailures counts failed runs with one or more agent turns — the agent
+	// started and executed but the run still concluded as a failure.
+	TotalAgentLogicFailures       int `json:"total_agent_logic_failures" console:"header:Agent-Logic Failures"`
+	RunsWithTemporaryIDChains     int `json:"runs_with_temporary_id_chains,omitempty" console:"-"`
+	RunsWithDelegatedTempTargets  int `json:"runs_with_delegated_temp_targets,omitempty" console:"-"`
+	RunsWithMissingTemporaryIDMap int `json:"runs_with_missing_temporary_id_map,omitempty" console:"-"`
+	RunsWithInvalidTemporaryIDMap int `json:"runs_with_invalid_temporary_id_map,omitempty" console:"-"`
+	TotalTemporaryIDMappings      int `json:"total_temporary_id_mappings,omitempty" console:"-"`
+	TotalChainedTargets           int `json:"total_chained_targets,omitempty" console:"-"`
+	TotalChainedFollowupActions   int `json:"total_chained_followup_actions,omitempty" console:"-"`
+	TotalClosedTempTargets        int `json:"total_closed_temp_targets,omitempty" console:"-"`
+	TotalEpisodes                 int `json:"total_episodes" console:"header:Total Episodes"`
+	HighConfidenceEpisodes        int `json:"high_confidence_episodes" console:"header:High Confidence Episodes"`
+	TotalGitHubAPICalls           int `json:"total_github_api_calls,omitempty" console:"header:Total GitHub API Calls,format:number,omitempty"`
 	// EngineCounts maps engine_id (from aw_info.json) to the number of runs using that engine.
 	// Use this field to accurately classify engine types — do NOT infer engines by scanning
 	// lock files, which contain the word "copilot" in allowed-domains and workflow-source paths
@@ -95,16 +102,21 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
-	RunID                      int64                  `json:"run_id" console:"header:Run ID"`
-	Number                     int                    `json:"number" console:"-"`
-	WorkflowName               string                 `json:"workflow_name" console:"header:Workflow"`
-	WorkflowPath               string                 `json:"workflow_path" console:"-"`
-	Agent                      string                 `json:"agent,omitempty" console:"header:Agent,omitempty"`
-	Engine                     string                 `json:"engine,omitempty" console:"-"`
-	EngineID                   string                 `json:"engine_id,omitempty" console:"-"`
-	Status                     string                 `json:"status" console:"header:Status"`
-	Conclusion                 string                 `json:"conclusion,omitempty" console:"-"`
-	Classification             string                 `json:"classification" console:"-"`
+	RunID          int64  `json:"run_id" console:"header:Run ID"`
+	Number         int    `json:"number" console:"-"`
+	WorkflowName   string `json:"workflow_name" console:"header:Workflow"`
+	WorkflowPath   string `json:"workflow_path" console:"-"`
+	Agent          string `json:"agent,omitempty" console:"header:Agent,omitempty"`
+	Engine         string `json:"engine,omitempty" console:"-"`
+	EngineID       string `json:"engine_id,omitempty" console:"-"`
+	Status         string `json:"status" console:"header:Status"`
+	Conclusion     string `json:"conclusion,omitempty" console:"-"`
+	Classification string `json:"classification" console:"-"`
+	// FailureKind classifies the cause of a failed run.
+	// "driver_exit"   – zero agent turns; the CLI wrapper or an infra step exited before the agent ran.
+	// "agent_logic"   – one or more agent turns; the agent ran but the run still failed.
+	// ""              – the run did not fail (success), or turn data was unavailable for classification.
+	FailureKind                string                 `json:"failure_kind,omitempty" console:"-"`
 	Duration                   string                 `json:"duration,omitempty" console:"header:Duration,omitempty"`
 	ActionMinutes              float64                `json:"action_minutes,omitempty" console:"header:Action Minutes,omitempty"`
 	TokenUsage                 int                    `json:"token_usage,omitempty" console:"header:Tokens,format:number,omitempty"`
@@ -167,6 +179,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	var totalMissingTools int
 	var totalMissingData int
 	var totalSafeItems int
+	var totalDriverExitFailures int
+	var totalAgentLogicFailures int
 	var runsWithTemporaryIDChains int
 	var runsWithDelegatedTempTargets int
 	var runsWithMissingTemporaryIDMap int
@@ -205,6 +219,20 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		totalMissingTools += run.MissingToolCount
 		totalMissingData += run.MissingDataCount
 		totalSafeItems += run.SafeItemsCount
+
+		// Classify the failure kind for this run and accumulate rollup counts.
+		// isDriverExitFailure requires TurnsAvailable so that runs without artifact data
+		// (ErrNoArtifacts) are not wrongly labelled driver_exit.
+		// Agent-logic requires either reliable turn data (TurnsAvailable) or a confirmed
+		// non-zero turn count (e.g. backfilled from the usage-activity summary).
+		failureKind := ""
+		if isDriverExitFailure(run) {
+			failureKind = "driver_exit"
+			totalDriverExitFailures++
+		} else if isFailureConclusion(run.Conclusion) && (run.TurnsAvailable || run.Turns > 0) {
+			failureKind = "agent_logic"
+			totalAgentLogicFailures++
+		}
 
 		// Accumulate GitHub API call counts
 		var gitHubAPICalls int
@@ -272,6 +300,7 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 			Status:                     run.Status,
 			Conclusion:                 run.Conclusion,
 			Classification:             deriveRunClassification(comparison),
+			FailureKind:                failureKind,
 			TokenUsage:                 run.TokenUsage,
 			AIC:                        0,
 			AmbientContext:             ambientContext,
@@ -357,6 +386,8 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		TotalMissingTools:             totalMissingTools,
 		TotalMissingData:              totalMissingData,
 		TotalSafeItems:                totalSafeItems,
+		TotalDriverExitFailures:       totalDriverExitFailures,
+		TotalAgentLogicFailures:       totalAgentLogicFailures,
 		RunsWithTemporaryIDChains:     runsWithTemporaryIDChains,
 		RunsWithDelegatedTempTargets:  runsWithDelegatedTempTargets,
 		RunsWithMissingTemporaryIDMap: runsWithMissingTemporaryIDMap,

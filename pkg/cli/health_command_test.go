@@ -71,7 +71,7 @@ func TestHealthConfigValidation(t *testing.T) {
 			err := RunHealth(tt.config)
 			if tt.wantDaysErr {
 				require.Error(t, err, "RunHealth should return a validation error for: %s", tt.name)
-				assert.Contains(t, err.Error(), tt.errContains, "Error message should describe the validation failure")
+				require.ErrorContains(t, err, tt.errContains, "Error message should describe the validation failure")
 			} else {
 				// Valid days values pass days validation; any error comes from GitHub API access
 				if err != nil {
@@ -101,8 +101,8 @@ func TestRunHealthInvalidDays(t *testing.T) {
 			config := HealthConfig{Days: tt.days, Threshold: 80.0}
 			err := RunHealth(config)
 			require.Error(t, err, "RunHealth should return an error for days=%d", tt.days)
-			assert.Contains(t, err.Error(), tt.errContains, "Error should describe the invalid days value")
-			assert.Contains(t, err.Error(), "Must be 7, 30, or 90", "Error should list the valid days options")
+			require.ErrorContains(t, err, tt.errContains, "Error should describe the invalid days value")
+			require.ErrorContains(t, err, "Must be 7, 30, or 90", "Error should list the valid days options")
 		})
 	}
 }

@@ -328,7 +328,7 @@ engine: copilot
 	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "compilation should fail when status-comment object disables all targets")
-	assert.Contains(t, err.Error(), "status-comment object requires at least one target to be enabled", "error should explain invalid status-comment object configuration")
+	require.ErrorContains(t, err, "status-comment object requires at least one target to be enabled", "error should explain invalid status-comment object configuration")
 }
 
 func TestActivationPermissionsStatusCommentPullRequestsDisabled(t *testing.T) {

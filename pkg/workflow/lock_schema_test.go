@@ -219,7 +219,7 @@ name: test
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
 				if tt.errorText != "" {
-					assert.Contains(t, err.Error(), tt.errorText, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorText, "Error message should contain expected text")
 				}
 			} else {
 				require.NoError(t, err, "Should not error on compatible schema")

@@ -60,20 +60,38 @@ func (c *Compiler) buildEvalsJobSteps(data *WorkflowData) []string {
 	// Steps 6 & 7: Install engine and execute via AWF (network-restricted sandbox).
 	steps = append(steps, c.buildEvalsEngineSteps(data)...)
 
-	// Step 8: Parse engine output and write evals.jsonl.
+	// Step 8: Parse MCP gateway logs to capture evals job AIC output.
+	steps = append(steps, c.buildParseMCPGatewayLogStep(data)...)
+
+	// Step 9: Parse engine output and write evals.jsonl.
 	steps = append(steps, c.buildParseEvalsResultsStep(data)...)
 
-	// Step 9: Redact secrets from evals results before upload.
+	// Step 10: Redact secrets from evals results before upload.
 	steps = append(steps, c.buildRedactEvalsSecretsStep(data)...)
 
-	// Step 10: Render evals results as a progressive disclosure step summary section.
+	// Step 11: Render evals results as a progressive disclosure step summary section.
 	// Runs after redaction so the published summary is always free of secrets.
 	steps = append(steps, c.buildRenderEvalsSummaryStep(data)...)
 
-	// Step 11: Upload evals.jsonl as the evals artifact.
+	// Step 12: Upload evals.jsonl as the evals artifact.
 	steps = append(steps, c.buildUploadEvalsArtifactStep(data)...)
 
 	return steps
+}
+
+func (c *Compiler) buildParseMCPGatewayLogStep(data *WorkflowData) []string {
+	return []string{
+		"      - name: Parse MCP Gateway logs for step summary\n",
+		"        if: always()\n",
+		fmt.Sprintf("        id: %s\n", constants.ParseMCPGatewayStepID),
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        with:\n",
+		"          script: |\n",
+		"            const { setupGlobals } = require('" + SetupActionDestination + "/setup_globals.cjs');\n",
+		"            setupGlobals(core, github, context, exec, io, getOctokit);\n",
+		"            const { main } = require('${{ runner.temp }}/gh-aw/actions/parse_mcp_gateway_log.cjs');\n",
+		"            await main();\n",
+	}
 }
 
 // buildPrepareEvalsFilesStep creates a step that copies agent output files into the

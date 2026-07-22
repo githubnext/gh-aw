@@ -114,7 +114,7 @@ strict: false
 			if tt.expectError {
 				require.Error(t, compileErr,
 					"CTR-015: expected error for bare \"*\" in allowed-labels")
-				assert.Contains(t, compileErr.Error(), "CTR-015",
+				require.ErrorContains(t, compileErr, "CTR-015",
 					"CTR-015: error message should reference the rule ID")
 			} else {
 				assert.NoError(t, compileErr,

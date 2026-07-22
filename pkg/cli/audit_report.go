@@ -262,16 +262,41 @@ type OverviewDisplay struct {
 func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) AuditData {
 	run := processedRun.Run
 	auditReportLog.Printf("Building audit data for run ID %d", run.DatabaseID)
-
-	// Extract experiment data once so it can be used in both the overview and
-	// the dedicated Experiments section without reading the file twice.
-	// Note: AuditWorkflowRun may also call extractExperimentData earlier when an
-	// --experiment filter is active, but that read is guarded by the filter flag so
-	// it only occurs when filtering is requested. This call here is always required
-	// to populate the Experiments section of the report.
 	expData := extractExperimentData(run.LogsPath)
+	overview := buildAuditOverview(run, expData)
+	metricsData, inferredEngineID := buildAuditMetrics(processedRun, metrics)
+	jobs := buildAuditJobs(processedRun.JobDetails)
+	errors := extractAuditErrors(run)
+	downloadedFiles := extractDownloadedFiles(run.LogsPath)
+	toolUsage := buildAuditToolUsage(metrics, mcpToolUsage)
+	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
+	taskDomain, behaviorFingerprint, agenticAssessments := buildAuditAssessments(processedRun, metricsData, toolUsage, createdItems, overview.AwContext)
+	findings, recommendations, observabilityInsights := buildAuditNarrative(processedRun, metricsData, errors, toolUsage, createdItems, agenticAssessments)
+	auditData := assembleAuditData(auditDataInputs{
+		processedRun:          processedRun,
+		metrics:               metrics,
+		mcpToolUsage:          mcpToolUsage,
+		expData:               expData,
+		inferredEngineID:      inferredEngineID,
+		overview:              overview,
+		metricsData:           metricsData,
+		jobs:                  jobs,
+		downloadedFiles:       downloadedFiles,
+		errors:                errors,
+		toolUsage:             toolUsage,
+		createdItems:          createdItems,
+		taskDomain:            taskDomain,
+		behaviorFingerprint:   behaviorFingerprint,
+		agenticAssessments:    agenticAssessments,
+		findings:              findings,
+		recommendations:       recommendations,
+		observabilityInsights: observabilityInsights,
+	})
+	addAuditOutcomeSummary(&auditData, createdItems)
+	return auditData
+}
 
-	// Build overview
+func buildAuditOverview(run WorkflowRun, expData *ExperimentData) OverviewData {
 	overview := OverviewData{
 		RunID:        run.DatabaseID,
 		WorkflowName: run.WorkflowName,
@@ -285,23 +310,24 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		URL:          run.URL,
 		Experiment:   formatExperimentLabel(expData),
 	}
-
 	if run.LogsPath != "" {
 		overview.LogsPath = run.LogsPath
 	}
-
 	if run.Duration > 0 {
 		overview.Duration = timeutil.FormatDuration(run.Duration)
 	}
-
-	if run.LogsPath != "" {
-		awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
-		if awInfo, err := parseAwInfo(awInfoPath, false); err == nil && awInfo != nil {
-			overview.AwContext = awInfo.Context
-		}
+	if run.LogsPath == "" {
+		return overview
 	}
+	awInfoPath := filepath.Join(run.LogsPath, "aw_info.json")
+	if awInfo, err := parseAwInfo(awInfoPath, false); err == nil && awInfo != nil {
+		overview.AwContext = awInfo.Context
+	}
+	return overview
+}
 
-	// Build metrics
+func buildAuditMetrics(processedRun ProcessedRun, metrics LogMetrics) (MetricsData, string) {
+	run := processedRun.Run
 	metricsData := MetricsData{
 		TokenUsage:   run.TokenUsage,
 		Turns:        run.Turns,
@@ -312,16 +338,25 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		metricsData.ErrorCount = 1
 	}
 
-	needsFallbackMetrics := metricsData.TokenUsage == 0 || metricsData.Turns == 0
-	needsFallbackEngineConfig := run.LogsPath != "" && findAwInfoPath(run.LogsPath) == ""
-	var fallbackMetrics LogMetrics
-	var inferredEngineID string
-	if run.LogsPath != "" && (needsFallbackMetrics || needsFallbackEngineConfig) {
-		fallbackMetrics, inferredEngineID = inferFallbackLogMetrics(run.LogsPath)
-	}
+	fallbackMetrics, inferredEngineID := lookupFallbackMetrics(run.LogsPath, metricsData)
+	applyFallbackMetrics(&metricsData, processedRun, metrics, fallbackMetrics)
+	populateAuditMetricContext(&metricsData, processedRun.TokenUsage)
+	return metricsData, inferredEngineID
+}
 
-	// Fallback token usage: when the run-level metric is missing/zero for older
-	// runs, use aggregated input+output tokens from agent_usage/token usage artifacts.
+func lookupFallbackMetrics(logsPath string, metricsData MetricsData) (LogMetrics, string) {
+	if logsPath == "" {
+		return LogMetrics{}, ""
+	}
+	needsFallbackMetrics := metricsData.TokenUsage == 0 || metricsData.Turns == 0
+	needsFallbackEngineConfig := findAwInfoPath(logsPath) == ""
+	if !needsFallbackMetrics && !needsFallbackEngineConfig {
+		return LogMetrics{}, ""
+	}
+	return inferFallbackLogMetrics(logsPath)
+}
+
+func applyFallbackMetrics(metricsData *MetricsData, processedRun ProcessedRun, metrics LogMetrics, fallbackMetrics LogMetrics) {
 	if metricsData.TokenUsage == 0 && processedRun.TokenUsage != nil {
 		metricsData.TokenUsage = processedRun.TokenUsage.TotalInputTokens + processedRun.TokenUsage.TotalOutputTokens
 	}
@@ -337,25 +372,19 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 	if metricsData.Turns == 0 && fallbackMetrics.Turns > 0 {
 		metricsData.Turns = fallbackMetrics.Turns
 	}
+}
 
-	if processedRun.TokenUsage != nil && processedRun.TokenUsage.TotalAIC > 0 {
-		metricsData.AIC = processedRun.TokenUsage.TotalAIC
+func populateAuditMetricContext(metricsData *MetricsData, tokenUsage *TokenUsageSummary) {
+	if tokenUsage != nil && tokenUsage.TotalAIC > 0 {
+		metricsData.AIC = tokenUsage.TotalAIC
 	}
-	if processedRun.TokenUsage != nil && processedRun.TokenUsage.AmbientContext != nil {
-		metricsData.AmbientContext = processedRun.TokenUsage.AmbientContext
+	if tokenUsage != nil && tokenUsage.AmbientContext != nil {
+		metricsData.AmbientContext = tokenUsage.AmbientContext
 	}
+}
 
-	// Populate ActionMinutes from run duration so it is always visible even
-	// when token/turn metrics are zero (e.g. Codex runs that exit early).
-	// Use math.Ceil to match the billable-minute rounding used elsewhere.
-	if run.ActionMinutes > 0 {
-		metricsData.ActionMinutes = run.ActionMinutes
-	} else if run.Duration > 0 {
-		metricsData.ActionMinutes = math.Ceil(run.Duration.Minutes())
-	}
-
-	// Build job data
-	jobs := sliceutil.Map(processedRun.JobDetails, func(jobDetail JobInfoWithDuration) JobData {
+func buildAuditJobs(jobDetails []JobInfoWithDuration) []JobData {
+	return sliceutil.Map(jobDetails, func(jobDetail JobInfoWithDuration) JobData {
 		job := JobData{
 			Name:       jobDetail.Name,
 			Status:     jobDetail.Status,
@@ -369,97 +398,127 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		}
 		return job
 	})
+}
 
-	// Build downloaded files list
-	downloadedFiles := extractDownloadedFiles(run.LogsPath)
-
-	// For failed workflows where the agent never ran (no agent-stdio.log),
-	// extract errors from step log files to surface the actual failure reason.
-	var errors []ErrorInfo
-	if run.Conclusion == "failure" && run.LogsPath != "" {
-		if stepErrors := extractPreAgentStepErrors(run.LogsPath); len(stepErrors) > 0 {
-			errors = stepErrors
-		}
+func extractAuditErrors(run WorkflowRun) []ErrorInfo {
+	if run.Conclusion != "failure" || run.LogsPath == "" {
+		return nil
 	}
+	if stepErrors := extractPreAgentStepErrors(run.LogsPath); len(stepErrors) > 0 {
+		return stepErrors
+	}
+	return nil
+}
 
-	toolUsage := buildToolUsageInfo(metrics)
-	toolUsage = mergeMCPToolUsageInfo(toolUsage, mcpToolUsage)
+func buildAuditToolUsage(metrics LogMetrics, mcpToolUsage *MCPToolUsageData) []ToolUsageInfo {
+	return mergeMCPToolUsageInfo(buildToolUsageInfo(metrics), mcpToolUsage)
+}
 
-	createdItems := extractCreatedItemsFromManifest(run.LogsPath)
-	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, overview.AwContext)
-	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, overview.AwContext)
-	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, overview.AwContext)
+func buildAuditAssessments(processedRun ProcessedRun, metricsData MetricsData, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, awContext *AwContext) (*TaskDomainInfo, *BehaviorFingerprint, []AgenticAssessment) {
+	taskDomain := detectTaskDomain(processedRun, createdItems, toolUsage, awContext)
+	behaviorFingerprint := buildBehaviorFingerprint(processedRun, metricsData, toolUsage, createdItems, awContext)
+	agenticAssessments := buildAgenticAssessments(processedRun, metricsData, toolUsage, createdItems, taskDomain, behaviorFingerprint, awContext)
+	return taskDomain, behaviorFingerprint, agenticAssessments
+}
 
-	// Generate key findings
+func buildAuditNarrative(processedRun ProcessedRun, metricsData MetricsData, errors []ErrorInfo, toolUsage []ToolUsageInfo, createdItems []CreatedItemReport, agenticAssessments []AgenticAssessment) ([]Finding, []Recommendation, []ObservabilityInsight) {
 	findings := generateFindings(processedRun, metricsData, errors)
 	findings = append(findings, generateAgenticAssessmentFindings(agenticAssessments)...)
 
-	// Generate recommendations
 	recommendations := generateRecommendations(processedRun, metricsData, findings)
 	recommendations = append(recommendations, generateAgenticAssessmentRecommendations(agenticAssessments)...)
 
 	observabilityInsights := buildAuditObservabilityInsights(processedRun, metricsData, toolUsage, createdItems)
 	observabilityInsights = append(observabilityInsights, buildDrain3Insights(processedRun, metricsData, toolUsage)...)
+	return findings, recommendations, observabilityInsights
+}
 
-	// Generate performance metrics
-	performanceMetrics := generatePerformanceMetrics(processedRun, metricsData, toolUsage)
+type auditDataInputs struct {
+	processedRun          ProcessedRun
+	metrics               LogMetrics
+	mcpToolUsage          *MCPToolUsageData
+	expData               *ExperimentData
+	inferredEngineID      string
+	overview              OverviewData
+	metricsData           MetricsData
+	jobs                  []JobData
+	downloadedFiles       []FileInfo
+	errors                []ErrorInfo
+	toolUsage             []ToolUsageInfo
+	createdItems          []CreatedItemReport
+	taskDomain            *TaskDomainInfo
+	behaviorFingerprint   *BehaviorFingerprint
+	agenticAssessments    []AgenticAssessment
+	findings              []Finding
+	recommendations       []Recommendation
+	observabilityInsights []ObservabilityInsight
+}
+
+func assembleAuditData(inputs auditDataInputs) AuditData {
+	run := inputs.processedRun.Run
+	metricsData := inputs.metricsData
+	if run.ActionMinutes > 0 {
+		metricsData.ActionMinutes = run.ActionMinutes
+	} else if run.Duration > 0 {
+		metricsData.ActionMinutes = math.Ceil(run.Duration.Minutes())
+	}
+
+	performanceMetrics := generatePerformanceMetrics(inputs.processedRun, metricsData, inputs.toolUsage)
 	chainMetrics := buildSafeOutputChainMetrics(run.LogsPath)
-
-	// Extract expanded audit data
-	engineConfig := extractEngineConfigWithInferredEngine(run.LogsPath, inferredEngineID)
+	engineConfig := extractEngineConfigWithInferredEngine(run.LogsPath, inputs.inferredEngineID)
 	promptAnalysis := extractPromptAnalysis(run.LogsPath)
-	sessionAnalysis := buildSessionAnalysis(processedRun, metrics)
-	safeOutputSummary := buildSafeOutputSummary(createdItems, chainMetrics)
-	mcpServerHealth := buildMCPServerHealth(mcpToolUsage, processedRun.MCPFailures)
+	sessionAnalysis := buildSessionAnalysis(inputs.processedRun, inputs.metrics)
+	safeOutputSummary := buildSafeOutputSummary(inputs.createdItems, chainMetrics)
+	mcpServerHealth := buildMCPServerHealth(inputs.mcpToolUsage, inputs.processedRun.MCPFailures)
 
 	if auditReportLog.Enabled() {
 		auditReportLog.Printf("Built audit data: %d jobs, %d errors, %d tool types, %d findings, %d recommendations",
-			len(jobs), len(errors), len(toolUsage), len(findings), len(recommendations))
+			len(inputs.jobs), len(inputs.errors), len(inputs.toolUsage), len(inputs.findings), len(inputs.recommendations))
 	}
 
-	auditData := AuditData{
-		Overview:                overview,
-		TaskDomain:              taskDomain,
-		BehaviorFingerprint:     behaviorFingerprint,
-		AgenticAssessments:      agenticAssessments,
+	return AuditData{
+		Overview:                inputs.overview,
+		TaskDomain:              inputs.taskDomain,
+		BehaviorFingerprint:     inputs.behaviorFingerprint,
+		AgenticAssessments:      inputs.agenticAssessments,
 		Metrics:                 metricsData,
-		KeyFindings:             findings,
-		Recommendations:         recommendations,
-		ObservabilityInsights:   observabilityInsights,
+		KeyFindings:             inputs.findings,
+		Recommendations:         inputs.recommendations,
+		ObservabilityInsights:   inputs.observabilityInsights,
 		PerformanceMetrics:      performanceMetrics,
 		EngineConfig:            engineConfig,
 		PromptAnalysis:          promptAnalysis,
 		SessionAnalysis:         sessionAnalysis,
 		SafeOutputSummary:       safeOutputSummary,
 		MCPServerHealth:         mcpServerHealth,
-		Jobs:                    jobs,
-		DownloadedFiles:         downloadedFiles,
-		MissingTools:            processedRun.MissingTools,
-		MissingData:             processedRun.MissingData,
-		Noops:                   processedRun.Noops,
-		MCPFailures:             processedRun.MCPFailures,
-		FirewallTokenUsage:      processedRun.TokenUsage,
-		GitHubRateLimitUsage:    processedRun.GitHubRateLimitUsage,
-		FirewallAnalysis:        processedRun.FirewallAnalysis,
-		PolicyAnalysis:          processedRun.PolicyAnalysis,
-		RedactedDomainsAnalysis: processedRun.RedactedDomainsAnalysis,
-		Errors:                  errors,
-		ToolUsage:               toolUsage,
-		MCPToolUsage:            mcpToolUsage,
-		CreatedItems:            createdItems,
-		Experiments:             expData,
+		Jobs:                    inputs.jobs,
+		DownloadedFiles:         inputs.downloadedFiles,
+		MissingTools:            inputs.processedRun.MissingTools,
+		MissingData:             inputs.processedRun.MissingData,
+		Noops:                   inputs.processedRun.Noops,
+		MCPFailures:             inputs.processedRun.MCPFailures,
+		FirewallTokenUsage:      inputs.processedRun.TokenUsage,
+		GitHubRateLimitUsage:    inputs.processedRun.GitHubRateLimitUsage,
+		FirewallAnalysis:        inputs.processedRun.FirewallAnalysis,
+		PolicyAnalysis:          inputs.processedRun.PolicyAnalysis,
+		RedactedDomainsAnalysis: inputs.processedRun.RedactedDomainsAnalysis,
+		Errors:                  inputs.errors,
+		ToolUsage:               inputs.toolUsage,
+		MCPToolUsage:            inputs.mcpToolUsage,
+		CreatedItems:            inputs.createdItems,
+		Experiments:             inputs.expData,
 	}
+}
 
-	// Evaluate outcomes for created items if any exist
-	if len(createdItems) > 0 {
-		mapping := github.LoadObjectiveMappingFromConfig()
-		outcomeReports := EvaluateOutcomes(createdItems, "", mapping)
-		auditData.Outcomes = outcomeReports
-		outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
-		auditData.OutcomeSummary = &outcomeSummary
+func addAuditOutcomeSummary(auditData *AuditData, createdItems []CreatedItemReport) {
+	if len(createdItems) == 0 {
+		return
 	}
-
-	return auditData
+	mapping := github.LoadObjectiveMappingFromConfig()
+	outcomeReports := EvaluateOutcomes(createdItems, "", mapping)
+	auditData.Outcomes = outcomeReports
+	outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
+	auditData.OutcomeSummary = &outcomeSummary
 }
 
 // extractDownloadedFiles scans the logs directory recursively and returns file information.

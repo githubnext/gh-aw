@@ -69,8 +69,8 @@ permissions:
 
 	_, err := parser.ProcessImportsFromFrontmatterWithSource(frontmatter, tempDir, nil, mainPath, mainContent)
 	require.Error(t, err, "Importing the same file with conflicting 'with' values should error")
-	assert.Contains(t, err.Error(), "import conflict", "Error should mention import conflict")
-	assert.Contains(t, err.Error(), "shared.md", "Error should mention the conflicting file")
+	require.ErrorContains(t, err, "import conflict", "Error should mention import conflict")
+	require.ErrorContains(t, err, "shared.md", "Error should mention the conflicting file")
 }
 
 // TestImportConflict_SameFileIdenticalWith tests that importing the same file twice

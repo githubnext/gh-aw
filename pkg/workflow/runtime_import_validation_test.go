@@ -169,7 +169,7 @@ ${{ github.actor
 			if tt.expectError {
 				require.Error(t, err, "Expected an error")
 				if tt.errorText != "" {
-					assert.Contains(t, err.Error(), tt.errorText, "Error should contain expected text")
+					require.ErrorContains(t, err, tt.errorText, "Error should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error")
@@ -268,8 +268,8 @@ Please process the issue.
 
 	// Should fail due to invalid expression in runtime-import file
 	require.Error(t, err, "Compilation should fail due to invalid expression in runtime-import file")
-	assert.Contains(t, err.Error(), "runtime-import files contain expression errors", "Error should mention runtime-import files")
-	assert.Contains(t, err.Error(), "secrets.GITHUB_TOKEN", "Error should mention the specific invalid expression")
+	require.ErrorContains(t, err, "runtime-import files contain expression errors", "Error should mention runtime-import files")
+	require.ErrorContains(t, err, "secrets.GITHUB_TOKEN", "Error should mention the specific invalid expression")
 }
 
 // TestCompilerIntegration_RuntimeImportValidation_Valid tests successful compilation

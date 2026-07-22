@@ -367,7 +367,7 @@ func TestEnforceSafeUpdate(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "expected safe update enforcement error")
 				for _, msg := range tt.wantErrMsgs {
-					assert.Contains(t, err.Error(), msg, "error message should contain %q", msg)
+					require.ErrorContains(t, err, msg, "error message should contain %q", msg)
 				}
 			} else {
 				assert.NoError(t, err, "unexpected safe update enforcement error")

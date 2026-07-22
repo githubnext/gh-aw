@@ -299,7 +299,7 @@ func TestNewAnomalyDetector_ThresholdBoundaries(t *testing.T) {
 			detector, err := NewAnomalyDetector(tt.simThreshold, tt.rareThreshold)
 			if tt.wantErr != "" {
 				require.Error(t, err, "NewAnomalyDetector should reject invalid thresholds")
-				assert.Contains(t, err.Error(), tt.wantErr, "error should describe invalid threshold")
+				require.ErrorContains(t, err, tt.wantErr, "error should describe invalid threshold")
 				require.Nil(t, detector, "NewAnomalyDetector should return nil detector on validation error")
 				return
 			}
@@ -529,7 +529,7 @@ func TestAnalyzeEvent_Variants(t *testing.T) {
 			result, report, err := m.AnalyzeEvent(tt.evt)
 			if tt.wantErr {
 				require.Error(t, err, "AnalyzeEvent should return an error")
-				assert.Contains(t, err.Error(), tt.wantErrMsg, "error message mismatch")
+				require.ErrorContains(t, err, tt.wantErrMsg, "error message mismatch")
 				assert.Nil(t, result, "AnalyzeEvent should return nil result on error")
 				assert.Nil(t, report, "AnalyzeEvent should return nil report on error")
 				return

@@ -438,7 +438,7 @@ func TestValidateEngineHarnessScript(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
 				if tt.errorSubstr != "" {
-					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+					require.ErrorContains(t, err, tt.errorSubstr, "Expected error substring mismatch")
 				}
 				return
 			}
@@ -621,7 +621,7 @@ func TestValidateEngineCopilotSDKDriver_Copilot(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
 				if tt.errorSubstr != "" {
-					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+					require.ErrorContains(t, err, tt.errorSubstr, "Expected error substring mismatch")
 				}
 				return
 			}
@@ -725,7 +725,7 @@ func TestValidateEngineMCPSessionTimeout(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
 				if tt.errorSubstr != "" {
-					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+					require.ErrorContains(t, err, tt.errorSubstr, "Expected error substring mismatch")
 				}
 				return
 			}
@@ -845,7 +845,7 @@ func TestValidateEngineMCPToolTimeout(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
 				if tt.errorSubstr != "" {
-					assert.Contains(t, err.Error(), tt.errorSubstr, "Expected error substring mismatch")
+					require.ErrorContains(t, err, tt.errorSubstr, "Expected error substring mismatch")
 				}
 				return
 			}
