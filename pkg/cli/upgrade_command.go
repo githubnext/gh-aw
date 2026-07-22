@@ -487,8 +487,9 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	}
 
 	// #nosec G204 -- exe is validated as an absolute path above and originates from
-	// os.Executable() or the known install path; newArgs is a copy of the current process
-	// argv (os.Args[1:]) plus a single hardcoded flag, containing no untrusted user input.
+	// os.Executable() or the known install path. newArgs forwards os.Args[1:] (user-controlled)
+	// plus a hardcoded flag; exec.Command passes arguments directly to execve(2) without
+	// invoking a shell, so shell-injection (CWE-78) is not possible regardless of argv content.
 	cmd := exec.Command(exe, newArgs...)
 	cmd.Stdin = os.Stdin
 	cmd.Stdout = os.Stdout
