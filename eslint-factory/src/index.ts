@@ -23,6 +23,7 @@ import { noCoreErrorThenProcessExitCodeRule } from "./rules/no-core-error-then-p
 import { noExecInterpolatedCommandRule } from "./rules/no-exec-interpolated-command";
 import { requireExecSyncTryCatchRule } from "./rules/require-execsync-try-catch";
 import { requireFsIoTryCatchRule } from "./rules/require-fs-io-try-catch";
+import { noSetFailedThenExitZeroRule } from "./rules/no-setfailed-then-exit-zero";
 
 const plugin = {
   meta: {
@@ -55,6 +56,7 @@ const plugin = {
     "no-exec-interpolated-command": noExecInterpolatedCommandRule,
     "require-execsync-try-catch": requireExecSyncTryCatchRule,
     "require-fs-io-try-catch": requireFsIoTryCatchRule,
+    "no-setfailed-then-exit-zero": noSetFailedThenExitZeroRule,
   },
 };
 
