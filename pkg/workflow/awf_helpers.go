@@ -157,6 +157,10 @@ func applyDefaultMaxAICreditsEnvToMap(env map[string]string, workflowData *Workf
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxAICredits != 0 {
 		return
 	}
+	if workflowData != nil && workflowData.IsEvalsRun {
+		env[awfMaxAICreditsVarName] = compilerenv.BuildDefaultEvalsMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10))
+		return
+	}
 	if workflowData != nil && workflowData.IsDetectionRun {
 		env[awfMaxAICreditsVarName] = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10))
 		return
@@ -340,6 +344,8 @@ fi`,
 		// Standard agent runs use vars.GH_AW_DEFAULT_MAX_AI_CREDITS with built-in
 		// fallback 1000. Threat-detection runs use
 		// vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS with built-in fallback 400.
+		// Evals runs use vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS with built-in
+		// fallback 400 to align with detection budgets.
 		// EngineConfig.MaxAICredits is 0 when no compile-time value was set
 		// (neither frontmatter nor detection-engine config provided one).
 		// In that case, emit a runtime expression that lets the org variable
@@ -349,16 +355,26 @@ fi`,
 		var maxAICreditsExportLine string
 		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
 			defaultMaxAICredits := strconv.FormatInt(constants.DefaultMaxAICredits, 10)
-			if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
-				defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
+			if config.WorkflowData != nil {
+				switch {
+				case config.WorkflowData.IsEvalsRun:
+					defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
+				case config.WorkflowData.IsDetectionRun:
+					defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
+				}
 			}
 			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
 			if config.ResolveMaxAICreditsFromEnv {
 				maxAICreditsExportLine = fmt.Sprintf(`%s="${%s:-%s}"`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits)
 			} else {
 				expr := compilerenv.BuildDefaultMaxAICreditsExpression(defaultMaxAICredits)
-				if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
-					expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(defaultMaxAICredits)
+				if config.WorkflowData != nil {
+					switch {
+					case config.WorkflowData.IsEvalsRun:
+						expr = compilerenv.BuildDefaultEvalsMaxAICreditsExpression(defaultMaxAICredits)
+					case config.WorkflowData.IsDetectionRun:
+						expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(defaultMaxAICredits)
+					}
 				}
 				maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
 			}

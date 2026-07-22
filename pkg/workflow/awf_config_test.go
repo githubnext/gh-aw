@@ -1377,16 +1377,25 @@ func TestBuildAWFCommand_ResolvesMaxAICreditsFromEnv(t *testing.T) {
 	tests := []struct {
 		name          string
 		isDetection   bool
+		isEvals       bool
 		defaultBudget int64
 	}{
 		{
 			name:          "agent run uses agent fallback",
 			isDetection:   false,
+			isEvals:       false,
 			defaultBudget: constants.DefaultMaxAICredits,
 		},
 		{
 			name:          "detection run uses detection fallback",
 			isDetection:   true,
+			isEvals:       false,
+			defaultBudget: constants.DefaultDetectionMaxAICredits,
+		},
+		{
+			name:          "evals run uses evals fallback",
+			isDetection:   false,
+			isEvals:       true,
 			defaultBudget: constants.DefaultDetectionMaxAICredits,
 		},
 	}
@@ -1401,6 +1410,7 @@ func TestBuildAWFCommand_ResolvesMaxAICreditsFromEnv(t *testing.T) {
 				ResolveMaxAICreditsFromEnv: true,
 				WorkflowData: &WorkflowData{
 					IsDetectionRun: tt.isDetection,
+					IsEvalsRun:     tt.isEvals,
 					EngineConfig:   &EngineConfig{ID: "copilot"},
 					NetworkPermissions: &NetworkPermissions{
 						Firewall: &FirewallConfig{Enabled: true},

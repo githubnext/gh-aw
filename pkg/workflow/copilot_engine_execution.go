@@ -38,6 +38,7 @@ import (
 var copilotExecLog = logger.New("workflow:copilot_engine_execution")
 
 const customEngineCommandScriptPath = "/tmp/gh-aw/engine-command.sh"
+const agentExecutionExitCodePath = "/tmp/gh-aw/agent_execution_exit_code.txt"
 
 // copilotSettingsPath is the shell expression that resolves to the Copilot CLI settings
 // file at runtime. The Copilot CLI resolves its config directory as ~/.copilot, which is
@@ -90,6 +91,20 @@ func buildCopilotSettingsSetup(settingsContent string, fixOwnershipForCustomComm
 // $HOME is expanded by the shell at trap-fire time rather than trap-definition time.
 func buildCopilotSettingsCleanupTrap() string {
 	return fmt.Sprintf("trap 'rm -f \"%s\"' EXIT\n", copilotSettingsPath)
+}
+
+// buildCopilotSettingsCleanupAndExitCodeTrap returns an EXIT trap that:
+//  1. persists the execution step exit code for setup/post OTLP conclusion spans, and
+//  2. removes the temporary Copilot settings file.
+//
+// The body is single-quoted so $HOME in copilotSettingsPath is expanded at trap-fire
+// time (matching buildCopilotSettingsCleanupTrap behavior).
+func buildCopilotSettingsCleanupAndExitCodeTrap() string {
+	return fmt.Sprintf(
+		"trap 'gh_aw_exit_code=$?; mkdir -p /tmp/gh-aw >/dev/null 2>&1 || true; printf \"%%s\" \"$gh_aw_exit_code\" > %s || true; rm -f \"%s\"' EXIT\n",
+		agentExecutionExitCodePath,
+		copilotSettingsPath,
+	)
 }
 
 // buildCopilotMCPConfigExport returns shell commands that export Copilot-CLI-specific
@@ -179,11 +194,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	llmProvider := e.ResolveLLMProvider(workflowData)
 	providerOverrideBYOK := llmProvider != LLMProviderGitHub && sandboxEnabled
 	isBYOKMode := providerOverrideBYOK || engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
-	isDetectionJob := workflowData.SafeOutputs == nil
 	modelConfigured := workflowData.Model != ""
 	copilotArgs := e.buildCopilotArgs(workflowData)
 	mkdirCommands := buildCopilotMkdirCommands(copilotArgs)
-	modelEnvVar := getCopilotModelEnvVar(isDetectionJob)
+	modelEnvVar := getCopilotModelEnvVar(workflowData)
 	timeoutValue := getCopilotTimeoutValue(workflowData)
 	commandName, customCommandScriptSetup := e.resolveCopilotCommand(workflowData, sandboxEnabled)
 	execPrefix := e.buildCopilotExecPrefix(workflowData, commandName)
@@ -209,7 +223,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 // buildCopilotArgs builds the Copilot CLI argument list based on workflow configuration.
 func (e *CopilotEngine) buildCopilotArgs(workflowData *WorkflowData) []string {
 	sandboxEnabled := isFirewallEnabled(workflowData)
-	isDetectionJob := workflowData.SafeOutputs == nil
+	isDetectionJob := isDetectionRun(workflowData)
 	copilotArgs := e.buildCopilotBaseArgs(sandboxEnabled)
 
 	// Add --disable-builtin-mcps to disable built-in MCP servers
@@ -296,7 +310,11 @@ func buildCopilotMkdirCommands(copilotArgs []string) string {
 	return mkdirCommands.String()
 }
 
-func getCopilotModelEnvVar(isDetectionJob bool) string {
+func getCopilotModelEnvVar(workflowData *WorkflowData) string {
+	if workflowRunPhase(workflowData) == runPhaseEvals {
+		return constants.EnvVarModelEvalsCopilot
+	}
+	isDetectionJob := isDetectionRun(workflowData)
 	if isDetectionJob {
 		return constants.EnvVarModelDetectionCopilot
 	}
@@ -475,7 +493,7 @@ func (e *CopilotEngine) buildCopilotAWFPathSetup(workflowData *WorkflowData, cus
 	}
 	// Write the Copilot settings file before AWF starts. The file is created on the host and mounted
 	// into the container, where the Copilot CLI reads it to disable the rubber-duck sub-agent.
-	return buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
+	return buildCopilotSettingsCleanupAndExitCodeTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
 }
 
 func (e *CopilotEngine) buildCopilotDirectCommand(workflowData *WorkflowData, copilotCommand, customCommandScriptSetup, mkdirCommands, logFile string) string {
@@ -486,7 +504,7 @@ func (e *CopilotEngine) buildCopilotDirectCommand(workflowData *WorkflowData, co
 		preCommandSetup = customCommandScriptSetup + "\n" + preCommandSetup
 	}
 	// Write the Copilot settings file before the agent runs to disable the rubber-duck sub-agent.
-	preCommandSetup = buildCopilotSettingsCleanupTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + preCommandSetup
+	preCommandSetup = buildCopilotSettingsCleanupAndExitCodeTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + preCommandSetup
 	return fmt.Sprintf(`set -o pipefail
 printf '%%s' "$(date +%%s%%3N)" > %s
 touch %s
@@ -567,11 +585,7 @@ func (e *CopilotEngine) addCopilotWorkflowStepEnv(env map[string]string, workflo
 	env["GH_AW_PROMPT"] = constants.AwPromptsFile
 	// Tag the step as a GitHub AW agentic execution for discoverability by agents
 	env["GITHUB_AW"] = "true"
-	if workflowData.IsDetectionRun {
-		env["GH_AW_PHASE"] = "detection"
-	} else {
-		env["GH_AW_PHASE"] = "agent"
-	}
+	env["GH_AW_PHASE"] = workflowRunPhase(workflowData)
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()
 	} else {

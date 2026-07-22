@@ -217,9 +217,10 @@ func (e *CodexEngine) GetExecutionSteps(workflowData *WorkflowData, logFile stri
 	// via the --model flag. This also correctly handles GitHub Actions expressions like ${{ inputs.model }}.
 	// Note: Codex also supports config-layer model selection (config key `model`, including `-c model="..."`),
 	// but `--model` is a direct CLI flag and avoids TOML quoting/parsing edge cases in automation.
-	isDetectionJob := workflowData.SafeOutputs == nil
 	var modelEnvVar string
-	if isDetectionJob {
+	if workflowRunPhase(workflowData) == runPhaseEvals {
+		modelEnvVar = constants.EnvVarModelEvalsCodex
+	} else if isDetectionRun(workflowData) {
 		modelEnvVar = constants.EnvVarModelDetectionCodex
 	} else {
 		modelEnvVar = constants.EnvVarModelAgentCodex
@@ -451,13 +452,10 @@ mkdir -p "$CODEX_HOME/logs"
 		"OPENAI_API_KEY":               "${{ secrets.CODEX_API_KEY || secrets.OPENAI_API_KEY }}", // Fallback for CODEX_API_KEY
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	// Indicate the phase: "agent" for the main run, "detection" for threat detection
+	// Indicate the phase: "agent" for the main run, "detection" for threat detection,
+	// and "evals" for the eval harness execution.
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
-	if workflowData.IsDetectionRun {
-		env["GH_AW_PHASE"] = "detection"
-	} else {
-		env["GH_AW_PHASE"] = "agent"
-	}
+	env["GH_AW_PHASE"] = workflowRunPhase(workflowData)
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()
 	} else {

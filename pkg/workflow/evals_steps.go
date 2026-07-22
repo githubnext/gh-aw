@@ -173,7 +173,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		}
 	}
 
-	// Apply engine and enterprise default detection model (cost-effective for Q&A tasks).
+	// Apply eval-specific engine/default model configuration.
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
 		return []string{
@@ -187,8 +187,9 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	}
 
 	// Build a minimal WorkflowData for evals engine execution.
-	// IsDetectionRun reuses detection-style network restrictions and MaxAI credits,
-	// which are appropriate for binary (YES/NO) evaluation tasks.
+	// Keep IsDetectionRun=false so eval runs do not opt into detection-only
+	// structured output/log paths (detection_schema.json / detection_result.json),
+	// which can pollute eval logs with detection JSON and yield UNKNOWN answers.
 	// RunnerConfig is propagated from the main workflow data so that arc-dind topology
 	// handling (daemon-visible Copilot staging step + daemon-visible spawn path) applies
 	// to the evals job the same way it applies to the agent job.
@@ -203,7 +204,8 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		Features:          data.Features,
 		Permissions:       data.Permissions,
 		CachedPermissions: data.CachedPermissions,
-		IsDetectionRun:    true,
+		IsDetectionRun:    false,
+		IsEvalsRun:        true,
 		RunnerConfig:      data.RunnerConfig, // propagate runner.topology (e.g. arc-dind) to the evals job
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
@@ -409,10 +411,8 @@ func (c *Compiler) resolveEvalsExecutionModel(data *WorkflowData) string {
 
 	engineID := c.getEvalsEngineID(data)
 	if model == "" {
-		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+		if defaultModel := compilerenv.ResolveDefaultEvalsModel(""); defaultModel != "" {
 			model = defaultModel
-		} else if engine, err := c.getAgenticEngine(engineID); err == nil {
-			model = engine.GetDefaultDetectionModel()
 		}
 	}
 	if model == "" {
@@ -449,11 +449,11 @@ func appendEvalsModelEnvLines(steps []string, engineID, model string) []string {
 func buildEvalsModelFallbackExpression(engineID string) string {
 	switch engineID {
 	case string(constants.CopilotEngine):
-		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
 	case string(constants.ClaudeEngine):
-		return compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
+		return compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude)
 	case string(constants.CodexEngine):
-		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionCodex, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
+		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsCodex, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	default:
 		return ""
 	}

@@ -172,7 +172,6 @@ async function parseMain() {
     if (answer === "UNKNOWN" && i < positionalAnswers.length && positionalAnswers[i]) {
       answer = positionalAnswers[i];
     }
-
     const record = {
       id: q.id,
       question: q.question,
@@ -242,10 +241,13 @@ ${agentSection}
 
 <instructions>
 Answer each question on a separate line using EXACTLY this format:
-Q1: YES
-Q2: NO
+<question-id>: YES
+<question-id>: NO
+<question-id>: UNKNOWN
 
-Use only YES or NO. Do not provide explanations or reasoning.
+Use only YES, NO, or UNKNOWN. Do not provide explanations or reasoning.
+Use the exact question IDs provided in <questions>.
+If the agent output does not provide enough evidence to safely answer YES or NO, answer UNKNOWN.
 Evaluate each question solely based on the agent output shown above.
 </instructions>`;
 }

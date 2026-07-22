@@ -281,13 +281,10 @@ touch %s
 		"GEMINI_CLI_TRUST_WORKSPACE": "true",
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	// Indicate the phase: "agent" for the main run, "detection" for threat detection
+	// Indicate the phase: "agent" for the main run, "detection" for threat detection,
+	// and "evals" for the eval harness execution.
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
-	if workflowData.IsDetectionRun {
-		env["GH_AW_PHASE"] = "detection"
-	} else {
-		env["GH_AW_PHASE"] = "agent"
-	}
+	env["GH_AW_PHASE"] = workflowRunPhase(workflowData)
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()
 	} else {

@@ -140,9 +140,10 @@ The AWF Firewall uses Squid proxy for egress control. The key log file is `acces
 
 For each firewall-enabled workflow run, check:
 
-1. **access.log existence**: Look for `access.log/` directory in the run logs
-   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/access.log/`
-   - Contains files like `access-*.log`
+1. **access.log existence**: Search recursively inside each run folder for firewall access logs
+   - Canonical path: `/tmp/gh-aw/aw-mcp/logs/run-<id>/sandbox/firewall/logs/access.log`
+   - Also accept equivalent paths nested under artifact-prefixed directories (workflow_call)
+   - Do not assume a fixed top-level location; use recursive discovery
 
 2. **access.log content quality**:
    - Are there log entries present?
@@ -174,13 +175,20 @@ The MCP Gateway logs tool execution. Two log formats may be present depending on
 
 For each run that uses MCP servers, check in this order:
 
-1. **gateway.jsonl existence** (preferred): Look for the file in run logs
-   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/gateway.jsonl`
+1. **gateway.jsonl existence** (preferred): Search recursively inside the run folder
+   - Canonical path: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/gateway.jsonl`
+   - Also accept equivalent paths nested under artifact-prefixed directories (workflow_call)
 
 2. **rpc-messages.jsonl existence** (canonical fallback): Check when gateway.jsonl is missing
-   - Path pattern: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/rpc-messages.jsonl`
+   - Canonical path: `/tmp/gh-aw/aw-mcp/logs/run-<id>/mcp-logs/rpc-messages.jsonl`
+   - Also accept equivalent paths nested under artifact-prefixed directories (workflow_call)
    - This file is written by the Copilot CLI and contains raw JSON-RPC protocol messages
    - A run with this file present has MCP telemetry and should NOT be reported as Critical
+
+**Path normalization rule (required):**
+- For each run, determine telemetry presence by recursively finding files named `gateway.jsonl` or `rpc-messages.jsonl` anywhere under `run-<id>/`.
+- Record the exact discovered path(s) in your analysis notes before assigning status.
+- Never classify a run as "missing MCP telemetry" based only on one hardcoded path check.
 
 3. **gateway.jsonl content quality** (when present):
    - Are log entries valid JSONL format?

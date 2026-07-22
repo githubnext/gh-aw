@@ -57,6 +57,9 @@ Priority checks:
 2. Is the prompt front-loading large payloads that could be fetched on demand?
 3. Are there repetitive extraction steps that sub-agents could handle cheaply?
 4. Does the frontier model handle tasks that a small model could do?
+5. Can the workflow stay within its current budget after applying and measuring all applicable optimizations?
+
+Increasing `max-ai-credits` is the last resort. Recommend it only after the applicable optimizations below have been tried and measured, and the workflow still cannot complete with acceptable quality within the existing per-run budget.
 
 ### `max-daily-ai-credits` exceeded
 
@@ -101,6 +104,7 @@ After measuring token usage, produce a prioritized plan:
 7. **Prompt caching** — verify stable instructions and reusable experience appear before dynamic content
 8. **Experiment correctness first** — add an `experiments:` entry, compare output quality first, and use `metric: "aic"` to choose among equivalent-quality variants
 9. **Validate quality** — confirm the optimized run produces equivalent safe outputs
+10. **Raise the per-run budget only if necessary** — consider increasing `max-ai-credits` only after all applicable optimizations have been exhausted and measured
 
 Present the plan clearly before making any edits. Confirm with the user before applying changes.
 

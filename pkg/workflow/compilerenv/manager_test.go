@@ -15,6 +15,7 @@ func TestManager_WithInjectedGetter(t *testing.T) {
 		DefaultTimeoutMinutes:     "45",
 		DefaultMaxTurnCacheMisses: "9",
 		DefaultDetectionModel:     "gpt-5.5-mini",
+		DefaultEvalsModel:         "gpt-5.5-nano",
 		DefaultUTC:                "-08:00",
 	}
 	m := New(func(key string) string { return env[key] })
@@ -33,6 +34,9 @@ func TestManager_WithInjectedGetter(t *testing.T) {
 
 	t.Run("ResolveDefaultDetectionModel", func(t *testing.T) {
 		assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel(""))
+	})
+	t.Run("ResolveDefaultEvalsModel", func(t *testing.T) {
+		assert.Equal(t, "gpt-5.5-nano", m.ResolveDefaultEvalsModel(""))
 	})
 
 	t.Run("ResolveDefaultUTC", func(t *testing.T) {
@@ -55,6 +59,7 @@ func TestManager_FallbackWhenEnvEmpty(t *testing.T) {
 	assert.Equal(t, 20, m.ResolveDefaultTimeoutMinutes(20))
 	assert.Equal(t, 5, m.ResolveDefaultMaxTurnCacheMisses(5))
 	assert.Equal(t, "gpt-5.5-mini", m.ResolveDefaultDetectionModel("gpt-5.5-mini"))
+	assert.Equal(t, "gpt-5.5-nano", m.ResolveDefaultEvalsModel("gpt-5.5-nano"))
 	assert.Equal(t, "+00:00", m.ResolveDefaultUTC("+00:00"))
 }
 
@@ -122,6 +127,13 @@ func TestBuildDefaultDetectionMaxAICreditsExpression(t *testing.T) {
 	assert.Equal(t,
 		"${{ vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS || '400' }}",
 		BuildDefaultDetectionMaxAICreditsExpression("400"),
+	)
+}
+
+func TestBuildDefaultEvalsMaxAICreditsExpression(t *testing.T) {
+	assert.Equal(t,
+		"${{ vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS || '400' }}",
+		BuildDefaultEvalsMaxAICreditsExpression("400"),
 	)
 }
 
@@ -240,6 +252,23 @@ func TestResolveDefaultDetectionModel(t *testing.T) {
 	t.Run("set value overrides fallback", func(t *testing.T) {
 		t.Setenv(DefaultDetectionModel, "gpt-5.5-mini")
 		assert.Equal(t, "gpt-5.5-mini", ResolveDefaultDetectionModel(""))
+	})
+}
+
+func TestResolveDefaultEvalsModel(t *testing.T) {
+	t.Run("unset uses fallback", func(t *testing.T) {
+		t.Setenv(DefaultEvalsModel, "")
+		assert.Empty(t, ResolveDefaultEvalsModel(""))
+	})
+
+	t.Run("unset keeps non-empty fallback", func(t *testing.T) {
+		t.Setenv(DefaultEvalsModel, "")
+		assert.Equal(t, "gpt-5.5-nano", ResolveDefaultEvalsModel("gpt-5.5-nano"))
+	})
+
+	t.Run("set value overrides fallback", func(t *testing.T) {
+		t.Setenv(DefaultEvalsModel, "gpt-5.5-nano")
+		assert.Equal(t, "gpt-5.5-nano", ResolveDefaultEvalsModel(""))
 	})
 }
 

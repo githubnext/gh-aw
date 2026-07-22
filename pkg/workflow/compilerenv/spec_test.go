@@ -138,3 +138,13 @@ func TestSpec_DetectionMaxAICreditsGuardrail_ExpressionForm(t *testing.T) {
 		)
 	})
 }
+
+func TestSpec_EvalsMaxAICreditsGuardrail_ExpressionForm(t *testing.T) {
+	t.Run("spec §E-AIC-001: emits GitHub Actions expression with org var and built-in fallback", func(t *testing.T) {
+		got := compilerenv.BuildDefaultEvalsMaxAICreditsExpression("400")
+		assert.Equal(t,
+			"${{ vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS || '400' }}",
+			got,
+		)
+	})
+}

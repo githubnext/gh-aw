@@ -1430,6 +1430,7 @@ const OTLP_EXPORT_ERRORS_PATH = "/tmp/gh-aw/otlp-export-errors.count";
  * @type {string}
  */
 const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
+const AGENT_EXECUTION_EXIT_CODE_PATH = "/tmp/gh-aw/agent_execution_exit_code.txt";
 
 /**
  * Path to the failure categories file written by handle_agent_failure and read
@@ -1497,6 +1498,25 @@ function readOTLPExportErrorCount() {
     return Number.isInteger(parsed) && parsed >= 0 ? parsed : 0;
   } catch {
     return 0;
+  }
+}
+
+/**
+ * Read an integer value from a file.
+ *
+ * @param {string} filePath
+ * @returns {number | null}
+ */
+function readIntegerIfExists(filePath) {
+  try {
+    const raw = fs.readFileSync(filePath, "utf8").trim();
+    if (!raw) {
+      return null;
+    }
+    const parsed = parseInt(raw, 10);
+    return Number.isInteger(parsed) ? parsed : null;
+  } catch {
+    return null;
   }
 }
 
@@ -2037,6 +2057,8 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   const outputErrors = Array.isArray(agentOutput.errors) ? agentOutput.errors : [];
   const outputItems = Array.isArray(agentOutput.items) ? agentOutput.items : [];
   const errorMessages = outputErrors.map(getErrorMessage).filter(Boolean).slice(0, 5);
+  const agentExecutionExitCode = readIntegerIfExists(AGENT_EXECUTION_EXIT_CODE_PATH);
+  const hasAgentExecutionFailureExitCode = Number.isInteger(agentExecutionExitCode) && agentExecutionExitCode !== 0;
   const warningCount = runtimeMetrics.warningCount + (detectionConclusion === "warning" ? 1 : 0);
   const workflowRunConclusion = (typeof awInfo.workflow_run_conclusion === "string" ? awInfo.workflow_run_conclusion : "") || (typeof awInfo.context?.workflow_run_conclusion === "string" ? awInfo.context.workflow_run_conclusion : "");
 
@@ -2055,7 +2077,11 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   // When GH_AW_AGENT_CONCLUSION and workflowRunConclusion are both absent (e.g. in the
   // agent job's own post-step where needs.<job>.result is not yet visible), fall back to
   // observable failure evidence so gh-aw.run.status and status.code are accurate.
-  if (!rawRunStatus && outputErrors.length > 0) {
+  if (!rawRunStatus && hasAgentExecutionFailureExitCode) {
+    runStatus = "failure";
+    statusCode = 2;
+    statusMessage = `copilot cli exited with code ${agentExecutionExitCode}`;
+  } else if (!rawRunStatus && outputErrors.length > 0) {
     runStatus = "failure";
     statusCode = 2;
     statusMessage = (errorMessages.length > 0 ? `errors detected: ${errorMessages[0]}` : "errors detected").slice(0, 256);
@@ -2076,6 +2102,9 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.run.status", runStatus));
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));
+  if (typeof agentExecutionExitCode === "number" && Number.isInteger(agentExecutionExitCode)) {
+    attributes.push(buildAttr("gh-aw.agent.execution.exit_code", agentExecutionExitCode));
+  }
   attributes.push(buildAttr("gh-aw.permission_denied_count", runtimeMetrics.permissionDeniedCount));
   attributes.push(buildAttr("gh-aw.steering_event_count", runtimeMetrics.steeringEventCount));
   attributes.push(buildAttr("gh-aw.action_minutes", Math.max(0, endMs - startMs) / 60000));

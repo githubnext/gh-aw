@@ -5127,6 +5127,34 @@ describe("sendJobConclusionSpan", () => {
       expect(attrs["gh-aw.run.status"]).toBe("success");
       expect(span.status.code).toBe(1);
     });
+
+    it("sets gh-aw.run.status=failure and STATUS_CODE_ERROR when conclusion is absent, error_count=0, and execution exit code is non-zero", async () => {
+      const mockFetch = vi.fn().mockResolvedValue({ ok: true, status: 200, statusText: "OK" });
+      vi.stubGlobal("fetch", mockFetch);
+
+      process.env.GH_AW_OTLP_ENDPOINTS = JSON.stringify([{ url: "https://traces.example.com" }]);
+
+      readFileSpy.mockImplementation(filePath => {
+        if (filePath === "/tmp/gh-aw/agent_output.json") {
+          return JSON.stringify({ items: [{ type: "pull_request" }] });
+        }
+        if (filePath === "/tmp/gh-aw/agent_execution_exit_code.txt") {
+          return "22";
+        }
+        throw Object.assign(new Error("ENOENT"), { code: "ENOENT" });
+      });
+
+      await sendJobConclusionSpan("gh-aw.job.conclusion");
+
+      const body = JSON.parse(mockFetch.mock.calls[0][1].body);
+      const span = body.resourceSpans[0].scopeSpans[0].spans[0];
+      const attrs = Object.fromEntries(span.attributes.map(a => [a.key, a.value.intValue ?? a.value.stringValue ?? a.value.boolValue]));
+      expect(attrs["gh-aw.run.status"]).toBe("failure");
+      expect(attrs["gh-aw.error_count"]).toBe(0);
+      expect(attrs["gh-aw.agent.execution.exit_code"]).toBe(22);
+      expect(span.status.code).toBe(2);
+      expect(span.status.message).toBe("copilot cli exited with code 22");
+    });
   });
 
   describe("rate-limit enrichment in conclusion span", () => {

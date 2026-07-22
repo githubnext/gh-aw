@@ -223,6 +223,9 @@ function injectJsonFlag(args) {
 }
 
 function getCodexModelEnvVar(env = process.env) {
+  if ("GH_AW_MODEL_EVALS_CODEX" in env) {
+    return "GH_AW_MODEL_EVALS_CODEX";
+  }
   if ("GH_AW_MODEL_DETECTION_CODEX" in env) {
     return "GH_AW_MODEL_DETECTION_CODEX";
   }

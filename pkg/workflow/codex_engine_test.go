@@ -594,6 +594,7 @@ func TestCodexEngineExecutionPassesModelEnvVarIntoAWFStep(t *testing.T) {
 	tests := []struct {
 		name             string
 		safeOutputs      *SafeOutputsConfig
+		isEvalsRun       bool
 		expectedModelEnv string
 	}{
 		{
@@ -605,6 +606,12 @@ func TestCodexEngineExecutionPassesModelEnvVarIntoAWFStep(t *testing.T) {
 			name:             "detection job uses detection model env var",
 			safeOutputs:      nil,
 			expectedModelEnv: constants.EnvVarModelDetectionCodex,
+		},
+		{
+			name:             "evals job uses evals model env var",
+			safeOutputs:      nil,
+			isEvalsRun:       true,
+			expectedModelEnv: constants.EnvVarModelEvalsCodex,
 		},
 	}
 
@@ -622,6 +629,7 @@ func TestCodexEngineExecutionPassesModelEnvVarIntoAWFStep(t *testing.T) {
 					"bash": []any{"echo"},
 				},
 				SafeOutputs: tt.safeOutputs,
+				IsEvalsRun:  tt.isEvalsRun,
 			}
 
 			steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")

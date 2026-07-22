@@ -292,6 +292,15 @@ func TestApplyDefaultMaxAICreditsEnvToMap(t *testing.T) {
 		assert.Equal(t, compilerenv.BuildDefaultDetectionMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)), env[awfMaxAICreditsVarName])
 	})
 
+	t.Run("sets default evals expression for evals runs", func(t *testing.T) {
+		env := map[string]string{}
+		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{
+			IsEvalsRun:   true,
+			EngineConfig: &EngineConfig{ID: "copilot"},
+		})
+		assert.Equal(t, compilerenv.BuildDefaultEvalsMaxAICreditsExpression(strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)), env[awfMaxAICreditsVarName])
+	})
+
 	t.Run("does not set expression when max-ai-credits is configured", func(t *testing.T) {
 		env := map[string]string{}
 		applyDefaultMaxAICreditsEnvToMap(env, &WorkflowData{

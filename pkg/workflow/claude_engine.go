@@ -343,9 +343,11 @@ func (e *ClaudeEngine) buildClaudeCommandString(workflowData *WorkflowData, clau
 	// When model IS configured, ANTHROPIC_MODEL is set in the env block and the Claude CLI
 	// reads it natively — no --model flag in the shell command needed.
 	if !modelConfigured {
-		isDetectionJob := workflowData.SafeOutputs == nil
+		isDetectionJob := isDetectionRun(workflowData)
 		var modelEnvVar string
-		if isDetectionJob {
+		if workflowRunPhase(workflowData) == runPhaseEvals {
+			modelEnvVar = constants.EnvVarModelEvalsClaude
+		} else if isDetectionJob {
 			modelEnvVar = constants.EnvVarModelDetectionClaude
 		} else {
 			modelEnvVar = constants.EnvVarModelAgentClaude
@@ -426,11 +428,10 @@ func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[str
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	if workflowData.IsDetectionRun {
-		env["GH_AW_PHASE"] = "detection"
-	} else {
-		env["GH_AW_PHASE"] = "agent"
-		// Limit Anthropic SDK internal HTTP retries to 1 so terminal errors such as
+	phase := workflowRunPhase(workflowData)
+	env["GH_AW_PHASE"] = phase
+	if phase != runPhaseDetection {
+		// Limit Anthropic SDK internal retries so terminal errors such as
 		// 403 ai_credits_limit_exceeded are surfaced quickly to the harness.
 		// The outer harness already owns the full retry/backoff loop for 429/529.
 		// The external threat-detection path (threat-detect --engine claude) has no
@@ -504,11 +505,13 @@ func applyClaudeTimeoutEnvVars(env map[string]string, workflowData *WorkflowData
 // applyClaudeModelEnvVars configures ANTHROPIC_MODEL (or fallback env vars) in env.
 // When model is configured, the Claude CLI reads ANTHROPIC_MODEL natively, avoiding
 // template injection issues from embedding the value in shell commands.
-// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE.
+// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION/EVALS_CLAUDE.
 func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) {
-	isDetectionJob := workflowData.SafeOutputs == nil
+	phase := workflowRunPhase(workflowData)
 	if workflowData.Model == "" {
-		if isDetectionJob {
+		if phase == runPhaseEvals {
+			env[constants.EnvVarModelEvalsClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude)
+		} else if phase == runPhaseDetection || isDetectionRun(workflowData) {
 			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
 		} else {
 			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude)
@@ -516,7 +519,9 @@ func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) 
 		return
 	}
 	var claudeModelVar string
-	if isDetectionJob {
+	if phase == runPhaseEvals {
+		claudeModelVar = constants.EnvVarModelEvalsClaude
+	} else if phase == runPhaseDetection || isDetectionRun(workflowData) {
 		claudeModelVar = constants.EnvVarModelDetectionClaude
 	} else {
 		claudeModelVar = constants.EnvVarModelAgentClaude

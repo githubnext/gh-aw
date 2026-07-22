@@ -7,7 +7,7 @@ const EVALS_LOG_PATH = `${EVALS_DIR}/evals.log`;
 const EVALS_OUTPUT_PATH = "/tmp/gh-aw/evals.jsonl";
 const require = createRequire(import.meta.url);
 const { MODEL_FALLBACK_ENV_VAR } = require("./model_fallback.cjs");
-const { parseMain, extractAssistantTextFromJsonlLog } = require("./run_evals.cjs");
+const { setupMain, parseMain, extractAssistantTextFromJsonlLog } = require("./run_evals.cjs");
 
 const mockCore = {
   info: vi.fn(),
@@ -89,6 +89,17 @@ describe("run_evals.cjs", () => {
     expect(JSON.parse(line).model).toBe("claude-sonnet-4.6");
   });
 
+  it("builds setup prompt with ID-based format and UNKNOWN guidance", async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
+    await setupMain();
+
+    const prompt = fs.readFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", "utf8");
+    expect(prompt).toContain("<question-id>: YES");
+    expect(prompt).toContain("<question-id>: UNKNOWN");
+    expect(prompt).toContain("Use the exact question IDs provided in <questions>.");
+    expect(prompt).toContain("answer UNKNOWN.");
+  });
+
   it("parses answers from Pi v3 JSONL turn_end events (positional format)", async () => {
     vi.stubEnv(
       "GH_AW_EVALS_QUESTIONS",
@@ -166,6 +177,18 @@ describe("run_evals.cjs", () => {
 
     const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
     expect(JSON.parse(line).answer).toBe("YES");
+  });
+
+  it('keeps missing answers as "UNKNOWN"', async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
+    vi.stubEnv("GH_AW_EVALS_MODEL", "small");
+    vi.stubEnv("GITHUB_RUN_ID", "999");
+    fs.writeFileSync(EVALS_LOG_PATH, "unrelated: maybe\n", "utf8");
+
+    await parseMain();
+
+    const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
+    expect(JSON.parse(line).answer).toBe("UNKNOWN");
   });
 
   describe("extractAssistantTextFromJsonlLog", () => {

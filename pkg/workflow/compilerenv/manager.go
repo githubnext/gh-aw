@@ -52,6 +52,10 @@ const (
 	// threat-detection AWF apiProxy.maxAiCredits budget when
 	// safe-outputs.threat-detection.max-ai-credits is not explicitly configured.
 	DefaultDetectionMaxAICredits = "GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS"
+	// DefaultEvalsMaxAICredits is the enterprise override for the evals AWF
+	// apiProxy.maxAiCredits budget when evals.max-ai-credits is not explicitly
+	// configured.
+	DefaultEvalsMaxAICredits = "GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS"
 	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
@@ -61,6 +65,9 @@ const (
 	// DefaultDetectionModel is the enterprise override for selecting the detection
 	// job model when threat-detection.engine.model is not set.
 	DefaultDetectionModel = "GH_AW_DEFAULT_DETECTION_MODEL"
+	// DefaultEvalsModel is the enterprise override for selecting the evals
+	// job model when evals.model is not set.
+	DefaultEvalsModel = "GH_AW_DEFAULT_EVALS_MODEL"
 
 	// DefaultUTC is the enterprise override for the project home timezone used
 	// when rendering local times in CLI output.
@@ -151,6 +158,23 @@ func ResolveDefaultDetectionModel(fallback string) string {
 	return defaultManager.ResolveDefaultDetectionModel(fallback)
 }
 
+// ResolveDefaultEvalsModel returns fallback when the env var is unset,
+// otherwise returns the trimmed override value.
+func (m *Manager) ResolveDefaultEvalsModel(fallback string) string {
+	raw := strings.TrimSpace(m.getenv(DefaultEvalsModel))
+	if raw == "" {
+		return fallback
+	}
+	managerLog.Printf("Applying enterprise evals model override %s=%q (fallback was %q)", DefaultEvalsModel, raw, fallback)
+	return raw
+}
+
+// ResolveDefaultEvalsModel is a convenience wrapper that delegates to the
+// default process-environment Manager.
+func ResolveDefaultEvalsModel(fallback string) string {
+	return defaultManager.ResolveDefaultEvalsModel(fallback)
+}
+
 // ResolveDefaultUTC returns fallback when the env var is unset, otherwise
 // returns the trimmed override value.
 func (m *Manager) ResolveDefaultUTC(fallback string) string {
@@ -207,6 +231,15 @@ func BuildDefaultMaxAICreditsExpression(builtinDefault string) string {
 func BuildDefaultDetectionMaxAICreditsExpression(builtinDefault string) string {
 	escaped := strings.ReplaceAll(builtinDefault, "'", "''")
 	return fmt.Sprintf("${{ vars.%s || '%s' }}", DefaultDetectionMaxAICredits, escaped)
+}
+
+// BuildDefaultEvalsMaxAICreditsExpression builds a vars expression that resolves
+// the evals max-ai-credits default at runtime from the
+// GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS GitHub variable, falling back to
+// builtinDefault when the variable is unset.
+func BuildDefaultEvalsMaxAICreditsExpression(builtinDefault string) string {
+	escaped := strings.ReplaceAll(builtinDefault, "'", "''")
+	return fmt.Sprintf("${{ vars.%s || '%s' }}", DefaultEvalsMaxAICredits, escaped)
 }
 
 // BuildDefaultMaxTurnsExpression builds a vars expression that resolves max-turns

@@ -240,8 +240,22 @@ const (
 	EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"
 	// EnvVarModelDetectionOpenCode configures the default OpenCode model for detection
 	EnvVarModelDetectionOpenCode = "GH_AW_MODEL_DETECTION_OPENCODE"
+	// EnvVarModelEvalsCopilot configures the default Copilot model for evals execution
+	EnvVarModelEvalsCopilot = "GH_AW_MODEL_EVALS_COPILOT"
+	// EnvVarModelEvalsClaude configures the default Claude model for evals execution
+	EnvVarModelEvalsClaude = "GH_AW_MODEL_EVALS_CLAUDE"
+	// EnvVarModelEvalsCodex configures the default Codex model for evals execution
+	EnvVarModelEvalsCodex = "GH_AW_MODEL_EVALS_CODEX"
+	// EnvVarModelEvalsGemini configures the default Gemini model for evals execution
+	EnvVarModelEvalsGemini = "GH_AW_MODEL_EVALS_GEMINI"
+	// EnvVarModelEvalsAntigravity configures the default Antigravity model for evals execution
+	EnvVarModelEvalsAntigravity = "GH_AW_MODEL_EVALS_ANTIGRAVITY"
+	// EnvVarModelEvalsOpenCode configures the default OpenCode model for evals execution
+	EnvVarModelEvalsOpenCode = "GH_AW_MODEL_EVALS_OPENCODE"
 	// EnvVarModelAgentPi configures the default Pi model for agent execution
 	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
+	// EnvVarModelEvalsPi configures the default Pi model for evals execution
+	EnvVarModelEvalsPi = "GH_AW_MODEL_EVALS_PI"
 
 	// EnvVarModelFallback carries the standard org/enterprise/built-in model fallback
 	// expression for the current engine step. Runtime JavaScript harnesses can use this
