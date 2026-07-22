@@ -234,10 +234,18 @@ func displayHealthSummary(runs []WorkflowRun, config HealthConfig) error {
 	// Group runs by workflow
 	groupedRuns := GroupRunsByWorkflow(runs)
 
-	// Calculate health for each workflow
+	// Calculate health for each workflow, marking intentional-failure workflows so they
+	// are excluded from the fleet-health / prod-main success-rate rollup in CalculateHealthSummary.
 	workflowHealths := make([]WorkflowHealth, 0, len(groupedRuns))
 	for workflowName, workflowRuns := range groupedRuns {
 		health := CalculateWorkflowHealth(workflowName, workflowRuns, config.Threshold)
+		// Derive the workflow path from the first available run and check frontmatter.
+		for _, r := range workflowRuns {
+			if r.WorkflowPath != "" {
+				health.IntentionalFailure = workflow.IsIntentionalFailure(r.WorkflowPath)
+				break
+			}
+		}
 		workflowHealths = append(workflowHealths, health)
 	}
 
@@ -246,7 +254,7 @@ func displayHealthSummary(runs []WorkflowRun, config HealthConfig) error {
 		return cmp.Compare(a.SuccessRate, b.SuccessRate)
 	})
 
-	// Calculate summary
+	// Calculate summary (intentional-failure workflows excluded from rollup counts)
 	summary := CalculateHealthSummary(workflowHealths, fmt.Sprintf("Last %d Days", config.Days), config.Threshold)
 
 	// Output results

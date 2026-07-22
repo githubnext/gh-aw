@@ -2,6 +2,7 @@
 private: true
 emoji: "🧪"
 description: "⚠️ INTENTIONALLY BROKEN — Tests that max-daily-ai-credits: 1 is enforced by the activation guardrail and that a limit-exceeded message is posted when the daily budget is consumed."
+intentional-failure: true
 on:
   schedule: every 12 hours
   workflow_dispatch:

@@ -11352,6 +11352,12 @@
       "description": "Mark the workflow as private, preventing it from being added to other repositories via 'gh aw add'. A workflow with private: true is not meant to be shared outside its repository.",
       "examples": [true, false]
     },
+    "intentional-failure": {
+      "type": "boolean",
+      "default": false,
+      "description": "Mark the workflow as one that is intentionally expected to fail (e.g., guardrail stress-tests). Workflows tagged with intentional-failure: true are excluded from fleet-health and prod-main success-rate rollups so they do not depress real-regression baselines.",
+      "examples": [true, false]
+    },
     "check-for-updates": {
       "type": "boolean",
       "default": true,

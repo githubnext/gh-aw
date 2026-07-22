@@ -27,6 +27,9 @@ type WorkflowHealth struct {
 	AvgTokens     int           `json:"avg_tokens" console:"-"`
 	DisplayTokens string        `json:"-" console:"header:Avg Tokens"`
 	BelowThresh   bool          `json:"below_threshold" console:"-"`
+	// IntentionalFailure is true when the workflow is tagged with intentional-failure: true.
+	// These workflows are excluded from fleet-health and prod-main success-rate rollups.
+	IntentionalFailure bool `json:"intentional_failure,omitempty" console:"-"`
 }
 
 // HealthSummary represents aggregated health metrics across all workflows
@@ -175,7 +178,9 @@ func calculateSuccessRate(runs []WorkflowRun) float64 {
 	return safePercent(successCount, len(runs))
 }
 
-// CalculateHealthSummary calculates aggregated health metrics across all workflows
+// CalculateHealthSummary calculates aggregated health metrics across all workflows.
+// Workflows tagged with IntentionalFailure: true are excluded from the healthy/below-threshold
+// counts so they do not depress fleet-health and prod-main success-rate baselines.
 func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, threshold float64) HealthSummary {
 	healthMetricsLog.Printf("Calculating health summary: workflows=%d, period=%s", len(workflowHealths), period)
 
@@ -183,6 +188,10 @@ func CalculateHealthSummary(workflowHealths []WorkflowHealth, period string, thr
 	belowThresholdCount := 0
 
 	for _, wh := range workflowHealths {
+		if wh.IntentionalFailure {
+			// Exclude from rollup counts — these workflows are expected to fail.
+			continue
+		}
 		if wh.SuccessRate >= threshold {
 			healthyCount++
 		}
