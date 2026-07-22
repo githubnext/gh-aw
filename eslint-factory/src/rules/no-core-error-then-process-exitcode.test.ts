@@ -39,6 +39,14 @@ describe("no-core-error-then-process-exitcode", () => {
         `function run() { core.error("x"); return; process.exitCode = 1; }`,
         // throw between error and exitCode stops scanning
         `function run() { core.error("x"); throw new Error("x"); process.exitCode = 1; }`,
+        // break between error and exitCode stops scanning (inside a loop)
+        `while (true) { core.error("x"); break; process.exitCode = 1; }`,
+        // continue between error and exitCode stops scanning (inside a loop)
+        `for (let i = 0; i < 10; i++) { core.error("x"); continue; process.exitCode = 1; }`,
+        // process.exit() between error and exitCode stops scanning (dot access)
+        `core.error("x"); process.exit(1); process.exitCode = 1;`,
+        // process["exit"]() between error and exitCode stops scanning (computed access)
+        `core.error("x"); process["exit"](1); process.exitCode = 1;`,
       ],
       invalid: [
         {
@@ -102,6 +110,13 @@ describe("no-core-error-then-process-exitcode", () => {
         {
           // Two intervening statements
           code: `core.error("fatal"); core.info("a"); core.info("b"); process.exitCode = 1;`,
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+        },
+        {
+          // Two consecutive core.error calls before the same process.exitCode: only the first
+          // core.error reports (non-adjacent, no autofix) — deduplication prevents a second
+          // diagnostic and any conflicting autofix from the adjacent core.error("b").
+          code: `core.error("a"); core.error("b"); process.exitCode = 1;`,
           errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
         },
       ],

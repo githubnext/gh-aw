@@ -86,6 +86,8 @@ function isProcessExitCodeNonZero(node: TSESTree.Statement): node is TSESTree.Ex
 /**
  * Returns true when `node` is an expression statement containing a call to
  * `core.setFailed(...)` (direct, computed, or aliased).
+ * Accepts `sourceCode` for alias resolution via `isCoreAliasIdentifier`; contrast
+ * with `isControlTransferStatement` which is a pure syntax check and needs no source-code context.
  */
 function isCoreSetFailedStatement(node: TSESTree.Statement, sourceCode: SourceCode): boolean {
   if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
@@ -118,18 +120,14 @@ function isControlTransferStatement(node: TSESTree.Statement): boolean {
   ) {
     return true;
   }
-  // process.exit(...) — any call, regardless of exit code
+  // process.exit(...) — any call, regardless of exit code; handles both dot and computed access
   if (node.type === AST_NODE_TYPES.ExpressionStatement && node.expression.type === AST_NODE_TYPES.CallExpression) {
     const callee = node.expression.callee;
-    if (
-      callee.type === AST_NODE_TYPES.MemberExpression &&
-      !callee.computed &&
-      callee.object.type === AST_NODE_TYPES.Identifier &&
-      callee.object.name === "process" &&
-      callee.property.type === AST_NODE_TYPES.Identifier &&
-      callee.property.name === "exit"
-    ) {
-      return true;
+    if (callee.type === AST_NODE_TYPES.MemberExpression && callee.object.type === AST_NODE_TYPES.Identifier && callee.object.name === "process") {
+      const prop = callee.property;
+      const isExitDot = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "exit";
+      const isExitComputed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "exit";
+      if (isExitDot || isExitComputed) return true;
     }
   }
   return false;
@@ -172,6 +170,10 @@ export const noCoreErrorThenProcessExitCodeRule = createRule({
     const sourceCode = context.sourceCode;
 
     function checkStatements(stmts: readonly TSESTree.Statement[]): void {
+      // Track which process.exitCode nodes have already been reported so that two consecutive
+      // core.error() calls before the same exitCode do not each fire their own diagnostic
+      // (which could produce conflicting autofixers on the same node).
+      const reported = new WeakSet<TSESTree.Statement>();
       for (let i = 0; i < stmts.length - 1; i++) {
         const current = stmts[i];
         if (!isCoreErrorStatement(current, sourceCode)) continue;
@@ -182,38 +184,41 @@ export const noCoreErrorThenProcessExitCodeRule = createRule({
           const candidate = stmts[j];
 
           if (isProcessExitCodeNonZero(candidate)) {
-            const isAdjacent = j === i + 1;
-            // The autofix suggestion is only safe when the pair is at module top level or directly
-            // inside a `main()` entrypoint. Inside helper functions, `return;` only exits the helper
-            // and lets the caller continue. For non-adjacent pairs we omit the suggestion to avoid
-            // a fixer that leaves intervening statements between a deleted exitCode and the new setFailed.
-            const enclosingFn = getImmediateEnclosingFunction(current, sourceCode);
-            const errorCall = current.expression as TSESTree.CallExpression;
-            const safeToFix = isAdjacent && (enclosingFn === null || isFunctionNamedMain(enclosingFn)) && hasSingleNonSpreadArgument(errorCall);
+            if (!reported.has(candidate)) {
+              reported.add(candidate);
+              const isAdjacent = j === i + 1;
+              // The autofix suggestion is only safe when the pair is at module top level or directly
+              // inside a `main()` entrypoint. Inside helper functions, `return;` only exits the helper
+              // and lets the caller continue. For non-adjacent pairs we omit the suggestion to avoid
+              // a fixer that leaves intervening statements between a deleted exitCode and the new setFailed.
+              const enclosingFn = getImmediateEnclosingFunction(current, sourceCode);
+              const errorCall = current.expression as TSESTree.CallExpression;
+              const safeToFix = isAdjacent && (enclosingFn === null || isFunctionNamedMain(enclosingFn)) && hasSingleNonSpreadArgument(errorCall);
 
-            context.report({
-              node: current,
-              messageId: "noCoreErrorThenProcessExitCode",
-              suggest: safeToFix
-                ? [
-                    {
-                      messageId: "replaceWithSetFailed",
-                      fix(fixer: TSESLint.RuleFixer) {
-                        const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
-                        const callee = errorCall.callee as TSESTree.MemberExpression;
-                        const objectName = sourceCode.getText(callee.object);
+              context.report({
+                node: current,
+                messageId: "noCoreErrorThenProcessExitCode",
+                suggest: safeToFix
+                  ? [
+                      {
+                        messageId: "replaceWithSetFailed",
+                        fix(fixer: TSESLint.RuleFixer) {
+                          const args = errorCall.arguments.map(a => sourceCode.getText(a)).join(", ");
+                          const callee = errorCall.callee as TSESTree.MemberExpression;
+                          const objectName = sourceCode.getText(callee.object);
 
-                        // At module top-level (enclosingFn === null) there is nothing to `return` from,
-                        // so we just replace with setFailed. Inside main() we append `return;` to exit
-                        // the entrypoint cleanly.
-                        const replacement = enclosingFn !== null ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
+                          // At module top-level (enclosingFn === null) there is nothing to `return` from,
+                          // so we just replace with setFailed. Inside main() we append `return;` to exit
+                          // the entrypoint cleanly.
+                          const replacement = enclosingFn !== null ? `${objectName}.setFailed(${args}); return;` : `${objectName}.setFailed(${args});`;
 
-                        return [fixer.replaceText(current, replacement + "\n"), fixer.remove(candidate)];
+                          return [fixer.replaceText(current, replacement + "\n"), fixer.remove(candidate)];
+                        },
                       },
-                    },
-                  ]
-                : [],
-            });
+                    ]
+                  : [],
+              });
+            }
             break;
           }
 
