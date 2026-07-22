@@ -896,117 +896,6 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(callArgs.event).toBe("APPROVE");
     });
 
-    it("should proactively downgrade REQUEST_CHANGES → COMMENT when PR author matches GITHUB_ACTOR", async () => {
-      const previousActor = process.env.GITHUB_ACTOR;
-      process.env.GITHUB_ACTOR = "linter-miner[bot]";
-      try {
-        buffer.addComment({ path: "test.js", line: 1, body: "comment" });
-        buffer.setReviewMetadata("Fix this", "REQUEST_CHANGES");
-        buffer.setReviewContext({
-          repo: "owner/repo",
-          repoParts: { owner: "owner", repo: "repo" },
-          pullRequestNumber: 42,
-          pullRequest: { head: { sha: "abc123" }, user: { login: "linter-miner[bot]" } },
-        });
-
-        mockGithub.rest.pulls.createReview.mockResolvedValueOnce({
-          data: {
-            id: 703,
-            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-703",
-          },
-        });
-
-        const result = await buffer.submitReview();
-
-        expect(result.success).toBe(true);
-        expect(result.event).toBe("COMMENT");
-        // Only one call — no 422 because we downgraded proactively
-        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
-        const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
-        expect(callArgs.event).toBe("COMMENT");
-        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Downgrading 'REQUEST_CHANGES' → 'COMMENT'"));
-      } finally {
-        if (previousActor === undefined) {
-          delete process.env.GITHUB_ACTOR;
-        } else {
-          process.env.GITHUB_ACTOR = previousActor;
-        }
-      }
-    });
-
-    it("should proactively downgrade APPROVE → COMMENT when PR author matches GITHUB_ACTOR", async () => {
-      const previousActor = process.env.GITHUB_ACTOR;
-      process.env.GITHUB_ACTOR = "bot-user";
-      try {
-        buffer.addComment({ path: "test.js", line: 1, body: "comment" });
-        buffer.setReviewMetadata("LGTM", "APPROVE");
-        buffer.setReviewContext({
-          repo: "owner/repo",
-          repoParts: { owner: "owner", repo: "repo" },
-          pullRequestNumber: 42,
-          pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
-        });
-
-        mockGithub.rest.pulls.createReview.mockResolvedValueOnce({
-          data: {
-            id: 704,
-            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-704",
-          },
-        });
-
-        const result = await buffer.submitReview();
-
-        expect(result.success).toBe(true);
-        expect(result.event).toBe("COMMENT");
-        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
-        const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
-        expect(callArgs.event).toBe("COMMENT");
-        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Downgrading 'APPROVE' → 'COMMENT'"));
-      } finally {
-        if (previousActor === undefined) {
-          delete process.env.GITHUB_ACTOR;
-        } else {
-          process.env.GITHUB_ACTOR = previousActor;
-        }
-      }
-    });
-
-    it("should not downgrade when PR author does not match GITHUB_ACTOR", async () => {
-      const previousActor = process.env.GITHUB_ACTOR;
-      process.env.GITHUB_ACTOR = "reviewer-bot";
-      try {
-        buffer.addComment({ path: "test.js", line: 1, body: "comment" });
-        buffer.setReviewMetadata("Fix this", "REQUEST_CHANGES");
-        buffer.setReviewContext({
-          repo: "owner/repo",
-          repoParts: { owner: "owner", repo: "repo" },
-          pullRequestNumber: 42,
-          pullRequest: { head: { sha: "abc123" }, user: { login: "pr-author" } },
-        });
-
-        mockGithub.rest.pulls.createReview.mockResolvedValueOnce({
-          data: {
-            id: 705,
-            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-705",
-          },
-        });
-
-        const result = await buffer.submitReview();
-
-        expect(result.success).toBe(true);
-        expect(result.event).toBe("REQUEST_CHANGES");
-        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(1);
-        const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
-        expect(callArgs.event).toBe("REQUEST_CHANGES");
-      } finally {
-        if (previousActor === undefined) {
-          delete process.env.GITHUB_ACTOR;
-        } else {
-          process.env.GITHUB_ACTOR = previousActor;
-        }
-      }
-    });
-
     it("should not retry with COMMENT when event is already COMMENT and API error occurs", async () => {
       buffer.addComment({ path: "test.js", line: 1, body: "comment" });
       buffer.setReviewMetadata("Some feedback", "COMMENT");
@@ -1026,57 +915,77 @@ describe("pr_review_buffer (factory pattern)", () => {
     });
 
     it("should return failure when retry also fails", async () => {
-      buffer.addComment({ path: "test.js", line: 1, body: "comment" });
-      buffer.setReviewMetadata("LGTM", "APPROVE");
-      buffer.setReviewContext({
-        repo: "owner/repo",
-        repoParts: { owner: "owner", repo: "repo" },
-        pullRequestNumber: 42,
-        pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
-      });
+      const previousActor = process.env.GITHUB_ACTOR;
+      process.env.GITHUB_ACTOR = "someone-else";
+      try {
+        buffer.addComment({ path: "test.js", line: 1, body: "comment" });
+        buffer.setReviewMetadata("LGTM", "APPROVE");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
+        });
 
-      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Can not approve your own pull request")).mockRejectedValueOnce(new Error("Some other error"));
+        mockGithub.rest.pulls.createReview.mockRejectedValueOnce(new Error("Can not approve your own pull request")).mockRejectedValueOnce(new Error("Some other error"));
 
-      const result = await buffer.submitReview();
+        const result = await buffer.submitReview();
 
-      expect(result.success).toBe(false);
-      expect(result.error).toContain("Some other error");
-      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+        expect(result.success).toBe(false);
+        expect(result.error).toContain("Some other error");
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      } finally {
+        if (previousActor === undefined) {
+          delete process.env.GITHUB_ACTOR;
+        } else {
+          process.env.GITHUB_ACTOR = previousActor;
+        }
+      }
     });
 
     it("should fall back to body-only COMMENT when own-PR COMMENT retry also fails with line-resolution error", async () => {
-      buffer.addComment({ path: "file.go", line: 10, body: "Inline comment" });
-      buffer.setReviewMetadata("Fix this", "REQUEST_CHANGES");
-      buffer.setReviewContext({
-        repo: "owner/repo",
-        repoParts: { owner: "owner", repo: "repo" },
-        pullRequestNumber: 42,
-        pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
-      });
-
-      mockGithub.rest.pulls.createReview
-        // Initial attempt — own-PR 422
-        .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
-        // COMMENT retry with inline comments — line unresolvable
-        .mockRejectedValueOnce(new Error('Unprocessable Entity: "Line could not be resolved"'))
-        // Body-only COMMENT fallback — success
-        .mockResolvedValueOnce({
-          data: {
-            id: 800,
-            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-800",
-          },
+      const previousActor = process.env.GITHUB_ACTOR;
+      process.env.GITHUB_ACTOR = "someone-else";
+      try {
+        buffer.addComment({ path: "file.go", line: 10, body: "Inline comment" });
+        buffer.setReviewMetadata("Fix this", "REQUEST_CHANGES");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
         });
 
-      const result = await buffer.submitReview();
+        mockGithub.rest.pulls.createReview
+          // Initial attempt — own-PR 422
+          .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
+          // COMMENT retry with inline comments — line unresolvable
+          .mockRejectedValueOnce(new Error('Unprocessable Entity: "Line could not be resolved"'))
+          // Body-only COMMENT fallback — success
+          .mockResolvedValueOnce({
+            data: {
+              id: 800,
+              html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-800",
+            },
+          });
 
-      expect(result.success).toBe(true);
-      expect(result.event).toBe("COMMENT");
-      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
-      const bodyOnlyArgs = mockGithub.rest.pulls.createReview.mock.calls[2][0];
-      expect(bodyOnlyArgs.event).toBe("COMMENT");
-      expect(bodyOnlyArgs.comments).toBeUndefined();
-      expect(bodyOnlyArgs.body).toContain("Inline comment");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("COMMENT retry on own PR failed with unresolvable line(s)"));
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.event).toBe("COMMENT");
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
+        const bodyOnlyArgs = mockGithub.rest.pulls.createReview.mock.calls[2][0];
+        expect(bodyOnlyArgs.event).toBe("COMMENT");
+        expect(bodyOnlyArgs.comments).toBeUndefined();
+        expect(bodyOnlyArgs.body).toContain("Inline comment");
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("COMMENT retry on own PR failed with unresolvable line(s)"));
+      } finally {
+        if (previousActor === undefined) {
+          delete process.env.GITHUB_ACTOR;
+        } else {
+          process.env.GITHUB_ACTOR = previousActor;
+        }
+      }
     });
 
     it("should skip (success:true, skipped:true) when PR is permanently locked after all retries", async () => {
@@ -1564,38 +1473,48 @@ describe("pr_review_buffer (factory pattern)", () => {
     });
 
     it("should retry body-only as COMMENT when body-only REQUEST_CHANGES is rejected on own PR after line-resolution failure", async () => {
-      buffer.addComment({ path: "file.go", line: 5, body: "Nil dereference on this line" });
-      buffer.setReviewMetadata("Fix the blocking issues.", "REQUEST_CHANGES");
-      buffer.setReviewContext({
-        repo: "owner/repo",
-        repoParts: { owner: "owner", repo: "repo" },
-        pullRequestNumber: 47375,
-        pullRequest: { head: { sha: "abc123" }, user: { login: "linter-miner[bot]" } },
-      });
-
-      mockGithub.rest.pulls.createReview
-        // Initial attempt — line resolution fails (this triggers the body-only path)
-        .mockRejectedValueOnce(new Error('Unprocessable Entity: "Line could not be resolved"'))
-        // Body-only REQUEST_CHANGES — own-PR 422
-        .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
-        // Body-only COMMENT retry — success
-        .mockResolvedValueOnce({
-          data: {
-            id: 900,
-            html_url: "https://github.com/owner/repo/pull/47375#pullrequestreview-900",
-          },
+      const previousActor = process.env.GITHUB_ACTOR;
+      process.env.GITHUB_ACTOR = "someone-else";
+      try {
+        buffer.addComment({ path: "file.go", line: 5, body: "Nil dereference on this line" });
+        buffer.setReviewMetadata("Fix the blocking issues.", "REQUEST_CHANGES");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 47375,
+          pullRequest: { head: { sha: "abc123" }, user: { login: "linter-miner[bot]" } },
         });
 
-      const result = await buffer.submitReview();
+        mockGithub.rest.pulls.createReview
+          // Initial attempt — line resolution fails (this triggers the body-only path)
+          .mockRejectedValueOnce(new Error('Unprocessable Entity: "Line could not be resolved"'))
+          // Body-only REQUEST_CHANGES — own-PR 422
+          .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
+          // Body-only COMMENT retry — success
+          .mockResolvedValueOnce({
+            data: {
+              id: 900,
+              html_url: "https://github.com/owner/repo/pull/47375#pullrequestreview-900",
+            },
+          });
 
-      expect(result.success).toBe(true);
-      expect(result.event).toBe("COMMENT");
-      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
-      const bodyOnlyCommentArgs = mockGithub.rest.pulls.createReview.mock.calls[2][0];
-      expect(bodyOnlyCommentArgs.event).toBe("COMMENT");
-      expect(bodyOnlyCommentArgs.comments).toBeUndefined();
-      expect(bodyOnlyCommentArgs.body).toContain("Nil dereference on this line");
-      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Body-only REQUEST_CHANGES review rejected on own PR"));
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        expect(result.event).toBe("COMMENT");
+        expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
+        const bodyOnlyCommentArgs = mockGithub.rest.pulls.createReview.mock.calls[2][0];
+        expect(bodyOnlyCommentArgs.event).toBe("COMMENT");
+        expect(bodyOnlyCommentArgs.comments).toBeUndefined();
+        expect(bodyOnlyCommentArgs.body).toContain("Nil dereference on this line");
+        expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Body-only REQUEST_CHANGES review rejected on own PR"));
+      } finally {
+        if (previousActor === undefined) {
+          delete process.env.GITHUB_ACTOR;
+        } else {
+          process.env.GITHUB_ACTOR = previousActor;
+        }
+      }
     });
 
     it("should return failure when body-only COMMENT retry also fails on own PR", async () => {

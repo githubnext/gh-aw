@@ -302,18 +302,6 @@ function createReviewBuffer() {
     let event = reviewMetadata ? reviewMetadata.event : "COMMENT";
     let body = reviewMetadata ? reviewMetadata.body : "";
 
-    // Proactively downgrade REQUEST_CHANGES/APPROVE → COMMENT on self-authored PRs.
-    // GITHUB_TOKEN lacks read:user scope for reliable identity pre-flight via the API, so
-    // compare the PR author login against GITHUB_ACTOR as a best-effort guard.
-    // The reactive 422 retry in the catch block is retained as a safety net for cases this misses.
-    if (event !== "COMMENT" && pullRequest.user?.login) {
-      const actor = (process.env.GITHUB_ACTOR || "").trim();
-      if (actor && pullRequest.user.login === actor) {
-        core.warning(`PR #${pullRequestNumber} is authored by the workflow actor ('${actor}'). ` + `Downgrading '${event}' → 'COMMENT' to avoid 422 "Can not request changes on your own pull request".`);
-        event = "COMMENT";
-      }
-    }
-
     // Determine if we should add footer based on footer mode
     let shouldAddFooter = footerMode === "always";
     if (footerMode === "if-body") {
