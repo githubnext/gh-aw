@@ -138,6 +138,20 @@ describe("create_issue", () => {
       );
     });
 
+    it("should use the first meaningful body line as title when title is missing", async () => {
+      const handler = await main({});
+      const body = "\n\n## Incident Summary\n\nFull details line 1\nFull details line 2";
+      const result = await handler({ body });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "Incident Summary",
+          body: expect.stringContaining("Full details line 1\nFull details line 2"),
+        })
+      );
+    });
+
     it("should use 'Agent Output' as title when both title and body are missing", async () => {
       const handler = await main({});
       const result = await handler({});

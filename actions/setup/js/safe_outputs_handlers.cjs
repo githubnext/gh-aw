@@ -1697,7 +1697,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     let resolvedTitle = entry.title?.trim() || "";
     if (!resolvedTitle) {
-      resolvedTitle = entry.body?.trim() || "Agent Output";
+      // Use the first non-empty line of the body as the title fallback rather than
+      // the entire body, so the title stays concise and the body remains intact.
+      const firstBodyLine = (entry.body || "")
+        .split("\n")
+        .map(l => l.replace(/^#+\s*/, "").trim())
+        .find(l => l.length > 0);
+      resolvedTitle = firstBodyLine || "Agent Output";
     }
     resolvedTitle = applyTitlePrefix(sanitizeTitle(resolvedTitle, createIssueTitlePrefix), createIssueTitlePrefix);
 

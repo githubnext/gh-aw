@@ -90,7 +90,7 @@ func InitRepository(opts InitOptions) error {
 	if copilotArtifactsEnabled {
 		if opts.Skill {
 			initLog.Print("Writing agentic workflows dispatcher skill")
-			if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false); err != nil {
+			if err := ensureAgenticWorkflowsDispatcher(opts.Verbose, false, true); err != nil {
 				initLog.Printf("Failed to write dispatcher skill: %v", err)
 				return fmt.Errorf("failed to write dispatcher skill: %w", err)
 			}
@@ -102,7 +102,7 @@ func InitRepository(opts InitOptions) error {
 		}
 		if opts.Agent {
 			initLog.Print("Writing agentic workflows custom agent")
-			if err := ensureAgenticWorkflowsAgent(opts.Verbose); err != nil {
+			if err := ensureAgenticWorkflowsAgent(opts.Verbose, true); err != nil {
 				initLog.Printf("Failed to write agentic workflows custom agent: %v", err)
 				return fmt.Errorf("failed to write agentic workflows custom agent: %w", err)
 			}

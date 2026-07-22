@@ -38,7 +38,12 @@ function resolveIssueTitleForValidation(entry) {
     return entry.title;
   }
   if (typeof entry.body === "string" && entry.body.trim()) {
-    return entry.body;
+    // Mirror create_issue's fallback: use the first non-empty line of the body.
+    const firstBodyLine = entry.body
+      .split("\n")
+      .map(l => l.replace(/^#+\s*/, "").trim())
+      .find(l => l.length > 0);
+    if (firstBodyLine) return firstBodyLine;
   }
   // Mirror create_issue's own fallback so probe validation sees the same
   // effective title the handler would ultimately use when both fields are absent.

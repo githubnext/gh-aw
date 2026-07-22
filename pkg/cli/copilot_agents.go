@@ -38,7 +38,7 @@ var listAgenticWorkflowsMarkdownFiles = fetchAgenticWorkflowsMarkdownFiles
 
 // ensureAgenticWorkflowsDispatcher ensures that .github/skills/agentic-workflows/SKILL.md
 // exists and contains the routing instructions loaded by the Agentic Workflows agent.
-func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error {
+func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool, write bool) error {
 	copilotAgentsLog.Print("Ensuring agentic workflows dispatcher skill")
 
 	if skipInstructions {
@@ -54,20 +54,15 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 	targetDir := filepath.Join(gitRoot, ".github", "skills", "agentic-workflows")
 	targetPath := filepath.Join(targetDir, "SKILL.md")
 
-	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create .github/skills/agentic-workflows directory: %w", err)
-	}
-
 	skillContent, err := buildAgenticWorkflowsSkillContent()
 	if err != nil {
 		copilotAgentsLog.Printf("Failed to build dispatcher skill: %v", err)
 		return fmt.Errorf("failed to build dispatcher skill: %w", err)
 	}
 
-	// Check if the file already exists and matches the downloaded content
-	existingContent := ""
-	if content, err := os.ReadFile(targetPath); err == nil {
-		existingContent = string(content)
+	existingContent, fileExists, err := readExistingRepositoryInstructionFile(targetPath, "dispatcher skill")
+	if err != nil {
+		return err
 	}
 
 	// Check if content matches the downloaded template
@@ -80,13 +75,21 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 		return nil
 	}
 
-	// Skill files are committed repository instructions, so keep them world-readable.
-	if err := os.WriteFile(targetPath, []byte(skillContent), constants.FilePermPublic); err != nil {
+	if !write {
+		action := "update"
+		if !fileExists {
+			action = "create"
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Would %s dispatcher skill: %s", action, targetPath)))
+		return nil
+	}
+
+	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(skillContent), write, ".github/skills/agentic-workflows directory", "dispatcher skill"); err != nil {
 		copilotAgentsLog.Printf("Failed to write dispatcher skill: %s, error: %v", targetPath, err)
 		return fmt.Errorf("failed to write dispatcher skill: %w", err)
 	}
 
-	if existingContent == "" {
+	if !fileExists {
 		copilotAgentsLog.Printf("Created dispatcher skill: %s", targetPath)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created dispatcher skill: "+targetPath))
@@ -102,7 +105,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool) error
 }
 
 // ensureAgenticWorkflowsAgent ensures that .github/agents/agentic-workflows.md contains the custom agent.
-func ensureAgenticWorkflowsAgent(verbose bool) error {
+func ensureAgenticWorkflowsAgent(verbose bool, write bool) error {
 	copilotAgentsLog.Print("Ensuring agentic workflows custom agent")
 
 	gitRoot, err := gitutil.FindGitRoot()
@@ -113,13 +116,9 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 	targetDir := filepath.Join(gitRoot, ".github", "agents")
 	targetPath := filepath.Join(targetDir, "agentic-workflows.md")
 
-	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create .github/agents directory: %w", err)
-	}
-
-	existingContent := ""
-	if content, err := os.ReadFile(targetPath); err == nil {
-		existingContent = string(content)
+	existingContent, fileExists, err := readExistingRepositoryInstructionFile(targetPath, "Agentic Workflows custom agent")
+	if err != nil {
+		return err
 	}
 
 	agenticWorkflowsAgentContent, err := buildAgenticWorkflowsAgentContent(gitRoot)
@@ -136,11 +135,20 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 		return nil
 	}
 
-	if err := os.WriteFile(targetPath, []byte(agenticWorkflowsAgentContent), constants.FilePermPublic); err != nil {
+	if !write {
+		action := "update"
+		if !fileExists {
+			action = "create"
+		}
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Would %s Agentic Workflows custom agent: %s", action, targetPath)))
+		return nil
+	}
+
+	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(agenticWorkflowsAgentContent), write, ".github/agents directory", "Agentic Workflows custom agent"); err != nil {
 		return fmt.Errorf("failed to write Agentic Workflows custom agent: %w", err)
 	}
 
-	if existingContent == "" {
+	if !fileExists {
 		copilotAgentsLog.Printf("Created Agentic Workflows custom agent: %s", targetPath)
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created Agentic Workflows custom agent: "+targetPath))
@@ -153,6 +161,34 @@ func ensureAgenticWorkflowsAgent(verbose bool) error {
 	}
 
 	return nil
+}
+
+func writeGeneratedRepositoryInstructionFile(targetPath string, content []byte, write bool, parentDirDescription string, artifactDescription string) error {
+	if !write {
+		return fmt.Errorf("internal error: refusing to write %s without --write: %s", artifactDescription, targetPath)
+	}
+
+	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create %s: %w", parentDirDescription, err)
+	}
+
+	// Repository instruction files are committed artifacts, so keep them world-readable.
+	if err := os.WriteFile(targetPath, content, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write %s: %w", artifactDescription, err)
+	}
+
+	return nil
+}
+
+func readExistingRepositoryInstructionFile(targetPath string, artifactDescription string) (string, bool, error) {
+	content, err := os.ReadFile(targetPath)
+	if err == nil {
+		return string(content), true, nil
+	}
+	if os.IsNotExist(err) {
+		return "", false, nil
+	}
+	return "", false, fmt.Errorf("failed to read existing %s: %w", artifactDescription, err)
 }
 
 func buildAgenticWorkflowsAgentContent(gitRoot string) (string, error) {

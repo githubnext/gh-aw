@@ -421,11 +421,11 @@ func runUpgradeCommand(opts upgradeOptions) error {
 // updateCopilotArtifacts updates the dispatcher skill and related Copilot setup artifacts.
 func updateCopilotArtifacts(ctx context.Context, verbose bool) error {
 	// Update dispatcher skill
-	if err := ensureAgenticWorkflowsDispatcher(verbose, false); err != nil {
+	if err := ensureAgenticWorkflowsDispatcher(verbose, false, true); err != nil {
 		upgradeLog.Printf("Failed to update dispatcher skill: %v", err)
 		return fmt.Errorf("failed to update dispatcher skill: %w", err)
 	}
-	if err := ensureAgenticWorkflowsAgent(verbose); err != nil {
+	if err := ensureAgenticWorkflowsAgent(verbose, true); err != nil {
 		upgradeLog.Printf("Failed to update Agentic Workflows custom agent: %v", err)
 		return fmt.Errorf("failed to update Agentic Workflows custom agent: %w", err)
 	}
