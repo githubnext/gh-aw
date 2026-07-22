@@ -707,6 +707,41 @@ func stubAgenticWorkflowsMarkdownFilesForTest(t *testing.T) {
 	})
 }
 
+func TestWriteGeneratedRepositoryInstructionFile_RefusesDryRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	targetPath := filepath.Join(tmpDir, ".github", "skills", "agentic-workflows", "SKILL.md")
+	originalContent := []byte("existing content\n")
+
+	require.NoError(t, os.MkdirAll(filepath.Dir(targetPath), 0755))
+	require.NoError(t, os.WriteFile(targetPath, originalContent, 0644))
+
+	err := writeGeneratedRepositoryInstructionFile(
+		targetPath,
+		[]byte("new content\n"),
+		false,
+		".github/skills/agentic-workflows directory",
+		"dispatcher skill",
+	)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "refusing to write dispatcher skill without --write")
+
+	content, readErr := os.ReadFile(targetPath)
+	require.NoError(t, readErr)
+	assert.Equal(t, string(originalContent), string(content))
+
+	missingPath := filepath.Join(tmpDir, ".github", "agents", "nested", "agentic-workflows.md")
+	err = writeGeneratedRepositoryInstructionFile(
+		missingPath,
+		[]byte("new content\n"),
+		false,
+		".github/agents directory",
+		"Agentic Workflows custom agent",
+	)
+	require.Error(t, err)
+	assert.NoFileExists(t, missingPath)
+	assert.NoDirExists(t, filepath.Dir(missingPath))
+}
+
 func TestFixCommand_DryRunDoesNotUpdatePromptAndAgentFiles(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		// Skip when git isn't available in the test environment.

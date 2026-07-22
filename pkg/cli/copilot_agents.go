@@ -85,12 +85,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool, write
 		return nil
 	}
 
-	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create .github/skills/agentic-workflows directory: %w", err)
-	}
-
-	// Skill files are committed repository instructions, so keep them world-readable.
-	if err := os.WriteFile(targetPath, []byte(skillContent), constants.FilePermPublic); err != nil {
+	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(skillContent), write, ".github/skills/agentic-workflows directory", "dispatcher skill"); err != nil {
 		copilotAgentsLog.Printf("Failed to write dispatcher skill: %s, error: %v", targetPath, err)
 		return fmt.Errorf("failed to write dispatcher skill: %w", err)
 	}
@@ -150,11 +145,7 @@ func ensureAgenticWorkflowsAgent(verbose bool, write bool) error {
 		return nil
 	}
 
-	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
-		return fmt.Errorf("failed to create .github/agents directory: %w", err)
-	}
-
-	if err := os.WriteFile(targetPath, []byte(agenticWorkflowsAgentContent), constants.FilePermPublic); err != nil {
+	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(agenticWorkflowsAgentContent), write, ".github/agents directory", "Agentic Workflows custom agent"); err != nil {
 		return fmt.Errorf("failed to write Agentic Workflows custom agent: %w", err)
 	}
 
@@ -168,6 +159,23 @@ func ensureAgenticWorkflowsAgent(verbose bool, write bool) error {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated Agentic Workflows custom agent: "+targetPath))
 		}
+	}
+
+	return nil
+}
+
+func writeGeneratedRepositoryInstructionFile(targetPath string, content []byte, write bool, parentDirDescription string, artifactDescription string) error {
+	if !write {
+		return fmt.Errorf("internal error: refusing to write %s without --write: %s", artifactDescription, targetPath)
+	}
+
+	if err := fileutil.EnsureParentDir(targetPath, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create %s: %w", parentDirDescription, err)
+	}
+
+	// Repository instruction files are committed artifacts, so keep them world-readable.
+	if err := os.WriteFile(targetPath, content, constants.FilePermPublic); err != nil {
+		return err
 	}
 
 	return nil
