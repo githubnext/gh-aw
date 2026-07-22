@@ -1,6 +1,8 @@
 // @ts-check
 "use strict";
 
+/// <reference types="@actions/github-script" />
+
 const fs = require("fs");
 const path = require("path");
 
@@ -45,8 +47,7 @@ function normalizeGatewayEntry(entry, urlPrefix, mutate) {
 function requireEnvVar(name) {
   const value = process.env[name];
   if (!value) {
-    core.error(`ERROR: ${name} environment variable is required`);
-    process.exit(1);
+    throw new Error(`${name} environment variable is required`);
   }
   return value;
 }
@@ -67,8 +68,7 @@ function loadGatewayContext(options = {}) {
   const extraRequiredEnv = options.extraRequiredEnv || [];
   const gatewayOutput = requireEnvVar("MCP_GATEWAY_OUTPUT");
   if (!fs.existsSync(gatewayOutput)) {
-    core.error(`ERROR: Gateway output file not found: ${gatewayOutput}`);
-    process.exit(1);
+    throw new Error(`Gateway output file not found: ${gatewayOutput}`);
   }
 
   const domain = requireEnvVar("MCP_GATEWAY_DOMAIN");
