@@ -61,7 +61,13 @@ steps:
 post-steps:
   - name: Enforce critical vulnerability and license gates
     if: always()
+    env:
+      SCAN_JOB_RESULT: ${{ needs.scan_image.result }}
     run: |
+      if [ "$SCAN_JOB_RESULT" != "success" ]; then
+        echo "::error::Image scan job concluded with ${SCAN_JOB_RESULT}."
+        exit 1
+      fi
       summary="/tmp/gh-aw/agent/image-scan/summary.json"
       jq -e '
         (.critical_vulnerabilities == 0) and
@@ -194,6 +200,7 @@ jobs:
             image_tag=$(jq -r '.image' <<<"$image_entry")
             pinned_image=$(jq -r '.pinned_image' <<<"$image_entry")
             index_digest=$(jq -r '.digest' <<<"$image_entry")
+            echo "Scanning ${pinned_image}"
             image_errors="$output/${artifact_prefix}-errors.txt"
             image_platforms="$output/${artifact_prefix}-platforms.tsv"
             : > "$image_errors"
@@ -277,12 +284,14 @@ jobs:
               if ! syft "${syft_args[@]}" "$immutable_image" \
                 -o "syft-json=${syft_json}" \
                 -o "spdx-json=${spdx_json}" > "$output/syft-${suffix}.txt" 2>&1; then
+                cat "$output/syft-${suffix}.txt" >&2
                 record_image_error "Syft failed to scan ${image_tag} for ${platform} at ${child_digest}."
                 continue
               fi
 
               if ! GRYPE_DB_AUTO_UPDATE=false grype "sbom:${syft_json}" \
                 -o json > "$output/grype-${suffix}.json" 2> "$output/grype-${suffix}.stderr"; then
+                cat "$output/grype-${suffix}.stderr" >&2
                 record_image_error "Grype failed to produce JSON results for ${image_tag} on ${platform}."
                 continue
               fi
@@ -300,34 +309,42 @@ jobs:
               image_critical=$((image_critical + platform_critical))
               image_fixable=$((image_fixable + platform_fixable))
 
+              grype_exit=0
               GRYPE_DB_AUTO_UPDATE=false grype "sbom:${syft_json}" \
-                --fail-on critical -o table > "$output/grype-${suffix}.txt" 2>&1
-              grype_exit=$?
-              if [ "$grype_exit" -ne 0 ] && [ "$grype_exit" -ne 1 ]; then
+                --fail-on critical -o table > "$output/grype-${suffix}.txt" 2>&1 ||
+                grype_exit=$?
+              if [ "$grype_exit" -ne 0 ] && [ "$grype_exit" -ne 2 ]; then
+                cat "$output/grype-${suffix}.txt" >&2
                 record_image_error "Grype table scan failed unexpectedly for ${image_tag} on ${platform}."
               fi
 
               if ! grant list "$spdx_json" > "$output/grant-list-${suffix}.txt" 2>&1; then
+                cat "$output/grant-list-${suffix}.txt" >&2
                 record_image_error "Grant could not list licenses for ${image_tag} on ${platform}."
               fi
               grant_json="$output/grant-check-${suffix}.json"
               grant_stderr="$output/grant-check-${suffix}.stderr"
+              grant_exit=0
               grant check --config .grant.yaml --output json "$spdx_json" \
-                > "$grant_json" 2> "$grant_stderr"
-              grant_exit=$?
+                > "$grant_json" 2> "$grant_stderr" ||
+                grant_exit=$?
               if ! jq -e '.run.targets | length > 0' "$grant_json" > /dev/null 2>&1; then
+                cat "$grant_stderr" >&2
                 record_image_error "Grant did not produce valid results for ${image_tag} on ${platform}."
               elif jq -e '
                 any(.run.targets[]; .evaluation.status == "error")
               ' "$grant_json" > /dev/null; then
+                cat "$grant_stderr" >&2
                 record_image_error "Grant encountered an evaluation error for ${image_tag} on ${platform}."
               elif jq -e '
                 any(.run.targets[]; .evaluation.status == "noncompliant")
               ' "$grant_json" > /dev/null; then
                 image_license_rejected=true
               elif [ "$grant_exit" -ne 0 ]; then
+                cat "$grant_stderr" >&2
                 record_image_error "Grant failed unexpectedly for ${image_tag} on ${platform}."
               fi
+              echo "${image_tag} ${platform}: ${platform_total} vulnerabilities, ${platform_critical} critical, ${platform_fixable} fixable"
             done < "$image_platforms"
 
             total_vulnerabilities=$((total_vulnerabilities + image_total))
