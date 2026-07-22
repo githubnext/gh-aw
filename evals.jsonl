@@ -1,2 +1,2 @@
-{"id":"aic_usage_analyzed","question":"Did the agent audit AI Credit (AIC) usage across agentic workflows for the target period?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-21T12:16:06.797Z","runid":"29828518926"}
-{"id":"report_or_discussion_created","question":"Was a report or discussion created with historical trend data and per-workflow AIC breakdowns?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-21T12:16:06.797Z","runid":"29828518926"}
+{"id":"aic_usage_analyzed","question":"Did the agent audit AI Credit (AIC) usage across agentic workflows for the target period?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-22T12:20:03.229Z","runid":"29918207484"}
+{"id":"report_or_discussion_created","question":"Was a report or discussion created with historical trend data and per-workflow AIC breakdowns?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-22T12:20:03.229Z","runid":"29918207484"}
