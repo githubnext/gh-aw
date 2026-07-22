@@ -572,9 +572,9 @@ func ApplyContainerPinMapping(image string, ctx *PinContext) string {
 	}
 
 	if !containerDigestPinPattern.MatchString(mapped) {
-		msg := fmt.Sprintf("container_pins: invalid replacement value %q for key %q (must use @sha256:<64 lowercase hex characters>); mapping skipped", mapped, image)
-		actionPinsLog.Print(msg)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("container_pins: invalid replacement value %q for key %q (must use @sha256:<64 lowercase hex characters>); mapping skipped", mapped, image),
+		))
 		return image
 	}
 
