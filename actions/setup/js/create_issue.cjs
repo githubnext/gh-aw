@@ -778,7 +778,13 @@ async function main(config = {}) {
     const bodyLines = processedBody.split("\n");
 
     if (!title) {
-      title = message.body ?? "Agent Output";
+      // Use the first non-empty line of the body as the title fallback rather than
+      // the entire body, so the title stays concise and the body remains intact.
+      const firstBodyLine = (message.body ?? "")
+        .split("\n")
+        .map(l => l.replace(/^#+\s*/, "").trim())
+        .find(l => l.length > 0);
+      title = firstBodyLine || "Agent Output";
     }
 
     // Sanitize title for Unicode security and remove any duplicate prefixes
