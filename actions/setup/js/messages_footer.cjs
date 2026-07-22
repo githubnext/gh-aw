@@ -101,6 +101,9 @@ function buildAICEntry(label, value, modelAlias) {
  *   agentAiCredits: number|undefined,
  *   agentAiCreditsFormatted: string|undefined,
  *   agentAiCreditsSuffix: string,
+ *   evalsAiCredits: number|undefined,
+ *   evalsAiCreditsFormatted: string|undefined,
+ *   evalsAiCreditsSuffix: string,
  *   threatDetectionAiCredits: number|undefined,
  *   threatDetectionAiCreditsFormatted: string|undefined,
  *   threatDetectionAiCreditsSuffix: string
@@ -110,14 +113,16 @@ function getAICFromEnv() {
   const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
   const totalAIC = parsePositiveAIC(process.env.GH_AW_AIC);
   const explicitAgentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
+  const evalsAIC = parsePositiveAIC(process.env.GH_AW_EVALS_AIC);
   const threatDetectionAIC = parsePositiveAIC(process.env.GH_AW_THREAT_DETECTION_AIC);
   const agentAIC = typeof explicitAgentAIC === "number" ? explicitAgentAIC : totalAIC;
   const agentEntry = buildAICEntry("", agentAIC, compressedModelName);
+  const evalsEntry = buildAICEntry("◇", evalsAIC);
   const threatDetectionEntry = buildAICEntry("⌖", threatDetectionAIC);
-  const useBreakdown = threatDetectionEntry.suffix.length > 0;
-  const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) : typeof totalAIC === "number" ? totalAIC : agentAIC;
+  const useBreakdown = threatDetectionEntry.suffix.length > 0 || evalsEntry.suffix.length > 0;
+  const aiCredits = useBreakdown ? (agentAIC || 0) + (threatDetectionAIC || 0) + (evalsAIC || 0) : typeof totalAIC === "number" ? totalAIC : agentAIC;
   const aiCreditsFormatted = typeof aiCredits === "number" ? formatAIC(aiCredits) : undefined;
-  const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}` : buildAICEntry("", aiCredits, compressedModelName).suffix;
+  const aiCreditsSuffix = useBreakdown ? `${agentEntry.suffix}${threatDetectionEntry.suffix}${evalsEntry.suffix}` : buildAICEntry("", aiCredits, compressedModelName).suffix;
 
   return {
     aiCredits,
@@ -127,6 +132,9 @@ function getAICFromEnv() {
     agentAiCredits: agentEntry.value,
     agentAiCreditsFormatted: agentEntry.formatted,
     agentAiCreditsSuffix: agentEntry.suffix,
+    evalsAiCredits: evalsEntry.value,
+    evalsAiCreditsFormatted: evalsEntry.formatted,
+    evalsAiCreditsSuffix: evalsEntry.suffix,
     threatDetectionAiCredits: threatDetectionEntry.value,
     threatDetectionAiCreditsFormatted: threatDetectionEntry.formatted,
     threatDetectionAiCreditsSuffix: threatDetectionEntry.suffix,
@@ -167,6 +175,9 @@ function getFooterMessage(ctx) {
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
+    evalsAiCredits,
+    evalsAiCreditsFormatted,
+    evalsAiCreditsSuffix,
     threatDetectionAiCredits,
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
@@ -205,6 +216,9 @@ function getFooterMessage(ctx) {
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
+    evalsAiCredits,
+    evalsAiCreditsFormatted,
+    evalsAiCreditsSuffix,
     threatDetectionAiCredits,
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
@@ -387,6 +401,9 @@ function getFooterAgentFailureIssueMessage(ctx) {
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
+    evalsAiCredits,
+    evalsAiCreditsFormatted,
+    evalsAiCreditsSuffix,
     threatDetectionAiCredits,
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
@@ -410,6 +427,9 @@ function getFooterAgentFailureIssueMessage(ctx) {
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
+    evalsAiCredits,
+    evalsAiCreditsFormatted,
+    evalsAiCreditsSuffix,
     threatDetectionAiCredits,
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
@@ -463,6 +483,9 @@ function getFooterAgentFailureCommentMessage(ctx) {
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
+    evalsAiCredits,
+    evalsAiCreditsFormatted,
+    evalsAiCreditsSuffix,
     threatDetectionAiCredits,
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
@@ -486,6 +509,9 @@ function getFooterAgentFailureCommentMessage(ctx) {
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
+    evalsAiCredits,
+    evalsAiCreditsFormatted,
+    evalsAiCreditsSuffix,
     threatDetectionAiCredits,
     threatDetectionAiCreditsFormatted,
     threatDetectionAiCreditsSuffix,
