@@ -42,3 +42,13 @@ func joinThree(a, b, c string) string {
 func joinSuppressed(s string) string {
 	return strings.Join([]string{s}, ", ") //nolint:stringsjoinone
 }
+
+// not flagged: separator is a function call (potential side effects).
+func joinFuncCallSep(s string, f func() string) string {
+	return strings.Join([]string{s}, f())
+}
+
+// not flagged: separator receives from a channel (observable side effect).
+func joinChanSep(s string, ch <-chan string) string {
+	return strings.Join([]string{s}, <-ch)
+}

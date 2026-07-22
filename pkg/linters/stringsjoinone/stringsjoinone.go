@@ -73,6 +73,13 @@ func analyzeJoinOne(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.Ge
 	if !ok {
 		return
 	}
+	// Only flag when the separator is a compile-time constant so that the
+	// suggested fix does not silently drop observable side effects.  For
+	// example, strings.Join([]string{s}, <-ch) receives from a channel before
+	// returning; replacing it with just s would remove that receive.
+	if !isSafeToDiscardSeparator(pass, joinCall.Args[1]) {
+		return
+	}
 
 	pass.Report(analysis.Diagnostic{
 		Pos:     call.Pos(),
@@ -87,6 +94,15 @@ func analyzeJoinOne(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.Ge
 			}},
 		}},
 	})
+}
+
+// isSafeToDiscardSeparator reports whether sep is a compile-time constant and
+// therefore safe to discard.  Expressions with run-time side effects (channel
+// receives, function calls, non-constant variable reads, etc.) must not be
+// silently dropped by a suggested fix.
+func isSafeToDiscardSeparator(pass *analysis.Pass, sep ast.Expr) bool {
+	tv, ok := pass.TypesInfo.Types[sep]
+	return ok && tv.Value != nil
 }
 
 // matchSingleElementStringSlice reports whether expr is a []string{...} composite
