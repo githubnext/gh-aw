@@ -618,13 +618,13 @@ func writeSummaryFile(path string, data LogsData, verbose bool) error {
 	return nil
 }
 
-// renderLogsConsole outputs the logs data as formatted console output
-func renderLogsConsole(data LogsData) {
+// renderLogsConsoleToWriter outputs the logs data as formatted console output to w.
+func renderLogsConsoleToWriter(w io.Writer, data LogsData) {
 	reportLog.Printf("Rendering logs data to console: %d runs, %d errors, %d warnings",
 		data.Summary.TotalRuns, data.Summary.TotalErrors, data.Summary.TotalWarnings)
 
 	// Use unified console rendering for the entire logs data structure
-	fmt.Print(console.RenderStruct(data))
+	fmt.Fprint(w, console.RenderStruct(data))
 
 	// Display concise summary at the end
 	fmt.Fprintln(os.Stderr, "") // Blank line for spacing
@@ -652,3 +652,6 @@ func renderLogsConsole(data LogsData) {
 		renderObservabilityInsights(data.Observability)
 	}
 }
+
+// renderLogsConsole outputs the logs data as formatted console output to os.Stdout.
+func renderLogsConsole(data LogsData) { renderLogsConsoleToWriter(os.Stdout, data) }

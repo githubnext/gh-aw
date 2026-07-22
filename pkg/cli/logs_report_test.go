@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -15,6 +16,7 @@ import (
 
 // TestRenderLogsConsoleUnified tests the unified console rendering
 func TestRenderLogsConsoleUnified(t *testing.T) {
+	t.Parallel()
 	// Create test data
 	data := LogsData{
 		Summary: LogsSummary{
@@ -99,12 +101,13 @@ func TestRenderLogsConsoleUnified(t *testing.T) {
 	// Test unified rendering - should not panic
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("renderLogsConsole panicked: %v", r)
+			t.Errorf("renderLogsConsoleToWriter panicked: %v", r)
 		}
 	}()
 
-	renderLogsConsole(data)
-	renderLogsConsole(data)
+	var buf bytes.Buffer
+	renderLogsConsoleToWriter(&buf, data)
+	renderLogsConsoleToWriter(&buf, data)
 }
 
 // TestBuildToolUsageSummaryPopulatesDisplay tests that buildToolUsageSummary works correctly
