@@ -47,6 +47,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/sprintfint"
 	"github.com/github/gh-aw/pkg/linters/ssljson"
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
+	"github.com/github/gh-aw/pkg/linters/stringbytesroundtrip"
 	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
@@ -109,6 +110,7 @@ func All() []*analysis.Analyzer {
 		sprintfbool.Analyzer,
 		sprintfint.Analyzer,
 		strconvparseignorederror.Analyzer,
+		stringbytesroundtrip.Analyzer,
 		stringreplaceminusone.Analyzer,
 		stringsindexcontains.Analyzer,
 		stringsjoinone.Analyzer,

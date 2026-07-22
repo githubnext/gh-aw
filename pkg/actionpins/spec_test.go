@@ -43,11 +43,12 @@ func (r *testSHAResolver) ResolveSHA(ctx context.Context, repo, version string) 
 // TestSpec_PublicAPI_FormatPinnedActionReference validates the documented format "repo@sha # version".
 func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 	tests := []struct {
-		name     string
-		repo     string
-		sha      string
-		version  string
-		expected string
+		name      string
+		repo      string
+		sha       string
+		version   string
+		expected  string
+		wantPanic string
 	}{
 		{
 			name:     "formats standard reference",
@@ -63,10 +64,32 @@ func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 			version:  "v5",
 			expected: "actions/setup-go@cdabf2d4679a00bef48b5a7c69a9b8d0b4f6e3c9 # v5",
 		},
+		{
+			name:     "formats reference with empty version comment",
+			repo:     "actions/checkout",
+			sha:      "abc123",
+			version:  "",
+			expected: "actions/checkout@abc123 # ",
+		},
+		{
+			name:      "panics for empty sha",
+			repo:      "actions/checkout",
+			sha:       "",
+			version:   "v4",
+			wantPanic: "FormatPinnedActionReference called with empty SHA for repo=actions/checkout version=v4 — this would produce invalid workflow YAML",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if tt.wantPanic != "" {
+				assert.Empty(t, tt.expected, "test case %q: wantPanic and expected are mutually exclusive", tt.name)
+				require.PanicsWithValue(t, tt.wantPanic, func() {
+					actionpins.FormatPinnedActionReference(tt.repo, tt.sha, tt.version)
+				})
+				return
+			}
+
 			result := actionpins.FormatPinnedActionReference(tt.repo, tt.sha, tt.version)
 			assert.Equal(t, tt.expected, result, "FormatPinnedActionReference(%q, %q, %q) should match spec format", tt.repo, tt.sha, tt.version)
 		})
@@ -516,15 +539,17 @@ func TestSpec_Types_ActionPinsData(t *testing.T) {
 // TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch validates embedded-only pin resolution returns
 // a formatted reference for a known repository. Spec: "Embedded-only lookup from bundled pin data"
 func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
-	known := "actions/checkout"
-	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
-	require.True(t, ok, "prerequisite: known repo must be in embedded data")
+	t.Run("returns formatted reference for known embedded pin", func(t *testing.T) {
+		known := "actions/checkout"
+		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
+		require.True(t, ok, "prerequisite: known repo must be in embedded data")
 
-	ctx := &actionpins.PinContext{StrictMode: false, Warnings: make(map[string]bool)}
-	result, err := actionpins.ResolveActionPin(known, latestPin.Version, ctx)
-	require.NoError(t, err, "embedded-only ResolveActionPin should not error for known pin")
-	require.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
-	assert.Contains(t, result, latestPin.SHA, "resolved reference should contain the pin SHA")
+		ctx := &actionpins.PinContext{StrictMode: false, Warnings: make(map[string]bool)}
+		result, err := actionpins.ResolveActionPin(known, latestPin.Version, ctx)
+		require.NoError(t, err, "embedded-only ResolveActionPin should not error for known pin")
+		require.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
+		assert.Contains(t, result, latestPin.SHA, "resolved reference should contain the pin SHA")
+	})
 }
 
 // TestSpec_DynamicResolution_VersionCommentConsistency validates that when dynamic resolution
@@ -751,7 +776,7 @@ func TestSpec_PublicAPI_ResolveActionPin_NilCtxField(t *testing.T) {
 	}
 	require.NotPanics(t, func() {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, result)
 	}, "nil PinContext.Ctx should fall back to context.Background() without panicking")
 	require.NotNil(t, resolver.capturedCtx, "resolver must receive a non-nil context even when PinContext.Ctx is nil")
@@ -856,6 +881,24 @@ func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
 		assert.True(t, ctx.Warnings["map:actions/setup-node@v4"], "mapping notification key should be set in warnings")
 	})
 
+	t.Run("self-mapping preserves the same resolved reference", func(t *testing.T) {
+		baseline, err := actionpins.ResolveActionPin("actions/checkout", "v4", &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+		})
+		require.NoError(t, err)
+
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			Mappings: map[string]string{
+				"actions/checkout@v4": "actions/checkout@v4",
+			},
+		}
+		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
+		require.NoError(t, err)
+		assert.Equal(t, baseline, result, "self-mapping should behave the same as the unmapped case")
+		assert.True(t, ctx.Warnings["map:actions/checkout@v4"], "self-mapping should still record the mapping notification key")
+	})
+
 	t.Run("no mapping leaves resolution unchanged", func(t *testing.T) {
 		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
 
@@ -895,7 +938,7 @@ func TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown(t *testing.T) {
 
 	require.NotPanics(t, func() {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.Empty(t, result, "mapping to unknown repo should produce unresolved empty result")
 	})
 }

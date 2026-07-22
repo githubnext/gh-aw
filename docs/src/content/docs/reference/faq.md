@@ -6,7 +6,7 @@ sidebar:
 ---
 
 > [!NOTE]
-> GitHub Agentic Workflows is in Public Preview and may change significantly.
+> GitHub Agentic Workflows is in Public Preview.
 
 ## Determinism
 
