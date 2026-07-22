@@ -402,7 +402,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// exiting, wasting wall-clock and amplifying rate-limit pressure.  All
 		// retry logic (including exponential backoff for transient 429/529) is
 		// handled at the outer harness level.
-		"ANTHROPIC_MAX_RETRIES": "0",
+		"ANTHROPIC_MAX_RETRIES": "1",
 		"GH_AW_PROMPT":          constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW": "true",
