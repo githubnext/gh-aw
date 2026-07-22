@@ -69,11 +69,13 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       required-labels: [automated]      # Optional: only close if ALL these labels are present
       required-title-prefix: "[bot]"    # Optional: only close matching prefix
       max: 20                           # Optional: max closures (default: 1)
-      state-reason: "not_planned"       # Optional: "completed" (default), "not_planned", "duplicate"
+      state-reason: "not_planned"       # Optional: scalar fixes the reason; list lets the agent choose a subset; omit to let the agent choose any of "completed", "not_planned", "duplicate"
       allow-body: false                 # Optional: when false, any body the agent emits is dropped (warning logged) and the issue closes without a comment; defaults to true
       target-repo: "owner/repo"         # Optional: cross-repository
       allowed-repos: [owner/other]      # Optional: additional repos agent can close issues in
   ```
+
+  `state-reason` has three config modes: **scalar** (`state-reason: not_planned`) fixes the reason; **list** (`state-reason: [not_planned, duplicate]`) restricts the agent to that subset; **omitted** lets the agent choose any of `completed`, `not_planned`, `duplicate`. In list/omitted modes a `state_reason` enum is injected into the `close_issue` tool schema and the agent's choice is validated at runtime.
 
   Set `allow-body: false` to guarantee a clean close with no comment — useful when an earlier `add-comment` step already posted the summary and you want to prevent the agent from duplicating it.
 
