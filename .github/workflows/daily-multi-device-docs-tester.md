@@ -82,12 +82,6 @@ imports:
 
   - shared/otlp.md
 pre-agent-steps:
-  - name: Install docs dependencies
-    env:
-      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
-    run: |
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
-      npm install
   - name: Resolve slide deck PDF
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
@@ -104,62 +98,6 @@ pre-agent-steps:
       else
         echo "chrome-sandbox not found — skipping"
       fi
-  - name: Start docs server
-    env:
-      EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
-      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
-    run: |
-      LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
-      PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
-      npm run build
-      nohup npm run preview -- --host 0.0.0.0 --port 4321 > "$LOG_FILE" 2>&1 &
-      PID=$!
-      echo $PID > "$PID_FILE"
-      echo "Server PID: $PID"
-      echo "Server log: $LOG_FILE"
-  - name: Wait for server readiness
-    env:
-      EXPR_GITHUB_RUN_ID: ${{ github.run_id }}
-    run: |
-      PID_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.pid"
-      LOG_FILE="/tmp/gh-aw/agent/docs-server-$EXPR_GITHUB_RUN_ID.log"
-      MAX_WAIT=135  # Maximum 135 seconds wait time
-      WAITED=0
-      until (echo > /dev/tcp/127.0.0.1/4321) > /dev/null 2>&1; do
-        # Check if the server process has already died
-        if [ -f "$PID_FILE" ] && ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-          echo "::error::Documentation server process died before opening port 4321. Server log:"
-          cat "$LOG_FILE"
-          exit 1
-        fi
-        WAITED=$((WAITED + 3))
-        if [ $WAITED -ge $MAX_WAIT ]; then
-          echo "::error::Documentation server port 4321 did not open after ${MAX_WAIT}s. Server log:"
-          cat "$LOG_FILE"
-          exit 1
-        fi
-        echo "Waiting for docs port... ($WAITED/${MAX_WAIT}s)"
-        sleep 3
-      done
-      WAITED=0
-      until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
-        # Check if the server process has already died
-        if [ -f "$PID_FILE" ] && ! kill -0 "$(cat "$PID_FILE")" 2>/dev/null; then
-          echo "::error::Documentation server process died before becoming ready. Server log:"
-          cat "$LOG_FILE"
-          exit 1
-        fi
-        WAITED=$((WAITED + 3))
-        if [ $WAITED -ge $MAX_WAIT ]; then
-          echo "::error::Documentation server did not start after ${MAX_WAIT}s. Server log:"
-          cat "$LOG_FILE"
-          exit 1
-        fi
-        echo "Waiting for server... ($WAITED/${MAX_WAIT}s)"
-        sleep 3
-      done
-      echo "Server ready at http://localhost:4321/gh-aw/!"
 features:
   gh-aw-detection: true
 ---
@@ -191,13 +129,34 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 
 Start the documentation preview server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
-## Step 1: Verify Server Availability
+## Step 1: Install Dependencies and Start Server
 
-The workflow pre-agent steps already installed docs dependencies, built the docs site, and started the Astro preview server **bound to all interfaces on port 4321**.
-Quickly verify it is reachable before testing:
+Install the docs dependencies, build the site, and start the Astro preview server inside this container:
 
 ```bash
-curl -sf http://host.docker.internal:4321/gh-aw/ > /dev/null && echo "Docs server is ready"
+cd "${{ github.workspace }}/docs"
+npm install
+npm run build
+LOG_FILE="/tmp/docs-server.log"
+nohup npm run preview -- --port 4321 > "$LOG_FILE" 2>&1 &
+echo "Server PID: $!, log: $LOG_FILE"
+```
+
+Then wait for the server to be ready:
+
+```bash
+LOG_FILE="/tmp/docs-server.log"
+MAX_WAIT=120
+WAITED=0
+until curl -sf http://localhost:4321/gh-aw/ > /dev/null 2>&1; do
+  WAITED=$((WAITED + 3))
+  if [ $WAITED -ge $MAX_WAIT ]; then
+    echo "Server log:" && cat "$LOG_FILE"
+    echo "ERROR: Server did not start after ${MAX_WAIT}s" && exit 1
+  fi
+  sleep 3
+done
+echo "Docs server ready at http://localhost:4321/gh-aw/"
 ```
 
 ## Step 2: Device Configuration
@@ -214,7 +173,7 @@ Test these device types based on input `${{ inputs.devices }}`:
 
 Playwright is pre-installed as `@playwright/cli`. Use `playwright-cli <command>` in bash — no MCP tools or Docker container is involved:
 
-- ✅ **Correct**: `playwright-cli browser_navigate --url "http://host.docker.internal:4321/gh-aw/"`
+- ✅ **Correct**: `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/"`
 - ✅ **Correct**: Use `playwright-cli browser_run_code --code "async (page) => { ... }"` for custom Playwright code
 - ❌ **Incorrect**: Do NOT use `playwright-cli open` in this workflow (it is less reliable in CI than explicit `browser_*` commands)
 - ❌ **Incorrect**: Do NOT try to `require('playwright')` or create standalone Node.js scripts
@@ -227,16 +186,13 @@ Use `waitUntil: 'domcontentloaded'` for navigation to keep checks fast and consi
 ```bash
 playwright-cli browser_run_code --code "async (page) => {
   await page.setViewportSize({ width: 390, height: 844 });
-  await page.goto('http://host.docker.internal:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
+  await page.goto('http://localhost:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   return { url: page.url(), title: await page.title() };
 }"
 ```
 
-- ✅ **Use `host.docker.internal`** — the agent runs inside a container; `host.docker.internal` reaches the docs server that was started in the pre-agent step on the host
-- ❌ **Do NOT use `localhost`** — the container's loopback is isolated from the runner's loopback; `localhost:4321` will not be reachable
-
 For each device viewport, use playwright-cli to:
-- Set viewport size and navigate to `http://host.docker.internal:4321/gh-aw/`
+- Set viewport size and navigate to `http://localhost:4321/gh-aw/`
 - Take screenshots and run accessibility audits
 - Test interactions (navigation, search, buttons)
 - Check for layout issues (overflow, truncation, broken layouts)
@@ -315,8 +271,7 @@ Label with: `documentation`, `testing`, `automated`
 
 ## Step 6: Cleanup
 
-No manual server cleanup is required in-agent for this workflow.
-The server lifecycle is handled by pre-agent setup and job teardown.
+No manual server cleanup is required. The server process will be cleaned up automatically when the agent job exits.
 
 ## Summary
 
