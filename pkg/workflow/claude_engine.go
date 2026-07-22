@@ -396,7 +396,14 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// "Fast mode unavailable: Fast mode is not available in the Agent SDK",
 		// which crashes the agent mid-session on every API call.
 		"CLAUDE_CODE_DISABLE_FAST_MODE": "1",
-		"GH_AW_PROMPT":                  constants.AwPromptsFile,
+		// Disable Anthropic SDK internal HTTP retries so terminal errors such as
+		// 403 ai_credits_limit_exceeded are surfaced immediately to the harness.
+		// Without this the SDK retries the same failed request up to N times before
+		// exiting, wasting wall-clock and amplifying rate-limit pressure.  All
+		// retry logic (including exponential backoff for transient 429/529) is
+		// handled at the outer harness level.
+		"ANTHROPIC_MAX_RETRIES": "0",
+		"GH_AW_PROMPT":          constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW": "true",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
