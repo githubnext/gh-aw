@@ -522,3 +522,59 @@ func TestGetWorkflowLockFileName(t *testing.T) {
 		})
 	}
 }
+
+func TestIsIntentionalFailure(t *testing.T) {
+	workflowsDir := setupWorkflowDir(t)
+
+	// Create a workflow marked with intentional-failure: true
+	intentionalMD := filepath.Join(workflowsDir, "daily-credit-limit-test.md")
+	require.NoError(t, os.WriteFile(intentionalMD, []byte("---\nfeatures:\n  intentional-failure: true\nprivate: true\n---\n\nSome content"), 0644))
+
+	// Create a normal workflow (no intentional-failure)
+	normalMD := filepath.Join(workflowsDir, "normal-workflow.md")
+	require.NoError(t, os.WriteFile(normalMD, []byte("---\nprivate: false\n---\n\nSome content"), 0644))
+
+	tests := []struct {
+		name         string
+		workflowPath string
+		want         bool
+	}{
+		{
+			name:         "intentional-failure via .lock.yml path",
+			workflowPath: ".github/workflows/daily-credit-limit-test.lock.yml",
+			want:         true,
+		},
+		{
+			name:         "intentional-failure via .md path",
+			workflowPath: ".github/workflows/daily-credit-limit-test.md",
+			want:         true,
+		},
+		{
+			name:         "intentional-failure via bare workflow ID",
+			workflowPath: "daily-credit-limit-test",
+			want:         true,
+		},
+		{
+			name:         "normal workflow returns false",
+			workflowPath: ".github/workflows/normal-workflow.lock.yml",
+			want:         false,
+		},
+		{
+			name:         "non-existent workflow returns false (fail-open)",
+			workflowPath: ".github/workflows/does-not-exist.lock.yml",
+			want:         false,
+		},
+		{
+			name:         "empty path returns false",
+			workflowPath: "",
+			want:         false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := IsIntentionalFailure(tt.workflowPath)
+			assert.Equal(t, tt.want, got, "IsIntentionalFailure(%q) = %v, want %v", tt.workflowPath, got, tt.want)
+		})
+	}
+}

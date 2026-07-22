@@ -2,6 +2,9 @@
 private: true
 emoji: "🧪"
 description: "⚠️ INTENTIONALLY BROKEN — Tests that max-daily-ai-credits: 1 is enforced by the activation guardrail and that a limit-exceeded message is posted when the daily budget is consumed."
+features:
+  intentional-failure: true
+  gh-aw-detection: true
 on:
   schedule: every 12 hours
   workflow_dispatch:
@@ -28,8 +31,6 @@ safe-outputs:
     run-started: "🧪 [{workflow_name}]({run_url}) — credit limit test running (intentionally broken, limit: 1 AI credit/day)."
     run-success: "⚠️ [{workflow_name}]({run_url}) completed without hitting the daily limit of 1 AI credit — verify that credit accounting is working."
     run-failure: "🚫 [{workflow_name}]({run_url}) {status} — expected: the daily AI credit limit of 1 was reached and this run was blocked."
-features:
-  gh-aw-detection: true
 ---
 
 ### Daily Credit Limit Test (Intentionally Broken)

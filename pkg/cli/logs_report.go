@@ -13,6 +13,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/timeutil"
+	"github.com/github/gh-aw/pkg/workflow"
 )
 
 var reportLog = logger.New("cli:logs_report")
@@ -90,6 +91,13 @@ type LogsSummary struct {
 	// regardless of which engine the workflow actually uses.
 	EngineCounts map[string]int `json:"engine_counts,omitempty" console:"-"`
 
+	// IntentionalFailureRuns is the count of runs belonging to workflows tagged with
+	// intentional-failure: true. These runs are intentionally expected to fail (e.g.
+	// credit-guardrail stress tests) and should be excluded from prod-main / fleet-health
+	// success-rate rollups. Agents should subtract this count from TotalRuns before computing
+	// fleet-level success rates so that deliberate failures do not depress the baseline.
+	IntentionalFailureRuns int `json:"intentional_failure_runs,omitempty" console:"-"`
+
 	// Outcome metrics (populated when outcome evaluation is enabled)
 	OutcomeAccepted       int     `json:"outcome_accepted,omitempty" console:"-"`
 	OutcomeRejected       int     `json:"outcome_rejected,omitempty" console:"-"`
@@ -102,16 +110,21 @@ type LogsSummary struct {
 
 // RunData contains information about a single workflow run
 type RunData struct {
-	RunID          int64  `json:"run_id" console:"header:Run ID"`
-	Number         int    `json:"number" console:"-"`
-	WorkflowName   string `json:"workflow_name" console:"header:Workflow"`
-	WorkflowPath   string `json:"workflow_path" console:"-"`
-	Agent          string `json:"agent,omitempty" console:"header:Agent,omitempty"`
-	Engine         string `json:"engine,omitempty" console:"-"`
-	EngineID       string `json:"engine_id,omitempty" console:"-"`
-	Status         string `json:"status" console:"header:Status"`
-	Conclusion     string `json:"conclusion,omitempty" console:"-"`
-	Classification string `json:"classification" console:"-"`
+	RunID        int64  `json:"run_id" console:"header:Run ID"`
+	Number       int    `json:"number" console:"-"`
+	WorkflowName string `json:"workflow_name" console:"header:Workflow"`
+	WorkflowPath string `json:"workflow_path" console:"-"`
+	// IntentionalFailure is true when the workflow is tagged with intentional-failure: true
+	// in its frontmatter (e.g. credit-guardrail stress tests that are expected to fail).
+	// Agents and dashboards MUST exclude these runs from prod-main and fleet-health
+	// success-rate rollups to avoid depressing the real-regression baseline.
+	IntentionalFailure bool   `json:"intentional_failure,omitempty" console:"-"`
+	Agent              string `json:"agent,omitempty" console:"header:Agent,omitempty"`
+	Engine             string `json:"engine,omitempty" console:"-"`
+	EngineID           string `json:"engine_id,omitempty" console:"-"`
+	Status             string `json:"status" console:"header:Status"`
+	Conclusion         string `json:"conclusion,omitempty" console:"-"`
+	Classification     string `json:"classification" console:"-"`
 	// FailureKind classifies the cause of a failed run.
 	// "driver_exit"   – zero agent turns; the CLI wrapper or an infra step exited before the agent ran.
 	// "agent_logic"   – one or more agent turns; the agent ran but the run still failed.
@@ -195,6 +208,15 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	// lock file contents, which contain "copilot" in allowed-domains and source paths
 	// regardless of which engine the workflow uses.
 	engineCounts := make(map[string]int)
+	var intentionalFailureRuns int
+
+	// Get the local repository slug once to guard against cross-repo misclassification.
+	// IsIntentionalFailure reads from the local filesystem; when a run belongs to a
+	// different repository the local file may not exist (fail-open) or, in edge cases,
+	// may match an unrelated local file.  We skip detection when the run's repository
+	// is known and does not match the local checkout.  Fails open (empty string) when
+	// the slug cannot be determined.
+	localRepo, _ := GetCurrentRepoSlug()
 
 	// Build runs data
 	// Initialize as empty slice to ensure JSON marshals to [] instead of null
@@ -358,6 +380,16 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 				runData.WorkflowPath = inferWorkflowPathFromDisplayName(awInfo.WorkflowName)
 			}
 		}
+		// Mark runs from workflows tagged intentional-failure: true so that
+		// agents and dashboards can exclude them from fleet-health success-rate rollups.
+		// Only classify when the run comes from the same repository as the local checkout
+		// (or when either side is unknown), to avoid cross-repo misclassification.
+		if localRepo == "" || runData.Repository == "" || strings.EqualFold(localRepo, runData.Repository) {
+			runData.IntentionalFailure = workflow.IsIntentionalFailure(runData.WorkflowPath)
+		}
+		if runData.IntentionalFailure {
+			intentionalFailureRuns++
+		}
 		if run.Duration > 0 {
 			runData.Duration = timeutil.FormatDuration(run.Duration)
 		}
@@ -400,6 +432,9 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 	}
 	if len(engineCounts) > 0 {
 		summary.EngineCounts = engineCounts
+	}
+	if intentionalFailureRuns > 0 {
+		summary.IntentionalFailureRuns = intentionalFailureRuns
 	}
 
 	episodes, edges := buildEpisodeData(runs, processedRuns)
