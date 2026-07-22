@@ -1,5 +1,6 @@
 //go:build !integration
 
+// Package actionpins_test contains black-box specification tests for action pin resolution.
 package actionpins_test
 
 import (
