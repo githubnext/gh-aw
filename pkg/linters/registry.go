@@ -41,6 +41,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/regexpcompileinfunction"
 	"github.com/github/gh-aw/pkg/linters/seenmapbool"
 	"github.com/github/gh-aw/pkg/linters/sortslice"
+	"github.com/github/gh-aw/pkg/linters/stringbytesroundtrip"
 	"github.com/github/gh-aw/pkg/linters/sprintfbool"
 	"github.com/github/gh-aw/pkg/linters/sprintferrdot"
 	"github.com/github/gh-aw/pkg/linters/sprintferrorsnew"
@@ -104,6 +105,7 @@ func All() []*analysis.Analyzer {
 		ssljson.Analyzer,
 		seenmapbool.Analyzer,
 		sortslice.Analyzer,
+		stringbytesroundtrip.Analyzer,
 		sprintferrdot.Analyzer,
 		sprintferrorsnew.Analyzer,
 		sprintfbool.Analyzer,
