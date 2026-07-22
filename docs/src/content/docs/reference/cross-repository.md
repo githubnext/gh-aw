@@ -276,5 +276,6 @@ updates to each PR branch.
 - [MultiRepoOps — Central Control Plane](/gh-aw/patterns/central-repo-ops/#using-a-central-control-repository) — Central control plane pattern
 - [GitHub Tools Reference](/gh-aw/reference/github-tools/) - Complete GitHub Tools configuration
 - [Safe Outputs Reference](/gh-aw/reference/safe-outputs/) - Complete safe output configuration
+- [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/) - `target-repo`, `head-repo`, and fork-branch PR flows
 - [Authentication Reference](/gh-aw/reference/auth/) - PAT and GitHub App setup
 - [Multi-Repository Examples](/gh-aw/examples/multi-repo/) - Complete working examples
