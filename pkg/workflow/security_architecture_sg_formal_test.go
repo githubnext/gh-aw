@@ -107,7 +107,7 @@ func TestFormalSG02_AgentJobHasNoWritePermissions(t *testing.T) {
 			err := validateDangerousPermissions(&WorkflowData{Permissions: formalEmptyPermissionsYAML}, perms)
 			require.Error(t, err,
 				"SG-02: agent job scope %s:write must be rejected by validateDangerousPermissions", scope)
-			assert.Contains(t, err.Error(), "write permissions",
+			require.ErrorContains(t, err, "write permissions",
 				"SG-02: error message must identify the write-permission violation")
 		})
 	}
@@ -293,7 +293,7 @@ SG-07: verify that a write-permission violation blocks lock-file emission.
 		"SG-07: CompileToYAML must return an error when a write-permission violation is present")
 	assert.Empty(t, yamlOut,
 		"SG-07: CompileToYAML must return empty YAML — no lock-file may be emitted on security violation")
-	assert.Contains(t, err.Error(), "write permissions",
+	require.ErrorContains(t, err, "write permissions",
 		"SG-07: error must identify the write-permission violation")
 }
 

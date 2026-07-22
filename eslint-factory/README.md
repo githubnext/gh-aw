@@ -31,6 +31,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
 | [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
 | [`require-mkdirsync-try-catch`](#require-mkdirsync-try-catch) | Require try/catch around `fs.mkdirSync` calls |
@@ -215,6 +216,33 @@ Flagged form:
 Safe alternative:
 - `throw new Error(\`failed: ${getErrorMessage(err)}\`, { cause: err });`
 
+### `require-fs-io-try-catch`
+
+Require `fs.statSync`, `fs.readdirSync`, `fs.copyFileSync`, `fs.unlinkSync`, and `fs.renameSync` calls to be wrapped in `try/catch`.
+
+Why: these synchronous filesystem methods throw on missing files, permission errors (`EACCES`), busy resources (`EBUSY`), and other I/O failures. An unhandled throw crashes the action without surfacing a useful diagnostic message.
+
+**Detected forms:**
+- `fs.statSync(path)` — direct call on a known `require("fs")` result.
+- `fs["readdirSync"](dir)` — computed string-literal property access.
+- `const { unlinkSync } = require("fs"); unlinkSync(path)` — destructured binding from `require("fs")` or `require("node:fs")`.
+- ESM namespace imports: `import * as fs from "fs"; fs.copyFileSync(src, dest)`.
+- ESM named imports: `import { renameSync } from "fs"; renameSync(src, dest)`.
+- Bare unbound identifiers: `statSync(path)` when `statSync` is not a locally bound variable.
+
+**Out of scope:**
+- Objects whose `require` source is not the Node `fs` / `node:fs` module.
+- `try { ... } finally { ... }` without a `catch` clause is still flagged.
+
+**Safe alternative:**
+```js
+try {
+  fs.statSync(filePath);
+} catch (err) {
+  throw new Error("fs.statSync failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+```
+
 ### `require-fs-sync-try-catch`
 
 Require `fs.readFileSync`, `fs.writeFileSync`, and `fs.appendFileSync` calls to be wrapped in `try/catch`.
@@ -261,7 +289,7 @@ Why: `mkdirSync` throws synchronously on permission errors, invalid paths, or un
 
 **Out of scope:**
 - Objects whose `require` source is not the Node `fs` / `node:fs` module (e.g. `mockFs.mkdirSync`, `storage.mkdirSync`, or `const fs = require("mock-fs"); fs.mkdirSync`).
-- Other `fs` methods such as `existsSync`, `unlinkSync`, or `statSync` — use `require-fs-sync-try-catch` for `readFileSync`, `writeFileSync`, and `appendFileSync`.
+- Other `fs` methods such as `existsSync` — use `require-fs-sync-try-catch` for `readFileSync`, `writeFileSync`, and `appendFileSync`; use `require-fs-io-try-catch` for `statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync`.
 - `try { ... } finally { ... }` without a `catch` clause is still flagged.
 
 **Safe alternative:**

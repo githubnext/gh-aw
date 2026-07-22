@@ -171,7 +171,7 @@ func TestLoadUsageActivitySummaryRejectsUnsupportedSchema(t *testing.T) {
 	summary, err := loadUsageActivitySummary(runDir)
 	require.Error(t, err, "unsupported activity summary schema should return an error")
 	assert.Nil(t, summary, "unsupported schema should not be returned")
-	assert.Contains(t, err.Error(), "unsupported usage activity summary schema", "schema validation error should explain the mismatch")
+	require.ErrorContains(t, err, "unsupported usage activity summary schema", "schema validation error should explain the mismatch")
 }
 
 func TestApplyUsageActivitySummaryDoesNotOverwriteExistingData(t *testing.T) {

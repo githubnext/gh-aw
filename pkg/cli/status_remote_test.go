@@ -109,5 +109,5 @@ func TestGetWorkflowStatuses_WithRepoFlag_SkipsLocalFiles(t *testing.T) {
 func TestGetWorkflowStatuses_LabelFilterWithRepo(t *testing.T) {
 	_, err := GetWorkflowStatuses("", "", "my-label", "owner/repo")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--label filter is not supported with --repo")
+	require.ErrorContains(t, err, "--label filter is not supported with --repo")
 }

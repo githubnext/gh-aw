@@ -2058,7 +2058,7 @@ func TestValidateOTLPResourceAttributes(t *testing.T) {
 				return
 			}
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.errorContains)
+			require.ErrorContains(t, err, tt.errorContains)
 		})
 	}
 }

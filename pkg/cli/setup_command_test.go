@@ -155,8 +155,8 @@ func TestRunSetupRepositoryCheck_RejectsNonExistentNestedCheckoutPath(t *testing
 		repoExists: func(context.Context, string) (bool, error) { return true, nil },
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "is inside a different git checkout rooted at")
-	assert.Contains(t, err.Error(), parentRepoDir)
+	require.ErrorContains(t, err, "is inside a different git checkout rooted at")
+	require.ErrorContains(t, err, parentRepoDir)
 }
 
 func TestCreateSetupRepository_UsesSupportedFlags(t *testing.T) {

@@ -179,7 +179,7 @@ runs:
 
 		_, _, err = processYAMLWorkflowImport(actionFile)
 		require.Error(t, err, "Should reject action definition")
-		assert.Contains(t, err.Error(), "cannot import action definition", "Error should mention action definition")
+		require.ErrorContains(t, err, "cannot import action definition", "Error should mention action definition")
 	})
 
 	t.Run("reject invalid workflow", func(t *testing.T) {
@@ -192,7 +192,7 @@ description: This is not a valid workflow`
 
 		_, _, err = processYAMLWorkflowImport(invalidFile)
 		require.Error(t, err, "Should reject invalid workflow")
-		assert.Contains(t, err.Error(), "not a valid GitHub Actions workflow", "Error should mention invalid workflow")
+		require.ErrorContains(t, err, "not a valid GitHub Actions workflow", "Error should mention invalid workflow")
 	})
 }
 
@@ -274,6 +274,6 @@ imports:
 
 	_, err = ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
 	require.Error(t, err, "Should reject .lock.yml import")
-	assert.Contains(t, err.Error(), "cannot import .lock.yml files", "Error should mention .lock.yml rejection")
-	assert.Contains(t, err.Error(), "Import the source .md file instead", "Error should suggest importing .md file")
+	require.ErrorContains(t, err, "cannot import .lock.yml files", "Error should mention .lock.yml rejection")
+	require.ErrorContains(t, err, "Import the source .md file instead", "Error should suggest importing .md file")
 }

@@ -36,7 +36,7 @@ Test workflow with top-level sandbox: false (no longer supported).
 
 		err = compiler.CompileWorkflow(workflowPath)
 		require.Error(t, err, "Expected error when using sandbox: false (top-level boolean no longer supported)")
-		assert.Contains(t, err.Error(), "sandbox", "Error should mention sandbox field")
+		require.ErrorContains(t, err, "sandbox", "Error should mention sandbox field")
 	})
 
 	t.Run("sandbox: true is also rejected", func(t *testing.T) {
@@ -150,8 +150,8 @@ Test workflow with agent sandbox disabled in strict mode.
 
 		err = compiler.CompileWorkflow(workflowPath)
 		require.Error(t, err, "Expected error when sandbox.agent: false in strict mode")
-		assert.Contains(t, err.Error(), "strict mode")
-		assert.Contains(t, err.Error(), "sandbox.agent: false")
+		require.ErrorContains(t, err, "strict mode")
+		require.ErrorContains(t, err, "sandbox.agent: false")
 	})
 
 	t.Run("sandbox.agent: false shows warning at compile time", func(t *testing.T) {

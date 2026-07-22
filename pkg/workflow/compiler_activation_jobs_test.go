@@ -539,7 +539,7 @@ func TestExtractPreActivationCustomFields_InvalidSteps(t *testing.T) {
 
 	steps, outputs, err := compiler.extractPreActivationCustomFields(jobs)
 	require.Error(t, err, "Should return error for invalid steps format")
-	assert.Contains(t, err.Error(), "must be an array", "Error should mention array requirement")
+	require.ErrorContains(t, err, "must be an array", "Error should mention array requirement")
 	assert.Empty(t, steps, "Should have no steps with invalid format")
 	assert.Empty(t, outputs, "Should have no outputs with invalid format")
 }

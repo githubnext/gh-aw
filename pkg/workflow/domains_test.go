@@ -1352,6 +1352,6 @@ func TestExtractProviderFromModel(t *testing.T) {
 	t.Run("leading slash returns error", func(t *testing.T) {
 		_, err := extractProviderFromModel("/gpt-4.1")
 		require.Error(t, err, "Leading slash (empty provider prefix) must return an error")
-		assert.Contains(t, err.Error(), "provider prefix is empty")
+		require.ErrorContains(t, err, "provider prefix is empty")
 	})
 }

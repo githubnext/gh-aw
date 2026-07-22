@@ -493,7 +493,7 @@ func TestPushWorkflowFiles_WithStagedFiles(t *testing.T) {
 
 	// Should return an error about staged files
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "staged files")
+	require.ErrorContains(t, err, "staged files")
 }
 
 func TestCollectWorkflowFiles_AlwaysRecompiles(t *testing.T) {

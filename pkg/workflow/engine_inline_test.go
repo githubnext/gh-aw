@@ -228,8 +228,8 @@ func TestValidateEngineInlineDefinition_MissingRuntimeID(t *testing.T) {
 
 	err := c.validateEngineInlineDefinition(config)
 	require.Error(t, err, "missing runtime.id should return an error")
-	assert.Contains(t, err.Error(), "runtime.id", "error should mention the missing field")
-	assert.Contains(t, err.Error(), string(constants.DocsEnginesURL), "error should include docs URL")
+	require.ErrorContains(t, err, "runtime.id", "error should mention the missing field")
+	require.ErrorContains(t, err, string(constants.DocsEnginesURL), "error should include docs URL")
 }
 
 // TestValidateEngineInlineDefinition_ValidRuntimeID verifies that a valid inline
@@ -341,11 +341,11 @@ func TestInlineEngineDefinition_UnknownRuntimeID(t *testing.T) {
 	// validateEngineInlineDefinition should catch the unknown runtime ID with a clear error.
 	err := c.validateEngineInlineDefinition(config)
 	require.Error(t, err, "unknown runtime.id should produce a validation error")
-	assert.Contains(t, err.Error(), "nonexistent-runtime",
+	require.ErrorContains(t, err, "nonexistent-runtime",
 		"error should mention the unknown runtime ID")
-	assert.Contains(t, err.Error(), "runtime.id",
+	require.ErrorContains(t, err, "runtime.id",
 		"error should mention the 'runtime.id' field")
-	assert.Contains(t, err.Error(), string(constants.DocsEnginesURL),
+	require.ErrorContains(t, err, string(constants.DocsEnginesURL),
 		"error should include the docs URL")
 }
 

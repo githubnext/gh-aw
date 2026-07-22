@@ -98,8 +98,8 @@ Content here
 
 	require.Error(t, err, "Using 'triggers:' instead of 'on:' should cause error")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "'triggers:'", "Error should mention the invalid key")
-	assert.Contains(t, err.Error(), "'on:'", "Error should mention the correct key")
+	require.ErrorContains(t, err, "'triggers:'", "Error should mention the invalid key")
+	require.ErrorContains(t, err, "'on:'", "Error should mention the correct key")
 }
 
 // TestParseFrontmatterSection_MissingFrontmatter tests error for no frontmatter
@@ -119,7 +119,7 @@ Just markdown content
 
 	require.Error(t, err, "Missing frontmatter should cause error")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "frontmatter")
+	require.ErrorContains(t, err, "frontmatter")
 }
 
 // TestParseFrontmatterSection_InvalidYAML tests YAML parsing errors
@@ -163,7 +163,7 @@ engine: copilot
 
 	require.Error(t, err, "Main workflow needs markdown content")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "markdown content")
+	require.ErrorContains(t, err, "markdown content")
 }
 
 // TestParseFrontmatterSection_PathTraversal tests path cleaning

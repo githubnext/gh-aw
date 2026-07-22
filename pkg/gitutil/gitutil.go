@@ -173,6 +173,9 @@ func ReadFileFromHEAD(filePath, gitRoot string) (string, error) {
 
 	gitutilLog.Printf("Reading %q from git HEAD (relative path: %s)", filePath, relPath)
 
+	// #nosec G204 -- relPath is derived from filepath.Rel(gitRoot, absPath), validated to not start
+	// with ".." (path-traversal check above), and is not user-controlled shell input.
+	// exec.Command uses argv directly (no shell), so no shell injection is possible.
 	cmd := exec.Command("git", "-C", gitRoot, "show", "HEAD:"+relPath)
 	output, err := cmd.Output()
 	if err != nil {

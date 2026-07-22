@@ -388,7 +388,7 @@ func TestSpec_PublicAPI_ReadFileFromHEAD(t *testing.T) {
 		outsidePath := filepath.Join(root, "..", "outside.txt")
 		_, err := gitutil.ReadFileFromHEAD(outsidePath, root)
 		require.Error(t, err, "ReadFileFromHEAD should reject path-traversal attempts")
-		assert.Contains(t, err.Error(), "outside the git repository root")
+		require.ErrorContains(t, err, "outside the git repository root")
 	})
 
 	t.Run("returns error when gitRoot is empty", func(t *testing.T) {

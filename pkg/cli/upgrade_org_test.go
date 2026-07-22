@@ -77,7 +77,7 @@ func TestRunUpgradeForOrgCreateIssueRequiresYesInCI(t *testing.T) {
 
 	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, false, true, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--yes")
+	require.ErrorContains(t, err, "--yes")
 }
 
 func TestRunUpgradeForOrgCreatePRRequiresYesInCI(t *testing.T) {
@@ -89,19 +89,19 @@ func TestRunUpgradeForOrgCreatePRRequiresYesInCI(t *testing.T) {
 
 	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background()}, true, false, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--yes")
+	require.ErrorContains(t, err, "--yes")
 }
 
 func TestRunUpgradeForOrgEmptyOrg(t *testing.T) {
 	err := runUpgradeForOrg(context.Background(), "  ", nil, upgradeOptions{ctx: context.Background()}, false, false, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--org cannot be empty")
+	require.ErrorContains(t, err, "--org cannot be empty")
 }
 
 func TestRunUpgradeForOrgInvalidRepoGlob(t *testing.T) {
 	err := runUpgradeForOrg(context.Background(), "octo", []string{"["}, upgradeOptions{ctx: context.Background()}, false, false, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid --repos pattern")
+	require.ErrorContains(t, err, "invalid --repos pattern")
 }
 
 func TestRunUpgradeForOrgNoReposFound(t *testing.T) {
@@ -314,7 +314,7 @@ func TestRunUpgradeCommandCreateIssueRequiresOrg(t *testing.T) {
 	cmd.SetArgs([]string{"--create-issue"})
 	err := cmd.Execute()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--create-issue requires --org")
+	require.ErrorContains(t, err, "--create-issue requires --org")
 }
 
 func TestRunUpgradeCommandCreateIssueAndPRMutuallyExclusive(t *testing.T) {
@@ -322,7 +322,7 @@ func TestRunUpgradeCommandCreateIssueAndPRMutuallyExclusive(t *testing.T) {
 	cmd.SetArgs([]string{"--org", "octo", "--create-issue", "--create-pull-request"})
 	err := cmd.Execute()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "cannot specify both --create-pull-request and --create-issue")
+	require.ErrorContains(t, err, "cannot specify both --create-pull-request and --create-issue")
 }
 
 func TestRunUpgradeCommandReposRequiresOrg(t *testing.T) {
@@ -330,7 +330,7 @@ func TestRunUpgradeCommandReposRequiresOrg(t *testing.T) {
 	cmd.SetArgs([]string{"--repos", "*-svc"})
 	err := cmd.Execute()
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--repos requires --org")
+	require.ErrorContains(t, err, "--repos requires --org")
 }
 
 func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
@@ -358,7 +358,7 @@ func TestRunUpgradeForOrgSkipsFailedRepos(t *testing.T) {
 
 	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, true, false, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to upgrade any repository")
+	require.ErrorContains(t, err, "failed to upgrade any repository")
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
 }
 
@@ -393,7 +393,7 @@ func TestRunUpgradeForOrgCreateIssueSkipsFailedRepos(t *testing.T) {
 
 	err := runUpgradeForOrg(context.Background(), "octo", nil, upgradeOptions{ctx: context.Background(), yes: true}, false, true, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to create issues in any repository")
+	require.ErrorContains(t, err, "failed to create issues in any repository")
 	assert.Equal(t, []string{"octo/api", "octo/web"}, called, "should attempt all repos and skip failures")
 }
 

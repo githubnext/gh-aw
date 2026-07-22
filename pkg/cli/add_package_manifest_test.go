@@ -328,7 +328,7 @@ files:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `name must be a non-empty string`)
+		require.ErrorContains(t, err, `name must be a non-empty string`)
 	})
 
 	t.Run("requires aw manifest when only legacy alias exists", func(t *testing.T) {
@@ -348,7 +348,7 @@ files:
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
 		assert.Equal(t, []string{"aw.yml"}, requestedPaths)
-		assert.Contains(t, err.Error(), `no aw.yml manifest found`)
+		require.ErrorContains(t, err, `no aw.yml manifest found`)
 	})
 
 	t.Run("accepts manifest-version and compatible min-version", func(t *testing.T) {
@@ -444,7 +444,7 @@ name: Repo Assist
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `manifest-version`)
+		require.ErrorContains(t, err, `manifest-version`)
 	})
 
 	t.Run("accepts branding field", func(t *testing.T) {
@@ -539,7 +539,7 @@ bootstrap:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err, "old bootstrap key must produce an error, not be silently ignored")
-		assert.Contains(t, err.Error(), "bootstrap")
+		require.ErrorContains(t, err, "bootstrap")
 	})
 
 	t.Run("rejects unsupported branding icon", func(t *testing.T) {
@@ -556,7 +556,7 @@ branding:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `icon`)
+		require.ErrorContains(t, err, `icon`)
 	})
 
 	t.Run("rejects docs field", func(t *testing.T) {
@@ -571,7 +571,7 @@ docs: docs/overview.md
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `docs`)
+		require.ErrorContains(t, err, `docs`)
 	})
 
 	t.Run("rejects non-string emoji field", func(t *testing.T) {
@@ -587,7 +587,7 @@ emoji:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `emoji`)
+		require.ErrorContains(t, err, `emoji`)
 	})
 
 	t.Run("rejects non-string license field", func(t *testing.T) {
@@ -603,7 +603,7 @@ license:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `license`)
+		require.ErrorContains(t, err, `license`)
 	})
 
 	t.Run("rejects incompatible min-version", func(t *testing.T) {
@@ -618,7 +618,7 @@ name: Repo Assist
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `requires gh-aw`)
+		require.ErrorContains(t, err, `requires gh-aw`)
 	})
 
 	t.Run("requires package README", func(t *testing.T) {
@@ -638,7 +638,7 @@ files:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `missing required README.md`)
+		require.ErrorContains(t, err, `missing required README.md`)
 	})
 
 	t.Run("reports nested package path when README is missing", func(t *testing.T) {
@@ -658,8 +658,8 @@ files:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo", PackagePath: "packages/repo-assist"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `owner/repo/packages/repo-assist`)
-		assert.Contains(t, err.Error(), `packages/repo-assist/README.md`)
+		require.ErrorContains(t, err, `owner/repo/packages/repo-assist`)
+		require.ErrorContains(t, err, `packages/repo-assist/README.md`)
 	})
 
 	t.Run("rejects unknown manifest fields", func(t *testing.T) {
@@ -674,7 +674,7 @@ unknown-field: true
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), `unknown-field`)
+		require.ErrorContains(t, err, `unknown-field`)
 	})
 
 	t.Run("resolves nested package manifests", func(t *testing.T) {
@@ -845,7 +845,7 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateTrue(t *testing.T) {
 
 	_, err := ResolveWorkflows(context.Background(), []string{"owner/repo"}, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `workflow "workflows/review.md" sets private: true`)
+	require.ErrorContains(t, err, `workflow "workflows/review.md" sets private: true`)
 }
 
 func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
@@ -1145,7 +1145,7 @@ func TestParseRepositoryPackageSpec(t *testing.T) {
 			assert.Equal(t, tt.wantOK, ok)
 			if tt.wantErr != "" {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.wantErr)
+				require.ErrorContains(t, err, tt.wantErr)
 				return
 			}
 			require.NoError(t, err)
@@ -1332,7 +1332,7 @@ files:
 
 		_, err := resolveRepositoryPackage(t.Context(), &RepoSpec{RepoSlug: "owner/repo"}, "")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "duplicate workflow filename")
+		require.ErrorContains(t, err, "duplicate workflow filename")
 	})
 }
 

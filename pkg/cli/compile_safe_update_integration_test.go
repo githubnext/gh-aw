@@ -326,7 +326,7 @@ func TestSafeUpdateNoFlagAllowsNewSecret(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "compile with strict: false should succeed without safe update warning\nOutput:\n%s", outputStr)
+	require.NoError(t, err, "compile with strict: false should succeed without safe update warning\nOutput:\n%s", outputStr)
 	assert.False(t, strings.Contains(outputStr, "safe update mode"),
 		"output should not mention safe update mode when strict mode is disabled")
 	t.Logf("Compilation without safe update enforcement succeeded as expected.\nOutput:\n%s", outputStr)

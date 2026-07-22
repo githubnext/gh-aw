@@ -214,7 +214,7 @@ func TestValidateSecretsSerializationExpressions(t *testing.T) {
 			if tt.wantError {
 				require.Error(t, err, "expected an error but got none")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains,
+					require.ErrorContains(t, err, tt.errorContains,
 						"error should contain expected message",
 					)
 				}
@@ -245,7 +245,7 @@ func TestValidateSecretsSerializationViaValidateExpressions(t *testing.T) {
 
 	err := compiler.validateExpressions(workflowData, "/tmp/test.md")
 	require.Error(t, err, "expected validateExpressions to surface secrets serialization error")
-	assert.Contains(t, err.Error(), "secrets serialization expression(s) detected")
+	require.ErrorContains(t, err, "secrets serialization expression(s) detected")
 }
 
 func TestValidateSecretsSerializationNonStrictViaValidateExpressions(t *testing.T) {
@@ -276,7 +276,7 @@ func TestValidateSecretsSerializationNonStrictViaValidateExpressions(t *testing.
 
 		err := compiler.validateExpressions(workflowData, "/tmp/test.md")
 		require.Error(t, err, "dangerous constructor operand should still be rejected")
-		assert.Contains(t, err.Error(), "constructor")
+		require.ErrorContains(t, err, "constructor")
 		assert.Equal(t, 1, compiler.GetWarningCount(), "secrets serialization warning should still be emitted")
 	})
 }

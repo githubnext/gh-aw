@@ -365,7 +365,7 @@ func TestParseInstalledVersionOutput(t *testing.T) {
 	t.Run("returns error when no version present", func(t *testing.T) {
 		_, err := parseInstalledVersionOutput("gh-aw version unknown")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "could not parse installed gh-aw version")
+		require.ErrorContains(t, err, "could not parse installed gh-aw version")
 	})
 
 	t.Run("uses first version match when multiple exist", func(t *testing.T) {
@@ -377,7 +377,7 @@ func TestParseInstalledVersionOutput(t *testing.T) {
 	t.Run("returns error for empty output", func(t *testing.T) {
 		_, err := parseInstalledVersionOutput("")
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "could not parse installed gh-aw version")
+		require.ErrorContains(t, err, "could not parse installed gh-aw version")
 	})
 }
 

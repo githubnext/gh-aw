@@ -427,7 +427,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 			}
 			_, err := ParseCheckoutConfigs(raw)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "checkout.fetch-depth must be >= 0")
+			require.ErrorContains(t, err, "checkout.fetch-depth must be >= 0")
 		}
 	})
 
@@ -516,7 +516,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "safe-output-github-app should be rejected")
-		assert.Contains(t, err.Error(), "checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
+		require.ErrorContains(t, err, "checkout.safe-output-github-app is not supported; use checkout.safe-outputs-github-app")
 	})
 
 	t.Run("github-token and github-app are mutually exclusive", func(t *testing.T) {
@@ -529,7 +529,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-token and github-app together should return error")
-		assert.Contains(t, err.Error(), "mutually exclusive", "error should mention mutual exclusivity")
+		require.ErrorContains(t, err, "mutually exclusive", "error should mention mutual exclusivity")
 	})
 
 	t.Run("github-app config missing app-id returns error", func(t *testing.T) {
@@ -540,7 +540,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-app without app-id should return error")
-		assert.Contains(t, err.Error(), "client-id (or app-id) and private-key")
+		require.ErrorContains(t, err, "client-id (or app-id) and private-key")
 	})
 
 	t.Run("github-app config missing private-key returns error", func(t *testing.T) {
@@ -551,7 +551,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "github-app without private-key should return error")
-		assert.Contains(t, err.Error(), "client-id (or app-id) and private-key")
+		require.ErrorContains(t, err, "client-id (or app-id) and private-key")
 	})
 
 	t.Run("github-app must be an object", func(t *testing.T) {
@@ -560,7 +560,7 @@ func TestParseCheckoutConfigs(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "non-object github-app should return error")
-		assert.Contains(t, err.Error(), "checkout.github-app must be an object")
+		require.ErrorContains(t, err, "checkout.github-app must be an object")
 	})
 
 	t.Run("array of objects", func(t *testing.T) {
@@ -700,7 +700,7 @@ func TestCheckoutCurrentFlag(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "multiple current: true should return error")
-		assert.Contains(t, err.Error(), "only one checkout target may have current: true", "error should mention the constraint")
+		require.ErrorContains(t, err, "only one checkout target may have current: true", "error should mention the constraint")
 	})
 
 	t.Run("single current: true in array is valid", func(t *testing.T) {
@@ -1477,7 +1477,7 @@ func TestWikiCheckout(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "non-boolean wiki should return error")
-		assert.Contains(t, err.Error(), "checkout.wiki must be a boolean", "error message should mention wiki")
+		require.ErrorContains(t, err, "checkout.wiki must be a boolean", "error message should mention wiki")
 	})
 
 	t.Run("parse force-clean-git-credentials true", func(t *testing.T) {
@@ -1496,7 +1496,7 @@ func TestWikiCheckout(t *testing.T) {
 		}
 		_, err := ParseCheckoutConfigs(raw)
 		require.Error(t, err, "non-boolean force-clean-git-credentials should return error")
-		assert.Contains(t, err.Error(), "checkout.force-clean-git-credentials must be a boolean", "error message should mention force-clean-git-credentials")
+		require.ErrorContains(t, err, "checkout.force-clean-git-credentials must be a boolean", "error message should mention force-clean-git-credentials")
 	})
 
 	t.Run("wiki and non-wiki checkouts of same repo and path are not merged", func(t *testing.T) {
