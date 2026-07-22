@@ -103,15 +103,15 @@ func TestParseEvalsFromFrontmatter_QuestionLevelNonStringModel(t *testing.T) {
 		},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "model")
-	assert.Contains(t, err.Error(), "string")
+	require.ErrorContains(t, err, "model")
+	require.ErrorContains(t, err, "string")
 }
 
 func TestParseEvalsFromFrontmatter_InvalidType(t *testing.T) {
 	c := NewCompiler()
 	_, err := c.parseEvalsFromFrontmatter(map[string]any{"evals": "invalid"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "evals")
+	require.ErrorContains(t, err, "evals")
 }
 
 func TestParseEvalsFromFrontmatter_WrongTypeQuestions(t *testing.T) {
@@ -122,8 +122,8 @@ func TestParseEvalsFromFrontmatter_WrongTypeQuestions(t *testing.T) {
 		},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "evals.questions")
-	assert.Contains(t, err.Error(), "list")
+	require.ErrorContains(t, err, "evals.questions")
+	require.ErrorContains(t, err, "list")
 }
 
 func TestParseEvalsFromFrontmatter_NonStringModel(t *testing.T) {
@@ -137,8 +137,8 @@ func TestParseEvalsFromFrontmatter_NonStringModel(t *testing.T) {
 		},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "evals.model")
-	assert.Contains(t, err.Error(), "string")
+	require.ErrorContains(t, err, "evals.model")
+	require.ErrorContains(t, err, "string")
 }
 
 // ---------------------------------------------------------------------------
@@ -148,7 +148,7 @@ func TestParseEvalsFromFrontmatter_NonStringModel(t *testing.T) {
 func TestValidateEvals_RejectsEmptyQuestions(t *testing.T) {
 	err := validateEvals(&EvalsConfig{Questions: []EvalDefinition{}})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "at least one question")
+	require.ErrorContains(t, err, "at least one question")
 }
 
 func TestValidateEvals_RejectsDuplicateID(t *testing.T) {
@@ -160,8 +160,8 @@ func TestValidateEvals_RejectsDuplicateID(t *testing.T) {
 	}
 	err := validateEvals(cfg)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "duplicate id")
-	assert.Contains(t, err.Error(), "builds")
+	require.ErrorContains(t, err, "duplicate id")
+	require.ErrorContains(t, err, "builds")
 }
 
 func TestValidateEvals_RejectsEmptyQuestion(t *testing.T) {
@@ -173,7 +173,7 @@ func TestValidateEvals_RejectsEmptyQuestion(t *testing.T) {
 	}
 	err := validateEvals(cfg)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "non-empty")
+	require.ErrorContains(t, err, "non-empty")
 }
 
 func TestValidateEvals_AcceptsValidQuestions(t *testing.T) {
@@ -197,19 +197,19 @@ func TestValidateEvals_NilConfig(t *testing.T) {
 func TestParseEvalDefinition_MissingID(t *testing.T) {
 	_, err := parseEvalDefinition(map[string]any{"question": "Something?"}, 0)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "id")
+	require.ErrorContains(t, err, "id")
 }
 
 func TestParseEvalDefinition_MissingQuestion(t *testing.T) {
 	_, err := parseEvalDefinition(map[string]any{"id": "q1"}, 0)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "question")
+	require.ErrorContains(t, err, "question")
 }
 
 func TestParseEvalDefinition_EmptyID(t *testing.T) {
 	_, err := parseEvalDefinition(map[string]any{"id": "  ", "question": "Something?"}, 0)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "id")
+	require.ErrorContains(t, err, "id")
 }
 
 func TestParseEvalDefinition_TrimsWhitespace(t *testing.T) {

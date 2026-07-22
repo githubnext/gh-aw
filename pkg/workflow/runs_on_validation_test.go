@@ -162,7 +162,7 @@ func TestValidateRunsOn(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Test: %s - Expected error but got nil", tt.description)
 				if tt.errorInMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorInMsg,
+					require.ErrorContains(t, err, tt.errorInMsg,
 						"Error should contain '%s' for: %s", tt.errorInMsg, tt.description)
 				}
 			} else {
@@ -274,7 +274,7 @@ func TestValidateRunsOnValue(t *testing.T) {
 			err := validateRunsOnValue(tt.value)
 			if tt.wantErr {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errContain)
+				require.ErrorContains(t, err, tt.errContain)
 				return
 			}
 			assert.NoError(t, err)

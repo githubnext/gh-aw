@@ -273,7 +273,7 @@ tools:
 
 		err = compiler.CompileWorkflow(tmpFile.Name())
 		require.Error(t, err, "strict mode should reject private-to-public-flows: allow")
-		assert.Contains(t, err.Error(), "private-to-public-flows")
+		require.ErrorContains(t, err, "private-to-public-flows")
 	})
 
 	t.Run("list form is accepted in strict mode", func(t *testing.T) {
@@ -370,7 +370,7 @@ func TestValidatePrivateToPublicFlowsServerIDs(t *testing.T) {
 		}
 		err := validatePrivateToPublicFlowsServerIDs(wd)
 		require.Error(t, err, "undeclared server ID should be rejected")
-		assert.Contains(t, err.Error(), "undeclared-server")
+		require.ErrorContains(t, err, "undeclared-server")
 	})
 
 	t.Run("allow string form skipped", func(t *testing.T) {
@@ -407,8 +407,8 @@ func TestValidatePrivateToPublicFlowsStringValue(t *testing.T) {
 		}
 		err := validatePrivateToPublicFlowsStringValue(wd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "invalid value")
-		assert.Contains(t, err.Error(), "Allow")
+		require.ErrorContains(t, err, "invalid value")
+		require.ErrorContains(t, err, "Allow")
 	})
 
 	t.Run("list form skipped", func(t *testing.T) {

@@ -5,7 +5,6 @@ package workflow
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,7 +35,7 @@ func TestValidateLSPSupport(t *testing.T) {
 			LSP: validLSP,
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "only supported for engine: copilot")
+		require.ErrorContains(t, err, "only supported for engine: copilot")
 	})
 
 	t.Run("invalid lsp config fails validation", func(t *testing.T) {
@@ -52,6 +51,6 @@ func TestValidateLSPSupport(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "lsp.python.command is required")
+		require.ErrorContains(t, err, "lsp.python.command is required")
 	})
 }

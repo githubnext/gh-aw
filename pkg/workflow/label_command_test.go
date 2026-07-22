@@ -460,7 +460,7 @@ This should fail validation.
 	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(workflowPath)
 	require.Error(t, err, "CompileWorkflow() should error when label_command is combined with non-label issues trigger")
-	assert.Contains(t, err.Error(), "label_command", "error should mention label_command")
+	require.ErrorContains(t, err, "label_command", "error should mention label_command")
 }
 
 // TestLabelCommandRemoveLabelDisabled verifies that setting remove_label: false in the object form

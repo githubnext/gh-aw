@@ -378,8 +378,8 @@ jobs:
 	compiler := NewCompiler()
 	err = compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "compiler should reject write gh commands in activation pre-steps")
-	assert.Contains(t, err.Error(), "gh pr comment", "error should mention the offending command")
-	assert.Contains(t, err.Error(), "write", "error should explain the write-permission restriction")
+	require.ErrorContains(t, err, "gh pr comment", "error should mention the offending command")
+	require.ErrorContains(t, err, "write", "error should explain the write-permission restriction")
 }
 
 // TestActivationJobPermissionsWithGhCachePreStep verifies actions: read is added when
@@ -543,9 +543,9 @@ Test agent pre-steps write command triggers error.
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "compiler should error when agent pre-step uses a write gh command")
-	assert.Contains(t, err.Error(), "agent job uses write gh command(s)")
-	assert.Contains(t, err.Error(), "gh pr comment")
-	assert.Contains(t, err.Error(), "safe-outputs")
+	require.ErrorContains(t, err, "agent job uses write gh command(s)")
+	require.ErrorContains(t, err, "gh pr comment")
+	require.ErrorContains(t, err, "safe-outputs")
 }
 
 // TestAgentJobPreStepsInferReadPermission verifies that when an agent job pre-step
@@ -868,8 +868,8 @@ Test agent steps write command triggers error.
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "compiler should error when agent steps use a write gh command")
-	assert.Contains(t, err.Error(), "agent job uses write gh command(s)")
-	assert.Contains(t, err.Error(), "gh issue create")
+	require.ErrorContains(t, err, "agent job uses write gh command(s)")
+	require.ErrorContains(t, err, "gh issue create")
 }
 
 // TestAgentJobWriteCommandInPostStepsErrors verifies that a write gh command in a top-level
@@ -896,8 +896,8 @@ Test agent post-steps write command triggers error.
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "compiler should error when agent post-steps use a write gh command")
-	assert.Contains(t, err.Error(), "agent job uses write gh command(s)")
-	assert.Contains(t, err.Error(), "gh pr close")
+	require.ErrorContains(t, err, "agent job uses write gh command(s)")
+	require.ErrorContains(t, err, "gh pr close")
 }
 
 // TestActivationJobStepsNotScanned verifies that jobs.activation.steps is NOT scanned for

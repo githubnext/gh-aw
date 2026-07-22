@@ -22,8 +22,8 @@ func TestValidateNetworkFirewallConfig_AllowURLsRequiresSSLBump(t *testing.T) {
 		err := validateNetworkFirewallConfig(networkPermissions)
 
 		require.Error(t, err, "Expected validation error when allow-urls is specified without ssl-bump")
-		assert.Contains(t, err.Error(), "allow-urls requires ssl-bump: true", "Error should mention the ssl-bump requirement")
-		assert.Contains(t, err.Error(), "network.firewall.allow-urls", "Error should identify the field")
+		require.ErrorContains(t, err, "allow-urls requires ssl-bump: true", "Error should mention the ssl-bump requirement")
+		require.ErrorContains(t, err, "network.firewall.allow-urls", "Error should identify the field")
 	})
 
 	t.Run("allow-urls with ssl-bump passes validation", func(t *testing.T) {
@@ -56,7 +56,7 @@ func TestValidateNetworkFirewallConfig_AllowURLsRequiresSSLBump(t *testing.T) {
 		err := validateNetworkFirewallConfig(networkPermissions)
 
 		require.Error(t, err, "Expected validation error when multiple allow-urls are specified without ssl-bump")
-		assert.Contains(t, err.Error(), "allow-urls requires ssl-bump: true", "Error should mention the ssl-bump requirement")
+		require.ErrorContains(t, err, "allow-urls requires ssl-bump: true", "Error should mention the ssl-bump requirement")
 	})
 
 	t.Run("multiple allow-urls with ssl-bump passes validation", func(t *testing.T) {
@@ -147,7 +147,7 @@ func TestValidateNetworkFirewallConfig_AllowURLsRequiresSSLBump(t *testing.T) {
 		err := validateNetworkFirewallConfig(networkPermissions)
 
 		require.Error(t, err, "Expected validation error even when firewall is disabled")
-		assert.Contains(t, err.Error(), "allow-urls requires ssl-bump: true", "Error should mention the ssl-bump requirement")
+		require.ErrorContains(t, err, "allow-urls requires ssl-bump: true", "Error should mention the ssl-bump requirement")
 	})
 }
 
@@ -181,7 +181,7 @@ func TestValidateNetworkAllowedDomains_EcosystemIdentifiers(t *testing.T) {
 				network := &NetworkPermissions{Allowed: []string{ecosystem}}
 				err := compiler.validateNetworkAllowedDomains(network)
 				require.Error(t, err, "Unknown ecosystem identifier '%s' should fail validation", ecosystem)
-				assert.Contains(t, err.Error(), "not a valid ecosystem identifier", "Error should indicate invalid ecosystem identifier")
+				require.ErrorContains(t, err, "not a valid ecosystem identifier", "Error should indicate invalid ecosystem identifier")
 			})
 		}
 	})
@@ -203,8 +203,8 @@ func TestValidateNetworkAllowedDomains_EcosystemIdentifiers(t *testing.T) {
 		}
 		err := compiler.validateNetworkAllowedDomains(network)
 		require.Error(t, err, "Should fail when invalid ecosystem identifiers are present")
-		assert.Contains(t, err.Error(), "rustxxxx", "Error should mention the invalid identifier")
-		assert.Contains(t, err.Error(), "fakeecosystem", "Error should mention the other invalid identifier")
+		require.ErrorContains(t, err, "rustxxxx", "Error should mention the invalid identifier")
+		require.ErrorContains(t, err, "fakeecosystem", "Error should mention the other invalid identifier")
 	})
 }
 
@@ -231,7 +231,7 @@ func TestValidateNetworkFirewallConfig_Integration(t *testing.T) {
 		err := validateNetworkFirewallConfig(workflowData.NetworkPermissions)
 
 		require.Error(t, err, "Compiler should reject workflow with allow-urls but no ssl-bump")
-		assert.Contains(t, err.Error(), "allow-urls requires ssl-bump: true", "Error should explain the requirement")
+		require.ErrorContains(t, err, "allow-urls requires ssl-bump: true", "Error should explain the requirement")
 	})
 
 	t.Run("compiler accepts workflow with allow-urls and ssl-bump", func(t *testing.T) {

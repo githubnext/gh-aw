@@ -5,7 +5,6 @@ package workflow
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -31,7 +30,7 @@ func TestValidateOnNeedsTargets(t *testing.T) {
 
 		err := validateOnNeedsTargets(data)
 		require.Error(t, err, "expected on.needs validation error")
-		assert.Contains(t, err.Error(), `built-in job "activation"`, "error should explain invalid built-in target")
+		require.ErrorContains(t, err, `built-in job "activation"`, "error should explain invalid built-in target")
 	})
 
 	t.Run("target depending on activation rejected", func(t *testing.T) {
@@ -46,7 +45,7 @@ func TestValidateOnNeedsTargets(t *testing.T) {
 
 		err := validateOnNeedsTargets(data)
 		require.Error(t, err, "expected on.needs validation error")
-		assert.Contains(t, err.Error(), "cannot depend on activation/pre_activation", "error should explain cyclic dependency risk")
+		require.ErrorContains(t, err, "cannot depend on activation/pre_activation", "error should explain cyclic dependency risk")
 	})
 }
 
@@ -68,8 +67,8 @@ func TestValidateOnNeedsDependencyChains(t *testing.T) {
 
 		err := c.validateOnNeeds(data)
 		require.Error(t, err, "expected transitive chain validation error")
-		assert.Contains(t, err.Error(), `depends on "bootstrap"`, "error should identify problematic transitive dependency")
-		assert.Contains(t, err.Error(), "implicit needs: activation", "error should explain cycle-prone implicit activation dependency")
+		require.ErrorContains(t, err, `depends on "bootstrap"`, "error should identify problematic transitive dependency")
+		require.ErrorContains(t, err, "implicit needs: activation", "error should explain cycle-prone implicit activation dependency")
 	})
 
 	t.Run("allows chain when transitive dependency is explicitly in on.needs", func(t *testing.T) {
@@ -124,7 +123,7 @@ func TestValidateOnGitHubAppNeedsExpressions(t *testing.T) {
 
 		err := c.validateOnNeeds(data)
 		require.Error(t, err, "expected on.github-app validation error")
-		assert.Contains(t, err.Error(), `unknown job "missing_job"`, "error should identify unknown needs job")
+		require.ErrorContains(t, err, `unknown job "missing_job"`, "error should identify unknown needs job")
 	})
 
 	t.Run("error field label uses client-id", func(t *testing.T) {
@@ -142,6 +141,6 @@ func TestValidateOnGitHubAppNeedsExpressions(t *testing.T) {
 
 		err := c.validateOnNeeds(data)
 		require.Error(t, err, "expected on.github-app validation error")
-		assert.Contains(t, err.Error(), "on.github-app.client-id", "error field should use yaml key client-id")
+		require.ErrorContains(t, err, "on.github-app.client-id", "error field should use yaml key client-id")
 	})
 }

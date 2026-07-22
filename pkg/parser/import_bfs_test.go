@@ -5,7 +5,6 @@ package parser
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -17,5 +16,5 @@ func TestParseImportSpecsFromArray_RejectsIfField(t *testing.T) {
 		},
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "import 'if' is no longer supported")
+	require.ErrorContains(t, err, "import 'if' is no longer supported")
 }

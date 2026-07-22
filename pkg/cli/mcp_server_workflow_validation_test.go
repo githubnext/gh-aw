@@ -49,7 +49,7 @@ func TestMCPValidateWorkflowName(t *testing.T) {
 			} else {
 				assert.Error(t, err, "Validation should fail for workflow: %s", tt.workflowName)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error message should contain expected text")
+					assert.ErrorContains(t, err, tt.errorContains, "Error message should contain expected text")
 				}
 			}
 		})

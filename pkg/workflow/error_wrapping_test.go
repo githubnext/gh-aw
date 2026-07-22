@@ -300,7 +300,7 @@ func TestHTTPErrorsNotExposed(t *testing.T) {
 			"HTTP internal errors should not be in the error chain")
 
 		// But the message should still be informative
-		assert.Contains(t, userErr.Error(), "MCP server")
+		assert.ErrorContains(t, userErr, "MCP server")
 	})
 
 	t.Run("IO errors should be wrapped with context", func(t *testing.T) {

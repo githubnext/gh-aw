@@ -126,7 +126,7 @@ func TestValidateSandboxConfig(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg)
+					require.ErrorContains(t, err, tt.errorMsg)
 				}
 			} else {
 				assert.NoError(t, err)

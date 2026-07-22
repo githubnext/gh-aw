@@ -123,7 +123,7 @@ func TestInstallShellCompletion_TypeAssertion(t *testing.T) {
 		// Should fail type assertion
 		err := InstallShellCompletion(false, nil)
 		require.Error(t, err, "Should fail with nil rootCmd")
-		assert.Contains(t, err.Error(), "must be a *cobra.Command",
+		require.ErrorContains(t, err, "must be a *cobra.Command",
 			"Should fail with type assertion error message")
 	})
 }

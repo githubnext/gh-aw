@@ -497,7 +497,7 @@ func TestGetEngineSecretNameAndValue(t *testing.T) {
 		_, _, _, err := GetEngineSecretNameAndValue("unknown-engine", existingSecrets)
 
 		require.Error(t, err, "Should error for unknown engine")
-		assert.Contains(t, err.Error(), "unknown engine", "Error should mention unknown engine")
+		require.ErrorContains(t, err, "unknown engine", "Error should mention unknown engine")
 	})
 
 	t.Run("no alternative secret in repo", func(t *testing.T) {

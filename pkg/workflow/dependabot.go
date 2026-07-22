@@ -331,11 +331,18 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 		return errors.New("npm command not found - cannot generate package-lock.json. Install Node.js/npm to enable this feature")
 	}
 
+	// Validate that exec.LookPath returned an absolute path (defense-in-depth).
+	if !filepath.IsAbs(npmPath) {
+		return fmt.Errorf("npm path is not absolute: %s", npmPath)
+	}
+
 	if c.verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running npm install --package-lock-only..."))
 	}
 
 	// Run npm install --package-lock-only
+	// #nosec G204 -- npmPath is resolved by exec.LookPath and validated as an absolute path above;
+	// the fixed arguments "install" and "--package-lock-only" contain no user-controlled data.
 	cmd := exec.Command(npmPath, "install", "--package-lock-only")
 	cmd.Dir = workflowDir
 

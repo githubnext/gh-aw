@@ -208,7 +208,7 @@ Test workflow that doesn't use PR features.
 
 			if tt.expectError {
 				require.Error(t, err, "Expected compilation error")
-				assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+				require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 			} else {
 				assert.NoError(t, err, "Expected successful compilation")
 			}

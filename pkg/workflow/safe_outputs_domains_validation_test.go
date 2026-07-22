@@ -189,7 +189,7 @@ func TestValidateSafeOutputsAllowedDomains(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Expected an error but got none")
 				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error but got: %v", err)
@@ -348,7 +348,7 @@ func TestValidateDomainPattern(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Expected an error for domain: %s", tt.domain)
 				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for domain: %s, but got: %v", tt.domain, err)

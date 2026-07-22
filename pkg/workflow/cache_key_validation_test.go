@@ -68,7 +68,7 @@ func TestCacheKeyRunIDValidationObject(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err, "Should return error for key containing run_id")
-				assert.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
+				require.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
 			} else {
 				assert.NoError(t, err, "Should not return error for valid key")
 			}
@@ -117,7 +117,7 @@ func TestCacheKeyRunIDValidationArray(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err, "Should return error for key containing run_id")
-				assert.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
+				require.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
 			} else {
 				assert.NoError(t, err, "Should not return error for valid key")
 			}
