@@ -778,6 +778,61 @@ function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap,
   return normalizedSchemaKeyMap.get(normalized) || key;
 }
 
+const CLI_UNESCAPED_TEXT_ARG_KEYS = new Set(["body", "draftbody"]);
+
+/**
+ * Unescape a conservative subset of JSON-style escape sequences in a CLI text argument.
+ *
+ * This is only applied to body-like text fields where authors commonly expect
+ * `\n` and similar escapes to become literal formatting characters, matching
+ * JSON stdin mode more closely without mutating unrelated string arguments
+ * such as file paths or regex patterns.
+ *
+ * Supported sequences:
+ *   `\n`      → newline
+ *   `\t`      → tab
+ *   `\r`      → carriage return
+ *   `\b`      → backspace
+ *   `\f`      → form feed
+ *   `\\`      → single backslash
+ *   `\uXXXX`  → Unicode code point
+ *   Any other `\X` is left unchanged (the backslash is preserved).
+ *
+ * @param {string} str - Raw CLI string argument
+ * @returns {string} String with supported escape sequences replaced by literal characters
+ */
+function unescapeCliStringArg(str) {
+  return str.replace(/\\(?:u([0-9a-fA-F]{4})|([\s\S]))/g, (match, hex, char) => {
+    if (hex) {
+      return String.fromCharCode(Number.parseInt(hex, 16));
+    }
+    switch (char) {
+      case "n":
+        return "\n";
+      case "t":
+        return "\t";
+      case "r":
+        return "\r";
+      case "b":
+        return "\b";
+      case "f":
+        return "\f";
+      case "\\":
+        return "\\";
+      default:
+        return match;
+    }
+  });
+}
+
+/**
+ * @param {string} key
+ * @returns {boolean}
+ */
+function shouldUnescapeCliTextArg(key) {
+  return CLI_UNESCAPED_TEXT_ARG_KEYS.has(normalizeSchemaKey(key));
+}
+
 /**
  * Parse and coerce a CLI argument value based on the MCP tool schema property type.
  *
@@ -855,6 +910,13 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowN
     if (normalized === "false" || normalized === "0") {
       return false;
     }
+  }
+
+  // Only unescape body-like text fields. Shell argv is already decoded, so
+  // applying a second escape pass to arbitrary string fields would corrupt
+  // values like Windows paths and regex patterns.
+  if (types.includes("string") && shouldUnescapeCliTextArg(key)) {
+    return unescapeCliStringArg(rawValue);
   }
 
   // When schema metadata is unavailable (e.g. empty tools cache), apply
@@ -1376,6 +1438,7 @@ if (require.main === module) {
 module.exports = {
   parseToolArgs,
   coerceToolArgValue,
+  unescapeCliStringArg,
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
