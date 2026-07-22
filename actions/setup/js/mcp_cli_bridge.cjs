@@ -779,6 +779,40 @@ function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap,
 }
 
 /**
+ * Unescape standard escape sequences in a CLI string argument.
+ *
+ * Converts the same escape sequences that JSON string parsing recognises so
+ * that agents can write `--body "Hello\nWorld"` and get an actual newline,
+ * matching the behaviour of JSON stdin mode where `JSON.parse` handles `\n`.
+ *
+ * Supported sequences:
+ *   `\n`  → newline
+ *   `\t`  → tab
+ *   `\r`  → carriage return
+ *   `\\`  → single backslash
+ *   Any other `\X` is left unchanged (the backslash is preserved).
+ *
+ * @param {string} str - Raw CLI string argument
+ * @returns {string} String with escape sequences replaced by their literal characters
+ */
+function unescapeCliStringArg(str) {
+  return str.replace(/\\([\s\S])/g, (match, char) => {
+    switch (char) {
+      case "n":
+        return "\n";
+      case "t":
+        return "\t";
+      case "r":
+        return "\r";
+      case "\\":
+        return "\\";
+      default:
+        return match;
+    }
+  });
+}
+
+/**
  * Parse and coerce a CLI argument value based on the MCP tool schema property type.
  *
  * @param {string} key - Argument key name
@@ -855,6 +889,14 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowN
     if (normalized === "false" || normalized === "0") {
       return false;
     }
+  }
+
+  // Unescape standard escape sequences in string-typed values so that agents
+  // can write `--body "Hello\nWorld"` and get an actual newline.  This mirrors
+  // the behaviour of JSON stdin mode where JSON.parse interprets `\n` as a
+  // newline character.
+  if (types.includes("string")) {
+    return unescapeCliStringArg(rawValue);
   }
 
   // When schema metadata is unavailable (e.g. empty tools cache), apply
@@ -1376,6 +1418,7 @@ if (require.main === module) {
 module.exports = {
   parseToolArgs,
   coerceToolArgValue,
+  unescapeCliStringArg,
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
