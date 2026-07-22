@@ -12,3 +12,8 @@ To create a pull request:
 **Important**: The `branch` parameter in the create_pull_request tool **must exactly match the name of your current local git branch** — the branch you just committed to. You can verify this with `git branch --show-current`. Never invent or guess a branch name; always use the actual branch name from `git branch --show-current`. If you are on an existing branch (e.g. you checked out a PR branch), use that branch name.
 
 **Important**: `create_pull_request` is not a sandbox. Every successful call records a real PR intent that can become an externally visible pull request. Never use placeholder payloads like `"test"` / `"test"` to see what happens. If you are not ready to open the real PR, use `noop` or `report_incomplete` instead.
+
+**Pre-flight quality check (required before calling `create_pull_request`)**:
+- Do not use bare placeholder titles/descriptions such as `wip`, `progress`, `started`, or `work in progress`.
+- Replace placeholders with a specific, merge-oriented title and 1-3 bullets describing completed work and remaining work.
+- If the change is truly not review-ready yet, prefer `draft: true` plus a concrete title over placeholder wording.

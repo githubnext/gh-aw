@@ -38,6 +38,9 @@ safe-outputs:
     # Omitting 'allowed' to permit dynamic label creation (pr-type:*, pr-risk:*, etc.)
   add-comment:
     max: 50
+  close-pull-request:
+    target: "*"
+    max: 10
   create-issue:
     max: 1
     title-prefix: "[PR Triage Report] "
@@ -98,7 +101,29 @@ Pick one action per PR:
 - `defer` (low-value work)
 - `close` (stale/superseded/invalid)
 
-### Phase 5: Batch and label
+### Phase 5: WIP-placeholder cluster triage (close vs nudge)
+
+Before batching, explicitly triage PRs whose titles/descriptions look like bare placeholders from the low-merge cluster (`wip`, `progress`, `started`, `work in progress`).
+
+- Treat a PR as **placeholder-like** when the title is mostly one of those terms (allow punctuation/case variants) and the body is empty or similarly vague.
+- **Close as abandoned** when placeholder-like and there has been no meaningful activity (commits/comments/reviews) for 7+ days.
+- **Nudge as revivable** when placeholder-like but there is recent activity (<7 days) or evidence the work is still moving.
+
+When closing, use `close_pull_request` with this comment:
+
+```
+👋 Closing this PR because it appears to be a placeholder WIP/progress PR with no recent activity.
+
+This helps keep the review queue focused on mergeable work. If you want to continue this change, please reopen with:
+- a specific title describing the actual change
+- a short summary of what is complete vs remaining
+
+Thank you! This closure is organizational, not a rejection.
+```
+
+When nudging, leave a friendly comment asking the author to replace placeholder wording with a concrete title/summary and list the next actionable step.
+
+### Phase 6: Batch and label
 
 - Detect similar PR clusters (category/risk/overlap/workflow similarity).
 - Assign batch IDs for groups of 3+.
@@ -111,11 +136,11 @@ Pick one action per PR:
   - optional batch: `pr-batch:*`
 - Remove conflicting old triage labels, preserve non-triage labels.
 
-### Phase 6: Comment each triaged PR
+### Phase 7: Comment each triaged PR
 
 Post a compact comment with category, risk, total score, score breakdown, recommended action, and optional batch info.
 
-### Phase 7: Create the triage report issue
+### Phase 8: Create the triage report issue
 
 Create one issue report using `###`/`####` headings only. Keep summary visible and put long lists in `<details>`.
 Include at least:
@@ -127,8 +152,9 @@ Include at least:
 - batch opportunities,
 - close candidates,
 - key trends and next actions.
+- count of placeholder-WIP PRs closed vs nudged.
 
-### Phase 8: Save run state
+### Phase 9: Save run state
 
 Write `/tmp/gh-aw/repo-memory/default/pr-triage-latest.json` containing run metadata, selected candidates, batches, and summary stats for the next run.
 
