@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**128/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**136/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -121,15 +121,21 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **132** → tiny-none-many-xlarge-DIVERGED single/multi/merge_msg (idx132-134),
-which FINISHES FILES=many (90-179 halfway: xlarge done, only diverged trio left of xlarge).
-**idx128-131 DONE, all PASS:** clean-merge_msg(128) 4057.41 KB, ahead-single(129) 4057,
-ahead-multi(130) 4057.9 (disjoint ~1.014×), ahead-merge_msg(131) 4058. All 20 files, ff
-rc0, merges empty, topic-name filename leak reconfirmed on both merge_msg cells (128,131).
-many-large DONE 117-125. many-xlarge NOW 126-131 (clean+ahead all PASS, ~38 KB headroom —
-TIGHTEST YET). many-medium 108-116. many-small 99-107. many-micro 90-98. batch 180-269.
-**many-xlarge MEASURED ~4057.4-4058 KB <4096 (confirmed safe, only ~38 KB slack).**
-batch-xlarge ~4080 KB <4096 BUT batch=100 files == max-patch-files default 100 (200
-here) — watch the `>` vs `>=` boundary. HISTORY=deep(500) & SIZE>tiny (idx 720+) far
-ahead — no real `rejected` expected before then unless a PATCH tier is tuned >4096,
-batch runs under a default-100 config, or the 3× same-file-append shape is exercised.
+Next index: **136** → tiny-none-batch-micro (idx135 DONE) continues into batch-micro
+ahead/diverged/multi/merge_msg (idx136-143) then batch-small/medium/large/xlarge.
+**idx132-134 DONE, all PASS — FILES=many COMPLETE (90-134):** many-xlarge-DIVERGED trio:
+diverged-single(132) 4064 KB, diverged-multi(133) 4072 KB (3 disjoint patches ~1.018×,
+NOT 3×), diverged-merge_msg(134) 4064 KB. All: FF rc0, structural merges=0, endpoint
+`git diff --name-only main..feature`=21 (main history.md phantom under divergence) but
+true format-patch feature set = 20 files (three-dot=20). merge_msg(134) reconfirmed
+PARENTS=1 + topic-name `.patch` filename leak (message-text merge heuristic misfires).
+~24-32 KB headroom to 4096 — as tight as 126-131. many-xlarge fully done 126-134.
+**idx135 DONE, all PASS — FIRST BATCH cell:** batch-micro-clean-single = EXACTLY 100
+files, 24 KB total, ~193 B/file framing-dominated (micro ~2 KB payload). PASS under this
+workflow's max-patch-files=200. **BOUNDARY CONFIRMED: 100 files == default max-patch-files
+100** → under a `>` check 100 passes, under `>=` 100 rejects. Safe here (100≤200). NOTE:
+earlier notes mis-stated batch as idx180-269; CORRECT range is **batch = idx135-179**
+(files=(i//45)%4==3). HISTORY=deep(500) & SIZE>tiny (idx720+) far ahead. First real
+`rejected` still needs: a PATCH tier tuned >4096, batch under a default-100 config
+(would fire at idx135 there IF `>=`), or the 3× single-long-line same-file-append shape.
+batch-xlarge (~4080 KB, 100 files) lands later in this block — watch both caps there.
