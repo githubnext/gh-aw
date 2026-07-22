@@ -124,7 +124,7 @@ An older **patch transport** (`git format-patch` / `git am --3way`) is used when
 The `safe_outputs` job always mirrors the agent job's checkout layout. When a `checkout:` entry places a repository in a subdirectory (a `path:` is set), `safe_outputs` checks out **every** repository to the same location the agent used — the workflow repository at the workspace root plus each cross-repo checkout at its `path:` — regardless of whether `target-repo` names a specific repository or the wildcard `"*"`. This lets a specific `target-repo` (and the two-or-more cross-repo case) operate against an identical layout. When the target repository is checked out at the workspace root (no `path:`), it is checked out there in both jobs.
 :::
 
-When `head-repo` is set, the preferred model is an ephemeral upstream-based branch: the safe output job resolves the upstream base SHA from `target-repo`, creates or refreshes a temporary branch in `head-repo` from that SHA, pushes the agent's commits there, and opens the PR back to the upstream base. Supported synchronization is limited to that configured upstream/head pairing; arbitrary reuse of unrelated fork branches is not supported.
+When `head-repo` is set, the preferred model is an ephemeral upstream-based branch: the safe output job resolves the upstream base SHA from `target-repo`, creates or refreshes a temporary branch in `head-repo` from that SHA, pushes the agent's commits there, and opens the PR back to the upstream base. Supported synchronization is limited to that configured upstream/head pairing; arbitrary reuse of unrelated fork branches is not supported. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for the matching checkout, allowlist, and fork-credential rules.
 
 ## Pull Request Updates (`update-pull-request:`)
 
@@ -175,6 +175,9 @@ safe-outputs:
 :::caution[Experimental]
 `merge-pull-request` is an experimental safe output. `gh aw compile` emits an experimental feature warning when a workflow uses it. The merge is blocked unless every configured policy gate passes; merges to the repository default branch are always refused.
 :::
+
+> [!NOTE]
+> Graduation to stable requires all of the following: end-to-end test coverage for same-repository and cross-repository merge paths, staged-mode and live-merge parity across all documented policy gates, resolution of known false-positive/false-negative mergeability cases, and at least one release cycle without schema or behavior changes to the tool-call contract.
 
 Merges a pull request only after configured policy gates pass — status checks, review decision, unresolved review threads, label and branch constraints, and GitHub mergeability.
 
@@ -672,3 +675,9 @@ Protection covers three categories:
 
 > [!NOTE]
 > Runtime manifests and governance files (`CODEOWNERS`, `DESIGN.md`) are matched by **basename only** (the filename without its directory path), so they are protected regardless of where they appear in the repository. Path-prefix rules (`.github/`, `.agents/`, `.githooks/`, `.husky/`, `.claude/`, `.codex/`) match the full relative path from the repository root.
+
+## Related Documentation
+
+- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) - Checkout, target-repo, allowed-repos, and fork-authentication rules
+- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Complete safe output reference
+- [Triggering CI](/gh-aw/reference/triggering-ci/) - How PR-safe-outputs can request follow-up CI
