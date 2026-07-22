@@ -3,37 +3,23 @@
 package console
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io"
-	"os"
 	"testing"
 )
 
+// captureStderr redirects Print* output to an in-memory buffer by swapping the
+// package-level stderr variable. Tests using this helper must not call
+// t.Parallel() because the variable is not concurrency-safe.
 func captureStderr(t *testing.T, fn func()) string {
 	t.Helper()
-
-	oldStderr := os.Stderr
-	r, w, err := os.Pipe()
-	if err != nil {
-		t.Fatalf("failed to create stderr pipe: %v", err)
-	}
-	os.Stderr = w
-	defer func() {
-		os.Stderr = oldStderr
-	}()
-
+	var buf bytes.Buffer
+	old := stderr
+	stderr = &buf
+	defer func() { stderr = old }()
 	fn()
-
-	if err := w.Close(); err != nil {
-		t.Fatalf("failed to close stderr writer: %v", err)
-	}
-
-	out, err := io.ReadAll(r)
-	if err != nil {
-		t.Fatalf("failed to read stderr output: %v", err)
-	}
-	return string(out)
+	return buf.String()
 }
 
 // TestPrintErrorNewline verifies that PrintError does not emit a spurious blank
@@ -41,109 +27,107 @@ func captureStderr(t *testing.T, fn func()) string {
 // be used.
 func TestPrintErrorNewline(t *testing.T) {
 	ce := CompilerError{Type: "error", Message: "something went wrong"}
-	stderr := captureStderr(t, func() {
-		_, _ = PrintError(ce)
-	})
+	got := captureStderr(t, func() { PrintError(ce) })
 
 	want := FormatError(ce)
-	if stderr != want {
-		t.Fatalf("PrintError output mismatch\nwant: %q\ngot:  %q", want, stderr)
+	if got != want {
+		t.Fatalf("PrintError output mismatch\nwant: %q\ngot:  %q", want, got)
 	}
 }
 
 func TestPrintSuccessMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintSuccessMessage("ok") })
+	got := captureStderr(t, func() { PrintSuccessMessage("ok") })
 	want := FormatSuccessMessageStderr("ok") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintInfoMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintInfoMessage("info") })
+	got := captureStderr(t, func() { PrintInfoMessage("info") })
 	want := FormatInfoMessageStderr("info") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintTableHeaderStderr(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintTableHeaderStderr("Name") })
+	got := captureStderr(t, func() { PrintTableHeaderStderr("Name") })
 	want := FormatTableHeaderStderr("Name") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintWarningMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintWarningMessage("warn") })
+	got := captureStderr(t, func() { PrintWarningMessage("warn") })
 	want := FormatWarningMessageStderr("warn") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintErrorMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintErrorMessage("boom") })
+	got := captureStderr(t, func() { PrintErrorMessage("boom") })
 	want := FormatErrorMessage("boom") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintErrorTextStderr(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintErrorTextStderr("error text") })
+	got := captureStderr(t, func() { PrintErrorTextStderr("error text") })
 	want := FormatErrorTextStderr("error text") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintCommandMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintCommandMessage("gh aw status") })
+	got := captureStderr(t, func() { PrintCommandMessage("gh aw status") })
 	want := FormatCommandMessageStderr("gh aw status") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintProgressMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintProgressMessage("loading") })
+	got := captureStderr(t, func() { PrintProgressMessage("loading") })
 	want := FormatProgressMessageStderr("loading") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintPromptMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintPromptMessage("continue?") })
+	got := captureStderr(t, func() { PrintPromptMessage("continue?") })
 	want := FormatPromptMessageStderr("continue?") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintVerboseMessage(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintVerboseMessage("debug info") })
+	got := captureStderr(t, func() { PrintVerboseMessage("debug info") })
 	want := FormatVerboseMessageStderr("debug info") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintListItem(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintListItem("item one") })
+	got := captureStderr(t, func() { PrintListItem("item one") })
 	want := FormatListItemStderr("item one") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
 func TestPrintSectionHeader(t *testing.T) {
-	stderr := captureStderr(t, func() { _, _ = PrintSectionHeader("Section") })
+	got := captureStderr(t, func() { PrintSectionHeader("Section") })
 	want := FormatSectionHeaderStderr("Section") + "\n"
-	if stderr != want {
-		t.Fatalf("want %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("want %q, got %q", want, got)
 	}
 }
 
@@ -151,12 +135,10 @@ func TestPrintErrorChain(t *testing.T) {
 	err := errors.New("inner")
 	wrapped := fmt.Errorf("outer: %w", err)
 
-	stderr := captureStderr(t, func() {
-		_, _ = PrintErrorChain(wrapped)
-	})
+	got := captureStderr(t, func() { PrintErrorChain(wrapped) })
 
 	want := FormatErrorChain(wrapped) + "\n"
-	if stderr != want {
-		t.Fatalf("expected %q, got %q", want, stderr)
+	if got != want {
+		t.Fatalf("expected %q, got %q", want, got)
 	}
 }
