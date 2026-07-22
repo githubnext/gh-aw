@@ -276,3 +276,47 @@ func TestApplyContainerPins_ContainerPinMappings(t *testing.T) {
 		assert.Equal(t, "ghcr.io/owner/image:v1", refs[0])
 	})
 }
+
+// TestResolveContainerImage_AppliesContainerPinMapping verifies that
+// resolveContainerImage redirects the source image through container_pins before
+// digest lookup, ensuring the mapped registry is used in the compiled output.
+func TestResolveContainerImage_AppliesContainerPinMapping(t *testing.T) {
+	t.Run("mapped image without cache pin returns redirected image", func(t *testing.T) {
+		data := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"ghcr.io/owner/img:v1": "registry.acme.com/img:v1",
+			},
+		}
+		got := resolveContainerImage("ghcr.io/owner/img:v1", data)
+		assert.Equal(t, "registry.acme.com/img:v1", got,
+			"resolveContainerImage should return the mapped replacement image")
+	})
+
+	t.Run("mapped image with embedded pin resolves to pinned digest of replacement", func(t *testing.T) {
+		// node:lts-alpine has an embedded digest pin; map to an internal mirror first,
+		// then confirm the digest from the embedded pin for the original image is NOT applied
+		// (the replacement has no embedded pin, so it returns the mapped value unchanged).
+		data := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"node:lts-alpine": "registry.acme.com/node:lts-alpine",
+			},
+		}
+		got := resolveContainerImage("node:lts-alpine", data)
+		// "registry.acme.com/node:lts-alpine" has no embedded pin, so the mapped
+		// value is returned as-is (the original node:lts-alpine digest does NOT apply).
+		assert.Equal(t, "registry.acme.com/node:lts-alpine", got,
+			"mapped image with no pin for the replacement returns the mapped value unchanged")
+	})
+
+	t.Run("unmapped image passes through to normal resolution", func(t *testing.T) {
+		data := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"other.registry.io/image:v1": "registry.acme.com/image:v1",
+			},
+		}
+		// node:lts-alpine is not in the mappings but has an embedded digest pin.
+		got := resolveContainerImage("node:lts-alpine", data)
+		assert.Contains(t, got, "sha256:",
+			"unmapped image should still be resolved through normal digest-pin path")
+	})
+}

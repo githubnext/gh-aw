@@ -166,6 +166,9 @@ func lookupContainerPin(image string, cache *ActionCache) (ContainerPin, bool) {
 // image is first redirected to the mapped replacement before pin resolution.
 func resolveContainerImage(image string, data *WorkflowData) string {
 	// Apply container-pin mapping from aw.json before digest resolution.
+	// data.PinContext() creates a new PinContext struct each call, but always sets
+	// Warnings to data.ActionPinWarnings — the same underlying map — so deduplication
+	// of console messages works correctly across multiple calls on the same WorkflowData.
 	if data != nil && len(data.ContainerPinMappings) > 0 {
 		pinCtx := data.PinContext()
 		image = actionpins.ApplyContainerPinMapping(image, pinCtx)
