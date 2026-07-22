@@ -312,7 +312,15 @@ func IsIntentionalFailure(workflowPath string) bool {
 		return false
 	}
 
-	val, ok := result.Frontmatter["intentional-failure"]
+	featuresRaw, ok := result.Frontmatter["features"]
+	if !ok {
+		return false
+	}
+	features, ok := featuresRaw.(map[string]any)
+	if !ok {
+		return false
+	}
+	val, ok := features["intentional-failure"]
 	if !ok {
 		return false
 	}

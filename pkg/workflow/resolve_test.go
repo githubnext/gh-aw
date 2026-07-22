@@ -528,7 +528,7 @@ func TestIsIntentionalFailure(t *testing.T) {
 
 	// Create a workflow marked with intentional-failure: true
 	intentionalMD := filepath.Join(workflowsDir, "daily-credit-limit-test.md")
-	require.NoError(t, os.WriteFile(intentionalMD, []byte("---\nintentional-failure: true\nprivate: true\n---\n\nSome content"), 0644))
+	require.NoError(t, os.WriteFile(intentionalMD, []byte("---\nfeatures:\n  intentional-failure: true\nprivate: true\n---\n\nSome content"), 0644))
 
 	// Create a normal workflow (no intentional-failure)
 	normalMD := filepath.Join(workflowsDir, "normal-workflow.md")
