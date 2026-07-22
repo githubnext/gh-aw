@@ -236,7 +236,7 @@ func TestChecksCommand_RequiresArg(t *testing.T) {
 func TestChecksCommand_AcceptsOneArg(t *testing.T) {
 	cmd := NewChecksCommand()
 	err := cmd.Args(cmd, []string{"42"})
-	assert.NoError(t, err, "checks command should accept exactly one argument")
+	require.NoError(t, err, "checks command should accept exactly one argument")
 }
 
 func TestChecksCommand_RejectsMultipleArgs(t *testing.T) {

@@ -2,7 +2,7 @@
 private: true
 emoji: "🧹"
 name: Tidy
-description: Automatically formats and tidies code files (Go, JS, TypeScript) when code changes are pushed or on command
+description: Automatically formats and tidies code files (Go, JS, TypeScript) on schedule or command
 on:
   schedule:
     - cron: 'daily around 7:00'  # ~7 AM UTC
@@ -11,13 +11,6 @@ on:
     strategy: centralized
     events: [pull_request_comment]
   reaction: "eyes"
-  push:
-    branches: [main]
-    paths:
-      - '**/*.go'
-      - '**/*.js'
-      - '**/*.cjs'
-      - '**/*.ts'
 
 permissions:
   contents: read

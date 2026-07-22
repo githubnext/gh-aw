@@ -133,7 +133,7 @@ func TestAddWorkflows(t *testing.T) {
 					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
-				assert.NoError(t, err, "Should not error for test case: %s", tt.name)
+				require.NoError(t, err, "Should not error for test case: %s", tt.name)
 			}
 		})
 	}

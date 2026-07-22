@@ -1224,6 +1224,90 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Line could not be resolved"));
     });
 
+    it("should retry with resolvable inline comments when API identifies specific unresolvable comment indexes", async () => {
+      buffer.addComment({ path: "src/valid-one.js", line: 11, body: "First resolvable inline comment" });
+      buffer.addComment({ path: "src/unresolved.js", line: 99, body: "This one cannot be anchored" });
+      buffer.addComment({ path: "src/valid-two.js", line: 22, body: "Second resolvable inline comment" });
+      buffer.setReviewMetadata("Reviewed with comments.", "REQUEST_CHANGES");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 21946,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      const unresolvedError = new Error('Unprocessable Entity: "Line could not be resolved"');
+      // @ts-ignore - Simulate Octokit error response payload with indexed comment field.
+      unresolvedError.response = { data: { errors: [{ field: "comments[1].line", message: "Line could not be resolved" }] } };
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(unresolvedError).mockResolvedValueOnce({
+        data: {
+          id: 803,
+          html_url: "https://github.com/owner/repo/pull/21946#pullrequestreview-803",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.review_id).toBe(803);
+      expect(result.comment_count).toBe(2);
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.comments).toHaveLength(2);
+      expect(retryArgs.comments.map(comment => comment.path)).toEqual(["src/valid-one.js", "src/valid-two.js"]);
+      expect(retryArgs.body).toContain("### Comments that could not be inline-anchored");
+      expect(retryArgs.body).toContain("<details><summary>src/unresolved.js:99</summary>");
+      expect(retryArgs.body).toContain("This one cannot be anchored");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Retrying with 2 resolvable inline comment(s)"));
+    });
+
+    it("should fall back to body-only with all comments when partial-anchor retry also fails", async () => {
+      buffer.addComment({ path: "src/valid-one.js", line: 11, body: "First resolvable inline comment" });
+      buffer.addComment({ path: "src/unresolved.js", line: 99, body: "This one cannot be anchored" });
+      buffer.addComment({ path: "src/valid-two.js", line: 22, body: "Second resolvable inline comment" });
+      buffer.setReviewMetadata("Reviewed with partial failures.", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 21946,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      const unresolvedError = new Error('Unprocessable Entity: "Line could not be resolved"');
+      // @ts-ignore - Simulate Octokit error response payload with indexed comment field.
+      unresolvedError.response = { data: { errors: [{ field: "comments[1].line", message: "Line could not be resolved" }] } };
+
+      mockGithub.rest.pulls.createReview
+        .mockRejectedValueOnce(unresolvedError)
+        .mockRejectedValueOnce(new Error("Partial retry also failed"))
+        .mockResolvedValueOnce({
+          data: {
+            id: 805,
+            html_url: "https://github.com/owner/repo/pull/21946#pullrequestreview-805",
+          },
+        });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.review_id).toBe(805);
+      expect(result.comment_count).toBe(0);
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
+      // Third call (body-only fallback) must have no comments
+      const bodyOnlyArgs = mockGithub.rest.pulls.createReview.mock.calls[2][0];
+      expect(bodyOnlyArgs.comments).toBeUndefined();
+      // All three original comments must appear in the fallback body
+      expect(bodyOnlyArgs.body).toContain("### Comments that could not be inline-anchored");
+      expect(bodyOnlyArgs.body).toContain("src/valid-one.js");
+      expect(bodyOnlyArgs.body).toContain("First resolvable inline comment");
+      expect(bodyOnlyArgs.body).toContain("src/unresolved.js");
+      expect(bodyOnlyArgs.body).toContain("This one cannot be anchored");
+      expect(bodyOnlyArgs.body).toContain("src/valid-two.js");
+      expect(bodyOnlyArgs.body).toContain("Second resolvable inline comment");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to submit partially anchored PR review"));
+    });
+
     it("should retry as body-only review when Path could not be resolved error occurs", async () => {
       buffer.addComment({ path: ".changeset/some-file.md", line: 1, body: "Review comment on line 1" });
       buffer.addComment({ path: "src/new_file.js", line: 42, body: "A second inline comment" });

@@ -14,6 +14,7 @@ network:
   - github
 imports:
 - shared/otlp.md
+- shared/ai-coding-dictionary.md
 safe-outputs:
   create-issue:
     expires: 2d
@@ -86,6 +87,7 @@ Maintain consistent, accurate, and descriptive step names by:
 4. Identifying inconsistencies, inaccuracies, or unclear names
 5. Creating issues with improvement suggestions when problems are found
 6. Using cache memory to track previous suggestions and stay consistent
+7. Normalizing AI-coding wording with the shared AI Coding Dictionary reference
 
 ## Available Tools
 
@@ -218,6 +220,10 @@ Verify that step names accurately describe what the step does:
 - Names that use deprecated or incorrect terminology
 
 #### C. Glossary Alignment
+
+When a step name uses generic AI-coding terms, validate wording with both:
+- Project glossary (`docs/src/content/docs/reference/glossary.md`) for repository-specific terms
+- Shared AI Coding Dictionary reference for canonical generic AI terminology
 
 Ensure technical terminology matches the project glossary:
 

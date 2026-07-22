@@ -164,7 +164,7 @@ func TestProjectNewCommandArgs(t *testing.T) {
 			if tt.shouldErr {
 				assert.Error(t, err, "Should return error for invalid arguments")
 			} else {
-				assert.NoError(t, err, "Should not return error for valid arguments")
+				require.NoError(t, err, "Should not return error for valid arguments")
 			}
 		})
 	}

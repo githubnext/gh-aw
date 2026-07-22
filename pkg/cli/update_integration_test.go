@@ -169,7 +169,7 @@ func TestUpdateCommand_NoMergeFlag(t *testing.T) {
 
 	// The --no-merge flag should be recognized (not "unknown flag").
 	// When no source workflows exist, the command succeeds with an info message.
-	assert.NoError(t, err, "Should succeed (no source workflows = info message, not error), output: %s", outputStr)
+	require.NoError(t, err, "Should succeed (no source workflows = info message, not error), output: %s", outputStr)
 	assert.NotContains(t, outputStr, "unknown flag", "The --no-merge flag should be recognized")
 	assert.Contains(t, outputStr, "no workflows found", "Should report no workflows found")
 }
@@ -184,7 +184,7 @@ func TestUpdateCommand_NoRedirectFlag(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "Should succeed (no source workflows = info message, not error), output: %s", outputStr)
+	require.NoError(t, err, "Should succeed (no source workflows = info message, not error), output: %s", outputStr)
 	assert.NotContains(t, outputStr, "unknown flag", "The --no-redirect flag should be recognized")
 	assert.Contains(t, outputStr, "no workflows found", "Should report no workflows found")
 }

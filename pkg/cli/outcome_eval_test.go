@@ -156,7 +156,7 @@ func TestValidateAPIEndpoint(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := validateAPIEndpoint(tt.endpoint)
 			if tt.wantErr == "" {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 				return
 			}
 			require.Error(t, err)

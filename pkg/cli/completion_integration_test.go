@@ -152,7 +152,7 @@ func TestCompletionInstallUninstallIntegration(t *testing.T) {
 		// Verify the completion file was created
 		completionPath := filepath.Join(tmpHome, ".bash_completion.d", "gh-aw")
 		_, err = os.Stat(completionPath)
-		assert.NoError(t, err, "Completion file should exist at: %s", completionPath)
+		require.NoError(t, err, "Completion file should exist at: %s", completionPath)
 
 		// Verify the file contains bash completion content
 		if err == nil {

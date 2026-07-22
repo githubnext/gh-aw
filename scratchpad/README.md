@@ -38,6 +38,7 @@ This directory contains design specifications and implementation documentation f
 |----------|--------|-------------|
 | [mdflow Syntax Comparison](./mdflow-comparison.md) | ✅ Documented | Comparison of mdflow and gh-aw syntax covering 17 aspects: file naming, frontmatter design, templates, imports, security models, execution patterns, and more |
 | [Gastown Multi-Agent Orchestration](./gastown.md) | ✅ Documented | Analysis of Gastown's multi-agent coordination patterns and mapping to gh-aw concepts: persistent state, workflow composition, crash recovery, agent communication, and implementation recommendations |
+| [Git AI Integration Opportunities](./git-ai.md) | 📋 Exploratory | Analysis of Git AI line-level authorship, gh-aw safe-output transport gaps, security constraints, and a staged proof-of-concept |
 
 ## Statistical Analysis & Reports
 
@@ -63,4 +64,4 @@ When adding new specifications:
 
 ---
 
-**Last Updated**: 2026-04-09
+**Last Updated**: 2026-07-22

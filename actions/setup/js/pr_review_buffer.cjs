@@ -664,6 +664,32 @@ function createReviewBuffer() {
       // body-only review so that the overall review (and its footer body) is still submitted
       // successfully. Matches both "Line could not be resolved" and "Path could not be resolved".
       if ((errorMessage.includes("Line could not be resolved") || errorMessage.includes("Path could not be resolved")) && comments.length > 0) {
+        const unresolvableCommentIndices = extractUnresolvableCommentIndices(error, comments.length);
+        if (unresolvableCommentIndices.length > 0 && unresolvableCommentIndices.length < comments.length) {
+          const unresolvableCommentIndexSet = new Set(unresolvableCommentIndices);
+          const resolvableComments = comments.filter((_, index) => !unresolvableCommentIndexSet.has(index));
+          const unresolvableComments = comments.filter((_, index) => unresolvableCommentIndexSet.has(index));
+          core.warning(
+            `PR review submission failed due to unresolvable comment line(s): ${errorMessage}. ` +
+              `Retrying with ${resolvableComments.length} resolvable inline comment(s); ` +
+              `${unresolvableComments.length} comment(s) will be appended to the review body.`
+          );
+          try {
+            const partialParams = {
+              ...requestParams,
+              comments: resolvableComments,
+              body: appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", unresolvableComments),
+            };
+            const { data: review } = await createReviewWithRetry(partialParams);
+            await maybeSupersedeOlderReviews(review.id);
+            const afterState = await fetchAfterStateIfAvailable();
+            core.info(`Created PR review #${review.id} (partial-anchor fallback): ${review.html_url}`);
+            return buildReviewSuccessResult(review, event, resolvableComments.length, afterState);
+          } catch (partialRetryError) {
+            core.warning(`Failed to submit partially anchored PR review: ${getErrorMessage(partialRetryError)}. Falling back to body-only review.`);
+          }
+        }
+
         core.warning(`PR review submission failed due to unresolvable comment line(s): ${errorMessage}. Retrying as body-only review.`);
         try {
           const bodyOnlyParams = { ...requestParams };
@@ -825,6 +851,56 @@ function createPrReviewBufferRegistry() {
 }
 
 module.exports = { createReviewBuffer, createPrReviewBufferRegistry };
+
+/**
+ * Parse API validation errors to identify specific inline comments that could not be resolved.
+ * Returns 0-based indexes corresponding to items in the buffered comments array.
+ *
+ * @param {unknown} error
+ * @param {number} totalComments
+ * @returns {number[]}
+ */
+function extractUnresolvableCommentIndices(error, totalComments) {
+  const indices = new Set();
+  // prettier-ignore
+  const errorAsAny = /** @type {any} */ (error);
+  const candidateErrors = [errorAsAny, errorAsAny?.originalError, errorAsAny?.cause];
+
+  for (const candidate of candidateErrors) {
+    if (!candidate || typeof candidate !== "object") {
+      continue;
+    }
+    // prettier-ignore
+    const candidateAsAny = /** @type {any} */ (candidate);
+    const apiErrors = candidateAsAny.response && candidateAsAny.response.data && Array.isArray(candidateAsAny.response.data.errors) ? candidateAsAny.response.data.errors : null;
+    if (!apiErrors) {
+      continue;
+    }
+
+    for (const apiError of apiErrors) {
+      const field = typeof apiError?.field === "string" ? apiError.field : "";
+      const message = typeof apiError?.message === "string" ? apiError.message : "";
+      if (!message.includes("Line could not be resolved") && !message.includes("Path could not be resolved")) {
+        continue;
+      }
+
+      const fieldMatch = field.match(/comments(?:\[|\.)(\d+)(?:\]|\.|$)/);
+      if (!fieldMatch) {
+        continue;
+      }
+
+      const parsedIndex = Number.parseInt(fieldMatch[1], 10);
+      if (!Number.isInteger(parsedIndex) || parsedIndex < 0 || parsedIndex >= totalComments) {
+        continue;
+      }
+
+      indices.add(parsedIndex);
+    }
+  }
+
+  return Array.from(indices).sort((a, b) => a - b);
+}
+
 /**
  * Append a fallback section that preserves inline comment content when comments cannot be anchored.
  * @param {string} reviewBody

@@ -53,7 +53,7 @@ The command will:
 
 Without --write (dry-run mode), no files are modified. With --write, the command performs
 all steps and additionally:
-  4. Write updated files back to disk.
+  4. Writes updated files back to disk.
   5. Delete deprecated .github/aw/schemas/agentic-workflow.json file if it exists.
   6. Delete old template files from previous versions if present.
   7. Delete old workflow-specific .agent.md files from .github/agents/ if present.

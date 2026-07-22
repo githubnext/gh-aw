@@ -1067,7 +1067,7 @@ func TestRunUpdateWorkflows_NoSourceWorkflows(t *testing.T) {
 
 	// Running update with no source workflows should succeed with an info message, not an error
 	err := RunUpdateWorkflows(context.Background(), UpdateWorkflowsOptions{})
-	assert.NoError(t, err, "Should not error when no workflows with source field exist")
+	require.NoError(t, err, "Should not error when no workflows with source field exist")
 }
 
 // TestRunUpdateWorkflows_SpecificWorkflowNotFound tests that RunUpdateWorkflows errors for unknown workflow name

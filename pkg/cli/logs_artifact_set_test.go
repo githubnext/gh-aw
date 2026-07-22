@@ -85,7 +85,7 @@ func TestValidateArtifactSets(t *testing.T) {
 			if tt.expectErr {
 				assert.Error(t, err, "Expected an error for sets: %v", tt.sets)
 			} else {
-				assert.NoError(t, err, "Expected no error for sets: %v", tt.sets)
+				require.NoError(t, err, "Expected no error for sets: %v", tt.sets)
 			}
 		})
 	}

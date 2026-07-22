@@ -142,7 +142,7 @@ This workflow specifies repos without min-integrity.
 					require.ErrorContains(t, err, tt.errorContains, "Error should mention %q", tt.errorContains)
 				}
 			} else {
-				assert.NoError(t, err, "Expected compilation to succeed")
+				require.NoError(t, err, "Expected compilation to succeed")
 			}
 		})
 	}
