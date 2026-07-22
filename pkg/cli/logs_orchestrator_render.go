@@ -7,6 +7,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -147,7 +148,7 @@ func renderLogsOutput(processedRuns []ProcessedRun, opts renderLogsOutputOptions
 }
 
 // renderLogsArtifactHint writes a [hint] line to w when message is non-empty.
-func renderLogsArtifactHint(w *os.File, message string) {
+func renderLogsArtifactHint(w io.Writer, message string) {
 	if message == "" {
 		return
 	}

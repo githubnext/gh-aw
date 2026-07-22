@@ -1,0 +1,66 @@
+name: PR Data Prefetch
+# Fetches PR diff, metadata, and review comments once per commit and saves to
+# the Actions cache (key: pr-prefetch-<sha>), so the three PR reviewer workflows
+# can restore from cache rather than each independently calling the GitHub API.
+#
+# Because this workflow has no AI engine, it completes in ~30-60 s — before the
+# reviewer workflows' activation jobs finish. When the reviewer agent jobs start
+# and restore the pr-prefetch-<sha> cache they get a hit and skip their own fetch.
+
+on:
+  pull_request:
+    types: [ready_for_review]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.changeset/**'
+      - 'socials/**'
+      - 'scratchpad/**'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  # One prefetch per commit; do not cancel to avoid a gap between save and reviewer restore.
+  group: pr-data-prefetch-${{ github.event.pull_request.head.sha }}
+  cancel-in-progress: false
+
+jobs:
+  prefetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Pre-fetch PR diff and review comments
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_DIFF_MAX_LINES: "3000"
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gh-aw/agent
+          { gh pr diff "$PR_NUMBER" --repo "$GITHUB_REPOSITORY" \
+              --exclude '**/*.lock.yml' \
+              --exclude '**/generated/**' \
+              --exclude '**/dist/**' \
+              --exclude '**/build/**' \
+              || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
+          LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
+          gh pr view "$PR_NUMBER" \
+            --repo "$GITHUB_REPOSITORY" \
+            --json number,title,body,headRefName,additions,deletions,changedFiles,files \
+            > /tmp/gh-aw/agent/pr-meta.json
+          gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
+            --paginate \
+            --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
+            2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \
+            || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json
+          COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
+          echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
+
+      - name: Save PR data to cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          key: pr-prefetch-${{ github.event.pull_request.head.sha }}
+          path: /tmp/gh-aw/agent

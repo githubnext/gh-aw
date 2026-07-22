@@ -15,6 +15,7 @@ imports:
   with:
     min-integrity: approved
 - shared/otlp.md
+- shared/pr-diff-data-fetch.md
 max-daily-ai-credits: 10000
 "on":
   pull_request:
@@ -36,13 +37,6 @@ permissions:
   contents: read
   copilot-requests: write
   pull-requests: read
-pre-agent-steps:
-- env:
-    EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
-    GH_TOKEN: ${{ github.token }}
-    PR_NUMBER: ${{ github.event.pull_request.number }}
-  name: Pre-fetch PR diff and review comments
-  run: "set -euo pipefail\nmkdir -p /tmp/gh-aw/agent\n# Skip fetch if cache already populated this data (actions/cache restore)\nif [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then\n  LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)\n  COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)\n  echo \"Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)\"\nelse\n  { gh pr diff \"$PR_NUMBER\" --repo $EXPR_GITHUB_REPOSITORY \\\n      --exclude '**/*.lock.yml' \\\n      --exclude '**/generated/**' \\\n      --exclude '**/dist/**' \\\n      --exclude '**/build/**' \\\n      || true; } | head -n 3000 > /tmp/gh-aw/agent/pr-diff.patch\n  LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)\n  gh pr view \"$PR_NUMBER\" \\\n    --repo $EXPR_GITHUB_REPOSITORY \\\n    --json number,title,body,headRefName,additions,deletions,changedFiles,files \\\n    > /tmp/gh-aw/agent/pr-meta.json\n  gh api \"repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments\" \\\n    --paginate \\\n    --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \\\n    2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \\\n    || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json\n  COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)\n  echo \"Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments\"\nfi\n"
 private: true
 safe-outputs:
   add-comment:

@@ -7,7 +7,7 @@ test.describe('Homepage Public Preview callout', () => {
 
     const callout = page
       .locator('.hero-preview-callout')
-      .filter({ hasText: 'GitHub Agentic Workflows is in Public Preview and may change significantly.' });
+      .filter({ hasText: 'GitHub Agentic Workflows is in Public Preview.' });
 
     await expect(callout).toBeVisible();
 

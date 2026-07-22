@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"strconv"
 	"strings"
@@ -19,7 +20,7 @@ func formatTSVSummaryTokens(totalTokens int) string {
 	return strconv.Itoa(totalTokens)
 }
 
-// renderLogsTSV outputs the logs data as tab-separated values for maximum token efficiency.
+// renderLogsTSVToWriter outputs the logs data as tab-separated values to w.
 // This format is ~24x more compact than JSON, making it ideal for agentic consumption
 // where LLM context window tokens are the primary constraint.
 //
@@ -28,12 +29,12 @@ func formatTSVSummaryTokens(totalTokens int) string {
 //	Line 1: Summary line (total_runs, total_duration, total_tokens, total_turns, total_errors)
 //	Line 2: Column headers
 //	Lines 3+: One line per run with tab-separated fields
-func renderLogsTSV(data LogsData) {
+func renderLogsTSVToWriter(w io.Writer, data LogsData) {
 	logsTSVLog.Printf("Rendering %d runs as TSV", data.Summary.TotalRuns)
 
 	s := data.Summary
 	// Summary line with key aggregates
-	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %s tokens | %d turns | %d errors\n",
+	fmt.Fprintf(w, "# %d runs | %s duration | %s tokens | %d turns | %d errors\n",
 		s.TotalRuns, s.TotalDuration, formatTSVSummaryTokens(s.TotalTokens), s.TotalTurns, s.TotalErrors)
 
 	if len(data.Runs) == 0 {
@@ -46,7 +47,7 @@ func renderLogsTSV(data LogsData) {
 		"tokens", "aic", "turns", "errors",
 		"event", "branch", "created_at", "classification", "url",
 	}
-	fmt.Fprintln(os.Stdout, strings.Join(headers, "\t"))
+	fmt.Fprintln(w, strings.Join(headers, "\t"))
 
 	// Rows
 	for _, r := range data.Runs {
@@ -84,20 +85,20 @@ func renderLogsTSV(data LogsData) {
 			classification,
 			url,
 		}
-		fmt.Fprintln(os.Stdout, strings.Join(fields, "\t"))
+		fmt.Fprintln(w, strings.Join(fields, "\t"))
 	}
 
 	// Append observability insights as comments (high signal density)
 	if len(data.Observability) > 0 {
-		fmt.Fprintln(os.Stdout, "# insights:")
+		fmt.Fprintln(w, "# insights:")
 		for _, obs := range data.Observability {
-			fmt.Fprintf(os.Stdout, "# [%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
+			fmt.Fprintf(w, "# [%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
 		}
 	}
 
 	// Append firewall summary if present
 	if data.FirewallLog != nil && data.FirewallLog.TotalRequests > 0 {
-		fmt.Fprintf(os.Stdout, "# firewall: %d requests (%d allowed, %d blocked)\n",
+		fmt.Fprintf(w, "# firewall: %d requests (%d allowed, %d blocked)\n",
 			data.FirewallLog.TotalRequests, data.FirewallLog.AllowedRequests, data.FirewallLog.BlockedRequests)
 	}
 
@@ -107,16 +108,21 @@ func renderLogsTSV(data LogsData) {
 		for engine, count := range data.Summary.EngineCounts {
 			parts = append(parts, fmt.Sprintf("%s:%d", engine, count))
 		}
-		fmt.Fprintf(os.Stdout, "# engines: %s\n", strings.Join(parts, " "))
+		fmt.Fprintf(w, "# engines: %s\n", strings.Join(parts, " "))
 	}
 }
 
-// renderLogsTSVVerbose outputs a more detailed TSV with additional columns for audit use.
-func renderLogsTSVVerbose(data LogsData) {
+// renderLogsTSV outputs the logs data as tab-separated values to os.Stdout.
+func renderLogsTSV(data LogsData) {
+	renderLogsTSVToWriter(os.Stdout, data)
+}
+
+// renderLogsTSVVerboseToWriter outputs a more detailed TSV with additional columns for audit use to w.
+func renderLogsTSVVerboseToWriter(w io.Writer, data LogsData) {
 	logsTSVLog.Printf("Rendering %d runs as verbose TSV", data.Summary.TotalRuns)
 
 	s := data.Summary
-	fmt.Fprintf(os.Stdout, "# %d runs | %s duration | %s tokens | %d turns | %d errors | %d missing_tools | %d github_api_calls\n",
+	fmt.Fprintf(w, "# %d runs | %s duration | %s tokens | %d turns | %d errors | %d missing_tools | %d github_api_calls\n",
 		s.TotalRuns, s.TotalDuration, formatTSVSummaryTokens(s.TotalTokens), s.TotalTurns, s.TotalErrors, s.TotalMissingTools, s.TotalGitHubAPICalls)
 
 	if len(data.Runs) == 0 {
@@ -130,7 +136,7 @@ func renderLogsTSVVerbose(data LogsData) {
 		"event", "branch", "actor", "created_at", "tbt",
 		"classification", "action_min", "display_title", "url",
 	}
-	fmt.Fprintln(os.Stdout, strings.Join(headers, "\t"))
+	fmt.Fprintln(w, strings.Join(headers, "\t"))
 
 	for _, r := range data.Runs {
 		conclusion := r.Conclusion
@@ -175,13 +181,18 @@ func renderLogsTSVVerbose(data LogsData) {
 			displayTitle,
 			r.URL,
 		}
-		fmt.Fprintln(os.Stdout, strings.Join(fields, "\t"))
+		fmt.Fprintln(w, strings.Join(fields, "\t"))
 	}
 
 	if len(data.Observability) > 0 {
-		fmt.Fprintln(os.Stdout, "# insights:")
+		fmt.Fprintln(w, "# insights:")
 		for _, obs := range data.Observability {
-			fmt.Fprintf(os.Stdout, "# [%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
+			fmt.Fprintf(w, "# [%s] %s: %s\n", obs.Severity, obs.Title, obs.Summary)
 		}
 	}
+}
+
+// renderLogsTSVVerbose outputs a more detailed TSV with additional columns to os.Stdout.
+func renderLogsTSVVerbose(data LogsData) {
+	renderLogsTSVVerboseToWriter(os.Stdout, data)
 }

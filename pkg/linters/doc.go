@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 56 active analyzers:
+// All 57 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
 //   - appendoneelement — flags append(s, []T{x}...) calls where a single-element slice literal is spread and can be simplified to append(s, x)
@@ -46,6 +46,7 @@
 //   - sprintfint — flags fmt.Sprintf calls that format integers that should use strconv.Itoa
 //   - ssljson — validates ssl.json skill artifacts in .github/skills/ against the SSL spec
 //   - strconvparseignorederror — flags strconv parsing calls where the error is discarded with _
+//   - stringbytesroundtrip — reports redundant string/[]byte round-trip conversions such as string([]byte(s)) or []byte(string(b)) that produce a wasteful intermediate copy
 //   - stringreplaceminusone — flags strings.Replace calls with n=-1 that should use strings.ReplaceAll
 //   - stringscountcontains — reports strings.Count(s, sub) comparisons with 0 or 1 (e.g. > 0, >= 1, == 0, != 0, < 1, <= 0) and their yoda-order variants that should use strings.Contains(s, sub) or !strings.Contains(s, sub)
 //   - stringsindexcontains — flags strings.Index(s, substr) comparisons that should use strings.Contains
