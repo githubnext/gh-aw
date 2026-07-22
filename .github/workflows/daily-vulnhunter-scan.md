@@ -98,20 +98,22 @@ Run Capital One's [VulnHunter](https://github.com/capitalone/VulnHunter) methodo
 ## Task
 
 1. Read `/tmp/gh-aw/agent/vulnhunter/README.md` for the prepared bundle layout.
-2. Read the extracted scanner instructions before analyzing the repository snapshot:
-   - `/tmp/gh-aw/agent/vulnhunter/vulnhunter/README.md`
-   - `/tmp/gh-aw/agent/vulnhunter/vulnhunter/vulnhunt/README.md`
+2. Load only the core scanner instructions:
    - `/tmp/gh-aw/agent/vulnhunter/vulnhunter/vulnhunt/SKILL.md`
-   - every file under `/tmp/gh-aw/agent/vulnhunter/vulnhunter/vulnhunt/phases/`
-3. Follow the extracted `vulnhunt` instructions as your operating playbook and scan `/tmp/gh-aw/agent/vulnhunter/repo` for verified, exploitable vulnerabilities.
-4. Save your intermediate notes and any machine-readable findings under `/tmp/gh-aw/agent/vulnhunter/out/`.
+   - List the files under `/tmp/gh-aw/agent/vulnhunter/vulnhunter/vulnhunt/phases/` and select **at most 2 phases** most applicable to a Go CLI codebase (e.g. injection, secrets). Read only those phase files.
+3. Scope the scan to the highest-risk entry points in `/tmp/gh-aw/agent/vulnhunter/repo`:
+   - User-controlled input handling and shell/exec call sites
+   - Authentication, token handling, and secrets management
+   - Network request construction and URL/header injection paths
+   - Do **not** exhaustively scan every file — prioritize files likely to contain critical vulnerabilities.
+4. Apply the selected phases to the scoped entry points, falsify any candidate findings, and save confirmed findings to `/tmp/gh-aw/agent/vulnhunter/out/`.
 
 ## Reporting Rules
 
 - Only report findings that survive VulnHunter's falsification/disproof process.
 - Do not report speculative, low-confidence, or test-only issues.
 - If there are no verified exploitable findings, call `noop` with a short explanation.
-- If there are verified findings, create exactly one issue summarizing up to the 5 highest-confidence vulnerabilities.
+- If there are verified findings, create exactly one issue summarizing up to the 3 highest-confidence vulnerabilities.
 
 ## Issue Format
 

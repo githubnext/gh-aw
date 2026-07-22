@@ -23,6 +23,12 @@ package cli
 //   - Computing effective tokens from raw per-model token usage data
 //   - Populating effective token counts on TokenUsageSummary after parsing
 
+import "github.com/github/gh-aw/pkg/logger"
+
+// effectiveTokensLog is the debug logger for effective-token accounting decisions.
+// Enable with DEBUG=cli:effective_tokens to trace provider cache-read semantics.
+var effectiveTokensLog = logger.New("cli:effective_tokens")
+
 func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// Cache read accounting is provider-specific:
 	// - bundled semantics: cache_read_tokens are already included in input_tokens,
@@ -42,8 +48,10 @@ func providerIncludesCacheReadsInInput(normalizedProvider string) bool {
 	// before this check.
 	switch normalizedProvider {
 	case "", "anthropic", "openai", "azure-openai", "azure_openai", "github-copilot":
+		effectiveTokensLog.Printf("provider %q uses bundled cache-read semantics (cache reads included in input; subtracting once)", normalizedProvider)
 		return true
 	default:
+		effectiveTokensLog.Printf("provider %q uses additive cache-read semantics (cache reads counted separately from input)", normalizedProvider)
 		return false
 	}
 }

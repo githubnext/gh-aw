@@ -65,21 +65,41 @@ func FormatError(err CompilerError) string {
 	return output.String()
 }
 
-func FormatSuccessMessage(message string) string  { return "✓ " + message }
-func FormatInfoMessage(message string) string     { return "i " + message }
-func FormatTableHeaderStderr(text string) string  { return text }
-func FormatWarningMessage(message string) string  { return "⚠ " + message }
-func FormatErrorMessage(message string) string    { return "✗ " + message }
-func FormatErrorTextStderr(text string) string    { return text }
-func FormatLocationMessage(message string) string { return "~ " + message }
-func FormatCommandMessage(command string) string  { return "$ " + command }
-func FormatProgressMessage(message string) string { return "▸ " + message }
-func FormatPromptMessage(message string) string   { return "? " + message }
-func FormatCountMessage(message string) string    { return "# " + message }
-func FormatVerboseMessage(message string) string  { return "» " + message }
-func FormatListHeader(header string) string       { return header }
-func FormatListItem(item string) string           { return "  • " + item }
-func FormatSectionHeader(header string) string    { return header }
+func FormatSuccessMessage(message string) string        { return "✓ " + message }
+func FormatSuccessMessageStderr(message string) string  { return "✓ " + message }
+func FormatInfoMessage(message string) string           { return "i " + message }
+func FormatInfoMessageStderr(message string) string     { return "i " + message }
+func FormatTableHeaderStderr(text string) string        { return text }
+func FormatWarningMessage(message string) string        { return "⚠ " + message }
+func FormatWarningMessageStderr(message string) string  { return "⚠ " + message }
+func FormatErrorMessage(message string) string          { return "✗ " + message }
+func FormatErrorTextStderr(text string) string          { return text }
+func FormatLocationMessage(message string) string       { return "~ " + message }
+func FormatCommandMessage(command string) string        { return "$ " + command }
+func FormatCommandMessageStderr(command string) string  { return "$ " + command }
+func FormatProgressMessage(message string) string       { return "▸ " + message }
+func FormatProgressMessageStderr(message string) string { return "▸ " + message }
+func FormatPromptMessage(message string) string         { return "? " + message }
+func FormatPromptMessageStderr(message string) string   { return "? " + message }
+func FormatCountMessage(message string) string          { return "# " + message }
+func FormatVerboseMessage(message string) string        { return "» " + message }
+func FormatVerboseMessageStderr(message string) string  { return "» " + message }
+func FormatListHeader(header string) string             { return header }
+func FormatListItem(item string) string                 { return "  • " + item }
+func FormatListItemStderr(item string) string           { return "  • " + item }
+func FormatSectionHeader(header string) string          { return header }
+func FormatSectionHeaderStderr(header string) string    { return header }
+
+// FormatErrorChain formats an error and its full unwrapped chain.
+// In the WASM build there is no rich terminal styling; the top-level error
+// message is sufficient for the JSON-based diagnostics that WASM consumers
+// produce. Full chain formatting is provided by the non-WASM implementation.
+func FormatErrorChain(err error) string {
+	if err == nil {
+		return ""
+	}
+	return "✗ " + err.Error()
+}
 
 func RenderTable(config TableConfig) string {
 	if len(config.Headers) == 0 {

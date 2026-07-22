@@ -22,6 +22,12 @@ CI_UNIT_TEST_ARTIFACT_PATTERN ?= test-result-cgo-unit
 CI_UNIT_RUN_ID ?=
 GO_IMPACTED_TEST_MAX_SECONDS ?= 60
 GO_IMPACTED_TEST_PATTERN_MAX_CHARS ?= 8000
+GO_IMPACTED_TEST_FALLBACK_MODE ?= package
+GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT ?= 5
+GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE ?= $(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)
+TEST_UNIT_MAX_SECONDS ?= 30
+TEST_UNIT_RUN_FULL ?= 0
+TEST_UNIT_IMPACTED_FALLBACK_MODE ?= sample
 
 # Build flags
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION)"
@@ -79,10 +85,20 @@ build-wasm:
 .PHONY: test
 test: test-unit test-integration
 
-# Test unit tests only (excludes labelled integration tests and long tests)
+# Test all Go unit tests only (excludes labelled integration tests and long tests)
+.PHONY: test-unit-all
+test-unit-all:
+	go test -v -parallel=4 -timeout=10m -run='^Test' ./... -short
+
+# Test impacted Go unit tests first for faster feedback (target budget: ~30s)
 .PHONY: test-unit
 test-unit:
-	go test -v -parallel=4 -timeout=10m -run='^Test' ./... -short
+	@echo "Running impacted Go unit tests first (time budget: $(TEST_UNIT_MAX_SECONDS)s)..."; \
+	$(MAKE) --no-print-directory test-impacted-go CI_COVERAGE_ENABLED=0 GO_IMPACTED_TEST_MAX_SECONDS=$(TEST_UNIT_MAX_SECONDS) GO_IMPACTED_TEST_FALLBACK_MODE=$(TEST_UNIT_IMPACTED_FALLBACK_MODE) GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE=$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE); \
+	if [ "$(TEST_UNIT_RUN_FULL)" = "1" ]; then \
+		echo "TEST_UNIT_RUN_FULL=1 set; running full Go unit test suite after impacted tests."; \
+		$(MAKE) --no-print-directory test-unit-all; \
+	fi
 
 .PHONY: test-integration
 test-integration:
@@ -411,6 +427,24 @@ test-impacted-go:
 				echo "Running impacted Go unit tests in $$pkg with pattern $$pattern"; \
 				go test -v -parallel=4 -timeout=10m -short -run "$$pattern" "$$pkg" || exit 1; \
 			fi; \
+		done || exit 1; \
+		exit 0; \
+	fi; \
+	if [ "$(GO_IMPACTED_TEST_FALLBACK_MODE)" = "sample" ]; then \
+		SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE)"; \
+		case "$$SAMPLE_PER_PACKAGE" in \
+			''|*[!0-9]*|0) SAMPLE_PER_PACKAGE="$(GO_IMPACTED_TEST_SAMPLE_PER_PACKAGE_DEFAULT)" ;; \
+		esac; \
+		echo "No impacted timing data available; running up to $$SAMPLE_PER_PACKAGE sampled top-level tests per impacted package."; \
+		printf '%s\n' "$$CHANGED_GO_PACKAGES" | while IFS= read -r pkg; do \
+			[ -z "$$pkg" ] && continue; \
+			TEST_PATTERN=$$(go test -list '^Test' "$$pkg" 2>/dev/null | head -n "$$SAMPLE_PER_PACKAGE" | paste -sd'|' -); \
+			if [ -z "$$TEST_PATTERN" ]; then \
+				echo "No top-level tests discovered in $$pkg; skipping sampled run for this package."; \
+				continue; \
+			fi; \
+			echo "Running sampled impacted Go unit tests in $$pkg with pattern ^($$TEST_PATTERN)$$"; \
+			go test -v -parallel=4 -timeout=10m -short -run "^($$TEST_PATTERN)$$" "$$pkg" || exit 1; \
 		done || exit 1; \
 		exit 0; \
 	fi; \
@@ -1197,7 +1231,8 @@ help:
 	@echo "  build-awmg       - Build the awmg (MCP gateway) binary for current platform"
 	@echo "  build-all        - Build binaries for all platforms (gh-aw and awmg)"
 	@echo "  test             - Run Go tests (unit + integration)"
-	@echo "  test-unit        - Run Go unit tests only (faster)"
+	@echo "  test-unit        - Run impacted Go unit tests first (~$(TEST_UNIT_MAX_SECONDS)s budget); set TEST_UNIT_RUN_FULL=1 for full suite"
+	@echo "  test-unit-all    - Run full Go unit test suite"
 	@echo "  test-security    - Run security regression tests"
 	@echo "  test-js          - Run JavaScript tests"
 	@echo "  test-impacted-js - Run impacted JavaScript unit tests for current branch changes"

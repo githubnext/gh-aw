@@ -21,5 +21,5 @@
 //
 // All diagnostic output (messages, warnings, errors) should be written to stderr.
 // Structured data output (JSON, hashes, graphs) should be written to stdout.
-// Use fmt.Fprintln(os.Stderr, ...) with the Format* helpers for diagnostic output.
+// Prefer Print* helpers (or fmt.Fprintln(os.Stderr, ...) with Format* helpers) for diagnostic output.
 package console

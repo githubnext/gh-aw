@@ -31,11 +31,9 @@ on:
       - 'go.sum'
       - 'Makefile'
 
-# Allow this job to clone the repo and create a page deployment
+# Allow this job to clone the repo
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 # Allow only one concurrent deployment, skipping runs queued between the run in-progress and latest queued.
 # However, do NOT cancel in-progress runs as we want to allow these production deployments to complete.
@@ -87,6 +85,9 @@ jobs:
   deploy:
     # make this conditional on the branch being main
     if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}

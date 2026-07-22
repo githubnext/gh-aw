@@ -110,6 +110,32 @@ func TestLoadActionPinsData_PanicsWhenEntrySHAIsEmpty(t *testing.T) {
 	}, "Expected loadActionPinsData to panic when embedded pin data contains an empty SHA")
 }
 
+func TestLoadActionPinsData_LoadsContainerPins(t *testing.T) {
+	fixture := []byte(`{
+		"entries": {
+			"actions/checkout@v5": {
+				"repo": "actions/checkout",
+				"version": "v5",
+				"sha": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+			}
+		},
+		"containers": {
+			"node:lts-alpine": {
+				"image": "node:lts-alpine",
+				"digest": "sha256:deadbeef",
+				"pinned_image": "node:lts-alpine@sha256:deadbeef"
+			}
+		}
+	}`)
+
+	data := loadActionPinsData(fixture)
+
+	require.Contains(t, data.Containers, "node:lts-alpine", "Expected container pin key to be loaded")
+	assert.Equal(t, "node:lts-alpine", data.Containers["node:lts-alpine"].Image)
+	assert.Equal(t, "sha256:deadbeef", data.Containers["node:lts-alpine"].Digest)
+	assert.Equal(t, "node:lts-alpine@sha256:deadbeef", data.Containers["node:lts-alpine"].PinnedImage)
+}
+
 func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
 	assert.Panics(t, func() {
 		FormatPinnedActionReference("ruby/setup-ruby", "", "v1.319.0")
@@ -305,6 +331,20 @@ func TestFindVersionBySHA_ReturnsVersionForKnownSHA(t *testing.T) {
 	})
 }
 
+func TestGetLatestActionPinReference_ReturnsFormattedReferenceOrEmpty(t *testing.T) {
+	t.Run("returns formatted reference for known repo", func(t *testing.T) {
+		pins := GetActionPinsByRepo("actions/checkout")
+		require.NotEmpty(t, pins, "prerequisite: embedded pins must exist for actions/checkout")
+
+		result := getLatestActionPinReference("actions/checkout")
+		assert.Equal(t, FormatPinnedActionReference("actions/checkout", pins[0].SHA, pins[0].Version), result)
+	})
+
+	t.Run("returns empty string for unknown repo", func(t *testing.T) {
+		assert.Empty(t, getLatestActionPinReference("does-not-exist/unknown"))
+	})
+}
+
 func TestGetContainerPin_ReturnsPinnedImage(t *testing.T) {
 	pin, ok := GetContainerPin("node:lts-alpine")
 	require.True(t, ok, "Expected embedded container pin for node:lts-alpine")
@@ -374,6 +414,45 @@ func TestResolveActionPinDynamically_SkipsForSHAInput(t *testing.T) {
 	assert.False(t, ok, "Expected no dynamic resolution for SHA input")
 	assert.Empty(t, result, "Expected empty result when dynamic resolution is skipped")
 	assert.Zero(t, resolver.called, "Expected resolver not to be called for SHA input")
+}
+
+func TestLogDynamicResolutionSkipped_NoResolverBranch(t *testing.T) {
+	assert.NotPanics(t, func() {
+		logDynamicResolutionSkipped(false, false)
+	}, "Expected no-resolver branch to be safe")
+}
+
+func TestRecordPinResolutionFailure_NilSafety(t *testing.T) {
+	t.Run("nil context is safe", func(t *testing.T) {
+		assert.NotPanics(t, func() {
+			recordPinResolutionFailure(nil, "actions/checkout", "v4", ResolutionErrorTypePinNotFound)
+		})
+	})
+
+	t.Run("nil callback is safe", func(t *testing.T) {
+		ctx := &PinContext{}
+		assert.NotPanics(t, func() {
+			recordPinResolutionFailure(ctx, "actions/checkout", "v4", ResolutionErrorTypePinNotFound)
+		})
+	})
+
+	t.Run("records failure when callback is configured", func(t *testing.T) {
+		var got []ResolutionFailure
+		ctx := &PinContext{
+			RecordResolutionFailure: func(f ResolutionFailure) {
+				got = append(got, f)
+			},
+		}
+
+		recordPinResolutionFailure(ctx, "actions/checkout", "v4", ResolutionErrorTypeDynamicResolutionFailed)
+
+		require.Len(t, got, 1, "Expected one resolution failure record")
+		assert.Equal(t, ResolutionFailure{
+			Repo:      "actions/checkout",
+			Ref:       "v4",
+			ErrorType: ResolutionErrorTypeDynamicResolutionFailed,
+		}, got[0])
+	})
 }
 
 func TestResolveActionPinFromHardcodedPins_StrictModeNoFallback(t *testing.T) {
@@ -523,93 +602,116 @@ func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
 	})
 }
 
-func TestApplyActionPinMapping_NoMapping(t *testing.T) {
-	ctx := &PinContext{Warnings: make(map[string]bool)}
-
-	repo, version := applyActionPinMapping("actions/checkout", "v4", ctx)
-
-	assert.Equal(t, "actions/checkout", repo, "repo should be unchanged when no mapping exists")
-	assert.Equal(t, "v4", version, "version should be unchanged when no mapping exists")
-}
-
-func TestApplyActionPinMapping_AppliesMapping(t *testing.T) {
-	ctx := &PinContext{
-		Warnings: make(map[string]bool),
-		Mappings: map[string]string{
-			"actions/checkout@v4": "acme-corp/checkout@v4",
+func TestApplyActionPinMapping(t *testing.T) {
+	tests := []struct {
+		name                    string
+		actionRepo              string
+		version                 string
+		mappings                map[string]string
+		repeat                  int
+		wantRepo                string
+		wantVersion             string
+		wantMappingNotification bool
+		wantMapNotificationKeys int
+	}{
+		{
+			name:                    "no mapping",
+			actionRepo:              "actions/checkout",
+			version:                 "v4",
+			wantRepo:                "actions/checkout",
+			wantVersion:             "v4",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:       "applies exact mapping",
+			actionRepo: "actions/checkout",
+			version:    "v4",
+			mappings: map[string]string{
+				"actions/checkout@v4": "acme-corp/checkout@v4",
+			},
+			wantRepo:                "acme-corp/checkout",
+			wantVersion:             "v4",
+			wantMappingNotification: true,
+			wantMapNotificationKeys: 1,
+		},
+		{
+			name:       "does not match different version",
+			actionRepo: "actions/checkout",
+			version:    "v5",
+			mappings: map[string]string{
+				"actions/checkout@v4": "acme-corp/checkout@v4",
+			},
+			wantRepo:                "actions/checkout",
+			wantVersion:             "v5",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:       "deduplicates notification for repeated mapping",
+			actionRepo: "actions/checkout",
+			version:    "v4",
+			mappings: map[string]string{
+				"actions/checkout@v4": "acme-corp/checkout@v4",
+			},
+			repeat:                  2,
+			wantRepo:                "acme-corp/checkout",
+			wantVersion:             "v4",
+			wantMappingNotification: true,
+			wantMapNotificationKeys: 1,
+		},
+		{
+			name:       "skips invalid mapping value",
+			actionRepo: "actions/checkout",
+			version:    "v4",
+			mappings: map[string]string{
+				"actions/checkout@v4": "no-at-sign",
+			},
+			wantRepo:                "actions/checkout",
+			wantVersion:             "v4",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:       "skips mapping target without ref separator",
+			actionRepo: "actions/checkout",
+			version:    "v4",
+			mappings: map[string]string{
+				"actions/checkout@v4": "acme-corp/checkout",
+			},
+			wantRepo:                "actions/checkout",
+			wantVersion:             "v4",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
 		},
 	}
 
-	repo, version := applyActionPinMapping("actions/checkout", "v4", ctx)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := &PinContext{
+				Warnings: make(map[string]bool),
+				Mappings: tt.mappings,
+			}
+			repeat := max(tt.repeat, 1)
 
-	assert.Equal(t, "acme-corp/checkout", repo, "repo should be replaced by mapping")
-	assert.Equal(t, "v4", version, "version should be replaced by mapping")
-}
+			var gotRepo, gotVersion string
+			for range repeat {
+				gotRepo, gotVersion = applyActionPinMapping(tt.actionRepo, tt.version, ctx)
+			}
 
-func TestApplyActionPinMapping_OnlyMatchesExact(t *testing.T) {
-	ctx := &PinContext{
-		Warnings: make(map[string]bool),
-		Mappings: map[string]string{
-			"actions/checkout@v4": "acme-corp/checkout@v4",
-		},
+			assert.Equal(t, tt.wantRepo, gotRepo, "repo should match expected mapping outcome")
+			assert.Equal(t, tt.wantVersion, gotVersion, "version should match expected mapping outcome")
+
+			notifyKey := "map:" + FormatCacheKey(tt.actionRepo, tt.version)
+			assert.Equal(t, tt.wantMappingNotification, ctx.Warnings[notifyKey], "mapping notification flag should match expected state")
+
+			mapNotifications := 0
+			for k := range ctx.Warnings {
+				if strings.HasPrefix(k, "map:") {
+					mapNotifications++
+				}
+			}
+			assert.Equal(t, tt.wantMapNotificationKeys, mapNotifications, "unexpected number of mapping notification keys")
+		})
 	}
-
-	// Different version — should not match.
-	repo, version := applyActionPinMapping("actions/checkout", "v5", ctx)
-
-	assert.Equal(t, "actions/checkout", repo, "repo should be unchanged when version does not match")
-	assert.Equal(t, "v5", version, "version should be unchanged when version does not match")
-}
-
-func TestApplyActionPinMapping_DeduplicatesInfoMessage(t *testing.T) {
-	ctx := &PinContext{
-		Warnings: make(map[string]bool),
-		Mappings: map[string]string{
-			"actions/checkout@v4": "acme-corp/checkout@v4",
-		},
-	}
-
-	applyActionPinMapping("actions/checkout", "v4", ctx)
-	applyActionPinMapping("actions/checkout", "v4", ctx)
-
-	notifyKey := "map:actions/checkout@v4"
-	assert.True(t, ctx.Warnings[notifyKey], "Expected notification key to be marked as seen")
-	// Count should be exactly one entry (deduplication).
-	mapNotifications := 0
-	for k := range ctx.Warnings {
-		if strings.HasPrefix(k, "map:") {
-			mapNotifications++
-		}
-	}
-	assert.Equal(t, 1, mapNotifications, "Expected exactly one deduplicated mapping notification")
-}
-
-func TestApplyActionPinMapping_InvalidMappingValueSkipped(t *testing.T) {
-	ctx := &PinContext{
-		Warnings: make(map[string]bool),
-		Mappings: map[string]string{
-			"actions/checkout@v4": "no-at-sign", // invalid: missing at sign and version
-		},
-	}
-
-	repo, version := applyActionPinMapping("actions/checkout", "v4", ctx)
-
-	// Invalid value should be silently skipped.
-	assert.Equal(t, "actions/checkout", repo, "repo should be unchanged for invalid mapping value")
-	assert.Equal(t, "v4", version, "version should be unchanged for invalid mapping value")
-}
-
-func TestApplyActionPinMapping_TargetWithoutRefSeparatorSkipped(t *testing.T) {
-	ctx := &PinContext{
-		Warnings: make(map[string]bool),
-		Mappings: map[string]string{
-			"actions/checkout@v4": "acme-corp/checkout", // invalid: missing @ separator
-		},
-	}
-
-	repo, version := applyActionPinMapping("actions/checkout", "v4", ctx)
-
-	assert.Equal(t, "actions/checkout", repo, "repo should be unchanged when mapping target has no @ separator")
-	assert.Equal(t, "v4", version, "version should be unchanged when mapping target has no @ separator")
-	assert.NotContains(t, ctx.Warnings, "map:actions/checkout@v4", "invalid mapping target should not set mapping warning key")
 }

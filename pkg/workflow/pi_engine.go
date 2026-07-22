@@ -487,6 +487,13 @@ touch %s
 		env["GH_AW_VERSION"] = "dev"
 	}
 
+	// Disable Pi startup network operations (version check, install telemetry,
+	// and remote model-catalog refresh against pi.dev). None of these are needed
+	// in CI: the AWF api-proxy provides models.json, version checks add latency,
+	// and telemetry is not relevant in an automated runner context.
+	// See: https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/settings.md
+	env["PI_OFFLINE"] = "1"
+
 	// When the AWF firewall is enabled, set git identity environment variables
 	// for commit authorship and signal to the Pi extension that the AWF api-proxy
 	// sidecar is running so the /reflect preflight is not skipped.

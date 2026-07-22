@@ -70,24 +70,6 @@ func NewProgressBar(total int64) *ProgressBar {
 	}
 }
 
-// NewIndeterminateProgressBar creates a new progress bar in indeterminate mode
-// for use when the total size is not known. The progress bar automatically adapts
-// to TTY/non-TTY environments.
-func NewIndeterminateProgressBar() *ProgressBar {
-	progressLog.Printf("Creating indeterminate progress bar")
-	prog := progress.New(
-		progress.WithColors(styles.ColorPurple, styles.ColorInfo),
-		progress.WithScaled(true),
-		progress.WithWidth(40),
-	)
-	prog.EmptyColor = styles.ColorComment
-	return &ProgressBar{
-		progress:      prog,
-		indeterminate: true,
-		ttyCheck:      isTTY,
-	}
-}
-
 // Update updates the current progress and returns a formatted string
 // In determinate mode:
 //   - TTY: Returns a visual progress bar with gradient and percentage
