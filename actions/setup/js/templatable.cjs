@@ -59,7 +59,7 @@ function parseBoolTemplatable(value, defaultValue = true) {
 function parseIntTemplatable(value, defaultValue = 0) {
   if (value === undefined || value === null) return defaultValue;
   const n = parseInt(String(value), 10);
-  return isNaN(n) ? defaultValue : n;
+  return Number.isNaN(n) ? defaultValue : n;
 }
 
 module.exports = { parseBoolTemplatable, parseIntTemplatable };

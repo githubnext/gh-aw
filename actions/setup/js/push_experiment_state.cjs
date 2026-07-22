@@ -218,6 +218,7 @@ async function main() {
         }
       } else {
         core.setFailed(`Failed to push ${stateLabel} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
+        return;
       }
     }
   }

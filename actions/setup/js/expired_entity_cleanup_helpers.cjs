@@ -32,7 +32,7 @@ function delay(ms) {
  */
 function validateCreationDate(createdAt) {
   const creationDate = new Date(createdAt);
-  return !isNaN(creationDate.getTime());
+  return !Number.isNaN(creationDate.getTime());
 }
 
 /**

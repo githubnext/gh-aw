@@ -449,6 +449,7 @@ async function runLogParser(options) {
             : "startup/configuration failure detected";
 
         core.setFailed(`${errorCode}: Claude execution failed: no structured log entries were produced. ${diagnostics.summaryLine} ${failureKind}.`);
+        return;
       }
     }
 
@@ -466,6 +467,7 @@ async function runLogParser(options) {
         core.warning(`MCP server(s) failed to launch (${failedServers}), but agent completed turns — treating as non-fatal post-completion relaunch`);
       } else {
         core.setFailed(`${ERR_API}: MCP server(s) failed to launch: ${failedServers}`);
+        return;
       }
     }
 

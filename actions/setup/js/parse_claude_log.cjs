@@ -103,7 +103,7 @@ function parseClaudeLog(logContent) {
   const maxTurns = process.env.GH_AW_MAX_TURNS;
   if (maxTurns && lastEntry && lastEntry.num_turns) {
     const configuredMaxTurns = parseInt(maxTurns, 10);
-    if (!isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
+    if (!Number.isNaN(configuredMaxTurns) && lastEntry.num_turns >= configuredMaxTurns) {
       maxTurnsHit = true;
     }
   }

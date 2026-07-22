@@ -79,10 +79,10 @@ function parseTimestamp(value) {
     // Unix float seconds (AWF firewall audit.jsonl uses this)
     const ms = Math.round(value * 1000);
     const d = new Date(ms);
-    return isNaN(d.getTime()) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   }
   const d = new Date(String(value));
-  return isNaN(d.getTime()) ? null : d;
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 /**

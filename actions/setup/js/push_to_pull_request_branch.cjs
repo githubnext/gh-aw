@@ -597,7 +597,7 @@ async function main(config = {}) {
     // Validate target configuration
     if (target !== "*" && target !== "triggering") {
       const pullNumber = parseInt(target, 10);
-      if (isNaN(pullNumber)) {
+      if (Number.isNaN(pullNumber)) {
         return { success: false, error: 'Invalid target configuration: must be "triggering", "*", or a valid pull request number' };
       }
     }
@@ -950,7 +950,7 @@ async function main(config = {}) {
 
     // Check if branch exists on origin
     try {
-      await exec.exec(`git rev-parse --verify ${branchRemoteRef}`, [], baseGitOpts);
+      await exec.exec("git", ["rev-parse", "--verify", branchRemoteRef], baseGitOpts);
     } catch (verifyError) {
       const missingBranchError = MISSING_BRANCH_ERROR_TEMPLATE(branchName);
       if (ignoreMissingBranchFailure) {
@@ -962,7 +962,7 @@ async function main(config = {}) {
 
     // Checkout the branch from origin
     try {
-      await exec.exec(`git checkout -B ${branchName} ${branchRemoteRef}`, [], baseGitOpts);
+      await exec.exec("git", ["checkout", "-B", branchName, branchRemoteRef], baseGitOpts);
       core.info(`Checked out existing branch from ${pushRepo}: ${branchName}`);
     } catch (checkoutError) {
       return { success: false, error: `Failed to checkout branch ${branchName}: ${getErrorMessage(checkoutError)}` };
@@ -1160,7 +1160,7 @@ async function main(config = {}) {
 
           // Use --3way to handle cross-repo patches where the patch base may differ from target repo
           // This allows git to resolve create-vs-modify mismatches when a file exists in target but not source
-          await exec.exec(`git am --3way ${patchFilePath}`, [], baseGitOpts);
+          await exec.exec("git", ["am", "--3way", patchFilePath], baseGitOpts);
           core.info("Patch applied successfully");
         } catch (error) {
           core.warning(`Initial patch apply failed, attempting add/add recovery: ${getErrorMessage(error)}`);

@@ -68,8 +68,8 @@ function main() {
   try {
     outputPath = resolveCopilotConfigOutputPath();
   } catch (err) {
-    core.error(`ERROR: ${getErrorMessage(err)}`);
-    process.exit(1);
+    core.setFailed(`ERROR: ${getErrorMessage(err)}`);
+    return;
   }
 
   const { gatewayOutput, domain, port, urlPrefix, cliServers, servers } = loadGatewayContext();
