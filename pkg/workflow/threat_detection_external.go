@@ -395,8 +395,9 @@ func (c *Compiler) buildUploadDetectionArtifactStep(data *WorkflowData) []string
 // buildExternalDetectorConcludeStep creates the conclude step for the external
 // threat-detect binary. It runs `threat-detect conclude --result-file ...` which reads
 // the structured detection_result.json and sets the detection_conclusion/detection_reason/
-// detection_success step outputs and exports GH_AW_DETECTION_CONCLUSION/GH_AW_DETECTION_REASON,
-// preserving the same gate contract as the inline parse_threat_detection_results.cjs path.
+// detection_success step outputs, preserving the same gate contract as the inline
+// parse_threat_detection_results.cjs path. Outputs (not env vars) are used exclusively;
+// downstream jobs consume these via needs.detection.outputs.* expressions.
 // The step ID (detection_conclusion) and env vars (RUN_DETECTION, DETECTION_AGENTIC_EXECUTION_OUTCOME,
 // GH_AW_DETECTION_CONTINUE_ON_ERROR) are byte-identical to the inline conclude step.
 func (c *Compiler) buildExternalDetectorConcludeStep(data *WorkflowData) []string {
