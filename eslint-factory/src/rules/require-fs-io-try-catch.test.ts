@@ -25,13 +25,7 @@ describe("require-fs-io-try-catch", () => {
 
   it("valid: other fs methods not in scope are ignored", () => {
     cjsRuleTester.run("require-fs-io-try-catch", requireFsIoTryCatchRule, {
-      valid: [
-        `fs.existsSync(path);`,
-        `fs.readFileSync(path, "utf8");`,
-        `fs.writeFileSync(path, data);`,
-        `mockFs.statSync(path);`,
-        `storage.readdirSync(dir);`,
-      ],
+      valid: [`fs.existsSync(path);`, `fs.readFileSync(path, "utf8");`, `fs.writeFileSync(path, data);`, `mockFs.statSync(path);`, `storage.readdirSync(dir);`],
       invalid: [],
     });
   });
@@ -98,10 +92,7 @@ describe("require-fs-io-try-catch", () => {
 
   it("valid: node:fs destructured inside try block passes", () => {
     cjsRuleTester.run("require-fs-io-try-catch", requireFsIoTryCatchRule, {
-      valid: [
-        `const { statSync } = require("node:fs"); try { statSync(path); } catch (e) {}`,
-        `const { readdirSync } = require("fs"); try { readdirSync(dir); } catch (e) {}`,
-      ],
+      valid: [`const { statSync } = require("node:fs"); try { statSync(path); } catch (e) {}`, `const { readdirSync } = require("fs"); try { readdirSync(dir); } catch (e) {}`],
       invalid: [],
     });
   });
