@@ -1,0 +1,4 @@
+persona: crlf-violet
+strategy: line-ending-variant+amend
+phase: amended
+flag: yes
