@@ -147,6 +147,7 @@ var GeminiDefaultDomains = AntigravityDefaultDomains
 // provider-specific API domains are added on top via GetDefaultDomainsForEngine.
 var PiBaseDefaultDomains = []string{
 	"api.pi.ai",            // Pi CLI telemetry / update checks
+	"pi.dev",               // Pi CLI authentication / web interface
 	"host.docker.internal", // MCP gateway / API proxy access
 	"github.com",
 	"raw.githubusercontent.com",
@@ -173,6 +174,7 @@ var piProviderDomains = map[string]string{
 var PiDefaultDomains = []string{
 	"api.githubcopilot.com", // Default provider (Copilot routing)
 	"api.pi.ai",
+	"pi.dev", // Pi CLI authentication / web interface
 	"host.docker.internal",
 	"github.com",
 	"raw.githubusercontent.com",
