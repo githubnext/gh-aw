@@ -9,8 +9,10 @@ ARG NODE_IMAGE_UPDATED_AT=""
 ARG DOCKERFILE_HASH=""
 ARG NPM_VERSION=11.18.0
 
+# Intentional: upgrade all packages to pick up security fixes; downstream digest pins the result.
 RUN apk upgrade --no-cache \
     && apk add --no-cache git \
+    && apk info -v | sort \
     && npm install --global "npm@${NPM_VERSION}" \
     && npm cache clean --force
 
