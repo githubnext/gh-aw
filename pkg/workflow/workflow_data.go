@@ -203,6 +203,12 @@ type WorkflowData struct {
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.
 // It is used to pass the resolver and warnings state to pkg/actionpins functions
 // without introducing an import cycle.
+//
+// A new PinContext struct is allocated on each call, but the Warnings field always
+// points to the same underlying map (data.ActionPinWarnings). This shared map is
+// what makes deduplication of console messages work correctly across multiple calls
+// on the same WorkflowData. Callers must not replace ctx.Warnings with a different
+// map after construction — doing so would break deduplication.
 func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	if d == nil {
 		return nil
