@@ -27,25 +27,32 @@ describe("no-core-error-then-process-exitcode", () => {
         `core.warning("msg"); process.exitCode = 1;`,
         // Variable assignment — runtime value unknown
         `core.error("msg"); process.exitCode = code;`,
-        // Exports between statements break adjacency at module scope
+        // Exports between statements break the scan at module scope
         `const helper = 1; core.error("msg"); export { helper }; process.exitCode = 1;`,
         // process.exit (covered by the sibling rule)
         `core.error("msg"); process.exit(1);`,
         // Not a simple assignment: += is not flagged
         `core.error("msg"); process.exitCode += 1;`,
+        // core.setFailed between error and exitCode stops scanning
+        `core.error("x"); core.setFailed("y"); process.exitCode = 1;`,
+        // return between error and exitCode stops scanning (inside a function)
+        `function run() { core.error("x"); return; process.exitCode = 1; }`,
+        // throw between error and exitCode stops scanning
+        `function run() { core.error("x"); throw new Error("x"); process.exitCode = 1; }`,
       ],
       invalid: [
         {
+          // module top-level: autofix is safe — no caller continues after replacement
           code: `core.error("fatal"); process.exitCode = 1;`,
-          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("fatal");\n ' }] }],
         },
         {
           code: `core.error("something went wrong"); process.exitCode = 1;`,
-          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("something went wrong");\n ' }] }],
         },
         {
           code: "core.error(`ERROR: ${msg}`); process.exitCode = 1;",
-          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [{ messageId: "replaceWithSetFailed", output: "core.setFailed(`ERROR: ${msg}`);\n " }] }],
         },
         {
           // Inside a named function — no autofix suggestion because return; only exits the helper
@@ -78,13 +85,23 @@ describe("no-core-error-then-process-exitcode", () => {
           errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
         },
         {
-          // SwitchCase path reports the pattern without an autofix outside main()
+          // SwitchCase at module top level: autofix is safe (enclosingFn === null)
           code: `switch (x) { case 1: core.error("fatal"); process.exitCode = 1; break; }`,
-          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [{ messageId: "replaceWithSetFailed", output: 'switch (x) { case 1: core.setFailed("fatal");\n  break; }' }] }],
         },
         {
           // exitCode = 2 is also flagged
           code: `core.error("critical"); process.exitCode = 2;`,
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [{ messageId: "replaceWithSetFailed", output: 'core.setFailed("critical");\n ' }] }],
+        },
+        {
+          // Non-adjacent pair: intervening statement does not defeat detection; no autofix suggestion
+          code: `core.error("x"); core.info("y"); process.exitCode = 1;`,
+          errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
+        },
+        {
+          // Two intervening statements
+          code: `core.error("fatal"); core.info("a"); core.info("b"); process.exitCode = 1;`,
           errors: [{ messageId: "noCoreErrorThenProcessExitCode", suggestions: [] }],
         },
       ],
