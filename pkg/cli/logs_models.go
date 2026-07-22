@@ -349,3 +349,11 @@ func isFailureConclusion(conclusion string) bool {
 	}
 	return isFailure
 }
+
+// isDriverExitFailure returns true when a failed run shows no agent turns, which
+// indicates the CLI wrapper or a pre/post-agent infrastructure step exited non-zero
+// before the agent had a chance to run.  Runs with Turns > 0 are classified as
+// agent-logic failures instead because the agent did execute.
+func isDriverExitFailure(run WorkflowRun) bool {
+	return isFailureConclusion(run.Conclusion) && run.Turns == 0
+}
