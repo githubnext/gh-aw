@@ -368,6 +368,7 @@ func extractRunMetricsAndMetadata(result *DownloadResult, runOutputDir string, v
 	// Update run with metrics so fingerprint computation uses the same data as the audit tool.
 	result.Run.TokenUsage = metrics.TokenUsage
 	result.Run.Turns = metrics.Turns
+	result.Run.TurnsAvailable = (metricsErr == nil)
 	result.Run.AvgTimeBetweenTurns = metrics.AvgTimeBetweenTurns
 	result.Run.LogsPath = runOutputDir
 

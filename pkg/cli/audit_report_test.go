@@ -417,6 +417,45 @@ func TestGenerateFindings(t *testing.T) {
 	}
 }
 
+func TestBuildBlockedNetworkFindingDescription(t *testing.T) {
+	tests := []struct {
+		name            string
+		blockedRequests int
+		blockedDomains  []string
+		expected        string
+	}{
+		{
+			name:            "fallback to blocked request count",
+			blockedRequests: 3,
+			expected:        "3 network request(s) were blocked by firewall",
+		},
+		{
+			name:            "single blocked domain",
+			blockedRequests: 1,
+			blockedDomains:  []string{"example.com"},
+			expected:        "Agent attempted to access blocked domain: example.com",
+		},
+		{
+			name:            "few blocked domains",
+			blockedRequests: 2,
+			blockedDomains:  []string{"example.com", "api.example.com"},
+			expected:        "Agent attempted to access blocked domains: example.com, api.example.com",
+		},
+		{
+			name:            "many blocked domains",
+			blockedRequests: 4,
+			blockedDomains:  []string{"a.example.com", "b.example.com", "c.example.com", "d.example.com"},
+			expected:        "Agent attempted to access 4 blocked domains, including: a.example.com, b.example.com, c.example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, buildBlockedNetworkFindingDescription(tt.blockedRequests, tt.blockedDomains))
+		})
+	}
+}
+
 func TestGenerateRecommendations(t *testing.T) {
 	tests := []struct {
 		name                 string
@@ -992,6 +1031,36 @@ func TestRenderJSONComplete(t *testing.T) {
 		"Errors should be preserved in JSON")
 	assert.Len(t, parsed.Warnings, 2,
 		"Warnings should be preserved in JSON")
+}
+
+func TestRenderConsoleExperimentsSorted(t *testing.T) {
+	oldStderr := os.Stderr
+	r, w, _ := os.Pipe()
+	os.Stderr = w
+
+	renderConsole(AuditData{
+		Overview: OverviewData{
+			RunID:        7,
+			WorkflowName: "Sort Experiments",
+			Conclusion:   "success",
+			Duration:     "1m0s",
+			URL:          "https://example.test/runs/7",
+		},
+		Metrics: MetricsData{},
+		Experiments: &ExperimentData{
+			Assignments: map[string]string{
+				"zeta":  "b",
+				"alpha": "a",
+			},
+		},
+	}, "/tmp/experiments")
+
+	w.Close()
+	var buf bytes.Buffer
+	_, _ = io.Copy(&buf, r)
+	os.Stderr = oldStderr
+
+	assert.Contains(t, buf.String(), "  experiments: alpha=a zeta=b\n")
 }
 
 func TestToolUsageAggregation(t *testing.T) {
