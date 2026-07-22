@@ -338,17 +338,29 @@ func GetMCPCLIPathSetup(data *WorkflowData) string {
 // to the agent, or nil if there are no servers to mount.
 // The prompt is loaded from actions/setup/md/mcp_cli_tools_prompt.md at runtime,
 // with the __GH_AW_MCP_CLI_SERVERS_LIST__ placeholder substituted by the substitution step.
+//
+// The server list is computed at compile time from the workflow configuration.
+// Each entry uses the `--help` convention so agents can discover tool signatures at runtime.
 func buildMCPCLIPromptSection(data *WorkflowData) *PromptSection {
 	servers := getMCPCLIServerNames(data)
 	if len(servers) == 0 {
 		return nil
 	}
 
+	// Build a static list of CLI server entries from the compile-time known server names.
+	// Using step outputs (e.g. steps.mount-mcp-clis.outputs.mcp-cli-servers-list) here
+	// would reference a step from the agent job in the activation job's env block, which
+	// is out of scope and triggers actionlint errors.
+	lines := make([]string, len(servers))
+	for i, server := range servers {
+		lines[i] = fmt.Sprintf("- `%s` — run `%s --help` to see available tools", server, server)
+	}
+
 	return &PromptSection{
 		Content: mcpCLIToolsPromptFile,
 		IsFile:  true,
 		EnvVars: map[string]string{
-			"GH_AW_MCP_CLI_SERVERS_LIST": "${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}",
+			"GH_AW_MCP_CLI_SERVERS_LIST": strings.Join(lines, "\n"),
 		},
 	}
 }

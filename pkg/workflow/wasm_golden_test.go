@@ -347,6 +347,10 @@ Test the %s engine compilation path.
 			yamlOutput, err := compiler.CompileToYAML(wd, "workflow.md")
 			require.NoError(t, err, "%s engine compile failed", eng.name)
 
+			if eng.name == "pi" {
+				require.Contains(t, yamlOutput, "PI_OFFLINE: 1")
+			}
+
 			// Keep codex golden stable across branches where CODEX_API_KEY/OPENAI_API_KEY
 			// may or may not be explicitly excluded in gh-aw firewall args.
 			if eng.name == "codex" {

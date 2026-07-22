@@ -10,7 +10,14 @@ DETECTION_STATUS_PREFIX="THREAT_DETECTION_STATUS:"
 continue_on_error="${GH_AW_DETECTION_CONTINUE_ON_ERROR:-true}"
 continue_on_error="$(echo "${continue_on_error}" | tr '[:upper:]' '[:lower:]')"
 
-if [ "${RUN_DETECTION:-false}" = "true" ] && [ ! -f "${RESULT_FILE}" ]; then
+if [ "${RUN_DETECTION:-false}" != "true" ]; then
+  echo "conclusion=skipped" >> "${GITHUB_OUTPUT}"
+  echo "success=true" >> "${GITHUB_OUTPUT}"
+  echo "reason=" >> "${GITHUB_OUTPUT}"
+  exit 0
+fi
+
+if [ ! -f "${RESULT_FILE}" ]; then
   detection_status=""
   if [ -f "${DETECTION_LOG_FILE}" ]; then
     detection_status="$(grep "${DETECTION_STATUS_PREFIX}" "${DETECTION_LOG_FILE}" | tail -n 1 || true)"
@@ -30,8 +37,6 @@ if [ "${RUN_DETECTION:-false}" = "true" ] && [ ! -f "${RESULT_FILE}" ]; then
     echo "conclusion=warning" >> "${GITHUB_OUTPUT}"
     echo "success=false" >> "${GITHUB_OUTPUT}"
     echo "reason=agent_failure" >> "${GITHUB_OUTPUT}"
-    echo "GH_AW_DETECTION_CONCLUSION=warning" >> "${GITHUB_ENV}"
-    echo "GH_AW_DETECTION_REASON=agent_failure" >> "${GITHUB_ENV}"
     exit 0
   fi
   echo "ERR_SYSTEM: ❌ ${result_message}"
