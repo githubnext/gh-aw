@@ -67,6 +67,12 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 		return
 	}
 
+	// Must be a type conversion, not a function call.
+	outerFunInfo, ok := pass.TypesInfo.Types[outer.Fun]
+	if !ok || !outerFunInfo.IsType() {
+		return
+	}
+
 	outerType := pass.TypesInfo.TypeOf(outer)
 	if outerType == nil {
 		return
@@ -80,16 +86,27 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 		return
 	}
 
+	// The inner call must also be a type conversion, not a function call.
+	innerFunInfo, ok := pass.TypesInfo.Types[inner.Fun]
+	if !ok || !innerFunInfo.IsType() {
+		return
+	}
+
+	innerType := pass.TypesInfo.TypeOf(inner)
+	if innerType == nil {
+		return
+	}
 	innerArgType := pass.TypesInfo.TypeOf(inner.Args[0])
 	if innerArgType == nil {
 		return
 	}
 
 	outerUnderlying := outerType.Underlying()
+	innerUnderlying := innerType.Underlying()
 	innerArgUnderlying := innerArgType.Underlying()
 
 	// Check string([]byte(s)) where s is already a string.
-	if isStringType(outerUnderlying) && isByteSliceType(pass.TypesInfo.TypeOf(inner)) && isStringType(innerArgUnderlying) {
+	if isStringType(outerUnderlying) && isByteSliceType(innerUnderlying) && isStringType(innerArgUnderlying) {
 		argText := astutil.NodeText(pass.Fset, inner.Args[0])
 		pass.ReportRangef(outer,
 			"string([]byte(%s)) is a redundant round-trip; the inner []byte conversion copies the string unnecessarily",
@@ -99,7 +116,7 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 	}
 
 	// Check []byte(string(b)) where b is already a []byte.
-	if isByteSliceType(outerUnderlying) && isStringType(pass.TypesInfo.TypeOf(inner).Underlying()) && isByteSliceType(innerArgUnderlying) {
+	if isByteSliceType(outerUnderlying) && isStringType(innerUnderlying) && isByteSliceType(innerArgUnderlying) {
 		argText := astutil.NodeText(pass.Fset, inner.Args[0])
 		pass.ReportRangef(outer,
 			"[]byte(string(%s)) is a redundant round-trip; the inner string conversion copies the bytes unnecessarily",
