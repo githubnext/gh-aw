@@ -3,7 +3,19 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { ensureSafeOutputsTools, formatResponse, getToolCallTimeoutMs, hasStdinJsonPayload, parseToolArgs, readStdinSync, shouldShowToolHelpForEmptyArgs, showHelp, showToolHelp, unescapeCliStringArg, writeStdoutAndFlush } from "./mcp_cli_bridge.cjs";
+import {
+  ensureSafeOutputsTools,
+  formatResponse,
+  getToolCallTimeoutMs,
+  hasStdinJsonPayload,
+  parseToolArgs,
+  readStdinSync,
+  shouldShowToolHelpForEmptyArgs,
+  showHelp,
+  showToolHelp,
+  unescapeCliStringArg,
+  writeStdoutAndFlush,
+} from "./mcp_cli_bridge.cjs";
 
 describe("mcp_cli_bridge.cjs", () => {
   let originalCore;
@@ -763,8 +775,20 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(unescapeCliStringArg("line1\\rline2")).toBe("line1\rline2");
     });
 
+    it("converts \\b to a backspace character", () => {
+      expect(unescapeCliStringArg("abc\\bdef")).toBe("abc\bdef");
+    });
+
+    it("converts \\f to a form-feed character", () => {
+      expect(unescapeCliStringArg("page1\\fpage2")).toBe("page1\fpage2");
+    });
+
     it("converts \\\\ to a single backslash", () => {
       expect(unescapeCliStringArg("path\\\\to\\\\file")).toBe("path\\to\\file");
+    });
+
+    it("converts \\uXXXX escapes to their Unicode code points", () => {
+      expect(unescapeCliStringArg("quote:\\u2019")).toBe("quote:’");
     });
 
     it("converts \\\\n to a literal backslash followed by n (not a newline)", () => {
@@ -785,23 +809,29 @@ describe("mcp_cli_bridge.cjs", () => {
     });
   });
 
-  describe("parseToolArgs — string escape unescaping", () => {
-    it("unescapes \\n in string-typed CLI flag arguments", () => {
+  describe("parseToolArgs — body-like string escape unescaping", () => {
+    it("unescapes \\n in body CLI flag arguments", () => {
       const schemaProperties = { body: { type: "string" } };
       const { args } = parseToolArgs(["--body", "Hello\\nWorld"], schemaProperties);
       expect(args).toEqual({ body: "Hello\nWorld" });
     });
 
-    it("unescapes \\n in string-typed --key=value arguments", () => {
+    it("unescapes \\n in body --key=value arguments", () => {
       const schemaProperties = { body: { type: "string" } };
       const { args } = parseToolArgs(["--body=Hello\\nWorld"], schemaProperties);
       expect(args).toEqual({ body: "Hello\nWorld" });
     });
 
-    it("unescapes \\n when type is ['string', 'null']", () => {
-      const schemaProperties = { body: { type: ["string", "null"] } };
-      const { args } = parseToolArgs(["--body", "line1\\nline2"], schemaProperties);
-      expect(args).toEqual({ body: "line1\nline2" });
+    it("unescapes \\n for nullable draft body fields", () => {
+      const schemaProperties = { draft_body: { type: ["string", "null"] } };
+      const { args } = parseToolArgs(["--draft-body", "line1\\nline2"], schemaProperties);
+      expect(args).toEqual({ draft_body: "line1\nline2" });
+    });
+
+    it("does not unescape generic string fields like paths", () => {
+      const schemaProperties = { path: { type: "string" } };
+      const { args } = parseToolArgs(["--path", "C:\\temp\\new_file"], schemaProperties);
+      expect(args).toEqual({ path: "C:\\temp\\new_file" });
     });
 
     it("does not unescape \\n when schema type is integer", () => {
@@ -812,10 +842,10 @@ describe("mcp_cli_bridge.cjs", () => {
       expect(args).toEqual({ count: "5\\n" });
     });
 
-    it("produces actual newlines matching JSON stdin mode behaviour", () => {
+    it("produces actual newlines in body fields matching JSON stdin mode behaviour", () => {
       // Verify that --body "title\n\nbody" (CLI flags) gives the same result as
       // JSON stdin with {"body":"title\n\nbody"}
-      const schemaProperties = { body: { type: "string" } };
+      const schemaProperties = { body: { type: ["string", "null"] } };
 
       const { args: cliArgs } = parseToolArgs(["--body", "title\\n\\nbody"], schemaProperties);
       const { args: jsonArgs } = parseToolArgs(["."], schemaProperties, '{"body":"title\\n\\nbody"}');

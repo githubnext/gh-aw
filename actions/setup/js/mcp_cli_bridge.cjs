@@ -778,25 +778,34 @@ function resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap,
   return normalizedSchemaKeyMap.get(normalized) || key;
 }
 
+const CLI_UNESCAPED_TEXT_ARG_KEYS = new Set(["body", "draftbody"]);
+
 /**
- * Unescape standard escape sequences in a CLI string argument.
+ * Unescape a conservative subset of JSON-style escape sequences in a CLI text argument.
  *
- * Converts the same escape sequences that JSON string parsing recognises so
- * that agents can write `--body "Hello\nWorld"` and get an actual newline,
- * matching the behaviour of JSON stdin mode where `JSON.parse` handles `\n`.
+ * This is only applied to body-like text fields where authors commonly expect
+ * `\n` and similar escapes to become literal formatting characters, matching
+ * JSON stdin mode more closely without mutating unrelated string arguments
+ * such as file paths or regex patterns.
  *
  * Supported sequences:
- *   `\n`  → newline
- *   `\t`  → tab
- *   `\r`  → carriage return
- *   `\\`  → single backslash
+ *   `\n`      → newline
+ *   `\t`      → tab
+ *   `\r`      → carriage return
+ *   `\b`      → backspace
+ *   `\f`      → form feed
+ *   `\\`      → single backslash
+ *   `\uXXXX`  → Unicode code point
  *   Any other `\X` is left unchanged (the backslash is preserved).
  *
  * @param {string} str - Raw CLI string argument
- * @returns {string} String with escape sequences replaced by their literal characters
+ * @returns {string} String with supported escape sequences replaced by literal characters
  */
 function unescapeCliStringArg(str) {
-  return str.replace(/\\([\s\S])/g, (match, char) => {
+  return str.replace(/\\(?:u([0-9a-fA-F]{4})|([\s\S]))/g, (match, hex, char) => {
+    if (hex) {
+      return String.fromCharCode(Number.parseInt(hex, 16));
+    }
     switch (char) {
       case "n":
         return "\n";
@@ -804,12 +813,24 @@ function unescapeCliStringArg(str) {
         return "\t";
       case "r":
         return "\r";
+      case "b":
+        return "\b";
+      case "f":
+        return "\f";
       case "\\":
         return "\\";
       default:
         return match;
     }
   });
+}
+
+/**
+ * @param {string} key
+ * @returns {boolean}
+ */
+function shouldUnescapeCliTextArg(key) {
+  return CLI_UNESCAPED_TEXT_ARG_KEYS.has(normalizeSchemaKey(key));
 }
 
 /**
@@ -891,11 +912,10 @@ function coerceToolArgValue(key, rawValue, schemaProperty, existingValue, allowN
     }
   }
 
-  // Unescape standard escape sequences in string-typed values so that agents
-  // can write `--body "Hello\nWorld"` and get an actual newline.  This mirrors
-  // the behaviour of JSON stdin mode where JSON.parse interprets `\n` as a
-  // newline character.
-  if (types.includes("string")) {
+  // Only unescape body-like text fields. Shell argv is already decoded, so
+  // applying a second escape pass to arbitrary string fields would corrupt
+  // values like Windows paths and regex patterns.
+  if (types.includes("string") && shouldUnescapeCliTextArg(key)) {
     return unescapeCliStringArg(rawValue);
   }
 
