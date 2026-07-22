@@ -91,6 +91,9 @@ func FormatSectionHeader(header string) string          { return header }
 func FormatSectionHeaderStderr(header string) string    { return header }
 
 // FormatErrorChain formats an error and its full unwrapped chain.
+// In the WASM build there is no rich terminal styling; the top-level error
+// message is sufficient for the JSON-based diagnostics that WASM consumers
+// produce. Full chain formatting is provided by the non-WASM implementation.
 func FormatErrorChain(err error) string {
 	if err == nil {
 		return ""
