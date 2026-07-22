@@ -183,6 +183,23 @@ network:
 
 Each engine has a built-in default domain list for its CLI authentication. See [`domains.go`](https://github.com/github/gh-aw/blob/main/pkg/workflow/domains.go) for the full lists.
 
+### Pi engine defaults
+
+The experimental Pi engine now runs with `PI_OFFLINE: 1` in compiled workflows. In offline mode, Pi does not require outbound access to `api.pi.ai` for normal agent execution.
+
+Pi initialization may still contact `pi.dev` during auth or web-portal flows, so `pi.dev` is included in the Pi engine's built-in default domain list.
+
+This means that workflows using `engine: pi` usually do **not** need to add either host manually:
+
+```yaml wrap
+engine: pi
+network:
+  allowed:
+    - defaults
+```
+
+If you maintain a custom allowlist with strict host pinning, include `pi.dev` when Pi needs its initialization flow.
+
 ### Firewall Log Level
 
 Control the verbosity of AWF firewall logs using `log-level`. Options: `debug` (verbose), `info` (default), `warn`, `error`.
