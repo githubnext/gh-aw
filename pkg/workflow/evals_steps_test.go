@@ -295,3 +295,38 @@ func TestBuildEvalsJobStepsNonCodexIncludesContainerDownload(t *testing.T) {
 		})
 	}
 }
+
+// TestBuildEvalsEngineStepsCodexNoDetectionSchemaOrResultPath verifies evals
+// Codex execution does not reuse detection-only structured output settings.
+// Regression: when evals set IsDetectionRun=true, the generated command included
+// --output-schema /tmp/gh-aw/threat-detection/detection_schema.json and
+// -o /tmp/gh-aw/threat-detection/detection_result.json, which caused eval logs to
+// capture detection JSON payloads instead of BinEval question answers.
+func TestBuildEvalsEngineStepsCodexNoDetectionSchemaOrResultPath(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI: "codex",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "evals_data_analyzed", Question: "Did the agent analyze evals data?"},
+			},
+		},
+	}
+
+	steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
+	if strings.Contains(steps, "--output-schema") {
+		t.Fatalf("evals Codex execution must not include detection structured-output flags; got:\n%s", steps)
+	}
+	if strings.Contains(steps, "/tmp/gh-aw/threat-detection/detection_schema.json") {
+		t.Fatalf("evals Codex execution must not reference detection schema path; got:\n%s", steps)
+	}
+	if strings.Contains(steps, "/tmp/gh-aw/threat-detection/detection_result.json") {
+		t.Fatalf("evals Codex execution must not reference detection result path; got:\n%s", steps)
+	}
+}
