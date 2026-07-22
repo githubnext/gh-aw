@@ -1262,6 +1262,44 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Retrying with 2 resolvable inline comment(s)"));
     });
 
+    it("should retry with resolvable inline comments when API identifies a specific unresolvable path index", async () => {
+      buffer.addComment({ path: "src/valid-one.js", line: 11, body: "First resolvable inline comment" });
+      buffer.addComment({ path: "src/missing.js", line: 99, body: "This path is not in the diff" });
+      buffer.addComment({ path: "src/valid-two.js", line: 22, body: "Second resolvable inline comment" });
+      buffer.setReviewMetadata("Reviewed with comments.", "REQUEST_CHANGES");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 21946,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      const unresolvedError = new Error('Unprocessable Entity: "Path could not be resolved"');
+      // @ts-ignore - Simulate Octokit error response payload with indexed comment field.
+      unresolvedError.response = { data: { errors: [{ field: "comments[1].path", message: "Path could not be resolved" }] } };
+
+      mockGithub.rest.pulls.createReview.mockRejectedValueOnce(unresolvedError).mockResolvedValueOnce({
+        data: {
+          id: 804,
+          html_url: "https://github.com/owner/repo/pull/21946#pullrequestreview-804",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.review_id).toBe(804);
+      expect(result.comment_count).toBe(2);
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+      const retryArgs = mockGithub.rest.pulls.createReview.mock.calls[1][0];
+      expect(retryArgs.comments).toHaveLength(2);
+      expect(retryArgs.comments.map(comment => comment.path)).toEqual(["src/valid-one.js", "src/valid-two.js"]);
+      expect(retryArgs.body).toContain("### Comments that could not be inline-anchored");
+      expect(retryArgs.body).toContain("<details><summary>src/missing.js:99</summary>");
+      expect(retryArgs.body).toContain("This path is not in the diff");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Retrying with 2 resolvable inline comment(s)"));
+    });
+
     it("should fall back to body-only with all comments when partial-anchor retry also fails", async () => {
       buffer.addComment({ path: "src/valid-one.js", line: 11, body: "First resolvable inline comment" });
       buffer.addComment({ path: "src/unresolved.js", line: 99, body: "This one cannot be anchored" });
