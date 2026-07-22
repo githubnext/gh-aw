@@ -193,6 +193,29 @@ A working Docker daemon is required. The MCP gateway and sandbox run as containe
 - **ARC/Kubernetes**: Docker-in-Docker (DinD) is **required** for ARC. Set `containerMode.type="dind"` in your ARC Helm configuration. The `containerMode.type="kubernetes"` mode is not supported. The dind sidecar must share the Docker socket via an `emptyDir` volume, and the gateway retries the socket check for up to 10 seconds to handle startup race conditions. See [How to run GitHub Copilot coding agent on ARC with Docker-in-Docker](/gh-aw/guides/arc-dind-copilot-agent/) for the complete setup guide, and [ARC (Actions Runner Controller)](#arc-actions-runner-controller) below for pod security details.
 - **Split-daemon override**: On ARC or other split-daemon topologies where the socket path or group ID cannot be auto-detected, set `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID` environment variables at the runner level. See [Docker socket override for split-daemon topologies](#docker-socket-override-for-split-daemon-topologies) for details.
 
+### Node.js
+
+Node.js is required for gh-aw framework scripts (`start_safe_outputs_server.sh`, `start_mcp_scripts_server.sh`, and related scripts) that invoke `node` directly.
+
+**Standard GitHub-hosted runners** (`ubuntu-latest`, `ubuntu-22.04`, `ubuntu-24.04`, etc.) have Node.js pre-installed — no additional configuration is required.
+
+**Self-hosted and GPU runners** may not have Node.js on `PATH`. To prevent cryptic mid-run failures, the compiler automatically emits an [`actions/setup-node`](https://github.com/actions/setup-node) step (Node.js 24) at the start of the agent job whenever a non-standard runner is detected. This step runs before any agent or framework scripts and fails fast with a clear error if Node.js cannot be installed.
+
+To pin a specific Node.js version, use `runtimes:` in your workflow frontmatter:
+
+```aw
+---
+on: issues
+runs-on: self-hosted
+runtimes:
+  node:
+    version: '22'
+---
+```
+
+> [!NOTE]
+> The automatic Node.js setup is emitted only for non-standard runners. If your self-hosted runner already has Node.js installed and on `PATH`, the `actions/setup-node` step still runs but is a no-op when the requested version is already present.
+
 ### Filesystem
 
 - **Use `RUNNER_TEMP` for transient state.** Put sandbox state, tool downloads, and intermediate outputs in `$RUNNER_TEMP`, which is cleaned between jobs. On shared runners, avoid writing arbitrary workflow data to `/tmp` because it can persist across jobs.
