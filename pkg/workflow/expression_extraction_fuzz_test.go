@@ -127,7 +127,7 @@ func FuzzRenderExpressions(f *testing.F) {
 	f.Add("Repo: ${{ github.repository }}, Actor: ${{ github.actor }}")
 	f.Add("${{ steps.a.outputs.x || inputs.y }}, ${{ inputs.z }}")
 
-	// Deprecated activation output syntax
+	// Deprecated activation output syntax (kept for backwards-compatibility transformer coverage)
 	f.Add("Content: ${{ needs.activation.outputs.text }}")
 	f.Add("Fallback: ${{ needs.activation.outputs.text || 'default' }}")
 
@@ -245,7 +245,7 @@ func FuzzExtractExpressions(f *testing.F) {
 	f.Add("Repo: ${{ github.repository }}, Actor: ${{ github.actor }}")
 	f.Add("${{ steps.a.outputs.x || inputs.y }}, ${{ inputs.z }}")
 
-	// Deprecated activation output syntax
+	// Deprecated activation output syntax (kept for backwards-compatibility transformer coverage)
 	f.Add("Content: ${{ needs.activation.outputs.text }}")
 	f.Add("Fallback: ${{ needs.activation.outputs.text || 'default' }}")
 

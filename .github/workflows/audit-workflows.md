@@ -105,6 +105,12 @@ Output is saved to: /tmp/gh-aw/aw-mcp/logs
 
 **IMPORTANT**: Do NOT infer engine type by scanning `.lock.yml` files. Lock files contain the word `copilot` in allowed-domains lists and workflow source paths regardless of which engine the workflow uses, causing false positives.
 
+**Success Rate Rollups — Exclude Intentional-Failure Workflows**: When computing the fleet-wide or prod-main success rate, **exclude** runs where `intentional_failure` is `true`. These workflows (e.g. `Daily Credit Limit Test`, `Daily Max AI Credits Test`) are credit-guardrail stress tests that are *designed* to fail; including them would depress the real-regression baseline. The `logs` tool marks them in `runs[].intentional_failure` and counts them in `summary.intentional_failure_runs`. Always report the adjusted rate alongside the raw rate, e.g. `"92.7% raw (94.2% excl. intentional failures)"`.
+
+**Intentional-failure workflows that MUST be excluded from all success-rate and health rollups**:
+- `Daily Credit Limit Test` (`daily-credit-limit-test`) — trips the `max-daily-ai-credits` guardrail by design
+- `Daily Max AI Credits Test` (`daily-max-ai-credits-test`) — trips the `max-ai-credits` per-run firewall by design
+
 {{#if experiments.audit_decomposition == 'phased_sub_agents'}}
 **Analyze** in explicit phases:
 1. **Collection phase**: summarize missing tools, hard failures, and token/runtime outliers.

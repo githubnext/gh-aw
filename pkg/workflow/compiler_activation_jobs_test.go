@@ -372,6 +372,36 @@ func TestBuildActivationJob_OAuthTokenCheckStep_EngineEnvOverride(t *testing.T) 
 	assert.NotContains(t, stepsStr, "COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}", "Default COPILOT_GITHUB_TOKEN expression should not appear when overridden")
 }
 
+// TestBuildActivationJob_OAuthTokenCheckStep_EngineEnvOverrideMultiline verifies that
+// multiline engine.env overrides are emitted as a YAML literal block scalar in the OAuth check step.
+func TestBuildActivationJob_OAuthTokenCheckStep_EngineEnvOverrideMultiline(t *testing.T) {
+	compiler := NewCompiler()
+
+	workflowData := &WorkflowData{
+		Name:            "Test Workflow",
+		MarkdownContent: "# Test\n\nContent",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			Env: map[string]string{
+				constants.CopilotGitHubToken: "${{ secrets.EXAMPLE_TOKEN_A != '' && secrets.EXAMPLE_TOKEN_A ||\n    secrets.EXAMPLE_TOKEN_B != '' && secrets.EXAMPLE_TOKEN_B ||\n    secrets.EXAMPLE_TOKEN_C }}",
+			},
+		},
+	}
+
+	job, err := compiler.buildActivationJob(workflowData, false, "", "test.lock.yml")
+	require.NoError(t, err)
+	require.NotNil(t, job)
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "id: check-oauth-tokens", "Activation job should contain OAuth token check step")
+	assert.Contains(t, stepsStr, "          COPILOT_GITHUB_TOKEN: |\n", "Multiline override should be emitted as a literal block scalar")
+	assert.Contains(t, stepsStr, "            ${{ secrets.EXAMPLE_TOKEN_A != '' && secrets.EXAMPLE_TOKEN_A ||\n", "First line should be indented under the block scalar")
+	assert.Contains(t, stepsStr, "                secrets.EXAMPLE_TOKEN_B != '' && secrets.EXAMPLE_TOKEN_B ||\n", "Continuation indentation should be preserved")
+	assert.Contains(t, stepsStr, "                secrets.EXAMPLE_TOKEN_C }}\n", "Final continuation line should be preserved")
+	assert.NotContains(t, stepsStr, "COPILOT_GITHUB_TOKEN: ${{ secrets.EXAMPLE_TOKEN_A != '' && secrets.EXAMPLE_TOKEN_A ||", "Multiline override should not be emitted inline")
+}
+
 // TestBuildActivationJob_OAuthCheckAfterSecretValidation verifies the step order:
 // the OAuth token check appears after the secret validation step.
 func TestBuildActivationJob_OAuthCheckAfterSecretValidation(t *testing.T) {

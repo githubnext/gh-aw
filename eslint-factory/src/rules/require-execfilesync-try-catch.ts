@@ -7,32 +7,32 @@ type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
 
 /**
  * Walks the scope chain to decide whether `identifierName` resolves to
- * `execSync` from `child_process`.
+ * `execFileSync` from `child_process`.
  */
-function isExecSyncBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
+function isExecFileSyncBinding(identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
   let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
   while (scope) {
     const variable = scope.set.get(identifierName);
     if (variable && variable.defs.length > 0) {
       for (const def of variable.defs) {
-        // ESM: import { execSync } from "child_process"
+        // ESM: import { execFileSync } from "child_process"
         if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportSpecifier) {
           const specifier = def.node as TSESTree.ImportSpecifier;
           const importedName = specifier.imported.type === AST_NODE_TYPES.Identifier ? specifier.imported.name : null;
-          if (importedName === "execSync") return true;
+          if (importedName === "execFileSync") return true;
         }
-        // CJS: const { execSync } = require("child_process")
+        // CJS: const { execFileSync } = require("child_process")
         if (def.type === "Variable") {
           const declarator = def.node as TSESTree.VariableDeclarator;
           if (declarator.id.type === AST_NODE_TYPES.ObjectPattern && isRequireChildProcess(declarator.init)) {
             for (const prop of declarator.id.properties) {
               if (prop.type !== AST_NODE_TYPES.Property) continue;
-              if (prop.key.type !== AST_NODE_TYPES.Identifier || prop.key.name !== "execSync") continue;
+              if (prop.key.type !== AST_NODE_TYPES.Identifier || prop.key.name !== "execFileSync") continue;
               const boundName = prop.value.type === AST_NODE_TYPES.Identifier ? prop.value.name : null;
               if (boundName === identifierName) return true;
             }
           }
-          // const execSync = childProcess.execSync
+          // const execFileSync = childProcess.execFileSync
           if (declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init?.type === AST_NODE_TYPES.MemberExpression) {
             const init = declarator.init;
             if (
@@ -40,7 +40,7 @@ function isExecSyncBinding(identifierName: string, scopeNode: TSESTree.Node, sou
               init.object.type === AST_NODE_TYPES.Identifier &&
               isChildProcessObjectBinding(init.object.name, init.object, sourceCode) &&
               init.property.type === AST_NODE_TYPES.Identifier &&
-              init.property.name === "execSync"
+              init.property.name === "execFileSync"
             ) {
               return true;
             }
@@ -55,39 +55,39 @@ function isExecSyncBinding(identifierName: string, scopeNode: TSESTree.Node, sou
 }
 
 /**
- * Returns true if the CallExpression is an `execSync(...)` call sourced from
+ * Returns true if the CallExpression is an `execFileSync(...)` call sourced from
  * the `child_process` module.
  */
-function isExecSyncCall(node: TSESTree.CallExpression, sourceCode: TSESLint.SourceCode): boolean {
+function isExecFileSyncCall(node: TSESTree.CallExpression, sourceCode: TSESLint.SourceCode): boolean {
   const callee = node.callee;
 
-  // execSync(...) — destructured or aliased
+  // execFileSync(...) — destructured or aliased
   if (callee.type === AST_NODE_TYPES.Identifier) {
-    return isExecSyncBinding(callee.name, callee, sourceCode);
+    return isExecFileSyncBinding(callee.name, callee, sourceCode);
   }
 
-  // childProcess.execSync(...) or cp.execSync(...)
-  if (callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.object.type === AST_NODE_TYPES.Identifier && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "execSync") {
+  // childProcess.execFileSync(...) or cp.execFileSync(...)
+  if (callee.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.object.type === AST_NODE_TYPES.Identifier && callee.property.type === AST_NODE_TYPES.Identifier && callee.property.name === "execFileSync") {
     return isChildProcessObjectBinding(callee.object.name, callee.object, sourceCode);
   }
 
   return false;
 }
 
-export const requireExecSyncTryCatchRule = createRule({
-  name: "require-execsync-try-catch",
+export const requireExecFileSyncTryCatchRule = createRule({
+  name: "require-execfilesync-try-catch",
   meta: {
     type: "problem",
     hasSuggestions: true,
     docs: {
       description:
-        "Require execSync calls in actions/setup/js scripts to be wrapped in try/catch. " +
-        "execSync throws an Error containing child-process result fields when the child process exits with a non-zero status code or is killed by a signal; " +
+        "Require execFileSync calls in actions/setup/js scripts to be wrapped in try/catch. " +
+        "execFileSync throws an Error containing child-process result fields when the child process exits with a non-zero status code or is killed by a signal; " +
         "an unhandled throw crashes the action without surfacing a useful diagnostic.",
     },
     schema: [],
     messages: {
-      requireTryCatch: "Wrap execSync({{arg}}) in try/catch — execSync throws when the process exits non-zero or is killed by a signal, " + "and will crash the action if the error is unhandled.",
+      requireTryCatch: "Wrap execFileSync({{arg}}) in try/catch — execFileSync throws when the process exits non-zero or is killed by a signal, " + "and will crash the action if the error is unhandled.",
       wrapInTryCatch: "Wrap in try { ... } catch { ... } and re-throw with { cause: err } to preserve context.",
     },
   },
@@ -97,7 +97,7 @@ export const requireExecSyncTryCatchRule = createRule({
 
     return {
       CallExpression(node) {
-        if (!isExecSyncCall(node, sourceCode)) return;
+        if (!isExecFileSyncCall(node, sourceCode)) return;
         if (isInsideTryBlock(sourceCode, node)) return;
 
         const argText = node.arguments.length > 0 ? sourceCode.getText(node.arguments[0]) : "";
@@ -120,8 +120,8 @@ export const requireExecSyncTryCatchRule = createRule({
                       stmt,
                       buildTryCatchSuggestion(stmtText, {
                         indent,
-                        todoComment: "TODO: handle execSync failure (non-zero exit / signal termination).",
-                        errorPrefix: "execSync failed: ",
+                        todoComment: "TODO: handle execFileSync failure (non-zero exit / signal termination).",
+                        errorPrefix: "execFileSync failed: ",
                       })
                     );
                   },

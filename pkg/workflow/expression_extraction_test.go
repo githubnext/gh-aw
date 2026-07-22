@@ -243,9 +243,9 @@ func TestExpressionExtractor_GenerateEnvVarName(t *testing.T) {
 			wantName: "GH_AW_GITHUB_EVENT_ISSUE_NUMBER",
 		},
 		{
-			name:     "needs output",
-			content:  "needs.activation.outputs.text",
-			wantName: "GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT",
+			name:     "sanitized step outputs",
+			content:  "steps.sanitized.outputs.text",
+			wantName: "GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT",
 		},
 		{
 			name:    "complex expression with operators",
@@ -345,7 +345,7 @@ func TestExpressionExtractor_NoCollisions(t *testing.T) {
 		"github.actor",
 		"github.run_id",
 		"github.event.issue.number",
-		"needs.activation.outputs.text",
+		"steps.sanitized.outputs.text",
 	}
 
 	extractor := NewExpressionExtractor()
@@ -506,6 +506,68 @@ Other: ${{ needs.activation.outputs.comment_id }}
 				if _, found := contentMap[tt.transformed]; !found {
 					t.Errorf("Expected transformed expression %q in mappings", tt.transformed)
 				}
+			}
+		})
+	}
+}
+
+// TestExpressionExtractor_DeprecatedActivationOutputWarning verifies that extracting
+// a deprecated needs.activation.outputs.* expression emits a deprecation warning to
+// stderr while still producing the correct (transformed) mapping.
+func TestExpressionExtractor_DeprecatedActivationOutputWarning(t *testing.T) {
+	tests := []struct {
+		name       string
+		markdown   string
+		deprecated string
+		modern     string
+	}{
+		{
+			name:       "text output emits warning",
+			markdown:   "Content: ${{ needs.activation.outputs.text }}",
+			deprecated: "needs.activation.outputs.text",
+			modern:     "steps.sanitized.outputs.text",
+		},
+		{
+			name:       "title output emits warning",
+			markdown:   "Title: ${{ needs.activation.outputs.title }}",
+			deprecated: "needs.activation.outputs.title",
+			modern:     "steps.sanitized.outputs.title",
+		},
+		{
+			name:       "body output emits warning",
+			markdown:   "Body: ${{ needs.activation.outputs.body }}",
+			deprecated: "needs.activation.outputs.body",
+			modern:     "steps.sanitized.outputs.body",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			extractor := NewExpressionExtractor()
+
+			stderr := captureStderr(func() {
+				mappings, err := extractor.ExtractExpressions(tt.markdown)
+				if err != nil {
+					t.Fatalf("ExtractExpressions() unexpected error: %v", err)
+				}
+				// Verify the mapping was produced with the modern expression.
+				found := false
+				for _, m := range mappings {
+					if m.Content == tt.modern {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("expected mapping for %q but not found", tt.modern)
+				}
+			})
+
+			if !strings.Contains(stderr, tt.deprecated) {
+				t.Errorf("expected deprecation warning mentioning %q in stderr, got: %q", tt.deprecated, stderr)
+			}
+			if !strings.Contains(stderr, tt.modern) {
+				t.Errorf("expected deprecation warning mentioning %q in stderr, got: %q", tt.modern, stderr)
 			}
 		})
 	}

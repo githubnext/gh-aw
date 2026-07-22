@@ -1943,8 +1943,8 @@ describe("runtime_import", () => {
       it("should produce {{#if }} (falsy) for github.actor when context is unavailable", () => {
         expect(wrapExpressionsInTemplateConditionals("{{#if github.actor}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
       });
-      it("should produce {{#if }} (falsy) for needs.activation.outputs.text when env var is absent", () => {
-        expect(wrapExpressionsInTemplateConditionals("{{#if needs.activation.outputs.text}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
+      it("should produce {{#if }} (falsy) for steps.sanitized.outputs.text when env var is absent", () => {
+        expect(wrapExpressionsInTemplateConditionals("{{#if steps.sanitized.outputs.text}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
       });
       it("should produce {{#if }} (falsy) for steps.foo.outputs.bar when env var is absent", () => {
         expect(wrapExpressionsInTemplateConditionals("{{#if steps.foo.outputs.bar}}body{{/if}}")).toBe("{{#if }}body{{/if}}");
@@ -2045,9 +2045,9 @@ describe("runtime_import", () => {
       const input = "{{#if ${{ github.event.issue.number }} }}body{{/if}}";
       expect(extractAndReplacePlaceholders(input)).toBe("{{#if __GH_AW_GITHUB_EVENT_ISSUE_NUMBER__ }}body{{/if}}");
     });
-    it("should convert needs.activation.outputs.text", () => {
-      const input = "{{#if ${{ needs.activation.outputs.text }} }}body{{/if}}";
-      expect(extractAndReplacePlaceholders(input)).toBe("{{#if __GH_AW_NEEDS_ACTIVATION_OUTPUTS_TEXT__ }}body{{/if}}");
+    it("should convert steps.sanitized.outputs.text", () => {
+      const input = "{{#if ${{ steps.sanitized.outputs.text }} }}body{{/if}}";
+      expect(extractAndReplacePlaceholders(input)).toBe("{{#if __GH_AW_STEPS_SANITIZED_OUTPUTS_TEXT__ }}body{{/if}}");
     });
     it("should leave content without wrapped expressions unchanged", () => {
       const input = "{{#if __GH_AW_GITHUB_ACTOR__ }}body{{/if}}";
