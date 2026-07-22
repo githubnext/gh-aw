@@ -30,6 +30,7 @@ Apply these in order, measuring cost and quality after each change:
 - [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
 - [ ] **AgenticOps**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
 - [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "aic"` before promoting
+- [ ] **Budget increase last**: Increase `max-ai-credits` only after all applicable optimizations above have been exhausted and measured
 
 ---
 
@@ -366,6 +367,8 @@ To maximize cache hits:
 ## Technique 10 — Cap Spend with AI-Credit Guardrails
 
 Two top-level frontmatter fields enforce AI Credit budgets directly, independent of the techniques above. Both accept an integer or a `K`/`M` short-form string (e.g. `100M`, `500K`). Typical workflow range: `100` to `2500`.
+
+Do not treat a workflow exhausting its per-run budget as a reason to increase `max-ai-credits` immediately. First apply and measure every applicable cost optimization in this guide. Increase the limit only as a last resort when the workflow still cannot complete with acceptable quality within the existing budget.
 
 - **`max-ai-credits:`** — Per-run AI credit budget enforced by the AWF firewall/API proxy (default `1000`). The agent is steered to stay within budget; set a negative value to disable enforcement and steering.
 - **`max-daily-ai-credits:`** — Per-user 24-hour guardrail. At activation, gh-aw sums the triggering user's AI credits across their runs of this workflow over the last 24 hours and blocks execution once the total exceeds the threshold. Enabled by default with a system default threshold; set `-1` to disable, or an explicit value to override the default.
