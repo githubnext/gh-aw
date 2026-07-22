@@ -89,7 +89,8 @@ Priority checks:
 1. Is the task decomposable into smaller, faster sub-tasks?
 2. Are there long-running tool calls that could be replaced with DataOps pre-steps?
 3. Is the prompt asking the agent to do too much in one run?
-4. Can `max-turns` or `timeout-minutes` be raised, or should the task be split?
+4. For a large repetitive backlog, can each run process a manageable subset selected with a cache cursor or deterministic round-robin heuristic?
+5. Can `max-turns` or `timeout-minutes` be raised, or should the task be split?
 
 ## Optimization Analysis Plan
 
@@ -100,11 +101,12 @@ After measuring token usage, produce a prioritized plan:
 3. **Identify top cost drivers** — list the three most expensive phases/tool calls
 4. **Apply quick wins first** — DataOps pre-steps, `gh-proxy`, `cli-proxy`, prompt trimming
 5. **Sub-agent delegation** — identify repetitive per-item loops suitable for small-model workers
-6. **Reuse execution experience** — preserve compact task features, configuration deltas, outcomes, costs, and diagnoses in `cache-memory` when cross-run reuse is useful; apply relevant recurring patterns to similar cases
-7. **Prompt caching** — verify stable instructions and reusable experience appear before dynamic content
-8. **Experiment correctness first** — add an `experiments:` entry, compare output quality first, and use `metric: "aic"` to choose among equivalent-quality variants
-9. **Validate quality** — confirm the optimized run produces equivalent safe outputs
-10. **Raise the per-run budget only if necessary** — consider increasing `max-ai-credits` only after all applicable optimizations have been exhausted and measured
+6. **Bound repetitive work** — for very large backlogs, cap each run to a budget-safe subset and rotate through work with a persisted cache cursor or deterministic heuristic so items are not starved
+7. **Reuse execution experience** — preserve compact task features, configuration deltas, outcomes, costs, and diagnoses in `cache-memory` when cross-run reuse is useful; apply relevant recurring patterns to similar cases
+8. **Prompt caching** — verify stable instructions and reusable experience appear before dynamic content
+9. **Experiment correctness first** — add an `experiments:` entry, compare output quality first, and use `metric: "aic"` to choose among equivalent-quality variants
+10. **Validate quality** — confirm the optimized run produces equivalent safe outputs
+11. **Raise the per-run budget only if necessary** — consider increasing `max-ai-credits` only after all applicable optimizations have been exhausted and measured
 
 Present the plan clearly before making any edits. Confirm with the user before applying changes.
 
