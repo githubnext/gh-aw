@@ -156,7 +156,10 @@ jobs:
           if ! grep -h '^# gh-aw-manifest: ' .github/workflows/*.lock.yml |
             sed 's/^# gh-aw-manifest: //' |
             jq -s '
-              [.[].containers[]?]
+              [
+                .[].containers[]?
+                | select(.image | test("(^|/)gh-[^/:@]+"))
+              ]
               | unique_by(.pinned_image)
               | sort_by(.image)
             ' > "$output/images.json"; then
