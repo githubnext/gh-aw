@@ -40,6 +40,12 @@ gh aw mcp-server --validate-actor
 
 When enabled, the logs and audit tools require write/maintain/admin repository access. The server reads `GITHUB_ACTOR` and `GITHUB_REPOSITORY` env vars and caches permission check results for 1 hour. Without validation (default), all tools are available without checks.
 
+> [!WARNING]
+> With `--validate-actor`, the server does **not** fall back to open access when `GITHUB_ACTOR` is unset. The privileged tools stay mounted, but `logs`, `audit`, and `audit-diff` return permission-denied errors until `GITHUB_ACTOR` is provided.
+
+> [!NOTE]
+> The permission cache is in-memory only. Cached entries expire after 1 hour, and restarting `gh aw mcp-server` clears them immediately. There is currently no manual cache-flush command, so permission or repository-role changes are picked up either after TTL expiry or after a server restart.
+
 ## Configuring with GitHub Copilot Agent
 
 Configure GitHub Copilot Agent to use gh-aw MCP server:

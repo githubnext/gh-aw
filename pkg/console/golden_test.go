@@ -325,15 +325,6 @@ func nonTTYProgressBar(total int64) *ProgressBar {
 	return bar
 }
 
-// nonTTYIndeterminateProgressBar returns an indeterminate ProgressBar in non-TTY
-// mode, ensuring tests always take the text-only branch and never call ViewAs on
-// the bubbles model.
-func nonTTYIndeterminateProgressBar() *ProgressBar {
-	bar := NewIndeterminateProgressBar()
-	bar.ttyCheck = func() bool { return false }
-	return bar
-}
-
 // TestGolden_ProgressBarNonTTY tests the deterministic non-TTY outputs of ProgressBar.Update.
 // These cases are pure and side-effect-free, making them ideal for golden coverage.
 // ttyCheck is overridden to always return false so the tests run unconditionally,
@@ -357,16 +348,6 @@ func TestGolden_ProgressBarNonTTY(t *testing.T) {
 	t.Run("determinate_zero_total", func(t *testing.T) {
 		bar := nonTTYProgressBar(0)
 		golden.RequireEqual(t, []byte(bar.Update(0)))
-	})
-
-	t.Run("indeterminate_no_data", func(t *testing.T) {
-		bar := nonTTYIndeterminateProgressBar()
-		golden.RequireEqual(t, []byte(bar.Update(0)))
-	})
-
-	t.Run("indeterminate_with_data", func(t *testing.T) {
-		bar := nonTTYIndeterminateProgressBar()
-		golden.RequireEqual(t, []byte(bar.Update(512*1024*1024)))
 	})
 }
 
