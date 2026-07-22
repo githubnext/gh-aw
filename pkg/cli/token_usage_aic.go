@@ -3,7 +3,6 @@ package cli
 import (
 	"bufio"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"math"
 	"os"
@@ -26,7 +25,7 @@ func findUsageJSONLFiles(runDir string) []string {
 			files = append(files, path)
 		}
 		return nil
-	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
+	}); walkErr != nil {
 		tokenUsageLog.Printf("usage walk error at %s: %v", usageDir, walkErr)
 	}
 
