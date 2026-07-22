@@ -59,7 +59,14 @@ package workflow
 import (
 	"regexp"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+// expressionPatternsLog is the debug logger for GitHub Actions expression detection.
+// Enable with DEBUG=workflow:expression_patterns to trace which values are treated
+// as dynamic ${{ ... }} expressions during validation and extraction.
+var expressionPatternsLog = logger.New("workflow:expression_patterns")
 
 // hasExpressionMarker reports whether s contains a GitHub Actions expression opening marker.
 // This is a permissive check used in scenarios where partial expressions should be treated
@@ -77,12 +84,20 @@ func containsExpression(s string) bool {
 		return false
 	}
 	closeIdx := strings.Index(afterOpen, "}}")
-	return closeIdx > 0
+	complete := closeIdx > 0
+	if complete {
+		expressionPatternsLog.Printf("containsExpression: complete expression detected (input length %d)", len(s))
+	}
+	return complete
 }
 
 // isExpression reports whether the entire string s is a GitHub Actions expression.
 func isExpression(s string) bool {
-	return strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
+	result := strings.HasPrefix(s, "${{") && strings.HasSuffix(s, "}}")
+	if result {
+		expressionPatternsLog.Printf("isExpression: entire value is an expression (length %d)", len(s))
+	}
+	return result
 }
 
 // Core Expression Patterns
