@@ -50,6 +50,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
+	"github.com/github/gh-aw/pkg/linters/stringsjoinone"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timenowsub"
 	"github.com/github/gh-aw/pkg/linters/timesleepnocontext"
@@ -110,6 +111,7 @@ func All() []*analysis.Analyzer {
 		strconvparseignorederror.Analyzer,
 		stringreplaceminusone.Analyzer,
 		stringsindexcontains.Analyzer,
+		stringsjoinone.Analyzer,
 		stringscountcontains.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
 		lenstringzero.Analyzer,
