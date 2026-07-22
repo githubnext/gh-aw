@@ -1230,3 +1230,54 @@ func TestBuildLogsDataNoFailuresProducesZeroDriverExitCount(t *testing.T) {
 		t.Errorf("Expected TotalAgentLogicFailures = 0, got %d", data.Summary.TotalAgentLogicFailures)
 	}
 }
+
+// TestBuildLogsDataIntentionalFailure verifies that buildLogsData correctly marks
+// runs[].intentional_failure for workflows tagged with features.intentional-failure: true
+// and accumulates the count in summary.intentional_failure_runs.
+func TestBuildLogsDataIntentionalFailure(t *testing.T) {
+	// Set up a temp dir with a real workflow file so IsIntentionalFailure can read it.
+	tempDir := t.TempDir()
+	workflowsDir := filepath.Join(tempDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowsDir, 0755); err != nil {
+		t.Fatalf("failed to create workflows dir: %v", err)
+	}
+	t.Chdir(tempDir)
+
+	// Intentional-failure workflow.
+	intentionalMD := filepath.Join(workflowsDir, "credit-guardrail.md")
+	if err := os.WriteFile(intentionalMD, []byte("---\nfeatures:\n  intentional-failure: true\n---\n"), 0644); err != nil {
+		t.Fatalf("failed to write intentional workflow file: %v", err)
+	}
+
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{
+			DatabaseID:   1,
+			WorkflowName: "Credit Guardrail",
+			WorkflowPath: ".github/workflows/credit-guardrail.lock.yml",
+			Conclusion:   "failure",
+		}},
+		{Run: WorkflowRun{
+			DatabaseID:   2,
+			WorkflowName: "Normal Workflow",
+			WorkflowPath: ".github/workflows/normal-workflow.lock.yml",
+			Conclusion:   "success",
+		}},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	byID := make(map[int64]RunData)
+	for _, r := range data.Runs {
+		byID[r.RunID] = r
+	}
+
+	if !byID[1].IntentionalFailure {
+		t.Error("run 1 (credit-guardrail): expected IntentionalFailure=true, got false")
+	}
+	if byID[2].IntentionalFailure {
+		t.Error("run 2 (normal-workflow): expected IntentionalFailure=false, got true")
+	}
+	if data.Summary.IntentionalFailureRuns != 1 {
+		t.Errorf("expected IntentionalFailureRuns=1, got %d", data.Summary.IntentionalFailureRuns)
+	}
+}

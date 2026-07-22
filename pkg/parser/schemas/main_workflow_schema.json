@@ -2823,9 +2823,17 @@
       ]
     },
     "features": {
-      "description": "Feature flags and configuration options for experimental or optional features in the workflow. Each feature can be a boolean flag or a string value. The 'action-tag' feature (string) specifies the tag or SHA to use when referencing actions/setup in compiled workflows (for testing purposes only).",
+      "description": "Feature flags and configuration options for experimental or optional features in the workflow. Each feature can be a boolean flag or a string value. The 'action-tag' feature (string) specifies the tag or SHA to use when referencing actions/setup in compiled workflows (for testing purposes only). The 'intentional-failure' feature (boolean) marks the workflow as one that is intentionally expected to fail (e.g., guardrail stress-tests); such workflows are excluded from fleet-health and prod-main success-rate rollups.",
       "type": "object",
       "additionalProperties": true,
+      "properties": {
+        "intentional-failure": {
+          "type": "boolean",
+          "default": false,
+          "description": "Mark the workflow as one that is intentionally expected to fail (e.g., guardrail stress-tests). Workflows tagged with features.intentional-failure: true are excluded from fleet-health and prod-main success-rate rollups so they do not depress real-regression baselines.",
+          "examples": [true, false]
+        }
+      },
       "examples": [
         {
           "action-tag": "v1.0.0"
@@ -2833,6 +2841,9 @@
         {
           "action-tag": "abc123def456",
           "experimental-feature": true
+        },
+        {
+          "intentional-failure": true
         }
       ]
     },

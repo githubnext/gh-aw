@@ -180,6 +180,12 @@ Use the gh-aw `logs` tool to:
    - Execution time trends
    - Firewall activity (if enabled)
 
+**Success Rate Rollups — Exclude Intentional-Failure Workflows**: When computing fleet-wide or prod-main success rates, **exclude** runs where `intentional_failure` is `true`. These are credit-guardrail stress tests designed to fail; including them depresses the real-regression baseline. The `logs` tool marks them via `runs[].intentional_failure` and `summary.intentional_failure_runs`. Always report the adjusted rate alongside the raw rate, e.g. `"92.7% raw (94.2% excl. intentional failures)"`.
+
+Intentional-failure workflows (always exclude from success-rate rollups):
+- `Daily Credit Limit Test` — `max-daily-ai-credits` guardrail test, expected to fail
+- `Daily Max AI Credits Test` — `max-ai-credits` per-run firewall test, expected to fail
+
 ### Step 2.5: Analyze Repository Issues
 
 Use the `issues-analyst` sub-agent to analyze `/tmp/gh-aw/agent/weekly-issues-data/issues.json` and produce a structured issues summary.

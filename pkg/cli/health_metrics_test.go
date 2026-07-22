@@ -191,6 +191,30 @@ func TestCalculateHealthSummary(t *testing.T) {
 	assert.Len(t, summary.Workflows, 3, "Workflows array should have 3 entries")
 }
 
+func TestCalculateHealthSummaryExcludesIntentionalFailure(t *testing.T) {
+	// Intentional-failure workflows (e.g. credit-guardrail stress tests) must be excluded
+	// from fleet-health rollup counts so they do not depress the real-regression baseline.
+	workflowHealths := []WorkflowHealth{
+		{WorkflowName: "normal-a", SuccessRate: 90.0, BelowThresh: false},
+		{WorkflowName: "normal-b", SuccessRate: 75.0, BelowThresh: true},
+		// These are tagged intentional-failure: should not affect HealthyWorkflows / BelowThreshold.
+		{WorkflowName: "daily-credit-limit-test", SuccessRate: 0.0, BelowThresh: true, IntentionalFailure: true},
+		{WorkflowName: "daily-max-ai-credits-test", SuccessRate: 0.0, BelowThresh: true, IntentionalFailure: true},
+	}
+
+	summary := CalculateHealthSummary(workflowHealths, "Last 7 Days", 80.0)
+
+	// TotalWorkflows still counts all four (the table shows them).
+	assert.Equal(t, 4, summary.TotalWorkflows, "TotalWorkflows should include intentional-failure entries")
+
+	// Rollup counts must exclude the two intentional-failure workflows.
+	assert.Equal(t, 1, summary.HealthyWorkflows, "HealthyWorkflows should exclude intentional-failure workflows")
+	assert.Equal(t, 1, summary.BelowThreshold, "BelowThreshold should exclude intentional-failure workflows")
+
+	// The full workflows slice is preserved so callers can render the table.
+	assert.Len(t, summary.Workflows, 4, "Workflows slice should contain all entries")
+}
+
 func TestTrendDirectionString(t *testing.T) {
 	tests := []struct {
 		name     string
