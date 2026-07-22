@@ -396,14 +396,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		// "Fast mode unavailable: Fast mode is not available in the Agent SDK",
 		// which crashes the agent mid-session on every API call.
 		"CLAUDE_CODE_DISABLE_FAST_MODE": "1",
-		// Disable Anthropic SDK internal HTTP retries so terminal errors such as
-		// 403 ai_credits_limit_exceeded are surfaced immediately to the harness.
-		// Without this the SDK retries the same failed request up to N times before
-		// exiting, wasting wall-clock and amplifying rate-limit pressure.  All
-		// retry logic (including exponential backoff for transient 429/529) is
-		// handled at the outer harness level.
-		"ANTHROPIC_MAX_RETRIES": "1",
-		"GH_AW_PROMPT":          constants.AwPromptsFile,
+		"GH_AW_PROMPT":                  constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW": "true",
 		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
@@ -425,6 +418,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env["GH_AW_PHASE"] = "detection"
 	} else {
 		env["GH_AW_PHASE"] = "agent"
+		// Limit Anthropic SDK internal HTTP retries to 1 so terminal errors such as
+		// 403 ai_credits_limit_exceeded are surfaced quickly to the harness.
+		// The outer harness already owns the full retry/backoff loop for 429/529.
+		// The external threat-detection path (threat-detect --engine claude) has no
+		// harness retry wrapper, so we leave SDK retries at their default there.
+		env["ANTHROPIC_MAX_RETRIES"] = "1"
 	}
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()

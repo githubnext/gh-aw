@@ -8,15 +8,7 @@ const { emitInfrastructureIncomplete } = require("./safeoutputs_cli.cjs");
 // structured safe-output diagnostics instead of being terminated by Actions.
 const SOFT_TIMEOUT_BUFFER_MS = 90 * 1000;
 
-const AI_CREDITS_EXCEEDED_PATTERNS = [
-  /\bmax[\s_-]*ai[\s_-]*credits[\s_-]*exceeded\b/i,
-  /\bai[\s_-]*credits[\s_-]*rate[\s_-]*limit[\s_-]*error\b/i,
-  /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i,
-  // Raw API error type returned by the Anthropic API proxy as a terminal 403.
-  // Retrying this error is always wasteful — the credit budget is exhausted and
-  // the same 403 is returned on every attempt until the budget resets.
-  /\bai_credits_limit_exceeded\b/i,
-];
+const AI_CREDITS_EXCEEDED_PATTERNS = [/\bmax[\s_-]*ai[\s_-]*credits[\s_-]*exceeded\b/i, /\bai[\s_-]*credits[\s_-]*rate[\s_-]*limit[\s_-]*error\b/i, /ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i];
 
 const AWF_API_PROXY_BLOCKING_REQUESTS_PATTERNS = [/\bawf\b.*\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocking requests\b/i, /\bapi[\s_-]*proxy\b.*\bblocked requests?\b/i, /\bDIFC_FILTERED\b/];
 const GOAL_ALREADY_ACTIVE_PATTERNS = [/\bthis thread already has a goal\b[\s\S]*?\buse update_goal\b/i, /\bcannot create a new goal because this thread has an unfinished goal\b;\s*\bcomplete the existing goal first\b/i];
