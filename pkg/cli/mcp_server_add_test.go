@@ -192,8 +192,11 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 
 			if tt.expectErr {
 				require.Error(t, err, "Expected add tool call to fail for invalid input scenario")
+				addErr := err
 				for _, expectedErrPart := range tt.errContains {
-					require.ErrorContains(t, err, expectedErrPart, "Expected error to include informative failure details")
+					t.Run(expectedErrPart, func(t *testing.T) {
+						require.ErrorContains(t, addErr, expectedErrPart, "Expected error to include informative failure details")
+					})
 				}
 				return
 			}

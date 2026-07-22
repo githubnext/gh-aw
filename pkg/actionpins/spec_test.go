@@ -751,7 +751,7 @@ func TestSpec_PublicAPI_ResolveActionPin_NilCtxField(t *testing.T) {
 	}
 	require.NotPanics(t, func() {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.NotEmpty(t, result)
 	}, "nil PinContext.Ctx should fall back to context.Background() without panicking")
 	require.NotNil(t, resolver.capturedCtx, "resolver must receive a non-nil context even when PinContext.Ctx is nil")
@@ -895,7 +895,7 @@ func TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown(t *testing.T) {
 
 	require.NotPanics(t, func() {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result, "mapping to unknown repo should produce unresolved empty result")
 	})
 }
