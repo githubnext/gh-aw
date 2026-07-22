@@ -3,6 +3,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -521,18 +522,24 @@ func deriveRunClassification(comparison *AuditComparisonData) string {
 	return "normal"
 }
 
-// renderLogsJSON outputs the logs data as JSON.
+// renderLogsJSONToWriter outputs the logs data as JSON to w.
 // When verbose is false, audit-heavy fields are stripped for compact agentic consumption.
-func renderLogsJSON(data LogsData, verbose bool) error {
+func renderLogsJSONToWriter(w io.Writer, data LogsData, verbose bool) error {
 	reportLog.Printf("Rendering logs data as JSON: %d runs, verbose=%v", data.Summary.TotalRuns, verbose)
 
 	if !verbose {
 		data = compactLogsData(data)
 	}
 
-	encoder := json.NewEncoder(os.Stdout)
+	encoder := json.NewEncoder(w)
 	encoder.SetIndent("", "  ")
 	return encoder.Encode(data)
+}
+
+// renderLogsJSON outputs the logs data as JSON to os.Stdout.
+// When verbose is false, audit-heavy fields are stripped for compact agentic consumption.
+func renderLogsJSON(data LogsData, verbose bool) error {
+	return renderLogsJSONToWriter(os.Stdout, data, verbose)
 }
 
 // compactLogsData strips audit-heavy fields from LogsData for token-efficient agentic output.

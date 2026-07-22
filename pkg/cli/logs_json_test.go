@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -247,24 +248,13 @@ func TestRenderLogsJSON(t *testing.T) {
 		LogsLocation: tmpDir,
 	}
 
-	// Redirect stdout to capture JSON output
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Render JSON
-	err := renderLogsJSON(logsData, true)
+	// Render JSON to buffer
+	var buf bytes.Buffer
+	err := renderLogsJSONToWriter(&buf, logsData, true)
 	if err != nil {
 		t.Fatalf("Failed to render JSON: %v", err)
 	}
-
-	// Restore stdout and read captured output
-	w.Close()
-	os.Stdout = oldStdout
-
-	buf := make([]byte, 4096)
-	n, _ := r.Read(buf)
-	output := string(buf[:n])
+	output := buf.String()
 
 	// Verify it's valid JSON
 	var parsedData LogsData
