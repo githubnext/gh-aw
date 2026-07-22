@@ -22,6 +22,7 @@ import { noCoreErrorThenProcessExitRule } from "./rules/no-core-error-then-proce
 import { noCoreErrorThenProcessExitCodeRule } from "./rules/no-core-error-then-process-exitcode";
 import { noExecInterpolatedCommandRule } from "./rules/no-exec-interpolated-command";
 import { requireExecSyncTryCatchRule } from "./rules/require-execsync-try-catch";
+import { noSetFailedThenExitZeroRule } from "./rules/no-setfailed-then-exit-zero";
 
 const plugin = {
   meta: {
@@ -53,6 +54,7 @@ const plugin = {
     "no-core-error-then-process-exitcode": noCoreErrorThenProcessExitCodeRule,
     "no-exec-interpolated-command": noExecInterpolatedCommandRule,
     "require-execsync-try-catch": requireExecSyncTryCatchRule,
+    "no-setfailed-then-exit-zero": noSetFailedThenExitZeroRule,
   },
 };
 
