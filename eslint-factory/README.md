@@ -408,7 +408,7 @@ Prefer `@actions/core` logging methods (`core.info`, `core.debug`) over `console
 
 Require `execSync` calls sourced from `child_process` to be wrapped in `try/catch`.
 
-Why: `execSync` throws a `ChildProcessError` when the child process exits with a non-zero status code or is killed by a signal. An unhandled throw crashes the action without surfacing a useful diagnostic.
+Why: `execSync` throws an `Error` containing child-process result fields (for example `status`, `signal`, `stdout`, `stderr`) when the child process exits with a non-zero status code or is killed by a signal. An unhandled throw crashes the action without surfacing a useful diagnostic.
 
 **Detected forms:**
 - `const { execSync } = require("child_process"); execSync(...)` — destructured.
@@ -425,7 +425,7 @@ Why: `execSync` throws a `ChildProcessError` when the child process exits with a
 
 Require `execFileSync` calls sourced from `child_process` to be wrapped in `try/catch`.
 
-Why: `execFileSync` has identical throw-on-failure semantics to `execSync` — it throws a `ChildProcessError` when the child process exits with a non-zero status code or is killed by a signal. An unhandled throw crashes the action without surfacing a useful diagnostic.
+Why: `execFileSync` has identical throw-on-failure semantics to `execSync` — it throws an `Error` containing child-process result fields (for example `status`, `signal`, `stdout`, `stderr`) when the child process exits with a non-zero status code or is killed by a signal. An unhandled throw crashes the action without surfacing a useful diagnostic.
 
 **Detected forms:**
 - `const { execFileSync } = require("child_process"); execFileSync(...)` — destructured.

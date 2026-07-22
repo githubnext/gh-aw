@@ -96,6 +96,20 @@ describe("require-execfilesync-try-catch", () => {
             },
           ],
         },
+        {
+          code: `const cp = require("node:child_process"); cp.execFileSync("git", ["status"]);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const cp = require("node:child_process"); try {\n  cp.execFileSync("git", ["status"]);\n} catch (err) {\n  // TODO: handle execFileSync failure (non-zero exit / signal termination).\n  throw new Error(\n    "execFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
       ],
     });
   });
@@ -122,7 +136,7 @@ describe("require-execfilesync-try-catch", () => {
     });
   });
 
-  it("invalid: aliased execFileSync without try/catch is flagged", () => {
+  it("invalid: destructured alias of execFileSync without try/catch is flagged", () => {
     cjsRuleTester.run("require-execfilesync-try-catch", requireExecFileSyncTryCatchRule, {
       valid: [],
       invalid: [
@@ -135,6 +149,28 @@ describe("require-execfilesync-try-catch", () => {
                 {
                   messageId: "wrapInTryCatch",
                   output: `const { execFileSync: run } = require("child_process"); try {\n  run("git", ["status"]);\n} catch (err) {\n  // TODO: handle execFileSync failure (non-zero exit / signal termination).\n  throw new Error(\n    "execFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: member-expression alias of execFileSync without try/catch is flagged", () => {
+    cjsRuleTester.run("require-execfilesync-try-catch", requireExecFileSyncTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const cp = require("child_process"); const run = cp.execFileSync; run("git", ["status"]);`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `const cp = require("child_process"); const run = cp.execFileSync; try {\n  run("git", ["status"]);\n} catch (err) {\n  // TODO: handle execFileSync failure (non-zero exit / signal termination).\n  throw new Error(\n    "execFileSync failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n}`,
                 },
               ],
             },
