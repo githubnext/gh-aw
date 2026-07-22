@@ -1769,7 +1769,7 @@ jobs:
         env:
           GH_AW_EVALS_QUESTIONS: '[{"id":"instruction_file_optimized","question":"Did the agent apply caveman optimization to an instruction file in .github/aw or .github/agents?"},{"id":"pr_created_or_noop","question":"Was a PR created with concise improvements, or was noop used when no improvements were needed?"}]'
           GH_AW_EVALS_MODEL: ${{ needs.activation.outputs.model_size }}
-          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}
+          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_EVALS_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}
           GH_AW_EVALS_PHASE: setup
         with:
           script: |
@@ -1848,8 +1848,8 @@ jobs:
           DISABLE_TELEMETRY: 1
           GH_AW_LLM_PROVIDER: anthropic
           GH_AW_MAX_TURNS: ${{ vars.GH_AW_DEFAULT_MAX_TURNS || '' }}
-          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}
-          GH_AW_PHASE: agent
+          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_EVALS_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}
+          GH_AW_PHASE: evals
           GH_AW_PROMPT: /tmp/gh-aw/aw-prompts/prompt.txt
           GH_AW_VERSION: dev
           GITHUB_AW: true
@@ -1880,7 +1880,7 @@ jobs:
         env:
           GH_AW_EVALS_QUESTIONS: '[{"id":"instruction_file_optimized","question":"Did the agent apply caveman optimization to an instruction file in .github/aw or .github/agents?"},{"id":"pr_created_or_noop","question":"Was a PR created with concise improvements, or was noop used when no improvements were needed?"}]'
           GH_AW_EVALS_MODEL: ${{ needs.activation.outputs.model_size }}
-          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}
+          GH_AW_MODEL_FALLBACK: ${{ vars.GH_AW_MODEL_EVALS_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '' }}
           GH_AW_EVALS_PHASE: parse
           GITHUB_RUN_ID: ${{ github.run_id }}
         with:
