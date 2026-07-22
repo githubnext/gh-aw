@@ -1,5 +1,6 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
+require("./shim.cjs");
 
 /**
  * emit_outcome_spans.cjs
@@ -76,7 +77,7 @@ async function main() {
   const awInfo = readJSONIfExists(AW_INFO_PATH) || {};
 
   if (evaluations.length === 0 && (!summary || summary.total_outcomes === 0)) {
-    console.log("[outcome-otel] No outcome evaluations to export");
+    core.info("[outcome-otel] No outcome evaluations to export");
     return;
   }
 
@@ -84,7 +85,7 @@ async function main() {
   const hasEndpoints = endpoints.length > 0;
 
   if (!hasEndpoints) {
-    console.log("[outcome-otel] No OTLP endpoints configured, writing JSONL mirror only");
+    core.info("[outcome-otel] No OTLP endpoints configured, writing JSONL mirror only");
   }
 
   // Read aw_info.json first: GH_AW_INFO_* env vars are only present during setup,
@@ -304,11 +305,11 @@ async function main() {
   // Always write to local JSONL mirror
   appendToOTLPJSONL(payload);
 
-  console.log(`[outcome-otel] Emitting ${evaluations.length} outcome span(s) + 1 summary span`);
+  core.info(`[outcome-otel] Emitting ${evaluations.length} outcome span(s) + 1 summary span`);
 
   if (hasEndpoints) {
     await sendOTLPToAllEndpoints(endpoints, payload, { skipJSONL: true });
-    console.log(`[outcome-otel] Exported to ${endpoints.length} endpoint(s)`);
+    core.info(`[outcome-otel] Exported to ${endpoints.length} endpoint(s)`);
   }
 }
 

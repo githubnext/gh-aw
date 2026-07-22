@@ -1,5 +1,6 @@
 // @ts-check
 "use strict";
+require("./shim.cjs");
 
 /**
  * action_conclusion_otlp.cjs
@@ -77,15 +78,15 @@ async function run() {
   const startMs = parseJobStartMs(process.env.GITHUB_AW_OTEL_JOB_START_MS);
 
   if (endpoints) {
-    console.log(`[otlp] sending conclusion span "${spanName}" to configured endpoints`);
+    core.info(`[otlp] sending conclusion span "${spanName}" to configured endpoints`);
   } else {
-    console.log("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping OTLP export (will attempt JSONL mirror)");
+    core.info("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping OTLP export (will attempt JSONL mirror)");
   }
 
   await sendOtlpSpan.sendJobConclusionSpan(spanName, { startMs });
 
   if (endpoints) {
-    console.log("[otlp] conclusion span export attempted");
+    core.info("[otlp] conclusion span export attempted");
   }
 }
 

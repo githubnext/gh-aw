@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 // @ts-check
+require("./shim.cjs");
 
 /**
  * Standalone script to test frontmatter hash computation with live GitHub API
@@ -29,7 +30,7 @@ async function testLiveGitHubAPI() {
     process.exit(1);
   }
 
-  console.log("🔍 Testing frontmatter hash with live GitHub API\n");
+  core.info("🔍 Testing frontmatter hash with live GitHub API\n");
 
   // Configuration
   const owner = "github";
@@ -37,38 +38,38 @@ async function testLiveGitHubAPI() {
   const ref = "main";
   const workflowPath = ".github/workflows/audit-workflows.md";
 
-  console.log(`Repository: ${owner}/${repo}`);
-  console.log(`Branch: ${ref}`);
-  console.log(`Workflow: ${workflowPath}\n`);
+  core.info(`Repository: ${owner}/${repo}`);
+  core.info(`Branch: ${ref}`);
+  core.info(`Workflow: ${workflowPath}\n`);
 
   try {
     // Use dynamic import for ESM module compatibility
     const { getOctokit } = await import("@actions/github");
 
     // Create GitHub API client
-    console.log("📡 Connecting to GitHub API...");
+    core.info("📡 Connecting to GitHub API...");
     const octokit = getOctokit(token);
 
     // Create file reader using real GitHub API
     const fileReader = createGitHubFileReader(octokit, owner, repo, ref);
 
     // Fetch and compute hash
-    console.log(`📥 Fetching workflow from GitHub API...`);
+    core.info(`📥 Fetching workflow from GitHub API...`);
     const hash = await computeFrontmatterHash(workflowPath, {
       fileReader,
     });
 
-    console.log(`\n✅ Success! Hash computed from live GitHub API data:`);
-    console.log(`   ${hash}`);
+    core.info(`\n✅ Success! Hash computed from live GitHub API data:`);
+    core.info(`   ${hash}`);
 
     // Verify determinism
-    console.log(`\n🔄 Verifying determinism (fetching again)...`);
+    core.info(`\n🔄 Verifying determinism (fetching again)...`);
     const hash2 = await computeFrontmatterHash(workflowPath, {
       fileReader,
     });
 
     if (hash === hash2) {
-      console.log(`✅ Hashes match - computation is deterministic`);
+      core.info(`✅ Hashes match - computation is deterministic`);
     } else {
       console.error(`❌ Error: Hashes don't match!`);
       console.error(`   First:  ${hash}`);
@@ -77,12 +78,12 @@ async function testLiveGitHubAPI() {
     }
 
     // Summary
-    console.log(`\n📊 Summary:`);
-    console.log(`   - Successfully fetched workflow from live GitHub API`);
-    console.log(`   - Processed workflow with imports (shared/mcp/tavily.md, etc.)`);
-    console.log(`   - Computed deterministic SHA-256 hash`);
-    console.log(`   - Verified hash consistency across multiple API calls`);
-    console.log(`\n✨ All tests passed! The JavaScript implementation works correctly with GitHub API.`);
+    core.info(`\n📊 Summary:`);
+    core.info(`   - Successfully fetched workflow from live GitHub API`);
+    core.info(`   - Processed workflow with imports (shared/mcp/tavily.md, etc.)`);
+    core.info(`   - Computed deterministic SHA-256 hash`);
+    core.info(`   - Verified hash consistency across multiple API calls`);
+    core.info(`\n✨ All tests passed! The JavaScript implementation works correctly with GitHub API.`);
   } catch (err) {
     const error = err;
     console.error(`\n❌ Error: ${getErrorMessage(error)}`);
