@@ -1,0 +1,4 @@
+persona: crlf-iris
+strategy: line-ending-variant+staged-subset
+line: alpha
+line: beta
