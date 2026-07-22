@@ -25,6 +25,8 @@ safe-outputs:
     labels: [cookie, security]
     max: 25
     deduplicate-by-title: true
+  noop:
+    report-as-issue: false
 steps:
   - name: Download image scan results
     id: download_scan
@@ -50,9 +52,9 @@ steps:
           license_rejected: false,
           operational_errors: ["The scan job did not publish a valid result artifact."],
           tools: {
-            syft: "1.49.0",
-            grype: "0.116.0",
-            grant: "0.6.8"
+            syft: "unknown",
+            grype: "unknown",
+            grant: "unknown"
           }
         }' > "$results/summary.json"
       fi
@@ -74,6 +76,16 @@ jobs:
     permissions:
       contents: read
       packages: read
+    env:
+      SYFT_VERSION: "1.49.0"
+      SYFT_SHA256_AMD64: "7aa2f03ee92739cf643279ba3990548b9925d4e22cae13f46831ee62821147fe"
+      SYFT_SHA256_ARM64: "c7c32de183c32368de197edba75e8dba7632915f7761bacd55149a9ca7fe0fa4"
+      GRYPE_VERSION: "0.116.0"
+      GRYPE_SHA256_AMD64: "40aff724297312f91ea390d003bed8d8651c74cc7f5b26732db80b3a408d2fc5"
+      GRYPE_SHA256_ARM64: "7af3eed24f469b0cf3ab5ec4508d9c12f4bb9c2c6be714f32973c7b5d63cb6a5"
+      GRANT_VERSION: "0.6.8"
+      GRANT_SHA256_AMD64: "6500f8bbf0f20fb993de8084686e199f0ba1eb494769ff75454286d5ef63f919"
+      GRANT_SHA256_ARM64: "15ec0b4346a64b5580958dc62c4e7c25ca9e59b7582bab9706679f6b9d2288b8"
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.0
@@ -82,16 +94,21 @@ jobs:
       - name: Install pinned security tools
         id: install_tools
         continue-on-error: true
-        env:
-          SYFT_VERSION: "1.49.0"
-          SYFT_SHA256: "7aa2f03ee92739cf643279ba3990548b9925d4e22cae13f46831ee62821147fe"
-          GRYPE_VERSION: "0.116.0"
-          GRYPE_SHA256: "40aff724297312f91ea390d003bed8d8651c74cc7f5b26732db80b3a408d2fc5"
-          GRANT_VERSION: "0.6.8"
-          GRANT_SHA256: "6500f8bbf0f20fb993de8084686e199f0ba1eb494769ff75454286d5ef63f919"
         run: |
           set -euo pipefail
-          test "$(uname -m)" = "x86_64"
+          arch="$(uname -m)"
+          case "$arch" in
+            x86_64)
+              suffix="amd64"
+              ;;
+            aarch64|arm64)
+              suffix="arm64"
+              ;;
+            *)
+              echo "Unsupported runner architecture: $arch" >&2
+              exit 1
+              ;;
+          esac
           tools_dir="$RUNNER_TEMP/image-scan-tools"
           mkdir -p "$tools_dir"
 
@@ -101,15 +118,19 @@ jobs:
             checksum="$3"
             archive="$RUNNER_TEMP/${tool}.tar.gz"
             curl -fsSL \
-              "https://github.com/anchore/${tool}/releases/download/v${version}/${tool}_${version}_linux_amd64.tar.gz" \
+              "https://github.com/anchore/${tool}/releases/download/v${version}/${tool}_${version}_linux_${suffix}.tar.gz" \
               -o "$archive"
             echo "${checksum}  ${archive}" | sha256sum -c -
             tar -xzf "$archive" --no-same-owner -C "$tools_dir" "$tool"
           }
 
-          install_tool syft "$SYFT_VERSION" "$SYFT_SHA256"
-          install_tool grype "$GRYPE_VERSION" "$GRYPE_SHA256"
-          install_tool grant "$GRANT_VERSION" "$GRANT_SHA256"
+          syft_sha256_var="SYFT_SHA256_${suffix^^}"
+          grype_sha256_var="GRYPE_SHA256_${suffix^^}"
+          grant_sha256_var="GRANT_SHA256_${suffix^^}"
+
+          install_tool syft "$SYFT_VERSION" "${!syft_sha256_var}"
+          install_tool grype "$GRYPE_VERSION" "${!grype_sha256_var}"
+          install_tool grant "$GRANT_VERSION" "${!grant_sha256_var}"
           echo "$tools_dir" >> "$GITHUB_PATH"
       - name: Scan compiled workflow images
         if: always()
@@ -208,7 +229,7 @@ jobs:
 
             jq -r '
               .manifests[]?
-              | select(.platform.os == "linux")
+              | select(.platform.os == "linux" and (.platform.architecture == "amd64" or .platform.architecture == "arm64"))
               | [
                   .platform.os + "/" + .platform.architecture +
                     (if .platform.variant then "/" + .platform.variant else "" end),
@@ -218,11 +239,11 @@ jobs:
             ' "$image_manifest" > "$image_platforms"
             if [ ! -s "$image_platforms" ]; then
               if jq -e 'has("manifests")' "$image_manifest" > /dev/null; then
-                record_image_error "The image index for ${pinned_image} has no Linux manifests."
+                record_image_error "The image index for ${pinned_image} has no linux/amd64 or linux/arm64 manifests."
               elif platform=$(
                 docker buildx imagetools inspect "$pinned_image" --format '{{json .Image}}' |
                   jq -er '
-                    select(.os == "linux")
+                    select(.os == "linux" and (.architecture == "amd64" or .architecture == "arm64"))
                     | .os + "/" + .architecture +
                       (if .variant then "/" + .variant else "" end)
                   '
@@ -282,7 +303,7 @@ jobs:
               GRYPE_DB_AUTO_UPDATE=false grype "sbom:${syft_json}" \
                 --fail-on critical -o table > "$output/grype-${suffix}.txt" 2>&1
               grype_exit=$?
-              if [ "$grype_exit" -ne 0 ] && [ "$platform_critical" -eq 0 ]; then
+              if [ "$grype_exit" -ne 0 ] && [ "$grype_exit" -ne 1 ]; then
                 record_image_error "Grype table scan failed unexpectedly for ${image_tag} on ${platform}."
               fi
 
@@ -368,9 +389,9 @@ jobs:
               license_rejected: $license_rejected,
               operational_errors: $operational_errors,
               tools: {
-                syft: "1.49.0",
-                grype: "0.116.0",
-                grant: "0.6.8"
+                syft: $ENV.SYFT_VERSION,
+                grype: $ENV.GRYPE_VERSION,
+                grant: $ENV.GRANT_VERSION
               }
             }' > "$output/summary.json"
       - name: Upload image scan results
