@@ -21,270 +21,124 @@ var toolsLog = logger.New("workflow:tools")
 func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error {
 	toolsLog.Printf("Applying defaults to workflow: name=%s, path=%s", data.Name, markdownPath)
 
-	// Populate cached values after all mutations to Permissions and Concurrency have been applied.
-	// Using defer ensures the cache is always set on every return path, including early returns.
-	// applyDefaults is the final stage that mutates data.Permissions (setting defaults), so
-	// the values computed here represent the stable,
-	// final state that validateWorkflowData will use. These caches eliminate repeated
-	// YAML parsing, regex extraction, and expression parsing in the hot validateWorkflowData loop.
-	defer func() {
-		data.CachedPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
-		data.CachedPermissionScopeNamesErr = ValidatePermissionScopeNames(data.Permissions)
-		data.CachedPermissionScopeNamesSet = true
-		data.ConcurrencyGroupExpr = extractConcurrencyGroupFromYAML(data.Concurrency)
-		// Pre-validate and cache the concurrency group expression so validateWorkflowData
-		// can short-circuit without re-running the expensive ExpressionParser on every call.
-		// CachedConcurrencyGroupExprSet is always true after applyDefaults regardless of whether
-		// a group expression exists, so callers can distinguish "already computed" from "not yet computed".
-		if data.ConcurrencyGroupExpr != "" {
-			data.CachedConcurrencyGroupExprErr = validateConcurrencyGroupExpression(data.ConcurrencyGroupExpr)
-		}
-		data.CachedConcurrencyGroupExprSet = true
-		// Cache the expanded + parsed toolsets for the GitHub tool so both
-		// ValidatePermissions and validateToolConfiguration reuse one result.
-		// Use GetToolsets() to stay aligned with the runtime normalization done by GitHubToolConfig.
-		if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
-			data.CachedParsedToolsets = ParseGitHubToolsets(data.ParsedTools.GitHub.GetToolsets())
-		}
-	}()
+	// Populate cached values after all mutations have been applied.
+	// applyDefaults is the final stage that mutates data.Permissions, so the values
+	// computed here represent the stable final state. Using defer ensures the cache
+	// is always set on every return path, including early returns.
+	defer populateWorkflowDataCache(data)
 
-	// Check if this is a command trigger workflow (by checking if user specified "on.command")
-	isCommandTrigger := false
-	isLabelCommandTrigger := false
+	isCommandTrigger, isLabelCommandTrigger := detectTriggerType(data, markdownPath)
+
 	if data.On == "" {
-		// parseOnSection may have already detected the command trigger and populated data.Command
-		// (this covers slash_command map format, slash_command shorthand "on: /name", and deprecated "command:")
-		if len(data.Command) > 0 {
-			isCommandTrigger = true
-		} else if len(data.LabelCommand) > 0 {
-			isLabelCommandTrigger = true
-		} else {
-			// Check the original frontmatter for command trigger
-			content, err := os.ReadFile(markdownPath)
-			if err == nil {
-				result, err := parser.ExtractFrontmatterFromContent(string(content))
-				if err == nil {
-					if onValue, exists := result.Frontmatter["on"]; exists {
-						// Check for slash_command or command (deprecated)
-						if onMap, ok := onValue.(map[string]any); ok {
-							if _, hasSlashCommand := onMap["slash_command"]; hasSlashCommand {
-								isCommandTrigger = true
-							} else if _, hasCommand := onMap["command"]; hasCommand {
-								isCommandTrigger = true
-							} else if _, hasLabelCommand := onMap["label_command"]; hasLabelCommand {
-								isLabelCommandTrigger = true
-							}
-						}
-					}
-				}
-			}
+		if err := c.applyDefaultOnSection(data, isCommandTrigger, isLabelCommandTrigger); err != nil {
+			return err
 		}
 	}
 
-	if data.On == "" {
-		if isCommandTrigger {
-			toolsLog.Print("Workflow is command trigger, configuring command events")
+	if c.trialMode && c.hasIssueTrigger(data.On) {
+		data.On = c.injectWorkflowDispatchForIssue(data.On)
+	}
 
-			commandEventsMap := make(map[string]any)
+	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger || isLabelCommandTrigger)
 
-			// In centralized slash-command mode, compile slash workflows as
-			// workflow_dispatch-centric targets and preserve only non-slash events.
-			var filteredEvents []CommentEventMapping
-			if data.CommandCentralized {
-				if len(data.CommandOtherEvents) > 0 {
-					maps.Copy(commandEventsMap, data.CommandOtherEvents)
-				}
-				if _, hasWorkflowDispatch := commandEventsMap["workflow_dispatch"]; !hasWorkflowDispatch {
-					commandEventsMap["workflow_dispatch"] = nil
-				}
-			} else {
-				// Get the filtered command events based on CommandEvents field
-				filteredEvents = FilterCommentEvents(data.CommandEvents)
+	if data.RunName == "" {
+		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)
+	}
 
-				// Merge events for YAML generation (combines pull_request_comment and issue_comment into issue_comment)
-				yamlEvents := MergeEventsForYAML(filteredEvents)
+	if data.TimeoutMinutes == "" {
+		defaultTimeoutMinutes := compilerenv.ResolveDefaultTimeoutMinutes(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+		data.TimeoutMinutes = fmt.Sprintf("timeout-minutes: %d", defaultTimeoutMinutes)
+	}
 
-				// Build command events map from merged events
-				for _, event := range yamlEvents {
-					commandEventsMap[event.EventName] = map[string]any{
-						"types": event.Types,
-					}
-				}
+	if data.RunsOn == "" {
+		data.RunsOn = "runs-on: ubuntu-latest"
+	}
+	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs, data.SandboxConfig, data.NetworkPermissions)
+	data.ParsedTools = NewTools(data.Tools)
 
-				// Check if there are other events to merge
-				if len(data.CommandOtherEvents) > 0 {
-					// Merge other events into command events
-					maps.Copy(commandEventsMap, data.CommandOtherEvents)
-				}
-			}
+	// Explicitly empty permissions ({}) means user wants no permissions — do not apply defaults.
+	if data.Permissions == "permissions: {}" {
+		return nil
+	}
+	applyDefaultPermissions(data)
+	return nil
+}
 
-			// If label_command is also configured alongside non-centralized slash_command, merge
-			// label events into the existing command events map to avoid duplicate YAML keys.
-			if len(data.LabelCommand) > 0 && !data.CommandCentralized {
-				labelEventNames := FilterLabelCommandEvents(data.LabelCommandEvents)
-				for _, eventName := range labelEventNames {
-					if existingAny, ok := commandEventsMap[eventName]; ok {
-						if existingMap, ok := existingAny.(map[string]any); ok {
-							switch t := existingMap["types"].(type) {
-							case []string:
-								newTypes := make([]any, len(t)+1)
-								for i, s := range t {
-									newTypes[i] = s
-								}
-								newTypes[len(t)] = "labeled"
-								existingMap["types"] = newTypes
-							case []any:
-								existingMap["types"] = append(t, "labeled")
-							}
-						}
-					} else {
-						commandEventsMap[eventName] = map[string]any{
-							"types": []any{"labeled"},
-						}
-					}
-				}
-			}
+// populateWorkflowDataCache pre-computes and stores cached values derived from data.Permissions,
+// data.Concurrency, and data.ParsedTools so hot validation paths can skip repeated parsing.
+func populateWorkflowDataCache(data *WorkflowData) {
+	data.CachedPermissions = NewPermissionsParser(data.Permissions).ToPermissions()
+	data.CachedPermissionScopeNamesErr = ValidatePermissionScopeNames(data.Permissions)
+	data.CachedPermissionScopeNamesSet = true
+	data.ConcurrencyGroupExpr = extractConcurrencyGroupFromYAML(data.Concurrency)
+	// Pre-validate and cache the concurrency group expression so validateWorkflowData
+	// can short-circuit without re-running the expensive ExpressionParser on every call.
+	// CachedConcurrencyGroupExprSet is always true after applyDefaults regardless of whether
+	// a group expression exists, so callers can distinguish "already computed" from "not yet computed".
+	if data.ConcurrencyGroupExpr != "" {
+		data.CachedConcurrencyGroupExprErr = validateConcurrencyGroupExpression(data.ConcurrencyGroupExpr)
+	}
+	data.CachedConcurrencyGroupExprSet = true
+	// Cache the expanded + parsed toolsets for the GitHub tool so both
+	// ValidatePermissions and validateToolConfiguration reuse one result.
+	if data.ParsedTools != nil && data.ParsedTools.GitHub != nil {
+		data.CachedParsedToolsets = ParseGitHubToolsets(data.ParsedTools.GitHub.GetToolsets())
+	}
+}
 
-			// Convert merged events to YAML
-			mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": commandEventsMap}, yaml.IndentSequence(true))
-			if err == nil {
-				yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
-				// Post-process YAML to ensure cron expressions are quoted
-				yamlStr = parser.QuoteCronExpressions(yamlStr)
-				// Apply comment processing to filter fields (draft, forks, names)
-				// Pass empty frontmatter since this is for command triggers
-				yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
-				// Keep "on" quoted as it's a YAML boolean keyword
-				data.On = yamlStr
-			} else {
-				return fmt.Errorf("failed to marshal command events: %w", err)
-			}
+// detectTriggerType checks whether the workflow is a slash_command/command or label_command trigger
+// by inspecting already-parsed WorkflowData fields and, if needed, reading the frontmatter from disk.
+// It is intentionally a free function (not a *Compiler method) because it reads only WorkflowData
+// and on-disk frontmatter and has no dependency on Compiler state.
+func detectTriggerType(data *WorkflowData, markdownPath string) (isCommand, isLabelCommand bool) {
+	if data.On != "" {
+		return false, false
+	}
+	if len(data.Command) > 0 {
+		return true, false
+	}
+	if len(data.LabelCommand) > 0 {
+		return false, true
+	}
+	// Fall back to reading the frontmatter file
+	content, err := os.ReadFile(markdownPath)
+	if err != nil {
+		return false, false
+	}
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		return false, false
+	}
+	onValue, exists := result.Frontmatter["on"]
+	if !exists {
+		return false, false
+	}
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return false, false
+	}
+	if _, has := onMap["slash_command"]; has {
+		return true, false
+	}
+	if _, has := onMap["command"]; has {
+		return true, false
+	}
+	if _, has := onMap["label_command"]; has {
+		return false, true
+	}
+	return false, false
+}
 
-			// Add conditional logic for command workflows unless centralized mode is enabled.
-			if !data.CommandCentralized {
-				// Add conditional logic to check for command in issue content
-				// Use event-aware condition that only applies command checks to comment-related events
-				// Pass the filtered events to buildEventAwareCommandCondition
-				hasOtherEvents := len(data.CommandOtherEvents) > 0
-				commandConditionTree, err := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
-				if err != nil {
-					return fmt.Errorf("failed to build command condition: %w", err)
-				}
-
-				if data.If == "" {
-					if len(data.LabelCommand) > 0 {
-						// Combine: (slash_command condition) OR (label_command condition)
-						// This allows the workflow to activate via either mechanism.
-						labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
-						if err != nil {
-							return fmt.Errorf("failed to build combined label-command condition: %w", err)
-						}
-						combined := &OrNode{Left: commandConditionTree, Right: labelConditionTree}
-						data.If = RenderCondition(combined)
-					} else {
-						data.If = RenderCondition(commandConditionTree)
-					}
-				}
-			} else if data.If == "" && len(data.LabelCommand) > 0 {
-				// Centralized command mode compiles slash-command workflows as workflow_dispatch
-				// targets. Label checks for dispatches must be derived from aw_context metadata.
-				labelConditionTree, err := buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
-				if err != nil {
-					return fmt.Errorf("failed to build label-command condition: %w", err)
-				} else {
-					data.If = RenderCondition(labelConditionTree)
-				}
-			}
-		} else if isLabelCommandTrigger {
-			toolsLog.Print("Workflow is label-command trigger, configuring label events")
-
-			// Build the label-command events map
-			labelEventsMap := make(map[string]any)
-			if data.LabelCommandDecentralized {
-				if len(data.LabelCommandOtherEvents) > 0 {
-					maps.Copy(labelEventsMap, data.LabelCommandOtherEvents)
-				}
-				if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
-					// Keep workflow_dispatch + item_number in decentralized mode so manual runs
-					// retain the same fallback/concurrency behavior as inline label_command mode.
-					data.HasDispatchItemNumber = true
-				}
-			} else {
-				// Generate events: issues, pull_request, discussion with types: [labeled]
-				filteredEvents := FilterLabelCommandEvents(data.LabelCommandEvents)
-				for _, eventName := range filteredEvents {
-					labelEventsMap[eventName] = map[string]any{
-						"types": []any{"labeled"},
-					}
-				}
-
-				if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
-					// Signal that this workflow has a dispatch item_number input so that
-					// applyWorkflowDispatchFallbacks and concurrency key building add the
-					// necessary inputs.item_number fallbacks for manual workflow_dispatch runs.
-					data.HasDispatchItemNumber = true
-				}
-
-				// Merge other events (if any) — this handles the no-clash requirement:
-				// if the user also has e.g. "issues: {types: [labeled], names: [bug]}" as a
-				// regular label trigger alongside label_command, merge the "types" arrays
-				// rather than generating a duplicate "issues:" block or silently dropping config.
-				if len(data.LabelCommandOtherEvents) > 0 {
-					for eventKey, eventVal := range data.LabelCommandOtherEvents {
-						if existing, exists := labelEventsMap[eventKey]; exists {
-							// Merge types arrays from user config into the label_command-generated entry.
-							existingMap, _ := existing.(map[string]any)
-							userMap, _ := eventVal.(map[string]any)
-							if existingMap != nil && userMap != nil {
-								existingTypes, _ := existingMap["types"].([]any)
-								userTypes, _ := userMap["types"].([]any)
-								merged := make([]any, 0, safeAllocationCapacity(len(existingTypes), len(userTypes)))
-								merged = append(merged, existingTypes...)
-								merged = append(merged, userTypes...)
-								existingMap["types"] = merged
-								// Other fields (names, branches, etc.) from the user config are preserved.
-								for k, v := range userMap {
-									if k != "types" {
-										existingMap[k] = v
-									}
-								}
-							}
-						} else {
-							labelEventsMap[eventKey] = eventVal
-						}
-					}
-				}
-			}
-
-			// Convert merged events to YAML
-			mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": labelEventsMap}, yaml.IndentSequence(true))
-			if err != nil {
-				return fmt.Errorf("failed to marshal label-command events: %w", err)
-			}
-			yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
-			yamlStr = parser.QuoteCronExpressions(yamlStr)
-			// Pass frontmatter so label names in "names:" fields get commented out
-			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
-			data.On = yamlStr
-
-			// Build the label-command condition
-			hasOtherEvents := len(data.LabelCommandOtherEvents) > 0
-			labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, hasOtherEvents)
-			if err != nil {
-				return fmt.Errorf("failed to build label-command condition: %w", err)
-			}
-
-			if data.If == "" {
-				if data.LabelCommandDecentralized {
-					labelConditionTree, err = buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
-					if err != nil {
-						return fmt.Errorf("failed to build decentralized label-command condition: %w", err)
-					}
-				}
-				data.If = RenderCondition(labelConditionTree)
-			}
-		} else {
-			data.On = `on:
+// applyDefaultOnSection sets data.On when it is empty by dispatching to the appropriate
+// trigger handler (command, label-command, or the catch-all polling schedule).
+func (c *Compiler) applyDefaultOnSection(data *WorkflowData, isCommand, isLabelCommand bool) error {
+	if isCommand {
+		return c.applyCommandTriggerOnSection(data)
+	}
+	if isLabelCommand {
+		return c.applyLabelCommandTriggerOnSection(data)
+	}
+	data.On = `on:
   # Start either every 10 minutes, or when some kind of human event occurs.
   # Because of the implicit "concurrency" section, only one instance of this
   # workflow will run at a time.
@@ -300,65 +154,206 @@ func (c *Compiler) applyDefaults(data *WorkflowData, markdownPath string) error 
     branches:
       - main
   workflow_dispatch:`
+	return nil
+}
+
+// applyDefaultPermissions sets the default contents:read permission when no permissions are specified.
+func applyDefaultPermissions(data *WorkflowData) {
+	if data.Permissions != "" {
+		return
+	}
+	perms := NewPermissionsContentsRead()
+	yaml := perms.RenderToYAML()
+	// RenderToYAML uses job-friendly indentation (6 spaces). WorkflowData.Permissions
+	// is stored in workflow-level indentation (2 spaces) and later re-indented for jobs.
+	lines := strings.Split(yaml, "\n")
+	for i := 1; i < len(lines); i++ {
+		if strings.HasPrefix(lines[i], "      ") {
+			lines[i] = "  " + lines[i][6:]
 		}
 	}
+	data.Permissions = strings.Join(lines, "\n")
+}
 
-	// Check if this workflow has an issue trigger and we're in trial mode
-	// If so, inject workflow_dispatch with issue_number input
-	if c.trialMode && c.hasIssueTrigger(data.On) {
-		data.On = c.injectWorkflowDispatchForIssue(data.On)
+// applyCommandTriggerOnSection generates the "on:" YAML section and job-level "if" condition
+// for slash_command (and deprecated command) trigger workflows.
+func (c *Compiler) applyCommandTriggerOnSection(data *WorkflowData) error {
+	toolsLog.Print("Workflow is command trigger, configuring command events")
+
+	commandEventsMap, err := c.buildCommandTriggerEventsMap(data)
+	if err != nil {
+		return err
 	}
 
-	// Generate concurrency configuration using the dedicated concurrency module
-	data.Concurrency = GenerateConcurrencyConfig(data, isCommandTrigger || isLabelCommandTrigger)
-
-	if data.RunName == "" {
-		data.RunName = fmt.Sprintf(`run-name: "%s"`, data.Name)
+	// Convert merged events to YAML
+	mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": commandEventsMap}, yaml.IndentSequence(true))
+	if err != nil {
+		return fmt.Errorf("failed to marshal command events: %w", err)
 	}
+	yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+	yamlStr = parser.QuoteCronExpressions(yamlStr)
+	yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
+	data.On = yamlStr
 
-	if data.TimeoutMinutes == "" {
-		defaultTimeoutMinutes := compilerenv.ResolveDefaultTimeoutMinutes(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
-		data.TimeoutMinutes = fmt.Sprintf("timeout-minutes: %d", defaultTimeoutMinutes)
-	}
-
-	if data.RunsOn == "" {
-		data.RunsOn = "runs-on: ubuntu-latest"
-	}
-	// Apply default tools
-	data.Tools = c.applyDefaultTools(data.Tools, data.SafeOutputs, data.SandboxConfig, data.NetworkPermissions)
-	// Update ParsedTools to reflect changes made by applyDefaultTools
-	data.ParsedTools = NewTools(data.Tools)
-
-	// Check if permissions is explicitly empty ({}) - this means user wants no permissions
-	// and we should NOT apply defaults.
-	if data.Permissions == "permissions: {}" {
-		// Explicitly empty permissions - preserve the empty state
-		// The agent job in dev mode will add contents: read if needed for local actions
-		return nil
-	}
-
-	if data.Permissions == "" {
-		// ============================================================================
-		// PERMISSIONS DEFAULTS
-		// ============================================================================
-		// When no permissions are specified, set default to contents: read.
-		// This provides minimal access needed for most workflows while following
-		// the principle of least privilege.
-		// ============================================================================
-		perms := NewPermissionsContentsRead()
-		yaml := perms.RenderToYAML()
-		// RenderToYAML uses job-friendly indentation (6 spaces). WorkflowData.Permissions
-		// is stored in workflow-level indentation (2 spaces) and later re-indented for jobs.
-		lines := strings.Split(yaml, "\n")
-		for i := 1; i < len(lines); i++ {
-			if strings.HasPrefix(lines[i], "      ") {
-				lines[i] = "  " + lines[i][6:]
+	// Add conditional logic for command workflows unless centralized mode is enabled.
+	if !data.CommandCentralized {
+		hasOtherEvents := len(data.CommandOtherEvents) > 0
+		commandConditionTree, err := buildEventAwareCommandCondition(data.Command, data.CommandEvents, hasOtherEvents)
+		if err != nil {
+			return fmt.Errorf("failed to build command condition: %w", err)
+		}
+		if data.If == "" {
+			if len(data.LabelCommand) > 0 {
+				labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
+				if err != nil {
+					return fmt.Errorf("failed to build combined label-command condition: %w", err)
+				}
+				data.If = RenderCondition(&OrNode{Left: commandConditionTree, Right: labelConditionTree})
+			} else {
+				data.If = RenderCondition(commandConditionTree)
 			}
 		}
-		data.Permissions = strings.Join(lines, "\n")
+	} else if data.If == "" && len(data.LabelCommand) > 0 {
+		// Centralized command mode: label checks for dispatches derive from aw_context metadata.
+		labelConditionTree, err := buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
+		if err != nil {
+			return fmt.Errorf("failed to build label-command condition: %w", err)
+		}
+		data.If = RenderCondition(labelConditionTree)
+	}
+	return nil
+}
+
+// buildCommandTriggerEventsMap builds the events map for a slash_command/command trigger workflow.
+// In centralized mode it uses workflow_dispatch; in decentralized mode it merges comment events.
+// If label_command is also configured alongside the command trigger, it merges label events too.
+func (c *Compiler) buildCommandTriggerEventsMap(data *WorkflowData) (map[string]any, error) {
+	commandEventsMap := make(map[string]any)
+	if data.CommandCentralized {
+		if len(data.CommandOtherEvents) > 0 {
+			maps.Copy(commandEventsMap, data.CommandOtherEvents)
+		}
+		if _, hasWorkflowDispatch := commandEventsMap["workflow_dispatch"]; !hasWorkflowDispatch {
+			commandEventsMap["workflow_dispatch"] = nil
+		}
+		return commandEventsMap, nil
+	}
+	// Decentralized: merge comment events for YAML (combines pull_request_comment → issue_comment)
+	for _, event := range MergeEventsForYAML(FilterCommentEvents(data.CommandEvents)) {
+		commandEventsMap[event.EventName] = map[string]any{"types": event.Types}
+	}
+	if len(data.CommandOtherEvents) > 0 {
+		maps.Copy(commandEventsMap, data.CommandOtherEvents)
+	}
+	// Merge label events if label_command is configured alongside slash_command.
+	if len(data.LabelCommand) > 0 {
+		for _, eventName := range FilterLabelCommandEvents(data.LabelCommandEvents) {
+			if existingAny, ok := commandEventsMap[eventName]; ok {
+				if existingMap, ok := existingAny.(map[string]any); ok {
+					switch t := existingMap["types"].(type) {
+					case []string:
+						newTypes := make([]any, len(t)+1)
+						for i, s := range t {
+							newTypes[i] = s
+						}
+						newTypes[len(t)] = "labeled"
+						existingMap["types"] = newTypes
+					case []any:
+						existingMap["types"] = append(t, "labeled")
+					}
+				}
+			} else {
+				commandEventsMap[eventName] = map[string]any{"types": []any{"labeled"}}
+			}
+		}
+	}
+	return commandEventsMap, nil
+}
+
+// applyLabelCommandTriggerOnSection generates the "on:" YAML section and job-level "if" condition
+// for label_command trigger workflows.
+func (c *Compiler) applyLabelCommandTriggerOnSection(data *WorkflowData) error {
+	toolsLog.Print("Workflow is label-command trigger, configuring label events")
+
+	labelEventsMap, hasDispatchItemNumber := c.buildLabelCommandEventsMap(data)
+	if hasDispatchItemNumber {
+		data.HasDispatchItemNumber = true
 	}
 
+	// Convert merged events to YAML
+	mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": labelEventsMap}, yaml.IndentSequence(true))
+	if err != nil {
+		return fmt.Errorf("failed to marshal label-command events: %w", err)
+	}
+	yamlStr := strings.TrimSuffix(string(mergedEventsYAML), "\n")
+	yamlStr = parser.QuoteCronExpressions(yamlStr)
+	yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, map[string]any{})
+	data.On = yamlStr
+
+	// Build the label-command condition
+	hasOtherEvents := len(data.LabelCommandOtherEvents) > 0
+	labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, hasOtherEvents)
+	if err != nil {
+		return fmt.Errorf("failed to build label-command condition: %w", err)
+	}
+	if data.If == "" {
+		if data.LabelCommandDecentralized {
+			labelConditionTree, err = buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
+			if err != nil {
+				return fmt.Errorf("failed to build decentralized label-command condition: %w", err)
+			}
+		}
+		data.If = RenderCondition(labelConditionTree)
+	}
 	return nil
+}
+
+// buildLabelCommandEventsMap builds the events map for a label_command trigger workflow.
+// In decentralized mode it uses workflow_dispatch; in standard mode it generates label events.
+// The returned bool is true when a workflow_dispatch item-number input was added, requiring
+// the caller to set data.HasDispatchItemNumber.
+func (c *Compiler) buildLabelCommandEventsMap(data *WorkflowData) (map[string]any, bool) {
+	labelEventsMap := make(map[string]any)
+	if data.LabelCommandDecentralized {
+		if len(data.LabelCommandOtherEvents) > 0 {
+			maps.Copy(labelEventsMap, data.LabelCommandOtherEvents)
+		}
+		hasDispatch := ensureWorkflowDispatchItemNumberInput(labelEventsMap)
+		return labelEventsMap, hasDispatch
+	}
+	// Generate events: issues, pull_request, discussion with types: [labeled]
+	for _, eventName := range FilterLabelCommandEvents(data.LabelCommandEvents) {
+		labelEventsMap[eventName] = map[string]any{"types": []any{"labeled"}}
+	}
+	hasDispatch := ensureWorkflowDispatchItemNumberInput(labelEventsMap)
+	mergeLabelCommandOtherEvents(labelEventsMap, data.LabelCommandOtherEvents)
+	return labelEventsMap, hasDispatch
+}
+
+// mergeLabelCommandOtherEvents merges other (non-label-command) events into the events map,
+// combining "types" arrays for overlapping event names and preserving other fields.
+func mergeLabelCommandOtherEvents(labelEventsMap map[string]any, otherEvents map[string]any) {
+	for eventKey, eventVal := range otherEvents {
+		if existing, exists := labelEventsMap[eventKey]; exists {
+			existingMap, _ := existing.(map[string]any)
+			userMap, _ := eventVal.(map[string]any)
+			if existingMap != nil && userMap != nil {
+				existingTypes, _ := existingMap["types"].([]any)
+				userTypes, _ := userMap["types"].([]any)
+				merged := make([]any, 0, safeAllocationCapacity(len(existingTypes), len(userTypes)))
+				merged = append(merged, existingTypes...)
+				merged = append(merged, userTypes...)
+				existingMap["types"] = merged
+				for k, v := range userMap {
+					if k != "types" {
+						existingMap[k] = v
+					}
+				}
+			}
+		} else {
+			labelEventsMap[eventKey] = eventVal
+		}
+	}
 }
 
 func ensureWorkflowDispatchItemNumberInput(eventsMap map[string]any) bool {

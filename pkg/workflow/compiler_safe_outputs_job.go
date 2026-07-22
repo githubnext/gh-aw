@@ -19,6 +19,11 @@ var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_j
 // step starts in job.Steps (6-space indent + "- name: ").
 const stepNameLinePrefix = "      - name: "
 
+// uploadArtifactStagingDownloadStepCount is the number of YAML string entries emitted by the
+// upload-artifact staging download step block (name, continue-on-error, uses, with, name, path).
+// It must match the literal slice appended in buildPreambleTokenSteps.
+const uploadArtifactStagingDownloadStepCount = 6
+
 // getSafeOutputsHeadApp returns the first non-nil HeadGitHubApp config from
 // create-pull-request or push-to-pull-request-branch handlers, used to generate
 // the safe-outputs-head-app-token step.
@@ -512,18 +517,56 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	permissions := opts.permissions
 	threatDetectionEnabled := opts.threatDetectionEnabled
 
-	// Build all preamble token minting steps to insert before checkout/safe-output steps.
+	// Build and insert preamble token minting steps (GitHub App tokens) before checkout/safe-output steps.
+	preambleTokenSteps := c.buildPreambleTokenSteps(data, outputs, permissions)
+	if len(preambleTokenSteps) > 0 {
+		steps = c.insertPreambleTokenStepsIntoSteps(steps, preambleTokenSteps, data, agentArtifactPrefix)
+	}
+
+	steps = c.appendFinalSafeOutputSteps(data, steps, agentArtifactPrefix)
+
+	jobCondition := buildSafeOutputsJobCondition(data, threatDetectionEnabled)
+	needs := c.buildSafeOutputsJobNeeds(data, mainJobName, threatDetectionEnabled)
+	workflowID := GetWorkflowIDFromPath(markdownPath)
+	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowID)
+
+	var concurrency string
+	if data.SafeOutputs.ConcurrencyGroup != "" {
+		concurrency = c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", data.SafeOutputs.ConcurrencyGroup), "    ")
+		consolidatedSafeOutputsJobLog.Printf("Configuring safe_outputs job concurrency group: %s", data.SafeOutputs.ConcurrencyGroup)
+	}
+
+	const defaultSafeOutputsTimeoutMinutes = 45
+	timeoutMinutes := defaultSafeOutputsTimeoutMinutes
+	if data.SafeOutputs.TimeoutMinutes > 0 {
+		timeoutMinutes = data.SafeOutputs.TimeoutMinutes
+	}
+
+	job := &Job{
+		Name:           "safe_outputs",
+		If:             RenderCondition(jobCondition),
+		RunsOn:         c.formatFrameworkJobRunsOn(data),
+		Environment:    c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
+		Permissions:    permissions.RenderToYAML(),
+		TimeoutMinutes: timeoutMinutes,
+		Concurrency:    concurrency,
+		Env:            jobEnv,
+		Steps:          steps,
+		Outputs:        outputs,
+		Needs:          needs,
+	}
+
+	consolidatedSafeOutputsJobLog.Printf("Built consolidated safe outputs job with %d steps", len(safeOutputStepNames))
+
+	return job, safeOutputStepNames, nil
+}
+
+// buildPreambleTokenSteps builds GitHub App token minting steps that must be inserted before
+// checkout and safe-output handler steps. It also mutates outputs to track minting failures.
+func (c *Compiler) buildPreambleTokenSteps(data *WorkflowData, outputs map[string]string, permissions *Permissions) []string {
 	var preambleTokenSteps []string
-
-	// Add main GitHub App token minting step if configured.
 	if data.SafeOutputs.GitHubApp != nil {
-		// Track whether the app token minting succeeded so the conclusion job can surface
-		// authentication errors in the failure issue.
 		outputs["app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
-
-		// For workflow_call relay workflows, scope the token to the platform repo name only
-		// (not the full slug) because actions/create-github-app-token expects repo names
-		// without the owner prefix when `owner` is also set.
 		var appTokenFallbackRepo string
 		if hasWorkflowCallTrigger(data.On) {
 			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
@@ -535,126 +578,99 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
 		)...)
 	}
-
-	// Add head GitHub App token minting step if any PR handler has head-github-app configured.
-	// The minted token is passed as head-github-token in the handler config so fork branch
-	// operations can authenticate to the configured automation fork without requiring the
-	// main token to have upstream contents: write.
 	if headApp := getSafeOutputsHeadApp(data.SafeOutputs); headApp != nil {
 		headRepoSlug := getSafeOutputsHeadRepoSlug(data.SafeOutputs)
-		headFallbackRepo := headRepoNameFromSlug(headRepoSlug)
 		preambleTokenSteps = append(preambleTokenSteps, c.buildGitHubAppTokenMintStepWithMeta(
 			headApp,
-			nil, // head token is scoped to fork operations; no job-level permissions filter
-			headFallbackRepo,
-			headRepoSlug, // used to derive the owner when HeadGitHubApp.Owner is not set
+			nil,
+			headRepoNameFromSlug(headRepoSlug),
+			headRepoSlug,
 			"Generate GitHub App head token",
 			"safe-outputs-head-app-token",
 		)...)
 	}
+	return preambleTokenSteps
+}
 
-	// Insert all preamble token steps before checkout and safe-output handler steps.
-	if len(preambleTokenSteps) > 0 {
-		// Calculate insertion index: after setup action (if present) and artifact downloads,
-		// but before checkout and safe output steps.
-		insertIndex := 0
+// insertPreambleTokenStepsIntoSteps inserts preambleTokenSteps at the correct position
+// within steps: after setup/download steps but before checkout and safe-output handler steps.
+func (c *Compiler) insertPreambleTokenStepsIntoSteps(steps []string, preambleTokenSteps []string, data *WorkflowData, agentArtifactPrefix string) []string {
+	insertIndex := c.calculatePreambleInsertIndex(steps, data, agentArtifactPrefix)
 
-		// Count setup action steps (checkout + setup if in dev mode without action-tag, or just setup)
-		setupActionRef := c.resolveActionReference("./actions/setup", data)
-		if setupActionRef != "" {
-			insertIndex += len(c.generateCheckoutActionsFolder(data))
-			// Use the same traceID as the real call so the line count matches exactly
-			countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
-			countParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
-			insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID))
-		}
-		// Keep insertion index aligned with setup steps that may be injected between setup
-		// and artifact downloads. Count the entries each mask helper appends so the index
-		// stays self-consistent if either helper ever emits more than one step.
-		if isOTLPHeadersPresent(data) {
-			insertIndex += strings.Count(generateOTLPHeadersMaskStep(), stepNameLinePrefix)
-		}
-		if isOTLPAttributesPresent(data) {
-			insertIndex += strings.Count(generateOTLPAttributesMaskStep(), stepNameLinePrefix)
-		}
-
-		// Add artifact download steps count
-		insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin))
-
-		// Add upload-artifact staging download step count.
-		// The step has 6 YAML string entries: name, continue-on-error, uses, with:, name: <artifact>, path: <dir>
-		if data.SafeOutputs.UploadArtifact != nil {
-			insertIndex += 6
-		}
-
-		// Add patch download steps if present
-		// Download from unified agent artifact (prefixed in workflow_call context)
-		if usesPatchesAndCheckouts(data.SafeOutputs) {
-			patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
-				ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
-				DownloadPath: constants.TmpGhAwDirSlash,
-				SetupEnvStep: false,
-				StepName:     "Download patch artifact",
-			}, c.getActionPin)
-			insertIndex += len(patchDownloadSteps)
-		}
-
-		// Note: App token steps must be inserted BEFORE shared checkout steps
-		// because those steps reference steps.safe-outputs-app-token.outputs.token
-		//
-		// The insertion index is line-oriented; if it lands in the middle of a
-		// multi-line run/with block, move it to the next step boundary.
-		for insertIndex < len(steps) && !strings.HasPrefix(steps[insertIndex], stepNameLinePrefix) {
-			insertIndex++
-		}
-		if insertIndex == len(steps) {
-			consolidatedSafeOutputsJobLog.Printf(
-				"WARN: preamble-token insertion reached end of steps slice (len=%d); step ordering may be incorrect",
-				len(steps),
-			)
-		}
-
-		// Insert all preamble token steps at the computed index.
-		var newSteps []string
-		newSteps = append(newSteps, steps[:insertIndex]...)
-		newSteps = append(newSteps, preambleTokenSteps...)
-		newSteps = append(newSteps, steps[insertIndex:]...)
-		steps = newSteps
+	// The insertion index is line-oriented; if it lands in the middle of a
+	// multi-line run/with block, move it to the next step boundary.
+	for insertIndex < len(steps) && !strings.HasPrefix(steps[insertIndex], stepNameLinePrefix) {
+		insertIndex++
+	}
+	if insertIndex == len(steps) {
+		consolidatedSafeOutputsJobLog.Printf(
+			"WARN: preamble-token insertion reached end of steps slice (len=%d); step ordering may be incorrect",
+			len(steps),
+		)
 	}
 
-	// Upload the safe output items manifest as an artifact (non-staged mode only).
-	// This step runs even if previous steps fail, ensuring the audit trail
-	// is always available for the audit command to display.
-	// In staged mode, no items are actually created in GitHub so there is nothing to record.
+	var newSteps []string
+	newSteps = append(newSteps, steps[:insertIndex]...)
+	newSteps = append(newSteps, preambleTokenSteps...)
+	newSteps = append(newSteps, steps[insertIndex:]...)
+	return newSteps
+}
+
+// calculatePreambleInsertIndex computes the line-offset index at which preamble token steps
+// should be inserted: after setup, OTLP mask, artifact download, and patch download steps.
+func (c *Compiler) calculatePreambleInsertIndex(steps []string, data *WorkflowData, agentArtifactPrefix string) int {
+	insertIndex := 0
+	setupActionRef := c.resolveActionReference("./actions/setup", data)
+	if setupActionRef != "" {
+		insertIndex += len(c.generateCheckoutActionsFolder(data))
+		countTraceID := fmt.Sprintf("${{ needs.%s.outputs.setup-trace-id }}", constants.ActivationJobName)
+		countParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
+		insertIndex += len(c.generateSetupStep(data, setupActionRef, SetupActionDestination, data.SafeOutputs != nil && data.SafeOutputs.UploadArtifact != nil, countTraceID, countParentSpanID))
+	}
+	if isOTLPHeadersPresent(data) {
+		insertIndex += strings.Count(generateOTLPHeadersMaskStep(), stepNameLinePrefix)
+	}
+	if isOTLPAttributesPresent(data) {
+		insertIndex += strings.Count(generateOTLPAttributesMaskStep(), stepNameLinePrefix)
+	}
+	insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin))
+	if data.SafeOutputs.UploadArtifact != nil {
+		// The staging download step has uploadArtifactStagingDownloadStepCount YAML string entries.
+		insertIndex += uploadArtifactStagingDownloadStepCount
+	}
+	if usesPatchesAndCheckouts(data.SafeOutputs) {
+		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
+			ArtifactName: agentArtifactPrefix + constants.AgentArtifactName,
+			DownloadPath: constants.TmpGhAwDirSlash,
+			SetupEnvStep: false,
+			StepName:     "Download patch artifact",
+		}, c.getActionPin)
+		insertIndex += len(patchDownloadSteps)
+	}
+	return insertIndex
+}
+
+// appendFinalSafeOutputSteps appends the manifest upload, dev-mode restore, and script-mode
+// cleanup steps that must come after all safe-output handler steps.
+func (c *Compiler) appendFinalSafeOutputSteps(data *WorkflowData, steps []string, agentArtifactPrefix string) []string {
 	isStaged := c.trialMode || templatableBoolIsTrue(data.SafeOutputs.Staged)
 	if !isStaged {
 		steps = append(steps, buildSafeOutputItemsManifestUploadStep(agentArtifactPrefix, c.getActionPin)...)
 	}
-
-	// Append OTLP conclusion span step (no-op when endpoint is not configured).
-	// Note: this step is now handled by the action post step (post.js) so no
-	// injected step is needed here.
-
-	// In dev mode the setup action is referenced via a local path (./actions/setup), so its files
-	// live in the workspace. When the safe_outputs job contains a checkout step for
-	// create_pull_request or push_to_pull_request_branch, the workspace is replaced with the
-	// target repository content, removing the actions/setup directory.
-	// Without restoring it, the runner's post-step for Setup Scripts would fail with
-	// "Can't find 'action.yml', 'action.yaml' or 'Dockerfile' under .../actions/setup".
-	// We add a restore checkout step (if: always()) as the last step so the post-step
-	// can always find action.yml and complete its /tmp/gh-aw cleanup.
 	if c.actionMode.IsDev() && usesPatchesAndCheckouts(data.SafeOutputs) {
 		steps = append(steps, c.generateRestoreActionsSetupStep())
 		consolidatedSafeOutputsJobLog.Print("Added restore actions folder step to safe_outputs job (dev mode with checkout)")
 	}
-
-	// In script mode, explicitly add a cleanup step (mirrors post.js in dev/release/action mode).
 	if c.actionMode.IsScript() {
 		steps = append(steps, c.generateScriptModeCleanupStep())
 	}
+	return steps
+}
 
-	// Build the job condition
-	// The job should run if agent job completed (not skipped) AND detection passed (if enabled)
+// buildSafeOutputsJobCondition constructs the "if" expression for the safe_outputs job.
+// The job runs when the agent job completed (not skipped) and, when threat detection is enabled,
+// when the detection job passed.
+func buildSafeOutputsJobCondition(data *WorkflowData, threatDetectionEnabled bool) ConditionNode {
 	agentNotSkipped := BuildAnd(
 		&NotNode{Child: BuildFunctionCall("cancelled")},
 		BuildNotEquals(
@@ -662,21 +678,24 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			BuildStringLiteral("skipped"),
 		),
 	)
-
-	jobCondition := agentNotSkipped
 	if IsConditionalDetection(data.SafeOutputs) {
 		// When detection is expression-controlled, the detection job may be skipped at runtime
 		// (expression evaluated to false). Use always() to prevent safe_outputs from being
 		// skipped due to a skipped dependency, and accept both success and skipped results.
-		jobCondition = BuildAnd(
+		return BuildAnd(
 			BuildAnd(BuildFunctionCall("always"), agentNotSkipped),
 			buildDetectionPassedCondition(),
 		)
-	} else if threatDetectionEnabled {
-		jobCondition = BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
 	}
+	if threatDetectionEnabled {
+		return BuildAnd(agentNotSkipped, buildDetectionSuccessCondition())
+	}
+	return agentNotSkipped
+}
 
-	// Build dependencies — safe_outputs depends on agent; when threat detection is enabled it also
+// buildSafeOutputsJobNeeds returns the ordered list of job names that safe_outputs depends on.
+func (c *Compiler) buildSafeOutputsJobNeeds(data *WorkflowData, mainJobName string, threatDetectionEnabled bool) []string {
+	// safe_outputs depends on agent; when threat detection is enabled it also
 	// depends on the detection job (so that detection_success is available).
 	needs := []string{mainJobName}
 	if threatDetectionEnabled {
@@ -695,11 +714,9 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 		needs = append(needs, "unlock")
 		consolidatedSafeOutputsJobLog.Print("Added unlock job dependency to safe_outputs job")
 	}
-	seenNeeds := make(map[string]struct {
-	}, len(needs))
+	seenNeeds := make(map[string]struct{}, len(needs))
 	for _, need := range needs {
-		seenNeeds[need] = struct {
-		}{}
+		seenNeeds[need] = struct{}{}
 	}
 	if data.SafeOutputs != nil {
 		for _, need := range data.SafeOutputs.Needs {
@@ -707,12 +724,10 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 				continue
 			}
 			needs = append(needs, need)
-			seenNeeds[need] = struct {
-			}{}
+			seenNeeds[need] = struct{}{}
 			consolidatedSafeOutputsJobLog.Printf("Added explicit safe-outputs needs dependency to safe_outputs job: %s", need)
 		}
 	}
-
 	// If any message template references needs.pre_activation.outputs.*, add pre_activation
 	// as a dependency so that GitHub Actions can resolve the expression at runtime.
 	if data.SafeOutputs != nil && messagesContainPreActivationRef(data.SafeOutputs.Messages) {
@@ -720,59 +735,12 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 			preActName := string(constants.PreActivationJobName)
 			if !setutil.Contains(seenNeeds, preActName) {
 				needs = append(needs, preActName)
-				seenNeeds[preActName] = struct{}{}
+				seenNeeds[preActName] = struct{}{} // keep map consistent with all other appends
 				consolidatedSafeOutputsJobLog.Print("Added pre_activation dependency to safe_outputs job (messages reference pre_activation outputs)")
 			}
 		}
 	}
-
-	// Extract workflow ID from markdown path for GH_AW_WORKFLOW_ID
-	workflowID := GetWorkflowIDFromPath(markdownPath)
-
-	// Build job-level environment variables that are common to all safe output steps
-	jobEnv := c.buildJobLevelSafeOutputEnvVars(data, workflowID)
-
-	// Build concurrency config for the safe-outputs job if a concurrency-group is configured
-	var concurrency string
-	if data.SafeOutputs.ConcurrencyGroup != "" {
-		concurrency = c.indentYAMLLines(fmt.Sprintf("concurrency:\n  group: %q\n  cancel-in-progress: false", data.SafeOutputs.ConcurrencyGroup), "    ")
-		consolidatedSafeOutputsJobLog.Printf("Configuring safe_outputs job concurrency group: %s", data.SafeOutputs.ConcurrencyGroup)
-	}
-
-	// Determine the environment for the safe-outputs job.
-	// If safe-outputs.environment is explicitly set, use that override.
-	// Otherwise, propagate the top-level environment: field so that environment-scoped
-	// secrets (e.g. for GitHub App token minting) are accessible in this job.
-	safeOutputsEnvironment := resolveSafeOutputsEnvironment(data)
-
-	// Use the configured timeout or fall back to the default of 45 minutes.
-	// The previous default was 15 minutes, which is insufficient for workflows
-	// with many sequential safe output operations (e.g. push_to_pull_request_branch
-	// against large monorepos). 45 minutes is the new default; users can override
-	// via safe-outputs.timeout-minutes in frontmatter.
-	const defaultSafeOutputsTimeoutMinutes = 45
-	timeoutMinutes := defaultSafeOutputsTimeoutMinutes
-	if data.SafeOutputs.TimeoutMinutes > 0 {
-		timeoutMinutes = data.SafeOutputs.TimeoutMinutes
-	}
-
-	job := &Job{
-		Name:           "safe_outputs",
-		If:             RenderCondition(jobCondition),
-		RunsOn:         c.formatFrameworkJobRunsOn(data),
-		Environment:    c.indentYAMLLines(safeOutputsEnvironment, "    "),
-		Permissions:    permissions.RenderToYAML(),
-		TimeoutMinutes: timeoutMinutes,
-		Concurrency:    concurrency,
-		Env:            jobEnv,
-		Steps:          steps,
-		Outputs:        outputs,
-		Needs:          needs,
-	}
-
-	consolidatedSafeOutputsJobLog.Printf("Built consolidated safe outputs job with %d steps", len(safeOutputStepNames))
-
-	return job, safeOutputStepNames, nil
+	return needs
 }
 
 // buildJobLevelSafeOutputEnvVars builds environment variables that should be set at the job level

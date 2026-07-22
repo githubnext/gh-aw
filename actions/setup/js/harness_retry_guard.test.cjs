@@ -102,6 +102,24 @@ describe("harness_retry_guard.cjs", () => {
     expect(result.goalAlreadyActive).toBe(true);
   });
 
+  it("detects raw ai_credits_limit_exceeded API error type", () => {
+    const result = detectNonRetryableHarnessGuard("ai_credits_limit_exceeded");
+    expect(result.aiCreditsExceeded).toBe(true);
+    expect(result.awfAPIProxyBlockingRequests).toBe(false);
+  });
+
+  it("detects ai_credits_limit_exceeded embedded in JSON stream-json result", () => {
+    const result = detectNonRetryableHarnessGuard(
+      '{"type":"result","subtype":"error_api_error","is_error":true,"result":"Error 403: {\\"type\\":\\"ai_credits_limit_exceeded\\",\\"message\\":\\"You have exceeded your AI credits budget.\\"}"}'
+    );
+    expect(result.aiCreditsExceeded).toBe(true);
+  });
+
+  it("detects ai_credits_limit_exceeded in Anthropic error JSON", () => {
+    const result = detectNonRetryableHarnessGuard('{"type":"error","error":{"type":"ai_credits_limit_exceeded","message":"AI credits budget exceeded"}}');
+    expect(result.aiCreditsExceeded).toBe(true);
+  });
+
   it("detects max_runs_exceeded by JSON error type", () => {
     const result = detectNonRetryableHarnessGuard('{"error":{"type":"max_runs_exceeded","message":"Maximum LLM invocations exceeded (20 / 20).","invocation_count":20,"max_runs":20}}');
     expect(result.maxRunsExceeded).toBe(true);

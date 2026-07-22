@@ -769,8 +769,6 @@ func parseEventTypes(value any) ([]string, bool) {
 // reactions, and stop-after configurations while detecting conflicts with other event types.
 func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *WorkflowData, markdownPath string) error {
 	triggerParserLog.Printf("Parsing on section: workflow=%s, markdownPath=%s", workflowData.Name, markdownPath)
-	// Check if "slash_command" or "command" (deprecated) is used as a trigger in the "on" section
-	// Also extract "reaction" from the "on" section
 	var hasCommand bool
 	var hasLabelCommand bool
 	var hasReaction bool
@@ -789,241 +787,237 @@ func (c *Compiler) parseOnSection(frontmatter map[string]any, workflowData *Work
 	}
 
 	if exists {
-		// Check for new format: on.slash_command/on.command and on.reaction
 		if onMap, ok := onValue.(map[string]any); ok {
-			// Check for stop-after in the on section
-			if _, hasStopAfterKey := onMap["stop-after"]; hasStopAfterKey {
-				hasStopAfter = true
+			var err error
+			hasReaction, hasStopAfter, hasStatusComment, err = parseOnMapPreamble(onMap, workflowData)
+			if err != nil {
+				return err
 			}
-
-			// Extract reaction from on section
-			if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
-				hasReaction = true
-				reactionStr, reactionIssues, reactionPullRequests, reactionDiscussions, err := parseReactionConfig(reactionValue)
-				if err != nil {
-					return err
-				}
-				// Validate reaction value
-				if !isValidReaction(reactionStr) {
-					return fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
-				}
-				// Set AIReaction even if it's "none" - "none" explicitly disables reactions
-				workflowData.AIReaction = reactionStr
-				workflowData.ReactionIssues = reactionIssues
-				workflowData.ReactionPullRequests = reactionPullRequests
-				workflowData.ReactionDiscussions = reactionDiscussions
+			hasCommand, err = parseCommandTriggerFromOnMap(onMap, workflowData, markdownPath)
+			if err != nil {
+				return err
 			}
-
-			// Extract status-comment from on section
-			if statusCommentValue, hasStatusCommentField := onMap["status-comment"]; hasStatusCommentField {
-				hasStatusComment = true
-				if statusCommentBool, ok := statusCommentValue.(bool); ok {
-					workflowData.StatusComment = &statusCommentBool
-					triggerParserLog.Printf("status-comment set to: %v", statusCommentBool)
-				} else if statusCommentMap, ok := statusCommentValue.(map[string]any); ok {
-					statusCommentIssues := true
-					if issuesValue, hasIssues := statusCommentMap["issues"]; hasIssues {
-						issuesBool, ok := issuesValue.(bool)
-						if !ok {
-							return fmt.Errorf("status-comment.issues must be a boolean value, got %T", issuesValue)
-						}
-						statusCommentIssues = issuesBool
-					}
-
-					statusCommentPullRequests := true
-					if pullRequestsValue, hasPullRequests := statusCommentMap["pull-requests"]; hasPullRequests {
-						pullRequestsBool, ok := pullRequestsValue.(bool)
-						if !ok {
-							return fmt.Errorf("status-comment.pull-requests must be a boolean value, got %T", pullRequestsValue)
-						}
-						statusCommentPullRequests = pullRequestsBool
-					}
-
-					statusCommentDiscussions := true
-					if discussionsValue, hasDiscussions := statusCommentMap["discussions"]; hasDiscussions {
-						discussionsBool, ok := discussionsValue.(bool)
-						if !ok {
-							return fmt.Errorf("status-comment.discussions must be a boolean value, got %T", discussionsValue)
-						}
-						statusCommentDiscussions = discussionsBool
-					}
-
-					statusCommentEnabled := true
-					workflowData.StatusComment = &statusCommentEnabled
-					workflowData.StatusCommentIssues = &statusCommentIssues
-					workflowData.StatusCommentPullRequests = &statusCommentPullRequests
-					workflowData.StatusCommentDiscussions = &statusCommentDiscussions
-					if !statusCommentIssues && !statusCommentPullRequests && !statusCommentDiscussions {
-						return errors.New("status-comment object requires at least one target to be enabled (issues, pull-requests, or discussions)")
-					}
-					triggerParserLog.Printf(
-						"status-comment object set: issues=%v pullRequests=%v discussions=%v",
-						statusCommentIssues,
-						statusCommentPullRequests,
-						statusCommentDiscussions,
-					)
-				} else {
-					return fmt.Errorf("status-comment must be a boolean or object value, got %T", statusCommentValue)
-				}
+			hasLabelCommand, err = parseLabelCommandFromOnMap(onMap, workflowData, markdownPath)
+			if err != nil {
+				return err
 			}
-
-			// Extract lock-for-agent from on.issues section
-			if issuesValue, hasIssues := onMap["issues"]; hasIssues {
-				if issuesMap, ok := issuesValue.(map[string]any); ok {
-					if lockForAgent, hasLockForAgent := issuesMap["lock-for-agent"]; hasLockForAgent {
-						if lockBool, ok := lockForAgent.(bool); ok {
-							workflowData.LockForAgent = lockBool
-							triggerParserLog.Printf("lock-for-agent enabled for issues: %v", lockBool)
-						}
-					}
-				}
-			}
-
-			// Extract lock-for-agent from on.issue_comment section
-			if issueCommentValue, hasIssueComment := onMap["issue_comment"]; hasIssueComment {
-				if issueCommentMap, ok := issueCommentValue.(map[string]any); ok {
-					if lockForAgent, hasLockForAgent := issueCommentMap["lock-for-agent"]; hasLockForAgent {
-						if lockBool, ok := lockForAgent.(bool); ok {
-							workflowData.LockForAgent = lockBool
-							triggerParserLog.Printf("lock-for-agent enabled for issue_comment: %v", lockBool)
-						}
-					}
-				}
-			}
-
-			if _, hasSlashCommandKey := onMap["slash_command"]; hasSlashCommandKey {
-				hasCommand = true
-				// Set default command to filename if not specified in the command section
-				if len(workflowData.Command) == 0 {
-					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Command = []string{baseName}
-				}
-				// In centralized mode slash_command no longer compiles broad comment listeners,
-				// so slash/non-slash event co-existence is allowed.
-				if !workflowData.CommandCentralized {
-					// Check for conflicting events (but allow issues/pull_request with non-conflicting types: labeled/unlabeled/ready_for_review)
-					conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
-					for _, eventName := range conflictingEvents {
-						if eventValue, hasConflict := onMap[eventName]; hasConflict {
-							// Special case: allow issues/pull_request with non-conflicting types
-							if (eventName == "issues" || eventName == "pull_request") && parser.IsNonConflictingCommandEvent(eventValue) {
-								continue // Allow this - it doesn't conflict with command triggers
-							}
-							return fmt.Errorf("cannot use 'slash_command' with '%s' in the same workflow", eventName)
-						}
-					}
-				}
-
-				// Clear the On field so applyDefaults will handle command trigger generation
-				workflowData.On = ""
-			} else if _, hasCommandKey := onMap["command"]; hasCommandKey {
-				hasCommand = true
-				// Set default command to filename if not specified in the command section
-				if len(workflowData.Command) == 0 {
-					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.Command = []string{baseName}
-				}
-				// Check for conflicting events (but allow issues/pull_request with non-conflicting types: labeled/unlabeled/ready_for_review)
-				conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
-				for _, eventName := range conflictingEvents {
-					if eventValue, hasConflict := onMap[eventName]; hasConflict {
-						// Special case: allow issues/pull_request with non-conflicting types
-						if (eventName == "issues" || eventName == "pull_request") && parser.IsNonConflictingCommandEvent(eventValue) {
-							continue // Allow this - it doesn't conflict with command triggers
-						}
-						return fmt.Errorf("cannot use 'command' with '%s' in the same workflow", eventName)
-					}
-				}
-
-				// Clear the On field so applyDefaults will handle command trigger generation
-				workflowData.On = ""
-			}
-
-			// Detect label_command trigger
-			if _, hasLabelCommandKey := onMap["label_command"]; hasLabelCommandKey {
-				hasLabelCommand = true
-				// Set default label names from WorkflowData if already populated by extractLabelCommandConfig
-				if len(workflowData.LabelCommand) == 0 {
-					// extractLabelCommandConfig has not been called yet or returned nothing;
-					// set a placeholder so applyDefaults knows this is a label-command workflow.
-					// The actual label names will be extracted from the frontmatter in applyDefaults
-					// via extractLabelCommandConfig which was called in parseOnSectionRaw.
-					baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
-					workflowData.LabelCommand = []string{baseName}
-				}
-				// In decentralized mode label_command no longer compiles direct labeled listeners,
-				// so label/non-label event co-existence is allowed.
-				if !workflowData.LabelCommandDecentralized {
-					// Validate: existing issues/pull_request/discussion triggers that have non-label types
-					// would be silently overridden by the label_command generation. Require label-only types
-					// (labeled/unlabeled) so the merge is deterministic and user config is not lost.
-					labelConflictingEvents := []string{"issues", "pull_request", "discussion"}
-					for _, eventName := range labelConflictingEvents {
-						if eventValue, hasConflict := onMap[eventName]; hasConflict {
-							if !parser.IsLabelOnlyEvent(eventValue) {
-								return fmt.Errorf("cannot use 'label_command' with '%s' trigger (non-label types); use only labeled/unlabeled types or remove this trigger", eventName)
-							}
-						}
-					}
-				}
-				// Clear the On field so applyDefaults will handle label-command trigger generation
-				workflowData.On = ""
-			}
-
-			// Extract other (non-conflicting) events excluding slash_command, command, label_command, reaction, status-comment, and stop-after
 			otherEvents = excludeMapKeys(onMap, "slash_command", "command", "label_command", "reaction", "status-comment", "stop-after", "github-token", "github-app", "needs")
 		}
 	}
 
-	// Clear command field if no command trigger was found
+	return c.finalizeCommandTriggerState(workflowData, hasCommand, hasLabelCommand, hasReaction, hasStopAfter, hasStatusComment, otherEvents, frontmatter)
+}
+
+// parseOnMapPreamble parses the stop-after, reaction, status-comment, and lock-for-agent fields
+// from the on-section map, returning the has-* flags for each.
+func parseOnMapPreamble(onMap map[string]any, workflowData *WorkflowData) (hasReaction, hasStopAfter, hasStatusComment bool, err error) {
+	if _, hasStopAfterKey := onMap["stop-after"]; hasStopAfterKey {
+		hasStopAfter = true
+	}
+	if reactionValue, hasReactionField := onMap["reaction"]; hasReactionField {
+		hasReaction = true
+		reactionStr, reactionIssues, reactionPullRequests, reactionDiscussions, parseErr := parseReactionConfig(reactionValue)
+		if parseErr != nil {
+			return false, false, false, parseErr
+		}
+		if !isValidReaction(reactionStr) {
+			return false, false, false, fmt.Errorf("invalid reaction value '%s': must be one of %v", reactionStr, getValidReactions())
+		}
+		workflowData.AIReaction = reactionStr
+		workflowData.ReactionIssues = reactionIssues
+		workflowData.ReactionPullRequests = reactionPullRequests
+		workflowData.ReactionDiscussions = reactionDiscussions
+	}
+	if statusCommentValue, hasStatusCommentField := onMap["status-comment"]; hasStatusCommentField {
+		hasStatusComment = true
+		if parseErr := parseStatusCommentFromOnMap(statusCommentValue, workflowData); parseErr != nil {
+			return false, false, false, parseErr
+		}
+	}
+	parseLockForAgentFromOnMap(onMap, workflowData)
+	return hasReaction, hasStopAfter, hasStatusComment, nil
+}
+
+// parseCommandTriggerFromOnMap detects slash_command (or deprecated command) in the on-map,
+// sets the command name, validates for event conflicts, and clears On so applyDefaults
+// will generate the command trigger events.
+func parseCommandTriggerFromOnMap(onMap map[string]any, workflowData *WorkflowData, markdownPath string) (bool, error) {
+	triggerKey := ""
+	if _, has := onMap["slash_command"]; has {
+		triggerKey = "slash_command"
+	} else if _, has := onMap["command"]; has {
+		triggerKey = "command"
+	}
+	if triggerKey == "" {
+		return false, nil
+	}
+	if len(workflowData.Command) == 0 {
+		baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+		workflowData.Command = []string{baseName}
+	}
+	// Centralized mode allows slash and non-slash events to coexist.
+	if !workflowData.CommandCentralized {
+		conflictingEvents := []string{"issues", "issue_comment", "pull_request", "pull_request_review_comment"}
+		for _, eventName := range conflictingEvents {
+			if eventValue, hasConflict := onMap[eventName]; hasConflict {
+				if (eventName == "issues" || eventName == "pull_request") && parser.IsNonConflictingCommandEvent(eventValue) {
+					continue
+				}
+				return false, fmt.Errorf("cannot use '%s' with '%s' in the same workflow", triggerKey, eventName)
+			}
+		}
+	}
+	workflowData.On = ""
+	return true, nil
+}
+
+// parseLabelCommandFromOnMap detects label_command in the on-map, sets the label name,
+// validates for event conflicts, and clears On so applyDefaults will generate the trigger events.
+func parseLabelCommandFromOnMap(onMap map[string]any, workflowData *WorkflowData, markdownPath string) (bool, error) {
+	if _, hasLabelCommandKey := onMap["label_command"]; !hasLabelCommandKey {
+		return false, nil
+	}
+	if len(workflowData.LabelCommand) == 0 {
+		baseName := strings.TrimSuffix(filepath.Base(markdownPath), ".md")
+		workflowData.LabelCommand = []string{baseName}
+	}
+	// Decentralized mode allows label and non-label events to coexist.
+	if !workflowData.LabelCommandDecentralized {
+		labelConflictingEvents := []string{"issues", "pull_request", "discussion"}
+		for _, eventName := range labelConflictingEvents {
+			if eventValue, hasConflict := onMap[eventName]; hasConflict {
+				if !parser.IsLabelOnlyEvent(eventValue) {
+					return false, fmt.Errorf("cannot use 'label_command' with '%s' trigger (non-label types); use only labeled/unlabeled types or remove this trigger", eventName)
+				}
+			}
+		}
+	}
+	workflowData.On = ""
+	return true, nil
+}
+
+// finalizeCommandTriggerState applies post-parse state updates: clears fields for absent triggers,
+// auto-enables the eyes reaction and status-comment, and stores other events for applyDefaults.
+func (c *Compiler) finalizeCommandTriggerState(
+	workflowData *WorkflowData,
+	hasCommand, hasLabelCommand, hasReaction, hasStopAfter, hasStatusComment bool,
+	otherEvents map[string]any,
+	frontmatter map[string]any,
+) error {
 	if !hasCommand {
 		workflowData.Command = nil
 	}
-
-	// Clear label-command field if no label_command trigger was found
 	if !hasLabelCommand {
 		workflowData.LabelCommand = nil
 		workflowData.LabelCommandEvents = nil
 		workflowData.LabelCommandDecentralized = false
 	}
-	// Auto-enable "eyes" reaction for slash_command/label_command (and deprecated command) triggers if no explicit reaction was specified
 	if (hasCommand || hasLabelCommand) && !hasReaction && workflowData.AIReaction == "" {
 		workflowData.AIReaction = "eyes"
 	}
-
-	// Auto-enable status-comment for slash_command/label_command (and deprecated command) triggers if not explicitly set
 	if (hasCommand || hasLabelCommand) && !hasStatusComment && workflowData.StatusComment == nil {
 		trueVal := true
 		workflowData.StatusComment = &trueVal
 	}
-
-	// Store other events for merging in applyDefaults
 	if hasCommand && len(otherEvents) > 0 {
-		// We'll store this and handle it in applyDefaults
-		workflowData.On = "" // This will trigger command handling in applyDefaults
+		workflowData.On = ""
 		workflowData.CommandOtherEvents = mergeCommandOtherEvents(workflowData.CommandOtherEvents, otherEvents)
 	} else if hasLabelCommand && len(otherEvents) > 0 {
-		// Store other events for label-command merging in applyDefaults
-		workflowData.On = "" // This will trigger label-command handling in applyDefaults
+		workflowData.On = ""
 		workflowData.LabelCommandOtherEvents = otherEvents
 	} else if (hasReaction || hasStopAfter || hasStatusComment) && len(otherEvents) > 0 {
-		// Only re-marshal the "on" if we have to
 		onEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": otherEvents}, yaml.IndentSequence(true))
 		if err == nil {
 			yamlStr := strings.TrimSuffix(string(onEventsYAML), "\n")
-			// Post-process YAML to ensure cron expressions are quoted
 			yamlStr = parser.QuoteCronExpressions(yamlStr)
-			// Apply comment processing to filter fields (draft, forks, names)
 			yamlStr = c.commentOutProcessedFieldsInOnSection(yamlStr, frontmatter)
-			// Add zizmor ignore comment if workflow_run trigger is present
 			yamlStr = c.addZizmorIgnoreForWorkflowRun(yamlStr)
-			// Keep "on" quoted as it's a YAML boolean keyword
 			workflowData.On = yamlStr
 		} else {
-			// Fallback to extracting the original on field (this will include reaction but shouldn't matter for compilation)
 			workflowData.On = c.extractTopLevelYAMLSection(frontmatter, "on")
 		}
 	}
-
 	return nil
+}
+
+// parseStatusCommentFromOnMap parses the status-comment value from the "on" section map
+// and populates the corresponding fields on workflowData.
+func parseStatusCommentFromOnMap(statusCommentValue any, workflowData *WorkflowData) error {
+	if statusCommentBool, ok := statusCommentValue.(bool); ok {
+		workflowData.StatusComment = &statusCommentBool
+		triggerParserLog.Printf("status-comment set to: %v", statusCommentBool)
+		return nil
+	}
+	statusCommentMap, ok := statusCommentValue.(map[string]any)
+	if !ok {
+		return fmt.Errorf("status-comment must be a boolean or object value, got %T", statusCommentValue)
+	}
+
+	statusCommentIssues := true
+	if issuesValue, hasIssues := statusCommentMap["issues"]; hasIssues {
+		issuesBool, ok := issuesValue.(bool)
+		if !ok {
+			return fmt.Errorf("status-comment.issues must be a boolean value, got %T", issuesValue)
+		}
+		statusCommentIssues = issuesBool
+	}
+
+	statusCommentPullRequests := true
+	if pullRequestsValue, hasPullRequests := statusCommentMap["pull-requests"]; hasPullRequests {
+		pullRequestsBool, ok := pullRequestsValue.(bool)
+		if !ok {
+			return fmt.Errorf("status-comment.pull-requests must be a boolean value, got %T", pullRequestsValue)
+		}
+		statusCommentPullRequests = pullRequestsBool
+	}
+
+	statusCommentDiscussions := true
+	if discussionsValue, hasDiscussions := statusCommentMap["discussions"]; hasDiscussions {
+		discussionsBool, ok := discussionsValue.(bool)
+		if !ok {
+			return fmt.Errorf("status-comment.discussions must be a boolean value, got %T", discussionsValue)
+		}
+		statusCommentDiscussions = discussionsBool
+	}
+
+	if !statusCommentIssues && !statusCommentPullRequests && !statusCommentDiscussions {
+		return errors.New("status-comment object requires at least one target to be enabled (issues, pull-requests, or discussions)")
+	}
+	statusCommentEnabled := true
+	workflowData.StatusComment = &statusCommentEnabled
+	workflowData.StatusCommentIssues = &statusCommentIssues
+	workflowData.StatusCommentPullRequests = &statusCommentPullRequests
+	workflowData.StatusCommentDiscussions = &statusCommentDiscussions
+	triggerParserLog.Printf(
+		"status-comment object set: issues=%v pullRequests=%v discussions=%v",
+		statusCommentIssues,
+		statusCommentPullRequests,
+		statusCommentDiscussions,
+	)
+	return nil
+}
+
+// parseLockForAgentFromOnMap extracts the lock-for-agent flag from on.issues and on.issue_comment
+// sections and sets workflowData.LockForAgent accordingly.
+func parseLockForAgentFromOnMap(onMap map[string]any, workflowData *WorkflowData) {
+	if issuesValue, hasIssues := onMap["issues"]; hasIssues {
+		if issuesMap, ok := issuesValue.(map[string]any); ok {
+			if lockForAgent, hasLockForAgent := issuesMap["lock-for-agent"]; hasLockForAgent {
+				if lockBool, ok := lockForAgent.(bool); ok {
+					workflowData.LockForAgent = lockBool
+					triggerParserLog.Printf("lock-for-agent enabled for issues: %v", lockBool)
+				}
+			}
+		}
+	}
+	if issueCommentValue, hasIssueComment := onMap["issue_comment"]; hasIssueComment {
+		if issueCommentMap, ok := issueCommentValue.(map[string]any); ok {
+			if lockForAgent, hasLockForAgent := issueCommentMap["lock-for-agent"]; hasLockForAgent {
+				if lockBool, ok := lockForAgent.(bool); ok {
+					workflowData.LockForAgent = lockBool
+					triggerParserLog.Printf("lock-for-agent enabled for issue_comment: %v", lockBool)
+				}
+			}
+		}
+	}
 }
