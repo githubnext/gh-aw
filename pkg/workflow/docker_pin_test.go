@@ -219,3 +219,60 @@ func TestMergeDockerImagePins(t *testing.T) {
 	assert.Equal(t, "image-c", result[2].Image)
 	assert.Equal(t, "sha256:ccc", result[2].Digest)
 }
+
+// TestApplyContainerPins_ContainerPinMappings verifies that applyContainerPins
+// applies container_pins redirects before digest lookup so that both the
+// pre-download list and the manifest entries reference the mapped image.
+func TestApplyContainerPins_ContainerPinMappings(t *testing.T) {
+	t.Run("mapped image without cache pin returned as mapped", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"ghcr.io/owner/image:v1": "registry.acme.com/image:v1",
+			},
+		}
+		refs, pinEntries := applyContainerPins([]string{"ghcr.io/owner/image:v1"}, workflowData)
+		require.Len(t, refs, 1)
+		assert.Equal(t, "registry.acme.com/image:v1", refs[0],
+			"source image should be redirected to the mapped registry")
+		assert.Equal(t, "registry.acme.com/image:v1", pinEntries[0].Image,
+			"manifest entry Image should reflect the mapped image")
+		assert.Empty(t, pinEntries[0].Digest, "no digest expected without a cache pin")
+	})
+
+	t.Run("mapped image with cache pin resolved to pinned digest", func(t *testing.T) {
+		cache := NewActionCache(t.TempDir())
+		cache.SetContainerPin("registry.acme.com/image:v1", "sha256:abc123",
+			"registry.acme.com/image:v1@sha256:abc123")
+
+		workflowData := &WorkflowData{
+			ActionCache: cache,
+			ContainerPinMappings: map[string]string{
+				"ghcr.io/owner/image:v1": "registry.acme.com/image:v1",
+			},
+		}
+		refs, pinEntries := applyContainerPins([]string{"ghcr.io/owner/image:v1"}, workflowData)
+		require.Len(t, refs, 1)
+		assert.Equal(t, "registry.acme.com/image:v1@sha256:abc123", refs[0],
+			"mapped image should be further resolved to the cache-pinned digest")
+		assert.Equal(t, "sha256:abc123", pinEntries[0].Digest)
+	})
+
+	t.Run("unmapped image passes through unchanged", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"other.registry.io/image:v1": "registry.acme.com/image:v1",
+			},
+		}
+		refs, _ := applyContainerPins([]string{"ghcr.io/owner/image:v1"}, workflowData)
+		require.Len(t, refs, 1)
+		assert.Equal(t, "ghcr.io/owner/image:v1", refs[0],
+			"image not in mappings should be returned unchanged")
+	})
+
+	t.Run("nil ContainerPinMappings leaves images unchanged", func(t *testing.T) {
+		workflowData := &WorkflowData{}
+		refs, _ := applyContainerPins([]string{"ghcr.io/owner/image:v1"}, workflowData)
+		require.Len(t, refs, 1)
+		assert.Equal(t, "ghcr.io/owner/image:v1", refs[0])
+	})
+}

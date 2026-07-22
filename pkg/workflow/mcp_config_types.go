@@ -52,6 +52,9 @@ type MCPConfigRenderer struct {
 	// For TOML format, they are added as a separate TOML section after the server config.
 	// Nil when no guard policies should be applied.
 	GuardPolicies map[string]any
+	// WorkflowData is used to apply container_pins mappings when rendering the container field.
+	// Nil when no container pin mappings are configured.
+	WorkflowData *WorkflowData
 }
 
 // ToolConfig represents a tool configuration interface for type safety

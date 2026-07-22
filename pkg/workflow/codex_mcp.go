@@ -212,6 +212,7 @@ func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, too
 		Format:                   "toml",
 		RewriteLocalhostToDocker: rewriteLocalhost,
 		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+		WorkflowData:             workflowData,
 	}
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
@@ -236,6 +237,7 @@ func (e *CodexEngine) renderCodexJSONMCPConfigWithContext(yaml *strings.Builder,
 		IndentLevel:              "              ",
 		RewriteLocalhostToDocker: rewriteLocalhost,
 		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+		WorkflowData:             workflowData,
 	}
 
 	yaml.WriteString("              \"" + toolName + "\": {\n")

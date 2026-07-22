@@ -58,6 +58,7 @@ func (e *CopilotEngine) renderCopilotMCPConfigWithContext(yaml *strings.Builder,
 		RequiresCopilotFields:    true,
 		RewriteLocalhostToDocker: rewriteLocalhost,
 		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+		WorkflowData:             workflowData,
 	}
 
 	yaml.WriteString("              \"" + toolName + "\": {\n")

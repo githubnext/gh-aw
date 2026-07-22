@@ -192,6 +192,17 @@ func resolveMCPGatewayContainerImage(image string, data *WorkflowData) string {
 	return resolved
 }
 
+// applyContainerPinMappingFromData applies the container_pins redirect from aw.json
+// if data has ContainerPinMappings set; otherwise returns image unchanged.
+// Unlike resolveContainerImage this does not perform a digest lookup, making it
+// suitable for runtime command generation where only the registry redirect is needed.
+func applyContainerPinMappingFromData(image string, data *WorkflowData) string {
+	if data == nil || len(data.ContainerPinMappings) == 0 {
+		return image
+	}
+	return actionpins.ApplyContainerPinMapping(image, data.PinContext())
+}
+
 // getActionPinWithData returns the pinned action reference for a given action@version,
 // delegating to pkg/actionpins with a PinContext built from WorkflowData.
 func getActionPinWithData(actionRepo, version string, data *WorkflowData) (string, error) {
