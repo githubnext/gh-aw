@@ -487,4 +487,70 @@ Do something useful.
 		assert.Contains(t, lockStr, "client-id: ${{ vars.APP_ID }}", "Token mint step should use client-id")
 		assert.Contains(t, lockStr, "github-token: ${{ steps.activation-app-token.outputs.token }}", "Reaction step should use app token")
 	})
+
+	t.Run("multiline_oauth_check_uses_block_scalar_with_folded_input", func(t *testing.T) {
+		workflowContent := `---
+on:
+  workflow_dispatch:
+engine:
+  id: copilot
+  env:
+    COPILOT_GITHUB_TOKEN: >-
+      ${{ secrets.EXAMPLE_TOKEN_A != '' && secrets.EXAMPLE_TOKEN_A ||
+          secrets.EXAMPLE_TOKEN_B != '' && secrets.EXAMPLE_TOKEN_B ||
+          secrets.EXAMPLE_TOKEN_C }}
+---
+Do something useful.
+`
+		mdPath := filepath.Join(tmpDir, "multiline-folded-token-workflow.md")
+		err := os.WriteFile(mdPath, []byte(workflowContent), 0600)
+		require.NoError(t, err)
+
+		lockPath := filepath.Join(tmpDir, "multiline-folded-token-workflow.lock.yml")
+		err = compiler.CompileWorkflow(mdPath)
+		require.NoError(t, err, "Compilation should succeed")
+
+		lockContent, err := os.ReadFile(lockPath)
+		require.NoError(t, err)
+		lockStr := string(lockContent)
+
+		assert.Contains(t, lockStr, "      - name: Check for OAuth tokens\n", "OAuth token check step should be present")
+		assert.Contains(t, lockStr, "          COPILOT_GITHUB_TOKEN: |\n", "Multiline folded value should be emitted as a literal block scalar")
+		assert.Contains(t, lockStr, "            ${{ secrets.EXAMPLE_TOKEN_A != '' && secrets.EXAMPLE_TOKEN_A ||\n", "First expression line should be preserved")
+		assert.Contains(t, lockStr, "                secrets.EXAMPLE_TOKEN_B != '' && secrets.EXAMPLE_TOKEN_B ||\n", "Continuation indentation should be preserved")
+		assert.Contains(t, lockStr, "                secrets.EXAMPLE_TOKEN_C }}\n", "Final expression line should be preserved")
+	})
+
+	t.Run("multiline_oauth_check_uses_block_scalar_with_literal_input", func(t *testing.T) {
+		workflowContent := `---
+on:
+  workflow_dispatch:
+engine:
+  id: copilot
+  env:
+    COPILOT_GITHUB_TOKEN: |
+      ${{ secrets.EXAMPLE_TOKEN_A != '' && secrets.EXAMPLE_TOKEN_A ||
+      secrets.EXAMPLE_TOKEN_B != '' && secrets.EXAMPLE_TOKEN_B ||
+      secrets.EXAMPLE_TOKEN_C }}
+---
+Do something useful.
+`
+		mdPath := filepath.Join(tmpDir, "multiline-literal-token-workflow.md")
+		err := os.WriteFile(mdPath, []byte(workflowContent), 0600)
+		require.NoError(t, err)
+
+		lockPath := filepath.Join(tmpDir, "multiline-literal-token-workflow.lock.yml")
+		err = compiler.CompileWorkflow(mdPath)
+		require.NoError(t, err, "Compilation should succeed")
+
+		lockContent, err := os.ReadFile(lockPath)
+		require.NoError(t, err)
+		lockStr := string(lockContent)
+
+		assert.Contains(t, lockStr, "      - name: Check for OAuth tokens\n", "OAuth token check step should be present")
+		assert.Contains(t, lockStr, "          COPILOT_GITHUB_TOKEN: |\n", "Multiline literal value should be emitted as a literal block scalar")
+		assert.Contains(t, lockStr, "            ${{ secrets.EXAMPLE_TOKEN_A != '' && secrets.EXAMPLE_TOKEN_A ||\n", "First expression line should be preserved")
+		assert.Contains(t, lockStr, "            secrets.EXAMPLE_TOKEN_B != '' && secrets.EXAMPLE_TOKEN_B ||\n", "Literal continuation line should be preserved")
+		assert.Contains(t, lockStr, "            secrets.EXAMPLE_TOKEN_C }}\n", "Final literal expression line should be preserved")
+	})
 }
