@@ -72,7 +72,7 @@ func TestValidateUpdateCheck(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Expected an error but got none")
 				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains,
+					require.ErrorContains(t, err, tt.errContains,
 						"Error should contain %q, got: %s", tt.errContains, err.Error())
 				}
 			} else {

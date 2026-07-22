@@ -129,7 +129,7 @@ func TestValidateMCPMountsSyntax(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "expected an error")
 				if tt.errMsg != "" {
-					assert.Contains(t, err.Error(), tt.errMsg,
+					require.ErrorContains(t, err, tt.errMsg,
 						"error message should contain %q", tt.errMsg)
 				}
 			} else {

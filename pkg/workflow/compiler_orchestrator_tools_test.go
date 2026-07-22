@@ -342,7 +342,7 @@ tools:
 	// Should error with invalid timeout
 	require.Error(t, err, "Invalid timeout should cause error")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "timeout")
+	require.ErrorContains(t, err, "timeout")
 }
 
 // TestProcessToolsAndMarkdown_MCPValidation tests MCP config validation
@@ -716,7 +716,7 @@ engine: copilot
 	// Missing includes may be handled gracefully in some cases
 	// This test verifies the function completes
 	if err != nil {
-		assert.Contains(t, err.Error(), "nonexistent", "Error should mention missing file")
+		assert.ErrorContains(t, err, "nonexistent", "Error should mention missing file")
 	} else {
 		assert.NotNil(t, result)
 	}

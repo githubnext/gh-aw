@@ -102,7 +102,7 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 			0,
 		)
 		require.Error(t, err, "redirect loop should return an error")
-		assert.Contains(t, err.Error(), "redirect loop detected", "error should explain redirect loop")
+		require.ErrorContains(t, err, "redirect loop detected", "error should explain redirect loop")
 	})
 
 	t.Run("refuses redirect when no-redirect is enabled", func(t *testing.T) {
@@ -129,7 +129,7 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 			0,
 		)
 		require.Error(t, err, "redirect should be refused with --no-redirect")
-		assert.Contains(t, err.Error(), "redirect is disabled by --no-redirect", "error should explain redirect refusal")
+		require.ErrorContains(t, err, "redirect is disabled by --no-redirect", "error should explain redirect refusal")
 	})
 
 	t.Run("resolves default branch via API when source omits ref", func(t *testing.T) {

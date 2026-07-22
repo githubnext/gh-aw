@@ -124,7 +124,7 @@ func TestExtractStepsFromCopilotSetup_MissingJob(t *testing.T) {
 
 	_, err := extractStepsFromCopilotSetup(workflow)
 	require.Error(t, err, "Should error when copilot-setup-steps job is missing")
-	assert.Contains(t, err.Error(), "copilot-setup-steps job not found", "Error should mention missing job")
+	require.ErrorContains(t, err, "copilot-setup-steps job not found", "Error should mention missing job")
 }
 
 func TestExtractStepsFromCopilotSetup_NoSteps(t *testing.T) {
@@ -140,7 +140,7 @@ func TestExtractStepsFromCopilotSetup_NoSteps(t *testing.T) {
 
 	_, err := extractStepsFromCopilotSetup(workflow)
 	require.Error(t, err, "Should error when steps are missing")
-	assert.Contains(t, err.Error(), "no steps found", "Error should mention missing steps")
+	require.ErrorContains(t, err, "no steps found", "Error should mention missing steps")
 }
 
 func TestExtractStepsFromCopilotSetup_StripsCheckoutStep(t *testing.T) {

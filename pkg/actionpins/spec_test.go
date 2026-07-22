@@ -322,7 +322,7 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 			result, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
 			if tt.wantErr {
 				require.Error(t, err, "enforce mode should return an error for this scenario")
-				assert.Contains(t, err.Error(), tt.wantErrContains)
+				require.ErrorContains(t, err, tt.wantErrContains)
 				assert.Empty(t, result, "erroring enforce mode should not return a pinned reference")
 			} else {
 				require.NoError(t, err, "non-error scenario should not return an error")
@@ -751,7 +751,7 @@ func TestSpec_PublicAPI_ResolveActionPin_NilCtxField(t *testing.T) {
 	}
 	require.NotPanics(t, func() {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		assert.NotEmpty(t, result)
 	}, "nil PinContext.Ctx should fall back to context.Background() without panicking")
 	require.NotNil(t, resolver.capturedCtx, "resolver must receive a non-nil context even when PinContext.Ctx is nil")

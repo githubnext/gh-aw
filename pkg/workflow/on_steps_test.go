@@ -630,7 +630,7 @@ func TestExtractOnNeeds(t *testing.T) {
 			needs, err := extractOnNeeds(tt.frontmatter)
 			if tt.expectError {
 				require.Error(t, err, "expected extraction error")
-				assert.Contains(t, err.Error(), tt.errorContains, "error should contain expected text")
+				require.ErrorContains(t, err, tt.errorContains, "error should contain expected text")
 				return
 			}
 
@@ -704,7 +704,7 @@ func TestExtractOnRestoreMemory(t *testing.T) {
 			restoreMemory, err := extractOnRestoreMemory(tt.frontmatter)
 			if tt.expectError {
 				require.Error(t, err, "expected extraction error")
-				assert.Contains(t, err.Error(), tt.errorContains, "error should contain expected text")
+				require.ErrorContains(t, err, tt.errorContains, "error should contain expected text")
 				return
 			}
 

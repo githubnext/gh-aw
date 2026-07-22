@@ -47,7 +47,7 @@ func TestValidateDockerImage_StillRejectsHyphenWithoutDocker(t *testing.T) {
 	// so it should always reject invalid names regardless of Docker state.
 	err := validateDockerImage("-malicious", false, false)
 	require.Error(t, err, "should reject image names starting with hyphen regardless of Docker availability")
-	assert.Contains(t, err.Error(), "names must not start with '-'",
+	require.ErrorContains(t, err, "names must not start with '-'",
 		"error should explain why the name is invalid")
 }
 
@@ -80,18 +80,18 @@ func TestValidateDockerImage_RequireDockerFailsWhenUnavailable(t *testing.T) {
 	if _, lookErr := exec.LookPath("docker"); lookErr != nil {
 		err := validateDockerImage("ghcr.io/some/image:latest", false, true)
 		require.Error(t, err, "should fail when Docker is not installed and requireDocker is true")
-		assert.Contains(t, err.Error(), "docker not installed",
+		require.ErrorContains(t, err, "docker not installed",
 			"error should mention Docker is not installed")
-		assert.Contains(t, err.Error(), "--validate-images",
+		require.ErrorContains(t, err, "--validate-images",
 			"error should mention the --validate-images flag")
 		return
 	}
 	if !isDockerDaemonRunning() {
 		err := validateDockerImage("ghcr.io/some/image:latest", false, true)
 		require.Error(t, err, "should fail when Docker daemon is not running and requireDocker is true")
-		assert.Contains(t, err.Error(), "docker daemon not running",
+		require.ErrorContains(t, err, "docker daemon not running",
 			"error should mention Docker daemon is not running")
-		assert.Contains(t, err.Error(), "--validate-images",
+		require.ErrorContains(t, err, "--validate-images",
 			"error should mention the --validate-images flag")
 		return
 	}

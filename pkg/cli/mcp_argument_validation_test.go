@@ -89,7 +89,7 @@ func TestExtractUnknownParamsFromSchemaError(t *testing.T) {
 		"workflow-name": "typo",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "unexpected additional properties")
+	require.ErrorContains(t, err, "unexpected additional properties")
 	assert.Equal(t, []string{"workflow-name"}, extractUnknownParams(err.Error()))
 }
 

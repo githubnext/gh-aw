@@ -78,7 +78,7 @@ func TestResolveWorkflowErrorFormatting(t *testing.T) {
 	require.Error(t, err, "Expected error for non-existent file")
 
 	// Error message should contain helpful information
-	assert.Contains(t, err.Error(), "not found", "Error should mention file not found")
+	require.ErrorContains(t, err, "not found", "Error should mention file not found")
 }
 
 // TestConsoleFormatErrorMessageUsage verifies console.FormatErrorMessage is used correctly

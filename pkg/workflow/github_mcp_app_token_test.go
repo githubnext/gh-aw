@@ -150,7 +150,7 @@ Test that setting both app and github-token is an error.
 	// Compile the workflow - should fail because both app and github-token are set
 	err = compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Expected error when both app and github-token are set")
-	assert.Contains(t, err.Error(), "'tools.github.github-app' and 'tools.github.github-token' cannot both be set", "Error should mention mutual exclusion")
+	require.ErrorContains(t, err, "'tools.github.github-app' and 'tools.github.github-token' cannot both be set", "Error should mention mutual exclusion")
 }
 
 // TestGitHubMCPAppTokenWithRemoteMode tests that app token works with remote mode
@@ -532,9 +532,9 @@ Test that write is rejected in tools.github.github-app.permissions.
 
 	err = compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "Compiler should reject write in tools.github.github-app.permissions")
-	assert.Contains(t, err.Error(), "Invalid permission levels in tools.github.github-app.permissions", "Error should mention invalid permission levels")
-	assert.Contains(t, err.Error(), `"write" is not allowed`, "Error should mention that write is not allowed")
-	assert.Contains(t, err.Error(), "members", "Error should mention the offending scope")
+	require.ErrorContains(t, err, "Invalid permission levels in tools.github.github-app.permissions", "Error should mention invalid permission levels")
+	require.ErrorContains(t, err, `"write" is not allowed`, "Error should mention that write is not allowed")
+	require.ErrorContains(t, err, "members", "Error should mention the offending scope")
 }
 
 // TestCheckoutAppTokensMintedInAgentJob verifies that checkout-related GitHub App token

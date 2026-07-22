@@ -42,7 +42,7 @@ func TestExpandCompileArg_LocalDirectory_Empty(t *testing.T) {
 	tmpDir := t.TempDir()
 	_, err := expandCompileArg(tmpDir, false)
 	require.Error(t, err, "empty directory should return an error")
-	assert.Contains(t, err.Error(), "no workflow markdown files found", "error should mention no workflow files")
+	require.ErrorContains(t, err, "no workflow markdown files found", "error should mention no workflow files")
 }
 
 func TestExpandCompileArg_URLPassthrough(t *testing.T) {

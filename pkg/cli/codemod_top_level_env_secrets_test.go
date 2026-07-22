@@ -32,10 +32,10 @@ env:
 		_, applied, err := codemod.Apply(content, frontmatter)
 		require.Error(t, err, "should return an error for top-level env secrets")
 		assert.False(t, applied, "should not modify the file")
-		assert.Contains(t, err.Error(), "top-level env: contains secrets")
-		assert.Contains(t, err.Error(), "${{ secrets.GITHUB_TOKEN }}")
-		assert.Contains(t, err.Error(), "Manual fix required")
-		assert.Contains(t, err.Error(), "https://github.github.com/gh-aw/reference/engines/")
+		require.ErrorContains(t, err, "top-level env: contains secrets")
+		require.ErrorContains(t, err, "${{ secrets.GITHUB_TOKEN }}")
+		require.ErrorContains(t, err, "Manual fix required")
+		require.ErrorContains(t, err, "https://github.github.com/gh-aw/reference/engines/")
 	})
 
 	t.Run("returns deduplicated guided error with multiple secret references", func(t *testing.T) {
@@ -57,7 +57,7 @@ env:
 		_, applied, err := codemod.Apply(content, frontmatter)
 		require.Error(t, err)
 		assert.False(t, applied)
-		assert.Contains(t, err.Error(), "top-level env: contains secrets")
+		require.ErrorContains(t, err, "top-level env: contains secrets")
 		assert.Equal(t, 1, strings.Count(err.Error(), "${{ secrets.GITHUB_PERSONAL_ACCESS_TOKEN || secrets.GITHUB_TOKEN }}"))
 	})
 

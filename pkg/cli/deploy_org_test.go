@@ -15,13 +15,13 @@ import (
 func TestRunDeployForOrgEmptyOrg(t *testing.T) {
 	err := runDeployForOrg(context.Background(), " ", nil, []string{"githubnext/agentics/ci-doctor"}, AddOptions{}, time.Hour, false, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--org cannot be empty")
+	require.ErrorContains(t, err, "--org cannot be empty")
 }
 
 func TestRunDeployForOrgInvalidRepoGlob(t *testing.T) {
 	err := runDeployForOrg(context.Background(), "octo", []string{"["}, []string{"githubnext/agentics/ci-doctor"}, AddOptions{}, time.Hour, false, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid --repos pattern")
+	require.ErrorContains(t, err, "invalid --repos pattern")
 }
 
 func TestRunDeployForOrgCreatePRRequiresYesInCI(t *testing.T) {
@@ -31,7 +31,7 @@ func TestRunDeployForOrgCreatePRRequiresYesInCI(t *testing.T) {
 
 	err := runDeployForOrg(context.Background(), "octo", nil, []string{"githubnext/agentics/ci-doctor"}, AddOptions{}, time.Hour, false, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--yes")
+	require.ErrorContains(t, err, "--yes")
 }
 
 func TestRunDeployForOrgAppliesAcrossRepositories(t *testing.T) {
@@ -77,5 +77,5 @@ func TestRunDeployForOrgReportsFailureWhenAllReposFail(t *testing.T) {
 
 	err := runDeployForOrg(context.Background(), "octo", nil, []string{"githubnext/agentics/ci-doctor"}, AddOptions{}, time.Hour, true, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to deploy workflows to any repository")
+	require.ErrorContains(t, err, "failed to deploy workflows to any repository")
 }

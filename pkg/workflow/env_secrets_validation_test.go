@@ -226,7 +226,7 @@ func TestValidateEnvSecrets(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected an error but got none")
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error but got: %v", err)
@@ -707,7 +707,7 @@ func TestValidateEngineEnvSecrets(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "Expected an error but got none")
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error but got: %v", err)

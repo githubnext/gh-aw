@@ -512,7 +512,7 @@ func TestParseFrontmatterConfig(t *testing.T) {
 					"runs-on": tt.runsOn,
 				})
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errContains)
+				require.ErrorContains(t, err, tt.errContains)
 			})
 		}
 	})

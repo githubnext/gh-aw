@@ -166,7 +166,7 @@ func TestGetCodemods_UnknownDisabledCodemodReturnsError(t *testing.T) {
 	codemods, err := GetCodemods([]string{"not-a-real-codemod"})
 	require.Error(t, err)
 	assert.Nil(t, codemods)
-	assert.Contains(t, err.Error(), "unknown codemod ID(s): not-a-real-codemod")
+	require.ErrorContains(t, err, "unknown codemod ID(s): not-a-real-codemod")
 }
 
 func TestGetAllCodemods_InExpectedOrder(t *testing.T) {
