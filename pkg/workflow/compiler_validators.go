@@ -62,6 +62,10 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	// of the recommended /tmp/gh-aw/agent/ subtree.
 	c.validatePromptTmpPaths(workflowData, markdownPath)
 
+	// Warn when the prompt references list_code_scanning_alerts without the required
+	// bounding parameters (state: open and severity: critical,high).
+	c.validatePromptUnboundedCodeScanningAlerts(workflowData, markdownPath)
+
 	return nil
 }
 
@@ -102,6 +106,43 @@ func warnPromptTmpPaths(content string) string {
 // references /tmp/ or /tmp/gh-aw/ instead of the recommended /tmp/gh-aw/agent/ root.
 func (c *Compiler) validatePromptTmpPaths(workflowData *WorkflowData, markdownPath string) {
 	if msg := warnPromptTmpPaths(workflowData.MarkdownContent); msg != "" {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", msg))
+		c.IncrementWarningCount()
+	}
+}
+
+// codeScanningAlertsNeedle is the MCP tool name to scan for in prompt content.
+const codeScanningAlertsNeedle = "list_code_scanning_alerts"
+
+// codeScanningAlertsStateParam is the required state parameter value.
+const codeScanningAlertsStateParam = "state: open"
+
+// codeScanningAlertsSeverityParam is the required severity parameter value.
+const codeScanningAlertsSeverityParam = "severity: critical,high"
+
+// warnPromptUnboundedCodeScanningAlerts returns a non-empty advisory message when
+// content mentions list_code_scanning_alerts without the required bounding parameters
+// (state: open and severity: critical,high). Unbounded queries produce oversized MCP
+// responses that break downstream workflow runs.
+// Returns an empty string when no problematic pattern is found.
+func warnPromptUnboundedCodeScanningAlerts(content string) string {
+	if !strings.Contains(content, codeScanningAlertsNeedle) {
+		return ""
+	}
+	missingState := !strings.Contains(content, codeScanningAlertsStateParam)
+	missingSeverity := !strings.Contains(content, codeScanningAlertsSeverityParam)
+	if !missingState && !missingSeverity {
+		return ""
+	}
+	return "Prompt calls list_code_scanning_alerts without required bounding parameters. " +
+		"Always include state: open and severity: critical,high to avoid oversized MCP responses. " +
+		"Example: list_code_scanning_alerts with state: open and severity: critical,high."
+}
+
+// validatePromptUnboundedCodeScanningAlerts emits an advisory warning when the workflow
+// markdown body calls list_code_scanning_alerts without state: open and severity: critical,high.
+func (c *Compiler) validatePromptUnboundedCodeScanningAlerts(workflowData *WorkflowData, markdownPath string) {
+	if msg := warnPromptUnboundedCodeScanningAlerts(workflowData.MarkdownContent); msg != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", msg))
 		c.IncrementWarningCount()
 	}

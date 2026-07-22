@@ -697,3 +697,118 @@ func TestValidatePromptTmpPaths(t *testing.T) {
 		})
 	}
 }
+
+// TestWarnPromptUnboundedCodeScanningAlerts tests the pure heuristic that detects
+// list_code_scanning_alerts references without the required bounding parameters.
+func TestWarnPromptUnboundedCodeScanningAlerts(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string
+		expectWarning bool
+		warnContains  string
+	}{
+		{
+			name:          "no mention of list_code_scanning_alerts — no warning",
+			content:       "# Workflow\n\nList open pull requests.",
+			expectWarning: false,
+		},
+		{
+			name:          "mentions tool with both required params — no warning",
+			content:       "Call list_code_scanning_alerts with state: open and severity: critical,high.",
+			expectWarning: false,
+		},
+		{
+			name:          "mentions tool without state: open — warning",
+			content:       "Call list_code_scanning_alerts with severity: critical,high.",
+			expectWarning: true,
+			warnContains:  "state: open",
+		},
+		{
+			name:          "mentions tool without severity: critical,high — warning",
+			content:       "Call list_code_scanning_alerts with state: open.",
+			expectWarning: true,
+			warnContains:  "severity: critical,high",
+		},
+		{
+			name:          "mentions tool without any bounding params — warning",
+			content:       "Use list_code_scanning_alerts to fetch all alerts.",
+			expectWarning: true,
+			warnContains:  "list_code_scanning_alerts",
+		},
+		{
+			name:          "multi-line prompt with both params present — no warning",
+			content:       "# Scan\n\nCall list_code_scanning_alerts.\nUse state: open and severity: critical,high.",
+			expectWarning: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := warnPromptUnboundedCodeScanningAlerts(tt.content)
+			if tt.expectWarning {
+				assert.NotEmpty(t, msg, "expected a warning message")
+				if tt.warnContains != "" {
+					assert.Contains(t, msg, tt.warnContains, "warning should mention the missing parameter")
+				}
+			} else {
+				assert.Empty(t, msg, "expected no warning message")
+			}
+		})
+	}
+}
+
+// TestValidatePromptUnboundedCodeScanningAlerts tests that the compiler method
+// increments the warning counter when the markdown body calls list_code_scanning_alerts
+// without the required bounding parameters.
+func TestValidatePromptUnboundedCodeScanningAlerts(t *testing.T) {
+	tests := []struct {
+		name       string
+		markdown   string
+		expectWarn bool
+	}{
+		{
+			name:       "no code scanning mention — no warning",
+			markdown:   "# Hello\n\nList open issues.",
+			expectWarn: false,
+		},
+		{
+			name:       "properly bounded query — no warning",
+			markdown:   "Call list_code_scanning_alerts with state: open and severity: critical,high.",
+			expectWarn: false,
+		},
+		{
+			name:       "unbounded query — warning",
+			markdown:   "Call list_code_scanning_alerts to fetch all alerts.",
+			expectWarn: true,
+		},
+		{
+			name:       "missing severity only — warning",
+			markdown:   "Use list_code_scanning_alerts with state: open.",
+			expectWarn: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "code-scanning-test")
+			markdownPath := filepath.Join(tmpDir, "workflow.md")
+
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: tt.markdown,
+				AI:              "copilot",
+			}
+
+			before := compiler.GetWarningCount()
+			compiler.validatePromptUnboundedCodeScanningAlerts(workflowData, markdownPath)
+			after := compiler.GetWarningCount()
+
+			if tt.expectWarn {
+				assert.Greater(t, after, before, "warning count should have increased")
+			} else {
+				assert.Equal(t, before, after, "warning count should not have changed")
+			}
+		})
+	}
+}
