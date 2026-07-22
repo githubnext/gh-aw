@@ -162,7 +162,14 @@ func lookupContainerPin(image string, cache *ActionCache) (ContainerPin, bool) {
 
 // resolveContainerImage returns the digest-pinned image reference when a cache or
 // embedded container pin exists for image; otherwise it returns the original image.
+// When data has ContainerPinMappings set (from aw.json container_pins), the source
+// image is first redirected to the mapped replacement before pin resolution.
 func resolveContainerImage(image string, data *WorkflowData) string {
+	// Apply container-pin mapping from aw.json before digest resolution.
+	if data != nil && len(data.ContainerPinMappings) > 0 {
+		pinCtx := data.PinContext()
+		image = actionpins.ApplyContainerPinMapping(image, pinCtx)
+	}
 	var cache *ActionCache
 	if data != nil {
 		cache = data.ActionCache

@@ -195,6 +195,7 @@ type WorkflowData struct {
 	ModelPolicyAllowed             []string                        // merged models.allowed policy list (union across imports + main frontmatter)
 	ModelPolicyBlocked             []string                        // merged models.blocked policy list (union across imports + main frontmatter)
 	ActionPinMappings              map[string]string               // action-pin redirect table from aw.json action_pins: maps "owner/repo@version" → "owner/repo@version"
+	ContainerPinMappings           map[string]string               // container-pin redirect table from aw.json container_pins: maps source image → replacement image
 	Evals                          *EvalsConfig                    // BinEval evaluation configuration parsed from frontmatter evals field
 	ExcludedEnv                    []string                        // additional env var names to exclude from agent container via AWF --exclude-env (from frontmatter excluded-env field)
 }
@@ -210,12 +211,13 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 		d.ActionPinWarnings = make(map[string]bool)
 	}
 	pinCtx := &actionpins.PinContext{
-		Ctx:             d.Ctx,
-		StrictMode:      d.StrictMode,
-		EnforcePinned:   true,
-		AllowActionRefs: d.AllowActionRefs,
-		Warnings:        d.ActionPinWarnings,
-		Mappings:        d.ActionPinMappings,
+		Ctx:               d.Ctx,
+		StrictMode:        d.StrictMode,
+		EnforcePinned:     true,
+		AllowActionRefs:   d.AllowActionRefs,
+		Warnings:          d.ActionPinWarnings,
+		Mappings:          d.ActionPinMappings,
+		ContainerMappings: d.ContainerPinMappings,
 		RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
 			d.ActionResolutionFailures = append(d.ActionResolutionFailures, GHAWManifestResolutionFailure{
 				Repo:      f.Repo,
