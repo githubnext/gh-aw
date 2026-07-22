@@ -10,6 +10,7 @@
 const fs = require("fs");
 const path = require("path");
 const { ERR_CONFIG } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 async function main() {
   const workspace = process.env.GITHUB_WORKSPACE;
@@ -52,8 +53,15 @@ async function main() {
   }
 
   // Get file stats to compare modification times
-  const workflowStat = fs.statSync(workflowMdFile);
-  const lockStat = fs.statSync(lockFile);
+  let workflowStat;
+  let lockStat;
+  try {
+    workflowStat = fs.statSync(workflowMdFile);
+    lockStat = fs.statSync(lockFile);
+  } catch (err) {
+    core.setFailed(`Failed to inspect workflow timestamps: ${getErrorMessage(err)}`);
+    return;
+  }
 
   const workflowMtime = workflowStat.mtime.getTime();
   const lockMtime = lockStat.mtime.getTime();

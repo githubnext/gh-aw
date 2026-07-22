@@ -57,7 +57,13 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
     execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit", cwd: workspaceDir });
     execGitSync(["read-tree", "--empty"], { stdio: "pipe", cwd: workspaceDir });
     // Remove any pre-existing working-tree files (from sparse checkout).
-    for (const entry of fs.readdirSync(workspaceDir)) {
+    let entries;
+    try {
+      entries = fs.readdirSync(workspaceDir);
+    } catch (err) {
+      throw new Error(`Failed to read workspace directory ${workspaceDir}: ${getErrorMessage(err)}`, { cause: err });
+    }
+    for (const entry of entries) {
       if (entry !== ".git") {
         fs.rmSync(path.join(workspaceDir, entry), { recursive: true, force: true });
       }
@@ -108,10 +114,24 @@ async function main() {
   core.info(`Pushing ${stateLabel} to branch "${branchName}" in ${targetRepo}`);
 
   // Collect the JSON files that exist in the state directory.
-  const filesToPush = candidateFiles.filter(name => {
+  /** @type {string[]} */
+  const filesToPush = [];
+  for (const name of candidateFiles) {
     const full = path.join(stateDir, name);
-    return fs.existsSync(full) && fs.statSync(full).isFile();
-  });
+    if (!fs.existsSync(full)) {
+      continue;
+    }
+    let fileInfo;
+    try {
+      fileInfo = fs.statSync(full);
+    } catch (err) {
+      core.setFailed(`Failed to inspect ${stateLabel} file ${full}: ${getErrorMessage(err)}`);
+      return;
+    }
+    if (fileInfo.isFile()) {
+      filesToPush.push(name);
+    }
+  }
 
   if (filesToPush.length === 0) {
     core.info(`No ${stateLabel} files found – nothing to push`);

@@ -318,7 +318,12 @@ async function main() {
    * @param {string} relativePath - Relative path from sourceMemoryPath (for nested files)
    */
   function scanDirectory(dirPath, relativePath = "") {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    let entries;
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    } catch (err) {
+      throw new Error(`Failed to read directory ${dirPath}: ${getErrorMessage(err)}`, { cause: err });
+    }
 
     for (const entry of entries) {
       const fullPath = path.join(dirPath, entry.name);
@@ -329,7 +334,12 @@ async function main() {
         // Recursively scan subdirectory
         scanDirectory(fullPath, relativeFilePath);
       } else if (entry.isFile()) {
-        const stats = fs.statSync(fullPath);
+        let stats;
+        try {
+          stats = fs.statSync(fullPath);
+        } catch (err) {
+          throw new Error(`Failed to inspect file ${fullPath}: ${getErrorMessage(err)}`, { cause: err });
+        }
         const normalizedRelPath = relativeFilePath.replace(/\\/g, "/");
 
         // Validate file name patterns if filter is set
@@ -439,7 +449,12 @@ async function main() {
      * @param {string} dirPath - Directory to scan
      */
     function formatJSONFilesInDir(dirPath) {
-      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      let entries;
+      try {
+        entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      } catch (err) {
+        throw new Error(`Failed to read directory ${dirPath}: ${getErrorMessage(err)}`, { cause: err });
+      }
       for (const entry of entries) {
         const fullPath = path.join(dirPath, entry.name);
         if (entry.isDirectory()) {

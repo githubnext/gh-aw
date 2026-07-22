@@ -501,6 +501,24 @@ describe("safe_outputs_handlers", () => {
       expect(fs.readFileSync(stagedPath, "utf8")).toBe("original");
     });
 
+    it("should wrap staging copy failures for absolute-path files", () => {
+      const srcFile = path.join(testWorkspaceDir, "copy-fail.png");
+      fs.writeFileSync(srcFile, "png data");
+      const originalCopyFileSync = fs.copyFileSync;
+      const copySpy = vi.spyOn(fs, "copyFileSync").mockImplementation((source, destination, mode) => {
+        if (source === srcFile) {
+          throw new Error("disk full");
+        }
+        return originalCopyFileSync.call(fs, source, destination, mode);
+      });
+
+      try {
+        expect(() => handlers.uploadArtifactHandler({ path: srcFile })).toThrow(`Failed to copy file ${srcFile} to ${path.join(testStagingDir, "gh-aw", "safeoutputs", "upload-artifacts", "copy-fail.png")}: disk full`);
+      } finally {
+        copySpy.mockRestore();
+      }
+    });
+
     it("should pass through relative path without copying to staging", () => {
       // Relative paths reference files already in staging - no copy needed
       const result = handlers.uploadArtifactHandler({ path: "already-staged.png" });

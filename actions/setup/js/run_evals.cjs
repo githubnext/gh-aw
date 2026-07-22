@@ -34,6 +34,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { resolveModelWithFallback } = require("./model_fallback.cjs");
 
@@ -81,7 +82,12 @@ async function setupMain() {
   const agentOutputPath = path.join(EVALS_DIR, AGENT_OUTPUT_FILENAME);
   let agentOutputContent = "";
   if (fs.existsSync(agentOutputPath)) {
-    const stats = fs.statSync(agentOutputPath);
+    let stats;
+    try {
+      stats = fs.statSync(agentOutputPath);
+    } catch (err) {
+      throw new Error(`Failed to inspect file ${agentOutputPath}: ${getErrorMessage(err)}`, { cause: err });
+    }
     try {
       agentOutputContent = fs.readFileSync(agentOutputPath, "utf-8");
     } catch (err) {

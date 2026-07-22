@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { getErrorMessage } = require("./error_helpers.cjs");
 
 const COMMENT_MEMORY_TAG = "gh-aw-comment-memory";
 const COMMENT_MEMORY_DIR = "/tmp/gh-aw/comment-memory";
@@ -118,15 +119,19 @@ function listCommentMemoryFiles(memoryDir = COMMENT_MEMORY_DIR) {
     return [];
   }
 
-  return fs
-    .readdirSync(memoryDir)
-    .filter(file => file.endsWith(COMMENT_MEMORY_EXTENSION))
-    .sort()
-    .map(file => ({
-      memoryId: file.slice(0, -COMMENT_MEMORY_EXTENSION.length),
-      filePath: path.join(memoryDir, file),
-    }))
-    .filter(entry => isSafeMemoryId(entry.memoryId));
+  try {
+    return fs
+      .readdirSync(memoryDir)
+      .filter(file => file.endsWith(COMMENT_MEMORY_EXTENSION))
+      .sort()
+      .map(file => ({
+        memoryId: file.slice(0, -COMMENT_MEMORY_EXTENSION.length),
+        filePath: path.join(memoryDir, file),
+      }))
+      .filter(entry => isSafeMemoryId(entry.memoryId));
+  } catch (err) {
+    throw new Error(`Failed to read comment-memory directory ${memoryDir}: ${getErrorMessage(err)}`, { cause: err });
+  }
 }
 
 function resolveCommentMemoryConfig(config) {

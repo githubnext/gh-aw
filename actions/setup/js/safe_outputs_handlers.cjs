@@ -194,7 +194,13 @@ function resolvePatchWorkspacePath(workspacePath) {
   if (!fs.existsSync(resolved)) {
     return { success: false, error: `Invalid patch_workspace_path '${candidatePath}': directory does not exist` };
   }
-  if (!fs.statSync(resolved).isDirectory()) {
+  let resolvedStats;
+  try {
+    resolvedStats = fs.statSync(resolved);
+  } catch (err) {
+    return { success: false, error: `Failed to inspect patch_workspace_path '${candidatePath}': ${getErrorMessage(err)}` };
+  }
+  if (!resolvedStats.isDirectory()) {
     return { success: false, error: `Invalid patch_workspace_path '${candidatePath}': path is not a directory` };
   }
   return { success: true, absolutePath: resolved };
@@ -427,7 +433,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
 
     // Get file stats
-    const stats = fs.statSync(filePath);
+    let stats;
+    try {
+      stats = fs.statSync(filePath);
+    } catch (err) {
+      throw new Error(`Failed to inspect file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
+    }
     const sizeBytes = stats.size;
     const sizeKB = Math.ceil(sizeBytes / 1024);
 
@@ -482,7 +493,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     // Copy file to assets directory with original name
     const targetPath = path.join(assetsDir, fileName);
-    fs.copyFileSync(filePath, targetPath);
+    try {
+      fs.copyFileSync(filePath, targetPath);
+    } catch (err) {
+      throw new Error(`Failed to copy file ${filePath} to ${targetPath}: ${getErrorMessage(err)}`, { cause: err });
+    }
 
     // Generate target filename as sha + extension (lowercased)
     const targetFileName = (sha + fileExt).toLowerCase();
@@ -1548,7 +1563,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
      * @param {string} relativePath
      */
     function scanDir(dirPath, relativePath) {
-      const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      let entries;
+      try {
+        entries = fs.readdirSync(dirPath, { withFileTypes: true });
+      } catch (err) {
+        throw new Error(`Failed to read directory ${dirPath}: ${getErrorMessage(err)}`, { cause: err });
+      }
       for (const entry of entries) {
         // Skip .git directory to avoid counting git metadata as memory content.
         // The memory directory is a git clone, so .git may contain pack files that
@@ -1561,7 +1581,12 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         if (entry.isDirectory()) {
           scanDir(fullPath, relPath);
         } else if (entry.isFile()) {
-          const stats = fs.statSync(fullPath);
+          let stats;
+          try {
+            stats = fs.statSync(fullPath);
+          } catch (err) {
+            throw new Error(`Failed to inspect file ${fullPath}: ${getErrorMessage(err)}`, { cause: err });
+          }
           files.push({ relativePath: relPath.replace(/\\/g, "/"), size: stats.size });
         }
       }
@@ -2018,13 +2043,23 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         throw new Error(`Failed to create directory ${destDir}: ${String(err)}`, { cause: err });
       }
     }
-    for (const ent of fs.readdirSync(srcDir, { withFileTypes: true })) {
+    let entries;
+    try {
+      entries = fs.readdirSync(srcDir, { withFileTypes: true });
+    } catch (err) {
+      throw new Error(`Failed to read directory ${srcDir}: ${getErrorMessage(err)}`, { cause: err });
+    }
+    for (const ent of entries) {
       const srcPath = path.join(srcDir, ent.name);
       const destPath = path.join(destDir, ent.name);
       if (ent.isDirectory()) {
         copyDirectoryRecursive(srcPath, destPath);
       } else if (ent.isFile() && !ent.isSymbolicLink() && !fs.existsSync(destPath)) {
-        fs.copyFileSync(srcPath, destPath);
+        try {
+          fs.copyFileSync(srcPath, destPath);
+        } catch (err) {
+          throw new Error(`Failed to copy file ${srcPath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
+        }
       }
       // Skip symlinks, sockets, pipes, block/char devices — non-regular file types.
     }
@@ -2089,7 +2124,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       } else {
         const destPath = path.join(stagingDir, destName);
         if (!fs.existsSync(destPath)) {
-          fs.copyFileSync(filePath, destPath);
+          try {
+            fs.copyFileSync(filePath, destPath);
+          } catch (err) {
+            throw new Error(`Failed to copy file ${filePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
+          }
         }
       }
 
