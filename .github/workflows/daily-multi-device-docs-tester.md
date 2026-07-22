@@ -34,7 +34,7 @@ tools:
   cli-proxy: true
   github:
     mode: gh-proxy
-  timeout: 120  # Multi-device runs include docs build + preview startup
+  timeout: 120  # Multi-device runs include preview startup and Playwright tests
   playwright:
     mode: cli
   bash:
@@ -98,6 +98,13 @@ pre-agent-steps:
       else
         echo "chrome-sandbox not found — skipping"
       fi
+  - name: Install and build docs
+    env:
+      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
+    run: |
+      cd "$EXPR_GITHUB_WORKSPACE/docs"
+      npm install
+      npm run build
 features:
   gh-aw-detection: true
 ---
@@ -129,14 +136,12 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 
 Start the documentation preview server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
-## Step 1: Install Dependencies and Start Server
+## Step 1: Start Server
 
-Install the docs dependencies, build the site, and start the Astro preview server inside this container:
+The docs dependencies are already installed and the site is already built. Start the Astro preview server inside this container:
 
 ```bash
 cd "${{ github.workspace }}/docs"
-npm install
-npm run build
 LOG_FILE="/tmp/docs-server.log"
 nohup npm run preview -- --port 4321 > "$LOG_FILE" 2>&1 &
 echo "Server PID: $!, log: $LOG_FILE"
