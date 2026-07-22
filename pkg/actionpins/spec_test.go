@@ -83,6 +83,7 @@ func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.wantPanic != "" {
+				assert.Empty(t, tt.expected, "test case %q: wantPanic and expected are mutually exclusive", tt.name)
 				require.PanicsWithValue(t, tt.wantPanic, func() {
 					actionpins.FormatPinnedActionReference(tt.repo, tt.sha, tt.version)
 				})
