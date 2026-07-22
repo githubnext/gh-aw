@@ -1,0 +1,4 @@
+persona: subset-reed
+strategy: staged-subset+line-ending-variant
+item: 1
+item: 2
