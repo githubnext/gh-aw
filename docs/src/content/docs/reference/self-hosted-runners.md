@@ -196,13 +196,13 @@ Keys and values must use the `owner/repo@ref` format. Each source version must b
 ```json title=".github/workflows/aw.json"
 {
   "container_pins": {
-    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22",
-    "node:lts-alpine": "registry.acme.com/node:lts-alpine"
+    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
   }
 }
 ```
 
-Keys are source image references as they appear in compiled workflows. Values are replacement image references; digest-pinned values (e.g. `registry.acme.com/image:tag@sha256:...`) are supported. If the replacement image has a corresponding entry in the local pin cache (`.github/aw/actions-lock.json`), the cached digest is used automatically.
+Keys are source image references as they appear in compiled workflows. Values must be immutable SHA-256 digest-pinned replacement references using `registry/image:tag@sha256:<64 lowercase hex characters>`.
 
 ### Combined example
 
@@ -212,7 +212,7 @@ Keys are source image references as they appear in compiled workflows. Values ar
     "actions/checkout@v4": "acme-corp/checkout-mirror@v4"
   },
   "container_pins": {
-    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22"
+    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
   }
 }
 ```

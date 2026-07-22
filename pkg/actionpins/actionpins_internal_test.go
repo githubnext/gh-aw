@@ -716,9 +716,10 @@ func TestApplyActionPinMapping(t *testing.T) {
 	}
 }
 
-// TestApplyContainerPinMapping verifies the redirect, miss, empty-value, and
+// TestApplyContainerPinMapping verifies the redirect, miss, invalid-value, and
 // deduplication behaviour of ApplyContainerPinMapping.
 func TestApplyContainerPinMapping(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	tests := []struct {
 		name                    string
 		image                   string
@@ -731,7 +732,7 @@ func TestApplyContainerPinMapping(t *testing.T) {
 		{
 			name:                    "miss - no mapping for image",
 			image:                   "ghcr.io/owner/image:latest",
-			mappings:                map[string]string{"other.registry.io/image:latest": "registry.acme.com/image:latest"},
+			mappings:                map[string]string{"other.registry.io/image:latest": "registry.acme.com/image:latest@sha256:" + digest},
 			wantImage:               "ghcr.io/owner/image:latest",
 			wantMappingNotification: false,
 			wantMapNotificationKeys: 0,
@@ -739,16 +740,16 @@ func TestApplyContainerPinMapping(t *testing.T) {
 		{
 			name:                    "hit - mapping applied",
 			image:                   "ghcr.io/github/gh-aw-firewall:0.27.22",
-			mappings:                map[string]string{"ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22"},
-			wantImage:               "registry.acme.com/gh-aw-firewall:0.27.22",
+			mappings:                map[string]string{"ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:" + digest},
+			wantImage:               "registry.acme.com/gh-aw-firewall:0.27.22@sha256:" + digest,
 			wantMappingNotification: true,
 			wantMapNotificationKeys: 1,
 		},
 		{
 			name:                    "digest-pinned replacement value",
 			image:                   "node:lts-alpine",
-			mappings:                map[string]string{"node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abc123"},
-			wantImage:               "registry.acme.com/node:lts-alpine@sha256:abc123",
+			mappings:                map[string]string{"node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:" + digest},
+			wantImage:               "registry.acme.com/node:lts-alpine@sha256:" + digest,
 			wantMappingNotification: true,
 			wantMapNotificationKeys: 1,
 		},
@@ -756,6 +757,22 @@ func TestApplyContainerPinMapping(t *testing.T) {
 			name:                    "empty value - mapping skipped",
 			image:                   "ghcr.io/owner/image:v1",
 			mappings:                map[string]string{"ghcr.io/owner/image:v1": ""},
+			wantImage:               "ghcr.io/owner/image:v1",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:                    "tag-only value - mapping skipped",
+			image:                   "ghcr.io/owner/image:v1",
+			mappings:                map[string]string{"ghcr.io/owner/image:v1": "registry.acme.com/image:v1"},
+			wantImage:               "ghcr.io/owner/image:v1",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:                    "short digest - mapping skipped",
+			image:                   "ghcr.io/owner/image:v1",
+			mappings:                map[string]string{"ghcr.io/owner/image:v1": "registry.acme.com/image:v1@sha256:abc123"},
 			wantImage:               "ghcr.io/owner/image:v1",
 			wantMappingNotification: false,
 			wantMapNotificationKeys: 0,
@@ -779,9 +796,9 @@ func TestApplyContainerPinMapping(t *testing.T) {
 		{
 			name:                    "deduplication - notification emitted only once",
 			image:                   "ghcr.io/github/gh-aw-firewall:0.27.22",
-			mappings:                map[string]string{"ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22"},
+			mappings:                map[string]string{"ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:" + digest},
 			repeat:                  3,
-			wantImage:               "registry.acme.com/gh-aw-firewall:0.27.22",
+			wantImage:               "registry.acme.com/gh-aw-firewall:0.27.22@sha256:" + digest,
 			wantMappingNotification: true,
 			wantMapNotificationKeys: 1,
 		},

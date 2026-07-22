@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"maps"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 	"sync"
@@ -23,6 +24,7 @@ import (
 )
 
 var actionPinsLog = logger.New("actionpins:actionpins")
+var containerDigestPinPattern = regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*@sha256:[a-f0-9]{64}$`)
 
 //go:embed data/action_pins.json
 var actionPinsJSON []byte
@@ -569,8 +571,8 @@ func ApplyContainerPinMapping(image string, ctx *PinContext) string {
 		return image
 	}
 
-	if mapped == "" {
-		actionPinsLog.Printf("Invalid container_pins mapping value for key %q (must be non-empty); skipping", image)
+	if !containerDigestPinPattern.MatchString(mapped) {
+		actionPinsLog.Printf("Invalid container_pins mapping value %q for key %q (must be pinned with @sha256:<64 lowercase hex characters>); skipping", mapped, image)
 		return image
 	}
 

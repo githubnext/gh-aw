@@ -39,21 +39,20 @@ A console message is emitted once per mapped key during compilation:
 ```json title=".github/workflows/aw.json"
 {
   "container_pins": {
-    "ghcr.io/actions/runner:latest": "registry.acme.com/runner:latest",
-    "node:lts-alpine": "registry.acme.com/node:lts-alpine"
+    "ghcr.io/actions/runner:latest": "registry.acme.com/runner:latest@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
   }
 }
 ```
 
 **Key requirements:**
 - Keys are source image references as they appear in compiled workflows (e.g. `image:tag`, `registry/image:tag`).
-- Values are the replacement image references. Digest-pinned values (e.g. `registry.acme.com/image:tag@sha256:...`) are supported.
-- If the replacement image has a corresponding entry in the local pin cache (`.github/aw/actions-lock.json`), the cached digest is used for the replacement.
+- Values must be immutable SHA-256 digest-pinned replacement references using `registry/image:tag@sha256:<64 lowercase hex characters>`.
 
 A console message is emitted once per mapped key during compilation:
 
 ```
-ℹ Container pin mapping applied: ghcr.io/actions/runner:latest → registry.acme.com/runner:latest
+ℹ Container pin mapping applied: ghcr.io/actions/runner:latest → registry.acme.com/runner:latest@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 ```
 
 ## Combined example
@@ -65,8 +64,8 @@ A console message is emitted once per mapped key during compilation:
     "actions/setup-node@v4": "acme-corp/setup-node-mirror@v4"
   },
   "container_pins": {
-    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22",
-    "node:lts-alpine": "registry.acme.com/node:lts-alpine"
+    "ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+    "node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
   }
 }
 ```

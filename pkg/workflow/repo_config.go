@@ -16,7 +16,7 @@
 //	    "actions/checkout@v4": "acme-corp/checkout@v4"
 //	  },
 //	  "container_pins": {         // redirect container images to internal mirrors
-//	    "ghcr.io/owner/image:tag": "registry.acme.com/image:tag"
+//	    "ghcr.io/owner/image:tag": "registry.acme.com/image:tag@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 //	  },
 //	  "maintenance": {              // enables generation of agentics-maintenance.yml
 //	    "runs_on": "custom runner", // string or string[] – runner label(s) for all

@@ -134,6 +134,44 @@ func TestLoadRepoConfig_SchemaViolation(t *testing.T) {
 	assert.Error(t, err, "schema violation should return an error")
 }
 
+func TestLoadRepoConfig_ContainerPinsRequireSHA256Digest(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	tests := []struct {
+		name    string
+		mapping string
+		wantErr bool
+	}{
+		{
+			name:    "digest-pinned replacement accepted",
+			mapping: `"registry.acme.com/image:v1@sha256:` + digest + `"`,
+		},
+		{
+			name:    "tag-only replacement rejected",
+			mapping: `"registry.acme.com/image:v1"`,
+			wantErr: true,
+		},
+		{
+			name:    "short digest rejected",
+			mapping: `"registry.acme.com/image:v1@sha256:abc123"`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeAWJSON(t, dir, `{"container_pins":{"ghcr.io/owner/image:v1":`+tt.mapping+`}}`)
+
+			_, err := LoadRepoConfig(dir)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestLoadRepoConfig_LabelTriggersDisable(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"maintenance": {"label_triggers": false}}`)

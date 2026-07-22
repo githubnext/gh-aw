@@ -20,12 +20,12 @@
       }
     },
     "container_pins": {
-      "description": "Mapping of container image references to replacement image references. Enables enterprises running in a private cloud to redirect container images to internal mirrors. Keys are source image references (e.g. 'ghcr.io/owner/image:tag') and values are replacement image references. Digest-pinned replacement images (using '@sha256:…') are supported.",
+      "description": "Mapping of container image references to SHA-256 digest-pinned replacement image references. Enables enterprises running in a private cloud to redirect container images to internal mirrors. Keys are source image references (e.g. 'ghcr.io/owner/image:tag') and values must use an immutable '@sha256:<64 lowercase hex characters>' digest.",
       "type": "object",
       "additionalProperties": {
         "type": "string",
-        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.@-]*$",
-        "description": "Replacement container image reference to use instead of the source image. May include a digest pin (e.g. 'registry.acme.com/image:tag@sha256:…')."
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*@sha256:[a-f0-9]{64}$",
+        "description": "SHA-256 digest-pinned replacement container image reference to use instead of the source image (e.g. 'registry.acme.com/image:tag@sha256:<64 lowercase hex characters>')."
       },
       "propertyNames": {
         "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.@-]*$"
