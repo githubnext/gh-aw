@@ -76,6 +76,7 @@ safe-outputs:
     close-older-issues: true
     max: 1
   noop:
+max-ai-credits: 1500
 timeout-minutes: 60
 strict: true
 network:
