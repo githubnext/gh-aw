@@ -171,16 +171,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	claudeLog.Printf("Generating execution steps for Claude engine: workflow=%s, firewall=%v", workflowData.Name, isFirewallEnabled(workflowData))
 
 	var steps []GitHubActionStep
-
-	// Build claude CLI arguments based on configuration
-	var claudeArgs []string
 	toolsWithMountedCLIs := withMountedCLIShellCommandsInRestrictedBash(workflowData)
-
-	// Add print flag for non-interactive mode
-	claudeArgs = append(claudeArgs, "--print")
-
-	// Disable Chrome integration for security and deterministic execution
-	claudeArgs = append(claudeArgs, "--no-chrome")
 
 	// Model is always passed via the native ANTHROPIC_MODEL environment variable when configured.
 	// This avoids embedding the value directly in the shell command (which fails template injection
@@ -188,45 +179,97 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// Fallback for unconfigured model uses GH_AW_MODEL_AGENT_CLAUDE with shell expansion.
 	modelConfigured := workflowData.Model != ""
 
-	// Add max_turns if specified (in CLI it's max-turns)
+	claudeArgs, mcpConfigArg, allowedTools := e.buildClaudeCliArgs(workflowData, toolsWithMountedCLIs, logFile)
+
+	claudeCommand := e.buildClaudeCommandString(workflowData, claudeArgs, mcpConfigArg, modelConfigured)
+
+	// Build the full command based on whether firewall is enabled
+	command := e.buildClaudeFullCommand(workflowData, claudeCommand, logFile)
+
+	// Build environment variables map
+	env := e.buildClaudeCommandEnv(workflowData)
+
+	// Generate the step for Claude CLI execution
+	var stepLines []string
+	stepLines = append(stepLines, "      - name: Execute Claude Code CLI")
+	stepLines = append(stepLines, "        id: agentic_execution")
+
+	// Add allowed tools comment before the run section.
+	// Reuse the already-computed allowedTools string (computed earlier for --allowed-tools flag)
+	// to avoid redundant allocations from calling computeAllowedClaudeToolsString twice.
+	if allowedToolsComment := e.generateAllowedToolsComment(allowedTools, "        "); allowedToolsComment != "" {
+		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")
+		stepLines = append(stepLines, commentLines...)
+	}
+
+	// Add timeout at step level (GitHub Actions standard)
+	if workflowData.TimeoutMinutes != "" {
+		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
+		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
+	} else {
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute)))
+	}
+
+	// Filter environment variables to only include allowed secrets.
+	// This is a security measure to prevent exposing unnecessary secrets to the AWF container.
+	filteredEnv := FilterEnvForSecrets(env, e.GetRequiredSecretNames(workflowData))
+
+	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special
+	// fallback expression that is always allowed when cli-proxy is enabled)
+	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
+
+	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
+	steps = append(steps, GitHubActionStep(stepLines))
+	return steps
+}
+
+// buildClaudeCliArgs constructs the Claude CLI argument list and returns the args,
+// the --mcp-config argument (kept outside shellJoinArgs for runtime ${RUNNER_TEMP} expansion),
+// and the allowed-tools string (reused for the comment annotation).
+func (e *ClaudeEngine) buildClaudeCliArgs(workflowData *WorkflowData, toolsWithMountedCLIs map[string]any, logFile string) (claudeArgs []string, mcpConfigArg string, allowedTools string) {
+	claudeArgs = append(claudeArgs, "--print", "--no-chrome")
+
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.MaxTurns != "" {
 		claudeLog.Printf("Setting max turns: %s", workflowData.EngineConfig.MaxTurns)
 		claudeArgs = append(claudeArgs, "--max-turns", workflowData.EngineConfig.MaxTurns)
 	}
 
-	// Add MCP configuration only if there are MCP servers.
-	// Keep this argument outside shellJoinArgs so ${RUNNER_TEMP} expands at runtime.
-	mcpConfigArg := ""
+	// Keep --mcp-config outside shellJoinArgs so ${RUNNER_TEMP} expands at runtime.
 	if HasMCPServers(workflowData) {
 		claudeLog.Print("Adding MCP configuration")
 		mcpConfigArg = ` --mcp-config "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"`
 	}
 
-	// Add allowed tools configuration
-	// Note: Claude Code CLI v2.0.31 introduced a simpler --tools flag, but we continue to use
-	// --allowed-tools because it provides fine-grained control needed by gh-aw:
-	// - Specific bash commands: Bash(git:*), Bash(ls)
-	// - MCP tool prefixes: mcp__github__issue_read
-	// - Path-specific tools: Read(/tmp/gh-aw/cache-memory/*)
-	// The --tools flag only supports basic tool names (e.g., "Bash,Edit,Read") without patterns.
-	allowedTools := e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
+	// Note: we use --allowed-tools (not the simpler --tools from v2.0.31+) because it provides
+	// fine-grained control: Bash(git:*), MCP tool prefixes, path-specific tools, etc.
+	allowedTools = e.computeAllowedClaudeToolsString(toolsWithMountedCLIs, workflowData.SafeOutputs, workflowData.CacheMemoryConfig, workflowData.MCPScripts, workflowData.SandboxConfig)
 	if allowedTools != "" {
 		claudeArgs = append(claudeArgs, "--allowed-tools", allowedTools)
 	}
 
-	// Add debug-file flag to write debug logs directly to file
-	// This implicitly enables debug mode and provides cleaner, more reliable log capture
-	// than shell redirection with 2>&1 | tee
-	claudeArgs = append(claudeArgs, "--debug-file", logFile)
+	// --debug-file implicitly enables debug mode and captures logs more reliably than 2>&1 | tee.
+	claudeArgs = append(claudeArgs, "--debug-file", logFile, "--verbose")
 
-	// Always add verbose flag for enhanced debugging output
-	claudeArgs = append(claudeArgs, "--verbose")
+	permissionMode := resolveClaudePermissionMode(workflowData)
+	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
+	permissionModeValueIndex := len(claudeArgs) - 1
 
-	// Add permission mode for non-interactive execution.
-	//
-	// Default to "acceptEdits" so Claude Code honours --allowed-tools as the effective
-	// MCP tool boundary. Workflows that explicitly set tools.edit=false default to
-	// "auto" because they don't rely on acceptEdits write auto-approval behavior.
+	// stream-json outputs JSONL, compatible with the log parser.
+	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
+
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
+		claudeLog.Print("Bare mode enabled: adding --bare")
+		claudeArgs = append(claudeArgs, "--bare")
+	}
+
+	claudeArgs = appendClaudeCustomEngineArgs(claudeArgs, permissionModeValueIndex, workflowData)
+
+	return claudeArgs, mcpConfigArg, allowedTools
+}
+
+// resolveClaudePermissionMode returns the --permission-mode value to use, applying any
+// engine-level overrides. The default is "acceptEdits" unless tools.edit=false ("auto").
+func resolveClaudePermissionMode(workflowData *WorkflowData) string {
 	permissionMode := "acceptEdits"
 	if isEditToolExplicitlyDisabled(workflowData.Tools) {
 		claudeLog.Print("tools.edit=false detected: using auto permission mode")
@@ -236,62 +279,50 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		permissionMode = workflowData.EngineConfig.PermissionMode
 		claudeLog.Printf("Using engine.permission-mode override: %s", permissionMode)
 	}
-	claudeArgs = append(claudeArgs, "--permission-mode", permissionMode)
-	permissionModeValueIndex := len(claudeArgs) - 1
+	return permissionMode
+}
 
-	// Add output format for structured output
-	// Use "stream-json" to output JSONL format (newline-delimited JSON objects)
-	// This format is compatible with the log parser which expects either JSON array or JSONL
-	claudeArgs = append(claudeArgs, "--output-format", "stream-json")
-
-	// Add --bare when bare mode is enabled to suppress automatic loading of memory
-	// files (CLAUDE.md, ~/.claude/) and other context injections.
-	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Bare {
-		claudeLog.Print("Bare mode enabled: adding --bare")
-		claudeArgs = append(claudeArgs, "--bare")
+// appendClaudeCustomEngineArgs appends engine.args to claudeArgs, applying any
+// legacy --permission-mode override found in the custom args.
+func appendClaudeCustomEngineArgs(claudeArgs []string, permissionModeValueIndex int, workflowData *WorkflowData) []string {
+	if workflowData.EngineConfig == nil || len(workflowData.EngineConfig.Args) == 0 {
+		return claudeArgs
 	}
-
-	// Add custom args from engine configuration before the prompt.
-	// Strip any user-supplied --permission-mode flags so exactly one flag is emitted.
-	if workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Args) > 0 {
-		// stripClaudePermissionModeArgs returns an empty permission-mode string when no
-		// override flag is present.
-		engineArgs, permissionModeFromArgs := stripClaudePermissionModeArgs(workflowData.EngineConfig.Args)
-		if permissionModeFromArgs != "" && workflowData.EngineConfig.PermissionMode == "" {
-			claudeLog.Printf("Using legacy engine.args permission mode override: %s", permissionModeFromArgs)
-			claudeArgs[permissionModeValueIndex] = permissionModeFromArgs
-		}
-		claudeArgs = append(claudeArgs, engineArgs...)
+	// stripClaudePermissionModeArgs returns an empty string when no override flag is present.
+	engineArgs, permissionModeFromArgs := stripClaudePermissionModeArgs(workflowData.EngineConfig.Args)
+	if permissionModeFromArgs != "" && workflowData.EngineConfig.PermissionMode == "" {
+		claudeLog.Printf("Using legacy engine.args permission mode override: %s", permissionModeFromArgs)
+		claudeArgs[permissionModeValueIndex] = permissionModeFromArgs
 	}
+	return append(claudeArgs, engineArgs...)
+}
 
-	// The prompt is always read from prompt.txt, which is assembled by the compiler in the
-	// activation job.  For engines that do not support native agent-file handling (including
-	// Claude), the compiler prepends the agent file content to prompt.txt so no special
-	// shell variable juggling is needed here.
-
-	// Determine which command to use
-	var commandName string
+// buildClaudeCommandString assembles the claude shell command string from the given args.
+// When model is not configured, appends the shell-expansion model-fallback suffix.
+func (e *ClaudeEngine) buildClaudeCommandString(workflowData *WorkflowData, claudeArgs []string, mcpConfigArg string, modelConfigured bool) string {
+	// Determine which command to use.
+	commandName := "claude" // PATH is inherited via --env-all in AWF mode
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		commandName = workflowData.EngineConfig.Command
 		claudeLog.Printf("Using custom command: %s", commandName)
-	} else {
-		// Use regular claude command - PATH is inherited via --env-all in AWF mode
-		commandName = "claude"
 	}
 
 	// Determine harness script to wrap claude execution.
 	// The built-in harness provides retry logic for transient Anthropic API errors
-	// (overload, rate limit).  A custom engine.harness overrides the built-in one.
+	// (overload, rate limit). A custom engine.harness overrides the built-in one.
 	harnessScriptName := e.GetHarnessScriptName()
 	if workflowData.EngineConfig != nil && workflowData.EngineConfig.HarnessScript != "" {
 		harnessScriptName = workflowData.EngineConfig.HarnessScript
 		claudeLog.Printf("Using custom harness script: %s", harnessScriptName)
 	}
 
+	// The prompt is always read from prompt.txt, assembled by the compiler in the activation job.
+	// For engines that do not support native agent-file handling (including Claude), the compiler
+	// prepends the agent file content to prompt.txt so no special shell variable juggling is needed.
 	var claudeCommand string
 	if harnessScriptName != "" {
 		// Harness-wrapped execution: the harness reads --prompt-file and passes its content
-		// as the last positional arg on the initial run.  On --continue retries it omits the
+		// as the last positional arg on the initial run. On --continue retries it omits the
 		// prompt so Claude Code resumes from its on-disk session state.
 		// The harness sets cwd=GITHUB_WORKSPACE when spawning the claude process, so no
 		// shell-level cd prefix is needed.
@@ -300,7 +331,6 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	} else {
 		// Without harness: use shell expansion for the prompt (no retry logic).
 		// Apply workspace prefix here since there is no JS harness to set the cwd.
-		//
 		// The prompt command is appended raw after shellJoinArgs because it contains
 		// shell variable references ("$(cat ...)") that must NOT be escaped —
 		// single-quoting them would prevent shell expansion at runtime.
@@ -310,8 +340,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 
 	// When model is not configured, use the GH_AW_MODEL_AGENT_CLAUDE fallback env var
 	// via shell expansion so users can set a default via GitHub Actions variables.
-	// When model IS configured, ANTHROPIC_MODEL is set in the env block (see below) and the
-	// Claude CLI reads it natively - no --model flag in the shell command needed.
+	// When model IS configured, ANTHROPIC_MODEL is set in the env block and the Claude CLI
+	// reads it natively — no --model flag in the shell command needed.
 	if !modelConfigured {
 		isDetectionJob := workflowData.SafeOutputs == nil
 		var modelEnvVar string
@@ -323,8 +353,12 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		claudeCommand = fmt.Sprintf(`%s${%s:+ --model "$%s"}`, claudeCommand, modelEnvVar, modelEnvVar)
 	}
 
-	// Build the full command based on whether firewall is enabled
-	var command string
+	return claudeCommand
+}
+
+// buildClaudeFullCommand wraps the claude command with the AWF firewall wrapper (when enabled)
+// or formats it as a plain bash command (when the firewall is disabled).
+func (e *ClaudeEngine) buildClaudeFullCommand(workflowData *WorkflowData, claudeCommand string, logFile string) string {
 	if isFirewallEnabled(workflowData) {
 		// Get allowed domains: prefer the pre-warmed cache on WorkflowData (populated by
 		// computeAllowedDomainsForSanitization before GetExecutionSteps is called) to avoid
@@ -340,8 +374,8 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			allowedDomains = mergeAPITargetDomains(allowedDomains, workflowData.EngineConfig.APITarget)
 		}
 
-		// Build AWF command with all configuration
-		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries
+		// Build AWF command with all configuration.
+		// AWF v0.15.0+ uses chroot mode by default, providing transparent access to host binaries.
 		// AWF with --enable-chroot and --env-all handles most PATH setup natively:
 		// - GOROOT, JAVA_HOME, etc. are handled via AWF_HOST_PATH and entrypoint.sh
 		// However, npm-installed CLIs (like claude) need hostedtoolcache bin directories in PATH.
@@ -356,7 +390,7 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			claudeCommandWithPath = fmt.Sprintf("%s && %s", mcpCLIPath, claudeCommandWithPath)
 		}
 
-		command = BuildAWFCommand(AWFCommandConfig{
+		return BuildAWFCommand(AWFCommandConfig{
 			EngineName:     "claude",
 			EngineCommand:  claudeCommandWithPath, // Command with npm PATH setup runs inside AWF
 			LogFile:        logFile,
@@ -368,52 +402,30 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			// cannot read raw token values via bash tools (env / printenv).
 			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, llmProviderSecretNames(e.ResolveLLMProvider(workflowData))),
 		})
-	} else {
-		// Run Claude command without AWF wrapper
-		// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout
-		// Use tee to capture stdout (stream-json output) to the log file while also displaying on console
-		// The combined output (debug logs + JSON) will be in the log file for parsing
-		// PATH is already set correctly by actions/setup-* steps which prepend to PATH
-		command = fmt.Sprintf(`set -o pipefail
+	}
+
+	// Run Claude command without AWF wrapper.
+	// Note: Claude Code CLI writes debug logs to --debug-file and JSON output to stdout.
+	// Use tee to capture stdout (stream-json output) to the log file while also displaying on console.
+	// The combined output (debug logs + JSON) will be in the log file for parsing.
+	// PATH is already set correctly by actions/setup-* steps which prepend to PATH.
+	return fmt.Sprintf(`set -o pipefail
           printf '%%s' "$(date +%%s%%3N)" > %s
           touch %s
           (umask 177 && touch %s)
           # Execute Claude Code CLI with prompt from file
           %s 2>&1 | tee -a %s`, AgentCLIStartMsPath, AgentStepSummaryPath, logFile, claudeCommand, logFile)
-	}
+}
 
-	// Build environment variables map
+// buildClaudeCommandEnv builds the environment variable map for the Claude execution step.
+func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[string]string {
 	provider := e.ResolveLLMProvider(workflowData)
-	env := map[string]string{
-		"ANTHROPIC_API_KEY":       llmProviderSecretExpression(provider, workflowData),
-		"DISABLE_TELEMETRY":       "1",
-		"DISABLE_ERROR_REPORTING": "1",
-		"DISABLE_BUG_COMMAND":     "1",
-		// Disable Claude Code's "fast mode" feature. Fast mode requires the
-		// server-side flagSettings.fastMode feature flag, which is not available
-		// in Agent SDK contexts (non-interactive --print sessions). Without this,
-		// Claude Code 2.1.120+ attempts to enable fast mode and fails with
-		// "Fast mode unavailable: Fast mode is not available in the Agent SDK",
-		// which crashes the agent mid-session on every API call.
-		"CLAUDE_CODE_DISABLE_FAST_MODE": "1",
-		"GH_AW_PROMPT":                  constants.AwPromptsFile,
-		// Tag the step as a GitHub AW agentic execution for discoverability by agents
-		"GITHUB_AW": "true",
-		// Override GITHUB_STEP_SUMMARY with a path that exists inside the sandbox.
-		// The runner's original path is unreachable within the AWF isolated filesystem;
-		// we create this file before the agent starts and append it to the real
-		// $GITHUB_STEP_SUMMARY after secret redaction.
-		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
-		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
-		"RUNNER_TEMP":         "${{ runner.temp }}",
-	}
+	env := buildClaudeBaseEnvMap(provider, workflowData)
 	env["GH_AW_LLM_PROVIDER"] = provider
 	if isFirewallEnabled(workflowData) && provider != LLMProviderAnthropic {
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	// Indicate the phase: "agent" for the main run, "detection" for threat detection
-	// Include the compiler version so agents can identify which gh-aw version generated the workflow
 	if workflowData.IsDetectionRun {
 		env["GH_AW_PHASE"] = "detection"
 	} else {
@@ -424,123 +436,90 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	} else {
 		env["GH_AW_VERSION"] = "dev"
 	}
-
-	// Add GH_AW_MCP_CONFIG for MCP server configuration only if there are MCP servers
 	if HasMCPServers(workflowData) {
 		env["GH_AW_MCP_CONFIG"] = constants.McpServersJsonPathExpr
 	}
-
-	// In sandbox (AWF) mode, set git identity environment variables so the first git commit
-	// succeeds inside the container. AWF's --env-all forwards these to the container, ensuring
-	// git does not rely on the host-side ~/.gitconfig which is not visible in the sandbox.
+	// In sandbox (AWF) mode, set git identity so the first commit succeeds inside the container.
 	if isFirewallEnabled(workflowData) {
 		maps.Copy(env, getGitIdentityEnvVars())
 	}
+	applyClaudeTimeoutEnvVars(env, workflowData)
+	applySafeOutputEnvToMap(env, workflowData)
+	applyTraceContextEnvToMap(env)
+	applyOptionalEngineToolTimeouts(env, workflowData)
+	applyEngineMaxTurnsEnv(env, workflowData)
+	applyEngineHarnessRetryEnv(env, workflowData)
+	applyClaudeModelEnvVars(env, workflowData)
+	applyEngineCwdEnv(env, workflowData)
+	applyEngineAndAgentEnv(env, workflowData, claudeLog)
+	applyMCPScriptsSecretEnv(env, workflowData)
+	return env
+}
 
-	// Set timeout environment variables for Claude Code
-	// Use tools.startup-timeout if specified, otherwise default to DefaultMCPStartupTimeout
-	// For expressions, fall back to default (can't compute ms value at compile time)
+// buildClaudeBaseEnvMap returns the initial Claude execution environment with static flags
+// and well-known GitHub Actions context values.
+func buildClaudeBaseEnvMap(provider string, workflowData *WorkflowData) map[string]string {
+	return map[string]string{
+		"ANTHROPIC_API_KEY": llmProviderSecretExpression(provider, workflowData),
+		"DISABLE_TELEMETRY": "1",
+		// Prevent telemetry/crash reporting and optional features that don't work in CI.
+		"DISABLE_ERROR_REPORTING": "1",
+		"DISABLE_BUG_COMMAND":     "1",
+		// Disable fast mode: requires server-side flagSettings.fastMode which is unavailable
+		// in Agent SDK contexts; without this Claude Code 2.1.120+ crashes mid-session.
+		"CLAUDE_CODE_DISABLE_FAST_MODE": "1",
+		"GH_AW_PROMPT":                  constants.AwPromptsFile,
+		"GITHUB_AW":                     "true",
+		// Override GITHUB_STEP_SUMMARY with a sandbox-visible path; the real runner path is
+		// unreachable inside AWF. The file is created before the agent starts and appended
+		// to the real $GITHUB_STEP_SUMMARY after secret redaction.
+		"GITHUB_STEP_SUMMARY": AgentStepSummaryPath,
+		"GITHUB_WORKSPACE":    "${{ github.workspace }}",
+		"RUNNER_TEMP":         "${{ runner.temp }}",
+	}
+}
+
+// applyClaudeTimeoutEnvVars sets MCP/Bash timeout env vars derived from workflow config.
+func applyClaudeTimeoutEnvVars(env map[string]string, workflowData *WorkflowData) {
 	startupTimeoutMs := int(constants.DefaultMCPStartupTimeout / time.Millisecond)
 	if n := templatableIntValue(&workflowData.ToolsStartupTimeout); n > 0 {
-		startupTimeoutMs = n * 1000 // convert seconds to milliseconds
+		startupTimeoutMs = n * 1000
 	}
-
-	// Use tools.timeout if specified, otherwise default to DefaultToolTimeout
-	// For expressions, fall back to default (can't compute ms value at compile time)
 	timeoutMs := int(constants.DefaultToolTimeout / time.Millisecond)
 	if n := templatableIntValue(&workflowData.ToolsTimeout); n > 0 {
-		timeoutMs = n * 1000 // convert seconds to milliseconds
+		timeoutMs = n * 1000
 	}
-
 	env["MCP_TIMEOUT"] = strconv.Itoa(startupTimeoutMs)
 	env["MCP_TOOL_TIMEOUT"] = strconv.Itoa(timeoutMs)
 	env["BASH_DEFAULT_TIMEOUT_MS"] = strconv.Itoa(timeoutMs)
 	env["BASH_MAX_TIMEOUT_MS"] = strconv.Itoa(timeoutMs)
+}
 
-	// Add GH_AW_SAFE_OUTPUTS if output is needed
-	applySafeOutputEnvToMap(env, workflowData)
-
-	// Propagate W3C trace context so engine spans nest under the gh-aw.agent.setup span.
-	applyTraceContextEnvToMap(env)
-
-	applyOptionalEngineToolTimeouts(env, workflowData)
-	applyEngineMaxTurnsEnv(env, workflowData)
-	applyEngineHarnessRetryEnv(env, workflowData)
-
-	// Set the model environment variable.
-	// When model is configured, use the native ANTHROPIC_MODEL env var - the Claude CLI reads it
-	// directly, avoiding the need to embed the value in the shell command (which would fail
-	// template injection validation for GitHub Actions expressions like ${{ inputs.model }}).
-	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE so users
-	// can set a default via GitHub Actions variables.
-	if modelConfigured {
-		isDetectionJob := workflowData.SafeOutputs == nil
-		var claudeModelVar string
-		if isDetectionJob {
-			claudeModelVar = constants.EnvVarModelDetectionClaude
-		} else {
-			claudeModelVar = constants.EnvVarModelAgentClaude
-		}
-		if containsExpression(workflowData.Model) {
-			env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpressionEmptyFallback(claudeModelVar, compilerenv.DefaultModelClaude)
-		}
-		claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
-		env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
-	} else {
-		// No model configured - use fallback GitHub variable with shell expansion
-		isDetectionJob := workflowData.SafeOutputs == nil
+// applyClaudeModelEnvVars configures ANTHROPIC_MODEL (or fallback env vars) in env.
+// When model is configured, the Claude CLI reads ANTHROPIC_MODEL natively, avoiding
+// template injection issues from embedding the value in shell commands.
+// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE.
+func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) {
+	isDetectionJob := workflowData.SafeOutputs == nil
+	if workflowData.Model == "" {
 		if isDetectionJob {
 			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
 		} else {
 			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude)
 		}
+		return
 	}
-
-	applyEngineCwdEnv(env, workflowData)
-	applyEngineAndAgentEnv(env, workflowData, claudeLog)
-	applyMCPScriptsSecretEnv(env, workflowData)
-
-	// Generate the step for Claude CLI execution
-	stepName := "Execute Claude Code CLI"
-	var stepLines []string
-
-	stepLines = append(stepLines, "      - name: "+stepName)
-	stepLines = append(stepLines, "        id: agentic_execution")
-
-	// Add allowed tools comment before the run section
-	// Reuse the already-computed allowedTools string (computed earlier for --allowed-tools flag)
-	// to avoid redundant allocations from calling computeAllowedClaudeToolsString twice.
-	allowedToolsComment := e.generateAllowedToolsComment(allowedTools, "        ")
-	if allowedToolsComment != "" {
-		// Split the comment into lines and add each line
-		commentLines := strings.Split(strings.TrimSuffix(allowedToolsComment, "\n"), "\n")
-		stepLines = append(stepLines, commentLines...)
-	}
-
-	// Add timeout at step level (GitHub Actions standard)
-	if workflowData.TimeoutMinutes != "" {
-		// Strip timeout-minutes prefix
-		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
+	var claudeModelVar string
+	if isDetectionJob {
+		claudeModelVar = constants.EnvVarModelDetectionClaude
 	} else {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute))) // Default timeout for agentic workflows
+		claudeModelVar = constants.EnvVarModelAgentClaude
 	}
-
-	// Filter environment variables to only include allowed secrets
-	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
-	allowedSecrets := e.GetRequiredSecretNames(workflowData)
-	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
-
-	// Inject GH_TOKEN for CLI proxy (added after filtering since it uses a special
-	// fallback expression that is always allowed when cli-proxy is enabled)
-	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
-
-	// Format step with command and filtered environment variables using shared helper
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
-
-	steps = append(steps, GitHubActionStep(stepLines))
-
-	return steps
+	if containsExpression(workflowData.Model) {
+		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpressionEmptyFallback(claudeModelVar, compilerenv.DefaultModelClaude)
+	}
+	claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
+	env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
 }
 
 // GetLogParserScriptId returns the JavaScript script name for parsing Claude logs
