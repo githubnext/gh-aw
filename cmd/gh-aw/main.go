@@ -433,44 +433,7 @@ func init() {
 	registerAnalysisCommands(logsCmd, auditCmd, viewCmd, healthCmd, outcomesCmd, checksCmd, statusCmd, listCmd, experimentsCmd, forecastCmd)
 	registerUtilityCommands(mcpServerCmd, prCmd, completionCmd, hashCmd, projectCmd)
 
-	rootCmd.AddCommand(
-		addCmd,
-		addWizardCmd,
-		updateCmd,
-		deployCmd,
-		upgradeCmd,
-		trialCmd,
-		newCmd,
-		initCmd,
-		runCmd,
-		removeCmd,
-		statusCmd,
-		listCmd,
-		enableCmd,
-		disableCmd,
-		logsCmd,
-		auditCmd,
-		viewCmd,
-		healthCmd,
-		outcomesCmd,
-		checksCmd,
-		mcpCmd,
-		mcpServerCmd,
-		prCmd,
-		versionCmd,
-		secretsCmd,
-		fixCmd,
-		validateCmd,
-		lintCmd,
-		completionCmd,
-		hashCmd,
-		projectCmd,
-		doctorCmd,
-		domainsCmd,
-		experimentsCmd,
-		forecastCmd,
-		envCmd,
-	)
+	addRootCommands(addCmd, addWizardCmd, updateCmd, deployCmd, upgradeCmd, trialCmd, newCmd, initCmd, runCmd, removeCmd, statusCmd, listCmd, enableCmd, disableCmd, logsCmd, auditCmd, viewCmd, healthCmd, outcomesCmd, checksCmd, mcpCmd, mcpServerCmd, prCmd, versionCmd, secretsCmd, fixCmd, validateCmd, lintCmd, completionCmd, hashCmd, projectCmd, doctorCmd, domainsCmd, experimentsCmd, forecastCmd, envCmd)
 	fixAllSubCommandHelpFlags()
 }
 
@@ -854,6 +817,10 @@ func registerUtilityCommands(cmds ...*cobra.Command) {
 	for _, cmd := range cmds {
 		cmd.GroupID = "utilities"
 	}
+}
+
+func addRootCommands(cmds ...*cobra.Command) {
+	rootCmd.AddCommand(cmds...)
 }
 
 func fixAllSubCommandHelpFlags() {
