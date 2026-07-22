@@ -256,12 +256,10 @@ func buildBootstrapGitHubAppRegistrationURL(owner, ownerType, state string) stri
 
 const bootstrapRegistrationPageTmpl = `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Redirecting To GitHub App Creation</title></head><body><p>Redirecting to GitHub App creation...</p><form id="manifest-form" action="{{.Action}}" method="post"><input type="hidden" name="manifest" value="{{.Manifest}}"><noscript><button type="submit">Continue To GitHub App Creation</button></noscript></form><script>document.getElementById('manifest-form').submit();</script></body></html>`
 
+var bootstrapRegistrationPage = template.Must(template.New("bootstrap").Parse(bootstrapRegistrationPageTmpl))
+
 func renderBootstrapGitHubAppRegistrationPage(registrationURL string, manifest map[string]any) (string, error) {
 	encoded, err := json.Marshal(manifest)
-	if err != nil {
-		return "", err
-	}
-	t, err := template.New("bootstrap").Parse(bootstrapRegistrationPageTmpl)
 	if err != nil {
 		return "", err
 	}
@@ -273,7 +271,7 @@ func renderBootstrapGitHubAppRegistrationPage(registrationURL string, manifest m
 		Action:   registrationURL,
 		Manifest: string(encoded),
 	}
-	if err = t.Execute(&buf, data); err != nil {
+	if err = bootstrapRegistrationPage.Execute(&buf, data); err != nil {
 		return "", err
 	}
 	return buf.String(), nil
