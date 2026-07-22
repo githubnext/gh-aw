@@ -1,6 +1,6 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 import { CORE_ALIASES } from "./core-aliases";
-import { isCoreAliasIdentifier } from "./core-method-resolve";
+import { isCoreAliasIdentifier, isDestructuredCoreMethodIdentifier } from "./core-method-resolve";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -12,23 +12,33 @@ function isCoreLikeIdentifier(name: string): boolean {
 
 /**
  * Returns true when `node` is an expression statement containing a call to
- * `core.setFailed(...)` (direct or computed).
+ * `core.setFailed(...)` in any recognized form:
+ *  - Direct non-computed: core.setFailed(...)
+ *  - Computed string literal: core["setFailed"](...)
+ *  - Aliased object: const c = core; c.setFailed(...)
+ *  - Destructured binding: const { setFailed } = core; setFailed(...)
  */
 function isCoreSetFailedStatement(node: TSESTree.Statement, sourceCode: SourceCode): boolean {
   if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
   const expr = node.expression;
   if (expr.type !== AST_NODE_TYPES.CallExpression) return false;
   const callee = expr.callee;
-  if (callee.type !== AST_NODE_TYPES.MemberExpression) return false;
 
-  const obj = callee.object;
-  const prop = callee.property;
-  const isSetFailedNonComputed = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setFailed";
-  const isSetFailedComputed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setFailed";
-  if (!isSetFailedNonComputed && !isSetFailedComputed) return false;
-  if (obj.type !== AST_NODE_TYPES.Identifier) return false;
+  if (callee.type === AST_NODE_TYPES.MemberExpression) {
+    const obj = callee.object;
+    const prop = callee.property;
+    const isSetFailedNonComputed = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setFailed";
+    const isSetFailedComputed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setFailed";
+    if (!isSetFailedNonComputed && !isSetFailedComputed) return false;
+    if (obj.type !== AST_NODE_TYPES.Identifier) return false;
+    return isCoreLikeIdentifier(obj.name) || isCoreAliasIdentifier(obj, sourceCode);
+  }
 
-  return isCoreLikeIdentifier(obj.name) || isCoreAliasIdentifier(obj, sourceCode);
+  if (callee.type === AST_NODE_TYPES.Identifier) {
+    return isDestructuredCoreMethodIdentifier(callee, "setFailed", sourceCode);
+  }
+
+  return false;
 }
 
 /**

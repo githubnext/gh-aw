@@ -41,6 +41,10 @@ describe("no-setfailed-then-exit-zero", () => {
         `core.setFailed("bad"); process.exit("0");`,
         // Computed alias not matching core
         `const c = other; function f() { c.setFailed("bad"); process.exit(0); }`,
+        // Destructured from non-core — not flagged
+        `const { setFailed } = other; function f() { setFailed("bad"); process.exit(0); }`,
+        // Destructured setFailed with return is the correct pattern
+        `const { setFailed } = core; function f() { setFailed("bad"); return; }`,
       ],
       invalid: [
         // Adjacent: core.setFailed immediately followed by process.exit(0)
@@ -82,6 +86,16 @@ describe("no-setfailed-then-exit-zero", () => {
         {
           code: `switch (x) { case 1: core.setFailed("bad"); process.exit(0); break; }`,
           errors: [{ messageId: "noSetFailedThenExitZero", suggestions: [{ messageId: "replaceWithReturn", output: `switch (x) { case 1: core.setFailed("bad"); return; break; }` }] }],
+        },
+        // Destructured setFailed from core
+        {
+          code: `const { setFailed } = core; function f() { setFailed("bad"); process.exit(0); }`,
+          errors: [{ messageId: "noSetFailedThenExitZero", suggestions: [{ messageId: "replaceWithReturn", output: `const { setFailed } = core; function f() { setFailed("bad"); return; }` }] }],
+        },
+        // Renamed destructured binding: const { setFailed: sf } = core
+        {
+          code: `const { setFailed: sf } = core; function f() { sf("bad"); process.exit(0); }`,
+          errors: [{ messageId: "noSetFailedThenExitZero", suggestions: [{ messageId: "replaceWithReturn", output: `const { setFailed: sf } = core; function f() { sf("bad"); return; }` }] }],
         },
       ],
     });
