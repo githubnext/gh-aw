@@ -566,6 +566,24 @@ describe("messages.cjs", () => {
       expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ◇ 0.25 AIC");
     });
 
+    it("should expose detection and evals AI Credits entries in order in custom footer templates", async () => {
+      process.env.GH_AW_AGENT_AIC = "1.25";
+      process.env.GH_AW_THREAT_DETECTION_AIC = "0.25";
+      process.env.GH_AW_EVALS_AIC = "0.05";
+      process.env.GH_AW_SAFE_OUTPUT_MESSAGES = JSON.stringify({
+        footer: "> Custom: [{workflow_name}]({run_url}){ai_credits_suffix}",
+      });
+
+      const { getFooterMessage } = await import("./messages.cjs");
+
+      const result = getFooterMessage({
+        workflowName: "Test Workflow",
+        runUrl: "https://github.com/test/repo/actions/runs/123",
+      });
+
+      expect(result).toBe("> Custom: [Test Workflow](https://github.com/test/repo/actions/runs/123) · 1.25 AIC · ⌖ 0.25 AIC · ◇ 0.05 AIC");
+    });
+
     it("should include ambient context in ai_credits_suffix for custom footer templates", async () => {
       process.env.GH_AW_AGENT_AIC = "1.25";
       process.env.GH_AW_THREAT_DETECTION_AIC = "0.25";

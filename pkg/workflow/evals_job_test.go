@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,7 @@ func TestBuildEvalsJobNeedsWithoutDetection(t *testing.T) {
 	assert.Contains(t, job.If, "needs.agent.result")
 	assert.NotContains(t, job.If, "needs.safe_outputs.result")
 	assert.Equal(t, "${{ steps.parse-mcp-gateway.outputs.aic }}", job.Outputs["aic"])
+	assert.Contains(t, strings.Join(job.Steps, ""), "id: parse-mcp-gateway\n")
 }
 
 func TestBuildEvalsJobNeedsWithDetection(t *testing.T) {
@@ -65,4 +67,5 @@ func TestBuildEvalsJobNeedsWithDetection(t *testing.T) {
 	assert.Contains(t, job.If, "needs.agent.result")
 	assert.NotContains(t, job.If, "needs.safe_outputs.result")
 	assert.Equal(t, "${{ steps.parse-mcp-gateway.outputs.aic }}", job.Outputs["aic"])
+	assert.Contains(t, strings.Join(job.Steps, ""), "id: parse-mcp-gateway\n")
 }
