@@ -82,7 +82,7 @@ pull-requests: read`,
 			if tt.wantErr {
 				require.Error(t, err, "ValidatePermissionScopeNames should return an error")
 				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains,
+					require.ErrorContains(t, err, tt.errContains,
 						"error should contain %q", tt.errContains)
 				}
 			} else {

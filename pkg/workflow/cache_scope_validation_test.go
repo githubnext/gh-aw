@@ -63,7 +63,7 @@ func TestCacheMemoryScopeValidationObject(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err, "Should return error for invalid scope")
-				assert.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
+				require.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
 			} else {
 				assert.NoError(t, err, "Should not return error for valid scope")
 			}
@@ -116,7 +116,7 @@ func TestCacheMemoryScopeValidationArray(t *testing.T) {
 
 			if tt.wantError {
 				require.Error(t, err, "Should return error for invalid scope")
-				assert.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
+				require.ErrorContains(t, err, tt.errorText, "Error should contain expected message")
 			} else {
 				assert.NoError(t, err, "Should not return error for valid scope")
 			}

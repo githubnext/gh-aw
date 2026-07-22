@@ -73,8 +73,8 @@ func TestUpgradeCommandRepoOrgMutualExclusion(t *testing.T) {
 	cmd.SetArgs([]string{"--repo", "owner/repo", "--org", "my-org"})
 	err := cmd.Execute()
 	require.Error(t, err, "should error when both --repo and --org are specified")
-	assert.Contains(t, err.Error(), "--repo", "error should mention --repo flag")
-	assert.Contains(t, err.Error(), "--org", "error should mention --org flag")
+	require.ErrorContains(t, err, "--repo", "error should mention --repo flag")
+	require.ErrorContains(t, err, "--org", "error should mention --org flag")
 }
 
 func TestUpgradeCommandFlagRegistration(t *testing.T) {
@@ -98,7 +98,7 @@ func TestUpgradeCommandFlagRegistration(t *testing.T) {
 	cmd2.SetArgs([]string{"--repos", "foo-*"})
 	err := cmd2.Execute()
 	require.Error(t, err, "should error when --repos is specified without --org")
-	assert.Contains(t, err.Error(), "--repos", "error should mention --repos flag")
+	require.ErrorContains(t, err, "--repos", "error should mention --repos flag")
 }
 
 // TestUpgradeCommandRepoDispatchNoPR verifies that plain `upgrade --repo`

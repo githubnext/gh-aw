@@ -1081,7 +1081,7 @@ func TestBuildActivationJobWrapsRepositoryStepErrors(t *testing.T) {
 	_, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
 
 	require.Error(t, err, "buildActivationJob should return an error for a malformed model")
-	assert.Contains(t, err.Error(), "failed to add activation repository and output steps:",
+	require.ErrorContains(t, err, "failed to add activation repository and output steps:",
 		"error should be wrapped with the repository-steps context prefix")
 }
 
@@ -1111,7 +1111,7 @@ func TestBuildActivationJobWrapsPermissionsErrors(t *testing.T) {
 	_, err := compiler.buildActivationJob(data, false, "", "test.lock.yml")
 
 	require.Error(t, err, "buildActivationJob should return an error for write gh commands in activation pre-steps")
-	assert.Contains(t, err.Error(), "failed to build activation permissions:",
+	require.ErrorContains(t, err, "failed to build activation permissions:",
 		"error should be wrapped with the permissions context prefix")
 }
 

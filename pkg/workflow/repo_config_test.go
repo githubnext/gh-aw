@@ -212,7 +212,7 @@ func TestLoadRepoConfig_DisabledJobsRejectsInvalidOrDuplicateValues(t *testing.T
 
 			_, err := LoadRepoConfig(dir)
 			require.Error(t, err)
-			assert.ErrorContains(t, err, tt.contains)
+			require.ErrorContains(t, err, tt.contains)
 		})
 	}
 }
@@ -295,7 +295,7 @@ func TestLoadRepoConfig_InvalidUTC(t *testing.T) {
 
 	_, err := LoadRepoConfig(dir)
 	require.Error(t, err, "invalid timezone should return an error")
-	assert.Contains(t, err.Error(), "utc must be a numeric UTC offset")
+	require.ErrorContains(t, err, "utc must be a numeric UTC offset")
 }
 
 // TestFormatRunsOn tests the YAML serialisation of runs-on values.

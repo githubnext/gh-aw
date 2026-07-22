@@ -73,7 +73,7 @@ func TestParseCacheMemoryEntry_InvalidID(t *testing.T) {
 
 			_, err := compiler.extractCacheMemoryConfigFromMap(tools)
 			require.Error(t, err, "Should reject invalid cache ID %q", tt.id)
-			assert.Contains(t, err.Error(), "invalid cache-memory id", "Error message should identify the problem")
+			require.ErrorContains(t, err, "invalid cache-memory id", "Error message should identify the problem")
 		})
 	}
 }

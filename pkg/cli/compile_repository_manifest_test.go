@@ -50,7 +50,7 @@ name: Repo Assist
 
 	_, err = CompileWorkflows(context.Background(), CompileConfig{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `requires gh-aw`)
+	require.ErrorContains(t, err, `requires gh-aw`)
 }
 
 func TestCompileWorkflows_JSONOutputIncludesManifestValidationResult(t *testing.T) {
@@ -206,7 +206,7 @@ name: Repo Assist
 
 	_, err = CompileWorkflows(context.Background(), CompileConfig{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "missing required README.md")
+	require.ErrorContains(t, err, "missing required README.md")
 }
 
 func TestCompileWorkflows_RejectsManifestWorkflowWithPrivateTrue(t *testing.T) {
@@ -236,7 +236,7 @@ files:
 
 	_, err = CompileWorkflows(context.Background(), CompileConfig{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), `workflow "workflows/review.md" sets private: true`)
+	require.ErrorContains(t, err, `workflow "workflows/review.md" sets private: true`)
 }
 
 func TestValidateRepositoryManifestForCompilation_PropagatesGitRootErrors(t *testing.T) {
@@ -253,6 +253,6 @@ func TestValidateRepositoryManifestForCompilation_PropagatesGitRootErrors(t *tes
 	var results []ValidationResult
 	err := validateRepositoryManifestForCompilation(CompileConfig{}, stats, &results)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "failed to find git root for manifest validation")
-	assert.Contains(t, err.Error(), "permission denied")
+	require.ErrorContains(t, err, "failed to find git root for manifest validation")
+	require.ErrorContains(t, err, "permission denied")
 }

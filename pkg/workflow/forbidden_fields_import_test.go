@@ -81,7 +81,7 @@ This workflow imports a shared workflow with forbidden field.
 
 			// Should get error about forbidden field
 			require.Error(t, err, "Expected error for forbidden field '%s'", field)
-			assert.Contains(t, err.Error(), "cannot be used in shared workflows",
+			require.ErrorContains(t, err, "cannot be used in shared workflows",
 				"Error should mention forbidden field, got: %v", err)
 		})
 	}

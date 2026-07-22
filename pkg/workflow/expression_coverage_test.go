@@ -193,7 +193,7 @@ func TestParseExpressionEmptyString(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := ParseExpression(tt.input)
 			require.Error(t, err, "ParseExpression() with empty/whitespace string should return error")
-			assert.ErrorContains(t, err, "empty expression",
+			require.ErrorContains(t, err, "empty expression",
 				"ParseExpression(%q) unexpected error message", tt.input)
 		})
 	}

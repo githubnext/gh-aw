@@ -77,7 +77,7 @@ func TestCompileGhAwRefMutuallyExclusiveFlags(t *testing.T) {
 
 			err := rootCmd.Execute()
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "if any flags in the group", "expected mutually exclusive flag-group error")
+			require.ErrorContains(t, err, "if any flags in the group", "expected mutually exclusive flag-group error")
 		})
 	}
 }

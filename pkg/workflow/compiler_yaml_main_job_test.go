@@ -673,7 +673,7 @@ func TestGenerateMainJobSteps(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "expected error but got none")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "error message mismatch")
+					require.ErrorContains(t, err, tt.errorContains, "error message mismatch")
 				}
 			} else {
 				require.NoError(t, err, "unexpected error: %v", err)

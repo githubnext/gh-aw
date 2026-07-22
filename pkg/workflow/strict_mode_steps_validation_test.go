@@ -414,7 +414,7 @@ func TestValidateStepsSecrets(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err, "expected an error but got none")
-				assert.Contains(t, err.Error(), tt.errorMsg,
+				require.ErrorContains(t, err, tt.errorMsg,
 					"error %q should contain %q", err.Error(), tt.errorMsg)
 			} else {
 				assert.NoError(t, err, "expected no error")

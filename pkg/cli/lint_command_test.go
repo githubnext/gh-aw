@@ -77,6 +77,6 @@ func TestResolveLockFilesForLint(t *testing.T) {
 	t.Run("rejects non lock file path", func(t *testing.T) {
 		_, err := resolveLockFilesForLint([]string{nonLock}, tempDir)
 		require.Error(t, err, "should reject non-lock file path")
-		assert.Contains(t, err.Error(), "is not a .lock.yml file or directory", "error should explain allowed path types")
+		require.ErrorContains(t, err, "is not a .lock.yml file or directory", "error should explain allowed path types")
 	})
 }

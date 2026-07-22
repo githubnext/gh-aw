@@ -149,7 +149,7 @@ jobs:
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
+					require.ErrorContains(t, err, tt.errorContains)
 				}
 			} else {
 				require.NoError(t, err)
@@ -319,7 +319,7 @@ jobs:
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains)
+					require.ErrorContains(t, err, tt.errorContains)
 				}
 			} else {
 				require.NoError(t, err)
@@ -420,8 +420,8 @@ jobs:
 	// Test with missing required input
 	err = validateWorkflowInputs(markdownPath, []string{})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Missing required input(s)")
-	assert.Contains(t, err.Error(), "issue_url")
+	require.ErrorContains(t, err, "Missing required input(s)")
+	require.ErrorContains(t, err, "issue_url")
 	var validationErr *workflow.WorkflowValidationError
 	require.ErrorAs(t, err, &validationErr, "expected WorkflowValidationError for invalid inputs")
 	assert.Contains(t, validationErr.Suggestion, "on:")
@@ -435,7 +435,7 @@ jobs:
 	// Test with typo in input name
 	err = validateWorkflowInputs(markdownPath, []string{"issue_ur=https://example.com"})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "Invalid input name")
-	assert.Contains(t, err.Error(), "issue_ur", "Error should include invalid input")
-	assert.Contains(t, err.Error(), "issue_url", "Error should suggest correct input name")
+	require.ErrorContains(t, err, "Invalid input name")
+	require.ErrorContains(t, err, "issue_ur", "Error should include invalid input")
+	require.ErrorContains(t, err, "issue_url", "Error should suggest correct input name")
 }

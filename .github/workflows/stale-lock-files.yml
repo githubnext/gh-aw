@@ -1,0 +1,50 @@
+name: Stale Lock Files
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - '.github/workflows/*.md'
+      - 'scripts/check-stale-lock-files.sh'
+      - '.github/workflows/stale-lock-files.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  check-stale-lock-files:
+    name: Check for stale .lock.yml files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: ci-${{ github.ref }}-stale-lock-files
+      cancel-in-progress: true
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base branch
+        if: github.event_name == 'pull_request'
+        run: git fetch origin ${{ github.base_ref }} --no-tags
+
+      - name: Check stale lock files
+        run: |
+          bash scripts/check-stale-lock-files.sh --base-ref "origin/${{ github.base_ref }}"
+
+      - name: Add step summary on failure
+        if: failure()
+        run: |
+          echo "## ❌ Stale Lock Files Detected" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "One or more \`.github/workflows/*.md\` files were modified but their" >> $GITHUB_STEP_SUMMARY
+          echo "compiled \`.lock.yml\` outputs were not regenerated." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**To fix**, recompile the workflows and commit the updated lock files:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+          echo "make recompile" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Then commit the regenerated \`.lock.yml\` files together with the \`.md\` changes." >> $GITHUB_STEP_SUMMARY

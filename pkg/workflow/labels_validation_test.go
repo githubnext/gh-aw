@@ -76,7 +76,7 @@ func TestValidateLabels(t *testing.T) {
 			if tt.shouldErr {
 				require.Error(t, err, "Expected validation to fail")
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected validation to pass")

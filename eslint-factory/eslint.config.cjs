@@ -37,6 +37,8 @@ module.exports = [
       "gh-aw-custom/no-exec-interpolated-command": "warn",
       "gh-aw-custom/require-execsync-try-catch": "warn",
       "gh-aw-custom/require-execfilesync-try-catch": "warn",
+      "gh-aw-custom/require-fs-io-try-catch": "warn",
+      "gh-aw-custom/no-setfailed-then-exit-zero": "warn",
     },
   },
   {

@@ -267,9 +267,9 @@ func TestValidateSafeOutputsSamples_NonExpressionErrorsStillReported(t *testing.
 	}
 	err := validateSafeOutputsSamples(cfg)
 	require.Error(t, err, "missing-title error should still surface even though body is a runtime expression")
-	assert.Contains(t, err.Error(), "create-issue", "error should reference the failing safe-output key")
-	assert.Contains(t, err.Error(), "samples[0]", "error should reference the failing sample entry")
-	assert.Contains(t, err.Error(), "title", "error should still be caused by missing required title")
+	require.ErrorContains(t, err, "create-issue", "error should reference the failing safe-output key")
+	require.ErrorContains(t, err, "samples[0]", "error should reference the failing sample entry")
+	require.ErrorContains(t, err, "title", "error should still be caused by missing required title")
 }
 
 // TestSubstituteRuntimeExpressionsForValidation_LeavesLiteralsUntouched
@@ -421,7 +421,7 @@ func TestValidateSamplesForTool_DispatchRepositoryDeferred(t *testing.T) {
 func TestValidateSamplesForTool_UnknownStillFails(t *testing.T) {
 	err := validateSamplesForTool("tool_that_does_not_exist", []map[string]any{{"x": "y"}})
 	require.Error(t, err, "expected unknown non-dynamic tool to fail schema lookup")
-	assert.Contains(t, err.Error(), "no MCP tool schema found")
+	require.ErrorContains(t, err, "no MCP tool schema found")
 }
 
 // TestPlaceholderForSchema covers the schema-driven placeholder lookup for

@@ -317,7 +317,7 @@ func TestValidateWorkflowEngineSettings_PreservesLegacyErrorOrder(t *testing.T) 
 
 	err := compiler.validateWorkflowEngineSettings("workflow.md", workflowData)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "workflow.md: strict mode: run-install-scripts: true is set")
+	require.ErrorContains(t, err, "workflow.md: strict mode: run-install-scripts: true is set")
 	assert.NotContains(t, err.Error(), "engine.harness")
 }
 
@@ -338,7 +338,7 @@ func TestValidateWorkflowEngineSettings_LSPRequiresCopilot(t *testing.T) {
 
 	err := compiler.validateWorkflowEngineSettings("workflow.md", workflowData)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "workflow.md: lsp is currently only supported for engine: copilot")
+	require.ErrorContains(t, err, "workflow.md: lsp is currently only supported for engine: copilot")
 }
 
 func TestMergeRawOTLPEndpoints_DedupesAndCountsSources(t *testing.T) {
@@ -1460,7 +1460,7 @@ engine: copilot
 			require.Error(t, err, "Should error for %s", tt.name)
 			assert.Nil(t, workflowData)
 			if tt.expectError != "" {
-				assert.Contains(t, err.Error(), tt.expectError)
+				require.ErrorContains(t, err, tt.expectError)
 			}
 		})
 	}
@@ -1724,7 +1724,7 @@ engine: invalid-engine-that-does-not-exist
 
 	require.Error(t, err, "Should error with invalid engine")
 	assert.Nil(t, workflowData)
-	assert.Contains(t, err.Error(), "invalid-engine-that-does-not-exist")
+	require.ErrorContains(t, err, "invalid-engine-that-does-not-exist")
 }
 
 // TestParseWorkflowFile_ErrorPropagationFromToolsProcessing tests error propagation from tools phase
@@ -1751,7 +1751,7 @@ tools:
 
 	require.Error(t, err, "Should error with invalid tools timeout")
 	assert.Nil(t, workflowData)
-	assert.Contains(t, err.Error(), "timeout")
+	require.ErrorContains(t, err, "timeout")
 }
 
 // TestParseWorkflowFile_ActionCacheAndResolverSetup tests action cache and resolver are properly set
@@ -1870,7 +1870,7 @@ func TestProcessAndMergeSteps_InvalidYAML_MergedSteps(t *testing.T) {
 	// Malformed MergedSteps YAML must propagate as an error
 	err := compiler.processAndMergeSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed MergedSteps YAML should return an error")
-	assert.Contains(t, err.Error(), "failed to parse imported steps")
+	require.ErrorContains(t, err, "failed to parse imported steps")
 }
 
 // TestProcessAndMergePreSteps_InvalidYAML tests that malformed imported pre-steps YAML returns an error
@@ -1891,7 +1891,7 @@ func TestProcessAndMergePreSteps_InvalidYAML(t *testing.T) {
 
 	err := compiler.processAndMergePreSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed imported pre-steps YAML should return an error")
-	assert.Contains(t, err.Error(), "failed to parse imported pre-steps")
+	require.ErrorContains(t, err, "failed to parse imported pre-steps")
 }
 
 // TestProcessAndMergePreAgentSteps_InvalidYAML tests that malformed imported pre-agent-steps YAML returns an error
@@ -1912,7 +1912,7 @@ func TestProcessAndMergePreAgentSteps_InvalidYAML(t *testing.T) {
 
 	err := compiler.processAndMergePreAgentSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed imported pre-agent-steps YAML should return an error")
-	assert.Contains(t, err.Error(), "failed to parse imported pre-agent-steps")
+	require.ErrorContains(t, err, "failed to parse imported pre-agent-steps")
 }
 
 // TestProcessAndMergePostSteps_InvalidYAML tests that malformed imported post-steps YAML returns an error
@@ -1933,7 +1933,7 @@ func TestProcessAndMergePostSteps_InvalidYAML(t *testing.T) {
 
 	err := compiler.processAndMergePostSteps(frontmatter, workflowData, importsResult)
 	require.Error(t, err, "malformed imported post-steps YAML should return an error")
-	assert.Contains(t, err.Error(), "failed to parse imported post-steps")
+	require.ErrorContains(t, err, "failed to parse imported post-steps")
 }
 
 // TestProcessAndMergeServices_EmptyImportedServices tests handling of empty imported services
