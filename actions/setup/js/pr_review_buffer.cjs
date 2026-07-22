@@ -620,10 +620,29 @@ function createReviewBuffer() {
           core.info(`Created PR review #${review.id}: ${review.html_url}`);
           return buildReviewSuccessResult(review, "COMMENT", comments.length, afterState);
         } catch (retryError) {
-          core.error(`Failed to submit PR review on retry: ${getErrorMessage(retryError)}`);
+          const retryErrorMsg = getErrorMessage(retryError);
+          // If the COMMENT retry still fails due to unresolvable line(s), fall back to body-only COMMENT.
+          if (retryErrorMsg.includes("Line could not be resolved") || retryErrorMsg.includes("Path could not be resolved")) {
+            core.warning(`COMMENT retry on own PR failed with unresolvable line(s): ${retryErrorMsg}. Falling back to body-only COMMENT.`);
+            try {
+              const ownPrBodyOnlyParams = { ...requestParams };
+              delete ownPrBodyOnlyParams.comments;
+              ownPrBodyOnlyParams.event = "COMMENT";
+              ownPrBodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
+              const { data: review } = await createReviewWithRetry(ownPrBodyOnlyParams);
+              await maybeSupersedeOlderReviews(review.id);
+              const afterState = await fetchAfterStateIfAvailable();
+              core.info(`Created PR review #${review.id} (own-PR body-only COMMENT): ${review.html_url}`);
+              return buildReviewSuccessResult(review, "COMMENT", 0, afterState);
+            } catch (bodyOnlyError) {
+              core.error(`Failed to submit body-only COMMENT review: ${getErrorMessage(bodyOnlyError)}`);
+              return { success: false, error: getErrorMessage(bodyOnlyError) };
+            }
+          }
+          core.error(`Failed to submit PR review on retry: ${retryErrorMsg}`);
           return {
             success: false,
-            error: getErrorMessage(retryError),
+            error: retryErrorMsg,
           };
         }
       }
@@ -691,20 +710,36 @@ function createReviewBuffer() {
         }
 
         core.warning(`PR review submission failed due to unresolvable comment line(s): ${errorMessage}. Retrying as body-only review.`);
+        const bodyOnlyParams = { ...requestParams };
+        delete bodyOnlyParams.comments;
+        bodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
         try {
-          const bodyOnlyParams = { ...requestParams };
-          delete bodyOnlyParams.comments;
-          bodyOnlyParams.body = appendUnanchoredCommentsSection(typeof requestParams.body === "string" ? requestParams.body : "", comments);
           const { data: review } = await createReviewWithRetry(bodyOnlyParams);
           await maybeSupersedeOlderReviews(review.id);
           const afterState = await fetchAfterStateIfAvailable();
           core.info(`Created PR review #${review.id} (body-only fallback): ${review.html_url}`);
           return buildReviewSuccessResult(review, event, 0, afterState);
         } catch (retryError) {
-          core.error(`Failed to submit body-only PR review: ${getErrorMessage(retryError)}`);
+          const retryErrorMsg = getErrorMessage(retryError);
+          // If body-only also fails because it's a self-authored PR, retry as body-only COMMENT.
+          if (bodyOnlyParams.event !== "COMMENT" && ownPrMessages.some(msg => retryErrorMsg.includes(msg))) {
+            core.warning(`Body-only ${bodyOnlyParams.event} review rejected on own PR. Retrying as body-only COMMENT.`);
+            try {
+              bodyOnlyParams.event = "COMMENT";
+              const { data: review } = await createReviewWithRetry(bodyOnlyParams);
+              await maybeSupersedeOlderReviews(review.id);
+              const afterState = await fetchAfterStateIfAvailable();
+              core.info(`Created PR review #${review.id} (body-only COMMENT fallback): ${review.html_url}`);
+              return buildReviewSuccessResult(review, "COMMENT", 0, afterState);
+            } catch (ownPrRetryError) {
+              core.error(`Failed to submit body-only COMMENT review: ${getErrorMessage(ownPrRetryError)}`);
+              return { success: false, error: getErrorMessage(ownPrRetryError) };
+            }
+          }
+          core.error(`Failed to submit body-only PR review: ${retryErrorMsg}`);
           return {
             success: false,
-            error: getErrorMessage(retryError),
+            error: retryErrorMsg,
           };
         }
       }

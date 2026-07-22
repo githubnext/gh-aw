@@ -156,6 +156,7 @@ func buildMCPRendererFactory(workflowData *WorkflowData, format string, includeC
 			IsLast:                 isLast,
 			ActionMode:             GetActionModeFromWorkflowData(workflowData),
 			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+			ContainerPinMappings:   workflowData.getContainerPinMappings(),
 		})
 	}
 }

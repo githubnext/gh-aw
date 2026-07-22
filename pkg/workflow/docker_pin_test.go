@@ -219,3 +219,136 @@ func TestMergeDockerImagePins(t *testing.T) {
 	assert.Equal(t, "image-c", result[2].Image)
 	assert.Equal(t, "sha256:ccc", result[2].Digest)
 }
+
+// TestApplyContainerPins_ContainerPinMappings verifies that applyContainerPins
+// applies container_pins redirects before digest lookup so that both the
+// pre-download list and the manifest entries reference the mapped image.
+func TestApplyContainerPins_ContainerPinMappings(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	t.Run("digest-pinned mapped image returned as mapped", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"ghcr.io/owner/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
+			},
+		}
+		refs, pinEntries := applyContainerPins([]string{"ghcr.io/owner/image:v1"}, workflowData)
+		require.Len(t, refs, 1)
+		assert.Equal(t, "registry.acme.com/image:v1@sha256:"+digest, refs[0],
+			"source image should be redirected to the mapped registry")
+		assert.Equal(t, "registry.acme.com/image:v1@sha256:"+digest, pinEntries[0].Image,
+			"manifest entry Image should reflect the mapped image")
+		assert.Empty(t, pinEntries[0].Digest, "mapped reference already includes its digest")
+	})
+
+	t.Run("unmapped image passes through unchanged", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"other.registry.io/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
+			},
+		}
+		refs, _ := applyContainerPins([]string{"ghcr.io/owner/image:v1"}, workflowData)
+		require.Len(t, refs, 1)
+		assert.Equal(t, "ghcr.io/owner/image:v1", refs[0],
+			"image not in mappings should be returned unchanged")
+	})
+
+	t.Run("nil ContainerPinMappings leaves images unchanged", func(t *testing.T) {
+		workflowData := &WorkflowData{}
+		refs, _ := applyContainerPins([]string{"ghcr.io/owner/image:v1"}, workflowData)
+		require.Len(t, refs, 1)
+		assert.Equal(t, "ghcr.io/owner/image:v1", refs[0])
+	})
+}
+
+// TestCollectDockerImages_DefaultAlpineContainerPinMapping verifies that when
+// container_pins maps DefaultAlpineImage, collectDockerImages applies the redirect
+// so the pre-download list and manifest use the configured private mirror.
+func TestCollectDockerImages_DefaultAlpineContainerPinMapping(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	mapped := "registry.acme.com/alpine@sha256:" + digest
+	workflowData := &WorkflowData{
+		ContainerPinMappings: map[string]string{
+			constants.DefaultAlpineImage: mapped,
+		},
+	}
+
+	tools := map[string]any{
+		"agentic-workflows": map[string]any{},
+	}
+
+	images := collectDockerImages(tools, workflowData, ActionModeRelease)
+
+	assert.Contains(t, images, mapped,
+		"DefaultAlpineImage should be replaced by the container_pins mapped image in the pre-download list")
+	for _, img := range images {
+		assert.NotEqual(t, constants.DefaultAlpineImage, img,
+			"original DefaultAlpineImage should not appear in the pre-download list when mapped")
+	}
+}
+
+// TestResolveGatewayContainerFromMappings verifies that resolveGatewayContainerFromMappings
+// applies the container_pins redirect and strips the digest for MCP Gateway compatibility.
+func TestResolveGatewayContainerFromMappings(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	t.Run("mapped image has digest stripped for gateway", func(t *testing.T) {
+		mappings := map[string]string{
+			"ghcr.io/owner/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
+		}
+		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", mappings)
+		assert.Equal(t, "registry.acme.com/image:v1", got,
+			"digest should be stripped from mapped image for MCP Gateway compatibility")
+	})
+
+	t.Run("unmapped image passes through unchanged", func(t *testing.T) {
+		mappings := map[string]string{
+			"other.io/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
+		}
+		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", mappings)
+		assert.Equal(t, "ghcr.io/owner/image:v1", got)
+	})
+
+	t.Run("nil mappings returns image unchanged", func(t *testing.T) {
+		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", nil)
+		assert.Equal(t, "ghcr.io/owner/image:v1", got)
+	})
+}
+
+// resolveContainerImage redirects the source image through container_pins before
+// digest lookup, ensuring the mapped registry is used in the compiled output.
+func TestResolveContainerImage_AppliesContainerPinMapping(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	t.Run("mapped image returns digest-pinned redirected image", func(t *testing.T) {
+		data := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"ghcr.io/owner/img:v1": "registry.acme.com/img:v1@sha256:" + digest,
+			},
+		}
+		got := resolveContainerImage("ghcr.io/owner/img:v1", data)
+		assert.Equal(t, "registry.acme.com/img:v1@sha256:"+digest, got,
+			"resolveContainerImage should return the mapped replacement image")
+	})
+
+	t.Run("mapped image does not inherit embedded pin from source", func(t *testing.T) {
+		data := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:" + digest,
+			},
+		}
+		got := resolveContainerImage("node:lts-alpine", data)
+		assert.Equal(t, "registry.acme.com/node:lts-alpine@sha256:"+digest, got,
+			"mapped image keeps its configured digest instead of the source image digest")
+	})
+
+	t.Run("unmapped image passes through to normal resolution", func(t *testing.T) {
+		data := &WorkflowData{
+			ContainerPinMappings: map[string]string{
+				"other.registry.io/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
+			},
+		}
+		// node:lts-alpine is not in the mappings but has an embedded digest pin.
+		got := resolveContainerImage("node:lts-alpine", data)
+		assert.Contains(t, got, "sha256:",
+			"unmapped image should still be resolved through normal digest-pin path")
+	})
+}

@@ -98,6 +98,7 @@ func (r *MCPConfigRendererUnified) RenderGitHubMCP(yaml *strings.Builder, github
 			AllowedTools:          getGitHubAllowedTools(githubTool),
 			EffectiveToken:        "", // Token passed via env
 			GuardPolicies:         explicitGuardPolicies,
+			ContainerPinMappings:  r.options.ContainerPinMappings,
 		})
 	}
 
@@ -172,8 +173,10 @@ func (r *MCPConfigRendererUnified) renderGitHubTOML(yaml *strings.Builder, githu
 		githubDockerImageVersion := getGitHubDockerImageVersion(githubTool)
 		customArgs := getGitHubCustomArgs(githubTool)
 
-		// MCP Gateway spec fields for containerized stdio servers
-		yaml.WriteString("          container = \"ghcr.io/github/github-mcp-server:" + githubDockerImageVersion + "\"\n")
+		// MCP Gateway spec fields for containerized stdio servers.
+		// Apply container_pins mapping so private-cloud runners use the configured mirror.
+		githubMCPImage := resolveGatewayContainerFromMappings("ghcr.io/github/github-mcp-server:"+githubDockerImageVersion, workflowData.getContainerPinMappings())
+		yaml.WriteString("          container = \"" + githubMCPImage + "\"\n")
 
 		// Append custom args if present (these are Docker runtime args, go before container image)
 		if len(customArgs) > 0 {
@@ -227,8 +230,10 @@ func RenderGitHubMCPDockerConfig(yaml *strings.Builder, options GitHubMCPDockerO
 		yaml.WriteString("                \"type\": \"stdio\",\n")
 	}
 
-	// MCP Gateway spec fields for containerized stdio servers
-	yaml.WriteString("                \"container\": \"ghcr.io/github/github-mcp-server:" + options.DockerImageVersion + "\",\n")
+	// MCP Gateway spec fields for containerized stdio servers.
+	// Apply container_pins mapping so private-cloud runners use the configured mirror.
+	githubMCPImage := resolveGatewayContainerFromMappings("ghcr.io/github/github-mcp-server:"+options.DockerImageVersion, options.ContainerPinMappings)
+	yaml.WriteString("                \"container\": \"" + githubMCPImage + "\",\n")
 
 	// Append custom args if present (these are Docker runtime args, go before container image)
 	if len(options.CustomArgs) > 0 {

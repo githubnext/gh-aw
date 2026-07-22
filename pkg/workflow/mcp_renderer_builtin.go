@@ -27,7 +27,7 @@ func (r *MCPConfigRendererUnified) RenderPlaywrightMCP(yaml *strings.Builder, pl
 	}
 
 	// JSON format
-	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies)
+	renderPlaywrightMCPConfigWithOptions(yaml, playwrightConfig, r.options.IsLast, r.options.IncludeCopilotFields, r.options.InlineArgs, r.options.WriteSinkGuardPolicies, r.options.ContainerPinMappings)
 }
 
 // renderPlaywrightTOML generates Playwright MCP configuration in TOML format
@@ -37,8 +37,9 @@ func (r *MCPConfigRendererUnified) renderPlaywrightTOML(yaml *strings.Builder, p
 	mcpRendererBuiltinLog.Print("Rendering Playwright MCP in TOML format")
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
-	// Use official Playwright MCP Docker image (no version tag - only one image)
-	playwrightImage := "mcr.microsoft.com/playwright/mcp"
+	// Use official Playwright MCP Docker image (no version tag - only one image).
+	// Apply container_pins mapping so private-cloud runners use the configured mirror.
+	playwrightImage := resolveGatewayContainerFromMappings("mcr.microsoft.com/playwright/mcp", r.options.ContainerPinMappings)
 
 	yaml.WriteString("          \n")
 	yaml.WriteString("          [mcp_servers.playwright]\n")
@@ -165,7 +166,7 @@ func (r *MCPConfigRendererUnified) RenderAgenticWorkflowsMCP(yaml *strings.Build
 	}
 
 	// JSON format
-	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.ActionMode, r.options.WriteSinkGuardPolicies)
+	renderAgenticWorkflowsMCPConfigWithOptions(yaml, r.options.IsLast, r.options.IncludeCopilotFields, r.options.ActionMode, r.options.WriteSinkGuardPolicies, r.options.ContainerPinMappings)
 }
 
 // renderAgenticWorkflowsTOML generates Agentic Workflows MCP configuration in TOML format
@@ -196,6 +197,9 @@ func (r *MCPConfigRendererUnified) renderAgenticWorkflowsTOML(yaml *strings.Buil
 		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
 		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
 	}
+
+	// Apply container_pins mapping so private-cloud runners use the configured mirror.
+	containerImage = resolveGatewayContainerFromMappings(containerImage, r.options.ContainerPinMappings)
 
 	yaml.WriteString("          container = \"" + containerImage + "\"\n")
 
@@ -312,7 +316,7 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 // renderAgenticWorkflowsMCPConfigWithOptions generates the Agentic Workflows MCP server configuration with engine-specific options
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypoint, entrypointArgs, and mounts fields.
-func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, actionMode ActionMode, guardPolicies map[string]any) {
+func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, includeCopilotFields bool, actionMode ActionMode, guardPolicies map[string]any, containerPinMappings map[string]string) {
 	mcpRendererBuiltinLog.Printf("Rendering Agentic Workflows MCP config: isLast=%v, includeCopilotFields=%v, actionMode=%v", isLast, includeCopilotFields, actionMode)
 
 	// Environment variables: map of env var name to value (literal) or source variable (reference)
@@ -361,6 +365,9 @@ func renderAgenticWorkflowsMCPConfigWithOptions(yaml *strings.Builder, isLast bo
 		// Mount gh-aw binary, gh CLI binary, workspace, and temp directory
 		mounts = []string{constants.DefaultGhAwMount, constants.DefaultGhBinaryMount, constants.DefaultWorkspaceMount, constants.DefaultTmpGhAwMount}
 	}
+
+	// Apply container_pins mapping so private-cloud runners use the configured mirror.
+	containerImage = resolveGatewayContainerFromMappings(containerImage, containerPinMappings)
 
 	yaml.WriteString("                \"container\": \"" + containerImage + "\",\n")
 

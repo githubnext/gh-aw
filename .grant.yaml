@@ -1,0 +1,11 @@
+# License allowlist from CONTRIBUTING.md.
+require-license: true
+require-known-license: true
+
+allow:
+  - MIT
+  - Apache-2.0
+  - BSD-2-Clause
+  - BSD-3-Clause
+  - ISC
+

@@ -195,6 +195,7 @@ type WorkflowData struct {
 	ModelPolicyAllowed             []string                        // merged models.allowed policy list (union across imports + main frontmatter)
 	ModelPolicyBlocked             []string                        // merged models.blocked policy list (union across imports + main frontmatter)
 	ActionPinMappings              map[string]string               // action-pin redirect table from aw.json action_pins: maps "owner/repo@version" → "owner/repo@version"
+	ContainerPinMappings           map[string]string               // container-pin redirect table from aw.json container_pins: maps source image → replacement image
 	Evals                          *EvalsConfig                    // BinEval evaluation configuration parsed from frontmatter evals field
 	ExcludedEnv                    []string                        // additional env var names to exclude from agent container via AWF --exclude-env (from frontmatter excluded-env field)
 }
@@ -202,6 +203,12 @@ type WorkflowData struct {
 // PinContext returns an actionpins.PinContext backed by this WorkflowData.
 // It is used to pass the resolver and warnings state to pkg/actionpins functions
 // without introducing an import cycle.
+//
+// A new PinContext struct is allocated on each call, but the Warnings field always
+// points to the same underlying map (data.ActionPinWarnings). This shared map is
+// what makes deduplication of console messages work correctly across multiple calls
+// on the same WorkflowData. Callers must not replace ctx.Warnings with a different
+// map after construction — doing so would break deduplication.
 func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	if d == nil {
 		return nil
@@ -210,12 +217,13 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 		d.ActionPinWarnings = make(map[string]bool)
 	}
 	pinCtx := &actionpins.PinContext{
-		Ctx:             d.Ctx,
-		StrictMode:      d.StrictMode,
-		EnforcePinned:   true,
-		AllowActionRefs: d.AllowActionRefs,
-		Warnings:        d.ActionPinWarnings,
-		Mappings:        d.ActionPinMappings,
+		Ctx:               d.Ctx,
+		StrictMode:        d.StrictMode,
+		EnforcePinned:     true,
+		AllowActionRefs:   d.AllowActionRefs,
+		Warnings:          d.ActionPinWarnings,
+		Mappings:          d.ActionPinMappings,
+		ContainerMappings: d.ContainerPinMappings,
 		RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
 			d.ActionResolutionFailures = append(d.ActionResolutionFailures, GHAWManifestResolutionFailure{
 				Repo:      f.Repo,
@@ -248,4 +256,13 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	}
 	workflowDataLog.Printf("Built pin context: strictMode=%t, skipHardcodedFallback=%t", pinCtx.StrictMode, pinCtx.SkipHardcodedFallback)
 	return pinCtx
+}
+
+// getContainerPinMappings returns ContainerPinMappings when d is non-nil, otherwise nil.
+// Used for nil-safe access when constructing MCPConfigRenderer.
+func (d *WorkflowData) getContainerPinMappings() map[string]string {
+	if d == nil {
+		return nil
+	}
+	return d.ContainerPinMappings
 }

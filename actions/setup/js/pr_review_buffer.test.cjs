@@ -933,6 +933,41 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
     });
 
+    it("should fall back to body-only COMMENT when own-PR COMMENT retry also fails with line-resolution error", async () => {
+      buffer.addComment({ path: "file.go", line: 10, body: "Inline comment" });
+      buffer.setReviewMetadata("Fix this", "REQUEST_CHANGES");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" }, user: { login: "bot-user" } },
+      });
+
+      mockGithub.rest.pulls.createReview
+        // Initial attempt — own-PR 422
+        .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
+        // COMMENT retry with inline comments — line unresolvable
+        .mockRejectedValueOnce(new Error('Unprocessable Entity: "Line could not be resolved"'))
+        // Body-only COMMENT fallback — success
+        .mockResolvedValueOnce({
+          data: {
+            id: 800,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-800",
+          },
+        });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.event).toBe("COMMENT");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
+      const bodyOnlyArgs = mockGithub.rest.pulls.createReview.mock.calls[2][0];
+      expect(bodyOnlyArgs.event).toBe("COMMENT");
+      expect(bodyOnlyArgs.comments).toBeUndefined();
+      expect(bodyOnlyArgs.body).toContain("Inline comment");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("COMMENT retry on own PR failed with unresolvable line(s)"));
+    });
+
     it("should skip (success:true, skipped:true) when PR is permanently locked after all retries", async () => {
       const setTimeoutSpy = vi.spyOn(global, "setTimeout").mockImplementation(handler => {
         if (typeof handler === "function") {
@@ -1415,6 +1450,63 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(result.success).toBe(false);
       expect(result.error).toContain("Some other error on retry");
       expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(2);
+    });
+
+    it("should retry body-only as COMMENT when body-only REQUEST_CHANGES is rejected on own PR after line-resolution failure", async () => {
+      buffer.addComment({ path: "file.go", line: 5, body: "Nil dereference on this line" });
+      buffer.setReviewMetadata("Fix the blocking issues.", "REQUEST_CHANGES");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 47375,
+        pullRequest: { head: { sha: "abc123" }, user: { login: "linter-miner[bot]" } },
+      });
+
+      mockGithub.rest.pulls.createReview
+        // Initial attempt — line resolution fails (this triggers the body-only path)
+        .mockRejectedValueOnce(new Error('Unprocessable Entity: "Line could not be resolved"'))
+        // Body-only REQUEST_CHANGES — own-PR 422
+        .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
+        // Body-only COMMENT retry — success
+        .mockResolvedValueOnce({
+          data: {
+            id: 900,
+            html_url: "https://github.com/owner/repo/pull/47375#pullrequestreview-900",
+          },
+        });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      expect(result.event).toBe("COMMENT");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
+      const bodyOnlyCommentArgs = mockGithub.rest.pulls.createReview.mock.calls[2][0];
+      expect(bodyOnlyCommentArgs.event).toBe("COMMENT");
+      expect(bodyOnlyCommentArgs.comments).toBeUndefined();
+      expect(bodyOnlyCommentArgs.body).toContain("Nil dereference on this line");
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Body-only REQUEST_CHANGES review rejected on own PR"));
+    });
+
+    it("should return failure when body-only COMMENT retry also fails on own PR", async () => {
+      buffer.addComment({ path: "file.go", line: 5, body: "Review comment" });
+      buffer.setReviewMetadata("Feedback.", "REQUEST_CHANGES");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "abc123" } },
+      });
+
+      mockGithub.rest.pulls.createReview
+        .mockRejectedValueOnce(new Error("Line could not be resolved"))
+        .mockRejectedValueOnce(new Error("Can not request changes on your own pull request"))
+        .mockRejectedValueOnce(new Error("Unexpected server error"));
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Unexpected server error");
+      expect(mockGithub.rest.pulls.createReview).toHaveBeenCalledTimes(3);
     });
 
     it("should escape HTML-sensitive characters in fallback summary and body", async () => {

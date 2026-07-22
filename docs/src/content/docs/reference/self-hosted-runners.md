@@ -170,6 +170,67 @@ This setting applies to every job in `agentics-maintenance.yml` (close-expired-e
 > [!NOTE]
 > `aw.json` is separate from individual workflow frontmatter. It provides repository-level settings for generated infrastructure workflows.
 
+## Action and container substitutions (`aw.json`)
+
+Enterprises running in private clouds or air-gapped environments can redirect action and container image references to internal mirrors using `action_pins` and `container_pins` in `.github/workflows/aw.json`. These substitutions are applied at compile time and baked into the generated `.lock.yml` files, so workflows never reference unreachable public registries at runtime.
+
+### Action substitutions (`action_pins`)
+
+`action_pins` maps `owner/repo@ref` source references to replacement `owner/repo@ref` values before pin resolution. The rest of the resolution pipeline (cache → GitHub API → embedded pins) operates on the mapped target.
+
+```json title=".github/workflows/aw.json"
+{
+  "action_pins": {
+    "actions/checkout@v4": "acme-corp/checkout-mirror@v4",
+    "actions/setup-node@v4": "acme-corp/setup-node-mirror@v4"
+  }
+}
+```
+
+Keys and values must use the `owner/repo@ref` format. Each source version must be mapped individually — wildcard and prefix matching are not supported. A console message is emitted once per applied mapping during compilation.
+
+### Container image substitutions (`container_pins`)
+
+`container_pins` maps source container image references to replacement image targets. The mapping is applied before digest-pin resolution, so a privately mirrored image can be used in place of the public source. Each value is an object with separate `image` and `digest` fields for independent validation:
+
+```json title=".github/workflows/aw.json"
+{
+  "container_pins": {
+    "ghcr.io/github/gh-aw-firewall:0.27.22": {
+      "image": "registry.acme.com/gh-aw-firewall:0.27.22",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    },
+    "node:lts-alpine": {
+      "image": "registry.acme.com/node:lts-alpine",
+      "digest": "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
+    }
+  }
+}
+```
+
+Keys are source image references as they appear in compiled workflows. `image` must be a valid image reference without a digest, and `digest` must be a full `sha256:<64 lowercase hex characters>` digest.
+
+### Combined example
+
+```json title=".github/workflows/aw.json"
+{
+  "action_pins": {
+    "actions/checkout@v4": "acme-corp/checkout-mirror@v4"
+  },
+  "container_pins": {
+    "ghcr.io/github/gh-aw-firewall:0.27.22": {
+      "image": "registry.acme.com/gh-aw-firewall:0.27.22",
+      "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+    }
+  }
+}
+```
+
+Re-run `gh aw compile` after modifying `aw.json` to regenerate all affected lock files.
+
+> [!NOTE]
+> Neither `action_pins` nor `container_pins` is supported in individual workflow frontmatter. Both are repository-level settings in `aw.json` that apply across all workflows in the repository.
+
 ## Related documentation
 
 - [Frontmatter](/gh-aw/reference/frontmatter/#run-configuration-run-name-runs-on-runs-on-slim-timeout-minutes) — `runs-on` and `runs-on-slim` syntax reference

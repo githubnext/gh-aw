@@ -52,6 +52,10 @@ type MCPConfigRenderer struct {
 	// For TOML format, they are added as a separate TOML section after the server config.
 	// Nil when no guard policies should be applied.
 	GuardPolicies map[string]any
+	// ContainerPinMappings maps source container image references to their SHA-pinned
+	// replacements from aw.json container_pins. Used to redirect the container field
+	// to a private registry mirror. Nil when no container_pins are configured.
+	ContainerPinMappings map[string]string
 }
 
 // ToolConfig represents a tool configuration interface for type safety

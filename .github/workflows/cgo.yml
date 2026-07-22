@@ -112,6 +112,15 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
+    - name: Verify integration build
+      run: |
+        # Compile and link all integration-tagged test binaries without
+        # executing package test binaries or TestMain side effects.
+        # Regular unit tests use -tags '!integration', so build errors in
+        # integration-tagged files (e.g. unused imports) would otherwise
+        # go undetected until the fuzz job runs on main.
+        go test -run='^$' -exec=true -tags=integration ./...
+
     - name: Pre-flight check - Validate test dependencies
       run: |
         echo "Validating that test dependencies are available..."
@@ -1373,6 +1382,15 @@ jobs:
 
     - name: Verify dependencies
       run: go mod verify
+
+    - name: Verify integration build
+      run: |
+        # Compile and link all integration-tagged test binaries without
+        # executing package test binaries or TestMain side effects.
+        # Fuzz tests such as FuzzSanitizeOutput run with -tags=integration; a build
+        # error in any integration-tagged file causes the entire fuzz run to fail
+        # with a misleading error message.
+        go test -run='^$' -exec=true -tags=integration ./...
 
     - name: Run fuzz tests (${{ matrix.group }})
       run: |

@@ -19,6 +19,11 @@ type MCPRendererOptions struct {
 	// to ensure that as guard policies are rolled out, only GitHub inputs are filtered while outputs
 	// to non-GitHub servers are not restricted. Nil when no GitHub guard policies are configured.
 	WriteSinkGuardPolicies map[string]any
+	// ContainerPinMappings maps source container image references to their SHA-pinned
+	// replacements from aw.json container_pins. When set, built-in MCP server container
+	// references are redirected to the mapped private registry mirror (digest stripped for
+	// MCP Gateway compatibility). Nil when no container_pins are configured.
+	ContainerPinMappings map[string]string
 }
 
 // MCPConfigRendererUnified provides unified rendering methods for MCP configurations
@@ -85,6 +90,10 @@ type GitHubMCPDockerOptions struct {
 	EffectiveToken string
 	// GuardPolicies specifies access control policies for the MCP gateway (e.g., allow-only repos/integrity)
 	GuardPolicies map[string]any
+	// ContainerPinMappings maps source container image references to their SHA-pinned replacements.
+	// When set, the GitHub MCP server container reference is redirected to the mapped private
+	// registry mirror (digest stripped for MCP Gateway compatibility). Nil → no redirect.
+	ContainerPinMappings map[string]string
 }
 
 // GitHubMCPRemoteOptions defines configuration for GitHub MCP remote mode rendering

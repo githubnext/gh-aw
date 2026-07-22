@@ -6,26 +6,35 @@
 //
 // Configuration reference:
 //
-//	{
-//	  "ghes": true,               // enables GHES compatibility mode (artifact pins remain latest non-v3)
-//	  "help_command": false,      // disables builtin centralized /help comment handler
-//	  "utc": "-08:00", // project home UTC offset for rendered local times
-//	  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
-//	  "auto_upgrade": { "cron": "0 9 * * 1" }, // or object form: enable with custom cron (Monday 09:00 UTC)
-//	  "maintenance": {              // enables generation of agentics-maintenance.yml
-//	    "runs_on": "custom runner", // string or string[] – runner label(s) for all
-//	    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
-//	    "label_triggers": true, // set to true to enable all label-triggered jobs (opt-in)
-//	    "disabled_jobs": ["close-expired-entities"], // optional maintenance jobs to omit
-//	    "compile": {
-//	      "create_pull_request_github_token": "MY_REPO_TOKEN" // create/update a deduplicated PR instead of an issue
-//	    }
-//	  }                            // maintenance jobs (default: ubuntu-slim)
-//	}
+//		{
+//		  "ghes": true,               // enables GHES compatibility mode (artifact pins remain latest non-v3)
+//		  "help_command": false,      // disables builtin centralized /help comment handler
+//		  "utc": "-08:00", // project home UTC offset for rendered local times
+//		  "auto_upgrade": true, // set to true to generate agentic-auto-upgrade.yml with weekly schedule
+//		  "auto_upgrade": { "cron": "0 9 * * 1" }, // or object form: enable with custom cron (Monday 09:00 UTC)
+//		  "action_pins": {            // redirect action references to internal mirrors
+//		    "actions/checkout@v4": "acme-corp/checkout@v4"
+//		  },
+//		  "container_pins": {         // redirect container images to internal mirrors
+//	   "ghcr.io/owner/image:tag": {
+//	     "image": "registry.acme.com/image:tag",
+//	     "digest": "sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+//	   }
+//	 },
+//		  "maintenance": {              // enables generation of agentics-maintenance.yml
+//		    "runs_on": "custom runner", // string or string[] – runner label(s) for all
+//		    "action_failure_issue_expires": 72, // expiration (hours) for conclusion failure issues
+//		    "label_triggers": true, // set to true to enable all label-triggered jobs (opt-in)
+//		    "disabled_jobs": ["close-expired-entities"], // optional maintenance jobs to omit
+//		    "compile": {
+//		      "create_pull_request_github_token": "MY_REPO_TOKEN" // create/update a deduplicated PR instead of an issue
+//		    }
+//		  }                            // maintenance jobs (default: ubuntu-slim)
+//		}
 //
-//	{
-//	  "maintenance": false          // disables agentic maintenance entirely
-//	}
+//		{
+//		  "maintenance": false          // disables agentic maintenance entirely
+//		}
 package workflow
 
 import (
@@ -188,6 +197,26 @@ type RepoConfig struct {
 	// can use this to redirect actions to internal mirrors. Keys and values
 	// must use the format "owner/repo@ref".
 	ActionPins map[string]string
+
+	// ContainerPins maps container image references to replacement image
+	// targets. Enterprises running in a private cloud can use this to
+	// redirect container images to internal mirrors. Keys are source image
+	// references (e.g. "ghcr.io/owner/image:tag") and values are objects
+	// with separate image ref and SHA-256 digest fields so that each
+	// component can be validated independently.
+	ContainerPins map[string]ContainerPinTarget
+}
+
+// ContainerPinTarget holds the replacement image reference for a container_pins
+// entry. The image ref and digest are stored separately for independent
+// validation. The combined pinned reference is "Image@Digest".
+type ContainerPinTarget struct {
+	// Image is the replacement container image reference without a digest
+	// component (e.g. "registry.acme.com/image:tag").
+	Image string `json:"image"`
+	// Digest is the SHA-256 digest of the replacement image
+	// (e.g. "sha256:<64 lowercase hex characters>").
+	Digest string `json:"digest"`
 }
 
 // IsAutoUpgradeEnabled returns true only when auto_upgrade is explicitly set to true.
@@ -207,12 +236,13 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	// Use an intermediate struct with json.RawMessage to defer maintenance and
 	// auto_upgrade parsing.
 	var raw struct {
-		GHES        bool              `json:"ghes,omitempty"`
-		HelpCommand *bool             `json:"help_command,omitempty"` // nil = use default (enabled)
-		UTC         string            `json:"utc,omitempty"`
-		AutoUpgrade json.RawMessage   `json:"auto_upgrade,omitempty"`
-		Maintenance json.RawMessage   `json:"maintenance,omitempty"`
-		ActionPins  map[string]string `json:"action_pins,omitempty"`
+		GHES          bool                          `json:"ghes,omitempty"`
+		HelpCommand   *bool                         `json:"help_command,omitempty"` // nil = use default (enabled)
+		UTC           string                        `json:"utc,omitempty"`
+		AutoUpgrade   json.RawMessage               `json:"auto_upgrade,omitempty"`
+		Maintenance   json.RawMessage               `json:"maintenance,omitempty"`
+		ActionPins    map[string]string             `json:"action_pins,omitempty"`
+		ContainerPins map[string]ContainerPinTarget `json:"container_pins,omitempty"`
 	}
 	if err := json.Unmarshal(data, &raw); err != nil {
 		return err
@@ -222,6 +252,7 @@ func (r *RepoConfig) UnmarshalJSON(data []byte) error {
 	r.HelpCommand = raw.HelpCommand
 	r.UTC = strings.TrimSpace(raw.UTC)
 	r.ActionPins = raw.ActionPins
+	r.ContainerPins = raw.ContainerPins
 
 	// Parse polymorphic auto_upgrade: boolean or { "cron": "..." } object.
 	if len(raw.AutoUpgrade) > 0 && string(raw.AutoUpgrade) != "null" {

@@ -33,6 +33,7 @@ func (e *CodexEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]an
 			IsLast:                 isLast,
 			ActionMode:             GetActionModeFromWorkflowData(workflowData),
 			WriteSinkGuardPolicies: deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+			ContainerPinMappings:   workflowData.getContainerPinMappings(),
 		})
 	}
 
@@ -212,6 +213,7 @@ func (e *CodexEngine) renderCodexMCPConfigWithContext(yaml *strings.Builder, too
 		Format:                   "toml",
 		RewriteLocalhostToDocker: rewriteLocalhost,
 		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+		ContainerPinMappings:     workflowData.getContainerPinMappings(),
 	}
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
@@ -236,6 +238,7 @@ func (e *CodexEngine) renderCodexJSONMCPConfigWithContext(yaml *strings.Builder,
 		IndentLevel:              "              ",
 		RewriteLocalhostToDocker: rewriteLocalhost,
 		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+		ContainerPinMappings:     workflowData.getContainerPinMappings(),
 	}
 
 	yaml.WriteString("              \"" + toolName + "\": {\n")

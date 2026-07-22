@@ -239,6 +239,9 @@ func applyContainerPins(images []string, workflowData *WorkflowData) ([]string, 
 	}
 
 	for i, img := range images {
+		// Apply container_pins mapping from aw.json before digest resolution so that
+		// redirected registries are pre-downloaded and recorded in the manifest.
+		img = applyContainerPinMappingFromData(img, workflowData)
 		if pin, ok := lookupContainerPin(img, cache); ok && pin.PinnedImage != "" {
 			result[i] = pin.PinnedImage
 			pins[i] = GHAWManifestContainer(pin)

@@ -204,7 +204,7 @@ func TestPlaywrightMCPWithGuardPoliciesJSON(t *testing.T) {
 	}
 
 	var output strings.Builder
-	renderPlaywrightMCPConfigWithOptions(&output, nil, true, false, false, guardPolicies)
+	renderPlaywrightMCPConfigWithOptions(&output, nil, true, false, false, guardPolicies, nil)
 
 	result := output.String()
 	assert.Contains(t, result, "\"guard-policies\"", "playwright should have guard-policies in JSON")
@@ -214,7 +214,7 @@ func TestPlaywrightMCPWithGuardPoliciesJSON(t *testing.T) {
 // TestPlaywrightMCPWithoutGuardPoliciesJSON tests that playwright without guard policies is unchanged
 func TestPlaywrightMCPWithoutGuardPoliciesJSON(t *testing.T) {
 	var output strings.Builder
-	renderPlaywrightMCPConfigWithOptions(&output, nil, true, false, false, nil)
+	renderPlaywrightMCPConfigWithOptions(&output, nil, true, false, false, nil, nil)
 
 	result := output.String()
 	assert.NotContains(t, result, "guard-policies", "playwright without guard policies should not have guard-policies")
@@ -247,7 +247,7 @@ func TestAgenticWorkflowsMCPWithGuardPoliciesJSON(t *testing.T) {
 	}
 
 	var output strings.Builder
-	renderAgenticWorkflowsMCPConfigWithOptions(&output, true, false, ActionModeRelease, guardPolicies)
+	renderAgenticWorkflowsMCPConfigWithOptions(&output, true, false, ActionModeRelease, guardPolicies, nil)
 
 	result := output.String()
 	assert.Contains(t, result, "\"guard-policies\"", "agentic-workflows should have guard-policies in JSON")

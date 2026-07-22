@@ -720,6 +720,10 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	} else {
 		containerImage += ":" + string(constants.DefaultMCPGatewayVersion)
 	}
+	// Apply container_pins mapping from aw.json so the runtime docker run command
+	// targets the redirected registry (e.g. an internal mirror) rather than the
+	// default public registry.
+	containerImage = applyContainerPinMappingFromData(containerImage, workflowData)
 	var containerCmd strings.Builder
 	// Pre-size the builder to avoid reallocations. The base flags from
 	// appendMCPGatewayBaseEnvFlags alone write ~2KB of -e flags; allocating

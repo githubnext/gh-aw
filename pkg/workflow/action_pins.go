@@ -162,7 +162,17 @@ func lookupContainerPin(image string, cache *ActionCache) (ContainerPin, bool) {
 
 // resolveContainerImage returns the digest-pinned image reference when a cache or
 // embedded container pin exists for image; otherwise it returns the original image.
+// When data has ContainerPinMappings set (from aw.json container_pins), the source
+// image is first redirected to the mapped replacement before pin resolution.
 func resolveContainerImage(image string, data *WorkflowData) string {
+	// Apply container-pin mapping from aw.json before digest resolution.
+	// data.PinContext() creates a new PinContext struct each call, but always sets
+	// Warnings to data.ActionPinWarnings — the same underlying map — so deduplication
+	// of console messages works correctly across multiple calls on the same WorkflowData.
+	if data != nil && len(data.ContainerPinMappings) > 0 {
+		pinCtx := data.PinContext()
+		image = actionpins.ApplyContainerPinMapping(image, pinCtx)
+	}
 	var cache *ActionCache
 	if data != nil {
 		cache = data.ActionCache
@@ -183,6 +193,37 @@ func resolveMCPGatewayContainerImage(image string, data *WorkflowData) string {
 		return base
 	}
 	return resolved
+}
+
+// resolveGatewayContainerFromMappings applies the container_pins redirect from
+// the provided mappings map and strips any digest component, returning an
+// MCP Gateway-compatible image reference (image[:tag] only).
+// When mappings is nil or the image is not present in the map, the original
+// image is returned unchanged.
+func resolveGatewayContainerFromMappings(image string, mappings map[string]string) string {
+	if len(mappings) == 0 {
+		return image
+	}
+	// Build a minimal PinContext with no warning tracking (deduplication occurs
+	// during pre-download collection; here we only need the redirect).
+	ctx := &actionpins.PinContext{ContainerMappings: mappings}
+	mapped := actionpins.ApplyContainerPinMapping(image, ctx)
+	base, _, hasDigest := strings.Cut(mapped, "@")
+	if hasDigest {
+		return base
+	}
+	return mapped
+}
+
+// applyContainerPinMappingFromData applies the container_pins redirect from aw.json
+// if data has ContainerPinMappings set; otherwise returns image unchanged.
+// Unlike resolveContainerImage this does not perform a digest lookup, making it
+// suitable for runtime command generation where only the registry redirect is needed.
+func applyContainerPinMappingFromData(image string, data *WorkflowData) string {
+	if data == nil || len(data.ContainerPinMappings) == 0 {
+		return image
+	}
+	return actionpins.ApplyContainerPinMapping(image, data.PinContext())
 }
 
 // getActionPinWithData returns the pinned action reference for a given action@version,

@@ -32,6 +32,7 @@ func renderCustomMCPConfigWrapperWithContext(yaml *strings.Builder, toolName str
 		Format:                   "json",
 		RewriteLocalhostToDocker: rewriteLocalhost,
 		GuardPolicies:            deriveWriteSinkGuardPolicyFromWorkflow(workflowData),
+		ContainerPinMappings:     workflowData.getContainerPinMappings(),
 	}
 
 	err := renderSharedMCPConfig(yaml, toolName, toolConfig, renderer)
@@ -234,7 +235,8 @@ func renderMCPScalarProperty(yaml *strings.Builder, property string, isLast bool
 	case "type":
 		renderMCPJSONScalar(yaml, renderer, "type", mcpConfig.Type, isLast)
 	case "container":
-		renderMCPStringScalar(yaml, renderer, "container", mcpConfig.Container, isLast)
+		container := resolveGatewayContainerFromMappings(mcpConfig.Container, renderer.ContainerPinMappings)
+		renderMCPStringScalar(yaml, renderer, "container", container, isLast)
 	case "entrypoint":
 		renderMCPStringScalar(yaml, renderer, "entrypoint", mcpConfig.Entrypoint, isLast)
 	case "command":

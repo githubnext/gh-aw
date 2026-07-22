@@ -48,6 +48,24 @@ func (c *Compiler) getCompiledProjectUTCOffset() string {
 	return strings.TrimSpace(repoConfig.UTC)
 }
 
+// getContainerPinMappings returns a container-pin mapping table from aw.json,
+// or nil when the file is absent, contains no mappings, or fails to load.
+// Each ContainerPinTarget entry is combined into a single "image@digest" string
+// for use by the internal resolution machinery. Callers may freely mutate the
+// returned map.
+func (c *Compiler) getContainerPinMappings() map[string]string {
+	repoConfig, err := c.loadRepoConfig()
+	if err != nil || repoConfig == nil || len(repoConfig.ContainerPins) == 0 {
+		return nil
+	}
+	repoConfigLog.Printf("getContainerPinMappings: loaded %d container-pin mapping(s) from aw.json", len(repoConfig.ContainerPins))
+	cp := make(map[string]string, len(repoConfig.ContainerPins))
+	for k, v := range repoConfig.ContainerPins {
+		cp[k] = v.Image + "@" + v.Digest
+	}
+	return cp
+}
+
 // getActionPinMappings returns a defensive copy of the action-pin mapping table
 // from aw.json, or nil when the file is absent, contains no mappings, or fails
 // to load. Callers may freely mutate the returned map.
