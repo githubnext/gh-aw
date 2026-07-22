@@ -27,6 +27,7 @@ Apply these in order, measuring cost and quality after each change:
 - [ ] **Correctness first**: compare quality before cost; use AIC or token count only to choose among equally successful variants
 - [ ] **Cadence**: If the result is not time-sensitive, schedule less often (`hourly` → `daily`, `daily` → `weekly`)
 - [ ] **Batching**: Prefer scheduled batch processing over reactive events when delayed processing is acceptable
+- [ ] **Bounded subsets**: For large repetitive backlogs, process only a budget-safe subset per run and use a cache cursor or deterministic heuristic to rotate fairly through the remaining work
 - [ ] **Telemetry**: Configure `observability.otlp` so token usage and run phases are measurable outside individual run logs
 - [ ] **AgenticOps**: Add `copilot-token-audit` / `copilot-token-optimizer` workflows so the repository keeps finding waste automatically
 - [ ] **Measure first**: Back every change with an `experiments:` field and `metric: "aic"` before promoting
@@ -304,6 +305,12 @@ The cheapest run is the one you don't execute. If a workflow doesn't need near-r
 ### Prefer scheduled batches over reactive triggers
 
 Reactive triggers (`issues:`, `pull_request:`, comment commands) suit immediate feedback. Otherwise prefer `schedule: daily on weekdays` and batch work. Typical batch-friendly tasks: triage summaries, stale backlog review, token audits, security digests. Combine with `cache-memory` or `repo-memory` to track processed items.
+
+### Bound repetitive work to a manageable subset
+
+Do not require one run to finish an unbounded backlog such as hundreds of lint violations. Set a per-run item, time, turn, or AI-credit budget and stop after a useful subset. Persist a compact cursor or processed-item set in `cache-memory` when stable state is available; otherwise use a deterministic heuristic such as file-path buckets, issue-number modulo, or oldest-first ordering. Rotate buckets round-robin across runs so every item eventually receives attention without repeatedly selecting the easiest items.
+
+Keep each batch idempotent, skip items already fixed, and report the processed subset plus remaining work. Prefer smaller complete batches over a broad set of partial fixes that may exhaust the budget.
 
 ---
 
