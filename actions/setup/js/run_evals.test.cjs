@@ -168,6 +168,18 @@ describe("run_evals.cjs", () => {
     expect(JSON.parse(line).answer).toBe("YES");
   });
 
+  it('defaults missing answers to "NO" to keep eval output binary', async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
+    vi.stubEnv("GH_AW_EVALS_MODEL", "small");
+    vi.stubEnv("GITHUB_RUN_ID", "999");
+    fs.writeFileSync(EVALS_LOG_PATH, "unrelated: maybe\n", "utf8");
+
+    await parseMain();
+
+    const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
+    expect(JSON.parse(line).answer).toBe("NO");
+  });
+
   describe("extractAssistantTextFromJsonlLog", () => {
     it("returns empty string for non-JSONL content", () => {
       expect(extractAssistantTextFromJsonlLog("Q1: YES\nQ2: NO\n")).toBe("");

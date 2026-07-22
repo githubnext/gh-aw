@@ -172,6 +172,9 @@ async function parseMain() {
     if (answer === "UNKNOWN" && i < positionalAnswers.length && positionalAnswers[i]) {
       answer = positionalAnswers[i];
     }
+    if (answer === "UNKNOWN") {
+      answer = "NO";
+    }
 
     const record = {
       id: q.id,
