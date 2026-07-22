@@ -27,6 +27,7 @@ network:
 imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
+  - shared/ai-coding-dictionary.md
   - shared/mcp/serena-go.md
 
   - shared/otlp.md
@@ -107,6 +108,7 @@ Keep the glossary up-to-date by:
 2. Performing incremental updates daily (last 24 hours)
 3. Performing comprehensive full scan on Mondays (last 7 days)
 4. Adding new terms and updating definitions based on repository changes
+5. Aligning AI-coding terminology with the shared AI Coding Dictionary reference
 
 ## Available Tools
 
@@ -187,6 +189,7 @@ The current glossary was already read in Step 1 along with the scope files.
 - Terms that need updated definitions
 - Outdated terminology
 - Inconsistent definitions
+- Generic AI terms that should be normalized using the shared AI Coding Dictionary reference
 
 ### 5. Follow Documentation Guidelines
 

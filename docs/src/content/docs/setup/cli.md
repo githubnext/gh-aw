@@ -263,7 +263,7 @@ gh aw secrets bootstrap --engine copilot                 # Check only Copilot se
 gh aw secrets bootstrap --non-interactive                # Display missing secrets without prompting
 ```
 
-**Options:** `--engine` (copilot, claude, codex, gemini), `--non-interactive`, `--repo`
+**Options:** `--engine` (copilot, claude, codex, gemini, antigravity, opencode, pi), `--non-interactive`, `--repo`
 
 See [Authentication](/gh-aw/reference/auth/) for details.
 
@@ -480,10 +480,10 @@ gh aw logs "ci failure doctor"             # Case-insensitive display name
 **`--cache-before` flag (cache cleanup):** Deletes cached run folders in the output directory whose run creation date is older than the specified cutoff. Accepts the same date/time delta formats as `--start-date` and `--end-date` (e.g. `-1d`, `-1w`, `-1mo`) as well as absolute dates (`YYYY-MM-DD`). Cleanup runs before the download step to free disk space first; failures are non-fatal and logged as warnings. The previous `--after` spelling is kept as a hidden, deprecated alias.
 
 ```bash wrap
-gh aw logs --cache-before -1w                        # Clean folders older than 1 week, then download latest runs
-gh aw logs --cache-before -30d                       # Clean folders older than 30 days
-gh aw logs --cache-before 2024-01-01                 # Clean folders from before a specific date
-gh aw logs my-workflow --cache-before -1mo -c 20     # Clean up, then download 20 runs of a specific workflow
+gh aw logs --cache-before -1w                        # Evict local cache older than 1 week, then proceed with normal run download
+gh aw logs --cache-before -30d                       # Evict local cache entries older than 30 days
+gh aw logs --cache-before 2024-01-01                 # Evict local cache entries from before a specific date
+gh aw logs my-workflow --cache-before -1mo -c 20     # Evict local cache older than 1 month, then download 20 runs of a specific workflow
 ```
 
 Only directories matching the `run-{ID}` naming pattern inside the output directory are considered. The run's creation timestamp is read from `run_summary.json` inside each folder; if that file is absent (e.g., incomplete download), the directory's modification time is used as a fallback.
@@ -532,7 +532,7 @@ echo -e "1234567890\n9876543210" | gh aw audit --stdin   # diff mode: first is b
 cat run-ids.txt | gh aw audit --stdin --repo owner/repo
 ```
 
-**Options:** `--artifacts`, `--experiment`, `--format`, `--json/-j`, `--output/-o`, `--parse`, `--repo/-r`, `--stdin`, `--variant`
+**Options:** `--artifacts`, `--evals`, `--experiment`, `--format`, `--json/-j`, `--output/-o`, `--parse`, `--repo/-r`, `--stdin`, `--variant`
 
 The `--repo` flag accepts `owner/repo` format and is required when passing a bare numeric run ID without a full URL, allowing the command to locate the correct repository.
 
@@ -611,6 +611,8 @@ gh aw health issue-monster --days 90  # 90-day metrics for workflow
 ```
 
 **Options:** `--days`, `--threshold`, `--repo/-r`, `--json/-j`
+
+The `--days` flag accepts 7, 30, or 90 (default: 7). Other values produce an error.
 
 Shows success/failure rates, trend indicators (↑ improving, → stable, ↓ degrading), execution duration, token usage, costs, and warnings when success rate drops below threshold.
 

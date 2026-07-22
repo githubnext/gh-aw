@@ -244,11 +244,15 @@ func TestBootstrapGitHubAppManifestHelpers(t *testing.T) {
 	if manifest["name"] != "agentic-ops" {
 		t.Fatalf("unexpected manifest name: %#v", manifest["name"])
 	}
-	page, err := renderBootstrapGitHubAppRegistrationPage("https://github.com/settings/apps/new?state=test", manifest)
+	registrationURL := "https://github.com/settings/apps/new?state=abc&foo=bar"
+	page, err := renderBootstrapGitHubAppRegistrationPage(registrationURL, manifest)
 	if err != nil {
 		t.Fatalf("renderBootstrapGitHubAppRegistrationPage returned error: %v", err)
 	}
 	if !strings.Contains(page, "manifest-form") || !strings.Contains(page, "&#34;name&#34;") {
 		t.Fatalf("unexpected registration page: %s", page)
+	}
+	if !strings.Contains(page, `action="https://github.com/settings/apps/new?state=abc&amp;foo=bar"`) {
+		t.Fatalf("registration page did not contain escaped action URL: %s", page)
 	}
 }

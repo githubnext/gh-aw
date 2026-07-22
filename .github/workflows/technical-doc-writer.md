@@ -28,6 +28,7 @@ network:
 imports:
   - ../skills/documentation/SKILL.md
   - ../agents/technical-doc-writer.agent.md
+  - shared/ai-coding-dictionary.md
 
   - shared/otlp.md
 safe-outputs:
@@ -128,6 +129,7 @@ When reviewing documentation for the specified topic in the **docs/** folder:
 3. **Make improvements** to the documentation as needed:
    - Fix clarity and conciseness issues
    - Improve tone and voice consistency with GitHub Docs
+   - Normalize AI-coding terminology using the shared AI Coding Dictionary reference
    - Enhance code block formatting and examples
    - Improve structure and organization
    - Add missing prerequisites or setup steps

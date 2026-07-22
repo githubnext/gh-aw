@@ -15,6 +15,7 @@ network:
   - github
 imports:
 - shared/github-guard-policy.md
+- shared/ai-coding-dictionary.md
 - shared/otlp.md
 safe-outputs:
   create-pull-request:
@@ -98,6 +99,7 @@ Scan the repository for merged pull requests and code changes from the last 24 h
 - **GitHub data (detailed reads)**: use GitHub MCP tools (`search_pull_requests`, `pull_request_read`, `list_commits`, `get_commit`) for per-item detail lookups in Task Steps
 - **Do NOT** use `mcpscripts` for any GitHub reads — use `gh` CLI or GitHub MCP tools directly
 - **Documentation editing**: use the `Edit` tool, not bash `sed`
+- **AI terminology normalization**: use the shared AI Coding Dictionary reference to keep AI-coding terms consistent
 
 ## Pre-flight: Batch Data Fetch (do this first, before any analysis)
 
