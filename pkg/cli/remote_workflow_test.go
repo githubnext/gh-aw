@@ -1890,7 +1890,7 @@ safe-outputs:
 		return nil, errors.New("download not available in unit tests")
 	}
 	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, dir, false, true, nil, mockDownloader)
-	assert.NoError(t, err, "force=true should bypass conflict detection and return nil (download fails silently)")
+	require.NoError(t, err, "force=true should bypass conflict detection and return nil (download fails silently)")
 }
 
 func TestFetchAndSaveRemoteDispatchWorkflows_FetchesNestedFrontmatterImports(t *testing.T) {
@@ -2031,7 +2031,7 @@ resources:
 	}
 
 	err := fetchAndSaveRemoteResources(t.Context(), content, spec, dir, false, false, nil)
-	assert.NoError(t, err, "should not error when markdown resource is from the same source")
+	require.NoError(t, err, "should not error when markdown resource is from the same source")
 }
 
 // ---------------------------------------------------------------------------

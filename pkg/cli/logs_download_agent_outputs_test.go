@@ -58,7 +58,7 @@ func TestFlattenAgentOutputsArtifactMissing(t *testing.T) {
 	// Don't create agent_outputs directory
 	// Call flatten - should succeed without error
 	err := flattenAgentOutputsArtifact(tempDir, false)
-	assert.NoError(t, err, "flattenAgentOutputsArtifact should succeed even when agent_outputs is missing")
+	require.NoError(t, err, "flattenAgentOutputsArtifact should succeed even when agent_outputs is missing")
 }
 
 // TestFlattenAgentOutputsArtifactPreservesStructure tests that nested directory structure is preserved

@@ -284,7 +284,7 @@ func TestActionsBuildCommand_EmptyActionsDir(t *testing.T) {
 
 	// Test with empty actions directory
 	err = ActionsBuildCommand()
-	assert.NoError(t, err, "Should not error with empty actions directory")
+	require.NoError(t, err, "Should not error with empty actions directory")
 }
 
 func TestActionsValidateCommand_EmptyActionsDir(t *testing.T) {
@@ -303,7 +303,7 @@ func TestActionsValidateCommand_EmptyActionsDir(t *testing.T) {
 
 	// Test with empty actions directory
 	err = ActionsValidateCommand()
-	assert.NoError(t, err, "Should not error with empty actions directory")
+	require.NoError(t, err, "Should not error with empty actions directory")
 }
 
 func TestActionsCleanCommand_EmptyActionsDir(t *testing.T) {
@@ -322,7 +322,7 @@ func TestActionsCleanCommand_EmptyActionsDir(t *testing.T) {
 
 	// Test with empty actions directory
 	err = ActionsCleanCommand()
-	assert.NoError(t, err, "Should not error with empty actions directory")
+	require.NoError(t, err, "Should not error with empty actions directory")
 }
 
 func TestIsCompositeAction(t *testing.T) {

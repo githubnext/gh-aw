@@ -141,7 +141,7 @@ func TestDetectOrgCopilotCLIBillingWithClient(t *testing.T) {
 			if tc.wantErr {
 				assert.Error(t, err)
 			} else {
-				assert.NoError(t, err)
+				require.NoError(t, err)
 			}
 		})
 	}

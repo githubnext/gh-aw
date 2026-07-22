@@ -107,7 +107,7 @@ func TestRenamePathForUpgrade(t *testing.T) {
 
 	// The backup should exist at the returned path.
 	_, statErr = os.Stat(backupPath)
-	assert.NoError(t, statErr, "Backup file should exist")
+	require.NoError(t, statErr, "Backup file should exist")
 }
 
 func TestRenamePathForUpgrade_NonExistentFile(t *testing.T) {

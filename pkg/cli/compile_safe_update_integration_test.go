@@ -125,7 +125,7 @@ func TestSafeUpdateFirstCompileCreatesBaseline(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
+	require.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
 	// Safe update warning must be emitted even on first compile so the agent reviews secrets.
 	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
 		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
@@ -159,13 +159,13 @@ func TestSafeUpdateFirstCompileCreatesBaselineForActions(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
+	require.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
 		"first compile should emit safe update warnings so the agent reviews newly introduced actions")
 	// Lock file must be written
 	lockFilePath := filepath.Join(setup.workflowsDir, "safe-update-action.lock.yml")
 	_, statErr := os.Stat(lockFilePath)
-	assert.NoError(t, statErr, "lock file should be written after first compile")
+	require.NoError(t, statErr, "lock file should be written after first compile")
 	t.Logf("First compile correctly emitted warnings for new action.\nOutput:\n%s", outputStr)
 }
 
@@ -184,7 +184,7 @@ func TestSafeUpdateFirstCompileCreatesBaselineForRedirect(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
+	require.NoError(t, err, "first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
 		"first compile should emit safe update warnings for redirect changes")
 	assert.Contains(t, outputStr, "New redirect configured",
@@ -234,7 +234,7 @@ func TestSafeUpdateAllowsKnownSecretWithPriorManifest(t *testing.T) {
 	output, err := step2Cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "compile should succeed when the secret is in the prior manifest\nOutput:\n%s", outputStr)
+	require.NoError(t, err, "compile should succeed when the secret is in the prior manifest\nOutput:\n%s", outputStr)
 	t.Logf("Safe update correctly allowed known secret.\nOutput:\n%s", outputStr)
 }
 
@@ -272,7 +272,7 @@ func TestSafeUpdateAllowsGitHubTokenOnFirstCompile(t *testing.T) {
 	output, err := step2Cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err, "compile should succeed when no new secrets are introduced\nOutput:\n%s", outputStr)
+	require.NoError(t, err, "compile should succeed when no new secrets are introduced\nOutput:\n%s", outputStr)
 
 	// Verify the manifest is still present in the (re-)generated lock file.
 	updatedLock, readErr2 := os.ReadFile(lockFilePath)
@@ -483,7 +483,7 @@ func TestSafeUpdateFirstCompileCreatesBaselineForImport(t *testing.T) {
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err,
+	require.NoError(t, err,
 		"first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
 		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")
@@ -531,7 +531,7 @@ func TestSafeUpdateAllowsImportedSecretWithPriorManifest(t *testing.T) {
 	step2Out, step2Err := step2Cmd.CombinedOutput()
 	outputStr := string(step2Out)
 
-	assert.NoError(t, step2Err,
+	require.NoError(t, step2Err,
 		"second compilation should succeed when imported secret is already in the manifest\nOutput:\n%s", outputStr)
 	t.Logf("Safe update correctly allowed pre-approved imported secret.\nOutput:\n%s", outputStr)
 }
@@ -593,7 +593,7 @@ func TestSafeUpdateFirstCompileCreatesBaselineForTransitiveImport(t *testing.T) 
 	output, err := cmd.CombinedOutput()
 	outputStr := string(output)
 
-	assert.NoError(t, err,
+	require.NoError(t, err,
 		"first compile should succeed (warnings don't fail the build)\nOutput:\n%s", outputStr)
 	assert.Contains(t, outputStr, "SECURITY REVIEW REQUIRED",
 		"first compile should emit safe update warnings so the agent reviews newly introduced secrets")

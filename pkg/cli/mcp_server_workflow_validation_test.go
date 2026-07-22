@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestMCPValidateWorkflowName(t *testing.T) {
@@ -45,7 +46,7 @@ func TestMCPValidateWorkflowName(t *testing.T) {
 			err := validateMCPWorkflowName(tt.workflowName)
 
 			if tt.shouldSucceed {
-				assert.NoError(t, err, "Validation should succeed for workflow: %s", tt.workflowName)
+				require.NoError(t, err, "Validation should succeed for workflow: %s", tt.workflowName)
 			} else {
 				assert.Error(t, err, "Validation should fail for workflow: %s", tt.workflowName)
 				if tt.errorContains != "" {

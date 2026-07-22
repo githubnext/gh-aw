@@ -45,7 +45,7 @@ func TestSecretsCommandHelp(t *testing.T) {
 
 	// Verify RunE returns help when command is run without subcommand
 	err := cmd.RunE(cmd, []string{})
-	assert.NoError(t, err, "Running secrets command without subcommand should show help without error")
+	require.NoError(t, err, "Running secrets command without subcommand should show help without error")
 }
 
 func TestSecretsCommandStructure(t *testing.T) {

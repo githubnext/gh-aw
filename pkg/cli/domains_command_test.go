@@ -30,12 +30,12 @@ func TestRunListDomains_NoWorkflows(t *testing.T) {
 
 	t.Run("no workflows text output", func(t *testing.T) {
 		err := RunListDomains(false)
-		assert.NoError(t, err, "RunListDomains should not error with no workflows")
+		require.NoError(t, err, "RunListDomains should not error with no workflows")
 	})
 
 	t.Run("no workflows JSON output", func(t *testing.T) {
 		err := RunListDomains(true)
-		assert.NoError(t, err, "RunListDomains should not error with no workflows in JSON mode")
+		require.NoError(t, err, "RunListDomains should not error with no workflows in JSON mode")
 	})
 }
 
@@ -67,13 +67,13 @@ Do something.
 
 	t.Run("text output", func(t *testing.T) {
 		err := RunListDomains(false)
-		assert.NoError(t, err, "RunListDomains should not error")
+		require.NoError(t, err, "RunListDomains should not error")
 	})
 
 	t.Run("JSON output", func(t *testing.T) {
 		// Capture stdout by redirecting
 		err := RunListDomains(true)
-		assert.NoError(t, err, "RunListDomains JSON should not error")
+		require.NoError(t, err, "RunListDomains JSON should not error")
 	})
 }
 
@@ -103,7 +103,7 @@ network:
 	require.NoError(t, err, "Failed to write workflow file")
 
 	err = RunWorkflowDomains("my-workflow", true)
-	assert.NoError(t, err, "RunWorkflowDomains JSON should not error")
+	require.NoError(t, err, "RunWorkflowDomains JSON should not error")
 }
 
 func TestRunWorkflowDomains_TextOutput(t *testing.T) {
@@ -130,7 +130,7 @@ network:
 	require.NoError(t, err, "Failed to write workflow file")
 
 	err = RunWorkflowDomains("my-workflow", false)
-	assert.NoError(t, err, "RunWorkflowDomains text should not error")
+	require.NoError(t, err, "RunWorkflowDomains text should not error")
 }
 
 func TestWorkflowDomainsDetail_JSONMarshaling(t *testing.T) {
@@ -303,12 +303,12 @@ func TestRunListDomains_RepoRoot(t *testing.T) {
 
 	t.Run("JSON output from repo root", func(t *testing.T) {
 		err := RunListDomains(true)
-		assert.NoError(t, err, "RunListDomains JSON should not error from repo root")
+		require.NoError(t, err, "RunListDomains JSON should not error from repo root")
 	})
 
 	t.Run("text output from repo root", func(t *testing.T) {
 		err := RunListDomains(false)
-		assert.NoError(t, err, "RunListDomains text should not error from repo root")
+		require.NoError(t, err, "RunListDomains text should not error from repo root")
 	})
 }
 

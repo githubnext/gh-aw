@@ -29,19 +29,19 @@ func TestRunListWorkflows_JSONOutput(t *testing.T) {
 	// Test JSON output without pattern
 	t.Run("JSON output without pattern", func(t *testing.T) {
 		err := RunListWorkflows(t.Context(), "", ".github/workflows", "", false, true, "")
-		assert.NoError(t, err, "RunListWorkflows with JSON flag should not error")
+		require.NoError(t, err, "RunListWorkflows with JSON flag should not error")
 	})
 
 	// Test JSON output with pattern
 	t.Run("JSON output with pattern", func(t *testing.T) {
 		err := RunListWorkflows(t.Context(), "", ".github/workflows", "smoke", false, true, "")
-		assert.NoError(t, err, "RunListWorkflows with JSON flag and pattern should not error")
+		require.NoError(t, err, "RunListWorkflows with JSON flag and pattern should not error")
 	})
 
 	// Test JSON output with label filter
 	t.Run("JSON output with label filter", func(t *testing.T) {
 		err := RunListWorkflows(t.Context(), "", ".github/workflows", "", false, true, "test")
-		assert.NoError(t, err, "RunListWorkflows with JSON flag and label filter should not error")
+		require.NoError(t, err, "RunListWorkflows with JSON flag and label filter should not error")
 	})
 }
 
@@ -97,13 +97,13 @@ func TestRunListWorkflows_TextOutput(t *testing.T) {
 	// Test text output
 	t.Run("Text output without pattern", func(t *testing.T) {
 		err := RunListWorkflows(t.Context(), "", ".github/workflows", "", false, false, "")
-		assert.NoError(t, err, "RunListWorkflows without JSON flag should not error")
+		require.NoError(t, err, "RunListWorkflows without JSON flag should not error")
 	})
 
 	// Test text output with pattern
 	t.Run("Text output with pattern", func(t *testing.T) {
 		err := RunListWorkflows(t.Context(), "", ".github/workflows", "ci-", false, false, "")
-		assert.NoError(t, err, "RunListWorkflows with pattern should not error")
+		require.NoError(t, err, "RunListWorkflows with pattern should not error")
 	})
 }
 

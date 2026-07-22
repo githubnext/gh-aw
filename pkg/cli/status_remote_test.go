@@ -98,7 +98,7 @@ func TestGetWorkflowStatuses_WithRepoFlag_SkipsLocalFiles(t *testing.T) {
 	// fail (no real token in tests) but that is swallowed and an empty result
 	// is returned rather than a "no .github/workflows directory found" error.
 	statuses, err := GetWorkflowStatuses("", "", "", "owner/repo")
-	assert.NoError(t, err, "GetWorkflowStatuses with --repo should not propagate a 'missing local dir' error")
+	require.NoError(t, err, "GetWorkflowStatuses with --repo should not propagate a 'missing local dir' error")
 	// statuses may be nil (no API mock) or an empty slice; either is acceptable.
 	_ = statuses
 }
