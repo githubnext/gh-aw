@@ -10,6 +10,7 @@ permissions:
   issues: read
   copilot-requests: write
 strict: true
+if: always() && needs.scan_image.result != 'skipped'
 network:
   allowed:
     - defaults
@@ -26,10 +27,40 @@ safe-outputs:
     deduplicate-by-title: true
 steps:
   - name: Download image scan results
+    id: download_scan
+    continue-on-error: true
     uses: actions/download-artifact@v8.0.1
     with:
       name: squid-image-scan
       path: /tmp/gh-aw/agent/image-scan
+  - name: Ensure image scan summary exists
+    if: always()
+    env:
+      DOWNLOAD_OUTCOME: ${{ steps.download_scan.outcome }}
+    run: |
+      results="/tmp/gh-aw/agent/image-scan"
+      mkdir -p "$results"
+      if [ "$DOWNLOAD_OUTCOME" != "success" ] ||
+         ! jq -e 'type == "object"' "$results/summary.json" > /dev/null 2>&1; then
+        jq -n '{
+          image_tag: "unknown",
+          pinned_image: "unknown",
+          index_digest: "unknown",
+          current_digest: "unknown",
+          image_updated: false,
+          platforms: [],
+          total_vulnerabilities: 0,
+          critical_vulnerabilities: 0,
+          fixable_vulnerabilities: 0,
+          license_rejected: false,
+          operational_errors: ["The scan job did not publish a valid result artifact."],
+          tools: {
+            syft: "1.49.0",
+            grype: "0.116.0",
+            grant: "0.6.8"
+          }
+        }' > "$results/summary.json"
+      fi
 post-steps:
   - name: Enforce critical vulnerability and license gates
     if: always()
@@ -234,10 +265,23 @@ jobs:
             if ! grant list "$spdx_json" > "$output/grant-list-${suffix}.txt" 2>&1; then
               record_error "Grant could not list licenses for ${platform}."
             fi
-            grant check --config .grant.yaml "$spdx_json" \
-              > "$output/grant-check-${suffix}.txt" 2>&1
-            if [ "$?" -ne 0 ]; then
+            grant_json="$output/grant-check-${suffix}.json"
+            grant_stderr="$output/grant-check-${suffix}.stderr"
+            grant check --config .grant.yaml --output json "$spdx_json" \
+              > "$grant_json" 2> "$grant_stderr"
+            grant_exit=$?
+            if ! jq -e '.run.targets | length > 0' "$grant_json" > /dev/null 2>&1; then
+              record_error "Grant did not produce valid results for ${platform}."
+            elif jq -e '
+              any(.run.targets[]; .evaluation.status == "error")
+            ' "$grant_json" > /dev/null; then
+              record_error "Grant encountered an evaluation error for ${platform}."
+            elif jq -e '
+              any(.run.targets[]; .evaluation.status == "noncompliant")
+            ' "$grant_json" > /dev/null; then
               license_rejected=true
+            elif [ "$grant_exit" -ne 0 ]; then
+              record_error "Grant failed unexpectedly for ${platform}."
             fi
           done
 
@@ -305,8 +349,8 @@ Review the deterministic Syft, Grype, and Grant results in
    - scanner versions and Grype database status;
    - every vulnerability from both `grype-linux-*.json` files, with platform,
      severity, vulnerability ID, package, installed version, and fixed versions;
-   - every rejected or unknown license shown in the `grant-check-linux-*.txt`
-     files;
+   - every rejected or unknown license shown in the
+     `grant-check-linux-*.json` files;
    - image digest drift, operational errors, and actionable remediation.
 5. Keep the report factual and compact. Never omit lower-severity
    vulnerabilities.
