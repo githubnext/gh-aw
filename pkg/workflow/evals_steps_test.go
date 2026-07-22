@@ -223,7 +223,7 @@ func TestBuildParseEvalsResultsStepUsesExpressionModelAndFallbackEnv(t *testing.
 	expectedFallbackEnvLine := fmt.Sprintf(
 		"%s: ${{ vars.%s || vars.%s || '%s' }}",
 		constants.EnvVarModelFallback,
-		constants.EnvVarModelDetectionCopilot,
+		constants.EnvVarModelEvalsCopilot,
 		compilerenv.DefaultModelCopilot,
 		constants.CopilotBYOKDefaultModel,
 	)
@@ -328,5 +328,30 @@ func TestBuildEvalsEngineStepsCodexNoDetectionSchemaOrResultPath(t *testing.T) {
 	}
 	if strings.Contains(steps, "/tmp/gh-aw/threat-detection/detection_result.json") {
 		t.Fatalf("evals Codex execution must not reference detection result path; got:\n%s", steps)
+	}
+}
+
+func TestBuildEvalsEngineStepsUsesEvalsPhase(t *testing.T) {
+	compiler := NewCompiler()
+	for _, engine := range []string{"copilot", "claude", "codex"} {
+		t.Run(engine, func(t *testing.T) {
+			data := &WorkflowData{
+				AI: engine,
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Type: SandboxTypeAWF,
+					},
+				},
+				Evals: &EvalsConfig{
+					Questions: []EvalDefinition{
+						{ID: "evals_data_analyzed", Question: "Did the agent analyze evals data?"},
+					},
+				},
+			}
+			steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
+			if !strings.Contains(steps, "GH_AW_PHASE: evals") {
+				t.Fatalf("expected evals engine steps to set GH_AW_PHASE=evals; got:\n%s", steps)
+			}
+		})
 	}
 }

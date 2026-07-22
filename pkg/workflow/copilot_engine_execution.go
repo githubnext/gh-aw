@@ -179,11 +179,10 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 	llmProvider := e.ResolveLLMProvider(workflowData)
 	providerOverrideBYOK := llmProvider != LLMProviderGitHub && sandboxEnabled
 	isBYOKMode := providerOverrideBYOK || engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
-	isDetectionJob := workflowData.SafeOutputs == nil
 	modelConfigured := workflowData.Model != ""
 	copilotArgs := e.buildCopilotArgs(workflowData)
 	mkdirCommands := buildCopilotMkdirCommands(copilotArgs)
-	modelEnvVar := getCopilotModelEnvVar(isDetectionJob)
+	modelEnvVar := getCopilotModelEnvVar(workflowData)
 	timeoutValue := getCopilotTimeoutValue(workflowData)
 	commandName, customCommandScriptSetup := e.resolveCopilotCommand(workflowData, sandboxEnabled)
 	execPrefix := e.buildCopilotExecPrefix(workflowData, commandName)
@@ -209,7 +208,7 @@ func (e *CopilotEngine) GetExecutionSteps(workflowData *WorkflowData, logFile st
 // buildCopilotArgs builds the Copilot CLI argument list based on workflow configuration.
 func (e *CopilotEngine) buildCopilotArgs(workflowData *WorkflowData) []string {
 	sandboxEnabled := isFirewallEnabled(workflowData)
-	isDetectionJob := workflowData.SafeOutputs == nil
+	isDetectionJob := isDetectionRun(workflowData)
 	copilotArgs := e.buildCopilotBaseArgs(sandboxEnabled)
 
 	// Add --disable-builtin-mcps to disable built-in MCP servers
@@ -296,7 +295,11 @@ func buildCopilotMkdirCommands(copilotArgs []string) string {
 	return mkdirCommands.String()
 }
 
-func getCopilotModelEnvVar(isDetectionJob bool) string {
+func getCopilotModelEnvVar(workflowData *WorkflowData) string {
+	if workflowRunPhase(workflowData) == runPhaseEvals {
+		return constants.EnvVarModelEvalsCopilot
+	}
+	isDetectionJob := isDetectionRun(workflowData)
 	if isDetectionJob {
 		return constants.EnvVarModelDetectionCopilot
 	}
@@ -567,11 +570,7 @@ func (e *CopilotEngine) addCopilotWorkflowStepEnv(env map[string]string, workflo
 	env["GH_AW_PROMPT"] = constants.AwPromptsFile
 	// Tag the step as a GitHub AW agentic execution for discoverability by agents
 	env["GITHUB_AW"] = "true"
-	if workflowData.IsDetectionRun {
-		env["GH_AW_PHASE"] = "detection"
-	} else {
-		env["GH_AW_PHASE"] = "agent"
-	}
+	env["GH_AW_PHASE"] = workflowRunPhase(workflowData)
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()
 	} else {

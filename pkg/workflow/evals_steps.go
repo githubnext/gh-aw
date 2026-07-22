@@ -155,7 +155,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		}
 	}
 
-	// Apply engine and enterprise default detection model (cost-effective for Q&A tasks).
+	// Apply eval-specific engine/default model configuration.
 	engine, err := c.getAgenticEngine(engineID)
 	if err != nil {
 		return []string{
@@ -187,6 +187,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		Permissions:       data.Permissions,
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    false,
+		IsEvalsRun:        true,
 		RunnerConfig:      data.RunnerConfig, // propagate runner.topology (e.g. arc-dind) to the evals job
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
@@ -392,10 +393,8 @@ func (c *Compiler) resolveEvalsExecutionModel(data *WorkflowData) string {
 
 	engineID := c.getEvalsEngineID(data)
 	if model == "" {
-		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+		if defaultModel := compilerenv.ResolveDefaultEvalsModel(""); defaultModel != "" {
 			model = defaultModel
-		} else if engine, err := c.getAgenticEngine(engineID); err == nil {
-			model = engine.GetDefaultDetectionModel()
 		}
 	}
 	if model == "" {
@@ -432,11 +431,11 @@ func appendEvalsModelEnvLines(steps []string, engineID, model string) []string {
 func buildEvalsModelFallbackExpression(engineID string) string {
 	switch engineID {
 	case string(constants.CopilotEngine):
-		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
+		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
 	case string(constants.ClaudeEngine):
-		return compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
+		return compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude)
 	case string(constants.CodexEngine):
-		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionCodex, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
+		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsCodex, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	default:
 		return ""
 	}

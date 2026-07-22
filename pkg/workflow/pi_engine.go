@@ -476,11 +476,7 @@ touch %s
 		piLog.Printf("Pi: setting PI_CODING_AGENT_DIR for models.json gateway config")
 	}
 
-	if workflowData.IsDetectionRun {
-		env["GH_AW_PHASE"] = "detection"
-	} else {
-		env["GH_AW_PHASE"] = "agent"
-	}
+	env["GH_AW_PHASE"] = workflowRunPhase(workflowData)
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()
 	} else {

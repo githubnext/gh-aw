@@ -313,9 +313,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// When model IS configured, ANTHROPIC_MODEL is set in the env block (see below) and the
 	// Claude CLI reads it natively - no --model flag in the shell command needed.
 	if !modelConfigured {
-		isDetectionJob := workflowData.SafeOutputs == nil
+		isDetectionJob := isDetectionRun(workflowData)
 		var modelEnvVar string
-		if isDetectionJob {
+		if workflowRunPhase(workflowData) == runPhaseEvals {
+			modelEnvVar = constants.EnvVarModelEvalsClaude
+		} else if isDetectionJob {
 			modelEnvVar = constants.EnvVarModelDetectionClaude
 		} else {
 			modelEnvVar = constants.EnvVarModelAgentClaude
@@ -412,13 +414,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-	// Indicate the phase: "agent" for the main run, "detection" for threat detection
+	// Indicate the phase: "agent" for the main run, "detection" for threat detection,
+	// and "evals" for the eval harness execution.
 	// Include the compiler version so agents can identify which gh-aw version generated the workflow
-	if workflowData.IsDetectionRun {
-		env["GH_AW_PHASE"] = "detection"
-	} else {
-		env["GH_AW_PHASE"] = "agent"
-	}
+	env["GH_AW_PHASE"] = workflowRunPhase(workflowData)
 	if IsRelease() {
 		env["GH_AW_VERSION"] = GetVersion()
 	} else {
@@ -474,9 +473,11 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 	// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION_CLAUDE so users
 	// can set a default via GitHub Actions variables.
 	if modelConfigured {
-		isDetectionJob := workflowData.SafeOutputs == nil
+		isDetectionJob := isDetectionRun(workflowData)
 		var claudeModelVar string
-		if isDetectionJob {
+		if workflowRunPhase(workflowData) == runPhaseEvals {
+			claudeModelVar = constants.EnvVarModelEvalsClaude
+		} else if isDetectionJob {
 			claudeModelVar = constants.EnvVarModelDetectionClaude
 		} else {
 			claudeModelVar = constants.EnvVarModelAgentClaude
@@ -488,8 +489,10 @@ func (e *ClaudeEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 		env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
 	} else {
 		// No model configured - use fallback GitHub variable with shell expansion
-		isDetectionJob := workflowData.SafeOutputs == nil
-		if isDetectionJob {
+		isDetectionJob := isDetectionRun(workflowData)
+		if workflowRunPhase(workflowData) == runPhaseEvals {
+			env[constants.EnvVarModelEvalsClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude)
+		} else if isDetectionJob {
 			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
 		} else {
 			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude)
