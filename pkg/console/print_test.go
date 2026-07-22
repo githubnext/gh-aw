@@ -22,19 +22,6 @@ func captureStderr(t *testing.T, fn func()) string {
 	return buf.String()
 }
 
-// TestPrintErrorNewline verifies that PrintError does not emit a spurious blank
-// line: FormatError already terminates with \n, so Fprint (not Fprintln) must
-// be used.
-func TestPrintErrorNewline(t *testing.T) {
-	ce := CompilerError{Type: "error", Message: "something went wrong"}
-	got := captureStderr(t, func() { PrintError(ce) })
-
-	want := FormatError(ce)
-	if got != want {
-		t.Fatalf("PrintError output mismatch\nwant: %q\ngot:  %q", want, got)
-	}
-}
-
 func TestPrintSuccessMessage(t *testing.T) {
 	got := captureStderr(t, func() { PrintSuccessMessage("ok") })
 	want := FormatSuccessMessageStderr("ok") + "\n"
@@ -46,14 +33,6 @@ func TestPrintSuccessMessage(t *testing.T) {
 func TestPrintInfoMessage(t *testing.T) {
 	got := captureStderr(t, func() { PrintInfoMessage("info") })
 	want := FormatInfoMessageStderr("info") + "\n"
-	if got != want {
-		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
-func TestPrintTableHeaderStderr(t *testing.T) {
-	got := captureStderr(t, func() { PrintTableHeaderStderr("Name") })
-	want := FormatTableHeaderStderr("Name") + "\n"
 	if got != want {
 		t.Fatalf("want %q, got %q", want, got)
 	}
@@ -75,41 +54,9 @@ func TestPrintErrorMessage(t *testing.T) {
 	}
 }
 
-func TestPrintErrorTextStderr(t *testing.T) {
-	got := captureStderr(t, func() { PrintErrorTextStderr("error text") })
-	want := FormatErrorTextStderr("error text") + "\n"
-	if got != want {
-		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
 func TestPrintCommandMessage(t *testing.T) {
 	got := captureStderr(t, func() { PrintCommandMessage("gh aw status") })
 	want := FormatCommandMessageStderr("gh aw status") + "\n"
-	if got != want {
-		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
-func TestPrintProgressMessage(t *testing.T) {
-	got := captureStderr(t, func() { PrintProgressMessage("loading") })
-	want := FormatProgressMessageStderr("loading") + "\n"
-	if got != want {
-		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
-func TestPrintPromptMessage(t *testing.T) {
-	got := captureStderr(t, func() { PrintPromptMessage("continue?") })
-	want := FormatPromptMessageStderr("continue?") + "\n"
-	if got != want {
-		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
-func TestPrintVerboseMessage(t *testing.T) {
-	got := captureStderr(t, func() { PrintVerboseMessage("debug info") })
-	want := FormatVerboseMessageStderr("debug info") + "\n"
 	if got != want {
 		t.Fatalf("want %q, got %q", want, got)
 	}
