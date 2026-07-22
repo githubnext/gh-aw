@@ -22,7 +22,7 @@ func TestValidateRepoGlobs(t *testing.T) {
 
 	err := validateRepoGlobs([]string{"["})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid --repos pattern")
+	require.ErrorContains(t, err, "invalid --repos pattern")
 }
 
 func TestFilterOrgRepos(t *testing.T) {
@@ -80,7 +80,7 @@ func TestRunUpdateForOrgCreateIssueRequiresYesInCI(t *testing.T) {
 
 	err := runUpdateForOrg(context.Background(), "octo", nil, UpdateWorkflowsOptions{}, false, true, false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "--yes")
+	require.ErrorContains(t, err, "--yes")
 }
 
 func TestRunUpdateForOrgCreateIssueSkipsWhenDeclined(t *testing.T) {

@@ -685,7 +685,7 @@ func TestDetectFirewallAuditArtifacts(t *testing.T) {
 
 		_, _, err := detectFirewallAuditArtifacts(dir)
 		require.Error(t, err, "Should return an error when run dir is unreadable")
-		assert.Contains(t, err.Error(), "detectFirewallAuditArtifacts", "Error should identify the function")
+		require.ErrorContains(t, err, "detectFirewallAuditArtifacts", "Error should identify the function")
 	})
 }
 

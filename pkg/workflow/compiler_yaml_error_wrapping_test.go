@@ -67,7 +67,7 @@ jobs:
 
 			// Error should contain all wrapping messages
 			for _, wantStr := range tt.wantErrContains {
-				assert.Contains(t, err.Error(), wantStr,
+				require.ErrorContains(t, err, wantStr,
 					"Error should contain: %s", wantStr)
 			}
 
@@ -133,7 +133,7 @@ jobs:
 	assert.GreaterOrEqual(t, layers, 2, "Error should be wrapped multiple times")
 
 	// The error message should contain file path (from formatCompilerError)
-	assert.Contains(t, err.Error(), "test.md", "Error should contain file path")
+	require.ErrorContains(t, err, "test.md", "Error should contain file path")
 
 	// The error message should contain context from wrapping
 	errMsg := err.Error()
@@ -159,7 +159,7 @@ func TestGenerateYAML_FrontmatterHashFailure(t *testing.T) {
 	_, _, _, err := compiler.generateYAML(data, missingPath)
 
 	require.Error(t, err, "Expected error when frontmatter hash computation fails")
-	assert.Contains(t, err.Error(), "could not compute stable frontmatter hash",
+	require.ErrorContains(t, err, "could not compute stable frontmatter hash",
 		"Error should mention frontmatter hash failure")
 }
 
@@ -211,7 +211,7 @@ jobs:
 
 			// All expected strings should be present in the error
 			for _, wantStr := range tt.wantErrContains {
-				assert.Contains(t, err.Error(), wantStr,
+				require.ErrorContains(t, err, wantStr,
 					"Error should contain: %s", wantStr)
 			}
 

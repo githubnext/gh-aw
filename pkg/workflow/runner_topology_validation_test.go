@@ -31,8 +31,8 @@ func TestValidateArcDindRootless(t *testing.T) {
 		}
 		err := validateArcDindRootless(wd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "arc-dind")
-		assert.Contains(t, err.Error(), "sudo")
+		require.ErrorContains(t, err, "arc-dind")
+		require.ErrorContains(t, err, "sudo")
 	})
 
 	t.Run("error when pre-steps use apt-get install", func(t *testing.T) {
@@ -42,8 +42,8 @@ func TestValidateArcDindRootless(t *testing.T) {
 		}
 		err := validateArcDindRootless(wd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "apt-get install")
-		assert.Contains(t, err.Error(), "pre-steps")
+		require.ErrorContains(t, err, "apt-get install")
+		require.ErrorContains(t, err, "pre-steps")
 	})
 
 	t.Run("error when post-steps use sudo", func(t *testing.T) {
@@ -53,7 +53,7 @@ func TestValidateArcDindRootless(t *testing.T) {
 		}
 		err := validateArcDindRootless(wd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "post-steps")
+		require.ErrorContains(t, err, "post-steps")
 	})
 
 	t.Run("no error when steps are empty", func(t *testing.T) {
@@ -91,8 +91,8 @@ func TestValidateArcDindRootless(t *testing.T) {
 		}
 		err := validateArcDindRootless(wd)
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "arc-dind")
-		assert.Contains(t, err.Error(), string(constants.AWFArcDindMinVersion))
+		require.ErrorContains(t, err, "arc-dind")
+		require.ErrorContains(t, err, string(constants.AWFArcDindMinVersion))
 	})
 
 	t.Run("no error when arc-dind uses minimum required AWF version", func(t *testing.T) {

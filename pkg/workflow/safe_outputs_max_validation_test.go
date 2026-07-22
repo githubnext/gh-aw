@@ -60,8 +60,8 @@ func TestValidateSafeOutputsMax(t *testing.T) {
 		}
 		err := validateSafeOutputsMax(config)
 		require.Error(t, err, "max: 0 should be invalid")
-		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error should explain valid values")
-		assert.Contains(t, err.Error(), "add-comment", "error should mention the field name")
+		require.ErrorContains(t, err, "max must be a positive integer or -1", "error should explain valid values")
+		require.ErrorContains(t, err, "add-comment", "error should mention the field name")
 	})
 
 	t.Run("max of -2 is invalid", func(t *testing.T) {
@@ -72,7 +72,7 @@ func TestValidateSafeOutputsMax(t *testing.T) {
 		}
 		err := validateSafeOutputsMax(config)
 		require.Error(t, err, "max: -2 should be invalid")
-		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error should explain valid values")
+		require.ErrorContains(t, err, "max must be a positive integer or -1", "error should explain valid values")
 	})
 
 	t.Run("max as GitHub Actions expression is skipped", func(t *testing.T) {
@@ -106,9 +106,9 @@ func TestValidateSafeOutputsMax(t *testing.T) {
 		}
 		err := validateSafeOutputsMax(config)
 		require.Error(t, err, "dispatch_repository max: 0 should be invalid")
-		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error should explain valid values")
-		assert.Contains(t, err.Error(), "my-tool", "error should mention the tool name")
-		assert.Contains(t, err.Error(), "dispatch_repository", "error should use underscore form")
+		require.ErrorContains(t, err, "max must be a positive integer or -1", "error should explain valid values")
+		require.ErrorContains(t, err, "my-tool", "error should mention the tool name")
+		require.ErrorContains(t, err, "dispatch_repository", "error should use underscore form")
 	})
 
 	t.Run("dispatch_repository tool max of -1 is valid (unlimited)", func(t *testing.T) {
@@ -161,7 +161,7 @@ func TestValidateSafeOutputsMax(t *testing.T) {
 		}
 		err := validateSafeOutputsMax(config)
 		require.Error(t, err, "config with one invalid max should return error")
-		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error should explain valid values")
+		require.ErrorContains(t, err, "max must be a positive integer or -1", "error should explain valid values")
 	})
 }
 
@@ -226,7 +226,7 @@ func TestValidateSafeOutputsMaxIntegration(t *testing.T) {
 
 		err := validateSafeOutputsMax(config)
 		require.Error(t, err, "max: 0 should fail validation")
-		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error message should explain valid values")
+		require.ErrorContains(t, err, "max must be a positive integer or -1", "error message should explain valid values")
 	})
 
 	t.Run("max of -2 is rejected during config extraction via compiler", func(t *testing.T) {
@@ -243,7 +243,7 @@ func TestValidateSafeOutputsMaxIntegration(t *testing.T) {
 
 		err := validateSafeOutputsMax(config)
 		require.Error(t, err, "max: -2 should fail validation")
-		assert.Contains(t, err.Error(), "max must be a positive integer or -1", "error message should explain valid values")
+		require.ErrorContains(t, err, "max must be a positive integer or -1", "error message should explain valid values")
 	})
 
 	t.Run("max of -1 passes validation (unlimited)", func(t *testing.T) {

@@ -71,7 +71,7 @@ func TestResolveAddWorkflowSpecAndContent(t *testing.T) {
 			WorkflowName: "a",
 		}, false)
 		require.Error(t, err, "redirect loop should fail")
-		assert.Contains(t, err.Error(), "redirect loop detected", "error should mention loop detection")
+		require.ErrorContains(t, err, "redirect loop detected", "error should mention loop detection")
 	})
 
 	t.Run("local workflows are not redirected", func(t *testing.T) {

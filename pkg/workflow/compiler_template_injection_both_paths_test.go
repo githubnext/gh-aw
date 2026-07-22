@@ -126,7 +126,7 @@ jobs:
 		// Path A: parsedWorkflow != nil (pre-parsed for schema validation).
 		err := compiler.validateTemplateInjection(unsafeYAML, lockFile, markdownPath, parseYAML(t, unsafeYAML))
 		require.Error(t, err, "should detect template injection with pre-parsed YAML")
-		assert.Contains(t, err.Error(), "github.event", "error should mention the unsafe context")
+		require.ErrorContains(t, err, "github.event", "error should mention the unsafe context")
 	})
 
 	t.Run("Path A - schema enabled - safe expression passes", func(t *testing.T) {
@@ -138,7 +138,7 @@ jobs:
 		// Path B: parsedWorkflow == nil (schema validation skipped).
 		err := compiler.validateTemplateInjection(unsafeYAML, lockFile, markdownPath, nil)
 		require.Error(t, err, "should detect template injection via text scan fallback")
-		assert.Contains(t, err.Error(), "github.event", "error should mention the unsafe context")
+		require.ErrorContains(t, err, "github.event", "error should mention the unsafe context")
 	})
 
 	t.Run("Path B - schema disabled - safe expression passes", func(t *testing.T) {
@@ -149,15 +149,15 @@ jobs:
 	t.Run("Path A - schema enabled - run expression regression detected", func(t *testing.T) {
 		err := compiler.validateTemplateInjection(regressionYAML, lockFile, markdownPath, parseYAML(t, regressionYAML))
 		require.Error(t, err, "should detect raw GitHub Actions expression in run script")
-		assert.Contains(t, err.Error(), "compiler regression detected")
-		assert.Contains(t, err.Error(), "github.token")
+		require.ErrorContains(t, err, "compiler regression detected")
+		require.ErrorContains(t, err, "github.token")
 	})
 
 	t.Run("Path B - schema disabled - run expression regression detected", func(t *testing.T) {
 		err := compiler.validateTemplateInjection(regressionYAML, lockFile, markdownPath, nil)
 		require.Error(t, err, "should detect raw GitHub Actions expression in run script")
-		assert.Contains(t, err.Error(), "compiler regression detected")
-		assert.Contains(t, err.Error(), "github.token")
+		require.ErrorContains(t, err, "compiler regression detected")
+		require.ErrorContains(t, err, "github.token")
 	})
 
 	t.Run("Path A - schema enabled - allowed generated run expression passes", func(t *testing.T) {
@@ -173,8 +173,8 @@ jobs:
 	t.Run("Path B - schema disabled - flow-style regression detected alongside allowed expression", func(t *testing.T) {
 		err := compiler.validateTemplateInjection(flowStyleRegressionYAML, lockFile, markdownPath, nil)
 		require.Error(t, err, "flow-style run expressions should still be detected in the fallback path")
-		assert.Contains(t, err.Error(), "compiler regression detected")
-		assert.Contains(t, err.Error(), "github.actor")
+		require.ErrorContains(t, err, "compiler regression detected")
+		require.ErrorContains(t, err, "github.actor")
 	})
 
 	t.Run("Path A - schema enabled - heredoc expression passes", func(t *testing.T) {
@@ -203,8 +203,8 @@ jobs:
 
 		require.Error(t, errA, "Path A must report an error")
 		require.Error(t, errB, "Path B must report an error")
-		assert.Contains(t, errA.Error(), "github.event", "Path A error should identify the context")
-		assert.Contains(t, errB.Error(), "github.event", "Path B error should identify the context")
+		require.ErrorContains(t, errA, "github.event", "Path A error should identify the context")
+		require.ErrorContains(t, errB, "github.event", "Path B error should identify the context")
 	})
 
 	t.Run("both paths agree on safe YAML", func(t *testing.T) {

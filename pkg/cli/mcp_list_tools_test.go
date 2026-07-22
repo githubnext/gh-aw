@@ -16,7 +16,6 @@ import (
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
 	"github.com/spf13/cobra"
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -388,6 +387,6 @@ func TestMCPListToolsRequiresServerFlagWithGuidance(t *testing.T) {
 	cmd.SetArgs([]string{})
 	err := cmd.Execute()
 	require.Error(t, err, "mcp list-tools without --server should fail")
-	assert.Contains(t, err.Error(), "missing required flag: --server", "error should clearly identify the missing required flag")
-	assert.Contains(t, err.Error(), "gh aw mcp list-tools --server github", "error should include guidance with a concrete example")
+	require.ErrorContains(t, err, "missing required flag: --server", "error should clearly identify the missing required flag")
+	require.ErrorContains(t, err, "gh aw mcp list-tools --server github", "error should include guidance with a concrete example")
 }

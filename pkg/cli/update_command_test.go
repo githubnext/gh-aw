@@ -1086,5 +1086,5 @@ func TestRunUpdateWorkflows_SpecificWorkflowNotFound(t *testing.T) {
 		WorkflowNames: []string{"nonexistent"},
 	})
 	require.Error(t, err, "Should error when specified workflow not found")
-	assert.Contains(t, err.Error(), "no workflows found matching the specified names")
+	require.ErrorContains(t, err, "no workflows found matching the specified names")
 }

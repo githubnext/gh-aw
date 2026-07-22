@@ -1,31 +1,9 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import { buildTryCatchSuggestion, findEnclosingStatement, isInsideTryBlock } from "./try-catch-rule-utils";
+import { buildTryCatchSuggestion, findEnclosingStatement, isChildProcessImportBinding, isChildProcessObjectBinding, isInsideTryBlock, isRequireChildProcess } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-const CHILD_PROCESS_SPECIFIERS = new Set(["child_process", "node:child_process"]);
-
 type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
-
-function isRequireChildProcess(node: TSESTree.Node | null | undefined): boolean {
-  if (!node) return false;
-  return (
-    node.type === AST_NODE_TYPES.CallExpression &&
-    node.callee.type === AST_NODE_TYPES.Identifier &&
-    node.callee.name === "require" &&
-    node.arguments.length >= 1 &&
-    node.arguments[0].type === AST_NODE_TYPES.Literal &&
-    typeof (node.arguments[0] as TSESTree.Literal).value === "string" &&
-    CHILD_PROCESS_SPECIFIERS.has((node.arguments[0] as TSESTree.Literal).value as string)
-  );
-}
-
-function isChildProcessImportBinding(def: { type: string; node: TSESTree.Node; parent?: TSESTree.Node | null }): boolean {
-  if (def.type !== "ImportBinding") return false;
-  if (!def.parent || def.parent.type !== AST_NODE_TYPES.ImportDeclaration) return false;
-  if (def.parent.source.type !== AST_NODE_TYPES.Literal) return false;
-  return typeof def.parent.source.value === "string" && CHILD_PROCESS_SPECIFIERS.has(def.parent.source.value);
-}
 
 /**
  * Walks the scope chain to decide whether `identifierName` resolves to
@@ -76,29 +54,6 @@ function isExecSyncBinding(identifierName: string, scopeNode: TSESTree.Node, sou
   return false;
 }
 
-function isChildProcessObjectBinding(name: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
-  let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
-  while (scope) {
-    const variable = scope.set.get(name);
-    if (variable && variable.defs.length > 0) {
-      for (const def of variable.defs) {
-        if (def.type === "Variable") {
-          const declarator = def.node as TSESTree.VariableDeclarator;
-          if (declarator.id.type === AST_NODE_TYPES.Identifier && isRequireChildProcess(declarator.init)) {
-            return true;
-          }
-        }
-        if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportNamespaceSpecifier) {
-          return true;
-        }
-      }
-      return false;
-    }
-    scope = scope.upper;
-  }
-  return false;
-}
-
 /**
  * Returns true if the CallExpression is an `execSync(...)` call sourced from
  * the `child_process` module.
@@ -127,7 +82,7 @@ export const requireExecSyncTryCatchRule = createRule({
     docs: {
       description:
         "Require execSync calls in actions/setup/js scripts to be wrapped in try/catch. " +
-        "execSync throws a ChildProcessError when the child process exits with a non-zero status code or is killed by a signal; " +
+        "execSync throws an Error containing child-process result fields when the child process exits with a non-zero status code or is killed by a signal; " +
         "an unhandled throw crashes the action without surfacing a useful diagnostic.",
     },
     schema: [],

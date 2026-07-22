@@ -202,7 +202,7 @@ safe-outputs:
 
 	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
 	require.Error(t, err, "Validation should still run when target-repo references github.repository")
-	assert.Contains(t, err.Error(), "workflow 'missing-workflow' not found")
+	require.ErrorContains(t, err, "workflow 'missing-workflow' not found")
 }
 
 func TestDispatchWorkflowValidation_UsesWorkflowDirEnvOverride(t *testing.T) {
@@ -483,7 +483,7 @@ safe-outputs:
 	// Validation should fail: .md exists but lacks workflow_dispatch
 	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
 	require.Error(t, err, "Validation should fail when .md target lacks workflow_dispatch")
-	assert.Contains(t, err.Error(), "does not support workflow_dispatch trigger", "Should explain missing trigger")
+	require.ErrorContains(t, err, "does not support workflow_dispatch trigger", "Should explain missing trigger")
 }
 
 // TestDispatchWorkflowErrorMessage_MultipleErrors tests that multiple errors

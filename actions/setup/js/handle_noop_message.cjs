@@ -79,17 +79,19 @@ async function ensureAgentRunsIssue() {
 
 /**
  * Build the AIC suffix string for use in comment footers.
- * Includes both agent and threat-detection AIC when available.
+ * Includes agent, threat-detection, and evals AIC when available.
  * Returns a string like " · 0.001 AIC" or "" when not available.
  * @returns {string}
  */
 function buildAICSuffix() {
   const agentRaw = process.env.GH_AW_AIC;
   const detectionRaw = process.env.GH_AW_THREAT_DETECTION_AIC;
+  const evalsRaw = process.env.GH_AW_EVALS_AIC;
   const agentAIC = agentRaw ? Number.parseFloat(agentRaw) : NaN;
   const detectionAIC = detectionRaw ? Number.parseFloat(detectionRaw) : NaN;
+  const evalsAIC = evalsRaw ? Number.parseFloat(evalsRaw) : NaN;
   const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
-  const totalAIC = (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) + (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0);
+  const totalAIC = (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) + (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0) + (Number.isFinite(evalsAIC) && evalsAIC > 0 ? evalsAIC : 0);
   if (totalAIC <= 0) {
     return "";
   }

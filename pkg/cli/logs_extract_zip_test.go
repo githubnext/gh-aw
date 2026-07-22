@@ -104,7 +104,7 @@ func TestExtractZipFileZipSlipPrevention(t *testing.T) {
 	// Extract the file - should fail with error
 	err = extractZipFile(zipReader.File[0], tempDir, false)
 	require.Error(t, err, "extractZipFile should fail for path traversal")
-	assert.Contains(t, err.Error(), "invalid file path", "Error should mention invalid path")
+	require.ErrorContains(t, err, "invalid file path", "Error should mention invalid path")
 }
 
 // TestExtractZipFilePreservesMode tests that file permissions are preserved
@@ -224,7 +224,7 @@ func TestExtractZipFileErrorHandling(t *testing.T) {
 			// Likely running with elevated privileges.
 			t.Skip("expected extraction to fail in read-only directory, but it succeeded (likely elevated privileges)")
 		}
-		assert.Contains(t, err.Error(), "failed to create", "Error should mention creation failure")
+		assert.ErrorContains(t, err, "failed to create", "Error should mention creation failure")
 	})
 
 	t.Run("validates error return signature for writable file close", func(t *testing.T) {

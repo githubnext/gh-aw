@@ -322,7 +322,7 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 			result, err := actionpins.ResolveActionPin("does-not-exist/x", "v1", ctx)
 			if tt.wantErr {
 				require.Error(t, err, "enforce mode should return an error for this scenario")
-				assert.Contains(t, err.Error(), tt.wantErrContains)
+				require.ErrorContains(t, err, tt.wantErrContains)
 				assert.Empty(t, result, "erroring enforce mode should not return a pinned reference")
 			} else {
 				require.NoError(t, err, "non-error scenario should not return an error")
@@ -895,7 +895,7 @@ func TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown(t *testing.T) {
 
 	require.NotPanics(t, func() {
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
-		require.NoError(t, err)
+		assert.NoError(t, err)
 		assert.Empty(t, result, "mapping to unknown repo should produce unresolved empty result")
 	})
 }

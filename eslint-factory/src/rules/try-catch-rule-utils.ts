@@ -14,6 +14,8 @@ const FS_MODULE_SPECIFIERS = new Set(["fs", "node:fs"]);
 
 type SourceCodeScope = ReturnType<TSESLint.SourceCode["getScope"]>;
 type FsBindingDefinition = { type: string; node: TSESTree.Node; parent?: TSESTree.Node | null };
+type ChildProcessBindingDefinition = { type: string; node: TSESTree.Node; parent?: TSESTree.Node | null };
+const CHILD_PROCESS_SPECIFIERS = new Set(["child_process", "node:child_process"]);
 
 function escapeRegex(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -114,6 +116,49 @@ function isRequireFsCall(node: TSESTree.Node | null | undefined): boolean {
     typeof firstArgValue === "string" &&
     FS_MODULE_SPECIFIERS.has(firstArgValue)
   );
+}
+
+export function isRequireChildProcess(node: TSESTree.Node | null | undefined): boolean {
+  if (!node) return false;
+  return (
+    node.type === AST_NODE_TYPES.CallExpression &&
+    node.callee.type === AST_NODE_TYPES.Identifier &&
+    node.callee.name === "require" &&
+    node.arguments.length >= 1 &&
+    node.arguments[0].type === AST_NODE_TYPES.Literal &&
+    typeof (node.arguments[0] as TSESTree.Literal).value === "string" &&
+    CHILD_PROCESS_SPECIFIERS.has((node.arguments[0] as TSESTree.Literal).value as string)
+  );
+}
+
+export function isChildProcessImportBinding(definition: ChildProcessBindingDefinition): boolean {
+  if (definition.type !== "ImportBinding") return false;
+  if (!definition.parent || definition.parent.type !== AST_NODE_TYPES.ImportDeclaration) return false;
+  if (definition.parent.source.type !== AST_NODE_TYPES.Literal) return false;
+  return typeof definition.parent.source.value === "string" && CHILD_PROCESS_SPECIFIERS.has(definition.parent.source.value);
+}
+
+export function isChildProcessObjectBinding(name: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
+  let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
+  while (scope) {
+    const variable = scope.set.get(name);
+    if (variable && variable.defs.length > 0) {
+      for (const def of variable.defs) {
+        if (def.type === "Variable") {
+          const declarator = def.node as TSESTree.VariableDeclarator;
+          if (declarator.id.type === AST_NODE_TYPES.Identifier && isRequireChildProcess(declarator.init)) {
+            return true;
+          }
+        }
+        if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportNamespaceSpecifier) {
+          return true;
+        }
+      }
+      return false;
+    }
+    scope = scope.upper;
+  }
+  return false;
 }
 
 function isFsImportBinding(definition: FsBindingDefinition): boolean {

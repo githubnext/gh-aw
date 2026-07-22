@@ -252,7 +252,7 @@ func TestValidateCheckoutPersistCredentials_FrontmatterSteps(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err, "Expected an error but got none")
-				assert.Contains(t, err.Error(), tt.errorMsg, "Error message mismatch")
+				require.ErrorContains(t, err, tt.errorMsg, "Error message mismatch")
 			} else {
 				assert.NoError(t, err, "Expected no error but got: %v", err)
 			}
@@ -332,7 +332,7 @@ func TestValidateCheckoutPersistCredentials_MergedSteps(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err, "Expected an error but got none")
-				assert.Contains(t, err.Error(), tt.errorMsg, "Error message mismatch")
+				require.ErrorContains(t, err, tt.errorMsg, "Error message mismatch")
 			} else {
 				assert.NoError(t, err, "Expected no error but got: %v", err)
 			}
@@ -386,7 +386,7 @@ func TestValidateCheckoutPersistCredentials_BothSourcesChecked(t *testing.T) {
 
 	err := compiler.validateCheckoutPersistCredentials(frontmatter, mergedSteps)
 	require.Error(t, err, "Should error when imported step has insecure checkout")
-	assert.Contains(t, err.Error(), "'Insecure Imported Checkout'", "Error should reference the insecure imported step")
+	require.ErrorContains(t, err, "'Insecure Imported Checkout'", "Error should reference the insecure imported step")
 	assert.NotContains(t, err.Error(), "'Safe Checkout'", "Error should not reference the safe step")
 }
 
@@ -410,8 +410,8 @@ func TestValidateCheckoutPersistCredentials_MultipleOffenders(t *testing.T) {
 
 	err := compiler.validateCheckoutPersistCredentials(frontmatter, "")
 	require.Error(t, err, "Should error when multiple steps have insecure checkout")
-	assert.Contains(t, err.Error(), "'First Checkout'", "Error should mention first step")
-	assert.Contains(t, err.Error(), "'Second Checkout'", "Error should mention second step")
+	require.ErrorContains(t, err, "'First Checkout'", "Error should mention first step")
+	require.ErrorContains(t, err, "'Second Checkout'", "Error should mention second step")
 }
 
 // TestStepDisplayName tests the stepDisplayName helper function
@@ -490,5 +490,5 @@ func TestValidateCheckoutPersistCredentials_GitLeakErrorMessage(t *testing.T) {
 		strings.Contains(err.Error(), "git token") || strings.Contains(err.Error(), ".git/config"),
 		"Error should mention git token leak",
 	)
-	assert.Contains(t, err.Error(), "persist-credentials: false", "Error should mention the fix")
+	require.ErrorContains(t, err, "persist-credentials: false", "Error should mention the fix")
 }

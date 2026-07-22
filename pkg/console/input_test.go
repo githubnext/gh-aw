@@ -5,7 +5,6 @@ package console
 import (
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -23,6 +22,6 @@ func TestPromptSecretInput(t *testing.T) {
 		_, err := PromptSecretInput(title, description)
 		// Will error in test environment (no TTY), but that's expected
 		require.Error(t, err, "Should error when not in TTY")
-		assert.Contains(t, err.Error(), "not a TTY", "Error should mention TTY")
+		require.ErrorContains(t, err, "not a TTY", "Error should mention TTY")
 	})
 }

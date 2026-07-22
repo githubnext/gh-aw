@@ -372,7 +372,7 @@ engine: invalid-engine-name
 	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
 	require.Error(t, err, "Invalid engine should cause error")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "invalid-engine-name")
+	require.ErrorContains(t, err, "invalid-engine-name")
 }
 
 // TestSetupEngineAndImports_StrictModeHandling tests strict mode state management
@@ -646,7 +646,7 @@ imports:
 	// Should error due to conflicting engines
 	require.Error(t, err, "Conflicting engines should cause error")
 	assert.Nil(t, result)
-	assert.Contains(t, err.Error(), "engine")
+	require.ErrorContains(t, err, "engine")
 }
 
 // TestSetupEngineAndImports_FirewallEnablement tests automatic firewall enablement

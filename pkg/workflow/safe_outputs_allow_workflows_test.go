@@ -173,9 +173,9 @@ func TestAllowWorkflowsValidationRequiresGitHubApp(t *testing.T) {
 			err := validateSafeOutputsAllowWorkflows(tt.safeOutputs)
 			if tt.expectError {
 				require.Error(t, err, "Expected validation error")
-				assert.Contains(t, err.Error(), "allow-workflows", "Error should mention allow-workflows")
-				assert.Contains(t, err.Error(), "requires a GitHub App", "Error should mention GitHub App requirement")
-				assert.Contains(t, err.Error(), "github-app:", "Error should include configuration example")
+				require.ErrorContains(t, err, "allow-workflows", "Error should mention allow-workflows")
+				require.ErrorContains(t, err, "requires a GitHub App", "Error should mention GitHub App requirement")
+				require.ErrorContains(t, err, "github-app:", "Error should include configuration example")
 			} else {
 				assert.NoError(t, err, "Expected no validation error")
 			}
@@ -332,5 +332,5 @@ Test workflow with allow-workflows but no GitHub App.
 
 	err = compiler.CompileWorkflow(mdPath)
 	require.Error(t, err, "Compilation should fail without GitHub App")
-	assert.Contains(t, err.Error(), "allow-workflows", "Error should mention allow-workflows")
+	require.ErrorContains(t, err, "allow-workflows", "Error should mention allow-workflows")
 }

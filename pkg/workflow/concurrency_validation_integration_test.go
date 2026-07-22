@@ -270,7 +270,7 @@ tools:
 			if tt.expectError {
 				assert.Error(t, err, "Expected error for: %s", tt.description)
 				if tt.errorSubstr != "" {
-					assert.Contains(t, err.Error(), tt.errorSubstr,
+					assert.ErrorContains(t, err, tt.errorSubstr,
 						"Error should contain expected substring for: %s", tt.description)
 				}
 			} else {

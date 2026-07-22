@@ -113,7 +113,7 @@ func TestEngineRegistry_Register(t *testing.T) {
 		// getDedicatedLLMGatewayPort, triggering the validation path in Register.
 		err := registry.Register(&negativePortEngine{CodingAgentEngine: NewClaudeEngine()})
 		require.Error(t, err, "registering an engine with dedicatedLLMGatewayPort = -1 should return an error")
-		assert.Contains(t, err.Error(), "dedicatedLLMGatewayPort must be >= 0", "error message should describe the constraint")
+		require.ErrorContains(t, err, "dedicatedLLMGatewayPort must be >= 0", "error message should describe the constraint")
 		assert.False(t, registry.IsValidEngine("claude"), "invalid engine should not be registered on error")
 	})
 }

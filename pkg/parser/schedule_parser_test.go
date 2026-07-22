@@ -1081,7 +1081,7 @@ func TestParseSchedule(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "ParseSchedule(%q) should return an error", tt.input)
 				if tt.errorSubstring != "" {
-					assert.Contains(t, err.Error(), tt.errorSubstring,
+					require.ErrorContains(t, err, tt.errorSubstring,
 						"error for %q should contain %q", tt.input, tt.errorSubstring)
 				}
 				return

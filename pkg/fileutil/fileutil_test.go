@@ -133,7 +133,7 @@ func TestValidateAbsolutePath(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected error for path: %s", tt.path)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 				assert.Empty(t, result, "Result should be empty on error")
 			} else {
@@ -203,7 +203,7 @@ func TestValidateAbsolutePath_SecurityScenarios(t *testing.T) {
 		t.Run("blocks_"+strings.ReplaceAll(pattern, "/", "_"), func(t *testing.T) {
 			result, err := ValidateAbsolutePath(pattern)
 			require.Error(t, err, "Should reject path traversal pattern: %s", pattern)
-			assert.Contains(t, err.Error(), "path must be absolute", "Error should mention absolute path requirement")
+			require.ErrorContains(t, err, "path must be absolute", "Error should mention absolute path requirement")
 			assert.Empty(t, result, "Result should be empty for invalid path")
 		})
 	}
@@ -484,7 +484,7 @@ func TestValidatePathWithinBase(t *testing.T) {
 			err := ValidatePathWithinBase(base, tt.candidate)
 			if tt.shouldErr {
 				require.Error(t, err, "ValidatePathWithinBase should reject path %q relative to %q", tt.candidate, base)
-				assert.Contains(t, err.Error(), "escapes base directory", "Error should describe the escape")
+				require.ErrorContains(t, err, "escapes base directory", "Error should describe the escape")
 			} else {
 				require.NoError(t, err, "ValidatePathWithinBase should accept path %q within %q", tt.candidate, base)
 			}
@@ -508,7 +508,7 @@ func TestValidatePathWithinBase(t *testing.T) {
 
 		err = ValidatePathWithinBase(base, linkPath)
 		require.Error(t, err, "ValidatePathWithinBase should reject symlink that points outside base")
-		assert.Contains(t, err.Error(), "escapes base directory", "Error should describe the symlink escape")
+		require.ErrorContains(t, err, "escapes base directory", "Error should describe the symlink escape")
 	})
 }
 
@@ -539,7 +539,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 		archive := buildTar(map[string][]byte{"file.txt": []byte("data")})
 		got, err := ExtractFileFromTar(archive, "/etc/passwd")
 		require.Error(t, err, "Should reject absolute path as search target")
-		assert.Contains(t, err.Error(), "unsafe path", "Error should mention unsafe path")
+		require.ErrorContains(t, err, "unsafe path", "Error should mention unsafe path")
 		assert.Nil(t, got, "Result should be nil for unsafe path")
 	})
 
@@ -547,7 +547,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 		archive := buildTar(map[string][]byte{"file.txt": []byte("data")})
 		got, err := ExtractFileFromTar(archive, "../escape.txt")
 		require.Error(t, err, "Should reject .. in search target")
-		assert.Contains(t, err.Error(), "unsafe path", "Error should mention unsafe path")
+		require.ErrorContains(t, err, "unsafe path", "Error should mention unsafe path")
 		assert.Nil(t, got, "Result should be nil for unsafe path")
 	})
 
@@ -575,7 +575,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 		// a target; the archive entry is just silently skipped.
 		got, err := ExtractFileFromTar(archive, "escape.txt")
 		require.Error(t, err, "File should not be found because dotdot entry was skipped")
-		assert.Contains(t, err.Error(), "not found", "Error should indicate file not found")
+		require.ErrorContains(t, err, "not found", "Error should indicate file not found")
 		assert.Nil(t, got)
 	})
 }
@@ -618,7 +618,7 @@ func TestExtractFileFromTar(t *testing.T) {
 
 		got, err := ExtractFileFromTar(archive, "missing.txt")
 		require.Error(t, err, "ExtractFileFromTar should return error when file is absent")
-		assert.Contains(t, err.Error(), "missing.txt", "Error should mention the missing filename")
+		require.ErrorContains(t, err, "missing.txt", "Error should mention the missing filename")
 		assert.Nil(t, got, "Result should be nil when file is not found")
 	})
 

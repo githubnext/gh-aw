@@ -80,7 +80,7 @@ func TestFetchImportURL_NotFound(t *testing.T) {
 
 	_, err := FetchImportURL(context.Background(), srv.URL+"/missing.md", FetchOptions{HTTPClient: srv.Client()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "404")
+	require.ErrorContains(t, err, "404")
 }
 
 func TestFetchImportURL_Unauthorized(t *testing.T) {
@@ -91,7 +91,7 @@ func TestFetchImportURL_Unauthorized(t *testing.T) {
 
 	_, err := FetchImportURL(context.Background(), srv.URL+"/private.md", FetchOptions{HTTPClient: srv.Client()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "401")
+	require.ErrorContains(t, err, "401")
 }
 
 func TestFetchImportURL_SizeCap(t *testing.T) {
@@ -108,7 +108,7 @@ func TestFetchImportURL_SizeCap(t *testing.T) {
 
 	_, err := FetchImportURL(context.Background(), srv.URL+"/big.md", FetchOptions{HTTPClient: srv.Client()})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "size limit")
+	require.ErrorContains(t, err, "size limit")
 }
 
 func TestFetchImportURL_HeadFallbackToGET(t *testing.T) {
@@ -478,5 +478,5 @@ func TestFetchImportURL_400ReturnsError(t *testing.T) {
 	})
 
 	require.Error(t, err, "400 must be returned as an error")
-	assert.Contains(t, err.Error(), "400", "error must mention the status code")
+	require.ErrorContains(t, err, "400", "error must mention the status code")
 }

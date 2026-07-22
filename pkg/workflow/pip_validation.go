@@ -77,6 +77,8 @@ func (c *Compiler) validatePythonPackagesWithPip(packages []string, packageType 
 
 		// Use pip index to check if package exists on PyPI
 		// Include --pre flag to check for pre-release versions (alpha, beta, rc)
+		// #nosec G204 -- pipCmd is one of the hardcoded values "pip" or "pip3"; pkgName is
+		// validated above by validatePipPackageName against the strict PyPI PEP 508 allowlist.
 		cmd := exec.Command(pipCmd, "index", "versions", pkgName, "--pre")
 		output, err := cmd.CombinedOutput()
 

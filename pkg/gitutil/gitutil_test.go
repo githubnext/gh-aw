@@ -327,7 +327,7 @@ func TestFindGitRootFrom(t *testing.T) {
 
 		_, err := FindGitRootFrom(nonRepoDir)
 		require.Error(t, err, "FindGitRootFrom should return error outside a git repository")
-		assert.Contains(t, err.Error(), "not in a git repository", "error should mention not in git repository")
+		require.ErrorContains(t, err, "not in a git repository", "error should mention not in git repository")
 	})
 
 	t.Run("returns git root when .git is a worktree marker file", func(t *testing.T) {
@@ -364,7 +364,7 @@ func TestFindGitRootFrom(t *testing.T) {
 
 		_, err := FindGitRootFrom(repoRoot)
 		require.Error(t, err, "FindGitRootFrom should not accept a .git file without gitdir: prefix")
-		assert.Contains(t, err.Error(), "not in a git repository")
+		require.ErrorContains(t, err, "not in a git repository")
 	})
 
 	t.Run("handles relative path input", func(t *testing.T) {
@@ -396,12 +396,12 @@ func TestReadFileFromHEAD(t *testing.T) {
 		outsidePath := filepath.Join(t.TempDir(), "file.yml")
 		_, err = ReadFileFromHEAD(outsidePath, gitRoot)
 		require.Error(t, err, "should fail for a file outside the git root")
-		assert.Contains(t, err.Error(), "outside the git repository root", "error should mention path is outside repo")
+		require.ErrorContains(t, err, "outside the git repository root", "error should mention path is outside repo")
 	})
 
 	t.Run("returns error for empty gitRoot", func(t *testing.T) {
 		_, err := ReadFileFromHEAD("some/file.yml", "")
 		require.Error(t, err, "should fail when gitRoot is empty")
-		assert.Contains(t, err.Error(), "gitRoot must not be empty", "error should mention empty gitRoot")
+		require.ErrorContains(t, err, "gitRoot must not be empty", "error should mention empty gitRoot")
 	})
 }

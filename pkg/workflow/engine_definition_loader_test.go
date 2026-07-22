@@ -108,7 +108,7 @@ func TestBuiltinEngineStringFormInjection(t *testing.T) {
 			err := compiler.CompileWorkflow(mainFile)
 			if tt.expectError {
 				require.Error(t, err, "compilation should fail for engine %s (string form)", tt.engineID)
-				assert.Contains(t, err.Error(), tt.errorContains)
+				require.ErrorContains(t, err, tt.errorContains)
 				return
 			}
 			require.NoError(t, err, "compilation should succeed for engine %s (string form)", tt.engineID)

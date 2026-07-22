@@ -169,7 +169,7 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 			if tt.allowToolError {
 				if err != nil {
 					for _, expectedErrPart := range tt.errContains {
-						assert.Contains(t, err.Error(), expectedErrPart, "Expected validation protocol error to include required detail")
+						assert.ErrorContains(t, err, expectedErrPart, "Expected validation protocol error to include required detail")
 					}
 					return
 				}
@@ -192,8 +192,11 @@ func TestMCPServer_AddToolInvocation(t *testing.T) {
 
 			if tt.expectErr {
 				require.Error(t, err, "Expected add tool call to fail for invalid input scenario")
+				addErr := err
 				for _, expectedErrPart := range tt.errContains {
-					assert.Contains(t, err.Error(), expectedErrPart, "Expected error to include informative failure details")
+					t.Run(expectedErrPart, func(t *testing.T) {
+						require.ErrorContains(t, addErr, expectedErrPart, "Expected error to include informative failure details")
+					})
 				}
 				return
 			}

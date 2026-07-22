@@ -269,8 +269,8 @@ imports:
 	// Parse the main workflow - should fail with conflict error
 	_, err = compiler.ParseWorkflowFile("main.md")
 	require.Error(t, err, "Expected conflict error")
-	assert.Contains(t, err.Error(), "safe-outputs conflict")
-	assert.Contains(t, err.Error(), "create-issue")
+	require.ErrorContains(t, err, "safe-outputs conflict")
+	require.ErrorContains(t, err, "create-issue")
 }
 
 // TestSafeOutputsImportNoConflictDifferentTypes tests that importing different safe-output types does not cause a conflict
@@ -550,7 +550,7 @@ func TestMergeSafeOutputsUnit(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err)
-				assert.Contains(t, err.Error(), tt.errorContains)
+				require.ErrorContains(t, err, tt.errorContains)
 				return
 			}
 
@@ -1157,8 +1157,8 @@ safe-outputs:
 	// Parse the main workflow - should fail with conflict error
 	_, err = compiler.ParseWorkflowFile("main.md")
 	require.Error(t, err, "Expected conflict error")
-	assert.Contains(t, err.Error(), "duplicate-job", "Error should mention the conflicting job name")
-	assert.Contains(t, err.Error(), "conflict", "Error should mention conflict")
+	require.ErrorContains(t, err, "duplicate-job", "Error should mention the conflicting job name")
+	require.ErrorContains(t, err, "conflict", "Error should mention conflict")
 }
 
 // TestSafeOutputsImportMessagesFromSharedWorkflow tests that safe-outputs.messages can be imported from shared workflows
@@ -1488,7 +1488,7 @@ func TestMergeSafeOutputsErrorPropagation(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err, "Expected error")
-				assert.Contains(t, err.Error(), tt.errorContains, "Error message should contain expected text")
+				require.ErrorContains(t, err, tt.errorContains, "Error message should contain expected text")
 				return
 			}
 
