@@ -3,22 +3,23 @@
 package cli
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 )
 
 func TestRenderLogsTSVSummaryPreservesTokenField(t *testing.T) {
-	output, _ := captureOutput(t, func() error {
-		renderLogsTSV(LogsData{
-			Summary: LogsSummary{
-				TotalRuns:     2,
-				TotalDuration: "8m0s",
-				TotalTurns:    5,
-				TotalErrors:   1,
-			},
-		})
-		return nil
+	t.Parallel()
+	var buf bytes.Buffer
+	renderLogsTSVToWriter(&buf, LogsData{
+		Summary: LogsSummary{
+			TotalRuns:     2,
+			TotalDuration: "8m0s",
+			TotalTurns:    5,
+			TotalErrors:   1,
+		},
 	})
+	output := buf.String()
 
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) == 0 {
@@ -30,20 +31,20 @@ func TestRenderLogsTSVSummaryPreservesTokenField(t *testing.T) {
 }
 
 func TestRenderLogsTSVVerboseSummaryPreservesTokenField(t *testing.T) {
-	output, _ := captureOutput(t, func() error {
-		renderLogsTSVVerbose(LogsData{
-			Summary: LogsSummary{
-				TotalRuns:           2,
-				TotalDuration:       "8m0s",
-				TotalTokens:         1500,
-				TotalTurns:          5,
-				TotalErrors:         1,
-				TotalMissingTools:   2,
-				TotalGitHubAPICalls: 3,
-			},
-		})
-		return nil
+	t.Parallel()
+	var buf bytes.Buffer
+	renderLogsTSVVerboseToWriter(&buf, LogsData{
+		Summary: LogsSummary{
+			TotalRuns:           2,
+			TotalDuration:       "8m0s",
+			TotalTokens:         1500,
+			TotalTurns:          5,
+			TotalErrors:         1,
+			TotalMissingTools:   2,
+			TotalGitHubAPICalls: 3,
+		},
 	})
+	output := buf.String()
 
 	lines := strings.Split(strings.TrimSpace(output), "\n")
 	if len(lines) == 0 {

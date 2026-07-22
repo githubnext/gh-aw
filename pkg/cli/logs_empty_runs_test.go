@@ -5,7 +5,6 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
-	"os"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/testutil"
@@ -31,28 +30,18 @@ func TestBuildLogsDataEmptyRuns(t *testing.T) {
 
 // TestRenderLogsJSONEmptyRuns tests that JSON rendering works correctly with zero runs
 func TestRenderLogsJSONEmptyRuns(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-*")
 
 	// Create logs data with no runs
 	logsData := buildLogsData([]ProcessedRun{}, tmpDir, nil)
 
-	// Redirect stdout to capture JSON output
-	oldStdout := os.Stdout
-	r, w, _ := os.Pipe()
-	os.Stdout = w
-
-	// Render JSON
-	err := renderLogsJSON(logsData, true)
+	// Render JSON to buffer
+	var buf bytes.Buffer
+	err := renderLogsJSONToWriter(&buf, logsData, true)
 	if err != nil {
 		t.Fatalf("Failed to render JSON: %v", err)
 	}
-
-	// Restore stdout and read captured output
-	w.Close()
-	os.Stdout = oldStdout
-
-	var buf bytes.Buffer
-	_, _ = buf.ReadFrom(r)
 	output := buf.String()
 
 	// Verify it's valid JSON

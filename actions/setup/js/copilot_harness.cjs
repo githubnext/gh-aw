@@ -71,8 +71,10 @@ const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
 
 const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
 
-// Additional startup retry budget for scheduled runs when Copilot exits with code 2
-// before producing any output (typically transient API interruption at startup).
+// Additional startup retry budget for scheduled and push-triggered runs when Copilot exits with
+// code 2 before producing any output (typically transient API interruption at startup).
+// Push-triggered runs share the same transient startup-failure mode as scheduled runs; the
+// retry budget is equally useful there to avoid a deterministic red on push/main.
 const MAX_SCHEDULED_EXIT2_RETRIES = 1;
 // If prompt files are larger than this threshold, avoid inlining into argv.
 const PROMPT_FILE_INLINE_THRESHOLD_BYTES = 100 * 1024;
@@ -279,6 +281,17 @@ function isDetectionPhase(phase) {
       .trim()
       .toLowerCase() === "detection"
   );
+}
+
+/**
+ * Returns true when the given GitHub event name is eligible for the startup
+ * retry budget (exit code 2, no output — Turns=0 driver-handoff failure).
+ * Eligible events: "schedule" and "push".
+ * @param {string|undefined} eventName
+ * @returns {boolean}
+ */
+function computeStartupRetryEligible(eventName) {
+  return eventName === "schedule" || eventName === "push";
 }
 
 /**
@@ -1028,7 +1041,13 @@ async function main() {
 
   let delay = initialDelayMs;
   let lastExitCode = 1;
+  let lastHasOutput = false;
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";
+  // Push-triggered runs are also eligible for the startup retry budget (exit code 2, no output).
+  // The Tidy workflow was previously push-triggered and showed deterministic Turns=0 failures
+  // at startup; extending the retry to push prevents the same pattern from recurring if a
+  // push trigger is (re)added to any agentic workflow.
+  const isStartupRetryEligible = computeStartupRetryEligible(process.env.GITHUB_EVENT_NAME);
   let scheduledExit2Retries = 0;
   let scheduledExit2RetryAttempted = false;
   let useContinueOnRetry = false;
@@ -1124,6 +1143,7 @@ async function main() {
             : undefined,
         });
         lastExitCode = result.exitCode;
+        lastHasOutput = result.hasOutput;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
         detectedCopilotErrors.mcpPolicyError ||= attemptDetections.mcpPolicyError;
@@ -1209,6 +1229,17 @@ async function main() {
         );
         if (outputTail) {
           log(`attempt ${attempt + 1}: outputTail=${JSON.stringify(outputTail)}`);
+        }
+        // Driver-handoff diagnostic: when no output was produced, the agent never ran a turn.
+        // This is the Turns=0 signature.  Log a named diagnostic to make it clearly visible
+        // in the run log for cross-engine triage.
+        if (!result.hasOutput) {
+          log(
+            `attempt ${attempt + 1}: driver-handoff-turns0 exitCode=${result.exitCode}` +
+              ` eventName=${process.env.GITHUB_EVENT_NAME ?? "unknown"}` +
+              ` startupRetryEligible=${isStartupRetryEligible}` +
+              ` startupRetries=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES}`
+          );
         }
 
         // If a noop was written to safe-outputs during the failed run, the agent determined
@@ -1345,18 +1376,19 @@ async function main() {
           }
         }
 
-        // Scheduled runs: retry once on exit code 2 even when no output was produced.
-        // This specifically targets transient Copilot API outages at startup where there is no
-        // partial session state to continue from.
-        if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
+        // Scheduled and push-triggered runs: retry once on exit code 2 even when no output was
+        // produced. This specifically targets transient Copilot API outages at startup where
+        // there is no partial session state to continue from (Turns=0 driver-handoff failure).
+        if (isStartupRetryEligible && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
           scheduledExit2Retries += 1;
           scheduledExit2RetryAttempted = true;
           useContinueOnRetry = false;
-          log(`attempt ${attempt + 1}: scheduled startup interruption (exit code 2, no output)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
+          const triggerLabel = isScheduledRun ? "scheduled" : "push";
+          log(`attempt ${attempt + 1}: ${triggerLabel} startup interruption (exit code 2, no output — driver-handoff Turns=0)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
           continue;
         }
-        if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= maxRetries) {
-          log(`attempt ${attempt + 1}: scheduled startup interruption detected but retry budget exhausted — no attempts remain`);
+        if (isStartupRetryEligible && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= maxRetries) {
+          log(`attempt ${attempt + 1}: startup interruption detected (driver-handoff Turns=0) but retry budget exhausted — no attempts remain`);
         }
 
         // The observed quota exhaustion error is not useful to retry with --continue.
@@ -1384,8 +1416,11 @@ async function main() {
         break;
       }
 
-      if (isScheduledRun && lastExitCode === 2 && scheduledExit2RetryAttempted) {
-        emitInfrastructureIncomplete("Copilot API interruption (exit code 2) persisted after automatic retry in scheduled workflow run.");
+      if (isStartupRetryEligible && lastExitCode === 2 && scheduledExit2RetryAttempted && !lastHasOutput) {
+        const triggerLabel = isScheduledRun ? "scheduled" : "push";
+        emitInfrastructureIncomplete(
+          `Copilot API interruption (exit code 2) persisted after automatic retry in ${triggerLabel} workflow run. ` + "This is the Turns=0 driver-handoff failure signature. Check the agent-stdio.log for startup diagnostics."
+        );
       }
     }
 
@@ -1430,6 +1465,7 @@ if (typeof module !== "undefined" && module.exports) {
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     isDetectionPhase,
+    computeStartupRetryEligible,
     isHTTP400ResponseError,
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,

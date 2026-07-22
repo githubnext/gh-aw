@@ -170,6 +170,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
   let eventsStream = null;
   let clientStarted = false;
   let toolDenialCount = 0;
+  let assistantTurnCount = 0;
   /** @type {any} */
   let catastrophicToolDenialsError = null;
   let catastrophicToolDenialsTriggered = false;
@@ -333,6 +334,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
           if (content) {
             hasOutput = true;
             output += content;
+            assistantTurnCount++;
           }
           writeEvent("assistant.message", { content }, event.timestamp);
           break;
@@ -436,11 +438,12 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
       if (content) {
         output = content;
         hasOutput = true;
+        assistantTurnCount++;
       }
     }
 
     const durationMs = Date.now() - startTime;
-    log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);
+    log(`session completed: hasOutput=${hasOutput} assistantTurns=${assistantTurnCount} durationMs=${durationMs}`);
 
     return { exitCode: 0, output, hasOutput, durationMs };
   } catch (err) {
@@ -453,7 +456,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     // the final tool result was returned.  Treat it as a successful completion.
     if (postCompletionWatchdogTriggered && !catastrophicToolDenialsError && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: post-completion watchdog triggered disconnect — treating as completed`);
-      log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);
+      log(`session completed: hasOutput=${hasOutput} assistantTurns=${assistantTurnCount} durationMs=${durationMs}`);
       return { exitCode: 0, output, hasOutput, durationMs };
     }
 
@@ -464,7 +467,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
     const isIdleTimeout = !catastrophicToolDenialsError && SDK_IDLE_TIMEOUT_PATTERN.test(failure.message);
     if (isIdleTimeout && hasOutput && pendingToolCalls.size === 0) {
       log(`warning: SDK idle-timeout with collected output and no pending tool calls — treating as completed`);
-      log(`session completed: hasOutput=${hasOutput} durationMs=${durationMs}`);
+      log(`session completed: hasOutput=${hasOutput} assistantTurns=${assistantTurnCount} durationMs=${durationMs}`);
       return { exitCode: 0, output, hasOutput, durationMs };
     }
 
