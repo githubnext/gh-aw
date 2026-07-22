@@ -26,50 +26,7 @@ import (
 
 var logsParsingFirewallLog = logger.New("cli:logs_parsing_firewall")
 
-// parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
-func parseFirewallLogs(runDir string, verbose bool) error {
-	logsParsingFirewallLog.Printf("Parsing firewall logs in: %s", runDir)
-	// Get the firewall log parser script
-	jsScript := workflow.GetLogParserScript("parse_firewall_logs")
-	if jsScript == "" {
-		logsParsingFirewallLog.Print("Failed to get firewall log parser script")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get firewall log parser script"))
-		}
-		return nil
-	}
-
-	// Check if squid logs directory exists in the run directory
-	// The logs could be in several locations depending on the AWF version and artifact structure.
-
-	logsDir, err := findFirewallLogsDir(runDir)
-	if err != nil {
-		return err
-	}
-	if logsDir == "" {
-		logsParsingFirewallLog.Print("No firewall logs found, skipping parsing")
-		// No firewall logs found - this is not an error, just skip parsing
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s, skipping firewall log parsing", filepath.Base(runDir))))
-		}
-		return nil
-	}
-
-	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs in "+logsDir))
-	}
-
-	// Create a temporary directory for running the parser
-	tempDir, err := os.MkdirTemp("", "firewall_log_parser")
-	if err != nil {
-		return fmt.Errorf("failed to create temp dir: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// Create a Node.js script that mimics the GitHub Actions environment
-	// The firewall parser expects logs in /tmp/gh-aw/squid-logs-{workflow}/
-	// We'll set GITHUB_WORKFLOW to a value that makes the parser look in our temp directory
-	nodeScript := fmt.Sprintf(`
+const firewallNodeScriptPrefix = `
 const fs = require('fs');
 const path = require('path');
 
@@ -153,12 +110,7 @@ const originalMain = function() {
         }
 
         totalRequests++;
-
-        // Determine if request was allowed or blocked
         const isAllowed = isRequestAllowed(entry.decision, entry.status);
-
-        // When domain is "-" (iptables-dropped traffic not visible to Squid),
-        // fall back to dest IP:port so blocked requests show their actual destination instead of "-"
         const domainKey =
           entry.domain !== "-" ? entry.domain : entry.destIpPort !== "-" ? entry.destIpPort : "-";
 
@@ -170,7 +122,6 @@ const originalMain = function() {
           blockedDomains.add(domainKey);
         }
 
-        // Track request count per domain
         if (!requestsByDomain.has(domainKey)) {
           requestsByDomain.set(domainKey, { allowed: 0, blocked: 0 });
         }
@@ -183,7 +134,6 @@ const originalMain = function() {
       }
     }
 
-    // Generate step summary
     const summary = generateFirewallSummary({
       totalRequests,
       allowedRequests,
@@ -199,37 +149,113 @@ const originalMain = function() {
     core.setFailed(error instanceof Error ? error : String(error));
   }
 };
+`
 
-// Execute the parser script to get helper functions
-%s
+const firewallNodeScriptSuffix = `
 
 // Replace main() call with our custom version
 originalMain();
-`, logsDir, jsScript)
+`
 
-	// Write the Node.js script
-	nodeFile := filepath.Join(tempDir, "parser.js")
-	if err := os.WriteFile(nodeFile, []byte(nodeScript), constants.FilePermPublic); err != nil {
-		return fmt.Errorf("failed to write node script: %w", err)
+func loadFirewallParserScript(verbose bool) (string, bool) {
+	jsScript := workflow.GetLogParserScript("parse_firewall_logs")
+	if jsScript != "" {
+		return jsScript, true
 	}
 
-	// Execute the Node.js script using the absolute path for cross-platform compatibility
+	logsParsingFirewallLog.Print("Failed to get firewall log parser script")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to get firewall log parser script"))
+	}
+
+	return "", false
+}
+
+func reportMissingFirewallLogs(runDir string, verbose bool) error {
+	logsParsingFirewallLog.Print("No firewall logs found, skipping parsing")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No firewall logs found in %s, skipping firewall log parsing", filepath.Base(runDir))))
+	}
+	return nil
+}
+
+func createFirewallParserTempDir() (string, error) {
+	tempDir, err := os.MkdirTemp("", "firewall_log_parser")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp dir: %w", err)
+	}
+	return tempDir, nil
+}
+
+func buildFirewallNodeScript(logsDir string, jsScript string) string {
+	return fmt.Sprintf(firewallNodeScriptPrefix, logsDir) +
+		"\n// Execute the parser script to get helper functions\n" +
+		jsScript +
+		firewallNodeScriptSuffix
+}
+
+func writeFirewallNodeScript(tempDir string, nodeScript string) (string, error) {
+	nodeFile := filepath.Join(tempDir, "parser.js")
+	if err := os.WriteFile(nodeFile, []byte(nodeScript), constants.FilePermPublic); err != nil {
+		return "", fmt.Errorf("failed to write node script: %w", err)
+	}
+	return nodeFile, nil
+}
+
+func executeFirewallNodeScript(tempDir string, nodeFile string) ([]byte, error) {
 	// #nosec G204 -- nodeFile is an absolute path to a script written by this process to tempDir;
 	// exec.Command with separate args (not shell execution) prevents shell injection.
 	cmd := exec.Command("node", nodeFile)
 	cmd.Dir = tempDir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return fmt.Errorf("failed to execute firewall parser script: %w\nOutput: %s", err, string(output))
+		return nil, fmt.Errorf("failed to execute firewall parser script: %w\nOutput: %s", err, string(output))
 	}
+	return output, nil
+}
 
-	// Write the output to firewall.md in the run directory
+func writeFirewallMarkdown(runDir string, output []byte) error {
 	firewallMdPath := filepath.Join(runDir, "firewall.md")
 	if err := os.WriteFile(firewallMdPath, []byte(strings.TrimSpace(string(output))), constants.FilePermPublic); err != nil {
 		return fmt.Errorf("failed to write firewall.md: %w", err)
 	}
-
 	return nil
+}
+
+// parseFirewallLogs runs the JavaScript firewall log parser and writes markdown to firewall.md
+func parseFirewallLogs(runDir string, verbose bool) error {
+	logsParsingFirewallLog.Printf("Parsing firewall logs in: %s", runDir)
+	jsScript, ok := loadFirewallParserScript(verbose)
+	if !ok {
+		return nil
+	}
+
+	logsDir, err := findFirewallLogsDir(runDir)
+	if err != nil {
+		return err
+	}
+	if logsDir == "" {
+		return reportMissingFirewallLogs(runDir, verbose)
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found firewall logs in "+logsDir))
+	}
+
+	tempDir, err := createFirewallParserTempDir()
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(tempDir)
+
+	nodeFile, err := writeFirewallNodeScript(tempDir, buildFirewallNodeScript(logsDir, jsScript))
+	if err != nil {
+		return err
+	}
+	output, err := executeFirewallNodeScript(tempDir, nodeFile)
+	if err != nil {
+		return err
+	}
+	return writeFirewallMarkdown(runDir, output)
 }
 
 func dirHasMatchingFiles(dir string, globPattern string) (bool, error) {

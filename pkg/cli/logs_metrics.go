@@ -274,135 +274,189 @@ func ExtractLogMetricsFromRun(processedRun ProcessedRun) workflow.LogMetrics {
 	return metrics
 }
 
+// resolveSafeOutputArtifact locates the agent output JSON file for a workflow run.
+// It checks for agent_output.json at the root, then in the agent-output directory,
+// then falls back to a recursive search. Returns empty string if not found.
+func resolveSafeOutputArtifact(runDir string, run WorkflowRun, verbose bool) string {
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
+	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s at root: %s", constants.AgentOutputFilename, agentOutputJSONPath)))
+		}
+		return agentOutputJSONPath
+	}
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	if stat, err := os.Stat(agentOutputPath); err == nil {
+		if stat.IsDir() {
+			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+			if fileutil.FileExists(nested) {
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("agent_output.json is a directory; using nested file "+nested))
+				}
+				return nested
+			}
+			if verbose {
+				if _, nestedErr := os.Stat(nested); nestedErr != nil {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
+				} else {
+					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("agent_output.json directory present but nested path is not a file"))
+				}
+			}
+		} else {
+			return agentOutputPath
+		}
+	}
+	if found, ok := findAgentOutputFile(runDir); ok {
+		if verbose && found != agentOutputPath {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found agent_output.json at "+found))
+		}
+		return found
+	}
+	logsMetricsLog.Print("No safe output artifact found")
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputJSONPath, run.DatabaseID)))
+	}
+	return ""
+}
+
+// parseSafeOutputItems reads and parses the agent output JSON file, returning its items array.
+// Returns (nil, false) if the file cannot be read or parsed.
+func parseSafeOutputItems(resolvedAgentOutputFile string, verbose bool) ([]json.RawMessage, bool) {
+	cleanPath := filepath.Clean(resolvedAgentOutputFile)
+	content, readErr := os.ReadFile(cleanPath)
+	if readErr != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", cleanPath, readErr)))
+		}
+		return nil, false
+	}
+	var safeOutput struct {
+		Items  []json.RawMessage `json:"items"`
+		Errors []string          `json:"errors,omitempty"`
+	}
+	if err := json.Unmarshal(content, &safeOutput); err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", cleanPath, err)))
+		}
+		return nil, false
+	}
+	return safeOutput.Items, true
+}
+
+// appendMissingToolReports extracts missing_tool entries from safe output items.
+func appendMissingToolReports(items []json.RawMessage, run WorkflowRun, verbose bool, experimentName, variant string) []MissingToolReport {
+	var missingTools []MissingToolReport
+	for _, itemRaw := range items {
+		var item struct {
+			Type         string `json:"type"`
+			Tool         string `json:"tool,omitempty"`
+			Reason       string `json:"reason,omitempty"`
+			Alternatives string `json:"alternatives,omitempty"`
+			Timestamp    string `json:"timestamp,omitempty"`
+		}
+		if err := json.Unmarshal(itemRaw, &item); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
+			}
+			continue
+		}
+		if item.Type == "missing_tool" {
+			missingTools = append(missingTools, MissingToolReport{
+				Tool:             item.Tool,
+				Reason:           item.Reason,
+				Alternatives:     item.Alternatives,
+				ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
+			})
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found missing_tool entry: %s (%s)", item.Tool, item.Reason)))
+			}
+		}
+	}
+	return missingTools
+}
+
+// appendNoopReports extracts noop entries from safe output items.
+func appendNoopReports(items []json.RawMessage, run WorkflowRun, verbose bool, experimentName, variant string) []NoopReport {
+	var noops []NoopReport
+	for _, itemRaw := range items {
+		var item struct {
+			Type      string `json:"type"`
+			Message   string `json:"message,omitempty"`
+			Timestamp string `json:"timestamp,omitempty"`
+		}
+		if err := json.Unmarshal(itemRaw, &item); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
+			}
+			continue
+		}
+		if item.Type == "noop" {
+			noops = append(noops, NoopReport{
+				Message:          item.Message,
+				ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
+			})
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found noop entry: "+item.Message))
+			}
+		}
+	}
+	return noops
+}
+
+// appendMissingDataReports extracts missing_data entries from safe output items.
+func appendMissingDataReports(items []json.RawMessage, run WorkflowRun, verbose bool, experimentName, variant string) []MissingDataReport {
+	var missingData []MissingDataReport
+	for _, itemRaw := range items {
+		var item struct {
+			Type         string `json:"type"`
+			DataType     string `json:"data_type,omitempty"`
+			Reason       string `json:"reason,omitempty"`
+			Context      string `json:"context,omitempty"`
+			Alternatives string `json:"alternatives,omitempty"`
+			Timestamp    string `json:"timestamp,omitempty"`
+		}
+		if err := json.Unmarshal(itemRaw, &item); err != nil {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
+			}
+			continue
+		}
+		if item.Type == "missing_data" {
+			missingData = append(missingData, MissingDataReport{
+				DataType:         item.DataType,
+				Reason:           item.Reason,
+				Context:          item.Context,
+				Alternatives:     item.Alternatives,
+				ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
+			})
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found missing_data entry: %s (%s)", item.DataType, item.Reason)))
+			}
+		}
+	}
+	return missingData
+}
+
 // extractMissingToolsFromRun extracts missing tool reports from a workflow run's artifacts.
 // experimentName and variant are the pre-resolved experiment assignment for this run; pass empty
 // strings when no experiment context is available.
 func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MissingToolReport, error) {
 	logsMetricsLog.Printf("Extracting missing tools from run: %d", run.DatabaseID)
-	var missingTools []MissingToolReport
-
-	// Look for the safe output artifact file that contains structured JSON with items array
-	// This file is created by the collect_ndjson_output.cjs script during workflow execution
-	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
-
-	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
-	// 1. New: agent_output.json at root (after flattening)
-	// 2. Old: agent-output directory with nested agent-output file
-	// 3. Fallback: search recursively
-	var resolvedAgentOutputFile string
-	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
-		// New flattened structure: agent_output.json at root
-		resolvedAgentOutputFile = agentOutputJSONPath
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s at root: %s", constants.AgentOutputFilename, agentOutputJSONPath)))
-		}
-	} else {
-		// Try old structure: agent-output directory
-		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
-		if stat, err := os.Stat(agentOutputPath); err == nil {
-			if stat.IsDir() {
-				// Directory form – look for nested file
-				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-				if fileutil.FileExists(nested) {
-					resolvedAgentOutputFile = nested
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("agent_output.json is a directory; using nested file "+nested))
-					}
-				} else if verbose {
-					if _, nestedErr := os.Stat(nested); nestedErr != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-							fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
-					} else {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-							"agent_output.json directory present but nested path is not a file"))
-					}
-				}
-			} else {
-				// Regular file
-				resolvedAgentOutputFile = agentOutputPath
-			}
-		} else {
-			// Not present at root – search recursively (depth-first) for a file named agent_output.json
-			if found, ok := findAgentOutputFile(runDir); ok {
-				resolvedAgentOutputFile = found
-				if verbose && found != agentOutputPath {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found agent_output.json at "+found))
-				}
-			}
-		}
+	resolvedAgentOutputFile := resolveSafeOutputArtifact(runDir, run, verbose)
+	if resolvedAgentOutputFile == "" {
+		return nil, nil
 	}
 
-	if resolvedAgentOutputFile != "" {
-		// Sanitize the path to prevent path traversal attacks
-		cleanPath := filepath.Clean(resolvedAgentOutputFile)
-
-		// Read the safe output artifact file
-		content, readErr := os.ReadFile(cleanPath)
-		if readErr != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", cleanPath, readErr)))
-			}
-			return missingTools, nil // Continue processing without this file
-		}
-
-		// Parse the structured JSON output from the collect script
-		var safeOutput struct {
-			Items  []json.RawMessage `json:"items"`
-			Errors []string          `json:"errors,omitempty"`
-		}
-
-		if err := json.Unmarshal(content, &safeOutput); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", cleanPath, err)))
-			}
-			return missingTools, nil // Continue processing without this file
-		}
-
-		// Extract missing-tool entries from the items array
-		for _, itemRaw := range safeOutput.Items {
-			var item struct {
-				Type         string `json:"type"`
-				Tool         string `json:"tool,omitempty"`
-				Reason       string `json:"reason,omitempty"`
-				Alternatives string `json:"alternatives,omitempty"`
-				Timestamp    string `json:"timestamp,omitempty"`
-			}
-
-			if err := json.Unmarshal(itemRaw, &item); err != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
-				}
-				continue // Skip malformed items
-			}
-
-			// Check if this is a missing-tool entry
-			if item.Type == "missing_tool" {
-				missingTool := MissingToolReport{
-					Tool:             item.Tool,
-					Reason:           item.Reason,
-					Alternatives:     item.Alternatives,
-					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
-				}
-				missingTools = append(missingTools, missingTool)
-
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found missing_tool entry: %s (%s)", item.Tool, item.Reason)))
-				}
-			}
-		}
-
-		if verbose && len(missingTools) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d missing tool reports in safe output artifact for run %d", len(missingTools), run.DatabaseID)))
-		}
-		logsMetricsLog.Printf("Found %d missing tool reports", len(missingTools))
-	} else {
-		logsMetricsLog.Print("No safe output artifact found")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputJSONPath, run.DatabaseID)))
-		}
+	items, ok := parseSafeOutputItems(resolvedAgentOutputFile, verbose)
+	if !ok {
+		return nil, nil
 	}
 
+	missingTools := appendMissingToolReports(items, run, verbose, experimentName, variant)
+	if verbose && len(missingTools) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d missing tool reports in safe output artifact for run %d", len(missingTools), run.DatabaseID)))
+	}
+	logsMetricsLog.Printf("Found %d missing tool reports", len(missingTools))
 	return missingTools, nil
 }
 
@@ -411,126 +465,21 @@ func extractMissingToolsFromRun(runDir string, run WorkflowRun, verbose bool, ex
 // strings when no experiment context is available.
 func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]NoopReport, error) {
 	logsMetricsLog.Printf("Extracting noops from run: %d", run.DatabaseID)
-	var noops []NoopReport
-
-	// Look for the safe output artifact file that contains structured JSON with items array
-	// This file is created by the collect_ndjson_output.cjs script during workflow execution
-	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
-
-	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
-	// 1. New: agent_output.json at root (after flattening)
-	// 2. Old: agent-output directory with nested agent-output file
-	// 3. Fallback: search recursively
-	var resolvedAgentOutputFile string
-	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
-		// New flattened structure: agent_output.json at root
-		resolvedAgentOutputFile = agentOutputJSONPath
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s at root: %s", constants.AgentOutputFilename, agentOutputJSONPath)))
-		}
-	} else {
-		// Try old structure: agent-output directory
-		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
-		if stat, err := os.Stat(agentOutputPath); err == nil {
-			if stat.IsDir() {
-				// Directory form – look for nested file
-				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-				if fileutil.FileExists(nested) {
-					resolvedAgentOutputFile = nested
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("agent_output.json is a directory; using nested file "+nested))
-					}
-				} else if verbose {
-					if _, nestedErr := os.Stat(nested); nestedErr != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-							fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
-					} else {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-							"agent_output.json directory present but nested path is not a file"))
-					}
-				}
-			} else {
-				// Regular file
-				resolvedAgentOutputFile = agentOutputPath
-			}
-		} else {
-			// Not present at root – search recursively (depth-first) for a file named agent_output.json
-			if found, ok := findAgentOutputFile(runDir); ok {
-				resolvedAgentOutputFile = found
-				if verbose && found != agentOutputPath {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found agent_output.json at "+found))
-				}
-			}
-		}
+	resolvedAgentOutputFile := resolveSafeOutputArtifact(runDir, run, verbose)
+	if resolvedAgentOutputFile == "" {
+		return nil, nil
 	}
 
-	if resolvedAgentOutputFile != "" {
-		// Sanitize the path to prevent path traversal attacks
-		cleanPath := filepath.Clean(resolvedAgentOutputFile)
-
-		// Read the safe output artifact file
-		content, readErr := os.ReadFile(cleanPath)
-		if readErr != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", cleanPath, readErr)))
-			}
-			return noops, nil // Continue processing without this file
-		}
-
-		// Parse the structured JSON output from the collect script
-		var safeOutput struct {
-			Items  []json.RawMessage `json:"items"`
-			Errors []string          `json:"errors,omitempty"`
-		}
-
-		if err := json.Unmarshal(content, &safeOutput); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", cleanPath, err)))
-			}
-			return noops, nil // Continue processing without this file
-		}
-
-		// Extract noop entries from the items array
-		for _, itemRaw := range safeOutput.Items {
-			var item struct {
-				Type      string `json:"type"`
-				Message   string `json:"message,omitempty"`
-				Timestamp string `json:"timestamp,omitempty"`
-			}
-
-			if err := json.Unmarshal(itemRaw, &item); err != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
-				}
-				continue // Skip malformed items
-			}
-
-			// Check if this is a noop entry
-			if item.Type == "noop" {
-				noop := NoopReport{
-					Message:          item.Message,
-					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
-				}
-				noops = append(noops, noop)
-
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found noop entry: "+item.Message))
-				}
-			}
-		}
-
-		if verbose && len(noops) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d noop messages in safe output artifact for run %d", len(noops), run.DatabaseID)))
-		}
-		logsMetricsLog.Printf("Found %d noop messages", len(noops))
-	} else {
-		logsMetricsLog.Print("No safe output artifact found")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputJSONPath, run.DatabaseID)))
-		}
+	items, ok := parseSafeOutputItems(resolvedAgentOutputFile, verbose)
+	if !ok {
+		return nil, nil
 	}
 
+	noops := appendNoopReports(items, run, verbose, experimentName, variant)
+	if verbose && len(noops) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d noop messages in safe output artifact for run %d", len(noops), run.DatabaseID)))
+	}
+	logsMetricsLog.Printf("Found %d noop messages", len(noops))
 	return noops, nil
 }
 
@@ -539,132 +488,21 @@ func extractNoopsFromRun(runDir string, run WorkflowRun, verbose bool, experimen
 // strings when no experiment context is available.
 func extractMissingDataFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]MissingDataReport, error) {
 	logsMetricsLog.Printf("Extracting missing data from run: %d", run.DatabaseID)
-	var missingData []MissingDataReport
-
-	// Look for the safe output artifact file that contains structured JSON with items array
-	// This file is created by the collect_ndjson_output.cjs script during workflow execution
-	// After artifact refactoring, the file is flattened to agent_output.json at root
-	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
-
-	// Support both new flattened form (agent_output.json) and old forms for backward compatibility:
-	// 1. New: agent_output.json at root (after flattening)
-	// 2. Old: agent-output directory with nested agent-output file
-	// 3. Fallback: search recursively
-	var resolvedAgentOutputFile string
-	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
-		// New flattened structure: agent_output.json at root
-		resolvedAgentOutputFile = agentOutputJSONPath
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %s at root: %s", constants.AgentOutputFilename, agentOutputJSONPath)))
-		}
-	} else {
-		// Try old structure: agent-output directory
-		agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
-		if stat, err := os.Stat(agentOutputPath); err == nil {
-			if stat.IsDir() {
-				// Directory form – look for nested file
-				nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
-				if fileutil.FileExists(nested) {
-					resolvedAgentOutputFile = nested
-					if verbose {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("agent_output.json is a directory; using nested file "+nested))
-					}
-				} else if verbose {
-					if _, nestedErr := os.Stat(nested); nestedErr != nil {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-							fmt.Sprintf("agent_output.json directory present but nested file missing: %v", nestedErr)))
-					} else {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-							"agent_output.json directory present but nested path is not a file"))
-					}
-				}
-			} else {
-				// Regular file
-				resolvedAgentOutputFile = agentOutputPath
-			}
-		} else {
-			// Not present at root – search recursively (depth-first) for a file named agent_output.json
-			if found, ok := findAgentOutputFile(runDir); ok {
-				resolvedAgentOutputFile = found
-				if verbose && found != agentOutputPath {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found agent_output.json at "+found))
-				}
-			}
-		}
+	resolvedAgentOutputFile := resolveSafeOutputArtifact(runDir, run, verbose)
+	if resolvedAgentOutputFile == "" {
+		return nil, nil
 	}
 
-	if resolvedAgentOutputFile != "" {
-		// Sanitize the path to prevent path traversal attacks
-		cleanPath := filepath.Clean(resolvedAgentOutputFile)
-
-		// Read the safe output artifact file
-		content, readErr := os.ReadFile(cleanPath)
-		if readErr != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to read safe output file %s: %v", cleanPath, readErr)))
-			}
-			return missingData, nil // Continue processing without this file
-		}
-
-		// Parse the structured JSON output from the collect script
-		var safeOutput struct {
-			Items  []json.RawMessage `json:"items"`
-			Errors []string          `json:"errors,omitempty"`
-		}
-
-		if err := json.Unmarshal(content, &safeOutput); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse safe output JSON from %s: %v", cleanPath, err)))
-			}
-			return missingData, nil // Continue processing without this file
-		}
-
-		// Extract missing_data entries from the items array
-		for _, itemRaw := range safeOutput.Items {
-			var item struct {
-				Type         string `json:"type"`
-				DataType     string `json:"data_type,omitempty"`
-				Reason       string `json:"reason,omitempty"`
-				Context      string `json:"context,omitempty"`
-				Alternatives string `json:"alternatives,omitempty"`
-				Timestamp    string `json:"timestamp,omitempty"`
-			}
-
-			if err := json.Unmarshal(itemRaw, &item); err != nil {
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse item from safe output: %v", err)))
-				}
-				continue // Skip malformed items
-			}
-
-			// Check if this is a missing_data entry
-			if item.Type == "missing_data" {
-				missingDataItem := MissingDataReport{
-					DataType:         item.DataType,
-					Reason:           item.Reason,
-					Context:          item.Context,
-					Alternatives:     item.Alternatives,
-					ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
-				}
-				missingData = append(missingData, missingDataItem)
-
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found missing_data entry: %s (%s)", item.DataType, item.Reason)))
-				}
-			}
-		}
-
-		if verbose && len(missingData) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d missing data reports in safe output artifact for run %d", len(missingData), run.DatabaseID)))
-		}
-		logsMetricsLog.Printf("Found %d missing data reports", len(missingData))
-	} else {
-		logsMetricsLog.Print("No safe output artifact found")
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("No safe output artifact found at %s for run %d", agentOutputJSONPath, run.DatabaseID)))
-		}
+	items, ok := parseSafeOutputItems(resolvedAgentOutputFile, verbose)
+	if !ok {
+		return nil, nil
 	}
 
+	missingData := appendMissingDataReports(items, run, verbose, experimentName, variant)
+	if verbose && len(missingData) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d missing data reports in safe output artifact for run %d", len(missingData), run.DatabaseID)))
+	}
+	logsMetricsLog.Printf("Found %d missing data reports", len(missingData))
 	return missingData, nil
 }
 

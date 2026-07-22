@@ -23,6 +23,216 @@ import (
 
 var runPushLog = logger.New("cli:run_push")
 
+func resolveWorkflowPushPath(workflowPath string) (string, error) {
+	absWorkflowPath, err := filepath.Abs(workflowPath)
+	if err != nil {
+		runPushLog.Printf("Failed to get absolute path for %s: %v", workflowPath, err)
+		return "", fmt.Errorf("failed to get absolute path for workflow: %w", err)
+	}
+	runPushLog.Printf("Resolved absolute workflow path: %s", absWorkflowPath)
+
+	absWorkflowPath, err = fileutil.ValidateAbsolutePath(absWorkflowPath)
+	if err != nil {
+		runPushLog.Printf("Invalid workflow path: %v", err)
+		return "", fmt.Errorf("invalid workflow path: %w", err)
+	}
+	return absWorkflowPath, nil
+}
+
+func logWorkflowCompilationIntent(absWorkflowPath, lockFilePath string, verbose bool) {
+	runPushLog.Printf("Checking lock file: %s", lockFilePath)
+	if fileutil.FileExists(lockFilePath) {
+		runPushLog.Printf("Lock file exists: %s", lockFilePath)
+		runPushLog.Print("Checking frontmatter hash for observability")
+		if hashMismatch, err := checkFrontmatterHashMismatch(absWorkflowPath, lockFilePath); err != nil {
+			runPushLog.Printf("Error checking frontmatter hash: %v", err)
+		} else if hashMismatch {
+			runPushLog.Print("Lock file frontmatter hash changed (will recompile)")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Frontmatter hash changed, recompiling workflow..."))
+			}
+		} else {
+			runPushLog.Print("Lock file frontmatter hash unchanged (will still recompile)")
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling workflow..."))
+			}
+		}
+		return
+	}
+
+	if _, err := os.Stat(lockFilePath); os.IsNotExist(err) {
+		runPushLog.Printf("Lock file not found: %s", lockFilePath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Lock file not found, compiling workflow..."))
+		}
+		return
+	}
+
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling workflow..."))
+	}
+}
+
+func addCompiledLockFile(files map[string]struct{}, lockFilePath string, verbose bool) {
+	if fileutil.FileExists(lockFilePath) {
+		files[lockFilePath] = struct{}{}
+		runPushLog.Printf("Added lock file: %s", lockFilePath)
+		return
+	}
+	if verbose {
+		runPushLog.Printf("Lock file not found after compilation: %s", lockFilePath)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file not found after compilation: "+lockFilePath))
+	}
+}
+
+func sortedWorkflowPushFiles(files map[string]struct{}) []string {
+	result := sliceutil.MapKeys(files)
+	sort.Strings(result)
+	runPushLog.Printf("Sorted %d files for stable output", len(result))
+	return result
+}
+
+func readWorkflowImportsFrontmatter(workflowPath string) (map[string]any, bool, error) {
+	content, err := os.ReadFile(workflowPath)
+	if err != nil {
+		runPushLog.Printf("Failed to read workflow file %s: %v", workflowPath, err)
+		return nil, false, fmt.Errorf("failed to read workflow file %s: %w", workflowPath, err)
+	}
+	runPushLog.Printf("Read %d bytes from %s", len(content), workflowPath)
+
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil {
+		runPushLog.Printf("No frontmatter in %s, skipping imports extraction: %v", workflowPath, err)
+		return nil, false, nil
+	}
+	runPushLog.Printf("Extracted frontmatter from %s", workflowPath)
+	return result.Frontmatter, true, nil
+}
+
+func extractImportPathsFromFrontmatter(frontmatter map[string]any, workflowPath string) []string {
+	importsField, exists := frontmatter["imports"]
+	if !exists {
+		runPushLog.Printf("No imports field in %s", workflowPath)
+		return nil
+	}
+	runPushLog.Printf("Found imports field in %s", workflowPath)
+
+	switch v := importsField.(type) {
+	case []any:
+		runPushLog.Printf("Parsing imports as []any with %d items", len(v))
+		return extractImportPathsFromArray(v)
+	case []string:
+		runPushLog.Printf("Parsing imports as []string with %d items", len(v))
+		return v
+	case map[string]any:
+		return extractImportPathsFromMap(v)
+	default:
+		runPushLog.Printf("Imports field has unexpected type: %T", v)
+		return nil
+	}
+}
+
+func extractImportPathsFromArray(items []any) []string {
+	var paths []string
+	for i, item := range items {
+		switch importItem := item.(type) {
+		case string:
+			runPushLog.Printf("Import %d: string format: %s", i, importItem)
+			paths = append(paths, importItem)
+		case map[string]any:
+			if pathValue, hasPath := importItem["path"]; hasPath {
+				if pathStr, ok := pathValue.(string); ok {
+					runPushLog.Printf("Import %d: object format with path: %s", i, pathStr)
+					paths = append(paths, pathStr)
+				} else {
+					runPushLog.Printf("Import %d: object has path but not string type", i)
+				}
+			} else {
+				runPushLog.Printf("Import %d: object missing path field", i)
+			}
+		default:
+			runPushLog.Printf("Import %d: unknown type: %T", i, importItem)
+		}
+	}
+	return paths
+}
+
+func extractImportPathsFromMap(importsMap map[string]any) []string {
+	awAny, hasAW := importsMap["aw"]
+	if !hasAW {
+		return nil
+	}
+	switch aw := awAny.(type) {
+	case []any:
+		runPushLog.Printf("Parsing imports.aw as []any with %d items", len(aw))
+		return extractImportPathsFromArray(aw)
+	case []string:
+		runPushLog.Printf("Parsing imports.aw as []string with %d items", len(aw))
+		return aw
+	default:
+		return nil
+	}
+}
+
+func processWorkflowImports(
+	workflowPath string,
+	imports []string,
+	files map[string]struct{},
+	visited map[string]struct{},
+	verbose bool,
+) error {
+	workflowDir := filepath.Dir(workflowPath)
+	runPushLog.Printf("Workflow directory: %s", workflowDir)
+	runPushLog.Printf("Found %d imports in %s", len(imports), workflowPath)
+
+	for i, importPath := range imports {
+		runPushLog.Printf("Processing import %d/%d: %s", i+1, len(imports), importPath)
+		absImportPath, ok := resolveWorkflowImportPath(importPath, workflowDir, verbose)
+		if !ok {
+			continue
+		}
+
+		files[absImportPath] = struct{}{}
+		runPushLog.Printf("Added import file: %s", absImportPath)
+		runPushLog.Printf("Recursively collecting imports from: %s", absImportPath)
+		if err := collectImports(absImportPath, files, visited, verbose); err != nil {
+			runPushLog.Printf("Failed to recursively collect imports from %s: %v", absImportPath, err)
+			return err
+		}
+	}
+	return nil
+}
+
+func resolveWorkflowImportPath(importPath string, workflowDir string, verbose bool) (string, bool) {
+	resolvedPath := resolveImportPath(importPath, workflowDir, importPathRunPushOpts)
+	if resolvedPath == "" {
+		runPushLog.Printf("Could not resolve import path: %s", importPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not resolve import: "+importPath))
+		}
+		return "", false
+	}
+	runPushLog.Printf("Resolved import path: %s -> %s", importPath, resolvedPath)
+
+	absImportPath := resolvedPath
+	if filepath.IsAbs(resolvedPath) {
+		runPushLog.Printf("Import path is absolute: %s", absImportPath)
+	} else {
+		absImportPath = filepath.Join(workflowDir, resolvedPath)
+		runPushLog.Printf("Joined relative path: %s + %s = %s", workflowDir, resolvedPath, absImportPath)
+	}
+
+	if _, err := os.Stat(absImportPath); err != nil {
+		runPushLog.Printf("Import file not found: %s (error: %v)", absImportPath, err)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Import file not found: "+absImportPath))
+		}
+		return "", false
+	}
+	runPushLog.Printf("Import file exists: %s", absImportPath)
+	return absImportPath, true
+}
+
 // collectWorkflowFiles collects the workflow .md file, its corresponding .lock.yml file,
 // and the transitive closure of all imported files.
 // Note: This function always recompiles the workflow to ensure the lock file is up-to-date,
@@ -35,63 +245,17 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 	visited := make(map[string]struct {
 	})
 
-	// Get absolute path for the workflow
-	absWorkflowPath, err := filepath.Abs(workflowPath)
+	absWorkflowPath, err := resolveWorkflowPushPath(workflowPath)
 	if err != nil {
-		runPushLog.Printf("Failed to get absolute path for %s: %v", workflowPath, err)
-		return nil, fmt.Errorf("failed to get absolute path for workflow: %w", err)
-	}
-	runPushLog.Printf("Resolved absolute workflow path: %s", absWorkflowPath)
-
-	// Validate the absolute path
-	absWorkflowPath, err = fileutil.ValidateAbsolutePath(absWorkflowPath)
-	if err != nil {
-		runPushLog.Printf("Invalid workflow path: %v", err)
-		return nil, fmt.Errorf("invalid workflow path: %w", err)
+		return nil, err
 	}
 
-	// Add the workflow .md file
-	files[absWorkflowPath] = struct {
-	}{}
+	files[absWorkflowPath] = struct{}{}
 	runPushLog.Printf("Added workflow file: %s", absWorkflowPath)
 
-	// Check lock file and log hash status for observability
 	lockFilePath := stringutil.MarkdownToLockFile(absWorkflowPath)
-	runPushLog.Printf("Checking lock file: %s", lockFilePath)
+	logWorkflowCompilationIntent(absWorkflowPath, lockFilePath, verbose)
 
-	// Always recompile, but check and log hash status for observability
-	if fileutil.FileExists(lockFilePath) {
-		runPushLog.Printf("Lock file exists: %s", lockFilePath)
-		// Check frontmatter hash for observability
-		runPushLog.Print("Checking frontmatter hash for observability")
-		if hashMismatch, err := checkFrontmatterHashMismatch(absWorkflowPath, lockFilePath); err != nil {
-			runPushLog.Printf("Error checking frontmatter hash: %v", err)
-			// Don't fail, just log the error
-		} else if hashMismatch {
-			runPushLog.Print("Lock file frontmatter hash changed (will recompile)")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Frontmatter hash changed, recompiling workflow..."))
-			}
-		} else {
-			runPushLog.Print("Lock file frontmatter hash unchanged (will still recompile)")
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling workflow..."))
-			}
-		}
-	} else if os.IsNotExist(err) {
-		// Lock file doesn't exist
-		runPushLog.Printf("Lock file not found: %s", lockFilePath)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Lock file not found, compiling workflow..."))
-		}
-	} else {
-		runPushLog.Printf("Error checking lock file: %v", err)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling workflow..."))
-		}
-	}
-
-	// Always recompile (hash check is for observability only)
 	runPushLog.Printf("Always recompiling workflow: %s", absWorkflowPath)
 	if err := recompileWorkflow(ctx, absWorkflowPath, verbose, approve); err != nil {
 		runPushLog.Printf("Failed to recompile workflow: %v", err)
@@ -102,17 +266,7 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 	}
 	runPushLog.Printf("Recompilation completed successfully")
 
-	// Add the corresponding .lock.yml file
-	if fileutil.FileExists(lockFilePath) {
-		files[lockFilePath] = struct {
-		}{}
-		runPushLog.Printf("Added lock file: %s", lockFilePath)
-	} else if verbose {
-		runPushLog.Printf("Lock file not found after compilation: %s", lockFilePath)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Lock file not found after compilation: "+lockFilePath))
-	}
-
-	// Collect transitive closure of imported files
+	addCompiledLockFile(files, lockFilePath, verbose)
 	runPushLog.Printf("Starting import collection for %s", absWorkflowPath)
 	if err := collectImports(absWorkflowPath, files, visited, verbose); err != nil {
 		runPushLog.Printf("Failed to collect imports: %v", err)
@@ -120,13 +274,7 @@ func collectWorkflowFiles(ctx context.Context, workflowPath string, verbose bool
 	}
 	runPushLog.Printf("Import collection completed")
 
-	// Convert map to slice
-	result := sliceutil.MapKeys(files)
-
-	// Sort files for stable output
-	sort.Strings(result)
-	runPushLog.Printf("Sorted %d files for stable output", len(result))
-
+	result := sortedWorkflowPushFiles(files)
 	runPushLog.Printf("Collected %d files total", len(result))
 	return result, nil
 }
@@ -233,147 +381,24 @@ func checkLockFileStatus(workflowPath string) (*LockFileStatus, error) {
 func collectImports(workflowPath string, files map[string]struct {
 }, visited map[string]struct {
 }, verbose bool) error {
-	// Avoid processing the same file multiple times
 	if setutil.Contains(visited, workflowPath) {
 		runPushLog.Printf("Skipping already visited file: %s", workflowPath)
 		return nil
 	}
-	visited[workflowPath] = struct {
-	}{}
+	visited[workflowPath] = struct{}{}
 
 	runPushLog.Printf("Processing imports for: %s", workflowPath)
-
-	// Read the workflow file
-	content, err := os.ReadFile(workflowPath)
+	frontmatter, foundFrontmatter, err := readWorkflowImportsFrontmatter(workflowPath)
 	if err != nil {
-		runPushLog.Printf("Failed to read workflow file %s: %v", workflowPath, err)
-		return fmt.Errorf("failed to read workflow file %s: %w", workflowPath, err)
+		return err
 	}
-	runPushLog.Printf("Read %d bytes from %s", len(content), workflowPath)
-
-	// Extract frontmatter to get imports field
-	result, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil {
-		// No frontmatter is okay - might be a simple file
-		runPushLog.Printf("No frontmatter in %s, skipping imports extraction: %v", workflowPath, err)
+	if !foundFrontmatter {
 		return nil
 	}
-	runPushLog.Printf("Extracted frontmatter from %s", workflowPath)
-
-	// Get imports from frontmatter
-	importsField, exists := result.Frontmatter["imports"]
-	if !exists {
-		runPushLog.Printf("No imports field in %s", workflowPath)
-		return nil
+	imports := extractImportPathsFromFrontmatter(frontmatter, workflowPath)
+	if err := processWorkflowImports(workflowPath, imports, files, visited, verbose); err != nil {
+		return err
 	}
-	runPushLog.Printf("Found imports field in %s", workflowPath)
-
-	// Parse imports field - can be array of strings or objects with path,
-	// or an object with 'aw' subfield for agentic workflow paths.
-	workflowDir := filepath.Dir(workflowPath)
-	runPushLog.Printf("Workflow directory: %s", workflowDir)
-	var imports []string
-
-	// extractPathsFromArray extracts file paths from a []any import list.
-	extractPathsFromArray := func(items []any) []string {
-		var paths []string
-		for i, item := range items {
-			switch importItem := item.(type) {
-			case string:
-				runPushLog.Printf("Import %d: string format: %s", i, importItem)
-				paths = append(paths, importItem)
-			case map[string]any:
-				if pathValue, hasPath := importItem["path"]; hasPath {
-					if pathStr, ok := pathValue.(string); ok {
-						runPushLog.Printf("Import %d: object format with path: %s", i, pathStr)
-						paths = append(paths, pathStr)
-					} else {
-						runPushLog.Printf("Import %d: object has path but not string type", i)
-					}
-				} else {
-					runPushLog.Printf("Import %d: object missing path field", i)
-				}
-			default:
-				runPushLog.Printf("Import %d: unknown type: %T", i, importItem)
-			}
-		}
-		return paths
-	}
-
-	switch v := importsField.(type) {
-	case []any:
-		runPushLog.Printf("Parsing imports as []any with %d items", len(v))
-		imports = extractPathsFromArray(v)
-	case []string:
-		runPushLog.Printf("Parsing imports as []string with %d items", len(v))
-		imports = v
-	case map[string]any:
-		// Object form: extract paths from the 'aw' subfield.
-		// The 'apm-packages' subfield contains package names, not file paths.
-		if awAny, hasAW := v["aw"]; hasAW {
-			switch aw := awAny.(type) {
-			case []any:
-				runPushLog.Printf("Parsing imports.aw as []any with %d items", len(aw))
-				imports = extractPathsFromArray(aw)
-			case []string:
-				runPushLog.Printf("Parsing imports.aw as []string with %d items", len(aw))
-				imports = aw
-			}
-		}
-	default:
-		runPushLog.Printf("Imports field has unexpected type: %T", v)
-	}
-
-	runPushLog.Printf("Found %d imports in %s", len(imports), workflowPath)
-
-	// Process each import
-	for i, importPath := range imports {
-		runPushLog.Printf("Processing import %d/%d: %s", i+1, len(imports), importPath)
-
-		// Resolve the import path
-		resolvedPath := resolveImportPath(importPath, workflowDir, importPathRunPushOpts)
-		if resolvedPath == "" {
-			runPushLog.Printf("Could not resolve import path: %s", importPath)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not resolve import: "+importPath))
-			}
-			continue
-		}
-		runPushLog.Printf("Resolved import path: %s -> %s", importPath, resolvedPath)
-
-		// Get absolute path
-		var absImportPath string
-		if filepath.IsAbs(resolvedPath) {
-			absImportPath = resolvedPath
-			runPushLog.Printf("Import path is absolute: %s", absImportPath)
-		} else {
-			absImportPath = filepath.Join(workflowDir, resolvedPath)
-			runPushLog.Printf("Joined relative path: %s + %s = %s", workflowDir, resolvedPath, absImportPath)
-		}
-
-		// Check if file exists
-		if _, err := os.Stat(absImportPath); err != nil {
-			runPushLog.Printf("Import file not found: %s (error: %v)", absImportPath, err)
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Import file not found: "+absImportPath))
-			}
-			continue
-		}
-		runPushLog.Printf("Import file exists: %s", absImportPath)
-
-		// Add the import file
-		files[absImportPath] = struct {
-		}{}
-		runPushLog.Printf("Added import file: %s", absImportPath)
-
-		// Recursively collect imports from this file
-		runPushLog.Printf("Recursively collecting imports from: %s", absImportPath)
-		if err := collectImports(absImportPath, files, visited, verbose); err != nil {
-			runPushLog.Printf("Failed to recursively collect imports from %s: %v", absImportPath, err)
-			return err
-		}
-	}
-
 	runPushLog.Printf("Finished processing imports for: %s", workflowPath)
 	return nil
 }
