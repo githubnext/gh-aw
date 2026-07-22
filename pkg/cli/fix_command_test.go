@@ -827,6 +827,7 @@ This is a test workflow.
 
 	assert.Contains(t, output, "Would update dispatcher skill: "+skillPath)
 	assert.Contains(t, output, "Would update Agentic Workflows custom agent: "+agentPath)
+	assert.Contains(t, output, "✓ No workflow fixes needed")
 }
 
 func TestFixCommand_WriteUpdatesPromptAndAgentFiles(t *testing.T) {
@@ -891,6 +892,68 @@ This is a test workflow.
 	assert.Contains(t, string(agentContent), ".github/aw/create-agentic-workflow.md")
 	assert.NotContains(t, string(agentContent), ".github/skills/agentic-workflows/SKILL.md")
 	assert.NotContains(t, string(agentContent), "local agent change")
+}
+
+func TestFixCommand_DryRunTreatsExistingEmptyDispatcherArtifactsAsUpdates(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("Git not available")
+	}
+	stubAgenticWorkflowsMarkdownFilesForTest(t)
+
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+	skillPath := filepath.Join(tmpDir, ".github", "skills", "agentic-workflows", "SKILL.md")
+	agentPath := filepath.Join(tmpDir, ".github", "agents", "agentic-workflows.md")
+
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
+			t.Errorf("Failed to restore current directory: %v", chdirErr)
+		}
+	})
+
+	require.NoError(t, os.Chdir(tmpDir))
+	require.NoError(t, exec.Command("git", "init").Run())
+	require.NoError(t, exec.Command("git", "config", "user.name", "Test User").Run())
+	require.NoError(t, exec.Command("git", "config", "user.email", "test@example.com").Run())
+
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+`
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644))
+	require.NoError(t, os.MkdirAll(filepath.Dir(skillPath), 0755))
+	require.NoError(t, os.MkdirAll(filepath.Dir(agentPath), 0755))
+	require.NoError(t, os.WriteFile(skillPath, []byte{}, 0644))
+	require.NoError(t, os.WriteFile(agentPath, []byte{}, 0644))
+
+	originalStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	// NOTE: this test redirects os.Stderr and must not run in parallel.
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = originalStderr })
+
+	require.NoError(t, RunFix(FixConfig{
+		WorkflowIDs: []string{"test-workflow"},
+		Write:       false,
+		WorkflowDir: tmpDir,
+	}))
+
+	require.NoError(t, w.Close())
+	outputBytes, err := io.ReadAll(r)
+	require.NoError(t, err)
+	output := string(outputBytes)
+
+	assert.Contains(t, output, "Would update dispatcher skill: "+skillPath)
+	assert.Contains(t, output, "Would update Agentic Workflows custom agent: "+agentPath)
+	assert.NotContains(t, output, "Would create dispatcher skill:")
+	assert.NotContains(t, output, "Would create Agentic Workflows custom agent:")
 }
 
 func TestFixCommand_GrepToolRemoval(t *testing.T) {

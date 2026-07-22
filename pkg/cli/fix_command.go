@@ -270,7 +270,7 @@ func runFixCommand(workflowIDs []string, write bool, verbose bool, workflowDir s
 				fmt.Fprintf(os.Stderr, "  gh aw fix %s --write\n", strings.TrimSuffix(wf.File, ".md"))
 			}
 		} else if totalGuidedErrors == 0 && totalProcessingErrors == 0 {
-			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No fixes needed"))
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("✓ No workflow fixes needed"))
 		}
 	}
 
