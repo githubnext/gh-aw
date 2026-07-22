@@ -83,36 +83,48 @@ describe("filterAndTransformServers", () => {
 });
 
 describe("writeSecureOutput", () => {
+  /** @type {string} */
+  let dir;
+
+  beforeEach(() => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-test-"));
+  });
+
+  afterEach(() => {
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
   it("writes file with mode 0o600", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-test-"));
     const outputPath = path.join(dir, "output.json");
     writeSecureOutput(outputPath, '{"key":"value"}');
     expect(fs.readFileSync(outputPath, "utf8")).toBe('{"key":"value"}');
     expect(fs.statSync(outputPath).mode & 0o777).toBe(0o600);
-    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("creates nested directories as needed", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-test-"));
     const outputPath = path.join(dir, "deep/nested/output.json");
     writeSecureOutput(outputPath, "{}");
     expect(fs.existsSync(outputPath)).toBe(true);
-    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("overwrites existing file and resets permissions to 0o600", () => {
-    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-test-"));
     const outputPath = path.join(dir, "output.json");
     fs.writeFileSync(outputPath, "old");
     fs.chmodSync(outputPath, 0o644);
     writeSecureOutput(outputPath, "new");
     expect(fs.readFileSync(outputPath, "utf8")).toBe("new");
     expect(fs.statSync(outputPath).mode & 0o777).toBe(0o600);
-    fs.rmSync(dir, { recursive: true, force: true });
   });
 
   it("throws on write failure", () => {
-    expect(() => writeSecureOutput("/nonexistent/deep/path/file.json", "{}")).toThrow();
+    const spy = vi.spyOn(fs, "mkdirSync").mockImplementationOnce(() => {
+      throw new Error("EACCES: permission denied, mkdir");
+    });
+    try {
+      expect(() => writeSecureOutput(path.join(dir, "output.json"), "{}")).toThrow();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
@@ -198,11 +210,19 @@ describe("loadGatewayContext", () => {
 describe("logCLIFilters and logServerStats", () => {
   /** @type {{ info: ReturnType<typeof vi.fn>, warning: ReturnType<typeof vi.fn> }} */
   let mockCore;
+  /** @type {unknown} */
+  let originalCore;
 
   beforeEach(() => {
+    originalCore = global.core;
     mockCore = { info: vi.fn(), warning: vi.fn() };
     // @ts-ignore
     global.core = mockCore;
+  });
+
+  afterEach(() => {
+    // @ts-ignore
+    global.core = originalCore;
   });
 
   it("logCLIFilters calls core.info when servers are present", () => {

@@ -1,7 +1,6 @@
 // @ts-check
-"use strict";
-
 /// <reference types="@actions/github-script" />
+"use strict";
 
 const fs = require("fs");
 const path = require("path");
