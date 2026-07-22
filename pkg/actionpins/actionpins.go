@@ -109,6 +109,11 @@ type PinContext struct {
 	// repository@version references before pin resolution. Keys and values use
 	// the format "owner/repo@ref". Set from aw.json action_pins.
 	Mappings map[string]string
+	// ContainerMappings redirects container image references to replacement
+	// image references before pin resolution. Keys are source image references
+	// (e.g. "ghcr.io/owner/image:tag") and values are replacement image
+	// references. Set from aw.json container_pins.
+	ContainerMappings map[string]string
 }
 
 var (
@@ -548,4 +553,37 @@ func applyActionPinMapping(actionRepo, version string, ctx *PinContext) (string,
 	}
 
 	return mappedRepo, mappedVersion
+}
+
+// ApplyContainerPinMapping checks ctx.ContainerMappings for a redirect of image
+// and returns the (possibly updated) image reference. An informational message is
+// printed to stderr the first time each mapping is applied (deduplicated via
+// ctx.Warnings).
+func ApplyContainerPinMapping(image string, ctx *PinContext) string {
+	if ctx == nil || len(ctx.ContainerMappings) == 0 {
+		return image
+	}
+
+	mapped, ok := ctx.ContainerMappings[image]
+	if !ok {
+		return image
+	}
+
+	if mapped == "" {
+		actionPinsLog.Printf("Invalid container_pins mapping value for key %q (must be non-empty); skipping", image)
+		return image
+	}
+
+	// Emit informational message once per source key.
+	initWarnings(ctx)
+	notifyKey := "container-map:" + image
+	if !ctx.Warnings[notifyKey] {
+		actionPinsLog.Printf("Container pin mapping applied: %s → %s", image, mapped)
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			fmt.Sprintf("Container pin mapping applied: %s → %s", image, mapped),
+		))
+		ctx.Warnings[notifyKey] = true
+	}
+
+	return mapped
 }

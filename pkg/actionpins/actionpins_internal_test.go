@@ -715,3 +715,112 @@ func TestApplyActionPinMapping(t *testing.T) {
 		})
 	}
 }
+
+// TestApplyContainerPinMapping verifies the redirect, miss, empty-value, and
+// deduplication behaviour of ApplyContainerPinMapping.
+func TestApplyContainerPinMapping(t *testing.T) {
+	tests := []struct {
+		name                    string
+		image                   string
+		mappings                map[string]string
+		repeat                  int    // call count for deduplication tests (0 → 1)
+		wantImage               string // expected return value
+		wantMappingNotification bool   // should Warnings contain the notify key?
+		wantMapNotificationKeys int    // total number of "container-map:" keys in Warnings
+	}{
+		{
+			name:                    "miss - no mapping for image",
+			image:                   "ghcr.io/owner/image:latest",
+			mappings:                map[string]string{"other.registry.io/image:latest": "registry.acme.com/image:latest"},
+			wantImage:               "ghcr.io/owner/image:latest",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:                    "hit - mapping applied",
+			image:                   "ghcr.io/github/gh-aw-firewall:0.27.22",
+			mappings:                map[string]string{"ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22"},
+			wantImage:               "registry.acme.com/gh-aw-firewall:0.27.22",
+			wantMappingNotification: true,
+			wantMapNotificationKeys: 1,
+		},
+		{
+			name:                    "digest-pinned replacement value",
+			image:                   "node:lts-alpine",
+			mappings:                map[string]string{"node:lts-alpine": "registry.acme.com/node:lts-alpine@sha256:abc123"},
+			wantImage:               "registry.acme.com/node:lts-alpine@sha256:abc123",
+			wantMappingNotification: true,
+			wantMapNotificationKeys: 1,
+		},
+		{
+			name:                    "empty value - mapping skipped",
+			image:                   "ghcr.io/owner/image:v1",
+			mappings:                map[string]string{"ghcr.io/owner/image:v1": ""},
+			wantImage:               "ghcr.io/owner/image:v1",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:                    "nil mappings - image returned unchanged",
+			image:                   "ghcr.io/owner/image:v1",
+			mappings:                nil,
+			wantImage:               "ghcr.io/owner/image:v1",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:                    "nil context - image returned unchanged",
+			image:                   "ghcr.io/owner/image:v1",
+			mappings:                nil,
+			wantImage:               "ghcr.io/owner/image:v1",
+			wantMappingNotification: false,
+			wantMapNotificationKeys: 0,
+		},
+		{
+			name:                    "deduplication - notification emitted only once",
+			image:                   "ghcr.io/github/gh-aw-firewall:0.27.22",
+			mappings:                map[string]string{"ghcr.io/github/gh-aw-firewall:0.27.22": "registry.acme.com/gh-aw-firewall:0.27.22"},
+			repeat:                  3,
+			wantImage:               "registry.acme.com/gh-aw-firewall:0.27.22",
+			wantMappingNotification: true,
+			wantMapNotificationKeys: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var ctx *PinContext
+			if tt.name == "nil context - image returned unchanged" {
+				ctx = nil
+			} else {
+				ctx = &PinContext{
+					Warnings:          make(map[string]bool),
+					ContainerMappings: tt.mappings,
+				}
+			}
+
+			repeat := max(tt.repeat, 1)
+			var got string
+			for range repeat {
+				got = ApplyContainerPinMapping(tt.image, ctx)
+			}
+
+			assert.Equal(t, tt.wantImage, got, "mapped image should match expected")
+
+			if ctx != nil {
+				notifyKey := "container-map:" + tt.image
+				assert.Equal(t, tt.wantMappingNotification, ctx.Warnings[notifyKey],
+					"mapping notification flag in Warnings should match")
+
+				mapNotifications := 0
+				for k := range ctx.Warnings {
+					if strings.HasPrefix(k, "container-map:") {
+						mapNotifications++
+					}
+				}
+				assert.Equal(t, tt.wantMapNotificationKeys, mapNotifications,
+					"number of container-map: warning keys should match")
+			}
+		})
+	}
+}

@@ -229,6 +229,7 @@ func (c *Compiler) attachSharedActionResolver(workflowData *WorkflowData) {
 	workflowData.ActionResolver = actionResolver
 	workflowData.ActionPinWarnings = c.actionPinWarnings
 	workflowData.ActionPinMappings = c.getActionPinMappings()
+	workflowData.ContainerPinMappings = c.getContainerPinMappings()
 }
 
 func (c *Compiler) mergeImportedWorkflowConfiguration(ctx *workflowBuildContext) error {
