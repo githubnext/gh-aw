@@ -8,13 +8,7 @@ Use as a playbook for long-running iterative workflows.
 
 ## What “loop engineering” means
 
-A loop workflow repeatedly:
-
-1. selects exactly one work item,
-2. makes one bounded improvement step,
-3. verifies with concrete evidence,
-4. preserves accepted progress,
-5. records durable state for the next run.
+A loop workflow repeatedly: 1) selects one work item, 2) makes one bounded improvement step, 3) verifies with concrete evidence, 4) preserves accepted progress, 5) records durable state for the next run.
 
 Design for reliability across repeated runs, merges, CI failures, and human steering.
 
@@ -22,47 +16,23 @@ Design for reliability across repeated runs, merges, CI failures, and human stee
 
 ### 1) Single-item scheduler
 
-All three select one item per run:
-
-- Autoloop: one program
-- Goal: one goal issue
-- Crane: one migration
-
-This bounds run cost and preserves round-robin fairness.
+Select one item per run (Autoloop: one program, Goal: one goal issue, Crane: one migration). Bounds run cost, preserves round-robin fairness.
 
 ### 2) Canonical long-running branch + single PR
 
-Each item owns one stable branch and one draft PR:
-
-- `autoloop/<program>`
-- `goal/<issue>-<slug>`
-- `crane/<migration>`
-
-Accumulate accepted commits on that same PR over time.
+Each item owns one stable branch and one draft PR (`autoloop/<program>`, `goal/<issue>-<slug>`, `crane/<migration>`). Accumulate accepted commits on that same PR over time.
 
 ### 3) Ratcheting acceptance
 
-A change is accepted only when it improves the tracked metric (or advances the contract) and passes CI/verification gates.
-
-If improvement fails, discard the change and still record the run.
+Accept a change only when it improves the tracked metric (or advances the contract) and passes CI/verification gates. On failure, discard the change but still record the run.
 
 ### 4) Durable state in repo-memory
 
-Persist state as markdown in a dedicated memory branch:
-
-- `memory/autoloop`
-- `memory/goal`
-- `memory/crane`
-
-Keep state machine-readable and human-editable.
+Persist state as markdown in a dedicated memory branch (`memory/autoloop`, `memory/goal`, `memory/crane`). Keep it machine-readable and human-editable.
 
 ### 5) Human control-plane issue
 
-Each item has one canonical issue with:
-
-- a durable status comment sentinel (`<!-- ...:STATUS -->`),
-- one per-run log comment,
-- human steering directives.
+Each item has one canonical issue with: a durable status comment sentinel (`<!-- ...:STATUS -->`), one per-run log comment, human steering directives.
 
 ### 6) Explicit no-progress and pause semantics
 
@@ -72,110 +42,49 @@ When blocked or stuck, pause with a concrete reason. Do not retry forever.
 
 ### Pattern A — Item selection and fairness
 
-Use a deterministic pre-step scheduler that writes a compact selection artifact (for example `/tmp/gh-aw/autoloop.json` in gh-aw runners; match the file name to your workflow) with:
-
-- selected item,
-- deferred items,
-- due/not-due flags,
-- existing PR/branch metadata.
-
-Do not discover candidates ad hoc in-prompt.
+Use a deterministic pre-step scheduler that writes a compact selection artifact (e.g. `/tmp/gh-aw/autoloop.json`; match the file name to your workflow) with: selected item, deferred items, due/not-due flags, existing PR/branch metadata. Do not discover candidates ad hoc in-prompt.
 
 ### Pattern B — Canonical branch invariants
 
-Branch names must be deterministic and suffix-free.
-
-Always use ahead/behind logic against default branch:
+Branch names must be deterministic and suffix-free. Always use ahead/behind logic against default branch:
 
 - `ahead=0, behind>0`: fast-forward/reset branch to default,
 - `ahead>0, behind>0`: merge default into branch,
 - else: checkout as-is.
 
-When a force-push is required by your branch-sync strategy, use `--force-with-lease` (not `--force`).
-Still keep canonical branches single-writer (the workflow) to minimize push conflicts.
+When a force-push is required, use `--force-with-lease` (not `--force`). Keep canonical branches single-writer (the workflow) to minimize push conflicts.
 
 ### Pattern C — One PR per item
 
-Never create multiple active PRs for the same item.
-
-Resolve in order:
-
-1. scheduler-provided `existing_pr`,
-2. state-file PR fallback,
-3. create exactly one PR if none exists.
+Never create multiple active PRs for the same item. Resolve in order: 1) scheduler-provided `existing_pr`, 2) state-file PR fallback, 3) create exactly one PR if none exists.
 
 ### Pattern D — Improve → push → gate → accept
 
-Use a three-phase accept path:
-
-1. metric/contract improvement check,
-2. push and wait for CI/checks,
-3. accept only on green.
-
-This avoids sandbox-only false positives.
+Three-phase accept path: 1) metric/contract improvement check, 2) push and wait for CI/checks, 3) accept only on green. Avoids sandbox-only false positives.
 
 ### Pattern E — CI fix loop with circuit breakers
 
-When CI fails after an improved change:
-
-- collect failing jobs and error signatures,
-- attempt bounded fix retries,
-- stop on repeated identical signature,
-- pause with structured reason (`ci-fix-exhausted`, `stuck`, `ci-timeout`).
+When CI fails after an improved change: collect failing jobs and error signatures, attempt bounded fix retries, stop on repeated identical signature, pause with structured reason (`ci-fix-exhausted`, `stuck`, `ci-timeout`).
 
 ### Pattern F — Structured state file
 
-Keep a stable state layout with:
-
-- machine-state table (iteration count, last run, best metric, pause/completion fields),
-- current focus/checkpoint,
-- lessons learned,
-- foreclosed avenues/blockers,
-- iteration history (newest first).
-
-This preserves continuity and deterministic scheduling.
+Keep a stable state layout with: machine-state table (iteration count, last run, best metric, pause/completion fields), current focus/checkpoint, lessons learned, foreclosed avenues/blockers, iteration history (newest first).
 
 ### Pattern G — Setup guard and safety rails
 
-Use sentinel-based configuration checks before first real run:
-
-- Autoloop: `<!-- AUTOLOOP:UNCONFIGURED -->`
-- Crane: `<!-- CRANE:UNCONFIGURED -->`
-
-If unconfigured, create/refresh setup issue and skip execution.
+Use sentinel-based configuration checks before first real run (Autoloop: `<!-- AUTOLOOP:UNCONFIGURED -->`, Crane: `<!-- CRANE:UNCONFIGURED -->`). If unconfigured, create/refresh setup issue and skip execution.
 
 ### Pattern H — Direction-aware metrics
 
-Support both optimization directions:
-
-- `higher` is better (default),
-- `lower` is better.
-
-Use direction in:
-
-- improvement test,
-- signed delta reporting,
-- target-metric completion check.
+Support both directions: `higher` is better (default), `lower` is better. Use direction in: improvement test, signed delta reporting, target-metric completion check.
 
 ### Pattern I — Completion by evidence, not intent
 
-Completion requires explicit evidence gates.
-
-- Goal enforces issue-defined completion contracts.
-- Crane separates reaching target metric from deterministic completion-gate pass.
-- Autoloop supports target-metric completion with explicit label transition.
-
-Never mark complete on belief alone.
+Completion requires explicit evidence gates. Goal enforces issue-defined completion contracts; Crane separates reaching target metric from deterministic completion-gate pass; Autoloop supports target-metric completion with explicit label transition. Never mark complete on belief alone.
 
 ### Pattern J — Unified run reporting
 
-On every run (accepted/rejected/error/blocked):
-
-- update durable status comment,
-- append per-run summary comment,
-- include run URL, checkpoint, evidence, result, next step.
-
-This creates an auditable run narrative.
+On every run (accepted/rejected/error/blocked): update durable status comment, append per-run summary comment, include run URL, checkpoint, evidence, result, next step. Creates an auditable run narrative.
 
 ## Comparative notes by project
 
@@ -187,7 +96,7 @@ This creates an auditable run narrative.
 
 ## Implementation blueprint for new loop workflows in gh-aw
 
-When creating a new loop workflow, implement in this order:
+Implement in this order:
 
 1. **Define the loop unit** (issue/program/migration/task).
 2. **Add scheduler pre-step** that selects one item and emits JSON context.
@@ -204,18 +113,7 @@ When creating a new loop workflow, implement in this order:
 
 ## Minimal loop run-state model
 
-Use these conceptual states:
-
-- `active`
-- `accepted`
-- `rejected`
-- `error`
-- `needs_action`
-- `blocked`
-- `paused`
-- `completed`
-
-Transitions must be deterministic and evidence-backed.
+Conceptual states: `active`, `accepted`, `rejected`, `error`, `needs_action`, `blocked`, `paused`, `completed`. Transitions must be deterministic and evidence-backed.
 
 ## Common failure modes to avoid
 
@@ -228,14 +126,7 @@ Transitions must be deterministic and evidence-backed.
 
 ## Practical guidance for prompt authors
 
-For loop prompts, explicitly require:
-
-- one checkpoint per run,
-- smallest useful change,
-- explicit evidence command output,
-- explicit `noop`/blocked behavior,
-- state updates every run,
-- strict branch/PR invariants.
+For loop prompts, explicitly require: one checkpoint per run, smallest useful change, explicit evidence command output, explicit `noop`/blocked behavior, state updates every run, strict branch/PR invariants.
 
 Keep prompts short. Move durable policy to state + structured workflow rules.
 

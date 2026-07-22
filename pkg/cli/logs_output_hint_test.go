@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"bytes"
 	"strings"
 	"testing"
 	"time"
@@ -11,19 +12,19 @@ import (
 )
 
 func TestRenderLogsCompactEmitsSingleHintLine(t *testing.T) {
-	stdout, _ := captureOutput(t, func() error {
-		renderLogsCompact(LogsData{
-			Summary: LogsSummary{TotalRuns: 1},
-			Runs: []RunData{{
-				RunID:        1,
-				WorkflowName: "logs",
-				Status:       "completed",
-				CreatedAt:    time.Now(),
-			}},
-			Message: usageOnlyArtifactHintMessage(),
-		})
-		return nil
+	t.Parallel()
+	var buf bytes.Buffer
+	renderLogsCompactToWriter(&buf, LogsData{
+		Summary: LogsSummary{TotalRuns: 1},
+		Runs: []RunData{{
+			RunID:        1,
+			WorkflowName: "logs",
+			Status:       "completed",
+			CreatedAt:    time.Now(),
+		}},
+		Message: usageOnlyArtifactHintMessage(),
 	})
+	stdout := buf.String()
 
 	assert.Equal(t, 1, strings.Count(stdout, "[hint] "), "compact output should emit a single hint line")
 	assert.Contains(t, stdout, usageOnlyArtifactHintMessage())

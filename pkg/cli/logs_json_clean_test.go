@@ -15,30 +15,19 @@ import (
 // TestJSONOutputNotCorruptedByStderr is a unit test that verifies JSON output
 // is not corrupted when stderr messages are present. This simulates the CI test scenario.
 func TestJSONOutputNotCorruptedByStderr(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "test-json-clean-*")
 
 	// Build logs data with empty runs (simulating no matching workflow runs)
 	logsData := buildLogsData([]ProcessedRun{}, tmpDir, nil)
 
-	// Capture stdout (JSON output)
-	oldStdout := os.Stdout
-	stdoutR, stdoutW, _ := os.Pipe()
-	os.Stdout = stdoutW
-
-	// Render JSON
-	err := renderLogsJSON(logsData, true)
+	// Render JSON to buffer
+	var jsonBuf bytes.Buffer
+	err := renderLogsJSONToWriter(&jsonBuf, logsData, true)
 	if err != nil {
 		t.Fatalf("Failed to render JSON: %v", err)
 	}
-
-	// Close stdout writer and restore
-	stdoutW.Close()
-	os.Stdout = oldStdout
-
-	// Read stdout
-	var stdoutBuf bytes.Buffer
-	stdoutBuf.ReadFrom(stdoutR)
-	jsonOutput := stdoutBuf.String()
+	jsonOutput := jsonBuf.String()
 
 	// Verify the output is valid JSON (no corruption)
 	if len(jsonOutput) == 0 {
