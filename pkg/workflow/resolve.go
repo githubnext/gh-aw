@@ -10,6 +10,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
 )
@@ -272,4 +273,58 @@ func GetAllWorkflows() ([]WorkflowNameMatch, error) {
 	}
 
 	return workflows, nil
+}
+
+// IsIntentionalFailure reports whether the workflow identified by workflowPath is tagged
+// with intentional-failure: true in its frontmatter.  workflowPath may be:
+//   - a .lock.yml path   (e.g. ".github/workflows/daily-credit-limit-test.lock.yml")
+//   - a .md path         (e.g. ".github/workflows/daily-credit-limit-test.md")
+//   - a bare workflow ID (e.g. "daily-credit-limit-test")
+//
+// Returns false whenever the file cannot be read or parsed (fail-open: unknown workflows
+// are not excluded from health rollups).
+func IsIntentionalFailure(workflowPath string) bool {
+	if workflowPath == "" {
+		return false
+	}
+
+	// Derive the markdown file path.
+	var mdPath string
+	switch {
+	case strings.HasSuffix(workflowPath, ".lock.yml"):
+		mdPath = strings.TrimSuffix(workflowPath, ".lock.yml") + ".md"
+	case strings.HasSuffix(workflowPath, ".md"):
+		mdPath = workflowPath
+	default:
+		// Treat as a bare workflow ID.
+		normalizedName := stringutil.NormalizeWorkflowName(workflowPath)
+		mdPath = filepath.Join(constants.GetWorkflowDir(), normalizedName+".md")
+	}
+
+	content, err := os.ReadFile(mdPath)
+	if err != nil {
+		// File not available locally (e.g. running against a remote repo).
+		return false
+	}
+
+	result, err := parser.ExtractFrontmatterFromContent(string(content))
+	if err != nil || result == nil {
+		return false
+	}
+
+	featuresRaw, ok := result.Frontmatter["features"]
+	if !ok {
+		return false
+	}
+	features, ok := featuresRaw.(map[string]any)
+	if !ok {
+		return false
+	}
+	val, ok := features["intentional-failure"]
+	if !ok {
+		return false
+	}
+
+	b, ok := val.(bool)
+	return ok && b
 }

@@ -191,6 +191,23 @@ func TestDetectTextOutputUsage(t *testing.T) {
 			content:       "Body: \"${{ steps.sanitized.outputs.body }}\"",
 			expectedUsage: true,
 		},
+		// Deprecated needs.activation.outputs.* forms must also be detected so that
+		// workflows not yet migrated still compile correctly.
+		{
+			name:          "with_deprecated_text_usage",
+			content:       "Content: \"${{ needs.activation.outputs.text }}\"",
+			expectedUsage: true,
+		},
+		{
+			name:          "with_deprecated_title_usage",
+			content:       "Title: \"${{ needs.activation.outputs.title }}\"",
+			expectedUsage: true,
+		},
+		{
+			name:          "with_deprecated_body_usage",
+			content:       "Body: \"${{ needs.activation.outputs.body }}\"",
+			expectedUsage: true,
+		},
 	}
 
 	for _, tt := range tests {
