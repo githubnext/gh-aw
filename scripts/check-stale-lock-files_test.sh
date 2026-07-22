@@ -224,6 +224,67 @@ else
     fail "--base-ref should pass when markdown + lock changed" "$(cat "$T10_OUT")"
 fi
 
+# ---------------------------------------------------------------------------
+# Test 11: .md files in excluded shared/ subdirectory are not flagged.
+# ---------------------------------------------------------------------------
+echo "Test 11: .md files in shared/ subdirectory are excluded..."
+T11="$TMP_ROOT/t11"
+mkdir -p "$T11"
+git -C "$T11" init -q
+git -C "$T11" config user.email "test@test.com"
+git -C "$T11" config user.name "Test"
+mkdir -p "$T11/.github/workflows/shared"
+printf '%s\n' "# shared-tool" > "$T11/.github/workflows/shared/tools.md"
+git -C "$T11" add .
+git -C "$T11" commit -q -m "initial"
+printf '%s\n' "# shared-tool (edited)" > "$T11/.github/workflows/shared/tools.md"
+T11_OUT="$TMP_ROOT/t11-output.txt"
+if (cd "$T11" && bash "$STALE_SCRIPT" >"$T11_OUT" 2>&1); then
+    pass "shared/ .md files are excluded (exits 0)"
+else
+    fail "shared/ .md files should be excluded (should exit 0)" "$(cat "$T11_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 12: .md files in excluded skills/ subdirectory are not flagged.
+# ---------------------------------------------------------------------------
+echo "Test 12: .md files in skills/ subdirectory are excluded..."
+T12="$TMP_ROOT/t12"
+mkdir -p "$T12"
+git -C "$T12" init -q
+git -C "$T12" config user.email "test@test.com"
+git -C "$T12" config user.name "Test"
+mkdir -p "$T12/.github/workflows/skills"
+printf '%s\n' "# skill-doc" > "$T12/.github/workflows/skills/example.md"
+git -C "$T12" add .
+git -C "$T12" commit -q -m "initial"
+printf '%s\n' "# skill-doc (edited)" > "$T12/.github/workflows/skills/example.md"
+T12_OUT="$TMP_ROOT/t12-output.txt"
+if (cd "$T12" && bash "$STALE_SCRIPT" >"$T12_OUT" 2>&1); then
+    pass "skills/ .md files are excluded (exits 0)"
+else
+    fail "skills/ .md files should be excluded (should exit 0)" "$(cat "$T12_OUT")"
+fi
+
+# ---------------------------------------------------------------------------
+# Test 13: unknown --base-ref falls back to working-tree diff and still
+# catches a stale .md in the working tree.
+# ---------------------------------------------------------------------------
+echo "Test 13: unknown --base-ref falls back gracefully and still catches stale .md..."
+T13="$TMP_ROOT/t13"
+mkdir -p "$T13"
+create_fixture_repo "$T13" "fallback-workflow"
+# Modify the .md in the working tree (not committed)
+printf '%s\n' "# fallback-workflow (edited)" > "$T13/.github/workflows/fallback-workflow.md"
+T13_OUT="$TMP_ROOT/t13-output.txt"
+if (cd "$T13" && bash "$STALE_SCRIPT" --base-ref "nonexistent-sha-12345" >"$T13_OUT" 2>&1); then
+    fail "unknown base-ref with stale .md should exit 1" "$(cat "$T13_OUT")"
+elif grep -q "fallback-workflow.md" "$T13_OUT"; then
+    pass "unknown --base-ref falls back gracefully and catches stale .md"
+else
+    fail "unknown --base-ref fallback output did not name the stale file" "$(cat "$T13_OUT")"
+fi
+
 echo
 echo "Tests passed: $TESTS_PASSED"
 echo "Tests failed: $TESTS_FAILED"
