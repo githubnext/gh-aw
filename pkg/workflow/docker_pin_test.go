@@ -260,7 +260,60 @@ func TestApplyContainerPins_ContainerPinMappings(t *testing.T) {
 	})
 }
 
-// TestResolveContainerImage_AppliesContainerPinMapping verifies that
+// TestCollectDockerImages_DefaultAlpineContainerPinMapping verifies that when
+// container_pins maps DefaultAlpineImage, collectDockerImages applies the redirect
+// so the pre-download list and manifest use the configured private mirror.
+func TestCollectDockerImages_DefaultAlpineContainerPinMapping(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	mapped := "registry.acme.com/alpine@sha256:" + digest
+	workflowData := &WorkflowData{
+		ContainerPinMappings: map[string]string{
+			constants.DefaultAlpineImage: mapped,
+		},
+	}
+
+	tools := map[string]any{
+		"agentic-workflows": map[string]any{},
+	}
+
+	images := collectDockerImages(tools, workflowData, ActionModeRelease)
+
+	assert.Contains(t, images, mapped,
+		"DefaultAlpineImage should be replaced by the container_pins mapped image in the pre-download list")
+	for _, img := range images {
+		assert.NotEqual(t, constants.DefaultAlpineImage, img,
+			"original DefaultAlpineImage should not appear in the pre-download list when mapped")
+	}
+}
+
+// TestResolveGatewayContainerFromMappings verifies that resolveGatewayContainerFromMappings
+// applies the container_pins redirect and strips the digest for MCP Gateway compatibility.
+func TestResolveGatewayContainerFromMappings(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	t.Run("mapped image has digest stripped for gateway", func(t *testing.T) {
+		mappings := map[string]string{
+			"ghcr.io/owner/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
+		}
+		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", mappings)
+		assert.Equal(t, "registry.acme.com/image:v1", got,
+			"digest should be stripped from mapped image for MCP Gateway compatibility")
+	})
+
+	t.Run("unmapped image passes through unchanged", func(t *testing.T) {
+		mappings := map[string]string{
+			"other.io/image:v1": "registry.acme.com/image:v1@sha256:" + digest,
+		}
+		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", mappings)
+		assert.Equal(t, "ghcr.io/owner/image:v1", got)
+	})
+
+	t.Run("nil mappings returns image unchanged", func(t *testing.T) {
+		got := resolveGatewayContainerFromMappings("ghcr.io/owner/image:v1", nil)
+		assert.Equal(t, "ghcr.io/owner/image:v1", got)
+	})
+}
+
 // resolveContainerImage redirects the source image through container_pins before
 // digest lookup, ensuring the mapped registry is used in the compiled output.
 func TestResolveContainerImage_AppliesContainerPinMapping(t *testing.T) {

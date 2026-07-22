@@ -99,7 +99,7 @@ func writeJSONStringArray(b *strings.Builder, indent, key string, values []strin
 // renderPlaywrightMCPConfigWithOptions generates the Playwright MCP server configuration with engine-specific options
 // Per MCP Gateway Specification v1.0.0 section 3.2.1, stdio-based MCP servers MUST be containerized.
 // Uses MCP Gateway spec format: container, entrypointArgs, mounts, and args fields.
-func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any) {
+func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfig *PlaywrightToolConfig, isLast bool, includeCopilotFields bool, inlineArgs bool, guardPolicies map[string]any, containerPinMappings map[string]string) {
 	mcpPlaywrightLog.Printf("Rendering Playwright MCP config options: copilot_fields=%t, inline_args=%t", includeCopilotFields, inlineArgs)
 	customArgs := getPlaywrightCustomArgs(playwrightConfig)
 
@@ -112,8 +112,9 @@ func renderPlaywrightMCPConfigWithOptions(yaml *strings.Builder, playwrightConfi
 		customArgs = replaceExpressionsInPlaywrightArgs(customArgs)
 	}
 
-	// Use official Playwright MCP Docker image (no version tag - only one image)
-	playwrightImage := "mcr.microsoft.com/playwright/mcp"
+	// Use official Playwright MCP Docker image (no version tag - only one image).
+	// Apply container_pins mapping so private-cloud runners use the configured mirror.
+	playwrightImage := resolveGatewayContainerFromMappings("mcr.microsoft.com/playwright/mcp", containerPinMappings)
 
 	yaml.WriteString("              \"playwright\": {\n")
 

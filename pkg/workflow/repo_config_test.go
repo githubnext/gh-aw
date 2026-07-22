@@ -172,6 +172,48 @@ func TestLoadRepoConfig_ContainerPinsRequireSHA256Digest(t *testing.T) {
 	}
 }
 
+// TestLoadRepoConfig_ContainerPinsKeyNoDigestAllowed verifies that container_pins
+// keys (source images) must not contain a digest — only tag-based references are
+// valid source keys. A key like "image@sha256:..." is rejected by the schema.
+func TestLoadRepoConfig_ContainerPinsKeyNoDigestAllowed(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	const goodValue = `"registry.acme.com/image:v1@sha256:` + digest + `"`
+
+	tests := []struct {
+		name    string
+		key     string
+		wantErr bool
+	}{
+		{
+			name: "plain image:tag key accepted",
+			key:  `"ghcr.io/owner/image:v1"`,
+		},
+		{
+			name: "image without tag accepted",
+			key:  `"mcr.microsoft.com/playwright/mcp"`,
+		},
+		{
+			name:    "digest-pinned key rejected",
+			key:     `"ghcr.io/owner/image:v1@sha256:` + digest + `"`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeAWJSON(t, dir, `{"container_pins":{`+tt.key+`:`+goodValue+`}}`)
+
+			_, err := LoadRepoConfig(dir)
+			if tt.wantErr {
+				require.Error(t, err, "digest-pinned source keys should be rejected by schema")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestLoadRepoConfig_LabelTriggersDisable(t *testing.T) {
 	dir := t.TempDir()
 	writeAWJSON(t, dir, `{"maintenance": {"label_triggers": false}}`)

@@ -195,6 +195,26 @@ func resolveMCPGatewayContainerImage(image string, data *WorkflowData) string {
 	return resolved
 }
 
+// resolveGatewayContainerFromMappings applies the container_pins redirect from
+// the provided mappings map and strips any digest component, returning an
+// MCP Gateway-compatible image reference (image[:tag] only).
+// When mappings is nil or the image is not present in the map, the original
+// image is returned unchanged.
+func resolveGatewayContainerFromMappings(image string, mappings map[string]string) string {
+	if len(mappings) == 0 {
+		return image
+	}
+	// Build a minimal PinContext with no warning tracking (deduplication occurs
+	// during pre-download collection; here we only need the redirect).
+	ctx := &actionpins.PinContext{ContainerMappings: mappings}
+	mapped := actionpins.ApplyContainerPinMapping(image, ctx)
+	base, _, hasDigest := strings.Cut(mapped, "@")
+	if hasDigest {
+		return base
+	}
+	return mapped
+}
+
 // applyContainerPinMappingFromData applies the container_pins redirect from aw.json
 // if data has ContainerPinMappings set; otherwise returns image unchanged.
 // Unlike resolveContainerImage this does not perform a digest lookup, making it

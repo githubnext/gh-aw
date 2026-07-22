@@ -725,6 +725,7 @@ func TestApplyContainerPinMapping(t *testing.T) {
 		image                   string
 		mappings                map[string]string
 		repeat                  int    // call count for deduplication tests (0 → 1)
+		nilCtx                  bool   // when true, pass a nil *PinContext to trigger nil-safety path
 		wantImage               string // expected return value
 		wantMappingNotification bool   // should Warnings contain the notify key?
 		wantMapNotificationKeys int    // total number of "container-map:" keys in Warnings
@@ -789,6 +790,7 @@ func TestApplyContainerPinMapping(t *testing.T) {
 			name:                    "nil context - image returned unchanged",
 			image:                   "ghcr.io/owner/image:v1",
 			mappings:                nil,
+			nilCtx:                  true,
 			wantImage:               "ghcr.io/owner/image:v1",
 			wantMappingNotification: false,
 			wantMapNotificationKeys: 0,
@@ -807,7 +809,7 @@ func TestApplyContainerPinMapping(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var ctx *PinContext
-			if tt.name == "nil context - image returned unchanged" {
+			if tt.nilCtx {
 				ctx = nil
 			} else {
 				ctx = &PinContext{

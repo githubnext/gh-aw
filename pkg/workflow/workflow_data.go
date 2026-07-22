@@ -251,3 +251,12 @@ func (d *WorkflowData) PinContext() *actionpins.PinContext {
 	workflowDataLog.Printf("Built pin context: strictMode=%t, skipHardcodedFallback=%t", pinCtx.StrictMode, pinCtx.SkipHardcodedFallback)
 	return pinCtx
 }
+
+// getContainerPinMappings returns ContainerPinMappings when d is non-nil, otherwise nil.
+// Used for nil-safe access when constructing MCPConfigRenderer.
+func (d *WorkflowData) getContainerPinMappings() map[string]string {
+	if d == nil {
+		return nil
+	}
+	return d.ContainerPinMappings
+}

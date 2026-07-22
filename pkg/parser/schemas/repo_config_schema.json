@@ -28,7 +28,7 @@
         "description": "SHA-256 digest-pinned replacement container image reference to use instead of the source image (e.g. 'registry.acme.com/image:tag@sha256:<64 lowercase hex characters>')."
       },
       "propertyNames": {
-        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.@-]*$"
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9/:_.-]*$"
       }
     },
     "ghes": {
