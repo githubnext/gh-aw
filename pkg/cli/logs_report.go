@@ -654,4 +654,6 @@ func renderLogsConsoleToWriter(w io.Writer, data LogsData) {
 }
 
 // renderLogsConsole outputs the logs data as formatted console output to os.Stdout.
-func renderLogsConsole(data LogsData) { renderLogsConsoleToWriter(os.Stdout, data) }
+func renderLogsConsole(data LogsData) {
+	renderLogsConsoleToWriter(os.Stdout, data)
+}
