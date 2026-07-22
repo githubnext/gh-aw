@@ -20,6 +20,11 @@ func TestAntigravityEngine(t *testing.T) {
 		assert.True(t, engine.IsExperimental(), "Antigravity engine should be experimental")
 	})
 
+	t.Run("undocumented flag", func(t *testing.T) {
+		assert.True(t, engine.IsUndocumented(),
+			"Antigravity engine must be marked undocumented to prevent drift-detection tools from filing spurious issues about its absence in engines.md and the workflow schema")
+	})
+
 	t.Run("capabilities", func(t *testing.T) {
 		capabilities := engine.GetCapabilities()
 		assert.True(t, capabilities.ToolsAllowlist, "Should support tools allowlist")

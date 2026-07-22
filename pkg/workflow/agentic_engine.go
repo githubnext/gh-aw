@@ -327,6 +327,11 @@ type BaseEngine struct {
 	ghSkillAgentName        string
 	capabilities            EngineCapabilities
 	dedicatedLLMGatewayPort int
+	// undocumented marks an engine that is registered and functional but intentionally
+	// excluded from public reference documentation (engines.md) and the workflow schema.
+	// Drift-detection tools should skip engines with undocumented == true to avoid
+	// filing spurious "undocumented engine" issues.
+	undocumented bool
 }
 
 func (e *BaseEngine) GetID() string {
@@ -347,6 +352,14 @@ func (e *BaseEngine) IsExperimental() bool {
 
 func (e *BaseEngine) GetGHSkillAgentName() string {
 	return e.ghSkillAgentName
+}
+
+// IsUndocumented reports whether this engine is intentionally excluded from
+// public reference documentation (engines.md) and the workflow schema.
+// When true, drift-detection tools should skip this engine to avoid filing
+// spurious "undocumented engine" alerts. Default is false.
+func (e *BaseEngine) IsUndocumented() bool {
+	return e.undocumented
 }
 
 func (e *BaseEngine) GetCapabilities() EngineCapabilities {
@@ -563,6 +576,30 @@ func (r *EngineRegistry) GetSupportedEngines() []string {
 	agenticEngineLog.Print("Getting list of supported engines")
 	engines := sliceutil.SortedKeys(r.engines)
 	return engines
+}
+
+// GetDocumentedEngines returns a sorted list of engine IDs that are intended
+// to appear in the public reference documentation (engines.md) and the workflow
+// schema. Engines that have IsUndocumented() == true are excluded.
+//
+// Use this method (rather than GetSupportedEngines) when comparing the registered
+// engine set against docs/engines.md or main_workflow_schema.json so that
+// intentionally hidden engines do not trigger spurious drift-detection alerts.
+func (r *EngineRegistry) GetDocumentedEngines() []string {
+	agenticEngineLog.Print("Getting list of documented engines")
+	type undocumentedChecker interface {
+		IsUndocumented() bool
+	}
+	var ids []string
+	for id, engine := range r.engines {
+		if checker, ok := engine.(undocumentedChecker); ok && checker.IsUndocumented() {
+			agenticEngineLog.Printf("Skipping undocumented engine: %s", id)
+			continue
+		}
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	return ids
 }
 
 // IsValidEngine checks if an engine ID is valid

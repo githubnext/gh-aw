@@ -150,6 +150,45 @@ func TestGetGlobalEngineRegistry(t *testing.T) {
 	})
 }
 
+func TestEngineRegistry_GetDocumentedEngines(t *testing.T) {
+	t.Run("excludes undocumented engines", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		documented := registry.GetDocumentedEngines()
+		assert.NotContains(t, documented, "antigravity",
+			"antigravity is intentionally undocumented and must not appear in the documented engines list")
+	})
+
+	t.Run("includes standard documented engines", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		documented := registry.GetDocumentedEngines()
+		for _, id := range []string{"claude", "codex", "copilot", "gemini", "opencode"} {
+			assert.Contains(t, documented, id,
+				"documented engine %q must appear in GetDocumentedEngines()", id)
+		}
+	})
+
+	t.Run("result is a subset of GetSupportedEngines", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		supported := registry.GetSupportedEngines()
+		documented := registry.GetDocumentedEngines()
+		for _, id := range documented {
+			assert.Contains(t, supported, id,
+				"documented engine %q must also be in GetSupportedEngines()", id)
+		}
+		assert.LessOrEqual(t, len(documented), len(supported),
+			"GetDocumentedEngines must return no more engines than GetSupportedEngines")
+	})
+
+	t.Run("result is sorted", func(t *testing.T) {
+		registry := NewEngineRegistry()
+		documented := registry.GetDocumentedEngines()
+		for i := 1; i < len(documented); i++ {
+			assert.LessOrEqual(t, documented[i-1], documented[i],
+				"GetDocumentedEngines result must be sorted alphabetically")
+		}
+	})
+}
+
 func TestEngineRegistry_GetAllAgentManifestFolders(t *testing.T) {
 	t.Run("always includes .agents platform directory", func(t *testing.T) {
 		registry := NewEngineRegistry()

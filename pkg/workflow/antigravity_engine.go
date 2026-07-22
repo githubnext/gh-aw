@@ -34,6 +34,11 @@ func NewAntigravityEngine() *AntigravityEngine {
 				NativeAgentFile:  false, // Antigravity does not support agent file natively; the compiler prepends the agent file content to prompt.txt
 			},
 			dedicatedLLMGatewayPort: constants.AntigravityLLMGatewayPort,
+			// undocumented: intentionally excluded from engines.md and the workflow schema.
+			// The engine is registered and functional but kept out of public reference docs
+			// to avoid confusing users. Drift-detection tools check IsUndocumented() to
+			// skip this engine and prevent recurring false-positive issue filings.
+			undocumented: true,
 		},
 	}
 }
