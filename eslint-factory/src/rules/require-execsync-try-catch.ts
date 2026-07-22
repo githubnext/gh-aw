@@ -1,5 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
-import { buildTryCatchSuggestion, findEnclosingStatement, isDeferredCallback, isInsideTryBlock } from "./try-catch-rule-utils";
+import { buildTryCatchSuggestion, findEnclosingStatement, isInsideTryBlock } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -144,20 +144,6 @@ export const requireExecSyncTryCatchRule = createRule({
       CallExpression(node) {
         if (!isExecSyncCall(node, sourceCode)) return;
         if (isInsideTryBlock(sourceCode, node)) return;
-
-        // Ignore execSync inside deferred callbacks — the parent try block does not protect them.
-        // isInsideTryBlock already handles this, but we skip reporting when the node itself is
-        // inside a deferred callback that has no enclosing try block (same FP-avoidance as other rules).
-        const ancestors = sourceCode.getAncestors(node);
-        let withinDeferredBoundary = false;
-        for (let i = ancestors.length - 1; i >= 0; i--) {
-          if (isDeferredCallback(ancestors[i])) {
-            withinDeferredBoundary = true;
-            break;
-          }
-        }
-        // Still flag it even in deferred callbacks — execSync in async callbacks is still risky.
-        void withinDeferredBoundary;
 
         const argText = node.arguments.length > 0 ? sourceCode.getText(node.arguments[0]) : "";
         const stmt = findEnclosingStatement(sourceCode, node);

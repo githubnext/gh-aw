@@ -268,7 +268,6 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: ${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}
           GH_AW_WIKI_NOTE: ${{ '' }}
         # poutine:ignore untrusted_checkout_exec
         run: |
@@ -349,7 +348,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: ${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}
+          GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
           GH_AW_MEMORY_BRANCH_NAME: 'memory/eslint-refiner'
           GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: *.json, *.jsonl\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 1024 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ' Historical ESLint rule refinement runs and diagnostics snapshots'

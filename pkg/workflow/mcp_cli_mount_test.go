@@ -217,7 +217,14 @@ func TestBuildMCPCLIPromptSection_PromptFileUsesNonHeadingLabels(t *testing.T) {
 	section := buildMCPCLIPromptSection(data)
 	require.NotNil(t, section)
 	assert.Equal(t, mcpCLIToolsPromptFile, section.Content)
-	assert.Equal(t, "${{ steps.mount-mcp-clis.outputs.mcp-cli-servers-list }}", section.EnvVars["GH_AW_MCP_CLI_SERVERS_LIST"])
+	// GH_AW_MCP_CLI_SERVERS_LIST must be a compile-time static value, NOT a step output
+	// reference. Referencing steps.mount-mcp-clis (agent job) inside the activation job's
+	// env block is out of scope and triggers actionlint errors.
+	serversList := section.EnvVars["GH_AW_MCP_CLI_SERVERS_LIST"]
+	assert.NotEmpty(t, serversList, "server list must not be empty")
+	assert.NotContains(t, serversList, "${{", "server list must not use a GitHub Actions expression (step output reference is out of scope in activation job)")
+	assert.Contains(t, serversList, "safeoutputs", "server list must mention the safeoutputs server")
+	assert.Contains(t, serversList, "--help", "server list must guide agents to use --help for tool signatures")
 
 	wd, err := os.Getwd()
 	require.NoError(t, err)
