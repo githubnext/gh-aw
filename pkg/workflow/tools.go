@@ -88,6 +88,8 @@ func populateWorkflowDataCache(data *WorkflowData) {
 
 // detectTriggerType checks whether the workflow is a slash_command/command or label_command trigger
 // by inspecting already-parsed WorkflowData fields and, if needed, reading the frontmatter from disk.
+// It is intentionally a free function (not a *Compiler method) because it reads only WorkflowData
+// and on-disk frontmatter and has no dependency on Compiler state.
 func detectTriggerType(data *WorkflowData, markdownPath string) (isCommand, isLabelCommand bool) {
 	if data.On != "" {
 		return false, false
@@ -273,7 +275,10 @@ func (c *Compiler) buildCommandTriggerEventsMap(data *WorkflowData) (map[string]
 func (c *Compiler) applyLabelCommandTriggerOnSection(data *WorkflowData) error {
 	toolsLog.Print("Workflow is label-command trigger, configuring label events")
 
-	labelEventsMap := c.buildLabelCommandEventsMap(data)
+	labelEventsMap, hasDispatchItemNumber := c.buildLabelCommandEventsMap(data)
+	if hasDispatchItemNumber {
+		data.HasDispatchItemNumber = true
+	}
 
 	// Convert merged events to YAML
 	mergedEventsYAML, err := yaml.MarshalWithOptions(map[string]any{"on": labelEventsMap}, yaml.IndentSequence(true))
@@ -305,26 +310,24 @@ func (c *Compiler) applyLabelCommandTriggerOnSection(data *WorkflowData) error {
 
 // buildLabelCommandEventsMap builds the events map for a label_command trigger workflow.
 // In decentralized mode it uses workflow_dispatch; in standard mode it generates label events.
-func (c *Compiler) buildLabelCommandEventsMap(data *WorkflowData) map[string]any {
+// The returned bool is true when a workflow_dispatch item-number input was added, requiring
+// the caller to set data.HasDispatchItemNumber.
+func (c *Compiler) buildLabelCommandEventsMap(data *WorkflowData) (map[string]any, bool) {
 	labelEventsMap := make(map[string]any)
 	if data.LabelCommandDecentralized {
 		if len(data.LabelCommandOtherEvents) > 0 {
 			maps.Copy(labelEventsMap, data.LabelCommandOtherEvents)
 		}
-		if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
-			data.HasDispatchItemNumber = true
-		}
-		return labelEventsMap
+		hasDispatch := ensureWorkflowDispatchItemNumberInput(labelEventsMap)
+		return labelEventsMap, hasDispatch
 	}
 	// Generate events: issues, pull_request, discussion with types: [labeled]
 	for _, eventName := range FilterLabelCommandEvents(data.LabelCommandEvents) {
 		labelEventsMap[eventName] = map[string]any{"types": []any{"labeled"}}
 	}
-	if ensureWorkflowDispatchItemNumberInput(labelEventsMap) {
-		data.HasDispatchItemNumber = true
-	}
+	hasDispatch := ensureWorkflowDispatchItemNumberInput(labelEventsMap)
 	mergeLabelCommandOtherEvents(labelEventsMap, data.LabelCommandOtherEvents)
-	return labelEventsMap
+	return labelEventsMap, hasDispatch
 }
 
 // mergeLabelCommandOtherEvents merges other (non-label-command) events into the events map,

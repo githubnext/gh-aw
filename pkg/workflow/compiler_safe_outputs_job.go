@@ -19,6 +19,11 @@ var consolidatedSafeOutputsJobLog = logger.New("workflow:compiler_safe_outputs_j
 // step starts in job.Steps (6-space indent + "- name: ").
 const stepNameLinePrefix = "      - name: "
 
+// uploadArtifactStagingDownloadStepCount is the number of YAML string entries emitted by the
+// upload-artifact staging download step block (name, continue-on-error, uses, with, name, path).
+// It must match the literal slice appended in buildPreambleTokenSteps.
+const uploadArtifactStagingDownloadStepCount = 6
+
 // getSafeOutputsHeadApp returns the first non-nil HeadGitHubApp config from
 // create-pull-request or push-to-pull-request-branch handlers, used to generate
 // the safe-outputs-head-app-token step.
@@ -630,8 +635,8 @@ func (c *Compiler) calculatePreambleInsertIndex(steps []string, data *WorkflowDa
 	}
 	insertIndex += len(buildAgentOutputDownloadSteps(agentArtifactPrefix, c.getActionPin))
 	if data.SafeOutputs.UploadArtifact != nil {
-		// The staging download step has 6 YAML string entries.
-		insertIndex += 6
+		// The staging download step has uploadArtifactStagingDownloadStepCount YAML string entries.
+		insertIndex += uploadArtifactStagingDownloadStepCount
 	}
 	if usesPatchesAndCheckouts(data.SafeOutputs) {
 		patchDownloadSteps := buildArtifactDownloadSteps(ArtifactDownloadConfig{
@@ -730,6 +735,7 @@ func (c *Compiler) buildSafeOutputsJobNeeds(data *WorkflowData, mainJobName stri
 			preActName := string(constants.PreActivationJobName)
 			if !setutil.Contains(seenNeeds, preActName) {
 				needs = append(needs, preActName)
+				seenNeeds[preActName] = struct{}{} // keep map consistent with all other appends
 				consolidatedSafeOutputsJobLog.Print("Added pre_activation dependency to safe_outputs job (messages reference pre_activation outputs)")
 			}
 		}
