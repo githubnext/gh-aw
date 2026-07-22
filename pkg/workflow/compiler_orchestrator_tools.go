@@ -428,12 +428,26 @@ func (c *Compiler) tryParseFrontmatterConfig(frontmatter map[string]any) *Frontm
 }
 
 // detectTextOutputUsage checks if the markdown content uses ${{ steps.sanitized.outputs.text }},
-// ${{ steps.sanitized.outputs.title }}, or ${{ steps.sanitized.outputs.body }}
+// ${{ steps.sanitized.outputs.title }}, or ${{ steps.sanitized.outputs.body }}.
+// It also recognises the deprecated ${{ needs.activation.outputs.{text,title,body} }} forms so
+// that workflows that have not yet been migrated still compile correctly.
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
-	// Check for any of the text-related output expressions
+	// Check for any of the text-related output expressions (modern form)
 	hasTextUsage := strings.Contains(markdownContent, "${{ steps.sanitized.outputs.text }}")
 	hasTitleUsage := strings.Contains(markdownContent, "${{ steps.sanitized.outputs.title }}")
 	hasBodyUsage := strings.Contains(markdownContent, "${{ steps.sanitized.outputs.body }}")
+
+	// Also recognise the deprecated needs.activation.outputs.* forms so that workflows
+	// using the old syntax still get the sanitized step included during compilation.
+	if !hasTextUsage {
+		hasTextUsage = strings.Contains(markdownContent, "${{ needs.activation.outputs.text }}")
+	}
+	if !hasTitleUsage {
+		hasTitleUsage = strings.Contains(markdownContent, "${{ needs.activation.outputs.title }}")
+	}
+	if !hasBodyUsage {
+		hasBodyUsage = strings.Contains(markdownContent, "${{ needs.activation.outputs.body }}")
+	}
 
 	hasUsage := hasTextUsage || hasTitleUsage || hasBodyUsage
 	detectionLog.Printf("Detected usage of sanitized outputs - text: %v, title: %v, body: %v, any: %v",
