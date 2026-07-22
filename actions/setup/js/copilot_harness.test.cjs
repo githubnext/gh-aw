@@ -57,6 +57,7 @@ const {
   parseCopilotSDKServerArgsFromEnv,
   applyCopilotWireAPI,
   resolveLongRunTokenThreshold,
+  computeStartupRetryEligible,
 } = require("./copilot_harness.cjs");
 
 const { detectNonRetryableHarnessGuard, buildSoftTimeoutGuard } = require("./harness_retry_guard.cjs");
@@ -420,15 +421,69 @@ describe("copilot_harness.cjs", () => {
 
     it("retries once for push startup interruption with exit code 2 and no output", () => {
       const result = { exitCode: 2, hasOutput: false };
-      // push events are startup-retry-eligible; first attempt retries, second does not
-      expect(shouldRetry(result, 0, true, 0)).toBe(true);
-      expect(shouldRetry(result, 1, true, 1)).toBe(false);
+      // push events are startup-retry-eligible via computeStartupRetryEligible
+      const isEligible = computeStartupRetryEligible("push");
+      expect(isEligible).toBe(true);
+      expect(shouldRetry(result, 0, isEligible, 0)).toBe(true);
+      expect(shouldRetry(result, 1, isEligible, 1)).toBe(false);
     });
 
     it("does not retry on exit code 2 with no output for non-eligible triggers", () => {
       const result = { exitCode: 2, hasOutput: false };
       // pull_request and other event types are not startup-retry-eligible
+      expect(computeStartupRetryEligible("pull_request")).toBe(false);
+      expect(computeStartupRetryEligible("workflow_dispatch")).toBe(false);
+      expect(computeStartupRetryEligible(undefined)).toBe(false);
       expect(shouldRetry(result, 0, false, 0)).toBe(false);
+    });
+
+    describe("computeStartupRetryEligible — event-to-policy wiring", () => {
+      it("schedule is eligible", () => {
+        expect(computeStartupRetryEligible("schedule")).toBe(true);
+      });
+
+      it("push is eligible", () => {
+        expect(computeStartupRetryEligible("push")).toBe(true);
+      });
+
+      it("pull_request is not eligible", () => {
+        expect(computeStartupRetryEligible("pull_request")).toBe(false);
+      });
+
+      it("workflow_dispatch is not eligible", () => {
+        expect(computeStartupRetryEligible("workflow_dispatch")).toBe(false);
+      });
+
+      it("undefined event name is not eligible", () => {
+        expect(computeStartupRetryEligible(undefined)).toBe(false);
+      });
+    });
+
+    describe("infrastructure-incomplete terminal hasOutput guard", () => {
+      /**
+       * Mirrors the emitInfrastructureIncomplete guard in the harness.
+       * Returns true when the incomplete diagnostic should be emitted.
+       */
+      function shouldEmitIncomplete({ isStartupRetryEligible, lastExitCode, retryAttempted, lastHasOutput }) {
+        return isStartupRetryEligible && lastExitCode === 2 && retryAttempted && !lastHasOutput;
+      }
+
+      it("emits diagnostic when terminal attempt had no output", () => {
+        expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 2, retryAttempted: true, lastHasOutput: false })).toBe(true);
+      });
+
+      it("does not emit diagnostic when terminal attempt produced output", () => {
+        // retry fired but the terminal attempt recovered and produced output — not a Turns=0 failure
+        expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 2, retryAttempted: true, lastHasOutput: true })).toBe(false);
+      });
+
+      it("does not emit diagnostic when no retry was attempted", () => {
+        expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 2, retryAttempted: false, lastHasOutput: false })).toBe(false);
+      });
+
+      it("does not emit diagnostic for non-eligible event", () => {
+        expect(shouldEmitIncomplete({ isStartupRetryEligible: false, lastExitCode: 2, retryAttempted: true, lastHasOutput: false })).toBe(false);
+      });
     });
 
     describe("failure classification helpers", () => {

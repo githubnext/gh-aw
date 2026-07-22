@@ -438,6 +438,7 @@ async function runWithCopilotSDK({ sdkUri, prompt, logger, attempt = 0, model, c
       if (content) {
         output = content;
         hasOutput = true;
+        assistantTurnCount++;
       }
     }
 

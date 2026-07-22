@@ -284,6 +284,17 @@ function isDetectionPhase(phase) {
 }
 
 /**
+ * Returns true when the given GitHub event name is eligible for the startup
+ * retry budget (exit code 2, no output — Turns=0 driver-handoff failure).
+ * Eligible events: "schedule" and "push".
+ * @param {string|undefined} eventName
+ * @returns {boolean}
+ */
+function computeStartupRetryEligible(eventName) {
+  return eventName === "schedule" || eventName === "push";
+}
+
+/**
  * Read AWF config written by the compiler before the agent runs.
  * @returns {any|null}
  */
@@ -1030,12 +1041,13 @@ async function main() {
 
   let delay = initialDelayMs;
   let lastExitCode = 1;
+  let lastHasOutput = false;
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";
   // Push-triggered runs are also eligible for the startup retry budget (exit code 2, no output).
   // The Tidy workflow was previously push-triggered and showed deterministic Turns=0 failures
   // at startup; extending the retry to push prevents the same pattern from recurring if a
   // push trigger is (re)added to any agentic workflow.
-  const isStartupRetryEligible = isScheduledRun || process.env.GITHUB_EVENT_NAME === "push";
+  const isStartupRetryEligible = computeStartupRetryEligible(process.env.GITHUB_EVENT_NAME);
   let scheduledExit2Retries = 0;
   let scheduledExit2RetryAttempted = false;
   let useContinueOnRetry = false;
@@ -1131,6 +1143,7 @@ async function main() {
             : undefined,
         });
         lastExitCode = result.exitCode;
+        lastHasOutput = result.hasOutput;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
         detectedCopilotErrors.mcpPolicyError ||= attemptDetections.mcpPolicyError;
@@ -1403,7 +1416,7 @@ async function main() {
         break;
       }
 
-      if (isStartupRetryEligible && lastExitCode === 2 && scheduledExit2RetryAttempted) {
+      if (isStartupRetryEligible && lastExitCode === 2 && scheduledExit2RetryAttempted && !lastHasOutput) {
         const triggerLabel = isScheduledRun ? "scheduled" : "push";
         emitInfrastructureIncomplete(
           `Copilot API interruption (exit code 2) persisted after automatic retry in ${triggerLabel} workflow run. ` + "This is the Turns=0 driver-handoff failure signature. Check the agent-stdio.log for startup diagnostics."
@@ -1452,6 +1465,7 @@ if (typeof module !== "undefined" && module.exports) {
     hasNoopInSafeOutputs,
     hasExpectedSafeOutputs,
     isDetectionPhase,
+    computeStartupRetryEligible,
     isHTTP400ResponseError,
     isModelAvailableInReflectData,
     isModelAvailableInReflectFile,
