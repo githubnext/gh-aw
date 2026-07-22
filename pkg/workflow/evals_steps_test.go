@@ -348,10 +348,36 @@ func TestBuildEvalsEngineStepsUsesEvalsPhase(t *testing.T) {
 					},
 				},
 			}
+
 			steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
 			if !strings.Contains(steps, "GH_AW_PHASE: evals") {
 				t.Fatalf("expected evals engine steps to set GH_AW_PHASE=evals; got:\n%s", steps)
 			}
 		})
+	}
+}
+
+func TestBuildEvalsEngineStepsUsesEvalsMaxAICreditsDefault(t *testing.T) {
+	compiler := NewCompiler()
+	data := &WorkflowData{
+		AI: "codex",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Type: SandboxTypeAWF,
+			},
+		},
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "evals_data_analyzed", Question: "Did the agent analyze evals data?"},
+			},
+		},
+	}
+
+	steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
+	if !strings.Contains(steps, "vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS") {
+		t.Fatalf("expected evals engine steps to use GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS; got:\n%s", steps)
+	}
+	if strings.Contains(steps, "vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS") {
+		t.Fatalf("evals engine steps must not use detection max-ai-credits default; got:\n%s", steps)
 	}
 }

@@ -130,6 +130,13 @@ func TestBuildDefaultDetectionMaxAICreditsExpression(t *testing.T) {
 	)
 }
 
+func TestBuildDefaultEvalsMaxAICreditsExpression(t *testing.T) {
+	assert.Equal(t,
+		"${{ vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS || '400' }}",
+		BuildDefaultEvalsMaxAICreditsExpression("400"),
+	)
+}
+
 func TestBuildDefaultMaxDailyAICreditsExpression(t *testing.T) {
 	assert.Equal(t,
 		"${{ vars.GH_AW_DEFAULT_MAX_DAILY_AI_CREDITS || '5000' }}",

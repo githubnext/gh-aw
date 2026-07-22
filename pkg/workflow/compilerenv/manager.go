@@ -52,6 +52,10 @@ const (
 	// threat-detection AWF apiProxy.maxAiCredits budget when
 	// safe-outputs.threat-detection.max-ai-credits is not explicitly configured.
 	DefaultDetectionMaxAICredits = "GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS"
+	// DefaultEvalsMaxAICredits is the enterprise override for the evals AWF
+	// apiProxy.maxAiCredits budget when evals.max-ai-credits is not explicitly
+	// configured.
+	DefaultEvalsMaxAICredits = "GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS"
 	// DefaultMaxTurns is the enterprise override for max-turns when it is not
 	// explicitly configured in workflow frontmatter.
 	DefaultMaxTurns = "GH_AW_DEFAULT_MAX_TURNS"
@@ -227,6 +231,15 @@ func BuildDefaultMaxAICreditsExpression(builtinDefault string) string {
 func BuildDefaultDetectionMaxAICreditsExpression(builtinDefault string) string {
 	escaped := strings.ReplaceAll(builtinDefault, "'", "''")
 	return fmt.Sprintf("${{ vars.%s || '%s' }}", DefaultDetectionMaxAICredits, escaped)
+}
+
+// BuildDefaultEvalsMaxAICreditsExpression builds a vars expression that resolves
+// the evals max-ai-credits default at runtime from the
+// GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS GitHub variable, falling back to
+// builtinDefault when the variable is unset.
+func BuildDefaultEvalsMaxAICreditsExpression(builtinDefault string) string {
+	escaped := strings.ReplaceAll(builtinDefault, "'", "''")
+	return fmt.Sprintf("${{ vars.%s || '%s' }}", DefaultEvalsMaxAICredits, escaped)
 }
 
 // BuildDefaultMaxTurnsExpression builds a vars expression that resolves max-turns
