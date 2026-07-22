@@ -7,7 +7,6 @@ on:
       - '.github/workflows/*.md'
       - 'scripts/check-stale-lock-files.sh'
       - '.github/workflows/stale-lock-files.yml'
-  workflow_dispatch:
 
 permissions:
   contents: read

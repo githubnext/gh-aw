@@ -475,7 +475,7 @@ bundle-js:
 
 # Run Bash script tests (check-stale-lock-files, check-workflow-drift)
 .PHONY: test-scripts
-test-scripts:
+test-scripts: build
 	@echo "Running Bash script tests..."
 	bash scripts/check-stale-lock-files_test.sh
 	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
