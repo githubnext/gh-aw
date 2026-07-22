@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"io"
 	"os"
 	"os/exec"
@@ -691,15 +692,33 @@ This is a test workflow with mcp-scripts mode field.
 	}
 }
 
-func TestFixCommand_UpdatesPromptAndAgentFiles(t *testing.T) {
+func stubAgenticWorkflowsMarkdownFilesForTest(t *testing.T) {
+	t.Helper()
+
+	original := listAgenticWorkflowsMarkdownFiles
+	listAgenticWorkflowsMarkdownFiles = func(context.Context) ([]string, error) {
+		return []string{
+			"create-agentic-workflow.md",
+			"update-agentic-workflow.md",
+		}, nil
+	}
+	t.Cleanup(func() {
+		listAgenticWorkflowsMarkdownFiles = original
+	})
+}
+
+func TestFixCommand_DryRunDoesNotUpdatePromptAndAgentFiles(t *testing.T) {
 	if _, err := exec.LookPath("git"); err != nil {
 		// Skip when git isn't available in the test environment.
 		t.Skip("Git not available")
 	}
+	stubAgenticWorkflowsMarkdownFilesForTest(t)
 
 	// Create a temporary directory for test files
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+	skillPath := filepath.Join(tmpDir, ".github", "skills", "agentic-workflows", "SKILL.md")
+	agentPath := filepath.Join(tmpDir, ".github", "agents", "agentic-workflows.md")
 
 	// Save and restore original directory
 	originalDir, err := os.Getwd()
@@ -734,6 +753,19 @@ This is a test workflow.
 `
 
 	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644), "Failed to create test file")
+	require.NoError(t, os.MkdirAll(filepath.Dir(skillPath), 0755), "Failed to create skill directory")
+	require.NoError(t, os.MkdirAll(filepath.Dir(agentPath), 0755), "Failed to create agent directory")
+
+	originalSkill := "local skill change\n"
+	originalAgent := "local agent change\n"
+	require.NoError(t, os.WriteFile(skillPath, []byte(originalSkill), 0644), "Failed to create skill file")
+	require.NoError(t, os.WriteFile(agentPath, []byte(originalAgent), 0644), "Failed to create agent file")
+
+	originalStderr := os.Stderr
+	r, w, err := os.Pipe()
+	require.NoError(t, err)
+	os.Stderr = w
+	t.Cleanup(func() { os.Stderr = originalStderr })
 
 	// Run fix command (which refreshes the generated skill and agent files)
 	config := FixConfig{
@@ -744,14 +776,86 @@ This is a test workflow.
 	}
 
 	require.NoError(t, RunFix(config), "RunFix failed")
+	require.NoError(t, w.Close())
 
-	_, err = os.Stat(filepath.Join(tmpDir, ".github", "skills", "agentic-workflows", "SKILL.md"))
+	outputBytes, err := io.ReadAll(r)
+	require.NoError(t, err)
+	output := string(outputBytes)
+
+	skillContent, err := os.ReadFile(skillPath)
+	require.NoError(t, err, "Expected skill file to remain in place after dry-run")
+	assert.Equal(t, originalSkill, string(skillContent))
+
+	agentContent, err := os.ReadFile(agentPath)
+	require.NoError(t, err, "Expected agent file to remain in place after dry-run")
+	assert.Equal(t, originalAgent, string(agentContent))
+
+	assert.Contains(t, output, "Would update dispatcher skill: "+skillPath)
+	assert.Contains(t, output, "Would update Agentic Workflows custom agent: "+agentPath)
+}
+
+func TestFixCommand_WriteUpdatesPromptAndAgentFiles(t *testing.T) {
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("Git not available")
+	}
+	stubAgenticWorkflowsMarkdownFilesForTest(t)
+
+	tmpDir := t.TempDir()
+	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
+	skillPath := filepath.Join(tmpDir, ".github", "skills", "agentic-workflows", "SKILL.md")
+	agentPath := filepath.Join(tmpDir, ".github", "agents", "agentic-workflows.md")
+
+	originalDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	t.Cleanup(func() {
+		if chdirErr := os.Chdir(originalDir); chdirErr != nil {
+			t.Errorf("Failed to restore current directory: %v", chdirErr)
+		}
+	})
+
+	require.NoError(t, os.Chdir(tmpDir), "Failed to change to temp directory")
+	require.NoError(t, exec.Command("git", "init").Run(), "Failed to initialize git repo")
+	require.NoError(t, exec.Command("git", "config", "user.name", "Test User").Run(), "Failed to configure git user.name")
+	require.NoError(t, exec.Command("git", "config", "user.email", "test@example.com").Run(), "Failed to configure git user.email")
+
+	content := `---
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+---
+
+# Test Workflow
+
+This is a test workflow.
+`
+
+	require.NoError(t, os.WriteFile(workflowFile, []byte(content), 0644), "Failed to create test file")
+	require.NoError(t, os.MkdirAll(filepath.Dir(skillPath), 0755), "Failed to create skill directory")
+	require.NoError(t, os.MkdirAll(filepath.Dir(agentPath), 0755), "Failed to create agent directory")
+	require.NoError(t, os.WriteFile(skillPath, []byte("local skill change\n"), 0644), "Failed to create skill file")
+	require.NoError(t, os.WriteFile(agentPath, []byte("local agent change\n"), 0644), "Failed to create agent file")
+
+	config := FixConfig{
+		WorkflowIDs: []string{"test-workflow"},
+		Write:       true,
+		Verbose:     false,
+		WorkflowDir: tmpDir,
+	}
+
+	require.NoError(t, RunFix(config), "RunFix failed")
+
+	skillContent, err := os.ReadFile(skillPath)
 	require.NoError(t, err, "Expected generated skill file to exist after RunFix")
+	assert.Contains(t, string(skillContent), "# Agentic Workflows Router")
+	assert.NotContains(t, string(skillContent), "local skill change")
 
-	agentContent, err := os.ReadFile(filepath.Join(tmpDir, ".github", "agents", "agentic-workflows.md"))
+	agentContent, err := os.ReadFile(agentPath)
 	require.NoError(t, err, "Expected generated agent file to exist after RunFix")
 	assert.Contains(t, string(agentContent), ".github/aw/create-agentic-workflow.md")
 	assert.NotContains(t, string(agentContent), ".github/skills/agentic-workflows/SKILL.md")
+	assert.NotContains(t, string(agentContent), "local agent change")
 }
 
 func TestFixCommand_GrepToolRemoval(t *testing.T) {
