@@ -105,6 +105,8 @@ describe("safe_outputs_handlers", () => {
     it("resolves issue title using the create_issue fallback order", () => {
       expect(resolveIssueTitleForValidation({ title: "Real title", body: "Ignored body" })).toBe("Real title");
       expect(resolveIssueTitleForValidation({ body: "Body title" })).toBe("Body title");
+      expect(resolveIssueTitleForValidation({ body: "\n\n## Incident Summary\n\nBody details" })).toBe("Incident Summary");
+      expect(resolveIssueTitleForValidation({ body: "   \n\n  " })).toBe("Agent Output");
       expect(resolveIssueTitleForValidation({})).toBe("Agent Output");
     });
 
@@ -2305,6 +2307,40 @@ describe("safe_outputs_handlers", () => {
   });
 
   describe("createIssueHandler", () => {
+    it("should deduplicate against fallback title derived from first meaningful body line", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: true,
+        },
+      });
+
+      const first = h.createIssueHandler({ body: "\n\n## Incident Summary\n\nBody A details" });
+      const second = h.createIssueHandler({ title: "Incident Summary", body: "Body B details" });
+
+      const firstResponse = JSON.parse(first.content[0].text);
+      const secondResponse = JSON.parse(second.content[0].text);
+      expect(firstResponse.result).toBe("success");
+      expect(secondResponse.result).toBe("duplicate_dropped");
+      const droppedEntry = mockAppendSafeOutput.mock.calls[1][0];
+      expect(droppedEntry._dropped_duplicate_by_title).toBe(true);
+    });
+
+    it("should fall back to Agent Output when title and body are blank", () => {
+      const h = createHandlers(mockServer, mockAppendSafeOutput, {
+        create_issue: {
+          deduplicate_by_title: true,
+        },
+      });
+
+      const first = h.createIssueHandler({ body: "   \n\n  " });
+      const second = h.createIssueHandler({ title: "Agent Output", body: "Real details for duplicate check" });
+
+      const firstResponse = JSON.parse(first.content[0].text);
+      const secondResponse = JSON.parse(second.content[0].text);
+      expect(firstResponse.result).toBe("success");
+      expect(secondResponse.result).toBe("duplicate_dropped");
+    });
+
     it("should append create_issue entry when dedup is disabled", () => {
       handlers.createIssueHandler({ title: "Issue A", body: "Body A" });
       handlers.createIssueHandler({ title: "Issue A", body: "Body A again" });

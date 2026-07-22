@@ -40,7 +40,12 @@ describe("mcp_scripts_mcp_server_http.cjs integration", () => {
         serverName: "http-integration-test-server",
         version: "1.0.0",
         tools: [
-          { name: "echo_tool", description: "Echoes the input message", inputSchema: { type: "object", properties: { message: { type: "string", description: "Message to echo" } }, required: ["message"] }, handler: "echo-handler.cjs" },
+          {
+            name: "echo_tool",
+            description: "Echoes the input message",
+            inputSchema: { type: "object", properties: { message: { type: "string", description: "Message to echo", minLength: 20 } }, required: ["message"] },
+            handler: "echo-handler.cjs",
+          },
         ],
       })
     ),
@@ -145,6 +150,15 @@ describe("mcp_scripts_mcp_server_http.cjs integration", () => {
       const headers = sessionId ? { "Mcp-Session-Id": sessionId } : {},
         response = await makeRequest({ jsonrpc: "2.0", id: 4, method: "tools/call", params: { name: "echo_tool", arguments: {} } }, headers);
       (expect(response.status).toBe(200), expect(response.data.error).toBeDefined(), expect(response.data.error.message).toContain("not allowed"));
+    }),
+    it("should enforce minLength from tool schema on HTTP calls", async () => {
+      const headers = sessionId ? { "Mcp-Session-Id": sessionId } : {},
+        response = await makeRequest({ jsonrpc: "2.0", id: 5, method: "tools/call", params: { name: "echo_tool", arguments: { message: "too short" } } }, headers);
+      (expect(response.status).toBe(200),
+        expect(response.data.error).toBeDefined(),
+        expect(response.data.error.code).toBe(-32602),
+        expect(response.data.error.message).toContain("Invalid arguments"),
+        expect(response.data.error.message).toContain("minimum 20 characters"));
     }),
     afterAll(async () => {
       (serverProcess &&

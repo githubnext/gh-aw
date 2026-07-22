@@ -24,7 +24,7 @@ require("./shim.cjs");
 
 const { randomUUID } = require("crypto");
 const { MCPServer, MCPHTTPTransport } = require("./mcp_http_transport.cjs");
-const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError, validateStringMinLengths } = require("./mcp_scripts_validation.cjs");
+const { validateRequiredFields, validateStringInputLengths, buildStringLengthValidationError } = require("./mcp_scripts_validation.cjs");
 const { generateEnhancedErrorMessage } = require("./mcp_enhanced_errors.cjs");
 const { createLogger } = require("./mcp_logger.cjs");
 const { bootstrapMCPScriptsServer, cleanupConfigFile } = require("./mcp_scripts_bootstrap.cjs");
@@ -98,13 +98,6 @@ function createMCPServer(configPath, options = {}) {
       const oversized = validateStringInputLengths(args, tool.inputSchema);
       if (oversized.length) {
         throw new Error(buildStringLengthValidationError(tool.name, oversized));
-      }
-
-      // Validate minLength constraints from the schema.
-      const tooShort = validateStringMinLengths(args, tool.inputSchema);
-      if (tooShort.length) {
-        const details = tooShort.map(v => `'${v.field}' is too short (minimum ${v.minLength} characters, got ${v.actualLength})`).join(", ");
-        throw new Error(`Invalid arguments: ${details}`);
       }
 
       // Call the handler
