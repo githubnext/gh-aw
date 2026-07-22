@@ -1,0 +1,2 @@
+{"id":"experiment_issue_created","question":"Did the agent create a GitHub issue with an A/B experiment campaign for a selected workflow?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-07-22T11:13:18.374Z","runid":"29914513259"}
+{"id":"workflow_targeted","question":"Did the agent identify and target a workflow that lacks an experiments section?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-07-22T11:13:18.374Z","runid":"29914513259"}
