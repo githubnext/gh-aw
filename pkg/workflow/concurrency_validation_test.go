@@ -227,7 +227,7 @@ func TestValidateConcurrencyGroupExpression(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Test case: %s - Expected error but got nil", tt.description)
 				if tt.errorInMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorInMsg,
+					require.ErrorContains(t, err, tt.errorInMsg,
 						"Error message should contain expected substring for: %s", tt.description)
 				}
 			} else {
@@ -286,7 +286,7 @@ func TestValidateBalancedBraces(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Expected error for input: %s", tt.input)
 				if tt.errorInMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorInMsg)
+					require.ErrorContains(t, err, tt.errorInMsg)
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for input: %s", tt.input)
@@ -358,7 +358,7 @@ func TestValidateExpressionContent(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Expected error for expression: %s", tt.expr)
 				if tt.errorInMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorInMsg)
+					require.ErrorContains(t, err, tt.errorInMsg)
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for expression: %s", tt.expr)
@@ -431,7 +431,7 @@ func TestValidateBalancedQuotes(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "Expected error for expression: %s", tt.expr)
 				if tt.errorInMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorInMsg)
+					require.ErrorContains(t, err, tt.errorInMsg)
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for expression: %s", tt.expr)
@@ -824,7 +824,7 @@ func TestValidateConcurrencyQueueConfiguration(t *testing.T) {
 			err := validateConcurrencyQueueConfiguration(tt.concurrency)
 			if tt.wantErr {
 				require.Error(t, err, "invalid queue/cancel-in-progress combination should fail validation")
-				assert.Contains(t, err.Error(), "queue: max cannot be combined with cancel-in-progress: true", "error should explain the queue/cancel-in-progress constraint")
+				require.ErrorContains(t, err, "queue: max cannot be combined with cancel-in-progress: true", "error should explain the queue/cancel-in-progress constraint")
 				return
 			}
 			assert.NoError(t, err, "valid concurrency configuration should pass queue/cancel-in-progress validation")

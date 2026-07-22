@@ -60,7 +60,7 @@ func TestParseModelIdentifier_T_MAF_005(t *testing.T) {
 		"/fake/path/workflow.md",
 	)
 	require.Error(t, err, "glob pattern in engine.model should be rejected (V-MAF-004)")
-	assert.Contains(t, err.Error(), "V-MAF-004", "error should reference V-MAF-004")
+	require.ErrorContains(t, err, "V-MAF-004", "error should reference V-MAF-004")
 }
 
 // TestParseModelIdentifier_T_MAF_006 – invalid effort value must be rejected.
@@ -72,7 +72,7 @@ func TestParseModelIdentifier_T_MAF_006(t *testing.T) {
 	p, _ := ParseModelIdentifier("opus?effort=extreme")
 	err = ValidateKnownParams(p.Params)
 	require.Error(t, err, "effort=extreme should be rejected (V-MAF-002)")
-	assert.Contains(t, err.Error(), "V-MAF-002", "error should reference V-MAF-002")
+	require.ErrorContains(t, err, "V-MAF-002", "error should reference V-MAF-002")
 }
 
 // TestParseModelIdentifier_T_MAF_007 – temperature out of range must be rejected.
@@ -82,22 +82,22 @@ func TestParseModelIdentifier_T_MAF_007(t *testing.T) {
 
 	err = ValidateKnownParams(p.Params)
 	require.Error(t, err, "temperature=3.0 should be rejected (V-MAF-003)")
-	assert.Contains(t, err.Error(), "V-MAF-003", "error should reference V-MAF-003")
+	require.ErrorContains(t, err, "V-MAF-003", "error should reference V-MAF-003")
 }
 
 // TestParseModelIdentifier_T_MAF_008 – whitespace in identifier must be rejected.
 func TestParseModelIdentifier_T_MAF_008(t *testing.T) {
 	_, err := ParseModelIdentifier("my model")
 	require.Error(t, err, "whitespace in model identifier should be rejected (V-MAF-006)")
-	assert.Contains(t, err.Error(), "segment type", "error should name the segment type (V-MAF-006)")
+	require.ErrorContains(t, err, "segment type", "error should name the segment type (V-MAF-006)")
 }
 
 // TestParseModelIdentifier_T_MAF_009 – colon in identifier must be rejected; error must name the char.
 func TestParseModelIdentifier_T_MAF_009(t *testing.T) {
 	_, err := ParseModelIdentifier("my:model")
 	require.Error(t, err, "colon in model identifier should be rejected (V-MAF-006)")
-	assert.Contains(t, err.Error(), ":", "error message must identify the offending character (V-MAF-006)")
-	assert.Contains(t, err.Error(), "segment type", "error must name the segment type (V-MAF-006)")
+	require.ErrorContains(t, err, ":", "error message must identify the offending character (V-MAF-006)")
+	require.ErrorContains(t, err, "segment type", "error must name the segment type (V-MAF-006)")
 }
 
 // ─── Additional syntax tests ──────────────────────────────────────────────────
@@ -268,7 +268,7 @@ func TestValidateAliasKey(t *testing.T) {
 			err := validateAliasKey(tt.key, "/fake/path.md")
 			if tt.wantErr {
 				require.Error(t, err, "alias key %q should fail validation (V-MAF-005)", tt.key)
-				assert.Contains(t, err.Error(), "V-MAF-005", "error should reference V-MAF-005")
+				require.ErrorContains(t, err, "V-MAF-005", "error should reference V-MAF-005")
 			} else {
 				assert.NoError(t, err, "alias key %q should pass validation", tt.key)
 			}
@@ -286,7 +286,7 @@ func TestDetectCircularModelAliases_T_MAF_040(t *testing.T) {
 	}
 	err := detectCircularModelAliases(aliasMap, "/fake/path.md")
 	require.Error(t, err, "2-node cycle a → b → a must be detected (T-MAF-040)")
-	assert.Contains(t, err.Error(), "V-MAF-010", "error should reference V-MAF-010")
+	require.ErrorContains(t, err, "V-MAF-010", "error should reference V-MAF-010")
 }
 
 // T-MAF-041: longer 3-node cycle must be detected; error message names all aliases.
@@ -299,9 +299,9 @@ func TestDetectCircularModelAliases_T_MAF_041(t *testing.T) {
 	err := detectCircularModelAliases(aliasMap, "/fake/path.md")
 	require.Error(t, err, "3-node cycle a → b → c → a must be detected (T-MAF-041)")
 	// Error message must name all three aliases.
-	assert.Contains(t, err.Error(), "a", "cycle error should name alias 'a'")
-	assert.Contains(t, err.Error(), "b", "cycle error should name alias 'b'")
-	assert.Contains(t, err.Error(), "c", "cycle error should name alias 'c'")
+	require.ErrorContains(t, err, "a", "cycle error should name alias 'a'")
+	require.ErrorContains(t, err, "b", "cycle error should name alias 'b'")
+	require.ErrorContains(t, err, "c", "cycle error should name alias 'c'")
 }
 
 // Acyclic map should not produce an error.
@@ -696,8 +696,8 @@ func TestValidateModelAliasMap_EngineModelExpressionForms(t *testing.T) {
 			)
 			if tt.wantErr {
 				require.Error(t, err, "engine.model=%q should be rejected", tt.engineModel)
-				assert.Contains(t, err.Error(), "V-MAF-004", "engine.model=%q error should reference V-MAF-004", tt.engineModel)
-				assert.Contains(t, err.Error(), tt.engineModel, "engine.model error should quote the offending value")
+				require.ErrorContains(t, err, "V-MAF-004", "engine.model=%q error should reference V-MAF-004", tt.engineModel)
+				require.ErrorContains(t, err, tt.engineModel, "engine.model error should quote the offending value")
 			} else {
 				assert.NoError(t, err, "engine.model=%q should be accepted", tt.engineModel)
 			}

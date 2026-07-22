@@ -450,8 +450,8 @@ func TestDockerSbxValidation_ArcDindIncompatible(t *testing.T) {
 
 	err := validateSandboxConfig(workflowData)
 	require.Error(t, err, "docker-sbx + arc-dind must produce a compile-time error")
-	assert.Contains(t, err.Error(), "arc-dind", "error must mention arc-dind")
-	assert.Contains(t, err.Error(), "docker-sbx", "error must mention docker-sbx")
+	require.ErrorContains(t, err, "arc-dind", "error must mention arc-dind")
+	require.ErrorContains(t, err, "docker-sbx", "error must mention docker-sbx")
 }
 
 // TestDockerSbxValidation_SudoFalseRejected verifies that docker-sbx without
@@ -474,8 +474,8 @@ func TestDockerSbxValidation_SudoFalseRejected(t *testing.T) {
 
 	err := validateSandboxConfig(workflowData)
 	require.Error(t, err, "docker-sbx without sudo: true must produce a compile-time error")
-	assert.Contains(t, err.Error(), "sudo: true", "error must mention sudo: true")
-	assert.Contains(t, err.Error(), "docker-sbx", "error must mention docker-sbx")
+	require.ErrorContains(t, err, "sudo: true", "error must mention sudo: true")
+	require.ErrorContains(t, err, "docker-sbx", "error must mention docker-sbx")
 }
 
 // TestDockerSbxValidation_DefaultVersionRejected verifies that docker-sbx is rejected
@@ -500,7 +500,7 @@ func TestDockerSbxValidation_DefaultVersionRejected(t *testing.T) {
 
 	err := validateSandboxConfig(workflowData)
 	require.Error(t, err, "docker-sbx with an AWF version predating containerRuntime support must fail validation")
-	assert.Contains(t, err.Error(), string(constants.AWFContainerRuntimeMinVersion))
+	require.ErrorContains(t, err, string(constants.AWFContainerRuntimeMinVersion))
 }
 
 // TestDockerSbxValidation_MinVersionSatisfied verifies that docker-sbx passes validation

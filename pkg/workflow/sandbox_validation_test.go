@@ -98,51 +98,51 @@ func TestGetSandboxDisableJustification(t *testing.T) {
 	t.Run("boolean true is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData(true))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "string", "should explain that a string is required")
+		require.ErrorContains(t, err, "string", "should explain that a string is required")
 	})
 
 	t.Run("boolean false is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData(false))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "string", "should explain that a string is required")
+		require.ErrorContains(t, err, "string", "should explain that a string is required")
 	})
 
 	t.Run("empty string is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData(""))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "20", "should mention minimum length")
+		require.ErrorContains(t, err, "20", "should mention minimum length")
 	})
 
 	t.Run("short string is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData("too short"))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "20", "should mention minimum length")
+		require.ErrorContains(t, err, "20", "should mention minimum length")
 	})
 
 	t.Run("whitespace-padded short string is rejected", func(t *testing.T) {
 		// 22 spaces - long enough on paper but collapses to empty after TrimSpace
 		_, err := getSandboxDisableJustification(makeData("                      "))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "20", "should mention minimum length")
+		require.ErrorContains(t, err, "20", "should mention minimum length")
 	})
 
 	t.Run("whitespace-padded string where trimmed is below minimum is rejected", func(t *testing.T) {
 		// "short" padded with whitespace to 25 total chars still fails (trimmed is 5)
 		_, err := getSandboxDisableJustification(makeData("          short          "))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "20", "should mention minimum length")
+		require.ErrorContains(t, err, "20", "should mention minimum length")
 	})
 
 	t.Run("GitHub Actions expression is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData("${{ inputs.reason }}"))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expressions")
+		require.ErrorContains(t, err, "expressions")
 	})
 
 	t.Run("longer expression with surrounding text is rejected", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(makeData("reason: ${{ inputs.reason }} end"))
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "expressions")
+		require.ErrorContains(t, err, "expressions")
 	})
 
 	t.Run("20+ character literal reason passes", func(t *testing.T) {
@@ -160,7 +160,7 @@ func TestGetSandboxDisableJustification(t *testing.T) {
 	t.Run("feature missing returns error", func(t *testing.T) {
 		_, err := getSandboxDisableJustification(&WorkflowData{Features: map[string]any{}})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "missing")
+		require.ErrorContains(t, err, "missing")
 	})
 
 	t.Run("nil features returns error", func(t *testing.T) {

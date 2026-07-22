@@ -117,7 +117,7 @@ func TestValidateCopilotPAT(t *testing.T) {
 			err := ValidateCopilotPAT(tt.token)
 			if tt.expectError {
 				require.Error(t, err, "should return error for invalid token")
-				assert.Contains(t, err.Error(), tt.errorMsg, "error message should contain expected text")
+				require.ErrorContains(t, err, tt.errorMsg, "error message should contain expected text")
 			} else {
 				assert.NoError(t, err, "should not return error for valid token")
 			}

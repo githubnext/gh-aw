@@ -326,7 +326,7 @@ func TestFormal_P11_FlagValidation_Days(t *testing.T) {
 		err := RunForecast(cfg)
 		require.Error(t, err,
 			"P11: days=%d must return an error (only 7 and 30 are valid)", days)
-		assert.Contains(t, err.Error(), "must be 7 or 30",
+		require.ErrorContains(t, err, "must be 7 or 30",
 			"P11: error message must document the allowed values")
 	}
 

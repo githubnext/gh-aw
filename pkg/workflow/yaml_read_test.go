@@ -59,6 +59,6 @@ func TestReadWorkflowYAML(t *testing.T) {
 		workflow, err := readWorkflowYAML(workflowPath)
 		assert.Nil(t, workflow, "Invalid YAML should not return workflow data")
 		require.Error(t, err, "Invalid YAML should return an error")
-		assert.Contains(t, err.Error(), "failed to parse workflow file", "Should wrap parse error consistently")
+		require.ErrorContains(t, err, "failed to parse workflow file", "Should wrap parse error consistently")
 	})
 }

@@ -266,7 +266,7 @@ func TestExpandLocalWildcardWorkflows_NoMatches(t *testing.T) {
 	_, err = expandLocalWildcardWorkflows(specs, false)
 	// Should error because no workflows found after expansion
 	require.Error(t, err, "Should error when no workflows match")
-	assert.Contains(t, err.Error(), "no workflows to add after expansion")
+	require.ErrorContains(t, err, "no workflows to add after expansion")
 }
 
 // TestAddWorkflowWithTracking_WildcardDuplicateHandling tests that when adding workflows from wildcard,

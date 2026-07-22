@@ -313,10 +313,10 @@ func runReplaceLabelFixture(t *testing.T, fixtureName string) {
 				if scenario.Expected.ErrorCode != nil {
 					switch *scenario.Expected.ErrorCode {
 					case -32003:
-						assert.Contains(t, evalErr.Error(), "blocked pattern",
+						require.ErrorContains(t, evalErr, "blocked pattern",
 							"error_code -32003 requires a blocked-pattern denial (blocklist evaluated first)")
 					case -32002:
-						assert.Contains(t, evalErr.Error(), "allowed list",
+						require.ErrorContains(t, evalErr, "allowed list",
 							"error_code -32002 requires an allowed-list denial")
 					}
 				}
@@ -394,13 +394,13 @@ func TestFormalReplaceLabelP4_AllowlistEnforcement(t *testing.T) {
 
 	err = formalValidateSingleLabel("needs-triage", []string{"state-*"}, nil, "label_to_add")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "allowed list")
+	require.ErrorContains(t, err, "allowed list")
 }
 
 func TestFormalReplaceLabelP5_BlocklistPriority(t *testing.T) {
 	err := formalValidateSingleLabel("state-internal", []string{"state-*"}, []string{"state-in*"}, "label_to_add")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "blocked pattern")
+	require.ErrorContains(t, err, "blocked pattern")
 }
 
 func TestFormalReplaceLabelP6_RemoveAllowlist(t *testing.T) {
@@ -670,5 +670,5 @@ func TestFormalFixtureLoaderRejectsMalformedYAML(t *testing.T) {
 func TestFormalFixtureLoaderRejectsEmptyScenarios(t *testing.T) {
 	_, err := parseReplaceLabelFixture([]byte("fixture_id: test\nscenarios: []\n"))
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no scenarios")
+	require.ErrorContains(t, err, "no scenarios")
 }

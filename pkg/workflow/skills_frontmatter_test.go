@@ -26,7 +26,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "40-char-sha")
+		require.ErrorContains(t, err, "40-char-sha")
 	})
 
 	t.Run("rejects 39-char sha", func(t *testing.T) {
@@ -55,7 +55,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "40-char-sha")
+		require.ErrorContains(t, err, "40-char-sha")
 	})
 
 	t.Run("accepts empty skills array", func(t *testing.T) {
@@ -94,7 +94,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "skills[0].github-token must be a valid GitHub token expression")
+		require.ErrorContains(t, err, "skills[0].github-token must be a valid GitHub token expression")
 	})
 
 	t.Run("accepts object form with github-app", func(t *testing.T) {
@@ -121,7 +121,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "skills[0].skill")
+		require.ErrorContains(t, err, "skills[0].skill")
 	})
 
 	t.Run("rejects object form github-app without private-key", func(t *testing.T) {
@@ -136,7 +136,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "skills[0].github-app")
+		require.ErrorContains(t, err, "skills[0].github-app")
 	})
 
 	t.Run("rejects object form with unknown fields", func(t *testing.T) {
@@ -150,7 +150,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "skills[0].token is not supported")
+		require.ErrorContains(t, err, "skills[0].token is not supported")
 	})
 
 	t.Run("rejects object form that sets both github-token and github-app", func(t *testing.T) {
@@ -167,7 +167,7 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 			},
 		})
 		require.Error(t, err)
-		require.Contains(t, err.Error(), "mutually exclusive")
+		require.ErrorContains(t, err, "mutually exclusive")
 	})
 
 }

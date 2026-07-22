@@ -80,9 +80,9 @@ Do something.
 
 	_, err := compiler.ParseWorkflowFile(workflowFile)
 	require.Error(t, err, "should return an error when inlined-imports is used with an agent file")
-	assert.Contains(t, err.Error(), "inlined-imports cannot be used with agent file imports",
+	require.ErrorContains(t, err, "inlined-imports cannot be used with agent file imports",
 		"error message should explain the conflict")
-	assert.Contains(t, err.Error(), "my-agent.md",
+	require.ErrorContains(t, err, "my-agent.md",
 		"error message should include the agent file path")
 }
 

@@ -473,9 +473,17 @@ bundle-js:
 	@echo "✓ bundle-js tool built"
 	@echo "To bundle a JavaScript file: ./bundle-js <input-file> [output-file]"
 
-# Test all code (Go, JavaScript, and wasm golden)
+# Run Bash script tests (check-stale-lock-files, check-workflow-drift)
+.PHONY: test-scripts
+test-scripts: build
+	@echo "Running Bash script tests..."
+	bash scripts/check-stale-lock-files_test.sh
+	bash scripts/check-workflow-drift_test.sh ./$(BINARY_NAME)
+	@echo "✓ All Bash script tests passed"
+
+# Test all code (Go, JavaScript, wasm golden, and shell scripts)
 .PHONY: test-all
-test-all: test test-js test-wasm-golden
+test-all: test test-js test-wasm-golden test-scripts
 
 # Run tests with coverage
 .PHONY: test-coverage
@@ -1238,7 +1246,8 @@ help:
 	@echo "  test-impacted-js - Run impacted JavaScript unit tests for current branch changes"
 	@echo "  test-impacted-go - Run impacted Go unit tests for current branch changes"
 	@echo "  test-impacted    - Run impacted JavaScript and Go unit tests for current branch changes"
-	@echo "  test-all         - Run all tests (Go, JavaScript, and wasm golden)"
+	@echo "  test-scripts     - Run Bash script tests (check-stale-lock-files, check-workflow-drift)"
+	@echo "  test-all         - Run all tests (Go, JavaScript, wasm golden, and shell scripts)"
 	@echo "  test-wasm-golden - Run wasm golden tests (Go string API path)"
 	@echo "  test-wasm        - Build wasm and run Node.js golden comparison test"
 	@echo "  update-wasm-golden - Regenerate wasm golden files from current compiler output"

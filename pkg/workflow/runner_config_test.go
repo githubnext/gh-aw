@@ -51,8 +51,8 @@ func TestValidateRunnerConfig(t *testing.T) {
 	t.Run("unsupported topology returns error", func(t *testing.T) {
 		err := validateRunnerConfig(&RunnerConfig{Topology: "unknown"})
 		require.Error(t, err)
-		assert.Contains(t, err.Error(), "unsupported runner.topology")
-		assert.Contains(t, err.Error(), "unknown")
+		require.ErrorContains(t, err, "unsupported runner.topology")
+		require.ErrorContains(t, err, "unknown")
 	})
 }
 

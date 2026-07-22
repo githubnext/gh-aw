@@ -151,8 +151,8 @@ func TestValidateRunInstallScripts_StrictModeError(t *testing.T) {
 	err := c.validateRunInstallScripts(workflowData)
 
 	require.Error(t, err, "Should return error in strict mode")
-	assert.Contains(t, err.Error(), "strict mode", "Error should mention strict mode")
-	assert.Contains(t, err.Error(), "supply chain", "Error should mention supply chain risk")
+	require.ErrorContains(t, err, "strict mode", "Error should mention strict mode")
+	require.ErrorContains(t, err, "supply chain", "Error should mention supply chain risk")
 }
 
 func TestValidateRunInstallScripts_NotSet(t *testing.T) {

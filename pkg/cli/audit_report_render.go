@@ -23,313 +23,397 @@ func renderJSON(data AuditData) error {
 // for agentic readability. Each line carries maximum information with minimal decoration.
 func renderConsole(data AuditData, logsPath string) {
 	auditReportLog.Print("Rendering compact audit report to console")
+	renderConsoleOverview(data)
+	renderConsoleComparison(data.Comparison)
+	renderConsoleFingerprint(data.BehaviorFingerprint)
+	renderConsoleMetrics(data.Metrics)
+	renderConsoleSession(data.SessionAnalysis)
+	renderConsoleTokenUsage(data.FirewallTokenUsage)
+	renderConsoleGitHubAPIUsage(data.GitHubRateLimitUsage)
+	renderConsoleJobs(data.Jobs)
+	renderConsolePrompt(data.PromptAnalysis)
+	renderConsoleActionableSections(data)
+	renderConsoleOperationalSections(data)
+	renderConsolePolicyAndExperiments(data)
+	renderConsoleLogsPath(logsPath)
+}
 
-	// Line 1: Identity + outcome
-	statusIcon := "✅"
-	switch data.Overview.Conclusion {
-	case "failure":
-		statusIcon = "❌"
-	case "cancelled":
-		statusIcon = "⚠️"
-	}
+func renderConsoleOverview(data AuditData) {
 	fmt.Fprintf(os.Stderr, "%s %s | %s | %s | %s\n",
-		statusIcon, data.Overview.WorkflowName, data.Overview.Conclusion,
-		data.Overview.Duration, data.Overview.URL)
-
-	// Line 2: Context
-	engineInfo := ""
-	if data.EngineConfig != nil {
-		parts := []string{data.EngineConfig.EngineID}
-		if data.EngineConfig.Model != "" {
-			parts = append(parts, data.EngineConfig.Model)
-		}
-		if data.EngineConfig.Version != "" {
-			parts = append(parts, "v"+data.EngineConfig.Version)
-		}
-		engineInfo = strings.Join(parts, "/")
-	}
+		renderConsoleStatusIcon(data.Overview.Conclusion),
+		data.Overview.WorkflowName,
+		data.Overview.Conclusion,
+		data.Overview.Duration,
+		data.Overview.URL,
+	)
 	fmt.Fprintf(os.Stderr, "  run=%d branch=%s event=%s engine=%s\n",
-		data.Overview.RunID, data.Overview.Branch, data.Overview.Event, engineInfo)
+		data.Overview.RunID,
+		data.Overview.Branch,
+		data.Overview.Event,
+		renderConsoleEngineInfo(data.EngineConfig),
+	)
+}
 
-	// Line 3: Comparison (if available)
-	if data.Comparison != nil && data.Comparison.BaselineFound {
-		compLine := "  comparison:"
-		if data.Comparison.Classification != nil {
-			compLine += " " + data.Comparison.Classification.Label
-		}
-		if data.Comparison.Baseline != nil {
-			compLine += fmt.Sprintf(" vs baseline %d", data.Comparison.Baseline.RunID)
-		}
-		if data.Comparison.Recommendation != nil && data.Comparison.Recommendation.Action != "" {
-			compLine += " | " + data.Comparison.Recommendation.Action
-		}
-		fmt.Fprintln(os.Stderr, compLine)
+func renderConsoleStatusIcon(conclusion string) string {
+	switch conclusion {
+	case "failure":
+		return "❌"
+	case "cancelled":
+		return "⚠️"
+	default:
+		return "✅"
 	}
+}
 
-	// Line 4: Fingerprint (if available)
-	if data.BehaviorFingerprint != nil {
-		fmt.Fprintf(os.Stderr, "  fingerprint: %s/%s/%s/%s/%s\n",
-			data.BehaviorFingerprint.ExecutionStyle,
-			data.BehaviorFingerprint.ToolBreadth,
-			data.BehaviorFingerprint.ActuationStyle,
-			data.BehaviorFingerprint.ResourceProfile,
-			data.BehaviorFingerprint.DispatchMode)
+func renderConsoleEngineInfo(engineConfig *AuditEngineConfig) string {
+	if engineConfig == nil {
+		return ""
 	}
+	parts := []string{engineConfig.EngineID}
+	if engineConfig.Model != "" {
+		parts = append(parts, engineConfig.Model)
+	}
+	if engineConfig.Version != "" {
+		parts = append(parts, "v"+engineConfig.Version)
+	}
+	return strings.Join(parts, "/")
+}
 
-	// Line 5: Metrics (always present)
-	metricsLine := fmt.Sprintf("  metrics: errors=%d warnings=%d",
-		data.Metrics.ErrorCount, data.Metrics.WarningCount)
-	if data.Metrics.Turns > 0 {
-		metricsLine += fmt.Sprintf(" turns=%d", data.Metrics.Turns)
+func renderConsoleComparison(comparison *AuditComparisonData) {
+	if comparison == nil || !comparison.BaselineFound {
+		return
 	}
-	if data.Metrics.TokenUsage > 0 {
-		metricsLine += " tokens=" + console.FormatNumber(data.Metrics.TokenUsage)
+	compLine := "  comparison:"
+	if comparison.Classification != nil {
+		compLine += " " + comparison.Classification.Label
 	}
-	if data.Metrics.AIC > 0 {
-		metricsLine += fmt.Sprintf(" aic=%.2f", data.Metrics.AIC)
+	if comparison.Baseline != nil {
+		compLine += fmt.Sprintf(" vs baseline %d", comparison.Baseline.RunID)
 	}
-	if data.Metrics.ActionMinutes > 0 {
-		metricsLine += fmt.Sprintf(" action_min=%.0f", data.Metrics.ActionMinutes)
+	if comparison.Recommendation != nil && comparison.Recommendation.Action != "" {
+		compLine += " | " + comparison.Recommendation.Action
 	}
-	fmt.Fprintln(os.Stderr, metricsLine)
+	fmt.Fprintln(os.Stderr, compLine)
+}
 
-	// Line 6: Session performance (if present)
-	if data.SessionAnalysis != nil {
-		sessionLine := "  session:"
-		if data.SessionAnalysis.WallTime != "" {
-			sessionLine += " wall=" + data.SessionAnalysis.WallTime
-		}
-		if data.SessionAnalysis.TurnCount > 0 {
-			sessionLine += fmt.Sprintf(" turns=%d", data.SessionAnalysis.TurnCount)
-		}
-		if data.SessionAnalysis.TokensPerMinute > 0 {
-			sessionLine += fmt.Sprintf(" tok/min=%.0f", data.SessionAnalysis.TokensPerMinute)
-		}
-		if data.SessionAnalysis.TimeoutDetected {
-			sessionLine += " TIMEOUT"
-		}
-		if data.SessionAnalysis.NoopCount > 0 {
-			sessionLine += fmt.Sprintf(" noops=%d", data.SessionAnalysis.NoopCount)
-		}
-		fmt.Fprintln(os.Stderr, sessionLine)
+func renderConsoleFingerprint(fingerprint *BehaviorFingerprint) {
+	if fingerprint == nil {
+		return
 	}
+	fmt.Fprintf(os.Stderr, "  fingerprint: %s/%s/%s/%s/%s\n",
+		fingerprint.ExecutionStyle,
+		fingerprint.ToolBreadth,
+		fingerprint.ActuationStyle,
+		fingerprint.ResourceProfile,
+		fingerprint.DispatchMode,
+	)
+}
 
-	// Token usage (if firewall data present)
-	if data.FirewallTokenUsage != nil && data.FirewallTokenUsage.TotalRequests > 0 {
-		fmt.Fprintf(os.Stderr, "  tokens: in=%s out=%s cache_read=%s reqs=%d steering=%s\n",
-			console.FormatNumber(data.FirewallTokenUsage.TotalInputTokens),
-			console.FormatNumber(data.FirewallTokenUsage.TotalOutputTokens),
-			console.FormatNumber(data.FirewallTokenUsage.TotalCacheReadTokens),
-			data.FirewallTokenUsage.TotalRequests,
-			console.FormatNumber(data.FirewallTokenUsage.TotalSteeringEvents))
+func renderConsoleMetrics(metrics MetricsData) {
+	line := fmt.Sprintf("  metrics: errors=%d warnings=%d", metrics.ErrorCount, metrics.WarningCount)
+	if metrics.Turns > 0 {
+		line += fmt.Sprintf(" turns=%d", metrics.Turns)
 	}
-
-	// GitHub API usage (one line)
-	if data.GitHubRateLimitUsage != nil {
-		fmt.Fprintf(os.Stderr, "  github_api: calls=%s quota=%s/%s\n",
-			console.FormatNumber(data.GitHubRateLimitUsage.TotalRequestsMade),
-			console.FormatNumber(data.GitHubRateLimitUsage.CoreConsumed),
-			console.FormatNumber(data.GitHubRateLimitUsage.CoreLimit))
+	if metrics.TokenUsage > 0 {
+		line += " tokens=" + console.FormatNumber(metrics.TokenUsage)
 	}
+	if metrics.AIC > 0 {
+		line += fmt.Sprintf(" aic=%.2f", metrics.AIC)
+	}
+	if metrics.ActionMinutes > 0 {
+		line += fmt.Sprintf(" action_min=%.0f", metrics.ActionMinutes)
+	}
+	fmt.Fprintln(os.Stderr, line)
+}
 
-	// Jobs (compact: one line if all pass, table if failures)
-	if len(data.Jobs) > 0 {
-		allPassed := true
-		jobParts := make([]string, 0, len(data.Jobs))
-		for _, job := range data.Jobs {
-			if job.Conclusion != "success" && job.Conclusion != "skipped" {
-				allPassed = false
-			}
-			jobParts = append(jobParts, fmt.Sprintf("%s:%s", job.Name, job.Duration))
+func renderConsoleSession(session *SessionAnalysis) {
+	if session == nil {
+		return
+	}
+	line := "  session:"
+	if session.WallTime != "" {
+		line += " wall=" + session.WallTime
+	}
+	if session.TurnCount > 0 {
+		line += fmt.Sprintf(" turns=%d", session.TurnCount)
+	}
+	if session.TokensPerMinute > 0 {
+		line += fmt.Sprintf(" tok/min=%.0f", session.TokensPerMinute)
+	}
+	if session.TimeoutDetected {
+		line += " TIMEOUT"
+	}
+	if session.NoopCount > 0 {
+		line += fmt.Sprintf(" noops=%d", session.NoopCount)
+	}
+	fmt.Fprintln(os.Stderr, line)
+}
+
+func renderConsoleTokenUsage(tokenUsage *TokenUsageSummary) {
+	if tokenUsage == nil || tokenUsage.TotalRequests == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  tokens: in=%s out=%s cache_read=%s reqs=%d steering=%s\n",
+		console.FormatNumber(tokenUsage.TotalInputTokens),
+		console.FormatNumber(tokenUsage.TotalOutputTokens),
+		console.FormatNumber(tokenUsage.TotalCacheReadTokens),
+		tokenUsage.TotalRequests,
+		console.FormatNumber(tokenUsage.TotalSteeringEvents),
+	)
+}
+
+func renderConsoleGitHubAPIUsage(rateLimit *GitHubRateLimitUsage) {
+	if rateLimit == nil {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  github_api: calls=%s quota=%s/%s\n",
+		console.FormatNumber(rateLimit.TotalRequestsMade),
+		console.FormatNumber(rateLimit.CoreConsumed),
+		console.FormatNumber(rateLimit.CoreLimit),
+	)
+}
+
+func renderConsoleJobs(jobs []JobData) {
+	if len(jobs) == 0 {
+		return
+	}
+	allPassed := true
+	jobParts := make([]string, 0, len(jobs))
+	for _, job := range jobs {
+		if job.Conclusion != "success" && job.Conclusion != "skipped" {
+			allPassed = false
 		}
-		if allPassed {
-			fmt.Fprintf(os.Stderr, "  jobs: %d/%d passed [%s]\n", len(data.Jobs), len(data.Jobs), strings.Join(jobParts, " "))
-		} else {
-			fmt.Fprintf(os.Stderr, "  jobs:\n")
-			for _, job := range data.Jobs {
-				icon := "✓"
-				switch job.Conclusion {
-				case "failure":
-					icon = "✗"
-				case "skipped":
-					icon = "○"
-				case "cancelled":
-					icon = "⊘"
-				}
-				fmt.Fprintf(os.Stderr, "    %s %s (%s) %s\n", icon, job.Name, job.Duration, job.Conclusion)
-			}
+		jobParts = append(jobParts, fmt.Sprintf("%s:%s", job.Name, job.Duration))
+	}
+	if allPassed {
+		fmt.Fprintf(os.Stderr, "  jobs: %d/%d passed [%s]\n", len(jobs), len(jobs), strings.Join(jobParts, " "))
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  jobs:")
+	for _, job := range jobs {
+		fmt.Fprintf(os.Stderr, "    %s %s (%s) %s\n", renderConsoleJobIcon(job.Conclusion), job.Name, job.Duration, job.Conclusion)
+	}
+}
+
+func renderConsoleJobIcon(conclusion string) string {
+	switch conclusion {
+	case "failure":
+		return "✗"
+	case "skipped":
+		return "○"
+	case "cancelled":
+		return "⊘"
+	default:
+		return "✓"
+	}
+}
+
+func renderConsolePrompt(promptAnalysis *PromptAnalysis) {
+	if promptAnalysis == nil {
+		return
+	}
+	line := fmt.Sprintf("  prompt: %s chars", console.FormatNumber(promptAnalysis.PromptSize))
+	if promptAnalysis.PromptFile != "" {
+		line += " file=" + promptAnalysis.PromptFile
+	}
+	fmt.Fprintln(os.Stderr, line)
+}
+
+func renderConsoleActionableSections(data AuditData) {
+	renderConsoleFindings(filterActionableFindings(data.KeyFindings))
+	renderConsoleAssessments(data.AgenticAssessments)
+	renderConsoleRecommendations(filterActionableRecommendations(data.Recommendations))
+	renderConsoleInsights(filterActionableInsights(data.ObservabilityInsights))
+	renderConsoleErrors(data.Errors)
+	renderConsoleWarnings(data.Warnings)
+}
+
+func renderConsoleFindings(findings []Finding) {
+	if len(findings) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  findings:")
+	for _, finding := range findings {
+		fmt.Fprintf(os.Stderr, "    [%s] %s: %s\n", strings.ToUpper(finding.Severity), finding.Title, finding.Description)
+	}
+}
+
+func renderConsoleAssessments(assessments []AgenticAssessment) {
+	if len(assessments) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  assessments:")
+	for _, assessment := range assessments {
+		line := fmt.Sprintf("    [%s] %s", strings.ToUpper(assessment.Severity), assessment.Summary)
+		if assessment.Evidence != "" {
+			line += " | " + assessment.Evidence
 		}
+		fmt.Fprintln(os.Stderr, line)
 	}
+}
 
-	// Prompt info (one line)
-	if data.PromptAnalysis != nil {
-		promptLine := fmt.Sprintf("  prompt: %s chars", console.FormatNumber(data.PromptAnalysis.PromptSize))
-		if data.PromptAnalysis.PromptFile != "" {
-			promptLine += " file=" + data.PromptAnalysis.PromptFile
+func renderConsoleRecommendations(recommendations []Recommendation) {
+	if len(recommendations) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  recommendations:")
+	for _, recommendation := range recommendations {
+		fmt.Fprintf(os.Stderr, "    [%s] %s — %s\n", strings.ToUpper(recommendation.Priority), recommendation.Action, recommendation.Reason)
+	}
+}
+
+func renderConsoleInsights(insights []ObservabilityInsight) {
+	if len(insights) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  insights:")
+	for _, insight := range insights {
+		line := fmt.Sprintf("    [%s] %s", strings.ToUpper(insight.Severity), insight.Title)
+		if insight.Evidence != "" {
+			line += " | " + insight.Evidence
 		}
-		fmt.Fprintln(os.Stderr, promptLine)
+		fmt.Fprintln(os.Stderr, line)
 	}
+}
 
-	// --- Actionable sections below (only rendered when non-trivial) ---
-
-	// Key Findings: only show non-success findings in compact form
-	actionableFindings := filterActionableFindings(data.KeyFindings)
-	if len(actionableFindings) > 0 {
-		fmt.Fprintln(os.Stderr, "  findings:")
-		for _, f := range actionableFindings {
-			fmt.Fprintf(os.Stderr, "    [%s] %s: %s\n", strings.ToUpper(f.Severity), f.Title, f.Description)
+func renderConsoleErrors(errors []ErrorInfo) {
+	if len(errors) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  errors:")
+	for _, err := range errors {
+		if err.File != "" && err.Line > 0 {
+			fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(err.File), err.Line, err.Message)
+			continue
 		}
+		fmt.Fprintf(os.Stderr, "    %s\n", err.Message)
 	}
+}
 
-	// Agentic Assessments (compact)
-	if len(data.AgenticAssessments) > 0 {
-		fmt.Fprintln(os.Stderr, "  assessments:")
-		for _, a := range data.AgenticAssessments {
-			line := fmt.Sprintf("    [%s] %s", strings.ToUpper(a.Severity), a.Summary)
-			if a.Evidence != "" {
-				line += " | " + a.Evidence
-			}
-			fmt.Fprintln(os.Stderr, line)
-		}
+func renderConsoleWarnings(warnings []ErrorInfo) {
+	if len(warnings) == 0 {
+		return
 	}
+	fmt.Fprintln(os.Stderr, "  warnings:")
+	for _, warning := range warnings {
+		fmt.Fprintf(os.Stderr, "    %s\n", warning.Message)
+	}
+}
 
-	// Recommendations: only high/medium
-	actionableRecs := filterActionableRecommendations(data.Recommendations)
-	if len(actionableRecs) > 0 {
-		fmt.Fprintln(os.Stderr, "  recommendations:")
-		for _, r := range actionableRecs {
-			fmt.Fprintf(os.Stderr, "    [%s] %s — %s\n", strings.ToUpper(r.Priority), r.Action, r.Reason)
-		}
-	}
-
-	// Observability Insights: only non-info severity
-	actionableInsights := filterActionableInsights(data.ObservabilityInsights)
-	if len(actionableInsights) > 0 {
-		fmt.Fprintln(os.Stderr, "  insights:")
-		for _, ins := range actionableInsights {
-			line := fmt.Sprintf("    [%s] %s", strings.ToUpper(ins.Severity), ins.Title)
-			if ins.Evidence != "" {
-				line += " | " + ins.Evidence
-			}
-			fmt.Fprintln(os.Stderr, line)
-		}
-	}
-
-	// Errors and Warnings (always show if present)
-	if len(data.Errors) > 0 {
-		fmt.Fprintln(os.Stderr, "  errors:")
-		for _, err := range data.Errors {
-			if err.File != "" && err.Line > 0 {
-				fmt.Fprintf(os.Stderr, "    %s:%d: %s\n", filepath.Base(err.File), err.Line, err.Message)
-			} else {
-				fmt.Fprintf(os.Stderr, "    %s\n", err.Message)
-			}
-		}
-	}
-	if len(data.Warnings) > 0 {
-		fmt.Fprintln(os.Stderr, "  warnings:")
-		for _, w := range data.Warnings {
-			fmt.Fprintf(os.Stderr, "    %s\n", w.Message)
-		}
-	}
-
-	// Missing Tools (actionable)
-	if len(data.MissingTools) > 0 {
-		fmt.Fprintln(os.Stderr, "  missing_tools:")
-		for _, tool := range data.MissingTools {
-			line := "    " + tool.Tool + ": " + tool.Reason
-			if tool.Alternatives != "" {
-				line += " (alt: " + tool.Alternatives + ")"
-			}
-			fmt.Fprintln(os.Stderr, line)
-		}
-	}
-
-	// MCP Failures (actionable)
-	if len(data.MCPFailures) > 0 {
-		fmt.Fprintln(os.Stderr, "  mcp_failures:")
-		for _, f := range data.MCPFailures {
-			fmt.Fprintf(os.Stderr, "    %s: %s\n", f.ServerName, f.Status)
-		}
-	}
-
-	// MCP Server Health (only if issues)
-	if data.MCPServerHealth != nil {
-		renderCompactMCPHealth(data.MCPServerHealth)
-	}
-
-	// Safe Output Summary (compact)
-	if data.SafeOutputSummary != nil && data.SafeOutputSummary.TotalItems > 0 {
-		fmt.Fprintf(os.Stderr, "  safe_outputs: %d items — %s\n",
-			data.SafeOutputSummary.TotalItems, data.SafeOutputSummary.Summary)
-	}
-
-	// Created Items (compact)
-	if len(data.CreatedItems) > 0 {
-		fmt.Fprintln(os.Stderr, "  created:")
-		for _, item := range data.CreatedItems {
-			line := "    " + item.Type
-			if item.URL != "" {
-				line += " " + item.URL
-			} else if item.Repo != "" && item.Number > 0 {
-				line += fmt.Sprintf(" %s#%d", item.Repo, item.Number)
-			}
-			fmt.Fprintln(os.Stderr, line)
-		}
-	}
-
-	// Tool Usage (compact table only when tools were used)
-	if len(data.ToolUsage) > 0 {
-		fmt.Fprintln(os.Stderr, "  tools:")
-		for _, tool := range data.ToolUsage {
-			line := fmt.Sprintf("    %s ×%d", tool.Name, tool.CallCount)
-			if tool.MaxDuration != "" {
-				line += " max=" + tool.MaxDuration
-			}
-			fmt.Fprintln(os.Stderr, line)
-		}
-	}
-
-	// MCP Tool Usage (compact)
-	if data.MCPToolUsage != nil && len(data.MCPToolUsage.Summary) > 0 {
-		fmt.Fprintln(os.Stderr, "  mcp_tools:")
-		for _, s := range data.MCPToolUsage.Summary {
-			line := fmt.Sprintf("    %s/%s ×%d", s.ServerName, s.ToolName, s.CallCount)
-			if s.ErrorCount > 0 {
-				line += fmt.Sprintf(" errors=%d", s.ErrorCount)
-			}
-			if s.MaxDuration != "" {
-				line += " max=" + s.MaxDuration
-			}
-			fmt.Fprintln(os.Stderr, line)
-		}
-		// Guard policy (if present)
-		if data.MCPToolUsage.GuardPolicySummary != nil && data.MCPToolUsage.GuardPolicySummary.TotalBlocked > 0 {
-			fmt.Fprintf(os.Stderr, "    guard_blocked: %d\n", data.MCPToolUsage.GuardPolicySummary.TotalBlocked)
-		}
-	}
-
-	// Firewall Analysis (compact)
+func renderConsoleOperationalSections(data AuditData) {
+	renderConsoleMissingTools(data.MissingTools)
+	renderConsoleMCPFailures(data.MCPFailures)
+	renderCompactMCPHealth(data.MCPServerHealth)
+	renderConsoleSafeOutputs(data.SafeOutputSummary)
+	renderConsoleCreatedItems(data.CreatedItems)
+	renderConsoleToolUsage(data.ToolUsage)
+	renderConsoleMCPToolUsage(data.MCPToolUsage)
 	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
 		renderCompactFirewall(data.FirewallAnalysis)
 	}
+}
 
-	// Policy Analysis (compact)
+func renderConsoleMissingTools(missingTools []MissingToolReport) {
+	if len(missingTools) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  missing_tools:")
+	for _, tool := range missingTools {
+		line := "    " + tool.Tool + ": " + tool.Reason
+		if tool.Alternatives != "" {
+			line += " (alt: " + tool.Alternatives + ")"
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+}
+
+func renderConsoleMCPFailures(failures []MCPFailureReport) {
+	if len(failures) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  mcp_failures:")
+	for _, failure := range failures {
+		fmt.Fprintf(os.Stderr, "    %s: %s\n", failure.ServerName, failure.Status)
+	}
+}
+
+func renderConsoleSafeOutputs(summary *SafeOutputSummary) {
+	if summary == nil || summary.TotalItems == 0 {
+		return
+	}
+	fmt.Fprintf(os.Stderr, "  safe_outputs: %d items — %s\n", summary.TotalItems, summary.Summary)
+}
+
+func renderConsoleCreatedItems(items []CreatedItemReport) {
+	if len(items) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  created:")
+	for _, item := range items {
+		line := "    " + item.Type
+		if item.URL != "" {
+			line += " " + item.URL
+		} else if item.Repo != "" && item.Number > 0 {
+			line += fmt.Sprintf(" %s#%d", item.Repo, item.Number)
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+}
+
+func renderConsoleToolUsage(toolUsage []ToolUsageInfo) {
+	if len(toolUsage) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  tools:")
+	for _, tool := range toolUsage {
+		line := fmt.Sprintf("    %s ×%d", tool.Name, tool.CallCount)
+		if tool.MaxDuration != "" {
+			line += " max=" + tool.MaxDuration
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+}
+
+func renderConsoleMCPToolUsage(mcpToolUsage *MCPToolUsageData) {
+	if mcpToolUsage == nil || len(mcpToolUsage.Summary) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  mcp_tools:")
+	for _, summary := range mcpToolUsage.Summary {
+		line := fmt.Sprintf("    %s/%s ×%d", summary.ServerName, summary.ToolName, summary.CallCount)
+		if summary.ErrorCount > 0 {
+			line += fmt.Sprintf(" errors=%d", summary.ErrorCount)
+		}
+		if summary.MaxDuration != "" {
+			line += " max=" + summary.MaxDuration
+		}
+		fmt.Fprintln(os.Stderr, line)
+	}
+	if mcpToolUsage.GuardPolicySummary != nil && mcpToolUsage.GuardPolicySummary.TotalBlocked > 0 {
+		fmt.Fprintf(os.Stderr, "    guard_blocked: %d\n", mcpToolUsage.GuardPolicySummary.TotalBlocked)
+	}
+}
+
+func renderConsolePolicyAndExperiments(data AuditData) {
 	if data.PolicyAnalysis != nil && len(data.PolicyAnalysis.RuleHits) > 0 {
 		fmt.Fprintf(os.Stderr, "  firewall_policy: %s\n", data.PolicyAnalysis.PolicySummary)
 	}
+	renderConsoleExperiments(data.Experiments)
+}
 
-	// Experiments
-	if data.Experiments != nil && len(data.Experiments.Assignments) > 0 {
-		parts := make([]string, 0, len(data.Experiments.Assignments))
-		for name, variant := range data.Experiments.Assignments {
-			parts = append(parts, name+"="+variant)
-		}
-		sort.Strings(parts)
-		fmt.Fprintf(os.Stderr, "  experiments: %s\n", strings.Join(parts, " "))
+func renderConsoleExperiments(experiments *ExperimentData) {
+	if experiments == nil || len(experiments.Assignments) == 0 {
+		return
 	}
+	parts := make([]string, 0, len(experiments.Assignments))
+	for name, variant := range experiments.Assignments {
+		parts = append(parts, name+"="+variant)
+	}
+	sort.Strings(parts)
+	fmt.Fprintf(os.Stderr, "  experiments: %s\n", strings.Join(parts, " "))
+}
 
-	// Logs path (final line)
+func renderConsoleLogsPath(logsPath string) {
 	absPath, _ := filepath.Abs(logsPath)
 	fmt.Fprintf(os.Stderr, "  logs: %s\n", absPath)
 }

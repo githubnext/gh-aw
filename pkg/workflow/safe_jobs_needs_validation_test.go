@@ -267,7 +267,7 @@ func TestValidateSafeJobNeeds_ValidTargets(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "expected validation error")
 				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains,
+					require.ErrorContains(t, err, tt.errContains,
 						"error should contain expected substring")
 				}
 			} else {
@@ -377,7 +377,7 @@ func TestValidateSafeOutputsNeeds(t *testing.T) {
 			err := validateSafeOutputsNeeds(tt.data)
 			if tt.wantErr {
 				require.Error(t, err, "expected validation error")
-				assert.Contains(t, err.Error(), tt.errContains, "error should include expected context")
+				require.ErrorContains(t, err, tt.errContains, "error should include expected context")
 				return
 			}
 			require.NoError(t, err, "expected validation to pass")
@@ -412,7 +412,7 @@ func TestDetectSafeJobCycles(t *testing.T) {
 		}
 		err := detectSafeJobCycles(jobs)
 		require.Error(t, err, "expected cycle error")
-		assert.Contains(t, err.Error(), "cycle detected", "error should mention cycle")
+		require.ErrorContains(t, err, "cycle detected", "error should mention cycle")
 	})
 
 	t.Run("three-node cycle", func(t *testing.T) {
@@ -423,7 +423,7 @@ func TestDetectSafeJobCycles(t *testing.T) {
 		}
 		err := detectSafeJobCycles(jobs)
 		require.Error(t, err, "expected cycle error")
-		assert.Contains(t, err.Error(), "cycle detected", "error should mention cycle")
+		require.ErrorContains(t, err, "cycle detected", "error should mention cycle")
 	})
 
 	t.Run("empty jobs – no error", func(t *testing.T) {

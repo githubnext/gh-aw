@@ -98,7 +98,10 @@ func (c *Compiler) buildEvalsJob(data *WorkflowData) (*Job, error) {
 		RunsOn:      c.indentYAMLLines(runsOn, "    "),
 		Environment: c.indentYAMLLines(data.Environment, "    "),
 		Permissions: permissions,
-		Steps:       steps,
+		Outputs: map[string]string{
+			"aic": fmt.Sprintf("${{ steps.%s.outputs.aic }}", constants.ParseMCPGatewayStepID),
+		},
+		Steps: steps,
 	}
 
 	return job, nil
