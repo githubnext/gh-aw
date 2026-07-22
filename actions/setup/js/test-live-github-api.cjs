@@ -20,13 +20,15 @@ async function testLiveGitHubAPI() {
   // Check for GitHub token
   const token = process.env.GITHUB_TOKEN || process.env.GH_TOKEN;
   if (!token) {
-    console.error("❌ Error: No GitHub token found");
-    console.error("Please set GITHUB_TOKEN or GH_TOKEN environment variable");
-    console.error("\nExample:");
-    console.error("  GITHUB_TOKEN=ghp_xxx node test-live-github-api.cjs");
-    console.error("\nTo create a token:");
-    console.error("  1. Go to https://github.com/settings/tokens");
-    console.error("  2. Create a token with 'repo' or 'public_repo' scope");
+    core.setFailed(
+      "❌ Error: No GitHub token found\n" +
+        "Please set GITHUB_TOKEN or GH_TOKEN environment variable\n" +
+        "\nExample:\n" +
+        "  GITHUB_TOKEN=ghp_xxx node test-live-github-api.cjs\n" +
+        "\nTo create a token:\n" +
+        "  1. Go to https://github.com/settings/tokens\n" +
+        "  2. Create a token with 'repo' or 'public_repo' scope"
+    );
     process.exit(1);
   }
 
@@ -71,9 +73,7 @@ async function testLiveGitHubAPI() {
     if (hash === hash2) {
       core.info(`✅ Hashes match - computation is deterministic`);
     } else {
-      console.error(`❌ Error: Hashes don't match!`);
-      console.error(`   First:  ${hash}`);
-      console.error(`   Second: ${hash2}`);
+      core.setFailed(`❌ Error: Hashes don't match!\n   First:  ${hash}\n   Second: ${hash2}`);
       process.exit(1);
     }
 
@@ -86,17 +86,18 @@ async function testLiveGitHubAPI() {
     core.info(`\n✨ All tests passed! The JavaScript implementation works correctly with GitHub API.`);
   } catch (err) {
     const error = err;
-    console.error(`\n❌ Error: ${getErrorMessage(error)}`);
+    let msg = `\n❌ Error: ${getErrorMessage(error)}`;
     if (error && typeof error === "object" && "status" in error) {
       const statusError = error;
       if (statusError.status === 401) {
-        console.error("   Authentication failed - check your GitHub token");
+        msg += "\n   Authentication failed - check your GitHub token";
       } else if (statusError.status === 404) {
-        console.error("   File not found - check repository and file path");
+        msg += "\n   File not found - check repository and file path";
       } else if (statusError.status === 403) {
-        console.error("   Rate limit exceeded or insufficient permissions");
+        msg += "\n   Rate limit exceeded or insufficient permissions";
       }
     }
+    core.setFailed(msg);
     process.exit(1);
   }
 }
