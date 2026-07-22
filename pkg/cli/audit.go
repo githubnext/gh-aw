@@ -59,7 +59,7 @@ When a job URL is provided (single-run mode only):
 - If no step number, finds and extracts the first failing step's output
 - Saves job logs to the output directory`
 
-var auditCommandExample = `  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890                    # Audit run with ID 1234567890
+var auditCommandExample = `  ` + string(constants.CLIExtensionPrefix) + ` audit 1234567890 --repo owner/repo  # Audit with bare run ID (--repo required)
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890  # Audit from run URL
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210  # Audit job and extract first failing step
   ` + string(constants.CLIExtensionPrefix) + ` audit https://github.com/owner/repo/actions/runs/1234567890/job/9876543210#step:7:1  # Extract step 7 output
@@ -108,7 +108,7 @@ func registerAuditCommandFlags(cmd *cobra.Command) {
 	addRepoFlag(cmd)
 	cmd.Flags().Bool("parse", false, "Run JavaScript parsers on agent logs and firewall logs, writing Markdown to log.md and firewall.md")
 	cmd.Flags().String("format", "pretty", "Diff output format for multi-run mode: pretty, markdown")
-	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all, because auditing requires comprehensive artifacts for analysis). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
+	cmd.Flags().StringSlice("artifacts", nil, "Artifact sets to download (default: all — comprehensive artifacts required for analysis). Valid sets: "+strings.Join(ValidArtifactSetNames(), ", "))
 	cmd.Flags().Bool("stdin", false, "Read workflow run IDs or URLs from stdin (one per line) instead of positional arguments")
 	cmd.Flags().String("experiment", "", "Filter to runs that include this experiment name")
 	cmd.Flags().String("variant", "", "Filter to runs with a specific variant value (requires --experiment)")

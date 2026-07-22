@@ -16,7 +16,7 @@ func NewTrialCommand(validateEngine func(string) error) *cobra.Command {
 
 This command creates a temporary private repository in your GitHub account, installs the specified
 workflows from their source repositories, and runs them in "trial mode" to capture safe outputs without
-making actual changes to the "simulated" host repository.
+making actual changes to the simulated host repository.
 
 Repository modes:
 - Default mode (no flags): Creates a temporary trial repository and simulates execution as if running against the current repository (github.repository context points to the current repository)

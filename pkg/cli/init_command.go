@@ -63,7 +63,7 @@ After running this command, you can:
 - Create new workflows from scratch with: ` + string(constants.CLIExtensionPrefix) + ` new <workflow-name>`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` init                                # Initialize repository with defaults
   ` + string(constants.CLIExtensionPrefix) + ` init -v                             # Initialize with verbose output
-  ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Skip Copilot-specific artifacts
+  ` + string(constants.CLIExtensionPrefix) + ` init --engine claude                # Use Claude engine — skips Copilot MCP/skill files
   ` + string(constants.CLIExtensionPrefix) + ` init --no-mcp                       # Skip MCP configuration
   ` + string(constants.CLIExtensionPrefix) + ` init --no-skill                     # Skip dispatcher skill creation
   ` + string(constants.CLIExtensionPrefix) + ` init --no-agent                     # Skip custom agent creation
@@ -143,7 +143,7 @@ After running this command, you can:
 	addEngineFlag(cmd)
 	cmd.Flags().Bool("no-mcp", false, "Skip configuring gh-aw MCP server integration for GitHub Copilot Agent")
 	cmd.Flags().Bool("no-skill", false, "Skip creating the agentic-workflows dispatcher skill")
-	cmd.Flags().Bool("no-agent", false, "Skip creating the Agentic Workflows custom agent")
+	cmd.Flags().Bool("no-agent", false, "Skip creating the agentic-workflows custom agent")
 	cmd.Flags().String("codespaces", "", "Create devcontainer.json for GitHub Codespaces with agentic workflow support. Specify comma-separated repository names in the same organization (e.g., repo1,repo2), or use without a value for the current repo only")
 	// Allow --codespaces without a value (e.g. "gh aw init --codespaces").
 	// pflag treats NoOptDefVal="" as "flag requires a value", so we use a single space as
