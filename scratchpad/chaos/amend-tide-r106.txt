@@ -1,0 +1,4 @@
+persona: amend-tide
+strategy: amend+line-ending-variant
+wave: two
+flag: crlf
