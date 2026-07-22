@@ -4095,6 +4095,7 @@ Test content`
 	conclusionSection := extractJobSection(yamlStr, "conclusion")
 	require.NotEmpty(t, conclusionSection, "conclusion job should be present")
 	assert.Contains(t, conclusionSection, "push_evals_state", "conclusion job should depend on push_evals_state")
+	assert.Contains(t, conclusionSection, "GH_AW_EVALS_AIC: ${{ needs.evals.outputs.aic }}", "conclusion job should pass evals AIC to footer generation")
 }
 
 // TestBuildMainJobEngineEnvNeedsExpression verifies that when engine.env values contain

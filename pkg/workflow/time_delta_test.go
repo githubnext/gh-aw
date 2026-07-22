@@ -141,7 +141,7 @@ func TestParseTimeDelta(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "parseTimeDelta(%q) should return an error", tt.input)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "parseTimeDelta(%q) error message mismatch", tt.input)
+					require.ErrorContains(t, err, tt.errorMsg, "parseTimeDelta(%q) error message mismatch", tt.input)
 				}
 			} else {
 				require.NoError(t, err, "parseTimeDelta(%q) unexpected error", tt.input)
@@ -263,7 +263,7 @@ func TestParseTimeDeltaForStopAfter(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "parseTimeDeltaForStopAfter(%q) should return an error", tt.input)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "parseTimeDeltaForStopAfter(%q) error message mismatch", tt.input)
+					require.ErrorContains(t, err, tt.errorMsg, "parseTimeDeltaForStopAfter(%q) error message mismatch", tt.input)
 				}
 			} else {
 				require.NoError(t, err, "parseTimeDeltaForStopAfter(%q) unexpected error", tt.input)
@@ -666,7 +666,7 @@ func TestResolveStopTime(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "resolveStopTime(%q) should return an error", tt.stopTime)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "resolveStopTime(%q) error message mismatch", tt.stopTime)
+					require.ErrorContains(t, err, tt.errorMsg, "resolveStopTime(%q) error message mismatch", tt.stopTime)
 				}
 			} else {
 				require.NoError(t, err, "resolveStopTime(%q) unexpected error", tt.stopTime)
@@ -794,7 +794,7 @@ func TestParseRelativeDate(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "parseRelativeDate(%q) should return an error", tt.input)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "parseRelativeDate(%q) error message mismatch", tt.input)
+					require.ErrorContains(t, err, tt.errorMsg, "parseRelativeDate(%q) error message mismatch", tt.input)
 				}
 				return
 			}
@@ -924,7 +924,7 @@ func TestResolveRelativeDate(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "ResolveRelativeDate(%q) should return an error", tt.input)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "ResolveRelativeDate(%q) error message mismatch", tt.input)
+					require.ErrorContains(t, err, tt.errorMsg, "ResolveRelativeDate(%q) error message mismatch", tt.input)
 				}
 				return
 			}

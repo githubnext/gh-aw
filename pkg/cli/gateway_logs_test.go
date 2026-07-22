@@ -116,7 +116,7 @@ func TestParseGatewayLogsFileNotFound(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Nil(t, metrics)
-	assert.Contains(t, err.Error(), "gateway.jsonl not found")
+	require.ErrorContains(t, err, "gateway.jsonl not found")
 }
 
 func TestGatewayToolMetrics(t *testing.T) {

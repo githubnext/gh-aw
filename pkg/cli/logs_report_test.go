@@ -1139,3 +1139,94 @@ func TestBuildLogsDataAggregatesTokensFromRunTokenUsage(t *testing.T) {
 		t.Fatalf("Expected run[2].TokenUsage = 0, got %d", data.Runs[2].TokenUsage)
 	}
 }
+
+// TestBuildLogsDataDriverExitFailureClassification verifies that buildLogsData correctly
+// classifies failed runs as driver_exit (zero turns, TurnsAvailable) vs agent_logic
+// (non-zero turns) and accumulates the rollup counts in LogsSummary.
+func TestBuildLogsDataDriverExitFailureClassification(t *testing.T) {
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf", Conclusion: "success", Turns: 4, TurnsAvailable: true}},
+		// driver-exit: failed, agent never ran, artifact metrics confirmed 0 turns
+		{Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf", Conclusion: "failure", Turns: 0, TurnsAvailable: true}},
+		{Run: WorkflowRun{DatabaseID: 3, WorkflowName: "wf", Conclusion: "failure", Turns: 0, TurnsAvailable: true}},
+		// agent-logic: failed, agent ran
+		{Run: WorkflowRun{DatabaseID: 4, WorkflowName: "wf", Conclusion: "failure", Turns: 3, TurnsAvailable: true}},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	if data.Summary.TotalDriverExitFailures != 2 {
+		t.Errorf("Expected TotalDriverExitFailures = 2, got %d", data.Summary.TotalDriverExitFailures)
+	}
+	if data.Summary.TotalAgentLogicFailures != 1 {
+		t.Errorf("Expected TotalAgentLogicFailures = 1, got %d", data.Summary.TotalAgentLogicFailures)
+	}
+
+	// Verify per-run FailureKind
+	byID := make(map[int64]RunData)
+	for _, r := range data.Runs {
+		byID[r.RunID] = r
+	}
+	if byID[1].FailureKind != "" {
+		t.Errorf("run 1 (success): expected empty FailureKind, got %q", byID[1].FailureKind)
+	}
+	if byID[2].FailureKind != "driver_exit" {
+		t.Errorf("run 2 (failure, 0 turns): expected FailureKind=driver_exit, got %q", byID[2].FailureKind)
+	}
+	if byID[3].FailureKind != "driver_exit" {
+		t.Errorf("run 3 (failure, 0 turns): expected FailureKind=driver_exit, got %q", byID[3].FailureKind)
+	}
+	if byID[4].FailureKind != "agent_logic" {
+		t.Errorf("run 4 (failure, 3 turns): expected FailureKind=agent_logic, got %q", byID[4].FailureKind)
+	}
+}
+
+// TestBuildLogsDataNoArtifactsFailureUnclassified verifies that failed runs whose
+// artifact download returned ErrNoArtifacts (TurnsAvailable=false, Turns=0) are left
+// unclassified rather than mislabelled as driver_exit.
+func TestBuildLogsDataNoArtifactsFailureUnclassified(t *testing.T) {
+	processedRuns := []ProcessedRun{
+		// ErrNoArtifacts path: TurnsAvailable=false, Turns=0 — agent activity unknown
+		{Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf", Conclusion: "failure", Turns: 0, TurnsAvailable: false}},
+		// Normal driver-exit: TurnsAvailable=true confirms the zero
+		{Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf", Conclusion: "failure", Turns: 0, TurnsAvailable: true}},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	if data.Summary.TotalDriverExitFailures != 1 {
+		t.Errorf("Expected TotalDriverExitFailures = 1, got %d", data.Summary.TotalDriverExitFailures)
+	}
+	if data.Summary.TotalAgentLogicFailures != 0 {
+		t.Errorf("Expected TotalAgentLogicFailures = 0, got %d", data.Summary.TotalAgentLogicFailures)
+	}
+
+	byID := make(map[int64]RunData)
+	for _, r := range data.Runs {
+		byID[r.RunID] = r
+	}
+	if byID[1].FailureKind != "" {
+		t.Errorf("run 1 (no artifacts): expected empty FailureKind, got %q", byID[1].FailureKind)
+	}
+	if byID[2].FailureKind != "driver_exit" {
+		t.Errorf("run 2 (driver exit): expected FailureKind=driver_exit, got %q", byID[2].FailureKind)
+	}
+}
+
+// TestBuildLogsDataNoFailuresProducesZeroDriverExitCount verifies that zero-failure
+// runs do not populate the driver-exit or agent-logic counters.
+func TestBuildLogsDataNoFailuresProducesZeroDriverExitCount(t *testing.T) {
+	processedRuns := []ProcessedRun{
+		{Run: WorkflowRun{DatabaseID: 1, WorkflowName: "wf", Conclusion: "success", Turns: 5}},
+		{Run: WorkflowRun{DatabaseID: 2, WorkflowName: "wf", Conclusion: "success", Turns: 3}},
+	}
+
+	data := buildLogsData(processedRuns, "/tmp/logs", nil)
+
+	if data.Summary.TotalDriverExitFailures != 0 {
+		t.Errorf("Expected TotalDriverExitFailures = 0, got %d", data.Summary.TotalDriverExitFailures)
+	}
+	if data.Summary.TotalAgentLogicFailures != 0 {
+		t.Errorf("Expected TotalAgentLogicFailures = 0, got %d", data.Summary.TotalAgentLogicFailures)
+	}
+}

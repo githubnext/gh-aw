@@ -1159,7 +1159,7 @@ func TestRunAuditMulti_Validation(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := runAuditMulti(t.Context(), tt.args, "", "", false, false, "pretty", nil)
 			require.Error(t, err, "runAuditMulti should return an error for invalid input")
-			assert.Contains(t, err.Error(), tt.wantErr, "error message should be descriptive")
+			require.ErrorContains(t, err, tt.wantErr, "error message should be descriptive")
 		})
 	}
 }
@@ -1182,7 +1182,7 @@ func TestAuditCommandStdinRejectsPositionalArgs(t *testing.T) {
 	cmd.SetErr(nil)
 	err := cmd.Execute()
 	require.Error(t, err, "audit --stdin with a positional arg should return an error")
-	assert.Contains(t, err.Error(), "positional arguments are not allowed with --stdin", "error message should explain the conflict")
+	require.ErrorContains(t, err, "positional arguments are not allowed with --stdin", "error message should explain the conflict")
 }
 
 func TestAuditCommandRequiresArgsOrStdin(t *testing.T) {
@@ -1192,7 +1192,7 @@ func TestAuditCommandRequiresArgsOrStdin(t *testing.T) {
 	cmd.SetErr(nil)
 	err := cmd.Execute()
 	require.Error(t, err, "audit with no args and no --stdin should return an error")
-	assert.Contains(t, err.Error(), "at least one run ID or URL is required", "error message should prompt for required input")
+	require.ErrorContains(t, err, "at least one run ID or URL is required", "error message should prompt for required input")
 }
 
 func TestAuditCommandVariantWithoutExperiment(t *testing.T) {
@@ -1202,7 +1202,7 @@ func TestAuditCommandVariantWithoutExperiment(t *testing.T) {
 	cmd.SetErr(io.Discard)
 	err := cmd.Execute()
 	require.Error(t, err, "--variant without --experiment should return an error")
-	assert.Contains(t, err.Error(), "--variant requires --experiment", "error message should explain the requirement")
+	require.ErrorContains(t, err, "--variant requires --experiment", "error message should explain the requirement")
 }
 
 func TestAuditCommandExperimentAndVariantFlagsAreAccepted(t *testing.T) {

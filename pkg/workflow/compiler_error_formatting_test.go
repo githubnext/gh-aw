@@ -129,8 +129,8 @@ func TestFormatCompilerError_ErrorVsWarning(t *testing.T) {
 	require.Error(t, errorErr)
 	require.Error(t, warningErr)
 
-	assert.Contains(t, errorErr.Error(), "error", "Error type should be present")
-	assert.Contains(t, warningErr.Error(), "warning", "Warning type should be present")
+	require.ErrorContains(t, errorErr, "error", "Error type should be present")
+	require.ErrorContains(t, warningErr, "warning", "Warning type should be present")
 
 	// Ensure they produce different outputs
 	assert.NotEqual(t, errorErr.Error(), warningErr.Error(), "Error and warning should have different outputs")
@@ -194,8 +194,8 @@ func TestFormatCompilerError_ErrorWrapping(t *testing.T) {
 	require.ErrorIs(t, wrappedErr, underlyingErr, "Should preserve error chain with %w")
 
 	// Verify formatted message is in the error string
-	assert.Contains(t, wrappedErr.Error(), "test.md")
-	assert.Contains(t, wrappedErr.Error(), "validation failed")
+	require.ErrorContains(t, wrappedErr, "test.md")
+	require.ErrorContains(t, wrappedErr, "validation failed")
 	// Verify the formatted string does NOT include the cause text (no duplication)
 	assert.NotContains(t, wrappedErr.Error(), "underlying validation error", "Error() should not duplicate cause text")
 }
@@ -228,8 +228,8 @@ func TestFormatCompilerError_NilCause(t *testing.T) {
 	require.Error(t, err)
 
 	// Verify error message contains expected content
-	assert.Contains(t, err.Error(), "test.md")
-	assert.Contains(t, err.Error(), "validation error")
+	require.ErrorContains(t, err, "test.md")
+	require.ErrorContains(t, err, "validation error")
 
 	// Verify it's a new error (not wrapping anything)
 	// This is a validation error, so it should not wrap

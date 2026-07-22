@@ -284,6 +284,6 @@ func TestRunSetupRepositoryCheckAutoDetectsDefaultGHHost(t *testing.T) {
 		RequireOwnerType: "any",
 	}, runtime)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "git checkout")
+	require.ErrorContains(t, err, "git checkout")
 	assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
 }

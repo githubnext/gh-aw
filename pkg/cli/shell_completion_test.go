@@ -229,7 +229,7 @@ func TestUninstallBashCompletionNotFound(t *testing.T) {
 	// Uninstall should fail when no file found
 	err := uninstallBashCompletion(false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no bash completion file found")
+	require.ErrorContains(t, err, "no bash completion file found")
 }
 
 func TestUninstallZshCompletion(t *testing.T) {
@@ -271,7 +271,7 @@ func TestUninstallZshCompletionNotFound(t *testing.T) {
 	// Uninstall should fail when no file found
 	err := uninstallZshCompletion(false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no zsh completion file found")
+	require.ErrorContains(t, err, "no zsh completion file found")
 }
 
 func TestUninstallFishCompletion(t *testing.T) {
@@ -313,7 +313,7 @@ func TestUninstallFishCompletionNotFound(t *testing.T) {
 	// Uninstall should fail when no file found
 	err := uninstallFishCompletion(false)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "no fish completion file found")
+	require.ErrorContains(t, err, "no fish completion file found")
 }
 
 func TestUninstallShellCompletion(t *testing.T) {
@@ -405,7 +405,7 @@ func TestUninstallShellCompletion(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err)
 				if tt.errorMessage != "" {
-					assert.Contains(t, err.Error(), tt.errorMessage)
+					require.ErrorContains(t, err, tt.errorMessage)
 				}
 			} else {
 				require.NoError(t, err)

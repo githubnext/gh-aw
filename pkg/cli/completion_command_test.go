@@ -76,7 +76,7 @@ func TestCompletionCommand_InvalidShell(t *testing.T) {
 	err := rootCmd.Execute()
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "invalid argument")
+	require.ErrorContains(t, err, "invalid argument")
 }
 
 func TestCompletionCommand_NoArgs(t *testing.T) {
@@ -88,7 +88,7 @@ func TestCompletionCommand_NoArgs(t *testing.T) {
 	err := rootCmd.Execute()
 
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "accepts 1 arg(s)")
+	require.ErrorContains(t, err, "accepts 1 arg(s)")
 }
 
 func TestCompletionCommand_InstallSubcommand(t *testing.T) {

@@ -314,7 +314,7 @@ jobs:
 	compiler := NewCompiler()
 	err := compiler.CompileWorkflow(testFile)
 	require.Error(t, err, "expected compilation to fail")
-	assert.Contains(t, err.Error(), "no memory stores are configured in tools")
+	require.ErrorContains(t, err, "no memory stores are configured in tools")
 }
 
 // TestCustomJobRestoreMemoryOnlyEmitsRestoreSteps verifies that when restore-memory

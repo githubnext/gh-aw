@@ -565,8 +565,8 @@ safe-outputs:
 	compiler := NewCompiler(WithVersion("1.0.0"))
 	err = compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail when worker lacks workflow_call trigger")
-	assert.Contains(t, err.Error(), "workflow_call", "Error should mention workflow_call")
-	assert.Contains(t, err.Error(), "no-call-worker", "Error should mention the workflow name")
+	require.ErrorContains(t, err, "workflow_call", "Error should mention workflow_call")
+	require.ErrorContains(t, err, "no-call-worker", "Error should mention the workflow name")
 }
 
 // TestCallWorkflowCompile_ValidationFails_SelfReference verifies that compilation fails
@@ -595,7 +595,7 @@ safe-outputs:
 	compiler := NewCompiler(WithVersion("1.0.0"))
 	err := compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail for self-reference")
-	assert.Contains(t, err.Error(), "self-reference", "Error should mention self-reference")
+	require.ErrorContains(t, err, "self-reference", "Error should mention self-reference")
 }
 
 // TestCallWorkflowCompile_ValidationFails_WorkerNotFound verifies compilation fails
@@ -624,8 +624,8 @@ safe-outputs:
 	compiler := NewCompiler(WithVersion("1.0.0"))
 	err := compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail for missing worker")
-	assert.Contains(t, err.Error(), "not found", "Error should mention not found")
-	assert.Contains(t, err.Error(), "nonexistent-worker", "Error should name the missing workflow")
+	require.ErrorContains(t, err, "not found", "Error should mention not found")
+	require.ErrorContains(t, err, "nonexistent-worker", "Error should name the missing workflow")
 }
 
 // TestCallWorkflowCompile_ValidationFails_DuplicateWorkflow verifies that compilation
@@ -659,8 +659,8 @@ safe-outputs:
 	compiler := NewCompiler(WithVersion("1.0.0"))
 	err := compiler.CompileWorkflow(gatewayFile)
 	require.Error(t, err, "Should fail for duplicate workflow name")
-	assert.Contains(t, err.Error(), "duplicate", "Error should mention duplicate")
-	assert.Contains(t, err.Error(), "worker-a", "Error should name the duplicate workflow")
+	require.ErrorContains(t, err, "duplicate", "Error should mention duplicate")
+	require.ErrorContains(t, err, "worker-a", "Error should name the duplicate workflow")
 }
 
 // TestCallWorkflowCompile_MDSourceWorker tests that compilation succeeds when the

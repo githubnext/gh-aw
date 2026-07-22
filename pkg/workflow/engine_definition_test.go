@@ -87,13 +87,13 @@ func TestEngineCatalog_Resolve_UnknownEngine(t *testing.T) {
 
 	_, err := catalog.Resolve("nonexistent-engine", &EngineConfig{ID: "nonexistent-engine"})
 	require.Error(t, err, "unknown engine should return an error")
-	assert.Contains(t, err.Error(), "invalid engine",
+	require.ErrorContains(t, err, "invalid engine",
 		"error should mention 'invalid engine', got: %s", err.Error())
-	assert.Contains(t, err.Error(), "nonexistent-engine",
+	require.ErrorContains(t, err, "nonexistent-engine",
 		"error should mention the unknown engine ID, got: %s", err.Error())
-	assert.Contains(t, err.Error(), string(constants.DocsEnginesURL),
+	require.ErrorContains(t, err, string(constants.DocsEnginesURL),
 		"error should include the engines documentation URL, got: %s", err.Error())
-	assert.Contains(t, err.Error(), "engine: copilot",
+	require.ErrorContains(t, err, "engine: copilot",
 		"error should include an example, got: %s", err.Error())
 }
 

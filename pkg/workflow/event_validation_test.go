@@ -113,7 +113,7 @@ func TestValidateEventTypes(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err, "ValidateEventTypes should return an error")
 				if tt.errContains != "" {
-					assert.Contains(t, err.Error(), tt.errContains,
+					require.ErrorContains(t, err, tt.errContains,
 						"error should contain %q", tt.errContains)
 				}
 			} else {

@@ -81,7 +81,7 @@ func TestValidatePlaywrightMode(t *testing.T) {
 
 			if tt.expectError {
 				require.Error(t, err, "expected an error but got none")
-				assert.Contains(t, err.Error(), tt.errorSubstr,
+				require.ErrorContains(t, err, tt.errorSubstr,
 					"error %q should contain %q", err.Error(), tt.errorSubstr)
 			} else {
 				assert.NoError(t, err, "expected no error")

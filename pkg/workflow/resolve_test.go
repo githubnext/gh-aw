@@ -165,7 +165,7 @@ func TestResolveWorkflowName_MissingLockFile(t *testing.T) {
 	// Test that it returns an error when lock file is missing
 	_, err := ResolveWorkflowName("incomplete-workflow")
 	require.Error(t, err, "ResolveWorkflowName should return an error when lock file is missing")
-	assert.Contains(t, err.Error(), "Run 'gh aw compile'", "error should mention compilation when lock file is missing")
+	require.ErrorContains(t, err, "Run 'gh aw compile'", "error should mention compilation when lock file is missing")
 }
 
 func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
@@ -181,7 +181,7 @@ func TestResolveWorkflowName_InvalidYAML(t *testing.T) {
 	// Test that it returns an error when YAML is invalid
 	_, err := ResolveWorkflowName("invalid-yaml")
 	require.Error(t, err, "ResolveWorkflowName should return an error when YAML is invalid")
-	assert.Contains(t, err.Error(), "failed to parse YAML", "error should mention YAML parsing failure")
+	require.ErrorContains(t, err, "failed to parse YAML", "error should mention YAML parsing failure")
 }
 
 func TestResolveWorkflowName_MissingNameField(t *testing.T) {
@@ -197,7 +197,7 @@ func TestResolveWorkflowName_MissingNameField(t *testing.T) {
 	// Test that it returns an error when name field is missing
 	_, err := ResolveWorkflowName("no-name")
 	require.Error(t, err, "ResolveWorkflowName should return an error when name field is missing")
-	assert.Contains(t, err.Error(), "workflow name not found", "error should mention missing workflow name")
+	require.ErrorContains(t, err, "workflow name not found", "error should mention missing workflow name")
 }
 
 func TestResolveWorkflowName_ExistingAgenticWorkflow(t *testing.T) {

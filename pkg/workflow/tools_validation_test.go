@@ -66,7 +66,7 @@ func TestValidateBashToolConfig(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected error for %s", tt.name)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for %s", tt.name)
@@ -137,7 +137,7 @@ func TestNewToolsWithInvalidBash(t *testing.T) {
 		// Validation should catch this
 		err := validateBashToolConfig(tools, "test-workflow")
 		require.Error(t, err, "Expected validation error")
-		assert.Contains(t, err.Error(), "anonymous syntax", "Error should mention anonymous syntax")
+		require.ErrorContains(t, err, "anonymous syntax", "Error should mention anonymous syntax")
 	})
 
 	t.Run("accepts valid bash configurations", func(t *testing.T) {
@@ -233,7 +233,7 @@ func TestValidateGitHubToolConfig(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected error for %s", tt.name)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for %s", tt.name)
@@ -605,7 +605,7 @@ func TestValidateGitHubGuardPolicy(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected error for %s", tt.name)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for %s", tt.name)
@@ -740,7 +740,7 @@ func TestValidateReposScopeWithStringSlice(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected error for %s", tt.name)
 				if tt.errorMsg != "" {
-					assert.Contains(t, err.Error(), tt.errorMsg, "Error message should contain expected text")
+					require.ErrorContains(t, err, tt.errorMsg, "Error message should contain expected text")
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for %s", tt.name)
@@ -1036,7 +1036,7 @@ func TestValidateIntegrityReactions(t *testing.T) {
 			if tt.shouldError {
 				require.Error(t, err, "Expected error for: %s", tt.name)
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should mention: %s", tt.errorContains)
+					require.ErrorContains(t, err, tt.errorContains, "Error should mention: %s", tt.errorContains)
 				}
 			} else {
 				assert.NoError(t, err, "Expected no error for: %s", tt.name)

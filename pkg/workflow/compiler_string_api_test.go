@@ -47,7 +47,7 @@ No frontmatter here.
 
 	_, err := compiler.ParseWorkflowString(markdown, "workflow.md")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "frontmatter")
+	require.ErrorContains(t, err, "frontmatter")
 }
 
 func TestParseWorkflowString_InvalidFrontmatterYAML(t *testing.T) {

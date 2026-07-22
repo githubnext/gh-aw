@@ -199,8 +199,8 @@ func TestGVisorValidation_ArcDindIncompatible(t *testing.T) {
 
 	err := validateSandboxConfig(workflowData)
 	require.Error(t, err, "gVisor + arc-dind must produce a compile-time error")
-	assert.Contains(t, err.Error(), "arc-dind", "error must mention arc-dind")
-	assert.Contains(t, err.Error(), "gvisor", "error must mention gvisor")
+	require.ErrorContains(t, err, "arc-dind", "error must mention arc-dind")
+	require.ErrorContains(t, err, "gvisor", "error must mention gvisor")
 }
 
 // TestGVisorValidation_SudoFalseAllowed verifies that gVisor + sudo:false (default) is
@@ -265,7 +265,7 @@ func TestGVisorStrictModeSudoTrueError(t *testing.T) {
 
 	err := compiler.validateStrictSandboxCustomization(sandboxConfig)
 	require.Error(t, err, "sudo:true + runtime:gvisor must still produce a strict-mode error")
-	assert.Contains(t, err.Error(), "sudo", "error must mention sudo")
+	require.ErrorContains(t, err, "sudo", "error must mention sudo")
 }
 
 // TestGVisorFrontmatterExtraction verifies end-to-end that a workflow with

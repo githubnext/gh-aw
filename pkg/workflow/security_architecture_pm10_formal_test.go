@@ -189,7 +189,7 @@ func TestFormalStrictMode_WritePermissionsRejected(t *testing.T) {
 
 			err := validateDangerousPermissions(&WorkflowData{Permissions: "permissions: {}"}, perms)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "write permissions")
+			require.ErrorContains(t, err, "write permissions")
 		})
 	}
 }

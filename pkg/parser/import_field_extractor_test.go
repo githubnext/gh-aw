@@ -286,7 +286,7 @@ imports:
 
 	_, err = ProcessImportsFromFrontmatterWithSource(result.Frontmatter, tmpDir, nil, "", "")
 	require.Error(t, err, "Should error when two imports define the same env var")
-	assert.Contains(t, err.Error(), "SHARED_KEY", "Error should mention the conflicting variable name")
+	require.ErrorContains(t, err, "SHARED_KEY", "Error should mention the conflicting variable name")
 }
 
 // TestExtractAllImportFields_BuiltinCacheHit verifies that extractAllImportFields uses the
@@ -399,7 +399,7 @@ func TestValidateImportInputType_Number(t *testing.T) {
 
 		err := validateImportInputType("retries", "3", "number", paramDef, importPath)
 		require.Error(t, err, "string value should be rejected for number type")
-		assert.Contains(t, err.Error(), "must be a number", "error should explain expected type")
+		require.ErrorContains(t, err, "must be a number", "error should explain expected type")
 	})
 }
 

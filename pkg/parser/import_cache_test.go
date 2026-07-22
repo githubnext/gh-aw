@@ -286,7 +286,7 @@ func TestValidatePathComponents(t *testing.T) {
 			err := validatePathComponents(tt.owner, tt.repo, tt.path, tt.sha)
 			if tt.shouldErr {
 				require.Error(t, err, "should return error for: %s", tt.name)
-				assert.Contains(t, err.Error(), tt.errMsg, "error message should mention: %s", tt.errMsg)
+				require.ErrorContains(t, err, tt.errMsg, "error message should mention: %s", tt.errMsg)
 			} else {
 				require.NoError(t, err, "should not return error for valid components")
 			}
@@ -364,7 +364,7 @@ func TestImportCacheSet_Validation(t *testing.T) {
 			_, err := cache.Set(tt.owner, tt.repo, tt.path, tt.sha, tt.content)
 			if tt.shouldErr {
 				require.Error(t, err, "Set should reject: %s", tt.name)
-				assert.Contains(t, err.Error(), tt.errMsg, "error message should contain %q", tt.errMsg)
+				require.ErrorContains(t, err, tt.errMsg, "error message should contain %q", tt.errMsg)
 			} else {
 				assert.NoError(t, err, "Set should succeed for: %s", tt.name)
 			}

@@ -90,7 +90,7 @@ func TestFetchLocalWorkflow_NonExistentFile(t *testing.T) {
 
 	require.Error(t, err, "should error for non-existent file")
 	assert.Nil(t, result, "result should be nil on error")
-	assert.Contains(t, err.Error(), "not found", "error should mention file not found")
+	require.ErrorContains(t, err, "not found", "error should mention file not found")
 }
 
 func TestFetchLocalWorkflow_DirectoryInsteadOfFile(t *testing.T) {
@@ -168,9 +168,9 @@ func TestResolveCommitSHAWithRetries_PermanentFailureDoesNotRetry(t *testing.T) 
 	assert.Empty(t, sha, "No SHA should be returned when resolution fails")
 	assert.Equal(t, 1, resolveAttempts, "Permanent failures should not retry")
 	assert.Equal(t, 0, sleepCalls, "No backoff sleep should happen for permanent failures")
-	assert.Contains(t, err.Error(), "Expected the GitHub API to return a commit SHA for the ref",
+	require.ErrorContains(t, err, "Expected the GitHub API to return a commit SHA for the ref",
 		"Error should explain expected behavior")
-	assert.Contains(t, err.Error(), "@<40-char-sha>", "Error should include retry command with full SHA placeholder")
+	require.ErrorContains(t, err, "@<40-char-sha>", "Error should include retry command with full SHA placeholder")
 }
 
 func TestResolveCommitSHAWithRetries_TransientFailureExhaustsRetries(t *testing.T) {
@@ -201,7 +201,7 @@ func TestResolveCommitSHAWithRetries_TransientFailureExhaustsRetries(t *testing.
 	assert.Empty(t, sha, "No SHA should be returned when retries are exhausted")
 	assert.Equal(t, 4, resolveAttempts, "Should attempt initial call plus three retries")
 	assert.Equal(t, 3, sleepCalls, "Should sleep between each retry")
-	assert.Contains(t, err.Error(), "after 3 retries", "Error should report retry exhaustion")
+	require.ErrorContains(t, err, "after 3 retries", "Error should report retry exhaustion")
 }
 
 func TestResolveCommitSHAWithRetries_ContextCanceledDuringBackoff(t *testing.T) {
@@ -229,8 +229,8 @@ func TestResolveCommitSHAWithRetries_ContextCanceledDuringBackoff(t *testing.T) 
 	sha, err := resolveCommitSHAWithRetries(ctx, "owner", "repo", "main", ".github/workflows/test.md", "", false)
 	require.Error(t, err, "Cancellation during retry backoff should fail fast")
 	assert.Empty(t, sha, "No SHA should be returned when retry wait is canceled")
-	assert.Contains(t, err.Error(), "retry wait was cancelled", "Error should explain cancellation reason")
-	assert.Contains(t, err.Error(), "@<40-char-sha>", "Error should include exact SHA retry guidance")
+	require.ErrorContains(t, err, "retry wait was cancelled", "Error should explain cancellation reason")
+	require.ErrorContains(t, err, "@<40-char-sha>", "Error should include exact SHA retry guidance")
 }
 
 func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
@@ -291,7 +291,7 @@ func TestFetchIncludeFromSource_WorkflowSpecParsing(t *testing.T) {
 			if tt.expectError {
 				require.Error(t, err, "expected error")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "error should contain expected text")
+					require.ErrorContains(t, err, tt.errorContains, "error should contain expected text")
 				}
 			} else {
 				require.NoError(t, err, "should not error")
@@ -1180,7 +1180,7 @@ resources:
 	resources, err := extractResources(content)
 	require.Error(t, err, "should error when a resource entry contains macro syntax")
 	assert.Nil(t, resources, "should return nil resources on error")
-	assert.Contains(t, err.Error(), "${{", "error message should mention the disallowed syntax")
+	require.ErrorContains(t, err, "${{", "error message should mention the disallowed syntax")
 }
 
 // TestExtractResources_AllMacrosRejected verifies that all-macro lists return an error.
@@ -1292,7 +1292,7 @@ resources:
 	tmpDir := t.TempDir()
 	err := fetchAndSaveRemoteResources(t.Context(), content, spec, tmpDir, false, false, nil)
 	require.Error(t, err, "should error when resources contain macro syntax")
-	assert.Contains(t, err.Error(), "${{", "error should mention the disallowed syntax")
+	require.ErrorContains(t, err, "${{", "error should mention the disallowed syntax")
 
 	entries, readErr := os.ReadDir(tmpDir)
 	require.NoError(t, readErr)
@@ -1785,9 +1785,9 @@ safe-outputs:
 
 	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, workflowsDir, false, false, nil)
 	require.Error(t, err, "should error when existing file has a different source repo")
-	assert.Contains(t, err.Error(), "target-workflow", "error should name the conflicting file")
-	assert.Contains(t, err.Error(), "otherorg/other-repo", "error should mention existing source")
-	assert.Contains(t, err.Error(), "github/gh-aw", "error should mention the intended source")
+	require.ErrorContains(t, err, "target-workflow", "error should name the conflicting file")
+	require.ErrorContains(t, err, "otherorg/other-repo", "error should mention existing source")
+	require.ErrorContains(t, err, "github/gh-aw", "error should mention the intended source")
 }
 
 // TestFetchDispatchWorkflows_SameSourceSkips verifies that an existing dispatch-workflow
@@ -1852,8 +1852,8 @@ safe-outputs:
 
 	err := fetchAndSaveRemoteDispatchWorkflows(context.Background(), content, spec, workflowsDir, false, false, nil)
 	require.Error(t, err, "should error when existing file has no source field")
-	assert.Contains(t, err.Error(), "target-workflow", "error should name the conflicting file")
-	assert.Contains(t, err.Error(), "(no source field)", "error should show placeholder for missing source")
+	require.ErrorContains(t, err, "target-workflow", "error should name the conflicting file")
+	require.ErrorContains(t, err, "(no source field)", "error should show placeholder for missing source")
 }
 
 // TestFetchDispatchWorkflows_ForceOverwritesConflict verifies that --force bypasses conflict detection.
@@ -1977,7 +1977,7 @@ resources:
 
 	err := fetchAndSaveRemoteResources(t.Context(), content, spec, dir, false, false, nil)
 	require.Error(t, err, "should error when markdown resource exists from a different source")
-	assert.Contains(t, err.Error(), "helper.md", "error should name the conflicting resource")
+	require.ErrorContains(t, err, "helper.md", "error should name the conflicting resource")
 }
 
 // TestFetchResources_NonMarkdownConflict verifies that a non-markdown resource that already
@@ -2002,7 +2002,7 @@ resources:
 
 	err := fetchAndSaveRemoteResources(t.Context(), content, spec, dir, false, false, nil)
 	require.Error(t, err, "should error when non-markdown resource already exists")
-	assert.Contains(t, err.Error(), "helper.yml", "error should name the conflicting resource")
+	require.ErrorContains(t, err, "helper.yml", "error should name the conflicting resource")
 }
 
 // TestFetchResources_MarkdownSameSourceSkips verifies that an existing markdown resource
@@ -2190,7 +2190,7 @@ safe-outputs:
 
 	err := fetchAllRemoteDependencies(context.Background(), content, spec, tmpDir, false, false, nil)
 	require.Error(t, err, "dispatch workflow conflict should be propagated")
-	assert.Contains(t, err.Error(), "dispatch workflow", "error should mention 'dispatch workflow'")
+	require.ErrorContains(t, err, "dispatch workflow", "error should mention 'dispatch workflow'")
 }
 
 // TestFetchAllRemoteDependencies_ResourceMacroErrorPropagated verifies that a resource
@@ -2213,5 +2213,5 @@ resources:
 	tmpDir := t.TempDir()
 	err := fetchAllRemoteDependencies(context.Background(), content, spec, tmpDir, false, false, nil)
 	require.Error(t, err, "resource macro error should be propagated")
-	assert.Contains(t, err.Error(), "failed to fetch resource dependencies", "error should be wrapped with dependency context")
+	require.ErrorContains(t, err, "failed to fetch resource dependencies", "error should be wrapped with dependency context")
 }

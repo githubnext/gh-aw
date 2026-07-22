@@ -24,7 +24,7 @@ func TestActionsBuildCommand_NoActionsDir(t *testing.T) {
 	// Test with non-existent actions directory
 	err = ActionsBuildCommand()
 	require.Error(t, err, "Should error when actions/ directory does not exist")
-	assert.Contains(t, err.Error(), "actions/ directory does not exist", "Error should mention missing directory")
+	require.ErrorContains(t, err, "actions/ directory does not exist", "Error should mention missing directory")
 }
 
 func TestActionsValidateCommand_NoActionsDir(t *testing.T) {
@@ -233,7 +233,7 @@ runs:
 			if tt.expectError {
 				require.Error(t, err, "Expected an error")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should contain expected message")
+					require.ErrorContains(t, err, tt.errorContains, "Error should contain expected message")
 				}
 			} else {
 				require.NoError(t, err, "Should not error for valid action.yml")

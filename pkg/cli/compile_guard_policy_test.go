@@ -139,7 +139,7 @@ This workflow specifies repos without min-integrity.
 			if tt.expectError {
 				require.Error(t, err, "Expected compilation to fail")
 				if tt.errorContains != "" {
-					assert.Contains(t, err.Error(), tt.errorContains, "Error should mention %q", tt.errorContains)
+					require.ErrorContains(t, err, tt.errorContains, "Error should mention %q", tt.errorContains)
 				}
 			} else {
 				assert.NoError(t, err, "Expected compilation to succeed")
@@ -468,7 +468,7 @@ This workflow sets trusted-users without min-integrity (should fail).
 	compiler := workflow.NewCompiler()
 	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, CompileValidationOptions{})
 	require.Error(t, err, "Expected compilation to fail without min-integrity")
-	assert.Contains(t, err.Error(), "min-integrity", "Error should mention min-integrity requirement")
+	require.ErrorContains(t, err, "min-integrity", "Error should mention min-integrity requirement")
 }
 
 // TestGuardPolicyToolCallLimitsCompilation verifies that max-calls entries under
@@ -534,5 +534,5 @@ tools:
 	compiler := workflow.NewCompiler()
 	err = CompileWorkflowWithValidation(context.Background(), compiler, workflowPath, CompileValidationOptions{})
 	require.Error(t, err, "Expected compilation to fail for unknown tool name")
-	assert.Contains(t, err.Error(), "Unknown GitHub tool(s): issue_read:1", "Compiler must treat colon entry as literal tool name")
+	require.ErrorContains(t, err, "Unknown GitHub tool(s): issue_read:1", "Compiler must treat colon entry as literal tool name")
 }
