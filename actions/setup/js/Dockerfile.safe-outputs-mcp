@@ -7,14 +7,19 @@ ARG NODE_IMAGE
 ARG NODE_IMAGE_DIGEST=""
 ARG NODE_IMAGE_UPDATED_AT=""
 ARG DOCKERFILE_HASH=""
+ARG NPM_VERSION=11.18.0
 
-RUN apk add --no-cache git
+RUN apk upgrade --no-cache \
+    && apk add --no-cache git \
+    && npm install --global "npm@${NPM_VERSION}" \
+    && npm cache clean --force
 
 LABEL org.opencontainers.image.source="https://github.com/github/gh-aw" \
       org.opencontainers.image.description="Node LTS Alpine with git for the local safe-outputs MCP runtime" \
       org.opencontainers.image.base.name="${NODE_IMAGE}" \
       org.opencontainers.image.base.digest="${NODE_IMAGE_DIGEST}" \
       io.github.gh-aw.safe-outputs.node.updated-at="${NODE_IMAGE_UPDATED_AT}" \
+      io.github.gh-aw.safe-outputs.npm.version="${NPM_VERSION}" \
       io.github.gh-aw.safe-outputs.dockerfile-hash="${DOCKERFILE_HASH}"
 
 ENTRYPOINT ["sh", "-lc", "node \"${GITHUB_WORKSPACE:-$PWD}/actions/setup/js/safe_outputs_mcp_server.cjs\""]

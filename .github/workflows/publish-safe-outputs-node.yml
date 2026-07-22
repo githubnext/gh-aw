@@ -41,13 +41,20 @@ jobs:
           metadata=$(curl -fsSL "$METADATA_URL")
           echo "Metadata fetched successfully"
 
-          digest=$(printf '%s' "$metadata" | jq -r '.images[] | select(.os == "linux" and .architecture == "amd64") | .digest' | head -n 1)
+          digest=$(printf '%s' "$metadata" | jq -r '.digest')
+          amd64_digest=$(printf '%s' "$metadata" | jq -r '.images[] | select(.os == "linux" and .architecture == "amd64") | .digest' | head -n 1)
+          arm64_digest=$(printf '%s' "$metadata" | jq -r '.images[] | select(.os == "linux" and .architecture == "arm64") | .digest' | head -n 1)
           last_updated=$(printf '%s' "$metadata" | jq -r '.last_updated')
 
-          echo "Resolved linux/amd64 digest: ${digest}"
+          echo "Resolved multi-platform digest: ${digest}"
+          echo "Resolved linux/amd64 digest: ${amd64_digest}"
+          echo "Resolved linux/arm64 digest: ${arm64_digest}"
           echo "Upstream last_updated: ${last_updated}"
 
-          if [ -z "$digest" ] || [ "$digest" = "null" ] || [ -z "$last_updated" ] || [ "$last_updated" = "null" ]; then
+          if [ -z "$digest" ] || [ "$digest" = "null" ] \
+            || [ -z "$amd64_digest" ] || [ "$amd64_digest" = "null" ] \
+            || [ -z "$arm64_digest" ] || [ "$arm64_digest" = "null" ] \
+            || [ -z "$last_updated" ] || [ "$last_updated" = "null" ]; then
             echo "Failed to resolve node:lts-alpine metadata"
             exit 1
           fi
@@ -194,7 +201,7 @@ jobs:
         with:
           context: .
           file: actions/setup/js/Dockerfile.safe-outputs-mcp
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           pull: true
           push: true
           build-args: |
