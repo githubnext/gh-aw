@@ -396,15 +396,15 @@ describe("copilot_harness.cjs", () => {
     /**
      * @param {{hasOutput: boolean, exitCode: number}} result
      * @param {number} attempt
-     * @param {boolean} isScheduledRun
+     * @param {boolean} isStartupRetryEligible
      * @param {number} scheduledExit2Retries
      * @returns {boolean}
      */
-    function shouldRetry(result, attempt, isScheduledRun, scheduledExit2Retries) {
+    function shouldRetry(result, attempt, isStartupRetryEligible, scheduledExit2Retries) {
       if (result.exitCode === 0) return false;
 
-      // Scheduled startup outage: retry once even when no output was produced.
-      if (isScheduledRun && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
+      // Scheduled or push startup outage: retry once even when no output was produced.
+      if (isStartupRetryEligible && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
         return true;
       }
 
@@ -416,6 +416,19 @@ describe("copilot_harness.cjs", () => {
       const result = { exitCode: 2, hasOutput: false };
       expect(shouldRetry(result, 0, true, 0)).toBe(true);
       expect(shouldRetry(result, 1, true, 1)).toBe(false);
+    });
+
+    it("retries once for push startup interruption with exit code 2 and no output", () => {
+      const result = { exitCode: 2, hasOutput: false };
+      // push events are startup-retry-eligible; first attempt retries, second does not
+      expect(shouldRetry(result, 0, true, 0)).toBe(true);
+      expect(shouldRetry(result, 1, true, 1)).toBe(false);
+    });
+
+    it("does not retry on exit code 2 with no output for non-eligible triggers", () => {
+      const result = { exitCode: 2, hasOutput: false };
+      // pull_request and other event types are not startup-retry-eligible
+      expect(shouldRetry(result, 0, false, 0)).toBe(false);
     });
 
     describe("failure classification helpers", () => {
