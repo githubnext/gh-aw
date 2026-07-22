@@ -1,0 +1,4 @@
+persona: amend-fern
+strategy: single-commit+amend
+status: amended
+note: compact
