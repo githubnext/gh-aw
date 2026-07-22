@@ -2102,7 +2102,7 @@ async function sendJobConclusionSpan(spanName, options = {}) {
   attributes.push(buildAttr("gh-aw.run.status", runStatus));
   attributes.push(buildAttr("gh-aw.error_count", outputErrors.length));
   attributes.push(buildAttr("gh-aw.warning_count", warningCount));
-  if (Number.isInteger(agentExecutionExitCode)) {
+  if (typeof agentExecutionExitCode === "number" && Number.isInteger(agentExecutionExitCode)) {
     attributes.push(buildAttr("gh-aw.agent.execution.exit_code", agentExecutionExitCode));
   }
   attributes.push(buildAttr("gh-aw.permission_denied_count", runtimeMetrics.permissionDeniedCount));
