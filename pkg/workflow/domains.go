@@ -146,7 +146,6 @@ var GeminiDefaultDomains = AntigravityDefaultDomains
 // independent of the chosen LLM provider. When a model uses provider/model format,
 // provider-specific API domains are added on top via GetDefaultDomainsForEngine.
 var PiBaseDefaultDomains = []string{
-	"api.pi.ai",            // Pi CLI telemetry / update checks
 	"host.docker.internal", // MCP gateway / API proxy access
 	"github.com",
 	"raw.githubusercontent.com",
@@ -172,7 +171,6 @@ var piProviderDomains = map[string]string{
 // dynamic path (GetDefaultDomainsForEngine) resolves provider-specific domains instead.
 var PiDefaultDomains = []string{
 	"api.githubcopilot.com", // Default provider (Copilot routing)
-	"api.pi.ai",
 	"host.docker.internal",
 	"github.com",
 	"raw.githubusercontent.com",
