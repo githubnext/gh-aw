@@ -63,6 +63,7 @@ func compileSpecificFiles(
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	var lockFilesForSyft []string     // lock files for syft container image SBOM scanning
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForGrant []string    // lock files for grant container image license scanning
 	var strictGrantErr error
@@ -157,6 +158,9 @@ func compileSpecificFiles(
 					if config.Grant {
 						lockFilesForGrant = append(lockFilesForGrant, fileResult.lockFile)
 					}
+					if config.Syft {
+						lockFilesForSyft = append(lockFilesForSyft, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -210,6 +214,18 @@ func compileSpecificFiles(
 		}
 		workflowDir := filepath.Dir(lockFilesForDirTools[0])
 		if err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run syft SBOM scanner on container images referenced in the compiled lock files.
+	if config.Syft && !config.NoEmit && len(lockFilesForSyft) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunSyftOnLockFiles(lockFilesForSyft, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -349,6 +365,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	var lockFilesForSyft []string     // lock files for syft container image SBOM scanning
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForGrant []string    // lock files for grant container image license scanning
 	var strictGrantErr error
@@ -412,6 +429,9 @@ func compileAllFilesInDirectory(
 					if config.Grant {
 						lockFilesForGrant = append(lockFilesForGrant, fileResult.lockFile)
 					}
+					if config.Syft {
+						lockFilesForSyft = append(lockFilesForSyft, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -461,6 +481,18 @@ func compileAllFilesInDirectory(
 			return workflowDataList, err
 		}
 		if err := runBatchDirectoryTool("runner-guard", workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run syft SBOM scanner on container images referenced in the compiled lock files.
+	if config.Syft && !config.NoEmit && len(lockFilesForSyft) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunSyftOnLockFiles(lockFilesForSyft, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}

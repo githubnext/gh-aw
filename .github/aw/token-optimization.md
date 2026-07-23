@@ -134,8 +134,6 @@ Create a concise weekly PR summary discussion.
 - Store files under `/tmp/gh-aw/`
 - Document file locations and schema in the prompt body so the agent doesn't need to explore
 
-See also: [DataOps pattern docs](https://github.com/github/gh-aw/blob/main/docs/src/content/docs/patterns/data-ops.md)
-
 ---
 
 ## Technique 2 — Use `gh-proxy` and `cli-proxy` Instead of the MCP Server
@@ -211,7 +209,7 @@ Nothing else.
 - Put verbose instructions (report layout, rubric details, formatting constraints) into `## skill:` blocks.
 - Invoke skills only when needed (e.g., producing final output), so early turns stay lean.
 
-This delays expensive instruction payloads until the final phase, lowering ambient context.
+This delays expensive instruction payloads until the final phase, lowering ambient context. See [subagents.md](subagents.md) for full syntax.
 
 **Sub-agent model aliases:**
 
@@ -222,8 +220,6 @@ This delays expensive instruction payloads until the final phase, lowering ambie
 | `inherited` | Sub-agent needs same capability as the parent (default) |
 
 Always use aliases, not model IDs — aliases resolve to the best available model per provider.
-
-See also: [Inline Sub-Agents](subagents.md)
 
 ---
 
@@ -276,7 +272,7 @@ Fetch open issues from ${{ github.repository }} using the GitHub tools.
 1. Compare variants using `gh aw audit <control-run-id> <optimized-run-id>`
 2. Inspect `aic`, `input_tokens`, `output_tokens`, `cache_read_tokens`, and `cache_write_tokens`
 3. Validate output quality and decision accuracy against the control run
-4. If the optimized variant wins on cost **and** quality, rewrite the baseline prompt and remove the `experiments:` field
+4. If the optimized variant wins on cost **and** quality, rewrite the baseline prompt and remove the `experiments:` field. See [experiments.md](experiments.md) for A/B testing details.
 
 **Key experiment dimensions for token optimization:**
 
@@ -287,8 +283,6 @@ Fetch open issues from ${{ github.repository }} using the GitHub tools.
 | Model tier | Run separate workflows for each engine |
 | Sub-agent usage | `single-agent` / `with-subagents` |
 | Tool mode | `mcp-local` / `gh-proxy` |
-
-See also: [A/B Testing Experiments](experiments.md)
 
 ---
 
