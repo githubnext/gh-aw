@@ -220,4 +220,53 @@ describe("setup_comment_memory_files", () => {
     );
     expect(global.core.warning).not.toHaveBeenCalledWith(expect.stringContaining("E004"));
   });
+
+  it("warns and skips writing when a memory entry exceeds per-file size cap", async () => {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ "comment-memory": { target: "triggering" } }));
+    const oversizedBody = `${"a".repeat(16 * 1024 + 1)}`;
+    global.github = {
+      rest: {
+        issues: {
+          listComments: vi.fn().mockResolvedValue({
+            data: [{ body: `\`\`\`\`\`\`gh-aw-comment-memory:default\n${oversizedBody}\n\`\`\`\`\`\`\n` }],
+          }),
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    expect(fs.existsSync(path.join(COMMENT_MEMORY_DIR, "default.md"))).toBe(false);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("exceeding max 16384 bytes"));
+  });
+
+  it("warns and skips writing when total memory size exceeds cap", async () => {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ "comment-memory": { target: "triggering" } }));
+    const chunk = "a".repeat(12 * 1024 + 1);
+    global.github = {
+      rest: {
+        issues: {
+          listComments: vi.fn().mockResolvedValue({
+            data: [
+              {
+                body:
+                  `\`\`\`\`\`\`gh-aw-comment-memory:one\n${chunk}\n\`\`\`\`\`\`\n` +
+                  `\`\`\`\`\`\`gh-aw-comment-memory:two\n${chunk}\n\`\`\`\`\`\`\n` +
+                  `\`\`\`\`\`\`gh-aw-comment-memory:three\n${chunk}\n\`\`\`\`\`\`\n` +
+                  `\`\`\`\`\`\`gh-aw-comment-memory:four\n${chunk}\n\`\`\`\`\`\`\n`,
+              },
+            ],
+          }),
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    expect(fs.existsSync(path.join(COMMENT_MEMORY_DIR, "one.md"))).toBe(false);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("total size"));
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("exceeds max 49152 bytes"));
+  });
 });

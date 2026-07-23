@@ -11,6 +11,8 @@ const {
   COMMENT_MEMORY_DIR,
   COMMENT_MEMORY_MAX_SCAN_PAGES,
   COMMENT_MEMORY_MAX_SCAN_EMPTY_PAGES,
+  COMMENT_MEMORY_MAX_FILE_BYTES,
+  COMMENT_MEMORY_MAX_TOTAL_BYTES,
   COMMENT_MEMORY_PROMPT_START_MARKER,
   COMMENT_MEMORY_PROMPT_END_MARKER,
   extractCommentMemoryEntries,
@@ -144,6 +146,18 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   } catch (err) {
     throw new Error(`Failed to create directory ${COMMENT_MEMORY_DIR}: ${String(err)}`, { cause: err });
   }
+  let totalBytes = 0;
+  for (const [memoryId, content] of memoryMap.entries()) {
+    const contentBytes = Buffer.byteLength(content, "utf8");
+    if (contentBytes > COMMENT_MEMORY_MAX_FILE_BYTES) {
+      throw new Error(`${ERR_VALIDATION}: comment_memory file '${memoryId}.md' is ${contentBytes} bytes, exceeding max ${COMMENT_MEMORY_MAX_FILE_BYTES} bytes`);
+    }
+    totalBytes += contentBytes;
+    if (totalBytes > COMMENT_MEMORY_MAX_TOTAL_BYTES) {
+      throw new Error(`${ERR_VALIDATION}: comment_memory total size ${totalBytes} bytes exceeds max ${COMMENT_MEMORY_MAX_TOTAL_BYTES} bytes`);
+    }
+  }
+
   const writtenFiles = [];
   for (const [memoryId, content] of memoryMap.entries()) {
     const filePath = path.join(COMMENT_MEMORY_DIR, `${memoryId}.md`);
