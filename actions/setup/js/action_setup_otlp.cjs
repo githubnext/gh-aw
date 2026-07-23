@@ -1,5 +1,6 @@
 // @ts-check
 "use strict";
+require("./shim.cjs");
 
 /**
  * action_setup_otlp.cjs
@@ -42,7 +43,7 @@ function writeEnvLine(filePath, key, value, logLabel, fileLabel) {
   if (!filePath || !value) return;
   try {
     appendFileSync(filePath, `${key}=${value}\n`);
-    console.log(`[otlp] ${logLabel} written to ${fileLabel}`);
+    core.info(`[otlp] ${logLabel} written to ${fileLabel}`);
   } catch {
     /* ignore */
   }
@@ -112,13 +113,13 @@ async function run() {
   // through GitHub Actions expression evaluation is unreliable.
   const inputTraceId = getActionInput("TRACE_ID").toLowerCase();
   if (inputTraceId) {
-    console.log(`[otlp] INPUT_TRACE_ID=${inputTraceId} (will reuse activation trace)`);
+    core.info(`[otlp] INPUT_TRACE_ID=${inputTraceId} (will reuse activation trace)`);
   } else {
-    console.log("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
+    core.info("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
   }
   const inputParentSpanId = getActionInput("PARENT_SPAN_ID").toLowerCase();
   if (inputParentSpanId) {
-    console.log(`[otlp] INPUT_PARENT_SPAN_ID=${inputParentSpanId} (will parent setup span)`);
+    core.info(`[otlp] INPUT_PARENT_SPAN_ID=${inputParentSpanId} (will parent setup span)`);
   }
 
   // Normalize to the canonical underscore form so sendJobSetupSpan (which
@@ -148,9 +149,9 @@ async function run() {
   }
 
   if (!endpoints) {
-    console.log("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
+    core.info("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
   } else {
-    console.log(`[otlp] sending setup span to configured endpoints`);
+    core.info(`[otlp] sending setup span to configured endpoints`);
   }
 
   const { traceId, spanId, parentSpanId } = await sendJobSetupSpan({
@@ -159,10 +160,10 @@ async function run() {
     parentSpanId: inputParentSpanId || undefined,
   });
 
-  console.log(`[otlp] resolved trace-id=${traceId}`);
+  core.info(`[otlp] resolved trace-id=${traceId}`);
 
   if (endpoints) {
-    console.log(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
+    core.info(`[otlp] setup span sent (traceId=${traceId}, spanId=${spanId})`);
   }
 
   const githubOutput = process.env.GITHUB_OUTPUT;

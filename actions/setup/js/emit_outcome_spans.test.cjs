@@ -3,6 +3,18 @@ import fs from "fs";
 import { createRequire } from "module";
 
 const req = createRequire(import.meta.url);
+
+// Set up global.core mock before loading any module that requires shim.cjs so
+// the shim sees it already present and does not overwrite it.
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+};
+global.core = mockCore;
+
 const sendOtlpModule = req("./send_otlp_span.cjs");
 
 const mockGenerateTraceId = vi.fn();
@@ -48,7 +60,6 @@ describe("emit_outcome_spans.cjs", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
     fs.mkdirSync("/tmp/gh-aw", { recursive: true });
@@ -168,7 +179,7 @@ describe("emit_outcome_spans.cjs", () => {
   it("no-ops when there are no evaluations and no summary data", async () => {
     await moduleUnderTest.main();
 
-    expect(console.log).toHaveBeenCalledWith("[outcome-otel] No outcome evaluations to export");
+    expect(mockCore.info).toHaveBeenCalledWith("[outcome-otel] No outcome evaluations to export");
     expect(mockBuildGitHubActionsResourceAttributes).not.toHaveBeenCalled();
     expect(mockBuildOTLPBatchPayload).not.toHaveBeenCalled();
     expect(mockAppendToOTLPJSONL).not.toHaveBeenCalled();
@@ -323,7 +334,7 @@ describe("emit_outcome_spans.cjs", () => {
 
     expect(mockAppendToOTLPJSONL).toHaveBeenCalledOnce();
     expect(mockSendOTLPToAllEndpoints).not.toHaveBeenCalled();
-    expect(console.log).toHaveBeenCalledWith("[outcome-otel] No OTLP endpoints configured, writing JSONL mirror only");
+    expect(mockCore.info).toHaveBeenCalledWith("[outcome-otel] No OTLP endpoints configured, writing JSONL mirror only");
   });
 
   it("falls back to GH_AW_INFO_* env vars and exports to configured endpoints", async () => {
@@ -356,6 +367,6 @@ describe("emit_outcome_spans.cjs", () => {
     );
     expect(mockAppendToOTLPJSONL).toHaveBeenCalledOnce();
     expect(mockSendOTLPToAllEndpoints).toHaveBeenCalledWith([{ url: "https://otel.example.com" }], expect.any(Object), { skipJSONL: true });
-    expect(console.log).toHaveBeenCalledWith("[outcome-otel] Exported to 1 endpoint(s)");
+    expect(mockCore.info).toHaveBeenCalledWith("[outcome-otel] Exported to 1 endpoint(s)");
   });
 });

@@ -7,6 +7,17 @@ import { writeFileSync, readFileSync, mkdtempSync, rmSync } from "fs";
 
 const req = createRequire(import.meta.url);
 
+// Set up global.core mock before loading the module under test so shim.cjs
+// sees it already present and does not overwrite it with its stderr-based shim.
+const mockCore = {
+  info: vi.fn(),
+  warning: vi.fn(),
+  error: vi.fn(),
+  setFailed: vi.fn(),
+  setOutput: vi.fn(),
+};
+global.core = mockCore;
+
 // Load send_otlp_span.cjs first so we can patch its exports before run() calls require()
 // inside action_setup_otlp.cjs. Both share the same CJS module cache, so patching the
 // exports object here is reflected when run() destructures from require(...send_otlp_span.cjs).
@@ -39,7 +50,6 @@ describe("action_setup_otlp.cjs", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.spyOn(console, "log").mockImplementation(() => {});
 
     // Patch the shared CJS module exports — run() re-destructures on every call
     sendOtlpModule.sendJobSetupSpan = mockSendJobSetupSpan;
@@ -105,7 +115,7 @@ describe("action_setup_otlp.cjs", () => {
     it("should log that OTLP export is being skipped", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
+      expect(mockCore.info).toHaveBeenCalledWith("[otlp] GH_AW_OTLP_ENDPOINTS not set, skipping setup span");
     });
 
     it("should still call sendJobSetupSpan for JSONL mirror", async () => {
@@ -117,7 +127,7 @@ describe("action_setup_otlp.cjs", () => {
     it("should not log 'sending setup span to' when endpoint is absent", async () => {
       await run();
 
-      const logged = vi.mocked(console.log).mock.calls.flat();
+      const logged = vi.mocked(mockCore.info).mock.calls.flat();
       expect(logged.some(msg => typeof msg === "string" && msg.includes("sending setup span to"))).toBe(false);
     });
   });
@@ -130,7 +140,7 @@ describe("action_setup_otlp.cjs", () => {
     it("should log sending the setup span to the configured endpoint", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] sending setup span to configured endpoints");
+      expect(mockCore.info).toHaveBeenCalledWith("[otlp] sending setup span to configured endpoints");
     });
 
     it("should call sendJobSetupSpan exactly once", async () => {
@@ -142,14 +152,14 @@ describe("action_setup_otlp.cjs", () => {
     it("should log setup span sent with traceId and spanId", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`traceId=${VALID_TRACE_ID}`));
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`spanId=${VALID_SPAN_ID}`));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(`traceId=${VALID_TRACE_ID}`));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(`spanId=${VALID_SPAN_ID}`));
     });
 
     it("should log the resolved trace ID", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining(`trace-id=${VALID_TRACE_ID}`));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining(`trace-id=${VALID_TRACE_ID}`));
     });
   });
 
@@ -271,13 +281,13 @@ describe("action_setup_otlp.cjs", () => {
 
       await run();
 
-      expect(console.log).toHaveBeenCalledWith(expect.stringContaining("INPUT_TRACE_ID=abcdef0123456789abcdef0123456789"));
+      expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("INPUT_TRACE_ID=abcdef0123456789abcdef0123456789"));
     });
 
     it("should log that INPUT_TRACE_ID is not set when absent", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
+      expect(mockCore.info).toHaveBeenCalledWith("[otlp] INPUT_TRACE_ID not set, a new trace ID will be generated");
     });
 
     it("should accept the hyphen form INPUT_TRACE-ID as a fallback", async () => {
@@ -326,7 +336,7 @@ describe("action_setup_otlp.cjs", () => {
 
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] INPUT_PARENT_SPAN_ID=aabbccddeeff0011 (will parent setup span)");
+      expect(mockCore.info).toHaveBeenCalledWith("[otlp] INPUT_PARENT_SPAN_ID=aabbccddeeff0011 (will parent setup span)");
     });
 
     it("should accept the hyphen form INPUT_PARENT-SPAN-ID as a fallback", async () => {
@@ -377,7 +387,7 @@ describe("action_setup_otlp.cjs", () => {
     it("should log that trace-id was written to GITHUB_OUTPUT", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith(`[otlp] trace-id=${VALID_TRACE_ID} written to GITHUB_OUTPUT`);
+      expect(mockCore.info).toHaveBeenCalledWith(`[otlp] trace-id=${VALID_TRACE_ID} written to GITHUB_OUTPUT`);
     });
 
     it("should write parent-span-id to GITHUB_OUTPUT when parent span ID is valid", async () => {
@@ -466,19 +476,19 @@ describe("action_setup_otlp.cjs", () => {
     it("should log the GITHUB_AW_OTEL_TRACE_ID write", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] GITHUB_AW_OTEL_TRACE_ID written to GITHUB_ENV");
+      expect(mockCore.info).toHaveBeenCalledWith("[otlp] GITHUB_AW_OTEL_TRACE_ID written to GITHUB_ENV");
     });
 
     it("should log the GITHUB_AW_OTEL_PARENT_SPAN_ID write", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] GITHUB_AW_OTEL_PARENT_SPAN_ID written to GITHUB_ENV");
+      expect(mockCore.info).toHaveBeenCalledWith("[otlp] GITHUB_AW_OTEL_PARENT_SPAN_ID written to GITHUB_ENV");
     });
 
     it("should log the GITHUB_AW_OTEL_JOB_START_MS write", async () => {
       await run();
 
-      expect(console.log).toHaveBeenCalledWith("[otlp] GITHUB_AW_OTEL_JOB_START_MS written to GITHUB_ENV");
+      expect(mockCore.info).toHaveBeenCalledWith("[otlp] GITHUB_AW_OTEL_JOB_START_MS written to GITHUB_ENV");
     });
   });
 

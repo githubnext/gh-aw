@@ -228,4 +228,38 @@ describe("writeLargeContentToFile", () => {
     expect(result).toHaveProperty("description");
     expect(Object.keys(result)).toHaveLength(2);
   });
+
+  it("should include err.message (not String(err)) in directory creation error", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+    const origMkdirSync = fs.mkdirSync;
+    // @ts-ignore
+    fs.mkdirSync = () => {
+      throw new Error("permission denied");
+    };
+    try {
+      const fn = () => writeLargeContentToFile("{}");
+      expect(fn).toThrow("Failed to create directory");
+      expect(fn).toThrow(": permission denied");
+      expect(fn).not.toThrow(": Error: permission denied");
+    } finally {
+      fs.mkdirSync = origMkdirSync;
+    }
+  });
+
+  it("should include err.message (not String(err)) in file write error", async () => {
+    const { writeLargeContentToFile } = await import("./write_large_content_to_file.cjs");
+    const origWriteFileSync = fs.writeFileSync;
+    // @ts-ignore
+    fs.writeFileSync = () => {
+      throw new Error("disk full");
+    };
+    try {
+      const fn = () => writeLargeContentToFile("{}");
+      expect(fn).toThrow("Failed to write file");
+      expect(fn).toThrow(": disk full");
+      expect(fn).not.toThrow(": Error: disk full");
+    } finally {
+      fs.writeFileSync = origWriteFileSync;
+    }
+  });
 });
