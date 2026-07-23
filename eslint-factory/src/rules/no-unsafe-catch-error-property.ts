@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -6,9 +6,18 @@ const UNSAFE_PROPERTIES = new Set(["message", "stack", "code", "status", "cause"
 
 interface CatchFrame {
   varName: string;
-  hasGuard: boolean;
-  hasNonNullGuard: boolean;
+  safeCalls: TSESTree.CallExpression[];
   unsafeNodes: Array<{ node: TSESTree.MemberExpression; prop: string }>;
+}
+
+function isInstanceofExprCheck(node: TSESTree.Expression, varName: string): boolean {
+  return node.type === AST_NODE_TYPES.BinaryExpression && node.operator === "instanceof" && node.left.type === AST_NODE_TYPES.Identifier && node.left.name === varName;
+}
+
+function isTerminating(stmt: TSESTree.Statement): boolean {
+  if (stmt.type === AST_NODE_TYPES.ReturnStatement || stmt.type === AST_NODE_TYPES.ThrowStatement) return true;
+  if (stmt.type === AST_NODE_TYPES.BlockStatement) return stmt.body.length > 0 && isTerminating(stmt.body[stmt.body.length - 1]);
+  return false;
 }
 
 function isTypeofObjectCheck(node: TSESTree.Expression, varName: string): boolean {
@@ -35,6 +44,135 @@ function isNonNullGuardCheck(node: TSESTree.Expression, varName: string): boolea
   return (isVarRef(node.left) && isNullLiteral(node.right)) || (isVarRef(node.right) && isNullLiteral(node.left));
 }
 
+function getNearestBlockEntry(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Node): { block: TSESTree.BlockStatement; entry: TSESTree.Statement } | null {
+  const ancestors = sourceCode.getAncestors(node);
+  let current: TSESTree.Node = node;
+  for (let index = ancestors.length - 1; index >= 0; index--) {
+    const ancestor = ancestors[index];
+    if (ancestor.type === AST_NODE_TYPES.BlockStatement) {
+      const entry = ancestor.body.find(stmt => stmt === current);
+      if (entry) return { block: ancestor, entry };
+    }
+    current = ancestor;
+  }
+  return null;
+}
+
+function hasPriorNonNullReturnGuard(sourceCode: Readonly<TSESLint.SourceCode>, anchorNode: TSESTree.Node, varName: string): boolean {
+  const location = getNearestBlockEntry(sourceCode, anchorNode);
+  if (!location) return false;
+
+  const entryIndex = location.block.body.indexOf(location.entry);
+  for (let index = 0; index < entryIndex; index++) {
+    const stmt = location.block.body[index];
+    if (
+      stmt.type === AST_NODE_TYPES.IfStatement &&
+      stmt.test.type === AST_NODE_TYPES.UnaryExpression &&
+      stmt.test.operator === "!" &&
+      stmt.test.argument.type === AST_NODE_TYPES.Identifier &&
+      stmt.test.argument.name === varName &&
+      stmt.consequent.type === AST_NODE_TYPES.ReturnStatement
+    ) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+// Recognizes early-exit instanceof narrowing patterns that precede the access in the same block:
+//   if (!(err instanceof Error)) return/throw;   err.stack;
+//   if (err instanceof Error) { } else return/throw;   err.stack;
+function hasPriorEarlyExitInstanceofGuard(sourceCode: Readonly<TSESLint.SourceCode>, anchorNode: TSESTree.Node, varName: string): boolean {
+  const location = getNearestBlockEntry(sourceCode, anchorNode);
+  if (!location) return false;
+
+  const entryIndex = location.block.body.indexOf(location.entry);
+  for (let index = 0; index < entryIndex; index++) {
+    const stmt = location.block.body[index];
+    if (stmt.type !== AST_NODE_TYPES.IfStatement) continue;
+
+    const { test, consequent, alternate } = stmt;
+
+    // if (!(err instanceof Error)) return/throw
+    if (test.type === AST_NODE_TYPES.UnaryExpression && test.operator === "!" && isInstanceofExprCheck(test.argument, varName) && alternate === null && isTerminating(consequent)) {
+      return true;
+    }
+
+    // if (err instanceof Error) { ... } else return/throw
+    if (isInstanceofExprCheck(test, varName) && alternate !== null && isTerminating(alternate)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function isTruthyBranchGuarded(sourceCode: Readonly<TSESLint.SourceCode>, test: TSESTree.Expression, varName: string, guardNode: TSESTree.Node): boolean {
+  const conjuncts: TSESTree.Expression[] = [];
+  const collectConjuncts = (expr: TSESTree.Expression): void => {
+    if (expr.type === AST_NODE_TYPES.LogicalExpression && expr.operator === "&&") {
+      collectConjuncts(expr.left);
+      collectConjuncts(expr.right);
+      return;
+    }
+    conjuncts.push(expr);
+  };
+  collectConjuncts(test);
+
+  const hasInstanceof = conjuncts.some(expr => isInstanceofExprCheck(expr, varName));
+  if (hasInstanceof) return true;
+
+  const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, varName));
+  const hasNonNullGuard = conjuncts.some(expr => isNonNullGuardCheck(expr, varName));
+
+  if (!hasTypeofObject) return false;
+  if (hasNonNullGuard) return true;
+  return hasPriorNonNullReturnGuard(sourceCode, guardNode, varName);
+}
+
+function isGuardedByAncestorBranch(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.MemberExpression, varName: string): boolean {
+  const ancestors = sourceCode.getAncestors(node);
+  let current: TSESTree.Node = node;
+  for (let index = ancestors.length - 1; index >= 0; index--) {
+    const ancestor = ancestors[index];
+
+    if (ancestor.type === AST_NODE_TYPES.IfStatement && ancestor.consequent === current) {
+      if (isTruthyBranchGuarded(sourceCode, ancestor.test, varName, ancestor)) return true;
+    }
+
+    if (ancestor.type === AST_NODE_TYPES.ConditionalExpression && ancestor.consequent === current) {
+      if (isTruthyBranchGuarded(sourceCode, ancestor.test, varName, ancestor)) return true;
+    }
+
+    if (ancestor.type === AST_NODE_TYPES.LogicalExpression && ancestor.operator === "&&" && ancestor.right === current) {
+      if (isTruthyBranchGuarded(sourceCode, ancestor.left, varName, ancestor)) return true;
+    }
+
+    current = ancestor;
+  }
+
+  return false;
+}
+
+function isCallOrderingGuarded(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.MemberExpression, safeCalls: TSESTree.CallExpression[]): boolean {
+  const nodeLocation = getNearestBlockEntry(sourceCode, node);
+  if (!nodeLocation) return false;
+  const nodeEntryIndex = nodeLocation.block.body.indexOf(nodeLocation.entry);
+
+  for (const callNode of safeCalls) {
+    if (callNode.range[1] > node.range[0]) continue;
+    const callLocation = getNearestBlockEntry(sourceCode, callNode);
+    if (!callLocation || callLocation.block !== nodeLocation.block) continue;
+
+    const callEntryIndex = callLocation.block.body.indexOf(callLocation.entry);
+    if (callEntryIndex < nodeEntryIndex) return true;
+    if (callEntryIndex === nodeEntryIndex && callNode.range[1] <= node.range[0]) return true;
+  }
+
+  return false;
+}
+
 export const noUnsafeCatchErrorPropertyRule = createRule({
   name: "no-unsafe-catch-error-property",
   meta: {
@@ -52,6 +190,7 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
     const catchStack: CatchFrame[] = [];
 
     return {
@@ -61,18 +200,22 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
         // Only handle simple identifier bindings; skip bare catch {} and destructuring patterns.
         // Push a sentinel frame so CatchClause:exit always has a matching pop.
         if (!param || param.type !== AST_NODE_TYPES.Identifier) {
-          catchStack.push({ varName: "", hasGuard: true, hasNonNullGuard: true, unsafeNodes: [] });
+          catchStack.push({ varName: "", safeCalls: [], unsafeNodes: [] });
           return;
         }
 
-        catchStack.push({ varName: param.name, hasGuard: false, hasNonNullGuard: false, unsafeNodes: [] });
+        catchStack.push({ varName: param.name, safeCalls: [], unsafeNodes: [] });
       },
 
       "CatchClause:exit"() {
         const frame = catchStack.pop();
-        if (!frame || !frame.varName || frame.hasGuard) return;
+        if (!frame || !frame.varName) return;
 
         for (const { node: memberExpr, prop } of frame.unsafeNodes) {
+          if (isGuardedByAncestorBranch(sourceCode, memberExpr, frame.varName) || isCallOrderingGuarded(sourceCode, memberExpr, frame.safeCalls) || hasPriorEarlyExitInstanceofGuard(sourceCode, memberExpr, frame.varName)) {
+            continue;
+          }
+
           const { varName } = frame;
           const parent = memberExpr.parent;
           const isChained =
@@ -112,68 +255,11 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
       CallExpression(node) {
         if (catchStack.length === 0) return;
         const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
+        if (!top || !top.varName) return;
 
         const firstArg = node.arguments[0];
         if (node.callee.type === AST_NODE_TYPES.Identifier && node.callee.name === "getErrorMessage" && node.arguments.length >= 1 && firstArg.type === AST_NODE_TYPES.Identifier && firstArg.name === top.varName) {
-          top.hasGuard = true;
-        }
-      },
-
-      // Detect catchVar instanceof Error — also accepted as a safe guard
-      // Detect typeof catchVar === 'object' with a non-null companion guard
-      BinaryExpression(node) {
-        if (catchStack.length === 0) return;
-        const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
-
-        if (node.operator === "instanceof" && node.left.type === AST_NODE_TYPES.Identifier && node.left.name === top.varName) {
-          top.hasGuard = true;
-          return;
-        }
-
-        if (isTypeofObjectCheck(node, top.varName) && top.hasNonNullGuard) {
-          top.hasGuard = true;
-        }
-      },
-
-      LogicalExpression(node) {
-        if (catchStack.length === 0) return;
-        const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName || node.operator !== "&&") return;
-
-        const conjuncts: TSESTree.Expression[] = [];
-        const collectConjuncts = (expr: TSESTree.Expression): void => {
-          if (expr.type === AST_NODE_TYPES.LogicalExpression && expr.operator === "&&") {
-            collectConjuncts(expr.left);
-            collectConjuncts(expr.right);
-            return;
-          }
-          conjuncts.push(expr);
-        };
-        collectConjuncts(node);
-
-        const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, top.varName));
-        const hasNonNullGuard = conjuncts.some(expr => isNonNullGuardCheck(expr, top.varName));
-        if (hasTypeofObject && hasNonNullGuard) {
-          top.hasGuard = true;
-          top.hasNonNullGuard = true;
-        }
-      },
-
-      IfStatement(node) {
-        if (catchStack.length === 0) return;
-        const top = catchStack[catchStack.length - 1];
-        if (!top || top.hasGuard || !top.varName) return;
-
-        if (
-          node.test.type === AST_NODE_TYPES.UnaryExpression &&
-          node.test.operator === "!" &&
-          node.test.argument.type === AST_NODE_TYPES.Identifier &&
-          node.test.argument.name === top.varName &&
-          node.consequent.type === AST_NODE_TYPES.ReturnStatement
-        ) {
-          top.hasNonNullGuard = true;
+          top.safeCalls.push(node);
         }
       },
 
