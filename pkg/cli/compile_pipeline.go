@@ -64,6 +64,7 @@ func compileSpecificFiles(
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	var lockFilesForSyft []string     // lock files for syft container image SBOM scanning
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForYamllint []string // lock files for yamllint YAML linter
 
@@ -151,8 +152,8 @@ func compileSpecificFiles(
 					if config.Poutine || config.RunnerGuard {
 						lockFilesForDirTools = append(lockFilesForDirTools, fileResult.lockFile)
 					}
-					if config.Grype {
-						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
+					if config.Syft {
+						lockFilesForSyft = append(lockFilesForSyft, fileResult.lockFile)
 					}
 					if config.Yamllint {
 						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
@@ -210,6 +211,18 @@ func compileSpecificFiles(
 		}
 		workflowDir := filepath.Dir(lockFilesForDirTools[0])
 		if err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run syft SBOM scanner on container images referenced in the compiled lock files.
+	if config.Syft && !config.NoEmit && len(lockFilesForSyft) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunSyftOnLockFiles(lockFilesForSyft, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -335,6 +348,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	var lockFilesForSyft []string     // lock files for syft container image SBOM scanning
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForYamllint []string // lock files for yamllint YAML linter
 
@@ -391,6 +405,9 @@ func compileAllFilesInDirectory(
 					if config.Poutine || config.RunnerGuard {
 						lockFilesForDirTools = append(lockFilesForDirTools, fileResult.lockFile)
 					}
+					if config.Syft {
+						lockFilesForSyft = append(lockFilesForSyft, fileResult.lockFile)
+					}
 					if config.Grype {
 						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
 					}
@@ -446,6 +463,18 @@ func compileAllFilesInDirectory(
 			return workflowDataList, err
 		}
 		if err := runBatchDirectoryTool("runner-guard", workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run syft SBOM scanner on container images referenced in the compiled lock files.
+	if config.Syft && !config.NoEmit && len(lockFilesForSyft) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunSyftOnLockFiles(lockFilesForSyft, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}

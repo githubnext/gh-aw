@@ -1,7 +1,8 @@
 // This file provides external tool runners for workflow compilation.
 //
 // This file contains functions that invoke external analysis tools
-// (actionlint, zizmor, poutine, runner-guard, yamllint) on compiled workflow files.
+// (actionlint, zizmor, poutine, runner-guard, syft, grype, yamllint)
+// on compiled workflow files.
 //
 // # Organization Rationale
 //
@@ -70,6 +71,12 @@ func RunGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 // This is more efficient than running yamllint once per file.
 func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("yamllint", lockFiles, verbose, strict, runYamllintOnFiles)
+}
+
+// RunSyftOnLockFiles runs the syft SBOM scanner on container images extracted
+// from the gh-aw-manifest headers in the provided lock files.
+func RunSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runBatchLockFileTool("syft", lockFiles, verbose, strict, runSyftOnLockFiles)
 }
 
 // runBatchLockFileTool runs a batch tool on lock files with uniform error handling
