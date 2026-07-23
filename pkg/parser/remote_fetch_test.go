@@ -16,7 +16,7 @@ import (
 func TestBuildCommitLookupAPIPath(t *testing.T) {
 	t.Run("escapes refs containing slash", func(t *testing.T) {
 		got := buildCommitLookupAPIPath("owner", "repo", "feature/github-agentic-workflows")
-		want := "/repos/owner/repo/commits/feature%2Fgithub-agentic-workflows"
+		want := "repos/owner/repo/commits/feature%2Fgithub-agentic-workflows"
 		if got != want {
 			t.Fatalf("buildCommitLookupAPIPath() = %q, want %q", got, want)
 		}
@@ -24,7 +24,7 @@ func TestBuildCommitLookupAPIPath(t *testing.T) {
 
 	t.Run("keeps plain refs readable", func(t *testing.T) {
 		got := buildCommitLookupAPIPath("owner", "repo", "main")
-		want := "/repos/owner/repo/commits/main"
+		want := "repos/owner/repo/commits/main"
 		if got != want {
 			t.Fatalf("buildCommitLookupAPIPath() = %q, want %q", got, want)
 		}
@@ -103,8 +103,8 @@ func TestResolveRefToSHAWithFallbacks_UsesRESTClient(t *testing.T) {
 			if method != http.MethodGet {
 				t.Fatalf("DoWithContext() method = %q, want %q", method, http.MethodGet)
 			}
-			if path != "/repos/owner/repo/commits/feature%2Fbranch" {
-				t.Fatalf("DoWithContext() path = %q, want %q", path, "/repos/owner/repo/commits/feature%2Fbranch")
+			if path != "repos/owner/repo/commits/feature%2Fbranch" {
+				t.Fatalf("DoWithContext() path = %q, want %q", path, "repos/owner/repo/commits/feature%2Fbranch")
 			}
 			if body != nil {
 				t.Fatal("DoWithContext() body should be nil for commit lookup")

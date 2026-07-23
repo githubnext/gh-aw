@@ -157,7 +157,7 @@ func isGitHubAPIAuthError(err error) bool {
 // buildCommitLookupAPIPath returns the GitHub commits API path for a ref,
 // URL-escaping the ref segment so branch names containing slashes are valid.
 func buildCommitLookupAPIPath(owner, repo, ref string) string {
-	return fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, url.PathEscape(ref))
+	return fmt.Sprintf("repos/%s/%s/commits/%s", owner, repo, url.PathEscape(ref))
 }
 
 // resolveRefToSHAViaPublicAPI resolves a git ref to its commit SHA using an
