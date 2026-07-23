@@ -64,7 +64,11 @@ features:
    - `haiku-whoami` → `claude-haiku-4.5`
    - `mini-whoami` → `gpt-5-mini`
    - `nano-whoami` → `gpt-5-nano`
-4. {{#if experiments.sub_agent_strategy == 'delegated_sequential' }}Execute and validate each sub-agent one at a time before moving to the next.{{else}}Validate all three results and keep the current inline orchestration behavior.{{/if}}
+{{#if experiments.sub_agent_strategy == 'delegated_sequential' }}
+4. Execute and validate each sub-agent one at a time before moving to the next.
+{{else}}
+4. Validate all three results and keep the current inline orchestration behavior.
+{{/if}}
 5. Do not use any other agent or any unnecessary tool calls.
 {{/if}}
 
