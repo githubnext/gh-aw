@@ -778,7 +778,7 @@ This issue helps you:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("sonnet46 0.125 AIC");
+    expect(commentCall.body).toContain("sonnet46 · 0.125 AIC");
   });
 
   it("should include evals AIC in the footer total when GH_AW_EVALS_AIC is set", async () => {
@@ -802,7 +802,7 @@ This issue helps you:
     await main();
 
     const commentCall = mockGithub.rest.issues.createComment.mock.calls[0][0];
-    expect(commentCall.body).toContain("sonnet46 0.125 AIC");
+    expect(commentCall.body).toContain("sonnet46 · 0.125 AIC");
   });
 
   it("should not include AIC suffix in comment footer when GH_AW_AIC is not set", async () => {
