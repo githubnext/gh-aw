@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -56,7 +57,7 @@ func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 
 	// Create output directory for SBOM files
 	sbomDir := filepath.Join(os.TempDir(), "gh-aw-syft-sboms")
-	if err := os.MkdirAll(sbomDir, 0755); err != nil {
+	if err := os.MkdirAll(sbomDir, constants.DirPermPublic); err != nil {
 		return fmt.Errorf("failed to create SBOM directory: %w", err)
 	}
 
@@ -144,7 +145,7 @@ func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool)
 	sbomPath := filepath.Join(sbomDir, fmt.Sprintf("sbom-%s.json", safeImageName))
 
 	// Persist the SBOM to disk
-	if err := os.WriteFile(sbomPath, stdout.Bytes(), 0644); err != nil {
+	if err := os.WriteFile(sbomPath, stdout.Bytes(), constants.FilePermPublic); err != nil {
 		return nil, fmt.Errorf("failed to write SBOM file for %s: %w", imageRef, err)
 	}
 
