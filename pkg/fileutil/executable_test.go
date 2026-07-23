@@ -43,21 +43,29 @@ func TestValidateExecutablePath(t *testing.T) {
 }
 
 func TestResolveExecutablePath(t *testing.T) {
-	binDir := t.TempDir()
-	exeName := "fake-tool"
-	if runtime.GOOS == "windows" {
-		exeName += ".bat"
-	}
-	exePath := filepath.Join(binDir, exeName)
-	require.NoError(t, os.WriteFile(exePath, []byte("@echo off\r\n"), 0o755))
-
-	originalPath := os.Getenv("PATH")
-	t.Cleanup(func() {
-		require.NoError(t, os.Setenv("PATH", originalPath))
+	t.Run("rejects empty name", func(t *testing.T) {
+		_, err := ResolveExecutablePath("")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "executable name cannot be empty")
 	})
-	require.NoError(t, os.Setenv("PATH", binDir+string(os.PathListSeparator)+originalPath))
 
-	got, err := ResolveExecutablePath(exeName)
-	require.NoError(t, err)
-	assert.Equal(t, exePath, got)
+	t.Run("resolves executable on PATH", func(t *testing.T) {
+		binDir := t.TempDir()
+		exeName := "fake-tool"
+		if runtime.GOOS == "windows" {
+			exeName += ".bat"
+		}
+		exePath := filepath.Join(binDir, exeName)
+		require.NoError(t, os.WriteFile(exePath, []byte("@echo off\r\n"), 0o755))
+
+		originalPath := os.Getenv("PATH")
+		t.Cleanup(func() {
+			require.NoError(t, os.Setenv("PATH", originalPath))
+		})
+		require.NoError(t, os.Setenv("PATH", binDir+string(os.PathListSeparator)+originalPath))
+
+		got, err := ResolveExecutablePath(exeName)
+		require.NoError(t, err)
+		assert.Equal(t, exePath, got)
+	})
 }

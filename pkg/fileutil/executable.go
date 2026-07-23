@@ -20,7 +20,9 @@ func ValidateExecutablePath(path string) (string, error) {
 	resolvedPath, err := filepath.EvalSymlinks(cleanPath)
 	if err == nil {
 		cleanPath = resolvedPath
-	} else if !os.IsNotExist(err) {
+	} else if os.IsNotExist(err) {
+		return "", fmt.Errorf("executable path %q does not exist", path)
+	} else {
 		return "", fmt.Errorf("failed to resolve executable path %q: %w", path, err)
 	}
 
@@ -30,6 +32,9 @@ func ValidateExecutablePath(path string) (string, error) {
 	}
 	if info.IsDir() {
 		return "", fmt.Errorf("executable path %q is a directory", cleanPath)
+	}
+	if !info.Mode().IsRegular() {
+		return "", fmt.Errorf("executable path %q is not a regular file", cleanPath)
 	}
 	if runtime.GOOS != "windows" && info.Mode()&0o111 == 0 {
 		return "", fmt.Errorf("executable path %q is not executable", cleanPath)

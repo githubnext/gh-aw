@@ -37,6 +37,7 @@
 package workflow
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -117,8 +118,7 @@ func (c *Compiler) validatePipPackages(workflowData *WorkflowData) error {
 	if err != nil {
 		// Try pip3 as fallback
 		pipPath, err = fileutil.ResolveExecutablePath("pip3")
-		err3 := err
-		if err3 != nil {
+		if err != nil {
 			pipValidationLog.Print("pip command not found, skipping validation")
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("pip command not found - skipping pip package validation. Install Python/pip for full validation"))
 			return nil
@@ -148,22 +148,26 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 	}
 
 	// Check if uv is available
-	_, err := exec.LookPath("uv")
+	uvPath, err := fileutil.ResolveExecutablePath("uv")
 	if err != nil {
 		pipValidationLog.Print("uv command not found, falling back to pip validation")
 		// uv not available, but we can still validate using pip index
 		pipPath, pipErr := fileutil.ResolveExecutablePath("pip")
 		if pipErr != nil {
 			// Try pip3 as fallback
-			pipPath, pipErr = fileutil.ResolveExecutablePath("pip3")
-			pip3Err := pipErr
+			var pip3Err error
+			pipPath, pip3Err = fileutil.ResolveExecutablePath("pip3")
 			if pip3Err != nil {
 				pipValidationLog.Print("Neither uv nor pip commands found, cannot validate")
+				combinedErr := errors.Join(
+					fmt.Errorf("pip: %w", pipErr),
+					fmt.Errorf("pip3: %w", pip3Err),
+				)
 				return NewOperationError(
 					"validate",
 					"uv packages",
 					"",
-					pip3Err,
+					combinedErr,
 					"Install uv or pip to enable package validation:\n\nInstall uv (recommended):\n$ curl -LsSf https://astral.sh/uv/install.sh | sh\n\nOr install pip:\n$ python -m ensurepip --upgrade\n\nAlternatively, disable validation by setting GH_AW_SKIP_UV_VALIDATION=true",
 				)
 			}
@@ -185,7 +189,7 @@ func (c *Compiler) validateUvPackages(workflowData *WorkflowData) error {
 		}
 
 		// Use uv pip show to check if package exists on PyPI
-		cmd := exec.Command("uv", "pip", "show", pkgName, "--no-cache")
+		cmd := exec.Command(uvPath, "pip", "show", pkgName, "--no-cache")
 		_, err := cmd.CombinedOutput()
 
 		if err != nil {

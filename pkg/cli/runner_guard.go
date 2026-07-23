@@ -64,9 +64,13 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 			return fmt.Errorf("workflow directory %q must stay within git root %q: %w", workflowDir, gitRoot, err)
 		}
 		relDir, relErr := filepath.Rel(gitRoot, absWorkflowDir)
-		if relErr == nil && filepath.IsLocal(relDir) {
-			scanPath = filepath.Clean(relDir)
+		if relErr != nil {
+			return fmt.Errorf("failed to compute relative path for workflow directory %q: %w", workflowDir, relErr)
 		}
+		if !filepath.IsLocal(relDir) {
+			return fmt.Errorf("workflow directory %q resolved to non-local relative path %q", workflowDir, relDir)
+		}
+		scanPath = filepath.Clean(relDir)
 	}
 
 	// Prefix with "./" and convert host separators to forward slashes for the Linux container.

@@ -483,9 +483,10 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	// Validate the executable path before re-launching it (defense-in-depth).
 	// exe is always derived from os.Executable() or the pre-rename installPath which is
 	// itself obtained from os.Executable() + filepath.EvalSymlinks (all trusted OS calls).
+	originalExe := exe
 	exe, err := fileutil.ValidateExecutablePath(exe)
 	if err != nil {
-		return fmt.Errorf("invalid executable path %q: %w", exe, err)
+		return fmt.Errorf("invalid executable path %q: %w", originalExe, err)
 	}
 
 	// #nosec G204 -- exe is validated as an absolute path above and originates from
