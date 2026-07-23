@@ -29,12 +29,9 @@ engine:
   bare: true
 imports:
   - shared/github-guard-policy.md
-  - shared/gh.md
-  - shared/reporting.md
+  - shared/smoke-engine-base.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults

@@ -37,10 +37,7 @@ engine:
   id: gemini
 strict: true
 imports:
-  - shared/gh.md
-  - shared/reporting-otlp.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
+  - shared/smoke-engine-base.md
 network:
   allowed:
     - defaults

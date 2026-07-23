@@ -27,12 +27,9 @@ permissions:
 name: Smoke Codex
 engine: codex
 imports:
-  - shared/gh.md
-  - shared/reporting-otlp.md
+  - shared/smoke-engine-base.md
   - shared/mcp/serena-go.md
   - shared/trufflehog.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults

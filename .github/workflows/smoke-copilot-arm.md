@@ -23,12 +23,9 @@ name: Smoke Copilot ARM64
 engine: copilot
 runs-on: ubuntu-24.04-arm
 imports:
-  - shared/gh.md
-  - shared/reporting-otlp.md
+  - shared/smoke-engine-base.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults

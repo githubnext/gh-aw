@@ -30,12 +30,10 @@ engine:
   bare: true
 inlined-imports: true
 imports:
-  - shared/gh.md
+  - shared/smoke-engine-base.md
   - shared/mcp/tavily.md
   - shared/go-make.md
   - shared/github-mcp-app.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults

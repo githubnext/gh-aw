@@ -41,12 +41,9 @@ engine:
     azure-client-id: adb907fd-188c-4029-b67f-2559d96b2f1b
 imports:
   - shared/github-guard-policy.md
-  - shared/gh.md
-  - shared/reporting.md
+  - shared/smoke-engine-base.md
   - shared/github-queries-mcp-script.md
   - shared/mcp/serena-go.md
-  - shared/otlp.md
-  - shared/token-telemetry-check.md
 network:
   allowed:
     - defaults
