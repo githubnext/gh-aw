@@ -1417,7 +1417,6 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config

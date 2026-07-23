@@ -1667,7 +1667,6 @@ jobs:
     permissions:
       contents: read
       packages: read
-
     timeout-minutes: 120
     env:
       GRANT_SHA256_AMD64: 6500f8bbf0f20fb993de8084686e199f0ba1eb494769ff75454286d5ef63f919

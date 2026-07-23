@@ -1138,7 +1138,6 @@ jobs:
     permissions:
       actions: read
       contents: read
-
     outputs:
       ci_needs_fix: ${{ steps.ci_check.outputs.ci_needs_fix }}
       ci_run_id: ${{ steps.ci_check.outputs.ci_run_id }}

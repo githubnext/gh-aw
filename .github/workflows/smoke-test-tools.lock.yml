@@ -1101,7 +1101,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config

@@ -1487,7 +1487,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
@@ -2382,7 +2381,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     outputs:
       secrets_found: ${{ steps.evaluate.outputs.secrets_found }}
       secrets_locations: ${{ steps.evaluate.outputs.secrets_locations }}

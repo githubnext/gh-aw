@@ -1666,7 +1666,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       issues: write
-
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config

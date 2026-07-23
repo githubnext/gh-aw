@@ -2171,7 +2171,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     outputs:
       dictionary_path: ${{ steps.run_spellcheck.outputs.dictionary_path }}
       files_checked: ${{ steps.run_spellcheck.outputs.files_checked }}

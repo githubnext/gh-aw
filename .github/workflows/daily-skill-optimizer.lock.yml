@@ -1680,7 +1680,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     outputs:
       run_mode: ${{ steps.run_skill_optimizer.outputs.run_mode }}
       run_status: ${{ steps.run_skill_optimizer.outputs.run_status }}

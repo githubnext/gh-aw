@@ -1073,7 +1073,6 @@ jobs:
     permissions:
       issues: write
       pull-requests: write
-
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
@@ -1924,7 +1923,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-
     steps:
       - name: Configure GH_HOST for enterprise compatibility
         id: ghes-host-config
@@ -2012,7 +2010,6 @@ jobs:
       contents: write
       id-token: write
       packages: write
-
     outputs:
       release_id: ${{ steps.get_release.outputs.release_id }}
     steps:

@@ -2031,7 +2031,6 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-
     outputs:
       artifact_name: ${{ steps.artifact_name.outputs.value }}
     steps:
