@@ -90,6 +90,9 @@ func bootstrapProfileAddWizardPostInstall(profile *resolvedBootstrapProfile) *re
 	})
 }
 
+// filterBootstrapProfileActions returns a shallow clone of profile containing only
+// actions for which keep returns true. It returns nil when the input profile is
+// nil, has no bootstrap payload, or no actions survive filtering.
 func filterBootstrapProfileActions(profile *resolvedBootstrapProfile, keep func(repositoryPackageBootstrapAction) bool) *resolvedBootstrapProfile {
 	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
 		return nil
@@ -105,11 +108,13 @@ func filterBootstrapProfileActions(profile *resolvedBootstrapProfile, keep func(
 		return nil
 	}
 
-	filteredProfile := *profile
-	filteredBootstrap := *profile.Profile
-	filteredBootstrap.Config = filtered
-	filteredProfile.Profile = &filteredBootstrap
-	return &filteredProfile
+	return &resolvedBootstrapProfile{
+		PackageID: profile.PackageID,
+		Source:    profile.Source,
+		Profile: &repositoryPackageBootstrap{
+			Config: filtered,
+		},
+	}
 }
 
 // executeBootstrapConfigForAdd runs the bootstrap config actions interactively.

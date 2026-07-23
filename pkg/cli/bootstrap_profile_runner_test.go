@@ -5,6 +5,8 @@ package cli
 import (
 	"context"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestBootstrapActionNeedsMutation(t *testing.T) {
@@ -71,6 +73,10 @@ func TestBootstrapProfileState(t *testing.T) {
 }
 
 func TestBootstrapProfileAddWizardPhases(t *testing.T) {
+	expectedPreInstallActionTypes := []string{"require-owner-type", "github-app", "repo-variable", "repo-secret"}
+	expectedPostInstallActionTypes := []string{"copilot-auth", "commit-and-push", "handoff"}
+	expectedTotalActions := len(expectedPreInstallActionTypes) + len(expectedPostInstallActionTypes) + 1 // unsupported
+
 	profile := &resolvedBootstrapProfile{
 		PackageID: "owner/repo",
 		Profile: &repositoryPackageBootstrap{
@@ -82,6 +88,7 @@ func TestBootstrapProfileAddWizardPhases(t *testing.T) {
 				{Type: "copilot-auth"},
 				{Type: "commit-and-push"},
 				{Type: "handoff"},
+				{Type: "unsupported"},
 			},
 		},
 	}
@@ -90,25 +97,41 @@ func TestBootstrapProfileAddWizardPhases(t *testing.T) {
 	if preInstall == nil || preInstall.Profile == nil {
 		t.Fatal("expected pre-install bootstrap profile")
 	}
-	if got := len(preInstall.Profile.Config); got != 4 {
-		t.Fatalf("pre-install profile should contain 4 actions, got %d", got)
-	}
-	if preInstall.Profile.Config[0].Type != "require-owner-type" || preInstall.Profile.Config[3].Type != "repo-secret" {
-		t.Fatalf("unexpected pre-install action ordering: %+v", preInstall.Profile.Config)
-	}
+	assert.Equal(t, expectedPreInstallActionTypes, bootstrapActionTypes(preInstall.Profile.Config))
 
 	postInstall := bootstrapProfileAddWizardPostInstall(profile)
 	if postInstall == nil || postInstall.Profile == nil {
 		t.Fatal("expected post-install bootstrap profile")
 	}
-	if got := len(postInstall.Profile.Config); got != 3 {
-		t.Fatalf("post-install profile should contain 3 actions, got %d", got)
-	}
-	if postInstall.Profile.Config[0].Type != "copilot-auth" || postInstall.Profile.Config[2].Type != "handoff" {
-		t.Fatalf("unexpected post-install action ordering: %+v", postInstall.Profile.Config)
-	}
+	assert.Equal(t, expectedPostInstallActionTypes, bootstrapActionTypes(postInstall.Profile.Config))
 
-	if got := len(profile.Profile.Config); got != 7 {
+	if got := len(profile.Profile.Config); got != expectedTotalActions {
 		t.Fatalf("original profile should remain unchanged, got %d actions", got)
 	}
+
+	unsupportedOnlyProfile := &resolvedBootstrapProfile{
+		PackageID: "owner/repo",
+		Profile: &repositoryPackageBootstrap{
+			Config: []repositoryPackageBootstrapAction{{Type: "unsupported"}},
+		},
+	}
+	for _, tt := range []struct {
+		name   string
+		filter func(*resolvedBootstrapProfile) *resolvedBootstrapProfile
+	}{
+		{name: "pre-install", filter: bootstrapProfileAddWizardPreInstall},
+		{name: "post-install", filter: bootstrapProfileAddWizardPostInstall},
+	} {
+		if tt.filter(unsupportedOnlyProfile) != nil {
+			t.Fatalf("unsupported actions should be excluded from the %s phase", tt.name)
+		}
+	}
+}
+
+func bootstrapActionTypes(actions []repositoryPackageBootstrapAction) []string {
+	types := make([]string, 0, len(actions))
+	for _, action := range actions {
+		types = append(types, action.Type)
+	}
+	return types
 }

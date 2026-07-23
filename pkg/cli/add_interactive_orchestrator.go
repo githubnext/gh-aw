@@ -130,14 +130,16 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 		return err
 	}
 
-	bootstrapProfile := (*resolvedBootstrapProfile)(nil)
+	var bootstrapProfile *resolvedBootstrapProfile
 	if config.resolvedWorkflows != nil {
 		bootstrapProfile = config.resolvedWorkflows.BootstrapProfile
 	}
+	remainingBootstrapProfile := bootstrapProfile
 	if config.hasWriteAccess {
 		if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, bootstrapProfileAddWizardPreInstall(bootstrapProfile), false, config.Verbose); err != nil {
 			return err
 		}
+		remainingBootstrapProfile = bootstrapProfileAddWizardPostInstall(bootstrapProfile)
 	}
 
 	// Step 6: Select coding agent and collect API key
@@ -180,13 +182,13 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	}
 
 	// Step 9b: Apply bootstrap config steps interactively (if the package declares any)
-	if bootstrapProfile != nil {
+	if remainingBootstrapProfile != nil {
 		if config.hasWriteAccess {
-			if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, bootstrapProfileAddWizardPostInstall(bootstrapProfile), config.UseCopilotRequests, config.Verbose); err != nil {
+			if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, remainingBootstrapProfile, config.UseCopilotRequests, config.Verbose); err != nil {
 				return err
 			}
 		} else {
-			printBootstrapConfigTODO(os.Stderr, bootstrapProfile)
+			printBootstrapConfigTODO(os.Stderr, remainingBootstrapProfile)
 		}
 	}
 
