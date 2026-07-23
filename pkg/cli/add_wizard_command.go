@@ -74,6 +74,8 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 			skipSecret := noSecret || skipSecretLegacy
 			appendText, _ := cmd.Flags().GetString("append")
 			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
+			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
+			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
 
 			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
 
@@ -127,8 +129,11 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
 	// Add append flag (matches --append in add command)
 	cmd.Flags().String("append", "", "Append extra content to the end of the agentic workflow on installation")
 
-	// Add no-security-scanner flag (matches --no-security-scanner in add command)
+	// Add no-security-scanner flag (--disable-security-scanner is kept as a deprecated alias
+	// for consistency with add and other install entry points)
 	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
+	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
 
 	// Register completions
 	RegisterEngineFlagCompletion(cmd)

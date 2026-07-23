@@ -39,6 +39,15 @@ func TestAddWizardCommand_FlagUsageMatchesAddCommand(t *testing.T) {
 	}
 }
 
+func TestAddWizardCommand_DeprecatesDisableSecurityScannerFlag(t *testing.T) {
+	cmd := NewAddWizardCommand(validateEngineStub)
+	require.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("disable-security-scanner")
+	require.NotNil(t, flag, "add-wizard command should keep --disable-security-scanner as a deprecated alias")
+	assert.Equal(t, "use --no-security-scanner instead", flag.Deprecated)
+}
+
 func TestAddWizardCommand_ExamplesMentionNewFlags(t *testing.T) {
 	cmd := NewAddWizardCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)
