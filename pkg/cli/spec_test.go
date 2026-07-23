@@ -512,7 +512,6 @@ func TestSpec_PublicAPI_CalculateWorkflowHealth(t *testing.T) {
 
 // TestSpec_PublicAPI_IsDockerAvailable validates that IsDockerAvailable returns a bool without panicking.
 // Spec: "Returns true if the Docker daemon is reachable"
-// SPEC_MISMATCH: README shows func() bool but implementation signature is func(context.Context) bool.
 func TestSpec_PublicAPI_IsDockerAvailable(t *testing.T) {
 	result := cli.IsDockerAvailable(context.Background())
 	_ = result // environment-dependent; spec contract: returns bool without panic
@@ -521,7 +520,6 @@ func TestSpec_PublicAPI_IsDockerAvailable(t *testing.T) {
 // TestSpec_PublicAPI_IsDockerImageAvailable validates that IsDockerImageAvailable returns false
 // for an image that cannot be present locally.
 // Spec: "Returns true if a Docker image is present locally"
-// SPEC_MISMATCH: README shows func(string) bool but implementation signature is func(context.Context, string) bool.
 func TestSpec_PublicAPI_IsDockerImageAvailable(t *testing.T) {
 	result := cli.IsDockerImageAvailable(context.Background(), "this-image-does-not-exist-xyzzy:never")
 	assert.False(t, result, "non-existent image should not be available locally")

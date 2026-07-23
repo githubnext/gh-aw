@@ -138,3 +138,9 @@ func TestUpgradeCommandRepoDispatchWithPR(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, capturedCreatePR, "--repo --create-pull-request must request PR creation")
 }
+
+func TestRelaunchWithSameArgsRejectsRelativeExecutableOverride(t *testing.T) {
+	err := relaunchWithSameArgs("--post-upgrade", "relative/gh-aw")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid executable path")
+}
