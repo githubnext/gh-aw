@@ -10,6 +10,16 @@ interface CatchFrame {
   unsafeNodes: Array<{ node: TSESTree.MemberExpression; prop: string }>;
 }
 
+function isInstanceofExprCheck(node: TSESTree.Expression, varName: string): boolean {
+  return node.type === AST_NODE_TYPES.BinaryExpression && node.operator === "instanceof" && node.left.type === AST_NODE_TYPES.Identifier && node.left.name === varName;
+}
+
+function isTerminating(stmt: TSESTree.Statement): boolean {
+  if (stmt.type === AST_NODE_TYPES.ReturnStatement || stmt.type === AST_NODE_TYPES.ThrowStatement) return true;
+  if (stmt.type === AST_NODE_TYPES.BlockStatement) return stmt.body.length > 0 && isTerminating(stmt.body[stmt.body.length - 1]);
+  return false;
+}
+
 function isTypeofObjectCheck(node: TSESTree.Expression, varName: string): boolean {
   if (node.type !== AST_NODE_TYPES.BinaryExpression || node.operator !== "===") return false;
   const { left, right } = node;
@@ -70,6 +80,34 @@ function hasPriorNonNullReturnGuard(sourceCode: Readonly<TSESLint.SourceCode>, a
   return false;
 }
 
+// Recognizes early-exit instanceof narrowing patterns that precede the access in the same block:
+//   if (!(err instanceof Error)) return/throw;   err.stack;
+//   if (err instanceof Error) { } else return/throw;   err.stack;
+function hasPriorEarlyExitInstanceofGuard(sourceCode: Readonly<TSESLint.SourceCode>, anchorNode: TSESTree.Node, varName: string): boolean {
+  const location = getNearestBlockEntry(sourceCode, anchorNode);
+  if (!location) return false;
+
+  const entryIndex = location.block.body.indexOf(location.entry);
+  for (let index = 0; index < entryIndex; index++) {
+    const stmt = location.block.body[index];
+    if (stmt.type !== AST_NODE_TYPES.IfStatement) continue;
+
+    const { test, consequent, alternate } = stmt;
+
+    // if (!(err instanceof Error)) return/throw
+    if (test.type === AST_NODE_TYPES.UnaryExpression && test.operator === "!" && isInstanceofExprCheck(test.argument, varName) && alternate === null && isTerminating(consequent)) {
+      return true;
+    }
+
+    // if (err instanceof Error) { ... } else return/throw
+    if (isInstanceofExprCheck(test, varName) && alternate !== null && isTerminating(alternate)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function isTruthyBranchGuarded(sourceCode: Readonly<TSESLint.SourceCode>, test: TSESTree.Expression, varName: string, guardNode: TSESTree.Node): boolean {
   const conjuncts: TSESTree.Expression[] = [];
   const collectConjuncts = (expr: TSESTree.Expression): void => {
@@ -82,7 +120,7 @@ function isTruthyBranchGuarded(sourceCode: Readonly<TSESLint.SourceCode>, test: 
   };
   collectConjuncts(test);
 
-  const hasInstanceof = conjuncts.some(expr => expr.type === AST_NODE_TYPES.BinaryExpression && expr.operator === "instanceof" && expr.left.type === AST_NODE_TYPES.Identifier && expr.left.name === varName);
+  const hasInstanceof = conjuncts.some(expr => isInstanceofExprCheck(expr, varName));
   if (hasInstanceof) return true;
 
   const hasTypeofObject = conjuncts.some(expr => isTypeofObjectCheck(expr, varName));
@@ -174,7 +212,7 @@ export const noUnsafeCatchErrorPropertyRule = createRule({
         if (!frame || !frame.varName) return;
 
         for (const { node: memberExpr, prop } of frame.unsafeNodes) {
-          if (isGuardedByAncestorBranch(sourceCode, memberExpr, frame.varName) || isCallOrderingGuarded(sourceCode, memberExpr, frame.safeCalls)) {
+          if (isGuardedByAncestorBranch(sourceCode, memberExpr, frame.varName) || isCallOrderingGuarded(sourceCode, memberExpr, frame.safeCalls) || hasPriorEarlyExitInstanceofGuard(sourceCode, memberExpr, frame.varName)) {
             continue;
           }
 
