@@ -378,6 +378,7 @@ func TestAddCustomStepsWithRuntimeInsertion(t *testing.T) {
 		customSteps       string
 		runtimeSetupSteps []GitHubActionStep
 		tools             *ToolsConfig
+		ensureArcNodePath bool
 		expectInOutput    []string
 		expectStepOrder   []string
 		notInOutput       []string
@@ -462,16 +463,19 @@ func TestAddCustomStepsWithRuntimeInsertion(t *testing.T) {
 				{"      - name: Setup Node.js", "        uses: actions/setup-node@v4"},
 				{"      - name: Setup Python", "        uses: actions/setup-python@v5"},
 			},
-			tools: &ToolsConfig{},
+			tools:             &ToolsConfig{},
+			ensureArcNodePath: true,
 			expectInOutput: []string{
 				"- name: Checkout",
 				"- name: Setup Node.js",
+				"- name: Ensure Node.js is at daemon-visible path",
 				"- name: Setup Python",
 				"- name: Deploy",
 			},
 			expectStepOrder: []string{
 				"Checkout",
 				"Setup Node.js",
+				"Ensure Node.js is at daemon-visible path",
 				"Setup Python",
 				"Deploy",
 			},
@@ -499,7 +503,7 @@ func TestAddCustomStepsWithRuntimeInsertion(t *testing.T) {
 			compiler := NewCompiler()
 			var yaml strings.Builder
 
-			compiler.addCustomStepsWithRuntimeInsertion(&yaml, tt.customSteps, tt.runtimeSetupSteps, tt.tools)
+			compiler.addCustomStepsWithRuntimeInsertion(&yaml, tt.customSteps, tt.runtimeSetupSteps, tt.tools, tt.ensureArcNodePath)
 			result := yaml.String()
 
 			for _, expected := range tt.expectInOutput {
@@ -756,17 +760,19 @@ func TestGenerateMainJobStepsArcDindRedirectsToolCacheToRunnerTemp(t *testing.T)
 	assert.NotContains(t, result, "/tmp/gh-aw/tool-cache")
 }
 
-func TestGenerateMainJobStepsArcDindSkipsNodePathStepWhenRuntimeStepsDeferred(t *testing.T) {
-	// When custom steps contain a checkout action, needsCheckout is false and
-	// customStepsContainCheckout is true, so runtime steps (including setup-node) are
-	// deferred to after the custom checkout. In that case the Node relocation step must
-	// NOT be emitted here because setup-node hasn't run yet and `command -v node` may be
-	// empty or point to the wrong binary.
+func TestGenerateMainJobStepsArcDindInsertsNodePathStepWhenRuntimeStepsDeferred(t *testing.T) {
+	// When runtime setup is deferred to after a custom checkout, ARC/DinD should still
+	// emit the Node relocation step immediately after Setup Node.js.
 	compiler := NewCompiler()
 	compiler.stepOrderTracker = NewStepOrderTracker()
 
-	customStepsWithCheckout := `      - name: Custom checkout
-        uses: actions/checkout@v4
+	customStepsWithCheckout := `steps:
+  - name: Custom checkout
+    uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
+  - name: Prepare context
+    run: echo ready
 `
 
 	data := &WorkflowData{
@@ -781,6 +787,9 @@ func TestGenerateMainJobStepsArcDindSkipsNodePathStepWhenRuntimeStepsDeferred(t 
 		},
 		CustomSteps: customStepsWithCheckout,
 		ParsedTools: NewTools(nil),
+		Runtimes: map[string]any{
+			"node": map[string]any{},
+		},
 	}
 
 	var yaml strings.Builder
@@ -790,8 +799,176 @@ func TestGenerateMainJobStepsArcDindSkipsNodePathStepWhenRuntimeStepsDeferred(t 
 	result := yaml.String()
 	// Tool cache redirect is always emitted on ARC/DinD regardless of checkout placement.
 	assert.Contains(t, result, "- name: Redirect tool cache and install paths for ARC/DinD")
-	// Node relocation step must be suppressed when runtime steps are deferred.
+	assert.Contains(t, result, "- name: Setup Node.js")
+	assert.Contains(t, result, "- name: Ensure Node.js is at daemon-visible path")
+
+	customCheckoutIndex := strings.Index(result, "- name: Custom checkout")
+	setupNodeIndex := strings.Index(result, "- name: Setup Node.js")
+	nodePathIndex := strings.Index(result, "- name: Ensure Node.js is at daemon-visible path")
+	prepareContextIndex := strings.Index(result, "- name: Prepare context")
+	assert.NotEqual(t, -1, customCheckoutIndex)
+	assert.NotEqual(t, -1, setupNodeIndex)
+	assert.NotEqual(t, -1, nodePathIndex)
+	assert.NotEqual(t, -1, prepareContextIndex)
+	assert.Greater(t, setupNodeIndex, customCheckoutIndex)
+	assert.Greater(t, nodePathIndex, setupNodeIndex)
+	assert.Greater(t, prepareContextIndex, nodePathIndex)
+	assert.Equal(t, 1, strings.Count(result, "- name: Ensure Node.js is at daemon-visible path"))
+}
+
+func TestGenerateMainJobStepsArcDindSkipsNodePathStepWithoutGeneratedNodeSetup(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	customStepsWithCheckoutAndOwnedSetupNode := `steps:
+  - name: Custom checkout
+    uses: actions/checkout@v4
+  - name: Setup Node
+    uses: actions/setup-node@v6
+    with:
+      node-version: "20"
+  - name: Prepare context
+    run: echo ready
+`
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Run npm --version",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		RunnerConfig: &RunnerConfig{
+			Topology: RunnerTopologyArcDind,
+		},
+		CustomSteps: customStepsWithCheckoutAndOwnedSetupNode,
+		ParsedTools: NewTools(nil),
+		Runtimes: map[string]any{
+			"node": map[string]any{},
+		},
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err)
+
+	result := yaml.String()
+	// User-owned setup-node remains in custom steps; no generated Setup Node.js means no ARC relocation step.
+	assert.NotContains(t, result, "- name: Setup Node.js")
 	assert.NotContains(t, result, "- name: Ensure Node.js is at daemon-visible path")
+}
+
+func TestGenerateMainJobStepsNonArcDeferredNodeSetupDoesNotInsertNodePathStep(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	customStepsWithCheckout := `steps:
+  - name: Custom checkout
+    uses: actions/checkout@v4
+  - name: Prepare context
+    run: echo ready
+`
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Run npm --version",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		CustomSteps: customStepsWithCheckout,
+		ParsedTools: NewTools(nil),
+		Runtimes: map[string]any{
+			"node": map[string]any{},
+		},
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err)
+
+	result := yaml.String()
+	assert.Contains(t, result, "- name: Setup Node.js")
+	assert.NotContains(t, result, "- name: Ensure Node.js is at daemon-visible path")
+}
+
+func TestGenerateMainJobStepsArcDindManagedCheckoutKeepsNodePathStep(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Run npm --version",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		RunnerConfig: &RunnerConfig{
+			Topology: RunnerTopologyArcDind,
+		},
+		ParsedTools: NewTools(nil),
+		Runtimes: map[string]any{
+			"node": map[string]any{},
+		},
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err)
+
+	result := yaml.String()
+	redirectIndex := strings.Index(result, "- name: Redirect tool cache and install paths for ARC/DinD")
+	setupNodeIndex := strings.Index(result, "- name: Setup Node.js")
+	nodePathIndex := strings.Index(result, "- name: Ensure Node.js is at daemon-visible path")
+	assert.NotEqual(t, -1, redirectIndex)
+	assert.NotEqual(t, -1, setupNodeIndex)
+	assert.NotEqual(t, -1, nodePathIndex)
+	assert.Greater(t, setupNodeIndex, redirectIndex)
+	assert.Greater(t, nodePathIndex, setupNodeIndex)
+}
+
+func TestGenerateMainJobStepsArcDindDeferredMultipleRuntimesInsertSingleNodePathStep(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	customStepsWithCheckout := `steps:
+  - name: Custom checkout
+    uses: actions/checkout@v4
+  - name: Prepare context
+    run: npm --version && python --version
+`
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Test prompt",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		RunnerConfig: &RunnerConfig{
+			Topology: RunnerTopologyArcDind,
+		},
+		CustomSteps: customStepsWithCheckout,
+		ParsedTools: NewTools(nil),
+		Runtimes: map[string]any{
+			"node":   map[string]any{},
+			"python": map[string]any{},
+		},
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err)
+
+	result := yaml.String()
+	setupNodeIndex := strings.Index(result, "- name: Setup Node.js")
+	nodePathIndex := strings.Index(result, "- name: Ensure Node.js is at daemon-visible path")
+	setupPythonIndex := strings.Index(result, "- name: Setup Python")
+	assert.NotEqual(t, -1, setupNodeIndex)
+	assert.NotEqual(t, -1, nodePathIndex)
+	assert.NotEqual(t, -1, setupPythonIndex)
+	assert.Greater(t, nodePathIndex, setupNodeIndex)
+	assert.Equal(t, 1, strings.Count(result, "- name: Ensure Node.js is at daemon-visible path"))
 }
 
 func TestGenerateMainJobStepsWithDevMode_GhAwRuntimeBuildsFromSource(t *testing.T) {

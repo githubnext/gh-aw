@@ -120,24 +120,7 @@ func (c *Compiler) emitRuntimeSetupPrelude(yaml *strings.Builder, data *Workflow
 		// Case 1 or 3: Add runtime steps before custom steps
 		// This ensures checkout -> runtime -> custom steps order
 		compilerYamlLog.Printf("Adding %d runtime steps before custom steps (needsCheckout=%t, !customStepsContainCheckout=%t)", len(runtimeSetupSteps), needsCheckout, !customStepsContainCheckout)
-		for _, step := range runtimeSetupSteps {
-			for _, line := range step {
-				yaml.WriteString(line)
-				yaml.WriteByte('\n')
-			}
-		}
-	}
-
-	// ARC/DinD: ensure Node.js is at a daemon-visible path.
-	// On ARC runners, setup-node may find a pre-cached node at the original tool cache
-	// (e.g. /home/runner/_work/_tool/node/...) which is NOT under RUNNER_TEMP and therefore
-	// not bind-mounted into the AWF container. This step copies node to the redirected
-	// tool cache if needed and sets GH_AW_NODE_BIN for the AWF entrypoint.
-	// Only emit when runtime steps (including setup-node) were already emitted above;
-	// when they are deferred to after a custom checkout, this step would run before
-	// setup-node and could relocate an absent or wrong node binary.
-	if isArcDindTopology(data) && runtimeStepsEmittedEarly {
-		c.generateArcDindNodePathStep(yaml)
+		c.emitRuntimeSetupSteps(yaml, runtimeSetupSteps, isArcDindTopology(data))
 	}
 }
 
@@ -165,6 +148,20 @@ func (c *Compiler) generateArcDindNodePathStep(yaml *strings.Builder) {
 	yaml.WriteString("          fi\n")
 }
 
+func (c *Compiler) emitRuntimeSetupSteps(yaml *strings.Builder, runtimeSetupSteps []GitHubActionStep, ensureArcDindNodePath bool) {
+	nodePathStepEmitted := false
+	for _, step := range runtimeSetupSteps {
+		for _, line := range step {
+			yaml.WriteString(line)
+			yaml.WriteByte('\n')
+		}
+		if ensureArcDindNodePath && !nodePathStepEmitted && extractStepName(strings.Join(step, "\n")) == "Setup Node.js" {
+			c.generateArcDindNodePathStep(yaml)
+			nodePathStepEmitted = true
+		}
+	}
+}
+
 func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
 	// Add custom steps if present
 	if data.CustomSteps == "" {
@@ -182,7 +179,7 @@ func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, cu
 		// Custom steps contain checkout and we have runtime steps to insert
 		// Insert runtime steps after the first checkout step
 		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
-		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, data.ParsedTools)
+		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, data.ParsedTools, isArcDindTopology(data))
 	} else {
 		// No checkout in custom steps or no runtime steps, just add custom steps as-is
 		compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
@@ -322,7 +319,7 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 
 // addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout.
 // Like addCustomStepsAsIs it sanitizes any ${{ ... }} expressions found in run: fields before writing.
-func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig) {
+func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig, ensureArcDindNodePath bool) {
 	customSteps = c.sanitizeAndWarnCustomSteps(customSteps)
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
@@ -393,11 +390,7 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 
 				// Now insert runtime steps after the checkout step
 				compilerYamlLog.Printf("Inserting %d runtime setup steps after checkout in custom steps", len(runtimeSetupSteps))
-				for _, step := range runtimeSetupSteps {
-					for _, stepLine := range step {
-						yaml.WriteString(stepLine + "\n")
-					}
-				}
+				c.emitRuntimeSetupSteps(yaml, runtimeSetupSteps, ensureArcDindNodePath)
 
 				insertedRuntime = true
 				continue // Continue with the next iteration (i is already advanced)
