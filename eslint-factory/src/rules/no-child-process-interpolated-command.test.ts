@@ -42,6 +42,18 @@ describe("no-child-process-interpolated-command", () => {
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
         },
         {
+          code: `const { spawn } = require("child_process"); const opts = { shell: true }; spawn(\`git checkout \${branch}\`, opts);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
+        },
+        {
+          code: `const { spawn } = require("child_process"); spawn(\`git checkout \${branch}\`, { shell: "/bin/bash" });`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
+        },
+        {
+          code: `const { spawn } = require("child_process"); const opts = [{ shell: true }]; spawn("git checkout " + branch, ...opts);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "spawn" } }],
+        },
+        {
           code: `const { spawnSync } = require("child_process"); spawnSync("git checkout " + branch, ["--"], { shell: true });`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "spawnSync" } }],
         },
@@ -52,6 +64,14 @@ describe("no-child-process-interpolated-command", () => {
         {
           code: `const { execFile } = require("child_process"); execFile("git " + branch, { shell: true });`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "execFile" } }],
+        },
+        {
+          code: `import { execSync, "exec" as run } from "child_process"; execSync(\`git checkout \${branch}\`); run("git checkout " + branch);`,
+          languageOptions: { sourceType: "module" },
+          errors: [
+            { messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } },
+            { messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } },
+          ],
         },
       ],
     });

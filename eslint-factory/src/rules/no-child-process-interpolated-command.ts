@@ -26,28 +26,57 @@ function getDynamicCommandKind(node: TSESTree.Expression): string | null {
   return null;
 }
 
-function isShellTrueOption(optionsArg: TSESTree.CallExpressionArgument | undefined): boolean {
-  if (!optionsArg || optionsArg.type === AST_NODE_TYPES.SpreadElement || optionsArg.type !== AST_NODE_TYPES.ObjectExpression) return false;
-
+function getShellPropertyValue(optionsArg: TSESTree.ObjectExpression): boolean {
   for (const prop of optionsArg.properties) {
     if (prop.type !== AST_NODE_TYPES.Property || prop.computed) continue;
 
     const keyName = prop.key.type === AST_NODE_TYPES.Identifier ? prop.key.name : prop.key.type === AST_NODE_TYPES.Literal ? prop.key.value : null;
     if (keyName !== "shell") continue;
 
-    return prop.value.type === AST_NODE_TYPES.Literal && prop.value.value === true;
+    return prop.value.type === AST_NODE_TYPES.Literal && !!prop.value.value;
   }
 
   return false;
+}
+
+function resolveObjectExpression(arg: TSESTree.CallExpressionArgument, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): TSESTree.ObjectExpression | null {
+  if (arg.type === AST_NODE_TYPES.ObjectExpression) return arg;
+  if (arg.type !== AST_NODE_TYPES.Identifier) return null;
+
+  let scope: SourceCodeScope | null = sourceCode.getScope(scopeNode);
+  while (scope) {
+    const variable = scope.set.get(arg.name);
+    if (variable && variable.defs.length > 0) {
+      for (const def of variable.defs) {
+        if (def.type !== "Variable") continue;
+        const declarator = def.node as TSESTree.VariableDeclarator;
+        if (declarator.id.type !== AST_NODE_TYPES.Identifier || declarator.id.name !== arg.name) continue;
+        if (declarator.init?.type === AST_NODE_TYPES.ObjectExpression) return declarator.init;
+      }
+      return null;
+    }
+    scope = scope.upper;
+  }
+
+  return null;
+}
+
+function isShellTrueOption(optionsArg: TSESTree.CallExpressionArgument | undefined, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
+  if (!optionsArg) return false;
+  if (optionsArg.type === AST_NODE_TYPES.SpreadElement) return true;
+
+  const resolvedObject = resolveObjectExpression(optionsArg, scopeNode, sourceCode);
+  if (!resolvedObject) return false;
+  return getShellPropertyValue(resolvedObject);
 }
 
 function requiresShellTrue(method: ChildProcessMethod): boolean {
   return SHELL_CONDITIONAL_METHODS.has(method);
 }
 
-function hasShellTrueOptions(node: TSESTree.CallExpression, method: ChildProcessMethod): boolean {
+function hasShellTrueOptions(node: TSESTree.CallExpression, method: ChildProcessMethod, sourceCode: TSESLint.SourceCode): boolean {
   if (!requiresShellTrue(method)) return true;
-  return isShellTrueOption(node.arguments[1]) || isShellTrueOption(node.arguments[2]);
+  return isShellTrueOption(node.arguments[1], node, sourceCode) || isShellTrueOption(node.arguments[2], node, sourceCode);
 }
 
 function isChildProcessMethodBinding(method: ChildProcessMethod, identifierName: string, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
@@ -57,7 +86,7 @@ function isChildProcessMethodBinding(method: ChildProcessMethod, identifierName:
     if (variable && variable.defs.length > 0) {
       for (const def of variable.defs) {
         if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportSpecifier) {
-          const importedName = def.node.imported.type === AST_NODE_TYPES.Identifier ? def.node.imported.name : null;
+          const importedName = def.node.imported.type === AST_NODE_TYPES.Identifier ? def.node.imported.name : def.node.imported.type === AST_NODE_TYPES.Literal ? def.node.imported.value : null;
           if (importedName === method) return true;
         }
 
@@ -128,7 +157,7 @@ export const noChildProcessInterpolatedCommandRule = createRule({
       CallExpression(node) {
         const method = resolveChildProcessMethod(node, sourceCode);
         if (!method) return;
-        if (!hasShellTrueOptions(node, method)) return;
+        if (!hasShellTrueOptions(node, method, sourceCode)) return;
 
         const firstArg = node.arguments[0];
         if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;

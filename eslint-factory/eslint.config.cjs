@@ -34,6 +34,7 @@ module.exports = [
       "gh-aw-custom/prefer-core-logging": "warn",
       "gh-aw-custom/no-core-error-then-process-exit": "warn",
       "gh-aw-custom/no-core-error-then-process-exitcode": "warn",
+      "gh-aw-custom/no-child-process-interpolated-command": "warn",
       "gh-aw-custom/no-exec-interpolated-command": "warn",
       "gh-aw-custom/require-execsync-try-catch": "warn",
       "gh-aw-custom/require-execfilesync-try-catch": "warn",
