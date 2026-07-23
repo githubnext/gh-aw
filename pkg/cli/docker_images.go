@@ -33,6 +33,7 @@ const (
 	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
 	ActionlintImage  = "rhysd/actionlint:1.7.12"
 	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
+	SyftImage        = "anchore/syft:latest"
 	GrypeImage       = "anchore/grype:latest"
 )
 
@@ -225,9 +226,9 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 // Returns:
 //   - nil if all required images are available
 //   - error if Docker is unavailable or images are downloading/need to be downloaded
-func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useGrype bool) error {
+func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype bool) error {
 	// If no tools requested, nothing to do
-	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useGrype {
+	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useSyft && !useGrype {
 		return nil
 	}
 
@@ -252,6 +253,11 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		}
 		if useRunnerGuard {
 			tool := "runner-guard"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
+		if useSyft {
+			tool := "syft"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
@@ -282,6 +288,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		{usePoutine, PoutineImage, "poutine"},
 		{useActionlint, ActionlintImage, "actionlint"},
 		{useRunnerGuard, RunnerGuardImage, "runner-guard"},
+		{useSyft, SyftImage, "syft"},
 		{useGrype, GrypeImage, "grype"},
 	}
 
