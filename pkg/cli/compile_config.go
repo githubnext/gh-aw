@@ -28,6 +28,7 @@ type CompileConfig struct {
 	Syft                   bool     // Run syft SBOM scanner on container images referenced in compiled .lock.yml files
 	Grype                  bool     // Run grype vulnerability scanner on container images referenced in compiled .lock.yml files
 	Grant                  bool     // Run grant license scanner on container images referenced in compiled .lock.yml files
+	Yamllint               bool     // Run yamllint YAML linter on generated .lock.yml files
 	JSONOutput             bool     // Output validation results as JSON
 	ShowAllErrors          bool     // Display all prioritized errors instead of the default top five
 	ActionMode             string   // How action scripts are referenced: dev, release, or action. Auto-detected if empty.

@@ -2,6 +2,8 @@
 //
 // This file contains functions that invoke external analysis tools
 // (actionlint, zizmor, poutine, runner-guard, syft, grype, grant) on compiled workflow files.
+// (actionlint, zizmor, poutine, runner-guard, syft, grype, grant, yamllint)
+// on compiled workflow files.
 //
 // # Organization Rationale
 //
@@ -19,6 +21,7 @@
 //   - RunPoutineOnDirectory() - Run poutine security scanner on a directory
 //   - RunRunnerGuardOnDirectory() - Run runner-guard taint analysis on a directory
 //   - RunGrantOnLockFiles() - Run grant license scanning on container images
+//   - RunYamllintOnFiles() - Run yamllint YAML linter on multiple lock files
 
 package cli
 
@@ -70,6 +73,12 @@ func RunGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 // from the gh-aw-manifest headers in the provided lock files.
 func RunGrantOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("grant", lockFiles, verbose, strict, runGrantOnLockFiles)
+}
+
+// RunYamllintOnFiles runs yamllint on multiple lock files in a single batch.
+// This is more efficient than running yamllint once per file.
+func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runBatchLockFileTool("yamllint", lockFiles, verbose, strict, runYamllintOnFiles)
 }
 
 // RunSyftOnLockFiles runs the syft SBOM scanner on container images extracted

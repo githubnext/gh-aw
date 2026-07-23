@@ -36,6 +36,7 @@ const (
 	SyftImage        = "anchore/syft:v1.48.0"
 	GrypeImage       = "anchore/grype:latest"
 	GrantImage       = "anchore/grant:latest"
+	YamllintImage    = "pipelinecomponents/yamllint:latest"
 )
 
 // dockerPullState tracks the state of docker pull operations
@@ -227,9 +228,9 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 // Returns:
 //   - nil if all required images are available
 //   - error if Docker is unavailable or images are downloading/need to be downloaded
-func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype, useGrant bool) error {
+func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype, useGrant, useYamllint bool) error {
 	// If no tools requested, nothing to do
-	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useSyft && !useGrype && !useGrant {
+	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useSyft && !useGrype && !useGrant && !useYamllint {
 		return nil
 	}
 
@@ -272,6 +273,11 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
+		if useYamllint {
+			tool := "yamllint"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
 		verb := "requires"
 		if len(requestedTools) > 1 {
 			verb = "require"
@@ -297,6 +303,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		{useSyft, SyftImage, "syft"},
 		{useGrype, GrypeImage, "grype"},
 		{useGrant, GrantImage, "grant"},
+		{useYamllint, YamllintImage, "yamllint"},
 	}
 
 	for _, img := range imagesToCheck {
