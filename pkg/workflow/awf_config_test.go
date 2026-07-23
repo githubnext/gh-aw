@@ -1976,6 +1976,115 @@ func TestExtractDefaultAiCreditsPricingFromModelCosts(t *testing.T) {
 		assert.InDelta(t, 3.75, got.Input, 1e-9)
 	})
 
+	t.Run("resolved engine provider wins when same model in multiple providers", func(t *testing.T) {
+		// Both "anthropic" and "openai" list the same model key with different prices.
+		// Because EngineConfig.LLMProvider = "anthropic", the anthropic price must win
+		// regardless of alphabetical provider order (openai < anthropic alphabetically
+		// would have been chosen under the old code).
+		wd := &WorkflowData{
+			Model: "shared-model",
+			EngineConfig: &EngineConfig{
+				LLMProvider: "anthropic",
+			},
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"shared-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "3e-07",
+									"output": "1.5e-06",
+								},
+							},
+						},
+					},
+					"openai": map[string]any{
+						"models": map[string]any{
+							"shared-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "9e-07",
+									"output": "9e-06",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		// Must use anthropic pricing (0.3, 1.5), not openai pricing (0.9, 9.0).
+		assert.InDelta(t, 0.30, got.Input, 1e-9)
+		assert.InDelta(t, 1.50, got.Output, 1e-9)
+	})
+
+	t.Run("InlineProviderID used when LLMProvider is empty", func(t *testing.T) {
+		wd := &WorkflowData{
+			Model: "shared-model",
+			EngineConfig: &EngineConfig{
+				InlineProviderID: "openai",
+			},
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"shared-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "9e-07",
+									"output": "9e-06",
+								},
+							},
+						},
+					},
+					"openai": map[string]any{
+						"models": map[string]any{
+							"shared-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "3e-07",
+									"output": "1.5e-06",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		// Must use openai pricing (0.3, 1.5), not anthropic pricing (0.9, 9.0).
+		assert.InDelta(t, 0.30, got.Input, 1e-9)
+		assert.InDelta(t, 1.50, got.Output, 1e-9)
+	})
+
+	t.Run("falls back to other providers when resolved provider lacks the model", func(t *testing.T) {
+		// Engine is configured for "anthropic" but that provider has no pricing entry;
+		// the code should still find the model under "openai".
+		wd := &WorkflowData{
+			Model: "my-model",
+			EngineConfig: &EngineConfig{
+				LLMProvider: "anthropic",
+			},
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"openai": map[string]any{
+						"models": map[string]any{
+							"my-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "3e-07",
+									"output": "1.5e-06",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		assert.InDelta(t, 0.30, got.Input, 1e-9)
+		assert.InDelta(t, 1.50, got.Output, 1e-9)
+	})
+
 	t.Run("missing input returns nil", func(t *testing.T) {
 		wd := &WorkflowData{
 			ModelCosts: map[string]any{

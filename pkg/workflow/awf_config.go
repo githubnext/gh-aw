@@ -851,12 +851,15 @@ func isArcDindTopology(workflowData *WorkflowData) bool {
 // be priced by the AWF API proxy instead of being rejected with unknown_model_ai_credits.
 //
 // Selection order:
-//  1. The entry whose model key matches workflowData.Model (case-insensitive), if set.
-//  2. The first model entry found across all providers, sorted by provider then model name
+//  1. The entry whose model key matches workflowData.Model (case-insensitive) within the
+//     resolved engine provider (EngineConfig.LLMProvider or InlineProviderID), if known.
+//  2. The entry whose model key matches workflowData.Model in any other provider (sorted),
+//     when the resolved provider does not contain the model or is not set.
+//  3. The first parseable entry across all providers sorted by provider then model name
 //     (for BYOK workflows where the model is configured via engine env-vars rather than
 //     the model: frontmatter field).
 //
-// Both passes iterate over sorted keys so the result is deterministic.
+// All iterations use sorted keys so the result is deterministic.
 // Returns nil when no suitable pricing is found or when required fields (input, output)
 // cannot be parsed.
 func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *AWFDefaultAiCreditsPricingConfig {
@@ -878,42 +881,78 @@ func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *A
 
 	targetModel := strings.TrimSpace(workflowData.Model)
 
-	// sortedProviderKeys returns provider names in deterministic order so that
-	// both passes produce the same result across runs.
+	// resolvedProvider is the engine's configured inference provider (already
+	// lower-cased by normalizeEngineProvider). When set, the exact-match pass
+	// is scoped to this provider first so that the same model ID appearing under
+	// multiple providers with different costs always resolves to the correct entry.
+	resolvedProvider := ""
+	if workflowData.EngineConfig != nil {
+		if p := workflowData.EngineConfig.LLMProvider; p != "" {
+			resolvedProvider = p
+		} else if p := workflowData.EngineConfig.InlineProviderID; p != "" {
+			resolvedProvider = p
+		}
+	}
+
+	// providerKeys holds provider names in sorted order so that both passes
+	// produce the same result across runs.
 	providerKeys := make([]string, 0, len(providersMap))
 	for k := range providersMap {
 		providerKeys = append(providerKeys, k)
 	}
 	sort.Strings(providerKeys)
 
-	// First pass: find an exact match on workflowData.Model.
+	// searchProviderForModel returns the first parseable pricing entry whose model
+	// key exactly matches targetModel (case-insensitive) within pData. Returns nil
+	// when no match is found or pData is not a valid provider map.
+	searchProviderForModel := func(pData any) *AWFDefaultAiCreditsPricingConfig {
+		pMap, ok := pData.(map[string]any)
+		if !ok {
+			return nil
+		}
+		rawModels, ok := pMap["models"]
+		if !ok {
+			return nil
+		}
+		modelsMap, ok := rawModels.(map[string]any)
+		if !ok {
+			return nil
+		}
+		modelKeys := make([]string, 0, len(modelsMap))
+		for k := range modelsMap {
+			modelKeys = append(modelKeys, k)
+		}
+		sort.Strings(modelKeys)
+		for _, mName := range modelKeys {
+			if !strings.EqualFold(mName, targetModel) {
+				continue
+			}
+			if pricing := modelCostEntryToDefaultPricing(modelsMap[mName]); pricing != nil {
+				return pricing
+			}
+		}
+		return nil
+	}
+
+	// First pass: exact match on workflowData.Model.
+	// Prefer the resolved engine provider so the price belongs to the configured
+	// provider when the same model ID appears under multiple providers.
 	if targetModel != "" {
-		for _, pName := range providerKeys {
-			pData := providersMap[pName]
-			pMap, ok := pData.(map[string]any)
-			if !ok {
-				continue
-			}
-			rawModels, ok := pMap["models"]
-			if !ok {
-				continue
-			}
-			modelsMap, ok := rawModels.(map[string]any)
-			if !ok {
-				continue
-			}
-			modelKeys := make([]string, 0, len(modelsMap))
-			for k := range modelsMap {
-				modelKeys = append(modelKeys, k)
-			}
-			sort.Strings(modelKeys)
-			for _, mName := range modelKeys {
-				if !strings.EqualFold(mName, targetModel) {
-					continue
-				}
-				if pricing := modelCostEntryToDefaultPricing(modelsMap[mName]); pricing != nil {
+		if resolvedProvider != "" {
+			if pData, ok := providersMap[resolvedProvider]; ok {
+				if pricing := searchProviderForModel(pData); pricing != nil {
 					return pricing
 				}
+			}
+		}
+		// Fall back to remaining providers in sorted order (skipping the resolved
+		// provider already checked above).
+		for _, pName := range providerKeys {
+			if strings.EqualFold(pName, resolvedProvider) {
+				continue
+			}
+			if pricing := searchProviderForModel(providersMap[pName]); pricing != nil {
+				return pricing
 			}
 		}
 	}
