@@ -847,3 +847,61 @@ imports:
 	assert.Contains(t, lockStr, "AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID: sa_01DEF", "lock file must contain service account ID")
 	assert.Contains(t, lockStr, "AWF_AUTH_ANTHROPIC_WORKSPACE_ID: ws_01GHI", "lock file must contain workspace ID")
 }
+
+func TestImportedEngineWithAzureWIFAuth(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-azure-wif-auth-import-*")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	sharedContent := `---
+engine:
+  id: copilot
+  auth:
+    type: github-oidc
+    provider: azure
+    audience: https://cognitiveservices.azure.com
+    azure-tenant-id: tenant-id
+    azure-client-id: client-id
+    azure-scope: https://cognitiveservices.azure.com/.default
+    azure-cloud: public
+---
+
+# Shared Azure WIF engine config
+`
+	sharedFile := filepath.Join(sharedDir, "azure-wif-engine.md")
+	require.NoError(t, os.WriteFile(sharedFile, []byte(sharedContent), 0644))
+
+	mainContent := `---
+name: Test Imported Azure WIF Engine
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+imports:
+  - shared/azure-wif-engine.md
+---
+
+# Test Workflow
+`
+	mainFile := filepath.Join(workflowsDir, "test-azure-wif.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(mainFile)
+	require.NoError(t, err, "compilation must succeed for imported engine definition with Azure WIF auth mapping")
+
+	lockFile := filepath.Join(workflowsDir, "test-azure-wif.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "lock file should be created")
+
+	lockStr := string(lockContent)
+	assert.Contains(t, lockStr, "AWF_AUTH_TYPE: github-oidc", "lock file must contain WIF auth type")
+	assert.Contains(t, lockStr, "AWF_AUTH_PROVIDER: azure", "lock file must contain WIF auth provider")
+	assert.Contains(t, lockStr, "AWF_AUTH_OIDC_AUDIENCE: https://cognitiveservices.azure.com", "lock file must contain OIDC audience")
+	assert.Contains(t, lockStr, "AWF_AUTH_AZURE_TENANT_ID: tenant-id", "lock file must contain Azure tenant ID")
+	assert.Contains(t, lockStr, "AWF_AUTH_AZURE_CLIENT_ID: client-id", "lock file must contain Azure client ID")
+	assert.Contains(t, lockStr, "AWF_AUTH_AZURE_SCOPE: https://cognitiveservices.azure.com/.default", "lock file must contain Azure scope")
+	assert.Contains(t, lockStr, "AWF_AUTH_AZURE_CLOUD: public", "lock file must contain Azure cloud")
+}
