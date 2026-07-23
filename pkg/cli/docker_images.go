@@ -33,7 +33,7 @@ const (
 	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
 	ActionlintImage  = "rhysd/actionlint:1.7.12"
 	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
-	SyftImage        = "anchore/syft:latest"
+	SyftImage        = "anchore/syft:v1.48.0"
 	GrypeImage       = "anchore/grype:latest"
 )
 
