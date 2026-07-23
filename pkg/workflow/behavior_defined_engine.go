@@ -549,10 +549,19 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 	if err := json.Unmarshal([]byte(engineJSON), &engineData); err != nil {
 		return nil, fmt.Errorf("failed to parse engine JSON: %w", err)
 	}
-	if _, ok := engineData.(map[string]any); !ok {
+	dataMap, ok := engineData.(map[string]any)
+	if !ok {
 		return nil, nil
 	}
-	yamlBytes, err := yaml.Marshal(engineData)
+	// EngineDefinition.Auth expects a []AuthBinding sequence. If the auth field is
+	// an EngineAuthConfig mapping (e.g. Anthropic/Azure WIF-style auth), strip it before
+	// unmarshaling to avoid "mapping was used where sequence is expected". The
+	// mapping-style auth is handled separately by extractEngineConfigFromJSON via
+	// applyEngineAuthField.
+	if isEngineAuthConfigMapping(dataMap["auth"]) {
+		delete(dataMap, "auth")
+	}
+	yamlBytes, err := yaml.Marshal(dataMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert engine JSON to yaml: %w", err)
 	}
@@ -571,6 +580,15 @@ func parseEngineDefinitionFromJSON(engineJSON string) (*EngineDefinition, error)
 		engineDefinitionCache.Store(engineJSON, cacheCopy)
 	}
 	return &def, nil
+}
+
+func isEngineAuthConfigMapping(auth any) bool {
+	authMap, ok := auth.(map[string]any)
+	if !ok {
+		return false
+	}
+	authType, ok := authMap["type"].(string)
+	return ok && authType == "github-oidc"
 }
 
 // deepCopyAny returns a fully independent copy of v for values produced by
