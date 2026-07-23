@@ -3,7 +3,7 @@
     "tone_variant": {
       "clinical": 73,
       "narrative": 66,
-      "assertive": 67
+      "assertive": 68
     }
   },
   "runs": [
@@ -1445,6 +1445,13 @@
     {
       "run_id": "29971303192",
       "timestamp": "2026-07-23T01:15:31.040Z",
+      "assignments": {
+        "tone_variant": "assertive"
+      }
+    },
+    {
+      "run_id": "29988766214",
+      "timestamp": "2026-07-23T07:37:42.473Z",
       "assignments": {
         "tone_variant": "assertive"
       }
