@@ -11,12 +11,13 @@ var permissionsParserLog = logger.New("workflow:permissions_parser")
 
 // PermissionsParser provides functionality to parse and analyze GitHub Actions permissions
 type PermissionsParser struct {
-	rawPermissions string
-	parsedPerms    map[string]string
-	isShorthand    bool
-	shorthandValue string
-	hasAll         bool
-	allLevel       string
+	rawPermissions  string
+	parsedPerms     map[string]string
+	isShorthand     bool
+	shorthandValue  string
+	hasAll          bool
+	allLevel        string
+	isExplicitEmpty bool // When true, an explicit empty map ({}) was provided
 }
 
 // NewPermissionsParser creates a new PermissionsParser instance
@@ -259,6 +260,13 @@ func NewPermissionsParserFromValue(permissionsValue any) *PermissionsParser {
 
 	// Handle map format
 	if mapValue, ok := permissionsValue.(map[string]any); ok {
+		// An explicit empty map ({}) must be preserved: it denies all token permissions
+		// rather than inheriting from the workflow level.
+		if len(mapValue) == 0 {
+			parser.isExplicitEmpty = true
+			return parser
+		}
+
 		// Handle 'all' key specially
 		if allValue, exists := mapValue["all"]; exists {
 			if strValue, ok := allValue.(string); ok {
@@ -296,6 +304,12 @@ func NewPermissionsParserFromValue(permissionsValue any) *PermissionsParser {
 func (p *PermissionsParser) ToPermissions() *Permissions {
 	if p == nil {
 		return NewPermissions()
+	}
+
+	// An explicit empty map ({}) denies all token permissions without inheriting
+	// from the workflow level. Preserve it as-is.
+	if p.isExplicitEmpty {
+		return NewPermissionsEmpty()
 	}
 
 	// Handle shorthand permissions

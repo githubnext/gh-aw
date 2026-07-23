@@ -5,7 +5,6 @@ package workflow
 import (
 	"os"
 	"path/filepath"
-	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -49,6 +48,11 @@ func TestCustomJobPermissionsIntegration(t *testing.T) {
 			permissionsConfig: "permissions: read-all",
 			expectedParts:     []string{"permissions: read-all"},
 		},
+		{
+			name:              "explicit empty permissions",
+			permissionsConfig: "permissions: {}",
+			expectedParts:     []string{"permissions: {}"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -81,18 +85,26 @@ func TestSafeJobPermissionsIntegration(t *testing.T) {
 		name              string
 		permissionsConfig string
 		expectedParts     []string
+		notExpectedParts  []string
 	}{
 		{
 			name: "object permissions",
 			permissionsConfig: `permissions:
         contents: write
         issues: read`,
-			expectedParts: []string{"contents: write", "issues: read"},
+			expectedParts:    []string{"contents: write", "issues: read"},
+			notExpectedParts: []string{"permissions: {}"},
 		},
 		{
 			name:              "shorthand permissions",
 			permissionsConfig: "permissions: read-all",
 			expectedParts:     []string{"permissions: read-all"},
+			notExpectedParts:  []string{"permissions: {}"},
+		},
+		{
+			name:              "explicit empty permissions",
+			permissionsConfig: "permissions: {}",
+			expectedParts:     []string{"permissions: {}"},
 		},
 	}
 
@@ -120,7 +132,9 @@ safe-outputs:
 			for _, expected := range tt.expectedParts {
 				assert.Contains(t, jobSection, expected)
 			}
-			assert.False(t, strings.Contains(jobSection, "permissions: {}"))
+			for _, notExpected := range tt.notExpectedParts {
+				assert.NotContains(t, jobSection, notExpected)
+			}
 		})
 	}
 }

@@ -677,6 +677,11 @@ func TestPermissionsParser_ToPermissions(t *testing.T) {
 			},
 			wantYAML: "",
 		},
+		{
+			name:     "explicit empty map preserves deny-all",
+			input:    map[string]any{},
+			wantYAML: "permissions: {}",
+		},
 	}
 
 	for _, tt := range tests {
