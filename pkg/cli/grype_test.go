@@ -3,7 +3,7 @@
 package cli
 
 import (
-	"fmt"
+	"errors"
 	"os"
 	"testing"
 )
@@ -109,7 +109,7 @@ func TestGrypeCacheSetError(t *testing.T) {
 	}
 
 	key := "test-image:v1.0"
-	testErr := fmt.Errorf("test scan error")
+	testErr := errors.New("test scan error")
 	cache.setError(key, testErr)
 
 	result, err, ok := cache.get(key)
@@ -119,7 +119,7 @@ func TestGrypeCacheSetError(t *testing.T) {
 	if result != nil {
 		t.Error("Expected nil result for error entry")
 	}
-	if err != testErr {
+	if !errors.Is(err, testErr) {
 		t.Errorf("Expected stored error %v, got %v", testErr, err)
 	}
 }
@@ -131,7 +131,7 @@ func TestGrypeCacheReset(t *testing.T) {
 	}
 
 	cache.set("key1", &grypeOutput{})
-	cache.setError("key2", fmt.Errorf("test error"))
+	cache.setError("key2", errors.New("test error"))
 
 	cache.reset()
 
