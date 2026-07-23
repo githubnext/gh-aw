@@ -98,6 +98,12 @@ func (c *Compiler) prepareRuntimeSetupAndCheckoutInfo(data *WorkflowData) ([]Git
 	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements, data)
 	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
 
+	// Determine whether the (post-deduplication) custom steps contain a checkout
+	// step. This check runs before sanitizeAndWarnCustomSteps is called inside
+	// addCustomStepsWithRuntimeInsertion, but that is safe: sanitization only
+	// rewrites ${{ }} expressions inside `run:` fields and never touches `uses:`
+	// values, so the checkout-detection result is identical before and after
+	// sanitization.
 	customStepsContainCheckout := data.CustomSteps != "" && ContainsCheckout(data.CustomSteps)
 
 	return runtimeSetupSteps, customStepsContainCheckout
@@ -374,12 +380,14 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 					nextTrimmed := strings.TrimSpace(nextLine)
 					nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
 
-					// Stop if we hit the next step
-					if nextTrimmed != "" && strings.HasPrefix(nextTrimmed, "- ") && nextIndent == stepIndent {
+					// Stop if we hit the next step, but only when we are not inside a
+					// block scalar payload (e.g. "sparse-checkout: |\n  - src" — the
+					// "- src" content line starts with "- " but is not a step boundary).
+					if !blockScalarState.IsInPayload() && nextTrimmed != "" && strings.HasPrefix(nextTrimmed, "- ") && nextIndent == stepIndent {
 						break
 					}
 
-					// Add the line
+					// Add the line (this also advances the block scalar state machine)
 					nextIsBS := blockScalarState.update(nextLine)
 					appendYAMLLine(yaml, "      ", nextLine, nextIsBS)
 					i++

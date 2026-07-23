@@ -557,12 +557,12 @@ func extractAgentJobSection(t *testing.T, lockStr string) string {
 func assertOrderedMarkers(t *testing.T, content string, markers []string) {
 	t.Helper()
 
-	lastIndex := -1
+	cursor := 0
 	for _, marker := range markers {
-		index := strings.Index(content[lastIndex+1:], marker)
-		if index == -1 {
-			t.Fatalf("marker %q not found after index %d\n%s", marker, lastIndex, content)
+		idx := strings.Index(content[cursor:], marker)
+		if idx == -1 {
+			t.Fatalf("marker %q not found after offset %d\n%s", marker, cursor, content)
 		}
-		lastIndex += index + 1
+		cursor += idx + len(marker)
 	}
 }

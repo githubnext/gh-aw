@@ -350,6 +350,7 @@ func TestContainsCheckout(t *testing.T) {
 			expected: true,
 		},
 		{
+			// Malformed YAML: returns false — see findFirstCheckoutStepIndex godoc.
 			name: "malformed YAML with checkout",
 			customSteps: `steps
   - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd`,
@@ -404,6 +405,36 @@ func TestContainsCheckout(t *testing.T) {
   - name: Step 5
     run: echo "fifth"`,
 			expected: true,
+		},
+		// Bare sequence form (no "steps:" wrapper): older call sites pass the
+		// step list directly as a YAML sequence.
+		{
+			name: "bare sequence with unnamed checkout",
+			customSteps: `- uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd
+  with:
+    fetch-depth: 0
+    persist-credentials: false`,
+			expected: true,
+		},
+		{
+			name: "bare sequence with named checkout",
+			customSteps: `- name: Checkout
+  uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd`,
+			expected: true,
+		},
+		{
+			name: "bare sequence without checkout",
+			customSteps: `- name: Setup Node
+  uses: actions/setup-node@v4`,
+			expected: false,
+		},
+		// Malformed YAML: findFirstCheckoutStepIndex returns (0, false) rather
+		// than attempting substring detection on unparseable input.  Callers
+		// that need checkout detection must supply valid YAML.
+		{
+			name:        "malformed YAML — explicit parse-error path",
+			customSteps: `{invalid: [yaml`,
+			expected:    false,
 		},
 	}
 

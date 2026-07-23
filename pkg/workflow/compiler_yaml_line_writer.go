@@ -72,6 +72,13 @@ func (s *yamlBlockScalarState) update(sourceLine string) bool {
 	return false
 }
 
+// IsInPayload reports whether the state machine is currently inside a block
+// scalar payload (i.e. the last consumed line was block-scalar content).
+// Unlike update, this is a pure read that does not advance the state.
+func (s *yamlBlockScalarState) IsInPayload() bool {
+	return s.active
+}
+
 // appendYAMLLine writes content to b with the given prefix.
 //
 //   - Blank content (empty or whitespace-only) is always written as a bare
