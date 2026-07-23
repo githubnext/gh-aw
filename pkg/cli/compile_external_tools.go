@@ -1,7 +1,7 @@
 // This file provides external tool runners for workflow compilation.
 //
 // This file contains functions that invoke external analysis tools
-// (actionlint, zizmor, poutine, runner-guard) on compiled workflow files.
+// (actionlint, zizmor, poutine, runner-guard, yamllint) on compiled workflow files.
 //
 // # Organization Rationale
 //
@@ -18,6 +18,7 @@
 //   - RunZizmorOnFiles() - Run zizmor on multiple lock files
 //   - RunPoutineOnDirectory() - Run poutine security scanner on a directory
 //   - RunRunnerGuardOnDirectory() - Run runner-guard taint analysis on a directory
+//   - RunYamllintOnFiles() - Run yamllint YAML linter on multiple lock files
 
 package cli
 
@@ -63,6 +64,12 @@ func RunRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 // Images are deduplicated by pinned reference, and results are cached per image.
 func RunGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("grype", lockFiles, verbose, strict, runGrypeOnLockFiles)
+}
+
+// RunYamllintOnFiles runs yamllint on multiple lock files in a single batch.
+// This is more efficient than running yamllint once per file.
+func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runBatchLockFileTool("yamllint", lockFiles, verbose, strict, runYamllintOnFiles)
 }
 
 // runBatchLockFileTool runs a batch tool on lock files with uniform error handling

@@ -64,6 +64,7 @@ func compileSpecificFiles(
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
+	var lockFilesForYamllint []string // lock files for yamllint YAML linter
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -152,6 +153,9 @@ func compileSpecificFiles(
 					if config.Grype {
 						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
 					}
+					if config.Yamllint {
+						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -217,6 +221,18 @@ func compileSpecificFiles(
 			return workflowDataList, err
 		}
 		if err := RunGrypeOnLockFiles(lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run yamllint on all collected lock files.
+	if config.Yamllint && !config.NoEmit && len(lockFilesForYamllint) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunYamllintOnFiles(lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -319,6 +335,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
+	var lockFilesForYamllint []string // lock files for yamllint YAML linter
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -375,6 +392,9 @@ func compileAllFilesInDirectory(
 					}
 					if config.Grype {
 						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
+					}
+					if config.Yamllint {
+						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
 					}
 				}
 			}

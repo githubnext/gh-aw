@@ -76,6 +76,7 @@ type compileArgs struct {
 	Actionlint  bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
 	RunnerGuard bool     `json:"runner-guard,omitempty" jsonschema:"Run runner-guard taint analysis scanner on generated .lock.yml files"`
 	Grype       bool     `json:"grype,omitempty" jsonschema:"Run grype vulnerability scanner on container images referenced in compiled .lock.yml files"`
+	Yamllint    bool     `json:"yamllint,omitempty" jsonschema:"Run yamllint YAML linter on generated .lock.yml files"`
 	Fix         bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
 	MaxTokens   int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 }
@@ -139,9 +140,9 @@ Returns JSON array with validation results for each workflow:
 		var dockerUnavailableWarning string
 
 		// Check if any static analysis tools are requested that require Docker images
-		if args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Grype {
+		if args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Grype || args.Yamllint {
 			// Check if Docker images are available; if not, start downloading and return retry message
-			if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Grype); err != nil {
+			if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Grype, args.Yamllint); err != nil {
 				var dockerUnavailableErr *DockerUnavailableError
 				if errors.As(err, &dockerUnavailableErr) {
 					// Docker daemon is not running.  Instead of failing every workflow,
@@ -153,6 +154,7 @@ Returns JSON array with validation results for each workflow:
 					args.Actionlint = false
 					args.RunnerGuard = false
 					args.Grype = false
+					args.Yamllint = false
 				} else {
 					// Images are still downloading — ask the caller to retry.
 					// Build per-workflow validation errors instead of throwing an MCP protocol error,
@@ -206,6 +208,9 @@ Returns JSON array with validation results for each workflow:
 		if args.Grype {
 			cmdArgs = append(cmdArgs, "--grype")
 		}
+		if args.Yamllint {
+			cmdArgs = append(cmdArgs, "--yamllint")
+		}
 
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
@@ -215,8 +220,8 @@ Returns JSON array with validation results for each workflow:
 			cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
 		}
 
-		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, grype=%v",
-			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Grype)
+		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, grype=%v, yamllint=%v",
+			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Grype, args.Yamllint)
 
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:

@@ -214,7 +214,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `IsDockerImageAvailable` | `func(ctx context.Context, image string) bool` | Returns true if a Docker image is present locally |
 | `IsDockerImageDownloading` | `func(string) bool` | Returns true if an image pull is in progress |
 | `StartDockerImageDownload` | `func(ctx, image string) bool` | Begins a background image pull; returns false if already pulling |
-| `CheckAndPrepareDockerImages` | `func(ctx, useZizmor, usePoutine, useActionlint, useRunnerGuard bool) error` | Pre-pulls security-scanner Docker images |
+| `CheckAndPrepareDockerImages` | `func(ctx, useZizmor, usePoutine, useActionlint, useRunnerGuard, useGrype, useYamllint bool) error` | Pre-pulls security-scanner Docker images |
 | `UpdateContainerPins` | `func(ctx, workflowDir string, verbose bool) error` | Updates container image SHA pins in workflow files |
 | `CreatePRWithChanges` | `func(branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |
 | `AutoMergePullRequestsCreatedAfter` | `func(repoSlug string, createdAfter time.Time, verbose bool) error` | Auto-merges eligible PRs created after a given time |
