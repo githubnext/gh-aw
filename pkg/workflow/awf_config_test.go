@@ -1867,7 +1867,8 @@ func TestExtractDefaultAiCreditsPricingFromModelCosts(t *testing.T) {
 		require.NotNil(t, got)
 		assert.InDelta(t, 0.30, got.Input, 1e-9)
 		assert.InDelta(t, 1.50, got.Output, 1e-9)
-		assert.InDelta(t, 0.03, got.CachedInput, 1e-9)
+		require.NotNil(t, got.CachedInput)
+		assert.InDelta(t, 0.03, *got.CachedInput, 1e-9)
 		require.NotNil(t, got.CacheWrite)
 		assert.InDelta(t, cacheWrite, *got.CacheWrite, 1e-9)
 	})
@@ -1917,7 +1918,7 @@ func TestExtractDefaultAiCreditsPricingFromModelCosts(t *testing.T) {
 		require.NotNil(t, got)
 		assert.InDelta(t, 3.75, got.Input, 1e-9)
 		assert.InDelta(t, 15.0, got.Output, 1e-9)
-		assert.InDelta(t, float64(0), got.CachedInput, 1e-9)
+		assert.Nil(t, got.CachedInput)
 		assert.Nil(t, got.CacheWrite)
 	})
 

@@ -68,6 +68,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"slices"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -285,7 +286,9 @@ type AWFDefaultAiCreditsPricingConfig struct {
 	Output float64 `json:"output"`
 	// CachedInput is the price per 1M cached-read tokens, in USD.
 	// When omitted the proxy uses input × 0.1 as a default.
-	CachedInput float64 `json:"cachedInput,omitempty"`
+	// Use *float64 so that an explicit cache_read:"0" serialises as 0 rather than
+	// being dropped by omitempty, which would let the proxy apply its own default.
+	CachedInput *float64 `json:"cachedInput,omitempty"`
 	// CacheWrite is the price per 1M cache-write tokens, in USD.
 	// When omitted or null, cache writes are treated as free.
 	CacheWrite *float64 `json:"cacheWrite,omitempty"`
@@ -849,9 +852,11 @@ func isArcDindTopology(workflowData *WorkflowData) bool {
 //
 // Selection order:
 //  1. The entry whose model key matches workflowData.Model (case-insensitive), if set.
-//  2. The first model entry found across all providers (for BYOK workflows where the
-//     model is configured via engine env-vars rather than the model: frontmatter field).
+//  2. The first model entry found across all providers, sorted by provider then model name
+//     (for BYOK workflows where the model is configured via engine env-vars rather than
+//     the model: frontmatter field).
 //
+// Both passes iterate over sorted keys so the result is deterministic.
 // Returns nil when no suitable pricing is found or when required fields (input, output)
 // cannot be parsed.
 func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *AWFDefaultAiCreditsPricingConfig {
@@ -871,11 +876,20 @@ func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *A
 		return nil
 	}
 
-	targetModel := strings.ToLower(strings.TrimSpace(workflowData.Model))
+	targetModel := strings.TrimSpace(workflowData.Model)
+
+	// sortedProviderKeys returns provider names in deterministic order so that
+	// both passes produce the same result across runs.
+	providerKeys := make([]string, 0, len(providersMap))
+	for k := range providersMap {
+		providerKeys = append(providerKeys, k)
+	}
+	sort.Strings(providerKeys)
 
 	// First pass: find an exact match on workflowData.Model.
 	if targetModel != "" {
-		for _, pData := range providersMap {
+		for _, pName := range providerKeys {
+			pData := providersMap[pName]
 			pMap, ok := pData.(map[string]any)
 			if !ok {
 				continue
@@ -888,19 +902,27 @@ func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *A
 			if !ok {
 				continue
 			}
-			for mName, mData := range modelsMap {
+			modelKeys := make([]string, 0, len(modelsMap))
+			for k := range modelsMap {
+				modelKeys = append(modelKeys, k)
+			}
+			sort.Strings(modelKeys)
+			for _, mName := range modelKeys {
 				if !strings.EqualFold(mName, targetModel) {
 					continue
 				}
-				if pricing := modelCostEntryToDefaultPricing(mData); pricing != nil {
+				if pricing := modelCostEntryToDefaultPricing(modelsMap[mName]); pricing != nil {
 					return pricing
 				}
 			}
 		}
 	}
 
-	// Second pass: return the first parseable entry across all providers.
-	for _, pData := range providersMap {
+	// Second pass: return the first parseable entry across all providers (sorted
+	// deterministically). Used for BYOK workflows where the model is configured
+	// via engine env-vars rather than the model: frontmatter field.
+	for _, pName := range providerKeys {
+		pData := providersMap[pName]
 		pMap, ok := pData.(map[string]any)
 		if !ok {
 			continue
@@ -913,8 +935,13 @@ func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *A
 		if !ok {
 			continue
 		}
-		for _, mData := range modelsMap {
-			if pricing := modelCostEntryToDefaultPricing(mData); pricing != nil {
+		modelKeys := make([]string, 0, len(modelsMap))
+		for k := range modelsMap {
+			modelKeys = append(modelKeys, k)
+		}
+		sort.Strings(modelKeys)
+		for _, mName := range modelKeys {
+			if pricing := modelCostEntryToDefaultPricing(modelsMap[mName]); pricing != nil {
 				return pricing
 			}
 		}
@@ -953,7 +980,7 @@ func modelCostEntryToDefaultPricing(mData any) *AWFDefaultAiCreditsPricingConfig
 	}
 
 	if cachedInputPerM, ok := parseCostFieldToPerMillion(costMap, "cache_read"); ok {
-		pricing.CachedInput = cachedInputPerM
+		pricing.CachedInput = &cachedInputPerM
 	}
 	if cacheWritePerM, ok := parseCostFieldToPerMillion(costMap, "cache_write"); ok {
 		pricing.CacheWrite = &cacheWritePerM

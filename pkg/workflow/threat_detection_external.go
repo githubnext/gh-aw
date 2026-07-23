@@ -83,6 +83,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 
 	return &WorkflowData{
 		AI:                engineID,
+		Model:             data.Model,
 		ActionCache:       data.ActionCache,
 		Features:          data.Features,
 		Permissions:       data.Permissions,

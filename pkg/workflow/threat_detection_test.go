@@ -2737,3 +2737,52 @@ func TestBuildThreatDetectionWorkflowData_InheritsModelCosts(t *testing.T) {
 		t.Fatal("expected detection ModelCosts to contain providers")
 	}
 }
+
+// TestBuildDetectionAWFConfig_PropagatesDefaultAiCreditsPricing verifies that
+// a detection WorkflowData built from a parent with custom ModelCosts produces
+// an awf-config.json that contains "defaultAiCreditsPricing". This is the
+// regression test for the original unknown_model_ai_credits failure on the
+// detection sub-agent.
+func TestBuildDetectionAWFConfig_PropagatesDefaultAiCreditsPricing(t *testing.T) {
+	customPricing := map[string]any{
+		"providers": map[string]any{
+			"anthropic": map[string]any{
+				"models": map[string]any{
+					"accounts/fireworks/models/minimax-m3": map[string]any{
+						"cost": map[string]any{
+							"input":  "3e-07",
+							"output": "1.5e-06",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	parent := &WorkflowData{
+		AI:         "claude",
+		Model:      "accounts/fireworks/models/minimax-m3",
+		ModelCosts: customPricing,
+	}
+
+	detectionData := buildThreatDetectionWorkflowData(parent, "claude")
+	detectionData.EngineConfig = &EngineConfig{ID: "claude"}
+	detectionData.NetworkPermissions = &NetworkPermissions{
+		Firewall: &FirewallConfig{Enabled: true},
+	}
+
+	config := AWFCommandConfig{
+		EngineName:     "claude",
+		AllowedDomains: "api.anthropic.com",
+		WorkflowData:   detectionData,
+	}
+
+	jsonStr, err := BuildAWFConfigJSON(config)
+	if err != nil {
+		t.Fatalf("BuildAWFConfigJSON failed: %v", err)
+	}
+
+	if !strings.Contains(jsonStr, "defaultAiCreditsPricing") {
+		t.Errorf("expected detection awf-config.json to contain defaultAiCreditsPricing; got:\n%s", jsonStr)
+	}
+}
