@@ -66,6 +66,8 @@ func compileSpecificFiles(
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForSyft []string     // lock files for syft container image SBOM scanning
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
+	var lockFilesForGrant []string    // lock files for grant container image license scanning
+	var strictGrantErr error
 	var lockFilesForYamllint []string // lock files for yamllint YAML linter
 
 	// Compile each specified file
@@ -151,6 +153,12 @@ func compileSpecificFiles(
 					}
 					if config.Poutine || config.RunnerGuard {
 						lockFilesForDirTools = append(lockFilesForDirTools, fileResult.lockFile)
+					}
+					if config.Grype {
+						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
+					}
+					if config.Grant {
+						lockFilesForGrant = append(lockFilesForGrant, fileResult.lockFile)
 					}
 					if config.Syft {
 						lockFilesForSyft = append(lockFilesForSyft, fileResult.lockFile)
@@ -241,6 +249,29 @@ func compileSpecificFiles(
 		}
 	}
 
+	// Run grant license scanner on container images referenced in the compiled lock files.
+	if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				errorCount++
+				stats.Errors++
+				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				*validationResults = append(*validationResults, ValidationResult{
+					Workflow: "grant",
+					Valid:    false,
+					Errors: []CompileValidationError{{
+						Type:    "grant_error",
+						Message: err.Error(),
+					}},
+				})
+				strictGrantErr = err
+			}
+		}
+	}
+
 	// Run yamllint on all collected lock files.
 	if config.Yamllint && !config.NoEmit && len(lockFilesForYamllint) > 0 {
 		if err := ctx.Err(); err != nil {
@@ -276,6 +307,9 @@ func compileSpecificFiles(
 	// Don't return the detailed error message here since it's already printed in the summary
 	// Returning a simple error prevents duplication in the output
 	if errorCount > 0 {
+		if strictGrantErr != nil {
+			return workflowDataList, strictGrantErr
+		}
 		return workflowDataList, errors.New("compilation failed")
 	}
 
@@ -350,6 +384,8 @@ func compileAllFilesInDirectory(
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForSyft []string     // lock files for syft container image SBOM scanning
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
+	var lockFilesForGrant []string    // lock files for grant container image license scanning
+	var strictGrantErr error
 	var lockFilesForYamllint []string // lock files for yamllint YAML linter
 
 	for _, file := range mdFiles {
@@ -410,6 +446,9 @@ func compileAllFilesInDirectory(
 					}
 					if config.Grype {
 						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
+					}
+					if config.Grant {
+						lockFilesForGrant = append(lockFilesForGrant, fileResult.lockFile)
 					}
 					if config.Yamllint {
 						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
@@ -493,6 +532,29 @@ func compileAllFilesInDirectory(
 		}
 	}
 
+	// Run grant license scanner on container images referenced in the compiled lock files.
+	if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				errorCount++
+				stats.Errors++
+				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				*validationResults = append(*validationResults, ValidationResult{
+					Workflow: "grant",
+					Valid:    false,
+					Errors: []CompileValidationError{{
+						Type:    "grant_error",
+						Message: err.Error(),
+					}},
+				})
+				strictGrantErr = err
+			}
+		}
+	}
+
 	// Run batch yamllint
 	if config.Yamllint && !config.NoEmit && len(lockFilesForYamllint) > 0 {
 		if err := ctx.Err(); err != nil {
@@ -543,6 +605,9 @@ func compileAllFilesInDirectory(
 
 	// Return error if any compilations failed
 	if errorCount > 0 {
+		if strictGrantErr != nil {
+			return workflowDataList, strictGrantErr
+		}
 		return workflowDataList, errors.New("compilation failed")
 	}
 

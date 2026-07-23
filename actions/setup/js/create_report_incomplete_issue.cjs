@@ -10,6 +10,7 @@ const { getPromptPath } = require("./messages_core.cjs");
 
 /** @type {string} Safe output type handled by this module */
 const HANDLER_TYPE = "create_report_incomplete_issue";
+const DEFAULT_INCOMPLETE_SIGNAL_REASON = "incomplete_signal_not_provided";
 
 /**
  * Main handler factory for create_report_incomplete_issue
@@ -23,6 +24,13 @@ const main = buildMissingIssueHandler({
   defaultTitlePrefix: "[incomplete]",
   defaultLabels: ["agentic-workflows"],
   itemsField: "incomplete_signals",
+  fallbackItems: message => [
+    {
+      reason: DEFAULT_INCOMPLETE_SIGNAL_REASON,
+      details: message?.reason || "Missing or empty incomplete_signals array in create_report_incomplete_issue payload",
+      timestamp: new Date().toISOString(),
+    },
+  ],
   templatePath: getPromptPath("missing_tool_issue.md"),
   templateListKey: "incomplete_signals_list",
   buildCommentHeader: runUrl => [`## Incomplete Run Reported`, ``, `The agent reported that the task could not be completed during [workflow run](${runUrl}):`, ``],

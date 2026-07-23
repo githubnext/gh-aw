@@ -15,7 +15,7 @@ func TestCheckAndPrepareDockerImages_NoToolsRequested(t *testing.T) {
 	ResetDockerPullState()
 
 	// When no tools are requested, should return nil
-	err := CheckAndPrepareDockerImages(context.Background(), false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), false, false, false, false, false, false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when no tools requested, got: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyDownloading(t *testing.T) {
 	SetDockerImageDownloading(ZizmorImage, true)
 
 	// Should return an error indicating to retry
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
 	if err == nil {
 		t.Error("Expected error when image is downloading, got nil")
 	}
@@ -110,6 +110,9 @@ func TestDockerImageConstants(t *testing.T) {
 	if GrypeImage == "" {
 		t.Error("GrypeImage constant should not be empty")
 	}
+	if GrantImage == "" {
+		t.Error("GrantImage constant should not be empty")
+	}
 
 	// Verify they are docker image references
 	expectedImages := map[string]string{
@@ -119,6 +122,7 @@ func TestDockerImageConstants(t *testing.T) {
 		"runner-guard": RunnerGuardImage,
 		"syft":         SyftImage,
 		"grype":        GrypeImage,
+		"grant":        GrantImage,
 	}
 
 	for name, image := range expectedImages {
@@ -142,7 +146,7 @@ func TestCheckAndPrepareDockerImages_MultipleImages(t *testing.T) {
 	SetDockerImageDownloading(PoutineImage, true)
 
 	// Request all tools
-	err := CheckAndPrepareDockerImages(context.Background(), true, true, true, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, true, true, false, false, false, false, false)
 	if err == nil {
 		t.Error("Expected error when images are downloading, got nil")
 	}
@@ -168,7 +172,7 @@ func TestCheckAndPrepareDockerImages_RetryMessageFormat(t *testing.T) {
 	// Simulate zizmor downloading
 	SetDockerImageDownloading(ZizmorImage, true)
 
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
 	if err == nil {
 		t.Fatal("Expected error when image is downloading")
 	}
@@ -203,7 +207,7 @@ func TestCheckAndPrepareDockerImages_StartedDownloadingMessage(t *testing.T) {
 	// when the image is marked as downloading
 	SetDockerImageDownloading(ZizmorImage, true)
 
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
 	if err == nil {
 		t.Fatal("Expected error when image is downloading")
 	}
@@ -227,7 +231,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyAvailable(t *testing.T) {
 	SetMockImageAvailable(ZizmorImage, true)
 
 	// Should not return an error since the image is available
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when image is available, got: %v", err)
 	}
@@ -534,7 +538,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable(t *testing.T) {
 	SetMockDockerAvailable(false)
 
 	// Should return a clear error about Docker not being available
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
 	if err == nil {
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
@@ -572,7 +576,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_MultipleTools(t *testing.
 	SetMockDockerAvailable(false)
 
 	// Request multiple tools
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, true, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, false, true, false, false, false, false, false)
 	if err == nil {
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
@@ -611,7 +615,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_NoTools(t *testing.T) {
 	SetMockDockerAvailable(false)
 
 	// When no tools requested, should return nil even if Docker is unavailable
-	err := CheckAndPrepareDockerImages(context.Background(), false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), false, false, false, false, false, false, false, false)
 	if err != nil {
 		t.Errorf("Expected no error when no tools requested (even with Docker unavailable), got: %v", err)
 	}
@@ -643,7 +647,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_ReturnsTypedError(t *test
 	ResetDockerPullState()
 	SetMockDockerAvailable(false)
 
-	err := CheckAndPrepareDockerImages(context.Background(), false, false, true, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), false, false, true, false, false, false, false, false)
 	if err == nil {
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
@@ -672,7 +676,7 @@ func TestCheckAndPrepareDockerImages_RunnerGuardImageDownloading(t *testing.T) {
 	SetDockerImageDownloading(RunnerGuardImage, true)
 
 	// Request all tools, including runner-guard
-	err := CheckAndPrepareDockerImages(context.Background(), true, true, true, true, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), true, true, true, true, false, false, false, false)
 	if err == nil {
 		t.Error("Expected error when images are downloading, got nil")
 	}

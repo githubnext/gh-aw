@@ -195,6 +195,52 @@ describe("missing_issue_helpers.cjs - buildMissingIssueHandler", () => {
       expect(result.success).toBe(false);
       expect(result.error).toBe("Missing or empty test_items array");
     });
+
+    it("should use fallbackItems when items field is missing", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 12, html_url: "https://github.com/owner/repo/issues/12" },
+      });
+
+      const handler = await buildMissingIssueHandler(
+        makeOptions({
+          fallbackItems: () => [{ name: "fallback-item", reason: "fallback-reason", timestamp: "2026-01-01T00:00:00Z" }],
+        })
+      )({});
+      const result = await handler({ workflow_name: "Test Workflow" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining("fallback-item"),
+        })
+      );
+    });
+
+    it("should use fallbackItems when items array is empty", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: { total_count: 0, items: [] },
+      });
+      mockGithub.rest.issues.create.mockResolvedValue({
+        data: { number: 13, html_url: "https://github.com/owner/repo/issues/13" },
+      });
+
+      const handler = await buildMissingIssueHandler(
+        makeOptions({
+          fallbackItems: () => [{ name: "fallback-empty", reason: "fallback-empty-reason", timestamp: "2026-01-01T00:00:00Z" }],
+        })
+      )({});
+      const result = await handler({ workflow_name: "Test Workflow", test_items: [] });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.issues.create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          body: expect.stringContaining("fallback-empty"),
+        })
+      );
+    });
   });
 
   describe("max count enforcement", () => {

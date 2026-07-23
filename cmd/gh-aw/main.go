@@ -324,6 +324,7 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
 		runnerGuard, _ := cmd.Flags().GetBool("runner-guard")
 		syft, _ := cmd.Flags().GetBool("syft")
 		grype, _ := cmd.Flags().GetBool("grype")
+		grant, _ := cmd.Flags().GetBool("grant")
 		yamllint, _ := cmd.Flags().GetBool("yamllint")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 		showAllErrors, _ := cmd.Flags().GetBool("show-all")
@@ -392,6 +393,7 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
 			RunnerGuard:            runnerGuard,
 			Syft:                   syft,
 			Grype:                  grype,
+			Grant:                  grant,
 			Yamllint:               yamllint,
 			JSONOutput:             jsonOutput,
 			ShowAllErrors:          showAllErrors,
@@ -753,6 +755,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("runner-guard", false, "Run runner-guard taint analysis scanner on generated .lock.yml files (uses Docker image "+cli.RunnerGuardImage+")")
 	compileCmd.Flags().Bool("syft", false, "Run syft SBOM scanner on container images referenced in compiled .lock.yml files (uses Docker image "+cli.SyftImage+")")
 	compileCmd.Flags().Bool("grype", false, "Run grype vulnerability scanner on container images referenced in compiled .lock.yml files (uses Docker image "+cli.GrypeImage+")")
+	compileCmd.Flags().Bool("grant", false, "Run grant license scanner on container images referenced in compiled .lock.yml files (uses Docker image "+cli.GrantImage+")")
 	compileCmd.Flags().Bool("yamllint", false, "Run yamllint YAML linter on generated .lock.yml files (uses Docker image "+cli.YamllintImage+")")
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")

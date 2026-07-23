@@ -35,6 +35,7 @@ const (
 	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
 	SyftImage        = "anchore/syft:v1.48.0"
 	GrypeImage       = "anchore/grype:latest"
+	GrantImage       = "anchore/grant:latest"
 	YamllintImage    = "pipelinecomponents/yamllint:latest"
 )
 
@@ -227,9 +228,9 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 // Returns:
 //   - nil if all required images are available
 //   - error if Docker is unavailable or images are downloading/need to be downloaded
-func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype, useYamllint bool) error {
+func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype, useGrant, useYamllint bool) error {
 	// If no tools requested, nothing to do
-	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useSyft && !useGrype && !useYamllint {
+	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useSyft && !useGrype && !useGrant && !useYamllint {
 		return nil
 	}
 
@@ -267,6 +268,11 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
+		if useGrant {
+			tool := "grant"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
 		if useYamllint {
 			tool := "yamllint"
 			requestedTools = append(requestedTools, tool)
@@ -296,6 +302,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		{useRunnerGuard, RunnerGuardImage, "runner-guard"},
 		{useSyft, SyftImage, "syft"},
 		{useGrype, GrypeImage, "grype"},
+		{useGrant, GrantImage, "grant"},
 		{useYamllint, YamllintImage, "yamllint"},
 	}
 

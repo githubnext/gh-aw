@@ -228,6 +228,7 @@ Pre-activation runs gating checks sequentially before any AI execution. Any fail
 | `gh aw compile --verbose` | Enable verbose output |
 | `gh aw compile --strict` | Enhanced security validation |
 | `gh aw compile --no-emit` | Validate without generating files |
+| `gh aw compile --actionlint --zizmor --poutine --grant` | Run security scanners |
 | `gh aw compile --actionlint --zizmor --poutine --yamllint` | Run security scanners |
 | `gh aw compile --purge` | Remove orphaned `.lock.yml` files |
 | `gh aw compile --output /path/to/output` | Custom output directory |
