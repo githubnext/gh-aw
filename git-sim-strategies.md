@@ -121,21 +121,19 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **136** → tiny-none-batch-micro (idx135 DONE) continues into batch-micro
-ahead/diverged/multi/merge_msg (idx136-143) then batch-small/medium/large/xlarge.
-**idx132-134 DONE, all PASS — FILES=many COMPLETE (90-134):** many-xlarge-DIVERGED trio:
-diverged-single(132) 4064 KB, diverged-multi(133) 4072 KB (3 disjoint patches ~1.018×,
-NOT 3×), diverged-merge_msg(134) 4064 KB. All: FF rc0, structural merges=0, endpoint
-`git diff --name-only main..feature`=21 (main history.md phantom under divergence) but
-true format-patch feature set = 20 files (three-dot=20). merge_msg(134) reconfirmed
-PARENTS=1 + topic-name `.patch` filename leak (message-text merge heuristic misfires).
-~24-32 KB headroom to 4096 — as tight as 126-131. many-xlarge fully done 126-134.
-**idx135 DONE, all PASS — FIRST BATCH cell:** batch-micro-clean-single = EXACTLY 100
-files, 24 KB total, ~193 B/file framing-dominated (micro ~2 KB payload). PASS under this
-workflow's max-patch-files=200. **BOUNDARY CONFIRMED: 100 files == default max-patch-files
-100** → under a `>` check 100 passes, under `>=` 100 rejects. Safe here (100≤200). NOTE:
-earlier notes mis-stated batch as idx180-269; CORRECT range is **batch = idx135-179**
-(files=(i//45)%4==3). HISTORY=deep(500) & SIZE>tiny (idx720+) far ahead. First real
-`rejected` still needs: a PATCH tier tuned >4096, batch under a default-100 config
-(would fire at idx135 there IF `>=`), or the 3× single-long-line same-file-append shape.
-batch-xlarge (~4080 KB, 100 files) lands later in this block — watch both caps there.
+Next index: **140** → batch-micro ahead-merge_msg(140)/diverged trio(141-143), then
+batch-small/medium/large/xlarge (idx144-179 finishes FILES=batch block). **batch =
+idx135-179** (files=(i//45)%4==3). HISTORY=deep(500) & SIZE>tiny (idx720+) far ahead.
+
+FILES=many COMPLETE (90-134), all PASS. **BATCH boundary (idx135):** 100 files ==
+default max-patch-files 100 → `>` passes / `>=` rejects; safe here (workflow sets 200).
+**idx135-139 DONE, all PASS — batch-micro:** 100 files each, ~193-214 B/file framing
+(micro ~900B payload → framing dominates ~24×; only max-patch-files is the live dim,
+size is ~0.5% of 4096). clean-single(135) 24 KB. clean-multi(136) 21.83 KB/3 disjoint
+(~1×, merges=0, parents=1). clean-merge_msg(137) 21.57 KB/1c — filename leak
+`0001-Merge-branch-topic-into-feature.patch` + msg-substring heuristic misfire
+reconfirmed (--merges=0, parent=1). ahead-single(138) create-PR 24.40 KB/100f, push
++0.50 KB/1f, FF is-ancestor rc0. ahead-multi(139) 24.745 KB/100f/3 disjoint, push
++1.011 KB/2c, FF rc0. First real `rejected` still needs: a PATCH tier tuned >4096,
+batch under a default-100 config (fires at idx135 IF `>=`), or the 3× single-long-line
+same-file-append shape. batch-xlarge (~4080 KB, 100 files) lands later — watch both caps.
