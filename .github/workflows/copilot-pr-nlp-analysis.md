@@ -54,11 +54,12 @@ steps:
       # Create comments directory
       mkdir -p /tmp/gh-aw/agent/pr-comments
 
-      # Fetch detailed comments for each PR from the pre-fetched data
-      PR_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)
-      echo "Fetching comments for $PR_COUNT PRs..."
+      # Only fetch comments for PRs merged in the last 24 hours (not all 30-day data)
+      DATE_24H_AGO=$(date -d '1 day ago' '+%Y-%m-%dT%H:%M:%SZ' 2>/dev/null || date -v-1d '+%Y-%m-%dT%H:%M:%SZ')
+      PR_COUNT=$(jq --arg date "$DATE_24H_AGO" '[.[] | select(.mergedAt != null and .mergedAt >= $date)] | length' /tmp/gh-aw/agent/pr-data/copilot-prs.json)
+      echo "Fetching comments for $PR_COUNT PRs merged in the last 24 hours..."
 
-      jq -r '.[].number' /tmp/gh-aw/agent/pr-data/copilot-prs.json | while read -r PR_NUM; do
+      jq -r --arg date "$DATE_24H_AGO" '.[] | select(.mergedAt != null and .mergedAt >= $date) | .number' /tmp/gh-aw/agent/pr-data/copilot-prs.json | while read -r PR_NUM; do
         echo "Fetching comments for PR #${PR_NUM}"
         gh pr view "${PR_NUM}" \
           --json comments,reviews,reviewComments \
@@ -68,7 +69,7 @@ steps:
 
       echo "Comment data saved to /tmp/gh-aw/agent/pr-comments/"
 
-timeout-minutes: 30
+timeout-minutes: 20
 
 tools:
   cli-proxy: true
