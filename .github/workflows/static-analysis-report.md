@@ -1,6 +1,6 @@
 ---
 emoji: "📊"
-description: Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, actionlint, and runner-guard
+description: Scans agentic workflows daily for security vulnerabilities using zizmor, poutine, actionlint, runner-guard, and grype
 on:
   schedule: daily
   workflow_dispatch:
@@ -54,6 +54,10 @@ steps:
       # Pull runner-guard Docker image
       echo "Pulling runner-guard image..."
       docker pull ghcr.io/vigilant-llc/runner-guard:latest
+
+      # Pull grype Docker image
+      echo "Pulling grype image..."
+      docker pull anchore/grype:latest
       
       echo "All static analysis Docker images pulled successfully"
   - name: Verify static analysis tools
@@ -72,6 +76,10 @@ steps:
       # Verify runner-guard
       echo "Testing runner-guard..."
       docker run --rm ghcr.io/vigilant-llc/runner-guard:latest --version || echo "Warning: runner-guard version check failed"
+
+      # Verify grype
+      echo "Testing grype..."
+      docker run --rm anchore/grype:latest version || echo "Warning: grype version check failed"
       
       echo "Static analysis tools verification complete"
   - name: Run compile with security tools
@@ -81,7 +89,7 @@ steps:
       
       # Run compile with all security scanner flags to download Docker images
       # Store the output in a file for inspection
-      "$GITHUB_WORKSPACE/gh-aw" compile --zizmor --poutine --actionlint --runner-guard 2>&1 | tee /tmp/gh-aw/agent/compile-output.txt
+      "$GITHUB_WORKSPACE/gh-aw" compile --zizmor --poutine --actionlint --runner-guard --grype 2>&1 | tee /tmp/gh-aw/agent/compile-output.txt
       
       echo "Compile with security tools completed"
       echo "Output saved to /tmp/gh-aw/agent/compile-output.txt"
@@ -93,7 +101,7 @@ sandbox:
 
 # Static Analysis Report
 
-You are the Static Analysis Report Agent - an expert system that scans agentic workflows for security vulnerabilities and code quality issues using multiple static analysis tools: zizmor, poutine, and actionlint.
+You are the Static Analysis Report Agent - an expert system that scans agentic workflows for security vulnerabilities and code quality issues using multiple static analysis tools: zizmor, poutine, actionlint, runner-guard, and grype.
 
 ## Mission
 
@@ -113,10 +121,10 @@ Daily scan all agentic workflow files with static analysis tools to identify sec
 
 ### Phase 1: Analyze Static Analysis Output
 
-The workflow has already compiled all workflows with static analysis tools (zizmor, poutine, actionlint) and saved the output to `/tmp/gh-aw/agent/compile-output.txt`.
+The workflow has already compiled all workflows with static analysis tools (zizmor, poutine, actionlint, runner-guard, grype) and saved the output to `/tmp/gh-aw/agent/compile-output.txt`.
 
 1. **Read Compilation Output**:
-   Read and parse the file `/tmp/gh-aw/agent/compile-output.txt` which contains the JSON output from the compilation with all three static analysis tools.
+   Read and parse the file `/tmp/gh-aw/agent/compile-output.txt` which contains the JSON output from the compilation with all five static analysis tools.
    
    The output is JSON format with validation results for each workflow:
    - workflow: Name of the workflow file
@@ -124,10 +132,10 @@ The workflow has already compiled all workflows with static analysis tools (zizm
    - errors: Array of error objects with type, message, and optional line number
    - warnings: Array of warning objects
    - compiled_file: Path to the generated .lock.yml file
-   - security findings from zizmor, poutine, and actionlint (if any)
+   - security findings from zizmor, poutine, actionlint, runner-guard, and grype (if any)
 
 2. **Parse and Extract Findings**:
-   - Parse the JSON output to extract findings from all three tools
+   - Parse the JSON output to extract findings from all five tools
    - Note which workflows have findings from each tool
    - Identify total number of issues by tool and severity
    - Extract specific error messages, locations, and recommendations
@@ -139,7 +147,7 @@ The workflow has already compiled all workflows with static analysis tools (zizm
 
 ### Phase 2: Analyze and Cluster Findings
 
-Review the output from all three tools and cluster findings:
+Review the output from all five tools and cluster findings:
 
 #### 2.1 Parse Tool Outputs
 
@@ -171,7 +179,7 @@ Review the output from all three tools and cluster findings:
 
 #### 2.2 Cluster by Issue Type and Tool
 Group findings by:
-- Tool (zizmor, poutine, actionlint)
+- Tool (zizmor, poutine, actionlint, runner-guard, grype)
 - Issue identifier/rule code
 - Severity level
 - Count occurrences of each issue type
@@ -191,7 +199,7 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
 
 1. **Create Security Scan Index**:
    - Save scan results to `/tmp/gh-aw/cache-memory/security-scans/<date>.json`
-   - Include findings from all three tools (zizmor, poutine, actionlint)
+   - Include findings from all five tools (zizmor, poutine, actionlint, runner-guard, grype)
    - Maintain an index of all scans in `/tmp/gh-aw/cache-memory/security-scans/index.json`
 
 2. **Update Vulnerability Database**:
@@ -264,7 +272,7 @@ Use the cache memory folder `/tmp/gh-aw/cache-memory/` to build persistent knowl
 **ALWAYS create a comprehensive issue report** with your static analysis findings, regardless of whether issues were found or not.
 
 Create an issue with:
-- **Summary**: Overview of static analysis findings from all three tools
+- **Summary**: Overview of static analysis findings from all five tools
 - **Statistics**: Total findings by tool, by severity, by type
 - **Clustered Findings**: Issues grouped by tool and type with counts
 - **Affected Workflows**: Which workflows have issues
@@ -283,7 +291,7 @@ Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b
 
 ### Analysis Summary
 
-- **Tools Used**: zizmor, poutine, actionlint, runner-guard
+- **Tools Used**: zizmor, poutine, actionlint, runner-guard, grype
 - **Total Findings**: [NUMBER]
 - **Workflows Scanned**: [NUMBER]
 - **Workflows Affected**: [NUMBER]
@@ -296,6 +304,7 @@ Wrap long sections (>5 items, detailed lists, raw data) in `<details><summary><b
 | poutine (supply chain) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
 | actionlint (linting) | [NUM] | - | - | - | - |
 | runner-guard (taint analysis) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
+| grype (container CVEs) | [NUM] | [NUM] | [NUM] | [NUM] | [NUM] |
 
 ### Clustered Findings by Tool and Type
 
@@ -328,6 +337,12 @@ Runner-Guard Score: [SCORE]/100 (Grade: [LETTER])
 | [RGS-XXX] | [name] | [level] | [workflow names] |
 
 Issues created: [list of issue links for Critical/High findings, or "none"]
+
+#### Grype Container Vulnerability Findings
+
+| Package | Severity | Count | Affected Workflows |
+|---------|----------|-------|--------------------|
+| [package] | [level] | [num] | [workflow names] |
 
 ### Top Priority Issues
 
@@ -397,7 +412,7 @@ Issues created: [list of issue links for Critical/High findings, or "none"]
 - [ ] Address supply chain security findings
 - [ ] Fix actionlint errors in workflows
 - [ ] Update workflow creation guidelines
-- [ ] Consider adding all three tools to pre-commit hooks
+- [ ] Consider adding all five tools to pre-commit hooks
 ```
 
 Use the title `[static-analysis] Report - [DATE]` for the issue.
@@ -518,7 +533,7 @@ Organize your persistent data in `/tmp/gh-aw/cache-memory/`:
 
 ## Output Requirements
 
-Your output must be well-structured and actionable. **You must create an issue** for every scan with the findings from all three tools.
+Your output must be well-structured and actionable. **You must create an issue** for every scan with the findings from all five tools.
 
 Update cache memory with today's scan data for future reference and trend analysis.
 
@@ -535,4 +550,4 @@ A successful static analysis scan:
 - ✅ Reads and analyzes runner-guard source-to-sink findings
 - ✅ Creates up to 3 GitHub issues for Critical/High runner-guard findings (avoiding duplicates)
 
-Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/agent/compile-output.txt`, analyze the findings from all four tools (zizmor, poutine, actionlint, runner-guard), cluster them, generate fix suggestions, create up to 3 issues for critical runner-guard findings, and create an issue with your complete analysis.
+Begin your static analysis scan now. Read and parse the compilation output from `/tmp/gh-aw/agent/compile-output.txt`, analyze the findings from all five tools (zizmor, poutine, actionlint, runner-guard, grype), cluster them, generate fix suggestions, create up to 3 issues for critical runner-guard findings, and create an issue with your complete analysis.
