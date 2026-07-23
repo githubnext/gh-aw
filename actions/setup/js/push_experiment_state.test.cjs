@@ -101,4 +101,30 @@ describe("push_experiment_state", () => {
     expect(mockCore.setFailed).not.toHaveBeenCalled();
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("No experiment state files found"));
   });
+
+  it("reports every unreadable state file before failing", async () => {
+    process.env.GH_TOKEN = "ghp_test";
+    process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/myworkflow";
+    process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+
+    const stateFile = path.join(tmpDir, "state.json");
+    const assignmentsFile = path.join(tmpDir, "assignments.json");
+    fs.writeFileSync(stateFile, "{}");
+    fs.writeFileSync(assignmentsFile, "{}");
+
+    const originalStatSync = fs.statSync;
+    const statSpy = vi.spyOn(fs, "statSync").mockImplementation(targetPath => {
+      if (targetPath === stateFile || targetPath === assignmentsFile) {
+        throw new Error(`cannot inspect ${path.basename(targetPath)}`);
+      }
+      return originalStatSync.call(fs, targetPath);
+    });
+
+    await main();
+
+    expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining(`Failed to inspect experiment state files:\n${stateFile}: cannot inspect state.json\n${assignmentsFile}: cannot inspect assignments.json`));
+    expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Files to push:"));
+
+    statSpy.mockRestore();
+  });
 });

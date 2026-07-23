@@ -1261,10 +1261,9 @@ async function formatResponse(responseBody, serverName, toolName = "") {
         : "";
     const errText = code ? `Error [${code}]: ${message}` : `Error: ${message}`;
     process.stderr.write(errText + "\n");
-    core.error(`[${serverName}] Tool call error: ${errText}`);
     auditLog(serverName, { event: "tool_error", error: errText });
-    process.exitCode = 1;
     if (hint) process.stderr.write(hint + "\n");
+    core.setFailed(`[${serverName}] Tool call error: ${errText}`);
     return;
   }
 
@@ -1287,9 +1286,9 @@ async function formatResponse(responseBody, serverName, toolName = "") {
       const output = outputParts.join("\n");
       if (isErrorResult) {
         process.stderr.write(output + "\n");
-        core.error(`[${serverName}] Tool returned isError=true: ${output.length} chars`);
         auditLog(serverName, { event: "tool_error", error: output });
-        process.exitCode = 1;
+        core.setFailed(`[${serverName}] Tool returned isError=true: ${output.length} chars`);
+        return;
       } else {
         await writeStdoutAndFlush(output + "\n");
         core.info(`[${serverName}] Tool output: ${output.length} chars`);
@@ -1300,9 +1299,9 @@ async function formatResponse(responseBody, serverName, toolName = "") {
     const resultStr = typeof result === "string" ? result : JSON.stringify(result);
     if (isErrorResult) {
       process.stderr.write(resultStr + "\n");
-      core.error(`[${serverName}] Tool returned isError=true`);
       auditLog(serverName, { event: "tool_error", error: resultStr });
-      process.exitCode = 1;
+      core.setFailed(`[${serverName}] Tool returned isError=true`);
+      return;
     } else {
       await writeStdoutAndFlush(resultStr + "\n");
     }
@@ -1412,7 +1411,6 @@ async function main() {
   } catch (err) {
     const totalMs = Date.now() - callStartMs;
     const message = getErrorMessage(err);
-    core.error(`[${serverName}] Tool call failed (${totalMs}ms): ${message}`);
     auditLog(serverName, {
       event: "call_error",
       tool: toolName,
@@ -1420,7 +1418,7 @@ async function main() {
       totalElapsedMs: totalMs,
     });
     process.stderr.write(`Error: ${message}\n`);
-    process.exitCode = 1;
+    core.setFailed(`[${serverName}] Tool call failed (${totalMs}ms): ${message}`);
   } finally {
     stopKeepalive?.();
   }
@@ -1430,8 +1428,12 @@ if (require.main === module) {
   main().catch(err => {
     const core = global.core;
     const message = err instanceof Error ? err.stack || err.message : String(err);
-    core.error(`mcp_cli_bridge fatal: ${message}`);
+    if (core && typeof core.setFailed === "function") {
+      core.setFailed(`mcp_cli_bridge fatal: ${message}`);
+      return;
+    }
     process.exitCode = 1;
+    process.stderr.write(`mcp_cli_bridge fatal: ${message}\n`);
   });
 }
 

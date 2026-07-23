@@ -57,7 +57,13 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
     execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit", cwd: workspaceDir });
     execGitSync(["read-tree", "--empty"], { stdio: "pipe", cwd: workspaceDir });
     // Remove any pre-existing working-tree files (from sparse checkout).
-    for (const entry of fs.readdirSync(workspaceDir)) {
+    let entries;
+    try {
+      entries = fs.readdirSync(workspaceDir);
+    } catch (err) {
+      throw new Error(`Failed to read workspace directory ${workspaceDir}: ${getErrorMessage(err)}`, { cause: err });
+    }
+    for (const entry of entries) {
       if (entry !== ".git") {
         fs.rmSync(path.join(workspaceDir, entry), { recursive: true, force: true });
       }
@@ -108,10 +114,31 @@ async function main() {
   core.info(`Pushing ${stateLabel} to branch "${branchName}" in ${targetRepo}`);
 
   // Collect the JSON files that exist in the state directory.
-  const filesToPush = candidateFiles.filter(name => {
+  /** @type {string[]} */
+  const filesToPush = [];
+  /** @type {string[]} */
+  const inspectErrors = [];
+  for (const name of candidateFiles) {
     const full = path.join(stateDir, name);
-    return fs.existsSync(full) && fs.statSync(full).isFile();
-  });
+    if (!fs.existsSync(full)) {
+      continue;
+    }
+    let fileInfo;
+    try {
+      fileInfo = fs.statSync(full);
+    } catch (err) {
+      inspectErrors.push(`${full}: ${getErrorMessage(err)}`);
+      continue;
+    }
+    if (fileInfo.isFile()) {
+      filesToPush.push(name);
+    }
+  }
+
+  if (inspectErrors.length > 0) {
+    core.setFailed(`Failed to inspect ${stateLabel} files:\n${inspectErrors.join("\n")}`);
+    return;
+  }
 
   if (filesToPush.length === 0) {
     core.info(`No ${stateLabel} files found – nothing to push`);
@@ -218,6 +245,7 @@ async function main() {
         }
       } else {
         core.setFailed(`Failed to push ${stateLabel} after ${MAX_RETRIES + 1} attempts: ${errMsg}`);
+        return;
       }
     }
   }

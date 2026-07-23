@@ -198,7 +198,8 @@ experiments:
 
 ```markdown
 {{#if experiments.skill_hint == "enabled" }}
-Check `skills/` for SKILL.md files relevant to this task and apply their guidance.
+Check `skills/` and `.github/skills/` for relevant `SKILL.md` files and apply
+their guidance.
 {{#endif}}
 ```
 

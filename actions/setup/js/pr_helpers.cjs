@@ -49,7 +49,7 @@ function getPullRequestNumber(messageItem, context) {
   // Try to get from message first
   if (messageItem?.pull_request_number !== undefined) {
     const prNumber = parseInt(String(messageItem.pull_request_number), 10);
-    if (isNaN(prNumber)) {
+    if (Number.isNaN(prNumber)) {
       return {
         prNumber: null,
         error: `Invalid pull_request_number: ${messageItem.pull_request_number}`,

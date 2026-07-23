@@ -208,7 +208,12 @@ function createZipFromFiles(files, rootDirectory, outputPath) {
 }
 
 async function uploadFileToSignedURL(filePath, signedUploadURL, contentType) {
-  const stats = fs.statSync(filePath);
+  let stats;
+  try {
+    stats = fs.statSync(filePath);
+  } catch (err) {
+    throw new Error(`Failed to read file metadata for ${filePath}: ${getErrorMessage(err)}`, { cause: err });
+  }
   const response = await fetch(signedUploadURL, {
     method: "PUT",
     headers: {

@@ -229,7 +229,7 @@ function resolveDiscussionNumber(item, updateTarget, context, resolvedTemporaryI
   } else if (updateTarget !== "triggering") {
     // Explicit number target
     const discussionNumber = parseInt(updateTarget, 10);
-    if (isNaN(discussionNumber) || discussionNumber <= 0) {
+    if (Number.isNaN(discussionNumber) || discussionNumber <= 0) {
       return {
         success: false,
         error: `Invalid discussion number in target: ${updateTarget}`,

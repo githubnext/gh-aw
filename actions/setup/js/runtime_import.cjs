@@ -679,16 +679,24 @@ async function fetchUrlContent(url, cacheDir) {
 
   // Check if cached version exists and is recent (less than 1 hour old)
   if (fs.existsSync(cacheFile)) {
-    const stats = fs.statSync(cacheFile);
-    const ageInMs = Date.now() - stats.mtimeMs;
-    const oneHourInMs = 60 * 60 * 1000;
+    let stats;
+    try {
+      stats = fs.statSync(cacheFile);
+    } catch (err) {
+      core.warning(`Failed to inspect cache file ${cacheFile}: ${getErrorMessage(err)}. Refetching URL content.`);
+      stats = null;
+    }
+    if (stats) {
+      const ageInMs = Date.now() - stats.mtimeMs;
+      const oneHourInMs = 60 * 60 * 1000;
 
-    if (ageInMs < oneHourInMs) {
-      core.info(`Using cached content for URL: ${url}`);
-      try {
-        return fs.readFileSync(cacheFile, "utf8");
-      } catch (err) {
-        throw new Error(`Failed to read file ${cacheFile}: ${String(err)}`, { cause: err });
+      if (ageInMs < oneHourInMs) {
+        core.info(`Using cached content for URL: ${url}`);
+        try {
+          return fs.readFileSync(cacheFile, "utf8");
+        } catch (err) {
+          throw new Error(`Failed to read file ${cacheFile}: ${String(err)}`, { cause: err });
+        }
       }
     }
   }

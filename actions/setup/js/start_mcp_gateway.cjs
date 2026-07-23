@@ -37,6 +37,9 @@ const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+/** @type {number | null} */
+let activeGatewayPid = null;
+
 // ---------------------------------------------------------------------------
 // Timing helpers
 // ---------------------------------------------------------------------------
@@ -202,6 +205,21 @@ function isProcessAlive(pid) {
 }
 
 /**
+ * Best-effort cleanup for a detached gateway process when startup fails.
+ * @param {number | null | undefined} pid
+ */
+function stopGatewayProcess(pid) {
+  if (!pid || !isProcessAlive(pid)) {
+    return;
+  }
+  try {
+    process.kill(pid);
+  } catch {
+    // ignore cleanup failures
+  }
+}
+
+/**
  * HTTP GET helper – returns { statusCode, body }.
  * @param {string} url
  * @param {number} timeoutMs
@@ -229,16 +247,18 @@ function httpGet(url, timeoutMs) {
 /**
  * Validate that a path is not a symlink (symlink attack prevention).
  * @param {string} p
+ * @returns {boolean}
  */
 function assertNotSymlink(p) {
   try {
     if (lstatGuard(p) === null) {
-      core.error(`ERROR: ${p} is a symlink — possible symlink attack, aborting`);
-      process.exit(1);
+      core.setFailed(`ERROR: ${p} is a symlink — possible symlink attack, aborting`);
+      return false;
     }
   } catch {
     // Path does not exist yet – that's fine.
   }
+  return true;
 }
 
 /**
@@ -298,6 +318,7 @@ function detectEngineType(configDir, env = process.env, existsSync = fs.existsSy
 // ---------------------------------------------------------------------------
 
 async function main() {
+  activeGatewayPid = null;
   // Restrict default file creation mode to owner-only (rw-------)
   process.umask(0o077);
 
@@ -312,14 +333,14 @@ async function main() {
   // Validate required env vars
   // -----------------------------------------------------------------------
   if (!dockerCommand) {
-    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)");
-    process.exit(1);
+    core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND must be set (command-based execution is not supported per MCP Gateway Specification v1.0.0)");
+    return;
   }
 
   // Validate port is numeric to prevent injection in shell commands and URLs
   if (gatewayPort && !/^\d+$/.test(gatewayPort)) {
-    core.error(`ERROR: MCP_GATEWAY_PORT must be a numeric value, got: '${gatewayPort}'`);
-    process.exit(1);
+    core.setFailed(`ERROR: MCP_GATEWAY_PORT must be a numeric value, got: '${gatewayPort}'`);
+    return;
   }
 
   core.info("=== MCP Gateway Startup ===");
@@ -347,14 +368,18 @@ async function main() {
   }
 
   // Symlink attack prevention on the config directory
-  assertNotSymlink(configDir);
+  if (!assertNotSymlink(configDir)) {
+    return;
+  }
   try {
     fs.mkdirSync(configDir, { recursive: true });
   } catch (err) {
     throw new Error(`Failed to create directory ${configDir}: ${String(err)}`, { cause: err });
   }
   // Post-creation check
-  assertNotSymlink(configDir);
+  if (!assertNotSymlink(configDir)) {
+    return;
+  }
   try {
     fs.chmodSync(configDir, 0o700);
   } catch (err) {
@@ -367,20 +392,20 @@ async function main() {
   if (!/^docker run/.test(dockerCommand)) {
     core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax");
     core.error("Expected: docker run command with image and arguments");
-    core.error(`Got: ${dockerCommand}`);
-    process.exit(1);
+    core.setFailed(`ERROR: MCP_GATEWAY_DOCKER_COMMAND has incorrect syntax — got: ${dockerCommand}`);
+    return;
   }
   if (!/-i/.test(dockerCommand)) {
-    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -i flag for interactive mode");
-    process.exit(1);
+    core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include -i flag for interactive mode");
+    return;
   }
   if (!/--rm/.test(dockerCommand)) {
-    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --rm flag for cleanup");
-    process.exit(1);
+    core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --rm flag for cleanup");
+    return;
   }
   if (!/--network/.test(dockerCommand)) {
-    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network flag for networking");
-    process.exit(1);
+    core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND must include --network flag for networking");
+    return;
   }
 
   // -----------------------------------------------------------------------
@@ -434,28 +459,29 @@ async function main() {
     if (lines.length > 50) {
       core.error("... (truncated, showing first 50 lines)");
     }
-    process.exit(1);
+    core.setFailed("ERROR: Configuration is not valid JSON");
+    return;
   }
 
   // Validate gateway section
   core.info("Validating gateway configuration...");
   const gw = configObj.gateway;
   if (!gw || typeof gw !== "object") {
-    core.error("ERROR: Configuration is missing required 'gateway' section");
     core.error("Per MCP Gateway Specification v1.0.0 section 4.1.3, the gateway section is required");
-    process.exit(1);
+    core.setFailed("ERROR: Configuration is missing required 'gateway' section");
+    return;
   }
   if (!("port" in gw) || gw.port == null) {
-    core.error("ERROR: Gateway configuration is missing required 'port' field");
-    process.exit(1);
+    core.setFailed("ERROR: Gateway configuration is missing required 'port' field");
+    return;
   }
   if (!("domain" in gw) || gw.domain == null) {
-    core.error("ERROR: Gateway configuration is missing required 'domain' field");
-    process.exit(1);
+    core.setFailed("ERROR: Gateway configuration is missing required 'domain' field");
+    return;
   }
   if (!("apiKey" in gw) || gw.apiKey == null) {
-    core.error("ERROR: Gateway configuration is missing required 'apiKey' field");
-    process.exit(1);
+    core.setFailed("ERROR: Gateway configuration is missing required 'apiKey' field");
+    return;
   }
 
   applyOTLPIgnoreIfMissing(configObj);
@@ -496,8 +522,8 @@ async function main() {
   const args = dockerCommand.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) || [];
   const cmd = args.shift();
   if (!cmd) {
-    core.error("ERROR: MCP_GATEWAY_DOCKER_COMMAND did not contain an executable command");
-    process.exit(1);
+    core.setFailed("ERROR: MCP_GATEWAY_DOCKER_COMMAND did not contain an executable command");
+    return;
   }
 
   const outputFd = fs.openSync(outputPath, "w", 0o600);
@@ -508,11 +534,13 @@ async function main() {
     env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
   });
+  activeGatewayPid = child.pid || null;
 
   // Write configuration to stdin then close
   if (!child.stdin) {
-    core.error("ERROR: Gateway process stdin is not available");
-    process.exit(1);
+    stopGatewayProcess(activeGatewayPid);
+    core.setFailed("ERROR: Gateway process stdin is not available");
+    return;
   }
   child.stdin.write(JSON.stringify(configObj));
   child.stdin.end();
@@ -522,8 +550,8 @@ async function main() {
 
   const gatewayPid = child.pid;
   if (!gatewayPid) {
-    core.error("ERROR: Failed to start gateway container");
-    process.exit(1);
+    core.setFailed("ERROR: Failed to start gateway container");
+    return;
   }
 
   core.info(`Gateway started with PID: ${gatewayPid}`);
@@ -548,7 +576,8 @@ async function main() {
     } catch {
       core.error("No stderr logs available");
     }
-    process.exit(1);
+    core.setFailed("ERROR: Gateway process exited immediately after start");
+    return;
   }
   core.info("");
 
@@ -575,7 +604,8 @@ async function main() {
     } catch {
       core.error("No stderr logs available");
     }
-    process.exit(1);
+    core.setFailed(`ERROR: Gateway process (PID: ${gatewayPid}) exited during initialization`);
+    return;
   }
   core.info(`Gateway process is still running (PID: ${gatewayPid})`);
   core.info("");
@@ -699,7 +729,8 @@ async function main() {
     } catch {
       // ignore
     }
-    process.exit(1);
+    core.setFailed("ERROR: Gateway failed to become ready");
+    return;
   }
   core.info("");
 
@@ -754,7 +785,8 @@ async function main() {
     } catch {
       // ignore
     }
-    process.exit(1);
+    core.setFailed("ERROR: Gateway did not write output configuration");
+    return;
   }
 
   // Restrict permissions
@@ -788,7 +820,8 @@ async function main() {
     } catch {
       // ignore
     }
-    process.exit(1);
+    core.setFailed("ERROR: Gateway returned an error payload instead of configuration");
+    return;
   }
 
   // -----------------------------------------------------------------------
@@ -800,9 +833,10 @@ async function main() {
 
   // Validate MCP_GATEWAY_API_KEY
   if (!apiKey) {
-    core.error("ERROR: MCP_GATEWAY_API_KEY environment variable must be set for converter scripts");
+    stopGatewayProcess(gatewayPid);
     core.error("This variable should be set in the workflow before calling start_mcp_gateway.cjs");
-    process.exit(1);
+    core.setFailed("ERROR: MCP_GATEWAY_API_KEY environment variable must be set for converter scripts");
+    return;
   }
 
   // Determine engine type
@@ -827,8 +861,9 @@ async function main() {
     try {
       ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
     } catch (err) {
-      core.error(`ERROR: ${getErrorMessage(err)}`);
-      process.exit(1);
+      stopGatewayProcess(gatewayPid);
+      core.setFailed(`ERROR: ${getErrorMessage(err)}`);
+      return;
     }
     core.info(`No agent-specific converter found for engine: ${engineType}`);
     core.info("Using gateway output directly");
@@ -902,7 +937,8 @@ async function main() {
       } catch {
         // ignore
       }
-      process.exit(1);
+      core.setFailed("ERROR: MCP server checks failed - no servers could be connected");
+      return;
     }
     printTiming(mcpCheckStart, "MCP server connectivity checks");
   } else {
@@ -990,6 +1026,8 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
+    stopGatewayProcess(activeGatewayPid);
+    activeGatewayPid = null;
     const message = getErrorMessage(err);
     const stack = err instanceof Error ? err.stack : undefined;
     if (stack) core.error(stack);

@@ -25,6 +25,7 @@ type CompileConfig struct {
 	Poutine                bool     // Run poutine security scanner on generated .lock.yml files
 	Actionlint             bool     // Run actionlint linter on generated .lock.yml files
 	RunnerGuard            bool     // Run runner-guard taint analysis scanner on generated .lock.yml files
+	Grype                  bool     // Run grype vulnerability scanner on container images referenced in compiled .lock.yml files
 	JSONOutput             bool     // Output validation results as JSON
 	ShowAllErrors          bool     // Display all prioritized errors instead of the default top five
 	ActionMode             string   // How action scripts are referenced: dev, release, or action. Auto-detected if empty.

@@ -75,8 +75,9 @@ async function main() {
   } catch (error) {
     const errorMessage = getErrorMessage(error);
     core.error(`Failed to lock issue: ${errorMessage}`);
-    core.setFailed(`${ERR_NOT_FOUND}: Failed to lock issue #${issueNumber}: ${errorMessage}`);
     core.setOutput("locked", "false");
+    core.setFailed(`${ERR_NOT_FOUND}: Failed to lock issue #${issueNumber}: ${errorMessage}`);
+    return;
   }
 }
 

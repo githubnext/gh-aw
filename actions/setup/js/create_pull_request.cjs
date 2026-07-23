@@ -659,7 +659,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
   const oldBranch = branchName;
   const renamedBranch = `${branchName}-${extraHex}`;
   // Rename local branch
-  await exec.exec(`git branch -m ${oldBranch} ${renamedBranch}`);
+  await exec.exec("git", ["branch", "-m", oldBranch, renamedBranch]);
   core.info(`Renamed branch to ${renamedBranch}`);
   return renamedBranch;
 }
@@ -1614,7 +1614,7 @@ async function main(config = {}) {
 
       // Fetch without creating/updating local branch to avoid conflicts with current branch
       // This works even when we're already on the base branch
-      await exec.exec(`git fetch origin ${baseBranch}`);
+      await exec.exec("git", ["fetch", "origin", baseBranch]);
 
       // Apply the patch/bundle using git CLI (skip if empty)
       // Track number of new commits pushed so we can restrict the extra empty commit
@@ -1797,11 +1797,11 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
       } else {
         // Checkout the base branch (using origin/${baseBranch} if local doesn't exist)
         try {
-          await exec.exec(`git checkout ${baseBranch}`);
+          await exec.exec("git", ["checkout", baseBranch]);
         } catch (checkoutError) {
           // If local branch doesn't exist, create it from origin
           core.info(`Local branch ${baseBranch} doesn't exist, creating from origin/${baseBranch}`);
-          await exec.exec(`git checkout -b ${baseBranch} origin/${baseBranch}`);
+          await exec.exec("git", ["checkout", "-b", baseBranch, `origin/${baseBranch}`]);
         }
 
         // Handle branch creation/checkout
@@ -1942,13 +1942,13 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                   core.info("Original base commit exists locally - proceeding with fallback");
 
                   // Re-create the PR branch at the original base commit
-                  await exec.exec(`git checkout ${baseBranch}`);
+                  await exec.exec("git", ["checkout", baseBranch]);
                   try {
-                    await exec.exec(`git branch -D ${branchName}`);
+                    await exec.exec("git", ["branch", "-D", branchName]);
                   } catch {
                     // Branch may not exist yet, ignore
                   }
-                  await exec.exec(`git checkout -b ${branchName} ${originalBaseCommit}`);
+                  await exec.exec("git", ["checkout", "-b", branchName, originalBaseCommit]);
                   core.info(`Created branch ${branchName} at original base commit ${originalBaseCommit}`);
 
                   // Try --3way first to maximize repair opportunities even on fallback branches.

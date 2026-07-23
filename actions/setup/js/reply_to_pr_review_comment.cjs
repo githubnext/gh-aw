@@ -96,7 +96,7 @@ async function main(config = {}) {
       }
 
       const numericCommentId = typeof commentId === "string" ? parseInt(commentId, 10) : commentId;
-      if (isNaN(numericCommentId) || numericCommentId < 1) {
+      if (Number.isNaN(numericCommentId) || numericCommentId < 1) {
         core.warning(`Invalid comment_id: ${commentId} - must be a positive integer`);
         return {
           success: false,

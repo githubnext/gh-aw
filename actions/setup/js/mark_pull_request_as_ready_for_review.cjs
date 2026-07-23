@@ -154,7 +154,7 @@ async function main(config = {}) {
     let prNumber;
     if (item.pull_request_number !== undefined) {
       prNumber = parseInt(String(item.pull_request_number), 10);
-      if (isNaN(prNumber)) {
+      if (Number.isNaN(prNumber)) {
         core.warning(`Invalid pull_request_number: ${item.pull_request_number}`);
         return {
           success: false,

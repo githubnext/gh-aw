@@ -94,13 +94,23 @@ function pathExists(filePath) {
  */
 function getAllFiles(dir, baseDir = dir) {
   const files = [];
-  const items = fs.readdirSync(dir);
+  let items;
+  try {
+    items = fs.readdirSync(dir);
+  } catch (err) {
+    throw new Error(`Failed to read directory ${dir}: ${getErrorMessage(err)}`, { cause: err });
+  }
 
   for (const item of items) {
     // Validate that item doesn't contain path traversal sequences
     validateSafePath(item, dir, "directory item");
     const fullPath = path.join(dir, item);
-    const stat = fs.statSync(fullPath);
+    let stat;
+    try {
+      stat = fs.statSync(fullPath);
+    } catch (err) {
+      throw new Error(`Failed to inspect path ${fullPath}: ${getErrorMessage(err)}`, { cause: err });
+    }
 
     if (stat.isDirectory()) {
       files.push(...getAllFiles(fullPath, baseDir));
@@ -273,7 +283,11 @@ function mergeGithubFolder(sourcePath, destPath) {
         core.info(`Created directory: ${path.relative(destPath, destDir)}`);
       }
 
-      fs.copyFileSync(sourceFile, destFile);
+      try {
+        fs.copyFileSync(sourceFile, destFile);
+      } catch (err) {
+        throw new Error(`Failed to copy file ${sourceFile} to ${destFile}: ${getErrorMessage(err)}`, { cause: err });
+      }
       mergedCount++;
       core.info(`Merged file: ${relativePath}`);
     }

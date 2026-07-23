@@ -58,6 +58,13 @@ func RunRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	return runRunnerGuardOnDirectory(workflowDir, verbose, strict)
 }
 
+// RunGrypeOnLockFiles runs the grype vulnerability scanner on container images extracted
+// from the gh-aw-manifest headers in the provided lock files.
+// Images are deduplicated by pinned reference, and results are cached per image.
+func RunGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runBatchLockFileTool("grype", lockFiles, verbose, strict, runGrypeOnLockFiles)
+}
+
 // runBatchLockFileTool runs a batch tool on lock files with uniform error handling
 func runBatchLockFileTool(toolName string, lockFiles []string, verbose bool, strict bool, runner func([]string, bool, bool) error) error {
 	if len(lockFiles) == 0 {
