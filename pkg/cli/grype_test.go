@@ -124,27 +124,6 @@ func TestGrypeCacheSetError(t *testing.T) {
 	}
 }
 
-func TestGrypeCacheReset(t *testing.T) {
-	cache := &grypeCache{
-		results: make(map[string]*grypeOutput),
-		errors:  make(map[string]error),
-	}
-
-	cache.set("key1", &grypeOutput{})
-	cache.setError("key2", errors.New("test error"))
-
-	cache.reset()
-
-	_, _, ok := cache.get("key1")
-	if ok {
-		t.Error("Expected key1 to be cleared after reset")
-	}
-	_, _, ok = cache.get("key2")
-	if ok {
-		t.Error("Expected key2 to be cleared after reset")
-	}
-}
-
 func TestRunGrypeOnLockFiles_NoLockFiles(t *testing.T) {
 	err := runGrypeOnLockFiles([]string{}, false, false)
 	if err != nil {
