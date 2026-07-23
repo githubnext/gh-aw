@@ -33,15 +33,17 @@ func findFirstCheckoutStepIndex(customSteps string) (int, bool) {
 	var wrapper struct {
 		Steps []map[string]any `yaml:"steps"`
 	}
-	if err := yaml.Unmarshal([]byte(customSteps), &wrapper); err == nil && len(wrapper.Steps) > 0 {
-		for i, step := range wrapper.Steps {
-			uses, ok := step["uses"].(string)
-			if ok && isCheckoutActionReference(uses) {
-				compilerWorkflowHelpersLog.Print("Detected actions/checkout in custom steps")
-				return i, true
+	if err := yaml.Unmarshal([]byte(customSteps), &wrapper); err == nil {
+		if len(wrapper.Steps) > 0 {
+			for i, step := range wrapper.Steps {
+				uses, ok := step["uses"].(string)
+				if ok && isCheckoutActionReference(uses) {
+					compilerWorkflowHelpersLog.Print("Detected actions/checkout in custom steps")
+					return i, true
+				}
 			}
+			return 0, false
 		}
-		return 0, false
 	}
 
 	// Fall back to the bare sequence form: "- uses: ...\n"

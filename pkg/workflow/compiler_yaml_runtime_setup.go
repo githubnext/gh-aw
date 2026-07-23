@@ -381,7 +381,7 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 					nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
 
 					// Stop if we hit the next step, but only when we are not inside a
-					// block scalar payload (e.g. "sparse-checkout: |\n  - src" — the
+					// block scalar payload (e.g. "sparse-checkout: |\n  - src" -- the
 					// "- src" content line starts with "- " but is not a step boundary).
 					if !blockScalarState.IsInPayload() && nextTrimmed != "" && strings.HasPrefix(nextTrimmed, "- ") && nextIndent == stepIndent {
 						break
