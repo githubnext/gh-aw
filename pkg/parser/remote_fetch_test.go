@@ -222,3 +222,59 @@ func TestResolveRefToSHAWithFallbacks_UsesPublicFallbackAfterGitFallbackOnGitHub
 		t.Fatal("public fallback should run when git fallback also fails on github.com")
 	}
 }
+
+func TestResolveRefToSHA_ClientCreationAuthError_UsesGitFallback(t *testing.T) {
+	origFactory := createRESTClientForHostFunc
+	origGit := resolveRefToSHAViaGitFunc
+	t.Cleanup(func() {
+		createRESTClientForHostFunc = origFactory
+		resolveRefToSHAViaGitFunc = origGit
+	})
+
+	authErr := errors.New("unauthorized: authentication required")
+	createRESTClientForHostFunc = func(host string) (*api.RESTClient, error) {
+		return nil, authErr
+	}
+	gitCalled := false
+	resolveRefToSHAViaGitFunc = func(_ context.Context, owner, repo, ref, host string) (string, error) {
+		gitCalled = true
+		return "aabbccddeeff00112233445566778899aabbccdd", nil
+	}
+
+	sha, err := resolveRefToSHA(context.Background(), "owner", "repo", "main", "github.com")
+	if err != nil {
+		t.Fatalf("resolveRefToSHA() unexpected error = %v", err)
+	}
+	if sha != "aabbccddeeff00112233445566778899aabbccdd" {
+		t.Fatalf("resolveRefToSHA() SHA = %q, want git-fallback SHA", sha)
+	}
+	if !gitCalled {
+		t.Fatal("git ls-remote fallback should be invoked when client creation returns an auth error")
+	}
+}
+
+func TestResolveRefToSHA_ClientCreationAuthError_GithubDotCom_UsesPublicAPIWhenGitFails(t *testing.T) {
+	origFactory := createRESTClientForHostFunc
+	origGit := resolveRefToSHAViaGitFunc
+	t.Cleanup(func() {
+		createRESTClientForHostFunc = origFactory
+		resolveRefToSHAViaGitFunc = origGit
+	})
+
+	createRESTClientForHostFunc = func(host string) (*api.RESTClient, error) {
+		return nil, errors.New("unauthorized: authentication required")
+	}
+	resolveRefToSHAViaGitFunc = func(_ context.Context, _, _, _, _ string) (string, error) {
+		return "", errors.New("git ls-remote failed")
+	}
+
+	// When host is github.com and both REST client creation and git fail,
+	// resolveRefToSHA should attempt the unauthenticated public API.
+	// The public API call will fail in a unit-test environment; we verify the
+	// error does NOT contain "failed to create GitHub REST client" (which would
+	// indicate the code returned from the factory-error path without falling back).
+	_, err := resolveRefToSHA(context.Background(), "owner", "repo", "main", "github.com")
+	if err != nil && strings.Contains(err.Error(), "failed to create GitHub REST client") {
+		t.Fatal("client creation auth error should not bubble up directly — public API fallback must be attempted first")
+	}
+}

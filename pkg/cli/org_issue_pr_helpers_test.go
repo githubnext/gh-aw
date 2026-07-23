@@ -46,16 +46,16 @@ func TestGetGhawReleaseInfoCachesSuccessfulLookup(t *testing.T) {
 	})
 
 	lookups := 0
-	getLatestOrgReleaseFunc = func(includePrereleases bool) (string, error) {
+	getLatestOrgReleaseFunc = func(_ context.Context, includePrereleases bool) (string, error) {
 		lookups++
 		return "v1.2.3", nil
 	}
 
-	tag, releaseURL := getGhawReleaseInfo()
+	tag, releaseURL := getGhawReleaseInfo(context.Background())
 	require.Equal(t, "v1.2.3", tag)
 	require.Equal(t, "https://github.com/github/gh-aw/releases/tag/v1.2.3", releaseURL)
 
-	tag, releaseURL = getGhawReleaseInfo()
+	tag, releaseURL = getGhawReleaseInfo(context.Background())
 	require.Equal(t, "v1.2.3", tag)
 	require.Equal(t, "https://github.com/github/gh-aw/releases/tag/v1.2.3", releaseURL)
 	assert.Equal(t, 1, lookups, "successful release lookups should be cached")
@@ -70,7 +70,7 @@ func TestGetGhawReleaseInfoRetriesAfterFailure(t *testing.T) {
 	})
 
 	lookups := 0
-	getLatestOrgReleaseFunc = func(includePrereleases bool) (string, error) {
+	getLatestOrgReleaseFunc = func(_ context.Context, includePrereleases bool) (string, error) {
 		lookups++
 		if lookups == 1 {
 			return "", errors.New("temporary failure")
@@ -78,11 +78,11 @@ func TestGetGhawReleaseInfoRetriesAfterFailure(t *testing.T) {
 		return "v1.2.4", nil
 	}
 
-	tag, releaseURL := getGhawReleaseInfo()
+	tag, releaseURL := getGhawReleaseInfo(context.Background())
 	require.Empty(t, tag)
 	require.Empty(t, releaseURL)
 
-	tag, releaseURL = getGhawReleaseInfo()
+	tag, releaseURL = getGhawReleaseInfo(context.Background())
 	require.Equal(t, "v1.2.4", tag)
 	require.Equal(t, "https://github.com/github/gh-aw/releases/tag/v1.2.4", releaseURL)
 	assert.Equal(t, 2, lookups, "failed release lookups should be retried")

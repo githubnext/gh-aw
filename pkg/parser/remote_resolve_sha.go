@@ -17,6 +17,12 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 )
 
+// createRESTClientForHostFunc allows tests to inject a stub REST client factory.
+var createRESTClientForHostFunc = createRESTClientForHost
+
+// resolveRefToSHAViaGitFunc allows tests to inject a stub for the git ls-remote fallback.
+var resolveRefToSHAViaGitFunc = resolveRefToSHAViaGit
+
 // resolveRefToSHAViaGit resolves a git ref to SHA using git ls-remote
 // This is a fallback for when GitHub API authentication fails
 func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (string, error) {
@@ -79,11 +85,11 @@ func resolveRefToSHA(ctx context.Context, owner, repo, ref, host string) (string
 		return ref, nil
 	}
 
-	client, err := createRESTClientForHost(host)
+	client, err := createRESTClientForHostFunc(host)
 	if err != nil {
 		if gitutil.IsAuthError(err.Error()) {
 			remoteLog.Printf("REST client creation failed due to auth error, attempting git ls-remote fallback for %s/%s@%s: %v", owner, repo, ref, err)
-			sha, gitErr := resolveRefToSHAViaGit(ctx, owner, repo, ref, host)
+			sha, gitErr := resolveRefToSHAViaGitFunc(ctx, owner, repo, ref, host)
 			if gitErr != nil {
 				if host == "" || host == "github.com" {
 					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s@%s", owner, repo, ref)

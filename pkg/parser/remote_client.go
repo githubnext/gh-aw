@@ -12,7 +12,6 @@ import (
 
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/constants"
-	"github.com/github/gh-aw/pkg/githubapi"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -24,7 +23,11 @@ var remoteLog = logger.New("parser:remote_fetch")
 var publicAPIClient = &http.Client{Timeout: constants.DefaultHTTPClientTimeout}
 
 func createRESTClientForHost(host string) (*api.RESTClient, error) {
-	return api.NewRESTClient(githubapi.ClientOptions(host, ""))
+	opts := api.ClientOptions{Timeout: constants.DefaultHTTPClientTimeout}
+	if host != "" {
+		opts.Host = host
+	}
+	return api.NewRESTClient(opts)
 }
 
 func buildContentsAPIPath(owner, repo, path, ref string) string {
