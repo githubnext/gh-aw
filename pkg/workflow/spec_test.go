@@ -248,17 +248,10 @@ func TestSpec_SecretHandling_ExtractSecretName(t *testing.T) {
 // Spec ("Look up an engine" usage example): a global registry is obtained via
 // GetGlobalEngineRegistry() and an engine is looked up by name. Spec (Engine
 // interface): "Core identity: GetID(), GetDisplayName(), GetDescription(), IsExperimental()".
-//
-// SPEC_MISMATCH: The README usage example shows `engine, ok := registry.Get("copilot")`
-// returning a (engine, bool) pair, but the implemented method is
-// `GetEngine(id string) (CodingAgentEngine, error)`. There is no `Get` method.
-// This test exercises the actual API and documents the divergence.
 func TestSpec_Engine_RegistryLookupAndIdentity(t *testing.T) {
 	registry := workflow.GetGlobalEngineRegistry()
 	require.NotNil(t, registry, "GetGlobalEngineRegistry() must return a non-nil registry")
 
-	// SPEC_MISMATCH: spec example uses registry.Get(name) (engine, ok);
-	// the real API is registry.GetEngine(name) (engine, error).
 	engine, err := registry.GetEngine("copilot")
 	require.NoError(t, err, "the documented copilot engine must be resolvable")
 	require.NotNil(t, engine, "resolved engine must be non-nil")
@@ -329,14 +322,9 @@ func TestSpec_MCPScripts_Constants(t *testing.T) {
 // TestSpec_ActionPinning_ActionMode validates the documented ActionMode alias and DetectActionMode.
 // Spec ("Action Pinning"): ActionMode is an "Action reference mode" with DetectActionMode detecting it.
 //
-// SPEC_MISMATCH: The README documents ActionMode values as `sha`, `tag`, `local`, but the
-// implementation defines them as `dev`, `release`, `script`, and `action`. The README also
-// describes DetectActionMode as detecting the "action reference mode" from a version string, but
-// the implementation ignores the version parameter and instead detects from build/release context
-// (the GH_AW_ACTION_MODE override, the release build flag, and GitHub Actions ref/event context).
-// This test exercises the actual API and documents the divergence.
+// TestSpec_ActionPinning_ActionMode validates the documented ActionMode values
+// and the DetectActionMode override behavior.
 func TestSpec_ActionPinning_ActionMode(t *testing.T) {
-	// SPEC_MISMATCH: documented values (sha/tag/local) do not exist; the real values are these.
 	assert.Equal(t, "dev", string(workflow.ActionModeDev), "ActionModeDev value")
 	assert.Equal(t, "release", string(workflow.ActionModeRelease), "ActionModeRelease value")
 

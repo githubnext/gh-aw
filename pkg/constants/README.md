@@ -503,8 +503,7 @@ import "github.com/github/gh-aw/pkg/constants"
 
 // Engine constants
 engine := constants.CopilotEngine // EngineName("copilot")
-fmt.Println(engine.String())      // "copilot"
-fmt.Println(engine.IsValid())     // true
+fmt.Println(string(engine))       // "copilot"
 
 // Resolve an engine option for display and secret info
 opt := constants.GetEngineOption("copilot")
@@ -514,8 +513,8 @@ fmt.Println(opt.SecretName) // "COPILOT_GITHUB_TOKEN"
 // Version constants
 fmt.Println(constants.DefaultCopilotVersion)
 
-// Feature flags
-fmt.Println(constants.MCPGatewayFeatureFlag.String()) // "mcp-gateway"
+// Feature flags (EngineName and FeatureFlag are plain typed strings; use string() conversion)
+fmt.Println(string(constants.MCPGatewayFeatureFlag)) // "mcp-gateway"
 
 // Job / step IDs
 fmt.Println(constants.AgentJobName.String())          // "agent"

@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -16,6 +17,7 @@ var gitutilLog = logger.New("gitutil:gitutil")
 var ErrNotGitRepository = errors.New("not in a git repository")
 
 var fullSHARegex = regexp.MustCompile(`^[0-9a-f]{40}$`)
+var gitObjectIDRegex = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
 
 // IsRateLimitError checks if an error message indicates a GitHub API rate limit error.
 // This is used to detect transient failures caused by hitting the GitHub API rate limit
@@ -146,22 +148,33 @@ func FindGitRootFrom(startDir string) (string, error) {
 // filePath is resolved with filepath.Abs, so relative paths are interpreted from the
 // current process working directory (not gitRoot). Prefer passing an absolute path
 // within gitRoot, such as filepath.Join(gitRoot, "path/to/file").
+// The implementation avoids git show HEAD:path interpolation by resolving a
+// literal tree entry with git ls-tree, validating the resulting blob object ID,
+// and then reading the blob with git cat-file.
 // Use this when the caller already knows the git root (e.g. from a cached value).
 func ReadFileFromHEAD(filePath, gitRoot string) (string, error) {
 	if gitRoot == "" {
 		return "", fmt.Errorf("gitRoot must not be empty when reading %q from HEAD", filePath)
 	}
 
+	cleanGitRoot, err := fileutil.ValidateAbsolutePath(gitRoot)
+	if err != nil {
+		return "", fmt.Errorf("invalid git repository root %q: %w", gitRoot, err)
+	}
+
 	absPath, err := filepath.Abs(filePath)
 	if err != nil {
 		return "", fmt.Errorf("cannot resolve absolute path for %q: %w", filePath, err)
 	}
+	if err := fileutil.ValidatePathWithinBase(cleanGitRoot, absPath); err != nil {
+		return "", fmt.Errorf("path %q is outside the git repository root %q", filePath, gitRoot)
+	}
 
-	// git show requires the path to be relative to the repository root and to use
-	// forward slashes even on Windows.
-	relPath, err := filepath.Rel(gitRoot, absPath)
+	// git ls-tree pathspecs require the path to be relative to the repository root
+	// and to use forward slashes even on Windows.
+	relPath, err := filepath.Rel(cleanGitRoot, absPath)
 	if err != nil {
-		return "", fmt.Errorf("cannot compute path of %q relative to git root %q: %w", absPath, gitRoot, err)
+		return "", fmt.Errorf("cannot compute path of %q relative to git root %q: %w", absPath, cleanGitRoot, err)
 	}
 
 	// Reject paths that escape the repository (e.g. "../secret").
@@ -173,14 +186,56 @@ func ReadFileFromHEAD(filePath, gitRoot string) (string, error) {
 
 	gitutilLog.Printf("Reading %q from git HEAD (relative path: %s)", filePath, relPath)
 
-	// #nosec G204 -- relPath is derived from filepath.Rel(gitRoot, absPath), validated to not start
-	// with ".." (path-traversal check above), and is not user-controlled shell input.
-	// exec.Command uses argv directly (no shell), so no shell injection is possible.
-	cmd := exec.Command("git", "-C", gitRoot, "show", "HEAD:"+relPath)
+	blobID, err := resolveHEADBlobID(cleanGitRoot, relPath)
+	if err != nil {
+		gitutilLog.Printf("File %q not found in HEAD commit: %v", filePath, err)
+		return "", fmt.Errorf("file %q not found in HEAD commit: %w", filePath, err)
+	}
+
+	cmd := exec.Command("git", "-C", cleanGitRoot, "cat-file", "blob", blobID)
 	output, err := cmd.Output()
 	if err != nil {
 		gitutilLog.Printf("File %q not found in HEAD commit: %v", filePath, err)
 		return "", fmt.Errorf("file %q not found in HEAD commit: %w", filePath, err)
 	}
 	return string(output), nil
+}
+
+func resolveHEADBlobID(gitRoot, relPath string) (string, error) {
+	pathspec := ":(literal)" + relPath
+	cmd := exec.Command("git", "-C", gitRoot, "ls-tree", "-z", "--full-tree", "HEAD", "--", pathspec)
+	output, err := cmd.Output()
+	if err != nil {
+		return "", err
+	}
+	if len(output) == 0 {
+		return "", fmt.Errorf("path %q not found in HEAD", relPath)
+	}
+
+	entry := strings.TrimSuffix(string(output), "\x00")
+	metadata, entryPath, found := strings.Cut(entry, "\t")
+	if !found {
+		return "", fmt.Errorf("unexpected git ls-tree output for %q", relPath)
+	}
+	fields := strings.Fields(metadata)
+	if len(fields) != 3 {
+		return "", fmt.Errorf("unexpected git ls-tree metadata for %q", relPath)
+	}
+	// relPath is already normalized to forward slashes via filepath.ToSlash above,
+	// and git ls-tree also emits forward slashes on all platforms.
+	if entryPath != relPath {
+		return "", fmt.Errorf("path %q resolved to unexpected entry %q", relPath, entryPath)
+	}
+	if fields[1] != "blob" {
+		return "", fmt.Errorf("path %q in HEAD is not a file", relPath)
+	}
+	if !isGitObjectID(fields[2]) {
+		return "", fmt.Errorf("path %q in HEAD resolved to invalid object ID %q", relPath, fields[2])
+	}
+
+	return fields[2], nil
+}
+
+func isGitObjectID(s string) bool {
+	return gitObjectIDRegex.MatchString(s)
 }

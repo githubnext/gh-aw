@@ -229,7 +229,7 @@ if err != nil {
     log.Fatal(err)
 }
 fmt.Println("Triggers:", result.Frontmatter["on"])
-fmt.Println("Prompt:", result.MarkdownBody)
+fmt.Println("Prompt:", result.Markdown)
 ```
 
 ### Resolve imports
