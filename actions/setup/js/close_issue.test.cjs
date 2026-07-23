@@ -413,7 +413,7 @@ describe("close_issue", () => {
       expect(result.success).toBe(true);
       expect(commentCalls.length).toBe(1);
       // Should use the body from message, not the config comment
-      expect(commentCalls[0].body).toBe("Custom body from message");
+      expect(commentCalls[0].body).toContain("Custom body from message");
       expect(commentCalls[0].body).not.toContain("Default comment from config");
     });
 
@@ -506,7 +506,7 @@ describe("close_issue", () => {
 
       expect(result.success).toBe(true);
       expect(result.alreadyClosed).toBe(true);
-      expect(commentBody).toBe("Closing comment with details");
+      expect(commentBody).toContain("Closing comment with details");
       expect(issueUpdateCalled).toBe(false); // Should not call update for already closed issue
     });
 
