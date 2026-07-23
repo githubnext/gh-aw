@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 type ExecMethodName = "exec" | "getExecOutput";
@@ -75,6 +75,33 @@ export const noExecInterpolatedCommandRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
+
+    /**
+     * When `identifier` is a write-once local variable binding, returns its
+     * initializer expression so the caller can apply further checks.  Returns
+     * null for parameters, imports, multiply-assigned vars, and vars with no
+     * initializer.
+     */
+    function resolveInitializer(identifier: TSESTree.Identifier): TSESTree.Expression | null {
+      let scope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier);
+      while (scope !== null) {
+        const variable = scope.set.get(identifier.name);
+        if (variable !== undefined) {
+          // Only accept simple, single-definition Variable bindings.
+          if (variable.defs.length !== 1) return null;
+          const def = variable.defs[0];
+          if (def.type !== "Variable") return null;
+          // Reject re-assigned bindings (write references that are not the initializer).
+          if (variable.references.some(ref => ref.isWrite() && !ref.init)) return null;
+          const declarator = def.node as TSESTree.VariableDeclarator;
+          return declarator.init ?? null;
+        }
+        scope = scope.upper;
+      }
+      return null;
+    }
+
     return {
       CallExpression(node) {
         const method = resolveExecMethod(node);
@@ -83,7 +110,12 @@ export const noExecInterpolatedCommandRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;
 
-        const kind = getDynamicCommandKind(firstArg);
+        // Resolve a single level of variable indirection so that
+        //   const cmd = `git checkout ${branch}`; exec.exec(cmd, []);
+        // is flagged in the same way as the direct form.
+        const candidate = firstArg.type === AST_NODE_TYPES.Identifier ? (resolveInitializer(firstArg) ?? firstArg) : (firstArg as TSESTree.Expression);
+
+        const kind = getDynamicCommandKind(candidate);
         if (!kind) return;
 
         context.report({
