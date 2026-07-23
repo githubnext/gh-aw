@@ -65,19 +65,7 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	// gitRoot, and prefixed with "./" to prevent option injection. exec.Command passes args
 	// directly to the OS (no shell), preventing shell injection.
 	// yamllintDefaultConfig is a compile-time constant with no user-controlled content.
-	dockerArgs := []string{
-		"run",
-		"--rm",
-		"-v", gitRoot + ":/workdir",
-		"-w", "/workdir",
-		YamllintImage,
-		"-d", yamllintDefaultConfig,
-		"--format", "parsable",
-	}
-	if strict {
-		dockerArgs = append(dockerArgs, "--strict")
-	}
-	dockerArgs = append(dockerArgs, relPaths...)
+	dockerArgs := buildYamllintDockerArgs(gitRoot, relPaths, strict)
 
 	if len(lockFiles) == 1 {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running yamllint on "+relPaths[0]))
@@ -86,8 +74,7 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	}
 
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir %s -d '%s' --format parsable %s",
-			gitRoot, YamllintImage, yamllintDefaultConfig, strings.Join(relPaths, " "))
+		dockerCmd := buildYamllintVerboseCommand(gitRoot, relPaths, strict)
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run yamllint directly: "+dockerCmd))
 	}
 
@@ -112,29 +99,50 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	if err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {
-			exitCode := exitErr.ExitCode()
-			yamllintLog.Printf("yamllint exited with code %d (issues=%d)", exitCode, totalIssues)
-			// Exit code 1 indicates errors. Exit code 2 indicates warnings in strict mode.
-			if exitCode == 1 || (exitCode == 2 && strict && totalIssues > 0) {
-				if strict {
-					fileDescription := "workflows"
-					if len(lockFiles) == 1 {
-						fileDescription = filepath.Base(lockFiles[0])
-					}
-					return fmt.Errorf("strict mode: yamllint found %d issue(s) in %s - workflows must have no yamllint issues in strict mode", totalIssues, fileDescription)
-				}
-				return nil
-			}
-			fileDescription := "workflows"
-			if len(lockFiles) == 1 {
-				fileDescription = filepath.Base(lockFiles[0])
-			}
-			return fmt.Errorf("yamllint failed with exit code %d on %s", exitCode, fileDescription)
+			return classifyYamllintExit(exitErr.ExitCode(), strict, totalIssues, yamllintFileDescription(lockFiles))
 		}
 		return fmt.Errorf("yamllint failed: %w", err)
 	}
 
 	return nil
+}
+
+func buildYamllintDockerArgs(gitRoot string, relPaths []string, strict bool) []string {
+	dockerArgs := []string{
+		"run",
+		"--rm",
+		"-v", gitRoot + ":/workdir",
+		"-w", "/workdir",
+		YamllintImage,
+		"-d", yamllintDefaultConfig,
+		"--format", "parsable",
+	}
+	if strict {
+		dockerArgs = append(dockerArgs, "--strict")
+	}
+	return append(dockerArgs, relPaths...)
+}
+
+func buildYamllintVerboseCommand(gitRoot string, relPaths []string, strict bool) string {
+	return "docker " + strings.Join(buildYamllintDockerArgs(gitRoot, relPaths, strict), " ")
+}
+
+func yamllintFileDescription(lockFiles []string) string {
+	if len(lockFiles) == 1 {
+		return filepath.Base(lockFiles[0])
+	}
+	return "workflows"
+}
+
+func classifyYamllintExit(exitCode int, strict bool, totalIssues int, fileDescription string) error {
+	yamllintLog.Printf("yamllint exited with code %d (issues=%d)", exitCode, totalIssues)
+	if exitCode == 1 || (exitCode == 2 && strict && totalIssues > 0) {
+		if strict {
+			return fmt.Errorf("strict mode: yamllint found %d issue(s) in %s - workflows must have no yamllint issues in strict mode", totalIssues, fileDescription)
+		}
+		return nil
+	}
+	return fmt.Errorf("yamllint failed with exit code %d on %s", exitCode, fileDescription)
 }
 
 func buildYamllintContainerPaths(gitRoot string, lockFiles []string) ([]string, error) {

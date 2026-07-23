@@ -37,6 +37,7 @@ import (
 )
 
 var compileOrchestrationLog = logger.New("cli:compile_pipeline")
+var runBatchYamllintOnFiles = RunYamllintOnFiles
 
 const fallbackCompilationErrorMessage = "compilation failed (no detailed error message available)"
 
@@ -232,7 +233,7 @@ func compileSpecificFiles(
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}
-		if err := RunYamllintOnFiles(lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchYamllintOnFiles(lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -468,7 +469,7 @@ func compileAllFilesInDirectory(
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}
-		if err := RunYamllintOnFiles(lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := runBatchYamllintOnFiles(lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
