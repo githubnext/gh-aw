@@ -19,7 +19,9 @@ var orgIPLog = logger.New("cli:org_issue_pr")
 var (
 	ghawReleaseTagCache syncutil.OnceLoader[string]
 
-	getLatestOrgReleaseFunc = getLatestRelease
+	getLatestOrgReleaseFunc = func(includePrereleases bool) (string, error) {
+		return getLatestRelease(context.Background(), includePrereleases)
+	}
 )
 
 var errEmptyGhawReleaseTag = errors.New("latest gh-aw release tag was empty")
