@@ -816,6 +816,46 @@ func TestGenerateMainJobStepsArcDindInsertsNodePathStepWhenRuntimeStepsDeferred(
 	assert.Equal(t, 1, strings.Count(result, "- name: Ensure Node.js is at daemon-visible path"))
 }
 
+func TestGenerateMainJobStepsArcDindDeferredNodePathStepPreservesRuntimeIfCondition(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.stepOrderTracker = NewStepOrderTracker()
+
+	customStepsWithCheckout := `steps:
+  - name: Custom checkout
+    uses: actions/checkout@v4
+  - name: Prepare context
+    run: echo ready
+`
+
+	data := &WorkflowData{
+		Name:            "Test Workflow",
+		AI:              "copilot",
+		MarkdownContent: "Test prompt",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		RunnerConfig: &RunnerConfig{
+			Topology: RunnerTopologyArcDind,
+		},
+		CustomSteps: customStepsWithCheckout,
+		ParsedTools: NewTools(nil),
+		Runtimes: map[string]any{
+			"node": map[string]any{
+				"if": "hashFiles('package.json') != ''",
+			},
+		},
+	}
+
+	var yaml strings.Builder
+	err := compiler.generateMainJobSteps(&yaml, data)
+	require.NoError(t, err)
+
+	result := yaml.String()
+	assert.Contains(t, result, "- name: Setup Node.js")
+	assert.Contains(t, result, "if: hashFiles('package.json') != ''")
+	assert.Contains(t, result, "- name: Ensure Node.js is at daemon-visible path\n        if: hashFiles('package.json') != ''\n        run: |")
+}
+
 func TestGenerateMainJobStepsArcDindSkipsNodePathStepWithoutGeneratedNodeSetup(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.stepOrderTracker = NewStepOrderTracker()

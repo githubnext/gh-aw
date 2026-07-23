@@ -133,8 +133,11 @@ func (c *Compiler) generateArcDindToolCacheRedirectStep(yaml *strings.Builder) {
 	yaml.WriteString("          echo \"GOPATH=${RUNNER_TEMP}/gh-aw/tool-cache/go\" >> \"$GITHUB_ENV\"\n")
 }
 
-func (c *Compiler) generateArcDindNodePathStep(yaml *strings.Builder) {
+func (c *Compiler) generateArcDindNodePathStep(yaml *strings.Builder, ifCondition string) {
 	yaml.WriteString("      - name: Ensure Node.js is at daemon-visible path\n")
+	if ifCondition != "" {
+		fmt.Fprintf(yaml, "        if: %s\n", ifCondition)
+	}
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          NODE_BIN=\"$(command -v node)\"\n")
 	yaml.WriteString("          NODE_PREFIX=\"$(dirname \"$(dirname \"$NODE_BIN\")\")\"\n")
@@ -156,10 +159,19 @@ func (c *Compiler) emitRuntimeSetupSteps(yaml *strings.Builder, runtimeSetupStep
 			yaml.WriteByte('\n')
 		}
 		if ensureArcDindNodePath && !nodePathStepEmitted && extractStepName(strings.Join(step, "\n")) == "Setup Node.js" {
-			c.generateArcDindNodePathStep(yaml)
+			c.generateArcDindNodePathStep(yaml, extractStepIfCondition(step))
 			nodePathStepEmitted = true
 		}
 	}
+}
+
+func extractStepIfCondition(step GitHubActionStep) string {
+	for _, line := range step {
+		if after, ok := strings.CutPrefix(strings.TrimSpace(line), "if:"); ok {
+			return strings.TrimSpace(after)
+		}
+	}
+	return ""
 }
 
 func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, customStepsContainCheckout bool, runtimeSetupSteps []GitHubActionStep) {
