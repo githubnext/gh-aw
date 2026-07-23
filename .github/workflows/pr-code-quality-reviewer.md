@@ -130,38 +130,32 @@ You may use compact pseudo-language/encoding during private reasoning (examples:
 
 ### Step 4: Write Review Comments
 
-For each significant issue, create a `create-pull-request-review-comment` with:
-- **File path and line number** of the issue
+For each significant issue, call `create-pull-request-review-comment` (safe output) with:
+- `path` — repository-relative file path
+- `line` — line number in the diff (use `start_line` when the replacement spans multiple lines)
+- `body` — review comment body
+
+Body format:
 - **Immediately visible text**: one brief sentence stating the issue and its impact
-- **GitHub suggestion** (preferred when a concrete fix is limited to the commented lines): use a ` ```suggestion ` block so the author can apply the fix with one click; set `start_line` when the replacement spans multiple lines
-- **`<details>` block** (for issues where no direct code replacement applies): detailed explanation and rationale — collapsed by default
+- **GitHub suggestion** (preferred when the fix maps to the commented lines): use a ` ```suggestion ` block so the author can apply it with one click
+- **`<details>` block** (when the fix requires broader structural changes): collapsed explanation and rationale
 
 Example with suggestion (preferred):
-```markdown
-**Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.
-
-```suggestion
-if user.Profile == nil {
-    return ErrNoProfile
+```json
+{
+  "path": "pkg/user/user.go",
+  "line": 42,
+  "body": "**Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.\n\n```suggestion\nif user.Profile == nil {\n    return ErrNoProfile\n}\nprofile := user.Profile\n```\n\nCallers that pass users without profiles will hit this panic silently."
 }
-profile := user.Profile
-```
-
-Callers that pass users without profiles will hit this panic silently.
 ```
 
 Example without suggestion (use when the fix requires broader changes):
-```markdown
-**Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.
-
-<details>
-<summary>💡 Suggested fix</summary>
-
-Validate `user.Profile` before accessing it; the exact change depends on the caller contract.
-
-Callers that pass users without profiles will hit this panic silently.
-
-</details>
+```json
+{
+  "path": "pkg/user/user.go",
+  "line": 42,
+  "body": "**Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.\n\n<details>\n<summary>💡 Suggested fix</summary>\n\nValidate `user.Profile` before accessing it; the exact change depends on the caller contract.\n\nCallers that pass users without profiles will hit this panic silently.\n\n</details>"
+}
 ```
 
 **Prioritization** (use your 10-comment budget aggressively):
