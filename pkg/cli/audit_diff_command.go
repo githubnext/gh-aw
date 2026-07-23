@@ -18,7 +18,7 @@ import (
 func NewAuditDiffSubcommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:    "diff <base-run-id> <compare-run-id>...",
-		Short:  "Compare behavior across workflow runs",
+		Short:  "[Deprecated] Compare workflow runs (use: gh aw audit <base> <compare...>)",
 		Hidden: true,
 		Long: `Deprecated: pass multiple run IDs directly to the audit command instead.
 
