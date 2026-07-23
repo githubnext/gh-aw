@@ -1616,7 +1616,7 @@ async function main() {
     core.info(`Successful: ${successCount}`);
     core.info(`Failed: ${failureCount}`);
     if (reportOnlyFailureCount > 0) {
-      core.info(`Reported assignment failures: ${reportOnlyFailureCount}`);
+      core.info(`Non-fatal failures (reported only): ${reportOnlyFailureCount}`);
     }
     if (cancelledCount > 0) {
       core.info(`Cancelled (code push failed): ${cancelledCount}`);
