@@ -17,8 +17,7 @@ engine:
   id: copilot
   agent: agentic-workflows
 imports:
-  - shared/github-guard-policy.md
-  - shared/otlp.md
+  - shared/guard-otlp.md
 tools:
   cli-proxy: true
   github:

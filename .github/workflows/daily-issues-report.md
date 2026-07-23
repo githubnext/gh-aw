@@ -47,7 +47,7 @@ experiments:
     analysis_type: mann_whitney
     tags: [output, readability, engagement]
 imports:
-  - shared/github-guard-policy.md
+  - shared/guard-otlp.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily issues] "
@@ -56,7 +56,6 @@ imports:
   - shared/trends.md
   - shared/python-nlp.md
 
-  - shared/otlp.md
 features:
   gh-aw-detection: true
 evals:

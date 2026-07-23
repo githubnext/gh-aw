@@ -26,13 +26,12 @@ strict: true
 timeout-minutes: 45
 
 imports:
-  - shared/github-guard-policy.md
+  - shared/guard-otlp.md
   - uses: shared/daily-audit-charts.md
     with:
       title-prefix: "[stale-repo-identifier] "
   - ../skills/jqschema/SKILL.md
 
-  - shared/otlp.md
 network:
   allowed:
     - defaults

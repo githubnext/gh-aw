@@ -81,9 +81,8 @@ steps:
       echo "Wrote pre-fetched merged PRs to /tmp/gh-aw/agent/merged-prs.json"
 
 imports:
-  - shared/github-guard-policy.md
+  - shared/guard-otlp.md
 
-  - shared/otlp.md
 safe-outputs:
   create-pull-request:
     expires: 7d

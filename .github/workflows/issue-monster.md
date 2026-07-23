@@ -404,10 +404,9 @@ model: copilot/gpt-5.4
 engine:
   id: pi
 imports:
-  - shared/github-guard-policy.md
+  - shared/guard-otlp.md
   - shared/activation-app.md
 
-  - shared/otlp.md
 timeout-minutes: 30
 
 tools:

@@ -25,8 +25,7 @@ name: "Smoke Agent: public/approved"
 engine: claude
 strict: true
 imports:
-  - shared/github-guard-policy.md
-  - shared/otlp.md
+  - shared/guard-otlp.md
 tools:
   cli-proxy: true
   github:

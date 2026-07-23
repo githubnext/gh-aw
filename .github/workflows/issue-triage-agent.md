@@ -22,10 +22,9 @@ safe-outputs:
     allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
   add-comment: {}
 imports:
-  - shared/github-guard-policy.md
+  - shared/guard-otlp.md
   - shared/reporting.md
 
-  - shared/otlp.md
 evals:
   - id: labels_applied_or_noop
     question: Did the agent apply at least one label to an unlabeled issue, or correctly skip when no unlabeled issues were found?

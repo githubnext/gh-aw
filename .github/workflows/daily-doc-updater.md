@@ -14,9 +14,8 @@ network:
   - defaults
   - github
 imports:
-- shared/github-guard-policy.md
+- shared/guard-otlp.md
 - shared/ai-coding-dictionary.md
-- shared/otlp.md
 safe-outputs:
   create-pull-request:
     auto-merge: true

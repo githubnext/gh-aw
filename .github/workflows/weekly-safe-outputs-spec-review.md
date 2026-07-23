@@ -27,9 +27,8 @@ sandbox:
     sudo: false
 
 imports:
-  - shared/github-guard-policy.md
+  - shared/guard-otlp.md
 
-  - shared/otlp.md
 tools:
   cli-proxy: true
   edit:

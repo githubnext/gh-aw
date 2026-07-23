@@ -14,14 +14,13 @@ network:
   allowed:
   - defaults
 imports:
-- shared/github-guard-policy.md
+- shared/guard-otlp.md
 - uses: shared/repo-memory-standard.md
   with:
     branch-name: memory/discussion-task-miner
     description: Track processed discussions and extracted tasks
 - ../skills/jqschema/SKILL.md
 - shared/reporting.md
-- shared/otlp.md
 safe-outputs:
   add-comment:
     max: 3

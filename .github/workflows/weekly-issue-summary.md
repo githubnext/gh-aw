@@ -32,14 +32,13 @@ tools:
     toolsets: 
       - issues
 imports:
-  - shared/github-guard-policy.md
+  - shared/guard-otlp.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[Weekly Summary] "
       expires: 1d
   - shared/trends.md
 
-  - shared/otlp.md
 ---
 # Weekly Issue Summary
 

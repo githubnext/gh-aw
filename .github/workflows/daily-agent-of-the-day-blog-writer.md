@@ -76,8 +76,7 @@ safe-outputs:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
 imports:
-  - shared/github-guard-policy.md
-  - shared/otlp.md
+  - shared/guard-otlp.md
 features:
   gh-aw-detection: true
 evals:

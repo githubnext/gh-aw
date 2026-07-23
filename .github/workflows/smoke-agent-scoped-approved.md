@@ -20,8 +20,7 @@ name: "Smoke Agent: scoped/approved"
 engine: claude
 strict: true
 imports:
-  - shared/github-guard-policy.md
-  - shared/otlp.md
+  - shared/guard-otlp.md
 tools:
   github:
     mode: local
