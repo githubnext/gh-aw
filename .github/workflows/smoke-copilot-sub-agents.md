@@ -16,6 +16,24 @@ engine:
   id: copilot
   copilot-sdk: true
   bare: true
+experiments:
+  sub_agent_strategy:
+    variants: [inline_strict, delegated_sequential, single_agent_control]
+    description: "Measure whether inline sub-agent orchestration is the best reliability/cost tradeoff for a model-identity smoke test."
+    hypothesis: "H0: no change in pass_rate. H1: delegated_sequential or single_agent_control improves pass_rate by >= 0.15 absolute versus inline_strict."
+    metric: pass_rate
+    secondary_metrics: [run_duration_seconds, output_validity_rate]
+    guardrail_metrics:
+      - name: empty_output_rate
+        direction: min
+        threshold: 0.01
+      - name: false_pass_rate
+        direction: min
+        threshold: 0
+    min_samples: 30
+    weight: [34, 33, 33]
+    start_date: "2026-07-23"
+    issue: 47551
 safe-outputs:
   create-issue:
     expires: 2h
@@ -34,19 +52,28 @@ features:
 
 ## Tasks
 
+{{#if experiments.sub_agent_strategy == 'single_agent_control' }}
+1. Do not call any sub-agent.
+2. Produce the issue in the same format, but mark each agent as `not_invoked`.
+3. Set overall status to FAIL.
+4. Do not use unnecessary tool calls.
+{{else}}
 1. Call `haiku-whoami`, `mini-whoami`, and `nano-whoami` exactly once each.
 2. Ask each sub-agent exactly this question: `who am i?`
 3. Check the exact responses:
    - `haiku-whoami` → `claude-haiku-4.5`
    - `mini-whoami` → `gpt-5-mini`
    - `nano-whoami` → `gpt-5-nano`
-4. Do not use any other agent or any unnecessary tool calls.
+4. {{#if experiments.sub_agent_strategy == 'delegated_sequential' }}Execute and validate each sub-agent one at a time before moving to the next.{{else}}Validate all three results and keep the current inline orchestration behavior.{{/if}}
+5. Do not use any other agent or any unnecessary tool calls.
+{{/if}}
 
 ## Output
 
 Always create an issue titled **"Smoke Test: Copilot Sub Agents - ${{ github.run_id }}"** with:
 - One line per sub-agent showing expected value, actual value, and ✅/❌
 - Overall status: PASS only if all three exact matches succeed, otherwise FAIL
+- Experiment variant: `{{ experiments.sub_agent_strategy }}`
 - Run URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
 ## agent: `haiku-whoami`
