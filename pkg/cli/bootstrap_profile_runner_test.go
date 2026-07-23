@@ -69,3 +69,46 @@ func TestBootstrapProfileState(t *testing.T) {
 		t.Fatal("expected SECRET_ONE secret")
 	}
 }
+
+func TestBootstrapProfileAddWizardPhases(t *testing.T) {
+	profile := &resolvedBootstrapProfile{
+		PackageID: "owner/repo",
+		Profile: &repositoryPackageBootstrap{
+			Config: []repositoryPackageBootstrapAction{
+				{Type: "require-owner-type"},
+				{Type: "github-app"},
+				{Type: "repo-variable"},
+				{Type: "repo-secret"},
+				{Type: "copilot-auth"},
+				{Type: "commit-and-push"},
+				{Type: "handoff"},
+			},
+		},
+	}
+
+	preInstall := bootstrapProfileAddWizardPreInstall(profile)
+	if preInstall == nil || preInstall.Profile == nil {
+		t.Fatal("expected pre-install bootstrap profile")
+	}
+	if got := len(preInstall.Profile.Config); got != 4 {
+		t.Fatalf("pre-install profile should contain 4 actions, got %d", got)
+	}
+	if preInstall.Profile.Config[0].Type != "require-owner-type" || preInstall.Profile.Config[3].Type != "repo-secret" {
+		t.Fatalf("unexpected pre-install action ordering: %+v", preInstall.Profile.Config)
+	}
+
+	postInstall := bootstrapProfileAddWizardPostInstall(profile)
+	if postInstall == nil || postInstall.Profile == nil {
+		t.Fatal("expected post-install bootstrap profile")
+	}
+	if got := len(postInstall.Profile.Config); got != 3 {
+		t.Fatalf("post-install profile should contain 3 actions, got %d", got)
+	}
+	if postInstall.Profile.Config[0].Type != "copilot-auth" || postInstall.Profile.Config[2].Type != "handoff" {
+		t.Fatalf("unexpected post-install action ordering: %+v", postInstall.Profile.Config)
+	}
+
+	if got := len(profile.Profile.Config); got != 7 {
+		t.Fatalf("original profile should remain unchanged, got %d actions", got)
+	}
+}

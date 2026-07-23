@@ -68,6 +68,50 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 	fmt.Fprintln(w, "")
 }
 
+func bootstrapProfileAddWizardPreInstall(profile *resolvedBootstrapProfile) *resolvedBootstrapProfile {
+	return filterBootstrapProfileActions(profile, func(action repositoryPackageBootstrapAction) bool {
+		switch action.Type {
+		case "require-owner-type", "repo-variable", "repo-secret", "github-app":
+			return true
+		default:
+			return false
+		}
+	})
+}
+
+func bootstrapProfileAddWizardPostInstall(profile *resolvedBootstrapProfile) *resolvedBootstrapProfile {
+	return filterBootstrapProfileActions(profile, func(action repositoryPackageBootstrapAction) bool {
+		switch action.Type {
+		case "copilot-auth", "commit-and-push", "handoff":
+			return true
+		default:
+			return false
+		}
+	})
+}
+
+func filterBootstrapProfileActions(profile *resolvedBootstrapProfile, keep func(repositoryPackageBootstrapAction) bool) *resolvedBootstrapProfile {
+	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
+		return nil
+	}
+
+	filtered := make([]repositoryPackageBootstrapAction, 0, len(profile.Profile.Config))
+	for _, action := range profile.Profile.Config {
+		if keep(action) {
+			filtered = append(filtered, action)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil
+	}
+
+	filteredProfile := *profile
+	filteredBootstrap := *profile.Profile
+	filteredBootstrap.Config = filtered
+	filteredProfile.Profile = &filteredBootstrap
+	return &filteredProfile
+}
+
 // executeBootstrapConfigForAdd runs the bootstrap config actions interactively.
 // Used by add-wizard after the workflow PR has been created and merged.
 func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, useCopilotRequests bool, verbose bool) error {
