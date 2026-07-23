@@ -250,7 +250,15 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 	// the compiler converts double quotes to single quotes automatically — but authors
 	// should fix the source to use single quotes to keep it consistent with the output.
 	for _, w := range detectDoubleQuotedExperimentComparisons(result.Markdown) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(cleanPath, "warning", w))
+		c.IncrementWarningCount()
+	}
+
+	// Warn when template separators are embedded in the middle of a line.
+	// Keeping separators on their own lines improves compatibility with the
+	// template renderer and avoids brittle inline condition blocks.
+	for _, w := range detectMidlineTemplateSeparators(result.Markdown) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(cleanPath, "warning", w))
 		c.IncrementWarningCount()
 	}
 
