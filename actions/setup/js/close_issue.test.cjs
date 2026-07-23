@@ -383,6 +383,8 @@ describe("close_issue", () => {
       expect(result.success).toBe(true);
       expect(commentCalls.length).toBe(1);
       expect(commentCalls[0].body).toContain("This issue is being closed automatically");
+      expect(commentCalls[0].body).toContain("for #123");
+      expect(commentCalls[0].body).toContain("gh-aw-agentic-workflow:");
     });
 
     it("should use body field from message over config comment", async () => {
@@ -414,6 +416,8 @@ describe("close_issue", () => {
       expect(commentCalls.length).toBe(1);
       // Should use the body from message, not the config comment
       expect(commentCalls[0].body).toContain("Custom body from message");
+      expect(commentCalls[0].body).toContain("for #123");
+      expect(commentCalls[0].body).toContain("gh-aw-agentic-workflow:");
       expect(commentCalls[0].body).not.toContain("Default comment from config");
     });
 
