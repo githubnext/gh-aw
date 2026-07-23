@@ -48,7 +48,7 @@ export const noErrStackThenStringFallbackRule = createRule({
     },
     schema: [],
     messages: {
-      preferGetErrorMessage: "Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs. The `err.stack` ternary surfaces noisy stack frames; getErrorMessage() returns a clean, consistent message.",
+      preferGetErrorMessage: "Prefer getErrorMessage({{errorVar}}) from error_helpers.cjs. The `{{errorVar}}.stack` ternary surfaces noisy stack frames; getErrorMessage() returns a clean, consistent message.",
       replaceWithGetErrorMessage: "Replace with getErrorMessage({{errorVar}}) — ensure getErrorMessage is imported from error_helpers.cjs before applying.",
     },
   },
