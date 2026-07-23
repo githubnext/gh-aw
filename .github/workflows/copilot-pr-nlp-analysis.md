@@ -68,7 +68,7 @@ steps:
 
       echo "Comment data saved to /tmp/gh-aw/agent/pr-comments/"
 
-timeout-minutes: 20
+timeout-minutes: 30
 
 tools:
   cli-proxy: true
