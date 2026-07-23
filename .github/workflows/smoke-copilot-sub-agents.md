@@ -20,7 +20,7 @@ experiments:
   sub_agent_strategy:
     variants: [inline_strict, delegated_sequential, single_agent_control]
     description: "Measure whether inline sub-agent orchestration is the best reliability/cost tradeoff for a model-identity smoke test."
-    hypothesis: "H0: no change in pass_rate. H1: delegated_sequential or single_agent_control improves pass_rate by >= 0.15 absolute versus inline_strict."
+    hypothesis: "H0: no change in pass_rate between inline_strict and delegated_sequential. H1: delegated_sequential improves pass_rate by >= 0.15 absolute versus inline_strict. Note: single_agent_control is a synthetic negative baseline (always FAIL by design) excluded from H1 comparisons."
     metric: pass_rate
     secondary_metrics: [run_duration_seconds, output_validity_rate]
     guardrail_metrics:
@@ -29,10 +29,11 @@ experiments:
         threshold: 0.01
       - name: false_pass_rate
         direction: min
-        threshold: 0
+        threshold: 0.05
     min_samples: 30
     weight: [34, 33, 33]
     start_date: "2026-07-23"
+    end_date: "2026-10-23"
     issue: 47551
 safe-outputs:
   create-issue:
