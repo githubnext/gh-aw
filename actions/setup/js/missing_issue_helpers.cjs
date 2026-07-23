@@ -26,10 +26,11 @@ const { parseBoolTemplatable } = require("./templatable.cjs");
  * @param {(item: any, index: number) => string[]} options.renderCommentItem - Renders a single item for an existing-issue comment
  * @param {(item: any, index: number) => string[]} options.renderIssueItem - Renders a single item for a new-issue body
  * @param {string[]} [options.defaultLabels] - Labels always applied to created issues (merged with config.labels)
+ * @param {(message: any) => Array<any> | null | undefined} [options.fallbackItems] - Optional fallback item builder used when the message items array is missing/empty
  * @returns {HandlerFactoryFunction}
  */
 function buildMissingIssueHandler(options) {
-  const { handlerType, defaultTitlePrefix, itemsField, templatePath, templateListKey, buildCommentHeader, renderCommentItem, renderIssueItem, defaultLabels = [] } = options;
+  const { handlerType, defaultTitlePrefix, itemsField, templatePath, templateListKey, buildCommentHeader, renderCommentItem, renderIssueItem, defaultLabels = [], fallbackItems } = options;
 
   return async function main(config = {}) {
     // Extract configuration
@@ -202,7 +203,7 @@ function buildMissingIssueHandler(options) {
       const workflowSourceURL = message.workflow_source_url || process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
       const runUrl =
         message.run_url || (process.env.GITHUB_SERVER_URL && process.env.GITHUB_REPOSITORY && process.env.GITHUB_RUN_ID ? `${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID}` : "");
-      const items = message[itemsField];
+      let items = message[itemsField];
 
       // Validate required fields
       if (!workflowName) {
@@ -211,6 +212,10 @@ function buildMissingIssueHandler(options) {
           success: false,
           error: "Missing required field: workflow_name",
         };
+      }
+
+      if ((!items || !Array.isArray(items) || items.length === 0) && typeof fallbackItems === "function") {
+        items = fallbackItems(message);
       }
 
       if (!items || !Array.isArray(items) || items.length === 0) {
