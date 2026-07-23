@@ -86,7 +86,7 @@ function buildAICEntry(label, value, modelAlias) {
   return {
     value,
     formatted,
-    suffix: formatted ? ` · ${prefix ? `${prefix} ` : ""}${formatted} AIC` : "",
+    suffix: formatted ? ` · ${prefix ? `${prefix}${modelAlias ? " · " : " "}` : ""}${formatted} AIC` : "",
   };
 }
 

@@ -1114,7 +1114,10 @@ async function main(config = {}) {
           const searchKey = closeOlderKey ? `close-older-key: ${closeOlderKey}` : `workflow-id: ${workflowId}`;
           core.info(`Attempting to close older issues for ${qualifiedItemRepo}#${issue.number} using ${searchKey}`);
           try {
-            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl, callerWorkflowId, closeOlderKey);
+            // Build the set of all issue numbers created in this run (including the current
+            // one) so that previously-created issues are not incorrectly closed.
+            const currentRunIssueNumbers = new Set(createdIssues.filter(i => i._repo === qualifiedItemRepo).map(i => i.number));
+            const closedIssues = await closeOlderIssues(github, repoParts.owner, repoParts.repo, workflowId, { number: issue.number, html_url: issue.html_url }, workflowName, runUrl, callerWorkflowId, closeOlderKey, currentRunIssueNumbers);
             if (closedIssues.length > 0) {
               core.info(`Closed ${closedIssues.length} older issue(s)`);
             }
