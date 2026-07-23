@@ -18,6 +18,16 @@ func joinOneAssigned(s string) string {
 	return result
 }
 
+// flagged: compound element used in an index context; fix must preserve precedence.
+func joinOneIndexed(a, b string) byte {
+	return (a + b)[0] // want `strings\.Join called with a single-element slice`
+}
+
+// flagged: compound element used in a slice context; fix must preserve precedence.
+func joinOneSliced(a, b string) string {
+	return (a + b)[1:] // want `strings\.Join called with a single-element slice`
+}
+
 // not flagged: two-element slice literal.
 func joinTwo(a, b string) string {
 	return strings.Join([]string{a, b}, ", ")

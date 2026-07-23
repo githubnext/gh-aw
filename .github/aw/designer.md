@@ -147,7 +147,11 @@ Present a structured summary and ask for approval before generation.
 | "link a sub-issue" | `link-sub-issue` |
 | "add labels", "remove labels" | `add-labels`, `remove-labels` |
 | "replace a label with another" | `replace-label` |
-| "nothing visible", "just analyze" | no safe outputs required |
+| "log completion message", "signal no action needed" | `noop` (auto-enabled; no declaration required in most workflows) |
+| "track when tools are missing", "create issues for missing tools" | `missing-tool` (auto-enabled; configure `create-issue: true` to file tracking issues) |
+| "track when data is unavailable", "create issues for missing data" | `missing-data` (auto-enabled; configure `create-issue: true` to file tracking issues) |
+| "flag when agent can't finish", "report infrastructure failure" | `report-incomplete` (auto-enabled; configure `create-issue: true` to track failures) |
+| "nothing visible", "just analyze" | no write safe outputs required (noop is still called automatically) |
 
 ### Network Mapping
 

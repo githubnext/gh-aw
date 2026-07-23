@@ -69,10 +69,11 @@ func analyzeJoinOne(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.Ge
 		return
 	}
 
-	elemText, ok := matchSingleElementStringSlice(pass, joinCall.Args[0])
+	elem, elemText, ok := matchSingleElementStringSlice(pass, joinCall.Args[0])
 	if !ok {
 		return
 	}
+	replacementText := formatReplacementText(elem, elemText)
 	// Only flag when the separator is a compile-time constant so that the
 	// suggested fix does not silently drop observable side effects.  For
 	// example, strings.Join([]string{s}, <-ch) receives from a channel before
@@ -84,13 +85,13 @@ func analyzeJoinOne(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.Ge
 	pass.Report(analysis.Diagnostic{
 		Pos:     call.Pos(),
 		End:     call.End(),
-		Message: fmt.Sprintf("strings.Join called with a single-element slice; use %s directly", elemText),
+		Message: fmt.Sprintf("strings.Join called with a single-element slice; use %s directly", replacementText),
 		SuggestedFixes: []analysis.SuggestedFix{{
-			Message: "Replace strings.Join call with " + elemText,
+			Message: "Replace strings.Join call with " + replacementText,
 			TextEdits: []analysis.TextEdit{{
 				Pos:     call.Pos(),
 				End:     call.End(),
-				NewText: []byte(elemText),
+				NewText: []byte(replacementText),
 			}},
 		}},
 	})
@@ -107,30 +108,39 @@ func isSafeToDiscardSeparator(pass *analysis.Pass, sep ast.Expr) bool {
 
 // matchSingleElementStringSlice reports whether expr is a []string{...} composite
 // literal with exactly one element and returns the text of that element.
-func matchSingleElementStringSlice(pass *analysis.Pass, expr ast.Expr) (elemText string, ok bool) {
+func matchSingleElementStringSlice(pass *analysis.Pass, expr ast.Expr) (elem ast.Expr, elemText string, ok bool) {
 	lit, ok := expr.(*ast.CompositeLit)
 	if !ok {
-		return "", false
+		return nil, "", false
 	}
 	// The type must be []string (array type with no length, element type "string").
 	arrayType, ok := lit.Type.(*ast.ArrayType)
 	if !ok || arrayType.Len != nil {
-		return "", false
+		return nil, "", false
 	}
 	ident, ok := arrayType.Elt.(*ast.Ident)
 	if !ok || ident.Name != "string" {
-		return "", false
+		return nil, "", false
 	}
 	if len(lit.Elts) != 1 {
-		return "", false
+		return nil, "", false
 	}
-	elem := lit.Elts[0]
+	elem = lit.Elts[0]
 	if _, isKV := elem.(*ast.KeyValueExpr); isKV {
-		return "", false
+		return nil, "", false
 	}
 	text := astutil.NodeText(pass.Fset, elem)
 	if text == "" {
-		return "", false
+		return nil, "", false
 	}
-	return text, true
+	return elem, text, true
+}
+
+func formatReplacementText(elem ast.Expr, elemText string) string {
+	switch elem.(type) {
+	case *ast.Ident, *ast.BasicLit, *ast.ParenExpr, *ast.SelectorExpr, *ast.IndexExpr, *ast.CallExpr:
+		return elemText
+	default:
+		return "(" + elemText + ")"
+	}
 }
