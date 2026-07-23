@@ -2,10 +2,12 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -22,8 +24,16 @@ type syftOutput struct {
 	} `json:"artifacts"`
 }
 
+// SyftScanResult holds the results of a Syft scan.
+type SyftScanResult struct {
+	ImageRef     string
+	PackageCount int
+	SBOMPath     string // Path to the persisted SBOM file
+}
+
 // runSyftOnLockFiles extracts container image references from lock-file manifests
 // and runs syft to generate SBOM data for each unique image.
+// SBOM files are persisted to disk and paths are returned in the results.
 func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
@@ -44,16 +54,36 @@ func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Running syft SBOM scanner on %d container images", len(images))))
 	}
 
+	// Create output directory for SBOM files
+	sbomDir := filepath.Join(os.TempDir(), "gh-aw-syft-sboms")
+	if err := os.MkdirAll(sbomDir, 0755); err != nil {
+		return fmt.Errorf("failed to create SBOM directory: %w", err)
+	}
+
 	var scanErrors []string
+	var results []SyftScanResult
+
+	ctx := context.Background()
 	for _, img := range images {
 		imageRef := img.PinnedImage
 		if imageRef == "" {
 			imageRef = img.Image
 		}
 
-		if _, err := runSyftOnImage(imageRef, verbose); err != nil {
+		result, err := runSyftOnImage(ctx, imageRef, sbomDir, verbose)
+		if err != nil {
 			syftLog.Printf("Syft scan failed for %s: %v", img.Image, err)
 			scanErrors = append(scanErrors, fmt.Sprintf("%s: %v", img.Image, err))
+			continue
+		}
+		results = append(results, *result)
+	}
+
+	// Report SBOM file locations
+	if verbose && len(results) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("SBOM files saved to: "+sbomDir))
+		for _, result := range results {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("  %s: %s (%d packages)", result.ImageRef, result.SBOMPath, result.PackageCount)))
 		}
 	}
 
@@ -69,12 +99,13 @@ func runSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return nil
 }
 
-func runSyftOnImage(imageRef string, verbose bool) (*syftOutput, error) {
+func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool) (*SyftScanResult, error) {
 	syftLog.Printf("Scanning %s with syft", imageRef)
 
 	// #nosec G204 -- imageRef comes from compiled lock-file manifests and is passed
 	// as a direct process argument (no shell interpolation).
-	cmd := exec.Command(
+	cmd := exec.CommandContext(
+		ctx,
 		"docker",
 		"run",
 		"--rm",
@@ -96,6 +127,7 @@ func runSyftOnImage(imageRef string, verbose bool) (*syftOutput, error) {
 		stderrStr := strings.TrimSpace(stderr.String())
 		if stderrStr != "" {
 			syftLog.Printf("syft stderr for %s: %s", imageRef, stderrStr)
+			return nil, fmt.Errorf("syft failed on %s: %w\nstderr: %s", imageRef, err, stderrStr)
 		}
 		return nil, fmt.Errorf("syft failed on %s: %w", imageRef, err)
 	}
@@ -105,6 +137,22 @@ func runSyftOnImage(imageRef string, verbose bool) (*syftOutput, error) {
 		return nil, fmt.Errorf("failed to parse syft JSON output for %s: %w", imageRef, err)
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("syft scanned %s (%d packages)", imageRef, len(output.Artifacts))))
-	return &output, nil
+	// Generate a safe filename from the image reference
+	safeImageName := strings.ReplaceAll(imageRef, "/", "_")
+	safeImageName = strings.ReplaceAll(safeImageName, ":", "_")
+	safeImageName = strings.ReplaceAll(safeImageName, "@", "_")
+	sbomPath := filepath.Join(sbomDir, fmt.Sprintf("sbom-%s.json", safeImageName))
+
+	// Persist the SBOM to disk
+	if err := os.WriteFile(sbomPath, stdout.Bytes(), 0644); err != nil {
+		return nil, fmt.Errorf("failed to write SBOM file for %s: %w", imageRef, err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("syft scanned %s (%d packages, SBOM: %s)", imageRef, len(output.Artifacts), sbomPath)))
+
+	return &SyftScanResult{
+		ImageRef:     imageRef,
+		PackageCount: len(output.Artifacts),
+		SBOMPath:     sbomPath,
+	}, nil
 }
