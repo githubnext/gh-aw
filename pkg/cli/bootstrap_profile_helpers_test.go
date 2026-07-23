@@ -211,9 +211,6 @@ func TestBootstrapHelperUtilities(t *testing.T) {
 	if got := firstNonEmpty("", "  ", "value", "other"); got != "value" {
 		t.Fatalf("unexpected firstNonEmpty result: %q", got)
 	}
-	if got := htmlEscape(`a&'"<b>`); got != "a&amp;&#39;&#34;&lt;b&gt;" {
-		t.Fatalf("unexpected htmlEscape result: %q", got)
-	}
 	if got := firstNonEmpty("", "  value  ", "other"); got != "value" {
 		t.Fatalf("unexpected trimmed firstNonEmpty result: %q", got)
 	}

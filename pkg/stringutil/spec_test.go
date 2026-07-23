@@ -544,16 +544,9 @@ func TestSpec_PublicAPI_SanitizeToolID(t *testing.T) {
 // TestSpec_PublicAPI_SanitizeForFilename validates the documented behavior of
 // SanitizeForFilename as described in the package README.md.
 //
-// Specification: "Converts a string into a filesystem-safe filename by lowercasing
-// and replacing non-alphanumeric characters with hyphens."
-//
-// SPEC_MISMATCH: The README states the function "lowercases and replaces
-// non-alphanumeric characters with hyphens", but the implementation does not
-// lowercase its input and preserves '-', '_', and '.'. The implementation also
-// returns the sentinel "clone-mode" for empty input (undocumented). The test
-// asserts the minimal documented invariant — the result is filesystem-safe —
-// and skips the lowercasing/alphanumeric-only claims pending a spec/impl
-// reconciliation.
+// Specification: "Converts a repository slug to a filesystem-safe string. Replaces '/'
+// with '-' and any remaining non-alphanumeric characters (except '-', '_', '.') with '-'.
+// Returns 'clone-mode' if the slug is empty. Does not change the letter case."
 func TestSpec_PublicAPI_SanitizeForFilename(t *testing.T) {
 	t.Run("returns non-empty filesystem-safe string for non-empty input", func(t *testing.T) {
 		result := SanitizeForFilename("owner/repo")
@@ -561,6 +554,24 @@ func TestSpec_PublicAPI_SanitizeForFilename(t *testing.T) {
 			"SanitizeForFilename should return non-empty result for non-empty input")
 		assert.NotContains(t, result, "/",
 			"result should not contain path separators")
+	})
+
+	t.Run("returns clone-mode sentinel for empty input", func(t *testing.T) {
+		result := SanitizeForFilename("")
+		assert.Equal(t, "clone-mode", result,
+			"SanitizeForFilename should return 'clone-mode' for empty input")
+	})
+
+	t.Run("does not lowercase input", func(t *testing.T) {
+		result := SanitizeForFilename("Owner/Repo")
+		assert.Equal(t, "Owner-Repo", result,
+			"SanitizeForFilename should preserve letter case")
+	})
+
+	t.Run("preserves hyphens underscores and dots", func(t *testing.T) {
+		result := SanitizeForFilename("my.org/my_repo")
+		assert.Equal(t, "my.org-my_repo", result,
+			"SanitizeForFilename should preserve '-', '_', and '.' characters")
 	})
 }
 

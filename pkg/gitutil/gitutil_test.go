@@ -245,6 +245,41 @@ func TestIsValidFullSHA(t *testing.T) {
 	}
 }
 
+func TestIsGitObjectID(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name:     "valid sha1 object id",
+			input:    "abcdef0123456789abcdef0123456789abcdef01",
+			expected: true,
+		},
+		{
+			name:     "valid sha256 object id",
+			input:    "abcdef0123456789abcdef0123456789abcdef01abcdef0123456789abcdef01",
+			expected: true,
+		},
+		{
+			name:     "rejects uppercase object id",
+			input:    "ABCDEF0123456789ABCDEF0123456789ABCDEF01",
+			expected: false,
+		},
+		{
+			name:     "rejects ref expression",
+			input:    "HEAD~1",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isGitObjectID(tt.input))
+		})
+	}
+}
+
 func TestExtractBaseRepo(t *testing.T) {
 	tests := []struct {
 		name     string

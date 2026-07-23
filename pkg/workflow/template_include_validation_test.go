@@ -608,3 +608,86 @@ func TestDetectDoubleQuotedExperimentComparisons(t *testing.T) {
 		})
 	}
 }
+
+func TestDetectMidlineTemplateSeparators(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        string
+		wantWarnings int
+		wantContains string
+	}{
+		{
+			name: "separators on own lines - no warning",
+			input: `{{#if experiments.mode == 'a'}}
+content
+{{#else}}
+other
+{{/if}}`,
+			wantWarnings: 0,
+		},
+		{
+			name:         "inline if/else/endif - warning",
+			input:        `4. {{#if experiments.mode == 'a'}}A{{#else}}B{{/if}}`,
+			wantWarnings: 3,
+			wantContains: "line 1",
+		},
+		{
+			name: "elseif separator in middle of line - warning",
+			input: `{{#if experiments.mode == 'a'}}
+{{#elseif experiments.mode == 'b'}} branch-b
+{{/if}}`,
+			wantWarnings: 1,
+			wantContains: "#elseif",
+		},
+		{
+			name: "mixed lines with one offending separator",
+			input: `{{#if experiments.mode == 'a'}}
+content {{#else}}
+{{/if}}`,
+			wantWarnings: 1,
+			wantContains: "{{#else}}",
+		},
+		{
+			name: "condition with nested github expression - own line no warning",
+			input: `{{#if ${{ github.actor }} != ''}}
+content
+{{/if}}`,
+			wantWarnings: 0,
+		},
+		{
+			name:         "condition with nested github expression mid-line - warning",
+			input:        `prefix {{#if ${{ github.actor }} != ''}} suffix`,
+			wantWarnings: 1,
+			wantContains: "mid-line",
+		},
+		{
+			name: "endif closing form on own line - no warning",
+			input: `{{#if experiments.mode == 'a'}}
+content
+{{#endif}}`,
+			wantWarnings: 0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			warnings := detectMidlineTemplateSeparators(tt.input)
+			if len(warnings) != tt.wantWarnings {
+				t.Errorf("detectMidlineTemplateSeparators() = %d warning(s), want %d; got: %v",
+					len(warnings), tt.wantWarnings, warnings)
+			}
+			if tt.wantContains != "" {
+				found := false
+				for _, w := range warnings {
+					if strings.Contains(w, tt.wantContains) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("detectMidlineTemplateSeparators() warnings %v do not contain %q", warnings, tt.wantContains)
+				}
+			}
+		})
+	}
+}

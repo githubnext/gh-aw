@@ -62,6 +62,8 @@ function buildMarkerSearchQuery({ owner, repo, workflowId, callerWorkflowId, clo
  * @param {object} params
  * @param {Array<any>} params.items - Raw search result items
  * @param {number} params.excludeNumber - Entity number to exclude (the newly created one)
+ * @param {Set<number>} [params.additionalExcludeNumbers] - Optional set of additional entity
+ *   numbers to exclude (e.g. all issues created in the current run)
  * @param {string} params.exactMarker - Exact marker string that must appear in the body
  * @param {string} params.entityType - Entity type name for logging (e.g. "issue", "discussion")
  * @param {(item: any, counters: Record<string, number>) => boolean} [params.additionalFilter] -
@@ -69,7 +71,7 @@ function buildMarkerSearchQuery({ owner, repo, workflowId, callerWorkflowId, clo
  *   The `counters` object can be mutated to track extra exclusion reasons.
  * @returns {{ filtered: Array<any>, counters: FilterCounters & Record<string, number> }}
  */
-function filterByMarker({ items, excludeNumber, exactMarker, entityType, additionalFilter }) {
+function filterByMarker({ items, excludeNumber, additionalExcludeNumbers, exactMarker, entityType, additionalFilter }) {
   let filteredCount = 0;
   let excludedCount = 0;
   let markerMismatchCount = 0;
@@ -81,11 +83,17 @@ function filterByMarker({ items, excludeNumber, exactMarker, entityType, additio
       return false;
     }
 
-    // Exclude the newly created entity before running any other filters so
-    // counters/logs consistently attribute this item to the dedicated exclusion.
+    // Exclude the newly created entity and any other entities created in the
+    // same run before running any other filters, so counters/logs consistently
+    // attribute these items to the dedicated exclusion.
     if (item.number === excludeNumber) {
       excludedCount++;
       core.info(`  Excluding ${entityType} #${item.number} (the newly created ${entityType})`);
+      return false;
+    }
+    if (additionalExcludeNumbers?.has(item.number)) {
+      excludedCount++;
+      core.info(`  Excluding ${entityType} #${item.number} (created earlier in the same run)`);
       return false;
     }
 

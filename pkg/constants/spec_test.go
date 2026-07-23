@@ -109,16 +109,11 @@ func TestSpec_PublicAPI_GetAllEngineSecretNames(t *testing.T) {
 // TestSpec_SemanticTypes_StringAndIsValid validates the documented String() and IsValid()
 // methods on semantic types that implement them.
 // Spec section: "## Semantic Types" and "## Design Notes"
-// Spec: "All semantic types implement String() string and IsValid() bool methods."
-//
-// SPEC_MISMATCH: README claims all semantic types implement String() and IsValid(), but
-// EngineName and FeatureFlag do not have these methods in the implementation. Only
-// JobName, StepID, CommandPrefix, Version, DocURL, URL, and MCPServerID (String only)
-// implement these methods.
+// Spec: "Selected semantic types implement String() and IsValid(). EngineName and FeatureFlag
+// are plain typed strings without these methods — use direct string() conversion."
 func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 	t.Run("EngineName string representation", func(t *testing.T) {
-		// EngineName does not implement String()/IsValid() despite spec claiming all
-		// semantic types do. Use string() conversion directly.
+		// EngineName is a plain typed string; use string() conversion directly.
 		e := constants.CopilotEngine
 		assert.Equal(t, "copilot", string(e),
 			"CopilotEngine underlying string value should be 'copilot' as documented")
@@ -129,8 +124,7 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 	})
 
 	t.Run("FeatureFlag string representation", func(t *testing.T) {
-		// FeatureFlag does not implement String()/IsValid() despite spec claiming all
-		// semantic types do. Use string() conversion directly.
+		// FeatureFlag is a plain typed string; use string() conversion directly.
 		f := constants.MCPGatewayFeatureFlag
 		assert.NotEmpty(t, string(f),
 			"MCPGatewayFeatureFlag should have non-empty string value")
@@ -270,10 +264,6 @@ func TestSpec_RuntimeConfiguration_RateLimits(t *testing.T) {
 
 // TestSpec_FeatureFlags_Values validates the documented feature flag constant values.
 // Spec section: "## Feature Flags"
-//
-// SPEC_MISMATCH: README documents constants.MCPCLIFeatureFlag ("mcp-cli") but that
-// constant is not defined in pkg/constants/feature_constants.go. It is omitted from
-// the test cases below to keep the suite compiling against the implementation.
 func TestSpec_FeatureFlags_Values(t *testing.T) {
 	tests := []struct {
 		name     string

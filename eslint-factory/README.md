@@ -20,6 +20,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 |---|---|
 | [`no-core-exportvariable-non-string`](#no-core-exportvariable-non-string) | Require explicit string values for `core.exportVariable` calls |
 | [`no-core-setoutput-non-string`](#no-core-setoutput-non-string) | Require explicit string values for `core.setOutput` calls |
+| [`no-child-process-interpolated-command`](#no-child-process-interpolated-command) | Disallow interpolated command strings in shell-evaluated `child_process` calls |
 | [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
 | [`no-json-stringify-error`](#no-json-stringify-error) | Disallow `JSON.stringify()` on caught error variables |
 | [`no-throw-plain-object`](#no-throw-plain-object) | Disallow throwing plain object literals |
@@ -430,6 +431,33 @@ Prefer `@actions/core` logging methods (`core.info`, `core.debug`) over `console
 **Intentionally excluded: `console.error` and `console.warn`**
 
 `console.error` and `console.warn` write to **`process.stderr`**, while `core.error` and `core.warning` emit GitHub Actions workflow commands to **`process.stdout`**. For processes that own stdout as a data/protocol channel — such as stdio MCP servers and transports — replacing stderr logging with stdout logging would corrupt the JSON-RPC stream. Because the stream change is not behavior-preserving, the rule never reports `console.error` or `console.warn` and offers no suggestion to replace them.
+
+
+### `no-child-process-interpolated-command`
+
+Disallow interpolated template literals and dynamic string concatenation as command arguments to shell-evaluated `child_process` calls.
+
+Why: command strings evaluated by a shell (`exec`, `execSync`, `spawn` / `spawnSync` with `shell: true`, and `execFile` / `execFileSync` with `shell: true`) can become shell-injection vectors when command content is assembled dynamically.
+
+**Detected forms (when bound to `child_process` / `node:child_process`):**
+- `const { execSync } = require("child_process"); execSync(\`git checkout ${branch}\`)`
+- `const cp = require("child_process"); cp.exec("git checkout " + branch)`
+- `const run = cp.execSync; run("git checkout " + branch)` — member alias call.
+- `spawn(\`git checkout ${branch}\`, { shell: true })` — shell-enabled spawn.
+- `execFileSync("git " + branch, ["status"], { shell: true })` — shell-enabled execFileSync.
+- `spawn("git checkout " + branch, ...opts)` — spread options are treated conservatively as potentially shell-enabled.
+- ESM imports are recognized (`import { execSync } from "node:child_process"`).
+
+**Not flagged:**
+- Fully static command strings (`"git status"`, `` `git status` ``, and fully static `+` concatenations).
+- `spawn(cmd, [args])` / `spawnSync(cmd, [args])` without `shell: true`.
+- `execFile` / `execFileSync` without `shell: true`.
+
+**Out of scope:** github-script's injected `exec.exec(...)` / `exec.getExecOutput(...)`. Those are covered by `no-exec-interpolated-command`, which targets `@actions/exec` argument-splitting correctness rather than shell injection.
+
+**Safer alternatives:**
+- Use a static executable and pass arguments as an array (`execFileSync("git", ["checkout", branch])`).
+- Avoid `shell: true` unless strictly required.
 
 
 ### `require-execsync-try-catch`

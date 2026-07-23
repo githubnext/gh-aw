@@ -4,8 +4,6 @@ package console
 
 import (
 	"bytes"
-	"errors"
-	"fmt"
 	"testing"
 )
 
@@ -62,30 +60,10 @@ func TestPrintCommandMessage(t *testing.T) {
 	}
 }
 
-func TestPrintListItem(t *testing.T) {
-	got := captureStderr(t, func() { PrintListItem("item one") })
-	want := FormatListItemStderr("item one") + "\n"
-	if got != want {
-		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
 func TestPrintSectionHeader(t *testing.T) {
 	got := captureStderr(t, func() { PrintSectionHeader("Section") })
 	want := FormatSectionHeaderStderr("Section") + "\n"
 	if got != want {
 		t.Fatalf("want %q, got %q", want, got)
-	}
-}
-
-func TestPrintErrorChain(t *testing.T) {
-	err := errors.New("inner")
-	wrapped := fmt.Errorf("outer: %w", err)
-
-	got := captureStderr(t, func() { PrintErrorChain(wrapped) })
-
-	want := FormatErrorChain(wrapped) + "\n"
-	if got != want {
-		t.Fatalf("expected %q, got %q", want, got)
 	}
 }

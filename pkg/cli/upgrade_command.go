@@ -10,6 +10,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 	"github.com/spf13/cobra"
@@ -479,11 +480,13 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
 	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
 
-	// Validate that exe is an absolute path before executing it (defense-in-depth).
+	// Validate the executable path before re-launching it (defense-in-depth).
 	// exe is always derived from os.Executable() or the pre-rename installPath which is
 	// itself obtained from os.Executable() + filepath.EvalSymlinks (all trusted OS calls).
-	if !filepath.IsAbs(exe) {
-		return fmt.Errorf("executable path is not absolute: %s", exe)
+	originalExe := exe
+	exe, err := fileutil.ValidateExecutablePath(exe)
+	if err != nil {
+		return fmt.Errorf("invalid executable path %q: %w", originalExe, err)
 	}
 
 	// #nosec G204 -- exe is validated as an absolute path above and originates from

@@ -236,6 +236,8 @@ Always create a GitHub Discussion with your findings using this structure:
 
 ### Formatting Guidelines
 
+**Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
+
 **Progressive Disclosure**: For sections with extensive details, use expandable sections to keep the report scannable while maintaining completeness.
 
 **Syntax for expandable sections**:

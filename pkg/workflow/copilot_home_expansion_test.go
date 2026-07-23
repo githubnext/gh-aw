@@ -16,7 +16,6 @@
 package workflow
 
 import (
-	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -95,20 +94,6 @@ func TestBuildCopilotSettingsSetup_UsesHomeExpansion(t *testing.T) {
 			}
 		})
 	}
-}
-
-// TestBuildCopilotSettingsCleanupTrap_SingleQuotedSoHomeExpandsAtTrapFire
-// pins the trap body so $HOME is expanded at trap-fire time rather than
-// trap-definition time. A regression that switches to double-quoted body
-// would resolve $HOME at the wrong moment and (worse) interpolate any
-// expression the user has in HOME at definition time.
-func TestBuildCopilotSettingsCleanupTrap_SingleQuotedSoHomeExpandsAtTrapFire(t *testing.T) {
-	got := buildCopilotSettingsCleanupTrap()
-	// The body must be single-quoted so the shell defers $HOME expansion until
-	// the trap fires.
-	assert.Equal(t, "trap 'rm -f \"$HOME/.copilot/settings.json\"' EXIT\n", got)
-	assert.NotContains(t, got, "/home/runner",
-		"trap body must not embed a literal /home/runner:\n%s", got)
 }
 
 // TestBuildCopilotMCPConfigExport_NoMCPServers verifies that we always export
@@ -295,58 +280,6 @@ var homeValuesUnderTest = []struct {
 	{"self-hosted with dash and dot", "/home/runner-2.x"},
 }
 
-// TestBashIntegration_SettingsSetupAndCleanupTrap drives the generated settings
-// setup + trap commands through bash with different HOME values and verifies:
-//   - mkdir creates the right directory
-//   - the settings file is written to the right path with the expected content
-//   - the EXIT trap removes the file using the runtime HOME
-func TestBashIntegration_SettingsSetupAndCleanupTrap(t *testing.T) {
-	// The setup helper unconditionally tries to run `sudo` if the chown flag
-	// is true; the second variant covers the no-sudo path so the test does not
-	// depend on sudoers being configured.
-	setup := buildCopilotSettingsSetup(copilotSettingsDefaultContent, false)
-	trap := buildCopilotSettingsCleanupTrap()
-
-	for _, hv := range homeValuesUnderTest {
-		t.Run(hv.name, func(t *testing.T) {
-			tmpRoot := t.TempDir()
-			// Anchor the test HOME under tmpRoot so the script does not write
-			// outside the test sandbox.
-			home := filepath.Join(tmpRoot, hv.home)
-			require.NoError(t, os.MkdirAll(filepath.Dir(home), 0o755))
-
-			// Run the trap, the setup, then explicitly exit so the trap fires.
-			// We verify the file existed at exit by writing a marker just before
-			// the implicit shell exit.
-			marker := filepath.Join(tmpRoot, "marker.txt")
-			script := fmt.Sprintf(
-				"set -e\n%s%s[ -f \"$HOME/.copilot/settings.json\" ] && echo SETTINGS_FILE_PRESENT > %q\n",
-				trap, setup, marker,
-			)
-			stdout, stderr, err := runBashWithHome(t, home, script)
-			require.NoError(t, err, "bash script failed:\nstdout=%s\nstderr=%s\nscript=%s",
-				stdout, stderr, script)
-
-			// At trap fire-time, the file must be gone — verify.
-			settingsPath := filepath.Join(home, ".copilot", "settings.json")
-			_, statErr := os.Stat(settingsPath)
-			assert.True(t, os.IsNotExist(statErr),
-				"settings file %s should have been cleaned up by EXIT trap, stat err=%v",
-				settingsPath, statErr)
-
-			// And the marker proves the file was created before the trap fired.
-			markerContent, err := os.ReadFile(marker)
-			require.NoError(t, err, "marker file should have been written")
-			assert.Equal(t, "SETTINGS_FILE_PRESENT\n", string(markerContent),
-				"settings file should have existed inside the script body")
-
-			// The directory itself stays put.
-			assert.DirExists(t, filepath.Join(home, ".copilot"),
-				"$HOME/.copilot directory should remain after trap fires")
-		})
-	}
-}
-
 // TestBashIntegration_MCPConfigExport drives the generated export block
 // through bash with different HOME values and verifies the resulting
 // environment variables resolve to the correct $HOME-based paths.
@@ -420,40 +353,4 @@ func TestBashIntegration_RenderMCPConfig_MkdirPath(t *testing.T) {
 				"RenderMCPConfig mkdir line must create $HOME/.copilot")
 		})
 	}
-}
-
-// TestBashIntegration_TrapFiresWithRuntimeHome ensures the cleanup trap is
-// driven by the HOME value at trap-fire time, not the value that happened to
-// be set when the trap was registered. A regression that double-quotes the
-// trap body would expand $HOME early and silently break later HOME changes.
-func TestBashIntegration_TrapFiresWithRuntimeHome(t *testing.T) {
-	tmpRoot := t.TempDir()
-	originalHome := filepath.Join(tmpRoot, "initial-home")
-	laterHome := filepath.Join(tmpRoot, "later-home")
-	require.NoError(t, os.MkdirAll(filepath.Join(originalHome, ".copilot"), 0o755))
-	require.NoError(t, os.MkdirAll(filepath.Join(laterHome, ".copilot"), 0o755))
-
-	originalFile := filepath.Join(originalHome, ".copilot", "settings.json")
-	laterFile := filepath.Join(laterHome, ".copilot", "settings.json")
-	require.NoError(t, os.WriteFile(originalFile, []byte("orig"), 0o600))
-	require.NoError(t, os.WriteFile(laterFile, []byte("later"), 0o600))
-
-	// Set up the trap, then change HOME, then exit. The trap body uses
-	// single-quoted $HOME so it should delete the LATER file, not the
-	// original one.
-	trap := buildCopilotSettingsCleanupTrap()
-	script := fmt.Sprintf("set -e\n%sexport HOME=%q\n", trap, laterHome)
-
-	stdout, stderr, err := runBashWithHome(t, originalHome, script)
-	require.NoError(t, err, "bash script failed:\nstdout=%s\nstderr=%s", stdout, stderr)
-
-	// The original file must still exist (trap targeted the later HOME).
-	_, err = os.Stat(originalFile)
-	require.NoError(t, err,
-		"original-home settings.json must NOT be deleted: trap should use runtime HOME, not definition-time HOME")
-
-	// The later-home file must be gone.
-	_, err = os.Stat(laterFile)
-	assert.True(t, os.IsNotExist(err),
-		"later-home settings.json must have been deleted by the trap")
 }

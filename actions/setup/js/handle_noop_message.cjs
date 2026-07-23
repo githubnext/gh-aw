@@ -95,7 +95,7 @@ function buildAICSuffix() {
   if (totalAIC <= 0) {
     return "";
   }
-  return ` · ${compressedModelName ? `${compressedModelName} ` : ""}${formatAIC(totalAIC)} AIC`;
+  return ` · ${compressedModelName ? `${compressedModelName} · ` : ""}${formatAIC(totalAIC)} AIC`;
 }
 
 /**

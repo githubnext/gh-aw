@@ -277,16 +277,3 @@ func TestSpec_ConfigPrecedence_DefaultFallback(t *testing.T) {
 	assert.Equal(t, github.MultiLabelLogicMax, om.MultiLabelLogic,
 		"the default fallback mapping should use \"max\" logic")
 }
-
-// SPEC_MISMATCH: The README "Usage Examples" section illustrates
-// ComputeObjectiveValue([]string{"bug","high-priority"}) == 60 and
-// GetObjectiveLabels([]string{"bug","good first issue"}) == ["bug"] using an
-// `om` obtained from LoadObjectiveMappingFromConfig(). However, the built-in
-// default mapping returned by DefaultObjectiveMapping()/LoadObjectiveMappingFromConfig()
-// does NOT contain "bug" (or "good first issue"), and it scores "high-priority"
-// as 50 rather than the README constant ObjectiveValueHighPriority (35). Running
-// the literal examples against the default mapping therefore yields different
-// results (e.g. 50, and []) than documented. The examples are illustrative of
-// the documented combination *logic* and *constants*, not of the default
-// mapping's contents. The behavioral tests above use explicitly constructed
-// mappings matching the documented constants to validate the contract.
