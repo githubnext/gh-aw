@@ -65,6 +65,7 @@ func compileSpecificFiles(
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForGrant []string    // lock files for grant container image license scanning
+	var strictGrantErr error
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -225,16 +226,27 @@ func compileSpecificFiles(
 				return workflowDataList, err
 			}
 		}
+	}
 
-		// Run grant license scanner on container images referenced in the compiled lock files.
-		if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
-			if err := ctx.Err(); err != nil {
-				return workflowDataList, err
-			}
-			if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-				if config.Strict {
-					return workflowDataList, err
-				}
+	// Run grant license scanner on container images referenced in the compiled lock files.
+	if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				errorCount++
+				stats.Errors++
+				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				*validationResults = append(*validationResults, ValidationResult{
+					Workflow: "grant",
+					Valid:    false,
+					Errors: []CompileValidationError{{
+						Type:    "grant_error",
+						Message: err.Error(),
+					}},
+				})
+				strictGrantErr = err
 			}
 		}
 	}
@@ -262,6 +274,9 @@ func compileSpecificFiles(
 	// Don't return the detailed error message here since it's already printed in the summary
 	// Returning a simple error prevents duplication in the output
 	if errorCount > 0 {
+		if strictGrantErr != nil {
+			return workflowDataList, strictGrantErr
+		}
 		return workflowDataList, errors.New("compilation failed")
 	}
 
@@ -336,6 +351,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForGrant []string    // lock files for grant container image license scanning
+	var strictGrantErr error
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -461,16 +477,27 @@ func compileAllFilesInDirectory(
 				return workflowDataList, err
 			}
 		}
+	}
 
-		// Run grant license scanner on container images referenced in the compiled lock files.
-		if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
-			if err := ctx.Err(); err != nil {
-				return workflowDataList, err
-			}
-			if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
-				if config.Strict {
-					return workflowDataList, err
-				}
+	// Run grant license scanner on container images referenced in the compiled lock files.
+	if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				errorCount++
+				stats.Errors++
+				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				*validationResults = append(*validationResults, ValidationResult{
+					Workflow: "grant",
+					Valid:    false,
+					Errors: []CompileValidationError{{
+						Type:    "grant_error",
+						Message: err.Error(),
+					}},
+				})
+				strictGrantErr = err
 			}
 		}
 	}
@@ -513,6 +540,9 @@ func compileAllFilesInDirectory(
 
 	// Return error if any compilations failed
 	if errorCount > 0 {
+		if strictGrantErr != nil {
+			return workflowDataList, strictGrantErr
+		}
 		return workflowDataList, errors.New("compilation failed")
 	}
 

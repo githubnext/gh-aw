@@ -135,7 +135,11 @@ func grantPolicyFile() (string, error) {
 	policyFile := filepath.Join(repoRoot, grantPolicyFilename)
 	info, err := os.Stat(policyFile)
 	if err != nil {
-		return "", fmt.Errorf("grant requires %s at the repository root: %w", grantPolicyFilename, err)
+		return "", fmt.Errorf(
+			"grant requires %s at the repository root (create it or run compile without --grant): %w",
+			grantPolicyFilename,
+			err,
+		)
 	}
 	if !info.Mode().IsRegular() {
 		return "", fmt.Errorf("grant policy file is not a regular file: %s", policyFile)
