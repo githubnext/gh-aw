@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 type ExecMethodName = "exec" | "getExecOutput";
@@ -75,6 +75,43 @@ export const noExecInterpolatedCommandRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
+
+    /**
+     * When `identifier` is a write-once local variable binding, returns its
+     * initializer expression so the caller can apply further checks.  Returns
+     * null for parameters, imports, multiply-assigned vars, and vars with no
+     * initializer.
+     */
+    function resolveInitializer(identifier: TSESTree.Identifier): TSESTree.Expression | null {
+      const startScope = sourceCode.getScope(identifier);
+      const functionScope = startScope.variableScope;
+      // Only resolve within a concrete function boundary (function declaration,
+      // function expression, or arrow function). Module/global scopes are
+      // intentionally skipped because those bindings are not a stable proxy for
+      // runtime values at call time.
+      if (functionScope.type !== "function") return null;
+
+      let scope: TSESLint.Scope.Scope | null = startScope;
+      // Stay inside the same function's nested block scopes; do not cross to
+      // enclosing function/module scopes.
+      while (scope !== null && scope.variableScope === functionScope) {
+        const variable = scope.set.get(identifier.name);
+        if (variable !== undefined) {
+          // Only accept simple, single-definition Variable bindings.
+          if (variable.defs.length !== 1) return null;
+          const def = variable.defs[0];
+          if (def.type !== "Variable") return null;
+          // Reject re-assigned bindings (write references that are not the initializer).
+          if (variable.references.some(ref => ref.isWrite() && !ref.init)) return null;
+          const declarator = def.node as TSESTree.VariableDeclarator;
+          return declarator.init ?? null;
+        }
+        scope = scope.upper;
+      }
+      return null;
+    }
+
     return {
       CallExpression(node) {
         const method = resolveExecMethod(node);
@@ -83,7 +120,16 @@ export const noExecInterpolatedCommandRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;
 
-        const kind = getDynamicCommandKind(firstArg);
+        let candidate: TSESTree.Expression = firstArg as TSESTree.Expression;
+        const seen = new Set<TSESTree.Identifier>();
+        while (candidate.type === AST_NODE_TYPES.Identifier && !seen.has(candidate)) {
+          seen.add(candidate);
+          const resolved = resolveInitializer(candidate);
+          if (!resolved) break;
+          candidate = resolved;
+        }
+
+        const kind = getDynamicCommandKind(candidate);
         if (!kind) return;
 
         context.report({
