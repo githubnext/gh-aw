@@ -124,7 +124,12 @@ func buildYamllintDockerArgs(gitRoot string, relPaths []string, strict bool) []s
 }
 
 func buildYamllintVerboseCommand(gitRoot string, relPaths []string, strict bool) string {
-	return "docker " + strings.Join(buildYamllintDockerArgs(gitRoot, relPaths, strict), " ")
+	args := append([]string{"docker"}, buildYamllintDockerArgs(gitRoot, relPaths, strict)...)
+	quoted := make([]string, 0, len(args))
+	for _, arg := range args {
+		quoted = append(quoted, quoteYamllintShellArg(arg))
+	}
+	return strings.Join(quoted, " ")
 }
 
 func yamllintFileDescription(lockFiles []string) string {
@@ -143,6 +148,13 @@ func classifyYamllintExit(exitCode int, strict bool, totalIssues int, fileDescri
 		return nil
 	}
 	return fmt.Errorf("yamllint failed with exit code %d on %s", exitCode, fileDescription)
+}
+
+func quoteYamllintShellArg(arg string) string {
+	if arg != "" && !strings.ContainsAny(arg, " \t\n\"'`$\\;|&<>*?!#~") {
+		return arg
+	}
+	return strconv.Quote(arg)
 }
 
 func buildYamllintContainerPaths(gitRoot string, lockFiles []string) ([]string, error) {
@@ -183,6 +195,7 @@ func parseAndDisplayYamllintOutput(stdout string) (int, error) {
 		issue, err := parseYamllintLine(line)
 		if err != nil {
 			yamllintLog.Printf("Failed to parse yamllint line %q: %v", line, err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("Failed to parse yamllint output line: "+line))
 			fmt.Fprintln(os.Stderr, line)
 			continue
 		}

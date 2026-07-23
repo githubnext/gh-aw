@@ -13,14 +13,24 @@ import (
 )
 
 func TestCompileWorkflows_RunsYamllintForSpecificFiles(t *testing.T) {
-	testCompileWorkflowsRunsYamllint(t, []string{"test"}, true)
+	compileWorkflowsRunsYamllintHelper(t, []string{"test"}, true, nil, false)
 }
 
 func TestCompileWorkflows_RunsYamllintForDirectoryCompile(t *testing.T) {
-	testCompileWorkflowsRunsYamllint(t, nil, false)
+	compileWorkflowsRunsYamllintHelper(t, nil, false, nil, false)
 }
 
-func testCompileWorkflowsRunsYamllint(t *testing.T, markdownFiles []string, strict bool) {
+func TestCompileWorkflows_YamllintErrorHandling(t *testing.T) {
+	t.Run("strict mode returns yamllint error", func(t *testing.T) {
+		compileWorkflowsRunsYamllintHelper(t, []string{"test"}, true, assert.AnError, true)
+	})
+
+	t.Run("non-strict mode swallows yamllint error", func(t *testing.T) {
+		compileWorkflowsRunsYamllintHelper(t, nil, false, assert.AnError, false)
+	})
+}
+
+func compileWorkflowsRunsYamllintHelper(t *testing.T, markdownFiles []string, strict bool, runnerErr error, expectCompileErr bool) {
 	t.Helper()
 
 	tmpDir := t.TempDir()
@@ -67,7 +77,7 @@ This is a test workflow for yamllint batch execution.
 		gotLockFiles = append([]string(nil), lockFiles...)
 		gotVerbose = verbose
 		gotStrict = strictArg
-		return nil
+		return runnerErr
 	}
 
 	config := CompileConfig{
@@ -78,7 +88,11 @@ This is a test workflow for yamllint batch execution.
 	}
 
 	_, err = CompileWorkflows(context.Background(), config)
-	require.NoError(t, err)
+	if expectCompileErr {
+		require.ErrorIs(t, err, runnerErr)
+	} else {
+		require.NoError(t, err)
+	}
 	require.Equal(t, 1, calls)
 	assert.Equal(t, []string{filepath.Join(workflowsDir, "test.lock.yml")}, gotLockFiles)
 	assert.False(t, gotVerbose)

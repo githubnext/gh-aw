@@ -2,6 +2,7 @@ package cli
 
 import (
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -60,9 +61,22 @@ func TestParseAndDisplayYamllintOutput(t *testing.T) {
 	assert.Empty(t, stdout)
 	assert.Contains(t, stderr, "test.lock.yml:1:1")
 	assert.Contains(t, stderr, "[warning] missing document start \"---\" (document-start)")
+	assert.Contains(t, stderr, "Failed to parse yamllint output line: malformed output")
 	assert.Contains(t, stderr, "test.lock.yml:2:3")
 	assert.Contains(t, stderr, "[error] syntax error: expected <block end>, but found '-' (syntax)")
-	assert.Contains(t, stderr, "malformed output")
+}
+
+func TestParseAndDisplayYamllintOutput_AllMalformed(t *testing.T) {
+	stdout, stderr := captureOutput(t, func() error {
+		issues, err := parseAndDisplayYamllintOutput("bad line one\nbad line two")
+		require.NoError(t, err)
+		assert.Equal(t, 0, issues)
+		return nil
+	})
+
+	assert.Empty(t, stdout)
+	assert.Contains(t, stderr, "Failed to parse yamllint output line: bad line one")
+	assert.Contains(t, stderr, "Failed to parse yamllint output line: bad line two")
 }
 
 func TestBuildYamllintContainerPaths(t *testing.T) {
@@ -111,7 +125,14 @@ func TestBuildYamllintDockerArgs(t *testing.T) {
 		"--strict",
 		"./test.lock.yml",
 	}, args)
-	assert.Contains(t, buildYamllintVerboseCommand("/repo", []string{"./test.lock.yml"}, true), "--strict ./test.lock.yml")
+	assert.Equal(t,
+		"docker run --rm -v /repo:/workdir -w /workdir "+YamllintImage+" -d "+strconv.Quote(yamllintDefaultConfig)+" --format parsable --strict ./test.lock.yml",
+		buildYamllintVerboseCommand("/repo", []string{"./test.lock.yml"}, true),
+	)
+	assert.Equal(t,
+		"docker run --rm -v "+strconv.Quote("/repo root:/workdir")+" -w /workdir "+YamllintImage+" -d "+strconv.Quote(yamllintDefaultConfig)+" --format parsable ./workflow.lock.yml",
+		buildYamllintVerboseCommand("/repo root", []string{"./workflow.lock.yml"}, false),
+	)
 }
 
 func TestClassifyYamllintExit(t *testing.T) {
