@@ -86,9 +86,14 @@ function filterByMarker({ items, excludeNumber, additionalExcludeNumbers, exactM
     // Exclude the newly created entity and any other entities created in the
     // same run before running any other filters, so counters/logs consistently
     // attribute these items to the dedicated exclusion.
-    if (item.number === excludeNumber || additionalExcludeNumbers?.has(item.number)) {
+    if (item.number === excludeNumber) {
       excludedCount++;
-      core.info(`  Excluding ${entityType} #${item.number} (created in current run)`);
+      core.info(`  Excluding ${entityType} #${item.number} (the newly created ${entityType})`);
+      return false;
+    }
+    if (additionalExcludeNumbers?.has(item.number)) {
+      excludedCount++;
+      core.info(`  Excluding ${entityType} #${item.number} (created earlier in the same run)`);
       return false;
     }
 

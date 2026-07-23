@@ -122,7 +122,7 @@ describe("close_older_issues", () => {
       // Issue 124 is the newly created issue; issue 123 was also created in the
       // same run and must not be closed. Only issue 100 (from an older run) should
       // be returned.
-      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 124, undefined, undefined, new Set([123, 124]));
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 124, undefined, undefined, new Set([123]));
 
       expect(results).toHaveLength(1);
       expect(results[0].number).toBe(100);
