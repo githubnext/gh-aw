@@ -139,9 +139,8 @@ func runSyftOnImage(ctx context.Context, imageRef, sbomDir string, verbose bool)
 	}
 
 	// Generate a safe filename from the image reference
-	safeImageName := strings.ReplaceAll(imageRef, "/", "_")
-	safeImageName = strings.ReplaceAll(safeImageName, ":", "_")
-	safeImageName = strings.ReplaceAll(safeImageName, "@", "_")
+	replacer := strings.NewReplacer("/", "_", ":", "_", "@", "_")
+	safeImageName := replacer.Replace(imageRef)
 	sbomPath := filepath.Join(sbomDir, fmt.Sprintf("sbom-%s.json", safeImageName))
 
 	// Persist the SBOM to disk
