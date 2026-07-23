@@ -132,18 +132,16 @@ Daily scan all agentic workflow files with static analysis tools to identify sec
 The workflow has already compiled all workflows with static analysis tools (zizmor, poutine, actionlint, runner-guard, grype, yamllint) and saved the output to `/tmp/gh-aw/agent/compile-output.txt`.
 
 1. **Read Compilation Output**:
-   Read and parse the file `/tmp/gh-aw/agent/compile-output.txt` which contains the JSON output from the compilation with all six static analysis tools.
+   Read the file `/tmp/gh-aw/agent/compile-output.txt`, which contains the human-readable compilation and static analysis output from all six tools.
    
-   The output is JSON format with validation results for each workflow:
-   - workflow: Name of the workflow file
-   - valid: Boolean indicating if compilation was successful
-   - errors: Array of error objects with type, message, and optional line number
-   - warnings: Array of warning objects
-   - compiled_file: Path to the generated .lock.yml file
-   - security findings from zizmor, poutine, actionlint, runner-guard, grype, and yamllint (if any)
+   The file includes:
+   - workflow compilation success/failure lines
+   - compiler validation errors and warnings
+   - findings emitted by zizmor, poutine, actionlint, runner-guard, grype, and yamllint
+   - tool-specific messages, locations, and remediation hints when available
 
 2. **Parse and Extract Findings**:
-   - Parse the JSON output to extract findings from all six tools
+   - Parse the saved compile output to extract findings from all six tools
    - Note which workflows have findings from each tool
    - Identify total number of issues by tool and severity
    - Extract specific error messages, locations, and recommendations
