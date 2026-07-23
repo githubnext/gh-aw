@@ -36,17 +36,7 @@ func PrintCommandMessage(command string) {
 	fmt.Fprintln(stderr, FormatCommandMessageStderr(command))
 }
 
-// PrintListItem formats and prints a list item to stderr.
-func PrintListItem(item string) {
-	fmt.Fprintln(stderr, FormatListItemStderr(item))
-}
-
 // PrintSectionHeader formats and prints a section header to stderr.
 func PrintSectionHeader(header string) {
 	fmt.Fprintln(stderr, FormatSectionHeaderStderr(header))
-}
-
-// PrintErrorChain formats and prints an error chain to stderr.
-func PrintErrorChain(err error) {
-	fmt.Fprintln(stderr, FormatErrorChain(err))
 }

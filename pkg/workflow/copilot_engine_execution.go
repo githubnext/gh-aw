@@ -86,13 +86,6 @@ func buildCopilotSettingsSetup(settingsContent string, fixOwnershipForCustomComm
 		shellEscapeArg(settingsContent), copilotSettingsPath)
 }
 
-// buildCopilotSettingsCleanupTrap returns a shell trap command that removes the
-// temporary Copilot settings file at step exit. The trap body is single-quoted so
-// $HOME is expanded by the shell at trap-fire time rather than trap-definition time.
-func buildCopilotSettingsCleanupTrap() string {
-	return fmt.Sprintf("trap 'rm -f \"%s\"' EXIT\n", copilotSettingsPath)
-}
-
 // buildCopilotSettingsCleanupAndExitCodeTrap returns an EXIT trap that:
 //  1. persists the execution step exit code for setup/post OTLP conclusion spans, and
 //  2. removes the temporary Copilot settings file.
