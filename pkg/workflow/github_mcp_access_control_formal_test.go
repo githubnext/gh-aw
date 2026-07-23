@@ -64,7 +64,7 @@ func TestFormal_WildcardMatch(t *testing.T) {
 }
 
 func TestFormal_OmittedReposAllowAll(t *testing.T) {
-	// P1_RepoMatch: omitted repos field means "no restriction" — all accessible repos are allowed (spec §4.4.1).
+	// P2_RepoMatch: omitted repos field means "no restriction" — all accessible repos are allowed (spec §4.4.1).
 	assert.True(t, formalEvaluateAccess(formalToolConfig{}, formalAccessRequest{Repository: "github/gh-aw"}).allow)
 	assert.True(t, formalEvaluateAccess(formalToolConfig{}, formalAccessRequest{Repository: "microsoft/vscode"}).allow)
 
