@@ -1,4 +1,5 @@
 // @ts-check
+require("./shim.cjs");
 
 /**
  * evaluate_outcomes.cjs
@@ -2057,7 +2058,7 @@ function main() {
   const runsRaw = gh(["run", "list", "--repo", repo, "--limit", "200", "--json", "databaseId,conclusion,workflowName,event", "--jq", '[.[] | select(.conclusion == "success")] | .[0:150]']);
 
   if (!runsRaw || runsRaw === "[]" || runsRaw === "null") {
-    console.log("No recent successful runs found");
+    core.info("No recent successful runs found");
     writeJSONAtomic(SUMMARY_PATH, { runs_checked: 0, total_outcomes: 0 });
     process.exit(0);
   }
@@ -2127,7 +2128,7 @@ function main() {
 
     noop += runNoops;
 
-    console.log(`Run ${runId} (${workflow}): ${runItems} item(s), ${runNoops} noop(s) [trigger: ${event}]`);
+    core.info(`Run ${runId} (${workflow}): ${runItems} item(s), ${runNoops} noop(s) [trigger: ${event}]`);
     checked++;
     total += runItems;
 
@@ -2297,10 +2298,10 @@ function main() {
   const merged = [...new Set([...seenIds, ...evaluatedIds])].sort((a, b) => a - b).slice(-500);
   writeJSONAtomic(SEEN_FILE, merged);
 
-  console.log(`✓ Checked ${checked} runs, ${total} outcomes`);
-  console.log(`  Accepted: ${accepted}, Rejected: ${rejected}, Ignored: ${ignored}, Pending: ${pending}, Noop: ${noop}`);
-  console.log(`  Acceptance rate: ${acceptanceRate.toFixed(4)}`);
-  console.log(JSON.stringify(readJSON(SUMMARY_PATH, {}), null, 2));
+  core.info(`✓ Checked ${checked} runs, ${total} outcomes`);
+  core.info(`  Accepted: ${accepted}, Rejected: ${rejected}, Ignored: ${ignored}, Pending: ${pending}, Noop: ${noop}`);
+  core.info(`  Acceptance rate: ${acceptanceRate.toFixed(4)}`);
+  core.info(JSON.stringify(readJSON(SUMMARY_PATH, {}), null, 2));
 }
 
 if (require.main === module) {

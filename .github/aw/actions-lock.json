@@ -167,8 +167,8 @@
   "containers": {
     "docker.io/mcp/brave-search": {
       "image": "docker.io/mcp/brave-search",
-      "digest": "sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22",
-      "pinned_image": "docker.io/mcp/brave-search@sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22"
+      "digest": "sha256:f58a5c22c1196ec7bd1ca586ce216f2334fc298550ddcf652c0e8adb6d256d78",
+      "pinned_image": "docker.io/mcp/brave-search@sha256:f58a5c22c1196ec7bd1ca586ce216f2334fc298550ddcf652c0e8adb6d256d78"
     },
     "ghcr.io/chopratejas/headroom:latest": {
       "image": "ghcr.io/chopratejas/headroom:latest",

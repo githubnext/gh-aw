@@ -121,14 +121,14 @@ func TestBuildxDigestPattern(t *testing.T) {
 			name: "standard OCI index output",
 			output: `Name:      docker.io/mcp/brave-search:latest
 MediaType: application/vnd.oci.image.index.v1+json
-Digest:    sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22
+Digest:    sha256:f58a5c22c1196ec7bd1ca586ce216f2334fc298550ddcf652c0e8adb6d256d78
 
 Manifests:
   Name:        docker.io/mcp/brave-search:latest@sha256:ae3b30d079370f67495d75085ffb73a11efcf9f9b23b919ffcb990ed2c076cfe
   MediaType:   application/vnd.oci.image.manifest.v1+json
   Platform:    linux/amd64
 `,
-			expectedDigest: "sha256:ca96b8acb27d8cf601a8faef86a084602cffa41d8cb18caa1e29ba4d16989d22",
+			expectedDigest: "sha256:f58a5c22c1196ec7bd1ca586ce216f2334fc298550ddcf652c0e8adb6d256d78",
 			shouldMatch:    true,
 		},
 		{

@@ -1,4 +1,5 @@
 // @ts-check
+require("./shim.cjs");
 
 const fs = require("fs");
 const path = require("path");
@@ -323,10 +324,10 @@ function parseAuditLogCombined(auditJsonlPathOverride) {
  * @param {string} envVarName
  */
 function logAICreditSource(label, auditValue, stdioValue, envValue, envVarName) {
-  if (auditValue) console.log(`[ai-credits] ${label} source=audit_log value=${auditValue}`);
-  else if (stdioValue) console.log(`[ai-credits] ${label} source=agent_stdio value=${stdioValue}`);
-  else if (envValue) console.log(`[ai-credits] ${label} source=env(${envVarName}) value=${envValue}`);
-  else console.log(`[ai-credits] ${label} source=none ${envVarName}=${process.env[envVarName] || "(unset)"}`);
+  if (auditValue) core.info(`[ai-credits] ${label} source=audit_log value=${auditValue}`);
+  else if (stdioValue) core.info(`[ai-credits] ${label} source=agent_stdio value=${stdioValue}`);
+  else if (envValue) core.info(`[ai-credits] ${label} source=env(${envVarName}) value=${envValue}`);
+  else core.info(`[ai-credits] ${label} source=none ${envVarName}=${process.env[envVarName] || "(unset)"}`);
 }
 
 /**
@@ -355,7 +356,7 @@ function resolveAICreditsFailureState({ logProvenance = true } = {}) {
           : envRateLimitSignal
             ? "env_ignored_no_ai_credits"
             : "none";
-    console.log(`[ai-credits] rateLimitSignal source=${rawRateLimitSignalSource}`);
+    core.info(`[ai-credits] rateLimitSignal source=${rawRateLimitSignalSource}`);
   }
 
   const aiCredits = auditAICredits || stdioSignals.aiCredits || envAICredits || "";

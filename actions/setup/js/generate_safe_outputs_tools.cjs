@@ -1,6 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 "use strict";
+require("./shim.cjs");
 // @safe-outputs-exempt SEC-004 — schema generator; does not process user body content. The substring "body:" appears only in the comment referencing the "allow-body" config option.
 
 /**
@@ -401,11 +402,7 @@ async function main() {
   const debugEnabled = process.env.DEBUG === "*" || (process.env.DEBUG || "").includes("safe_outputs");
   if (debugEnabled) {
     const infoMsg = `Generated tools.json with ${allFilteredTools.length} tools (${filteredTools.length} static + ${dynamicTools.length} dynamic)`;
-    if (typeof core !== "undefined") {
-      core.info(infoMsg);
-    } else {
-      console.log(infoMsg);
-    }
+    core.info(infoMsg);
   }
 }
 

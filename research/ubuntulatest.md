@@ -1,10 +1,10 @@
 # Ubuntu Actions Runner Image Analysis
 
-**Last Updated**: 2026-07-16
-**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260705.232/images/ubuntu/Ubuntu2404-Readme.md)
+**Last Updated**: 2026-07-23
+**Source**: [Ubuntu 24.04 Runner Image Documentation](https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md)
 **Ubuntu Version**: 24.04 LTS
-**Image Version**: 20260705.232.1
-**Kernel Version**: 6.17.0-1018-azure
+**Image Version**: 20260720.247.2
+**Kernel Version**: 6.17.0-1020-azure
 
 ## Overview
 
@@ -14,7 +14,7 @@ The runner image is maintained by GitHub in the [actions/runner-images](https://
 
 ## Recent Changes
 
-> **Image updated to version 20260705.232.1** (July 2026). Key updates include: Swift 6.3.3, Rust 1.96.1, Homebrew 6.0.6, Fastlane 2.237.0, Pulumi 3.250.0, AWS CLI 2.35.15, AWS SAM CLI 1.163.0, GitHub CLI 2.96.0, Google Cloud CLI 575.0.0, Composer 2.10.2, Chrome 150.x, Edge 150.x, Firefox 152.0.4, Ruby 3.4.10 (cached), Pester 5.8.0, android-37.1 platform added, sqlite3/curl/iproute2/libnss3-tools apt packages updated.
+> **Image updated to version 20260720.247.2** (July 2026). Key updates include: Kernel updated to 6.17.0-1020-azure, Go cached versions updated to 1.24.13/1.25.12/1.26.5, Node.js cached versions updated to 22.23.1/24.18.0, Ruby cached versions updated to 3.2.11/3.3.11/3.4.10/4.0.6, Python cached versions updated to 3.10.20/3.11.15/3.12.13/3.13.14/3.14.6, GitHub CLI updated to 2.93.0, Selenium Server 4.46.0, Android NDK 29.0.14206865 added.
 
 ## Included Software Summary
 
@@ -31,15 +31,15 @@ The Ubuntu 24.04 runner includes:
 ## Operating System
 
 - **Distribution**: Ubuntu 24.04 LTS (Noble Numbat)
-- **Kernel**: Linux 6.17.0-1018-azure
+- **Kernel**: Linux 6.17.0-1020-azure
 - **Architecture**: x86_64
 - **Systemd Version**: 255.4-1ubuntu8.16
 
 ## Language Runtimes
 
 ### Node.js
-- **Available Versions**: 22.23.0, 24.17.0 (managed via n)
-- **Default Version**: 20.x (system default)
+- **Available Versions**: 22.23.1, 24.18.0 (managed via n)
+- **Default Version**: 24.x (system default in cached PATH)
 - **Package Managers**:
   - npm: 10.x
   - yarn: 1.22.22
@@ -50,7 +50,6 @@ The Ubuntu 24.04 runner includes:
 - **Installed Version**: 3.12.3 (system default)
 - **Cached Versions**: 3.10.20, 3.11.15, 3.12.13, 3.13.14, 3.14.6
 - **PyPy Versions**: 3.9.19, 3.10.16, 3.11.15
-- **Package Managers**:
   - pip: 24.0
   - pip3: 24.0
   - pipx: 1.11.1
@@ -58,12 +57,12 @@ The Ubuntu 24.04 runner includes:
 
 ### Ruby
 - **Installed Version**: 3.2.3
-- **Cached Versions**: 3.2.11, 3.3.11, 3.4.10, 4.0.5
+- **Cached Versions**: 3.2.11, 3.3.11, 3.4.10, 4.0.6
 - **Package Manager**: RubyGems 3.4.20
 - **Additional Tools**: Bundler (included with RubyGems)
 
 ### Go
-- **Cached Versions**: 1.24.13, 1.25.11, 1.26.4
+- **Cached Versions**: 1.24.13, 1.25.12, 1.26.5
 - **Installation**: Managed via setup-go action or manual installation
 
 ### Java
@@ -178,7 +177,7 @@ Multiple Java versions are pre-installed:
 ## CI/CD Tools
 
 ### GitHub CLI
-- **Version**: 2.96.0
+- **Version**: 2.93.0
 - **Installed**: Pre-configured and ready to use
 
 ### Cloud Provider CLIs
@@ -212,7 +211,7 @@ Multiple Java versions are pre-installed:
 - **ChromeDriver**: 150.x
 - **Microsoft Edge WebDriver**: 150.x
 - **Geckodriver**: 0.36.0
-- **Selenium Server**: 4.45.0
+- **Selenium Server**: 4.46.0
 
 ### Environment Variables
 | Variable | Value |
@@ -224,7 +223,7 @@ Multiple Java versions are pre-installed:
 
 ## .NET Tools
 
-- **.NET SDK Versions**: 8.0.128, 8.0.206, 8.0.319, 8.0.422, 9.0.118, 9.0.205, 9.0.315, 10.0.109, 10.0.204, 10.0.301
+- **.NET SDK Versions**: 8.0.128, 8.0.206, 8.0.319, 8.0.422, 9.0.118, 9.0.205, 9.0.315, 10.0.109, 10.0.204, 10.0.301 (confirmed via filesystem)
 - **nbgv**: 3.9.50+6feeb89450
 
 ## PowerShell Tools
@@ -245,7 +244,6 @@ Multiple Java versions are pre-installed:
 - **SDK Platforms**: android-37.1, android-37.0, android-36.1, android-36, android-35, android-34 (and ext variants)
 - **CMake**: 3.31.5, 4.1.2
 - **NDK**: 27.3.13750724 (default), 28.2.13676358, 29.0.14206865
-
 ### Environment Variables
 | Variable | Value |
 |----------|-------|
@@ -264,7 +262,7 @@ Multiple Java versions are pre-installed:
 - **Miniconda**: 26.3.2
 
 ### Version Control
-- **Git**: 2.53.0
+- **Git**: 2.54.0
 - **Git LFS**: 3.7.1
 - **Git-ftp**: 1.6.0
 - **Mercurial**: 6.7.2
@@ -486,7 +484,7 @@ Install Go:
 
 ```dockerfile
 # Install Go
-ARG GO_VERSION=1.25.11
+ARG GO_VERSION=1.25.12
 RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
     rm go${GO_VERSION}.linux-amd64.tar.gz
@@ -626,7 +624,7 @@ ENV JAVA_HOME=/usr/lib/jvm/temurin-17-jdk-amd64
 ENV PATH="${JAVA_HOME}/bin:${PATH}"
 
 # Install Go
-ARG GO_VERSION=1.25.11
+ARG GO_VERSION=1.25.12
 RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz && \
     rm go${GO_VERSION}.linux-amd64.tar.gz
@@ -762,7 +760,7 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y nodejs=${NODE_VERSION}*
 
 # Pin Go version
-ARG GO_VERSION=1.25.11
+ARG GO_VERSION=1.25.12
 RUN wget https://go.dev/dl/go${GO_VERSION}.linux-amd64.tar.gz && \
     tar -C /usr/local -xzf go${GO_VERSION}.linux-amd64.tar.gz
 
@@ -783,7 +781,7 @@ RUN pip install \
 ## References
 
 - **Runner Image Repository**: https://github.com/actions/runner-images
-- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260705.232/images/ubuntu/Ubuntu2404-Readme.md
+- **Ubuntu 24.04 Documentation**: https://github.com/actions/runner-images/blob/ubuntu24/20260720.247/images/ubuntu/Ubuntu2404-Readme.md
 - **Ubuntu Server Documentation**: https://ubuntu.com/server/docs
 - **Docker Documentation**: https://docs.docker.com/
 - **GitHub Actions Documentation**: https://docs.github.com/en/actions
