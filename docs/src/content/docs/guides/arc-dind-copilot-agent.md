@@ -99,13 +99,7 @@ Commit both the `.md` workflow file and the generated `.lock.yml` file.
 
 ## 6. How it works
 
-When compiled workflows detect a `tcp://` value in `DOCKER_HOST` (set automatically by ARC DinD), a runtime probe activates ARC DinD handling:
-
-- **Sysroot staging** — system binaries (`/usr`, `/lib`, `/bin`, `/sbin`) are copied into a Docker named volume so the Docker daemon can provide them to the agent container without bind-mounting the runner's filesystem.
-- **Workspace mount** — the checked-out repository at `GITHUB_WORKSPACE` is explicitly mounted into the agent container. Both runner and daemon can see it because ARC DinD shares the `/home/runner/_work/` volume.
-- **Chroot identity** — the runner's UID/GID and home directory are patched into the AWF config so the agent runs with the correct identity inside the chroot.
-- **Artifact consolidation** — agent output files are consolidated under `${{ runner.temp }}/gh-aw/` before upload so downstream jobs (detection, safe-outputs) can find them.
-- **Network isolation** — AWF enforces egress via Docker network topology: an internal Docker network (`awf-net`) with no internet route and a dual-homed Squid proxy as the sole egress path. The runner container issues Docker API commands to the DinD sidecar daemon; the daemon creates the networks and manages all traffic enforcement. No host `iptables` rules are applied from the runner container.
+When compiled workflows detect a `tcp://` value in `DOCKER_HOST` (set automatically by ARC DinD), a runtime probe activates ARC DinD handling. It stages a sysroot volume for system binaries, mounts `GITHUB_WORKSPACE` from the shared `/home/runner/_work/` volume so both runner and daemon see the same files, patches the runner UID/GID and home directory into the AWF config, consolidates agent output under `${{ runner.temp }}/gh-aw/` for downstream jobs, and enforces egress through an internal Docker network (`awf-net`) plus a dual-homed Squid proxy. The runner container only talks to the DinD sidecar's Docker API; the daemon creates the networks and applies traffic controls, so no host `iptables` rules are needed.
 
 ## Network requirements
 
@@ -126,10 +120,7 @@ AWF creates Docker networks inside the DinD daemon for sandbox isolation. All ag
 
 ### What is NOT required
 
-- **`NET_ADMIN` capability** — AWF uses Docker network topology for egress enforcement, not host `iptables`.
-- **`iptables` binary** — not used in network-isolation mode. Log lines mentioning `iptables` are a legacy artifact from `sandbox.agent.sudo: true` mode and can be ignored.
-- **Host network mode** — the runner pod uses standard pod networking. Do not set `hostNetwork: true`.
-- **Privileged runner container** — only the DinD sidecar needs `privileged: true`. The runner container runs unprivileged.
+You do not need `NET_ADMIN`, the `iptables` binary, host networking, or a privileged runner container. AWF enforces egress through Docker network topology inside the DinD sidecar, and only that sidecar needs `privileged: true`.
 
 > [!NOTE]
 > If you see `iptables`-related output in workflow logs, it does not mean `iptables` is required. In network-isolation mode (the default for `topology: arc-dind`), AWF logs this as informational context but does not execute any `iptables` commands from the runner container.
@@ -195,15 +186,9 @@ Key log files:
 
 ## Upgrading from manual workarounds
 
-If you previously used custom bootstrap actions, copilot shims, `/etc` pre-seeding, XDG environment overrides, or manual `DOCKER_HOST` / `MCP_GATEWAY_DOMAIN` settings to run on ARC DinD, remove them when adopting `runner.topology: arc-dind`. The compiler now handles all of these automatically. Leftover workarounds may conflict with the generated workflow steps.
+If you previously added custom bootstrap actions, Copilot shims, `/etc` pre-seeding, XDG overrides, or manual `DOCKER_HOST` / `MCP_GATEWAY_DOMAIN` settings for ARC DinD, remove them before adopting `runner.topology: arc-dind`; the compiler now handles them automatically, and leftover workarounds can conflict with generated steps.
 
-To migrate:
-
-1. Remove any `pre-agent-steps`, `resources`, or `safe-outputs.threat-detection.steps` blocks that were workarounds for ARC DinD.
-2. Remove manual `engine.env` overrides for `XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `MCP_GATEWAY_DOMAIN`, `MCP_GATEWAY_PORT`, and `DOCKER_HOST`.
-3. Remove `sandbox.agent.mounts` entries that staged files for the DinD daemon.
-4. Add `runner.topology: arc-dind` to frontmatter.
-5. Run `gh aw compile` and commit the updated lock file.
+To migrate, remove any ARC-specific `pre-agent-steps`, `resources`, `safe-outputs.threat-detection.steps`, `engine.env` overrides (`XDG_CACHE_HOME`, `XDG_CONFIG_HOME`, `XDG_STATE_HOME`, `MCP_GATEWAY_DOMAIN`, `MCP_GATEWAY_PORT`, `DOCKER_HOST`), and `sandbox.agent.mounts` entries that staged files for the DinD daemon. Then add `runner.topology: arc-dind`, run `gh aw compile`, and commit the updated lock file.
 
 ## Pod security and rootless install
 
@@ -225,10 +210,7 @@ copilot-setup-steps:
         GH_HOST: github.com
 ```
 
-In rootless mode:
-- The binary is installed to `~/.local/bin/copilot` (no `sudo` required).
-- `~/.local/bin` is appended to `$GITHUB_PATH` so `copilot` is on `PATH` for all later steps.
-- Ownership and cleanup operations that previously used `sudo` run as the current user (which owns the relevant files in rootless deployments).
+In rootless mode, the binary is installed to `~/.local/bin/copilot`, `~/.local/bin` is appended to `$GITHUB_PATH` for later steps, and ownership or cleanup operations that previously used `sudo` run as the current user instead.
 
 ## Known limitations
 
@@ -277,7 +259,7 @@ The post-job cleanup tries to make sandbox logs world-readable but fails on non-
 
 ## Related documentation
 
-- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) — `runs-on` formats, Docker socket overrides, framework job runners, GHES compatibility
-- [Docker socket override for split-daemon topologies](/gh-aw/reference/self-hosted-runners/#docker-socket-override-for-split-daemon-topologies) — `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID` configuration
+- [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/) — `runs-on` formats, Docker socket overrides, framework job runners, and GHES compatibility
+- [Docker socket override for split-daemon topologies](/gh-aw/reference/self-hosted-runners/#docker-socket-override-for-split-daemon-topologies) — `GH_AW_DOCKER_SOCK_PATH` and `GH_AW_DOCKER_SOCK_GID`
 - [ARC Helm charts](https://github.com/actions/actions-runner-controller/tree/master/charts)
-- [Rootless Copilot CLI install tracking](https://github.com/github/gh-aw/issues/46046) — removes the last `sudo` requirement for ARC/DinD
+- [Rootless Copilot CLI install tracking](https://github.com/github/gh-aw/issues/46046)
