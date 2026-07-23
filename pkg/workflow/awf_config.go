@@ -859,9 +859,9 @@ func isArcDindTopology(workflowData *WorkflowData) bool {
 //     (for BYOK workflows where the model is configured via engine env-vars rather than
 //     the model: frontmatter field).
 //
-// All iterations use sorted keys so the result is deterministic.
-// Returns nil when no suitable pricing is found or when required fields (input, output)
-// cannot be parsed.
+// Returns nil when no suitable pricing is found, when required fields (input, output)
+// cannot be parsed, or when the target model key is found but its pricing entry is malformed
+// (to avoid silently applying a different model's pricing).
 func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *AWFDefaultAiCreditsPricingConfig {
 	if workflowData == nil {
 		return nil
@@ -902,21 +902,24 @@ func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *A
 	}
 	sort.Strings(providerKeys)
 
-	// searchProviderForModel returns the first parseable pricing entry whose model
-	// key exactly matches targetModel (case-insensitive) within pData. Returns nil
-	// when no match is found or pData is not a valid provider map.
-	searchProviderForModel := func(pData any) *AWFDefaultAiCreditsPricingConfig {
+	// searchProviderForModel looks for a model key matching targetModel
+	// (case-insensitive) within pData.  It returns (pricing, true) when a key
+	// match is found — pricing may be nil if the entry is malformed — and
+	// (nil, false) when no matching key exists or pData is not a valid provider
+	// map.  Distinguishing "key found but malformed" from "key not found" lets
+	// the caller avoid silently applying a different model's pricing.
+	searchProviderForModel := func(pData any) (*AWFDefaultAiCreditsPricingConfig, bool) {
 		pMap, ok := pData.(map[string]any)
 		if !ok {
-			return nil
+			return nil, false
 		}
 		rawModels, ok := pMap["models"]
 		if !ok {
-			return nil
+			return nil, false
 		}
 		modelsMap, ok := rawModels.(map[string]any)
 		if !ok {
-			return nil
+			return nil, false
 		}
 		modelKeys := make([]string, 0, len(modelsMap))
 		for k := range modelsMap {
@@ -927,21 +930,22 @@ func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *A
 			if !strings.EqualFold(mName, targetModel) {
 				continue
 			}
-			if pricing := modelCostEntryToDefaultPricing(modelsMap[mName]); pricing != nil {
-				return pricing
-			}
+			// Key matched — return whatever pricing we can parse (may be nil).
+			return modelCostEntryToDefaultPricing(modelsMap[mName]), true
 		}
-		return nil
+		return nil, false
 	}
 
 	// First pass: exact match on workflowData.Model.
 	// Prefer the resolved engine provider so the price belongs to the configured
 	// provider when the same model ID appears under multiple providers.
+	// If the model key is found anywhere but its pricing is malformed, return nil
+	// rather than falling through to a different model's pricing in the second pass.
 	if targetModel != "" {
 		if resolvedProvider != "" {
 			if pData, ok := providersMap[resolvedProvider]; ok {
-				if pricing := searchProviderForModel(pData); pricing != nil {
-					return pricing
+				if pricing, found := searchProviderForModel(pData); found {
+					return pricing // nil when malformed — do not fall to second pass
 				}
 			}
 		}
@@ -951,8 +955,8 @@ func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *A
 			if strings.EqualFold(pName, resolvedProvider) {
 				continue
 			}
-			if pricing := searchProviderForModel(providersMap[pName]); pricing != nil {
-				return pricing
+			if pricing, found := searchProviderForModel(providersMap[pName]); found {
+				return pricing // nil when malformed — do not fall to second pass
 			}
 		}
 	}

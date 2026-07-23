@@ -2085,6 +2085,37 @@ func TestExtractDefaultAiCreditsPricingFromModelCosts(t *testing.T) {
 		assert.InDelta(t, 1.50, got.Output, 1e-9)
 	})
 
+	t.Run("malformed target model entry does not fall through to different model", func(t *testing.T) {
+		// The target model's entry is missing "output" (malformed). A second model
+		// in the same provider has valid pricing. The function must return nil rather
+		// than silently applying the second model's pricing.
+		wd := &WorkflowData{
+			Model: "my-target-model",
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"my-target-model": map[string]any{
+								"cost": map[string]any{
+									// missing "output" → malformed
+									"input": "3e-07",
+								},
+							},
+							"other-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "9e-07",
+									"output": "9e-06",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		assert.Nil(t, extractDefaultAiCreditsPricingFromModelCosts(wd),
+			"malformed pricing for the target model must return nil, not other-model pricing")
+	})
+
 	t.Run("missing input returns nil", func(t *testing.T) {
 		wd := &WorkflowData{
 			ModelCosts: map[string]any{
