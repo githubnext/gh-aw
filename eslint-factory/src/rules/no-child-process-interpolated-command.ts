@@ -26,6 +26,12 @@ function getDynamicCommandKind(node: TSESTree.Expression): string | null {
   return null;
 }
 
+function getImportSpecifierName(node: TSESTree.ImportSpecifier): string | null {
+  if (node.imported.type === AST_NODE_TYPES.Identifier) return node.imported.name;
+  if (node.imported.type === AST_NODE_TYPES.Literal && typeof node.imported.value === "string") return node.imported.value;
+  return null;
+}
+
 function getShellPropertyValue(optionsArg: TSESTree.ObjectExpression): boolean {
   for (const prop of optionsArg.properties) {
     if (prop.type !== AST_NODE_TYPES.Property || prop.computed) continue;
@@ -63,7 +69,7 @@ function resolveObjectExpression(arg: TSESTree.CallExpressionArgument, scopeNode
 
 function isShellTrueOption(optionsArg: TSESTree.CallExpressionArgument | undefined, scopeNode: TSESTree.Node, sourceCode: TSESLint.SourceCode): boolean {
   if (!optionsArg) return false;
-  if (optionsArg.type === AST_NODE_TYPES.SpreadElement) return true;
+  if (optionsArg.type === AST_NODE_TYPES.SpreadElement) return true; // Conservative: spread arguments are treated as possibly shell-enabled.
 
   const resolvedObject = resolveObjectExpression(optionsArg, scopeNode, sourceCode);
   if (!resolvedObject) return false;
@@ -86,7 +92,7 @@ function isChildProcessMethodBinding(method: ChildProcessMethod, identifierName:
     if (variable && variable.defs.length > 0) {
       for (const def of variable.defs) {
         if (isChildProcessImportBinding(def) && def.node.type === AST_NODE_TYPES.ImportSpecifier) {
-          const importedName = def.node.imported.type === AST_NODE_TYPES.Identifier ? def.node.imported.name : def.node.imported.type === AST_NODE_TYPES.Literal ? def.node.imported.value : null;
+          const importedName = getImportSpecifierName(def.node);
           if (importedName === method) return true;
         }
 
