@@ -148,8 +148,9 @@ func FindGitRootFrom(startDir string) (string, error) {
 // filePath is resolved with filepath.Abs, so relative paths are interpreted from the
 // current process working directory (not gitRoot). Prefer passing an absolute path
 // within gitRoot, such as filepath.Join(gitRoot, "path/to/file").
-// The implementation resolves a literal tree entry with git ls-tree, validates the
-// resulting blob object ID, and then reads the blob with git cat-file.
+// The implementation avoids git show HEAD:path interpolation by resolving a
+// literal tree entry with git ls-tree, validating the resulting blob object ID,
+// and then reading the blob with git cat-file.
 // Use this when the caller already knows the git root (e.g. from a cached value).
 func ReadFileFromHEAD(filePath, gitRoot string) (string, error) {
 	if gitRoot == "" {
