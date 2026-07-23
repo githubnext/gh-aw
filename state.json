@@ -2037,8 +2037,8 @@
       }
     },
     {
-      "run_id": "30011652006",
-      "timestamp": "2026-07-23T13:51:35.164Z",
+      "run_id": "30011601890",
+      "timestamp": "2026-07-23T13:51:22.856Z",
       "assignments": {
         "model_size": "claude-sonnet-4.6"
       }
