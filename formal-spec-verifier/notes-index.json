@@ -27,6 +27,13 @@
       "notation": "TLA+ / F* / Z3",
       "predicate_count": 15,
       "issue_number": null
+    },
+    "specs/awf-config-sources-compliance/README.md": {
+      "slug": "awf-config-sources-compliance-README",
+      "last_formalized": "2026-07-23-16-03-14",
+      "notation": "TLA+ / Z3 / F*",
+      "predicate_count": 10,
+      "issue_number": null
     }
   }
 }
