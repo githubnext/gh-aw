@@ -17,6 +17,7 @@ const path = require("path");
 const { checkFileExists } = require("./file_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPromptPath } = require("./messages_core.cjs");
 
 /**
@@ -46,13 +47,13 @@ async function main() {
   let promptFileInfo;
   if (!fs.existsSync(promptPath)) {
     promptFileInfo = `${promptPath} (unavailable)`;
-    core.warning(`⚠️ ${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` + "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " + "Threat detection will continue with fallback workflow context.");
+    core.warning(`${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` + "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " + "Threat detection will continue with fallback workflow context.");
   } else {
     let promptStats;
     try {
       promptStats = fs.statSync(promptPath);
     } catch (err) {
-      core.warning(`⚠️ ${ERR_VALIDATION}: Failed to inspect workflow prompt context at ${promptPath}: ${getErrorMessage(err)}. ` + "Threat detection will continue with fallback workflow context.");
+      core.warning(`${ERR_VALIDATION}: Failed to inspect workflow prompt context at ${promptPath}: ${getErrorMessage(err)}. ` + "Threat detection will continue with fallback workflow context.");
       promptFileInfo = `${promptPath} (unavailable)`;
       promptStats = null;
     }
@@ -60,7 +61,7 @@ async function main() {
       // Already recorded fallback warning above.
     } else if (promptStats.size === 0) {
       promptFileInfo = `${promptPath} (unavailable)`;
-      core.warning(`⚠️ ${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` + "Threat detection will continue with fallback workflow context.");
+      core.warning(`${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` + "Threat detection will continue with fallback workflow context.");
     } else {
       core.info(`Prompt file found: ${promptPath} (${promptStats.size} bytes)`);
       promptFileInfo = `${promptPath} (${promptStats.size} bytes)`;
@@ -122,7 +123,7 @@ async function main() {
         commentMemoryFileInfo = commentMemoryFiles.join("\n");
       }
     } catch (err) {
-      core.warning(`⚠️ ${ERR_VALIDATION}: Failed to inspect comment-memory files in ${commentMemoryDir}: ${getErrorMessage(err)}. Continuing without comment-memory file details.`);
+      core.warning(`${ERR_VALIDATION}: Failed to inspect comment-memory files in ${commentMemoryDir}: ${getErrorMessage(err)}. Continuing without comment-memory file details.`);
     }
   }
 
@@ -138,7 +139,7 @@ async function main() {
         try {
           size = fs.statSync(p).size;
         } catch (err) {
-          core.warning(`⚠️ ${ERR_VALIDATION}: Failed to inspect patch artifact ${p}: ${getErrorMessage(err)}. Reporting size as 0 bytes.`);
+          core.warning(`${ERR_VALIDATION}: Failed to inspect patch artifact ${p}: ${getErrorMessage(err)}. Reporting size as 0 bytes.`);
         }
         const type = p.endsWith(".bundle") ? "git-bundle" : "git-patch";
         return `${p} (${size} bytes, ${type})`;
