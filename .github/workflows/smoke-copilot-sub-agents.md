@@ -57,18 +57,25 @@ features:
 2. Produce the issue in the same format, but mark each agent as `not_invoked`.
 3. Set overall status to FAIL.
 4. Do not use unnecessary tool calls.
-{{else}}
+{{/if}}
+{{#if experiments.sub_agent_strategy == 'delegated_sequential' }}
 1. Call `haiku-whoami`, `mini-whoami`, and `nano-whoami` exactly once each.
 2. Ask each sub-agent exactly this question: `who am i?`
 3. Check the exact responses:
    - `haiku-whoami` → `claude-haiku-4.5`
    - `mini-whoami` → `gpt-5-mini`
    - `nano-whoami` → `gpt-5-nano`
-{{#if experiments.sub_agent_strategy == 'delegated_sequential' }}
 4. Execute and validate each sub-agent one at a time before moving to the next.
-{{else}}
-4. Validate all three results and keep the current inline orchestration behavior.
+5. Do not use any other agent or any unnecessary tool calls.
 {{/if}}
+{{#if experiments.sub_agent_strategy == 'inline_strict' }}
+1. Call `haiku-whoami`, `mini-whoami`, and `nano-whoami` exactly once each.
+2. Ask each sub-agent exactly this question: `who am i?`
+3. Check the exact responses:
+   - `haiku-whoami` → `claude-haiku-4.5`
+   - `mini-whoami` → `gpt-5-mini`
+   - `nano-whoami` → `gpt-5-nano`
+4. Validate all three results and keep the current inline orchestration behavior.
 5. Do not use any other agent or any unnecessary tool calls.
 {{/if}}
 

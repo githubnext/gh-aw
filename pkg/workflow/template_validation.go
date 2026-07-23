@@ -60,9 +60,21 @@ var (
 	experimentDoubleQuotePattern = regexp.MustCompile(`experiments\.[a-zA-Z_][a-zA-Z0-9_]*\s*(?:!==?|===?)\s*"[^"]*"`)
 
 	// templateSeparatorPattern matches template block separator tags used by the markdown
-	// renderer. We warn when these separators appear mid-line because inline placement is
-	// fragile and can lead to hard-to-debug rendering behavior.
-	templateSeparatorPattern = regexp.MustCompile(`\{\{\s*(?:#if\s+[^}]+|#?else[-_]?if\s+[^}]+|else|/if)\s*\}\}`)
+	// renderer (render_template.cjs, template_branch.cjs). We warn when these separators
+	// appear mid-line because inline placement is fragile and can lead to hard-to-debug
+	// rendering behavior.
+	//
+	// Recognised forms (mirroring the renderer's grammar):
+	//   {{#if <expr>}}              — opening tag
+	//   {{#elseif <expr>}}  (and variants: #else-if, #else_if, elseif, else-if, else_if)
+	//   {{#else}}                   — else branch (canonical; {{else}} without # is NOT rendered)
+	//   {{#endif}}                  — primary closing tag
+	//   {{/if}}                     — alternate closing tag
+	//
+	// The expression group reuses the same nested-expression grammar as TemplateIfPattern and
+	// TemplateElseIfPattern so that conditions containing ${{ ... }} sub-expressions are
+	// matched correctly (plain [^}]+ would stop at the inner brace).
+	templateSeparatorPattern = regexp.MustCompile(`\{\{(?:#if\s+(?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*\s*|#?else[-_]?if\s+(?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*\s*|#else\s*|#endif\s*|/if\s*)\}\}`)
 )
 
 // validateNoIncludesInTemplateRegions checks that import directives

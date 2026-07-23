@@ -620,14 +620,14 @@ func TestDetectMidlineTemplateSeparators(t *testing.T) {
 			name: "separators on own lines - no warning",
 			input: `{{#if experiments.mode == 'a'}}
 content
-{{else}}
+{{#else}}
 other
 {{/if}}`,
 			wantWarnings: 0,
 		},
 		{
 			name:         "inline if/else/endif - warning",
-			input:        `4. {{#if experiments.mode == 'a'}}A{{else}}B{{/if}}`,
+			input:        `4. {{#if experiments.mode == 'a'}}A{{#else}}B{{/if}}`,
 			wantWarnings: 3,
 			wantContains: "line 1",
 		},
@@ -642,10 +642,30 @@ other
 		{
 			name: "mixed lines with one offending separator",
 			input: `{{#if experiments.mode == 'a'}}
-content {{else}}
+content {{#else}}
 {{/if}}`,
 			wantWarnings: 1,
-			wantContains: "{{else}}",
+			wantContains: "{{#else}}",
+		},
+		{
+			name: "condition with nested github expression - own line no warning",
+			input: `{{#if ${{ github.actor }} != ''}}
+content
+{{/if}}`,
+			wantWarnings: 0,
+		},
+		{
+			name:         "condition with nested github expression mid-line - warning",
+			input:        `prefix {{#if ${{ github.actor }} != ''}} suffix`,
+			wantWarnings: 1,
+			wantContains: "mid-line",
+		},
+		{
+			name: "endif closing form on own line - no warning",
+			input: `{{#if experiments.mode == 'a'}}
+content
+{{#endif}}`,
+			wantWarnings: 0,
 		},
 	}
 
