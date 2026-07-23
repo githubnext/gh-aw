@@ -31,6 +31,27 @@ describe("no-err-stack-then-string-fallback", () => {
     });
   });
 
+  it("valid: mismatched object in err.stack check is excluded", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [`const msg = err && other.stack ? err.stack : String(err);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: mismatched consequent variable is excluded", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [`const msg = err && err.stack ? other.stack : String(err);`],
+      invalid: [],
+    });
+  });
+
+  it("valid: logical-OR form is intentionally out of scope", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [`const msg = err.stack || String(err);`],
+      invalid: [],
+    });
+  });
+
   it("valid: test with different property than stack is excluded", () => {
     cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
       valid: [`const msg = err && err.message ? err.message : String(err);`],
