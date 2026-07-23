@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 )
@@ -28,17 +27,16 @@ func TestRunSyftOnImage_NilContext(t *testing.T) {
 
 func TestRunSyftOnImage_ContextCancellation(t *testing.T) {
 	// This test verifies that context cancellation is respected
-	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Nanosecond)
-	defer cancel()
+	ctx, cancel := context.WithCancel(context.Background())
+
+	// Cancel the context immediately before calling the function
+	cancel()
 
 	sbomDir := t.TempDir()
 
-	// Wait a tiny bit to ensure context expires
-	time.Sleep(10 * time.Millisecond)
-
 	_, err := runSyftOnImage(ctx, "alpine:latest", sbomDir, false)
 	if err == nil {
-		t.Skip("Expected context cancellation, but got no error - Docker may not be available")
+		t.Skip("Expected context cancellation error, but got nil - Docker may not be available")
 	}
 
 	// Context cancellation should produce an error
