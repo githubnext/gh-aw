@@ -63,6 +63,7 @@ func compileSpecificFiles(
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -148,6 +149,9 @@ func compileSpecificFiles(
 					if config.Poutine || config.RunnerGuard {
 						lockFilesForDirTools = append(lockFilesForDirTools, fileResult.lockFile)
 					}
+					if config.Grype {
+						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -201,6 +205,18 @@ func compileSpecificFiles(
 		}
 		workflowDir := filepath.Dir(lockFilesForDirTools[0])
 		if err := runBatchDirectoryTool("runner-guard", workflowDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run grype vulnerability scanner on container images referenced in the compiled lock files.
+	if config.Grype && !config.NoEmit && len(lockFilesForGrype) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunGrypeOnLockFiles(lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -302,6 +318,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForActionlint []string
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
+	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -356,6 +373,9 @@ func compileAllFilesInDirectory(
 					if config.Poutine || config.RunnerGuard {
 						lockFilesForDirTools = append(lockFilesForDirTools, fileResult.lockFile)
 					}
+					if config.Grype {
+						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -405,6 +425,18 @@ func compileAllFilesInDirectory(
 			return workflowDataList, err
 		}
 		if err := runBatchDirectoryTool("runner-guard", workflowsDir, config.Verbose && !config.JSONOutput, config.Strict, RunRunnerGuardOnDirectory); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run grype vulnerability scanner on container images referenced in the compiled lock files.
+	if config.Grype && !config.NoEmit && len(lockFilesForGrype) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunGrypeOnLockFiles(lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}

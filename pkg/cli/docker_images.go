@@ -33,6 +33,7 @@ const (
 	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
 	ActionlintImage  = "rhysd/actionlint:1.7.12"
 	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
+	GrypeImage       = "anchore/grype:latest"
 )
 
 // dockerPullState tracks the state of docker pull operations
@@ -224,9 +225,9 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 // Returns:
 //   - nil if all required images are available
 //   - error if Docker is unavailable or images are downloading/need to be downloaded
-func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard bool) error {
+func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useGrype bool) error {
 	// If no tools requested, nothing to do
-	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard {
+	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useGrype {
 		return nil
 	}
 
@@ -254,6 +255,11 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
+		if useGrype {
+			tool := "grype"
+			requestedTools = append(requestedTools, tool)
+			paramsList = append(paramsList, tool+": false")
+		}
 		verb := "requires"
 		if len(requestedTools) > 1 {
 			verb = "require"
@@ -276,6 +282,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		{usePoutine, PoutineImage, "poutine"},
 		{useActionlint, ActionlintImage, "actionlint"},
 		{useRunnerGuard, RunnerGuardImage, "runner-guard"},
+		{useGrype, GrypeImage, "grype"},
 	}
 
 	for _, img := range imagesToCheck {
