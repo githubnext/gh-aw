@@ -18,6 +18,7 @@
 //   - RunZizmorOnFiles() - Run zizmor on multiple lock files
 //   - RunPoutineOnDirectory() - Run poutine security scanner on a directory
 //   - RunRunnerGuardOnDirectory() - Run runner-guard taint analysis on a directory
+//   - RunGrantOnLockFiles() - Run grant license scanning on container images
 
 package cli
 
@@ -63,6 +64,12 @@ func RunRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 // Images are deduplicated by pinned reference, and results are cached per image.
 func RunGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("grype", lockFiles, verbose, strict, runGrypeOnLockFiles)
+}
+
+// RunGrantOnLockFiles runs the grant license scanner on container images extracted
+// from the gh-aw-manifest headers in the provided lock files.
+func RunGrantOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runBatchLockFileTool("grant", lockFiles, verbose, strict, runGrantOnLockFiles)
 }
 
 // runBatchLockFileTool runs a batch tool on lock files with uniform error handling

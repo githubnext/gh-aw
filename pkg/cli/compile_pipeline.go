@@ -64,6 +64,7 @@ func compileSpecificFiles(
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
+	var lockFilesForGrant []string    // lock files for grant container image license scanning
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -152,6 +153,9 @@ func compileSpecificFiles(
 					if config.Grype {
 						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
 					}
+					if config.Grant {
+						lockFilesForGrant = append(lockFilesForGrant, fileResult.lockFile)
+					}
 				}
 			}
 		}
@@ -219,6 +223,18 @@ func compileSpecificFiles(
 		if err := RunGrypeOnLockFiles(lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
+			}
+		}
+
+		// Run grant license scanner on container images referenced in the compiled lock files.
+		if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
+			if err := ctx.Err(); err != nil {
+				return workflowDataList, err
+			}
+			if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+				if config.Strict {
+					return workflowDataList, err
+				}
 			}
 		}
 	}
@@ -319,6 +335,7 @@ func compileAllFilesInDirectory(
 	var lockFilesForZizmor []string
 	var lockFilesForDirTools []string // lock files for directory-based tools (poutine, runner-guard)
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
+	var lockFilesForGrant []string    // lock files for grant container image license scanning
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -375,6 +392,9 @@ func compileAllFilesInDirectory(
 					}
 					if config.Grype {
 						lockFilesForGrype = append(lockFilesForGrype, fileResult.lockFile)
+					}
+					if config.Grant {
+						lockFilesForGrant = append(lockFilesForGrant, fileResult.lockFile)
 					}
 				}
 			}
@@ -439,6 +459,18 @@ func compileAllFilesInDirectory(
 		if err := RunGrypeOnLockFiles(lockFilesForGrype, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
+			}
+		}
+
+		// Run grant license scanner on container images referenced in the compiled lock files.
+		if config.Grant && !config.NoEmit && len(lockFilesForGrant) > 0 {
+			if err := ctx.Err(); err != nil {
+				return workflowDataList, err
+			}
+			if err := RunGrantOnLockFiles(lockFilesForGrant, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+				if config.Strict {
+					return workflowDataList, err
+				}
 			}
 		}
 	}

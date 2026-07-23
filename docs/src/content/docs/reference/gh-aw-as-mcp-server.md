@@ -130,13 +130,13 @@ Compile Markdown workflows to GitHub Actions YAML with optional static analysis.
 - `workflows` (optional): Array of workflow files to compile (empty for all)
 - `strict` (optional): Enforce strict mode validation (default: true)
 - `fix` (optional): Apply automatic codemod fixes before compiling
-- `zizmor`, `poutine`, `actionlint` (optional): Run security scanners/linters
+- `zizmor`, `poutine`, `actionlint`, `grant` (optional): Run security scanners/linters
 - `jq` (optional): Apply jq filter to JSON output
 
 Returns a JSON array with `workflow`, `valid`, `errors`, `warnings`, and `compiled_file` fields.
 
 > [!NOTE]
-> The `actionlint`, `zizmor`, and `poutine` scanners use Docker images that download on first use. If images are still being pulled, the tool returns a "Docker images are being downloaded. Please wait and retry the compile command." message. Wait 15–30 seconds, then retry the request.
+> The `actionlint`, `zizmor`, `poutine`, and `grant` scanners use Docker images that download on first use. If images are still being pulled, the tool returns a "Docker images are being downloaded. Please wait and retry the compile command." message. Wait 15–30 seconds, then retry the request.
 
 ### `logs`
 

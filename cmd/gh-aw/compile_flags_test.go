@@ -28,4 +28,12 @@ func TestCompileCommandShortFlags(t *testing.T) {
 	if noModelsDevLookupFlag.DefValue != "false" {
 		t.Fatalf("expected --no-models-dev-lookup default to be false, got %s", noModelsDevLookupFlag.DefValue)
 	}
+
+	grantFlag := compileCmd.Flags().Lookup("grant")
+	if grantFlag == nil {
+		t.Fatal("expected --grant flag on compile command")
+	}
+	if grantFlag.DefValue != "false" {
+		t.Fatalf("expected --grant default to be false, got %s", grantFlag.DefValue)
+	}
 }
