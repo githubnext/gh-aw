@@ -136,7 +136,7 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	}
 	remainingBootstrapProfile := bootstrapProfile
 	if config.hasWriteAccess {
-		if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, bootstrapProfileAddWizardPreInstall(bootstrapProfile), false, config.Verbose); err != nil {
+		if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, nil, bootstrapProfileAddWizardPreInstall(bootstrapProfile), false, config.Verbose); err != nil {
 			return err
 		}
 		remainingBootstrapProfile = bootstrapProfileAddWizardPostInstall(bootstrapProfile)
