@@ -2051,8 +2051,8 @@
       }
     },
     {
-      "run_id": "30013521604",
-      "timestamp": "2026-07-23T14:04:02.494Z",
+      "run_id": "30013309462",
+      "timestamp": "2026-07-23T14:04:27.794Z",
       "assignments": {
         "model_size": "claude-haiku-4.5"
       }
