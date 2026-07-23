@@ -90,6 +90,44 @@ describe("close_older_issues", () => {
       expect(results[0].number).toBe(123);
     });
 
+    it("should exclude issues created in the same run via additionalExcludeNumbers", async () => {
+      mockGithub.rest.search.issuesAndPullRequests.mockResolvedValue({
+        data: {
+          items: [
+            {
+              number: 100,
+              title: "Old Report",
+              html_url: "https://github.com/owner/repo/issues/100",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 123,
+              title: "New Report A (same run)",
+              html_url: "https://github.com/owner/repo/issues/123",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+            {
+              number: 124,
+              title: "New Report B (current issue)",
+              html_url: "https://github.com/owner/repo/issues/124",
+              labels: [],
+              body: "<!-- gh-aw-workflow-id: test-workflow -->",
+            },
+          ],
+        },
+      });
+
+      // Issue 124 is the newly created issue; issue 123 was also created in the
+      // same run and must not be closed. Only issue 100 (from an older run) should
+      // be returned.
+      const results = await searchOlderIssues(mockGithub, "owner", "repo", "test-workflow", 124, undefined, undefined, new Set([123]));
+
+      expect(results).toHaveLength(1);
+      expect(results[0].number).toBe(100);
+    });
+
     it("should return empty array if no workflow-id provided", async () => {
       const results = await searchOlderIssues(mockGithub, "owner", "repo", "", 125);
 

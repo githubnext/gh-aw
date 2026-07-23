@@ -8,7 +8,7 @@
 const { resolveTargetRepoConfig, resolveAndValidateRepo, validateRepo } = require("./repo_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { ERR_NOT_FOUND } = require("./error_codes.cjs");
-const { createCloseEntityHandler, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
+const { createCloseEntityHandler, buildCommentBody, ISSUE_CONFIG } = require("./close_entity_helpers.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { normalizeIssueIntentMetadata } = require("./issue_intents.cjs");
@@ -297,8 +297,9 @@ async function main(config = {}) {
       },
 
       buildCommentBody(sanitizedBody) {
-        // Issues post the sanitized body directly without a workflow footer
-        return sanitizedBody;
+        const triggeringIssueNumber = context.payload?.issue?.number;
+        const triggeringPRNumber = context.payload?.pull_request?.number;
+        return buildCommentBody(sanitizedBody, triggeringIssueNumber, triggeringPRNumber);
       },
 
       addComment: addIssueComment,

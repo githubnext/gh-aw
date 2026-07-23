@@ -128,6 +128,28 @@ describe("close_older_search_helpers", () => {
       expect(counters.excludedCount).toBe(1);
     });
 
+    it("should exclude items in additionalExcludeNumbers (same-run issues)", () => {
+      const items = [
+        { number: 1, body: "<!-- gh-aw-workflow-id: test -->", title: "Item 1" },
+        { number: 2, body: "<!-- gh-aw-workflow-id: test -->", title: "Item 2" },
+        { number: 3, body: "<!-- gh-aw-workflow-id: test -->", title: "Item 3 (old)" },
+      ];
+
+      const { filtered, counters } = filterByMarker({
+        items,
+        excludeNumber: 2,
+        additionalExcludeNumbers: new Set([1]),
+        exactMarker: "<!-- gh-aw-workflow-id: test -->",
+        entityType: "issue",
+      });
+
+      // Items 1 and 2 are excluded (both created in the current run);
+      // only item 3 (created in an earlier run) should be returned.
+      expect(filtered).toHaveLength(1);
+      expect(filtered[0].number).toBe(3);
+      expect(counters.excludedCount).toBe(2);
+    });
+
     it("should exclude items without exact marker in body", () => {
       const items = [
         { number: 1, body: "<!-- gh-aw-workflow-id: test -->", title: "Match" },

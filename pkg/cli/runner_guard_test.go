@@ -5,8 +5,11 @@ package cli
 import (
 	"bytes"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestParseAndDisplayRunnerGuardOutput(t *testing.T) {
@@ -350,4 +353,13 @@ func TestRunnerGuardPathTraversalGuard(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRunRunnerGuardOnDirectoryRejectsPathsOutsideRepo(t *testing.T) {
+	outsideDir := filepath.Join(t.TempDir(), "outside")
+	require.NoError(t, os.MkdirAll(outsideDir, 0o755))
+
+	err := runRunnerGuardOnDirectory(outsideDir, false, false)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "must stay within git root")
 }

@@ -29,9 +29,11 @@ const API_DELAY_MS = 500;
  * @param {string} [closeOlderKey] - Optional explicit deduplication key. When set, the
  *   `gh-aw-close-key` marker is used as the primary search term and exact filter instead
  *   of the workflow-id / workflow-call-id markers.
+ * @param {Set<number>} [additionalExcludeNumbers] - Optional set of additional issue numbers
+ *   to exclude from the results (e.g. all issues created in the current run).
  * @returns {Promise<Array<{number: number, title: string, html_url: string, labels: Array<{name: string}>, created_at: string}>>} Matching issues
  */
-async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId, closeOlderKey) {
+async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber, callerWorkflowId, closeOlderKey, additionalExcludeNumbers) {
   core.info(`Starting search for older issues in ${owner}/${repo}`);
   core.info(`  Workflow ID: ${workflowId || "(none)"}`);
   core.info(`  Exclude issue number: ${excludeNumber}`);
@@ -68,6 +70,7 @@ async function searchOlderIssues(github, owner, repo, workflowId, excludeNumber,
   const { filtered: filteredItems, counters } = filterByMarker({
     items: result.data.items,
     excludeNumber,
+    additionalExcludeNumbers,
     exactMarker,
     entityType: "issue",
     additionalFilter: (item, extra) => {
@@ -183,16 +186,19 @@ function getCloseOlderIssueMessage({ newIssueUrl, newIssueNumber, workflowName, 
  * @param {string} runUrl - URL of the workflow run
  * @param {string} [callerWorkflowId] - Optional calling workflow identity for precise filtering
  * @param {string} [closeOlderKey] - Optional explicit deduplication key for close-older matching
+ * @param {Set<number>} [currentRunIssueNumbers] - Optional set of issue numbers created in the
+ *   current run. When provided, these issues are excluded from the close-older search so that
+ *   issues created earlier in the same run are never incorrectly closed.
  * @returns {Promise<Array<{number: number, html_url: string}>>} List of closed issues
  */
-async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId, closeOlderKey) {
+async function closeOlderIssues(github, owner, repo, workflowId, newIssue, workflowName, runUrl, callerWorkflowId, closeOlderKey, currentRunIssueNumbers) {
   const result = await closeOlderEntities(github, owner, repo, workflowId, newIssue, workflowName, runUrl, {
     entityType: "issue",
     entityTypePlural: "issues",
-    // Use a closure so callerWorkflowId and closeOlderKey are forwarded to searchOlderIssues
-    // without going through the closeOlderEntities extraArgs mechanism (which appends
-    // excludeNumber last)
-    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId, closeOlderKey),
+    // Use a closure so callerWorkflowId, closeOlderKey, and currentRunIssueNumbers are
+    // forwarded to searchOlderIssues without going through the closeOlderEntities
+    // extraArgs mechanism (which appends excludeNumber last)
+    searchOlderEntities: (gh, o, r, wid, excludeNumber) => searchOlderIssues(gh, o, r, wid, excludeNumber, callerWorkflowId, closeOlderKey, currentRunIssueNumbers),
     getCloseMessage: params =>
       getCloseOlderIssueMessage({
         newIssueUrl: params.newEntityUrl,

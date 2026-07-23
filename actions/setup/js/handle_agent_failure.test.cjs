@@ -297,7 +297,7 @@ describe("handle_agent_failure", () => {
       try {
         await main();
 
-        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · sonnet46 1.25 AIC · ⊞ 900");
+        expect(capturedIssueBody).toContain("> Generated from [Test Workflow](https://github.com/owner/repo/actions/runs/123456) · sonnet46 · 1.25 AIC · ⊞ 900");
       } finally {
         delete process.env.GH_AW_AIC;
         delete process.env.GH_AW_AMBIENT_CONTEXT;
