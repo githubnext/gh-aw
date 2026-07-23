@@ -42,6 +42,13 @@ describe("no-unsafe-catch-error-property", () => {
     });
   });
 
+  it("valid: nested guard block that dominates access is allowed", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [`try { f(); } catch (err) { if (flag) { if (err instanceof Error) { console.log(err.stack); } } }`],
+      invalid: [],
+    });
+  });
+
   it("valid: property access on a different variable is not flagged", () => {
     cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
       valid: [`try { f(); } catch (err) { console.log(otherObj.message); }`, `try { f(); } catch (err) { const e = new Error(); console.log(e.message); }`],
@@ -143,6 +150,54 @@ describe("no-unsafe-catch-error-property", () => {
                   messageId: "useGetErrorMessage",
                   data: { errorVar: "err" },
                   output: `try { f(); } catch (err) { core.setFailed(getErrorMessage(err)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: sibling-branch guard does not suppress unguarded access", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { if (flag) { core.info(err.message); } if (err instanceof Error) { core.info(err.stack); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "message", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { if (flag) { core.info(getErrorMessage(err)); } if (err instanceof Error) { core.info(err.stack); } }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: guard after unsafe access does not suppress report", () => {
+    cjsRuleTester.run("no-unsafe-catch-error-property", noUnsafeCatchErrorPropertyRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { console.log(err.stack); if (err instanceof Error) { core.info(err.message); } }`,
+          errors: [
+            {
+              messageId: "unsafeProperty",
+              data: { prop: "stack", errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "wrapWithInstanceof",
+                  data: { errorVar: "err", prop: "stack" },
+                  output: `try { f(); } catch (err) { console.log((err instanceof Error ? err.stack : undefined)); if (err instanceof Error) { core.info(err.message); } }`,
                 },
               ],
             },
