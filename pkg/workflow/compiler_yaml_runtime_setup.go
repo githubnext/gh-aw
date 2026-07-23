@@ -165,6 +165,8 @@ func (c *Compiler) emitRuntimeSetupSteps(yaml *strings.Builder, runtimeSetupStep
 	}
 }
 
+// extractStepIfCondition returns the unwrapped if: expression from a generated step.
+// Returns empty string when the step does not declare an if condition.
 func extractStepIfCondition(step GitHubActionStep) string {
 	for _, line := range step {
 		if after, ok := strings.CutPrefix(strings.TrimSpace(line), "if:"); ok {
