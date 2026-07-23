@@ -30,7 +30,7 @@ The `gitutil` package contains helpers for:
 | `ExtractBaseRepo` | `func(repoPath string) string` | Extracts the `owner/repo` portion from an action path that may include a sub-folder (e.g. `github/codeql-action/upload-sarif` → `github/codeql-action`) |
 | `FindGitRoot` | `func() (string, error)` | Returns the absolute path of the root directory of the current Git repository using pure Go filesystem traversal (no `git` subprocess); starts from the current working directory |
 | `FindGitRootFrom` | `func(startDir string) (string, error)` | Like `FindGitRoot` but starts from `startDir`; traverses upward looking for a `.git` directory or worktree marker file |
-| `ReadFileFromHEAD` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit via `git show`; rejects paths that escape the repository; requires `git` on `PATH` |
+| `ReadFileFromHEAD` | `func(filePath, gitRoot string) (string, error)` | Reads a file's content from the `HEAD` commit without `git show HEAD:path` interpolation by resolving a literal tree entry with `git ls-tree` and then reading the blob with `git cat-file`; rejects paths that escape the repository; requires `git` on `PATH` |
 
 **Behavioral contracts**:
 
@@ -92,7 +92,7 @@ All exported functions are safe for concurrent use. The error-classification fun
 
 - `FindGitRoot` and `FindGitRootFrom` use pure Go filesystem traversal (walking up the directory tree looking for `.git`), avoiding the need for a `git` executable on `PATH`. This is important for Rosetta 2 compatibility on macOS ARM64 and restricted environments where `git` may not be available.
 - `FindGitRootFrom` verifies worktree marker file content (must begin with `gitdir:`) in addition to existence, guarding against false positives from unrelated files named `.git`.
-- `ReadFileFromHEAD` requires `git` on `PATH` because reading object data from a bare `git show` invocation is more reliable than re-implementing pack-file parsing in pure Go.
+- `ReadFileFromHEAD` requires `git` on `PATH` because resolving a literal tree entry and reading the resulting blob with `git ls-tree`/`git cat-file` avoids `git show HEAD:path` interpolation and is more reliable than re-implementing pack-file parsing in pure Go.
 
 ---
 

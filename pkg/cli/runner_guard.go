@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -46,19 +47,30 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 		return fmt.Errorf("failed to find git root: %w", err)
 	}
 
-	// Validate gitRoot is an absolute path (security: ensure trusted path from git)
-	if !filepath.IsAbs(gitRoot) {
-		return fmt.Errorf("git root is not an absolute path: %s", gitRoot)
+	gitRoot, err = fileutil.ValidateAbsolutePath(gitRoot)
+	if err != nil {
+		return fmt.Errorf("invalid git root %q: %w", gitRoot, err)
 	}
 
 	// Determine the scan path: use workflowDir relative to gitRoot when possible,
 	// so the scan is scoped to the compiled workflows directory.
 	scanPath := "."
 	if workflowDir != "" {
-		relDir, relErr := filepath.Rel(gitRoot, workflowDir)
-		if relErr == nil && relDir != ".." && !strings.HasPrefix(relDir, ".."+string(filepath.Separator)) {
-			scanPath = filepath.Clean(relDir)
+		absWorkflowDir, err := filepath.Abs(workflowDir)
+		if err != nil {
+			return fmt.Errorf("failed to resolve workflow directory %q: %w", workflowDir, err)
 		}
+		if err := fileutil.ValidatePathWithinBase(gitRoot, absWorkflowDir); err != nil {
+			return fmt.Errorf("workflow directory %q must stay within git root %q: %w", workflowDir, gitRoot, err)
+		}
+		relDir, relErr := filepath.Rel(gitRoot, absWorkflowDir)
+		if relErr != nil {
+			return fmt.Errorf("failed to compute relative path for workflow directory %q: %w", workflowDir, relErr)
+		}
+		if !filepath.IsLocal(relDir) {
+			return fmt.Errorf("workflow directory %q resolved to non-local relative path %q", workflowDir, relDir)
+		}
+		scanPath = filepath.Clean(relDir)
 	}
 
 	// Prefix with "./" and convert host separators to forward slashes for the Linux container.
@@ -68,15 +80,22 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 
 	// Build the Docker command
 	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:latest scan <path> --format json
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return fmt.Errorf("docker command not found: %w", err)
+	}
+	volumeMount := gitRoot + ":/workdir"
 	// #nosec G204 -- gitRoot is validated as an absolute path above (from git rev-parse, a trusted
 	// source). containerScanPath is derived from filepath.Rel(gitRoot, workflowDir), cleaned with
 	// filepath.Clean, validated to not escape the repository root (no ".." prefix), and prefixed
-	// with "./" to prevent option injection. exec.Command passes args directly to the OS (no shell).
+	// with "./" to prevent option injection. dockerPath is resolved from the allowlisted executable
+	// name "docker" via fileutil.ResolveExecutablePath. exec.Command passes args directly to the OS
+	// (no shell).
 	cmd := exec.Command(
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
-		"-v", gitRoot+":/workdir",
+		"-v", volumeMount,
 		"-w", "/workdir",
 		RunnerGuardImage,
 		"scan",

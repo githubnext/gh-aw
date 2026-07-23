@@ -29,13 +29,18 @@ This issue helps you:
 
 </details>
 
-> [!TIP]
-> To stop a workflow from posting here, set `report-as-issue: false` in its frontmatter:
-> ```yaml
-> safe-outputs:
->   noop:
->     report-as-issue: false
-> ```
+<details>
+<summary>How to disable no-op reporting for a workflow</summary>
+
+To stop a workflow from posting here, set `report-as-issue: false` in its frontmatter:
+
+```yaml
+safe-outputs:
+  noop:
+    report-as-issue: false
+```
+
+</details>
 
 ---
 

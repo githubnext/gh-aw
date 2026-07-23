@@ -20,6 +20,7 @@ import { requireNewUrlTryCatchRule } from "./rules/require-new-url-try-catch";
 import { preferCoreLoggingRule } from "./rules/prefer-core-logging";
 import { noCoreErrorThenProcessExitRule } from "./rules/no-core-error-then-process-exit";
 import { noCoreErrorThenProcessExitCodeRule } from "./rules/no-core-error-then-process-exitcode";
+import { noChildProcessInterpolatedCommandRule } from "./rules/no-child-process-interpolated-command";
 import { noExecInterpolatedCommandRule } from "./rules/no-exec-interpolated-command";
 import { requireExecSyncTryCatchRule } from "./rules/require-execsync-try-catch";
 import { requireExecFileSyncTryCatchRule } from "./rules/require-execfilesync-try-catch";
@@ -55,6 +56,7 @@ const plugin = {
     "prefer-core-logging": preferCoreLoggingRule,
     "no-core-error-then-process-exit": noCoreErrorThenProcessExitRule,
     "no-core-error-then-process-exitcode": noCoreErrorThenProcessExitCodeRule,
+    "no-child-process-interpolated-command": noChildProcessInterpolatedCommandRule,
     "no-exec-interpolated-command": noExecInterpolatedCommandRule,
     "require-execsync-try-catch": requireExecSyncTryCatchRule,
     "require-execfilesync-try-catch": requireExecFileSyncTryCatchRule,
