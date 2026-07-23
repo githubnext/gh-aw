@@ -1114,9 +1114,17 @@ An `aw.json` configuration field that redirects action references to replacement
 
 A static analysis tool for GitHub Actions workflow files that detects syntax errors, type mismatches, and other issues. Integrated into `gh aw compile` via the `--actionlint` flag. Runs in a Docker container and reports lint findings separately from tooling/integration errors (such as Docker failures or timeouts) that prevent the linter from running. See `--actionlint --zizmor --poutine` in the [Compilation Reference](/gh-aw/reference/compilation-process/).
 
+### grant
+
+A license scanning tool that analyzes container images for software licenses. Integrated into `gh aw compile` via the `--grant` flag. Uses a `.grant.yaml` policy file to define allowed and disallowed licenses, then evaluates each container image referenced in the workflow. Typically used alongside [syft](#syft) for SBOM generation. See [Compilation Reference](/gh-aw/reference/compilation-process/).
+
 ### poutine
 
 A security linter for GitHub Actions workflows that detects supply-chain vulnerabilities such as unpinned actions and dangerous use of pull request events. Integrated into `gh aw compile` via the `--poutine` flag. Typically used alongside [actionlint](#actionlint) and [zizmor](#zizmor).
+
+### syft
+
+A Software Bill of Materials (SBOM) generation tool that catalogs packages and dependencies in container images. Integrated into `gh aw compile` via the `--syft` flag. Produces a structured inventory of all software components in Docker images used by the workflow. Typically used alongside [grant](#grant) for license policy enforcement. See [Compilation Reference](/gh-aw/reference/compilation-process/).
 
 ### Validation
 
@@ -1125,6 +1133,10 @@ Checking workflow files for errors, security issues, and best practices. Occurs 
 ### `gh aw lint`
 
 A CLI command that runs actionlint on existing `.lock.yml` workflow files without recompiling the source Markdown. Unlike `gh aw compile --actionlint`, it reads lock files directly from disk, skipping `zizmor` and `poutine`. Supports `--shellcheck` and `--pyflakes` flags to enable script integrations for shell and Python analysis. Useful for fast local feedback after manual lock-file edits. See [CLI Reference](/gh-aw/setup/cli/).
+
+### yamllint
+
+A YAML linting tool that validates the syntax and style of generated workflow files. Integrated into `gh aw compile` via the `--yamllint` flag. Runs against the compiled `.lock.yml` output to catch YAML formatting issues before the workflow is executed. See [Compilation Reference](/gh-aw/reference/compilation-process/).
 
 ### zizmor
 
