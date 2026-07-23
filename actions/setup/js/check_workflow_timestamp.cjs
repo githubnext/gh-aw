@@ -57,9 +57,14 @@ async function main() {
   let lockStat;
   try {
     workflowStat = fs.statSync(workflowMdFile);
+  } catch (err) {
+    core.setFailed(`Failed to inspect workflow source ${workflowMdFile}: ${getErrorMessage(err)}`);
+    return;
+  }
+  try {
     lockStat = fs.statSync(lockFile);
   } catch (err) {
-    core.setFailed(`Failed to inspect workflow timestamps: ${getErrorMessage(err)}`);
+    core.setFailed(`Failed to inspect lock file ${lockFile}: ${getErrorMessage(err)}`);
     return;
   }
 

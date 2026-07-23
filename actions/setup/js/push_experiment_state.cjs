@@ -116,6 +116,8 @@ async function main() {
   // Collect the JSON files that exist in the state directory.
   /** @type {string[]} */
   const filesToPush = [];
+  /** @type {string[]} */
+  const inspectErrors = [];
   for (const name of candidateFiles) {
     const full = path.join(stateDir, name);
     if (!fs.existsSync(full)) {
@@ -125,12 +127,17 @@ async function main() {
     try {
       fileInfo = fs.statSync(full);
     } catch (err) {
-      core.setFailed(`Failed to inspect ${stateLabel} file ${full}: ${getErrorMessage(err)}`);
-      return;
+      inspectErrors.push(`${full}: ${getErrorMessage(err)}`);
+      continue;
     }
     if (fileInfo.isFile()) {
       filesToPush.push(name);
     }
+  }
+
+  if (inspectErrors.length > 0) {
+    core.setFailed(`Failed to inspect ${stateLabel} files:\n${inspectErrors.join("\n")}`);
+    return;
   }
 
   if (filesToPush.length === 0) {

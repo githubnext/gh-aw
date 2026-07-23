@@ -686,9 +686,7 @@ async function fetchUrlContent(url, cacheDir) {
       core.warning(`Failed to inspect cache file ${cacheFile}: ${getErrorMessage(err)}. Refetching URL content.`);
       stats = null;
     }
-    if (!stats) {
-      // fall through to refetch below
-    } else {
+    if (stats) {
       const ageInMs = Date.now() - stats.mtimeMs;
       const oneHourInMs = 60 * 60 * 1000;
 
