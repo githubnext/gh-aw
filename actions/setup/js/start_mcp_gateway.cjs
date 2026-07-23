@@ -317,6 +317,7 @@ function detectEngineType(configDir, env = process.env, existsSync = fs.existsSy
 // ---------------------------------------------------------------------------
 
 async function main() {
+  activeGatewayPid = null;
   // Restrict default file creation mode to owner-only (rw-------)
   process.umask(0o077);
 
@@ -1025,6 +1026,7 @@ async function main() {
 if (require.main === module) {
   main().catch(err => {
     stopGatewayProcess(activeGatewayPid);
+    activeGatewayPid = null;
     const message = getErrorMessage(err);
     const stack = err instanceof Error ? err.stack : undefined;
     if (stack) core.error(stack);
