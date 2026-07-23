@@ -175,6 +175,25 @@ function normalizeCopilotDefaultModel(content) {
   );
 }
 
+// ── Normalize version-sensitive firewall references ─────────────────────
+// Keep tracked wasm snapshot files stable across gh-aw-firewall version bumps.
+function normalizeAWFFirewallVersion(content) {
+  return content
+    .replace(/GH_AW_INFO_AWF_VERSION: "v[^"]+"/g, 'GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"')
+    .replace(
+      /(ghcr\.io\/github\/gh-aw-firewall\/(?:agent|api-proxy|cli-proxy|squid):)(?:v)?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?/g,
+      "$1AWF_VERSION"
+    )
+    .replace(
+      /(releases\/download\/)v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?(\/awf-config\.schema\.json)/g,
+      "$1vAWF_VERSION$2"
+    )
+    .replace(
+      /("imageTag":")(?:v)?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?/g,
+      '$1AWF_VERSION'
+    );
+}
+
 // ── Normalize output ──────────────────────────────────────────────────
 // Applies all normalizations needed for stable golden comparison.
 // Combines heredoc delimiter and container pin normalizations so that
@@ -188,6 +207,10 @@ function normalize(content) {
       )
     )
   );
+}
+
+function normalizeWasmGoldenSnapshot(content) {
+  return normalizeAWFFirewallVersion(normalize(content));
 }
 
 // ── Load golden file ─────────────────────────────────────────────────
@@ -212,7 +235,7 @@ function saveWasmGoldenFile(testName, content) {
     mkdirSync(dir, { recursive: true });
   }
   const goldenPath = join(dir, testName + ".golden");
-  writeFileSync(goldenPath, content);
+  writeFileSync(goldenPath, normalizeWasmGoldenSnapshot(content));
 }
 
 // ── Main test runner ─────────────────────────────────────────────────
