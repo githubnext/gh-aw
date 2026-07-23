@@ -58,6 +58,23 @@ var (
 	// expression syntax only supports single-quoted string literals, so double quotes must be
 	// replaced with single quotes before the expression reaches the lock file.
 	experimentDoubleQuotePattern = regexp.MustCompile(`experiments\.[a-zA-Z_][a-zA-Z0-9_]*\s*(?:!==?|===?)\s*"[^"]*"`)
+
+	// templateSeparatorPattern matches template block separator tags used by the markdown
+	// renderer (render_template.cjs, template_branch.cjs). We warn when these separators
+	// appear mid-line because inline placement is fragile and can lead to hard-to-debug
+	// rendering behavior.
+	//
+	// Recognised forms (mirroring the renderer's grammar):
+	//   {{#if <expr>}}              — opening tag
+	//   {{#elseif <expr>}}  (and variants: #else-if, #else_if, elseif, else-if, else_if)
+	//   {{#else}}                   — else branch (canonical; {{else}} without # is NOT rendered)
+	//   {{#endif}}                  — primary closing tag
+	//   {{/if}}                     — alternate closing tag
+	//
+	// The expression group reuses the same nested-expression grammar as TemplateIfPattern and
+	// TemplateElseIfPattern so that conditions containing ${{ ... }} sub-expressions are
+	// matched correctly (plain [^}]+ would stop at the inner brace).
+	templateSeparatorPattern = regexp.MustCompile(`\{\{(?:#if\s+(?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*\s*|#?else[-_]?if\s+(?:\$\{\{[^\}]*\}\}|[^\}\{]|\{[^\{])*\s*|#else\s*|#endif\s*|/if\s*)\}\}`)
 )
 
 // validateNoIncludesInTemplateRegions checks that import directives
@@ -188,5 +205,44 @@ func detectDoubleQuotedExperimentComparisons(markdown string) []string {
 	}
 
 	templateValidationLog.Printf("Found %d double-quoted experiment comparison(s)", len(warnings))
+	return warnings
+}
+
+// detectMidlineTemplateSeparators scans template block separator tags and returns warnings
+// for lines where separators are embedded alongside other text.
+//
+// Example (warn): "4. {{#if cond}}A{{else}}B{{/if}}"
+// Example (ok):   "{{#if cond}}" on its own line.
+func detectMidlineTemplateSeparators(markdown string) []string {
+	templateValidationLog.Print("Checking for mid-line template separators")
+
+	if !strings.Contains(markdown, "{{") {
+		return nil
+	}
+
+	lines := strings.Split(markdown, "\n")
+	var warnings []string
+
+	for i, line := range lines {
+		matches := templateSeparatorPattern.FindAllStringIndex(line, -1)
+		if len(matches) == 0 {
+			continue
+		}
+
+		for _, match := range matches {
+			separator := line[match[0]:match[1]]
+			before := strings.TrimSpace(line[:match[0]])
+			after := strings.TrimSpace(line[match[1]:])
+			if before == "" && after == "" {
+				continue
+			}
+			warnings = append(warnings, fmt.Sprintf(
+				"template separator appears mid-line at line %d: %q — place template separators on their own lines",
+				i+1, separator,
+			))
+		}
+	}
+
+	templateValidationLog.Printf("Found %d mid-line template separator warning(s)", len(warnings))
 	return warnings
 }
