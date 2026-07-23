@@ -182,20 +182,31 @@ Focus areas by skill:
 
 ### Step 5: Post Inline Review Comments
 
-For each issue found, create a review comment using `create-pull-request-review-comment`. Apply **progressive disclosure**: lead with a brief visible statement, then collapse verbose analysis and code examples in a `<details>` block:
+For each issue found, create a review comment using `create-pull-request-review-comment`. Apply **progressive disclosure**: lead with a brief visible statement, then use a `suggestion` block when a concrete replacement exists, or a `<details>` block for complex issues.
 
+Example with suggestion (preferred when the fix maps to specific lines):
 ```json
 {
   "path": "path/to/file.ts",
   "line": 42,
-  "body": "**[/tdd]** Missing edge case: `value` is `null` — add a test to prevent this regression.\n\n<details>\n<summary>💡 Suggested test</summary>\n\n```ts\nit('returns default when value is null', () => {\n  expect(fn(null)).toBe(defaultValue);\n});\n```\n\nMissing edge case tests are a common source of regressions.\n\n</details>\n\n@copilot please address this."
+  "body": "**[/tdd]** Missing edge case: `value` is `null` — add a test to prevent this regression.\n\n```suggestion\nit('returns default when value is null', () => {\n  expect(fn(null)).toBe(defaultValue);\n});\n```\n\nMissing edge case tests are a common source of regressions.\n\n@copilot please address this."
+}
+```
+
+Example without suggestion (use when the fix requires broader changes):
+```json
+{
+  "path": "path/to/file.ts",
+  "line": 42,
+  "body": "**[/tdd]** Missing edge case: `value` is `null` — add a test to prevent this regression.\n\n<details>\n<summary>💡 Suggested test</summary>\n\nAdd a test case that passes `null` as `value` and asserts the expected default output.\n\nMissing edge case tests are a common source of regressions.\n\n</details>\n\n@copilot please address this."
 }
 ```
 
 Guidelines:
 - Prefix each comment with the skill name in brackets: `**[/diagnosing-bugs]**`, `**[/tdd]**`, etc.
 - Keep the **immediately visible text brief** (1–2 sentences): state the issue and its impact
-- Wrap code examples, detailed explanations, and multi-step suggestions in `<details><summary>💡 …</summary>` blocks
+- Use a `` ```suggestion `` block (preferred) when the fix is a concrete replacement for the commented lines; set `start_line` when spanning multiple lines
+- Use a `<details><summary>💡 …</summary>` block when the fix requires broader structural changes not expressible as a direct replacement
 - Be specific: file path, line number, exact issue
 - Limit to the **10 most impactful** issues
 - End each inline comment with `@copilot please address this.` to prompt follow-up action

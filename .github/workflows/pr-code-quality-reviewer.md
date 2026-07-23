@@ -133,22 +133,33 @@ You may use compact pseudo-language/encoding during private reasoning (examples:
 For each significant issue, create a `create-pull-request-review-comment` with:
 - **File path and line number** of the issue
 - **Immediately visible text**: one brief sentence stating the issue and its impact
-- **`<details>` block**: detailed explanation, code snippet fix, and rationale — collapsed by default
+- **GitHub suggestion** (preferred when a concrete fix is limited to the commented lines): use a ` ```suggestion ` block so the author can apply the fix with one click; set `start_line` when the replacement spans multiple lines
+- **`<details>` block** (for issues where no direct code replacement applies): detailed explanation and rationale — collapsed by default
 
-Example:
+Example with suggestion (preferred):
+```markdown
+**Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.
+
+```suggestion
+if user.Profile == nil {
+    return ErrNoProfile
+}
+profile := user.Profile
+```
+
+Callers that pass users without profiles will hit this panic silently.
+```
+
+Example without suggestion (use when the fix requires broader changes):
 ```markdown
 **Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.
 
 <details>
 <summary>💡 Suggested fix</summary>
 
-```go
-if user.Profile == nil {
-    return ErrNoProfile
-}
-```
+Validate `user.Profile` before accessing it; the exact change depends on the caller contract.
 
-Callers that pass users without profiles (e.g., in tests) will hit this panic silently.
+Callers that pass users without profiles will hit this panic silently.
 
 </details>
 ```
