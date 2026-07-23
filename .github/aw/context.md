@@ -151,7 +151,8 @@ Block form (tag on its own line) is recommended for readability.
 
 ```markdown
 {{#if experiments.skill_hint == "enabled" }}
-Check `skills/` for SKILL.md files relevant to this task and apply their guidance.
+Check `skills/` and `.github/skills/` for relevant `SKILL.md` files and apply
+their guidance.
 {{#endif}}
 ```
 
@@ -175,4 +176,3 @@ When `experiments:` is set in frontmatter, the selected variant is substituted i
 - **Fenced code blocks are preserved** — `{{#if}}` tags inside `` ``` `` blocks appear verbatim.
 - **No nested conditionals** — inner tags become literal text.
 - **Tags are stripped before the agent runs** — never visible in the final prompt.
-
