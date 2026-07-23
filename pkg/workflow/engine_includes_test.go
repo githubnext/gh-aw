@@ -786,3 +786,64 @@ imports:
 	assert.Contains(t, lockStr, `GH_AW_INFO_ENGINE_ID: "auggie"`, "lock file should set engine ID to the imported definition")
 	assert.Contains(t, lockStr, "AUGMENT_SESSION_AUTH: ${{ secrets.AUGMENT_SESSION_AUTH }}", "lock file should bind custom auth secrets from engine.auth")
 }
+
+// TestImportedEngineWithAnthropicWIFAuth is a regression test for the v0.82.10 regression
+// where an imported engine definition with a mapping-style auth (Anthropic/Azure WIF) caused
+// "mapping was used where sequence is expected" because EngineDefinition.Auth is []AuthBinding.
+// The WIF auth mapping must be stripped before EngineDefinition unmarshaling and handled via
+// the EngineConfig path (applyEngineAuthField), matching the behaviour of inline engine blocks.
+func TestImportedEngineWithAnthropicWIFAuth(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-wif-auth-import-*")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	sharedContent := `---
+engine:
+  id: claude
+  auth:
+    type: github-oidc
+    provider: anthropic
+    federation-rule-id: fr_01ABC
+    organization-id: org_01XYZ
+    service-account-id: sa_01DEF
+    workspace-id: ws_01GHI
+---
+
+# Shared Anthropic WIF engine config
+`
+	sharedFile := filepath.Join(sharedDir, "wif-engine.md")
+	require.NoError(t, os.WriteFile(sharedFile, []byte(sharedContent), 0644))
+
+	mainContent := `---
+name: Test Imported WIF Engine
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+imports:
+  - shared/wif-engine.md
+---
+
+# Test Workflow
+`
+	mainFile := filepath.Join(workflowsDir, "test-wif.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(mainFile)
+	require.NoError(t, err, "compilation must succeed for imported engine definition with Anthropic WIF auth mapping")
+
+	lockFile := filepath.Join(workflowsDir, "test-wif.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "lock file should be created")
+
+	lockStr := string(lockContent)
+	assert.Contains(t, lockStr, "AWF_AUTH_TYPE: github-oidc", "lock file must contain WIF auth type")
+	assert.Contains(t, lockStr, "AWF_AUTH_PROVIDER: anthropic", "lock file must contain WIF auth provider")
+	assert.Contains(t, lockStr, "AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID: fr_01ABC", "lock file must contain federation rule ID")
+	assert.Contains(t, lockStr, "AWF_AUTH_ANTHROPIC_ORGANIZATION_ID: org_01XYZ", "lock file must contain organization ID")
+	assert.Contains(t, lockStr, "AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID: sa_01DEF", "lock file must contain service account ID")
+	assert.Contains(t, lockStr, "AWF_AUTH_ANTHROPIC_WORKSPACE_ID: ws_01GHI", "lock file must contain workspace ID")
+}
