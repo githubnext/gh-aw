@@ -464,7 +464,7 @@ Detects dangerous patterns in externally-sourced markdown files (e.g., from `gh 
 |------|------|-------------|
 | `ActionPin` | struct | An action pin (repo + SHA) |
 | `ActionPinsData` | struct | Map of all action pins |
-| `ActionMode` | string alias | Action reference mode (`sha`, `tag`, `local`) |
+| `ActionMode` | string alias | Action reference mode (`dev`, `release`, `script`, `action`) |
 | `ActionCache` | struct | Cache for resolved action SHAs |
 | `ActionResolver` | struct | Resolves action SHAs from GitHub |
 
@@ -647,8 +647,8 @@ err := compiler.CompileWorkflow(".github/workflows/my-workflow.md")
 
 ```go
 registry := workflow.GetGlobalEngineRegistry()
-engine, ok := registry.Get("copilot")
-if ok {
+engine, err := registry.GetEngine("copilot")
+if err == nil {
     steps := engine.GetExecutionSteps(workflowData)
 }
 ```

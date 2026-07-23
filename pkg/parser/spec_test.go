@@ -14,11 +14,6 @@ import (
 //
 // Specification: Extracts YAML frontmatter between --- delimiters from markdown.
 // The markdown body that follows the frontmatter serves as the AI agent's prompt text.
-//
-// SPEC_MISMATCH: The README usage example reads `result.MarkdownBody`, but the
-// actual struct field on FrontmatterResult is `Markdown`. The observable contract
-// (a string field holding the body after frontmatter) is unchanged, so this test
-// targets the implementation field. The README example should be reconciled.
 func TestSpec_PublicAPI_ExtractFrontmatterFromContent(t *testing.T) {
 	t.Run("extracts YAML frontmatter between --- delimiters", func(t *testing.T) {
 		content := "---\non: push\n---\n# My Workflow\nSome prompt text."
