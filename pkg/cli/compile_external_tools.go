@@ -1,7 +1,7 @@
 // This file provides external tool runners for workflow compilation.
 //
 // This file contains functions that invoke external analysis tools
-// (actionlint, zizmor, poutine, runner-guard) on compiled workflow files.
+// (actionlint, zizmor, poutine, runner-guard, grype, grant) on compiled workflow files.
 //
 // # Organization Rationale
 //
