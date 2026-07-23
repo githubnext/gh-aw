@@ -46,6 +46,40 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 
 	g, gctx := errgroup.WithContext(ctx)
 
+	// Set up cleanup function for stdio servers. Registered here, before any
+	// server is started, so that early returns (e.g. context cancellation during
+	// the startup wait) still kill started processes and drain monitor goroutines.
+	defer func() {
+		if len(serverProcesses) > 0 {
+			mcpInspectorLog.Printf("Cleaning up %d MCP server processes", len(serverProcesses))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up MCP servers..."))
+			for i, cmd := range serverProcesses {
+				if cmd.Process != nil {
+					if err := cmd.Process.Kill(); err != nil && verbose {
+						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process %d: %v", cmd.Process.Pid, err)))
+					}
+				}
+				// Give each process a chance to clean up
+				if i < len(serverProcesses)-1 {
+					timer := time.NewTimer(mcpProcessCleanupDelay)
+					select {
+					case <-timer.C:
+					case <-gctx.Done():
+					}
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
+				}
+			}
+			if err := g.Wait(); err != nil {
+				mcpInspectorLog.Printf("Error from MCP server monitor goroutine: %v", err)
+			}
+		}
+	}()
+
 	// If workflow file is specified, extract MCP configurations and start servers
 	if workflowFile != "" {
 		// Resolve the workflow file path (supports shared workflows)
@@ -214,38 +248,6 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 			return nil
 		}
 	}
-
-	// Set up cleanup function for stdio servers
-	defer func() {
-		if len(serverProcesses) > 0 {
-			mcpInspectorLog.Printf("Cleaning up %d MCP server processes", len(serverProcesses))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Cleaning up MCP servers..."))
-			for i, cmd := range serverProcesses {
-				if cmd.Process != nil {
-					if err := cmd.Process.Kill(); err != nil && verbose {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to kill server process %d: %v", cmd.Process.Pid, err)))
-					}
-				}
-				// Give each process a chance to clean up
-				if i < len(serverProcesses)-1 {
-					timer := time.NewTimer(mcpProcessCleanupDelay)
-					select {
-					case <-timer.C:
-					case <-gctx.Done():
-					}
-					if !timer.Stop() {
-						select {
-						case <-timer.C:
-						default:
-						}
-					}
-				}
-			}
-			if err := g.Wait(); err != nil {
-				mcpInspectorLog.Printf("Error from MCP server monitor goroutine: %v", err)
-			}
-		}
-	}()
 
 	mcpInspectorLog.Print("Launching @modelcontextprotocol/inspector")
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Launching @modelcontextprotocol/inspector..."))
