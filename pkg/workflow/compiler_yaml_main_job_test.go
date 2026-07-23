@@ -853,7 +853,14 @@ func TestGenerateMainJobStepsArcDindDeferredNodePathStepPreservesRuntimeIfCondit
 	result := yaml.String()
 	assert.Contains(t, result, "- name: Setup Node.js")
 	assert.Contains(t, result, "if: hashFiles('package.json') != ''")
-	assert.Contains(t, result, "- name: Ensure Node.js is at daemon-visible path\n        if: hashFiles('package.json') != ''\n        run: |")
+
+	nodePathIndex := strings.Index(result, "- name: Ensure Node.js is at daemon-visible path")
+	require.NotEqual(t, -1, nodePathIndex)
+	afterNodePath := result[nodePathIndex:]
+	lines := strings.SplitN(afterNodePath, "\n", 4)
+	require.GreaterOrEqual(t, len(lines), 3)
+	assert.Equal(t, "        if: hashFiles('package.json') != ''", lines[1])
+	assert.Equal(t, "        run: |", lines[2])
 }
 
 func TestGenerateMainJobStepsArcDindSkipsNodePathStepWithoutGeneratedNodeSetup(t *testing.T) {
