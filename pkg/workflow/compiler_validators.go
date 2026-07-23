@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"slices"
 	"strings"
 
@@ -61,6 +62,7 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	// Warn when the prompt explicitly references /tmp/ or /tmp/gh-aw/ directly instead
 	// of the recommended /tmp/gh-aw/agent/ subtree.
 	c.validatePromptTmpPaths(workflowData, markdownPath)
+	c.validatePromptCodeScanningAlertBounds(workflowData, markdownPath)
 
 	return nil
 }
@@ -102,6 +104,50 @@ func warnPromptTmpPaths(content string) string {
 // references /tmp/ or /tmp/gh-aw/ instead of the recommended /tmp/gh-aw/agent/ root.
 func (c *Compiler) validatePromptTmpPaths(workflowData *WorkflowData, markdownPath string) {
 	if msg := warnPromptTmpPaths(workflowData.MarkdownContent); msg != "" {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", msg))
+		c.IncrementWarningCount()
+	}
+}
+
+var (
+	codeScanningStateOpenPattern     = regexp.MustCompile(`(?i)(state\s*:\s*open|"state"\s*:\s*"open")`)
+	codeScanningSeverityBoundPattern = regexp.MustCompile(`(?i)(severity\s*:\s*critical\s*,\s*high|"severity"\s*:\s*"critical\s*,\s*high")`)
+)
+
+const (
+	codeScanningAlertToolName = "list_code_scanning_alerts"
+	codeScanningBoundsWindow  = 512
+	codeScanningBoundsWarning = "Prompt references list_code_scanning_alerts without required bounds. Include state: open and severity: critical,high in the tool call to avoid oversized payloads."
+)
+
+// warnPromptCodeScanningAlertBounds returns an advisory warning when prompt content
+// references list_code_scanning_alerts without state: open and severity: critical,high
+// in the nearby call arguments.
+func warnPromptCodeScanningAlertBounds(content string) string {
+	rest := content
+	for {
+		pos := strings.Index(rest, codeScanningAlertToolName)
+		if pos < 0 {
+			return ""
+		}
+		segment := rest[pos:]
+		window := segment
+		if len(window) > codeScanningBoundsWindow {
+			window = window[:codeScanningBoundsWindow]
+		}
+		hasStateOpen := codeScanningStateOpenPattern.MatchString(window)
+		hasSeverityBound := codeScanningSeverityBoundPattern.MatchString(window)
+		if !hasStateOpen || !hasSeverityBound {
+			return codeScanningBoundsWarning
+		}
+		rest = segment[len(codeScanningAlertToolName):]
+	}
+}
+
+// validatePromptCodeScanningAlertBounds emits an advisory warning when workflow
+// markdown references list_code_scanning_alerts without bounded arguments.
+func (c *Compiler) validatePromptCodeScanningAlertBounds(workflowData *WorkflowData, markdownPath string) {
+	if msg := warnPromptCodeScanningAlertBounds(workflowData.MarkdownContent); msg != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", msg))
 		c.IncrementWarningCount()
 	}

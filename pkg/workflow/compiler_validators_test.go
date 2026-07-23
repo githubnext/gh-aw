@@ -697,3 +697,111 @@ func TestValidatePromptTmpPaths(t *testing.T) {
 		})
 	}
 }
+
+func TestWarnPromptCodeScanningAlertBounds(t *testing.T) {
+	tests := []struct {
+		name          string
+		content       string
+		expectWarning bool
+	}{
+		{
+			name:          "no code scanning tool reference",
+			content:       "Review open pull requests and summarize findings.",
+			expectWarning: false,
+		},
+		{
+			name: "bounded yaml call",
+			content: `Use GitHub MCP:
+- tool: list_code_scanning_alerts
+  state: open
+  severity: critical,high`,
+			expectWarning: false,
+		},
+		{
+			name: "bounded json call",
+			content: `Call {"method":"list_code_scanning_alerts","state":"open","severity":"critical,high"}
+for triage.`,
+			expectWarning: false,
+		},
+		{
+			name:          "missing both bounds",
+			content:       `Call list_code_scanning_alerts with owner and repo only.`,
+			expectWarning: true,
+		},
+		{
+			name: "missing severity bound",
+			content: `Call list_code_scanning_alerts with:
+state: open`,
+			expectWarning: true,
+		},
+		{
+			name: "missing state bound",
+			content: `Call list_code_scanning_alerts with:
+severity: critical,high`,
+			expectWarning: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg := warnPromptCodeScanningAlertBounds(tt.content)
+			if tt.expectWarning {
+				assert.Equal(t, codeScanningBoundsWarning, msg)
+				assert.Contains(t, msg, "state: open")
+				assert.Contains(t, msg, "severity: critical,high")
+			} else {
+				assert.Empty(t, msg)
+			}
+		})
+	}
+}
+
+func TestValidatePromptCodeScanningAlertBounds(t *testing.T) {
+	tests := []struct {
+		name       string
+		markdown   string
+		expectWarn bool
+	}{
+		{
+			name:       "no tool usage",
+			markdown:   "# Workflow\n\nSummarize issue comments.",
+			expectWarn: false,
+		},
+		{
+			name: "bounded usage",
+			markdown: `Use list_code_scanning_alerts with:
+state: open
+severity: critical,high`,
+			expectWarn: false,
+		},
+		{
+			name:       "unbounded usage",
+			markdown:   "Use list_code_scanning_alerts to inspect alerts.",
+			expectWarn: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := testutil.TempDir(t, "code-scanning-bounds-test")
+			markdownPath := filepath.Join(tmpDir, "workflow.md")
+
+			compiler := NewCompiler()
+			workflowData := &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: tt.markdown,
+				AI:              "copilot",
+			}
+
+			before := compiler.GetWarningCount()
+			compiler.validatePromptCodeScanningAlertBounds(workflowData, markdownPath)
+			after := compiler.GetWarningCount()
+
+			if tt.expectWarn {
+				assert.Greater(t, after, before)
+			} else {
+				assert.Equal(t, before, after)
+			}
+		})
+	}
+}
