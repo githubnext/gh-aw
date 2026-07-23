@@ -84,8 +84,18 @@ export const noExecInterpolatedCommandRule = createRule({
      * initializer.
      */
     function resolveInitializer(identifier: TSESTree.Identifier): TSESTree.Expression | null {
-      let scope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier);
-      while (scope !== null) {
+      const startScope = sourceCode.getScope(identifier);
+      const functionScope = startScope.variableScope;
+      // Only resolve within a concrete function boundary (function declaration,
+      // function expression, or arrow function). Module/global scopes are
+      // intentionally skipped because those bindings are not a stable proxy for
+      // runtime values at call time.
+      if (functionScope.type !== "function") return null;
+
+      let scope: TSESLint.Scope.Scope | null = startScope;
+      // Stay inside the same function's nested block scopes; do not cross to
+      // enclosing function/module scopes.
+      while (scope !== null && scope.variableScope === functionScope) {
         const variable = scope.set.get(identifier.name);
         if (variable !== undefined) {
           // Only accept simple, single-definition Variable bindings.
@@ -110,10 +120,14 @@ export const noExecInterpolatedCommandRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;
 
-        // Resolve a single level of variable indirection so that
-        //   const cmd = `git checkout ${branch}`; exec.exec(cmd, []);
-        // is flagged in the same way as the direct form.
-        const candidate = firstArg.type === AST_NODE_TYPES.Identifier ? (resolveInitializer(firstArg) ?? firstArg) : (firstArg as TSESTree.Expression);
+        let candidate: TSESTree.Expression = firstArg as TSESTree.Expression;
+        const seen = new Set<TSESTree.Identifier>();
+        while (candidate.type === AST_NODE_TYPES.Identifier && !seen.has(candidate)) {
+          seen.add(candidate);
+          const resolved = resolveInitializer(candidate);
+          if (!resolved) break;
+          candidate = resolved;
+        }
 
         const kind = getDynamicCommandKind(candidate);
         if (!kind) return;

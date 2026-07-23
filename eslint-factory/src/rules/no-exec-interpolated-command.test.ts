@@ -41,8 +41,12 @@ describe("no-exec-interpolated-command", () => {
         { code: "const cmd = `git`; exec.exec(cmd, [branch]);" },
         // Reassigned variable — skipped to avoid false positives
         { code: `let cmd = "git"; cmd = "other"; exec.exec(cmd, [branch]);` },
+        // Dynamic initializer with reassignment — must still be skipped
+        { code: "let cmd = `git checkout ${branch}`; cmd = 'git'; exec.exec(cmd, []);" },
         // Parameter as command — skipped (def.type === "Parameter")
         { code: `(function(cmd) { exec.exec(cmd, []); })("git");` },
+        // Cross-function binding is intentionally out of scope
+        { code: "function outer(branch) { const cmd = `git checkout ${branch}`; function inner() { exec.exec(cmd, []); } }" },
       ],
       invalid: [
         // Template literal with interpolation as command
@@ -80,10 +84,25 @@ describe("no-exec-interpolated-command", () => {
           code: "const cmd = `git checkout ${branch}`; exec.exec(cmd, []);",
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
         },
+        // Same-function indirection should still be flagged with function-boundary resolution
+        {
+          code: "function run(branch) { const cmd = `git checkout ${branch}`; exec.exec(cmd, []); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
+        // Nested block in same function should still resolve and be flagged
+        {
+          code: "function run(branch) { const cmd = `git checkout ${branch}`; if (ok) { exec.exec(cmd, []); } }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
+        },
         // Variable holds dynamic string concatenation — must be flagged (indirection)
         {
           code: `const cmd = "git checkout " + branchName; exec.exec(cmd, []);`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } }],
+        },
+        // Chained aliases are also flagged when they resolve to a dynamic command
+        {
+          code: "function run(branch) { const dynamic = `git checkout ${branch}`; const cmd = dynamic; exec.exec(cmd, []); }",
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "exec" } }],
         },
       ],
     });
