@@ -463,6 +463,18 @@ func compileAllFilesInDirectory(
 		}
 	}
 
+	// Run batch yamllint
+	if config.Yamllint && !config.NoEmit && len(lockFilesForYamllint) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunYamllintOnFiles(lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
 	// Emit recommendation when many slash commands are present without centralized strategy.
 	displayCentralizedSlashCommandRecommendation(compiler, workflowDataList, config.JSONOutput)
 

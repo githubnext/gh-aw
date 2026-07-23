@@ -55,20 +55,17 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		return fmt.Errorf("git root must be an absolute path, got: %s", gitRoot)
 	}
 
-	relPaths := make([]string, 0, len(lockFiles))
-	for _, lockFile := range lockFiles {
-		relPath, err := filepath.Rel(gitRoot, lockFile)
-		if err != nil {
-			return fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
-		}
-		relPaths = append(relPaths, relPath)
+	relPaths, err := buildYamllintContainerPaths(gitRoot, lockFiles)
+	if err != nil {
+		return err
 	}
 
 	// #nosec G204 -- gitRoot is validated as an absolute path (from git rev-parse, a trusted source).
-	// relPaths are derived from filepath.Rel(gitRoot, lockFile), preventing path traversal.
-	// exec.Command passes args directly to the OS (no shell), preventing injection.
+	// relPaths are repository-relative paths that have been cleaned, validated to stay within
+	// gitRoot, and prefixed with "./" to prevent option injection. exec.Command passes args
+	// directly to the OS (no shell), preventing shell injection.
 	// yamllintDefaultConfig is a compile-time constant with no user-controlled content.
-	dockerArgs := append([]string{
+	dockerArgs := []string{
 		"run",
 		"--rm",
 		"-v", gitRoot + ":/workdir",
@@ -76,7 +73,11 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		YamllintImage,
 		"-d", yamllintDefaultConfig,
 		"--format", "parsable",
-	}, relPaths...)
+	}
+	if strict {
+		dockerArgs = append(dockerArgs, "--strict")
+	}
+	dockerArgs = append(dockerArgs, relPaths...)
 
 	if len(lockFiles) == 1 {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running yamllint on "+relPaths[0]))
@@ -113,8 +114,8 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 		if errors.As(err, &exitErr) {
 			exitCode := exitErr.ExitCode()
 			yamllintLog.Printf("yamllint exited with code %d (issues=%d)", exitCode, totalIssues)
-			// Exit code 1 indicates lint findings
-			if exitCode == 1 {
+			// Exit code 1 indicates errors. Exit code 2 indicates warnings in strict mode.
+			if exitCode == 1 || (exitCode == 2 && strict && totalIssues > 0) {
 				if strict {
 					fileDescription := "workflows"
 					if len(lockFiles) == 1 {
@@ -134,6 +135,26 @@ func runYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	}
 
 	return nil
+}
+
+func buildYamllintContainerPaths(gitRoot string, lockFiles []string) ([]string, error) {
+	relPaths := make([]string, 0, len(lockFiles))
+	for _, lockFile := range lockFiles {
+		absLockFile, err := filepath.Abs(lockFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to resolve absolute path for %s: %w", lockFile, err)
+		}
+		relPath, err := filepath.Rel(gitRoot, absLockFile)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get relative path for %s: %w", lockFile, err)
+		}
+		cleanRelPath := filepath.Clean(relPath)
+		if cleanRelPath == ".." || strings.HasPrefix(cleanRelPath, ".."+string(filepath.Separator)) {
+			return nil, fmt.Errorf("yamllint file path %s is outside repository root", lockFile)
+		}
+		relPaths = append(relPaths, "./"+filepath.ToSlash(cleanRelPath))
+	}
+	return relPaths, nil
 }
 
 // parseAndDisplayYamllintOutput parses yamllint --format parsable output and displays findings.
