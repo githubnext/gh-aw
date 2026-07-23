@@ -94,7 +94,17 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
         patchPath,
       };
     }
-    if (!fs.statSync(candidate).isDirectory()) {
+    let candidateStat;
+    try {
+      candidateStat = fs.statSync(candidate);
+    } catch (err) {
+      return {
+        success: false,
+        error: `Failed to inspect workspacePath '${String(options.workspacePath)}': ${getErrorMessage(err)}`,
+        patchPath,
+      };
+    }
+    if (!candidateStat.isDirectory()) {
       return {
         success: false,
         error: `Invalid workspacePath '${String(options.workspacePath)}': path is not a directory`,

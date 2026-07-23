@@ -394,7 +394,7 @@ function resolveIssueNumber(value, temporaryIdMap) {
 
   // It's a real issue number - use context repo as default
   const issueNumber = typeof value === "number" ? value : parseInt(withoutHash, 10);
-  if (isNaN(issueNumber) || issueNumber <= 0) {
+  if (Number.isNaN(issueNumber) || issueNumber <= 0) {
     return { resolved: null, wasTemporaryId: false, errorMessage: `Invalid issue number: ${value}. Expected either a valid temporary ID (format: aw_ followed by 3-12 alphanumeric or underscore characters) or a numeric issue number.` };
   }
 

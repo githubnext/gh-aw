@@ -32,7 +32,9 @@ describe("mcp_cli_bridge.cjs", () => {
       info: vi.fn(),
       warning: vi.fn(),
       error: vi.fn(),
-      setFailed: vi.fn(),
+      setFailed: vi.fn(() => {
+        process.exitCode = 1;
+      }),
     };
     process.exitCode = 0;
     stdoutChunks = [];

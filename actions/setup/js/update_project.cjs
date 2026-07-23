@@ -609,7 +609,7 @@ async function applyFieldUpdates(github, projectId, itemId, fields) {
       valueToSet = { date: String(fieldValue) };
     } else if (field.dataType === "NUMBER") {
       const numValue = typeof fieldValue === "number" ? fieldValue : parseFloat(String(fieldValue));
-      if (isNaN(numValue)) {
+      if (Number.isNaN(numValue)) {
         core.warning(`Invalid number value "${fieldValue}" for field "${fieldName}"`);
         continue;
       }

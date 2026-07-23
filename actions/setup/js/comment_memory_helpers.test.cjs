@@ -1,5 +1,7 @@
+import fs from "fs";
+import path from "path";
 import { describe, it, expect, vi } from "vitest";
-import { extractCommentMemoryEntries, isSafeMemoryId, stripCommentMemoryCodeFence, buildCodeFenceOpener } from "./comment_memory_helpers.cjs";
+import { buildCodeFenceOpener, extractCommentMemoryEntries, isSafeMemoryId, listCommentMemoryFiles, stripCommentMemoryCodeFence } from "./comment_memory_helpers.cjs";
 
 describe("comment_memory_helpers", () => {
   it("builds code-fence opener with memory id", () => {
@@ -86,5 +88,23 @@ describe("comment_memory_helpers", () => {
     const tooLongId = "b".repeat(129);
     expect(isSafeMemoryId(maxLengthId)).toBe(true);
     expect(isSafeMemoryId(tooLongId)).toBe(false);
+  });
+
+  it("wraps directory read failures with the memory directory path", () => {
+    const memoryDir = fs.mkdtempSync(path.join("/tmp", "comment-memory-"));
+    const originalReaddirSync = fs.readdirSync;
+    const readdirSpy = vi.spyOn(fs, "readdirSync").mockImplementation((dirPath, options) => {
+      if (dirPath === memoryDir) {
+        throw new Error("EACCES");
+      }
+      return originalReaddirSync.call(fs, dirPath, options);
+    });
+
+    try {
+      expect(() => listCommentMemoryFiles(memoryDir)).toThrow(`Failed to read comment-memory directory ${memoryDir}: EACCES`);
+    } finally {
+      readdirSpy.mockRestore();
+      fs.rmSync(memoryDir, { recursive: true, force: true });
+    }
   });
 });

@@ -423,7 +423,16 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
 
   // Check if bundle was generated and has content
   if (bundleGenerated && fs.existsSync(bundlePath)) {
-    const stat = fs.statSync(bundlePath);
+    let stat;
+    try {
+      stat = fs.statSync(bundlePath);
+    } catch (err) {
+      return {
+        success: false,
+        error: `Failed to inspect generated bundle ${bundlePath}: ${getErrorMessage(err)}`,
+        bundlePath,
+      };
+    }
     const bundleSize = stat.size;
 
     if (bundleSize === 0) {

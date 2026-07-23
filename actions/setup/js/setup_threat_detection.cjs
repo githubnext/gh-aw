@@ -17,6 +17,7 @@ const path = require("path");
 const { checkFileExists } = require("./file_helpers.cjs");
 const { AGENT_OUTPUT_FILENAME } = require("./constants.cjs");
 const { ERR_VALIDATION } = require("./error_codes.cjs");
+const { getErrorMessage } = require("./error_helpers.cjs");
 const { getPromptPath } = require("./messages_core.cjs");
 
 /**
@@ -46,12 +47,21 @@ async function main() {
   let promptFileInfo;
   if (!fs.existsSync(promptPath)) {
     promptFileInfo = `${promptPath} (unavailable)`;
-    core.warning(`⚠️ ${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` + "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " + "Threat detection will continue with fallback workflow context.");
+    core.warning(`${ERR_VALIDATION}: Missing workflow prompt context at ${promptPath}. ` + "Ensure the agent artifact includes /tmp/gh-aw/aw-prompts/prompt.txt. " + "Threat detection will continue with fallback workflow context.");
   } else {
-    const promptStats = fs.statSync(promptPath);
-    if (promptStats.size === 0) {
+    let promptStats;
+    try {
+      promptStats = fs.statSync(promptPath);
+    } catch (err) {
+      core.warning(`${ERR_VALIDATION}: Failed to inspect workflow prompt context at ${promptPath}: ${getErrorMessage(err)}. ` + "Threat detection will continue with fallback workflow context.");
       promptFileInfo = `${promptPath} (unavailable)`;
-      core.warning(`⚠️ ${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` + "Threat detection will continue with fallback workflow context.");
+      promptStats = null;
+    }
+    if (!promptStats) {
+      // Already recorded fallback warning above.
+    } else if (promptStats.size === 0) {
+      promptFileInfo = `${promptPath} (unavailable)`;
+      core.warning(`${ERR_VALIDATION}: Workflow prompt context is empty at ${promptPath}. ` + "Threat detection will continue with fallback workflow context.");
     } else {
       core.info(`Prompt file found: ${promptPath} (${promptStats.size} bytes)`);
       promptFileInfo = `${promptPath} (${promptStats.size} bytes)`;
@@ -89,19 +99,31 @@ async function main() {
   }
 
   // Get file info for template replacement
-  const agentOutputFileInfo = agentOutputPath + " (" + fs.statSync(agentOutputPath).size + " bytes)";
+  let agentOutputStats;
+  try {
+    agentOutputStats = fs.statSync(agentOutputPath);
+  } catch (err) {
+    core.setFailed(`${ERR_VALIDATION}: Failed to inspect agent output file ${agentOutputPath}: ${getErrorMessage(err)}`);
+    return;
+  }
+  const agentOutputFileInfo = agentOutputPath + " (" + agentOutputStats.size + " bytes)";
   const commentMemoryDir = path.join(threatDetectionDir, "comment-memory");
   let commentMemoryFileInfo = "No comment-memory files found";
   if (fs.existsSync(commentMemoryDir)) {
-    const commentMemoryFiles = fs
-      .readdirSync(commentMemoryDir)
-      .filter(file => file.endsWith(".md"))
-      .map(file => {
-        const fullPath = path.join(commentMemoryDir, file);
-        return `${fullPath} (${fs.statSync(fullPath).size} bytes)`;
-      });
-    if (commentMemoryFiles.length > 0) {
-      commentMemoryFileInfo = commentMemoryFiles.join("\n");
+    try {
+      const commentMemoryFiles = fs
+        .readdirSync(commentMemoryDir)
+        .filter(file => file.endsWith(".md"))
+        .map(file => {
+          const fullPath = path.join(commentMemoryDir, file);
+          const stats = fs.statSync(fullPath);
+          return `${fullPath} (${stats.size} bytes)`;
+        });
+      if (commentMemoryFiles.length > 0) {
+        commentMemoryFileInfo = commentMemoryFiles.join("\n");
+      }
+    } catch (err) {
+      core.warning(`${ERR_VALIDATION}: Failed to inspect comment-memory files in ${commentMemoryDir}: ${getErrorMessage(err)}. Continuing without comment-memory file details.`);
     }
   }
 
@@ -110,7 +132,15 @@ async function main() {
   if (patchFiles.length > 0) {
     patchFileInfo = patchFiles
       .map(p => {
-        const size = fs.existsSync(p) ? fs.statSync(p).size : 0;
+        if (!fs.existsSync(p)) {
+          return `${p} (0 bytes, ${p.endsWith(".bundle") ? "git-bundle" : "git-patch"})`;
+        }
+        let size = 0;
+        try {
+          size = fs.statSync(p).size;
+        } catch (err) {
+          core.warning(`${ERR_VALIDATION}: Failed to inspect patch artifact ${p}: ${getErrorMessage(err)}. Reporting size as 0 bytes.`);
+        }
         const type = p.endsWith(".bundle") ? "git-bundle" : "git-patch";
         return `${p} (${size} bytes, ${type})`;
       })

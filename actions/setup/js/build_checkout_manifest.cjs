@@ -41,15 +41,28 @@ function readManifestEntriesFromEnv() {
 
 function resolveDefaultBranch(repository, checkoutPath, options = {}) {
   const workspace = options.workspace || process.env.GITHUB_WORKSPACE || "";
-  const runGit = options.runGit || ((args, execOptions = {}) => execFileSync("git", args, { encoding: "utf8", ...execOptions }));
+  const runGit =
+    options.runGit ||
+    ((args, execOptions = {}) => {
+      try {
+        return execFileSync("git", args, { encoding: "utf8", ...execOptions });
+      } catch (err) {
+        throw new Error(`Failed to run git ${args.join(" ")}: ${getErrorMessage(err)}`, { cause: err });
+      }
+    });
   const runGH =
     options.runGH ||
-    ((args, execOptions = {}) =>
-      execFileSync("gh", args, {
-        encoding: "utf8",
-        env: { ...process.env, ...(execOptions.env || {}) },
-        ...execOptions,
-      }));
+    ((args, execOptions = {}) => {
+      try {
+        return execFileSync("gh", args, {
+          encoding: "utf8",
+          env: { ...process.env, ...(execOptions.env || {}) },
+          ...execOptions,
+        });
+      } catch (err) {
+        throw new Error(`Failed to run gh ${args.join(" ")}: ${getErrorMessage(err)}`, { cause: err });
+      }
+    });
   let defaultBranch = "";
 
   const repoPath = checkoutPath ? path.join(workspace, checkoutPath) : workspace;

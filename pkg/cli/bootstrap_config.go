@@ -68,6 +68,55 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 	fmt.Fprintln(w, "")
 }
 
+func bootstrapProfileAddWizardPreInstall(profile *resolvedBootstrapProfile) *resolvedBootstrapProfile {
+	return filterBootstrapProfileActions(profile, func(action repositoryPackageBootstrapAction) bool {
+		switch action.Type {
+		case "require-owner-type", "repo-variable", "repo-secret", "github-app":
+			return true
+		default:
+			return false
+		}
+	})
+}
+
+func bootstrapProfileAddWizardPostInstall(profile *resolvedBootstrapProfile) *resolvedBootstrapProfile {
+	return filterBootstrapProfileActions(profile, func(action repositoryPackageBootstrapAction) bool {
+		switch action.Type {
+		case "copilot-auth", "commit-and-push", "handoff":
+			return true
+		default:
+			return false
+		}
+	})
+}
+
+// filterBootstrapProfileActions returns a shallow clone of profile containing only
+// actions for which keep returns true. It returns nil when the input profile is
+// nil, has no bootstrap payload, or no actions survive filtering.
+func filterBootstrapProfileActions(profile *resolvedBootstrapProfile, keep func(repositoryPackageBootstrapAction) bool) *resolvedBootstrapProfile {
+	if profile == nil || profile.Profile == nil || len(profile.Profile.Config) == 0 {
+		return nil
+	}
+
+	filtered := make([]repositoryPackageBootstrapAction, 0, len(profile.Profile.Config))
+	for _, action := range profile.Profile.Config {
+		if keep(action) {
+			filtered = append(filtered, action)
+		}
+	}
+	if len(filtered) == 0 {
+		return nil
+	}
+
+	return &resolvedBootstrapProfile{
+		PackageID: profile.PackageID,
+		Source:    profile.Source,
+		Profile: &repositoryPackageBootstrap{
+			Config: filtered,
+		},
+	}
+}
+
 // executeBootstrapConfigForAdd runs the bootstrap config actions interactively.
 // Used by add-wizard after the workflow PR has been created and merged.
 func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []string, profile *resolvedBootstrapProfile, useCopilotRequests bool, verbose bool) error {
@@ -81,7 +130,7 @@ func executeBootstrapConfigForAdd(ctx context.Context, repo string, sources []st
 
 	bootstrapLog.Printf("Applying bootstrap config for add: repo=%s, package=%s, actions=%d, useCopilotRequests=%t", repo, profile.PackageID, len(profile.Profile.Config), useCopilotRequests)
 	fmt.Fprintln(os.Stderr, "")
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying post-installation steps from "+profile.PackageID+"..."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Applying setup steps from "+profile.PackageID+"..."))
 	repoDir, err := gitutil.FindGitRoot()
 	if err != nil {
 		bootstrapLog.Printf("Could not determine git root for add bootstrap config: %v", err)

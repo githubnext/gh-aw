@@ -186,11 +186,8 @@ func (c *Compiler) extractCustomJobCoreProperties(job *Job, jobName string, conf
 	}
 
 	if permissions, hasPermissions := configMap["permissions"]; hasPermissions {
-		if permsMap, ok := permissions.(map[string]any); ok {
-			formattedPerms, err := formatIndentedYAMLField("permissions", permsMap, false)
-			if err != nil {
-				return fmt.Errorf("failed to convert permissions to YAML for job '%s': %w", jobName, err)
-			}
+		formattedPerms := NewPermissionsParserFromValue(permissions).ToPermissions().RenderToYAML()
+		if formattedPerms != "" {
 			job.Permissions = formattedPerms
 		}
 	}

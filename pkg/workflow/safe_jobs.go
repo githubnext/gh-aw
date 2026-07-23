@@ -16,14 +16,15 @@ var safeJobsLog = logger.New("workflow:safe_jobs")
 // SafeJobConfig defines a safe job configuration with GitHub Actions job properties
 type SafeJobConfig struct {
 	// Standard GitHub Actions job properties
-	Name        string            `yaml:"name,omitempty"`
-	Description string            `yaml:"description,omitempty"`
-	RunsOn      any               `yaml:"runs-on,omitempty"`
-	If          string            `yaml:"if,omitempty"`
-	Needs       []string          `yaml:"needs,omitempty"`
-	Steps       []any             `yaml:"steps,omitempty"`
-	Env         map[string]string `yaml:"env,omitempty"`
-	Permissions map[string]string `yaml:"permissions,omitempty"`
+	Name           string            `yaml:"name,omitempty"`
+	Description    string            `yaml:"description,omitempty"`
+	RunsOn         any               `yaml:"runs-on,omitempty"`
+	If             string            `yaml:"if,omitempty"`
+	Needs          []string          `yaml:"needs,omitempty"`
+	Steps          []any             `yaml:"steps,omitempty"`
+	Env            map[string]string `yaml:"env,omitempty"`
+	Permissions    map[string]string `yaml:"permissions,omitempty"`
+	RawPermissions any               `yaml:"-"`
 
 	// Additional safe-job specific properties
 	Inputs      map[string]*InputDefinition `yaml:"inputs,omitempty"`
@@ -113,6 +114,7 @@ func (c *Compiler) parseSafeJobsConfig(jobsMap map[string]any) map[string]*SafeJ
 
 		// Parse permissions
 		if permissions, exists := jobConfig["permissions"]; exists {
+			safeJob.RawPermissions = permissions
 			if permMap, ok := permissions.(map[string]any); ok {
 				safeJob.Permissions = make(map[string]string)
 				for key, value := range permMap {
@@ -340,8 +342,9 @@ func (c *Compiler) buildSafeJobs(data *WorkflowData, threatDetectionEnabled bool
 		job.Steps = steps
 
 		// Set permissions if specified
-		if len(jobConfig.Permissions) > 0 {
-			// Build Permissions struct from map
+		if jobConfig.RawPermissions != nil {
+			job.Permissions = NewPermissionsParserFromValue(jobConfig.RawPermissions).ToPermissions().RenderToYAML()
+		} else if len(jobConfig.Permissions) > 0 {
 			perms := NewPermissions()
 			for perm, level := range jobConfig.Permissions {
 				perms.Set(PermissionScope(perm), PermissionLevel(level))

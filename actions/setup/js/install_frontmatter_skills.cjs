@@ -71,7 +71,13 @@ function countInstalledSkillFiles(skillsDst) {
     if (!currentDir) {
       continue;
     }
-    for (const entry of fs.readdirSync(currentDir, { withFileTypes: true })) {
+    let entries;
+    try {
+      entries = fs.readdirSync(currentDir, { withFileTypes: true });
+    } catch (err) {
+      throw new Error(`Failed to read installed skills directory ${currentDir}: ${getErrorMessage(err)}`, { cause: err });
+    }
+    for (const entry of entries) {
       const entryPath = path.join(currentDir, entry.name);
       if (entry.isDirectory()) {
         stack.push(entryPath);
