@@ -31,10 +31,11 @@ type llmProviderProfile struct {
 }
 
 func normalizeLLMProvider(provider string) string {
-	normalized := strings.ToLower(strings.TrimSpace(provider))
-	if len(normalized) == 0 {
+	normalized := strings.TrimSpace(provider)
+	if normalized == "" {
 		return LLMProviderAnthropic
 	}
+	normalized = strings.ToLower(normalized)
 	if alias, ok := llmProviderAliases[normalized]; ok {
 		return alias
 	}

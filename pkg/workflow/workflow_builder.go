@@ -502,17 +502,17 @@ func mergeExcludedEnvVarNames(fromImports, fromMain []string) []string {
 	// Use max() for capacity hints: overflow-safe (no addition) and a tighter
 	// lower-bound than either length alone.
 	hint := max(len(fromImports), len(fromMain))
-	seen := make(map[string]bool, hint)
+	seen := make(map[string]struct{}, hint)
 	merged := make([]string, 0, hint)
 	for _, name := range fromImports {
-		if !seen[name] {
-			seen[name] = true
+		if _, ok := seen[name]; !ok {
+			seen[name] = struct{}{}
 			merged = append(merged, name)
 		}
 	}
 	for _, name := range fromMain {
-		if !seen[name] {
-			seen[name] = true
+		if _, ok := seen[name]; !ok {
+			seen[name] = struct{}{}
 			merged = append(merged, name)
 		}
 	}

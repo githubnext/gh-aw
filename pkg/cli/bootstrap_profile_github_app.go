@@ -39,8 +39,8 @@ func runBootstrapGitHubAppAction(ctx context.Context, repo string, action reposi
 		return nil, err
 	}
 
-	clientID := strings.TrimSpace(os.Getenv(bootstrapGitHubAppClientIDEnv))
-	privateKey := strings.TrimRight(os.Getenv(bootstrapGitHubAppPrivateKeyEnv), "\r\n")
+	clientID := strings.TrimSpace(lookupEnv(bootstrapGitHubAppClientIDEnv))
+	privateKey := strings.TrimRight(lookupEnv(bootstrapGitHubAppPrivateKeyEnv), "\r\n")
 	handled, err := handleBootstrapGitHubAppExistingFlow(ctx, repo, action, overrides, clientID, privateKey)
 	if err != nil {
 		return nil, err
@@ -324,14 +324,14 @@ func buildBootstrapGitHubAppMux(ctx context.Context, csrfState, owner, ownerType
 func loadBootstrapGitHubAppOverrides() (bootstrapGitHubAppOverrides, error) {
 	overrides := bootstrapGitHubAppOverrides{
 		Mode:        "",
-		Owner:       strings.TrimSpace(os.Getenv(bootstrapGitHubAppOwnerEnv)),
-		Name:        strings.TrimSpace(os.Getenv(bootstrapGitHubAppNameEnv)),
-		HomepageURL: strings.TrimSpace(os.Getenv(bootstrapGitHubAppURLEnv)),
-		Description: strings.TrimSpace(os.Getenv(bootstrapGitHubAppDescriptionEnv)),
+		Owner:       strings.TrimSpace(lookupEnv(bootstrapGitHubAppOwnerEnv)),
+		Name:        strings.TrimSpace(lookupEnv(bootstrapGitHubAppNameEnv)),
+		HomepageURL: strings.TrimSpace(lookupEnv(bootstrapGitHubAppURLEnv)),
+		Description: strings.TrimSpace(lookupEnv(bootstrapGitHubAppDescriptionEnv)),
 		OpenBrowser: true,
 	}
 
-	switch mode := strings.ToLower(strings.TrimSpace(os.Getenv(bootstrapGitHubAppModeEnv))); mode {
+	switch mode := strings.ToLower(strings.TrimSpace(lookupEnv(bootstrapGitHubAppModeEnv))); mode {
 	case "", "auto":
 	case "create", "existing":
 		overrides.Mode = mode
@@ -339,7 +339,7 @@ func loadBootstrapGitHubAppOverrides() (bootstrapGitHubAppOverrides, error) {
 		return bootstrapGitHubAppOverrides{}, fmt.Errorf("%s must be one of: auto, create, existing. Example: export %s=create", bootstrapGitHubAppModeEnv, bootstrapGitHubAppModeEnv)
 	}
 
-	if raw := strings.TrimSpace(os.Getenv(bootstrapNoOpenBrowserEnv)); raw != "" {
+	if raw := strings.TrimSpace(lookupEnv(bootstrapNoOpenBrowserEnv)); raw != "" {
 		disabled, err := parseBootstrapBool(raw)
 		if err != nil {
 			return bootstrapGitHubAppOverrides{}, fmt.Errorf("%s: %w", bootstrapNoOpenBrowserEnv, err)

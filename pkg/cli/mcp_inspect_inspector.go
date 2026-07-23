@@ -180,7 +180,11 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 				}
 
 				// Give servers a moment to start up
-				time.Sleep(mcpStdioServerStartupDelay)
+				select {
+				case <-time.After(mcpStdioServerStartupDelay):
+				case <-gctx.Done():
+					return gctx.Err()
+				}
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("All stdio servers started successfully"))
 			}
 
@@ -224,7 +228,17 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 				}
 				// Give each process a chance to clean up
 				if i < len(serverProcesses)-1 {
-					time.Sleep(mcpProcessCleanupDelay)
+					timer := time.NewTimer(mcpProcessCleanupDelay)
+					select {
+					case <-timer.C:
+					case <-gctx.Done():
+					}
+					if !timer.Stop() {
+						select {
+						case <-timer.C:
+						default:
+						}
+					}
 				}
 			}
 			if err := g.Wait(); err != nil {
