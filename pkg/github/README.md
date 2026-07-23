@@ -87,13 +87,13 @@ import "github.com/github/gh-aw/pkg/github"
 // Load mapping (env > config file > defaults)
 om := github.LoadObjectiveMappingFromConfig()
 
-// Score an issue by its labels
-score := om.ComputeObjectiveValue([]string{"bug", "high-priority"})
-// score == 60  (max of bug=60, high-priority=35)
+// Score an issue by its labels (default mapping: critical=100, high-priority=50, p1=50, ...)
+score := om.ComputeObjectiveValue([]string{"critical", "high-priority"})
+// score == 100  (max of critical=100, high-priority=50)
 
 // Check which labels contributed
-objectiveLabels := om.GetObjectiveLabels([]string{"bug", "good first issue"})
-// objectiveLabels == ["bug"]
+objectiveLabels := om.GetObjectiveLabels([]string{"critical", "high-priority"})
+// objectiveLabels == ["critical", "high-priority"]
 
 // Use the default mapping directly
 defaults := github.DefaultObjectiveMapping()

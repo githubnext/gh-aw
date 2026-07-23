@@ -16,6 +16,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 	"github.com/github/gh-aw/pkg/sliceutil"
@@ -326,14 +327,9 @@ func (c *Compiler) generatePackageLock(workflowDir string) error {
 	dependabotLog.Printf("Generating package-lock.json in %s", workflowDir)
 
 	// Check if npm is available
-	npmPath, err := exec.LookPath("npm")
+	npmPath, err := fileutil.ResolveExecutablePath("npm")
 	if err != nil {
 		return errors.New("npm command not found - cannot generate package-lock.json. Install Node.js/npm to enable this feature")
-	}
-
-	// Validate that exec.LookPath returned an absolute path (defense-in-depth).
-	if !filepath.IsAbs(npmPath) {
-		return fmt.Errorf("npm path is not absolute: %s", npmPath)
 	}
 
 	if c.verbose {
