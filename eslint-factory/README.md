@@ -445,6 +445,7 @@ Why: command strings evaluated by a shell (`exec`, `execSync`, `spawn` / `spawnS
 - `const run = cp.execSync; run("git checkout " + branch)` — member alias call.
 - `spawn(\`git checkout ${branch}\`, { shell: true })` — shell-enabled spawn.
 - `execFileSync("git " + branch, ["status"], { shell: true })` — shell-enabled execFileSync.
+- `spawn("git checkout " + branch, ...opts)` — spread options are treated conservatively as potentially shell-enabled.
 - ESM imports are recognized (`import { execSync } from "node:child_process"`).
 
 **Not flagged:**
