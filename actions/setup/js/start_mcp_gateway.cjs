@@ -37,6 +37,8 @@ const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+let activeGatewayPid = null;
+
 // ---------------------------------------------------------------------------
 // Timing helpers
 // ---------------------------------------------------------------------------
@@ -202,6 +204,21 @@ function isProcessAlive(pid) {
 }
 
 /**
+ * Best-effort cleanup for a detached gateway process when startup fails.
+ * @param {number | null | undefined} pid
+ */
+function stopGatewayProcess(pid) {
+  if (!pid || !isProcessAlive(pid)) {
+    return;
+  }
+  try {
+    process.kill(pid);
+  } catch {
+    // ignore cleanup failures
+  }
+}
+
+/**
  * HTTP GET helper – returns { statusCode, body }.
  * @param {string} url
  * @param {number} timeoutMs
@@ -229,16 +246,18 @@ function httpGet(url, timeoutMs) {
 /**
  * Validate that a path is not a symlink (symlink attack prevention).
  * @param {string} p
+ * @returns {boolean}
  */
 function assertNotSymlink(p) {
   try {
     if (lstatGuard(p) === null) {
       core.setFailed(`ERROR: ${p} is a symlink — possible symlink attack, aborting`);
-      process.exit(1);
+      return false;
     }
   } catch {
     // Path does not exist yet – that's fine.
   }
+  return true;
 }
 
 /**
@@ -347,14 +366,18 @@ async function main() {
   }
 
   // Symlink attack prevention on the config directory
-  assertNotSymlink(configDir);
+  if (!assertNotSymlink(configDir)) {
+    return;
+  }
   try {
     fs.mkdirSync(configDir, { recursive: true });
   } catch (err) {
     throw new Error(`Failed to create directory ${configDir}: ${String(err)}`, { cause: err });
   }
   // Post-creation check
-  assertNotSymlink(configDir);
+  if (!assertNotSymlink(configDir)) {
+    return;
+  }
   try {
     fs.chmodSync(configDir, 0o700);
   } catch (err) {
@@ -509,9 +532,11 @@ async function main() {
     env: { ...process.env, MCP_GATEWAY_LOG_DIR: logDir },
     detached: true,
   });
+  activeGatewayPid = child.pid || null;
 
   // Write configuration to stdin then close
   if (!child.stdin) {
+    stopGatewayProcess(activeGatewayPid);
     core.setFailed("ERROR: Gateway process stdin is not available");
     return;
   }
@@ -806,6 +831,7 @@ async function main() {
 
   // Validate MCP_GATEWAY_API_KEY
   if (!apiKey) {
+    stopGatewayProcess(gatewayPid);
     core.error("This variable should be set in the workflow before calling start_mcp_gateway.cjs");
     core.setFailed("ERROR: MCP_GATEWAY_API_KEY environment variable must be set for converter scripts");
     return;
@@ -833,6 +859,7 @@ async function main() {
     try {
       ({ dir: copilotConfigDir, file: copilotConfigFile } = resolveCopilotConfigPaths());
     } catch (err) {
+      stopGatewayProcess(gatewayPid);
       core.setFailed(`ERROR: ${getErrorMessage(err)}`);
       return;
     }
@@ -997,6 +1024,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
+    stopGatewayProcess(activeGatewayPid);
     const message = getErrorMessage(err);
     const stack = err instanceof Error ? err.stack : undefined;
     if (stack) core.error(stack);
