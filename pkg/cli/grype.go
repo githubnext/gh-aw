@@ -95,14 +95,6 @@ func (c *grypeCache) setError(key string, err error) {
 	c.errors[key] = err
 }
 
-// reset clears all cached entries. Used in tests.
-func (c *grypeCache) reset() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	c.results = make(map[string]*grypeOutput)
-	c.errors = make(map[string]error)
-}
-
 // grypeScanResultCache is the process-wide grype result cache.
 var grypeScanResultCache = &grypeCache{
 	results: make(map[string]*grypeOutput),

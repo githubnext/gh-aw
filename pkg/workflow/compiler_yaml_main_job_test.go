@@ -434,7 +434,7 @@ func TestAddCustomStepsWithRuntimeInsertion(t *testing.T) {
 			insertionHappened: false,
 		},
 		{
-			name: "checkout with uses on same line - not detected as checkout",
+			name: "checkout with uses on same line",
 			customSteps: `steps:
   - uses: actions/checkout@v4
   - name: Build
@@ -445,12 +445,14 @@ func TestAddCustomStepsWithRuntimeInsertion(t *testing.T) {
 			tools: &ToolsConfig{},
 			expectInOutput: []string{
 				"- uses: actions/checkout@v4",
+				"- name: Setup Go",
 				"- name: Build",
 			},
-			notInOutput: []string{
-				"Setup Go", // Won't be inserted - function doesn't detect "- uses:" as checkout
+			expectStepOrder: []string{
+				"Setup Go",
+				"Build",
 			},
-			insertionHappened: false,
+			insertionHappened: true,
 		},
 		{
 			name: "multiple runtime steps inserted",

@@ -98,6 +98,12 @@ func (c *Compiler) prepareRuntimeSetupAndCheckoutInfo(data *WorkflowData) ([]Git
 	runtimeSetupSteps := GenerateRuntimeSetupSteps(runtimeRequirements, data)
 	compilerYamlLog.Printf("Detected runtime requirements: %d runtimes, %d setup steps", len(runtimeRequirements), len(runtimeSetupSteps))
 
+	// Determine whether the (post-deduplication) custom steps contain a checkout
+	// step. This check runs before sanitizeAndWarnCustomSteps is called inside
+	// addCustomStepsWithRuntimeInsertion, but that is safe: sanitization only
+	// rewrites ${{ }} expressions inside `run:` fields and never touches `uses:`
+	// values, so the checkout-detection result is identical before and after
+	// sanitization.
 	customStepsContainCheckout := data.CustomSteps != "" && ContainsCheckout(data.CustomSteps)
 
 	return runtimeSetupSteps, customStepsContainCheckout
@@ -335,6 +341,7 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 // Like addCustomStepsAsIs it sanitizes any ${{ ... }} expressions found in run: fields before writing.
 func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig, ensureArcDindNodePath bool) {
 	customSteps = c.sanitizeAndWarnCustomSteps(customSteps)
+	checkoutStepIndex, hasCheckoutStep := findFirstCheckoutStepIndex(customSteps)
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) <= 1 {
@@ -343,6 +350,8 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 
 	insertedRuntime := false
 	i := 1 // Start from index 1 to skip "steps:" line
+	currentStepIndex := -1
+	stepIndent := -1
 	var blockScalarState yamlBlockScalarState
 
 	for i < len(lines) {
@@ -359,30 +368,20 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 		// Add the line with proper indentation
 		appendYAMLLine(yaml, "      ", line, isBS)
 
-		// Check if this line starts a step with "- name:" or "- uses:"
+		// Check if this line starts a top-level step
 		trimmed := strings.TrimSpace(line)
-		isStepStart := strings.HasPrefix(trimmed, "- name:") || strings.HasPrefix(trimmed, "- uses:")
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		isStepStart := strings.HasPrefix(trimmed, "- ")
+		if isStepStart {
+			if stepIndent == -1 {
+				stepIndent = indent
+			}
+			isStepStart = indent == stepIndent
+		}
 
 		if isStepStart && !insertedRuntime {
-			// This is the start of a step, check if it's a checkout step
-			isCheckoutStep := false
-
-			// Look ahead to find "uses:" line with "checkout"
-			for j := i + 1; j < len(lines); j++ {
-				nextLine := lines[j]
-				nextTrimmed := strings.TrimSpace(nextLine)
-
-				// Stop if we hit the next step
-				if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
-					break
-				}
-
-				// Check if this is a uses line with checkout
-				if strings.Contains(nextTrimmed, "uses:") && strings.Contains(nextTrimmed, "checkout") {
-					isCheckoutStep = true
-					break
-				}
-			}
+			currentStepIndex++
+			isCheckoutStep := hasCheckoutStep && currentStepIndex == checkoutStepIndex
 
 			if isCheckoutStep {
 				// This is a checkout step, copy all its lines until the next step
@@ -390,13 +389,16 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 				for i < len(lines) {
 					nextLine := lines[i]
 					nextTrimmed := strings.TrimSpace(nextLine)
+					nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
 
-					// Stop if we hit the next step
-					if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
+					// Stop if we hit the next step, but only when we are not inside a
+					// block scalar payload (e.g. "sparse-checkout: |\n  - src" -- the
+					// "- src" content line starts with "- " but is not a step boundary).
+					if !blockScalarState.IsInPayload() && nextTrimmed != "" && strings.HasPrefix(nextTrimmed, "- ") && nextIndent == stepIndent {
 						break
 					}
 
-					// Add the line
+					// Add the line (this also advances the block scalar state machine)
 					nextIsBS := blockScalarState.update(nextLine)
 					appendYAMLLine(yaml, "      ", nextLine, nextIsBS)
 					i++

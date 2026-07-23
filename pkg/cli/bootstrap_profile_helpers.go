@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"html"
 	"html/template"
 	"net"
 	"os"
@@ -337,10 +336,6 @@ func bootstrapRandomHex(size int) (string, error) {
 		return "", err
 	}
 	return hex.EncodeToString(buf), nil
-}
-
-func htmlEscape(value string) string {
-	return html.EscapeString(value)
 }
 
 func openBootstrapBrowser(url string) bool {
