@@ -4,6 +4,8 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/goccy/go-yaml"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -11,26 +13,36 @@ var compilerWorkflowHelpersLog = logger.New("workflow:compiler_workflow_helpers"
 
 // ContainsCheckout returns true if the given custom steps contain an actions/checkout step
 func ContainsCheckout(customSteps string) bool {
+	_, found := findFirstCheckoutStepIndex(customSteps)
+	return found
+}
+
+func findFirstCheckoutStepIndex(customSteps string) (int, bool) {
 	if customSteps == "" {
-		return false
+		return 0, false
 	}
 
-	// Look for actions/checkout usage patterns
-	checkoutPatterns := []string{
-		"actions/checkout@",
-		"uses: actions/checkout",
-		"- uses: actions/checkout",
+	var wrapper struct {
+		Steps []map[string]any `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte(customSteps), &wrapper); err != nil {
+		return 0, false
 	}
 
-	lowerSteps := strings.ToLower(customSteps)
-	for _, pattern := range checkoutPatterns {
-		if strings.Contains(lowerSteps, strings.ToLower(pattern)) {
+	for i, step := range wrapper.Steps {
+		uses, ok := step["uses"].(string)
+		if ok && isCheckoutActionReference(uses) {
 			compilerWorkflowHelpersLog.Print("Detected actions/checkout in custom steps")
-			return true
+			return i, true
 		}
 	}
 
-	return false
+	return 0, false
+}
+
+func isCheckoutActionReference(uses string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(strings.Trim(uses, `"'`)))
+	return normalized == "actions/checkout" || strings.HasPrefix(normalized, "actions/checkout@")
 }
 
 // GetWorkflowIDFromPath extracts the workflow ID from a markdown file path.

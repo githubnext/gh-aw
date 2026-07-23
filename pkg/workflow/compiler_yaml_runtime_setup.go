@@ -324,6 +324,7 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 // Like addCustomStepsAsIs it sanitizes any ${{ ... }} expressions found in run: fields before writing.
 func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig) {
 	customSteps = c.sanitizeAndWarnCustomSteps(customSteps)
+	checkoutStepIndex, hasCheckoutStep := findFirstCheckoutStepIndex(customSteps)
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) <= 1 {
@@ -332,6 +333,8 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 
 	insertedRuntime := false
 	i := 1 // Start from index 1 to skip "steps:" line
+	currentStepIndex := -1
+	stepIndent := -1
 	var blockScalarState yamlBlockScalarState
 
 	for i < len(lines) {
@@ -348,30 +351,20 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 		// Add the line with proper indentation
 		appendYAMLLine(yaml, "      ", line, isBS)
 
-		// Check if this line starts a step with "- name:" or "- uses:"
+		// Check if this line starts a top-level step
 		trimmed := strings.TrimSpace(line)
-		isStepStart := strings.HasPrefix(trimmed, "- name:") || strings.HasPrefix(trimmed, "- uses:")
+		indent := len(line) - len(strings.TrimLeft(line, " "))
+		isStepStart := strings.HasPrefix(trimmed, "- ")
+		if isStepStart {
+			if stepIndent == -1 {
+				stepIndent = indent
+			}
+			isStepStart = indent == stepIndent
+		}
 
 		if isStepStart && !insertedRuntime {
-			// This is the start of a step, check if it's a checkout step
-			isCheckoutStep := false
-
-			// Look ahead to find "uses:" line with "checkout"
-			for j := i + 1; j < len(lines); j++ {
-				nextLine := lines[j]
-				nextTrimmed := strings.TrimSpace(nextLine)
-
-				// Stop if we hit the next step
-				if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
-					break
-				}
-
-				// Check if this is a uses line with checkout
-				if strings.Contains(nextTrimmed, "uses:") && strings.Contains(nextTrimmed, "checkout") {
-					isCheckoutStep = true
-					break
-				}
-			}
+			currentStepIndex++
+			isCheckoutStep := hasCheckoutStep && currentStepIndex == checkoutStepIndex
 
 			if isCheckoutStep {
 				// This is a checkout step, copy all its lines until the next step
@@ -379,9 +372,10 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 				for i < len(lines) {
 					nextLine := lines[i]
 					nextTrimmed := strings.TrimSpace(nextLine)
+					nextIndent := len(nextLine) - len(strings.TrimLeft(nextLine, " "))
 
 					// Stop if we hit the next step
-					if strings.HasPrefix(nextTrimmed, "- name:") || strings.HasPrefix(nextTrimmed, "- uses:") {
+					if nextTrimmed != "" && strings.HasPrefix(nextTrimmed, "- ") && nextIndent == stepIndent {
 						break
 					}
 
