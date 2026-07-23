@@ -186,6 +186,43 @@ describe("Safe Output Handler Manager", () => {
       expect(reportOnlyFailures).toEqual([{ type: "upload_artifact", success: false, error: "artifact twirp CreateArtifact failed (400)" }]);
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
     });
+
+    it("treats failed set_issue_field results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "set_issue_field",
+          success: false,
+        })
+      ).toBe(true);
+    });
+
+    it("does not treat skipped or cancelled set_issue_field results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "set_issue_field",
+          success: false,
+          skipped: true,
+        })
+      ).toBe(false);
+      expect(
+        isReportOnlyFailureResult({
+          type: "set_issue_field",
+          success: false,
+          cancelled: true,
+        })
+      ).toBe(false);
+    });
+
+    it("partitions set_issue_field failures as report-only, not fatal", () => {
+      const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
+        { type: "set_issue_field", success: false, error: 'Issue field "Status" not found.' },
+        { type: "create_issue", success: false, error: "Validation failed" },
+        { type: "create_discussion", success: true },
+      ]);
+
+      expect(reportOnlyFailures).toEqual([{ type: "set_issue_field", success: false, error: 'Issue field "Status" not found.' }]);
+      expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
   });
 
   describe("loadHandlers", () => {

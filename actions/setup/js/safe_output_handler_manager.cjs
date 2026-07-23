@@ -667,8 +667,14 @@ function isFailedProcessingResult(result) {
   return Boolean(result?.success === false && !result?.deferred && !result?.skipped && !result?.cancelled);
 }
 
-/** Types whose failures are surfaced as warnings rather than failing the safe_outputs job. */
-const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]);
+/**
+ * Types whose failures are surfaced as warnings rather than failing the safe_outputs job.
+ * - assign_to_agent: agent assignment can fail after other safe outputs already succeeded.
+ * - upload_artifact: artifact uploads are best-effort and non-critical.
+ * - set_issue_field: project-board fields can drift (renamed/removed); a bad field write
+ *   should not sink an otherwise-successful safe-outputs batch.
+ */
+const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact", "set_issue_field"]);
 
 /**
  * Determine whether a failed result should be reported without failing the safe_outputs job.
@@ -676,6 +682,8 @@ const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]
  * are surfaced through dedicated outputs and summaries instead of failing the entire job.
  * Artifact uploads are best-effort and non-critical: a failed upload should not fail an
  * otherwise-successful run.
+ * Issue field writes target project-board fields that can drift over time; a single bad
+ * field write should not sink an otherwise-successful safe-outputs batch.
  *
  * @param {{type?: string, success?: boolean, deferred?: boolean, skipped?: boolean, cancelled?: boolean}|null|undefined} result
  * @returns {boolean}

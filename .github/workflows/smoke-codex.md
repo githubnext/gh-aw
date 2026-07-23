@@ -120,12 +120,16 @@ features:
 10. **Set Issue Field Testing**:
     - After creating the smoke-test issue, use `set_issue_field` exactly once on that new issue
     - Reference the created issue using the `temporary_id` declared on the `create_issue` output: set `issue_number: '#aw_smoke_issue'` in the `set_issue_field` message
-    - Discover available issue fields and choose one compatible field/value pair:
+    - **Before choosing a field**, run this bash command to discover available fields (do NOT guess field names):
+      ```
+      OWNER="${GITHUB_REPOSITORY%%/*}" && REPO="${GITHUB_REPOSITORY##*/}" && gh api graphql -f query='query($owner:String!,$repo:String!){repository(owner:$owner,name:$repo){issueFields(first:20){nodes{__typename ...on IssueFieldText{id name}...on IssueFieldNumber{id name}...on IssueFieldDate{id name}...on IssueFieldSingleSelect{id name options{id name}}}}}}' -f owner="$OWNER" -f repo="$REPO"
+      ```
+    - From the returned list, choose ONE field/value pair:
+      - date field → today's date in `YYYY-MM-DD` format (prefer this type)
       - text field → short text value
       - number field → numeric value
-      - date field → `YYYY-MM-DD`
-      - single-select field → an existing option name
-    - If no editable issue fields are available, report this test as skipped with reason
+      - single-select field → an existing option name exactly as returned
+    - If the discovery command fails or returns no fields, report this test as skipped with reason
 
 ## Output
 
