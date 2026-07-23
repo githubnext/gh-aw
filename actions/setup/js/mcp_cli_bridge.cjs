@@ -1429,7 +1429,6 @@ if (require.main === module) {
     const core = global.core;
     const message = err instanceof Error ? err.stack || err.message : String(err);
     if (core && typeof core.setFailed === "function") {
-      process.exitCode = 1;
       core.setFailed(`mcp_cli_bridge fatal: ${message}`);
       return;
     }

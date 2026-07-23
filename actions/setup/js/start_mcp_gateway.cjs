@@ -37,6 +37,7 @@ const { withRetry } = require("./error_recovery.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
+/** @type {number | null} */
 let activeGatewayPid = null;
 
 // ---------------------------------------------------------------------------
