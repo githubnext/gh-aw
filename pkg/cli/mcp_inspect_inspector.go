@@ -62,15 +62,10 @@ func spawnMCPInspector(ctx context.Context, workflowFile string, serverFilter st
 				// Give each process a chance to clean up
 				if i < len(serverProcesses)-1 {
 					timer := time.NewTimer(mcpProcessCleanupDelay)
+					defer timer.Stop()
 					select {
 					case <-timer.C:
 					case <-gctx.Done():
-					}
-					if !timer.Stop() {
-						select {
-						case <-timer.C:
-						default:
-						}
 					}
 				}
 			}
