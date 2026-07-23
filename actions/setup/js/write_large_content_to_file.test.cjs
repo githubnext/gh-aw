@@ -237,8 +237,10 @@ describe("writeLargeContentToFile", () => {
       throw new Error("permission denied");
     };
     try {
-      expect(() => writeLargeContentToFile("{}")).toThrow("Failed to create directory");
-      expect(() => writeLargeContentToFile("{}")).toThrow("permission denied");
+      const fn = () => writeLargeContentToFile("{}");
+      expect(fn).toThrow("Failed to create directory");
+      expect(fn).toThrow(": permission denied");
+      expect(fn).not.toThrow(": Error: permission denied");
     } finally {
       fs.mkdirSync = origMkdirSync;
     }
@@ -252,8 +254,10 @@ describe("writeLargeContentToFile", () => {
       throw new Error("disk full");
     };
     try {
-      expect(() => writeLargeContentToFile("{}")).toThrow("Failed to write file");
-      expect(() => writeLargeContentToFile("{}")).toThrow("disk full");
+      const fn = () => writeLargeContentToFile("{}");
+      expect(fn).toThrow("Failed to write file");
+      expect(fn).toThrow(": disk full");
+      expect(fn).not.toThrow(": Error: disk full");
     } finally {
       fs.writeFileSync = origWriteFileSync;
     }
