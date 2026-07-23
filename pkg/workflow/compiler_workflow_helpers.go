@@ -65,8 +65,9 @@ func findFirstCheckoutStepIndex(customSteps string) (int, bool) {
 }
 
 func isCheckoutActionReference(uses string) bool {
-	normalized := strings.ToLower(strings.TrimSpace(strings.Trim(uses, `"'`)))
-	return normalized == "actions/checkout" || strings.HasPrefix(normalized, "actions/checkout@")
+	trimmed := strings.TrimSpace(strings.Trim(uses, `"'`))
+	return strings.EqualFold(trimmed, "actions/checkout") ||
+		strings.HasPrefix(strings.ToLower(trimmed), "actions/checkout@")
 }
 
 // GetWorkflowIDFromPath extracts the workflow ID from a markdown file path.
