@@ -2701,3 +2701,39 @@ func TestBuildDetectionEngineExecutionStepPropagatesModelMappings(t *testing.T) 
 		t.Errorf("expected detection awf-config.json to contain model alias 'mini'; got:\n%s", allSteps)
 	}
 }
+
+// TestBuildThreatDetectionWorkflowData_InheritsModelCosts verifies that
+// buildThreatDetectionWorkflowData forwards ModelCosts from the parent workflow
+// so the detection run's AWF config also carries defaultAiCreditsPricing for
+// custom/BYOK models.
+func TestBuildThreatDetectionWorkflowData_InheritsModelCosts(t *testing.T) {
+	customPricing := map[string]any{
+		"providers": map[string]any{
+			"anthropic": map[string]any{
+				"models": map[string]any{
+					"accounts/fireworks/models/minimax-m3": map[string]any{
+						"cost": map[string]any{
+							"input":  "3e-07",
+							"output": "1.5e-06",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	parent := &WorkflowData{
+		AI:         "claude",
+		ModelCosts: customPricing,
+	}
+
+	got := buildThreatDetectionWorkflowData(parent, "claude")
+	if got.ModelCosts == nil {
+		t.Fatal("expected detection WorkflowData.ModelCosts to be inherited from parent, got nil")
+	}
+
+	providers, _ := got.ModelCosts["providers"].(map[string]any)
+	if providers == nil {
+		t.Fatal("expected detection ModelCosts to contain providers")
+	}
+}

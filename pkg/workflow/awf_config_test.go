@@ -1215,6 +1215,16 @@ func TestValidateAWFConfigJSON_RejectsUnknownContainerRuntime(t *testing.T) {
 	require.Error(t, err, "container.containerRuntime must only accept enum values; unknown runtime \"runc\" should be rejected")
 }
 
+func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricing(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"defaultAiCreditsPricing":{"input":0.30,"output":1.50,"cachedInput":0.03,"cacheWrite":0.375}}}`)
+	require.NoError(t, err, "defaultAiCreditsPricing should pass compile-time schema validation")
+}
+
+func TestValidateAWFConfigJSON_RejectsDefaultAiCreditsPricingMissingOutput(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"defaultAiCreditsPricing":{"input":0.30}}}`)
+	require.Error(t, err, "defaultAiCreditsPricing without output should be rejected by schema")
+}
+
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
 // WorkflowData.ValidateAWFConfig is true (--validate mode) and is skipped otherwise.
 func TestBuildAWFConfigJSON_ValidateFlag(t *testing.T) {
@@ -1813,4 +1823,271 @@ func TestBuildAWFConfigJSON_ModelPolicyConflictDisallowedWins(t *testing.T) {
 	require.NoError(t, err)
 	assert.Contains(t, jsonStr, `"allowedModels":["claude-sonnet"]`)
 	assert.Contains(t, jsonStr, `"disallowedModels":["gpt-5"]`)
+}
+
+// TestExtractDefaultAiCreditsPricingFromModelCosts verifies that
+// extractDefaultAiCreditsPricingFromModelCosts correctly converts frontmatter
+// models.providers pricing (per-token) to defaultAiCreditsPricing ($/1M tokens).
+func TestExtractDefaultAiCreditsPricingFromModelCosts(t *testing.T) {
+	t.Run("nil workflowData returns nil", func(t *testing.T) {
+		assert.Nil(t, extractDefaultAiCreditsPricingFromModelCosts(nil))
+	})
+
+	t.Run("empty ModelCosts returns nil", func(t *testing.T) {
+		assert.Nil(t, extractDefaultAiCreditsPricingFromModelCosts(&WorkflowData{}))
+	})
+
+	t.Run("ModelCosts with no providers returns nil", func(t *testing.T) {
+		assert.Nil(t, extractDefaultAiCreditsPricingFromModelCosts(&WorkflowData{
+			ModelCosts: map[string]any{"other": "data"},
+		}))
+	})
+
+	t.Run("full pricing string values converted to per-million", func(t *testing.T) {
+		cacheWrite := float64(0.375)
+		wd := &WorkflowData{
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"accounts/fireworks/models/minimax-m3": map[string]any{
+								"cost": map[string]any{
+									"input":       "3e-07",
+									"output":      "1.5e-06",
+									"cache_read":  "3e-08",
+									"cache_write": "3.75e-07",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		assert.InDelta(t, 0.30, got.Input, 1e-9)
+		assert.InDelta(t, 1.50, got.Output, 1e-9)
+		assert.InDelta(t, 0.03, got.CachedInput, 1e-9)
+		require.NotNil(t, got.CacheWrite)
+		assert.InDelta(t, cacheWrite, *got.CacheWrite, 1e-9)
+	})
+
+	t.Run("float64 cost values also work", func(t *testing.T) {
+		wd := &WorkflowData{
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"openai": map[string]any{
+						"models": map[string]any{
+							"my-custom-model": map[string]any{
+								"cost": map[string]any{
+									"input":  float64(3e-07),
+									"output": float64(1.5e-06),
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		assert.InDelta(t, 0.30, got.Input, 1e-9)
+		assert.InDelta(t, 1.50, got.Output, 1e-9)
+		assert.Nil(t, got.CacheWrite)
+	})
+
+	t.Run("only required fields (input+output) are sufficient", func(t *testing.T) {
+		wd := &WorkflowData{
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"my-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "3.75e-06",
+									"output": "1.5e-05",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		assert.InDelta(t, 3.75, got.Input, 1e-9)
+		assert.InDelta(t, 15.0, got.Output, 1e-9)
+		assert.InDelta(t, float64(0), got.CachedInput, 1e-9)
+		assert.Nil(t, got.CacheWrite)
+	})
+
+	t.Run("Model field used for exact match when set", func(t *testing.T) {
+		wd := &WorkflowData{
+			Model: "accounts/fireworks/models/minimax-m3",
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"accounts/fireworks/models/minimax-m3": map[string]any{
+								"cost": map[string]any{
+									"input":  "3e-07",
+									"output": "1.5e-06",
+								},
+							},
+							"other-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "9e-07",
+									"output": "9e-06",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		// Should match on minimax-m3 pricing, not other-model
+		assert.InDelta(t, 0.30, got.Input, 1e-9)
+		assert.InDelta(t, 1.50, got.Output, 1e-9)
+	})
+
+	t.Run("Model matching is case-insensitive", func(t *testing.T) {
+		wd := &WorkflowData{
+			Model: "MY-CUSTOM-MODEL",
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"openai": map[string]any{
+						"models": map[string]any{
+							"my-custom-model": map[string]any{
+								"cost": map[string]any{
+									"input":  "3.75e-06",
+									"output": "1.5e-05",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		got := extractDefaultAiCreditsPricingFromModelCosts(wd)
+		require.NotNil(t, got)
+		assert.InDelta(t, 3.75, got.Input, 1e-9)
+	})
+
+	t.Run("missing input returns nil", func(t *testing.T) {
+		wd := &WorkflowData{
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"my-model": map[string]any{
+								"cost": map[string]any{
+									"output": "1.5e-06",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		assert.Nil(t, extractDefaultAiCreditsPricingFromModelCosts(wd))
+	})
+}
+
+// TestBuildAWFConfigJSON_DefaultAiCreditsPricingFromModelCosts verifies that
+// BuildAWFConfigJSON injects defaultAiCreditsPricing into the apiProxy section
+// when models.providers pricing is present in WorkflowData.ModelCosts.
+func TestBuildAWFConfigJSON_DefaultAiCreditsPricingFromModelCosts(t *testing.T) {
+	t.Run("defaultAiCreditsPricing set when ModelCosts has custom pricing", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "api.anthropic.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "claude"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				ModelCosts: map[string]any{
+					"providers": map[string]any{
+						"anthropic": map[string]any{
+							"models": map[string]any{
+								"accounts/fireworks/models/minimax-m3": map[string]any{
+									"cost": map[string]any{
+										"input":       "3e-07",
+										"output":      "1.5e-06",
+										"cache_read":  "3e-08",
+										"cache_write": "3.75e-07",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok, "apiProxy section must be present")
+
+		pricing, ok := apiProxy["defaultAiCreditsPricing"].(map[string]any)
+		require.True(t, ok, "defaultAiCreditsPricing must be present in apiProxy")
+
+		inputVal, ok := pricing["input"].(float64)
+		require.True(t, ok, "input must be a number")
+		assert.InDelta(t, 0.30, inputVal, 1e-9)
+
+		outputVal, ok := pricing["output"].(float64)
+		require.True(t, ok, "output must be a number")
+		assert.InDelta(t, 1.50, outputVal, 1e-9)
+
+		cachedInputVal, ok := pricing["cachedInput"].(float64)
+		require.True(t, ok, "cachedInput must be a number")
+		assert.InDelta(t, 0.03, cachedInputVal, 1e-9)
+
+		cacheWriteVal, ok := pricing["cacheWrite"].(float64)
+		require.True(t, ok, "cacheWrite must be a number")
+		assert.InDelta(t, 0.375, cacheWriteVal, 1e-9)
+	})
+
+	t.Run("defaultAiCreditsPricing absent when ModelCosts is empty", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, "defaultAiCreditsPricing")
+	})
+
+	t.Run("defaultAiCreditsPricing absent when ModelCosts has no providers", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				ModelCosts: map[string]any{"other": "data"},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, "defaultAiCreditsPricing")
+	})
 }

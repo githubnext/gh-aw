@@ -240,6 +240,13 @@ type AWFAPIProxyConfig struct {
 	// MaxAICredits is the explicit per-run AI credits budget enforced by the API proxy.
 	MaxAICredits int64 `json:"maxAiCredits,omitempty"`
 
+	// DefaultAiCreditsPricing is the fallback per-token pricing ($/1M tokens) used by
+	// the API proxy when maxAiCredits is active and the requested model is not in the
+	// built-in pricing table. Without this field, unrecognised models are rejected with
+	// HTTP 400 (type: unknown_model_ai_credits). Populated from frontmatter
+	// models.providers when the workflow configures a custom/BYOK model.
+	DefaultAiCreditsPricing *AWFDefaultAiCreditsPricingConfig `json:"defaultAiCreditsPricing,omitempty"`
+
 	// ModelFallback configures the model fallback policy for unresolved model selections.
 	// When nil, the AWF default (enabled=true, strategy=middle_power) is used.
 	// Set enabled=false to prevent AWF from silently rewriting deployment names, which
@@ -265,6 +272,23 @@ type AWFAPIProxyConfig struct {
 	AllowedModels []string `json:"allowedModels,omitempty"`
 	// DisallowedModels is the explicit denylist policy for model names/patterns.
 	DisallowedModels []string `json:"disallowedModels,omitempty"`
+}
+
+// AWFDefaultAiCreditsPricingConfig is the "apiProxy.defaultAiCreditsPricing" section.
+// All price fields are in dollars per 1M tokens ($/1M). The proxy converts internally
+// to AI credits (1 AIC = $0.01). Input and Output are required; the optional fields
+// default to zero (cachedInput) or match input (cacheWrite) when omitted.
+type AWFDefaultAiCreditsPricingConfig struct {
+	// Input is the price per 1M input (prompt) tokens, in USD.
+	Input float64 `json:"input"`
+	// Output is the price per 1M output (completion) tokens, in USD.
+	Output float64 `json:"output"`
+	// CachedInput is the price per 1M cached-read tokens, in USD.
+	// When omitted the proxy uses input × 0.1 as a default.
+	CachedInput float64 `json:"cachedInput,omitempty"`
+	// CacheWrite is the price per 1M cache-write tokens, in USD.
+	// When omitted or null, cache writes are treated as free.
+	CacheWrite *float64 `json:"cacheWrite,omitempty"`
 }
 
 // AWFModelFallbackConfig is the "apiProxy.modelFallback" section of the AWF config file.
@@ -549,6 +573,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
 	}
 
+	// ── defaultAiCreditsPricing (from frontmatter models.providers) ──────────
+	// When models.providers supplies pricing for a custom/BYOK model that is not in
+	// the built-in AWF pricing table, forward it as defaultAiCreditsPricing so the
+	// proxy can price the model instead of rejecting it with unknown_model_ai_credits.
+	if pricing := extractDefaultAiCreditsPricingFromModelCosts(config.WorkflowData); pricing != nil {
+		apiProxy.DefaultAiCreditsPricing = pricing
+		awfConfigLog.Printf("API proxy: defaultAiCreditsPricing set from frontmatter models.providers (input=%.6f output=%.6f)", pricing.Input, pricing.Output)
+	}
+
 	// ── Models section (nested under apiProxy per AWF config schema) ──────────
 	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
 		apiProxy.Models = config.WorkflowData.ModelMappings
@@ -805,4 +838,150 @@ func getRunnerTopology(workflowData *WorkflowData) string {
 // isArcDindTopology returns true when the workflow targets ARC/DinD runners.
 func isArcDindTopology(workflowData *WorkflowData) bool {
 	return getRunnerTopology(workflowData) == RunnerTopologyArcDind
+}
+
+// extractDefaultAiCreditsPricingFromModelCosts extracts the first usable per-model
+// pricing entry from workflowData.ModelCosts and converts it to
+// AWFDefaultAiCreditsPricingConfig ($/1M tokens) for use as apiProxy.defaultAiCreditsPricing.
+//
+// This allows custom/BYOK models supplied via the frontmatter models.providers field to
+// be priced by the AWF API proxy instead of being rejected with unknown_model_ai_credits.
+//
+// Selection order:
+//  1. The entry whose model key matches workflowData.Model (case-insensitive), if set.
+//  2. The first model entry found across all providers (for BYOK workflows where the
+//     model is configured via engine env-vars rather than the model: frontmatter field).
+//
+// Returns nil when no suitable pricing is found or when required fields (input, output)
+// cannot be parsed.
+func extractDefaultAiCreditsPricingFromModelCosts(workflowData *WorkflowData) *AWFDefaultAiCreditsPricingConfig {
+	if workflowData == nil {
+		return nil
+	}
+	modelCosts := workflowData.ModelCosts
+	if len(modelCosts) == 0 {
+		return nil
+	}
+	rawProviders, ok := modelCosts["providers"]
+	if !ok {
+		return nil
+	}
+	providersMap, ok := rawProviders.(map[string]any)
+	if !ok || len(providersMap) == 0 {
+		return nil
+	}
+
+	targetModel := strings.ToLower(strings.TrimSpace(workflowData.Model))
+
+	// First pass: find an exact match on workflowData.Model.
+	if targetModel != "" {
+		for _, pData := range providersMap {
+			pMap, ok := pData.(map[string]any)
+			if !ok {
+				continue
+			}
+			rawModels, ok := pMap["models"]
+			if !ok {
+				continue
+			}
+			modelsMap, ok := rawModels.(map[string]any)
+			if !ok {
+				continue
+			}
+			for mName, mData := range modelsMap {
+				if !strings.EqualFold(mName, targetModel) {
+					continue
+				}
+				if pricing := modelCostEntryToDefaultPricing(mData); pricing != nil {
+					return pricing
+				}
+			}
+		}
+	}
+
+	// Second pass: return the first parseable entry across all providers.
+	for _, pData := range providersMap {
+		pMap, ok := pData.(map[string]any)
+		if !ok {
+			continue
+		}
+		rawModels, ok := pMap["models"]
+		if !ok {
+			continue
+		}
+		modelsMap, ok := rawModels.(map[string]any)
+		if !ok {
+			continue
+		}
+		for _, mData := range modelsMap {
+			if pricing := modelCostEntryToDefaultPricing(mData); pricing != nil {
+				return pricing
+			}
+		}
+	}
+
+	return nil
+}
+
+// modelCostEntryToDefaultPricing converts a single models.json model entry
+// ({"cost":{"input":"3e-07","output":"1.5e-06",...}}) to an
+// AWFDefaultAiCreditsPricingConfig with per-million-token prices.
+// Returns nil when the entry is malformed or the required input/output fields are missing.
+func modelCostEntryToDefaultPricing(mData any) *AWFDefaultAiCreditsPricingConfig {
+	mMap, ok := mData.(map[string]any)
+	if !ok {
+		return nil
+	}
+	rawCost, ok := mMap["cost"]
+	if !ok {
+		return nil
+	}
+	costMap, ok := rawCost.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	inputPerM, hasInput := parseCostFieldToPerMillion(costMap, "input")
+	outputPerM, hasOutput := parseCostFieldToPerMillion(costMap, "output")
+	if !hasInput || !hasOutput {
+		return nil
+	}
+
+	pricing := &AWFDefaultAiCreditsPricingConfig{
+		Input:  inputPerM,
+		Output: outputPerM,
+	}
+
+	if cachedInputPerM, ok := parseCostFieldToPerMillion(costMap, "cache_read"); ok {
+		pricing.CachedInput = cachedInputPerM
+	}
+	if cacheWritePerM, ok := parseCostFieldToPerMillion(costMap, "cache_write"); ok {
+		pricing.CacheWrite = &cacheWritePerM
+	}
+
+	return pricing
+}
+
+// parseCostFieldToPerMillion reads a models.json cost field (stored as a per-token
+// price string such as "3e-07") and returns the equivalent per-million-token price.
+// Returns (0, false) if the field is absent or unparseable.
+func parseCostFieldToPerMillion(costMap map[string]any, key string) (float64, bool) {
+	raw, ok := costMap[key]
+	if !ok {
+		return 0, false
+	}
+	var perToken float64
+	switch v := raw.(type) {
+	case float64:
+		perToken = v
+	case string:
+		parsed, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+		if err != nil {
+			return 0, false
+		}
+		perToken = parsed
+	default:
+		return 0, false
+	}
+	return perToken * 1e6, true
 }

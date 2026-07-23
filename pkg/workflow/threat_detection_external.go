@@ -89,6 +89,11 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    true,
 		RunnerConfig:      data.RunnerConfig,
+		// Forward frontmatter model pricing so the detection run's AWF config also
+		// carries defaultAiCreditsPricing for custom/BYOK models. Without this, the
+		// detection guardrail (GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS) rejects the
+		// same custom model with unknown_model_ai_credits.
+		ModelCosts: data.ModelCosts,
 		SandboxConfig: &SandboxConfig{
 			Agent: &AgentSandboxConfig{
 				Type: SandboxTypeAWF,
