@@ -43,7 +43,7 @@ The compiler could parse expression strings inside `safe-outputs` config values 
 
 ### Safeguards
 
-- Dependency cycles introduced through `safe-outputs.needs` are prevented by keeping custom safe-job cycle detection (`detectSafeJobCycles`) as a required compile-time validation gate.
+- Dependency cycles introduced through `safe-outputs.needs` are prevented by `JobManager.ValidateDependencies`, which validates the fully assembled job graph (including all `safe_outputs` edges) as a required compile-time validation gate in `pkg/workflow/compiler_yaml.go`.
 - Negative validation coverage for reserved and unknown `safe-outputs.needs` targets is required and implemented in `pkg/workflow/safe_jobs_needs_validation_test.go`.
 
 ### Norms
@@ -77,7 +77,7 @@ The compiler could parse expression strings inside `safe-outputs` config values 
 
 ### Safeguards and Schema Sync
 
-1. Safe-output custom job cycle detection **MUST** continue to run after `safe-outputs.needs` merge/validation so that new dependency edges cannot introduce cycles.
+1. `JobManager.ValidateDependencies` **MUST** run after `safe-outputs.needs` merge/validation so that the fully assembled job graph is checked for cycles before a compiled workflow artifact is emitted.
 2. Any schema change to `safe-outputs.needs` semantics **MUST** update `pkg/parser/schemas/main_workflow_schema.json` and related IDE/schema-consumer documentation in the same release.
 
 ### Import Merge Behavior

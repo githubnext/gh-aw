@@ -148,7 +148,8 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   }
   let totalBytes = 0;
   for (const [memoryId, content] of memoryMap.entries()) {
-    const contentBytes = Buffer.byteLength(content, "utf8");
+    const writtenContent = `${content}\n`;
+    const contentBytes = Buffer.byteLength(writtenContent, "utf8");
     if (contentBytes > COMMENT_MEMORY_MAX_FILE_BYTES) {
       throw new Error(`${ERR_VALIDATION}: comment_memory file '${memoryId}.md' is ${contentBytes} bytes, exceeding max ${COMMENT_MEMORY_MAX_FILE_BYTES} bytes`);
     }

@@ -994,7 +994,7 @@ for (const op of issueOps) {
 When `tools.comment-memory` is enabled, implementations MUST support this additional data-flow path:
 
 1. **GitHub comment → local files (pre-agent setup)**: A setup step reads the managed comment body from the target issue or pull request, extracts content between `<gh-aw-comment-memory id="...">` and `</gh-aw-comment-memory>`, and writes one file per memory entry under `/tmp/gh-aw/comment-memory/<memory_id>.md`.
-   - Setup MUST enforce memory-size safeguards: each materialized file MUST be ≤16 KiB and the aggregate materialized directory MUST be ≤48 KiB. Exceeding either limit MUST stop setup with an error.
+   - Setup MUST enforce memory-size safeguards: each materialized file MUST be ≤16 KiB and the aggregate materialized directory MUST be ≤48 KiB. Exceeding either limit MUST emit a warning and skip writing all memory files, leaving the comment-memory directory empty.
 2. **Local files → agent**: The prompt MUST include instructions that memory files are edited directly in `/tmp/gh-aw/comment-memory/`.
 3. **Agent → artifact**: The unified agent artifact MUST include `/tmp/gh-aw/comment-memory/` when comment memory is enabled.
 4. **Artifact → threat detection**: Threat-detection prompt setup MUST include discovered comment-memory files in analysis context.

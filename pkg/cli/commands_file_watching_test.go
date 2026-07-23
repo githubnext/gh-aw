@@ -236,14 +236,13 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		err = os.WriteFile(validWorkflow, []byte(validContent), 0o644)
 		require.NoError(t, err)
 
+		// Create a directory named broken.md — os.Open succeeds but a subsequent Read
+		// call returns an EISDIR error ("is a directory"), exercising the
+		// frontmatter-filter I/O propagation path without relying on process privileges
+		// or file-permission portability.
 		brokenWorkflow := filepath.Join(workflowsDir, "broken.md")
-		err = os.WriteFile(brokenWorkflow, []byte("---\n"), 0o644)
+		err = os.MkdirAll(brokenWorkflow, 0o755)
 		require.NoError(t, err)
-		err = os.Chmod(brokenWorkflow, 0o000)
-		require.NoError(t, err)
-		t.Cleanup(func() {
-			_ = os.Chmod(brokenWorkflow, 0o644)
-		})
 
 		compiler := workflow.NewCompiler()
 		_, err = compileAllWorkflowFiles(context.Background(), compiler, workflowsDir, false)

@@ -17,8 +17,14 @@ func TestAWFHelpersDoesNotContainEngineAPITargetHelpers(t *testing.T) {
 	forbiddenFunctionSignatures := []string{
 		"func extractAPITargetHost(",
 		"func extractAPIBasePath(",
+		"func extractAPITargetAuthHeader(",
 		"func GetCopilotAPITarget(",
+		"func extractLiteralEngineEnvHost(",
+		"func GetCopilotAllowlistTargets(",
+		"func GetAntigravityAPITarget(",
 		"func GetGeminiAPITarget(",
+		"func getEngineAPIHosts(",
+		"const DefaultAntigravityAPITarget",
 		"const DefaultGeminiAPITarget",
 	}
 

@@ -241,6 +241,29 @@ describe("setup_comment_memory_files", () => {
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("exceeding max 16384 bytes"));
   });
 
+  it("counts the trailing newline when enforcing the per-file size cap", async () => {
+    // Content of exactly 16384 bytes passes the old check (16384 > 16384 is false)
+    // but the written file would be 16385 bytes (content + \n). The fix measures the
+    // written string, so 16385 > 16384 triggers the cap correctly.
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ "comment-memory": { target: "triggering" } }));
+    const atCapBody = "a".repeat(16 * 1024); // 16384 bytes — exactly at the cap before \n
+    global.github = {
+      rest: {
+        issues: {
+          listComments: vi.fn().mockResolvedValue({
+            data: [{ body: `\`\`\`\`\`\`gh-aw-comment-memory:default\n${atCapBody}\n\`\`\`\`\`\`\n` }],
+          }),
+        },
+      },
+    };
+
+    const module = await import("./setup_comment_memory_files.cjs");
+    await module.main();
+
+    expect(fs.existsSync(path.join(COMMENT_MEMORY_DIR, "default.md"))).toBe(false);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("exceeding max 16384 bytes"));
+  });
+
   it("warns and skips writing when total memory size exceeds cap", async () => {
     fs.writeFileSync(CONFIG_PATH, JSON.stringify({ "comment-memory": { target: "triggering" } }));
     const chunk = "a".repeat(12 * 1024 + 1);
