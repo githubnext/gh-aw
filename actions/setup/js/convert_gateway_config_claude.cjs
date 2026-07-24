@@ -23,7 +23,7 @@ require("./shim.cjs");
  */
 
 const path = require("path");
-const { rewriteUrl, normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
+const { normalizeGatewayEntry, loadGatewayContext, logCLIFilters, filterAndTransformServers, logServerStats, writeSecureOutput } = require("./convert_gateway_config_shared.cjs");
 
 const OUTPUT_PATH = path.join(process.env.RUNNER_TEMP || "/tmp", "gh-aw/mcp-config/mcp-servers.json");
 
@@ -69,4 +69,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { rewriteUrl, transformClaudeEntry, main };
+module.exports = { transformClaudeEntry, main };
