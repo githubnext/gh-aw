@@ -74,7 +74,7 @@ func parseBootstrapNames(output []byte) []string {
 
 func resolveBootstrapTextValue(envName, title, description, defaultValue string, allowed []string, optional bool) (string, bool, error) {
 	bootstrapProfileHelpersLog.Printf("Resolving text value: env=%s, optional=%v, hasDefault=%v", envName, optional, defaultValue != "")
-	if envValue := strings.TrimSpace(os.Getenv(envName)); envValue != "" {
+	if envValue := strings.TrimSpace(lookupEnv(envName)); envValue != "" {
 		bootstrapProfileHelpersLog.Printf("Resolved %s from environment variable", envName)
 		if err := validateBootstrapEnumValue(envValue, allowed, optional); err != nil {
 			return "", false, err
@@ -127,7 +127,7 @@ func resolveBootstrapTextValue(envName, title, description, defaultValue string,
 }
 
 func resolveBootstrapSecretValue(envName, title, description string, optional bool) (string, bool, error) {
-	if envValue := strings.TrimRight(os.Getenv(envName), "\r\n"); envValue != "" {
+	if envValue := strings.TrimRight(lookupEnv(envName), "\r\n"); envValue != "" {
 		return envValue, true, nil
 	}
 	if !tty.IsStderrTerminal() {

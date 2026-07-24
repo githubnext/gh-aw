@@ -942,3 +942,47 @@ func TestSpec_PublicAPI_ResolveActionPin_MappingTargetUnknown(t *testing.T) {
 		assert.Empty(t, result, "mapping to unknown repo should produce unresolved empty result")
 	})
 }
+
+// TestSpec_PublicAPI_ApplyContainerPinMapping validates the exported ApplyContainerPinMapping function.
+// Spec: ApplyContainerPinMapping redirects container image references via ctx.ContainerMappings,
+// requiring a valid @sha256:<64-hex-char> digest in the mapped value.
+func TestSpec_PublicAPI_ApplyContainerPinMapping(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+
+	t.Run("nil ctx - image returned unchanged", func(t *testing.T) {
+		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", nil)
+		assert.Equal(t, "ghcr.io/owner/image:latest", result, "nil ctx should return image unchanged")
+	})
+
+	t.Run("no mapping - image returned unchanged", func(t *testing.T) {
+		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+		assert.Equal(t, "ghcr.io/owner/image:latest", result, "absent mapping should return image unchanged")
+	})
+
+	t.Run("valid mapping - image redirected and notification recorded", func(t *testing.T) {
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			ContainerMappings: map[string]string{
+				"ghcr.io/owner/image:latest": "registry.acme.com/image:latest@sha256:" + digest,
+			},
+		}
+		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+		assert.Equal(t, "registry.acme.com/image:latest@sha256:"+digest, result,
+			"valid mapping should redirect to the mapped image")
+		assert.True(t, ctx.Warnings["container-map:ghcr.io/owner/image:latest"],
+			"mapping notification should be recorded in warnings")
+	})
+
+	t.Run("invalid mapping - mapped value without digest returns image unchanged", func(t *testing.T) {
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			ContainerMappings: map[string]string{
+				"ghcr.io/owner/image:latest": "registry.acme.com/image:latest",
+			},
+		}
+		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+		assert.Equal(t, "ghcr.io/owner/image:latest", result,
+			"mapping without valid @sha256: digest should be rejected and image returned unchanged")
+	})
+}

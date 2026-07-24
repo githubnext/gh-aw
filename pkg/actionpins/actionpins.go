@@ -273,7 +273,9 @@ func formatPinnedActionWithResolution(repo, sha, sourceVersion, resolvedVersion 
 	if sourceVersion == resolvedVersion || resolvedVersion == "" {
 		return FormatPinnedActionReference(repo, sha, sourceVersion)
 	}
-
+	if sourceVersion == "" {
+		return FormatPinnedActionReference(repo, sha, resolvedVersion)
+	}
 	return FormatPinnedActionReference(repo, sha, resolvedVersion+" (source "+sourceVersion+")")
 }
 

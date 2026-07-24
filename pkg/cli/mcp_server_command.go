@@ -19,7 +19,7 @@ func NewMCPServerCommand() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "mcp-server",
-		Short: "Run an MCP (Model Context Protocol) server exposing gh aw commands as tools",
+		Short: "Run an MCP server that exposes gh aw CLI commands as MCP tools",
 		Long: `Run an MCP server that exposes gh aw CLI commands as MCP tools.
 
 This command starts an MCP server that wraps the gh aw CLI. It spawns a subprocess for each tool invocation to ensure that GitHub tokens and other

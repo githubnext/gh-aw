@@ -80,9 +80,9 @@ func validateEngine(engine string) error {
 
 var rootCmd = &cobra.Command{
 	Use:     string(constants.CLIExtensionPrefix),
-	Short:   "GitHub Agentic Workflows CLI from GitHub Next",
+	Short:   "GitHub Agentic Workflows CLI",
 	Version: version,
-	Long: `GitHub Agentic Workflows CLI from GitHub Next
+	Long: `GitHub Agentic Workflows CLI
 
 Common Tasks:
   ` + string(constants.CLIExtensionPrefix) + ` init                  		# Set up a new repository
@@ -811,7 +811,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().String("ref", "", "Branch or tag name to run the workflow on (default: current branch)")
 	runCmd.Flags().Bool("auto-merge-prs", false, "Auto-merge any pull requests created during the workflow execution")
 	runCmd.Flags().StringArrayP("raw-field", "F", []string{}, "Pass a workflow dispatch input in key=value format (can be specified multiple times)")
-	_ = runCmd.Flags().MarkShorthandDeprecated("raw-field", "use --raw-field instead")
+	_ = runCmd.Flags().MarkShorthandDeprecated("raw-field", "use the long form --raw-field instead")
 	runCmd.Flags().Bool("push", false, "Commit and push workflow files (including transitive imports) before running. Refuses to proceed when unrelated files are already staged.")
 	runCmd.Flags().Bool("dry-run", false, "Preview workflow execution without triggering runs on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
