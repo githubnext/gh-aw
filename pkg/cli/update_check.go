@@ -83,6 +83,8 @@ func isRunningAsMCPServer() bool {
 var (
 	// getLastCheckFilePathFunc allows overriding in tests
 	getLastCheckFilePathFunc = getLastCheckFilePathImpl
+	// checkForUpdatesWithContextFunc allows overriding in tests
+	checkForUpdatesWithContextFunc = checkForUpdatesWithContext
 )
 
 // getLastCheckFilePath returns the path to the last check timestamp file
@@ -259,6 +261,7 @@ func findLatestPublishedReleaseTag(releases []Release) string {
 // the update check completes and the goroutine is properly cleaned up.
 func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool) func() {
 	done := make(chan struct{})
+	checkCtx, cancelCheck := context.WithCancel(ctx)
 
 	// Run check in goroutine to avoid blocking compilation
 	go func() {
@@ -271,12 +274,12 @@ func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool)
 		}()
 
 		// Check if context was cancelled before starting
-		if ctx.Err() != nil {
-			updateCheckLog.Printf("Update check cancelled before starting: %v", ctx.Err())
+		if checkCtx.Err() != nil {
+			updateCheckLog.Printf("Update check cancelled before starting: %v", checkCtx.Err())
 			return
 		}
 
-		checkForUpdatesWithContext(ctx, noCheckUpdate, verbose)
+		checkForUpdatesWithContextFunc(checkCtx, noCheckUpdate, verbose)
 	}()
 
 	// Give the goroutine a small window to complete quickly
@@ -295,9 +298,7 @@ func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool)
 	}
 
 	return func() {
-		select {
-		case <-done:
-		case <-ctx.Done():
-		}
+		cancelCheck()
+		<-done
 	}
 }

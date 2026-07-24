@@ -353,19 +353,18 @@ func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
 
 func TestCheckForUpdatesAsync_JoinsGoroutine(t *testing.T) {
 	// Test that the returned join function waits for the goroutine to complete
-	// Save original environment
-	origCI := os.Getenv("CI")
 	origGetLastCheckFilePath := getLastCheckFilePathFunc
+	origCheckForUpdatesWithContext := checkForUpdatesWithContextFunc
 	defer func() {
-		os.Setenv("CI", origCI)
 		getLastCheckFilePathFunc = origGetLastCheckFilePath
+		checkForUpdatesWithContextFunc = origCheckForUpdatesWithContext
 	}()
 
 	// Ensure we're not in CI mode so that shouldCheckForUpdate returns true
-	os.Unsetenv("CI")
-	os.Unsetenv("GITHUB_ACTIONS")
-	os.Unsetenv("CONTINUOUS_INTEGRATION")
-	os.Unsetenv("GH_AW_MCP_SERVER")
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("GH_AW_MCP_SERVER", "")
 
 	// Create temporary directory for last check file
 	tmpDir := t.TempDir()
@@ -374,13 +373,19 @@ func TestCheckForUpdatesAsync_JoinsGoroutine(t *testing.T) {
 		return lastCheckFile
 	}
 
-	// Use a cancelled context to make the goroutine exit quickly
-	ctx, cancel := context.WithCancel(context.Background())
-	cancel()
+	started := make(chan struct{})
+	release := make(chan struct{})
+	checkForUpdatesWithContextFunc = func(_ context.Context, _ bool, _ bool) {
+		close(started)
+		<-release
+	}
+
+	ctx := context.Background()
 
 	join := CheckForUpdatesAsync(ctx, false, false)
+	<-started
 
-	// join() must return; if it blocks forever the test will time out
+	// join() must wait until the worker exits.
 	done := make(chan struct{})
 	go func() {
 		defer close(done)
@@ -389,7 +394,16 @@ func TestCheckForUpdatesAsync_JoinsGoroutine(t *testing.T) {
 
 	select {
 	case <-done:
-		// goroutine joined successfully
+		t.Fatal("join returned before worker exited")
+	case <-time.After(100 * time.Millisecond):
+		// join is correctly blocked waiting for worker completion
+	}
+
+	close(release)
+
+	select {
+	case <-done:
+		// goroutine joined successfully after worker exit
 	case <-time.After(2 * time.Second):
 		t.Fatal("join function did not return within 2 seconds")
 	}
