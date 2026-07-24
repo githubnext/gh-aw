@@ -597,37 +597,7 @@ func findCooledDownActionVersion(
 
 	currentVer := parseVersion(currentVersion)
 
-	type releaseCandidate struct {
-		tag     string
-		version *semverutil.SemanticVersion
-	}
-	var candidates []releaseCandidate
-	for _, release := range releases {
-		releaseVer := parseVersion(release)
-		if releaseVer == nil || releaseVer.Pre != "" {
-			continue
-		}
-		if !allowMajor && currentVer != nil && releaseVer.Major != currentVer.Major {
-			continue
-		}
-		// Only include releases that are upgrades relative to the current version.
-		if currentVer != nil && !releaseVer.IsNewer(currentVer) {
-			continue
-		}
-		candidates = append(candidates, releaseCandidate{tag: release, version: releaseVer})
-	}
-
-	// Sort descending (newest first).
-	slices.SortFunc(candidates, func(a, b releaseCandidate) int {
-		switch {
-		case a.version.IsNewer(b.version):
-			return -1
-		case b.version.IsNewer(a.version):
-			return 1
-		default:
-			return 0
-		}
-	})
+	candidates := newerReleaseCandidates(sortedCompatibleReleaseCandidates(releases, currentVer, allowMajor), currentVer)
 
 	for _, c := range candidates {
 		if skipTag != "" && c.tag == skipTag {

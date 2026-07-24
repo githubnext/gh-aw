@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -564,45 +563,14 @@ func resolveLatestReleaseWithDeps(ctx context.Context, deps workflowUpdateDeps, 
 	// Find all compatible non-prerelease releases.
 	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease
 	// of a higher base version could be incorrectly selected as the upgrade target.
-	type releaseCandidate struct {
-		tag     string
-		version *semverutil.SemanticVersion
-	}
-	var compatibleReleases []releaseCandidate
-	for _, release := range releases {
-		releaseVer := parseVersion(release)
-		if releaseVer == nil || releaseVer.Pre != "" {
-			continue
-		}
-		if !allowMajor && releaseVer.Major != currentVer.Major {
-			continue
-		}
-		compatibleReleases = append(compatibleReleases, releaseCandidate{tag: release, version: releaseVer})
-	}
+	compatibleReleases := sortedCompatibleReleaseCandidates(releases, currentVer, allowMajor)
 
 	if len(compatibleReleases) == 0 {
 		return "", errors.New("no compatible release found")
 	}
 
-	// Sort descending so the newest compatible release is first.
-	slices.SortFunc(compatibleReleases, func(a, b releaseCandidate) int {
-		switch {
-		case a.version.IsNewer(b.version):
-			return -1
-		case b.version.IsNewer(a.version):
-			return 1
-		default:
-			return 0
-		}
-	})
-
 	// Collect upgrade candidates: releases strictly newer than current.
-	var upgradeCandidates []releaseCandidate
-	for _, c := range compatibleReleases {
-		if c.version.IsNewer(currentVer) {
-			upgradeCandidates = append(upgradeCandidates, c)
-		}
-	}
+	upgradeCandidates := newerReleaseCandidates(compatibleReleases, currentVer)
 
 	// No upgrade available – already at the latest compatible release.
 	if len(upgradeCandidates) == 0 {
