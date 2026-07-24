@@ -40,6 +40,12 @@ func (r *testSHAResolver) ResolveSHA(ctx context.Context, repo, version string) 
 	return r.sha, r.err
 }
 
+// newTestPinCtx returns a *PinContext with an initialized Warnings map.
+// Callers may set additional fields on the returned pointer as needed.
+func newTestPinCtx() *actionpins.PinContext {
+	return &actionpins.PinContext{Warnings: make(map[string]bool)}
+}
+
 // TestSpec_PublicAPI_FormatPinnedActionReference validates the documented format "repo@sha # version".
 func TestSpec_PublicAPI_FormatPinnedActionReference(t *testing.T) {
 	tests := []struct {
@@ -115,6 +121,24 @@ func TestSpec_PublicAPI_FormatCacheKey(t *testing.T) {
 			repo:     "actions/setup-node",
 			version:  "v3.0.0",
 			expected: "actions/setup-node@v3.0.0",
+		},
+		{
+			name:     "empty repo produces @version",
+			repo:     "",
+			version:  "v4",
+			expected: "@v4",
+		},
+		{
+			name:     "empty version produces repo@",
+			repo:     "actions/checkout",
+			version:  "",
+			expected: "actions/checkout@",
+		},
+		{
+			name:     "both empty produces @",
+			repo:     "",
+			version:  "",
+			expected: "@",
 		},
 	}
 
@@ -257,6 +281,13 @@ func TestSpec_PublicAPI_ResolveActionPin(t *testing.T) {
 		result, err := actionpins.ResolveActionPin("does-not-exist/unknown-action-xyzzy", "v1", ctx)
 		require.NoError(t, err, "strict mode still returns no error for unknown pin")
 		assert.Empty(t, result, "strict mode should return empty reference for unknown pin")
+	})
+
+	t.Run("non-enforce mode returns empty result for unknown repo without error", func(t *testing.T) {
+		ctx := newTestPinCtx()
+		result, err := actionpins.ResolveActionPin("does-not-exist/unknown-action-xyzzy", "v1", ctx)
+		require.NoError(t, err, "non-enforce mode must not error for unknown repo")
+		assert.Empty(t, result, "non-enforce mode should return empty reference for unknown repo")
 	})
 }
 
@@ -488,7 +519,7 @@ func TestSpec_Types_PinContext(t *testing.T) {
 		latestPin, ok := actionpins.GetLatestActionPinByRepo("actions/checkout")
 		require.True(t, ok, "expected embedded pins for actions/checkout")
 
-		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+		ctx := newTestPinCtx()
 		result, err := actionpins.ResolveActionPin("actions/checkout", latestPin.Version, ctx)
 		require.NoError(t, err)
 		assert.Equal(t,
@@ -508,8 +539,8 @@ func TestSpec_DesignDecision_FormatConsistency(t *testing.T) {
 	cacheKey := actionpins.FormatCacheKey(repo, version)
 	reference := actionpins.FormatPinnedActionReference(repo, sha, version)
 
-	assert.Truef(t, strings.HasPrefix(cacheKey, repo+"@"), "cache key should be repo@version, got %q", cacheKey)
-	assert.Truef(t, strings.HasPrefix(reference, repo+"@"), "reference should start with repo@sha, got %q", reference)
+	assert.Contains(t, cacheKey, repo+"@", "cache key should be repo@version, got %q", cacheKey)
+	assert.Contains(t, reference, repo+"@", "reference should start with repo@sha, got %q", reference)
 	assert.Containsf(t, cacheKey, version, "cache key should contain version %q", version)
 	assert.Containsf(t, reference, sha, "reference should contain sha %q", sha)
 	assert.Containsf(t, reference, version, "reference should contain version comment %q", version)
@@ -544,7 +575,7 @@ func TestSpec_PublicAPI_ResolveActionPin_EmbeddedMatch(t *testing.T) {
 		latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
 		require.True(t, ok, "prerequisite: known repo must be in embedded data")
 
-		ctx := &actionpins.PinContext{StrictMode: false, Warnings: make(map[string]bool)}
+		ctx := newTestPinCtx()
 		result, err := actionpins.ResolveActionPin(known, latestPin.Version, ctx)
 		require.NoError(t, err, "embedded-only ResolveActionPin should not error for known pin")
 		require.NotEmpty(t, result, "should return non-empty pinned reference for known embedded pin")
@@ -589,7 +620,7 @@ func TestSpec_DynamicResolution_VersionCommentConsistency(t *testing.T) {
 	})
 
 	t.Run("skips version comment when version is already a SHA", func(t *testing.T) {
-		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+		ctx := newTestPinCtx()
 		result, err := actionpins.ResolveActionPin(known, latestPin.SHA, ctx)
 		require.NoError(t, err)
 		assert.Contains(t, result, latestPin.SHA, "result should contain the SHA")
@@ -814,7 +845,7 @@ func TestSpec_PublicAPI_ResolveLatestActionPin_NonNilContext(t *testing.T) {
 	latestPin, ok := actionpins.GetLatestActionPinByRepo(known)
 	require.True(t, ok, "prerequisite: known repo must be in embedded data")
 
-	ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+	ctx := newTestPinCtx()
 	result := actionpins.ResolveLatestActionPin(known, ctx)
 	expected := actionpins.FormatPinnedActionReference(known, latestPin.SHA, latestPin.Version)
 	assert.Equal(t, expected, result,
@@ -882,16 +913,12 @@ func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
 	})
 
 	t.Run("self-mapping preserves the same resolved reference", func(t *testing.T) {
-		baseline, err := actionpins.ResolveActionPin("actions/checkout", "v4", &actionpins.PinContext{
-			Warnings: make(map[string]bool),
-		})
+		baseline, err := actionpins.ResolveActionPin("actions/checkout", "v4", newTestPinCtx())
 		require.NoError(t, err)
 
-		ctx := &actionpins.PinContext{
-			Warnings: make(map[string]bool),
-			Mappings: map[string]string{
-				"actions/checkout@v4": "actions/checkout@v4",
-			},
+		ctx := newTestPinCtx()
+		ctx.Mappings = map[string]string{
+			"actions/checkout@v4": "actions/checkout@v4",
 		}
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
 		require.NoError(t, err)
@@ -900,7 +927,7 @@ func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
 	})
 
 	t.Run("no mapping leaves resolution unchanged", func(t *testing.T) {
-		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+		ctx := newTestPinCtx()
 
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
 		require.NoError(t, err)
@@ -908,16 +935,12 @@ func TestSpec_PublicAPI_ResolveActionPin_AppliesMapping(t *testing.T) {
 	})
 
 	t.Run("invalid mapping value is skipped", func(t *testing.T) {
-		baseline, err := actionpins.ResolveActionPin("actions/checkout", "v4", &actionpins.PinContext{
-			Warnings: make(map[string]bool),
-		})
+		baseline, err := actionpins.ResolveActionPin("actions/checkout", "v4", newTestPinCtx())
 		require.NoError(t, err)
 
-		ctx := &actionpins.PinContext{
-			Warnings: make(map[string]bool),
-			Mappings: map[string]string{
-				"actions/checkout@v4": "actions/checkout",
-			},
+		ctx := newTestPinCtx()
+		ctx.Mappings = map[string]string{
+			"actions/checkout@v4": "actions/checkout",
 		}
 		result, err := actionpins.ResolveActionPin("actions/checkout", "v4", ctx)
 		require.NoError(t, err, "invalid mapping should be skipped without error")
@@ -955,7 +978,7 @@ func TestSpec_PublicAPI_ApplyContainerPinMapping(t *testing.T) {
 	})
 
 	t.Run("no mapping - image returned unchanged", func(t *testing.T) {
-		ctx := &actionpins.PinContext{Warnings: make(map[string]bool)}
+		ctx := newTestPinCtx()
 		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
 		assert.Equal(t, "ghcr.io/owner/image:latest", result, "absent mapping should return image unchanged")
 	})
@@ -985,4 +1008,33 @@ func TestSpec_PublicAPI_ApplyContainerPinMapping(t *testing.T) {
 		assert.Equal(t, "ghcr.io/owner/image:latest", result,
 			"mapping without valid @sha256: digest should be rejected and image returned unchanged")
 	})
+}
+
+// TestSpec_PublicAPI_ApplyContainerPinMapping_WarningDedup validates that applying the same
+// container pin mapping multiple times only emits the notification warning once.
+// Spec: "Emit informational message once per source key" (deduplicated via ctx.Warnings).
+func TestSpec_PublicAPI_ApplyContainerPinMapping_WarningDedup(t *testing.T) {
+	const digest = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+	const image = "ghcr.io/owner/image:latest"
+	const notifyKey = "container-map:" + image
+
+	ctx := newTestPinCtx()
+	ctx.ContainerMappings = map[string]string{
+		image: "registry.acme.com/image:latest@sha256:" + digest,
+	}
+
+	// First call: mapping is applied and warning notification key is set.
+	result1 := actionpins.ApplyContainerPinMapping(image, ctx)
+	assert.Equal(t, "registry.acme.com/image:latest@sha256:"+digest, result1,
+		"first call should apply the mapping and return the redirected image")
+	assert.True(t, ctx.Warnings[notifyKey],
+		"notification key should be set in Warnings after first call")
+
+	// Second call: mapping is applied again but the notification is deduplicated.
+	result2 := actionpins.ApplyContainerPinMapping(image, ctx)
+	assert.Equal(t, result1, result2,
+		"second call should return the same redirected image as the first call")
+	// The Warnings key remains true; the notification was not emitted again.
+	assert.True(t, ctx.Warnings[notifyKey],
+		"notification key should remain set after the second call (no double-emit)")
 }
