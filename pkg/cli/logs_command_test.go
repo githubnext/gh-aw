@@ -87,6 +87,7 @@ func TestNewLogsCommand(t *testing.T) {
 	assert.NotNil(t, cacheBeforeFlag, "Should have 'cache-before' flag")
 	assert.Contains(t, cacheBeforeFlag.Usage, "-1d", "cache-before flag should document day deltas")
 	assert.Contains(t, cacheBeforeFlag.Usage, "-30d", "cache-before flag should document explicit day-count deltas")
+	assert.NotContains(t, cacheBeforeFlag.Usage, "(Cache eviction)", "cache-before flag usage should avoid one-off parenthetical prefixes")
 
 	// Backward-compatible alias should remain registered but hidden from help output
 	afterAliasFlag := flags.Lookup("after")
