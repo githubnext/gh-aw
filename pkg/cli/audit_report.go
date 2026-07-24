@@ -698,168 +698,189 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 
 	const maxMessageLen = 1500
 
-	// Look for step log files in workflow-logs subdirectory
 	workflowLogsDir := filepath.Join(logsPath, "workflow-logs")
 	if _, err := os.Stat(workflowLogsDir); err != nil {
 		auditReportLog.Printf("workflow-logs directory not found, skipping step log extraction")
-		// Even without workflow-logs, fall back to agent-stdio.log if the agent ran.
-		if agentRan {
-			if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
-				return []ErrorInfo{{
-					Type:    "agent_failure",
-					File:    "agent-stdio.log",
-					Message: agentExcerpt,
-				}}
-			}
+		if agentError := extractAgentFailureError(agentRan, agentStdioPath, maxMessageLen); len(agentError) > 0 {
+			return agentError
 		}
 		return nil
 	}
 
-	// Scan all job step log files in a single pass, collecting both ##[error] annotations
-	// and tracking the last step for fallback use.
-	// GitHub Actions log zip structure: {job_name}/{step_num}_{step_name}.txt
-	type stepLog struct {
-		path    string
-		num     int
-		stepKey string // job/step_name for display
+	errorAnnotations, lastStep := scanWorkflowStepLogs(workflowLogsDir, maxMessageLen)
+	if len(errorAnnotations) > 0 {
+		return errorAnnotations
+	}
+
+	if agentError := extractAgentFailureError(agentRan, agentStdioPath, maxMessageLen); len(agentError) > 0 {
+		return agentError
+	}
+
+	return extractLastStepFallbackError(lastStep, maxMessageLen)
+}
+
+type stepLog struct {
+	path    string
+	num     int
+	stepKey string
+}
+
+func scanWorkflowStepLogs(workflowLogsDir string, maxMessageLen int) ([]ErrorInfo, *stepLog) {
+	jobDirs, err := os.ReadDir(workflowLogsDir)
+	if err != nil {
+		return nil, nil
 	}
 
 	var lastStep *stepLog
 	var errorAnnotations []ErrorInfo
 
-	jobDirs, err := os.ReadDir(workflowLogsDir)
-	if err != nil {
-		return nil
-	}
-
 	for _, jobEntry := range jobDirs {
 		if !jobEntry.IsDir() {
-			// Handle flat job-level log files (e.g., 3_activation.txt).
-			// GitHub Actions log zips may place per-job log files directly at the root of
-			// the zip (flat format) rather than in per-job subdirectories (hierarchical format).
-			if !strings.HasSuffix(jobEntry.Name(), ".txt") {
-				continue
-			}
-			num, jobName := parseStepFilename(jobEntry.Name())
-			if num <= 0 {
-				continue
-			}
-			flatFilePath := filepath.Join(workflowLogsDir, jobEntry.Name())
-
-			// Track the last flat job log (highest number) for fallback
-			if lastStep == nil || num > lastStep.num {
-				lastStep = &stepLog{
-					path:    flatFilePath,
-					num:     num,
-					stepKey: jobName,
-				}
-			}
-
-			// Scan this flat job log for ##[error] annotations
-			content, err := os.ReadFile(flatFilePath)
-			if err != nil {
-				auditReportLog.Printf("Failed to read job log %s: %v", flatFilePath, err)
-				continue
-			}
-
-			var errorLines []string
-			for line := range strings.SplitSeq(string(content), "\n") {
-				if strings.Contains(line, "##[error]") {
-					stripped := stripGHALogTimestamps(line)
-					if stripped != "" {
-						errorLines = append(errorLines, stripped)
-					}
-				}
-			}
-
-			if len(errorLines) > 0 {
-				message := strings.Join(errorLines, "\n")
-				message = stringutil.Truncate(message, maxMessageLen)
-				auditReportLog.Printf("Extracted ##[error] annotations from flat job log %s (job %d)", jobName, num)
-				errorAnnotations = append(errorAnnotations, ErrorInfo{
-					Type:    "step_failure",
-					File:    jobName,
-					Message: message,
-				})
-			}
+			lastStep, errorAnnotations = scanFlatStepLog(
+				workflowLogsDir,
+				jobEntry.Name(),
+				lastStep,
+				errorAnnotations,
+				maxMessageLen,
+			)
 			continue
 		}
-		jobDir := filepath.Join(workflowLogsDir, jobEntry.Name())
-		stepFiles, err := os.ReadDir(jobDir)
-		if err != nil {
-			continue
-		}
-		for _, stepFile := range stepFiles {
-			if stepFile.IsDir() || !strings.HasSuffix(stepFile.Name(), ".txt") {
-				continue
-			}
-			num, stepName := parseStepFilename(stepFile.Name())
-			if num <= 0 {
-				continue
-			}
-			stepFilePath := filepath.Join(jobDir, stepFile.Name())
-			stepKey := jobEntry.Name() + "/" + stepName
-
-			// Track the last step (highest step number) for fallback
-			if lastStep == nil || num > lastStep.num {
-				lastStep = &stepLog{
-					path:    stepFilePath,
-					num:     num,
-					stepKey: stepKey,
-				}
-			}
-
-			// Scan this step for ##[error] annotations
-			content, err := os.ReadFile(stepFilePath)
-			if err != nil {
-				auditReportLog.Printf("Failed to read step log %s: %v", stepFilePath, err)
-				continue
-			}
-
-			var errorLines []string
-			for line := range strings.SplitSeq(string(content), "\n") {
-				if strings.Contains(line, "##[error]") {
-					stripped := stripGHALogTimestamps(line)
-					if stripped != "" {
-						errorLines = append(errorLines, stripped)
-					}
-				}
-			}
-
-			if len(errorLines) > 0 {
-				message := strings.Join(errorLines, "\n")
-				message = stringutil.Truncate(message, maxMessageLen)
-				auditReportLog.Printf("Extracted ##[error] annotations from %s (step %d)", stepKey, num)
-				errorAnnotations = append(errorAnnotations, ErrorInfo{
-					Type:    "step_failure",
-					File:    stepKey,
-					Message: message,
-				})
-			}
-		}
+		lastStep, errorAnnotations = scanNestedStepLogs(
+			workflowLogsDir,
+			jobEntry.Name(),
+			lastStep,
+			errorAnnotations,
+			maxMessageLen,
+		)
 	}
 
-	// Prefer ##[error] annotations over generic last-step content
-	if len(errorAnnotations) > 0 {
+	return errorAnnotations, lastStep
+}
+
+func scanFlatStepLog(
+	workflowLogsDir, filename string,
+	lastStep *stepLog,
+	errorAnnotations []ErrorInfo,
+	maxMessageLen int,
+) (*stepLog, []ErrorInfo) {
+	if !strings.HasSuffix(filename, ".txt") {
+		return lastStep, errorAnnotations
+	}
+	num, jobName := parseStepFilename(filename)
+	if num <= 0 {
+		return lastStep, errorAnnotations
+	}
+
+	flatFilePath := filepath.Join(workflowLogsDir, filename)
+	lastStep = updateLastStep(lastStep, flatFilePath, num, jobName)
+	errorAnnotations = appendErrorAnnotation(errorAnnotations, flatFilePath, jobName, num, maxMessageLen, true)
+	return lastStep, errorAnnotations
+}
+
+func scanNestedStepLogs(
+	workflowLogsDir, jobName string,
+	lastStep *stepLog,
+	errorAnnotations []ErrorInfo,
+	maxMessageLen int,
+) (*stepLog, []ErrorInfo) {
+	jobDir := filepath.Join(workflowLogsDir, jobName)
+	stepFiles, err := os.ReadDir(jobDir)
+	if err != nil {
+		return lastStep, errorAnnotations
+	}
+
+	for _, stepFile := range stepFiles {
+		if stepFile.IsDir() || !strings.HasSuffix(stepFile.Name(), ".txt") {
+			continue
+		}
+		num, stepName := parseStepFilename(stepFile.Name())
+		if num <= 0 {
+			continue
+		}
+
+		stepFilePath := filepath.Join(jobDir, stepFile.Name())
+		stepKey := jobName + "/" + stepName
+		lastStep = updateLastStep(lastStep, stepFilePath, num, stepKey)
+		errorAnnotations = appendErrorAnnotation(errorAnnotations, stepFilePath, stepKey, num, maxMessageLen, false)
+	}
+
+	return lastStep, errorAnnotations
+}
+
+func updateLastStep(lastStep *stepLog, path string, num int, stepKey string) *stepLog {
+	if lastStep == nil || num > lastStep.num {
+		return &stepLog{
+			path:    path,
+			num:     num,
+			stepKey: stepKey,
+		}
+	}
+	return lastStep
+}
+
+func appendErrorAnnotation(
+	errorAnnotations []ErrorInfo,
+	filePath, stepKey string,
+	num int,
+	maxMessageLen int,
+	flat bool,
+) []ErrorInfo {
+	errorLines := extractGHErrorLines(filePath)
+	if len(errorLines) == 0 {
 		return errorAnnotations
 	}
 
-	// If the agent executed but no ##[error] annotations were present in workflow-logs,
-	// extract a concise excerpt from agent-stdio.log instead of returning a generic message.
-	if agentRan {
-		if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
-			return []ErrorInfo{{
-				Type:    "agent_failure",
-				File:    "agent-stdio.log",
-				Message: agentExcerpt,
-			}}
-		}
+	message := stringutil.Truncate(strings.Join(errorLines, "\n"), maxMessageLen)
+	if flat {
+		auditReportLog.Printf("Extracted ##[error] annotations from flat job log %s (job %d)", stepKey, num)
+	} else {
+		auditReportLog.Printf("Extracted ##[error] annotations from %s (step %d)", stepKey, num)
+	}
+
+	return append(errorAnnotations, ErrorInfo{
+		Type:    "step_failure",
+		File:    stepKey,
+		Message: message,
+	})
+}
+
+func extractGHErrorLines(filePath string) []string {
+	content, err := os.ReadFile(filePath)
+	if err != nil {
+		auditReportLog.Printf("Failed to read step log %s: %v", filePath, err)
 		return nil
 	}
 
-	// Fallback: return the content of the last step that ran
+	var errorLines []string
+	for line := range strings.SplitSeq(string(content), "\n") {
+		if strings.Contains(line, "##[error]") {
+			stripped := stripGHALogTimestamps(line)
+			if stripped != "" {
+				errorLines = append(errorLines, stripped)
+			}
+		}
+	}
+
+	return errorLines
+}
+
+func extractAgentFailureError(agentRan bool, agentStdioPath string, maxMessageLen int) []ErrorInfo {
+	if !agentRan {
+		return nil
+	}
+	if agentExcerpt := extractAgentStdioFailureExcerpt(agentStdioPath, maxMessageLen); agentExcerpt != "" {
+		return []ErrorInfo{{
+			Type:    "agent_failure",
+			File:    "agent-stdio.log",
+			Message: agentExcerpt,
+		}}
+	}
+	return nil
+}
+
+func extractLastStepFallbackError(lastStep *stepLog, maxMessageLen int) []ErrorInfo {
 	if lastStep == nil {
-		auditReportLog.Printf("No step log files found in %s", workflowLogsDir)
+		auditReportLog.Printf("No step log files found for fallback extraction")
 		return nil
 	}
 
@@ -914,6 +935,24 @@ func extractAgentStdioFailureExcerpt(agentStdioPath string, maxMessageLen int) s
 	}
 
 	lines := strings.Split(stripGHALogTimestamps(string(tail)), "\n")
+	nonEmpty, errorLike := classifyAgentStdioLines(lines)
+
+	if len(errorLike) > 0 {
+		const maxErrorLines = 5
+		start := max(0, len(errorLike)-maxErrorLines)
+		return stringutil.Truncate(strings.Join(errorLike[start:], "\n"), maxMessageLen)
+	}
+
+	if len(nonEmpty) == 0 {
+		return ""
+	}
+
+	const maxTailLines = 10
+	start := max(0, len(nonEmpty)-maxTailLines)
+	return stringutil.Truncate(strings.Join(nonEmpty[start:], "\n"), maxMessageLen)
+}
+
+func classifyAgentStdioLines(lines []string) ([]string, []string) {
 	nonEmpty := make([]string, 0, len(lines))
 	errorLike := make([]string, 0, len(lines))
 
@@ -933,19 +972,7 @@ func extractAgentStdioFailureExcerpt(agentStdioPath string, maxMessageLen int) s
 		}
 	}
 
-	if len(errorLike) > 0 {
-		const maxErrorLines = 5
-		start := max(0, len(errorLike)-maxErrorLines)
-		return stringutil.Truncate(strings.Join(errorLike[start:], "\n"), maxMessageLen)
-	}
-
-	if len(nonEmpty) == 0 {
-		return ""
-	}
-
-	const maxTailLines = 10
-	start := max(0, len(nonEmpty)-maxTailLines)
-	return stringutil.Truncate(strings.Join(nonEmpty[start:], "\n"), maxMessageLen)
+	return nonEmpty, errorLike
 }
 
 // parseStepFilename extracts the step number and name from a GitHub Actions step log
