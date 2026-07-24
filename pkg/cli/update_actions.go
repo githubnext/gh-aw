@@ -597,7 +597,8 @@ func findCooledDownActionVersion(
 
 	currentVer := parseVersion(currentVersion)
 
-	candidates := newerReleaseCandidates(sortedCompatibleReleaseCandidates(releases, currentVer, allowMajor), currentVer)
+	compatibleReleases := sortedCompatibleReleaseCandidates(releases, currentVer, allowMajor)
+	candidates := newerReleaseCandidates(compatibleReleases, currentVer)
 
 	for _, c := range candidates {
 		if skipTag != "" && c.tag == skipTag {
