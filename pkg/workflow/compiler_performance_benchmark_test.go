@@ -129,6 +129,7 @@ permissions:
   contents: read
   pull-requests: read
   actions: read
+  issues: read
 engine: copilot
 tools:
   github:
@@ -159,7 +160,9 @@ Review and test the pull request with multiple tools.
 	compiler.SetApprove(true)
 
 	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
-	_ = compiler.CompileWorkflow(testFile)
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		b.Fatalf("warm-up compile failed: %v", err)
+	}
 
 	b.ResetTimer()
 	b.ReportAllocs()

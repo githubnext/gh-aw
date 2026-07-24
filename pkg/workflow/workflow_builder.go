@@ -197,6 +197,10 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ModelPolicyBlocked = disallowedModels
 	}
 
+	if pricing := extractDefaultAiCreditsPricingFromModels(result.Frontmatter); pricing != nil {
+		workflowData.DefaultAiCreditsPricing = pricing
+	}
+
 	// Populate explicitly excluded env var names: union of imported workflows' excluded-env
 	// and the main workflow's excluded-env. Deduplicate and sort for stability.
 	var mainExcludedEnv []string
@@ -399,6 +403,56 @@ func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatt
 		return nil
 	}
 	return mainPolicy
+}
+
+// toFloat64 converts any numeric value from a parsed YAML/JSON frontmatter map to float64.
+// Returns (value, true) on success, or (0, false) if the value is nil or not a numeric type.
+func toFloat64(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case uint:
+		return float64(n), true
+	case uint32:
+		return float64(n), true
+	case uint64:
+		return float64(n), true
+	default:
+		return 0, false
+	}
+}
+
+// extractDefaultAiCreditsPricingFromModels returns the fallback AI credits pricing configured
+// under models.default-ai-credits-pricing in the workflow frontmatter, or nil if absent.
+func extractDefaultAiCreditsPricingFromModels(frontmatter map[string]any) *AiCreditsPricingConfig {
+	modelsMap, ok := frontmatter["models"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	pricingVal, hasPricing := modelsMap["default-ai-credits-pricing"]
+	if !hasPricing {
+		return nil
+	}
+	pricingObj, ok := pricingVal.(map[string]any)
+	if !ok {
+		return nil
+	}
+	var input, output float64
+	if v, ok := toFloat64(pricingObj["input"]); ok {
+		input = v
+	}
+	if v, ok := toFloat64(pricingObj["output"]); ok {
+		output = v
+	}
+	return &AiCreditsPricingConfig{Input: input, Output: output}
 }
 
 func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy map[string][]string) ([]string, []string) {

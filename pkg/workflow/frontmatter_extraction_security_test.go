@@ -187,6 +187,83 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	})
 }
 
+func TestExtractDefaultAiCreditsPricingFromModels(t *testing.T) {
+	t.Run("extracts zero pricing for self-hosted BYOK model", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  float64(0),
+					"output": float64(0),
+				},
+			},
+		}
+
+		pricing := extractDefaultAiCreditsPricingFromModels(frontmatter)
+		require.NotNil(t, pricing, "Should extract default-ai-credits-pricing")
+		assert.InDelta(t, 0.0, pricing.Input, 1e-9, "Input should be 0")
+		assert.InDelta(t, 0.0, pricing.Output, 1e-9, "Output should be 0")
+	})
+
+	t.Run("extracts non-zero pricing", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  float64(3.0),
+					"output": float64(15.0),
+				},
+			},
+		}
+
+		pricing := extractDefaultAiCreditsPricingFromModels(frontmatter)
+		require.NotNil(t, pricing, "Should extract default-ai-credits-pricing")
+		assert.InDelta(t, 3.0, pricing.Input, 1e-9, "Input should be 3.0")
+		assert.InDelta(t, 15.0, pricing.Output, 1e-9, "Output should be 15.0")
+	})
+
+	t.Run("default-ai-credits-pricing is nil when absent", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"models": map[string]any{},
+		}
+
+		pricing := extractDefaultAiCreditsPricingFromModels(frontmatter)
+		assert.Nil(t, pricing, "Should be nil when default-ai-credits-pricing is absent")
+	})
+
+	t.Run("default-ai-credits-pricing is nil when models is absent", func(t *testing.T) {
+		frontmatter := map[string]any{}
+
+		pricing := extractDefaultAiCreditsPricingFromModels(frontmatter)
+		assert.Nil(t, pricing, "Should be nil when models is absent")
+	})
+
+	t.Run("default-ai-credits-pricing is nil when value is not an object", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"models": map[string]any{
+				"default-ai-credits-pricing": "not-an-object",
+			},
+		}
+
+		pricing := extractDefaultAiCreditsPricingFromModels(frontmatter)
+		assert.Nil(t, pricing, "Should be nil for non-object value")
+	})
+
+	t.Run("extracts integer pricing values via toFloat64", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  int(2),
+					"output": int(10),
+				},
+			},
+		}
+
+		pricing := extractDefaultAiCreditsPricingFromModels(frontmatter)
+		require.NotNil(t, pricing, "Should extract default-ai-credits-pricing")
+		assert.InDelta(t, 2.0, pricing.Input, 1e-9, "Input should be 2")
+		assert.InDelta(t, 10.0, pricing.Output, 1e-9, "Output should be 10")
+	})
+}
+
 // TestExtractMCPGatewayConfigPayloadFields tests extraction of payload-related fields
 // from MCP gateway frontmatter configuration
 func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {

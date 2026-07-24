@@ -40,7 +40,7 @@ safe-outputs:
 timeout-minutes: 15
 steps:
   - name: Checkout repository
-    uses: actions/checkout@v7.0.0
+    uses: actions/checkout@v7.0.1
     with:
       persist-credentials: false
 

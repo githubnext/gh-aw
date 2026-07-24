@@ -249,6 +249,11 @@ type AWFAPIProxyConfig struct {
 	// ModelMultipliers configures per-model ET accounting multipliers in AWF.
 	ModelMultipliers map[string]float64 `json:"modelMultipliers,omitempty"`
 
+	// DefaultAiCreditsPricing is the fallback per-token pricing ($/1M tokens) for
+	// models not in the AWF built-in pricing table. When maxAiCredits is active and
+	// a model is unrecognized, this rate is used instead of rejecting with HTTP 400.
+	DefaultAiCreditsPricing *AWFDefaultAiCreditsPricingConfig `json:"defaultAiCreditsPricing,omitempty"`
+
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
 	// The "gemini" target is also used for Antigravity engine routing.
@@ -274,6 +279,17 @@ type AWFModelFallbackConfig struct {
 	// It accepts literal booleans and GitHub Actions expressions. A nil value omits the field,
 	// letting AWF use its default.
 	Enabled *TemplatableBool `json:"enabled,omitempty"`
+}
+
+// AWFDefaultAiCreditsPricingConfig is the "apiProxy.defaultAiCreditsPricing" section of the AWF config file.
+// It provides fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table.
+// When maxAiCredits is active and a model is unrecognized, this rate is used instead of
+// rejecting with HTTP 400 (unknown_model_ai_credits). Required for BYOK/self-hosted models.
+type AWFDefaultAiCreditsPricingConfig struct {
+	// Input is the input token price per 1M tokens in dollars.
+	Input float64 `json:"input"`
+	// Output is the output token price per 1M tokens in dollars.
+	Output float64 `json:"output"`
 }
 
 // AWFAPITargetConfig is a single API proxy target entry.
@@ -502,6 +518,11 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			enabledDisplay = mf.Enabled.String()
 		}
 		awfConfigLog.Printf("API proxy: modelFallback configured: enabled=%s", enabledDisplay)
+	}
+
+	if pricing := extractDefaultAiCreditsPricing(config.WorkflowData); pricing != nil {
+		apiProxy.DefaultAiCreditsPricing = pricing
+		awfConfigLog.Printf("API proxy: defaultAiCreditsPricing configured: input=%g, output=%g", pricing.Input, pricing.Output)
 	}
 
 	targets := map[string]*AWFAPITargetConfig{}
@@ -790,6 +811,24 @@ func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 	}
 	return &AWFModelFallbackConfig{
 		Enabled: mf,
+	}
+}
+
+// extractDefaultAiCreditsPricing returns an AWFDefaultAiCreditsPricingConfig if the workflow has
+// configured models.default-ai-credits-pricing, or nil if the field is absent.
+// This fallback pricing is used when maxAiCredits is active and the requested model is not in
+// the built-in pricing table, preventing HTTP 400 unknown_model_ai_credits for BYOK/self-hosted models.
+func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AWFDefaultAiCreditsPricingConfig {
+	if workflowData == nil {
+		return nil
+	}
+	p := workflowData.DefaultAiCreditsPricing
+	if p == nil {
+		return nil
+	}
+	return &AWFDefaultAiCreditsPricingConfig{
+		Input:  p.Input,
+		Output: p.Output,
 	}
 }
 

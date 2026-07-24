@@ -82,6 +82,16 @@ type AgentSandboxConfig struct {
 	Targets               map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`        // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
 }
 
+// AiCreditsPricingConfig holds per-token pricing rates ($/1M tokens) used as a fallback
+// for models not in the AWF built-in pricing table. Maps to apiProxy.defaultAiCreditsPricing
+// in the AWF config file. Required when maxAiCredits is active and the model is unrecognized.
+type AiCreditsPricingConfig struct {
+	// Input is the input token price per 1M tokens in dollars.
+	Input float64 `yaml:"input"`
+	// Output is the output token price per 1M tokens in dollars.
+	Output float64 `yaml:"output"`
+}
+
 // AgentAPIProxyTargetConfig configures a single LLM provider's API proxy target.
 type AgentAPIProxyTargetConfig struct {
 	// AuthHeader is the custom authentication header name sent with API requests.
