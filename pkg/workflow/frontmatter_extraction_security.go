@@ -4,6 +4,31 @@ import "github.com/github/gh-aw/pkg/logger"
 
 var frontmatterExtractionSecurityLog = logger.New("workflow:frontmatter_extraction_security")
 
+// toFloat64 converts any numeric value from a parsed YAML/JSON frontmatter map to float64.
+// Returns (value, true) on success, or (0, false) if the value is nil or not a numeric type.
+func toFloat64(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case uint:
+		return float64(n), true
+	case uint32:
+		return float64(n), true
+	case uint64:
+		return float64(n), true
+	default:
+		return 0, false
+	}
+}
+
 // extractNetworkPermissions extracts network permissions from frontmatter
 func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *NetworkPermissions {
 	frontmatterExtractionSecurityLog.Print("Extracting network permissions from frontmatter")
@@ -298,6 +323,24 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 				agentConfig.ModelFallback = &value
 				frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.model-fallback")
 			}
+		}
+	}
+
+	// Extract default-ai-credits-pricing (fallback pricing for unrecognized models)
+	if pricingVal, hasPricing := agentObj["default-ai-credits-pricing"]; hasPricing {
+		if pricingObj, ok := pricingVal.(map[string]any); ok {
+			var input, output float64
+			if v, ok := toFloat64(pricingObj["input"]); ok {
+				input = v
+			}
+			if v, ok := toFloat64(pricingObj["output"]); ok {
+				output = v
+			}
+			agentConfig.DefaultAiCreditsPricing = &AiCreditsPricingConfig{
+				Input:  input,
+				Output: output,
+			}
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.default-ai-credits-pricing: input=%g output=%g", input, output)
 		}
 	}
 

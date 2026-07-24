@@ -93,6 +93,9 @@ features:
 sandbox:
   agent:
     sudo: false
+    default-ai-credits-pricing:
+      input: 0
+      output: 0
 ---
 
 ### Daily BYOK Endpoint Test

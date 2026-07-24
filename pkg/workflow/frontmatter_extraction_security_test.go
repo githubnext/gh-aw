@@ -187,6 +187,79 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigDefaultAiCreditsPricing(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts zero pricing for self-hosted BYOK model", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+			"default-ai-credits-pricing": map[string]any{
+				"input":  float64(0),
+				"output": float64(0),
+			},
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		require.NotNil(t, config.DefaultAiCreditsPricing, "Should extract default-ai-credits-pricing")
+		assert.InDelta(t, 0.0, config.DefaultAiCreditsPricing.Input, 1e-9, "Input should be 0")
+		assert.InDelta(t, 0.0, config.DefaultAiCreditsPricing.Output, 1e-9, "Output should be 0")
+	})
+
+	t.Run("extracts non-zero pricing", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+			"default-ai-credits-pricing": map[string]any{
+				"input":  float64(3.0),
+				"output": float64(15.0),
+			},
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		require.NotNil(t, config.DefaultAiCreditsPricing, "Should extract default-ai-credits-pricing")
+		assert.InDelta(t, 3.0, config.DefaultAiCreditsPricing.Input, 1e-9, "Input should be 3.0")
+		assert.InDelta(t, 15.0, config.DefaultAiCreditsPricing.Output, 1e-9, "Output should be 15.0")
+	})
+
+	t.Run("default-ai-credits-pricing is nil when absent", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Nil(t, config.DefaultAiCreditsPricing, "DefaultAiCreditsPricing should be nil when not configured")
+	})
+
+	t.Run("default-ai-credits-pricing is nil when value is not an object", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":                         "awf",
+			"default-ai-credits-pricing": "not-an-object",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Nil(t, config.DefaultAiCreditsPricing, "DefaultAiCreditsPricing should be nil for non-object value")
+	})
+
+	t.Run("extracts integer pricing values via toFloat64", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+			"default-ai-credits-pricing": map[string]any{
+				"input":  int(2),
+				"output": int(10),
+			},
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		require.NotNil(t, config.DefaultAiCreditsPricing, "Should extract default-ai-credits-pricing")
+		assert.InDelta(t, 2.0, config.DefaultAiCreditsPricing.Input, 1e-9, "Input should be 2")
+		assert.InDelta(t, 10.0, config.DefaultAiCreditsPricing.Output, 1e-9, "Output should be 10")
+	})
+}
+
 // TestExtractMCPGatewayConfigPayloadFields tests extraction of payload-related fields
 // from MCP gateway frontmatter configuration
 func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {
