@@ -17,10 +17,18 @@ describe("no-child-process-interpolated-command", () => {
         { code: `const cp = require("child_process"); cp.execSync(\`git status\`);` },
         { code: `const cp = require("child_process"); cp.spawn("git", ["status"]);` },
         { code: `const { spawn } = require("child_process"); spawn(\`git \${branch}\`, ["status"]);` },
+        { code: `const { spawnSync } = require("child_process"); const cmd = \`git checkout \${branch}\`; spawnSync(cmd);` },
         { code: `const { execFileSync } = require("child_process"); execFileSync("git", ["status"], { shell: false });` },
+        { code: `const { execSync } = require("child_process"); const cmd = "git status"; execSync(cmd);` },
+        { code: `const { execSync } = require("child_process"); let cmd = \`git checkout \${branch}\`; cmd = "git status"; execSync(cmd);` },
+        { code: `const { execSync } = require("child_process"); (function(cmd) { execSync(cmd); })("git status");` },
         { code: `exec.exec(\`git checkout \${branch}\`, []);` },
         {
           code: `import { exec } from "node:child_process"; exec("git status");`,
+          languageOptions: { sourceType: "module" },
+        },
+        {
+          code: `import { execSync } from "child_process"; import { cmd } from "./cmd"; execSync(cmd);`,
           languageOptions: { sourceType: "module" },
         },
       ],
@@ -28,6 +36,14 @@ describe("no-child-process-interpolated-command", () => {
         {
           code: `const { execSync } = require("child_process"); execSync(\`git checkout \${branch}\`);`,
           errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        {
+          code: `function run(x) { const { execSync } = require("child_process"); const cmd = \`git log --author=\${x}\`; execSync(cmd); }`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        {
+          code: `function run(x) { const { execSync } = require("child_process"); const cmd = "git " + x; execSync(cmd); }`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "execSync" } }],
         },
         {
           code: `const cp = require("child_process"); const run = cp.execSync; run("git checkout " + branch);`,
