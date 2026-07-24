@@ -14,6 +14,8 @@ on:
       - 'actions/setup/**'
       - '.github/workflows/ci.yml'
       - '.github/workflows/*.md'
+      - '.github/workflows/*.lock.yml'
+      - '.github/aw/actions-lock.json'
       - '.github/aw/releases.json'
       - '.github/aw/releases.schema.json'
       - '.github/aw/compat.json'
@@ -39,6 +41,99 @@ jobs:
       run: "if [ \"${{ github.event_name }}\" != \"schedule\" ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Non-scheduled run: integration tests enabled\" >> \"$GITHUB_STEP_SUMMARY\"\n  exit 0\nfi\n\nCHANGES_IN_LAST_HOUR=$(git log --since='1 hour ago' --pretty=format:'%H' | wc -l | tr -d ' ')\nif [ \"$CHANGES_IN_LAST_HOUR\" -gt 0 ]; then\n  echo \"has_changes=true\" >> \"$GITHUB_OUTPUT\"\n  echo \"✅ Detected $CHANGES_IN_LAST_HOUR commit(s) in the last hour\" >> \"$GITHUB_STEP_SUMMARY\"\nelse\n  echo \"has_changes=false\" >> \"$GITHUB_OUTPUT\"\n  echo \"ℹ️ No commits in the last hour; skipping integration jobs\" >> \"$GITHUB_STEP_SUMMARY\"\nfi"
     outputs:
       has_changes: ${{ steps.detect.outputs.has_changes }}
+  validate-container-pins:
+    name: Validate workflow container pins
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      with:
+        persist-credentials: false
+    - name: Check container images against actions pins
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        pins_file=".github/aw/actions-lock.json"
+        if [ ! -f "$pins_file" ]; then
+          echo "actions pins file not found: $pins_file"
+          exit 1
+        fi
+
+        if ! jq -e '.containers and (.containers | type == "object")' "$pins_file" >/dev/null; then
+          echo "actions pins file must include a containers object: $pins_file"
+          exit 1
+        fi
+
+        invalid_pin_entries=$(
+          jq -r '
+            .containers
+            | to_entries[]
+            | select((.value.image + "@" + .value.digest) != .value.pinned_image)
+            | .key
+          ' "$pins_file"
+        )
+        if [ -n "$invalid_pin_entries" ]; then
+          echo "invalid pinned_image values in actions pins file:"
+          echo "$invalid_pin_entries"
+          exit 1
+        fi
+
+        failures=0
+        checked_files=0
+        checked_images=0
+
+        while IFS= read -r lock_file; do
+          manifest_json="$(sed -n 's/^# gh-aw-manifest: //p' "$lock_file" | head -n 1)"
+          if [ -z "$manifest_json" ]; then
+            continue
+          fi
+
+          checked_files=$((checked_files + 1))
+          while IFS= read -r container; do
+            image="$(jq -r '.image' <<<"$container")"
+            digest="$(jq -r '.digest' <<<"$container")"
+            pinned_image="$(jq -r '.pinned_image' <<<"$container")"
+            expected_digest="$(jq -r --arg image "$image" '.containers[$image].digest // empty' "$pins_file")"
+
+            checked_images=$((checked_images + 1))
+            if [ -z "$expected_digest" ]; then
+              echo "missing container entry in actions pins for $image (file: $lock_file)"
+              failures=1
+              continue
+            fi
+
+            if [ "$digest" != "$expected_digest" ]; then
+              echo "digest mismatch for $image in $lock_file"
+              echo "  expected: $expected_digest"
+              echo "  actual:   $digest"
+              failures=1
+            fi
+
+            expected_pinned_image="${image}@${expected_digest}"
+            if [ "$pinned_image" != "$expected_pinned_image" ]; then
+              echo "pinned image mismatch for $image in $lock_file"
+              echo "  expected: $expected_pinned_image"
+              echo "  actual:   $pinned_image"
+              failures=1
+            fi
+          done < <(jq -c '.containers // [] | .[]' <<<"$manifest_json")
+        done < <(find .github/workflows -maxdepth 1 -name '*.lock.yml' -print | sort)
+
+        if [ "$checked_files" -eq 0 ]; then
+          echo "no lock workflows with gh-aw manifest were found"
+          exit 1
+        fi
+
+        if [ "$failures" -ne 0 ]; then
+          echo "container pin validation failed"
+          exit 1
+        fi
+
+        echo "validated $checked_images container pins across $checked_files workflow lock files"
   integration:
     name: "Integration: ${{ matrix.test-group.name }}"
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
