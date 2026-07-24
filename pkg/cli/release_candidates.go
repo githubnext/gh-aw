@@ -11,6 +11,9 @@ type releaseCandidate struct {
 	version *semverutil.SemanticVersion
 }
 
+// sortedCompatibleReleaseCandidates filters tags to stable semantic versions,
+// applies the major-version compatibility rule, and returns candidates sorted
+// newest-first.
 func sortedCompatibleReleaseCandidates(releases []string, currentVer *semverutil.SemanticVersion, allowMajor bool) []releaseCandidate {
 	var compatibleReleases []releaseCandidate
 	for _, release := range releases {
@@ -38,6 +41,8 @@ func sortedCompatibleReleaseCandidates(releases []string, currentVer *semverutil
 	return compatibleReleases
 }
 
+// newerReleaseCandidates keeps only candidates newer than currentVer. When
+// currentVer is nil, all candidates are returned unchanged.
 func newerReleaseCandidates(candidates []releaseCandidate, currentVer *semverutil.SemanticVersion) []releaseCandidate {
 	if currentVer == nil {
 		return candidates
