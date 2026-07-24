@@ -13772,81 +13772,45 @@
       },
       "additionalProperties": false
     },
+    "numeric_or_numeric_string": {
+      "description": "Accepts a JSON number, or a numeric string in integer, decimal, or scientific notation (for example: 123, 12.34, 1.23e-4, +5.67E+8). Rejects trailing/non-numeric formats (for example: 123abc, free, 1.2.3).",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+        }
+      ]
+    },
     "ai_credits_pricing": {
       "type": "object",
       "description": "Token-class pricing map. Keys are token classes (for example: input, output, cache_read, cache_write, reasoning) and values are numeric prices (number or numeric string).",
       "properties": {
         "input": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
-            }
-          ],
+          "$ref": "#/$defs/numeric_or_numeric_string",
           "description": "Cost per input token in USD."
         },
         "output": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
-            }
-          ],
+          "$ref": "#/$defs/numeric_or_numeric_string",
           "description": "Cost per output token in USD."
         },
         "cache_read": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
-            }
-          ],
+          "$ref": "#/$defs/numeric_or_numeric_string",
           "description": "Cost per cached-read token in USD."
         },
         "cache_write": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
-            }
-          ],
+          "$ref": "#/$defs/numeric_or_numeric_string",
           "description": "Cost per cache-write token in USD."
         },
         "reasoning": {
-          "anyOf": [
-            {
-              "type": "number"
-            },
-            {
-              "type": "string",
-              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
-            }
-          ],
+          "$ref": "#/$defs/numeric_or_numeric_string",
           "description": "Cost per reasoning token in USD."
         }
       },
       "additionalProperties": {
-        "anyOf": [
-          {
-            "type": "number"
-          },
-          {
-            "type": "string",
-            "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
-          }
-        ]
+        "$ref": "#/$defs/numeric_or_numeric_string"
       }
     }
   }
