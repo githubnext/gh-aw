@@ -83,6 +83,8 @@ func isRunningAsMCPServer() bool {
 var (
 	// getLastCheckFilePathFunc allows overriding in tests
 	getLastCheckFilePathFunc = getLastCheckFilePathImpl
+	// checkForUpdatesWithContextFunc allows overriding in tests
+	checkForUpdatesWithContextFunc = checkForUpdatesWithContext
 )
 
 // getLastCheckFilePath returns the path to the last check timestamp file
@@ -254,10 +256,16 @@ func findLatestPublishedReleaseTag(releases []Release) string {
 
 // CheckForUpdatesAsync performs update check in background (best effort)
 // This is called from compile command and should never block or fail the compilation
-// The context can be used to cancel the update check if the program is shutting down
-func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool) {
+// The context can be used to cancel the update check if the program is shutting down.
+// The returned function joins the goroutine; call it before the program exits to ensure
+// the update check completes and the goroutine is properly cleaned up.
+func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool) func() {
+	done := make(chan struct{})
+	checkCtx, cancelCheck := context.WithCancel(ctx)
+
 	// Run check in goroutine to avoid blocking compilation
 	go func() {
+		defer close(done)
 		// Recover from any panics in the update check
 		defer func() {
 			if r := recover(); r != nil {
@@ -266,22 +274,31 @@ func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool)
 		}()
 
 		// Check if context was cancelled before starting
-		if ctx.Err() != nil {
-			updateCheckLog.Printf("Update check cancelled before starting: %v", ctx.Err())
+		if checkCtx.Err() != nil {
+			updateCheckLog.Printf("Update check cancelled before starting: %v", checkCtx.Err())
 			return
 		}
 
-		checkForUpdatesWithContext(ctx, noCheckUpdate, verbose)
+		checkForUpdatesWithContextFunc(checkCtx, noCheckUpdate, verbose)
 	}()
 
 	// Give the goroutine a small window to complete quickly
 	// This allows the message to appear before compilation starts
 	// but doesn't block if the check takes longer
+	timer := time.NewTimer(100 * time.Millisecond)
+	defer timer.Stop()
+
 	select {
-	case <-time.After(100 * time.Millisecond):
+	case <-done:
+		// Goroutine finished within the window
+	case <-timer.C:
 		// Continue after timeout
 	case <-ctx.Done():
 		// Context cancelled during wait
-		return
+	}
+
+	return func() {
+		cancelCheck()
+		<-done
 	}
 }

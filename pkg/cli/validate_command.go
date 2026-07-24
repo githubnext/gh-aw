@@ -44,8 +44,9 @@ If no workflows are specified, all Markdown files in .github/workflows will be v
 				return err
 			}
 
-			// Check for updates (non-blocking, runs once per day)
-			CheckForUpdatesAsync(cmd.Context(), noCheckUpdate, verbose)
+			// Check for updates (non-blocking, runs once per day); join before exit
+			joinUpdateCheck := CheckForUpdatesAsync(cmd.Context(), noCheckUpdate, verbose)
+			defer joinUpdateCheck()
 
 			validateLog.Printf("Running validate command: workflows=%v, dir=%s", args, dir)
 
