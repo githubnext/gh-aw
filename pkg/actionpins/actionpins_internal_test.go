@@ -202,6 +202,14 @@ func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T)
 			resolvedVersion: "v4.1.2",
 			expected:        "actions/checkout@abc123 # v4.1.2 (source v4)",
 		},
+		{
+			name:            "shows resolved version without source suffix when sourceVersion is empty",
+			repo:            "actions/checkout",
+			sha:             "abc123",
+			sourceVersion:   "",
+			resolvedVersion: "v5.2.0",
+			expected:        "actions/checkout@abc123 # v5.2.0",
+		},
 	}
 
 	for _, tt := range tests {
@@ -300,7 +308,7 @@ func TestFindCompatiblePin_SemverFallback(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pin, found := findCompatiblePin(tt.availablePins, tt.version)
-			assert.Equal(t, tt.wantFound, found)
+			require.Equal(t, tt.wantFound, found)
 			if tt.wantFound {
 				assert.Equal(t, tt.wantVersion, pin.Version)
 			} else {
@@ -320,15 +328,31 @@ func TestFindVersionBySHA_ReturnsVersionForKnownSHA(t *testing.T) {
 		assert.Equal(t, knownPin.Version, version, "should return the version for a known SHA")
 	})
 
-	t.Run("returns empty string for unknown SHA", func(t *testing.T) {
-		version := findVersionBySHA("actions/checkout", "0000000000000000000000000000000000000000")
-		assert.Empty(t, version, "should return empty string for unknown SHA")
-	})
-
-	t.Run("returns empty string for unknown repo", func(t *testing.T) {
-		version := findVersionBySHA("does-not-exist/unknown", "abc123")
-		assert.Empty(t, version, "should return empty string for unknown repo")
-	})
+	tests := []struct {
+		name string
+		repo string
+		sha  string
+		want string
+	}{
+		{
+			name: "returns empty string for unknown SHA",
+			repo: "actions/checkout",
+			sha:  "0000000000000000000000000000000000000000",
+			want: "",
+		},
+		{
+			name: "returns empty string for unknown repo",
+			repo: "does-not-exist/unknown",
+			sha:  "abc123",
+			want: "",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			version := findVersionBySHA(tt.repo, tt.sha)
+			assert.Equal(t, tt.want, version, "should return empty string when version is not found")
+		})
+	}
 }
 
 func TestGetLatestActionPinReference_ReturnsFormattedReferenceOrEmpty(t *testing.T) {
@@ -534,7 +558,7 @@ func TestResolveNonStrictHardcodedPin_SelectsHighestCompatible(t *testing.T) {
 
 		assert.Equal(t, 1, strings.Count(stderrOutput, "using hardcoded pin for actions/checkout@v5.2.0"),
 			"Expected warning emitted exactly once for repeated compatible resolution")
-		assert.Len(t, ctx.Warnings, 1)
+		require.Len(t, ctx.Warnings, 1, "Expected exactly one warning key after deduplication")
 	})
 }
 
@@ -597,8 +621,8 @@ func TestResolveActionPinFromHardcodedPins_SkipHardcodedFallback(t *testing.T) {
 		// actions/checkout has hardcoded pins and should resolve
 		result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v4", false, ctx)
 
-		assert.True(t, ok, "Expected hardcoded pins to be consulted when SkipHardcodedFallback is false")
-		assert.NotEmpty(t, result, "Expected a pinned result when SkipHardcodedFallback is not set")
+		require.True(t, ok, "Expected hardcoded pins to be consulted when SkipHardcodedFallback is false")
+		require.NotEmpty(t, result, "Expected a pinned result when SkipHardcodedFallback is not set")
 	})
 }
 

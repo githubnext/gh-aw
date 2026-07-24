@@ -24,7 +24,7 @@ func TestRunCommandHelpTextConsistency(t *testing.T) {
 	assert.Equal(t, "Approve safe update manifest changes when --push triggers an automatic recompile step. When strict mode is active (the default), the recompile step enforces safe update checking; pass this flag to approve those changes.", runApprove.Usage, "run --approve should explain the --push-triggered recompile behavior with strict mode context")
 	assert.Equal(t, "Commit and push workflow files (including transitive imports) before running. Refuses to proceed when unrelated files are already staged.", runPush.Usage, "run --push should describe the staged-files precondition precisely")
 	assert.Equal(t, "F", runRawField.Shorthand, "run --raw-field should keep the legacy -F shorthand for compatibility")
-	assert.Equal(t, "use --raw-field instead", runRawField.ShorthandDeprecated, "run -F shorthand should be marked deprecated")
+	assert.Equal(t, "use the long form --raw-field instead", runRawField.ShorthandDeprecated, "run -F shorthand should be marked deprecated")
 }
 
 func TestCompileScheduleSeedHelpUsesConsistentQuotes(t *testing.T) {

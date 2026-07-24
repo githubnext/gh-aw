@@ -113,7 +113,7 @@ var defaultsGetCurrentRepoSlug = GetCurrentRepoSlug
 func NewEnvCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "env",
-		Short: "Manage compiler defaults as GitHub variables",
+		Short: "Manage compiler defaults as GitHub Actions variables",
 		Long: `Manage compiler default variables in bulk for a repository, organization, or enterprise scope.
 
 The YAML file is flat and uses default_-prefixed lowercase keys (e.g., default_max_turns).
@@ -159,7 +159,7 @@ Scope resolution:
 	}
 
 	cmd.Flags().StringVar(&scope, "scope", "", "Variable scope (repo|org|ent). Defaults to repo")
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Target repository in owner/repo format. When omitted, defaults to current repository")
+	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	cmd.Flags().StringVar(&org, "org", "", "Target organization (required for --scope org unless inferable from --repo/current repo)")
 	cmd.Flags().StringVar(&enterprise, "enterprise", "", "Target enterprise slug (required for --scope ent)")
 	return cmd
@@ -198,7 +198,7 @@ Scope and flag behavior:
 	}
 
 	cmd.Flags().StringVar(&scope, "scope", "", "Variable scope (repo|org|ent)")
-	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Target repository in owner/repo format. When omitted, defaults to current repository")
+	cmd.Flags().StringVarP(&repo, "repo", "r", "", "Target repository (owner/repo format). Defaults to current repository")
 	cmd.Flags().StringVar(&org, "org", "", "Target organization (required for --scope org unless inferable from --repo/current repo)")
 	cmd.Flags().StringVar(&enterprise, "enterprise", "", "Target enterprise slug (required for --scope ent)")
 	cmd.Flags().BoolVarP(&yes, "yes", "y", false, "Skip confirmation prompt")

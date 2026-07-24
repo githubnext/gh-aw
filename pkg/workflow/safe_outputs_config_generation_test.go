@@ -1179,3 +1179,50 @@ func TestGenerateSafeOutputsConfigDeduplicateByTitleNil(t *testing.T) {
 	_, hasDedup := ciConfig["deduplicate_by_title"]
 	assert.False(t, hasDedup, "deduplicate_by_title should not be present when nil")
 }
+
+// TestGenerateSafeOutputsConfigMaxBotMentions tests that max-bot-mentions is correctly
+// propagated as "max_bot_mentions" into config.json for the MCP server.
+func TestGenerateSafeOutputsConfigMaxBotMentions(t *testing.T) {
+	maxBotMentions := "5"
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+			MaxBotMentions: &maxBotMentions,
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	maxBotMentionsVal, ok := parsed["max_bot_mentions"]
+	require.True(t, ok, "Expected max_bot_mentions key in config")
+	assert.EqualValues(t, 5, maxBotMentionsVal, "max_bot_mentions should be 5")
+}
+
+// TestGenerateSafeOutputsConfigMaxBotMentionsAbsent tests that max_bot_mentions is
+// omitted from config.json when not configured.
+func TestGenerateSafeOutputsConfigMaxBotMentionsAbsent(t *testing.T) {
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			},
+		},
+	}
+
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err, "generateSafeOutputsConfig should not return an error")
+	require.NotEmpty(t, result, "Expected non-empty config")
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed), "Result must be valid JSON")
+
+	_, hasMaxBotMentions := parsed["max_bot_mentions"]
+	assert.False(t, hasMaxBotMentions, "max_bot_mentions should not be present when not configured")
+}

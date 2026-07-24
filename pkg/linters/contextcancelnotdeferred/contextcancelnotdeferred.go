@@ -13,7 +13,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:contextcancelnotdeferred")
 
 // Analyzer is the context-cancel-not-deferred analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -25,6 +28,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -68,6 +73,7 @@ func inspectCancelFuncDecl(pass *analysis.Pass, n ast.Node, noLintIndex nolint.D
 
 	for _, state := range cancelVars {
 		if state.hasDirectCancel && !state.hasDeferCancel && !nolint.HasDirectiveForLinter(pass.Fset.PositionFor(state.createPos, false), noLintIndex, "contextcancelnotdeferred") {
+			pkgLog.Printf("flagging non-deferred cancel func at %s", pass.Fset.PositionFor(state.createPos, false))
 			pass.Report(analysis.Diagnostic{
 				Pos:     state.createPos,
 				Message: "context cancel function should be deferred immediately after context.WithCancel/WithTimeout/WithDeadline",

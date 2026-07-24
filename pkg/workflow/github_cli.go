@@ -103,8 +103,7 @@ func filteredGHCLIEnv(ghToken, githubToken, ghHost string) []string {
 //	cmd := ExecGH("api", "/user")
 //	output, err := cmd.Output()
 func ExecGH(args ...string) *exec.Cmd {
-	//nolint:staticcheck // Passing nil context to use exec.Command instead of exec.CommandContext
-	return setupGHCommand(nil, args...)
+	return setupGHCommand(context.Background(), args...)
 }
 
 // ExecGHContext wraps gh CLI calls with context support and ensures proper token configuration.

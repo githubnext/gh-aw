@@ -14,7 +14,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:manualmutexunlock")
 
 // mutexKey uniquely identifies a mutex receiver so that distinct struct
 // instances holding the same field type are tracked independently.
@@ -45,6 +48,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -95,6 +100,7 @@ func inspectMutexFuncDecl(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex
 			if nolint.HasDirectiveForLinter(position, noLintIndex, "manualmutexunlock") {
 				continue
 			}
+			pkgLog.Printf("flagging non-deferred mutex Unlock() at %s", position)
 			pass.Report(analysis.Diagnostic{
 				Pos:     state.lockPos,
 				Message: "mutex Unlock() should be deferred immediately after Lock() to prevent deadlocks on panic or early return",
