@@ -4,6 +4,8 @@ package cli
 
 import (
 	"context"
+	"io"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
@@ -11,7 +13,16 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
+
+type fakeReleaseClient struct {
+	do func(ctx context.Context, method string, path string, body io.Reader, response any) error
+}
+
+func (f fakeReleaseClient) DoWithContext(ctx context.Context, method string, path string, body io.Reader, response any) error {
+	return f.do(ctx, method, path, body, response)
+}
 
 func TestShouldCheckForUpdate(t *testing.T) {
 	// Save original environment
@@ -388,6 +399,59 @@ func TestFindLatestPublishedReleaseTag(t *testing.T) {
 			assert.Equal(t, tt.want, got, "unexpected latest published release tag")
 		})
 	}
+}
+
+func TestGetLatestReleaseWithClient_StableReleaseUsesLatestEndpoint(t *testing.T) {
+	client := fakeReleaseClient{
+		do: func(ctx context.Context, method string, path string, body io.Reader, response any) error {
+			assert.Equal(t, http.MethodGet, method)
+			assert.Equal(t, "repos/github/gh-aw/releases/latest", path)
+			assert.Nil(t, body)
+			release, ok := response.(*Release)
+			if !ok {
+				t.Fatalf("response type = %T, want *Release", response)
+			}
+			release.TagName = "v1.2.3"
+			return nil
+		},
+	}
+
+	got, err := getLatestReleaseWithClient(context.Background(), client, false)
+	require.NoError(t, err)
+	assert.Equal(t, "v1.2.3", got)
+}
+
+func TestGetLatestReleaseWithClient_IncludePrereleasesUsesReleasesEndpoint(t *testing.T) {
+	client := fakeReleaseClient{
+		do: func(ctx context.Context, method string, path string, body io.Reader, response any) error {
+			assert.Equal(t, http.MethodGet, method)
+			assert.Equal(t, "repos/github/gh-aw/releases?per_page=50", path)
+			assert.Nil(t, body)
+			releases, ok := response.(*[]Release)
+			if !ok {
+				t.Fatalf("response type = %T, want *[]Release", response)
+			}
+			*releases = []Release{{TagName: "v1.2.3-beta.1", Prerelease: true}}
+			return nil
+		},
+	}
+
+	got, err := getLatestReleaseWithClient(context.Background(), client, true)
+	require.NoError(t, err)
+	assert.Equal(t, "v1.2.3-beta.1", got)
+}
+
+func TestGetLatestReleaseWithClient_PropagatesContextErrors(t *testing.T) {
+	client := fakeReleaseClient{
+		do: func(ctx context.Context, method string, path string, body io.Reader, response any) error {
+			return context.Canceled
+		},
+	}
+
+	got, err := getLatestReleaseWithClient(context.Background(), client, false)
+	assert.Empty(t, got)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, context.Canceled)
 }
 
 func TestIsCurrentVersionAtLeastLatest(t *testing.T) {

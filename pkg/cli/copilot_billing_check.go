@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/cli/go-gh/v2/pkg/api"
@@ -27,7 +28,7 @@ func detectOrgCopilotCLIBillingWithClient(ctx context.Context, orgLogin string, 
 	var result struct {
 		CLI string `json:"cli"`
 	}
-	if err := client.DoWithContext(ctx, "GET", fmt.Sprintf("orgs/%s/copilot/billing", orgLogin), nil, &result); err != nil {
+	if err := client.DoWithContext(ctx, http.MethodGet, fmt.Sprintf("orgs/%s/copilot/billing", orgLogin), nil, &result); err != nil {
 		return "", err
 	}
 	return result.CLI, nil

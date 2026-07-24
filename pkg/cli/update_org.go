@@ -323,7 +323,7 @@ func waitForOrgRateLimit(ctx context.Context, resource string, verbose bool) err
 // issues carrying the gh-aw-update XML marker are closed first so that only the
 // most recent notification remains.
 func createIssueForOrgRepo(ctx context.Context, preview orgRepoPreview, verbose bool) error {
-	releaseTag, releaseURL := getGhawReleaseInfo()
+	releaseTag, releaseURL := getGhawReleaseInfo(ctx)
 	xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, releaseTag)
 
 	// Close stale update issues before creating the new one.
