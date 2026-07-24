@@ -100,12 +100,6 @@ func updateLastCheckTime() {
 	writeUpdateCheckTime(getLastCheckFilePath(), constants.FilePermPublic, "update check", updateCheckLog)
 }
 
-// checkForUpdates checks if a newer version of gh-aw is available
-// This function is non-blocking and ignores all errors (connectivity, API, etc.)
-func checkForUpdates(noCheckUpdate bool, verbose bool) {
-	checkForUpdatesWithContext(context.Background(), noCheckUpdate, verbose)
-}
-
 func checkForUpdatesWithContext(ctx context.Context, noCheckUpdate bool, verbose bool) {
 	// Quick check if we should even attempt the update check
 	if !shouldCheckForUpdate(noCheckUpdate) {

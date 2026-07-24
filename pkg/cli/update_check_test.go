@@ -272,8 +272,8 @@ func TestCheckForUpdatesWithNoCheckUpdateFlag(t *testing.T) {
 		return lastCheckFile
 	}
 
-	// Call checkForUpdates with noCheckUpdate=true
-	checkForUpdates(true, false)
+	// Call checkForUpdatesWithContext with noCheckUpdate=true
+	checkForUpdatesWithContext(context.Background(), true, false)
 
 	// Verify that no last check file was created (since check was skipped)
 	if _, err := os.Stat(lastCheckFile); err == nil {
@@ -302,8 +302,8 @@ func TestCheckForUpdatesInCIMode(t *testing.T) {
 		return lastCheckFile
 	}
 
-	// Call checkForUpdates
-	checkForUpdates(false, false)
+	// Call checkForUpdatesWithContext
+	checkForUpdatesWithContext(context.Background(), false, false)
 
 	// Verify that no last check file was created (since check was skipped in CI)
 	if _, err := os.Stat(lastCheckFile); err == nil {
