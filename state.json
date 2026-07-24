@@ -3,7 +3,7 @@
     "model_size": {
       "small-agent": 1,
       "agent": 1,
-      "gpt-5.4-mini": 15,
+      "gpt-5.4-mini": 16,
       "gpt-5-mini": 2,
       "gpt-5-codex": 8,
       "gpt-5.4": 22
@@ -349,6 +349,13 @@
     {
       "run_id": "30035140575",
       "timestamp": "2026-07-23T18:46:50.291Z",
+      "assignments": {
+        "model_size": "gpt-5.4-mini"
+      }
+    },
+    {
+      "run_id": "30118509019",
+      "timestamp": "2026-07-24T18:51:33.392Z",
       "assignments": {
         "model_size": "gpt-5.4-mini"
       }
