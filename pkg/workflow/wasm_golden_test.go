@@ -26,6 +26,7 @@ var testDefaultAWFImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-firewall/
 var testDefaultAWFSchemaURLRE = regexp.MustCompile(`(releases/download/)` + regexp.QuoteMeta(string(constants.DefaultFirewallVersion)) + `(/awf-config\.schema\.json)`)
 var testDefaultAWFImageTagRE = regexp.MustCompile(`("imageTag"\s*:\s*")(?:v)?` + regexp.QuoteMeta(strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")) + `"`)
 var testDefaultMCPGImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-mcpg:)` + regexp.QuoteMeta(string(constants.DefaultMCPGatewayVersion)) + `\b`)
+var testCheckoutPinRE = regexp.MustCompile(`actions/checkout@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+`)
 
 func normalizeDefaultRuntimeVersions(content string) string {
 	normalized := testDefaultAWFInfoVersionRE.ReplaceAllString(content, `GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"`)
@@ -53,6 +54,7 @@ func normalizeOutput(content string) string {
 		normalized = strings.ReplaceAll(normalized, op+"(/tmp/gh-aw/*)", op+"(/tmp/gh-aw/agent/*)")
 	}
 	normalized = normalizeDefaultRuntimeVersions(normalized)
+	normalized = testCheckoutPinRE.ReplaceAllString(normalized, "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0")
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
 
