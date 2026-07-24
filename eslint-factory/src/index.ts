@@ -27,6 +27,7 @@ import { requireExecFileSyncTryCatchRule } from "./rules/require-execfilesync-tr
 import { requireFsIoTryCatchRule } from "./rules/require-fs-io-try-catch";
 import { noSetFailedThenExitZeroRule } from "./rules/no-setfailed-then-exit-zero";
 import { noErrStackThenStringFallbackRule } from "./rules/no-err-stack-then-string-fallback";
+import { requireFetchTryCatchRule } from "./rules/require-fetch-try-catch";
 
 const plugin = {
   meta: {
@@ -63,6 +64,7 @@ const plugin = {
     "require-fs-io-try-catch": requireFsIoTryCatchRule,
     "no-setfailed-then-exit-zero": noSetFailedThenExitZeroRule,
     "no-err-stack-then-string-fallback": noErrStackThenStringFallbackRule,
+    "require-fetch-try-catch": requireFetchTryCatchRule,
   },
 };
 
