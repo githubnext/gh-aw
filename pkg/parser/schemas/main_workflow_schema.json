@@ -2880,33 +2880,8 @@
                   "description": "Pricing data for a single model.",
                   "properties": {
                     "cost": {
-                      "type": "object",
-                      "description": "Per-token cost in USD. Keys are token classes; values are numeric cost-per-token strings or numbers.",
-                      "properties": {
-                        "input": {
-                          "type": ["number", "string"],
-                          "description": "Cost per input token in USD."
-                        },
-                        "output": {
-                          "type": ["number", "string"],
-                          "description": "Cost per output token in USD."
-                        },
-                        "cache_read": {
-                          "type": ["number", "string"],
-                          "description": "Cost per cached-read token in USD."
-                        },
-                        "cache_write": {
-                          "type": ["number", "string"],
-                          "description": "Cost per cache-write token in USD."
-                        },
-                        "reasoning": {
-                          "type": ["number", "string"],
-                          "description": "Cost per reasoning token in USD."
-                        }
-                      },
-                      "additionalProperties": {
-                        "type": ["number", "string"]
-                      }
+                      "$ref": "#/$defs/ai_credits_pricing",
+                      "description": "Per-token cost in USD. Keys are token classes; values are numeric cost-per-token strings or numbers."
                     }
                   },
                   "additionalProperties": false
@@ -2917,7 +2892,27 @@
           }
         },
         "default-ai-credits-pricing": {
-          "$ref": "#/$defs/ai_credits_pricing",
+          "allOf": [
+            {
+              "$ref": "#/$defs/ai_credits_pricing"
+            },
+            {
+              "required": ["input", "output"],
+              "properties": {
+                "input": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Input token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+                },
+                "output": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Output token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+                }
+              },
+              "additionalProperties": false
+            }
+          ],
           "description": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table. Required when max-ai-credits is active and the model is self-hosted or unrecognized (e.g. BYOK Ollama). Without this, the AWF API proxy rejects unrecognized models with HTTP 400."
         }
       },
@@ -13799,25 +13794,32 @@
     },
     "ai_credits_pricing": {
       "type": "object",
-      "description": "Per-token pricing in USD per 1M tokens. Use 0 for self-hosted or free models.",
-      "required": ["input", "output"],
+      "description": "Token-class pricing map. Keys are token classes (for example: input, output, cache_read, cache_write, reasoning) and values are numeric prices (number or numeric string).",
       "properties": {
         "input": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Input token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+          "type": ["number", "string"],
+          "description": "Cost per input token in USD."
         },
         "output": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Output token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+          "type": ["number", "string"],
+          "description": "Cost per output token in USD."
+        },
+        "cache_read": {
+          "type": ["number", "string"],
+          "description": "Cost per cached-read token in USD."
+        },
+        "cache_write": {
+          "type": ["number", "string"],
+          "description": "Cost per cache-write token in USD."
+        },
+        "reasoning": {
+          "type": ["number", "string"],
+          "description": "Cost per reasoning token in USD."
         }
       },
-      "additionalProperties": false,
-      "examples": [
-        { "input": 0, "output": 0 },
-        { "input": 3.0, "output": 15.0 }
-      ]
+      "additionalProperties": {
+        "type": ["number", "string"]
+      }
     }
   }
 }
