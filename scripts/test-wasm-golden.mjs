@@ -31,6 +31,7 @@ const GOLDEN_DIR = join(
   "pkg/workflow/testdata/wasm_golden"
 );
 const WASM_FILE = join(ROOT, "gh-aw.wasm");
+const VERSION_CONSTANTS_FILE = join(ROOT, "pkg/constants/version_constants.go");
 const UPDATE_MODE = process.argv.includes("--update");
 
 // Fixtures with known wasm-vs-native divergence due to filesystem limitations.
@@ -42,6 +43,30 @@ const KNOWN_WASM_DIVERGENCE = new Set([
   "copilot-cli-deep-research", // pre_activation job generated differently in wasm
   "dev-hawk",             // workflow_run trigger: missing zizmor annotation + fork validation
 ]);
+
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function loadDefaultRuntimeVersions() {
+  const source = readFileSync(VERSION_CONSTANTS_FILE, "utf8");
+  const getVersion = (name) => {
+    const match = source.match(new RegExp(`const\\s+${name}\\s+Version\\s+=\\s+"([^"]+)"`));
+    if (!match) {
+      throw new Error(`Could not find ${name} in ${VERSION_CONSTANTS_FILE}`);
+    }
+    return match[1];
+  };
+
+  const awfVersion = getVersion("DefaultFirewallVersion");
+  return {
+    awfVersion,
+    awfImageTag: awfVersion.replace(/^v/, ""),
+    mcpgVersion: getVersion("DefaultMCPGatewayVersion"),
+  };
+}
+
+const DEFAULT_RUNTIME_VERSIONS = loadDefaultRuntimeVersions();
 
 // ── Build wasm if needed ─────────────────────────────────────────────
 function ensureWasmBuilt() {
@@ -175,22 +200,39 @@ function normalizeCopilotDefaultModel(content) {
   );
 }
 
-// ── Normalize version-sensitive firewall references ─────────────────────
-// Keep tracked wasm snapshot files stable across gh-aw-firewall version bumps.
-function normalizeAWFFirewallVersion(content) {
+// ── Normalize default runtime versions ───────────────────────────────────
+// Keep tracked wasm snapshots stable across default AWF/MCPG version bumps
+// without masking explicitly pinned non-default versions in fixtures.
+function normalizeDefaultRuntimeVersions(content) {
+  const { awfVersion, awfImageTag, mcpgVersion } = DEFAULT_RUNTIME_VERSIONS;
   return content
-    .replace(/GH_AW_INFO_AWF_VERSION: "v[^"]+"/g, 'GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"')
     .replace(
-      /(ghcr\.io\/github\/gh-aw-firewall\/(?:agent|api-proxy|cli-proxy|squid):)(?:v)?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?/g,
+      new RegExp(`GH_AW_INFO_AWF_VERSION: "${escapeRegex(awfVersion)}"`, "g"),
+      'GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"'
+    )
+    .replace(
+      new RegExp(`GH_AW_INFO_AWMG_VERSION: "${escapeRegex(mcpgVersion)}"`, "g"),
+      'GH_AW_INFO_AWMG_VERSION: "vMCPG_VERSION"'
+    )
+    .replace(
+      new RegExp(`(install_awf_binary\\.sh"\\s+)${escapeRegex(awfVersion)}\\b`, "g"),
+      "$1vAWF_VERSION"
+    )
+    .replace(
+      new RegExp(`(ghcr\\.io/github/gh-aw-firewall/(?:agent|api-proxy|cli-proxy|squid):)${escapeRegex(awfImageTag)}\\b`, "g"),
       "$1AWF_VERSION"
     )
     .replace(
-      /(releases\/download\/)v[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?(\/awf-config\.schema\.json)/g,
+      new RegExp(`(releases/download/)${escapeRegex(awfVersion)}(/awf-config\\.schema\\.json)`, "g"),
       "$1vAWF_VERSION$2"
     )
     .replace(
-      /("imageTag":")(?:v)?[0-9]+\.[0-9]+\.[0-9]+(?:[-+][A-Za-z0-9.-]+)?/g,
-      '$1AWF_VERSION'
+      new RegExp(`("imageTag"\\s*:\\s*")(?:v)?${escapeRegex(awfImageTag)}"`, "g"),
+      '$1AWF_VERSION"'
+    )
+    .replace(
+      new RegExp(`(ghcr\\.io/github/gh-aw-mcpg:)${escapeRegex(mcpgVersion)}\\b`, "g"),
+      "$1MCPG_VERSION"
     );
 }
 
@@ -200,17 +242,13 @@ function normalizeAWFFirewallVersion(content) {
 // new normalization steps only need to be added in one place.
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
 function normalize(content) {
-  return normalizeCopilotDefaultModel(
+  return normalizeDefaultRuntimeVersions(normalizeCopilotDefaultModel(
     normalizeProjectUTC(
       normalizeAWFImageTagDigests(
         normalizeContainerPins(normalizeHeredocDelimiters(content))
       )
     )
-  );
-}
-
-function normalizeWasmGoldenSnapshot(content) {
-  return normalizeAWFFirewallVersion(normalize(content));
+  ));
 }
 
 // ── Load golden file ─────────────────────────────────────────────────
@@ -235,7 +273,7 @@ function saveWasmGoldenFile(testName, content) {
     mkdirSync(dir, { recursive: true });
   }
   const goldenPath = join(dir, testName + ".golden");
-  writeFileSync(goldenPath, normalizeWasmGoldenSnapshot(content));
+  writeFileSync(goldenPath, normalize(content));
 }
 
 // ── Main test runner ─────────────────────────────────────────────────
