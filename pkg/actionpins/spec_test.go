@@ -973,4 +973,16 @@ func TestSpec_PublicAPI_ApplyContainerPinMapping(t *testing.T) {
 		assert.True(t, ctx.Warnings["container-map:ghcr.io/owner/image:latest"],
 			"mapping notification should be recorded in warnings")
 	})
+
+	t.Run("invalid mapping - mapped value without digest returns image unchanged", func(t *testing.T) {
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			ContainerMappings: map[string]string{
+				"ghcr.io/owner/image:latest": "registry.acme.com/image:latest",
+			},
+		}
+		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+		assert.Equal(t, "ghcr.io/owner/image:latest", result,
+			"mapping without valid @sha256: digest should be rejected and image returned unchanged")
+	})
 }

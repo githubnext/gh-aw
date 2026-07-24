@@ -203,12 +203,12 @@ func TestFormatPinnedActionWithResolution_ConsistentVersionComment(t *testing.T)
 			expected:        "actions/checkout@abc123 # v4.1.2 (source v4)",
 		},
 		{
-			name:            "shows resolved version with empty source comment when sourceVersion is empty",
+			name:            "shows resolved version without source suffix when sourceVersion is empty",
 			repo:            "actions/checkout",
 			sha:             "abc123",
 			sourceVersion:   "",
 			resolvedVersion: "v5.2.0",
-			expected:        "actions/checkout@abc123 # v5.2.0 (source )",
+			expected:        "actions/checkout@abc123 # v5.2.0",
 		},
 	}
 
