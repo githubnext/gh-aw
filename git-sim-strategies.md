@@ -121,19 +121,22 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **140** → batch-micro ahead-merge_msg(140)/diverged trio(141-143), then
-batch-small/medium/large/xlarge (idx144-179 finishes FILES=batch block). **batch =
-idx135-179** (files=(i//45)%4==3). HISTORY=deep(500) & SIZE>tiny (idx720+) far ahead.
+Next index: **144** = batch-SMALL clean-single. batch = idx135-179 (files=(i//45)%4==3);
+batch-small/medium/large/xlarge = idx144-179 finish FILES=batch. HISTORY=deep(500) &
+SIZE>tiny (idx720+) far ahead. **BATCH boundary confirmed (idx135):** 100 files ==
+default max-patch-files 100 → workflow sets 200 so safe; measure file-count from PATCH
+SET not tree diff.
 
-FILES=many COMPLETE (90-134), all PASS. **BATCH boundary (idx135):** 100 files ==
-default max-patch-files 100 → `>` passes / `>=` rejects; safe here (workflow sets 200).
-**idx135-139 DONE, all PASS — batch-micro:** 100 files each, ~193-214 B/file framing
-(micro ~900B payload → framing dominates ~24×; only max-patch-files is the live dim,
-size is ~0.5% of 4096). clean-single(135) 24 KB. clean-multi(136) 21.83 KB/3 disjoint
-(~1×, merges=0, parents=1). clean-merge_msg(137) 21.57 KB/1c — filename leak
-`0001-Merge-branch-topic-into-feature.patch` + msg-substring heuristic misfire
-reconfirmed (--merges=0, parent=1). ahead-single(138) create-PR 24.40 KB/100f, push
-+0.50 KB/1f, FF is-ancestor rc0. ahead-multi(139) 24.745 KB/100f/3 disjoint, push
-+1.011 KB/2c, FF rc0. First real `rejected` still needs: a PATCH tier tuned >4096,
-batch under a default-100 config (fires at idx135 IF `>=`), or the 3× single-long-line
-same-file-append shape. batch-xlarge (~4080 KB, 100 files) lands later — watch both caps.
+FILES=many COMPLETE (90-134), all PASS. **batch-micro COMPLETE (idx135-143), all PASS:**
+100 files/cell, ~1 KB payload → framing DOMINATES ~256 B/file → ~22-26 KB patch (~24×;
+size ~0.5% of 4096, only max-patch-files is live). clean-single(135) 24 KB, clean-multi
+(136) 21.83 KB/3 disjoint ~1×, clean-merge_msg(137) 21.57 KB filename leak. ahead-single
+(138) 24.40 KB push +0.50 KB, ahead-multi(139) 24.745 KB push +1.011 KB FF rc0. ahead-
+merge_msg(140) 26.23 KB/2c FF rc0. diverged-single(141) two-dot 26.153 KB vs three-dot
++0.428 KB phantom(main history.md). diverged-multi(142) 24.0 KB/4 patches disjoint ~1.0×
+phantom +143 B. diverged-merge_msg(143) 26.23 KB three-dot phantom +440 B. ALL: merges=0
+/parent=1, leak `0001-Merge-branch-topic-into-feature.patch`, msg-substring heuristic
+misfire, ff is-ancestor rc0. **Diverged GOTCHA:** `diff --name-only main..feature`=102
+(100+followup+phantom history.md tree-revert) but format-patch commit-range=true set.
+First real `rejected` still needs: PATCH tier >4096, batch under default-100, or 3×
+single-long-line same-file-append. batch-xlarge (~4080 KB, 100f, idx~170s) — watch both.
