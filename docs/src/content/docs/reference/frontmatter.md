@@ -235,9 +235,7 @@ skills:
 ```
 
 See [Glossary: Frontmatter Skills](/gh-aw/reference/glossary/#frontmatter-skills-skills)
-for terminology, and
-[`mattpocock-skills-reviewer.md`](https://github.com/github/gh-aw/blob/main/.github/workflows/mattpocock-skills-reviewer.md)
-for a full workflow example using `skills:`.
+for terminology.
 
 ### MCP Scripts (`mcp-scripts:`)
 

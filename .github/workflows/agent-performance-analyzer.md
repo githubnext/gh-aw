@@ -166,7 +166,7 @@ The repository has a sustained quality/effectiveness plateau. Treat prompt quali
   - stale examples or stale tool guidance
   - low-actionability outputs
 - Cite concrete evidence for each deficiency from the agent's prompt, outputs, or run history.
-- Always evaluate **Matt Pocock Skills Reviewer**, **Impeccable Skills Reviewer**, and **Design Decision Gate** as explicit redesign-vs-deprecation candidates when they continue to underperform.
+- Always evaluate **Impeccable Skills Reviewer** and **Design Decision Gate** as explicit redesign-vs-deprecation candidates when they continue to underperform.
 - Prefer prompt fixes that sharpen success criteria, add a quality rubric, remove stale guidance, and make outputs easier for humans to act on.
 
 ## Responsibilities

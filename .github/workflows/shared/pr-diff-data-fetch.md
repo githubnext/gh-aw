@@ -63,10 +63,10 @@ diff, metadata, and inline review comments before the agent starts.
 
 ### Why this shared component exists
 
-Three reviewer workflows (pr-code-quality-reviewer, impeccable-skills-reviewer,
-mattpocock-skills-reviewer) previously each duplicated identical pre-fetch shell
-steps. Extracting them into this shared component eliminates the duplication and
-ensures all three workflows use the same fetch logic and cache key, so that the
+Two reviewer workflows (pr-code-quality-reviewer, impeccable-skills-reviewer)
+previously each duplicated identical pre-fetch shell steps. Extracting them into
+this shared component eliminates the duplication and ensures both workflows use
+the same fetch logic and cache key, so that the
 dedicated `pr-data-prefetch.yml` workflow can warm the cache once per commit
 before the reviewer agents start.
 

@@ -60,5 +60,4 @@ tools:
 ## Examples
 
 - `.github/workflows/pr-code-quality-reviewer.md`
-- `.github/workflows/mattpocock-skills-reviewer.md`
 - `.github/workflows/test-quality-sentinel.md`
