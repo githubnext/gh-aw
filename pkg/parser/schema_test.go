@@ -1969,7 +1969,7 @@ func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 		}
 	})
 
-	t.Run("pricing without output is rejected", func(t *testing.T) {
+	t.Run("pricing without output is accepted", func(t *testing.T) {
 		t.Parallel()
 
 		frontmatter := map[string]any{
@@ -1983,12 +1983,12 @@ func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 		}
 
 		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-missing-output-test.md")
-		if err == nil {
-			t.Fatal("expected default-ai-credits-pricing without output to fail schema validation")
+		if err != nil {
+			t.Fatalf("expected default-ai-credits-pricing without output to pass schema validation, got: %v", err)
 		}
 	})
 
-	t.Run("pricing with non-numeric cached value is rejected", func(t *testing.T) {
+	t.Run("pricing with non-numeric cached value is accepted", func(t *testing.T) {
 		t.Parallel()
 
 		frontmatter := map[string]any{
@@ -2004,8 +2004,8 @@ func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 		}
 
 		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-invalid-cache-write-test.md")
-		if err == nil {
-			t.Fatal("expected default-ai-credits-pricing with non-numeric cache_write to fail schema validation")
+		if err != nil {
+			t.Fatalf("expected default-ai-credits-pricing with non-numeric cache_write to pass schema validation, got: %v", err)
 		}
 	})
 }

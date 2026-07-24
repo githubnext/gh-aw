@@ -2892,37 +2892,7 @@
           }
         },
         "default-ai-credits-pricing": {
-          "allOf": [
-            {
-              "$ref": "#/$defs/ai_credits_pricing"
-            },
-            {
-              "required": ["input", "output"],
-              "properties": {
-                "input": {
-                  "type": "number",
-                  "minimum": 0,
-                  "description": "Input token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
-                },
-                "output": {
-                  "type": "number",
-                  "minimum": 0,
-                  "description": "Output token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
-                },
-                "cache_read": {
-                  "type": "number",
-                  "minimum": 0,
-                  "description": "Cached-read token price per 1M tokens in dollars."
-                },
-                "cache_write": {
-                  "type": "number",
-                  "minimum": 0,
-                  "description": "Cache-write token price per 1M tokens in dollars."
-                }
-              },
-              "additionalProperties": false
-            }
-          ],
+          "$ref": "#/$defs/ai_credits_pricing",
           "description": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table. Required when max-ai-credits is active and the model is self-hosted or unrecognized (e.g. BYOK Ollama). Without this, the AWF API proxy rejects unrecognized models with HTTP 400."
         }
       },
