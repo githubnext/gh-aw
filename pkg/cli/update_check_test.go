@@ -341,16 +341,58 @@ func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
 	// Cancel immediately
 	cancel()
 
-	// Call CheckForUpdatesAsync with cancelled context
-	CheckForUpdatesAsync(ctx, false, false)
-
-	// Wait a bit to ensure any goroutines would have had time to run
-	time.Sleep(200 * time.Millisecond)
+	// Call CheckForUpdatesAsync with cancelled context and join the goroutine
+	join := CheckForUpdatesAsync(ctx, false, false)
+	join()
 
 	// The update check should not have created a last check file
 	// because the context was cancelled
 	// Note: The check might still run if it started before cancellation,
 	// so we just verify no panics occurred
+}
+
+func TestCheckForUpdatesAsync_JoinsGoroutine(t *testing.T) {
+	// Test that the returned join function waits for the goroutine to complete
+	// Save original environment
+	origCI := os.Getenv("CI")
+	origGetLastCheckFilePath := getLastCheckFilePathFunc
+	defer func() {
+		os.Setenv("CI", origCI)
+		getLastCheckFilePathFunc = origGetLastCheckFilePath
+	}()
+
+	// Ensure we're not in CI mode so that shouldCheckForUpdate returns true
+	os.Unsetenv("CI")
+	os.Unsetenv("GITHUB_ACTIONS")
+	os.Unsetenv("CONTINUOUS_INTEGRATION")
+	os.Unsetenv("GH_AW_MCP_SERVER")
+
+	// Create temporary directory for last check file
+	tmpDir := t.TempDir()
+	lastCheckFile := filepath.Join(tmpDir, lastCheckFileName)
+	getLastCheckFilePathFunc = func() string {
+		return lastCheckFile
+	}
+
+	// Use a cancelled context to make the goroutine exit quickly
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	join := CheckForUpdatesAsync(ctx, false, false)
+
+	// join() must return; if it blocks forever the test will time out
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		join()
+	}()
+
+	select {
+	case <-done:
+		// goroutine joined successfully
+	case <-time.After(2 * time.Second):
+		t.Fatal("join function did not return within 2 seconds")
+	}
 }
 
 func TestFindLatestPublishedReleaseTag(t *testing.T) {

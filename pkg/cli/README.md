@@ -221,7 +221,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `PreflightCheckForCreatePR` | `func(bool) error` | Validates prerequisites before creating a PR |
 | `DisableAllWorkflowsExcept` | `func(repoSlug string, exceptWorkflows []string, verbose bool) error` | Disables all workflows in a repo except the named ones |
 | `GetEngineSecretNameAndValue` | `func(engine string, existingSecrets map[string]bool) (string, string, bool, error)` | Prompts for and validates an engine API secret |
-| `CheckForUpdatesAsync` | `func(ctx, noCheckUpdate, verbose bool)` | Checks for a newer `gh-aw` version in the background |
+| `CheckForUpdatesAsync` | `func(ctx, noCheckUpdate, verbose bool) func()` | Checks for a newer `gh-aw` version in the background; returns a join function the caller must invoke before exit |
 | `FetchChecksResult` | `func(repoOverride, prNumber string) (*ChecksResult, error)` | Fetches CI check results for a pull request |
 | `ValidEngineNames` | `func() []string` | Returns the supported engine names for shell completion |
 | `CompleteWorkflowNames` | `func(*cobra.Command, []string, string) ([]string, cobra.ShellCompDirective)` | Shell-completion provider for workflow names |
