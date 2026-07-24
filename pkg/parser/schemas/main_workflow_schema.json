@@ -2880,33 +2880,8 @@
                   "description": "Pricing data for a single model.",
                   "properties": {
                     "cost": {
-                      "type": "object",
-                      "description": "Per-token cost in USD. Keys are token classes; values are numeric cost-per-token strings or numbers.",
-                      "properties": {
-                        "input": {
-                          "type": ["number", "string"],
-                          "description": "Cost per input token in USD."
-                        },
-                        "output": {
-                          "type": ["number", "string"],
-                          "description": "Cost per output token in USD."
-                        },
-                        "cache_read": {
-                          "type": ["number", "string"],
-                          "description": "Cost per cached-read token in USD."
-                        },
-                        "cache_write": {
-                          "type": ["number", "string"],
-                          "description": "Cost per cache-write token in USD."
-                        },
-                        "reasoning": {
-                          "type": ["number", "string"],
-                          "description": "Cost per reasoning token in USD."
-                        }
-                      },
-                      "additionalProperties": {
-                        "type": ["number", "string"]
-                      }
+                      "$ref": "#/$defs/ai_credits_pricing",
+                      "description": "Per-token cost in USD. Keys are token classes; values are numeric cost-per-token strings or numbers."
                     }
                   },
                   "additionalProperties": false
@@ -13797,27 +13772,46 @@
       },
       "additionalProperties": false
     },
+    "numeric_or_numeric_string": {
+      "description": "Accepts a JSON number, or a numeric string in integer, decimal, or scientific notation (for example: 123, 12.34, 1.23e-4, +5.67E+8). Rejects trailing/non-numeric formats (for example: 123abc, free, 1.2.3).",
+      "anyOf": [
+        {
+          "type": "number"
+        },
+        {
+          "type": "string",
+          "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+        }
+      ]
+    },
     "ai_credits_pricing": {
       "type": "object",
-      "description": "Per-token pricing in USD per 1M tokens. Use 0 for self-hosted or free models.",
-      "required": ["input", "output"],
+      "description": "Token-class pricing map. Keys are token classes (for example: input, output, cache_read, cache_write, reasoning) and values are numeric prices (number or numeric string).",
       "properties": {
         "input": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Input token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+          "$ref": "#/$defs/numeric_or_numeric_string",
+          "description": "Cost per input token in USD."
         },
         "output": {
-          "type": "number",
-          "minimum": 0,
-          "description": "Output token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+          "$ref": "#/$defs/numeric_or_numeric_string",
+          "description": "Cost per output token in USD."
+        },
+        "cache_read": {
+          "$ref": "#/$defs/numeric_or_numeric_string",
+          "description": "Cost per cached-read token in USD."
+        },
+        "cache_write": {
+          "$ref": "#/$defs/numeric_or_numeric_string",
+          "description": "Cost per cache-write token in USD."
+        },
+        "reasoning": {
+          "$ref": "#/$defs/numeric_or_numeric_string",
+          "description": "Cost per reasoning token in USD."
         }
       },
-      "additionalProperties": false,
-      "examples": [
-        { "input": 0, "output": 0 },
-        { "input": 3.0, "output": 15.0 }
-      ]
+      "additionalProperties": {
+        "$ref": "#/$defs/numeric_or_numeric_string"
+      }
     }
   }
 }

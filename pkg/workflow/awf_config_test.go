@@ -955,6 +955,8 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 	})
 
 	t.Run("default-ai-credits-pricing is emitted with non-zero rates", func(t *testing.T) {
+		cachedInput := 0.3
+		cacheWrite := 3.0
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
 			AllowedDomains: "github.com",
@@ -963,8 +965,10 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 					ID: "copilot",
 				},
 				DefaultAiCreditsPricing: &AiCreditsPricingConfig{
-					Input:  3.0,
-					Output: 15.0,
+					Input:       3.0,
+					Output:      15.0,
+					CachedInput: &cachedInput,
+					CacheWrite:  &cacheWrite,
 				},
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
@@ -977,6 +981,8 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"defaultAiCreditsPricing"`, "apiProxy should emit defaultAiCreditsPricing when configured")
 		assert.Contains(t, jsonStr, `"input":3`, "apiProxy.defaultAiCreditsPricing.input should be 3")
 		assert.Contains(t, jsonStr, `"output":15`, "apiProxy.defaultAiCreditsPricing.output should be 15")
+		assert.Contains(t, jsonStr, `"cachedInput":0.3`, "apiProxy.defaultAiCreditsPricing.cachedInput should be emitted")
+		assert.Contains(t, jsonStr, `"cacheWrite":3`, "apiProxy.defaultAiCreditsPricing.cacheWrite should be emitted")
 	})
 
 	t.Run("default-ai-credits-pricing is omitted when not configured", func(t *testing.T) {
@@ -1292,6 +1298,11 @@ func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricing(t *testing.T) {
 func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricingNonZero(t *testing.T) {
 	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxRuns":500,"defaultAiCreditsPricing":{"input":3,"output":15}}}`)
 	require.NoError(t, err, "apiProxy.defaultAiCreditsPricing with non-zero rates should pass AWF config schema validation")
+}
+
+func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricingCachedFields(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxRuns":500,"defaultAiCreditsPricing":{"input":3,"output":15,"cachedInput":0.3,"cacheWrite":3}}}`)
+	require.NoError(t, err, "apiProxy.defaultAiCreditsPricing should allow cachedInput and cacheWrite fields")
 }
 
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when
