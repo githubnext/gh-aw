@@ -171,3 +171,54 @@ Test workflow`
 		t.Error("Expected secret_verification_result activation output to be skipped when top-level environment is configured")
 	}
 }
+
+// TestConclusionConditionOmitsSecretVerificationWhenOutputAbsent is a regression test for
+// https://github.com/github/gh-aw/issues/46883. When the activation job does not declare the
+// secret_verification_result output (e.g. because a top-level environment is configured, which
+// skips the validate-secret step), the conclusion job condition must not reference that output.
+// A dangling needs.activation.outputs.secret_verification_result reference fails actionlint on
+// the generated lock file.
+func TestConclusionConditionOmitsSecretVerificationWhenOutputAbsent(t *testing.T) {
+	testDir := testutil.TempDir(t, "conclusion-no-secret-verify-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	// environment: production skips the validate-secret step (and its output),
+	// while safe-outputs: add-comment forces a conclusion job to be generated.
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+environment: production
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Sanity check: the output really is absent from the activation job.
+	if strings.Contains(lockStr, "secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}") {
+		t.Fatal("Expected activation job to omit secret_verification_result output when environment is configured")
+	}
+
+	// The dangling reference must not appear anywhere (conclusion condition or env var).
+	if strings.Contains(lockStr, "needs.activation.outputs.secret_verification_result") {
+		t.Error("Expected generated lock file to omit needs.activation.outputs.secret_verification_result when the output is not declared (regression for #46883)")
+	}
+}
