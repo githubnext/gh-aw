@@ -287,7 +287,7 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		return nil
 	}
 
-	releaseTag, releaseURL := getGhawReleaseInfo()
+	releaseTag, releaseURL := getGhawReleaseInfo(ctx)
 	xmlMarker := buildOrgXMLMarker(ghawUpgradeMarkerPrefix, releaseTag)
 
 	// Close any stale upgrade PRs in the target repo before creating the new one.
@@ -332,7 +332,7 @@ func searchOrgLockWorkflowRepos(ctx context.Context, org string, verbose bool) (
 func createIssueForUpgradeOrgRepo(ctx context.Context, repo string, verbose bool) error {
 	title := "[aw] Upgrade available"
 
-	releaseTag, releaseURL := getGhawReleaseInfo()
+	releaseTag, releaseURL := getGhawReleaseInfo(ctx)
 	xmlMarker := buildOrgXMLMarker(ghawUpgradeMarkerPrefix, releaseTag)
 
 	// Close stale upgrade issues before creating the new one.

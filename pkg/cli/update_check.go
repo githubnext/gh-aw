@@ -3,6 +3,8 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"strings"
 	"time"
@@ -10,6 +12,7 @@ import (
 	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/githubapi"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 	"github.com/github/gh-aw/pkg/workflow"
@@ -100,6 +103,10 @@ func updateLastCheckTime() {
 // checkForUpdates checks if a newer version of gh-aw is available
 // This function is non-blocking and ignores all errors (connectivity, API, etc.)
 func checkForUpdates(noCheckUpdate bool, verbose bool) {
+	checkForUpdatesWithContext(context.Background(), noCheckUpdate, verbose)
+}
+
+func checkForUpdatesWithContext(ctx context.Context, noCheckUpdate bool, verbose bool) {
 	// Quick check if we should even attempt the update check
 	if !shouldCheckForUpdate(noCheckUpdate) {
 		return
@@ -118,7 +125,7 @@ func checkForUpdates(noCheckUpdate bool, verbose bool) {
 	}
 
 	// Query GitHub API for latest release
-	latestVersion, err := getLatestRelease(false)
+	latestVersion, err := getLatestRelease(ctx, false)
 	if err != nil {
 		// Silently ignore errors - update check should never fail the command
 		updateCheckLog.Printf("Error checking for updates (ignoring): %v", err)
@@ -181,7 +188,7 @@ func isCurrentVersionAtLeastLatest(currentVersion, latestVersion string) bool {
 }
 
 // getLatestRelease queries GitHub API for the latest release of gh-aw
-func getLatestRelease(includePrereleases bool) (string, error) {
+func getLatestRelease(ctx context.Context, includePrereleases bool) (string, error) {
 	updateCheckLog.Print("Querying GitHub API for latest release...")
 
 	// Always target github.com explicitly: gh-aw is only published to github.com,
@@ -191,10 +198,17 @@ func getLatestRelease(includePrereleases bool) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub client: %w", err)
 	}
+	return getLatestReleaseWithClient(ctx, client, includePrereleases)
+}
 
+type releaseRESTClient interface {
+	DoWithContext(ctx context.Context, method string, path string, body io.Reader, response any) error
+}
+
+func getLatestReleaseWithClient(ctx context.Context, client releaseRESTClient, includePrereleases bool) (string, error) {
 	if includePrereleases {
 		var releases []Release
-		err = client.Get(fmt.Sprintf("repos/github/gh-aw/releases?per_page=%d", maxReleasesToQuery), &releases)
+		err := client.DoWithContext(ctx, http.MethodGet, fmt.Sprintf("repos/github/gh-aw/releases?per_page=%d", maxReleasesToQuery), nil, &releases)
 		if err != nil {
 			return "", fmt.Errorf("failed to query releases: %w", err)
 		}
@@ -206,7 +220,7 @@ func getLatestRelease(includePrereleases bool) (string, error) {
 
 	// Query the latest stable release
 	var release Release
-	err = client.Get("repos/github/gh-aw/releases/latest", &release)
+	err := client.DoWithContext(ctx, http.MethodGet, "repos/github/gh-aw/releases/latest", nil, &release)
 	if err != nil {
 		return "", fmt.Errorf("failed to query latest release: %w", err)
 	}
@@ -223,10 +237,7 @@ func getLatestRelease(includePrereleases bool) (string, error) {
 }
 
 func gitHubDotComRESTClientOptions() api.ClientOptions {
-	return api.ClientOptions{
-		Host:    "github.com",
-		Timeout: constants.DefaultHTTPClientTimeout,
-	}
+	return githubapi.ClientOptions("github.com", "")
 }
 
 // findLatestPublishedReleaseTag returns the first non-draft release tag from the
@@ -260,7 +271,7 @@ func CheckForUpdatesAsync(ctx context.Context, noCheckUpdate bool, verbose bool)
 			return
 		}
 
-		checkForUpdates(noCheckUpdate, verbose)
+		checkForUpdatesWithContext(ctx, noCheckUpdate, verbose)
 	}()
 
 	// Give the goroutine a small window to complete quickly

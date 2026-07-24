@@ -161,6 +161,18 @@ engine:
   driver: .github/drivers/custom-copilot-driver.js
 ```
 
+### Engine Extensions (`engine.extensions:`)
+
+Lists engine-specific plugins to install before the agent runs. Only the Pi engine reads this field; each entry is an npm package name passed to `pi install <extension>`. Other engines ignore it. See [Pi Extensions](/gh-aw/reference/engines/#pi-extensions-extensions) for details.
+
+```yaml wrap
+engine:
+  id: pi
+  extensions:
+    - "@pi/web-search"
+    - "@pi/file-browser"
+```
+
 ### Network Permissions (`network:`)
 
 Controls network access using ecosystem identifiers and domain allowlists. See [Network Permissions](/gh-aw/reference/network/) for full documentation.
