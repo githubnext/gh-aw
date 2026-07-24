@@ -15,6 +15,7 @@ If a rule conflicts, this repository overlay takes precedence.
 
 Add your repository-specific standards here, for example:
 
+- **CRITICAL INVARIANT:** After **any** modification to agentic workflow markdown files (`.github/workflows/*.md`), you **must** run `gh aw compile` (or `gh aw compile --watch` while iterating) before stopping. Treat this as mandatory.
 - Required shared include(s) for new workflows
 - Standard frontmatter defaults
 - Frontmatter ordering/style conventions
