@@ -313,18 +313,16 @@ func TestCheckForUpdatesInCIMode(t *testing.T) {
 
 func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
 	// Test that async update check respects context cancellation
-	// Save original environment
-	origCI := os.Getenv("CI")
 	origGetLastCheckFilePath := getLastCheckFilePathFunc
 	defer func() {
-		os.Setenv("CI", origCI)
 		getLastCheckFilePathFunc = origGetLastCheckFilePath
 	}()
 
 	// Ensure we're not in CI mode
-	os.Unsetenv("CI")
-	os.Unsetenv("GITHUB_ACTIONS")
-	os.Unsetenv("CONTINUOUS_INTEGRATION")
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("GH_AW_MCP_SERVER", "")
 
 	// Create temporary directory for last check file
 	tmpDir := t.TempDir()
