@@ -67,12 +67,15 @@ on:
 permissions:
   contents: read
   pull-requests: read
+  actions: read
+  issues: read
 engine: copilot
 tools:
   github:
     mode: remote
     toolsets: [default, actions]
   playwright:
+    mode: cli
     version: "v1.41.0"
   edit:
   bash: ["git status", "git diff"]
@@ -89,7 +92,12 @@ Review the pull request changes and provide feedback.
 		b.Fatal(err)
 	}
 
-	compiler := NewCompiler()
+	compiler := NewCompiler(WithNoEmit(true))
+	compiler.SetQuiet(true)
+	compiler.SetApprove(true)
+
+	// Warm up: run once before timing to prime one-time caches (schema compilation, etc.)
+	_ = compiler.CompileWorkflow(testFile)
 
 	for b.Loop() {
 		_ = compiler.CompileWorkflow(testFile)
