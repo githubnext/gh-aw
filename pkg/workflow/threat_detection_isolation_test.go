@@ -394,6 +394,50 @@ Test workflow`
 	}
 }
 
+// TestExternalDetectorCodexConfigModelProviderAtRoot verifies that the top-level
+// model_provider selector is emitted before any TOML table header ([history],
+// [model_providers.*]). If it appears after [history], TOML parses it as
+// history.model_provider, which Codex ignores, causing it to fall back to the
+// default openai provider and bypass the AWF api-proxy sidecar (401 Unauthorized).
+func TestExternalDetectorCodexConfigModelProviderAtRoot(t *testing.T) {
+	config := buildExternalDetectorCodexConfig("http://172.30.0.30:10000", "ws://172.30.0.30:10000")
+
+	// Trim the shared 10-space indentation so the config reads as plain TOML.
+	var trimmedLines []string
+	for _, line := range strings.Split(config, "\n") {
+		trimmedLines = append(trimmedLines, strings.TrimPrefix(line, "          "))
+	}
+	toml := strings.Join(trimmedLines, "\n")
+
+	modelProviderIndex := strings.Index(toml, "model_provider = \"openai-proxy\"")
+	if modelProviderIndex == -1 {
+		t.Fatalf("Expected model_provider selector in detection config, got:\n%s", toml)
+	}
+	firstTableIndex := strings.Index(toml, "[")
+	if firstTableIndex == -1 {
+		t.Fatalf("Expected at least one TOML table header in detection config, got:\n%s", toml)
+	}
+	// The top-level model_provider must precede any table header so TOML assigns
+	// it to the document root rather than the most recent table.
+	if modelProviderIndex > firstTableIndex {
+		t.Errorf("model_provider selector must appear before any table header (e.g. [history]) so TOML assigns it to the document root, got:\n%s", toml)
+	}
+
+	// Guard against regression: the [history] table section must not contain a
+	// model_provider key. Extract the [history] table body and assert.
+	historyIndex := strings.Index(toml, "[history]")
+	if historyIndex == -1 {
+		t.Fatalf("Expected [history] table in detection config, got:\n%s", toml)
+	}
+	historyBody := toml[historyIndex:]
+	if nextTable := strings.Index(historyBody[len("[history]"):], "["); nextTable != -1 {
+		historyBody = historyBody[:len("[history]")+nextTable]
+	}
+	if strings.Contains(historyBody, "model_provider") {
+		t.Errorf("[history] table must NOT contain a model_provider key, got:\n%s", historyBody)
+	}
+}
+
 // TestExternalDetectorCodexFirewallDomains verifies that the Codex external detection
 // path includes the required API domains in the AWF firewall allowlist.
 // Without the correct allowed domains the firewall blocks api.openai.com, chatgpt.com
