@@ -19,7 +19,9 @@ var orgIPLog = logger.New("cli:org_issue_pr")
 var (
 	ghawReleaseTagCache syncutil.OnceLoader[string]
 
-	getLatestOrgReleaseFunc = getLatestRelease
+	getLatestOrgReleaseFunc = func(ctx context.Context, includePrereleases bool) (string, error) {
+		return getLatestRelease(ctx, includePrereleases)
+	}
 )
 
 var errEmptyGhawReleaseTag = errors.New("latest gh-aw release tag was empty")
@@ -53,9 +55,9 @@ func buildOrgXMLMarker(prefix, tag string) string {
 // getGhawReleaseInfo returns the latest stable gh-aw release tag and its HTML URL.
 // Both values are empty strings when the release cannot be determined; callers must
 // handle this gracefully (e.g. omit the release link rather than failing).
-func getGhawReleaseInfo() (tag, releaseURL string) {
+func getGhawReleaseInfo(ctx context.Context) (tag, releaseURL string) {
 	tag, err := ghawReleaseTagCache.Get(func() (string, error) {
-		tag, err := getLatestOrgReleaseFunc(false)
+		tag, err := getLatestOrgReleaseFunc(ctx, false)
 		if err != nil {
 			return "", err
 		}
