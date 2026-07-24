@@ -37,11 +37,7 @@ describe("require-fetch-try-catch", () => {
 
   it("valid: non-fetch await calls are not flagged", () => {
     cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
-      valid: [
-        `async function f() { const res = await axios.get(url); }`,
-        `async function f() { const data = await readFile(path); }`,
-        `async function f() { await Promise.resolve(1); }`,
-      ],
+      valid: [`async function f() { const res = await axios.get(url); }`, `async function f() { const data = await readFile(path); }`, `async function f() { await Promise.resolve(1); }`],
       invalid: [],
     });
   });
@@ -112,6 +108,42 @@ describe("require-fetch-try-catch", () => {
         {
           code: `async function f() { for (let i = 0; i < 3; i++) { const res = await fetch(url); } }`,
           errors: [{ messageId: "requireTryCatch" }],
+        },
+      ],
+    });
+  });
+
+  it("valid: locally bound fetch is not flagged (shadows the global)", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [
+        // fetch as a function parameter
+        `async function f(fetch) { await fetch(url); }`,
+        // fetch as a local variable
+        `async function f() { const fetch = async (u) => null; await fetch(url); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: await fetch inside named function declaration nested in outer try block", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          // FunctionDeclaration inside outer try — the outer try cannot catch the rejected promise;
+          // VariableDeclaration context so no suggestion is emitted (wrapping would move uses out of scope)
+          code: `try { async function later() { const r = await fetch(url); } setTimeout(later, 0); } catch (e) {}`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+        {
+          // Stored async arrow function inside outer try — same problem
+          code: `try { const later = async () => { const r = await fetch(url); }; } catch (e) {}`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+        {
+          // Stored async function expression inside outer try
+          code: `try { const later = async function() { const r = await fetch(url); }; } catch (e) {}`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
         },
       ],
     });
