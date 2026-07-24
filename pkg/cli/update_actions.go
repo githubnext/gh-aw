@@ -50,7 +50,7 @@ func defaultActionUpdateDeps() actionUpdateDeps {
 		getLatestReleaseViaGit: getLatestActionReleaseViaGit,
 		checkCoolDown:          checkReleaseCoolDown,
 		runGHReleasesAPI: func(ctx context.Context, baseRepo string) ([]byte, error) {
-			return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
+			return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", "--paginate", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
 		},
 		getActionSHAForTag: getActionSHAForTag,
 	}
@@ -192,17 +192,17 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 				coolDownResult = checkReleaseCoolDownWithDate(entry.Repo, latestVersion, cachedDate, coolDown)
 			} else {
 				// Fetch from API and cache the date for future runs.
-				coolDownResult = checkReleaseCoolDown(ctx, entry.Repo, latestVersion, coolDown)
+				coolDownResult = deps.checkCoolDown(ctx, entry.Repo, latestVersion, coolDown)
 				if !coolDownResult.PublishedAt.IsZero() {
 					actionCache.SetReleasedAt(entry.Repo, latestVersion, coolDownResult.PublishedAt)
 				}
 			}
 			if coolDownResult.InCoolDown {
 				cooldownLog.Printf("Action %s: %s", entry.Repo, coolDownResult.Message)
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", entry.Repo, coolDownResult.Message)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", entry.Repo, latestVersion, coolDownResult.Message)))
 
 				// Try to find an older release that has passed the cooldown period.
-				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, entry.Repo, entry.Version, effectiveAllowMajor, verbose, coolDown)
+				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, entry.Repo, entry.Version, effectiveAllowMajor, verbose, coolDown, latestVersion)
 				if findErr != nil || olderVersion == "" || olderSHA == "" {
 					skippedActions = append(skippedActions, entry.Repo)
 					continue
@@ -211,6 +211,16 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 				latestVersion = olderVersion
 				latestSHA = olderSHA
 			}
+		}
+		if latestSHA == "" {
+			skipErr := "could not resolve SHA for " + latestVersion
+			updateLog.Printf("Skipping update for %s: %s", entry.Repo, skipErr)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %s", entry.Repo, skipErr)))
+			failedActions = append(failedActions, actionUpdateFailure{
+				name: entry.Repo,
+				err:  skipErr,
+			})
+			continue
 		}
 
 		// Update the entry using ActionCache.Set which:
@@ -560,6 +570,7 @@ func findCooledDownActionVersion(
 	repo, currentVersion string,
 	allowMajor, verbose bool,
 	coolDown time.Duration,
+	skipTag string,
 ) (string, string, error) {
 	baseRepo := gitutil.ExtractBaseRepo(repo)
 
@@ -606,11 +617,14 @@ func findCooledDownActionVersion(
 	})
 
 	for _, c := range candidates {
+		if skipTag != "" && c.tag == skipTag {
+			continue
+		}
 		result := deps.checkCoolDown(ctx, repo, c.tag, coolDown)
 		if result.InCoolDown {
 			cooldownLog.Printf("Action fallback %s@%s: %s", repo, c.tag, result.Message)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, result.Message)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, c.tag, result.Message)))
 			}
 			continue
 		}
@@ -993,17 +1007,17 @@ func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDep
 			coolDownKey := repo + "@" + latestVersion
 			coolDownResult, coolDownCached := coolDownCache[coolDownKey]
 			if !coolDownCached {
-				coolDownResult = checkReleaseCoolDown(ctx, repo, latestVersion, coolDown)
+				coolDownResult = deps.checkCoolDown(ctx, repo, latestVersion, coolDown)
 				coolDownCache[coolDownKey] = coolDownResult
 			}
 			if coolDownResult.InCoolDown {
 				cooldownLog.Printf("Action ref %s in workflow: %s", repo, coolDownResult.Message)
 				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, coolDownResult.Message)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, latestVersion, coolDownResult.Message)))
 				}
 
 				// Try to find an older release that has passed the cooldown period.
-				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, repo, currentVersion, effectiveAllowMajor, verbose, coolDown)
+				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, repo, currentVersion, effectiveAllowMajor, verbose, coolDown, latestVersion)
 				if findErr != nil || olderVersion == "" || olderSHA == "" {
 					continue
 				}

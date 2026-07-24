@@ -387,6 +387,35 @@ func fetchPublicGitHubAPI(ctx context.Context, endpoint string) ([]byte, error) 
 	return body, nil
 }
 
+func fetchPublicReleaseTagsPaginated(ctx context.Context, repo string) ([]string, error) {
+	var tags []string
+	for page := 1; ; page++ {
+		endpoint := fmt.Sprintf("/repos/%s/releases?per_page=100&page=%d", repo, page)
+		body, err := fetchPublicGitHubAPI(ctx, endpoint)
+		if err != nil {
+			return nil, err
+		}
+		var releases []struct {
+			TagName string `json:"tag_name"`
+		}
+		if err := json.Unmarshal(body, &releases); err != nil {
+			return nil, fmt.Errorf("failed to parse releases response: %w", err)
+		}
+		if len(releases) == 0 {
+			break
+		}
+		for _, r := range releases {
+			if r.TagName != "" {
+				tags = append(tags, r.TagName)
+			}
+		}
+		if len(releases) < 100 {
+			break
+		}
+	}
+	return tags, nil
+}
+
 // getRepoDefaultBranch fetches the default branch name for a repository.
 func getRepoDefaultBranch(ctx context.Context, repo string) (string, error) {
 	output, err := workflow.RunGHContext(ctx, "Fetching repo info...", "api", "/repos/"+repo, "--jq", ".default_branch")
@@ -465,24 +494,12 @@ func defaultWorkflowUpdateDeps() workflowUpdateDeps {
 		checkCoolDown: checkReleaseCoolDown,
 		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
 			endpoint := fmt.Sprintf("/repos/%s/releases", repo)
-			output, err := workflow.RunGHContext(ctx, "Fetching releases...", "api", endpoint, "--jq", ".[].tag_name")
+			output, err := workflow.RunGHContext(ctx, "Fetching releases...", "api", "--paginate", endpoint, "--jq", ".[].tag_name")
 			if err != nil && gitutil.IsAuthError(err.Error()) {
 				updateLog.Printf("GitHub API auth failed for releases of %s, retrying without token", repo)
-				body, fallbackErr := fetchPublicGitHubAPI(ctx, endpoint)
+				tags, fallbackErr := fetchPublicReleaseTagsPaginated(ctx, repo)
 				if fallbackErr != nil {
 					return nil, fmt.Errorf("failed (with token: %w; without token: %w)", err, fallbackErr)
-				}
-				var releases []struct {
-					TagName string `json:"tag_name"`
-				}
-				if fallbackErr = json.Unmarshal(body, &releases); fallbackErr != nil {
-					return nil, fmt.Errorf("failed to parse releases response: %w", fallbackErr)
-				}
-				var tags []string
-				for _, r := range releases {
-					if r.TagName != "" {
-						tags = append(tags, r.TagName)
-					}
 				}
 				return []byte(strings.Join(tags, "\n")), nil
 			}
@@ -609,7 +626,7 @@ func resolveLatestReleaseWithDeps(ctx context.Context, deps workflowUpdateDeps, 
 			return c.tag, nil
 		}
 		cooldownLog.Printf("Workflow source %s: %s", repo, result.Message)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, result.Message)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, c.tag, result.Message)))
 	}
 
 	// All upgrade candidates are still within the cooldown window.
