@@ -241,7 +241,7 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 		// Set the new entry first; ActionCache.Set handles inputs/description preservation.
 		// If the write is rejected (e.g. empty SHA), keep the old entry untouched.
 		if !actionCache.Set(entry.Repo, latestVersion, latestSHA) {
-			skipErr := "failed to write action cache entry for " + entry.Repo + "@" + latestVersion
+			skipErr := fmt.Sprintf("failed to write action cache entry for %s@%s (resolved SHA may be empty)", entry.Repo, latestVersion)
 			updateLog.Printf("Skipping update for %s: %s", entry.Repo, skipErr)
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %s", entry.Repo, skipErr)))
 			failedActions = append(failedActions, actionUpdateFailure{
