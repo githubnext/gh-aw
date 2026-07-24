@@ -194,6 +194,7 @@ type WorkflowData struct {
 	ModelCosts                     map[string]any                  // model pricing data from frontmatter `models` field (providers structure); merged with built-in models.json at runtime by generate_aw_info.cjs
 	ModelPolicyAllowed             []string                        // merged models.allowed policy list (union across imports + main frontmatter)
 	ModelPolicyBlocked             []string                        // merged models.blocked policy list (union across imports + main frontmatter)
+	DefaultAiCreditsPricing        *AiCreditsPricingConfig         // fallback per-token pricing from frontmatter models.default-ai-credits-pricing; used by AWF API proxy for unrecognized models
 	ActionPinMappings              map[string]string               // action-pin redirect table from aw.json action_pins: maps "owner/repo@version" → "owner/repo@version"
 	ContainerPinMappings           map[string]string               // container-pin redirect table from aw.json container_pins: maps source image → replacement image
 	Evals                          *EvalsConfig                    // BinEval evaluation configuration parsed from frontmatter evals field

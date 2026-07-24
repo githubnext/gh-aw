@@ -2915,6 +2915,28 @@
             },
             "additionalProperties": false
           }
+        },
+        "default-ai-credits-pricing": {
+          "type": "object",
+          "description": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table. Required when max-ai-credits is active and the model is self-hosted or unrecognized (e.g. BYOK Ollama). Without this, the AWF API proxy rejects unrecognized models with HTTP 400.",
+          "required": ["input", "output"],
+          "properties": {
+            "input": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Input token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+            },
+            "output": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Output token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+            }
+          },
+          "additionalProperties": false,
+          "examples": [
+            { "input": 0, "output": 0 },
+            { "input": 3.0, "output": 15.0 }
+          ]
         }
       },
       "additionalProperties": false
@@ -3471,28 +3493,6 @@
                       "$ref": "#/$defs/templatable_boolean",
                       "description": "Enable or disable model fallback for unresolved model selections. Set to false for BYOK Azure OpenAI deployments to prevent deployment-name rewriting. Supports literal boolean or GitHub Actions expression.",
                       "examples": [false, "${{ inputs.model-fallback }}"]
-                    },
-                    "default-ai-credits-pricing": {
-                      "type": "object",
-                      "description": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table. Required when max-ai-credits is active and the model is self-hosted or unrecognized (e.g. BYOK Ollama). Without this, the AWF API proxy rejects unrecognized models with HTTP 400.",
-                      "required": ["input", "output"],
-                      "properties": {
-                        "input": {
-                          "type": "number",
-                          "minimum": 0,
-                          "description": "Input token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
-                        },
-                        "output": {
-                          "type": "number",
-                          "minimum": 0,
-                          "description": "Output token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
-                        }
-                      },
-                      "additionalProperties": false,
-                      "examples": [
-                        { "input": 0, "output": 0 },
-                        { "input": 3.0, "output": 15.0 }
-                      ]
                     },
                     "runtime": {
                       "type": "string",

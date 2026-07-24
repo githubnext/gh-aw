@@ -1902,9 +1902,9 @@ func TestMainWorkflowSchema_SandboxAgentModelFallback(t *testing.T) {
 	}
 }
 
-// TestMainWorkflowSchema_SandboxAgentDefaultAiCreditsPricing verifies that
-// sandbox.agent.default-ai-credits-pricing is accepted by the frontmatter schema.
-func TestMainWorkflowSchema_SandboxAgentDefaultAiCreditsPricing(t *testing.T) {
+// TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing verifies that
+// models.default-ai-credits-pricing is accepted by the frontmatter schema.
+func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 	t.Parallel()
 
 	t.Run("zero pricing for self-hosted BYOK model is accepted", func(t *testing.T) {
@@ -1913,13 +1913,10 @@ func TestMainWorkflowSchema_SandboxAgentDefaultAiCreditsPricing(t *testing.T) {
 		frontmatter := map[string]any{
 			"on":     "push",
 			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"id": "awf",
-					"default-ai-credits-pricing": map[string]any{
-						"input":  0,
-						"output": 0,
-					},
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  0,
+					"output": 0,
 				},
 			},
 		}
@@ -1936,13 +1933,10 @@ func TestMainWorkflowSchema_SandboxAgentDefaultAiCreditsPricing(t *testing.T) {
 		frontmatter := map[string]any{
 			"on":     "push",
 			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"id": "awf",
-					"default-ai-credits-pricing": map[string]any{
-						"input":  3.0,
-						"output": 15.0,
-					},
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  3.0,
+					"output": 15.0,
 				},
 			},
 		}
@@ -1959,12 +1953,9 @@ func TestMainWorkflowSchema_SandboxAgentDefaultAiCreditsPricing(t *testing.T) {
 		frontmatter := map[string]any{
 			"on":     "push",
 			"engine": "copilot",
-			"sandbox": map[string]any{
-				"agent": map[string]any{
-					"id": "awf",
-					"default-ai-credits-pricing": map[string]any{
-						"input": 3.0,
-					},
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input": 3.0,
 				},
 			},
 		}

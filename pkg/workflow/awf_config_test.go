@@ -937,13 +937,9 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
 				},
-				SandboxConfig: &SandboxConfig{
-					Agent: &AgentSandboxConfig{
-						DefaultAiCreditsPricing: &AiCreditsPricingConfig{
-							Input:  0,
-							Output: 0,
-						},
-					},
+				DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+					Input:  0,
+					Output: 0,
 				},
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},
@@ -966,13 +962,9 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
 				},
-				SandboxConfig: &SandboxConfig{
-					Agent: &AgentSandboxConfig{
-						DefaultAiCreditsPricing: &AiCreditsPricingConfig{
-							Input:  3.0,
-							Output: 15.0,
-						},
-					},
+				DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+					Input:  3.0,
+					Output: 15.0,
 				},
 				NetworkPermissions: &NetworkPermissions{
 					Firewall: &FirewallConfig{Enabled: true},

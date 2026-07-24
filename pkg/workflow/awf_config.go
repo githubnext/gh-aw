@@ -815,20 +815,14 @@ func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 }
 
 // extractDefaultAiCreditsPricing returns an AWFDefaultAiCreditsPricingConfig if the workflow has
-// configured sandbox.agent.default-ai-credits-pricing, or nil if the field is absent.
+// configured models.default-ai-credits-pricing, or nil if the field is absent.
 // This fallback pricing is used when maxAiCredits is active and the requested model is not in
 // the built-in pricing table, preventing HTTP 400 unknown_model_ai_credits for BYOK/self-hosted models.
 func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AWFDefaultAiCreditsPricingConfig {
 	if workflowData == nil {
 		return nil
 	}
-	if workflowData.SandboxConfig == nil {
-		return nil
-	}
-	if workflowData.SandboxConfig.Agent == nil {
-		return nil
-	}
-	p := workflowData.SandboxConfig.Agent.DefaultAiCreditsPricing
+	p := workflowData.DefaultAiCreditsPricing
 	if p == nil {
 		return nil
 	}

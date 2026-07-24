@@ -326,24 +326,6 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
-	// Extract default-ai-credits-pricing (fallback pricing for unrecognized models)
-	if pricingVal, hasPricing := agentObj["default-ai-credits-pricing"]; hasPricing {
-		if pricingObj, ok := pricingVal.(map[string]any); ok {
-			var input, output float64
-			if v, ok := toFloat64(pricingObj["input"]); ok {
-				input = v
-			}
-			if v, ok := toFloat64(pricingObj["output"]); ok {
-				output = v
-			}
-			agentConfig.DefaultAiCreditsPricing = &AiCreditsPricingConfig{
-				Input:  input,
-				Output: output,
-			}
-			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.default-ai-credits-pricing: input=%g output=%g", input, output)
-		}
-	}
-
 	return agentConfig
 }
 
