@@ -62,6 +62,8 @@ See also: [workflow-editing.md](workflow-editing.md)
 - Limit network and bash access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
+See [workflow-constraints.md](workflow-constraints.md) for the full security posture, safer-alternatives pattern, and common risk areas.
+
 ## Repository-Specific Instructions
 
 Use `@.github/aw/instructions.md` as the canonical repository-local overlay for workflow authoring standards.
