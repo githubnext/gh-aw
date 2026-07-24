@@ -13,7 +13,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:fileclosenotdeferred")
 
 // Analyzer is the file-close-not-deferred analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -25,6 +28,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -73,6 +78,7 @@ func inspectFileFuncDecl(pass *analysis.Pass, n ast.Node, noLintIndex nolint.Dir
 	// Report files with manual close but no defer
 	for _, state := range fileVars {
 		if state.hasManualClose && !state.hasDefer && !nolint.HasDirectiveForLinter(pass.Fset.PositionFor(state.openPos, false), noLintIndex, "fileclosenotdeferred") {
+			pkgLog.Printf("flagging non-deferred file Close() at %s", pass.Fset.PositionFor(state.openPos, false))
 			pass.Report(analysis.Diagnostic{
 				Pos:     state.openPos,
 				Message: "file Close() should be deferred immediately after successful open to prevent resource leaks",
