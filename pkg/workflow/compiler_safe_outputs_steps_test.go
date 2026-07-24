@@ -373,6 +373,8 @@ func TestBuildHandlerManagerStep(t *testing.T) {
 				"GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG",
 				"setupGlobals",
 				"safe_output_handler_manager.cjs",
+				"process-safe-outputs.stdout.log",
+				"process-safe-outputs.stderr.log",
 			},
 		},
 		{
