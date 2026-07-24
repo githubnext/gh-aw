@@ -199,13 +199,16 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 			}
 			if coolDownResult.InCoolDown {
 				cooldownLog.Printf("Action %s: %s", entry.Repo, coolDownResult.Message)
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", entry.Repo, latestVersion, coolDownResult.Message)))
 
 				// Try to find an older release that has passed the cooldown period.
 				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, entry.Repo, entry.Version, effectiveAllowMajor, verbose, coolDown, latestVersion)
 				if findErr != nil || olderVersion == "" || olderSHA == "" {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", entry.Repo, latestVersion, coolDownResult.Message)))
 					skippedActions = append(skippedActions, entry.Repo)
 					continue
+				}
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Falling back to %s for %s (latest release candidate is still in cooldown)", olderVersion, entry.Repo)))
 				}
 				// Use the older, cooled-down release instead.
 				latestVersion = olderVersion
@@ -1022,14 +1025,17 @@ func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDep
 			}
 			if coolDownResult.InCoolDown {
 				cooldownLog.Printf("Action ref %s in workflow: %s", repo, coolDownResult.Message)
-				if verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, latestVersion, coolDownResult.Message)))
-				}
 
 				// Try to find an older release that has passed the cooldown period.
 				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, repo, currentVersion, effectiveAllowMajor, verbose, coolDown, latestVersion)
 				if findErr != nil || olderVersion == "" || olderSHA == "" {
+					if verbose {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, latestVersion, coolDownResult.Message)))
+					}
 					continue
+				}
+				if verbose {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Falling back to %s for %s (latest release candidate is still in cooldown)", olderVersion, repo)))
 				}
 				// Use the older, cooled-down release and update the per-invocation cache.
 				result = latestReleaseResult{version: olderVersion, sha: olderSHA}

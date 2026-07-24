@@ -973,7 +973,7 @@ func TestFindCooledDownActionVersion_EmptySHASkipped(t *testing.T) {
 		return "", nil // empty SHA
 	}
 
-	version, sha, err := findCooledDownActionVersion(context.Background(), deps, "docker/login-action", "v4.4.0", true, false, 7*24*time.Hour, "")
+	version, sha, err := findCooledDownActionVersion(context.Background(), deps, "docker/login-action", "v1.319.0", true, false, 7*24*time.Hour, "")
 	if err != nil {
 		t.Fatalf("unexpected error: %v", err)
 	}

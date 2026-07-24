@@ -611,12 +611,17 @@ func resolveLatestReleaseWithDeps(ctx context.Context, deps workflowUpdateDeps, 
 
 	// If the repo is exempt from cooldown, return the best (newest) upgrade candidate.
 	if isExemptFromCoolDown(repo) {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found newer release: "+upgradeCandidates[0].tag))
+		}
 		return upgradeCandidates[0].tag, nil
 	}
 
 	// Iterate from newest to oldest upgrade candidate, stopping at the first release
 	// that has passed the cooldown period.  This lets users receive the latest cooled
 	// release rather than being blocked on a single too-recent version.
+	loggedCandidateSkip := false
+	cooldownSkippedCount := 0
 	for _, c := range upgradeCandidates {
 		result := deps.checkCoolDown(ctx, repo, c.tag, coolDown)
 		if !result.InCoolDown {
@@ -625,8 +630,15 @@ func resolveLatestReleaseWithDeps(ctx context.Context, deps workflowUpdateDeps, 
 			}
 			return c.tag, nil
 		}
+		cooldownSkippedCount++
 		cooldownLog.Printf("Workflow source %s: %s", repo, result.Message)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, c.tag, result.Message)))
+		if !loggedCandidateSkip {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, c.tag, result.Message)))
+			loggedCandidateSkip = true
+		}
+	}
+	if cooldownSkippedCount > 1 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Evaluated %d release candidates for %s; all are still in cooldown", cooldownSkippedCount, repo)))
 	}
 
 	// All upgrade candidates are still within the cooldown window.
