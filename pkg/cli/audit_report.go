@@ -707,7 +707,10 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		return nil
 	}
 
-	errorAnnotations, lastStep := scanWorkflowStepLogs(workflowLogsDir, maxMessageLen)
+	errorAnnotations, lastStep, err := scanWorkflowStepLogs(workflowLogsDir, maxMessageLen)
+	if err != nil {
+		return nil
+	}
 	if len(errorAnnotations) > 0 {
 		return errorAnnotations
 	}
@@ -716,7 +719,7 @@ func extractPreAgentStepErrors(logsPath string) []ErrorInfo {
 		return agentError
 	}
 
-	return extractLastStepFallbackError(lastStep, maxMessageLen)
+	return extractLastStepFallbackError(lastStep, workflowLogsDir, maxMessageLen)
 }
 
 type stepLog struct {
@@ -725,10 +728,10 @@ type stepLog struct {
 	stepKey string
 }
 
-func scanWorkflowStepLogs(workflowLogsDir string, maxMessageLen int) ([]ErrorInfo, *stepLog) {
+func scanWorkflowStepLogs(workflowLogsDir string, maxMessageLen int) ([]ErrorInfo, *stepLog, error) {
 	jobDirs, err := os.ReadDir(workflowLogsDir)
 	if err != nil {
-		return nil, nil
+		return nil, nil, err
 	}
 
 	var lastStep *stepLog
@@ -754,7 +757,7 @@ func scanWorkflowStepLogs(workflowLogsDir string, maxMessageLen int) ([]ErrorInf
 		)
 	}
 
-	return errorAnnotations, lastStep
+	return errorAnnotations, lastStep, nil
 }
 
 func scanFlatStepLog(
@@ -773,7 +776,7 @@ func scanFlatStepLog(
 
 	flatFilePath := filepath.Join(workflowLogsDir, filename)
 	lastStep = updateLastStep(lastStep, flatFilePath, num, jobName)
-	errorAnnotations = appendErrorAnnotation(errorAnnotations, flatFilePath, jobName, num, maxMessageLen, true)
+	errorAnnotations = appendErrorAnnotation(errorAnnotations, flatFilePath, jobName, num, maxMessageLen, "flat job log")
 	return lastStep, errorAnnotations
 }
 
@@ -801,7 +804,7 @@ func scanNestedStepLogs(
 		stepFilePath := filepath.Join(jobDir, stepFile.Name())
 		stepKey := jobName + "/" + stepName
 		lastStep = updateLastStep(lastStep, stepFilePath, num, stepKey)
-		errorAnnotations = appendErrorAnnotation(errorAnnotations, stepFilePath, stepKey, num, maxMessageLen, false)
+		errorAnnotations = appendErrorAnnotation(errorAnnotations, stepFilePath, stepKey, num, maxMessageLen, "step")
 	}
 
 	return lastStep, errorAnnotations
@@ -823,7 +826,7 @@ func appendErrorAnnotation(
 	filePath, stepKey string,
 	num int,
 	maxMessageLen int,
-	flat bool,
+	logLabel string,
 ) []ErrorInfo {
 	errorLines := extractGHErrorLines(filePath)
 	if len(errorLines) == 0 {
@@ -831,11 +834,7 @@ func appendErrorAnnotation(
 	}
 
 	message := stringutil.Truncate(strings.Join(errorLines, "\n"), maxMessageLen)
-	if flat {
-		auditReportLog.Printf("Extracted ##[error] annotations from flat job log %s (job %d)", stepKey, num)
-	} else {
-		auditReportLog.Printf("Extracted ##[error] annotations from %s (step %d)", stepKey, num)
-	}
+	auditReportLog.Printf("Extracted ##[error] annotations from %s %s (%s %d)", logLabel, stepKey, logLabel, num)
 
 	return append(errorAnnotations, ErrorInfo{
 		Type:    "step_failure",
@@ -878,9 +877,9 @@ func extractAgentFailureError(agentRan bool, agentStdioPath string, maxMessageLe
 	return nil
 }
 
-func extractLastStepFallbackError(lastStep *stepLog, maxMessageLen int) []ErrorInfo {
+func extractLastStepFallbackError(lastStep *stepLog, workflowLogsDir string, maxMessageLen int) []ErrorInfo {
 	if lastStep == nil {
-		auditReportLog.Printf("No step log files found for fallback extraction")
+		auditReportLog.Printf("No step log files found in %s", workflowLogsDir)
 		return nil
 	}
 
