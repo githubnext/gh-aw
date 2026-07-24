@@ -1902,6 +1902,71 @@ func TestMainWorkflowSchema_SandboxAgentModelFallback(t *testing.T) {
 	}
 }
 
+// TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing verifies that
+// models.default-ai-credits-pricing is accepted by the frontmatter schema.
+func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
+	t.Parallel()
+
+	t.Run("zero pricing for self-hosted BYOK model is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  0,
+					"output": 0,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-zero-test.md")
+		if err != nil {
+			t.Fatalf("expected zero default-ai-credits-pricing to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("non-zero pricing is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  3.0,
+					"output": 15.0,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-nonzero-test.md")
+		if err != nil {
+			t.Fatalf("expected non-zero default-ai-credits-pricing to pass schema validation, got: %v", err)
+		}
+	})
+
+	t.Run("pricing without output is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input": 3.0,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-missing-output-test.md")
+		if err == nil {
+			t.Fatal("expected default-ai-credits-pricing without output to fail schema validation")
+		}
+	})
+}
+
 // TestMainWorkflowSchema_SandboxAgentSudo is a regression guard for #41679.
 // The JSON schema already contains sandbox.agent.sudo; these tests ensure it
 // stays accepted and that the legacy network-isolation field stays rejected,

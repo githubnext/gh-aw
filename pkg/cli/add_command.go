@@ -571,6 +571,10 @@ func processWorkflowContentModifications(content string, workflowSpec *WorkflowS
 	if err != nil {
 		return content, err
 	}
+	content, err = applyLocalSkillRefRewriting(content, sourceInfo, opts)
+	if err != nil {
+		return content, err
+	}
 	content, err = applySourceAndIncludeModifications(content, workflowSpec, sourceInfo, githubWorkflowsDir, opts)
 	if err != nil {
 		return content, err

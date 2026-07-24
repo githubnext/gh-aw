@@ -19,6 +19,23 @@ import (
 var testContainerPinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
 var testAWFImageTagDigestRE = regexp.MustCompile(`,[a-z-]+=sha256:[0-9a-f]{64}`)
 var testProjectUTCEnvLineRE = regexp.MustCompile(`(?m)^\s*GH_AW_PROJECT_UTC:.*(?:\r?\n|$)`)
+var testDefaultAWFInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AWF_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultFirewallVersion)) + `"`)
+var testDefaultAWFGatewayInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AWMG_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultMCPGatewayVersion)) + `"`)
+var testDefaultAWFInstallVersionRE = regexp.MustCompile(`(install_awf_binary\.sh"\s+)` + regexp.QuoteMeta(string(constants.DefaultFirewallVersion)) + `\b`)
+var testDefaultAWFImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-firewall/(?:agent|api-proxy|cli-proxy|squid):)` + regexp.QuoteMeta(strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")) + `\b`)
+var testDefaultAWFSchemaURLRE = regexp.MustCompile(`(releases/download/)` + regexp.QuoteMeta(string(constants.DefaultFirewallVersion)) + `(/awf-config\.schema\.json)`)
+var testDefaultAWFImageTagRE = regexp.MustCompile(`("imageTag"\s*:\s*")(?:v)?` + regexp.QuoteMeta(strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")) + `"`)
+var testDefaultMCPGImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-mcpg:)` + regexp.QuoteMeta(string(constants.DefaultMCPGatewayVersion)) + `\b`)
+
+func normalizeDefaultRuntimeVersions(content string) string {
+	normalized := testDefaultAWFInfoVersionRE.ReplaceAllString(content, `GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"`)
+	normalized = testDefaultAWFGatewayInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_AWMG_VERSION: "vMCPG_VERSION"`)
+	normalized = testDefaultAWFInstallVersionRE.ReplaceAllString(normalized, `${1}vAWF_VERSION`)
+	normalized = testDefaultAWFImageRE.ReplaceAllString(normalized, `${1}AWF_VERSION`)
+	normalized = testDefaultAWFSchemaURLRE.ReplaceAllString(normalized, `${1}vAWF_VERSION$2`)
+	normalized = testDefaultAWFImageTagRE.ReplaceAllString(normalized, `${1}AWF_VERSION"`)
+	return testDefaultMCPGImageRE.ReplaceAllString(normalized, `${1}MCPG_VERSION`)
+}
 
 // normalizeOutput applies all stable-comparison normalizations to compiled workflow output
 // before golden comparison: heredoc delimiter normalization and container pin normalization.
@@ -35,7 +52,35 @@ func normalizeOutput(content string) string {
 	for _, op := range []string{"Edit", "MultiEdit", "Read", "Write"} {
 		normalized = strings.ReplaceAll(normalized, op+"(/tmp/gh-aw/*)", op+"(/tmp/gh-aw/agent/*)")
 	}
+	normalized = normalizeDefaultRuntimeVersions(normalized)
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
+}
+
+func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
+	input := strings.Join([]string{
+		`GH_AW_INFO_AWF_VERSION: "` + string(constants.DefaultFirewallVersion) + `"`,
+		`GH_AW_INFO_AWMG_VERSION: "` + string(constants.DefaultMCPGatewayVersion) + `"`,
+		`run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" ` + string(constants.DefaultFirewallVersion) + ` --rootless`,
+		`run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-firewall/api-proxy:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-mcpg:` + string(constants.DefaultMCPGatewayVersion),
+		`{"schema":"https://github.com/github/gh-aw-firewall/releases/download/` + string(constants.DefaultFirewallVersion) + `/awf-config.schema.json","imageTag":"` + string(constants.DefaultFirewallVersion) + `"}`,
+		`{"pinnedAwf":"v0.5.0","pinnedAwfImage":"ghcr.io/github/gh-aw-firewall/agent:0.5.0","pinnedMcpgImage":"ghcr.io/github/gh-aw-mcpg:v0.0.12"}`,
+	}, "\n")
+
+	normalized := normalizeOutput(input)
+
+	require.Contains(t, normalized, `GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_INFO_AWMG_VERSION: "vMCPG_VERSION"`)
+	require.Contains(t, normalized, `install_awf_binary.sh" vAWF_VERSION --rootless`)
+	require.Contains(t, normalized, `ghcr.io/github/gh-aw-firewall/agent:AWF_VERSION`)
+	require.Contains(t, normalized, `ghcr.io/github/gh-aw-firewall/api-proxy:AWF_VERSION`)
+	require.Contains(t, normalized, `ghcr.io/github/gh-aw-mcpg:MCPG_VERSION`)
+	require.Contains(t, normalized, `releases/download/vAWF_VERSION/awf-config.schema.json`)
+	require.Contains(t, normalized, `"imageTag":"AWF_VERSION"`)
+	require.Contains(t, normalized, `"pinnedAwf":"v0.5.0"`)
+	require.Contains(t, normalized, `"pinnedAwfImage":"ghcr.io/github/gh-aw-firewall/agent:0.5.0"`)
+	require.Contains(t, normalized, `"pinnedMcpgImage":"ghcr.io/github/gh-aw-mcpg:v0.0.12"`)
+	require.NotContains(t, normalized, string(constants.DefaultFirewallVersion))
+	require.NotContains(t, normalized, string(constants.DefaultMCPGatewayVersion))
 }
 
 // TestWasmGolden_CompileFixtures compiles each workflow fixture using the string API

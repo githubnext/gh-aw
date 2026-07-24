@@ -92,6 +92,7 @@ safe-outputs:
       allowed-repos: ["github/gh-aw"]
       hide-older-comments: true
       max: 2
+      discussions: true
     create-issue:
       expires: 2h
       group: true
@@ -187,9 +188,9 @@ Talk like a caveman in all your responses and outputs. Use short, broken sentenc
 `safe-outputs.add-comment.max` is `2`. Never exceed 2 total `add_comment` calls in this run.
 
 - Call #1 is required for the discussion interaction test (comment on latest discussion).
-- Call #2 depends on trigger:
-  - `pull_request` event: post the brief PR summary comment, and **skip** the fun discussion follow-up comment.
-  - non-`pull_request` event: **skip** the PR summary comment and post the fun discussion follow-up comment.
+- Call #2 depends on context:
+  - A `pull-request-number` is shown in `<github-context>`: post the brief PR summary comment (pass `item_number` with that PR number explicitly), and **skip** the fun discussion follow-up comment.
+  - No `pull-request-number` in `<github-context>`: **skip** the PR summary comment and post the fun discussion follow-up comment.
 
 ## Test Requirements
 
@@ -201,7 +202,7 @@ Run these checks and mark each as ✅/❌:
 4. Playwright CLI (bash only): run `playwright-cli open https://github.com` then `playwright-cli screenshot`; confirm successful GitHub navigation.
 5. `web-fetch` tool: fetch `https://github.com` and confirm response contains `GitHub`.
 6. File + bash: create `/tmp/gh-aw/agent/smoke-test-copilot-${{ github.run_id }}.txt` with timestamped success text, then `cat` it.
-7. Discussion interaction: get latest discussion with `github-discussion-query` (`limit=1`, `jq=".[0]"`), extract number, then `add_comment` to that discussion.
+7. Discussion interaction: get latest discussion with `github-discussion-query` (`limit=1`, `jq=".[0]"`), extract number, then call `add_comment` with `item_number` set to that discussion number (do NOT use `target=discussion`; pass only `item_number` and `body`).
 8. Build: run `GOCACHE=/tmp/gh-aw/agent/go-cache GOMODCACHE=/tmp/gh-aw/agent/go-mod make build`.
 9. Artifact upload (only if build passes): stage `./gh-aw` at `$RUNNER_TEMP/gh-aw/safeoutputs/upload-artifacts/gh-aw` and call `upload_artifact` with `path: "gh-aw"`.
 10. Discussion create: call `create_discussion` in `announcements` with label `ai-generated`, title `copilot was here`, temp ID `aw_smoke_discussion`.
@@ -229,19 +230,19 @@ Run these checks and mark each as ✅/❌:
 
 2. **Set Issue Type** (**required**): Use the `set_issue_type` safe-output tool with `issue_number: "aw_smoke1"` (the temporary ID from step 1) and `issue_type: "Bug"` to set the type of the just-created smoke test issue.
 
-3. **Only if this workflow was triggered by a pull_request event**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to the triggering pull request (omit the `item_number` parameter to auto-target the triggering PR) with:
+3. **Only if a `pull-request-number` appears in the `<github-context>` block**: Use the `add_comment` tool to add a **very brief** comment (max 5-10 lines) to that pull request — pass the pull-request-number explicitly as `item_number` (required; auto-targeting does not work for `workflow_dispatch` triggers) with:
    - PR titles only (no descriptions)
    - ✅ or ❌ for each test result
    - Overall status: PASS or FAIL
    - Mention the pull request author and any assignees
 
-4. **Only if this workflow was NOT triggered by a pull_request event**: Use the `add_comment` tool to add a **fun and creative comment** to the newly created discussion (use the temporary ID `aw_smoke_discussion` from step 11) - be playful and entertaining in your comment
+4. **Only if no `pull-request-number` in `<github-context>`**: Use the `add_comment` tool to add a **fun and creative comment** to the newly created discussion (use the temporary ID `aw_smoke_discussion` from step 11) - be playful and entertaining in your comment
 
 5. Use the `send_slack_message` tool to send a brief summary message (e.g., "Smoke test ${{ github.run_id }}: All tests passed! ✅")
 
-If all tests pass and this workflow was triggered by a pull_request event:
-- Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request (omit the `item_number` parameter to auto-target the triggering PR)
-- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (omit the `item_number` parameter to auto-target the triggering PR)
+If all tests pass and a `pull-request-number` appears in `<github-context>`:
+- Use the `add_labels` safe-output tool to add the label `smoke-copilot` to the pull request (pass the pull-request-number as `item_number`)
+- Use the `remove_labels` safe-output tool to remove the label `smoke` from the pull request (pass the pull-request-number as `item_number`)
 ## agent: `file-summarizer`
 ---
 model: ${{ experiments.subagent_model }}

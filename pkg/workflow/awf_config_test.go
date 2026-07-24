@@ -928,6 +928,75 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotContains(t, jsonStr, `"modelFallback"`, "apiProxy should omit modelFallback when not configured")
 	})
+
+	t.Run("default-ai-credits-pricing is emitted for BYOK self-hosted model at zero cost", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+					Input:  0,
+					Output: 0,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"defaultAiCreditsPricing"`, "apiProxy should emit defaultAiCreditsPricing when configured")
+		assert.Contains(t, jsonStr, `"input":0`, "apiProxy.defaultAiCreditsPricing.input should be 0")
+		assert.Contains(t, jsonStr, `"output":0`, "apiProxy.defaultAiCreditsPricing.output should be 0")
+	})
+
+	t.Run("default-ai-credits-pricing is emitted with non-zero rates", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+					Input:  3.0,
+					Output: 15.0,
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"defaultAiCreditsPricing"`, "apiProxy should emit defaultAiCreditsPricing when configured")
+		assert.Contains(t, jsonStr, `"input":3`, "apiProxy.defaultAiCreditsPricing.input should be 3")
+		assert.Contains(t, jsonStr, `"output":15`, "apiProxy.defaultAiCreditsPricing.output should be 15")
+	})
+
+	t.Run("default-ai-credits-pricing is omitted when not configured", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"defaultAiCreditsPricing"`, "apiProxy should omit defaultAiCreditsPricing when not configured")
+	})
 }
 
 // TestBuildAWFConfigSchemaURL verifies that buildAWFConfigSchemaURL returns a release-pinned
@@ -1213,6 +1282,16 @@ func TestValidateAWFConfigJSON_AllowsGVisorContainerRuntime(t *testing.T) {
 func TestValidateAWFConfigJSON_RejectsUnknownContainerRuntime(t *testing.T) {
 	err := validateAWFConfigJSON(`{"container":{"containerRuntime":"runc"}}`)
 	require.Error(t, err, "container.containerRuntime must only accept enum values; unknown runtime \"runc\" should be rejected")
+}
+
+func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricing(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxRuns":500,"defaultAiCreditsPricing":{"input":0,"output":0}}}`)
+	require.NoError(t, err, "apiProxy.defaultAiCreditsPricing with zero rates should pass AWF config schema validation")
+}
+
+func TestValidateAWFConfigJSON_AllowsDefaultAiCreditsPricingNonZero(t *testing.T) {
+	err := validateAWFConfigJSON(`{"apiProxy":{"enabled":true,"maxRuns":500,"defaultAiCreditsPricing":{"input":3,"output":15}}}`)
+	require.NoError(t, err, "apiProxy.defaultAiCreditsPricing with non-zero rates should pass AWF config schema validation")
 }
 
 // TestBuildAWFConfigJSON_ValidateFlag verifies that schema validation runs when

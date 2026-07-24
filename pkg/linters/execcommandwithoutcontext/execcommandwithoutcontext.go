@@ -16,7 +16,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:execcommandwithoutcontext")
 
 // Analyzer is the exec-command-without-context analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -28,6 +31,8 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
+
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -78,6 +83,7 @@ func checkExecCommandCall(pass *analysis.Pass, cur inspector.Cursor, generatedFi
 			}
 			continue
 		}
+		pkgLog.Printf("flagging exec.Command without context at %s", pos)
 		pass.Report(analysis.Diagnostic{
 			Pos:     call.Pos(),
 			End:     call.End(),
