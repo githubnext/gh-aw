@@ -323,7 +323,7 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 	}
 
 	if createPR {
-		releaseTag, releaseURL := getGhawReleaseInfo()
+		releaseTag, releaseURL := getGhawReleaseInfo(ctx)
 		xmlMarker := buildOrgXMLMarker(ghawUpdateMarkerPrefix, releaseTag)
 
 		// Close any stale update PRs in the target repo before creating the new one.
