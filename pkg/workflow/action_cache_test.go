@@ -1053,7 +1053,9 @@ func TestActionCache_Set_EmptySHARejected(t *testing.T) {
 	cache := NewActionCache(t.TempDir())
 
 	// Calling Set with an empty SHA must not create any entry.
-	cache.Set("docker/login-action", "v3.1.0", "")
+	if ok := cache.Set("docker/login-action", "v3.1.0", ""); ok {
+		t.Error("Set with empty SHA must report failure")
+	}
 
 	if _, exists := cache.Entries["docker/login-action@v3.1.0"]; exists {
 		t.Error("Set with empty SHA must not create a cache entry")
@@ -1064,7 +1066,9 @@ func TestActionCache_Set_EmptySHARejected(t *testing.T) {
 
 	// A subsequent Set with a real SHA must succeed normally.
 	const sha = "abc1234567890123456789012345678901234567"
-	cache.Set("docker/login-action", "v3.1.0", sha)
+	if ok := cache.Set("docker/login-action", "v3.1.0", sha); !ok {
+		t.Fatal("Set with valid SHA must report success")
+	}
 	entry, exists := cache.Entries["docker/login-action@v3.1.0"]
 	if !exists {
 		t.Fatal("Set with valid SHA did not create a cache entry")

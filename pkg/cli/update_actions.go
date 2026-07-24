@@ -238,13 +238,23 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, oldSHAStr, latestVersion, newSHAStr)
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
 
+		// Set the new entry first; ActionCache.Set handles inputs/description preservation.
+		// If the write is rejected (e.g. empty SHA), keep the old entry untouched.
+		if !actionCache.Set(entry.Repo, latestVersion, latestSHA) {
+			skipErr := "failed to write action cache entry for " + entry.Repo + "@" + latestVersion
+			updateLog.Printf("Skipping update for %s: %s", entry.Repo, skipErr)
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %s", entry.Repo, skipErr)))
+			failedActions = append(failedActions, actionUpdateFailure{
+				name: entry.Repo,
+				err:  skipErr,
+			})
+			continue
+		}
 		// Remove the old key when the version changes, using the original map key from
 		// the snapshot to handle any key/version mismatches in the stored cache file.
 		if latestVersion != entry.Version {
 			actionCache.DeleteByKey(s.key)
 		}
-		// Set the new entry; ActionCache.Set handles inputs/description preservation.
-		actionCache.Set(entry.Repo, latestVersion, latestSHA)
 
 		updatedActions = append(updatedActions, entry.Repo)
 	}
