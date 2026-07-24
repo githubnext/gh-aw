@@ -278,7 +278,7 @@ func trimYAMLQuotesSkill(s string) string {
 // leading '#' character. value has trailing whitespace trimmed.
 func splitYAMLValueAndComment(s string) (value, comment string) {
 	var inSingle, inDouble bool
-	for i := 0; i < len(s); i++ {
+	for i := range len(s) {
 		ch := s[i]
 		switch {
 		case ch == '\'' && !inDouble:
