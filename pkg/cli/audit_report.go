@@ -834,7 +834,7 @@ func appendErrorAnnotation(
 	}
 
 	message := stringutil.Truncate(strings.Join(errorLines, "\n"), maxMessageLen)
-	auditReportLog.Printf("Extracted ##[error] annotations from %s %s (%s %d)", logLabel, stepKey, logLabel, num)
+	auditReportLog.Printf("Extracted ##[error] annotations from %s %s (%d)", logLabel, stepKey, num)
 
 	return append(errorAnnotations, ErrorInfo{
 		Type:    "step_failure",
