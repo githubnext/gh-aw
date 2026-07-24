@@ -123,28 +123,17 @@ and no error is returned.
 4. Update `expected` fields to match the required outcome.
 5. Register the new fixture in the table above and link it from §11.4 of the specification.
 
-## Running Compliance Tests
+## Usage
 
-Compliance tests that consume these fixtures are located in (or will be added to):
-
-```
-pkg/workflow/tools_validation_test.go   — §11.1.1 configuration validation
-pkg/workflow/tools_validation_test.go   — §11.1.8 blocked-user tests
-```
-
-To run all related tests:
+1. Copy or verify the test file at `pkg/workflow/github_mcp_access_control_formal_test.go`.
+2. No stub interfaces are needed — all types and helpers are self-contained in the file.
+3. Run predicate-mapped tests:
 
 ```bash
-go test -v -run "TestValidateGitHubGuardPolicy" ./pkg/workflow/
+go test -v -run "TestFormal_" ./pkg/workflow/
 ```
 
-To run the formal conformance test suite (predicate-mapped tests):
-
-```bash
-go test -v -run "TestFormal_(ExactMatch|WildcardMatch|OmittedRepos|RoleFilter|PrivateRepo|BlockedUser|ToolName|IntegrityLevel|UnknownContent|InvalidMinIntegrity|CombinedFilters|ErrorCode|NoSpurious)" ./pkg/workflow/
-```
-
-To run the YAML fixture runner (drives every scenario from the fixture files above through the formal evaluator):
+4. Run only the fixture runner:
 
 ```bash
 go test -v -run "TestFormal_FixtureRunner" ./pkg/workflow/

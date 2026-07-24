@@ -1,7 +1,7 @@
 # ADR-27327: Test Strategy for Parser Package Utility Functions
 
 **Date**: 2026-04-20
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, Copilot
 
 ---
@@ -41,6 +41,7 @@ Parser utilities could be tested exclusively at the workflow-loading integration
 #### Neutral
 - The renamed function `TestIsNotFoundError_RemoteNested` in `import_remote_nested_test.go` disambiguates the two test functions but changes the test name string reported in CI output and `go test -v` listings.
 - No production code is modified by this decision; all changes are confined to `_test.go` files.
+- Conformance is implemented in `pkg/parser/frontmatter_utils_test.go` and `pkg/parser/import_remote_nested_test.go`.
 
 ---
 
@@ -71,4 +72,4 @@ An implementation is considered conformant with this ADR if it satisfies all **M
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Accepted after implementation and conformance validation.*

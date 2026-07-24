@@ -34,7 +34,7 @@ var defaultGhAwActionlintIgnorePatterns = []string{
 func NewLintCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "lint [lock-file-or-directory]...",
-		Short: "Lint existing .lock.yml workflows with actionlint only",
+		Short: "Lint existing .lock.yml workflow files with actionlint only",
 		Long: `Lint existing .lock.yml workflow files from disk using actionlint only.
 
 This command does not recompile Markdown workflows and does not run zizmor or poutine.

@@ -225,6 +225,32 @@ func TestCompileAllWorkflowFiles(t *testing.T) {
 		assert.NoFileExists(t, docsLockFile, "Should not emit lock file for documentation markdown without frontmatter")
 	})
 
+	t.Run("compile all propagates frontmatter filter I/O errors", func(t *testing.T) {
+		tempDir := testutil.TempDir(t, "test-*")
+		workflowsDir := filepath.Join(tempDir, ".github/workflows")
+		err := os.MkdirAll(workflowsDir, 0o755)
+		require.NoError(t, err)
+
+		validWorkflow := filepath.Join(workflowsDir, "valid.md")
+		validContent := "---\non: push\nengine: claude\n---\n# Valid Workflow\n\nContent"
+		err = os.WriteFile(validWorkflow, []byte(validContent), 0o644)
+		require.NoError(t, err)
+
+		// Create a directory named broken.md — os.Open succeeds but a subsequent Read
+		// call returns an EISDIR error ("is a directory"), exercising the
+		// frontmatter-filter I/O propagation path without relying on process privileges
+		// or file-permission portability.
+		brokenWorkflow := filepath.Join(workflowsDir, "broken.md")
+		err = os.MkdirAll(brokenWorkflow, 0o755)
+		require.NoError(t, err)
+
+		compiler := workflow.NewCompiler()
+		_, err = compileAllWorkflowFiles(context.Background(), compiler, workflowsDir, false)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "failed to filter markdown files")
+		require.ErrorContains(t, err, "failed to read workflow file")
+	})
+
 	t.Run("compile all handles glob error", func(t *testing.T) {
 		// Use a malformed glob pattern that will cause filepath.Glob to error
 		invalidDir := "/tmp/gh-aw/[invalid"

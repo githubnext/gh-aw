@@ -311,13 +311,13 @@ func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[st
 		// Validate each configured value against the supported API values so that
 		// invalid strings (e.g. "done", "wontfix") are caught at compile time rather
 		// than producing a GitHub API 422 at runtime.
-		supported := make(map[string]bool, len(closeIssueStateReasonValues))
+		supported := make(map[string]struct{}, len(closeIssueStateReasonValues))
 		for _, v := range closeIssueStateReasonValues {
-			supported[v] = true
+			supported[v] = struct{}{}
 		}
 		valid := make([]string, 0, len(enumValues))
 		for _, v := range enumValues {
-			if supported[v] {
+			if _, ok := supported[v]; ok {
 				valid = append(valid, v)
 			} else {
 				safeOutputsConfigLog.Printf("Warning: allowed-state-reason value %q is not a supported GitHub API value; valid values: %v", v, closeIssueStateReasonValues)

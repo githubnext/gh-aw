@@ -24,6 +24,8 @@ var copilotAgentsLog = logger.New("cli:copilot_agents")
 
 const agenticWorkflowsSkillFileListPlaceholder = "{{AW_FILE_LIST}}"
 const ghAWMarkdownFilesAPIURL = "https://api.github.com/repos/github/gh-aw/contents/.github/aw?ref=main"
+const agenticWorkflowsSkillDirDescription = ".github/skills/agentic-workflows directory"
+const agenticWorkflowsAgentDirDescription = ".github/agents directory"
 
 //go:embed data/agentic_workflows_agent.md
 var agenticWorkflowsAgentTemplate string
@@ -84,7 +86,7 @@ func ensureAgenticWorkflowsDispatcher(verbose bool, skipInstructions bool, write
 		return nil
 	}
 
-	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(skillContent), write, ".github/skills/agentic-workflows directory", "dispatcher skill"); err != nil {
+	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(skillContent), write, agenticWorkflowsSkillDirDescription, "dispatcher skill"); err != nil {
 		copilotAgentsLog.Printf("Failed to write dispatcher skill: %s, error: %v", targetPath, err)
 		return fmt.Errorf("failed to write dispatcher skill: %w", err)
 	}
@@ -144,7 +146,7 @@ func ensureAgenticWorkflowsAgent(verbose bool, write bool) error {
 		return nil
 	}
 
-	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(agenticWorkflowsAgentContent), write, ".github/agents directory", "Agentic Workflows custom agent"); err != nil {
+	if err := writeGeneratedRepositoryInstructionFile(targetPath, []byte(agenticWorkflowsAgentContent), write, agenticWorkflowsAgentDirDescription, "Agentic Workflows custom agent"); err != nil {
 		return fmt.Errorf("failed to write Agentic Workflows custom agent: %w", err)
 	}
 

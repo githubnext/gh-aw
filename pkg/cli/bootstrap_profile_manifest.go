@@ -263,9 +263,9 @@ func stringMapValue(value any) (map[string]string, error) {
 
 func manifestBootstrapFieldError(manifestPath string, index int, field string, err error) error {
 	if example, ok := manifestBootstrapFieldExample(field); ok {
-		return fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].%s %s. Example: config[%d].%s: %s", manifestPath, index, field, err.Error(), index, field, example)
+		return fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].%s %w. Example: config[%d].%s: %s", manifestPath, index, field, err, index, field, example)
 	}
-	return fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].%s %s", manifestPath, index, field, err.Error())
+	return fmt.Errorf("invalid Agentic Workflow manifest %q: config[%d].%s %w", manifestPath, index, field, err)
 }
 
 func manifestBootstrapFieldExample(field string) (string, bool) {
