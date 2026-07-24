@@ -405,6 +405,31 @@ func extractMainModelPolicyOverlay(toolsResult *toolsProcessingResult, frontmatt
 	return mainPolicy
 }
 
+// toFloat64 converts any numeric value from a parsed YAML/JSON frontmatter map to float64.
+// Returns (value, true) on success, or (0, false) if the value is nil or not a numeric type.
+func toFloat64(v any) (float64, bool) {
+	switch n := v.(type) {
+	case float64:
+		return n, true
+	case float32:
+		return float64(n), true
+	case int:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case uint:
+		return float64(n), true
+	case uint32:
+		return float64(n), true
+	case uint64:
+		return float64(n), true
+	default:
+		return 0, false
+	}
+}
+
 // extractDefaultAiCreditsPricingFromModels returns the fallback AI credits pricing configured
 // under models.default-ai-credits-pricing in the workflow frontmatter, or nil if absent.
 func extractDefaultAiCreditsPricingFromModels(frontmatter map[string]any) *AiCreditsPricingConfig {
