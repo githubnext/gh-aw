@@ -59,7 +59,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		ImportInputs:               importsResult.ImportInputs,
 		Tools:                      toolsResult.tools,
 		LSP:                        extractLSPConfig(toolsResult.parsedFrontmatter, result.Frontmatter),
-		ParsedTools:                NewTools(toolsResult.tools),
+		ParsedTools:                toolsResult.parsedTools,
 		Runtimes:                   toolsResult.runtimes,
 		RunInstallScripts:          toolsResult.runInstallScripts,
 		MarkdownContent:            toolsResult.markdownContent,

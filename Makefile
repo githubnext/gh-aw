@@ -176,7 +176,7 @@ bench-performance:
 	@echo "This includes: CompileSimpleWorkflow, CompileComplexWorkflow, CompileMCPWorkflow,"
 	@echo "               CompileMemoryUsage, ParseWorkflow, Validation, YAMLGeneration"
 	@go test -bench='Benchmark(CompileSimpleWorkflow|CompileComplexWorkflow|CompileMCPWorkflow|CompileMemoryUsage|ParseWorkflow|Validation|YAMLGeneration)$$' \
-		-benchmem -benchtime=3x -run=^$$ ./pkg/workflow | tee bench_performance.txt
+		-benchmem -benchtime=2s -run=^$$ ./pkg/workflow | tee bench_performance.txt
 	@echo ""
 	@echo "Also running CLI helper benchmarks..."
 	@go test -bench='Benchmark(ExtractWorkflowNameFromFile|FindIncludesInContent)$$' \

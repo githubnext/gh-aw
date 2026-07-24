@@ -17,6 +17,7 @@ var orchestratorToolsLog = logger.New("workflow:compiler_orchestrator_tools")
 // toolsProcessingResult holds the results of tools and markdown processing
 type toolsProcessingResult struct {
 	tools                 map[string]any
+	parsedTools           *Tools         // pre-parsed tools (avoids re-parsing in buildInitialWorkflowData)
 	resolvedMCPServers    map[string]any // fully merged mcp-servers from main workflow and all imports
 	runtimes              map[string]any
 	runInstallScripts     bool // true when runtimes.node.run-install-scripts: true is set (from main + imports)
@@ -83,6 +84,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 
 	return &toolsProcessingResult{
 		tools:                 toolsData.tools,
+		parsedTools:           toolsData.parsedTools,
 		resolvedMCPServers:    toolsData.resolvedMCPServers,
 		runtimes:              runtimes,
 		runInstallScripts:     runInstallScripts,
@@ -112,6 +114,7 @@ func (c *Compiler) processToolsAndMarkdown(result *parser.FrontmatterResult, cle
 // mcp-servers map, include metadata, and derived timeout/tool flags.
 type mergedToolsData struct {
 	tools                 map[string]any
+	parsedTools           *Tools // pre-parsed tools (avoids re-parsing in buildInitialWorkflowData)
 	resolvedMCPServers    map[string]any
 	includedToolFiles     []string
 	toolsTimeout          string
@@ -207,11 +210,15 @@ func (c *Compiler) resolveToolsConfiguration(
 		return nil, err
 	}
 	tools = c.adjustToolsForEngineCapabilities(result.Frontmatter, agenticEngine, tools)
-	if err := c.validateEngineToolRequirements(result.Frontmatter, agenticEngine, tools); err != nil {
+	// Parse tools once here so the result can be reused by both validation and
+	// buildInitialWorkflowData, avoiding a redundant NewTools call later.
+	parsedTools := NewTools(tools)
+	if err := c.validateEngineToolRequirements(result.Frontmatter, agenticEngine, tools, parsedTools); err != nil {
 		return nil, err
 	}
 	return &mergedToolsData{
 		tools:                 tools,
+		parsedTools:           parsedTools,
 		resolvedMCPServers:    resolvedMCPServers,
 		includedToolFiles:     includedToolFiles,
 		toolsTimeout:          toolsTimeout,
@@ -303,13 +310,13 @@ func (c *Compiler) adjustToolsForEngineCapabilities(frontmatter map[string]any, 
 	return map[string]any{"github": map[string]any{}}
 }
 
-func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, agenticEngine CodingAgentEngine, tools map[string]any) error {
+func (c *Compiler) validateEngineToolRequirements(frontmatter map[string]any, agenticEngine CodingAgentEngine, tools map[string]any, parsedTools *Tools) error {
 	validators := []func() error{
 		func() error { return c.validateMaxTurnsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxContinuationsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateMaxToolDenialsSupport(frontmatter, agenticEngine) },
 		func() error { return c.validateUniversalLLMConsumerModel(frontmatter, agenticEngine) },
-		func() error { return c.validatePiEngineRequirements(NewTools(tools), agenticEngine) },
+		func() error { return c.validatePiEngineRequirements(parsedTools, agenticEngine) },
 	}
 	for _, validator := range validators {
 		if err := validator(); err != nil {
