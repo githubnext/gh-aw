@@ -13777,28 +13777,76 @@
       "description": "Token-class pricing map. Keys are token classes (for example: input, output, cache_read, cache_write, reasoning) and values are numeric prices (number or numeric string).",
       "properties": {
         "input": {
-          "type": ["number", "string"],
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+            }
+          ],
           "description": "Cost per input token in USD."
         },
         "output": {
-          "type": ["number", "string"],
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+            }
+          ],
           "description": "Cost per output token in USD."
         },
         "cache_read": {
-          "type": ["number", "string"],
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+            }
+          ],
           "description": "Cost per cached-read token in USD."
         },
         "cache_write": {
-          "type": ["number", "string"],
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+            }
+          ],
           "description": "Cost per cache-write token in USD."
         },
         "reasoning": {
-          "type": ["number", "string"],
+          "anyOf": [
+            {
+              "type": "number"
+            },
+            {
+              "type": "string",
+              "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+            }
+          ],
           "description": "Cost per reasoning token in USD."
         }
       },
       "additionalProperties": {
-        "type": ["number", "string"]
+        "anyOf": [
+          {
+            "type": "number"
+          },
+          {
+            "type": "string",
+            "pattern": "^[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?$"
+          }
+        ]
       }
     }
   }

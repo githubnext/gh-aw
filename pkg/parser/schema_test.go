@@ -1988,7 +1988,7 @@ func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 		}
 	})
 
-	t.Run("pricing with non-numeric cached value is accepted", func(t *testing.T) {
+	t.Run("pricing with non-numeric cached value is rejected", func(t *testing.T) {
 		t.Parallel()
 
 		frontmatter := map[string]any{
@@ -2004,8 +2004,8 @@ func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 		}
 
 		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-invalid-cache-write-test.md")
-		if err != nil {
-			t.Fatalf("expected default-ai-credits-pricing with non-numeric cache_write to pass schema validation, got: %v", err)
+		if err == nil {
+			t.Fatal("expected default-ai-credits-pricing with non-numeric cache_write to fail schema validation")
 		}
 	})
 }
@@ -2071,6 +2071,34 @@ func TestMainWorkflowSchema_ModelsProvidersAiCreditsPricing(t *testing.T) {
 		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/models-providers-cost-invalid-test.md")
 		if err == nil {
 			t.Fatal("expected models.providers pricing with invalid value type to fail schema validation")
+		}
+	})
+
+	t.Run("non-numeric and trailing-text strings are rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"models": map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{
+						"models": map[string]any{
+							"claude-custom": map[string]any{
+								"cost": map[string]any{
+									"input":       "3oops",
+									"cache_write": "free",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/models-providers-cost-invalid-string-test.md")
+		if err == nil {
+			t.Fatal("expected models.providers pricing with invalid numeric strings to fail schema validation")
 		}
 	})
 }
