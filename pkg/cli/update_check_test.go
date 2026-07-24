@@ -313,18 +313,16 @@ func TestCheckForUpdatesInCIMode(t *testing.T) {
 
 func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
 	// Test that async update check respects context cancellation
-	// Save original environment
-	origCI := os.Getenv("CI")
 	origGetLastCheckFilePath := getLastCheckFilePathFunc
 	defer func() {
-		os.Setenv("CI", origCI)
 		getLastCheckFilePathFunc = origGetLastCheckFilePath
 	}()
 
 	// Ensure we're not in CI mode
-	os.Unsetenv("CI")
-	os.Unsetenv("GITHUB_ACTIONS")
-	os.Unsetenv("CONTINUOUS_INTEGRATION")
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("GH_AW_MCP_SERVER", "")
 
 	// Create temporary directory for last check file
 	tmpDir := t.TempDir()
@@ -341,16 +339,72 @@ func TestCheckForUpdatesAsync_ContextCancellation(t *testing.T) {
 	// Cancel immediately
 	cancel()
 
-	// Call CheckForUpdatesAsync with cancelled context
-	CheckForUpdatesAsync(ctx, false, false)
-
-	// Wait a bit to ensure any goroutines would have had time to run
-	time.Sleep(200 * time.Millisecond)
+	// Call CheckForUpdatesAsync with cancelled context and join the goroutine
+	join := CheckForUpdatesAsync(ctx, false, false)
+	join()
 
 	// The update check should not have created a last check file
 	// because the context was cancelled
 	// Note: The check might still run if it started before cancellation,
 	// so we just verify no panics occurred
+}
+
+func TestCheckForUpdatesAsync_JoinsGoroutine(t *testing.T) {
+	// Test that the returned join function waits for the goroutine to complete
+	origGetLastCheckFilePath := getLastCheckFilePathFunc
+	origCheckForUpdatesWithContext := checkForUpdatesWithContextFunc
+	defer func() {
+		getLastCheckFilePathFunc = origGetLastCheckFilePath
+		checkForUpdatesWithContextFunc = origCheckForUpdatesWithContext
+	}()
+
+	// Ensure we're not in CI mode so that shouldCheckForUpdate returns true
+	t.Setenv("CI", "")
+	t.Setenv("GITHUB_ACTIONS", "")
+	t.Setenv("CONTINUOUS_INTEGRATION", "")
+	t.Setenv("GH_AW_MCP_SERVER", "")
+
+	// Create temporary directory for last check file
+	tmpDir := t.TempDir()
+	lastCheckFile := filepath.Join(tmpDir, lastCheckFileName)
+	getLastCheckFilePathFunc = func() string {
+		return lastCheckFile
+	}
+
+	started := make(chan struct{})
+	release := make(chan struct{})
+	checkForUpdatesWithContextFunc = func(_ context.Context, _ bool, _ bool) {
+		close(started)
+		<-release
+	}
+
+	ctx := context.Background()
+
+	join := CheckForUpdatesAsync(ctx, false, false)
+	<-started
+
+	// join() must wait until the worker exits.
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		join()
+	}()
+
+	select {
+	case <-done:
+		t.Fatal("join returned before worker exited")
+	case <-time.After(100 * time.Millisecond):
+		// join is correctly blocked waiting for worker completion
+	}
+
+	close(release)
+
+	select {
+	case <-done:
+		// goroutine joined successfully after worker exit
+	case <-time.After(2 * time.Second):
+		t.Fatal("join function did not return within 2 seconds")
+	}
 }
 
 func TestFindLatestPublishedReleaseTag(t *testing.T) {

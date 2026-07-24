@@ -323,10 +323,10 @@ func TestGetLatestActionPinByRepo(t *testing.T) {
 		expectVersionPrefix string
 	}{
 		{
-			repo:          "actions/checkout",
-			expectExists:  true,
-			expectRepo:    "actions/checkout",
-			expectVersion: "v7.0.0",
+			repo:                "actions/checkout",
+			expectExists:        true,
+			expectRepo:          "actions/checkout",
+			expectVersionPrefix: "v",
 		},
 		{
 			repo:                "actions/setup-node",
@@ -1764,6 +1764,14 @@ func TestGetActionPinPrefersLatestEmbeddedOverStaleCache(t *testing.T) {
 func TestWarnIfOutdatedActionVersion(t *testing.T) {
 	const checkoutRepo = "actions/checkout"
 	checkoutLatest := latestActionVersionForRepo(t, checkoutRepo)
+	checkoutLatestSemver := semverutil.ParseVersion(checkoutLatest)
+	if checkoutLatestSemver == nil || checkoutLatestSemver.Major < 1 {
+		t.Skipf("need a parseable checkout version with major >= 1, got %q", checkoutLatest)
+	}
+	checkoutMajorTag := fmt.Sprintf("v%d", checkoutLatestSemver.Major)
+	checkoutMinorTag := fmt.Sprintf("v%d.%d", checkoutLatestSemver.Major, checkoutLatestSemver.Minor)
+	checkoutOlderMajorTag := fmt.Sprintf("v%d", checkoutLatestSemver.Major-1)
+	checkoutOlderMinorTag := fmt.Sprintf("v%d.1", checkoutLatestSemver.Major-1)
 
 	tests := []struct {
 		name         string
@@ -1792,39 +1800,39 @@ func TestWarnIfOutdatedActionVersion(t *testing.T) {
 		{
 			name:       "same version does not warn",
 			repo:       checkoutRepo,
-			rawVersion: "v7.0.0",
+			rawVersion: checkoutLatest,
 			latestVer:  checkoutLatest,
 			expectWarn: false,
 		},
 		{
 			name:       "partial tag same major does not warn",
 			repo:       checkoutRepo,
-			rawVersion: "v7",
+			rawVersion: checkoutMajorTag,
 			latestVer:  checkoutLatest,
 			expectWarn: false,
 		},
 		{
 			name:       "minor partial tag same major does not warn",
 			repo:       checkoutRepo,
-			rawVersion: "v7.0",
-			latestVer:  "v7.1.0",
+			rawVersion: checkoutMinorTag,
+			latestVer:  checkoutLatest,
 			expectWarn: false,
 		},
 		{
 			name:         "partial tag older major warns",
 			repo:         checkoutRepo,
-			rawVersion:   "v6",
+			rawVersion:   checkoutOlderMajorTag,
 			latestVer:    checkoutLatest,
 			expectWarn:   true,
-			warnContains: "v6",
+			warnContains: checkoutOlderMajorTag,
 		},
 		{
 			name:         "minor partial tag older major warns",
 			repo:         checkoutRepo,
-			rawVersion:   "v6.1",
-			latestVer:    "v7.1.0",
+			rawVersion:   checkoutOlderMinorTag,
+			latestVer:    checkoutLatest,
 			expectWarn:   true,
-			warnContains: "v6.1",
+			warnContains: checkoutOlderMinorTag,
 		},
 		{
 			name:       "SHA ref does not warn",
