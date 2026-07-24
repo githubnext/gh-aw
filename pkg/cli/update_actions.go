@@ -41,12 +41,14 @@ type actionUpdateDeps struct {
 	getLatestReleaseViaGit func(ctx context.Context, repo, currentVersion string, allowMajor, verbose bool) (string, string, error)
 	runGHReleasesAPI       func(ctx context.Context, baseRepo string) ([]byte, error)
 	getActionSHAForTag     func(ctx context.Context, repo, tag string) (string, error)
+	checkCoolDown          func(ctx context.Context, repo, tag string, coolDown time.Duration) coolDownCheckResult
 }
 
 func defaultActionUpdateDeps() actionUpdateDeps {
 	return actionUpdateDeps{
 		getLatestRelease:       getLatestActionRelease,
 		getLatestReleaseViaGit: getLatestActionReleaseViaGit,
+		checkCoolDown:          checkReleaseCoolDown,
 		runGHReleasesAPI: func(ctx context.Context, baseRepo string) ([]byte, error) {
 			return workflow.RunGHCombinedContext(ctx, "Fetching releases...", "api", fmt.Sprintf("/repos/%s/releases", baseRepo), "--jq", ".[].tag_name")
 		},
@@ -198,8 +200,16 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 			if coolDownResult.InCoolDown {
 				cooldownLog.Printf("Action %s: %s", entry.Repo, coolDownResult.Message)
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", entry.Repo, coolDownResult.Message)))
-				skippedActions = append(skippedActions, entry.Repo)
-				continue
+
+				// Try to find an older release that has passed the cooldown period.
+				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, entry.Repo, entry.Version, effectiveAllowMajor, verbose, coolDown)
+				if findErr != nil || olderVersion == "" || olderSHA == "" {
+					skippedActions = append(skippedActions, entry.Repo)
+					continue
+				}
+				// Use the older, cooled-down release instead.
+				latestVersion = olderVersion
+				latestSHA = olderSHA
 			}
 		}
 
@@ -535,6 +545,88 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 	}
 
 	return latestCompatible, sha, nil
+}
+
+// findCooledDownActionVersion searches for the newest release that is strictly
+// newer than currentVersion but has passed the cooldown period.  It is used as
+// a fallback when the highest candidate is still in cooldown: rather than
+// skipping the update entirely, we walk down the release list toward older
+// (but still upgrading) versions until one has cooled down.
+//
+// Returns ("", "", nil) when no suitable release is found (fail-open).
+func findCooledDownActionVersion(
+	ctx context.Context,
+	deps actionUpdateDeps,
+	repo, currentVersion string,
+	allowMajor, verbose bool,
+	coolDown time.Duration,
+) (string, string, error) {
+	baseRepo := gitutil.ExtractBaseRepo(repo)
+
+	output, err := deps.runGHReleasesAPI(ctx, baseRepo)
+	if err != nil {
+		updateLog.Printf("findCooledDownActionVersion: failed to fetch releases for %s: %v", repo, err)
+		return "", "", nil // fail-open
+	}
+
+	releases := strings.Split(strings.TrimSpace(string(output)), "\n")
+
+	currentVer := parseVersion(currentVersion)
+
+	type releaseCandidate struct {
+		tag     string
+		version *semverutil.SemanticVersion
+	}
+	var candidates []releaseCandidate
+	for _, release := range releases {
+		releaseVer := parseVersion(release)
+		if releaseVer == nil || releaseVer.Pre != "" {
+			continue
+		}
+		if !allowMajor && currentVer != nil && releaseVer.Major != currentVer.Major {
+			continue
+		}
+		// Only include releases that are upgrades relative to the current version.
+		if currentVer != nil && !releaseVer.IsNewer(currentVer) {
+			continue
+		}
+		candidates = append(candidates, releaseCandidate{tag: release, version: releaseVer})
+	}
+
+	// Sort descending (newest first).
+	slices.SortFunc(candidates, func(a, b releaseCandidate) int {
+		switch {
+		case a.version.IsNewer(b.version):
+			return -1
+		case b.version.IsNewer(a.version):
+			return 1
+		default:
+			return 0
+		}
+	})
+
+	for _, c := range candidates {
+		result := deps.checkCoolDown(ctx, repo, c.tag, coolDown)
+		if result.InCoolDown {
+			cooldownLog.Printf("Action fallback %s@%s: %s", repo, c.tag, result.Message)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, result.Message)))
+			}
+			continue
+		}
+		sha, err := deps.getActionSHAForTag(ctx, baseRepo, c.tag)
+		if err != nil {
+			updateLog.Printf("findCooledDownActionVersion: failed to get SHA for %s@%s: %v", repo, c.tag, err)
+			continue // try next candidate
+		}
+		if sha == "" {
+			updateLog.Printf("findCooledDownActionVersion: empty SHA returned for %s@%s; skipping", repo, c.tag)
+			continue // skip; never store an entry without a SHA
+		}
+		return c.tag, sha, nil
+	}
+
+	return "", "", nil
 }
 
 // getActionSHAForTag gets the commit SHA for a given tag in an action repository.
@@ -894,7 +986,9 @@ func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDep
 			}
 		}
 
-		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
+		// Apply cooldown: if the repo is not exempt and the release is too recent, try
+		// progressively older releases (still newer than current) until finding one that
+		// has passed the cooldown period.
 		if !isExemptFromCoolDown(repo) {
 			coolDownKey := repo + "@" + latestVersion
 			coolDownResult, coolDownCached := coolDownCache[coolDownKey]
@@ -907,7 +1001,17 @@ func updateActionRefsInContentWithDeps(ctx context.Context, deps actionUpdateDep
 				if verbose {
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, coolDownResult.Message)))
 				}
-				continue
+
+				// Try to find an older release that has passed the cooldown period.
+				olderVersion, olderSHA, findErr := findCooledDownActionVersion(ctx, deps, repo, currentVersion, effectiveAllowMajor, verbose, coolDown)
+				if findErr != nil || olderVersion == "" || olderSHA == "" {
+					continue
+				}
+				// Use the older, cooled-down release and update the per-invocation cache.
+				result = latestReleaseResult{version: olderVersion, sha: olderSHA}
+				cache[cacheKey] = result
+				latestVersion = olderVersion
+				latestSHA = olderSHA
 			}
 		}
 
