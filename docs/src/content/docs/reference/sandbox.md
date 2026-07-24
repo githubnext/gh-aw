@@ -89,6 +89,18 @@ sandbox:
 
 AWF is the default coding agent sandbox that provides network egress control through domain-based access controls. Network permissions are configured through the top-level [`network`](/gh-aw/reference/network/) field.
 
+For self-hosted or otherwise unrecognized models, `sandbox.agent` also supports `default-ai-credits-pricing` to provide fallback AI credit rates for AWF's API proxy. This is useful when `maxAiCredits` enforcement is active and the selected model is not present in AWF's built-in pricing table.
+
+```yaml wrap
+sandbox:
+  agent:
+    default-ai-credits-pricing:
+      input: 0
+      output: 0
+```
+
+Set both values to `0` for free local models such as self-hosted Ollama deployments. The values map to `apiProxy.defaultAiCreditsPricing` in the generated AWF configuration.
+
 ```yaml wrap
 sandbox:
   agent: awf

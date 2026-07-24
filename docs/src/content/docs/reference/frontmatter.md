@@ -202,7 +202,9 @@ See [Tools](/gh-aw/reference/tools/) for complete documentation on built-in tool
 ### Frontmatter Skills (`skills:`)
 
 Installs external Copilot skills in the activation job before the agent runs.
-Each entry must be pinned to a 40-character lowercase commit SHA.
+Each entry must be pinned to a 40-character lowercase commit SHA in the compiled workflow.
+
+When developing a local workflow, `gh aw add ./my-workflow.md` can rewrite path-style local refs such as `.github/skills/my-skill` or `./my-skill` to the fully qualified `owner/repo/path@sha` form automatically, using the current repository slug and `HEAD` commit. This rewrite preserves surrounding YAML formatting and applies only to local add operations; installed workflows still store pinned refs.
 
 Supported entry formats:
 
@@ -233,6 +235,17 @@ skills:
       client-id: ${{ vars.MATT_SKILLS_APP_CLIENT_ID }}
       private-key: ${{ secrets.MATT_SKILLS_APP_PRIVATE_KEY }}
 ```
+
+For local authoring, the source workflow may use relative refs before installation:
+
+```yaml wrap
+skills:
+  - .github/skills/my-skill
+  - skill: .github/skills/other-skill
+    github-token: ${{ secrets.TOKEN }}
+```
+
+After `gh aw add ./my-workflow.md`, those entries are rewritten to pinned specs in the installed workflow.
 
 See [Glossary: Frontmatter Skills](/gh-aw/reference/glossary/#frontmatter-skills-skills)
 for terminology, and

@@ -191,6 +191,8 @@ gh aw add https://example.com/workflows/my-workflow.md               # Arbitrary
 gh aw add https://example.com/workflows/my-workflow.json             # Arbitrary HTTPS URL (JSON workflow definition)
 ```
 
+When the source workflow is local, `gh aw add` rewrites path-style `skills:` entries such as `.github/skills/my-skill` to fully qualified `owner/repo/path@sha` refs using the current repository slug and `HEAD` commit. This keeps local workflow authoring ergonomic while ensuring installed workflows use pinned skill specs.
+
 **Options:** `--dir/-d`, `--create-pull-request`, `--no-gitattributes`, `--append`, `--no-security-scanner`, `--engine/-e`, `--force/-f`, `--name/-n`, `--no-stop-after`, `--stop-after`
 
 Repository-level packages can declare an [`aw.yml` manifest](/gh-aw/reference/aw-yml-package-manifest/) at the repository root or in a nested package folder to define installable files, package `README.md`, schema compatibility, and minimum supported CLI versions.
