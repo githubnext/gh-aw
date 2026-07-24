@@ -29,20 +29,20 @@ on:
 
 Keep `max` caps conservative to avoid runaway reviews.
 
-## Default Review Event: COMMENT Only
+## Default Review Events: No APPROVE
 
-**The GitHub Actions actor (`GITHUB_TOKEN`) is only permitted to post `COMMENT` reviews. It cannot `APPROVE` or `REQUEST_CHANGES` on a pull request.**
+**The GitHub Actions actor (`GITHUB_TOKEN`) cannot `APPROVE` a pull request. It can post `COMMENT` and `REQUEST_CHANGES` reviews.**
 
-By default, configure `submit-pull-request-review` with `allowed-events: [COMMENT]` to enforce this constraint:
+By default, configure `submit-pull-request-review` with `allowed-events: [COMMENT, REQUEST_CHANGES]` to enforce this constraint:
 
 ```yaml
 safe-outputs:
   submit-pull-request-review:
     max: 1
-    allowed-events: [COMMENT]
+    allowed-events: [COMMENT, REQUEST_CHANGES]
 ```
 
-Do not instruct the agent to approve or request changes unless the workflow uses a PAT or app token with explicit pull-request approval permissions. Using `APPROVE` or `REQUEST_CHANGES` with the default `GITHUB_TOKEN` will fail at runtime.
+Do not instruct the agent to approve a PR unless the workflow uses a PAT or app token with explicit pull-request approval permissions. Using `APPROVE` with the default `GITHUB_TOKEN` will fail at runtime.
 
 ## Integrity and GitHub Tool Access
 
