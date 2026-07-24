@@ -402,18 +402,31 @@ Test workflow`
 func TestExternalDetectorCodexConfigModelProviderAtRoot(t *testing.T) {
 	config := buildExternalDetectorCodexConfig("http://172.30.0.30:10000", "ws://172.30.0.30:10000")
 
-	// Trim the shared 10-space indentation so the config reads as plain TOML.
+	// Strip any leading whitespace from each line so the config reads as plain
+	// TOML regardless of the exact indentation used in the source template.
 	var trimmedLines []string
-	for _, line := range strings.Split(config, "\n") {
-		trimmedLines = append(trimmedLines, strings.TrimPrefix(line, "          "))
+	for line := range strings.SplitSeq(config, "\n") {
+		trimmedLines = append(trimmedLines, strings.TrimLeft(line, " \t"))
 	}
 	toml := strings.Join(trimmedLines, "\n")
 
-	modelProviderIndex := strings.Index(toml, "model_provider = \"openai-proxy\"")
+	expected := "model_provider = \"" + codexOpenAIProxyProviderID + "\""
+	modelProviderIndex := strings.Index(toml, expected)
 	if modelProviderIndex == -1 {
 		t.Fatalf("Expected model_provider selector in detection config, got:\n%s", toml)
 	}
-	firstTableIndex := strings.Index(toml, "[")
+
+	// Find the first real TOML table header by scanning line-by-line; this
+	// avoids matching `[` that appears inside quoted string values or comments.
+	firstTableIndex := -1
+	lineStart := 0
+	for line := range strings.SplitSeq(toml, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "[") {
+			firstTableIndex = lineStart
+			break
+		}
+		lineStart += len(line) + 1 // +1 for the newline
+	}
 	if firstTableIndex == -1 {
 		t.Fatalf("Expected at least one TOML table header in detection config, got:\n%s", toml)
 	}
@@ -424,15 +437,26 @@ func TestExternalDetectorCodexConfigModelProviderAtRoot(t *testing.T) {
 	}
 
 	// Guard against regression: the [history] table section must not contain a
-	// model_provider key. Extract the [history] table body and assert.
-	historyIndex := strings.Index(toml, "[history]")
-	if historyIndex == -1 {
+	// model_provider key. Extract the [history] body line-by-line so that `[`
+	// characters inside quoted values or arrays do not prematurely truncate it.
+	var historyLines []string
+	inHistory := false
+	for line := range strings.SplitSeq(toml, "\n") {
+		if line == "[history]" {
+			inHistory = true
+			continue
+		}
+		if inHistory {
+			if strings.HasPrefix(strings.TrimSpace(line), "[") {
+				break
+			}
+			historyLines = append(historyLines, line)
+		}
+	}
+	if !inHistory {
 		t.Fatalf("Expected [history] table in detection config, got:\n%s", toml)
 	}
-	historyBody := toml[historyIndex:]
-	if nextTable := strings.Index(historyBody[len("[history]"):], "["); nextTable != -1 {
-		historyBody = historyBody[:len("[history]")+nextTable]
-	}
+	historyBody := strings.Join(historyLines, "\n")
 	if strings.Contains(historyBody, "model_provider") {
 		t.Errorf("[history] table must NOT contain a model_provider key, got:\n%s", historyBody)
 	}
