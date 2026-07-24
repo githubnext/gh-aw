@@ -236,19 +236,29 @@ function normalizeDefaultRuntimeVersions(content) {
     );
 }
 
+// ── Normalize actions/checkout pin/version ───────────────────────────────
+// Keep golden fixtures stable across checkout action pin updates in wasm-vs-native
+// comparisons. Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
+function normalizeCheckoutPin(content) {
+  return content.replace(
+    /actions\/checkout@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+/g,
+    "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0"
+  );
+}
+
 // ── Normalize output ──────────────────────────────────────────────────
 // Applies all normalizations needed for stable golden comparison.
 // Combines heredoc delimiter and container pin normalizations so that
 // new normalization steps only need to be added in one place.
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
 function normalize(content) {
-  return normalizeDefaultRuntimeVersions(normalizeCopilotDefaultModel(
+  return normalizeCheckoutPin(normalizeDefaultRuntimeVersions(normalizeCopilotDefaultModel(
     normalizeProjectUTC(
       normalizeAWFImageTagDigests(
         normalizeContainerPins(normalizeHeredocDelimiters(content))
       )
     )
-  ));
+  )));
 }
 
 // ── Load golden file ─────────────────────────────────────────────────

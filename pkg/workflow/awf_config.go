@@ -252,7 +252,7 @@ type AWFAPIProxyConfig struct {
 	// DefaultAiCreditsPricing is the fallback per-token pricing ($/1M tokens) for
 	// models not in the AWF built-in pricing table. When maxAiCredits is active and
 	// a model is unrecognized, this rate is used instead of rejecting with HTTP 400.
-	DefaultAiCreditsPricing *AWFDefaultAiCreditsPricingConfig `json:"defaultAiCreditsPricing,omitempty"`
+	DefaultAiCreditsPricing *AiCreditsPricingConfig `json:"defaultAiCreditsPricing,omitempty"`
 
 	// Targets holds per-provider API target overrides.
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
@@ -279,17 +279,6 @@ type AWFModelFallbackConfig struct {
 	// It accepts literal booleans and GitHub Actions expressions. A nil value omits the field,
 	// letting AWF use its default.
 	Enabled *TemplatableBool `json:"enabled,omitempty"`
-}
-
-// AWFDefaultAiCreditsPricingConfig is the "apiProxy.defaultAiCreditsPricing" section of the AWF config file.
-// It provides fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table.
-// When maxAiCredits is active and a model is unrecognized, this rate is used instead of
-// rejecting with HTTP 400 (unknown_model_ai_credits). Required for BYOK/self-hosted models.
-type AWFDefaultAiCreditsPricingConfig struct {
-	// Input is the input token price per 1M tokens in dollars.
-	Input float64 `json:"input"`
-	// Output is the output token price per 1M tokens in dollars.
-	Output float64 `json:"output"`
 }
 
 // AWFAPITargetConfig is a single API proxy target entry.
@@ -814,11 +803,11 @@ func extractModelFallback(workflowData *WorkflowData) *AWFModelFallbackConfig {
 	}
 }
 
-// extractDefaultAiCreditsPricing returns an AWFDefaultAiCreditsPricingConfig if the workflow has
+// extractDefaultAiCreditsPricing returns an AiCreditsPricingConfig if the workflow has
 // configured models.default-ai-credits-pricing, or nil if the field is absent.
 // This fallback pricing is used when maxAiCredits is active and the requested model is not in
 // the built-in pricing table, preventing HTTP 400 unknown_model_ai_credits for BYOK/self-hosted models.
-func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AWFDefaultAiCreditsPricingConfig {
+func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AiCreditsPricingConfig {
 	if workflowData == nil {
 		return nil
 	}
@@ -826,9 +815,11 @@ func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AWFDefaultAiCre
 	if p == nil {
 		return nil
 	}
-	return &AWFDefaultAiCreditsPricingConfig{
-		Input:  p.Input,
-		Output: p.Output,
+	return &AiCreditsPricingConfig{
+		Input:       p.Input,
+		Output:      p.Output,
+		CachedInput: p.CachedInput,
+		CacheWrite:  p.CacheWrite,
 	}
 }
 
