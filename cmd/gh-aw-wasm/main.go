@@ -3,6 +3,7 @@
 package main
 
 import (
+	"fmt"
 	"strings"
 	"syscall/js"
 
@@ -47,6 +48,11 @@ func compileWorkflow(this js.Value, args []js.Value) any {
 
 		go func() {
 			defer handler.Release()
+			defer func() {
+				if r := recover(); r != nil {
+					reject.Invoke(js.Global().Get("Error").New(fmt.Sprintf("compileWorkflow panic: %v", r)))
+				}
+			}()
 
 			result, err := doCompile(markdown, files, filename)
 			if err != nil {
