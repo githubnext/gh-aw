@@ -776,6 +776,17 @@ models:
   blocked: ["*-preview"]
 ```
 
+### Default AI Credits Pricing (`models.default-ai-credits-pricing`)
+
+A `models:` frontmatter field that provides a fallback per-token pricing rate (in $/1M tokens) for models not present in the AWF built-in pricing table. When the AWF API proxy encounters an unrecognized model — such as a self-hosted BYOK Ollama or vLLM instance — it normally rejects the request with HTTP 400 `unknown_model_ai_credits`. Setting `default-ai-credits-pricing` supplies `input` and `output` rates that the proxy uses instead, preventing the rejection. Set both to `0` for free or local models.
+
+```aw wrap
+models:
+  default-ai-credits-pricing:
+    input: 0    # $/1M input tokens
+    output: 0   # $/1M output tokens
+```
+
 ### Max AI Credits (`max-ai-credits`)
 
 A top-level frontmatter field that caps the total AI Credits (AIC) the AWF proxy will spend within a single workflow run. Applies to all engines and maps to `apiProxy.maxAiCredits` in the compiled lock file. Defaults to `1000` when omitted. Accepts an integer, an optional `K`/`M` suffix string (for example, `100M`), or a GitHub Actions expression that resolves to an integer at runtime. Example:

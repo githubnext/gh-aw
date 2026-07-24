@@ -243,7 +243,7 @@ description: Safe-output reference for update, label, milestone, project, releas
   ```yaml
   safe-outputs:
     create-project-status-update:
-      max: 1                          # Optional: max status updates (default: 10)
+      max: 1                          # Optional: max status updates (default: 1)
       project: "https://github.com/orgs/myorg/projects/42"  # REQUIRED in agent output (full URL)
       github-token: ${{ secrets.GH_AW_PROJECT_GITHUB_TOKEN }}  # REQUIRED: PAT with projects:write (NOT GITHUB_TOKEN)
   ```

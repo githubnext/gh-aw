@@ -31,8 +31,8 @@ The package is intentionally large (~320 source files) because it encodes all Gi
 
 | Method | Signature | Description |
 |--------|-----------|-------------|
-| `CompileWorkflow` | `func(markdownPath string) error` | Compiles a markdown file and writes the `.lock.yml` |
-| `CompileWorkflowData` | `func(workflowData *WorkflowData, markdownPath string) error` | Compiles pre-parsed `WorkflowData` |
+| `CompileWorkflow` | `func(*Compiler) CompileWorkflow(markdownPath string) error` | Compiles a markdown file and writes the `.lock.yml` |
+| `CompileWorkflowData` | `func(*Compiler) CompileWorkflowData(workflowData *WorkflowData, markdownPath string) error` | Compiles pre-parsed `WorkflowData` |
 
 #### Compiler Options
 

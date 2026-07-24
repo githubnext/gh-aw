@@ -11,6 +11,7 @@ jobs:
     uses: ./.github/workflows/smoke-workflow-call.lock.yml
     secrets: inherit
     permissions:
+      actions: read
       contents: read
       discussions: write
       issues: write
