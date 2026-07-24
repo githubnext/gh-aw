@@ -1947,6 +1947,28 @@ func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 		}
 	})
 
+	t.Run("pricing with cached token classes is accepted", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":       3.0,
+					"output":      15.0,
+					"cache_read":  0.3,
+					"cache_write": 3.0,
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-cached-test.md")
+		if err != nil {
+			t.Fatalf("expected default-ai-credits-pricing with cached token classes to pass schema validation, got: %v", err)
+		}
+	})
+
 	t.Run("pricing without output is rejected", func(t *testing.T) {
 		t.Parallel()
 
@@ -1963,6 +1985,27 @@ func TestMainWorkflowSchema_ModelsDefaultAiCreditsPricing(t *testing.T) {
 		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-missing-output-test.md")
 		if err == nil {
 			t.Fatal("expected default-ai-credits-pricing without output to fail schema validation")
+		}
+	})
+
+	t.Run("pricing with non-numeric cached value is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":       3.0,
+					"output":      15.0,
+					"cache_write": "free",
+				},
+			},
+		}
+
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/byok-pricing-invalid-cache-write-test.md")
+		if err == nil {
+			t.Fatal("expected default-ai-credits-pricing with non-numeric cache_write to fail schema validation")
 		}
 	})
 }

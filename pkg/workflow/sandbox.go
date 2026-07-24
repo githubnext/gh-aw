@@ -90,6 +90,10 @@ type AiCreditsPricingConfig struct {
 	Input float64 `yaml:"input" json:"input"`
 	// Output is the output token price per 1M tokens in dollars.
 	Output float64 `yaml:"output" json:"output"`
+	// CachedInput is the cached-read token price per 1M tokens in dollars.
+	CachedInput *float64 `yaml:"cache_read,omitempty" json:"cachedInput,omitempty"`
+	// CacheWrite is the cache-write token price per 1M tokens in dollars.
+	CacheWrite *float64 `yaml:"cache_write,omitempty" json:"cacheWrite,omitempty"`
 }
 
 // AgentAPIProxyTargetConfig configures a single LLM provider's API proxy target.

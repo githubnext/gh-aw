@@ -452,7 +452,20 @@ func extractDefaultAiCreditsPricingFromModels(frontmatter map[string]any) *AiCre
 	if v, ok := toFloat64(pricingObj["output"]); ok {
 		output = v
 	}
-	return &AiCreditsPricingConfig{Input: input, Output: output}
+	var cachedInput *float64
+	if v, ok := toFloat64(pricingObj["cache_read"]); ok {
+		cachedInput = &v
+	}
+	var cacheWrite *float64
+	if v, ok := toFloat64(pricingObj["cache_write"]); ok {
+		cacheWrite = &v
+	}
+	return &AiCreditsPricingConfig{
+		Input:       input,
+		Output:      output,
+		CachedInput: cachedInput,
+		CacheWrite:  cacheWrite,
+	}
 }
 
 func mergeModelPolicyOverlays(importedPolicies []map[string][]string, mainPolicy map[string][]string) ([]string, []string) {

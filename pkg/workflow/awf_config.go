@@ -816,8 +816,10 @@ func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AiCreditsPricin
 		return nil
 	}
 	return &AiCreditsPricingConfig{
-		Input:  p.Input,
-		Output: p.Output,
+		Input:       p.Input,
+		Output:      p.Output,
+		CachedInput: p.CachedInput,
+		CacheWrite:  p.CacheWrite,
 	}
 }
 

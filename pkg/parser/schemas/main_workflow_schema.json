@@ -2908,6 +2908,16 @@
                   "type": "number",
                   "minimum": 0,
                   "description": "Output token price per 1M tokens in dollars. Use 0 for self-hosted/free models."
+                },
+                "cache_read": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Cached-read token price per 1M tokens in dollars."
+                },
+                "cache_write": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Cache-write token price per 1M tokens in dollars."
                 }
               },
               "additionalProperties": false
