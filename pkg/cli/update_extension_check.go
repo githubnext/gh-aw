@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -59,7 +60,7 @@ func upgradeExtensionIfOutdated(verbose bool, includePrereleases bool) (bool, st
 	}
 
 	// Query GitHub API for latest release
-	latestVersion, err := getLatestRelease(includePrereleases)
+	latestVersion, err := getLatestRelease(context.Background(), includePrereleases)
 	if err != nil {
 		// Fail silently - don't block the upgrade command if we can't reach GitHub
 		updateExtensionCheckLog.Printf("Failed to check for latest release (silently ignoring): %v", err)

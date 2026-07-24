@@ -41,6 +41,7 @@ package workflow
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"strings"
 	"sync"
@@ -328,7 +329,7 @@ func checkRepositoryHasIssuesUncachedWithClient(repo string, client *api.RESTCli
 
 	// Fetch repository data using REST client with timeout context
 	var response RepositoryResponse
-	if err := client.DoWithContext(ctx, "GET", "repos/"+repo, nil, &response); err != nil {
+	if err := client.DoWithContext(ctx, http.MethodGet, "repos/"+repo, nil, &response); err != nil {
 		return false, fmt.Errorf("failed to query repository: %w", err)
 	}
 

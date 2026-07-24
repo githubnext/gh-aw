@@ -21,9 +21,7 @@ Use OrchestratorOps when a single workflow run is too coarse — the work spans 
 
 ## The Orchestrator/Worker Pattern
 
-- **Orchestrator**: decides what to do next, splits work into units, dispatches workers.
-- **Worker(s)**: do the concrete work (triage, code changes, analysis) with scoped permissions and tools.
-- **Optional monitoring**: both orchestrator and workers can update a GitHub Project board for visibility.
+The **orchestrator** decides what to do next, splits work into units, and dispatches workers. **Workers** handle the concrete tasks — triage, code changes, or analysis — with scoped permissions and tools. For visibility, both can optionally update a GitHub Project board.
 
 ## Dispatch Workers with `dispatch-workflow`
 
@@ -63,9 +61,6 @@ If your workers need shared context, pass an explicit input such as `tracker_id`
 
 ## Related Documentation
 
-- [BatchOps](/gh-aw/patterns/batch-ops/) — Parallel processing of large item volumes
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Central control plane pattern (orchestrator + worker across repos)
-- [WorkQueueOps](/gh-aw/patterns/workqueue-ops/) — Sequential processing with ordering guarantees
-- [Safe Outputs (`dispatch-workflow`)](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) — Dispatching workers
-- [Safe Outputs (`call-workflow`)](/gh-aw/reference/safe-outputs/#workflow-call-call-workflow) — Calling reusable workflows
-- [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) — Tracking orchestrator/worker progress
+For parallel processing at larger scale, see [BatchOps](/gh-aw/patterns/batch-ops/). For a central control plane across repositories, see [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/). For ordered, sequential processing, see [WorkQueueOps](/gh-aw/patterns/workqueue-ops/).
+
+See [Safe Outputs (`dispatch-workflow`)](/gh-aw/reference/safe-outputs/#workflow-dispatch-dispatch-workflow) for asynchronous worker dispatch, [Safe Outputs (`call-workflow`)](/gh-aw/reference/safe-outputs/#workflow-call-call-workflow) for reusable workflow calls, and [Monitoring with Projects](/gh-aw/experimental/monitoring-with-projects/) for progress tracking.

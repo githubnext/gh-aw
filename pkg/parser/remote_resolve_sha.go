@@ -13,9 +13,15 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/cli/go-gh/v2"
+	"github.com/cli/go-gh/v2/pkg/api"
 	"github.com/github/gh-aw/pkg/gitutil"
 )
+
+// createRESTClientForHostFunc allows tests to inject a stub REST client factory.
+var createRESTClientForHostFunc = createRESTClientForHost
+
+// resolveRefToSHAViaGitFunc allows tests to inject a stub for the git ls-remote fallback.
+var resolveRefToSHAViaGitFunc = resolveRefToSHAViaGit
 
 // resolveRefToSHAViaGit resolves a git ref to SHA using git ls-remote
 // This is a fallback for when GitHub API authentication fails
@@ -79,39 +85,63 @@ func resolveRefToSHA(ctx context.Context, owner, repo, ref, host string) (string
 		return ref, nil
 	}
 
-	// Use gh CLI to get the commit SHA for the ref
-	// This works for branches, tags, and short SHAs
-	// Using go-gh to properly handle enterprise GitHub instances via GH_HOST
-	apiPath := buildCommitLookupAPIPath(owner, repo, ref)
-	var args []string
-	if host != "" {
-		args = []string{"api", "--hostname", host, apiPath, "--jq", ".sha"}
-	} else {
-		args = []string{"api", apiPath, "--jq", ".sha"}
-	}
-
-	stdout, stderr, err := gh.Exec(args...)
-
+	client, err := createRESTClientForHostFunc(host)
 	if err != nil {
-		outputStr := stderr.String()
-		if gitutil.IsAuthError(outputStr) {
-			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
-			// Try fallback using git ls-remote for public repositories
-			sha, gitErr := resolveRefToSHAViaGit(ctx, owner, repo, ref, host)
+		if gitutil.IsAuthError(err.Error()) {
+			remoteLog.Printf("REST client creation failed due to auth error, attempting git ls-remote fallback for %s/%s@%s: %v", owner, repo, ref, err)
+			sha, gitErr := resolveRefToSHAViaGitFunc(ctx, owner, repo, ref, host)
 			if gitErr != nil {
 				if host == "" || host == "github.com" {
 					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s@%s", owner, repo, ref)
 					return resolveRefToSHAViaPublicAPI(ctx, owner, repo, ref)
+				}
+				return "", fmt.Errorf("failed to resolve ref via GitHub API setup (auth error) and git ls-remote: API error: %w, Git error: %w", err, gitErr)
+			}
+			return sha, nil
+		}
+		return "", fmt.Errorf("failed to create GitHub REST client: %w", err)
+	}
+
+	return resolveRefToSHAWithFallbacks(ctx, client, owner, repo, ref, host, resolveRefToSHAViaGit, resolveRefToSHAViaPublicAPI)
+}
+
+type commitLookupResponse struct {
+	SHA string `json:"sha"`
+}
+
+type restCommitResolver interface {
+	DoWithContext(ctx context.Context, method string, path string, body io.Reader, response any) error
+}
+
+func resolveRefToSHAWithFallbacks(
+	ctx context.Context,
+	client restCommitResolver,
+	owner, repo, ref, host string,
+	gitFallback func(context.Context, string, string, string, string) (string, error),
+	publicFallback func(context.Context, string, string, string) (string, error),
+) (string, error) {
+	var result commitLookupResponse
+	err := client.DoWithContext(ctx, http.MethodGet, buildCommitLookupAPIPath(owner, repo, ref), nil, &result)
+
+	if err != nil {
+		if isGitHubAPIAuthError(err) {
+			remoteLog.Printf("GitHub API authentication failed, attempting git ls-remote fallback for %s/%s@%s", owner, repo, ref)
+			// Try fallback using git ls-remote for public repositories
+			sha, gitErr := gitFallback(ctx, owner, repo, ref, host)
+			if gitErr != nil {
+				if host == "" || host == "github.com" {
+					remoteLog.Printf("Git fallback also failed, attempting unauthenticated API for %s/%s@%s", owner, repo, ref)
+					return publicFallback(ctx, owner, repo, ref)
 				}
 				return "", fmt.Errorf("failed to resolve ref via GitHub API (auth error) and git ls-remote: API error: %w, Git error: %w", err, gitErr)
 			}
 			return sha, nil
 		}
 
-		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %s: %w", ref, owner, repo, strings.TrimSpace(outputStr), err)
+		return "", fmt.Errorf("failed to resolve ref %s to SHA for %s/%s: %w", ref, owner, repo, err)
 	}
 
-	sha := strings.TrimSpace(stdout.String())
+	sha := strings.TrimSpace(result.SHA)
 	if sha == "" {
 		return "", fmt.Errorf("empty SHA returned for ref %s in %s/%s", ref, owner, repo)
 	}
@@ -124,10 +154,16 @@ func resolveRefToSHA(ctx context.Context, owner, repo, ref, host string) (string
 	return sha, nil
 }
 
+func isGitHubAPIAuthError(err error) bool {
+	var httpErr *api.HTTPError
+	return errors.As(err, &httpErr) &&
+		(httpErr.StatusCode == http.StatusUnauthorized || httpErr.StatusCode == http.StatusForbidden)
+}
+
 // buildCommitLookupAPIPath returns the GitHub commits API path for a ref,
 // URL-escaping the ref segment so branch names containing slashes are valid.
 func buildCommitLookupAPIPath(owner, repo, ref string) string {
-	return fmt.Sprintf("/repos/%s/%s/commits/%s", owner, repo, url.PathEscape(ref))
+	return fmt.Sprintf("repos/%s/%s/commits/%s", owner, repo, url.PathEscape(ref))
 }
 
 // resolveRefToSHAViaPublicAPI resolves a git ref to its commit SHA using an

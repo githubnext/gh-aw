@@ -1678,6 +1678,7 @@ safe-outputs:
 ```
 
 Use the single `safe-outputs.needs` field for all explicit custom dependencies.
+The field is schema-defined in `pkg/parser/schemas/main_workflow_schema.json`; update local editor schema integrations when upgrading gh-aw schema versions.
 
 Validation rules:
 
