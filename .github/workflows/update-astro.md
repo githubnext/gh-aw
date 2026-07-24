@@ -52,7 +52,7 @@ jobs:
       updates_summary: ${{ steps.check.outputs.updates_summary }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7.0.0
+        uses: actions/checkout@v7.0.1
         with:
           persist-credentials: false
       - name: Setup Node.js

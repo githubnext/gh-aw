@@ -98,6 +98,17 @@ semverutil.IsMorePreciseVersion("v4", "v4.3.0")     // false
 semverutil.IsMorePreciseVersion("v4.3.0", "v4.3.0") // false (equal precision)
 ```
 
+### `NormalizeGitDescribeSemver(v string) string`
+
+Normalizes a version string produced by `git describe` into a canonical semver. Strips `git describe` prerelease suffixes of the form `N-gHEX` or `N-gHEX-dirty` (which indicate commits-since-tag metadata rather than real prerelease labels), leaving only the base semver. Non-`git describe` prerelease suffixes (e.g. `-beta.1`) are preserved. Returns the input unchanged if it is not a valid semver.
+
+```go
+semverutil.NormalizeGitDescribeSemver("v1.2.3-14-gabcdef")       // → "v1.2.3"
+semverutil.NormalizeGitDescribeSemver("v1.2.3-14-gabcdef-dirty") // → "v1.2.3"
+semverutil.NormalizeGitDescribeSemver("v1.2.3-beta.1")           // → "v1.2.3-beta.1"
+semverutil.NormalizeGitDescribeSemver("v1.2.3")                  // → "v1.2.3"
+```
+
 ### `IsCompatible(pinVersion, requestedVersion string) bool`
 
 Reports whether `pinVersion` is semver-compatible with `requestedVersion`. Compatibility is defined as sharing the same major version.
@@ -147,7 +158,7 @@ semverutil.IsCompatible("v6.0.0", "v5") // false
 
 ## Source Synchronization
 
-Reviewed against recent source updates on 2026-07-17; no additional public-contract deltas were identified beyond the sections above.
+Reviewed against recent source updates on 2026-07-24; `NormalizeGitDescribeSemver` added to Public API section.
 
 ---
 

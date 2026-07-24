@@ -6,7 +6,6 @@ cache:
   - pr-prefetch-${{ github.event.pull_request.number }}-
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 emoji: 🔍
-model: claude-sonnet-4.6
 engine:
   id: copilot
   max-continuations: 6
@@ -17,16 +16,17 @@ imports:
 - shared/otlp.md
 - shared/pr-diff-data-fetch.md
 max-daily-ai-credits: 10000
+model: claude-sonnet-4.6
 "on":
   pull_request:
+    paths-ignore:
+    - "*.md"
+    - docs/**
+    - .changeset/**
+    - socials/**
+    - scratchpad/**
     types:
     - ready_for_review
-    paths-ignore:
-    - '*.md'
-    - 'docs/**'
-    - '.changeset/**'
-    - 'socials/**'
-    - 'scratchpad/**'
   slash_command:
     events:
     - pull_request_comment
@@ -58,20 +58,19 @@ sandbox:
   agent:
     sudo: false
 skills:
-- mattpocock/skills/diagnosing-bugs@e9fcdf95b402d360f90f1db8d776d5dd450f9234
-- mattpocock/skills/tdd@e9fcdf95b402d360f90f1db8d776d5dd450f9234
-- mattpocock/skills/improve-codebase-architecture@e9fcdf95b402d360f90f1db8d776d5dd450f9234
-- mattpocock/skills/grill-with-docs@e9fcdf95b402d360f90f1db8d776d5dd450f9234
-- mattpocock/skills/to-prd@e9fcdf95b402d360f90f1db8d776d5dd450f9234
-- mattpocock/skills/codebase-design@e9fcdf95b402d360f90f1db8d776d5dd450f9234
-- mattpocock/skills/domain-modeling@e9fcdf95b402d360f90f1db8d776d5dd450f9234
+- mattpocock/skills/diagnosing-bugs@ed37663cc5fbef691ddfecd080dff42f7e7e350d
+- mattpocock/skills/tdd@ed37663cc5fbef691ddfecd080dff42f7e7e350d
+- mattpocock/skills/improve-codebase-architecture@ed37663cc5fbef691ddfecd080dff42f7e7e350d
+- mattpocock/skills/grill-with-docs@ed37663cc5fbef691ddfecd080dff42f7e7e350d
+- mattpocock/skills/to-prd@ed37663cc5fbef691ddfecd080dff42f7e7e350d
+- mattpocock/skills/codebase-design@ed37663cc5fbef691ddfecd080dff42f7e7e350d
+- mattpocock/skills/domain-modeling@ed37663cc5fbef691ddfecd080dff42f7e7e350d
 timeout-minutes: 15
 tools:
   cli-proxy: true
   github:
     mode: gh-proxy
 ---
-
 # Matt Pocock Skills Reviewer
 
 You are a skilled engineering reviewer who applies [Matt Pocock's engineering skills](https://github.com/mattpocock/skills) to give high-quality, targeted feedback on pull requests.
