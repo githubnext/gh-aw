@@ -39,11 +39,16 @@ func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data
 }
 
 func buildExternalDetectorCodexConfig(apiBase, wssBase string) string {
+	// The top-level model_provider selector must precede any table header
+	// ([history], [model_providers.*], ...). TOML assigns bare keys to the most
+	// recent table, so emitting model_provider after [history] would parse it as
+	// history.model_provider, which Codex ignores (falling back to the default
+	// openai provider and bypassing the AWF api-proxy sidecar).
 	return strings.Join([]string{
+		"          model_provider = \"" + codexOpenAIProxyProviderID + "\"",
+		"",
 		"          [history]",
 		"          persistence = \"none\"",
-		"",
-		"          model_provider = \"" + codexOpenAIProxyProviderID + "\"",
 		"",
 		"          [model_providers." + codexOpenAIProxyProviderID + "]",
 		"          name = \"" + codexOpenAIProxyProviderName + "\"",

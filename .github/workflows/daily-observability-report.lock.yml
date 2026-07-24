@@ -1570,11 +1570,11 @@ jobs:
           mkdir -p "${RUNNER_TEMP}/gh-aw/mcp-config" "/tmp/gh-aw/mcp-config" "/tmp/gh-aw/mcp-config/logs/"
           printf '%s\n' "{\"mcpServers\":{}}" > "${RUNNER_TEMP}/gh-aw/mcp-config/mcp-servers.json"
           # Point Codex at the AWF OpenAI proxy and disable websocket startup.
-          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_DETECTION_CONFIG_6ed41afb06de5aa1_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" << GH_AW_CODEX_DETECTION_CONFIG_5face6846efecd71_EOF
+          model_provider = "openai-proxy"
+
           [history]
           persistence = "none"
-
-          model_provider = "openai-proxy"
 
           [model_providers.openai-proxy]
           name = "OpenAI AWF proxy"
@@ -1583,7 +1583,7 @@ jobs:
           wss_base = "ws://172.30.0.30:10000"
           env_key = "OPENAI_API_KEY"
           supports_websockets = false
-          GH_AW_CODEX_DETECTION_CONFIG_6ed41afb06de5aa1_EOF
+          GH_AW_CODEX_DETECTION_CONFIG_5face6846efecd71_EOF
           cp "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" "/tmp/gh-aw/mcp-config/config.toml"
           chmod 600 "${RUNNER_TEMP}/gh-aw/mcp-config/config.toml" "/tmp/gh-aw/mcp-config/config.toml"
       - name: Install threat-detect binary
