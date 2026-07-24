@@ -180,9 +180,12 @@ func rewriteSkillsInFrontmatterLines(lines []string, repoSlug, headSHA string) [
 		indent := countLeadingSpacesSkill(line)
 
 		if !inSkills {
-			if trimmed == "skills:" {
+			if isSkillsKeyLine(trimmed) {
 				inSkills = true
 				skillsBaseIndent = indent
+			} else if strings.HasPrefix(trimmed, "skills:") {
+				// Flow-sequence form: skills: [item1, item2, ...]
+				line = rewriteFlowSkillsLine(line, trimmed, indent, repoSlug, headSHA)
 			}
 			newLines = append(newLines, line)
 			continue
@@ -204,18 +207,28 @@ func rewriteSkillsInFrontmatterLines(lines []string, repoSlug, headSHA string) [
 			if rest, ok := strings.CutPrefix(itemContent, "skill:"); ok {
 				// Object form: "- skill: <value>"
 				rawVal := strings.TrimSpace(rest)
-				unquoted := trimYAMLQuotesSkill(rawVal)
+				valPart, comment := splitYAMLValueAndComment(rawVal)
+				unquoted := trimYAMLQuotesSkill(valPart)
 				if isLocalSkillRef(unquoted) {
 					qualified := buildQualifiedSkillRef(unquoted, repoSlug, headSHA)
-					line = leadingSpace + "- skill: " + qualified
+					suffix := ""
+					if comment != "" {
+						suffix = " " + comment
+					}
+					line = leadingSpace + "- skill: " + qualified + suffix
 					skillRewriteLog.Printf("Rewrote local skill ref (object form): %q -> %q", unquoted, qualified)
 				}
 			} else {
 				// String form: "- <value>"
-				unquoted := trimYAMLQuotesSkill(itemContent)
+				valPart, comment := splitYAMLValueAndComment(itemContent)
+				unquoted := trimYAMLQuotesSkill(valPart)
 				if isLocalSkillRef(unquoted) {
 					qualified := buildQualifiedSkillRef(unquoted, repoSlug, headSHA)
-					line = leadingSpace + "- " + qualified
+					suffix := ""
+					if comment != "" {
+						suffix = " " + comment
+					}
+					line = leadingSpace + "- " + qualified + suffix
 					skillRewriteLog.Printf("Rewrote local skill ref (string form): %q -> %q", unquoted, qualified)
 				}
 			}
@@ -225,11 +238,16 @@ func rewriteSkillsInFrontmatterLines(lines []string, repoSlug, headSHA string) [
 			//   -
 			//     skill: .github/skills/my-skill
 			rawVal := strings.TrimSpace(strings.TrimPrefix(trimmed, "skill:"))
-			unquoted := trimYAMLQuotesSkill(rawVal)
+			valPart, comment := splitYAMLValueAndComment(rawVal)
+			unquoted := trimYAMLQuotesSkill(valPart)
 			if isLocalSkillRef(unquoted) {
 				qualified := buildQualifiedSkillRef(unquoted, repoSlug, headSHA)
 				leadingSpace := strings.Repeat(" ", indent)
-				line = leadingSpace + "skill: " + qualified
+				suffix := ""
+				if comment != "" {
+					suffix = " " + comment
+				}
+				line = leadingSpace + "skill: " + qualified + suffix
 				skillRewriteLog.Printf("Rewrote local skill ref (block object form): %q -> %q", unquoted, qualified)
 			}
 		}
@@ -250,6 +268,87 @@ func trimYAMLQuotesSkill(s string) string {
 		}
 	}
 	return s
+}
+
+// splitYAMLValueAndComment splits an inline YAML scalar from its optional
+// trailing comment. Per the YAML spec, a comment '#' must be preceded by at
+// least one space or tab. '#' characters that appear inside single- or
+// double-quoted strings are not treated as comment delimiters.
+// Returns (value, comment) where comment, when non-empty, includes the
+// leading '#' character. value has trailing whitespace trimmed.
+func splitYAMLValueAndComment(s string) (value, comment string) {
+	var inSingle, inDouble bool
+	for i := 0; i < len(s); i++ {
+		ch := s[i]
+		switch {
+		case ch == '\'' && !inDouble:
+			inSingle = !inSingle
+		case ch == '"' && !inSingle:
+			inDouble = !inDouble
+		case ch == '#' && !inSingle && !inDouble && i > 0:
+			prev := s[i-1]
+			if prev == ' ' || prev == '\t' {
+				return strings.TrimRight(s[:i], " \t"), s[i:]
+			}
+		}
+	}
+	return s, ""
+}
+
+// isSkillsKeyLine reports whether a trimmed YAML line is the "skills:"
+// mapping key, optionally followed by whitespace and/or a trailing comment.
+// Returns false for flow-sequence values such as "skills: [...]".
+func isSkillsKeyLine(trimmed string) bool {
+	if !strings.HasPrefix(trimmed, "skills:") {
+		return false
+	}
+	rest := strings.TrimLeft(trimmed[len("skills:"):], " \t")
+	return rest == "" || strings.HasPrefix(rest, "#")
+}
+
+// rewriteFlowSkillsLine rewrites any local skill refs inside an inline
+// flow-sequence on the "skills:" YAML key line, e.g.
+//
+//	skills: [.github/skills/foo, owner/repo/skill@sha]
+//
+// Non-local items and overall line structure (indentation, trailing comment)
+// are preserved. Only flat string items are rewritten; object items inside
+// flow sequences are left unchanged (best-effort).
+func rewriteFlowSkillsLine(line, trimmed string, indent int, repoSlug, headSHA string) string {
+	rest := strings.TrimLeft(trimmed[len("skills:"):], " \t")
+	// Split off any trailing line comment that follows the sequence.
+	seqPart, lineComment := splitYAMLValueAndComment(rest)
+	seqPart = strings.TrimRight(seqPart, " \t")
+	if !strings.HasPrefix(seqPart, "[") || !strings.HasSuffix(seqPart, "]") {
+		return line
+	}
+	inner := seqPart[1 : len(seqPart)-1]
+	if strings.TrimSpace(inner) == "" {
+		return line // empty sequence, nothing to rewrite
+	}
+	parts := strings.Split(inner, ",")
+	changed := false
+	for i, part := range parts {
+		trimPart := strings.TrimSpace(part)
+		unquoted := trimYAMLQuotesSkill(trimPart)
+		if !isLocalSkillRef(unquoted) {
+			continue
+		}
+		qualified := buildQualifiedSkillRef(unquoted, repoSlug, headSHA)
+		leadWS := len(part) - len(strings.TrimLeft(part, " \t"))
+		parts[i] = part[:leadWS] + qualified
+		changed = true
+		skillRewriteLog.Printf("Rewrote local skill ref (flow form): %q -> %q", unquoted, qualified)
+	}
+	if !changed {
+		return line
+	}
+	newSeq := "[" + strings.Join(parts, ",") + "]"
+	result := strings.Repeat(" ", indent) + "skills: " + newSeq
+	if lineComment != "" {
+		result += " " + lineComment
+	}
+	return result
 }
 
 // countLeadingSpacesSkill returns the number of leading space/tab characters

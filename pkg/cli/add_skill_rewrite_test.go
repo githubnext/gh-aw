@@ -93,6 +93,52 @@ func TestTrimYAMLQuotesSkill(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
+// splitYAMLValueAndComment
+// ---------------------------------------------------------------------------
+
+func TestSplitYAMLValueAndComment(t *testing.T) {
+	tests := []struct {
+		input   string
+		value   string
+		comment string
+	}{
+		{"no comment", "no comment", ""},
+		{".github/skills/foo # note", ".github/skills/foo", "# note"},
+		{".github/skills/foo", ".github/skills/foo", ""},
+		// '#' not preceded by space is not a comment delimiter
+		{"path#notcomment", "path#notcomment", ""},
+		// '#' inside double quotes is not a comment
+		{`"path # not comment"`, `"path # not comment"`, ""},
+		// '#' inside single quotes is not a comment
+		{"'path # not comment'", "'path # not comment'", ""},
+		// '#' after closing quote + space IS a comment
+		{`"quoted" # comment`, `"quoted"`, "# comment"},
+		// multiple spaces before '#'
+		{"value   # note", "value", "# note"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			v, c := splitYAMLValueAndComment(tt.input)
+			assert.Equal(t, tt.value, v)
+			assert.Equal(t, tt.comment, c)
+		})
+	}
+}
+
+// ---------------------------------------------------------------------------
+// isSkillsKeyLine
+// ---------------------------------------------------------------------------
+
+func TestIsSkillsKeyLine(t *testing.T) {
+	assert.True(t, isSkillsKeyLine("skills:"))
+	assert.True(t, isSkillsKeyLine("skills: # local skills"))
+	assert.True(t, isSkillsKeyLine("skills:   # trailing comment"))
+	assert.False(t, isSkillsKeyLine("skills: [foo]"))
+	assert.False(t, isSkillsKeyLine("other:"))
+	assert.False(t, isSkillsKeyLine(""))
+}
+
+// ---------------------------------------------------------------------------
 // rewriteLocalSkillRefsInContent
 // ---------------------------------------------------------------------------
 
@@ -193,6 +239,52 @@ func TestRewriteLocalSkillRefsInContent(t *testing.T) {
 		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
 		require.NoError(t, err)
 		assert.Equal(t, content, got)
+	})
+
+	t.Run("rewrites string-form with trailing comment", func(t *testing.T) {
+		content := skillWorkflow("skills:\n  - .github/skills/my-skill # local\n")
+		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
+		require.NoError(t, err)
+		assert.Contains(t, got, "- "+testRepoSlug+"/.github/skills/my-skill@"+testHeadSHA+" # local")
+		assert.NotContains(t, got, ".github/skills/my-skill\n")
+	})
+
+	t.Run("rewrites object-form with trailing comment", func(t *testing.T) {
+		content := skillWorkflow("skills:\n  - skill: .github/skills/my-skill # note\n    github-token: ${{ secrets.TOKEN }}\n")
+		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
+		require.NoError(t, err)
+		assert.Contains(t, got, "- skill: "+testRepoSlug+"/.github/skills/my-skill@"+testHeadSHA+" # note")
+		assert.Contains(t, got, "github-token: ${{ secrets.TOKEN }}")
+	})
+
+	t.Run("rewrites under skills key with trailing comment", func(t *testing.T) {
+		content := skillWorkflow("skills: # local skills\n  - .github/skills/my-skill\n")
+		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
+		require.NoError(t, err)
+		assert.Contains(t, got, "- "+testRepoSlug+"/.github/skills/my-skill@"+testHeadSHA)
+	})
+
+	t.Run("rewrites flow-sequence single item", func(t *testing.T) {
+		content := skillWorkflow("skills: [.github/skills/my-skill]\n")
+		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
+		require.NoError(t, err)
+		assert.Contains(t, got, "skills: ["+testRepoSlug+"/.github/skills/my-skill@"+testHeadSHA+"]")
+	})
+
+	t.Run("rewrites flow-sequence mixed items", func(t *testing.T) {
+		qualified := "owner/repo/.github/skills/skill@aabbccddeeff00112233445566778899aabbccdd"
+		content := skillWorkflow("skills: [.github/skills/local-skill, " + qualified + "]\n")
+		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
+		require.NoError(t, err)
+		assert.Contains(t, got, testRepoSlug+"/.github/skills/local-skill@"+testHeadSHA)
+		assert.Contains(t, got, qualified)
+	})
+
+	t.Run("rewrites flow-sequence with trailing line comment", func(t *testing.T) {
+		content := skillWorkflow("skills: [.github/skills/my-skill] # inline\n")
+		got, err := rewriteLocalSkillRefsInContent(content, testRepoSlug, testHeadSHA)
+		require.NoError(t, err)
+		assert.Contains(t, got, "skills: ["+testRepoSlug+"/.github/skills/my-skill@"+testHeadSHA+"] # inline")
 	})
 }
 
