@@ -32,6 +32,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around `await fetch(...)` calls |
 | [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
 | [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
@@ -218,6 +219,36 @@ Flagged form:
 
 Safe alternative:
 - `throw new Error(\`failed: ${getErrorMessage(err)}\`, { cause: err });`
+
+### `require-fetch-try-catch`
+
+Require `await fetch(...)` calls (including method-chained forms) in actions/setup/js scripts to be wrapped in `try/catch`.
+
+Why: the `fetch` API throws a `TypeError` on network failures (DNS errors, connection refused, timeouts, etc.). An unhandled throw crashes the action without surfacing a useful diagnostic message.
+
+**Detected forms:**
+- `await fetch(url)` — direct await of a fetch call.
+- `await fetch(url).then(r => r.json())` — single-argument `.then()` chain (does not handle rejection).
+- `await fetch(url).json()` — response-method chain.
+
+**Exemptions (not flagged):**
+- `await fetch(url).catch(handler)` — the chain includes a `.catch(handler)` rejection handler.
+- `await fetch(url).then(onFulfilled, onRejected)` — the chain includes a two-argument `.then()` where the second argument handles rejection.
+- Any form inside an enclosing `try/catch` block within the same function scope.
+- Any form where `fetch` is shadowed by a local binding (parameter or variable named `fetch`).
+
+**Safe alternatives:**
+```js
+// Option 1: try/catch
+try {
+  const res = await fetch(url);
+} catch (err) {
+  throw new Error("fetch failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
+}
+
+// Option 2: rejection handler on the chain
+const res = await fetch(url).catch(err => { throw err; });
+```
 
 ### `require-fs-io-try-catch`
 

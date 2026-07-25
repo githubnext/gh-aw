@@ -136,6 +136,29 @@ describe("require-fetch-try-catch", () => {
     });
   });
 
+  it("valid: chained fetch inside try block is not flagged", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [`async function f() { try { const r = await fetch(url).then(x => x.json()); } catch (e) {} }`, `async function f() { try { const r = await fetch(url).json(); } catch (e) {} }`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: computed method name is not treated as rejection handler", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const m = "catch"; async function f() { const r = await fetch(url)[m](handler); }`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+        {
+          code: `const m = "then"; async function f() { const r = await fetch(url)[m](ok, err); }`,
+          errors: [{ messageId: "requireTryCatch", suggestions: [] }],
+        },
+      ],
+    });
+  });
+
   it("invalid: await fetch chain without rejection handler is flagged", () => {
     cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
       valid: [],

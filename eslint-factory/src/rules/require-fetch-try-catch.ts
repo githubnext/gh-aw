@@ -44,7 +44,7 @@ function chainHasRejectionHandler(fetchCall: TSESTree.CallExpression, outerCall:
     if (callee.type !== AST_NODE_TYPES.MemberExpression) break;
     const member = callee as TSESTree.MemberExpression;
     const prop = member.property;
-    const name = prop.type === AST_NODE_TYPES.Identifier ? (prop as TSESTree.Identifier).name : null;
+    const name = !member.computed && prop.type === AST_NODE_TYPES.Identifier ? (prop as TSESTree.Identifier).name : null;
     if (name === "catch" && call.arguments.length >= 1) return true;
     if (name === "then" && call.arguments.length >= 2) return true;
     current = member.object;
