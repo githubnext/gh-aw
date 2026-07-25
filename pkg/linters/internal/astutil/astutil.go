@@ -439,6 +439,209 @@ func CallQualifierText(fset *token.FileSet, call *ast.CallExpr) string {
 	return NodeText(fset, sel.X)
 }
 
+// FileForPos returns the *ast.File from files that contains pos, or nil if
+// not found. It is used by linters that need the enclosing file of a node
+// when only the pass.Files slice is available.
+func FileForPos(files []*ast.File, pos token.Pos) *ast.File {
+	for _, f := range files {
+		if f.Pos() <= pos && pos <= f.End() {
+			return f
+		}
+	}
+	return nil
+}
+
+// CountPkgUsesInFile returns the number of times the package at pkgPath is
+// referenced as a selector base within file (e.g. each "fmt.X" call counts
+// as one use of the "fmt" package).
+func CountPkgUsesInFile(pass *analysis.Pass, file *ast.File, pkgPath string) int {
+	fileStart, fileEnd := file.Pos(), file.End()
+	count := 0
+	for ident, obj := range pass.TypesInfo.Uses {
+		pkgName, ok := obj.(*types.PkgName)
+		if !ok || pkgName.Imported() == nil || pkgName.Imported().Path() != pkgPath {
+			continue
+		}
+		if p := ident.Pos(); p >= fileStart && p <= fileEnd {
+			count++
+		}
+	}
+	return count
+}
+
+// importSpecPathEquals reports whether spec imports the package at pkgPath.
+// It handles both double-quoted and backtick-quoted import path literals.
+func importSpecPathEquals(spec *ast.ImportSpec, pkgPath string) bool {
+	if spec == nil || spec.Path == nil {
+		return false
+	}
+	unquoted, err := strconv.Unquote(spec.Path.Value)
+	if err != nil {
+		return spec.Path.Value == `"`+pkgPath+`"` || spec.Path.Value == "`"+pkgPath+"`"
+	}
+	return unquoted == pkgPath
+}
+
+// ImportSpecLineRange returns the [start, end) byte range that covers the
+// entire source line of spec — including any leading whitespace and the
+// trailing newline. It uses the token.File's line table so it works correctly
+// regardless of indentation style.
+func ImportSpecLineRange(fset *token.FileSet, spec *ast.ImportSpec) (token.Pos, token.Pos) {
+	tokFile := fset.File(spec.Pos())
+	if tokFile == nil {
+		// Unreachable in practice; fall back to simple single-char arithmetic.
+		return spec.Pos() - 1, spec.End() + 1
+	}
+	line := tokFile.Line(spec.Pos())
+	lineStart := tokFile.LineStart(line)
+	if line < tokFile.LineCount() {
+		return lineStart, tokFile.LineStart(line + 1)
+	}
+	// Last line has no following newline — extend past the spec token end.
+	return lineStart, spec.End() + 1
+}
+
+// AddImportEdit returns a TextEdit that inserts an import for pkg into file,
+// choosing the least-invasive insertion point: append to an existing grouped
+// block, convert a single non-grouped import to a grouped block, or insert a
+// standalone declaration after the package name.
+func AddImportEdit(pass *analysis.Pass, file *ast.File, pkg string) (analysis.TextEdit, bool) {
+	quotedPkg := strconv.Quote(pkg)
+
+	// Append to an existing grouped import block.
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT || !genDecl.Lparen.IsValid() {
+			continue
+		}
+		return analysis.TextEdit{
+			Pos:     genDecl.Rparen,
+			End:     genDecl.Rparen,
+			NewText: []byte("\t" + quotedPkg + "\n"),
+		}, true
+	}
+
+	// Convert a single non-grouped import into a grouped block.
+	if len(file.Imports) == 1 {
+		for _, decl := range file.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.IMPORT || genDecl.Lparen.IsValid() {
+				continue
+			}
+			specText := NodeText(pass.Fset, genDecl.Specs[0])
+			if specText == "" {
+				continue
+			}
+			return analysis.TextEdit{
+				Pos:     genDecl.Pos(),
+				End:     genDecl.End(),
+				NewText: []byte("import (\n\t" + specText + "\n\t" + quotedPkg + "\n)"),
+			}, true
+		}
+	}
+
+	// No existing import block; insert a standalone import after the package name.
+	return analysis.TextEdit{
+		Pos:     file.Name.End(),
+		End:     file.Name.End(),
+		NewText: []byte("\n\nimport " + quotedPkg),
+	}, true
+}
+
+// RemoveImportEdit returns a TextEdit that removes the import of pkg from
+// file's import section. For an ungrouped or sole-spec grouped declaration the
+// entire decl is removed; for a multi-spec grouped block only the spec line is
+// deleted using line-boundary positions from fset to handle any indentation.
+func RemoveImportEdit(fset *token.FileSet, file *ast.File, pkg string) (analysis.TextEdit, bool) {
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT {
+			continue
+		}
+		for _, spec := range genDecl.Specs {
+			imp, ok := spec.(*ast.ImportSpec)
+			if !ok || !importSpecPathEquals(imp, pkg) {
+				continue
+			}
+			// Ungrouped or single-spec grouped: remove the entire declaration.
+			if !genDecl.Lparen.IsValid() || len(genDecl.Specs) == 1 {
+				return analysis.TextEdit{
+					Pos:     genDecl.Pos(),
+					End:     genDecl.End(),
+					NewText: nil,
+				}, true
+			}
+			// Multi-spec grouped: remove just this spec's line.
+			lineStart, lineEnd := ImportSpecLineRange(fset, imp)
+			return analysis.TextEdit{
+				Pos:     lineStart,
+				End:     lineEnd,
+				NewText: nil,
+			}, true
+		}
+	}
+	return analysis.TextEdit{}, false
+}
+
+// SwapImportEdits returns the TextEdits that simultaneously add addPkg and
+// remove removePkg from file's import section. Three structural cases are
+// handled:
+//   - single ungrouped import removePkg    → replaced with import addPkg
+//   - grouped block with only removePkg   → replaced with import addPkg
+//   - grouped block with removePkg + others → insert addPkg, delete removePkg line
+func SwapImportEdits(fset *token.FileSet, file *ast.File, addPkg, removePkg string) []analysis.TextEdit {
+	var removeSpec *ast.ImportSpec
+	var removeDecl *ast.GenDecl
+
+	for _, decl := range file.Decls {
+		genDecl, ok := decl.(*ast.GenDecl)
+		if !ok || genDecl.Tok != token.IMPORT {
+			continue
+		}
+		for _, spec := range genDecl.Specs {
+			imp, ok := spec.(*ast.ImportSpec)
+			if ok && importSpecPathEquals(imp, removePkg) {
+				removeSpec = imp
+				removeDecl = genDecl
+				break
+			}
+		}
+		if removeDecl != nil {
+			break
+		}
+	}
+	if removeDecl == nil {
+		return nil
+	}
+
+	// Single ungrouped import or grouped block with only removePkg:
+	// replace the entire declaration with import addPkg.
+	if !removeDecl.Lparen.IsValid() || len(removeDecl.Specs) == 1 {
+		return []analysis.TextEdit{{
+			Pos:     removeDecl.Pos(),
+			End:     removeDecl.End(),
+			NewText: []byte("import " + strconv.Quote(addPkg)),
+		}}
+	}
+
+	// Grouped block with removePkg alongside other packages: delete the
+	// removePkg spec line (lower position) then insert addPkg before the
+	// closing paren (higher position), so edits are ordered by position.
+	lineStart, lineEnd := ImportSpecLineRange(fset, removeSpec)
+	return []analysis.TextEdit{
+		{
+			Pos:     lineStart,
+			End:     lineEnd,
+			NewText: nil,
+		},
+		{
+			Pos:     removeDecl.Rparen,
+			End:     removeDecl.Rparen,
+			NewText: []byte("\t" + strconv.Quote(addPkg) + "\n"),
+		},
+	}
+}
+
 // BuildContainsFix builds the suggested fix rewriting a comparison to
 // strings.Contains. fixMessage is used as the SuggestedFix.Message field so
 // callers can identify the rewritten function (e.g. "Index" vs "Count").

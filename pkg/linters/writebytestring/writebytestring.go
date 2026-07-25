@@ -191,7 +191,7 @@ func implementsWriter(pass *analysis.Pass, expr ast.Expr) bool {
 // still reported).
 func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, filesWithImportEdit map[token.Pos]bool) []analysis.SuggestedFix {
 	// Find the file containing this call.
-	file := fileForPos(pass.Files, call.Pos())
+	file := astutil.FileForPos(pass.Files, call.Pos())
 
 	// Determine the local qualifier for "io": use the alias when the package
 	// is already imported under a different name, or the default name when it
@@ -233,7 +233,7 @@ func buildFix(pass *analysis.Pass, call *ast.CallExpr, writerArg, sText string, 
 // file containing pos, unless "io" is already imported in that file or an
 // import edit for this file has already been emitted in this pass.
 func addIOImportEdit(pass *analysis.Pass, pos token.Pos, filesWithImportEdit map[token.Pos]bool) (analysis.TextEdit, bool) {
-	file := fileForPos(pass.Files, pos)
+	file := astutil.FileForPos(pass.Files, pos)
 	if file == nil {
 		return analysis.TextEdit{}, false
 	}
@@ -303,14 +303,4 @@ func buildIOImportTextEdit(pass *analysis.Pass, file *ast.File) (analysis.TextEd
 		End:     file.Name.End(),
 		NewText: []byte("\n\nimport \"" + ioPkg + "\""),
 	}, true
-}
-
-// fileForPos returns the *ast.File from files that contains pos, or nil if not found.
-func fileForPos(files []*ast.File, pos token.Pos) *ast.File {
-	for _, f := range files {
-		if f.Pos() <= pos && pos <= f.End() {
-			return f
-		}
-	}
-	return nil
 }
