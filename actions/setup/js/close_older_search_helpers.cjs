@@ -41,6 +41,98 @@ function buildMarkerSearchQuery({ owner, repo, workflowId, callerWorkflowId, clo
 }
 
 /**
+ * Shared older-entity search pipeline used by issues, pull requests, and
+ * discussions. Entity-specific callers provide the search executor,
+ * result-shape extractor, and item mapper while this helper centralizes the
+ * query/log/filter flow.
+ *
+ * @param {object} params
+ * @param {string} params.owner - Repository owner
+ * @param {string} params.repo - Repository name
+ * @param {string} params.workflowId - Workflow ID to match in the marker
+ * @param {number} params.excludeNumber - Entity number to exclude (the newly created one)
+ * @param {string} params.entityType - Entity type name for logging (e.g. "issue", "discussion")
+ * @param {string} [params.callerWorkflowId] - Optional calling workflow identity
+ * @param {string} [params.closeOlderKey] - Optional explicit deduplication key
+ * @param {string} [params.entityQualifier] - Extra qualifier appended to the query
+ * @param {Set<number>} [params.additionalExcludeNumbers] - Optional additional entity numbers
+ *   to exclude from the results.
+ * @param {(searchQuery: string) => Promise<any>} params.executeSearch - Entity-specific API call
+ * @param {(result: any) => Array<any>|undefined|null} params.getItems - Extract search items from API result
+ * @param {(item: any) => any} params.mapItem - Map a filtered item to the caller's return shape
+ * @param {(item: any, counters: Record<string, number>) => boolean} [params.additionalFilter] - Optional
+ *   entity-specific filter callback.
+ * @param {Array<[string, string]>} [params.extraLabels] - Extra summary counters to log
+ * @returns {Promise<Array<any>>} Filtered and mapped search results
+ */
+async function searchOlderEntitiesByMarker({
+  owner,
+  repo,
+  workflowId,
+  excludeNumber,
+  entityType,
+  callerWorkflowId,
+  closeOlderKey,
+  entityQualifier,
+  additionalExcludeNumbers,
+  executeSearch,
+  getItems,
+  mapItem,
+  additionalFilter,
+  extraLabels,
+}) {
+  core.info(`Starting search for older ${entityType}s in ${owner}/${repo}`);
+  core.info(`  Workflow ID: ${workflowId || "(none)"}`);
+  core.info(`  Exclude ${entityType} number: ${excludeNumber}`);
+
+  if (!workflowId && !closeOlderKey) {
+    core.info(`No workflow ID or close-older-key provided - cannot search for older ${entityType}s`);
+    return [];
+  }
+
+  const { searchQuery, exactMarker } = buildMarkerSearchQuery({
+    owner,
+    repo,
+    workflowId,
+    callerWorkflowId,
+    closeOlderKey,
+    entityQualifier,
+  });
+  core.info(`Executing GitHub search with query: ${searchQuery}`);
+
+  const result = await executeSearch(searchQuery);
+  const items = getItems(result);
+
+  core.info(`Search API returned ${items?.length || 0} total results`);
+
+  if (!items) {
+    core.info("No results returned from search API");
+    return [];
+  }
+
+  core.info("Filtering search results...");
+
+  const { filtered: filteredItems, counters } = filterByMarker({
+    items,
+    excludeNumber,
+    additionalExcludeNumbers,
+    exactMarker,
+    entityType,
+    additionalFilter,
+  });
+
+  const filtered = filteredItems.map(mapItem);
+
+  logFilterSummary({
+    entityTypePlural: `${entityType}s`,
+    counters,
+    extraLabels,
+  });
+
+  return filtered;
+}
+
+/**
  * @typedef {Object} SearchResultItem
  * @property {number} number - Entity number
  * @property {string} [body] - Entity body text
@@ -145,6 +237,7 @@ function logFilterSummary({ entityTypePlural, counters, extraLabels }) {
 
 module.exports = {
   buildMarkerSearchQuery,
+  searchOlderEntitiesByMarker,
   filterByMarker,
   logFilterSummary,
 };

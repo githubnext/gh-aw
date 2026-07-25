@@ -5,7 +5,7 @@ const { getCloseOlderDiscussionMessage } = require("./messages_close_discussion.
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { closeOlderEntities, MAX_CLOSE_COUNT: SHARED_MAX_CLOSE_COUNT } = require("./close_older_entities.cjs");
-const { buildMarkerSearchQuery, filterByMarker, logFilterSummary } = require("./close_older_search_helpers.cjs");
+const { searchOlderEntitiesByMarker } = require("./close_older_search_helpers.cjs");
 
 /**
  * Maximum number of older discussions to close
@@ -35,60 +35,43 @@ const GRAPHQL_DELAY_MS = 500;
  * @returns {Promise<Array<{id: string, number: number, title: string, url: string}>>} Matching discussions
  */
 async function searchOlderDiscussions(github, owner, repo, workflowId, categoryId, excludeNumber, callerWorkflowId, closeOlderKey) {
-  core.info(`Starting search for older discussions in ${owner}/${repo}`);
-  core.info(`  Workflow ID: ${workflowId || "(none)"}`);
-  core.info(`  Exclude discussion number: ${excludeNumber}`);
-
-  if (!workflowId && !closeOlderKey) {
-    core.info("No workflow ID or close-older-key provided - cannot search for older discussions");
-    return [];
-  }
-
-  const { searchQuery, exactMarker } = buildMarkerSearchQuery({
+  return searchOlderEntitiesByMarker({
     owner,
     repo,
     workflowId,
+    excludeNumber,
+    entityType: "discussion",
     callerWorkflowId,
     closeOlderKey,
-  });
-  core.info(`Executing GitHub search with query: ${searchQuery}`);
-
-  const result = await github.graphql(
-    `
-    query($searchTerms: String!, $first: Int!) {
-      search(query: $searchTerms, type: DISCUSSION, first: $first) {
-        nodes {
-          ... on Discussion {
-            id
-            number
-            title
-            url
-            body
-            category {
-              id
+    executeSearch: searchQuery =>
+      github.graphql(
+        `
+        query($searchTerms: String!, $first: Int!) {
+          search(query: $searchTerms, type: DISCUSSION, first: $first) {
+            nodes {
+              ... on Discussion {
+                id
+                number
+                title
+                url
+                body
+                category {
+                  id
+                }
+                closed
+              }
             }
-            closed
           }
-        }
-      }
-    }`,
-    { searchTerms: searchQuery, first: 50 }
-  );
-
-  core.info(`Search API returned ${result?.search?.nodes?.length || 0} total results`);
-
-  if (!result || !result.search || !result.search.nodes) {
-    core.info("No results returned from search API");
-    return [];
-  }
-
-  core.info("Filtering search results...");
-
-  const { filtered: filteredItems, counters } = filterByMarker({
-    items: result.search.nodes,
-    excludeNumber,
-    exactMarker,
-    entityType: "discussion",
+        }`,
+        { searchTerms: searchQuery, first: 50 }
+      ),
+    getItems: result => result?.search?.nodes,
+    mapItem: d => ({
+      id: d.id,
+      number: d.number,
+      title: d.title,
+      url: d.url,
+    }),
     additionalFilter: (d, extra) => {
       if (d.closed) {
         extra.closedCount = (extra.closedCount || 0) + 1;
@@ -99,24 +82,8 @@ async function searchOlderDiscussions(github, owner, repo, workflowId, categoryI
       }
       return true;
     },
-  });
-
-  const filtered = filteredItems.map(
-    /** @param {any} d */ d => ({
-      id: d.id,
-      number: d.number,
-      title: d.title,
-      url: d.url,
-    })
-  );
-
-  logFilterSummary({
-    entityTypePlural: "discussions",
-    counters,
     extraLabels: [["closedCount", "Excluded closed discussions"]],
   });
-
-  return filtered;
 }
 
 /**
