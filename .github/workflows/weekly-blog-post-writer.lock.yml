@@ -2393,37 +2393,10 @@ jobs:
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require('fs');
-            const path = require('path');
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const logsDir = '/tmp/gh-aw';
-            fs.mkdirSync(logsDir, { recursive: true });
-            const stdoutPath = path.join(logsDir, 'process-safe-outputs.stdout.log');
-            const stderrPath = path.join(logsDir, 'process-safe-outputs.stderr.log');
-            const stdoutStream = fs.createWriteStream(stdoutPath, { flags: 'a' });
-            const stderrStream = fs.createWriteStream(stderrPath, { flags: 'a' });
-            const originalStdoutWrite = process.stdout.write.bind(process.stdout);
-            const originalStderrWrite = process.stderr.write.bind(process.stderr);
-            process.stdout.write = (chunk, encoding, callback) => {
-              stdoutStream.write(chunk);
-              return originalStdoutWrite(chunk, encoding, callback);
-            };
-            process.stderr.write = (chunk, encoding, callback) => {
-              stderrStream.write(chunk);
-              return originalStderrWrite(chunk, encoding, callback);
-            };
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
-            try {
-              await main();
-            } finally {
-              process.stdout.write = originalStdoutWrite;
-              process.stderr.write = originalStderrWrite;
-              await Promise.all([
-                new Promise((resolve) => stdoutStream.end(resolve)),
-                new Promise((resolve) => stderrStream.end(resolve)),
-              ]);
-            }
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/process_safe_outputs.cjs');
+            await main();
       - name: Upload Safe Outputs Items
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
