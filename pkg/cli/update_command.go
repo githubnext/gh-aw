@@ -249,6 +249,16 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 		}
 	}
 
+	if firstErr == nil {
+		updateLog.Print("Validating action and container SHAs in actions-lock.json")
+		if err := validateUpdateSHAEntries("."); err != nil {
+			return fmt.Errorf("update validation failed: %w", err)
+		}
+		if opts.Verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Validated action and container SHAs in actions-lock.json"))
+		}
+	}
+
 	updateLog.Printf("Update process complete: had_error=%v", firstErr != nil)
 	return firstErr
 }
