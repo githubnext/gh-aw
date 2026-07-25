@@ -36,7 +36,7 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const { normalizeIssueIntentLabelInputs } = require("./issue_intents.cjs");
 
 /**
- * @param {{ rationale?: string, confidence?: string, suggest?: boolean } | null} spec
+ * @param {{ rationale?: string, confidence?: string, suggest?: boolean } | null | undefined} spec
  * @returns {boolean}
  */
 function hasLabelIntentMetadata(spec) {
@@ -140,7 +140,7 @@ const main = createCountGatedHandler({
           const key = label.name.toLowerCase();
           const existing = requestedLabelSpecByLowerName.get(key);
           const newHasMetadata = hasLabelIntentMetadata(label);
-          const existingHasMetadata = hasLabelIntentMetadata(existing ?? null);
+          const existingHasMetadata = hasLabelIntentMetadata(existing);
           if (!existing || (!existingHasMetadata && newHasMetadata)) {
             requestedLabelSpecByLowerName.set(key, label);
           }

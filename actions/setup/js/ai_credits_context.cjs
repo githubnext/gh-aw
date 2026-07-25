@@ -129,6 +129,7 @@ function parseMaxAICreditsFromAuditEntry(entry) {
         return true;
       }
     }
+    return false;
   });
   return result;
 }
@@ -269,7 +270,10 @@ function parseMaxAICreditsExceededFromAuditLog(auditJsonlPathOverride) {
  * @returns {boolean}
  */
 function parseUnknownModelAICreditsFromAuditEntry(entry) {
-  return traverseObjectTree(entry, (_key, value) => value === UNKNOWN_MODEL_AI_CREDITS_TYPE || undefined);
+  return traverseObjectTree(entry, (_key, value) => {
+    if (value === UNKNOWN_MODEL_AI_CREDITS_TYPE) return true;
+    return false;
+  });
 }
 
 /**
