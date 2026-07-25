@@ -894,3 +894,285 @@ func savedEntryKeys(cache *workflow.ActionCache) []string {
 	}
 	return keys
 }
+
+// TestFindCooledDownActionVersion_SelectsOlderCooledRelease verifies that when the
+// newest release is in cooldown, findCooledDownActionVersion falls back to the next
+// older release that has passed the cooldown period.
+func TestFindCooledDownActionVersion_SelectsOlderCooledRelease(t *testing.T) {
+	deps := newTestActionUpdateDeps()
+
+	// v1.321.0 is the newest (in cooldown); v1.320.0 has cooled down.
+	deps.runGHReleasesAPI = func(_ context.Context, _ string) ([]byte, error) {
+		return []byte("v1.321.0\nv1.320.0\nv1.300.0"), nil
+	}
+	deps.checkCoolDown = func(_ context.Context, repo, tag string, cd time.Duration) coolDownCheckResult {
+		switch tag {
+		case "v1.321.0":
+			return checkReleaseCoolDownWithDate(repo, tag, time.Now().Add(-1*24*time.Hour), cd)
+		default:
+			return coolDownCheckResult{}
+		}
+	}
+	const wantSHA = "cooled1234567890123456789012345678901234"
+	deps.getActionSHAForTag = func(_ context.Context, _, tag string) (string, error) {
+		if tag == "v1.320.0" {
+			return wantSHA, nil
+		}
+		return "", errors.New("unexpected tag: " + tag)
+	}
+
+	version, sha, err := findCooledDownActionVersion(context.Background(), deps, "ruby/setup-ruby", "v1.300.0", true, false, 7*24*time.Hour, "")
+	if err != nil {
+		t.Fatalf("findCooledDownActionVersion() error = %v", err)
+	}
+	if version != "v1.320.0" {
+		t.Errorf("version = %q, want %q", version, "v1.320.0")
+	}
+	if sha != wantSHA {
+		t.Errorf("sha = %q, want %q", sha, wantSHA)
+	}
+}
+
+// TestFindCooledDownActionVersion_AllInCooldownReturnsEmpty verifies that
+// findCooledDownActionVersion returns empty strings when all candidate releases
+// are still within the cooldown window.
+func TestFindCooledDownActionVersion_AllInCooldownReturnsEmpty(t *testing.T) {
+	deps := newTestActionUpdateDeps()
+	deps.runGHReleasesAPI = func(_ context.Context, _ string) ([]byte, error) {
+		return []byte("v1.321.0\nv1.320.0"), nil
+	}
+	// All releases too new.
+	deps.checkCoolDown = func(_ context.Context, repo, tag string, cd time.Duration) coolDownCheckResult {
+		return checkReleaseCoolDownWithDate(repo, tag, time.Now().Add(-1*24*time.Hour), cd)
+	}
+	deps.getActionSHAForTag = func(_ context.Context, _, _ string) (string, error) {
+		return "somesha1234567890123456789012345678901234", nil
+	}
+
+	version, sha, err := findCooledDownActionVersion(context.Background(), deps, "ruby/setup-ruby", "v1.319.0", true, false, 7*24*time.Hour, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if version != "" || sha != "" {
+		t.Errorf("expected empty result when all releases in cooldown, got version=%q sha=%q", version, sha)
+	}
+}
+
+// TestFindCooledDownActionVersion_EmptySHASkipped verifies that a release whose SHA
+// resolves to an empty string is silently skipped (never returned as a valid candidate).
+func TestFindCooledDownActionVersion_EmptySHASkipped(t *testing.T) {
+	deps := newTestActionUpdateDeps()
+	deps.runGHReleasesAPI = func(_ context.Context, _ string) ([]byte, error) {
+		return []byte("v1.321.0\nv1.320.0"), nil
+	}
+	deps.checkCoolDown = func(_ context.Context, _ string, _ string, _ time.Duration) coolDownCheckResult {
+		return coolDownCheckResult{} // not in cooldown
+	}
+	// SHA API returns empty for all tags.
+	deps.getActionSHAForTag = func(_ context.Context, _, _ string) (string, error) {
+		return "", nil // empty SHA
+	}
+
+	version, sha, err := findCooledDownActionVersion(context.Background(), deps, "docker/login-action", "v1.319.0", true, false, 7*24*time.Hour, "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if version != "" || sha != "" {
+		t.Errorf("expected empty result when SHA is empty, got version=%q sha=%q", version, sha)
+	}
+}
+
+// TestUpdateActions_CooldownFallbackToOlderRelease verifies that updateActions
+// falls back to an older cooled-down release instead of skipping the update
+// entirely when the newest candidate is still in cooldown.
+func TestUpdateActions_CooldownFallbackToOlderRelease(t *testing.T) {
+	deps := newTestActionUpdateDeps()
+
+	// Latest version for ruby/setup-ruby is v1.321.0 (in cooldown).
+	deps.getLatestRelease = func(_ context.Context, repo, _ string, _, _ bool) (string, string, error) {
+		if repo == "ruby/setup-ruby" {
+			return "v1.321.0", "sha321_12345678901234567890123456789012", nil
+		}
+		return "v1.0.0", "default_1234567890123456789012345678901234", nil
+	}
+
+	// v1.321.0 is in cooldown; v1.320.0 has cooled down.
+	deps.runGHReleasesAPI = func(_ context.Context, _ string) ([]byte, error) {
+		return []byte("v1.321.0\nv1.320.0\nv1.300.0"), nil
+	}
+	deps.checkCoolDown = func(_ context.Context, repo, tag string, cd time.Duration) coolDownCheckResult {
+		switch tag {
+		case "v1.321.0":
+			return checkReleaseCoolDownWithDate(repo, tag, time.Now().Add(-1*24*time.Hour), cd)
+		default:
+			return coolDownCheckResult{}
+		}
+	}
+	const fallbackSHA = "sha320_12345678901234567890123456789012"
+	deps.getActionSHAForTag = func(_ context.Context, _, tag string) (string, error) {
+		if tag == "v1.320.0" {
+			return fallbackSHA, nil
+		}
+		return "sha321_12345678901234567890123456789012", nil
+	}
+
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := workflow.NewActionCache(tmpDir)
+	cache.Set("ruby/setup-ruby", "v1.300.0", "sha300_12345678901234567890123456789012")
+	if err := cache.Save(); err != nil {
+		t.Fatalf("failed to save initial cache: %v", err)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	if err := updateActions(context.Background(), deps, true, false, false, 7*24*time.Hour); err != nil {
+		t.Fatalf("updateActions() error = %v", err)
+	}
+
+	saved := workflow.NewActionCache(tmpDir)
+	if err := saved.Load(); err != nil {
+		t.Fatalf("failed to reload cache: %v", err)
+	}
+
+	// Should be updated to v1.320.0 (cooled-down fallback), not v1.321.0.
+	entry, ok := saved.Entries["ruby/setup-ruby@v1.320.0"]
+	if !ok {
+		t.Errorf("expected ruby/setup-ruby@v1.320.0 in cache after cooldown fallback; got entries: %v", savedEntryKeys(saved))
+	} else if entry.SHA != fallbackSHA {
+		t.Errorf("SHA = %q, want %q", entry.SHA, fallbackSHA)
+	}
+}
+
+// TestUpdateActionRefsInContent_CooldownFallback verifies that
+// updateActionRefsInContentWithDeps falls back to an older cooled-down release
+// when the newest candidate is still within the cooldown window.
+func TestUpdateActionRefsInContent_CooldownFallback(t *testing.T) {
+	deps := newTestActionUpdateDeps()
+
+	// Latest version is v1.321.0 (in cooldown); fallback is v1.320.0.
+	deps.getLatestRelease = func(_ context.Context, repo, _ string, _, _ bool) (string, string, error) {
+		if repo == "ruby/setup-ruby" {
+			return "v1.321.0", "sha321_12345678901234567890123456789012", nil
+		}
+		return "v1.0.0", "default_1234567890123456789012345678901234", nil
+	}
+	deps.runGHReleasesAPI = func(_ context.Context, _ string) ([]byte, error) {
+		return []byte("v1.321.0\nv1.320.0\nv1.300.0"), nil
+	}
+	deps.checkCoolDown = func(_ context.Context, repo, tag string, cd time.Duration) coolDownCheckResult {
+		switch tag {
+		case "v1.321.0":
+			return checkReleaseCoolDownWithDate(repo, tag, time.Now().Add(-1*24*time.Hour), cd)
+		default:
+			return coolDownCheckResult{}
+		}
+	}
+	const fallbackSHA = "sha320_12345678901234567890123456789012"
+	deps.getActionSHAForTag = func(_ context.Context, _, tag string) (string, error) {
+		if tag == "v1.320.0" {
+			return fallbackSHA, nil
+		}
+		return "sha321_12345678901234567890123456789012", nil
+	}
+
+	input := "steps:\n  - uses: ruby/setup-ruby@v1.300.0\n"
+
+	changed, got, err := updateActionRefsInContentWithDeps(
+		context.Background(), deps, input,
+		make(map[string]latestReleaseResult),
+		make(map[string]coolDownCheckResult),
+		true, false, 7*24*time.Hour,
+	)
+	if err != nil {
+		t.Fatalf("updateActionRefsInContentWithDeps() error = %v", err)
+	}
+	if !changed {
+		t.Fatal("expected content to be updated, but changed = false")
+	}
+	if want := "steps:\n  - uses: ruby/setup-ruby@v1.320.0\n"; got != want {
+		t.Errorf("got:\n%s\nwant:\n%s", got, want)
+	}
+}
+
+func TestFindCooledDownActionVersion_SHAErrorFallsToNext(t *testing.T) {
+	deps := newTestActionUpdateDeps()
+	deps.runGHReleasesAPI = func(_ context.Context, _ string) ([]byte, error) {
+		return []byte("v1.322.0\nv1.321.0\nv1.320.0"), nil
+	}
+	deps.checkCoolDown = func(_ context.Context, _, _ string, _ time.Duration) coolDownCheckResult {
+		return coolDownCheckResult{} // all candidates cooled down
+	}
+	deps.getActionSHAForTag = func(_ context.Context, _, tag string) (string, error) {
+		if tag == "v1.322.0" {
+			return "", errors.New("not found")
+		}
+		if tag == "v1.321.0" {
+			return "sha321_12345678901234567890123456789012", nil
+		}
+		return "", errors.New("unexpected tag: " + tag)
+	}
+
+	version, sha, err := findCooledDownActionVersion(context.Background(), deps, "ruby/setup-ruby", "v1.320.0", true, false, 7*24*time.Hour, "")
+	if err != nil {
+		t.Fatalf("findCooledDownActionVersion() error = %v", err)
+	}
+	if version != "v1.321.0" {
+		t.Errorf("version = %q, want %q", version, "v1.321.0")
+	}
+	if sha != "sha321_12345678901234567890123456789012" {
+		t.Errorf("sha = %q, want %q", sha, "sha321_12345678901234567890123456789012")
+	}
+}
+
+func TestUpdateActions_EmptyResolvedSHARetainsExistingEntry(t *testing.T) {
+	deps := newTestActionUpdateDeps()
+	deps.getLatestRelease = func(_ context.Context, repo, currentVersion string, _, _ bool) (string, string, error) {
+		if repo == "ruby/setup-ruby" {
+			return "v1.321.0", "", nil
+		}
+		return currentVersion, "", nil
+	}
+
+	tmpDir := testutil.TempDir(t, "test-*")
+	cache := workflow.NewActionCache(tmpDir)
+	cache.Set("ruby/setup-ruby", "v1.300.0", "sha300_12345678901234567890123456789012")
+	if err := cache.Save(); err != nil {
+		t.Fatalf("failed to save initial cache: %v", err)
+	}
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("failed to get working directory: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(wd) })
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("failed to chdir: %v", err)
+	}
+
+	if err := updateActions(context.Background(), deps, true, false, false, 0); err != nil {
+		t.Fatalf("updateActions() error = %v", err)
+	}
+
+	saved := workflow.NewActionCache(tmpDir)
+	if err := saved.Load(); err != nil {
+		t.Fatalf("failed to reload cache: %v", err)
+	}
+
+	existing, ok := saved.Entries["ruby/setup-ruby@v1.300.0"]
+	if !ok {
+		t.Fatalf("expected existing entry to be retained when resolved SHA is empty; got entries: %v", savedEntryKeys(saved))
+	}
+	if existing.SHA != "sha300_12345678901234567890123456789012" {
+		t.Fatalf("expected retained entry SHA to stay unchanged, got %q", existing.SHA)
+	}
+	if _, ok := saved.Entries["ruby/setup-ruby@v1.321.0"]; ok {
+		t.Fatalf("did not expect new empty-SHA version entry to be created; got entries: %v", savedEntryKeys(saved))
+	}
+}

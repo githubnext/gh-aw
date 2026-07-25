@@ -5,6 +5,7 @@ package cli
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -89,4 +90,50 @@ func TestResolveLatestRelease_MixedPrereleaseAndStable(t *testing.T) {
 	result, err := resolveLatestReleaseWithDeps(context.Background(), deps, "owner/repo", "v1.1.0", false, false, 0)
 	require.NoError(t, err, "should not error when stable v1.x releases exist")
 	assert.Equal(t, "v1.3.0", result, "should select latest stable v1.x release, skipping prereleases")
+}
+
+// TestResolveLatestRelease_CooldownFallback verifies that when the newest upgrade
+// candidate is within the cooldown window the resolver falls back to the next
+// older release that has already passed the cooldown period.
+func TestResolveLatestRelease_CooldownFallback(t *testing.T) {
+	t.Parallel()
+
+	deps := mockWorkflowUpdateDeps(func(_ context.Context, _ string) ([]byte, error) {
+		// v1.3.0 is the newest; v1.2.0 is one step older and has cooled down.
+		return []byte("v1.3.0\nv1.2.0\nv1.0.0"), nil
+	})
+	deps.checkCoolDown = func(_ context.Context, repo, tag string, cd time.Duration) coolDownCheckResult {
+		switch tag {
+		case "v1.3.0":
+			// Too new: published 2 days ago.
+			return checkReleaseCoolDownWithDate(repo, tag, time.Now().Add(-2*24*time.Hour), cd)
+		case "v1.2.0":
+			// Cooled down: published 10 days ago.
+			return checkReleaseCoolDownWithDate(repo, tag, time.Now().Add(-10*24*time.Hour), cd)
+		default:
+			return coolDownCheckResult{}
+		}
+	}
+
+	result, err := resolveLatestReleaseWithDeps(context.Background(), deps, "owner/repo", "v1.0.0", false, false, 7*24*time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, "v1.2.0", result, "should fall back to v1.2.0 when v1.3.0 is in cooldown")
+}
+
+// TestResolveLatestRelease_CooldownAllInWindow returns currentRef when every
+// upgrade candidate is still within the cooldown window.
+func TestResolveLatestRelease_CooldownAllInWindow(t *testing.T) {
+	t.Parallel()
+
+	deps := mockWorkflowUpdateDeps(func(_ context.Context, _ string) ([]byte, error) {
+		return []byte("v1.2.0\nv1.1.0\nv1.0.0"), nil
+	})
+	// All upgrade candidates are too new.
+	deps.checkCoolDown = func(_ context.Context, repo, tag string, cd time.Duration) coolDownCheckResult {
+		return checkReleaseCoolDownWithDate(repo, tag, time.Now().Add(-1*24*time.Hour), cd)
+	}
+
+	result, err := resolveLatestReleaseWithDeps(context.Background(), deps, "owner/repo", "v1.0.0", false, false, 7*24*time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, "v1.0.0", result, "should return currentRef when all upgrade candidates are in cooldown")
 }

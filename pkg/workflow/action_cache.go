@@ -429,7 +429,11 @@ func (c *ActionCache) FindAnyEntryForRepo(repo string) (string, ActionCacheEntry
 // Set stores a new cache entry, preserving any already-cached inputs when the SHA
 // is unchanged. If the SHA changes (e.g. a moving tag points to a new commit),
 // cached inputs are cleared to stay consistent with the newly-pinned commit.
-func (c *ActionCache) Set(repo, version, sha string) {
+func (c *ActionCache) Set(repo, version, sha string) bool {
+	if sha == "" {
+		actionCacheLog.Printf("refusing to store action pin entry with empty SHA for %s@%s; entry skipped", repo, version)
+		return false
+	}
 	key := formatActionCacheKey(repo, version)
 
 	// Check if there are existing entries with the same repo+SHA but different version
@@ -473,6 +477,7 @@ func (c *ActionCache) Set(repo, version, sha string) {
 		ActionDescription: description,
 	}
 	c.dirty = true // Mark cache as modified
+	return true
 }
 
 // GetInputs retrieves the cached action inputs for the given repo and version.
