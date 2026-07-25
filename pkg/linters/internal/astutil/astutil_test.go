@@ -55,6 +55,9 @@ func parseSnippet(t *testing.T, src string) (*token.FileSet, *ast.File, *analysi
 // that earlier offsets remain valid after each replacement.
 func applyTextEdits(t *testing.T, fset *token.FileSet, src []byte, edits []analysis.TextEdit) string {
 	t.Helper()
+	if len(edits) == 0 {
+		return string(src)
+	}
 	// Sort edits by Pos descending so we apply from end to start.
 	sorted := make([]analysis.TextEdit, len(edits))
 	copy(sorted, edits)
@@ -64,11 +67,6 @@ func applyTextEdits(t *testing.T, fset *token.FileSet, src []byte, edits []analy
 
 	result := make([]byte, len(src))
 	copy(result, src)
-
-	tokFile := fset.File(sorted[0].Pos)
-	if tokFile == nil && len(sorted) > 0 {
-		t.Fatalf("applyTextEdits: no token.File for pos %d", sorted[0].Pos)
-	}
 
 	for _, e := range sorted {
 		tf := fset.File(e.Pos)
