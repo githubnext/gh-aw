@@ -73,6 +73,17 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 	)
 }
 
+// GetSecretFailureMessage returns a Copilot-specific guidance message shown in the agentic
+// failure issue when the COPILOT_GITHUB_TOKEN secret validation step fails. The message
+// explains the permissions: copilot-requests: write alternative that avoids the need for a
+// personal access token when an organization Copilot subscription is available.
+func (e *CopilotEngine) GetSecretFailureMessage(workflowData *WorkflowData) string {
+	return "**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file. " +
+		"This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
+		"\n```yaml\npermissions:\n  copilot-requests: write\n```\n" +
+		"\nSee: https://github.github.com/gh-aw/reference/engines/#github-copilot-default"
+}
+
 // GetInstallationSteps generates the complete installation workflow for Copilot CLI.
 // This includes Node.js setup, sandbox installation (SRT or AWF), and Copilot CLI installation.
 // Secret validation is handled separately in the activation job via GetSecretValidationStep.
