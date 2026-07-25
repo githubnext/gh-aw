@@ -67,3 +67,67 @@ type PolicyCondition struct {
 type PolicyCompiler struct {
 	Rules []PolicyRule
 }
+
+// Compile applies the compiler's rules to rec and repo and returns the resulting
+// ExecutionPolicy. If no rules match, it returns the safest default policy.
+func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) ExecutionPolicy {
+	policy := safestDefaultPolicy()
+	for _, rule := range c.Rules {
+		if rule.matches(rec, repo) {
+			policy = mergePolicy(policy, rule.Set)
+			policy.RuleIDs = append(policy.RuleIDs, rule.ID)
+		}
+	}
+	return policy
+}
+
+// safestDefaultPolicy returns the most restrictive execution policy: propose-only,
+// no write scope, human approval required, auto-merge denied, and a single attempt.
+func safestDefaultPolicy() ExecutionPolicy {
+	f := false
+	return ExecutionPolicy{
+		Autonomy:              "propose_only",
+		WriteScope:            "none",
+		HumanApprovalRequired: true,
+		AutoMergeAllowed:      &f,
+		MaxAttempts:           1,
+	}
+}
+
+// matches reports whether the rule's condition is satisfied by rec and repo.
+// Empty condition fields act as wildcards.
+func (r PolicyRule) matches(_ IntentRecord, repo RepositoryContext) bool {
+	if r.When.Org != "" && r.When.Org != repo.Org {
+		return false
+	}
+	return true
+}
+
+// mergePolicy overlays fragment onto base, preserving the stricter value for each
+// field. String fields adopt the fragment value when non-empty. Boolean gates are
+// ORed (human approval) or ANDed (auto-merge). Numeric limits take the minimum.
+func mergePolicy(base, fragment ExecutionPolicy) ExecutionPolicy {
+	result := base
+	if fragment.Autonomy != "" {
+		result.Autonomy = fragment.Autonomy
+	}
+	if fragment.WriteScope != "" {
+		result.WriteScope = fragment.WriteScope
+	}
+	if fragment.HumanApprovalRequired {
+		result.HumanApprovalRequired = true
+	}
+	if fragment.AutoMergeAllowed != nil {
+		if result.AutoMergeAllowed == nil || (!*fragment.AutoMergeAllowed && *result.AutoMergeAllowed) {
+			v := *fragment.AutoMergeAllowed
+			result.AutoMergeAllowed = &v
+		}
+	}
+	if fragment.MaxAttempts > 0 && fragment.MaxAttempts < result.MaxAttempts {
+		result.MaxAttempts = fragment.MaxAttempts
+	}
+	result.AllowedTools = append(cloneStrings(base.AllowedTools), fragment.AllowedTools...)
+	result.DeniedTools = append(cloneStrings(base.DeniedTools), fragment.DeniedTools...)
+	result.RequiredChecks = append(cloneStrings(base.RequiredChecks), fragment.RequiredChecks...)
+	return result
+}
