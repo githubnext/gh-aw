@@ -63,6 +63,30 @@ func validateUpdateSHAEntries(ctx context.Context, repoRoot string) error {
 	return validateUpdateSHAEntriesWithResolvers(ctx, repoRoot, defaultValidationResolvers())
 }
 
+// validateUpdateSHAEntriesStructural validates only the structural integrity of
+// .github/aw/actions-lock.json (format, non-empty fields, key consistency) without
+// performing any live network calls to resolve or verify SHAs. This is suitable for
+// a fast pre-gate check during compilation.
+func validateUpdateSHAEntriesStructural(ctx context.Context, repoRoot string) error {
+	return validateUpdateSHAEntriesWithResolvers(ctx, repoRoot, structuralOnlyResolvers())
+}
+
+// structuralOnlyResolvers returns resolvers that skip all live network checks.
+// Used for structural-only validation (format, key consistency) without API calls.
+func structuralOnlyResolvers() validationResolvers {
+	return validationResolvers{
+		verifyActionCommitExists: func(_ context.Context, _, _ string) error {
+			return nil
+		},
+		resolveActionVersionToSHA: func(_ context.Context, _, _ string) (string, error) {
+			// Return ErrVerificationSkipped so the caller treats this as non-fatal and
+			// skips the version→SHA round-trip check entirely. Structural-only mode
+			// validates format and key consistency without live API calls.
+			return "", fmt.Errorf("%w: structural-only mode", parser.ErrVerificationSkipped)
+		},
+	}
+}
+
 func validateUpdateSHAEntriesWithResolvers(ctx context.Context, repoRoot string, r validationResolvers) error {
 	actionsLockPath := filepath.Join(repoRoot, ".github", "aw", "actions-lock.json")
 	if _, err := os.Stat(actionsLockPath); err != nil {
