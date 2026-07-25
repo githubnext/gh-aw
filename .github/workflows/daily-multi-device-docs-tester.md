@@ -104,21 +104,22 @@ pre-agent-steps:
       }
       EOF
   - name: Playwright browser launch preflight
+    id: playwright-preflight
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      PREFLIGHT_LOG=/tmp/playwright-preflight.log
+      PREFLIGHT_LOG="$EXPR_GITHUB_WORKSPACE/.playwright/preflight.log"
       set +e
       cd "$EXPR_GITHUB_WORKSPACE"
       playwright-cli open --config "$EXPR_GITHUB_WORKSPACE/.playwright/cli.config.json" about:blank > "$PREFLIGHT_LOG" 2>&1
       PREFLIGHT_STATUS=$?
       playwright-cli close >> "$PREFLIGHT_LOG" 2>&1 || true
       if [ $PREFLIGHT_STATUS -ne 0 ]; then
-        echo "PLAYWRIGHT_PREFLIGHT_FAILED=1" >> "$GITHUB_ENV"
-        echo "PLAYWRIGHT_PREFLIGHT_LOG=$PREFLIGHT_LOG" >> "$GITHUB_ENV"
+        echo "preflight_failed=1" >> "$GITHUB_OUTPUT"
+        echo "preflight_log=$PREFLIGHT_LOG" >> "$GITHUB_OUTPUT"
         echo "Playwright preflight failed; agent will report infrastructure blocker separately."
       else
-        echo "PLAYWRIGHT_PREFLIGHT_FAILED=0" >> "$GITHUB_ENV"
+        echo "preflight_failed=0" >> "$GITHUB_OUTPUT"
       fi
   - name: Install and build docs
     env:
@@ -154,7 +155,7 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 4. Keep token usage low by being efficient with your code and minimizing iterations
 5. **Playwright is available as `playwright-cli` commands in bash** — use `playwright-cli <command>` to automate the browser
 6. Use this Playwright config for every browser command: `${{ github.workspace }}/.playwright/cli.config.json`
-7. If `PLAYWRIGHT_PREFLIGHT_FAILED=1`, treat this run as an infrastructure blocker (not a docs regression)
+7. If `${{ github.workspace }}/.playwright/preflight.log` contains a Chromium startup error, treat this run as an infrastructure blocker (not a docs regression)
 
 ## Your Mission
 
@@ -224,8 +225,10 @@ playwright-cli run-code "async page => {
 Before device testing, run this preflight gate:
 
 ```bash
-if [ "${PLAYWRIGHT_PREFLIGHT_FAILED:-0}" = "1" ]; then
-  echo "Playwright preflight failed before docs checks. See ${PLAYWRIGHT_PREFLIGHT_LOG:-/tmp/playwright-preflight.log}"
+PREFLIGHT_LOG="${{ github.workspace }}/.playwright/preflight.log"
+if [ -f "$PREFLIGHT_LOG" ] && grep -qi "error\|failed\|operation not permitted" "$PREFLIGHT_LOG"; then
+  echo "Playwright preflight failed before docs checks. See $PREFLIGHT_LOG"
+  cat "$PREFLIGHT_LOG"
   # Call noop and stop. Do not classify this as a documentation regression.
 fi
 ```
