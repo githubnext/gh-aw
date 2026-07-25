@@ -368,6 +368,22 @@ max-tool-denials: 8
   `.py`, `.ts`, `.mts`, or `.rb`
 - bare command names without an extension (resolved from
   `PATH`)
+- inline source blocks using exactly one of `node:`,
+  `python:`, `go:`, or `java:`
+
+Inline driver sources are materialized into runtime files under
+`${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/` before execution.
+This lets the agent emit a complete Copilot SDK driver inline in
+workflow frontmatter:
+
+```yaml wrap
+engine:
+  id: copilot
+  driver:
+    python: |
+      import sys
+      print("hello from inline driver", file=sys.stderr)
+```
 
 See [Copilot SDK Driver Specification](/gh-aw/specs/copilot-sdk-driver-specification/)
 for the full driver contract.

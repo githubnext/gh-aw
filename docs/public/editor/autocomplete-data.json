@@ -563,7 +563,15 @@
     },
     "features": {
       "type": "object",
-      "desc": "Feature flags and configuration options for experimental or optional features in the workflow."
+      "desc": "Feature flags and configuration options for experimental or optional features in the workflow.",
+      "children": {
+        "intentional-failure": {
+          "type": "boolean",
+          "desc": "Mark the workflow as one that is intentionally expected to fail (e.g., guardrail stress-tests).",
+          "enum": [true, false],
+          "leaf": true
+        }
+      }
     },
     "models": {
       "type": "object",
@@ -582,6 +590,27 @@
         "providers": {
           "type": "object",
           "desc": "Provider-keyed map of model pricing data."
+        },
+        "default-ai-credits-pricing": {
+          "type": "object",
+          "desc": "Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing table.",
+          "children": {
+            "input": {
+              "desc": "Cost per input token in USD."
+            },
+            "output": {
+              "desc": "Cost per output token in USD."
+            },
+            "cache_read": {
+              "desc": "Cost per cached-read token in USD."
+            },
+            "cache_write": {
+              "desc": "Cost per cache-write token in USD."
+            },
+            "reasoning": {
+              "desc": "Cost per reasoning token in USD."
+            }
+          }
         }
       }
     },
@@ -767,7 +796,7 @@
             "runtime": {
               "type": "string",
               "desc": "Container runtime for the agent container.",
-              "enum": ["gvisor"],
+              "enum": ["gvisor", "docker-sbx"],
               "leaf": true
             },
             "config": {
@@ -803,6 +832,12 @@
                   "desc": "AWF API proxy target configuration for a single LLM provider."
                 }
               }
+            },
+            "legacy-security": {
+              "type": "string",
+              "desc": "Opt into legacy security mode.",
+              "enum": ["enable"],
+              "leaf": true
             }
           }
         },
@@ -937,7 +972,7 @@
       "children": {
         "id": {
           "type": "string",
-          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'crush', 'pi') or a named catalog...",
+          "desc": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry",
           "leaf": true
         },
         "version": {
@@ -948,6 +983,8 @@
         "model": {
           "type": "string",
           "desc": "Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022', 'gpt-4').",
+          "deprecated": true,
+          "x-deprecation-message": "'engine.model' is deprecated. Use top-level 'model' instead. Run 'gh aw fix' to automatically migrate.",
           "leaf": true
         },
         "model-provider": {
@@ -1151,9 +1188,30 @@
           "leaf": true
         },
         "driver": {
-          "type": "string",
-          "desc": "Custom driver script or command for the engine.",
-          "leaf": true
+          "type": "string|object",
+          "desc": "Custom driver script, command, or inline source for the engine.",
+          "children": {
+            "node": {
+              "type": "string",
+              "desc": "Inline Node.js driver source written to a generated .cjs file.",
+              "leaf": true
+            },
+            "python": {
+              "type": "string",
+              "desc": "Inline Python driver source written to a generated .py file.",
+              "leaf": true
+            },
+            "go": {
+              "type": "string",
+              "desc": "Inline Go driver source written to a generated .go file.",
+              "leaf": true
+            },
+            "java": {
+              "type": "string",
+              "desc": "Inline Java driver source written to a generated .java file.",
+              "leaf": true
+            }
+          }
         },
         "extensions": {
           "type": "array",
@@ -1625,6 +1683,18 @@
                   "desc": "Optional extra GitHub App-only permissions to merge into the minted token."
                 }
               }
+            },
+            "private-to-public-flows": {
+              "type": "string|array",
+              "desc": "Opts out of cross-visibility protections for private-to-public data flows.",
+              "enum": ["allow"],
+              "leaf": true,
+              "array": true
+            },
+            "features": {
+              "type": "string",
+              "desc": "Comma-separated list of GitHub MCP server feature flags to enable.",
+              "leaf": true
             }
           }
         },
@@ -1765,6 +1835,12 @@
             "staged": {
               "type": "boolean|string",
               "desc": "When true, emit step summary messages instead of making GitHub API calls for this specific output type (preview mode)",
+              "leaf": true
+            },
+            "issue-intent": {
+              "type": "boolean",
+              "desc": "Enable issue-intent metadata support (rationale/confidence/suggest) for this output type.",
+              "enum": [true, false],
               "leaf": true
             },
             "samples": {
@@ -2386,7 +2462,7 @@
                 },
                 "audience": {
                   "type": "string",
-                  "desc": "Optional OIDC audience passed to core.getIDToken(audience) when using credential-less OIDC mode (github-app present without app-id/private-key). Leave omitted to use the default audience.",
+                  "desc": "Optional OIDC audience passed to core.getIDToken(audience) when using credential-less OIDC mode (github-app present w...",
                   "leaf": true
                 }
               }
@@ -2438,6 +2514,11 @@
       "desc": "Control whether the compile-agentic version update check runs in the activation job.",
       "enum": [true, false],
       "leaf": true
+    },
+    "excluded-env": {
+      "type": "array",
+      "desc": "Optional list of environment variable names to unconditionally exclude from the AWF agent container via --exclude-env.",
+      "array": true
     },
     "mcp-scripts": {
       "type": "object",
@@ -3198,6 +3279,11 @@
     "import-schema": {
       "type": "object",
       "desc": "Schema for validating 'with' input values when this workflow is imported by another workflow using the 'uses'/'with' ..."
+    },
+    "model": {
+      "type": "string",
+      "desc": "Optional top-level LLM model override.",
+      "leaf": true
     },
     "evals": {
       "type": "array|object",

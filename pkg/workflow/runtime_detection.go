@@ -59,6 +59,7 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 	if workflowData.MCPScripts != nil {
 		detectFromMCPScripts(workflowData.MCPScripts, requirements)
 	}
+	detectFromInlineEngineDriver(workflowData, requirements)
 
 	// When using a custom image runner, ensure Node.js is set up.
 	// Standard GitHub-hosted runners (ubuntu-*, windows-*) have Node.js pre-installed,
@@ -147,6 +148,17 @@ func requiresNodeForEngineHarness(workflowData *WorkflowData) bool {
 	// installation steps (GenerateNpmInstallSteps with includeNodeSetup=true), so no
 	// additional Node runtime requirement is needed for custom harness execution.
 	return strings.EqualFold(engineID, string(constants.CopilotEngine))
+}
+
+func detectFromInlineEngineDriver(workflowData *WorkflowData, requirements map[string]*RuntimeRequirement) {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.InlineDriver == nil {
+		return
+	}
+
+	runtime := findRuntimeByID(workflowData.EngineConfig.InlineDriver.Runtime)
+	if runtime != nil {
+		updateRequiredRuntime(runtime, "", requirements)
+	}
 }
 
 // detectFromCustomSteps scans custom steps YAML for runtime commands

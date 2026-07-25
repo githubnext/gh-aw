@@ -12500,9 +12500,39 @@
               "description": "Enables the experimental GitHub Copilot SDK integration (copilot engine only). When true, the harness starts a separate headless Copilot CLI sidecar on the configured localhost port and sets COPILOT_SDK_URI on child processes."
             },
             "driver": {
-              "type": "string",
-              "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
-              "description": "Custom driver script or command for the engine. Accepts a workspace-relative path or bare name. Supported extensions depend on the engine: the copilot engine accepts .js, .cjs, .mjs (Node.js), .py (Python), .ts or .mts (TypeScript), or .rb (Ruby); other engines (e.g. pi) accept .js, .cjs, or .mjs only. A bare name without an extension is also valid for any engine (treated as a built-in driver or executable in PATH). Examples: `.github/drivers/my_driver.cjs`, `.github/drivers/my_driver.py`, `my-copilot-driver`."
+              "description": "Custom driver script, command, or inline source for the engine. String values accept a workspace-relative path or bare name. Inline object values are supported for the Copilot engine and materialize runtime files before execution. Supported inline runtimes are node, python, go, and java.",
+              "oneOf": [
+                {
+                  "type": "string",
+                  "pattern": "^(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*)(?:/(?:(?:\\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*))*$",
+                  "description": "Workspace-relative driver path or bare command name. The copilot engine accepts .js, .cjs, .mjs, .py, .ts, .mts, and .rb drivers; other engines accept .js, .cjs, and .mjs. Bare names without an extension are treated as built-in drivers or executables in PATH."
+                },
+                {
+                  "type": "object",
+                  "description": "Inline Copilot SDK driver source. Provide exactly one runtime key.",
+                  "properties": {
+                    "node": {
+                      "type": "string",
+                      "description": "Inline Node.js driver source written to a generated .cjs file."
+                    },
+                    "python": {
+                      "type": "string",
+                      "description": "Inline Python driver source written to a generated .py file."
+                    },
+                    "go": {
+                      "type": "string",
+                      "description": "Inline Go driver source written to a generated .go file."
+                    },
+                    "java": {
+                      "type": "string",
+                      "description": "Inline Java driver source written to a generated .java file."
+                    }
+                  },
+                  "additionalProperties": false,
+                  "minProperties": 1,
+                  "maxProperties": 1
+                }
+              ]
             },
             "extensions": {
               "type": "array",
