@@ -7,20 +7,17 @@ SpecOps is a pattern for maintaining formal specifications using agentic workflo
 
 ```mermaid
 flowchart LR
-    update([Update spec]) --> review[Review & merge spec PR]
-    review --> propagate[Propagate to consumer repos]
+    UpdateSpec([Update spec]) --> ReviewSpec[Review & merge spec PR]
+    ReviewSpec --> PropagateChanges[Propagate to consumer repos]
 ```
 
 ## How SpecOps Works
 
-1. **Update specification** — Edit the specification, either by a local agent or by triggering a workflow like [`w3c-specification-writer`](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md) to edit the spec document (RFC 2119 keywords, version bump, change log).
-2. **Review changes** — Approve the specification pull request.
-3. **Propagate automatically** — On merge, workflows detect updates and create PRs in consuming repositories to maintain compliance.
-4. **Verify compliance** — Test generation workflows update compliance test suites against the new requirements.
+SpecOps keeps a specification and its implementations aligned: update the spec, review and merge the change, propagate the new requirements to consuming repositories, then refresh compliance tests against the updated version.
 
 ## Update Specifications
 
-Create a workflow to update specifications using [`w3c-specification-writer`](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md):
+Create a workflow that uses [`w3c-specification-writer`](https://github.com/github/gh-aw/blob/main/.github/agents/w3c-specification-writer.agent.md) to edit the spec, apply RFC 2119 language, update the version and change log, and open a pull request:
 
 ```yaml
 ---
@@ -66,7 +63,7 @@ Update the MCP Gateway specification using the w3c-specification-writer agent.
 
 ## Propagate Changes
 
-After specification updates merge, automatically propagate changes to consuming repositories:
+After the specification PR merges, trigger a follow-up workflow to update consuming repositories and verify compliance:
 
 ```yaml
 ---
@@ -99,23 +96,19 @@ The MCP Gateway specification has been updated. Propagate changes to consuming r
 
 ## Consuming Repositories
 
-- **gh-aw-mcpg**: Update implementation compliance, schemas, and tests
-- **gh-aw**: Update MCP gateway validation and documentation
+Update `gh-aw-mcpg` for implementation compliance, schemas, and tests, and update `gh-aw` for MCP gateway validation and documentation.
 
 ## Your Task
 
-1. Read the latest specification version and change log
-2. Identify breaking changes and new requirements
-3. For each consuming repository:
-   - Update implementation to match spec
-   - Run tests to verify compliance
-   - Create pull request with changes
-4. Create tracking issue linking all PRs
+1. Read the latest specification version and change log.
+2. Identify breaking changes and new requirements.
+3. Update each consuming repository to match the spec, run tests, and create a pull request.
+4. Create a tracking issue that links the resulting PRs.
 ```
 
 ## Specification Structure
 
-W3C-style specifications require: Abstract, Status, Introduction, Conformance, numbered technical sections with RFC 2119 keywords, Compliance testing, References, and a Change log.
+W3C-style specifications should include an Abstract, Status, Introduction, Conformance, numbered technical sections that use RFC 2119 keywords, compliance testing, references, and a change log.
 
 **Example RFC 2119 usage**:
 
@@ -141,6 +134,4 @@ The [MCP Gateway Specification](/gh-aw/reference/mcp-gateway/) is a live example
 
 ## Related Documentation
 
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Cross-repository coordination
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout and target-repo configuration
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Secure write operations
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for cross-repository coordination, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout and target-repo configuration, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for secure write operations.
