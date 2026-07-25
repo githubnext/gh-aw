@@ -1,4 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
+import { resolveWriteOnceInitializerChain } from "./command-initializer-utils";
 import { isChildProcessImportBinding, isChildProcessObjectBinding, isRequireChildProcess } from "./try-catch-rule-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
@@ -168,7 +169,8 @@ export const noChildProcessInterpolatedCommandRule = createRule({
         const firstArg = node.arguments[0];
         if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;
 
-        const kind = getDynamicCommandKind(firstArg);
+        const candidate = resolveWriteOnceInitializerChain(firstArg as TSESTree.Expression, sourceCode);
+        const kind = getDynamicCommandKind(candidate);
         if (!kind) return;
 
         context.report({

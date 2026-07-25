@@ -386,6 +386,35 @@ func fetchPublicGitHubAPI(ctx context.Context, endpoint string) ([]byte, error) 
 	return body, nil
 }
 
+func fetchPublicReleaseTagsPaginated(ctx context.Context, repo string) ([]string, error) {
+	var tags []string
+	for page := 1; ; page++ {
+		endpoint := fmt.Sprintf("/repos/%s/releases?per_page=100&page=%d", repo, page)
+		body, err := fetchPublicGitHubAPI(ctx, endpoint)
+		if err != nil {
+			return nil, err
+		}
+		var releases []struct {
+			TagName string `json:"tag_name"`
+		}
+		if err := json.Unmarshal(body, &releases); err != nil {
+			return nil, fmt.Errorf("failed to parse releases response: %w", err)
+		}
+		if len(releases) == 0 {
+			break
+		}
+		for _, r := range releases {
+			if r.TagName != "" {
+				tags = append(tags, r.TagName)
+			}
+		}
+		if len(releases) < 100 {
+			break
+		}
+	}
+	return tags, nil
+}
+
 // getRepoDefaultBranch fetches the default branch name for a repository.
 func getRepoDefaultBranch(ctx context.Context, repo string) (string, error) {
 	output, err := workflow.RunGHContext(ctx, "Fetching repo info...", "api", "/repos/"+repo, "--jq", ".default_branch")
@@ -456,30 +485,20 @@ func getLatestBranchCommitSHA(ctx context.Context, repo, branch string) (string,
 
 type workflowUpdateDeps struct {
 	runReleasesAPI func(ctx context.Context, repo string) ([]byte, error)
+	checkCoolDown  func(ctx context.Context, repo, tag string, coolDown time.Duration) coolDownCheckResult
 }
 
 func defaultWorkflowUpdateDeps() workflowUpdateDeps {
 	return workflowUpdateDeps{
+		checkCoolDown: checkReleaseCoolDown,
 		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
 			endpoint := fmt.Sprintf("/repos/%s/releases", repo)
-			output, err := workflow.RunGHContext(ctx, "Fetching releases...", "api", endpoint, "--jq", ".[].tag_name")
+			output, err := workflow.RunGHContext(ctx, "Fetching releases...", "api", "--paginate", endpoint, "--jq", ".[].tag_name")
 			if err != nil && gitutil.IsAuthError(err.Error()) {
 				updateLog.Printf("GitHub API auth failed for releases of %s, retrying without token", repo)
-				body, fallbackErr := fetchPublicGitHubAPI(ctx, endpoint)
+				tags, fallbackErr := fetchPublicReleaseTagsPaginated(ctx, repo)
 				if fallbackErr != nil {
 					return nil, fmt.Errorf("failed (with token: %w; without token: %w)", err, fallbackErr)
-				}
-				var releases []struct {
-					TagName string `json:"tag_name"`
-				}
-				if fallbackErr = json.Unmarshal(body, &releases); fallbackErr != nil {
-					return nil, fmt.Errorf("failed to parse releases response: %w", fallbackErr)
-				}
-				var tags []string
-				for _, r := range releases {
-					if r.TagName != "" {
-						tags = append(tags, r.TagName)
-					}
 				}
 				return []byte(strings.Join(tags, "\n")), nil
 			}
@@ -541,50 +560,57 @@ func resolveLatestReleaseWithDeps(ctx context.Context, deps workflowUpdateDeps, 
 		return latestStable, nil
 	}
 
-	// Find the latest compatible non-prerelease release.
+	// Find all compatible non-prerelease releases.
 	// Per semver rules, v1.1.0-beta.1 > v1.0.0, so without this filter a prerelease
 	// of a higher base version could be incorrectly selected as the upgrade target.
-	var latestCompatible string
-	var latestCompatibleVersion *semverutil.SemanticVersion
+	compatibleReleases := sortedCompatibleReleaseCandidates(releases, currentVer, allowMajor)
 
-	for _, release := range releases {
-		releaseVer := parseVersion(release)
-		if releaseVer == nil || releaseVer.Pre != "" {
-			continue
-		}
-
-		// Check if compatible based on major version
-		if !allowMajor && releaseVer.Major != currentVer.Major {
-			continue
-		}
-
-		// Check if this is newer than what we have
-		if latestCompatibleVersion == nil || releaseVer.IsNewer(latestCompatibleVersion) {
-			latestCompatible = release
-			latestCompatibleVersion = releaseVer
-		}
-	}
-
-	if latestCompatible == "" {
+	if len(compatibleReleases) == 0 {
 		return "", errors.New("no compatible release found")
 	}
 
-	// Apply cooldown: if the latest release is newer than the current and the repo is not
-	// exempt from cooldown, check whether the release is recent enough to be held back.
-	if latestCompatible != currentRef && !isExemptFromCoolDown(repo) {
-		if result := checkReleaseCoolDown(ctx, repo, latestCompatible, coolDown); result.InCoolDown {
-			cooldownLog.Printf("Workflow source %s: %s", repo, result.Message)
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping update for %s: %s", repo, result.Message)))
-			// Return the current ref — no update until cooldown expires.
-			return currentRef, nil
+	// Collect upgrade candidates: releases strictly newer than current.
+	upgradeCandidates := newerReleaseCandidates(compatibleReleases, currentVer)
+
+	// No upgrade available – already at the latest compatible release.
+	if len(upgradeCandidates) == 0 {
+		return currentRef, nil
+	}
+
+	// If the repo is exempt from cooldown, return the best (newest) upgrade candidate.
+	if isExemptFromCoolDown(repo) {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found newer release: "+upgradeCandidates[0].tag))
+		}
+		return upgradeCandidates[0].tag, nil
+	}
+
+	// Iterate from newest to oldest upgrade candidate, stopping at the first release
+	// that has passed the cooldown period.  This lets users receive the latest cooled
+	// release rather than being blocked on a single too-recent version.
+	loggedCandidateSkip := false
+	cooldownSkippedCount := 0
+	for _, c := range upgradeCandidates {
+		result := deps.checkCoolDown(ctx, repo, c.tag, coolDown)
+		if !result.InCoolDown {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found newer release: "+c.tag))
+			}
+			return c.tag, nil
+		}
+		cooldownSkippedCount++
+		cooldownLog.Printf("Workflow source %s: %s", repo, result.Message)
+		if !loggedCandidateSkip {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping release candidate %s@%s: %s", repo, c.tag, result.Message)))
+			loggedCandidateSkip = true
 		}
 	}
-
-	if verbose && latestCompatible != currentRef {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Found newer release: "+latestCompatible))
+	if cooldownSkippedCount > 1 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Evaluated %d release candidates for %s; all are still in cooldown", cooldownSkippedCount, repo)))
 	}
 
-	return latestCompatible, nil
+	// All upgrade candidates are still within the cooldown window.
+	return currentRef, nil
 }
 
 // updateWorkflow updates a single workflow from its source

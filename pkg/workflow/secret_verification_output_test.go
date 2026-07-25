@@ -133,6 +133,138 @@ Test workflow`
 	}
 }
 
+// TestCopilotEngineSecretFailureMessageWiredInConclusionJob validates that the compiled
+// lock file includes GH_AW_ENGINE_SECRET_FAILURE_MESSAGE in the conclusion job when the
+// Copilot engine is used, so the failure handler can display the copilot-requests: write
+// alternative when the secret validation step fails.
+func TestCopilotEngineSecretFailureMessageWiredInConclusionJob(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-copilot-secret-failure-msg-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// The conclusion job must include GH_AW_ENGINE_SECRET_FAILURE_MESSAGE so the failure
+	// handler can show the engine-specific guidance (copilot-requests: write alternative).
+	if !strings.Contains(lockStr, "GH_AW_ENGINE_SECRET_FAILURE_MESSAGE:") {
+		t.Error("Expected conclusion job to include GH_AW_ENGINE_SECRET_FAILURE_MESSAGE for Copilot engine")
+	}
+
+	// The copilot-specific message must mention the permissions: copilot-requests: write alternative.
+	if !strings.Contains(lockStr, "copilot-requests: write") {
+		t.Error("Expected GH_AW_ENGINE_SECRET_FAILURE_MESSAGE to contain copilot-requests: write guidance")
+	}
+}
+
+// TestCopilotEngineWithNonGitHubProviderHasNoSecretFailureMessage validates that when the Copilot
+// engine is configured with a non-GitHub provider (engine.model-provider: openai), the compiled
+// lock file does NOT include GH_AW_ENGINE_SECRET_FAILURE_MESSAGE, because the
+// copilot-requests: write alternative only applies to GitHub-hosted inference.
+func TestCopilotEngineWithNonGitHubProviderHasNoSecretFailureMessage(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-copilot-openai-no-secret-failure-msg-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine:
+  id: copilot
+  model-provider: openai
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// When using a non-GitHub provider, copilot-requests: write does not apply;
+	// GH_AW_ENGINE_SECRET_FAILURE_MESSAGE must not appear in the compiled output.
+	if strings.Contains(lockStr, "GH_AW_ENGINE_SECRET_FAILURE_MESSAGE:") {
+		t.Error("Expected GH_AW_ENGINE_SECRET_FAILURE_MESSAGE to be absent for Copilot engine with non-GitHub provider")
+	}
+}
+
+// TestNonCopilotEngineHasNoSecretFailureMessage validates that engines without a custom
+// secret failure message (e.g. Claude) do not emit GH_AW_ENGINE_SECRET_FAILURE_MESSAGE
+// in the compiled conclusion job.
+func TestNonCopilotEngineHasNoSecretFailureMessage(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-claude-no-secret-failure-msg-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine: claude
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Claude engine has no custom secret failure message; GH_AW_ENGINE_SECRET_FAILURE_MESSAGE
+	// must not appear in the compiled output.
+	if strings.Contains(lockStr, "GH_AW_ENGINE_SECRET_FAILURE_MESSAGE:") {
+		t.Error("Expected GH_AW_ENGINE_SECRET_FAILURE_MESSAGE to be absent for Claude engine (no custom message defined)")
+	}
+}
+
 func TestSecretVerificationOutputSkippedWithEnvironment(t *testing.T) {
 	testDir := testutil.TempDir(t, "secret-verify-env-*")
 	workflowFile := filepath.Join(testDir, "test-workflow.md")
@@ -169,5 +301,56 @@ Test workflow`
 	}
 	if strings.Contains(lockStr, "secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}") {
 		t.Error("Expected secret_verification_result activation output to be skipped when top-level environment is configured")
+	}
+}
+
+// TestConclusionConditionOmitsSecretVerificationWhenOutputAbsent is a regression test for
+// https://github.com/github/gh-aw/issues/46883. When the activation job does not declare the
+// secret_verification_result output (e.g. because a top-level environment is configured, which
+// skips the validate-secret step), the conclusion job condition must not reference that output.
+// A dangling needs.activation.outputs.secret_verification_result reference fails actionlint on
+// the generated lock file.
+func TestConclusionConditionOmitsSecretVerificationWhenOutputAbsent(t *testing.T) {
+	testDir := testutil.TempDir(t, "conclusion-no-secret-verify-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	// environment: production skips the validate-secret step (and its output),
+	// while safe-outputs: add-comment forces a conclusion job to be generated.
+	workflow := `---
+on: workflow_dispatch
+engine: copilot
+environment: production
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0o644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// Sanity check: the output really is absent from the activation job.
+	if strings.Contains(lockStr, "secret_verification_result: ${{ steps.validate-secret.outputs.verification_result }}") {
+		t.Fatal("Expected activation job to omit secret_verification_result output when environment is configured")
+	}
+
+	// The dangling reference must not appear anywhere (conclusion condition or env var).
+	if strings.Contains(lockStr, "needs.activation.outputs.secret_verification_result") {
+		t.Error("Expected generated lock file to omit needs.activation.outputs.secret_verification_result when the output is not declared (regression for #46883)")
 	}
 }

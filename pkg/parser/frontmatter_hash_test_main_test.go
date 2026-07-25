@@ -3,13 +3,15 @@
 package parser
 
 import (
-	"os"
 	"testing"
+
+	"go.uber.org/goleak"
 )
 
-// TestMain sets up the test environment
+// TestMain enforces goroutine-leak detection for all unit tests in the parser package.
 func TestMain(m *testing.M) {
-	// Run tests
-	code := m.Run()
-	os.Exit(code)
+	goleak.VerifyTestMain(m,
+		goleak.IgnoreAnyFunction("net/http.(*http2ClientConn).readLoop"),
+		goleak.IgnoreAnyFunction("net/http.(*http2clientConnReadLoop).run"),
+	)
 }
