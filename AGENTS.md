@@ -28,7 +28,7 @@ Everything else should be loaded **lazily** through skills only when needed.
 3. After Go changes, run `make fmt`.
 4. After workflow markdown changes (`.md` under `.github/workflows/`), run `make recompile`.
 5. Do not add `.lock.yml` files to `.gitignore`.
-6. Never attempt to run any check (e.g., `gh aw run`, `gh aw audit`, workflow dispatch) as part of a Copilot cloud agent run. The token does not have the required access. Always fail with an error — do not task the user or ask them to run it manually.
+6. Never attempt to trigger a workflow run (e.g., `gh run`, `gh aw run`) as part of a Copilot cloud agent run. The token does not have the required access. Always fail with an error — do not task the user or ask them to run it manually.
 
 ## Upstream-managed workflow sources (read-only in this repo)
 
