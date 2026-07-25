@@ -381,3 +381,53 @@ func TestBuildEvalsEngineStepsUsesEvalsMaxAICreditsDefault(t *testing.T) {
 		t.Fatalf("evals engine steps must not use detection max-ai-credits default; got:\n%s", steps)
 	}
 }
+
+// TestBuildEvalsEngineStepsModelMappingsPropagated verifies that model alias mappings
+// from the parent WorkflowData are propagated to the evals engine steps so that the
+// AWF config JSON includes the apiProxy.models section.
+// Regression: before the fix, ModelMappings was not propagated to evalsData, so alias
+// model names (e.g. "small") could not be resolved by the AWF — causing the error
+// "model 'small' is unsupported or unrecognized by this AWF version".
+func TestBuildEvalsEngineStepsModelMappingsPropagated(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("model mappings included in evals AWF config when set on parent WorkflowData", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:            "copilot",
+			ModelMappings: MergeImportedModelAliases(nil, nil), // builtin aliases
+			Evals: &EvalsConfig{
+				Questions: []EvalDefinition{
+					{ID: "check", Question: "Did the agent complete the task?"},
+				},
+			},
+		}
+
+		steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
+
+		// The AWF config JSON written in the run step must contain the "models" key
+		// (shell-escaped as \"models\" inside the printf string) so the AWF can resolve
+		// alias model names (e.g. "small") to concrete IDs.
+		if !strings.Contains(steps, `\"models\"`) {
+			t.Errorf("expected evals engine steps to include AWF config with \"models\" key when ModelMappings is set;\ngot:\n%s", steps)
+		}
+	})
+
+	t.Run("model mappings absent from evals AWF config when nil on parent WorkflowData", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:            "copilot",
+			ModelMappings: nil,
+			Evals: &EvalsConfig{
+				Questions: []EvalDefinition{
+					{ID: "check", Question: "Did the agent complete the task?"},
+				},
+			},
+		}
+
+		steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
+
+		// Without ModelMappings, the models section should not appear in the AWF config.
+		if strings.Contains(steps, `\"models\"`) {
+			t.Errorf("expected evals engine steps to exclude \"models\" key from AWF config when ModelMappings is nil;\ngot:\n%s", steps)
+		}
+	})
+}

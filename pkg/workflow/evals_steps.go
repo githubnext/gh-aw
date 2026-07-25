@@ -193,6 +193,9 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// RunnerConfig is propagated from the main workflow data so that arc-dind topology
 	// handling (daemon-visible Copilot staging step + daemon-visible spawn path) applies
 	// to the evals job the same way it applies to the agent job.
+	// ModelMappings is propagated so the evals awf-config.json includes the alias map
+	// (apiProxy.models). Without it, copilot_harness.cjs cannot resolve alias model names
+	// (e.g. "small") to concrete ids before spawning the engine in the evals job.
 	evalsData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"*"},
@@ -206,7 +209,8 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    false,
 		IsEvalsRun:        true,
-		RunnerConfig:      data.RunnerConfig, // propagate runner.topology (e.g. arc-dind) to the evals job
+		RunnerConfig:      data.RunnerConfig,  // propagate runner.topology (e.g. arc-dind) to the evals job
+		ModelMappings:     data.ModelMappings, // propagate alias map so evals awf-config.json can resolve model aliases
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 		},
