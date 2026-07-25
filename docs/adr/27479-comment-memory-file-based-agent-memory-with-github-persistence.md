@@ -104,6 +104,17 @@ Memory could be stored in a dedicated GitHub issue (a "memory issue") or externa
 2. All materialized memory files **MUST** be included in the threat-detection prompt context.
 3. The agent prompt **MUST** include guidance explaining the memory file location (`/tmp/gh-aw/comment-memory/`) and the expected read/write workflow.
 
+### Safeguards
+
+1. The pre-agent setup step **MUST** enforce a per-file size cap of 16 KiB: any materialized memory file exceeding this limit **MUST** trigger a safe failure (warning logged, persistence setup skipped) rather than writing oversized content into agent context.
+2. The pre-agent setup step **MUST** enforce a total-directory size cap of 48 KiB across all materialized memory files under `/tmp/gh-aw/comment-memory/`: exceeding this aggregate limit **MUST** also trigger a safe failure.
+3. The size-cap constants used for enforcement **MUST** be sourced from `actions/setup/js/comment_memory_helpers.cjs` and **MUST NOT** be hardcoded inline at call sites.
+
+### Norms
+
+1. The size-cap constants defined in `actions/setup/js/comment_memory_helpers.cjs` are the canonical source of truth for per-file and total-directory limits; any change to these values **MUST** also update this specification.
+2. Any change to the size-cap constants **MUST** keep the constants, this specification, and the conformance tests in `actions/setup/js/setup_comment_memory_files.test.cjs` in sync.
+
 ### Conformance
 
 An implementation is considered conformant with this ADR if it satisfies all **MUST** and **MUST NOT** requirements above. Failure to meet any **MUST** or **MUST NOT** requirement constitutes non-conformance.
