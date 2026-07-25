@@ -18,6 +18,14 @@ function isErrAndErrStack(node: TSESTree.Node, errVar: string): boolean {
 }
 
 /**
+ * Checks whether `node` matches `<errVar> instanceof Error` (BinaryExpression).
+ */
+function isErrInstanceofError(node: TSESTree.Node, errVar: string): boolean {
+  if (node.type !== AST_NODE_TYPES.BinaryExpression || node.operator !== "instanceof") return false;
+  return isIdentifierNamed(node.left, errVar) && isIdentifierNamed(node.right, "Error");
+}
+
+/**
  * Checks whether `node` matches `<errVar>.stack` (MemberExpression).
  */
 function isErrStack(node: TSESTree.Node, errVar: string): boolean {
@@ -42,7 +50,8 @@ export const noErrStackThenStringFallbackRule = createRule({
     hasSuggestions: true,
     docs: {
       description:
-        "Prefer getErrorMessage(err) over `err && err.stack ? err.stack : String(err)`. " +
+        "Prefer getErrorMessage(err) over `err && err.stack ? err.stack : String(err)` or " +
+        "`err instanceof Error ? err.stack : String(err)`. " +
         "The stack-trace form surfaces noisy implementation details; getErrorMessage() returns " +
         "the concise error message and is available in every actions/setup/js script via error_helpers.cjs.",
     },
@@ -56,15 +65,25 @@ export const noErrStackThenStringFallbackRule = createRule({
   create(context) {
     return {
       ConditionalExpression(node) {
-        // Pattern: <errVar> && <errVar>.stack ? <errVar>.stack : String(<errVar>)
+        // Patterns:
+        //   <errVar> && <errVar>.stack ? <errVar>.stack : String(<errVar>)
+        //   <errVar> instanceof Error  ? <errVar>.stack : String(<errVar>)
         const test = node.test;
-        if (test.type !== AST_NODE_TYPES.LogicalExpression) return;
 
-        // Resolve errVar from the test's left-hand side identifier
-        if (test.left.type !== AST_NODE_TYPES.Identifier) return;
-        const errVar = test.left.name;
+        let errVar: string;
+        if (test.type === AST_NODE_TYPES.LogicalExpression) {
+          // Resolve errVar from the test's left-hand side identifier
+          if (test.left.type !== AST_NODE_TYPES.Identifier) return;
+          errVar = test.left.name;
+          if (!isErrAndErrStack(test, errVar)) return;
+        } else if (test.type === AST_NODE_TYPES.BinaryExpression) {
+          if (test.left.type !== AST_NODE_TYPES.Identifier) return;
+          errVar = test.left.name;
+          if (!isErrInstanceofError(test, errVar)) return;
+        } else {
+          return;
+        }
 
-        if (!isErrAndErrStack(test, errVar)) return;
         if (!isErrStack(node.consequent, errVar)) return;
         if (!isStringErr(node.alternate, errVar)) return;
 

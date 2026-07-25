@@ -8,7 +8,15 @@ The workflows need to be recompiled to regenerate the lock files from the markdo
 
 ## Instructions
 
+If the repository provides a wrapper such as `make recompile`, prefer that command so compilation uses the repository's canonical flags. In `github/gh-aw`, any edit under `.github/workflows/*.md` should be followed by `make recompile` before committing.
+
 Recompile all workflows using one of the following methods:
+
+### Using the repository wrapper
+
+```bash
+make recompile
+```
 
 ### Using gh aw CLI
 

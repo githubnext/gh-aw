@@ -71,12 +71,10 @@ func inspectTypeAssertExpr(pass *analysis.Pass, noLintIndex nolint.DirectiveInde
 	}
 
 	// Find the parent map for the file containing this node.
+	f := astutil.FileForPos(pass.Files, typeAssert.Pos())
 	var parents map[ast.Node]ast.Node
-	for _, f := range pass.Files {
-		if f.Pos() <= typeAssert.Pos() && typeAssert.Pos() <= f.End() {
-			parents = fileParents[f]
-			break
-		}
+	if f != nil {
+		parents = fileParents[f]
 	}
 
 	// Skip the safe two-value form:  v, ok := x.(T)  or  v, ok = x.(T)
