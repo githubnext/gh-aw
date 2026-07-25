@@ -351,7 +351,7 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	for i := range numGoroutines {
 		go func(index int) {
 			<-startChan // Wait for the signal to start
-			started[index] = StartDockerImageDownload(context.Background(), testImage)
+			started[index], _ = StartDockerImageDownload(context.Background(), testImage)
 			doneChan <- index
 		}(i)
 	}
@@ -407,7 +407,7 @@ func TestStartDockerImageDownload_ConcurrentCallsWithAvailableImage(t *testing.T
 	for i := range numGoroutines {
 		go func(index int) {
 			<-startChan
-			started[index] = StartDockerImageDownload(context.Background(), testImage)
+			started[index], _ = StartDockerImageDownload(context.Background(), testImage)
 			doneChan <- index
 		}(i)
 	}
@@ -459,7 +459,8 @@ func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
 
 	for range numGoroutines {
 		go func() {
-			results <- StartDockerImageDownload(context.Background(), testImage)
+			started, _ := StartDockerImageDownload(context.Background(), testImage)
+			results <- started
 		}()
 	}
 
@@ -491,7 +492,7 @@ func TestStartDockerImageDownload_ContextCancellation(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	// Start the download
-	started := StartDockerImageDownload(ctx, testImage)
+	started, join := StartDockerImageDownload(ctx, testImage)
 	if !started {
 		t.Fatal("Expected download to start")
 	}
@@ -504,8 +505,8 @@ func TestStartDockerImageDownload_ContextCancellation(t *testing.T) {
 	// Cancel the context immediately
 	cancel()
 
-	// Wait a bit for the goroutine to notice the cancellation
-	time.Sleep(100 * time.Millisecond)
+	// Join the download goroutine and ensure cleanup is complete
+	join()
 
 	// The image should no longer be marked as downloading after cancellation
 	if IsDockerImageDownloading(testImage) {
@@ -516,6 +517,62 @@ func TestStartDockerImageDownload_ContextCancellation(t *testing.T) {
 	ResetDockerPullState()
 }
 
+func TestStartDockerImageDownload_JoinPointForExistingDownload(t *testing.T) {
+	ResetDockerPullState()
+
+	testImage := "test/join-existing:v1.0.0"
+	SetMockImageAvailable(testImage, false)
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	startedFirst, joinFirst := StartDockerImageDownload(ctx, testImage)
+	if !startedFirst {
+		t.Fatal("Expected first call to start download")
+	}
+
+	startedSecond, joinSecond := StartDockerImageDownload(ctx, testImage)
+	if startedSecond {
+		t.Fatal("Expected second call to observe existing download")
+	}
+
+	cancel()
+	joinFirst()
+	joinSecond()
+
+	if IsDockerImageDownloading(testImage) {
+		t.Error("Expected image to not be marked as downloading after joined cancellation")
+	}
+
+	ResetDockerPullState()
+}
+
+func TestStartDockerImageDownload_JoinPointNoopWhenImageAvailable(t *testing.T) {
+	ResetDockerPullState()
+
+	testImage := "test/join-noop:v1.0.0"
+	SetMockImageAvailable(testImage, true)
+
+	started, join := StartDockerImageDownload(context.Background(), testImage)
+	if started {
+		t.Fatal("Expected download not to start for already-available image")
+	}
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		join()
+	}()
+
+	select {
+	case <-done:
+		// expected: join is a no-op when no goroutine was started
+	case <-time.After(2 * time.Second):
+		t.Fatal("Expected join to return immediately when image is available")
+	}
+
+	ResetDockerPullState()
+}
+
 func TestStartDockerImageDownload_NilContext(t *testing.T) {
 	ResetDockerPullState()
 
@@ -523,7 +580,8 @@ func TestStartDockerImageDownload_NilContext(t *testing.T) {
 	SetMockImageAvailable(testImage, true)
 
 	//nolint:staticcheck // Intentionally validating nil context handling behavior.
-	if StartDockerImageDownload(nil, testImage) {
+	started, _ := StartDockerImageDownload(nil, testImage)
+	if started {
 		t.Error("Expected download not to start for available image with nil context")
 	}
 
