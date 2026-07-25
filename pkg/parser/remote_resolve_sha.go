@@ -28,6 +28,10 @@ var resolveRefToSHAViaGitFunc = resolveRefToSHAViaGit
 func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return "", fmt.Errorf("refusing git ls-remote fallback: %w", err)
+	}
+
 	var githubHost string
 	if host != "" {
 		githubHost = "https://" + host
@@ -36,8 +40,9 @@ func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (
 	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
-	// Try to resolve the ref using git ls-remote
-	// Format: git ls-remote <repo> <ref>
+	// Try to resolve the ref using git ls-remote.
+	// ValidateGitRef above guarantees ref does not begin with '-' before it is passed
+	// as a separate argument, so no extra separator is needed here.
 	cmd := exec.CommandContext(ctx, "git", "ls-remote", repoURL, ref)
 	output, err := cmd.Output()
 	if err != nil {
