@@ -101,6 +101,122 @@ describe("require-fetch-try-catch", () => {
     });
   });
 
+  it("valid: chained fetch calls with rejection handlers are not flagged", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [
+        `async function f() { await fetch(url).catch(handler); }`,
+        `async function f() { await fetch(url).then(ok, onErr); }`,
+        `async function f() {
+          const res = await fetch(url, { signal }).catch(rethrowAbortError);
+          return res.text();
+        }`,
+        `async function f() {
+          try {
+            await fetch(url).then(x => x.json());
+          } catch (e) {}
+        }`,
+        // Optional chain with callable rejection handler
+        `async function f() { await fetch(url)?.catch(handler); }`,
+        `async function f() { await fetch(url)?.then(ok, onErr); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: chained fetch calls without rejection handlers are flagged", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() { await fetch(url).then(x => x.json()); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  await fetch(url).then(x => x.json());\n} catch (err) {\n  // TODO: handle fetch network failure (TypeError on DNS/connection errors).\n  throw new Error(\n    "fetch failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+        // Optional chain without rejection handler is flagged
+        {
+          code: `async function f() { await fetch(url)?.then(x => x.json()); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  await fetch(url)?.then(x => x.json());\n} catch (err) {\n  // TODO: handle fetch network failure (TypeError on DNS/connection errors).\n  throw new Error(\n    "fetch failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+        // Non-callable rejection arguments do not suppress rejection
+        {
+          code: `async function f() { await fetch(url).catch(null); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  await fetch(url).catch(null);\n} catch (err) {\n  // TODO: handle fetch network failure (TypeError on DNS/connection errors).\n  throw new Error(\n    "fetch failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `async function f() { await fetch(url).then(ok, null); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  await fetch(url).then(ok, null);\n} catch (err) {\n  // TODO: handle fetch network failure (TypeError on DNS/connection errors).\n  throw new Error(\n    "fetch failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `async function f() { await fetch(url).then(ok, undefined); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  await fetch(url).then(ok, undefined);\n} catch (err) {\n  // TODO: handle fetch network failure (TypeError on DNS/connection errors).\n  throw new Error(\n    "fetch failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `async function f() { await fetch(url).then(ok, 0); }`,
+          errors: [
+            {
+              messageId: "requireTryCatch",
+              suggestions: [
+                {
+                  messageId: "wrapInTryCatch",
+                  output: `async function f() { try {\n  await fetch(url).then(ok, 0);\n} catch (err) {\n  // TODO: handle fetch network failure (TypeError on DNS/connection errors).\n  throw new Error(\n    "fetch failed: " + (err instanceof Error ? err.message : String(err)),\n    { cause: err },\n  );\n} }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: await fetch in loop outside try block", () => {
     cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
       valid: [],

@@ -32,6 +32,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
 | [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
 | [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
@@ -218,6 +219,26 @@ Flagged form:
 
 Safe alternative:
 - `throw new Error(\`failed: ${getErrorMessage(err)}\`, { cause: err });`
+
+### `require-fetch-try-catch`
+
+Require awaited `fetch(...)` calls to be wrapped in `try/catch`, including member-chained promise forms rooted in `fetch(...)`.
+
+Why: `fetch` rejects with `TypeError` on network failures (DNS errors, connection refused, timeouts surfaced as aborts, etc.). Without either an enclosing `try/catch` or an explicit promise rejection handler, the action crashes with an unhelpful uncaught exception.
+
+**Flagged forms:**
+- `await fetch(url);`
+- `await fetch(url).then(res => res.json());`
+- `await fetch(url).then(ok).finally(cleanup);`
+
+**Not flagged:**
+- `try { await fetch(url).then(res => res.json()); } catch (err) {}`
+- `await fetch(url).catch(handleFetchError);`
+- `await fetch(url).then(onFulfilled, onRejected);`
+
+**Out of scope:**
+- locally shadowed `fetch` bindings such as `async function f(fetch) { await fetch(url); }`
+- named-reference rejection handlers are not inspected for correctness; the rule only checks that `.catch(handler)` or `.then(ok, onErr)` is present on the awaited fetch chain
 
 ### `require-fs-io-try-catch`
 
