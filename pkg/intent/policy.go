@@ -90,10 +90,11 @@ func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) Execut
 			continue
 		}
 		if !matched {
-			// Seed the accumulator with the first matching rule's policy so
-			// that permissive values (e.g. auto_merge: true, max_attempts: 5)
-			// are not silently discarded by the safest-default base.
-			accumulated = rule.Set
+			// Seed the accumulator with a deep copy of the first matching
+			// rule's policy so that permissive values (e.g. auto_merge: true,
+			// max_attempts: 5) are not silently discarded by the safest-default
+			// base, and so that pointer/slice fields cannot alias rule.Set.
+			accumulated = deepCopyPolicy(rule.Set)
 			accumulated.RuleIDs = []string{rule.ID}
 			matched = true
 		} else {
@@ -138,6 +139,21 @@ func (r PolicyRule) matches(rec IntentRecord, repo RepositoryContext) bool {
 		return false
 	}
 	return true
+}
+
+// deepCopyPolicy returns an independent copy of p with pointer and slice fields
+// freshly allocated, so that mutations to the copy cannot affect the original.
+func deepCopyPolicy(p ExecutionPolicy) ExecutionPolicy {
+	result := p
+	if p.AutoMergeAllowed != nil {
+		v := *p.AutoMergeAllowed
+		result.AutoMergeAllowed = &v
+	}
+	result.AllowedTools = cloneStrings(p.AllowedTools)
+	result.DeniedTools = cloneStrings(p.DeniedTools)
+	result.RequiredChecks = cloneStrings(p.RequiredChecks)
+	result.RuleIDs = cloneStrings(p.RuleIDs)
+	return result
 }
 
 // mergePolicy overlays fragment onto base, preserving the stricter value for each

@@ -141,14 +141,14 @@ func TestFormal_SafestPolicyFields(t *testing.T) {
 // Invariant: Unlinked and ambiguous records always receive the safest execution
 // policy even when a permissive wildcard rule (empty conditions) is present.
 func TestFormal_FailClosedForIndeterminate(t *testing.T) {
-	autoMergeTrue := true
+	autoMerge := true
 	permissiveRule := intent.PolicyRule{
 		ID: "wildcard-permissive",
 		Set: intent.ExecutionPolicy{
 			Autonomy:              "autonomous",
 			WriteScope:            "bounded",
 			HumanApprovalRequired: false,
-			AutoMergeAllowed:      &autoMergeTrue,
+			AutoMergeAllowed:      &autoMerge,
 			MaxAttempts:           10,
 		},
 	}
