@@ -38,6 +38,7 @@ function isNonFatalUpdateBranchError(error) {
   // Require both permission wording and update-branch context to avoid treating unrelated
   // "workflows permission" errors as non-fatal for pull request branch updates.
   const hasWorkflowsPermissionError = hasWorkflowsPermissionPhrase && (hasWorkflowMutationRefusal || message.includes("update pull request"));
+  const hasVerifiedSignaturesRuleViolation = message.includes("repository rule violations found") && /commits?\s+must\s+have\s+verified\s+signatures\b/i.test(message);
 
   if (status !== undefined) {
     if (status === 403 && hasWorkflowsPermissionError) {
@@ -51,8 +52,10 @@ function isNonFatalUpdateBranchError(error) {
   // GitHub update-branch API can return these 422 messages for benign conditions:
   // - already up to date ("There are no new commits on the base branch")
   // - cannot auto-update due to conflict ("merge conflict between base and head")
+  // - branch protection/ruleset refusal when the synthetic merge commit would be unsigned
+  //   ("Repository rule violations found" + "Commits must have verified signatures")
   // These should not fail safe output processing.
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || hasWorkflowsPermissionError;
+  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || hasWorkflowsPermissionError || hasVerifiedSignaturesRuleViolation;
 }
 
 /**
