@@ -59,6 +59,7 @@ safe-outputs:
   create-issue:
     expires: 2d
     title-prefix: "[deep-report] "
+    deduplicate-by-title: 28
     labels: [automation, improvement, quick-win, cookie]
     max: 7
     group: true
@@ -243,6 +244,14 @@ For each task, **CREATE A GITHUB ISSUE** using the safe-outputs create-issue cap
 **If no actionable tasks are identified** (the project is in excellent shape): skip issue creation and note in the report that the project is operating optimally.
 
 **Maximum: 7 issues.** Choose the most impactful tasks.
+
+**Dedup gate (required before every create-issue call):**
+1. Search open issues for similar work using title keywords, component/file names, and key terms from the candidate task.
+2. Treat a candidate as duplicate when both are true:
+   - Title is exact/near match (wording differences allowed), or same component + same fix intent.
+   - Scope overlaps materially (same root cause or same target files/components).
+3. If duplicate is found, do **not** create a new issue. Prefer the existing canonical issue and cite it in the report task list.
+4. Keep creating unique tasks until you either produce 7 non-duplicate issues or run out of high-value tasks.
 
 #### Report Structure
 

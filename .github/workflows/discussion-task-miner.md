@@ -28,6 +28,7 @@ safe-outputs:
   create-issue:
     expires: 1d
     group: true
+    deduplicate-by-title: 28
     labels:
     - code-quality
     - automation
@@ -175,6 +176,10 @@ From all identified tasks, select the **top 5 highest-value tasks** based on:
 - Check processed-discussions.json to avoid re-extracting from same discussion
 - Check extracted-tasks.json to avoid creating duplicate issues
 - Search existing GitHub issues to ensure task isn't already tracked
+- Before every create-issue call, run a title/topic similarity check against open issues:
+  - Compare candidate title against open issue titles for near matches.
+  - Compare component/file paths and fix intent to detect same-topic overlaps even when wording differs.
+  - If an open issue already covers the same fix topic, skip creating a duplicate and reference the canonical issue in your run summary.
 
 ### Step 5: Create GitHub Issues
 
