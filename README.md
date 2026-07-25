@@ -372,6 +372,15 @@ To build and test repository custom linters:
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
 
 
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but could not be automatically linked to a specific merged PR. Please verify whether they should be credited:
+
+- **@austenstone** for [bug] Intake Triage agent job: MODULE_NOT_FOUND for merge_awf_model_multipliers.cjs (5 failures in 8d, v0.77.5) ([#42874](https://github.com/github/gh-aw/issues/42874)) — closed 2026-07-04
+- **@bryanchen-d** for safe-outputs: configured GH_AW_GITHUB_TOKEN shadows checkout token ([#47156](https://github.com/github/gh-aw/issues/47156)) — closed 2026-07-22
+- **@martinbriley** for Request that the sentiment functionality emit events for sentiment analysis ([#42842](https://github.com/github/gh-aw/issues/42842)) — closed 2026-07-05
+- **@Tarekchehahde** for Document self-hosted Kubernetes DinD prerequisites for gh-aw (#40107) ([#44987](https://github.com/github/gh-aw/issues/44987)) — closed 2026-07-16
+
 ## Share Feedback
 
 We welcome your feedback on GitHub Agentic Workflows! 
