@@ -18,12 +18,27 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// noopResolvers returns resolvers that perform no network calls.
+// Tests that want specific resolver behaviour should override individual fields.
+func noopResolvers() validationResolvers {
+	return validationResolvers{
+		verifyActionCommitExists: func(_ context.Context, _, _ string) error {
+			return nil
+		},
+		resolveActionVersionToSHA: func(_ context.Context, _, ref string) (string, error) {
+			return ref, nil
+		},
+	}
+}
+
 func TestValidateUpdateSHAEntries_NoActionsLock(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "validate-update-sha-*")
-	require.NoError(t, validateUpdateSHAEntries(context.Background(), tmpDir))
+	require.NoError(t, validateUpdateSHAEntriesWithResolvers(context.Background(), tmpDir, noopResolvers()))
 }
 
 func TestValidateUpdateSHAEntries_ValidEntries(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "validate-update-sha-*")
 	cache := workflow.NewActionCache(tmpDir)
 	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
@@ -32,31 +47,23 @@ func TestValidateUpdateSHAEntries_ValidEntries(t *testing.T) {
 	cache.SetContainerPin(image, digest, image+"@"+digest)
 	require.NoError(t, cache.Save())
 
-	origVerifyCommit := verifyActionCommitExistsForValidation
-	origResolveVersion := resolveActionVersionToSHAForValidation
-	origResolveContainer := resolveContainerDigestForValidation
-	verifyActionCommitExistsForValidation = func(_ context.Context, _, _ string) error {
-		return nil
+	r := validationResolvers{
+		verifyActionCommitExists: func(_ context.Context, _, _ string) error {
+			return nil
+		},
+		resolveActionVersionToSHA: func(_ context.Context, _, ref string) (string, error) {
+			if ref == "v5" {
+				return "93cb6efe18208431cddfb8368fd83d5badbf9bfd", nil
+			}
+			return ref, nil
+		},
 	}
-	resolveActionVersionToSHAForValidation = func(_ context.Context, _, ref string) (string, error) {
-		if ref == "v5" {
-			return "93cb6efe18208431cddfb8368fd83d5badbf9bfd", nil
-		}
-		return ref, nil
-	}
-	resolveContainerDigestForValidation = func(_ context.Context, _ string) (string, error) {
-		return digest, nil
-	}
-	t.Cleanup(func() {
-		verifyActionCommitExistsForValidation = origVerifyCommit
-		resolveActionVersionToSHAForValidation = origResolveVersion
-		resolveContainerDigestForValidation = origResolveContainer
-	})
 
-	require.NoError(t, validateUpdateSHAEntries(context.Background(), tmpDir))
+	require.NoError(t, validateUpdateSHAEntriesWithResolvers(context.Background(), tmpDir, r))
 }
 
 func TestValidateUpdateSHAEntries_InvalidEntries(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "validate-update-sha-*")
 	awDir := filepath.Join(tmpDir, ".github", "aw")
 	require.NoError(t, os.MkdirAll(awDir, 0o755))
@@ -85,35 +92,28 @@ func TestValidateUpdateSHAEntries_InvalidEntries(t *testing.T) {
 `
 	require.NoError(t, os.WriteFile(filepath.Join(awDir, "actions-lock.json"), []byte(invalidActionsLock), 0o644))
 
-	origVerifyCommit := verifyActionCommitExistsForValidation
-	origResolveVersion := resolveActionVersionToSHAForValidation
-	origResolveContainer := resolveContainerDigestForValidation
-	verifyActionCommitExistsForValidation = func(_ context.Context, repo, sha string) error {
-		if repo == "actions/setup-node" && sha == "395ad3262231945c25e8478fd5baf05154b1d79f" {
-			return errors.New("commit not found")
-		}
-		return nil
+	r := validationResolvers{
+		// Commit existence check: setup-node SHA is not found; checkout SHA passes.
+		verifyActionCommitExists: func(_ context.Context, repo, sha string) error {
+			if repo == "actions/setup-node" && sha == "395ad3262231945c25e8478fd5baf05154b1d79f" {
+				return errors.New("commit not found")
+			}
+			return nil
+		},
+		// Version resolution: setup-node v7 resolves to a different SHA (mismatch).
+		resolveActionVersionToSHA: func(_ context.Context, repo, ref string) (string, error) {
+			if repo == "actions/setup-node" && ref == "v7" {
+				return "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", nil
+			}
+			return ref, nil
+		},
 	}
-	resolveActionVersionToSHAForValidation = func(_ context.Context, repo, ref string) (string, error) {
-		if repo == "actions/setup-node" && ref == "v7" {
-			return "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", nil
-		}
-		return ref, nil
-	}
-	resolveContainerDigestForValidation = func(_ context.Context, _ string) (string, error) {
-		return "sha256:" + strings.Repeat("b", 64), nil
-	}
-	t.Cleanup(func() {
-		verifyActionCommitExistsForValidation = origVerifyCommit
-		resolveActionVersionToSHAForValidation = origResolveVersion
-		resolveContainerDigestForValidation = origResolveContainer
-	})
 
-	err := validateUpdateSHAEntries(context.Background(), tmpDir)
+	err := validateUpdateSHAEntriesWithResolvers(context.Background(), tmpDir, r)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), `action entry "actions/checkout@v5" has invalid SHA`)
 	assert.Contains(t, err.Error(), `action entry key/version mismatch: key "actions/setup-node@v6" should be "actions/setup-node@v7"`)
-	assert.Contains(t, err.Error(), `action entry "actions/setup-node@v6" commit SHA`)
+	assert.Contains(t, err.Error(), `action entry "actions/setup-node@v6": commit SHA`)
 	assert.Contains(t, err.Error(), `action entry "actions/setup-node@v6" SHA/version mismatch`)
 	assert.Contains(t, err.Error(), `container pin key/image mismatch`)
 	assert.Contains(t, err.Error(), `container pin "ghcr.io/test/image:v1" has invalid digest`)
@@ -121,6 +121,7 @@ func TestValidateUpdateSHAEntries_InvalidEntries(t *testing.T) {
 }
 
 func TestValidateUpdateSHAEntries_NonFatalErrors(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "validate-update-sha-*")
 	cache := workflow.NewActionCache(tmpDir)
 	cache.Set("actions/checkout", "v5", "93cb6efe18208431cddfb8368fd83d5badbf9bfd")
@@ -129,32 +130,23 @@ func TestValidateUpdateSHAEntries_NonFatalErrors(t *testing.T) {
 	cache.SetContainerPin(image, digest, image+"@"+digest)
 	require.NoError(t, cache.Save())
 
-	origVerifyCommit := verifyActionCommitExistsForValidation
-	origResolveVersion := resolveActionVersionToSHAForValidation
-	origResolveContainer := resolveContainerDigestForValidation
-	// Auth error on commit existence check — should be skipped (non-fatal).
-	verifyActionCommitExistsForValidation = func(_ context.Context, _, _ string) error {
-		return fmt.Errorf("%w: auth error", parser.ErrVerificationSkipped)
+	r := validationResolvers{
+		// Auth error on commit existence check — should be skipped (non-fatal).
+		verifyActionCommitExists: func(_ context.Context, _, _ string) error {
+			return fmt.Errorf("%w: auth error", parser.ErrVerificationSkipped)
+		},
+		// Network error on version resolution — should be skipped (non-fatal).
+		resolveActionVersionToSHA: func(_ context.Context, _, _ string) (string, error) {
+			return "", errors.New("network timeout")
+		},
 	}
-	// Network error on version resolution — should be skipped (non-fatal).
-	resolveActionVersionToSHAForValidation = func(_ context.Context, _, _ string) (string, error) {
-		return "", errors.New("network timeout")
-	}
-	// Registry unavailable — should be skipped (non-fatal).
-	resolveContainerDigestForValidation = func(_ context.Context, _ string) (string, error) {
-		return "", errors.New("registry unavailable")
-	}
-	t.Cleanup(func() {
-		verifyActionCommitExistsForValidation = origVerifyCommit
-		resolveActionVersionToSHAForValidation = origResolveVersion
-		resolveContainerDigestForValidation = origResolveContainer
-	})
 
-	// All failures should be non-fatal; validation should still pass.
-	require.NoError(t, validateUpdateSHAEntries(context.Background(), tmpDir))
+	// All network failures should be non-fatal; validation should still pass.
+	require.NoError(t, validateUpdateSHAEntriesWithResolvers(context.Background(), tmpDir, r))
 }
 
-func TestValidateUpdateSHAEntries_ContainerDigestMismatchIsWarning(t *testing.T) {
+func TestValidateUpdateSHAEntries_ContainerStructuralOnly(t *testing.T) {
+	t.Parallel()
 	tmpDir := testutil.TempDir(t, "validate-update-sha-*")
 	digest := "sha256:" + strings.Repeat("a", 64)
 	image := "ghcr.io/github/gh-aw-firewall/agent:latest"
@@ -162,18 +154,8 @@ func TestValidateUpdateSHAEntries_ContainerDigestMismatchIsWarning(t *testing.T)
 	cache.SetContainerPin(image, digest, image+"@"+digest)
 	require.NoError(t, cache.Save())
 
-	origVerifyCommit := verifyActionCommitExistsForValidation
-	origResolveContainer := resolveContainerDigestForValidation
-	verifyActionCommitExistsForValidation = func(_ context.Context, _, _ string) error { return nil }
-	// Mutable tag has moved to a different digest.
-	resolveContainerDigestForValidation = func(_ context.Context, _ string) (string, error) {
-		return "sha256:" + strings.Repeat("b", 64), nil
-	}
-	t.Cleanup(func() {
-		verifyActionCommitExistsForValidation = origVerifyCommit
-		resolveContainerDigestForValidation = origResolveContainer
-	})
-
-	// Digest mismatch is a warning, not a hard failure.
-	require.NoError(t, validateUpdateSHAEntries(context.Background(), tmpDir))
+	// No container resolver in the struct — container pins are structural-only.
+	// Even if the tag has moved to a different digest, the stored pin is still valid
+	// and validation passes without performing any live lookup.
+	require.NoError(t, validateUpdateSHAEntriesWithResolvers(context.Background(), tmpDir, noopResolvers()))
 }
