@@ -3,6 +3,8 @@ package intent
 import "slices"
 
 // autonomyRank maps autonomy levels to a restriction rank (higher = more restrictive).
+// propose_only is the most restrictive (agents may only propose changes, not execute);
+// supervised allows execution with required approval; bounded allows the most autonomy.
 // Values outside this map are treated as rank 0 (unknown/least restrictive), so any
 // known value wins over an unknown one.
 var autonomyRank = map[string]int{
@@ -12,6 +14,8 @@ var autonomyRank = map[string]int{
 }
 
 // writeScopeRank maps write-scope values to a restriction rank (higher = more restrictive).
+// none is the most restrictive (no writes permitted); feature_branch permits writes only
+// to feature branches; any_branch permits the broadest write access.
 // Values outside this map are treated as rank 0 (unknown/least restrictive).
 var writeScopeRank = map[string]int{
 	"any_branch":     1,
@@ -218,6 +222,9 @@ func intersectAllowedTools(base, fragment []string) []string {
 		return slices.Clone(base) // unrestricted fragment defers to base's restriction
 	}
 	// Both non-nil: intersect so only tools allowed by both sides are permitted.
+	// result is initialized to []string{} (deny-all) rather than nil (unrestricted)
+	// so that the intersection of two empty non-nil lists produces deny-all, not
+	// unrestricted. This preserves stricter-wins semantics for explicit deny-all rules.
 	result := []string{}
 	for _, tool := range base {
 		if slices.Contains(fragment, tool) {
