@@ -180,7 +180,7 @@ func TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage(t *testing.T) {
 	require.NotEmpty(t, workflowData.DockerImagePins, "DockerImagePins should be populated")
 	assert.Contains(t, workflowData.DockerImagePins, GHAWManifestContainer{
 		Image:       constants.DefaultGhAwNodeImage,
-		Digest:      "sha256:529d02eb970b1161aa25c593a9c3df57fdfad5a8add328cb3b6eccef66f3183b",
+		Digest:      "sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748",
 		PinnedImage: pinnedGhAwNodeImage,
 	}, "safe-outputs should add gh-aw-node to manifest container pins")
 

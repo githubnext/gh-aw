@@ -33,12 +33,6 @@ steps:
       set -e
       make build
       "$GITHUB_WORKSPACE/gh-aw" --version
-  - name: Pull security scanner Docker images
-    run: |
-      set -e
-      docker pull anchore/syft:v1.48.0
-      docker pull anchore/grype:latest
-      docker pull anchore/grant:latest
   - name: Run compile with vulnerability scanners
     continue-on-error: true
     run: |

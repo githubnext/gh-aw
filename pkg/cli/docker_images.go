@@ -34,8 +34,8 @@ const (
 	ActionlintImage  = "rhysd/actionlint:1.7.12"
 	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
 	SyftImage        = "anchore/syft:v1.48.0"
-	GrypeImage       = "anchore/grype:latest"
-	GrantImage       = "anchore/grant:latest"
+	GrypeImage       = "anchore/grype:v0.116.0"
+	GrantImage       = "anchore/grant:v0.6.8"
 	YamllintImage    = "pipelinecomponents/yamllint:latest"
 )
 
