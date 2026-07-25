@@ -26,6 +26,7 @@ var testDefaultAWFImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-firewall/
 var testDefaultAWFSchemaURLRE = regexp.MustCompile(`(releases/download/)` + regexp.QuoteMeta(string(constants.DefaultFirewallVersion)) + `(/awf-config\.schema\.json)`)
 var testDefaultAWFImageTagRE = regexp.MustCompile(`("imageTag"\s*:\s*")(?:v)?` + regexp.QuoteMeta(strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")) + `"`)
 var testDefaultMCPGImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-mcpg:)` + regexp.QuoteMeta(string(constants.DefaultMCPGatewayVersion)) + `\b`)
+var testDefaultGitHubMCPServerImageRE = regexp.MustCompile(`(ghcr\.io/github/github-mcp-server:)` + regexp.QuoteMeta(string(constants.DefaultGitHubMCPServerVersion)) + `\b`)
 var testCheckoutPinRE = regexp.MustCompile(`actions/checkout@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+`)
 
 func normalizeDefaultRuntimeVersions(content string) string {
@@ -54,6 +55,7 @@ func normalizeOutput(content string) string {
 		normalized = strings.ReplaceAll(normalized, op+"(/tmp/gh-aw/*)", op+"(/tmp/gh-aw/agent/*)")
 	}
 	normalized = normalizeDefaultRuntimeVersions(normalized)
+	normalized = testDefaultGitHubMCPServerImageRE.ReplaceAllString(normalized, `${1}GH_MCP_VERSION`)
 	normalized = testCheckoutPinRE.ReplaceAllString(normalized, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1")
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
