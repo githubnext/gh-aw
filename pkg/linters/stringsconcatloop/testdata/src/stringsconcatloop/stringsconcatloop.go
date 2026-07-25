@@ -50,7 +50,8 @@ func good() {
 	}
 	_ = n
 
-	// String += inside a func literal inside a loop – not flagged (new scope).
+	// String += inside a func literal inside a loop – not flagged. The linter
+	// intentionally stops at func literal boundaries.
 	acc := ""
 	for _, p := range parts {
 		func() {
@@ -68,4 +69,11 @@ func nolintDirective() {
 		result += p
 	}
 	_ = result
+
+	result2 := ""
+	for _, p := range parts { //nolint:stringsconcatloop
+		_ = strings.TrimSpace(p)
+		result2 += p
+	}
+	_ = result2
 }

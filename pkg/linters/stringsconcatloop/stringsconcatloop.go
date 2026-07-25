@@ -1,7 +1,7 @@
 // Package stringsconcatloop implements a Go analysis linter that flags
-// string += concatenation inside for/range loop bodies, which allocates a
-// new string copy on every iteration (O(n²) memory). The idiomatic fix is
-// to use strings.Builder.
+// string += concatenation inside for/range loop bodies, which allocates a new
+// string on every iteration and can lead to O(n²) total allocated bytes. The
+// idiomatic fix is to use strings.Builder.
 package stringsconcatloop
 
 import (
@@ -48,15 +48,20 @@ func run(pass *analysis.Pass) (any, error) {
 		if assign.Tok != token.ADD_ASSIGN {
 			continue
 		}
-		if len(assign.Lhs) == 0 {
-			continue
-		}
 
 		pos := pass.Fset.PositionFor(assign.Pos(), false)
 		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
 			continue
 		}
+
+		loopPos, inLoop := enclosingLoopPosition(pass, cur)
+		if !inLoop {
+			continue
+		}
 		if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringsconcatloop") {
+			continue
+		}
+		if nolint.HasDirectiveForLinter(loopPos, noLintIndex, "stringsconcatloop") {
 			continue
 		}
 
@@ -64,21 +69,17 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
-		if !isInsideLoop(cur) {
-			continue
-		}
-
 		pass.ReportRangef(assign,
-			"string concatenation with += inside a loop causes O(n²) allocations; use strings.Builder instead")
+			"string concatenation with += inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
 	}
 
 	return nil, nil
 }
 
-// isInsideLoop reports whether cur (an AssignStmt) is enclosed within a
-// for or range loop body, without crossing a function literal boundary.
-// Assignments inside func literals are exempt because they form a new scope.
-func isInsideLoop(cur inspector.Cursor) bool {
+// enclosingLoopPosition returns the nearest enclosing for/range statement
+// position for cur (an AssignStmt), without crossing a function literal
+// boundary. Assignments inside func literals are intentionally exempt.
+func enclosingLoopPosition(pass *analysis.Pass, cur inspector.Cursor) (token.Position, bool) {
 	for encl := range cur.Enclosing(
 		(*ast.ForStmt)(nil),
 		(*ast.RangeStmt)(nil),
@@ -86,10 +87,10 @@ func isInsideLoop(cur inspector.Cursor) bool {
 	) {
 		switch encl.Node().(type) {
 		case *ast.ForStmt, *ast.RangeStmt:
-			return true
+			return pass.Fset.PositionFor(encl.Node().Pos(), false), true
 		case *ast.FuncLit:
-			return false
+			return token.Position{}, false
 		}
 	}
-	return false
+	return token.Position{}, false
 }
