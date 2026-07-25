@@ -59,6 +59,7 @@ type EngineConfig struct {
 	Command            string // Custom executable path (when set, skip installation steps)
 	HarnessScript      string // Custom Node.js harness script filename (replaces engine default harness script when supported)
 	Driver             string // Custom driver script filename or command. For the copilot engine (engine.driver), supports .js/.cjs/.mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby), or a bare command name. For the pi engine (engine.driver), supports .js/.cjs/.mjs or a bare basename resolved from the setup-action directory.
+	InlineDriver       *InlineEngineDriver
 	Env                map[string]string
 	Auth               *EngineAuthConfig // Engine-level auth config (mapped to AWF_AUTH_* env vars for API proxy sidecar auth)
 	Config             string
@@ -105,6 +106,13 @@ type EngineConfig struct {
 	HarnessInitialDelayMs    string // engine.harness.initial-delay-ms   → GH_AW_HARNESS_INITIAL_DELAY_MS
 	HarnessBackoffMultiplier string // engine.harness.backoff-multiplier → GH_AW_HARNESS_BACKOFF_MULTIPLIER
 	HarnessMaxDelayMs        string // engine.harness.max-delay-ms       → GH_AW_HARNESS_MAX_DELAY_MS
+}
+
+// InlineEngineDriver represents an inline engine.driver source block that gh-aw materializes
+// into runtime files before launching the engine.
+type InlineEngineDriver struct {
+	Runtime string
+	Source  string
 }
 
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
@@ -259,7 +267,6 @@ func extractObjectEngineConfig(engineObj map[string]any, topLevel engineTopLevel
 func extractInlineEngineConfig(runtime any, engineObj map[string]any, topLevel engineTopLevelConfig) (string, *EngineConfig, string) {
 	engineLog.Print("Found inline engine definition (engine.runtime sub-object)")
 	config := &EngineConfig{IsInlineDefinition: true}
-	resolvedModel := ""
 	if runtimeObj, ok := runtime.(map[string]any); ok {
 		if id, ok := runtimeObj["id"].(string); ok {
 			config.ID = id
@@ -269,7 +276,7 @@ func extractInlineEngineConfig(runtime any, engineObj map[string]any, topLevel e
 			config.Version = stringutil.ParseVersionValue(version)
 		}
 	}
-	resolvedModel = extractInlineProviderConfig(config, engineObj["provider"])
+	resolvedModel := extractInlineProviderConfig(config, engineObj["provider"])
 	applyInlineEngineFields(config, engineObj, topLevel)
 	resolvedModel = resolveEngineModel(engineObj, topLevel, resolvedModel)
 	engineLog.Printf("Extracted inline engine definition: runtimeID=%s, providerID=%s", config.ID, config.InlineProviderID)
@@ -428,10 +435,7 @@ func applyEngineStringFields(config *EngineConfig, engineObj map[string]any) {
 	if command, ok := engineObj["command"].(string); ok {
 		config.Command = command
 	}
-	if driver, ok := engineObj["driver"].(string); ok {
-		config.Driver = driver
-		engineLog.Printf("Extracted engine.driver: %s", driver)
-	}
+	applyEngineDriverField(config, engineObj)
 	if configStr, ok := engineObj["config"].(string); ok {
 		config.Config = configStr
 	}
@@ -446,6 +450,38 @@ func applyEngineStringFields(config *EngineConfig, engineObj map[string]any) {
 	if cwd, ok := engineObj["cwd"].(string); ok && cwd != "" {
 		config.Cwd = cwd
 		engineLog.Printf("Extracted engine.cwd: %s", config.Cwd)
+	}
+}
+
+func applyEngineDriverField(config *EngineConfig, engineObj map[string]any) {
+	driverValue, exists := engineObj["driver"]
+	if !exists {
+		return
+	}
+
+	if driver, ok := driverValue.(string); ok {
+		config.Driver = driver
+		engineLog.Printf("Extracted engine.driver: %s", driver)
+		return
+	}
+
+	driverMap, ok := driverValue.(map[string]any)
+	if !ok {
+		return
+	}
+
+	for _, runtime := range []string{"node", "python", "go", "java"} {
+		source, ok := driverMap[runtime].(string)
+		if !ok || source == "" {
+			continue
+		}
+		config.InlineDriver = &InlineEngineDriver{
+			Runtime: runtime,
+			Source:  source,
+		}
+		config.Driver = inlineCopilotSDKDriverWrapperPath
+		engineLog.Printf("Extracted inline engine.driver runtime: %s", runtime)
+		return
 	}
 }
 

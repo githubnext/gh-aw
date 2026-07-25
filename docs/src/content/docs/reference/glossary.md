@@ -640,7 +640,7 @@ See [AI Engines Reference](/gh-aw/reference/engines/).
 
 ### Engine Driver (`engine.driver`)
 
-An engine configuration field that replaces the built-in runtime entrypoint for engines that support driver mode. For the Pi engine, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. For the Copilot engine, setting `engine.driver` replaces the built-in SDK driver and enables `engine.copilot-sdk` automatically. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative.
+An engine configuration field that replaces the built-in runtime entrypoint for engines that support driver mode. For the Pi engine, `gh aw` launches the driver with Node.js instead of the `pi` CLI; the driver must emit JSONL compatible with the existing log parser so step summaries and token tracking work unchanged. For the Copilot engine, setting `engine.driver` replaces the built-in SDK driver and enables `engine.copilot-sdk` automatically. A bare filename (e.g. `pi_agent_core_driver.cjs`) resolves from the gh-aw setup-action directory; a path containing `/` resolves workspace-relative. Copilot also accepts inline source objects with exactly one of `node`, `python`, `go`, or `java`, which gh-aw writes to generated runtime files before launch.
 
 ```aw wrap
 engine:
