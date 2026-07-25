@@ -179,8 +179,8 @@ func requiresNode24ForTypeScriptSDKDriver(workflowData *WorkflowData) bool {
 	if workflowData.EngineConfig.Command != "" {
 		return false
 	}
-	ext := strings.ToLower(filepath.Ext(workflowData.EngineConfig.Driver))
-	return ext == ".ts" || ext == ".mts"
+	ext := filepath.Ext(workflowData.EngineConfig.Driver)
+	return strings.EqualFold(ext, ".ts") || strings.EqualFold(ext, ".mts")
 }
 
 func detectFromInlineEngineDriver(workflowData *WorkflowData, requirements map[string]*RuntimeRequirement) {
