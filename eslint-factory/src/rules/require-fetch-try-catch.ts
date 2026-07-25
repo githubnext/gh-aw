@@ -13,6 +13,18 @@ function getMemberPropertyName(node: TSESTree.MemberExpression): string | null {
   return null;
 }
 
+/**
+ * Returns true when a call argument is statically non-callable.
+ * Promise rejection callbacks of `null`, `undefined`, any literal value, or spread elements
+ * are replaced by the default thrower and do NOT suppress rejection.
+ */
+function isStaticallyNonCallable(node: TSESTree.Expression | TSESTree.SpreadElement): boolean {
+  if (node.type === AST_NODE_TYPES.SpreadElement) return true;
+  if (node.type === AST_NODE_TYPES.Literal) return true;
+  if (node.type === AST_NODE_TYPES.Identifier && node.name === "undefined") return true;
+  return false;
+}
+
 interface AwaitedFetchInfo {
   fetchCall: TSESTree.CallExpression;
   hasRejectionHandler: boolean;
@@ -31,6 +43,12 @@ function getAwaitedFetchInfo(node: TSESTree.Node): AwaitedFetchInfo | null {
   while (true) {
     if (current.type === AST_NODE_TYPES.Super) return null;
 
+    // Unwrap optional chains: `fetch(url)?.then(ok)` is wrapped in a ChainExpression by Espree.
+    if (current.type === AST_NODE_TYPES.ChainExpression) {
+      current = current.expression;
+      continue;
+    }
+
     if (current.type === AST_NODE_TYPES.CallExpression) {
       const callee = current.callee;
 
@@ -41,8 +59,8 @@ function getAwaitedFetchInfo(node: TSESTree.Node): AwaitedFetchInfo | null {
       if (callee.type !== AST_NODE_TYPES.MemberExpression) return null;
 
       const methodName = getMemberPropertyName(callee);
-      if (methodName === "catch" && current.arguments.length >= 1) hasRejectionHandler = true;
-      if (methodName === "then" && current.arguments.length >= 2) hasRejectionHandler = true;
+      if (methodName === "catch" && current.arguments.length >= 1 && !isStaticallyNonCallable(current.arguments[0])) hasRejectionHandler = true;
+      if (methodName === "then" && current.arguments.length >= 2 && !isStaticallyNonCallable(current.arguments[1])) hasRejectionHandler = true;
 
       current = callee.object;
       continue;
