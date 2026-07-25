@@ -9,6 +9,9 @@ Agentic workflows have two parts: the **YAML frontmatter**, which is compiled in
 
 See [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/) for guidance on creating workflows with AI assistance.
 
+> [!TIP]
+> Working in `github/gh-aw` itself? Treat any edit under `.github/workflows/*.md` as a cue to run `make recompile` before committing. CI checks the generated `.lock.yml` files for drift, so this is the safest default even when you're only changing markdown instructions. For early feedback while iterating locally, you can run `gh aw compile --watch --schedule-seed github/gh-aw`, then finish with `make recompile`.
+
 ## Editing Without Recompilation
 
 You can edit the **markdown body** directly on GitHub.com or in any editor without recompiling. That includes task instructions, output templates, conditional guidance, context, and examples.
@@ -55,6 +58,7 @@ For priority, consider:
 ```
 
 ✅ This change takes effect immediately without recompilation.
+In `github/gh-aw`, still run `make recompile` before committing so CI sees fresh `.lock.yml` files alongside the markdown change.
 
 ## Editing With Recompilation Required
 

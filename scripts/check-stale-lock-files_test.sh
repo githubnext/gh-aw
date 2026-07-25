@@ -137,10 +137,10 @@ create_fixture_repo "$T6" "stale-workflow"
 printf '%s\n' "# stale-workflow (edited)" > "$T6/.github/workflows/stale-workflow.md"
 T6_OUT="$TMP_ROOT/t6-output.txt"
 (cd "$T6" && bash "$STALE_SCRIPT" >"$T6_OUT" 2>&1) || true
-if grep -q "make recompile" "$T6_OUT"; then
-    pass "remediation message mentions 'make recompile'"
+if grep -Fq "make recompile" "$T6_OUT" && grep -Fq ".github/workflows/*.md" "$T6_OUT"; then
+    pass "remediation message mentions 'make recompile' and workflow markdown edits"
 else
-    fail "remediation message did not mention 'make recompile'" "$(cat "$T6_OUT")"
+    fail "remediation message did not mention the workflow markdown reminder" "$(cat "$T6_OUT")"
 fi
 
 # ---------------------------------------------------------------------------

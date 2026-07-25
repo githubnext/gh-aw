@@ -362,7 +362,7 @@ Every agent-created PR automatically runs:
 - `make build` - Ensures Go code compiles
 - `make test` - Runs all unit and integration tests
 - `make lint` - Checks code quality and style
-- `make recompile` - Recompiles all workflows to ensure compatibility
+- `make recompile` - Recompiles all workflows to ensure compatibility. If you edit `.github/workflows/*.md`, run this before committing so the paired `.lock.yml` files stay in sync with CI.
 - `make fmt` - Formats Go code
 - `make lint-errors` - Validates error message quality
 
