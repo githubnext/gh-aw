@@ -545,11 +545,51 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, "GH_AW_NODE_EXEC") {
-		t.Fatalf("Expected TypeScript SDK driver mode to use native node executor, got:\n%s", stepContent)
+	// The harness is invoked as: <outer-node> copilot_harness.cjs <runtime-cmd> <driver> <copilot-binary>
+	// Verify the runtime argument passed to the harness is GH_AW_NODE_EXEC (native Node, not ts-node).
+	if !strings.Contains(stepContent, `copilot_harness.cjs "$GH_AW_NODE_EXEC"`) {
+		t.Fatalf("Expected TypeScript SDK driver to pass GH_AW_NODE_EXEC as runtime to harness, got:\n%s", stepContent)
+	}
+	if strings.Contains(stepContent, "ts-node") {
+		t.Fatalf("Expected TypeScript SDK driver to NOT use ts-node (Node 24 runs TS natively), got:\n%s", stepContent)
 	}
 	if !strings.Contains(stepContent, "my_driver.ts") {
 		t.Fatalf("Expected SDK driver mode to include my_driver.ts, got:\n%s", stepContent)
+	}
+}
+
+// TestCopilotSDKDriverExecArgs directly verifies the runtime command returned for each
+// driver file extension, ensuring TypeScript uses native Node.js (not ts-node).
+func TestCopilotSDKDriverExecArgs(t *testing.T) {
+	tests := []struct {
+		driver         string
+		wantRuntime    string
+		wantDriverArg  string
+		wantNotRuntime string
+	}{
+		{driver: "agent.js", wantRuntime: `"$GH_AW_NODE_EXEC"`, wantDriverArg: "agent.js"},
+		{driver: "agent.cjs", wantRuntime: `"$GH_AW_NODE_EXEC"`, wantDriverArg: "agent.cjs"},
+		{driver: "agent.mjs", wantRuntime: `"$GH_AW_NODE_EXEC"`, wantDriverArg: "agent.mjs"},
+		{driver: "agent.ts", wantRuntime: `"$GH_AW_NODE_EXEC"`, wantDriverArg: "agent.ts", wantNotRuntime: "ts-node"},
+		{driver: "agent.mts", wantRuntime: `"$GH_AW_NODE_EXEC"`, wantDriverArg: "agent.mts", wantNotRuntime: "ts-node"},
+		{driver: "agent.py", wantRuntime: "python3", wantDriverArg: "agent.py"},
+		{driver: "agent.rb", wantRuntime: "ruby", wantDriverArg: "agent.rb"},
+		{driver: "my-driver", wantRuntime: "my-driver", wantDriverArg: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.driver, func(t *testing.T) {
+			runtime, driverArg := copilotSDKDriverExecArgs(tt.driver)
+			if runtime != tt.wantRuntime {
+				t.Errorf("copilotSDKDriverExecArgs(%q) runtime = %q, want %q", tt.driver, runtime, tt.wantRuntime)
+			}
+			if driverArg != tt.wantDriverArg {
+				t.Errorf("copilotSDKDriverExecArgs(%q) driverArg = %q, want %q", tt.driver, driverArg, tt.wantDriverArg)
+			}
+			if tt.wantNotRuntime != "" && runtime == tt.wantNotRuntime {
+				t.Errorf("copilotSDKDriverExecArgs(%q) runtime = %q, must NOT be %q", tt.driver, runtime, tt.wantNotRuntime)
+			}
+		})
 	}
 }
 
@@ -2234,6 +2274,13 @@ func TestCopilotEngineInstallationWithCommandAndCopilotSDK(t *testing.T) {
 			command:       "bun run agent.ts",
 			expectedName:  "name: Install GitHub Copilot SDK (Node.js)",
 			expectedRun:   "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion),
+			expectedSteps: 1,
+		},
+		{
+			name:          "ts-node command installs ts-node and typescript alongside sdk",
+			command:       "ts-node driver.ts",
+			expectedName:  "name: Install GitHub Copilot SDK (TypeScript)",
+			expectedRun:   "npm install --ignore-scripts --no-save @github/copilot-sdk@" + string(constants.DefaultCopilotSDKVersion) + " ts-node typescript",
 			expectedSteps: 1,
 		},
 		{

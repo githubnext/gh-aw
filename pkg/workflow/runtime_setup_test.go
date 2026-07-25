@@ -1251,3 +1251,62 @@ func TestDetectRuntimeRequirements_CustomDriverDoesNotAddNodeForNonCopilotEngine
 		}
 	}
 }
+
+// TestDetectRuntimeRequirements_TypeScriptSDKDriverAddsNode24 verifies that a Copilot SDK
+// workflow with a .ts/.mts driver requires Node 24 for native TypeScript execution.
+func TestDetectRuntimeRequirements_TypeScriptSDKDriverAddsNode24(t *testing.T) {
+	tests := []struct {
+		name   string
+		driver string
+	}{
+		{name: ".ts driver", driver: "my_driver.ts"},
+		{name: ".mts driver", driver: "my_driver.mts"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				RunsOn: "runs-on: ubuntu-latest",
+				EngineConfig: &EngineConfig{
+					CopilotSDK: true,
+					Driver:     tt.driver,
+				},
+			}
+
+			requirements := DetectRuntimeRequirements(data)
+
+			var nodeReq *RuntimeRequirement
+			for i := range requirements {
+				if requirements[i].Runtime != nil && requirements[i].Runtime.ID == "node" {
+					nodeReq = &requirements[i]
+					break
+				}
+			}
+
+			require.NotNil(t, nodeReq, "Expected Node.js 24 runtime requirement for TypeScript SDK driver %q", tt.driver)
+			assert.Equal(t, string(constants.DefaultNodeVersion), nodeReq.Version,
+				"TypeScript SDK driver %q should require Node.js %s for native TypeScript support", tt.driver, constants.DefaultNodeVersion)
+		})
+	}
+}
+
+// TestDetectRuntimeRequirements_TypeScriptSDKCommandDoesNotAddNode24 verifies that when
+// engine.command is set (e.g., ts-node driver.ts), no automatic Node 24 requirement is added,
+// since the user manages the toolchain via engine.command.
+func TestDetectRuntimeRequirements_TypeScriptSDKCommandDoesNotAddNode24(t *testing.T) {
+	data := &WorkflowData{
+		RunsOn: "runs-on: ubuntu-latest",
+		EngineConfig: &EngineConfig{
+			CopilotSDK: true,
+			Command:    "ts-node driver.ts",
+		},
+	}
+
+	requirements := DetectRuntimeRequirements(data)
+
+	for _, req := range requirements {
+		if req.Runtime != nil && req.Runtime.ID == "node" && req.Version == string(constants.DefaultNodeVersion) {
+			t.Fatalf("Expected no explicit Node 24 requirement when engine.command is set (ts-node manages its own toolchain), got Node version %q", req.Version)
+		}
+	}
+}
