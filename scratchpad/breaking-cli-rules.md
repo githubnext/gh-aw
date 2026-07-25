@@ -217,7 +217,7 @@ Remove deprecated top-level `defaults` field from workflow frontmatter schema
 **Migration guide:**
 - Workflows that declare `defaults:` at the top level must be updated.
 - Move any `defaults.run.shell` settings into the individual step definitions.
-- Run `gh aw compile` after updating; compilation will fail with a schema validation error if `defaults:` is still present, making affected workflows easy to identify.
+- Run `gh aw compile` after updating; if `defaults:` is still present, compilation fails with a schema validation error that reports the offending workflow.
 
 **Reason**: The `defaults` block was deprecated in v0.24.0 when per-step shell configuration was introduced. It is now removed to reduce schema surface area.
 ```
