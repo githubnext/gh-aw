@@ -156,6 +156,11 @@ type WorkflowExecutor interface {
 	// Returns an empty GitHubActionStep if no secret validation is needed.
 	GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep
 
+	// GetSecretFailureMessage returns an engine-specific markdown message shown in the
+	// agentic failure issue when the secret validation step fails. Return an empty string
+	// if the engine has no specific guidance beyond the default error message.
+	GetSecretFailureMessage(workflowData *WorkflowData) string
+
 	// GetExecutionSteps returns the GitHub Actions steps for executing this engine
 	GetExecutionSteps(workflowData *WorkflowData, logFile string) []GitHubActionStep
 
@@ -399,6 +404,12 @@ func (e *BaseEngine) GetSupportedEnvVarKeys() []string {
 // Engines that require secret validation must override this method.
 func (e *BaseEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
 	return GitHubActionStep{}
+}
+
+// GetSecretFailureMessage returns an empty string by default.
+// Engines that want to provide custom guidance when secret validation fails must override this method.
+func (e *BaseEngine) GetSecretFailureMessage(workflowData *WorkflowData) string {
+	return ""
 }
 
 // GetFirewallLogsCollectionStep returns an empty slice by default.

@@ -7,11 +7,16 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var executableLog = logger.New("fileutil:executable")
 
 // ValidateExecutablePath validates that an executable path is absolute, resolves
 // symlinks when possible, points to a file, and is executable on non-Windows platforms.
 func ValidateExecutablePath(path string) (string, error) {
+	executableLog.Printf("Validating executable path: %s", path)
 	cleanPath, err := ValidateAbsolutePath(path)
 	if err != nil {
 		return "", err
@@ -40,6 +45,7 @@ func ValidateExecutablePath(path string) (string, error) {
 		return "", fmt.Errorf("executable path %q is not executable", cleanPath)
 	}
 
+	executableLog.Printf("Validated executable path: %s -> %s", path, cleanPath)
 	return cleanPath, nil
 }
 
@@ -49,8 +55,10 @@ func ResolveExecutablePath(name string) (string, error) {
 		return "", errors.New("executable name cannot be empty")
 	}
 
+	executableLog.Printf("Resolving executable from PATH: %s", name)
 	path, err := exec.LookPath(name)
 	if err != nil {
+		executableLog.Printf("Executable %q not found on PATH: %v", name, err)
 		return "", err
 	}
 	if !filepath.IsAbs(path) {

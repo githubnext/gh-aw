@@ -2274,10 +2274,10 @@ function buildSkillInstallFailureContext(hasSkillInstallFailures, skillInstallEr
  * For the Copilot engine, adds a suggestion to use `permissions.copilot-requests: write`
  * to enable Copilot inference through the org without a personal access token.
  * @param {string} secretVerificationResult - The secret verification result ("failed" or other)
- * @param {string} engineId - The engine ID (e.g. "copilot")
+ * @param {string} engineSecretFailureMessage - Engine-specific failure message from GH_AW_ENGINE_SECRET_FAILURE_MESSAGE
  * @returns {string} Formatted context string, or empty string if verification did not fail
  */
-function buildSecretVerificationContext(secretVerificationResult, engineId) {
+function buildSecretVerificationContext(secretVerificationResult, engineSecretFailureMessage) {
   if (secretVerificationResult !== "failed") {
     return "";
   }
@@ -2286,11 +2286,8 @@ function buildSecretVerificationContext(secretVerificationResult, engineId) {
     buildWarningAlertLine("Secret Verification Failed", "The workflow's secret validation step failed. Please check that the required secrets are configured in your repository settings.") +
     "\nFor more information on configuring tokens, see: https://github.github.com/gh-aw/reference/engines/\n";
 
-  if ((engineId || "").toLowerCase() === "copilot") {
-    context +=
-      "\n**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file. This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
-      "\n```yaml\npermissions:\n  copilot-requests: write\n```\n" +
-      "\nSee: https://github.github.com/gh-aw/reference/engines/#github-copilot-default\n";
+  if (engineSecretFailureMessage) {
+    context += "\n" + engineSecretFailureMessage + "\n";
   }
 
   return context;
@@ -2846,6 +2843,7 @@ async function main() {
     const workflowSource = process.env.GH_AW_WORKFLOW_SOURCE || "";
     const workflowSourceURL = process.env.GH_AW_WORKFLOW_SOURCE_URL || "";
     const secretVerificationResult = process.env.GH_AW_SECRET_VERIFICATION_RESULT || "";
+    const engineSecretFailureMessage = process.env.GH_AW_ENGINE_SECRET_FAILURE_MESSAGE || "";
     const assignmentErrors = process.env.GH_AW_ASSIGNMENT_ERRORS || "";
     const assignmentErrorCount = process.env.GH_AW_ASSIGNMENT_ERROR_COUNT || "0";
     const assignCopilotErrors = process.env.GH_AW_ASSIGN_COPILOT_ERRORS || "";
@@ -2960,6 +2958,7 @@ async function main() {
     core.info(`Workflow name: ${workflowName}`);
     core.info(`Workflow ID: ${workflowID}`);
     core.info(`Secret verification result: ${secretVerificationResult}`);
+    core.info(`Engine secret failure message: ${engineSecretFailureMessage ? "(set)" : "(none)"}`);
     core.info(`Assignment error count: ${assignmentErrorCount}`);
     core.info(`Assign copilot failure count: ${assignCopilotFailureCount}`);
     core.info(`Skill install failure count: ${skillInstallFailureCount}`);
@@ -3145,11 +3144,14 @@ async function main() {
     // OR a GitHub App token minting step failed OR the lockdown check failed OR copilot assignment failed
     // OR the stale lock file check failed OR the agent reported task incompletion via report_incomplete
     // OR a cache-miss was detected after cache restore succeeded (configuration problem)
-    // OR the agent reported missing tools or missing data (treated as agent failures by default).
+    // OR the agent reported missing tools or missing data (treated as agent failures by default)
+    // OR the secret validation step failed (engine secret missing).
     // BUT skip if we only have noop outputs (that's a successful no-action scenario)
+    const hasSecretVerificationFailed = secretVerificationResult === "failed";
     if (
       agentConclusion !== "failure" &&
       !isTimedOut &&
+      !hasSecretVerificationFailed &&
       !hasAssignmentErrors &&
       !hasAssignCopilotFailures &&
       !hasSkillInstallFailures &&
@@ -3171,7 +3173,7 @@ async function main() {
       !hasToolDenialsExceeded
     ) {
       core.info(
-        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/oauth-token-check/stale-lock-file/daily-workflow-aic/ai-credits/max-ai-credits-exceeded/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
+        `Agent job did not fail and no assignment/discussion/code-push/push-repo-memory/app-token/lockdown/oauth-token-check/stale-lock-file/daily-workflow-aic/ai-credits/max-ai-credits-exceeded/report-incomplete/cache-miss/missing-tool/missing-data/tool-denials-exceeded/secret-verification errors and has safe outputs (conclusion: ${agentConclusion}), skipping failure handling`
       );
       return;
     }
@@ -3289,7 +3291,7 @@ async function main() {
       hasToolDenialsExceeded,
       hasMissingData,
       hasCacheMissMisconfiguration,
-      secretVerificationFailed: secretVerificationResult === "failed",
+      secretVerificationFailed: hasSecretVerificationFailed,
       inferenceAccessError,
       mcpPolicyError,
       modelNotSupportedError,
@@ -3489,8 +3491,8 @@ async function main() {
           workflow_name: workflowName,
           workflow_source: workflowSource,
           workflow_source_url: workflowSourceURL,
-          secret_verification_failed: String(secretVerificationResult === "failed"),
-          secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineId),
+          secret_verification_failed: String(hasSecretVerificationFailed),
+          secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineSecretFailureMessage),
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
@@ -3712,8 +3714,8 @@ async function main() {
           workflow_source_url: workflowSourceURL || "#",
           branch: currentBranch,
           pull_request_info: pullRequest ? `  \n**Pull Request:** [#${pullRequest.number}](${pullRequest.html_url})` : "",
-          secret_verification_failed: String(secretVerificationResult === "failed"),
-          secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineId),
+          secret_verification_failed: String(hasSecretVerificationFailed),
+          secret_verification_context: buildSecretVerificationContext(secretVerificationResult, engineSecretFailureMessage),
           credential_auth_error_context: credentialAuthErrorContext,
           assignment_errors_context: assignmentErrorsContext,
           assign_copilot_failure_context: assignCopilotFailureContext,
