@@ -11,6 +11,14 @@ permissions:
   checks: read
 
 jobs:
+  skip-non-target-prs:
+    name: Skip Non-Target PRs
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || startsWith(github.event.pull_request.head.ref, 'copilot/')
+    steps:
+      - name: Skip workflow for merged or Copilot PRs
+        run: echo "Skipping Label Closed PRs for merged PRs and Copilot branches."
+
   label-closure-reason:
     name: Label PR Closure Reason
     runs-on: ubuntu-latest

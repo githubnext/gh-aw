@@ -5,7 +5,6 @@ description: Rewrites a merged PR description with a structured, considered summ
 on:
   pull_request:
     types: [closed]
-if: github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/') && !startsWith(github.event.pull_request.head.ref, 'copilot/')
 permissions:
   contents: read
   pull-requests: read
@@ -89,6 +88,15 @@ Write in a clear, considered tone. Be accurate, concise, and machine-friendly. A
 - **Run**: ${{ github.run_id }}
 
 ## Your Task
+
+### Step 0 — Eligibility gate
+
+If any of the following are true:
+- the pull request was **not merged**
+- the pull request head branch starts with `signed/jsweep/`
+- the pull request head branch starts with `copilot/`
+
+Then call `noop` with a short reason and stop immediately.
 
 ### Step 1 — Check for meaningful changes
 
