@@ -208,8 +208,10 @@ func TestExtractDefaultAiCreditsPricingFromModels(t *testing.T) {
 		frontmatter := map[string]any{
 			"models": map[string]any{
 				"default-ai-credits-pricing": map[string]any{
-					"input":  float64(3.0),
-					"output": float64(15.0),
+					"input":       float64(3.0),
+					"output":      float64(15.0),
+					"cache_read":  float64(0.3),
+					"cache_write": float64(3.0),
 				},
 			},
 		}
@@ -218,6 +220,10 @@ func TestExtractDefaultAiCreditsPricingFromModels(t *testing.T) {
 		require.NotNil(t, pricing, "Should extract default-ai-credits-pricing")
 		assert.InDelta(t, 3.0, pricing.Input, 1e-9, "Input should be 3.0")
 		assert.InDelta(t, 15.0, pricing.Output, 1e-9, "Output should be 15.0")
+		require.NotNil(t, pricing.CachedInput, "CachedInput should be extracted when cache_read is set")
+		require.NotNil(t, pricing.CacheWrite, "CacheWrite should be extracted when cache_write is set")
+		assert.InDelta(t, 0.3, *pricing.CachedInput, 1e-9, "CachedInput should be 0.3")
+		assert.InDelta(t, 3.0, *pricing.CacheWrite, 1e-9, "CacheWrite should be 3.0")
 	})
 
 	t.Run("default-ai-credits-pricing is nil when absent", func(t *testing.T) {

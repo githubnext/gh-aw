@@ -394,6 +394,74 @@ Test workflow`
 	}
 }
 
+// TestExternalDetectorCodexConfigModelProviderAtRoot verifies that the top-level
+// model_provider selector is emitted before any TOML table header ([history],
+// [model_providers.*]). If it appears after [history], TOML parses it as
+// history.model_provider, which Codex ignores, causing it to fall back to the
+// default openai provider and bypass the AWF api-proxy sidecar (401 Unauthorized).
+func TestExternalDetectorCodexConfigModelProviderAtRoot(t *testing.T) {
+	config := buildExternalDetectorCodexConfig("http://172.30.0.30:10000", "ws://172.30.0.30:10000")
+
+	// Strip any leading whitespace from each line so the config reads as plain
+	// TOML regardless of the exact indentation used in the source template.
+	var trimmedLines []string
+	for line := range strings.SplitSeq(config, "\n") {
+		trimmedLines = append(trimmedLines, strings.TrimLeft(line, " \t"))
+	}
+	toml := strings.Join(trimmedLines, "\n")
+
+	expected := "model_provider = \"" + codexOpenAIProxyProviderID + "\""
+	modelProviderIndex := strings.Index(toml, expected)
+	if modelProviderIndex == -1 {
+		t.Fatalf("Expected model_provider selector in detection config, got:\n%s", toml)
+	}
+
+	// Find the first real TOML table header by scanning line-by-line; this
+	// avoids matching `[` that appears inside quoted string values or comments.
+	firstTableIndex := -1
+	lineStart := 0
+	for line := range strings.SplitSeq(toml, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "[") {
+			firstTableIndex = lineStart
+			break
+		}
+		lineStart += len(line) + 1 // +1 for the newline
+	}
+	if firstTableIndex == -1 {
+		t.Fatalf("Expected at least one TOML table header in detection config, got:\n%s", toml)
+	}
+	// The top-level model_provider must precede any table header so TOML assigns
+	// it to the document root rather than the most recent table.
+	if modelProviderIndex > firstTableIndex {
+		t.Errorf("model_provider selector must appear before any table header (e.g. [history]) so TOML assigns it to the document root, got:\n%s", toml)
+	}
+
+	// Guard against regression: the [history] table section must not contain a
+	// model_provider key. Extract the [history] body line-by-line so that `[`
+	// characters inside quoted values or arrays do not prematurely truncate it.
+	var historyLines []string
+	inHistory := false
+	for line := range strings.SplitSeq(toml, "\n") {
+		if line == "[history]" {
+			inHistory = true
+			continue
+		}
+		if inHistory {
+			if strings.HasPrefix(strings.TrimSpace(line), "[") {
+				break
+			}
+			historyLines = append(historyLines, line)
+		}
+	}
+	if !inHistory {
+		t.Fatalf("Expected [history] table in detection config, got:\n%s", toml)
+	}
+	historyBody := strings.Join(historyLines, "\n")
+	if strings.Contains(historyBody, "model_provider") {
+		t.Errorf("[history] table must NOT contain a model_provider key, got:\n%s", historyBody)
+	}
+}
+
 // TestExternalDetectorCodexFirewallDomains verifies that the Codex external detection
 // path includes the required API domains in the AWF firewall allowlist.
 // Without the correct allowed domains the firewall blocks api.openai.com, chatgpt.com
