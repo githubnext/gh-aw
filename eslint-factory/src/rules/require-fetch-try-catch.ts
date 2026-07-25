@@ -136,11 +136,7 @@ export const requireFetchTryCatchRule = createRule({
           // Check for the directly-awaited inline callback pattern:
           //   await someWrapper(async () => { await fetch(...) })
           // ancestors[i-1] must be the CallExpression, ancestors[i-2] the AwaitExpression.
-          if (
-            i >= 2 &&
-            ancestors[i - 1].type === AST_NODE_TYPES.CallExpression &&
-            ancestors[i - 2].type === AST_NODE_TYPES.AwaitExpression
-          ) {
+          if (i >= 2 && ancestors[i - 1].type === AST_NODE_TYPES.CallExpression && ancestors[i - 2].type === AST_NODE_TYPES.AwaitExpression) {
             const outerAwait = ancestors[i - 2];
             // Now search ancestors outward from i-3 to see if the outer AwaitExpression
             // is inside a try block (stopping at the next function boundary).
@@ -151,12 +147,7 @@ export const requireFetchTryCatchRule = createRule({
               }
               if (outer.type === AST_NODE_TYPES.TryStatement && outer.handler != null) {
                 const block = outer.block;
-                if (
-                  outerAwait.range != null &&
-                  block.range != null &&
-                  outerAwait.range[0] >= block.range[0] &&
-                  outerAwait.range[1] <= block.range[1]
-                ) {
+                if (outerAwait.range != null && block.range != null && outerAwait.range[0] >= block.range[0] && outerAwait.range[1] <= block.range[1]) {
                   return true;
                 }
               }
