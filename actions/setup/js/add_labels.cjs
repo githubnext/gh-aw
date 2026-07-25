@@ -36,6 +36,14 @@ const { resolveInvocationContext } = require("./invocation_context_helpers.cjs")
 const { normalizeIssueIntentLabelInputs } = require("./issue_intents.cjs");
 
 /**
+ * @param {{ rationale?: string, confidence?: string, suggest?: boolean } | null} spec
+ * @returns {boolean}
+ */
+function hasLabelIntentMetadata(spec) {
+  return Boolean(spec && (spec.rationale || spec.confidence || spec.suggest));
+}
+
+/**
  * Main handler factory for add_labels
  * Uses shared count-gated scaffold for max-limit enforcement.
  * @type {HandlerFactoryFunction}
@@ -131,8 +139,8 @@ const main = createCountGatedHandler({
           }
           const key = label.name.toLowerCase();
           const existing = requestedLabelSpecByLowerName.get(key);
-          const newHasMetadata = Boolean(label.rationale || label.confidence || label.suggest);
-          const existingHasMetadata = existing && Boolean(existing.rationale || existing.confidence || existing.suggest);
+          const newHasMetadata = hasLabelIntentMetadata(label);
+          const existingHasMetadata = hasLabelIntentMetadata(existing ?? null);
           if (!existing || (!existingHasMetadata && newHasMetadata)) {
             requestedLabelSpecByLowerName.set(key, label);
           }
@@ -217,7 +225,7 @@ const main = createCountGatedHandler({
 
       const labelsRequestPayload = uniqueLabels.map(name => {
         const labelSpec = requestedLabelSpecByLowerName.get(name.toLowerCase()) ?? { name };
-        const hasIntentMetadata = Boolean(labelSpec.rationale || labelSpec.confidence || labelSpec.suggest);
+        const hasIntentMetadata = hasLabelIntentMetadata(labelSpec);
         return issueIntentEnabled && hasIntentMetadata ? labelSpec : labelSpec.name;
       });
 

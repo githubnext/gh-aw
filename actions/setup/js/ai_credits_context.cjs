@@ -94,24 +94,43 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
 }
 
 /**
+ * Depth-first traversal of a nested object, calling visitor for each [key, value] pair.
+ * Traversal stops early if visitor returns true.
+ *
  * @param {unknown} entry
- * @returns {string}
+ * @param {(key: string, value: unknown) => boolean | void} visitor - return true to stop early
+ * @returns {boolean} true if visitor stopped traversal early
  */
-function parseMaxAICreditsFromAuditEntry(entry) {
-  if (!entry || typeof entry !== "object") return "";
+function traverseObjectTree(entry, visitor) {
+  if (!entry || typeof entry !== "object") return false;
   const stack = [entry];
   while (stack.length > 0) {
     const node = stack.pop();
     if (!node || typeof node !== "object") continue;
     for (const [key, value] of Object.entries(node)) {
-      if (MAX_AI_CREDITS_FIELDS.has(key)) {
-        const parsed = parsePositiveNumberString(value);
-        if (parsed) return parsed;
-      }
+      if (visitor(key, value) === true) return true;
       if (value && typeof value === "object") stack.push(value);
     }
   }
-  return "";
+  return false;
+}
+
+/**
+ * @param {unknown} entry
+ * @returns {string}
+ */
+function parseMaxAICreditsFromAuditEntry(entry) {
+  let result = "";
+  traverseObjectTree(entry, (key, value) => {
+    if (MAX_AI_CREDITS_FIELDS.has(key)) {
+      const parsed = parsePositiveNumberString(value);
+      if (parsed) {
+        result = parsed;
+        return true;
+      }
+    }
+  });
+  return result;
 }
 
 /**
@@ -119,25 +138,18 @@ function parseMaxAICreditsFromAuditEntry(entry) {
  * @returns {{ aiCredits: string, rateLimitError: boolean }}
  */
 function parseAICreditsErrorInfoFromAuditEntry(entry) {
-  if (!entry || typeof entry !== "object") return { aiCredits: "", rateLimitError: false };
-  const stack = [entry];
   let aiCredits = "";
   let rateLimitError = false;
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node || typeof node !== "object") continue;
-    for (const [key, value] of Object.entries(node)) {
-      if (AI_CREDITS_FIELDS.has(key)) {
-        const parsed = parsePositiveNumberString(value);
-        if (parsed) aiCredits = parsed;
-      }
-      if (AI_CREDITS_RATE_LIMIT_ERROR_FIELDS.has(key) && isTrueLike(value)) rateLimitError = true;
-      if (AI_CREDITS_RATE_LIMIT_TEXT_FIELDS.has(key) && typeof value === "string") {
-        if (AI_CREDITS_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) rateLimitError = true;
-      }
-      if (value && typeof value === "object") stack.push(value);
+  traverseObjectTree(entry, (key, value) => {
+    if (AI_CREDITS_FIELDS.has(key)) {
+      const parsed = parsePositiveNumberString(value);
+      if (parsed) aiCredits = parsed;
     }
-  }
+    if (AI_CREDITS_RATE_LIMIT_ERROR_FIELDS.has(key) && isTrueLike(value)) rateLimitError = true;
+    if (AI_CREDITS_RATE_LIMIT_TEXT_FIELDS.has(key) && typeof value === "string") {
+      if (AI_CREDITS_RATE_LIMIT_PATTERNS.some(pattern => pattern.test(value))) rateLimitError = true;
+    }
+  });
   return { aiCredits, rateLimitError };
 }
 
@@ -257,17 +269,7 @@ function parseMaxAICreditsExceededFromAuditLog(auditJsonlPathOverride) {
  * @returns {boolean}
  */
 function parseUnknownModelAICreditsFromAuditEntry(entry) {
-  if (!entry || typeof entry !== "object") return false;
-  const stack = [entry];
-  while (stack.length > 0) {
-    const node = stack.pop();
-    if (!node || typeof node !== "object") continue;
-    for (const [, value] of Object.entries(node)) {
-      if (value === UNKNOWN_MODEL_AI_CREDITS_TYPE) return true;
-      if (value && typeof value === "object") stack.push(value);
-    }
-  }
-  return false;
+  return traverseObjectTree(entry, (_key, value) => value === UNKNOWN_MODEL_AI_CREDITS_TYPE || undefined);
 }
 
 /**
