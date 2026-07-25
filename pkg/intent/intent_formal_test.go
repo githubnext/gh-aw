@@ -137,6 +137,60 @@ func TestFormal_SafestPolicyFields(t *testing.T) {
 	assert.Equal(t, 1, policy.MaxAttempts, "P7: safest policy must allow only one attempt")
 }
 
+// TestFormal_FailClosedForIndeterminate (P7b — FailClosedAlsoWithRules)
+// Invariant: Unlinked and ambiguous records always receive the safest execution
+// policy even when a permissive wildcard rule (empty conditions) is present.
+func TestFormal_FailClosedForIndeterminate(t *testing.T) {
+	autoMergeTrue := true
+	permissiveRule := intent.PolicyRule{
+		ID: "wildcard-permissive",
+		Set: intent.ExecutionPolicy{
+			Autonomy:              "autonomous",
+			WriteScope:            "bounded",
+			HumanApprovalRequired: false,
+			AutoMergeAllowed:      &autoMergeTrue,
+			MaxAttempts:           10,
+		},
+	}
+	compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{permissiveRule}}
+	resolver := matchingResolver()
+	repo := intent.RepositoryContext{Owner: "owner", Name: "repo"}
+
+	cases := []struct {
+		name string
+		pr   intent.PullRequestData
+	}{
+		{
+			name: "unlinked",
+			pr:   intent.PullRequestData{NodeID: "PR_unlinked"},
+		},
+		{
+			name: "ambiguous",
+			pr: intent.PullRequestData{
+				NodeID: "PR_ambiguous",
+				ClosingIssues: []intent.RootReference{
+					{NodeID: "I_1", Labels: []string{"security"}},
+					{NodeID: "I_2", Labels: []string{"automation"}},
+				},
+			},
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			rec := resolver.ResolvePullRequest(tc.pr)
+			policy := compiler.Compile(rec, repo)
+
+			assert.Equal(t, "propose_only", policy.Autonomy, "P7b: indeterminate records must always be propose_only")
+			assert.Equal(t, "none", policy.WriteScope, "P7b: indeterminate records must always have no write scope")
+			assert.True(t, policy.HumanApprovalRequired, "P7b: indeterminate records must always require human approval")
+			require.NotNil(t, policy.AutoMergeAllowed, "P7b: indeterminate policy must carry explicit auto-merge value")
+			assert.False(t, *policy.AutoMergeAllowed, "P7b: indeterminate records must always deny auto-merge")
+			assert.Equal(t, 1, policy.MaxAttempts, "P7b: indeterminate records must always allow only one attempt")
+		})
+	}
+}
+
 // TestFormal_PolicyDeterminism (P8 — PolicyDeterminism)
 // Invariant: Compiling the same intent record twice yields identical policies.
 func TestFormal_PolicyDeterminism(t *testing.T) {

@@ -1,5 +1,7 @@
 package intent
 
+import "slices"
+
 // ExecutionPolicy governs what an agent may do for a given intent.
 //
 // WARNING: PolicyCompiler is advisory only. All fields except Autonomy are
@@ -69,16 +71,40 @@ type PolicyCompiler struct {
 }
 
 // Compile applies the compiler's rules to rec and repo and returns the resulting
-// ExecutionPolicy. If no rules match, it returns the safest default policy.
+// ExecutionPolicy. Unlinked and ambiguous records always receive the safest
+// policy regardless of configured rules (fail-closed). For all other statuses
+// the first matching rule seeds the accumulator directly; subsequent matching
+// rules are merged with stricter-wins semantics. If no rules match, the safest
+// default policy is returned.
 func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) ExecutionPolicy {
-	policy := safestDefaultPolicy()
+	// Fail-closed for indeterminate statuses: unlinked and ambiguous records
+	// must never receive a relaxed policy from a matching wildcard rule.
+	if rec.Status == AttributionUnlinked || rec.Status == AttributionAmbiguous {
+		return safestDefaultPolicy()
+	}
+
+	var accumulated ExecutionPolicy
+	matched := false
 	for _, rule := range c.Rules {
-		if rule.matches(rec, repo) {
-			policy = mergePolicy(policy, rule.Set)
-			policy.RuleIDs = append(policy.RuleIDs, rule.ID)
+		if !rule.matches(rec, repo) {
+			continue
+		}
+		if !matched {
+			// Seed the accumulator with the first matching rule's policy so
+			// that permissive values (e.g. auto_merge: true, max_attempts: 5)
+			// are not silently discarded by the safest-default base.
+			accumulated = rule.Set
+			accumulated.RuleIDs = []string{rule.ID}
+			matched = true
+		} else {
+			accumulated = mergePolicy(accumulated, rule.Set)
+			accumulated.RuleIDs = append(accumulated.RuleIDs, rule.ID)
 		}
 	}
-	return policy
+	if !matched {
+		return safestDefaultPolicy()
+	}
+	return accumulated
 }
 
 // safestDefaultPolicy returns the most restrictive execution policy: propose-only,
@@ -95,9 +121,20 @@ func safestDefaultPolicy() ExecutionPolicy {
 }
 
 // matches reports whether the rule's condition is satisfied by rec and repo.
-// Empty condition fields act as wildcards.
-func (r PolicyRule) matches(_ IntentRecord, repo RepositoryContext) bool {
-	if r.When.Org != "" && r.When.Org != repo.Org {
+// Empty condition fields act as wildcards. Domain, Priority, and Risk are
+// matched against the record's labels. Org is matched against both the
+// repository org and the repository owner.
+func (r PolicyRule) matches(rec IntentRecord, repo RepositoryContext) bool {
+	if r.When.Domain != "" && !slices.Contains(rec.Labels, r.When.Domain) {
+		return false
+	}
+	if r.When.Priority != "" && !slices.Contains(rec.Labels, r.When.Priority) {
+		return false
+	}
+	if r.When.Risk != "" && !slices.Contains(rec.Labels, r.When.Risk) {
+		return false
+	}
+	if r.When.Org != "" && r.When.Org != repo.Org && r.When.Org != repo.Owner {
 		return false
 	}
 	return true
