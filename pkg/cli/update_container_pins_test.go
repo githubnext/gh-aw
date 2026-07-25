@@ -48,6 +48,20 @@ jobs:
 			},
 		},
 		{
+			name: "digest pinned images normalized to base ref",
+			lockFileContent: `name: test
+jobs:
+  setup:
+    steps:
+      - name: Download container images
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/github-mcp-server:v0.32.0@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa node:lts-alpine@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+`,
+			expectedImages: []string{
+				"ghcr.io/github/github-mcp-server:v0.32.0",
+				"node:lts-alpine",
+			},
+		},
+		{
 			name: "no docker images in lock file",
 			lockFileContent: `name: test
 jobs:
@@ -311,4 +325,56 @@ jobs:
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "0.27.0", "stale version should not appear in saved file")
 	assert.Contains(t, string(data), "0.27.2", "current version should be in saved file")
+}
+
+func TestUpdateContainerPins_RefreshExistingPin(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	actionsLockDir := filepath.Join(tmpDir, ".github", "aw")
+	require.NoError(t, os.MkdirAll(actionsLockDir, 0755))
+	actionsLockContent := `{
+  "entries": {},
+  "containers": {
+    "ghcr.io/github/github-mcp-server:v0.32.0": {
+      "image": "ghcr.io/github/github-mcp-server:v0.32.0",
+      "digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v0.32.0@sha256:1111111111111111111111111111111111111111111111111111111111111111"
+    }
+  }
+}
+`
+	require.NoError(t, os.WriteFile(filepath.Join(actionsLockDir, "actions-lock.json"), []byte(actionsLockContent), 0644))
+
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+	lockFileContent := `name: test
+jobs:
+  setup:
+    steps:
+      - name: Download container images
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/github-mcp-server:v0.32.0@sha256:1111111111111111111111111111111111111111111111111111111111111111
+`
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "test.lock.yml"), []byte(lockFileContent), 0644))
+
+	originalDir, _ := os.Getwd()
+	defer os.Chdir(originalDir) //nolint:errcheck
+	require.NoError(t, os.Chdir(tmpDir))
+
+	deps := defaultContainerPinUpdateDeps()
+	const refreshedDigest = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+	deps.fetchDigest = func(_ context.Context, image string, verbose bool) (string, error) {
+		require.Equal(t, "ghcr.io/github/github-mcp-server:v0.32.0", image)
+		return refreshedDigest, nil
+	}
+
+	changed, err := updateContainerPins(context.Background(), deps, workflowsDir, false, containerPinUpdateOptions{refreshExisting: true})
+	require.NoError(t, err)
+	assert.True(t, changed, "refreshing an existing pin should report a change")
+
+	cache := workflow.NewActionCache(tmpDir)
+	require.NoError(t, cache.Load())
+	pin, ok := cache.GetContainerPin("ghcr.io/github/github-mcp-server:v0.32.0")
+	require.True(t, ok)
+	assert.Equal(t, refreshedDigest, pin.Digest)
+	assert.Equal(t, "ghcr.io/github/github-mcp-server:v0.32.0@"+refreshedDigest, pin.PinnedImage)
 }

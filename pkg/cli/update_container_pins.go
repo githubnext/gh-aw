@@ -43,6 +43,18 @@ var dockerImagesArgPattern = regexp.MustCompile(`download_docker_images\.sh"?\s+
 // in practice and are not expected here.
 var buildxDigestPattern = regexp.MustCompile(`(?m)^Digest:\s+(sha256:[a-f0-9]{64})`)
 
+type containerPinUpdateDeps struct {
+	fetchDigest func(ctx context.Context, image string, verbose bool) (string, error)
+}
+
+type containerPinUpdateOptions struct {
+	refreshExisting bool
+}
+
+func defaultContainerPinUpdateDeps() containerPinUpdateDeps {
+	return containerPinUpdateDeps{fetchDigest: fetchContainerDigest}
+}
+
 // UpdateContainerPins resolves SHA-256 digests for all container images referenced in
 // the compiled lock files under workflowDir and stores the pins in
 // .github/aw/actions-lock.json.
@@ -57,6 +69,10 @@ var buildxDigestPattern = regexp.MustCompile(`(?m)^Digest:\s+(sha256:[a-f0-9]{64
 // Returns true when new container pins were added and lock files should be
 // recompiled to embed the digest references.
 func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) (bool, error) {
+	return updateContainerPins(ctx, defaultContainerPinUpdateDeps(), workflowDir, verbose, containerPinUpdateOptions{})
+}
+
+func updateContainerPins(ctx context.Context, deps containerPinUpdateDeps, workflowDir string, verbose bool, opts containerPinUpdateOptions) (bool, error) {
 	containerPinsLog.Print("Starting container pin update")
 
 	if verbose {
@@ -92,18 +108,10 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 		}
 	}
 
-	// Build a set of base image tags (without @sha256: digest suffix) currently
-	// referenced in the compiled lock files so that stale entries (e.g. superseded
-	// AWF versions) can be pruned. Lock files that were previously compiled may
-	// already embed pinned references (image:tag@sha256:...), so we strip the
-	// digest before comparing against container pin keys, which always use the
-	// base tag as the key.
-	imageSet := make(map[string]struct {
-	}, len(images))
+	imageSet := make(map[string]struct{}, len(images))
 	for _, img := range images {
 		base, _, _ := strings.Cut(img, "@sha256:")
-		imageSet[base] = struct {
-		}{}
+		imageSet[base] = struct{}{}
 	}
 
 	// Remove any container pin entries that are no longer referenced by the
@@ -124,23 +132,16 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	var skippedImages []string
 
 	for _, image := range images {
-		// Images already containing @sha256: are immutably pinned — skip them.
-		if strings.Contains(image, "@sha256:") {
-			skippedImages = append(skippedImages, image)
-			continue
-		}
-
-		// Check if we already have a valid pin for this image in the cache.
-		if pin, ok := actionCache.GetContainerPin(image); ok && pin.Digest != "" {
+		existingPin, hasExistingPin := actionCache.GetContainerPin(image)
+		if hasExistingPin && existingPin.Digest != "" && !opts.refreshExisting {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s already pinned: %s", image, pin.Digest)))
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s already pinned: %s", image, existingPin.Digest)))
 			}
 			skippedImages = append(skippedImages, image)
 			continue
 		}
 
-		// Attempt to resolve the digest without pulling.
-		digest, resolveErr := fetchContainerDigest(ctx, image, verbose)
+		digest, resolveErr := deps.fetchDigest(ctx, image, verbose)
 		if resolveErr != nil {
 			containerPinsLog.Printf("Failed to resolve digest for %s: %v", image, resolveErr)
 			failedImages = append(failedImages, imageFailure{image: image, reason: resolveErr.Error()})
@@ -148,6 +149,13 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 		}
 
 		pinnedImage := image + "@" + digest
+		if hasExistingPin && existingPin.Digest == digest && existingPin.PinnedImage == pinnedImage {
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("%s already pinned: %s", image, digest)))
+			}
+			skippedImages = append(skippedImages, image)
+			continue
+		}
 		actionCache.SetContainerPin(image, digest, pinnedImage)
 		updatedImages = append(updatedImages, pinnedEntry{image: image, pinnedImage: pinnedImage})
 
@@ -160,7 +168,7 @@ func UpdateContainerPins(ctx context.Context, workflowDir string, verbose bool) 
 	fmt.Fprintln(os.Stderr, "")
 
 	if len(updatedImages) > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Pinned %d container image(s):", len(updatedImages))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %d container image pin(s):", len(updatedImages))))
 		for _, entry := range updatedImages {
 			fmt.Fprintln(os.Stderr, console.FormatListItem(entry.pinnedImage))
 		}
@@ -231,9 +239,8 @@ func collectImagesFromLockFiles(workflowDir string) ([]string, error) {
 				continue
 			}
 			for img := range strings.FieldsSeq(matches[1]) {
-				if img != "" {
-					imageSet[img] = struct {
-					}{}
+				if base, _, _ := strings.Cut(img, "@sha256:"); base != "" {
+					imageSet[base] = struct{}{}
 				}
 			}
 		}

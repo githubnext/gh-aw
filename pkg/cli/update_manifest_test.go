@@ -33,8 +33,8 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 		listPackageDirFilesForHost = originalDirFiles
 	})
 
-	resolveLatestRefFn = func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (string, error) {
-		return "v2.0.0", nil
+	resolveLatestRefFn = func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (latestRefResolution, error) {
+		return latestRefResolution{Ref: "v2.0.0"}, nil
 	}
 	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
 		return "main", nil

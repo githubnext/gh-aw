@@ -7,7 +7,7 @@
 #   /tmp/gh-aw/agent/pr-meta.json           — PR metadata (number, title, body, etc.)
 #   /tmp/gh-aw/agent/pr-review-comments.json — existing inline review comments
 #
-# Skip-check: if all three files already exist (cache hit), fetch is skipped.
+# Skip-check: if all three files already exist and cache head SHA matches current PR head SHA, fetch is skipped.
 #
 # Usage:
 #   cache:
@@ -23,16 +23,25 @@ pre-agent-steps:
     env:
       GH_TOKEN: ${{ github.token }}
       PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       EXPR_GITHUB_REPOSITORY: ${{ github.repository }}
       PR_DIFF_MAX_LINES: "3000"
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
-      # Skip fetch if cache already populated this data (actions/cache restore)
-      if [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then
+      CURRENT_HEAD_SHA="${PR_HEAD_SHA:-}"
+      if [ -z "$CURRENT_HEAD_SHA" ]; then
+        CURRENT_HEAD_SHA=$(gh pr view "$PR_NUMBER" --repo "$EXPR_GITHUB_REPOSITORY" --json headRefOid --jq '.headRefOid' 2>/dev/null || true)
+      fi
+      CACHE_HEAD_SHA=""
+      if [ -f /tmp/gh-aw/agent/pr-data-head-sha.txt ]; then
+        CACHE_HEAD_SHA="$(tr -d '\n' < /tmp/gh-aw/agent/pr-data-head-sha.txt)"
+      fi
+      # Skip fetch only when cache data matches current PR head commit.
+      if [ -n "$CURRENT_HEAD_SHA" ] && [ "$CURRENT_HEAD_SHA" = "$CACHE_HEAD_SHA" ] && [ -f /tmp/gh-aw/agent/pr-diff.patch ] && [ -f /tmp/gh-aw/agent/pr-meta.json ] && [ -f /tmp/gh-aw/agent/pr-review-comments.json ]; then
         LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
         COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
-        echo "Cache hit: using pre-fetched PR data (${LINES} diff lines, ${COMMENT_COUNT} review comments)"
+        echo "Cache hit: using pre-fetched PR data for head ${CURRENT_HEAD_SHA} (${LINES} diff lines, ${COMMENT_COUNT} review comments)"
       else
         { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
             --exclude '**/*.lock.yml' \
@@ -43,15 +52,23 @@ pre-agent-steps:
         LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
         gh pr view "$PR_NUMBER" \
           --repo $EXPR_GITHUB_REPOSITORY \
-          --json number,title,body,headRefName,additions,deletions,changedFiles,files \
+          --json number,title,body,headRefName,headRefOid,additions,deletions,changedFiles,files \
           > /tmp/gh-aw/agent/pr-meta.json
+        if [ -z "$CURRENT_HEAD_SHA" ]; then
+          CURRENT_HEAD_SHA="$(jq -r '.headRefOid // empty' /tmp/gh-aw/agent/pr-meta.json)"
+        fi
         gh api "repos/$EXPR_GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
           --paginate \
           --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
           2>/dev/null | jq -s '.' > /tmp/gh-aw/agent/pr-review-comments.json \
           || echo '[]' > /tmp/gh-aw/agent/pr-review-comments.json
+        if [ -n "$CURRENT_HEAD_SHA" ]; then
+          printf '%s\n' "$CURRENT_HEAD_SHA" > /tmp/gh-aw/agent/pr-data-head-sha.txt
+        else
+          rm -f /tmp/gh-aw/agent/pr-data-head-sha.txt
+        fi
         COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
-        echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments"
+        echo "Pre-fetched PR diff (${LINES} lines), metadata, and ${COMMENT_COUNT} existing review comments for head ${CURRENT_HEAD_SHA:-unknown}"
       fi
 ---
 

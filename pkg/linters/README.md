@@ -136,6 +136,7 @@ This package currently provides custom Go analyzers in the following subpackages
 
 | Symbol | Description |
 |---|---|
+| `All` | Returns the canonical registry of all custom analyzers as `[]*analysis.Analyzer` for multichecker wiring, test assertions, and documentation consistency checks |
 | `ErrorMessageAnalyzer` | Compatibility alias to `pkg/linters/errormessage.Analyzer` |
 
 ## Usage Examples
@@ -285,7 +286,7 @@ This appendix is generated from the current non-test Go source files in this pac
 | Types | 0 |
 | Constants | 0 |
 | Variables | 1 |
-| Functions and methods | 0 |
+| Functions and methods | 1 |
 | Additional symbols documented in this appendix | 0 |
 
 The sections above already mention every exported top-level symbol in the current source tree.

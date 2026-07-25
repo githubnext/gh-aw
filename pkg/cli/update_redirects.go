@@ -17,7 +17,7 @@ var updateRedirectsLog = logger.New("cli:update_redirects")
 
 const maxRedirectDepth = 20
 
-var resolveLatestRefFn = resolveLatestRef
+var resolveLatestRefFn = resolveLatestRefWithResult
 var downloadWorkflowContentFn = downloadWorkflowContent
 
 type resolvedUpdateLocation struct {
@@ -27,6 +27,7 @@ type resolvedUpdateLocation struct {
 	sourceFieldRef  string
 	content         []byte
 	redirectHistory []string
+	coolDownBlocked bool
 }
 
 func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, initialSource *SourceSpec, allowMajor, verbose bool, noRedirect bool, coolDown time.Duration) (*resolvedUpdateLocation, error) {
@@ -52,10 +53,21 @@ func resolveRedirectedUpdateLocation(ctx context.Context, workflowName string, i
 		}
 		visited[locationKey] = struct{}{}
 
-		latestRef, err := resolveLatestRefFn(ctx, current.Repo, currentRef, allowMajor, verbose, coolDown)
+		latestRefResult, err := resolveLatestRefFn(ctx, current.Repo, currentRef, allowMajor, verbose, coolDown)
 		if err != nil {
 			return nil, fmt.Errorf("failed to resolve latest ref for %s: %w", sourceSpecWithRef(current, currentRef), err)
 		}
+		if latestRefResult.CoolDownBlocked {
+			return &resolvedUpdateLocation{
+				sourceSpec:      current,
+				currentRef:      currentRef,
+				latestRef:       currentRef,
+				sourceFieldRef:  currentRef,
+				redirectHistory: history,
+				coolDownBlocked: true,
+			}, nil
+		}
+		latestRef := latestRefResult.Ref
 
 		content, err := downloadWorkflowContentFn(ctx, current.Repo, current.Path, latestRef, verbose)
 		if err != nil {
