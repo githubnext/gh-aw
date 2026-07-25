@@ -1361,8 +1361,9 @@ describe("handle_agent_failure", () => {
 
   describe("buildSecretVerificationContext", () => {
     it("returns empty string when verification did not fail", () => {
-      expect(buildSecretVerificationContext("", "copilot")).toBe("");
-      expect(buildSecretVerificationContext("success", "copilot")).toBe("");
+      const copilotMessage = "**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file.";
+      expect(buildSecretVerificationContext("", copilotMessage)).toBe("");
+      expect(buildSecretVerificationContext("success", copilotMessage)).toBe("");
       expect(buildSecretVerificationContext("", "")).toBe("");
     });
 
@@ -1431,8 +1432,8 @@ describe("handle_agent_failure", () => {
       });
     });
 
-    it("returns generic warning for non-copilot engines when verification failed", () => {
-      const result = buildSecretVerificationContext("failed", "claude");
+    it("returns generic warning for engines with no failure message when verification failed", () => {
+      const result = buildSecretVerificationContext("failed", "");
       expect(result).toContain("Secret Verification Failed");
       expect(result).toContain("required secrets are configured");
       expect(result).toContain("https://github.github.com/gh-aw/reference/engines/");
@@ -1440,13 +1441,16 @@ describe("handle_agent_failure", () => {
     });
 
     it("returns copilot-specific message with copilot-requests: write permissions suggestion when verification failed", () => {
-      const result = buildSecretVerificationContext("failed", "copilot");
-      const mixedCaseResult = buildSecretVerificationContext("failed", "Copilot");
+      const copilotMessage =
+        "**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file. " +
+        "This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
+        "\n```yaml\npermissions:\n  copilot-requests: write\n```\n" +
+        "\nSee: https://github.github.com/gh-aw/reference/engines/#github-copilot-default";
+      const result = buildSecretVerificationContext("failed", copilotMessage);
       expect(result).toContain("Secret Verification Failed");
       expect(result).toContain("required secrets are configured");
       expect(result).toContain("```yaml\npermissions:\n  copilot-requests: write\n```");
       expect(result).toContain("https://github.github.com/gh-aw/reference/engines/#github-copilot-default");
-      expect(mixedCaseResult).toContain("copilot-requests: write");
     });
   });
 

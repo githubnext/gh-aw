@@ -180,6 +180,50 @@ Test workflow`
 	}
 }
 
+// TestCopilotEngineWithNonGitHubProviderHasNoSecretFailureMessage validates that when the Copilot
+// engine is configured with a non-GitHub provider (engine.model-provider: openai), the compiled
+// lock file does NOT include GH_AW_ENGINE_SECRET_FAILURE_MESSAGE, because the
+// copilot-requests: write alternative only applies to GitHub-hosted inference.
+func TestCopilotEngineWithNonGitHubProviderHasNoSecretFailureMessage(t *testing.T) {
+	testDir := testutil.TempDir(t, "test-copilot-openai-no-secret-failure-msg-*")
+	workflowFile := filepath.Join(testDir, "test-workflow.md")
+
+	workflow := `---
+on: workflow_dispatch
+engine:
+  id: copilot
+  model-provider: openai
+safe-outputs:
+  add-comment:
+    max: 5
+---
+
+Test workflow`
+
+	if err := os.WriteFile(workflowFile, []byte(workflow), 0644); err != nil {
+		t.Fatalf("Failed to write test workflow: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(workflowFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockStr := string(lockContent)
+
+	// When using a non-GitHub provider, copilot-requests: write does not apply;
+	// GH_AW_ENGINE_SECRET_FAILURE_MESSAGE must not appear in the compiled output.
+	if strings.Contains(lockStr, "GH_AW_ENGINE_SECRET_FAILURE_MESSAGE:") {
+		t.Error("Expected GH_AW_ENGINE_SECRET_FAILURE_MESSAGE to be absent for Copilot engine with non-GitHub provider")
+	}
+}
+
 // TestNonCopilotEngineHasNoSecretFailureMessage validates that engines without a custom
 // secret failure message (e.g. Claude) do not emit GH_AW_ENGINE_SECRET_FAILURE_MESSAGE
 // in the compiled conclusion job.

@@ -77,7 +77,13 @@ func (e *CopilotEngine) GetSecretValidationStep(workflowData *WorkflowData) GitH
 // failure issue when the COPILOT_GITHUB_TOKEN secret validation step fails. The message
 // explains the permissions: copilot-requests: write alternative that avoids the need for a
 // personal access token when an organization Copilot subscription is available.
+//
+// When the workflow uses a non-GitHub provider (engine.model-provider: openai or anthropic),
+// the copilot-requests: write permission does not apply and an empty string is returned instead.
 func (e *CopilotEngine) GetSecretFailureMessage(workflowData *WorkflowData) string {
+	if e.ResolveLLMProvider(workflowData) != LLMProviderGitHub {
+		return ""
+	}
 	return "**Alternative**: If your organization has a Copilot subscription, you can avoid the need for a personal access token by adding a top-level `permissions` block to your workflow file. " +
 		"This enables Copilot inference through the org using the built-in GitHub Actions token.\n" +
 		"\n```yaml\npermissions:\n  copilot-requests: write\n```\n" +
