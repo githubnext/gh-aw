@@ -110,7 +110,8 @@ func updateContainerPins(ctx context.Context, deps containerPinUpdateDeps, workf
 
 	imageSet := make(map[string]struct{}, len(images))
 	for _, img := range images {
-		imageSet[img] = struct{}{}
+		base, _, _ := strings.Cut(img, "@sha256:")
+		imageSet[base] = struct{}{}
 	}
 
 	// Remove any container pin entries that are no longer referenced by the

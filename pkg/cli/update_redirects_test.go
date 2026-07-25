@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
@@ -40,8 +41,8 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 	})
 
 	t.Run("follows redirect chain", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
-			return currentRef, nil
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (latestRefResolution, error) {
+			return latestRefResolution{Ref: currentRef}, nil
 		}
 		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
 			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
@@ -77,8 +78,8 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 	})
 
 	t.Run("detects redirect loops", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
-			return currentRef, nil
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (latestRefResolution, error) {
+			return latestRefResolution{Ref: currentRef}, nil
 		}
 		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
 			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
@@ -106,8 +107,8 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 	})
 
 	t.Run("refuses redirect when no-redirect is enabled", func(t *testing.T) {
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
-			return currentRef, nil
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (latestRefResolution, error) {
+			return latestRefResolution{Ref: currentRef}, nil
 		}
 		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
 			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
@@ -139,9 +140,9 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 		t.Cleanup(func() { defaultBranchCache.Delete("owner/repo") })
 
 		var seenRef string
-		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (string, error) {
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (latestRefResolution, error) {
 			seenRef = currentRef
-			return currentRef, nil
+			return latestRefResolution{Ref: currentRef}, nil
 		}
 		downloadWorkflowContentFn = func(_ context.Context, repo, path, ref string, _ bool) ([]byte, error) {
 			key := fmt.Sprintf("%s/%s@%s", repo, path, ref)
@@ -164,5 +165,29 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 		assert.Equal(t, "trunk", seenRef, "default branch should be resolved via the API, not hardcoded to main")
 		assert.Equal(t, "trunk", result.currentRef, "current ref should reflect the resolved default branch")
 		assert.Equal(t, "trunk", result.sourceFieldRef, "default branch should be preserved in source field")
+	})
+
+	t.Run("stops before download when cooldown is blocked", func(t *testing.T) {
+		resolveLatestRefFn = func(_ context.Context, _ string, currentRef string, _ bool, _ bool, _ time.Duration) (latestRefResolution, error) {
+			return latestRefResolution{Ref: currentRef, CoolDownBlocked: true}, nil
+		}
+		downloaded := false
+		downloadWorkflowContentFn = func(_ context.Context, _, _, _ string, _ bool) ([]byte, error) {
+			downloaded = true
+			return nil, errors.New("should not download when cooldown blocks")
+		}
+
+		result, err := resolveRedirectedUpdateLocation(
+			context.Background(),
+			"blocked-workflow",
+			&SourceSpec{Repo: "owner/repo", Path: "workflows/original.md", Ref: "main"},
+			false,
+			false,
+			false,
+			7*24*time.Hour,
+		)
+		require.NoError(t, err)
+		assert.True(t, result.coolDownBlocked)
+		assert.False(t, downloaded, "cooldown-blocked resolution should not download workflow content")
 	})
 }

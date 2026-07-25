@@ -16,7 +16,7 @@ import (
 
 var cooldownLog = logger.New("cli:update_cooldown")
 
-const coolDownFlagUsage = "Cool-down period before applying a new release (e.g., 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories"
+const coolDownFlagUsage = "Cool-down period before applying a new release (e.g., 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories. Commit-tracked sources use a fixed 3d cooldown when cool-down is enabled."
 const commitRefCoolDown = 3 * 24 * time.Hour
 
 // parseCoolDownFlag parses a cooldown duration string.
