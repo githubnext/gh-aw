@@ -31,10 +31,18 @@ type copilotSDKInstallSpec struct {
 	runtimeID string
 	stepName  string
 	command   string
+	// runLines, if non-empty, generates a "run: |" multiline step instead of "run: <command>".
+	runLines []string
 }
 
 const workspaceCommandPrefix = `cd "${GITHUB_WORKSPACE}" && `
 const copilotSDKPythonTargetDir = `${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/python`
+
+// inlineMavenVersion is the pinned Maven version used to bootstrap Maven for inline Java drivers
+// on runners that don't have it pre-installed (e.g. self-hosted). GitHub-hosted runners already
+// have Maven, so the bootstrap is a no-op there. The binary is fetched from repo.maven.apache.org
+// which is already in the Java ecosystem firewall allowlist.
+const inlineMavenVersion = "3.9.9"
 
 // getWorkspaceCommandPrefixFor returns the shell cd prefix for engine command generation.
 // When engine.cwd is configured it returns a prefix that changes to ${GH_AW_ENGINE_CWD}
@@ -190,10 +198,7 @@ func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
 	if inlineRuntimeID := copilotSDKInlineDriverRuntimeID(workflowData); inlineRuntimeID != "" {
 		spec := getInlineCopilotSDKInstallSpec(inlineRuntimeID)
 		copilotInstallLog.Printf("copilot-sdk enabled with inline driver; runtime=%s; install command=%s", spec.runtimeID, spec.command)
-		return GitHubActionStep{
-			"      - name: " + spec.stepName,
-			"        run: " + spec.command,
-		}
+		return specToInstallStep(spec)
 	}
 	// When a custom SDK driver is configured without a custom engine command, use the driver's
 	// file extension to determine which language SDK to install. This ensures the correct SDK
@@ -204,6 +209,23 @@ func buildCopilotSDKInstallStep(workflowData *WorkflowData) GitHubActionStep {
 	}
 	spec := getCopilotSDKInstallSpec(command)
 	copilotInstallLog.Printf("copilot-sdk enabled; runtime=%s; install command=%s", spec.runtimeID, spec.command)
+	return specToInstallStep(spec)
+}
+
+// specToInstallStep converts a copilotSDKInstallSpec into a GitHubActionStep.
+// When the spec has runLines set it emits a "run: |" multi-line block; otherwise
+// it emits a single "run: <command>" line.
+func specToInstallStep(spec copilotSDKInstallSpec) GitHubActionStep {
+	if len(spec.runLines) > 0 {
+		step := GitHubActionStep{
+			"      - name: " + spec.stepName,
+			"        run: |",
+		}
+		for _, line := range spec.runLines {
+			step = append(step, "          "+line)
+		}
+		return step
+	}
 	return GitHubActionStep{
 		"      - name: " + spec.stepName,
 		"        run: " + spec.command,
@@ -302,11 +324,23 @@ func getInlineCopilotSDKInstallSpec(runtimeID string) copilotSDKInstallSpec {
 		spec.command = workspaceCommandPrefix + "dotnet add package GitHub.Copilot.SDK --version " + version
 	case "java":
 		spec.stepName = "Install GitHub Copilot SDK (Java)"
-		spec.command = fmt.Sprintf(
-			`cd "${GITHUB_WORKSPACE}/%[1]s" && mvn -q dependency:build-classpath -Dmdep.outputFile="%[2]s"`,
-			inlineCopilotSDKDriverDir,
-			inlineCopilotSDKDriverJavaClassPath[strings.LastIndex(inlineCopilotSDKDriverJavaClassPath, "/")+1:],
-		)
+		classpathFile := inlineCopilotSDKDriverJavaClassPath[strings.LastIndex(inlineCopilotSDKDriverJavaClassPath, "/")+1:]
+		spec.runLines = []string{
+			`# Bootstrap Maven if not already available (e.g. self-hosted runners).`,
+			`# GitHub-hosted runners have Maven pre-installed; this is a no-op there.`,
+			`if ! command -v mvn >/dev/null 2>&1; then`,
+			`  MAVEN_HOME="${RUNNER_TEMP:-/tmp}/apache-maven-` + inlineMavenVersion + `"`,
+			`  if [ ! -d "${MAVEN_HOME}" ]; then`,
+			`    curl -fsSL "https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/` + inlineMavenVersion + `/apache-maven-` + inlineMavenVersion + `-bin.tar.gz" \`,
+			`      | tar -xzf - -C "${RUNNER_TEMP:-/tmp}"`,
+			`  fi`,
+			`  export PATH="${MAVEN_HOME}/bin:${PATH}"`,
+			`fi`,
+			fmt.Sprintf(`cd "${GITHUB_WORKSPACE}/%s" && mvn -q dependency:build-classpath -Dmdep.outputFile="%s"`,
+				inlineCopilotSDKDriverDir,
+				classpathFile,
+			),
+		}
 	}
 
 	return spec

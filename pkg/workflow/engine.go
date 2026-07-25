@@ -472,9 +472,11 @@ func applyEngineDriverField(config *EngineConfig, engineObj map[string]any) {
 
 	for _, runtime := range []string{"node", "python", "go", "java"} {
 		source, ok := driverMap[runtime].(string)
-		if !ok || source == "" {
+		if !ok {
 			continue
 		}
+		// Preserve runtime even for empty source so validateInlineEngineDriver
+		// can reject it with a clear error rather than silently bypassing checks.
 		config.InlineDriver = &InlineEngineDriver{
 			Runtime: runtime,
 			Source:  source,

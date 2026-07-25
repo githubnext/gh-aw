@@ -59,7 +59,7 @@ func (d *InlineEngineDriver) wrapperScript() string {
 	}
 }
 
-func (d *InlineEngineDriver) additionalFiles() map[string]string {
+func (d *InlineEngineDriver) additionalFiles(goVersion string) map[string]string {
 	if d == nil {
 		return nil
 	}
@@ -67,7 +67,7 @@ func (d *InlineEngineDriver) additionalFiles() map[string]string {
 	switch d.Runtime {
 	case "go":
 		return map[string]string{
-			inlineCopilotSDKDriverGoModPath: fmt.Sprintf("module %s\n\ngo %s\n", inlineCopilotSDKDriverGoModuleName, constants.DefaultGoVersion),
+			inlineCopilotSDKDriverGoModPath: fmt.Sprintf("module %s\n\ngo %s\n", inlineCopilotSDKDriverGoModuleName, goVersion),
 		}
 	case "java":
 		return map[string]string{
@@ -115,6 +115,16 @@ func buildInlineCopilotSDKDriverWriteStep(workflowData *WorkflowData) GitHubActi
 		return GitHubActionStep{}
 	}
 
+	// Resolve the effective Go version: honour an explicit runtimes.go.version pin,
+	// falling back to the repository default when no explicit version is configured.
+	goVersion := string(constants.DefaultGoVersion)
+	if workflowData.ParsedFrontmatter != nil &&
+		workflowData.ParsedFrontmatter.RuntimesTyped != nil &&
+		workflowData.ParsedFrontmatter.RuntimesTyped.Go != nil &&
+		workflowData.ParsedFrontmatter.RuntimesTyped.Go.Version != "" {
+		goVersion = workflowData.ParsedFrontmatter.RuntimesTyped.Go.Version
+	}
+
 	step := GitHubActionStep{
 		"      - name: Write Inline Copilot SDK Driver",
 		"        run: |",
@@ -134,7 +144,7 @@ func buildInlineCopilotSDKDriverWriteStep(workflowData *WorkflowData) GitHubActi
 	}
 
 	appendHeredocWrite(sourcePath, inlineDriver.Source, false)
-	for path, content := range inlineDriver.additionalFiles() {
+	for path, content := range inlineDriver.additionalFiles(goVersion) {
 		appendHeredocWrite(path, content, false)
 	}
 	appendHeredocWrite(inlineCopilotSDKDriverWrapperPath, inlineDriver.wrapperScript(), true)

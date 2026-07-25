@@ -2548,22 +2548,11 @@ engine:
   driver: "example-value"
 
   # Format 2: Inline Copilot SDK driver source. Provide exactly one runtime key.
+  # The supported runtime keys are node, python, go, and java.
   driver:
     # Inline Node.js driver source written to a generated .cjs file.
     # (optional)
     node: "example-value"
-
-    # Inline Python driver source written to a generated .py file.
-    # (optional)
-    python: "example-value"
-
-    # Inline Go driver source written to a generated .go file.
-    # (optional)
-    go: "example-value"
-
-    # Inline Java driver source written to a generated .java file.
-    # (optional)
-    java: "example-value"
 
   # Engine-specific plugin names to install before launching the engine. Currently
   # used by the Pi engine: each entry is passed to `pi install <extension>`.
