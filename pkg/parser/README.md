@@ -88,6 +88,7 @@ The package is designed for use both in the main CLI binary and in WebAssembly c
 | `DownloadFileFromGitHub` | `func(ctx context.Context, owner, repo, path, ref string) ([]byte, error)` | Downloads a file from GitHub via the API |
 | `DownloadFileFromGitHubForHost` | `func(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error)` | Downloads a file from a specific GitHub host |
 | `ResolveRefToSHAForHost` | `func(ctx context.Context, owner, repo, ref, host string) (string, error)` | Resolves a branch/tag ref to a commit SHA |
+| `VerifyCommitExists` | `func(ctx context.Context, owner, repo, sha, host string) error` | Verifies that a specific commit SHA exists in the repository on the given host |
 | `ListWorkflowFiles` | `func(ctx context.Context, owner, repo, ref, workflowPath string) ([]string, error)` | Lists workflow files in a remote repository |
 | `ListWorkflowFilesForHost` | `func(ctx context.Context, owner, repo, ref, workflowPath, host string) ([]string, error)` | Lists workflow files in a remote repository on a specific GitHub host |
 | `ListDirAllFilesForHost` | `func(ctx context.Context, owner, repo, ref, dirPath, host string) ([]string, error)` | Lists all files (any extension) that are direct children of the given directory in a remote repository |

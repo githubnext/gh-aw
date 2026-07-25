@@ -32,7 +32,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
-| [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around `await fetch(...)` calls |
+| [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
 | [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
 | [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
 | [`require-json-parse-try-catch`](#require-json-parse-try-catch) | Require try/catch around `JSON.parse(...)` calls |
@@ -222,33 +222,23 @@ Safe alternative:
 
 ### `require-fetch-try-catch`
 
-Require `await fetch(...)` calls (including method-chained forms) in actions/setup/js scripts to be wrapped in `try/catch`.
+Require awaited `fetch(...)` calls to be wrapped in `try/catch`, including member-chained promise forms rooted in `fetch(...)`.
 
-Why: the `fetch` API throws a `TypeError` on network failures (DNS errors, connection refused, timeouts, etc.). An unhandled throw crashes the action without surfacing a useful diagnostic message.
+Why: `fetch` rejects with `TypeError` on network failures (DNS errors, connection refused, timeouts surfaced as aborts, etc.). Without either an enclosing `try/catch` or an explicit promise rejection handler, the action crashes with an unhelpful uncaught exception.
 
-**Detected forms:**
-- `await fetch(url)` — direct await of a fetch call.
-- `await fetch(url).then(r => r.json())` — single-argument `.then()` chain (does not handle rejection).
-- `await fetch(url).json()` — response-method chain.
+**Flagged forms:**
+- `await fetch(url);`
+- `await fetch(url).then(res => res.json());`
+- `await fetch(url).then(ok).finally(cleanup);`
 
-**Exemptions (not flagged):**
-- `await fetch(url).catch(handler)` — the chain includes a `.catch(handler)` rejection handler.
-- `await fetch(url).then(onFulfilled, onRejected)` — the chain includes a two-argument `.then()` where the second argument handles rejection.
-- Any form inside an enclosing `try/catch` block within the same function scope.
-- Any form where `fetch` is shadowed by a local binding (parameter or variable named `fetch`).
+**Not flagged:**
+- `try { await fetch(url).then(res => res.json()); } catch (err) {}`
+- `await fetch(url).catch(handleFetchError);`
+- `await fetch(url).then(onFulfilled, onRejected);`
 
-**Safe alternatives:**
-```js
-// Option 1: try/catch
-try {
-  const res = await fetch(url);
-} catch (err) {
-  throw new Error("fetch failed: " + (err instanceof Error ? err.message : String(err)), { cause: err });
-}
-
-// Option 2: rejection handler on the chain
-const res = await fetch(url).catch(err => { throw err; });
-```
+**Out of scope:**
+- locally shadowed `fetch` bindings such as `async function f(fetch) { await fetch(url); }`
+- named-reference rejection handlers are not inspected for correctness; the rule only checks that `.catch(handler)` or `.then(ok, onErr)` is present on the awaited fetch chain
 
 ### `require-fs-io-try-catch`
 

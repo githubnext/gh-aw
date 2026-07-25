@@ -101,6 +101,8 @@ if ! "$BINARY" compile --validate --no-check-update --purge 2>&1; then
     echo ""
     echo -e "${RED}ERROR${NC}: Workflow compilation failed — fix the errors above, then run:"
     echo ""
+    echo "If you edited any .github/workflows/*.md file in this repository, run make recompile before committing so the matching .lock.yml files stay in sync."
+    echo ""
     echo "  make recompile"
     echo ""
     exit 1
@@ -137,6 +139,8 @@ echo ""
 while IFS= read -r file; do
     echo "  $file"
 done <<< "$all_drift"
+echo ""
+echo "If you edited any .github/workflows/*.md file in this repository, run make recompile before committing so the generated .lock.yml files stay in sync."
 echo ""
 echo -e "${YELLOW}Fix:${NC} Regenerate and stage the lock files, then use report_progress:"
 echo ""

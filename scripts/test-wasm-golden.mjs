@@ -63,6 +63,7 @@ function loadDefaultRuntimeVersions() {
     awfVersion,
     awfImageTag: awfVersion.replace(/^v/, ""),
     mcpgVersion: getVersion("DefaultMCPGatewayVersion"),
+    ghMcpVersion: getVersion("DefaultGitHubMCPServerVersion"),
   };
 }
 
@@ -214,7 +215,7 @@ function normalizeCheckoutPin(content) {
 // Keep tracked wasm snapshots stable across default AWF/MCPG version bumps
 // without masking explicitly pinned non-default versions in fixtures.
 function normalizeDefaultRuntimeVersions(content) {
-  const { awfVersion, awfImageTag, mcpgVersion } = DEFAULT_RUNTIME_VERSIONS;
+  const { awfVersion, awfImageTag, mcpgVersion, ghMcpVersion } = DEFAULT_RUNTIME_VERSIONS;
   return content
     .replace(
       new RegExp(`GH_AW_INFO_AWF_VERSION: "${escapeRegex(awfVersion)}"`, "g"),
@@ -243,6 +244,10 @@ function normalizeDefaultRuntimeVersions(content) {
     .replace(
       new RegExp(`(ghcr\\.io/github/gh-aw-mcpg:)${escapeRegex(mcpgVersion)}\\b`, "g"),
       "$1MCPG_VERSION"
+    )
+    .replace(
+      new RegExp(`(ghcr\\.io/github/github-mcp-server:)${escapeRegex(ghMcpVersion)}\\b`, "g"),
+      "$1GH_MCP_VERSION"
     );
 }
 

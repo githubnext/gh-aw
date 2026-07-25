@@ -6,62 +6,73 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 /** Function node types that form an async boundary. */
 const FUNCTION_BOUNDARY_TYPES = new Set<string>([AST_NODE_TYPES.FunctionDeclaration, AST_NODE_TYPES.FunctionExpression, AST_NODE_TYPES.ArrowFunctionExpression]);
 
-/**
- * Walks down a call/member chain and returns the root `fetch(...)` CallExpression
- * if `fetch` is the root callee, otherwise returns null.
- *
- * Handles chains like `fetch(url).then(...).catch(...)` where the AST is:
- *   CallExpression(callee=MemberExpression(object=CallExpression(callee=fetch)))
- */
-function getRootFetchCall(node: TSESTree.CallExpression): TSESTree.CallExpression | null {
-  let current: TSESTree.Node = node;
-  while (current.type === AST_NODE_TYPES.CallExpression) {
-    const call = current as TSESTree.CallExpression;
-    const callee = call.callee as TSESTree.Node;
-    if (callee.type === AST_NODE_TYPES.Identifier && (callee as TSESTree.Identifier).name === "fetch") {
-      return call;
-    }
-    if (callee.type === AST_NODE_TYPES.MemberExpression) {
-      current = (callee as TSESTree.MemberExpression).object;
-    } else {
-      return null;
-    }
-  }
+function getMemberPropertyName(node: TSESTree.MemberExpression): string | null {
+  const property = node.property;
+  if (!node.computed && property.type === AST_NODE_TYPES.Identifier) return property.name;
+  if (node.computed && property.type === AST_NODE_TYPES.Literal && typeof property.value === "string") return property.value;
   return null;
 }
 
 /**
- * Returns true when the call chain from `outerCall` down to `fetchCall` contains a
- * rejection handler: `.catch(handler)` or a two-argument `.then(onFulfilled, onRejected)`.
- * Such chains already handle network errors and should not be flagged.
+ * Returns true when a call argument is statically non-callable.
+ * Promise rejection callbacks of `null`, `undefined`, any literal value, or spread elements
+ * are replaced by the default thrower and do NOT suppress rejection.
  */
-function chainHasRejectionHandler(fetchCall: TSESTree.CallExpression, outerCall: TSESTree.CallExpression): boolean {
-  let current: TSESTree.Node = outerCall;
-  while (current !== fetchCall) {
-    if (current.type !== AST_NODE_TYPES.CallExpression) break;
-    const call = current as TSESTree.CallExpression;
-    const callee = call.callee as TSESTree.Node;
-    if (callee.type !== AST_NODE_TYPES.MemberExpression) break;
-    const member = callee as TSESTree.MemberExpression;
-    const prop = member.property;
-    const name = !member.computed && prop.type === AST_NODE_TYPES.Identifier ? (prop as TSESTree.Identifier).name : null;
-    if (name === "catch" && call.arguments.length >= 1) return true;
-    if (name === "then" && call.arguments.length >= 2) return true;
-    current = member.object;
-  }
+function isStaticallyNonCallable(node: TSESTree.Expression | TSESTree.SpreadElement): boolean {
+  if (node.type === AST_NODE_TYPES.SpreadElement) return true;
+  if (node.type === AST_NODE_TYPES.Literal) return true;
+  if (node.type === AST_NODE_TYPES.Identifier && node.name === "undefined") return true;
   return false;
 }
 
+interface AwaitedFetchInfo {
+  fetchCall: TSESTree.CallExpression;
+  hasRejectionHandler: boolean;
+}
+
 /**
- * Returns true when the node is an `await` expression whose argument is a call chain
- * rooted in the global `fetch` identifier (e.g. `await fetch(url)` or
- * `await fetch(url).then(...)`).
+ * Returns info when the node is an awaited fetch call, including member-chained forms like
+ * `await fetch(url).then(...)` and whether the chain already carries a rejection handler.
  */
-function isAwaitFetchChain(node: TSESTree.Node): node is TSESTree.AwaitExpression {
-  if (node.type !== AST_NODE_TYPES.AwaitExpression) return false;
-  const argument = node.argument;
-  if (argument.type !== AST_NODE_TYPES.CallExpression) return false;
-  return getRootFetchCall(argument) !== null;
+function getAwaitedFetchInfo(node: TSESTree.Node): AwaitedFetchInfo | null {
+  if (node.type !== AST_NODE_TYPES.AwaitExpression) return null;
+
+  let current: TSESTree.Expression | TSESTree.Super = node.argument;
+  let hasRejectionHandler = false;
+
+  while (true) {
+    if (current.type === AST_NODE_TYPES.Super) return null;
+
+    // Unwrap optional chains: `fetch(url)?.then(ok)` is wrapped in a ChainExpression by Espree.
+    if (current.type === AST_NODE_TYPES.ChainExpression) {
+      current = current.expression;
+      continue;
+    }
+
+    if (current.type === AST_NODE_TYPES.CallExpression) {
+      const callee = current.callee;
+
+      if (callee.type === AST_NODE_TYPES.Identifier && callee.name === "fetch") {
+        return { fetchCall: current, hasRejectionHandler };
+      }
+
+      if (callee.type !== AST_NODE_TYPES.MemberExpression) return null;
+
+      const methodName = getMemberPropertyName(callee);
+      if (methodName === "catch" && current.arguments.length >= 1 && !isStaticallyNonCallable(current.arguments[0])) hasRejectionHandler = true;
+      if (methodName === "then" && current.arguments.length >= 2 && !isStaticallyNonCallable(current.arguments[1])) hasRejectionHandler = true;
+
+      current = callee.object;
+      continue;
+    }
+
+    if (current.type === AST_NODE_TYPES.MemberExpression) {
+      current = current.object;
+      continue;
+    }
+
+    return null;
+  }
 }
 
 export const requireFetchTryCatchRule = createRule({
@@ -101,8 +112,12 @@ export const requireFetchTryCatchRule = createRule({
 
     /**
      * Returns true when node is inside a try block within the same function scope.
-     * Stops at any function boundary: a try/catch outside the enclosing async function
-     * cannot catch a rejected promise from an await inside a nested function.
+     * Stops at any function boundary: a try/catch outside a non-awaited (fire-and-forget)
+     * callback cannot catch a rejected promise from an await inside that callback.
+     *
+     * Exception: if the enclosing function is an inline callback passed to a call expression
+     * that is itself awaited inside a try block, the rejected promise propagates through the
+     * awaited chain and IS caught by the outer catch.
      */
     function isInsideTryBlock(node: TSESTree.Node): boolean {
       const ancestors = sourceCode.getAncestors(node);
@@ -110,9 +125,43 @@ export const requireFetchTryCatchRule = createRule({
       for (let i = ancestors.length - 1; i >= 0; i--) {
         const ancestor = ancestors[i];
 
-        // Any function boundary (declaration, expression, or arrow) stops the search.
-        // A try/catch outside the current async function cannot protect this await.
+        // Any function boundary stops the search for non-awaited (fire-and-forget) callbacks.
+        // Exception: inline FunctionExpression/ArrowFunctionExpression whose parent call is
+        // itself immediately awaited inside a try block — the rejection propagates up.
         if (FUNCTION_BOUNDARY_TYPES.has(ancestor.type)) {
+          // FunctionDeclarations are never inline callback arguments.
+          if (ancestor.type === AST_NODE_TYPES.FunctionDeclaration) {
+            return false;
+          }
+          // Check for the directly-awaited inline callback pattern:
+          //   await someWrapper(async () => { await fetch(...) })
+          // ancestors[i-1] must be the CallExpression, ancestors[i-2] the AwaitExpression.
+          if (
+            i >= 2 &&
+            ancestors[i - 1].type === AST_NODE_TYPES.CallExpression &&
+            ancestors[i - 2].type === AST_NODE_TYPES.AwaitExpression
+          ) {
+            const outerAwait = ancestors[i - 2];
+            // Now search ancestors outward from i-3 to see if the outer AwaitExpression
+            // is inside a try block (stopping at the next function boundary).
+            for (let j = i - 3; j >= 0; j--) {
+              const outer = ancestors[j];
+              if (FUNCTION_BOUNDARY_TYPES.has(outer.type)) {
+                break;
+              }
+              if (outer.type === AST_NODE_TYPES.TryStatement && outer.handler != null) {
+                const block = outer.block;
+                if (
+                  outerAwait.range != null &&
+                  block.range != null &&
+                  outerAwait.range[0] >= block.range[0] &&
+                  outerAwait.range[1] <= block.range[1]
+                ) {
+                  return true;
+                }
+              }
+            }
+          }
           return false;
         }
 
@@ -129,15 +178,14 @@ export const requireFetchTryCatchRule = createRule({
 
     return {
       AwaitExpression(node) {
-        if (!isAwaitFetchChain(node)) return;
-        const outerCall = node.argument as TSESTree.CallExpression;
-        const fetchCall = getRootFetchCall(outerCall)!;
+        const fetchInfo = getAwaitedFetchInfo(node);
+        if (!fetchInfo) return;
         // Skip when fetch is shadowed by a local binding (e.g. a parameter or import named fetch).
         if (hasLocalBinding(node, "fetch")) return;
-        // Chains with a rejection handler (.catch(handler) or .then(ok, err)) are safe.
-        if (chainHasRejectionHandler(fetchCall, outerCall)) return;
+        if (fetchInfo.hasRejectionHandler) return;
         if (isInsideTryBlock(node)) return;
 
+        const { fetchCall } = fetchInfo;
         const firstArg = fetchCall.arguments[0];
         const urlText = firstArg !== undefined ? sourceCode.getText(firstArg as TSESTree.Node) : "";
         const stmt = findEnclosingStatement(sourceCode, node);

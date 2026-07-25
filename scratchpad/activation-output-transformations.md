@@ -115,10 +115,10 @@ on: issues
 
 {{#runtime-import instructions.md}}
 
-Analyze: "${{ needs.activation.outputs.text }}"
+Analyze: "${{ steps.sanitized.outputs.text }}"
 ```
 
-Even if `instructions.md` is edited to include new references to `needs.activation.outputs.text`, the transformation ensures these work correctly.
+Even if `instructions.md` is edited at runtime to include new references (using either the modern `steps.sanitized.outputs.text` or the deprecated `needs.activation.outputs.text` form), the compiler-generated substitution table handles both correctly.
 
 ## Testing
 

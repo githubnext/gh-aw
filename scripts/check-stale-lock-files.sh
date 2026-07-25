@@ -147,6 +147,8 @@ fi
 
 echo -e "${YELLOW}Fix:${NC} Recompile the workflow lock files, then commit them together with their .md sources:"
 echo ""
+echo "If you edited any .github/workflows/*.md file in this repository, run make recompile before committing so the matching .lock.yml files stay in sync."
+echo ""
 echo "  make recompile"
 echo ""
 exit 1
