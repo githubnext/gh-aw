@@ -119,6 +119,10 @@ Run Capital One's [VulnHunter](https://github.com/capitalone/VulnHunter) methodo
 
 Use the title `VulnHunter findings in ${{ github.repository }}`.
 
+Structure the issue body with `###` and `####` headings only. Keep the summary
+and highest-confidence findings visible, and wrap supporting evidence or
+per-finding deep dives in `<details><summary>...</summary>` blocks.
+
 For each reported finding include:
 - affected file(s) and function or component
 - vulnerability type and severity
