@@ -27,11 +27,11 @@ Load these topic files only when relevant:
 - [charts.md](charts.md) for chart-generation workflows
 - [report.md](report.md) for reporting output structure and recurring report lifecycle
 
-## Three Modes
+## Modes
 
-### Interactive mode (design + create)
+### Interactive mode
 
-This is the unified entry point for both design and creation. Start with exactly:
+Start with exactly:
 
 > What do you want to automate today?
 

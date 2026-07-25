@@ -75,33 +75,21 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/workflow-editing.md`
 - `.github/aw/workflow-patterns.md`
 
-## Task Selection
+After loading the matching workflow prompt or skill, follow it directly:
+- Design workflows from scratch via interview: `.github/aw/designer.md`
+- Create new workflows: `.github/aw/create-agentic-workflow.md`
+- Configure or add declarative engines: `.github/aw/configure-agentic-engine.md`
+- Update existing workflows: `.github/aw/update-agentic-workflow.md`
+- Debug, audit, or investigate workflows: `.github/aw/debug-agentic-workflow.md`
+- Upgrade workflows and fix deprecations: `.github/aw/upgrade-agentic-workflows.md`
+- Create shared components or MCP wrappers: `.github/aw/create-shared-agentic-workflow.md`
+- Create report-generating workflows: `.github/aw/report.md`
+- Fix Dependabot manifest PRs: `.github/aw/dependabot.md`
+- Analyze coverage workflows: `.github/aw/test-coverage.md`
+- Render compact markdown charts: `.github/aw/asciicharts.md`
+- Map CLI commands to MCP usage: `.github/aw/cli-commands.md`
+- Choose workflow architecture and patterns: `.github/aw/patterns.md`
+- Optimize token usage and cost: `.github/aw/token-optimization.md`
+- Design long-running multi-agent research workflows: `.github/aw/multi-agent-research.md`
 
-When the task type is not immediately clear from the user's message, present this menu and ask the user to pick:
-
-1. **Create / design** a new workflow
-2. **Update** an existing workflow
-3. **Debug** or audit a workflow run
-4. **Optimize** a workflow for token consumption
-5. **Upgrade** workflows and fix deprecations
-
-Once the task is known, load and follow the matching prompt:
-
-| Task | Prompt |
-|---|---|
-| 1. Create / design | `.github/aw/create-agentic-workflow.md` |
-| 2. Update | `.github/aw/update-agentic-workflow.md` |
-| 3. Debug / audit | `.github/aw/debug-agentic-workflow.md` |
-| 4. Optimize | `.github/aw/optimize-agentic-workflow.md` |
-| 5. Upgrade | `.github/aw/upgrade-agentic-workflows.md` |
-| Configure engine | `.github/aw/configure-agentic-engine.md` |
-| Shared components / MCP wrappers | `.github/aw/create-shared-agentic-workflow.md` |
-| Report-generating workflow | `.github/aw/report.md` |
-| Dependabot manifest PR | `.github/aw/dependabot.md` |
-| Coverage analysis | `.github/aw/test-coverage.md` |
-| Charts | `.github/aw/asciicharts.md` |
-| CLI → MCP mapping | `.github/aw/cli-commands.md` |
-| Patterns / architecture | `.github/aw/patterns.md` |
-| Multi-agent research | `.github/aw/multi-agent-research.md` |
-
-When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching prompt.
+When the task involves OTEL, OTLP, traces, observability backends, or telemetry-driven analysis, also read and follow `skills/otel-queries/SKILL.md` after loading the matching workflow prompt or skill.
