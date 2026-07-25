@@ -277,3 +277,118 @@ func TestFormal_SingleSourcePerRecord(t *testing.T) {
 		})
 	}
 }
+
+// TestFormal_StricterWinsForAutonomyAndWriteScope (P11 — StricterAutonomyWins)
+// Invariant: mergePolicy never lets a lower-precedence rule relax Autonomy or WriteScope;
+// the more-restrictive value must always survive.
+func TestFormal_StricterWinsForAutonomyAndWriteScope(t *testing.T) {
+	// Two rules: the first grants broad access; the second is more restrictive.
+	// Stricter-wins means the second (more restrictive) values must be retained.
+	broadRule := intent.PolicyRule{
+		ID: "broad",
+		Set: intent.ExecutionPolicy{
+			Autonomy:    "bounded",    // less restrictive
+			WriteScope:  "any_branch", // less restrictive
+			MaxAttempts: 5,
+		},
+	}
+	strictRule := intent.PolicyRule{
+		ID: "strict",
+		Set: intent.ExecutionPolicy{
+			Autonomy:    "propose_only", // more restrictive
+			WriteScope:  "none",         // more restrictive
+			MaxAttempts: 2,
+		},
+	}
+
+	// Use a mapped record (labels required for non-unlinked status).
+	rec := matchingResolver().ResolvePullRequest(intent.PullRequestData{
+		ClosingIssues: []intent.RootReference{
+			{NodeID: "I_1", Labels: []string{"security"}},
+		},
+	})
+	repo := intent.RepositoryContext{Owner: "owner", Name: "repo"}
+
+	// broad first, strict second: strict values must win.
+	compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{broadRule, strictRule}}
+	policy := compiler.Compile(rec, repo)
+
+	assert.Equal(t, "propose_only", policy.Autonomy,
+		"P11: stricter autonomy must survive when a lower-precedence rule is more permissive")
+	assert.Equal(t, "none", policy.WriteScope,
+		"P11: stricter write scope must survive when a lower-precedence rule is more permissive")
+	assert.Equal(t, 2, policy.MaxAttempts,
+		"P11: minimum max_attempts must be kept")
+
+	// strict first, broad second: broad rule must not weaken the strict values.
+	compiler2 := intent.PolicyCompiler{Rules: []intent.PolicyRule{strictRule, broadRule}}
+	policy2 := compiler2.Compile(rec, repo)
+
+	assert.Equal(t, "propose_only", policy2.Autonomy,
+		"P11: broad rule must not weaken a stricter preceding rule's autonomy")
+	assert.Equal(t, "none", policy2.WriteScope,
+		"P11: broad rule must not weaken a stricter preceding rule's write scope")
+}
+
+// TestFormal_AllowedToolsIntersection (P12 — AllowedToolsIntersected)
+// Invariant: mergePolicy intersects AllowedTools so that only tools permitted by
+// all matching rules remain; nil (unrestricted) defers to the non-nil side.
+func TestFormal_AllowedToolsIntersection(t *testing.T) {
+	repo := intent.RepositoryContext{Owner: "owner", Name: "repo"}
+	// Use a mapped record (labels required for non-unlinked status).
+	rec := matchingResolver().ResolvePullRequest(intent.PullRequestData{
+		ClosingIssues: []intent.RootReference{
+			{NodeID: "I_1", Labels: []string{"security"}},
+		},
+	})
+
+	t.Run("intersection_of_overlapping_lists", func(t *testing.T) {
+		ruleA := intent.PolicyRule{
+			ID:  "rule-a",
+			Set: intent.ExecutionPolicy{AllowedTools: []string{"read", "write"}},
+		}
+		ruleB := intent.PolicyRule{
+			ID:  "rule-b",
+			Set: intent.ExecutionPolicy{AllowedTools: []string{"write", "exec"}},
+		}
+		compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{ruleA, ruleB}}
+		policy := compiler.Compile(rec, repo)
+
+		assert.Equal(t, []string{"write"}, policy.AllowedTools,
+			"P12: only tools present in both rules must be allowed")
+	})
+
+	t.Run("nil_defers_to_restricted_side", func(t *testing.T) {
+		ruleA := intent.PolicyRule{
+			ID:  "rule-a",
+			Set: intent.ExecutionPolicy{AllowedTools: nil}, // unrestricted
+		}
+		ruleB := intent.PolicyRule{
+			ID:  "rule-b",
+			Set: intent.ExecutionPolicy{AllowedTools: []string{"read"}},
+		}
+		compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{ruleA, ruleB}}
+		policy := compiler.Compile(rec, repo)
+
+		assert.Equal(t, []string{"read"}, policy.AllowedTools,
+			"P12: unrestricted nil must defer to the non-nil restriction")
+	})
+
+	t.Run("deny_all_empty_slice_preserved", func(t *testing.T) {
+		ruleA := intent.PolicyRule{
+			ID:  "rule-a",
+			Set: intent.ExecutionPolicy{AllowedTools: []string{"read"}},
+		}
+		ruleB := intent.PolicyRule{
+			ID:  "rule-b",
+			Set: intent.ExecutionPolicy{AllowedTools: []string{}}, // deny-all
+		}
+		compiler := intent.PolicyCompiler{Rules: []intent.PolicyRule{ruleA, ruleB}}
+		policy := compiler.Compile(rec, repo)
+
+		require.NotNil(t, policy.AllowedTools,
+			"P12: deny-all empty slice must not be collapsed to unrestricted nil")
+		assert.Empty(t, policy.AllowedTools,
+			"P12: intersection with deny-all must yield deny-all")
+	})
+}

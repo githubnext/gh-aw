@@ -2,6 +2,23 @@ package intent
 
 import "slices"
 
+// autonomyRank maps autonomy levels to a restriction rank (higher = more restrictive).
+// Values outside this map are treated as rank 0 (unknown/least restrictive), so any
+// known value wins over an unknown one.
+var autonomyRank = map[string]int{
+	"bounded":      1,
+	"supervised":   2,
+	"propose_only": 3,
+}
+
+// writeScopeRank maps write-scope values to a restriction rank (higher = more restrictive).
+// Values outside this map are treated as rank 0 (unknown/least restrictive).
+var writeScopeRank = map[string]int{
+	"any_branch":     1,
+	"feature_branch": 2,
+	"none":           3,
+}
+
 // ExecutionPolicy governs what an agent may do for a given intent.
 //
 // WARNING: PolicyCompiler is advisory only. All fields except Autonomy are
@@ -143,13 +160,15 @@ func (r PolicyRule) matches(rec IntentRecord, repo RepositoryContext) bool {
 
 // deepCopyPolicy returns an independent copy of p with pointer and slice fields
 // freshly allocated, so that mutations to the copy cannot affect the original.
+// AllowedTools uses slices.Clone (not cloneStrings) to preserve the nil-vs-empty
+// distinction: nil = unrestricted, []string{} = deny-all.
 func deepCopyPolicy(p ExecutionPolicy) ExecutionPolicy {
 	result := p
 	if p.AutoMergeAllowed != nil {
 		v := *p.AutoMergeAllowed
 		result.AutoMergeAllowed = &v
 	}
-	result.AllowedTools = cloneStrings(p.AllowedTools)
+	result.AllowedTools = slices.Clone(p.AllowedTools) // preserves nil vs []string{}
 	result.DeniedTools = cloneStrings(p.DeniedTools)
 	result.RequiredChecks = cloneStrings(p.RequiredChecks)
 	result.RuleIDs = cloneStrings(p.RuleIDs)
@@ -157,14 +176,17 @@ func deepCopyPolicy(p ExecutionPolicy) ExecutionPolicy {
 }
 
 // mergePolicy overlays fragment onto base, preserving the stricter value for each
-// field. String fields adopt the fragment value when non-empty. Boolean gates are
-// ORed (human approval) or ANDed (auto-merge). Numeric limits take the minimum.
+// field. String fields (Autonomy, WriteScope) are replaced only when the fragment's
+// value is more restrictive per the defined rank tables. Boolean gates are ORed
+// (human approval) or ANDed (auto-merge). Numeric limits take the minimum.
+// AllowedTools is intersected (stricter-wins); DeniedTools and RequiredChecks are
+// unioned.
 func mergePolicy(base, fragment ExecutionPolicy) ExecutionPolicy {
 	result := base
-	if fragment.Autonomy != "" {
+	if fragment.Autonomy != "" && autonomyRank[fragment.Autonomy] > autonomyRank[result.Autonomy] {
 		result.Autonomy = fragment.Autonomy
 	}
-	if fragment.WriteScope != "" {
+	if fragment.WriteScope != "" && writeScopeRank[fragment.WriteScope] > writeScopeRank[result.WriteScope] {
 		result.WriteScope = fragment.WriteScope
 	}
 	if fragment.HumanApprovalRequired {
@@ -179,8 +201,28 @@ func mergePolicy(base, fragment ExecutionPolicy) ExecutionPolicy {
 	if fragment.MaxAttempts > 0 && fragment.MaxAttempts < result.MaxAttempts {
 		result.MaxAttempts = fragment.MaxAttempts
 	}
-	result.AllowedTools = append(cloneStrings(base.AllowedTools), fragment.AllowedTools...)
+	result.AllowedTools = intersectAllowedTools(base.AllowedTools, fragment.AllowedTools)
 	result.DeniedTools = append(cloneStrings(base.DeniedTools), fragment.DeniedTools...)
 	result.RequiredChecks = append(cloneStrings(base.RequiredChecks), fragment.RequiredChecks...)
+	return result
+}
+
+// intersectAllowedTools merges two AllowedTools slices with stricter-wins semantics.
+// nil means unrestricted (matches any tool); []string{} means deny-all.
+// The intersection of two non-nil lists returns only tools present in both.
+func intersectAllowedTools(base, fragment []string) []string {
+	if base == nil {
+		return slices.Clone(fragment) // unrestricted base defers to fragment's restriction
+	}
+	if fragment == nil {
+		return slices.Clone(base) // unrestricted fragment defers to base's restriction
+	}
+	// Both non-nil: intersect so only tools allowed by both sides are permitted.
+	result := []string{}
+	for _, tool := range base {
+		if slices.Contains(fragment, tool) {
+			result = append(result, tool)
+		}
+	}
 	return result
 }
