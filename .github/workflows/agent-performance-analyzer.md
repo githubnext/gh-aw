@@ -23,6 +23,7 @@ tools:
     branch-name: memory/meta-orchestrators
     file-glob: ["*.json", "*.md"]
     max-file-size: 102400  # 100KB
+    max-patch-size: 51200  # 5x the default limit (default: 10240)
 imports:
   - uses: shared/meta-analysis-base.md
     with:
