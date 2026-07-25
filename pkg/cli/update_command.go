@@ -251,7 +251,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 
 	if firstErr == nil {
 		updateLog.Print("Validating action and container SHAs in actions-lock.json")
-		if err := validateUpdateSHAEntries("."); err != nil {
+		if err := validateUpdateSHAEntries(ctx, "."); err != nil {
 			return fmt.Errorf("update validation failed: %w", err)
 		}
 		if opts.Verbose {
