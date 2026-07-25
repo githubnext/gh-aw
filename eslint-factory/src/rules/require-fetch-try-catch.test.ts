@@ -241,6 +241,20 @@ describe("require-fetch-try-catch", () => {
     });
   });
 
+  it("valid: await fetch inside async callback that is itself awaited within an enclosing try", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [
+        // Directly-awaited inline arrow callback — rejection propagates to the outer try.
+        `async function f() { try { config = await withRetry(async () => { const r = await fetch(url); return r; }); } catch (e) {} }`,
+        // Directly-awaited inline function expression callback.
+        `async function f() { try { const r = await wrapper(async function() { return await fetch(url); }); } catch (e) {} }`,
+        // Immediately-invoked async function expression (IIFE) awaited inside try.
+        `async function f() { try { await (async () => { const r = await fetch(url); })(); } catch (e) {} }`,
+      ],
+      invalid: [],
+    });
+  });
+
   it("invalid: await fetch inside named function declaration nested in outer try block", () => {
     cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
       valid: [],

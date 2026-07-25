@@ -112,8 +112,12 @@ export const requireFetchTryCatchRule = createRule({
 
     /**
      * Returns true when node is inside a try block within the same function scope.
-     * Stops at any function boundary: a try/catch outside the enclosing async function
-     * cannot catch a rejected promise from an await inside a nested function.
+     * Stops at any function boundary: a try/catch outside a non-awaited (fire-and-forget)
+     * callback cannot catch a rejected promise from an await inside that callback.
+     *
+     * Exception: if the enclosing function is an inline callback passed to a call expression
+     * that is itself awaited inside a try block, the rejected promise propagates through the
+     * awaited chain and IS caught by the outer catch.
      */
     function isInsideTryBlock(node: TSESTree.Node): boolean {
       const ancestors = sourceCode.getAncestors(node);
@@ -121,9 +125,43 @@ export const requireFetchTryCatchRule = createRule({
       for (let i = ancestors.length - 1; i >= 0; i--) {
         const ancestor = ancestors[i];
 
-        // Any function boundary (declaration, expression, or arrow) stops the search.
-        // A try/catch outside the current async function cannot protect this await.
+        // Any function boundary stops the search for non-awaited (fire-and-forget) callbacks.
+        // Exception: inline FunctionExpression/ArrowFunctionExpression whose parent call is
+        // itself immediately awaited inside a try block — the rejection propagates up.
         if (FUNCTION_BOUNDARY_TYPES.has(ancestor.type)) {
+          // FunctionDeclarations are never inline callback arguments.
+          if (ancestor.type === AST_NODE_TYPES.FunctionDeclaration) {
+            return false;
+          }
+          // Check for the directly-awaited inline callback pattern:
+          //   await someWrapper(async () => { await fetch(...) })
+          // ancestors[i-1] must be the CallExpression, ancestors[i-2] the AwaitExpression.
+          if (
+            i >= 2 &&
+            ancestors[i - 1].type === AST_NODE_TYPES.CallExpression &&
+            ancestors[i - 2].type === AST_NODE_TYPES.AwaitExpression
+          ) {
+            const outerAwait = ancestors[i - 2];
+            // Now search ancestors outward from i-3 to see if the outer AwaitExpression
+            // is inside a try block (stopping at the next function boundary).
+            for (let j = i - 3; j >= 0; j--) {
+              const outer = ancestors[j];
+              if (FUNCTION_BOUNDARY_TYPES.has(outer.type)) {
+                break;
+              }
+              if (outer.type === AST_NODE_TYPES.TryStatement && outer.handler != null) {
+                const block = outer.block;
+                if (
+                  outerAwait.range != null &&
+                  block.range != null &&
+                  outerAwait.range[0] >= block.range[0] &&
+                  outerAwait.range[1] <= block.range[1]
+                ) {
+                  return true;
+                }
+              }
+            }
+          }
           return false;
         }
 
