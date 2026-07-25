@@ -24,7 +24,7 @@ func bad() {
 	b := []byte{104, 101, 108, 108, 111}
 
 	_ = string([]byte(s)) // want `string\(\[\]byte\(s\)\) is a redundant round-trip`
-	_ = []byte(string(b)) // want `\[\]byte\(string\(b\)\) is a redundant round-trip`
+	_ = []byte(string(b)) // want `\[\]byte\(string\(b\)\) makes two copies to clone b`
 }
 
 func badNamedTypes() {
@@ -33,7 +33,7 @@ func badNamedTypes() {
 
 	// Named-type round-trips: underlying types still match, so these are flagged.
 	_ = string([]byte(ms)) // want `string\(\[\]byte\(ms\)\) is a redundant round-trip`
-	_ = []byte(string(mb)) // want `\[\]byte\(string\(mb\)\) is a redundant round-trip`
+	_ = []byte(string(mb)) // want `\[\]byte\(string\(mb\)\) makes two copies to clone mb`
 }
 
 // helperString is a regular function, not a type conversion — must not be flagged.
