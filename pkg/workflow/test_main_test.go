@@ -1,6 +1,6 @@
 //go:build !integration
 
-package parser
+package workflow
 
 import (
 	"testing"
@@ -8,7 +8,7 @@ import (
 	"go.uber.org/goleak"
 )
 
-// TestMain enforces goroutine-leak detection for all unit tests in the parser package.
+// TestMain enforces goroutine-leak detection for all unit tests in the workflow package.
 func TestMain(m *testing.M) {
 	goleak.VerifyTestMain(m)
 }
