@@ -1,8 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { REQUEST_COUNT, buildFinalReportingPrompt, buildIsolatedPermissionConfig, parseJSONFromCopilotOutput, runDailyGitHubDocsSEOOptimizerDriver, validateRequestsPayload } from "./daily_github_docs_seo_optimizer_driver_helpers.cjs";
+import {
+  REQUEST_COUNT,
+  buildFinalReportingPrompt,
+  buildIsolatedPermissionConfig,
+  parseJSONFromCopilotOutput,
+  runDailyGitHubDocsSEOOptimizerDriver,
+  validateRequestsPayload,
+} from "../../../.github/drivers/daily_github_docs_seo_optimizer_driver.ts";
 
-describe("daily_github_docs_seo_optimizer_driver_helpers.cjs", () => {
+describe("daily_github_docs_seo_optimizer_driver.ts", () => {
   it("parses fenced JSON output", () => {
     expect(parseJSONFromCopilotOutput('```json\n{"ok":true}\n```', "test")).toEqual({ ok: true });
   });
