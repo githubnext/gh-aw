@@ -7,6 +7,7 @@ func ResetDockerPullState() {
 	pullState.mu.Lock()
 	defer pullState.mu.Unlock()
 	pullState.downloading = make(map[string]bool)
+	pullState.inflight = make(map[string]chan struct{})
 	pullState.mockAvailable = make(map[string]bool)
 	pullState.mockAvailableInUse = false
 	pullState.mockDockerAvailable = true

@@ -43,6 +43,7 @@ const (
 type dockerPullState struct {
 	mu                  sync.RWMutex
 	downloading         map[string]bool // image -> is currently downloading
+	inflight            map[string]chan struct{}
 	mockAvailable       map[string]bool // for testing: override IsDockerImageAvailable
 	mockAvailableInUse  bool            // for testing: whether to use mockAvailable
 	mockDockerAvailable bool            // for testing: override IsDockerAvailable (default true)
@@ -50,6 +51,7 @@ type dockerPullState struct {
 
 var pullState = &dockerPullState{
 	downloading:         make(map[string]bool),
+	inflight:            make(map[string]chan struct{}),
 	mockAvailable:       make(map[string]bool),
 	mockDockerAvailable: true,
 }
@@ -130,34 +132,44 @@ func IsDockerAvailable(ctx context.Context) bool {
 // StartDockerImageDownload starts downloading a Docker image in the background
 // Returns true if download was started, false if already downloading or available
 // The download can be cancelled by cancelling the provided context
-func StartDockerImageDownload(ctx context.Context, image string) bool {
+// The returned join function blocks until the corresponding download goroutine exits.
+func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) {
 	ctx = normalizeDockerContext(ctx)
 
 	// Check availability and downloading status atomically under lock
 	pullState.mu.Lock()
 	defer pullState.mu.Unlock()
 
-	// Check if already available (inside lock for atomicity)
-	if isDockerImageAvailableUnlocked(ctx, image) {
-		dockerImagesLog.Printf("Image %s is already available", image)
-		return false
-	}
-
 	// Check if already downloading
 	if pullState.downloading[image] {
 		dockerImagesLog.Printf("Image %s is already downloading", image)
-		return false
+		done := pullState.inflight[image]
+		return false, func() {
+			if done != nil {
+				<-done
+			}
+		}
 	}
 
+	// Check if already available (inside lock for atomicity)
+	if isDockerImageAvailableUnlocked(ctx, image) {
+		dockerImagesLog.Printf("Image %s is already available", image)
+		return false, func() {}
+	}
+
+	done := make(chan struct{})
 	pullState.downloading[image] = true
+	pullState.inflight[image] = done
 
 	// Start the download in a goroutine with retry logic
 	go func() {
+		defer close(done)
 		defer func() {
 			func() {
 				pullState.mu.Lock()
 				defer pullState.mu.Unlock()
 				delete(pullState.downloading, image)
+				delete(pullState.inflight, image)
 			}()
 			if r := recover(); r != nil {
 				dockerImagesLog.Printf("Panic in docker image download for %s (recovered): %v", image, r)
@@ -218,7 +230,9 @@ func StartDockerImageDownload(ctx context.Context, image string) bool {
 		dockerImagesLog.Printf("Failed to download image %s after %d attempts: %v\nOutput: %s", image, maxAttempts, lastErr, string(lastOutput))
 	}()
 
-	return true
+	return true, func() {
+		<-done
+	}
 }
 
 // CheckAndPrepareDockerImages checks if required Docker images are available
@@ -319,7 +333,7 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 			downloadingImages = append(downloadingImages, img.name)
 		} else {
 			// Start download
-			StartDockerImageDownload(ctx, img.image)
+			_, _ = StartDockerImageDownload(ctx, img.image)
 			missingImages = append(missingImages, img.name)
 		}
 	}
