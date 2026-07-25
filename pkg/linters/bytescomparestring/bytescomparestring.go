@@ -115,13 +115,7 @@ func analyzeBinaryExpr(pass *analysis.Pass, n ast.Node, generatedFiles filecheck
 // determined: dot-import, blank-import, or the qualifier name is shadowed by a
 // local variable or parameter at pos.
 func bytesQualifier(pass *analysis.Pass, pos token.Pos) (qualifier string, skipFix bool) {
-	var file *ast.File
-	for _, f := range pass.Files {
-		if f.Pos() <= pos && pos <= f.End() {
-			file = f
-			break
-		}
-	}
+	file := astutil.FileForPos(pass.Files, pos)
 
 	qualifier = bytesPkg
 	if file != nil {
@@ -166,13 +160,7 @@ func buildFix(pass *analysis.Pass, bin *ast.BinaryExpr, replacement string, seen
 // (tracked via seenImportFiles to prevent duplicate overlapping edits).
 // Returns (TextEdit{}, false) when no edit is needed.
 func addBytesImportEdit(pass *analysis.Pass, pos token.Pos, seenImportFiles map[token.Pos]bool) (analysis.TextEdit, bool) {
-	var file *ast.File
-	for _, f := range pass.Files {
-		if f.Pos() <= pos && pos <= f.End() {
-			file = f
-			break
-		}
-	}
+	file := astutil.FileForPos(pass.Files, pos)
 	if file == nil {
 		return analysis.TextEdit{}, false
 	}

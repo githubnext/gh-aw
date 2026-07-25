@@ -7,7 +7,6 @@ import (
 	"go/ast"
 	"go/token"
 	"go/types"
-	stdstrconv "strconv"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -112,7 +111,7 @@ func collectSprintfBoolCandidates(pass *analysis.Pass, insp *inspector.Inspector
 		if argType == nil || argType != types.Typ[types.Bool] {
 			return
 		}
-		file := fileForPos(pass.Files, call.Pos())
+		file := astutil.FileForPos(pass.Files, call.Pos())
 		if file != nil {
 			targetCallsByFile[file.Pos()]++
 			filesByPos[file.Pos()] = file
@@ -131,15 +130,9 @@ func computeOrphanFmtStatus(pass *analysis.Pass, filesByPos map[token.Pos]*ast.F
 		if file == nil {
 			continue
 		}
-		fmtImported := false
-		for _, imp := range file.Imports {
-			if importSpecPathEquals(imp, fmtPkg) {
-				fmtImported = true
-				break
-			}
-		}
+		_, fmtImported := astutil.ImportedAs(file, pass.TypesInfo, fmtPkg)
 		orphanFmtByFile[filePos] = fmtImported &&
-			countPkgUsesInFile(pass, file, fmtPkg) == targetCalls &&
+			astutil.CountPkgUsesInFile(pass, file, fmtPkg) == targetCalls &&
 			fixableCallsByFile[filePos] == targetCalls
 	}
 	return orphanFmtByFile
@@ -204,16 +197,8 @@ func buildImportEdits(
 		return nil
 	}
 
-	strconvImported := false
-	fmtImported := false
-	for _, imp := range file.Imports {
-		switch {
-		case importSpecPathEquals(imp, strconvPkg):
-			strconvImported = true
-		case importSpecPathEquals(imp, fmtPkg):
-			fmtImported = true
-		}
-	}
+	_, strconvImported := astutil.ImportedAs(file, pass.TypesInfo, strconvPkg)
+	_, fmtImported := astutil.ImportedAs(file, pass.TypesInfo, fmtPkg)
 
 	orphanFmt := fmtImported && orphanFmtByFile[file.Pos()]
 	needStrconv := !strconvImported
@@ -226,166 +211,14 @@ func buildImportEdits(
 
 	switch {
 	case needStrconv && needRemoveFmt:
-		return addStrconvRemoveFmtEdits(pass.Fset, file)
+		return astutil.SwapImportEdits(pass.Fset, file, strconvPkg, fmtPkg)
 	case needStrconv:
-		if edit, ok := addImportEdit(pass, file, strconvPkg); ok {
+		if edit, ok := astutil.AddImportEdit(pass, file, strconvPkg); ok {
 			return []analysis.TextEdit{edit}
 		}
 	case needRemoveFmt:
-		if edit, ok := removeImportEdit(pass.Fset, file, fmtPkg); ok {
+		if edit, ok := astutil.RemoveImportEdit(pass.Fset, file, fmtPkg); ok {
 			return []analysis.TextEdit{edit}
-		}
-	}
-	return nil
-}
-
-func countPkgUsesInFile(pass *analysis.Pass, file *ast.File, pkgPath string) int {
-	fileStart, fileEnd := file.Pos(), file.End()
-	count := 0
-	for ident, obj := range pass.TypesInfo.Uses {
-		pkgName, ok := obj.(*types.PkgName)
-		if !ok || pkgName.Imported() == nil || pkgName.Imported().Path() != pkgPath {
-			continue
-		}
-		if p := ident.Pos(); p >= fileStart && p <= fileEnd {
-			count++
-		}
-	}
-	return count
-}
-
-func addStrconvRemoveFmtEdits(fset *token.FileSet, file *ast.File) []analysis.TextEdit {
-	var fmtSpec *ast.ImportSpec
-	var fmtDecl *ast.GenDecl
-
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok || genDecl.Tok != token.IMPORT {
-			continue
-		}
-		for _, spec := range genDecl.Specs {
-			imp, ok := spec.(*ast.ImportSpec)
-			if ok && importSpecPathEquals(imp, fmtPkg) {
-				fmtSpec = imp
-				fmtDecl = genDecl
-				break
-			}
-		}
-		if fmtDecl != nil {
-			break
-		}
-	}
-	if fmtDecl == nil {
-		return nil
-	}
-
-	if !fmtDecl.Lparen.IsValid() || len(fmtDecl.Specs) == 1 {
-		return []analysis.TextEdit{{
-			Pos:     fmtDecl.Pos(),
-			End:     fmtDecl.End(),
-			NewText: []byte(`import "` + strconvPkg + `"`),
-		}}
-	}
-
-	lineStart, lineEnd := importSpecLineRange(fset, fmtSpec)
-	return []analysis.TextEdit{
-		{
-			Pos:     lineStart,
-			End:     lineEnd,
-			NewText: nil,
-		},
-		{
-			Pos:     fmtDecl.Rparen,
-			End:     fmtDecl.Rparen,
-			NewText: []byte("\t\"" + strconvPkg + "\"\n"),
-		},
-	}
-}
-
-func addImportEdit(pass *analysis.Pass, file *ast.File, pkg string) (analysis.TextEdit, bool) {
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok || genDecl.Tok != token.IMPORT || !genDecl.Lparen.IsValid() {
-			continue
-		}
-		return analysis.TextEdit{
-			Pos:     genDecl.Rparen,
-			End:     genDecl.Rparen,
-			NewText: []byte("\t\"" + pkg + "\"\n"),
-		}, true
-	}
-
-	if len(file.Imports) == 1 {
-		for _, decl := range file.Decls {
-			genDecl, ok := decl.(*ast.GenDecl)
-			if !ok || genDecl.Tok != token.IMPORT || genDecl.Lparen.IsValid() {
-				continue
-			}
-			specText := astutil.NodeText(pass.Fset, genDecl.Specs[0])
-			if specText == "" {
-				continue
-			}
-			return analysis.TextEdit{
-				Pos:     genDecl.Pos(),
-				End:     genDecl.End(),
-				NewText: []byte("import (\n\t" + specText + "\n\t\"" + pkg + "\"\n)"),
-			}, true
-		}
-	}
-
-	return analysis.TextEdit{
-		Pos:     file.Name.End(),
-		End:     file.Name.End(),
-		NewText: []byte("\n\nimport \"" + pkg + "\""),
-	}, true
-}
-
-func removeImportEdit(fset *token.FileSet, file *ast.File, pkg string) (analysis.TextEdit, bool) {
-	for _, decl := range file.Decls {
-		genDecl, ok := decl.(*ast.GenDecl)
-		if !ok || genDecl.Tok != token.IMPORT {
-			continue
-		}
-		for _, spec := range genDecl.Specs {
-			imp, ok := spec.(*ast.ImportSpec)
-			if !ok || !importSpecPathEquals(imp, pkg) {
-				continue
-			}
-			if !genDecl.Lparen.IsValid() || len(genDecl.Specs) == 1 {
-				return analysis.TextEdit{
-					Pos:     genDecl.Pos(),
-					End:     genDecl.End(),
-					NewText: nil,
-				}, true
-			}
-			lineStart, lineEnd := importSpecLineRange(fset, imp)
-			return analysis.TextEdit{
-				Pos:     lineStart,
-				End:     lineEnd,
-				NewText: nil,
-			}, true
-		}
-	}
-	return analysis.TextEdit{}, false
-}
-
-func importSpecLineRange(fset *token.FileSet, spec *ast.ImportSpec) (token.Pos, token.Pos) {
-	tokFile := fset.File(spec.Pos())
-	if tokFile == nil {
-		return spec.Pos() - 1, spec.End() + 1
-	}
-	line := tokFile.Line(spec.Pos())
-	lineStart := tokFile.LineStart(line)
-	if line < tokFile.LineCount() {
-		return lineStart, tokFile.LineStart(line + 1)
-	}
-	return lineStart, spec.End() + 1
-}
-
-func fileForPos(files []*ast.File, pos token.Pos) *ast.File {
-	for _, file := range files {
-		if file.Pos() <= pos && pos <= file.End() {
-			return file
 		}
 	}
 	return nil
@@ -419,15 +252,4 @@ func replacementForCall(pass *analysis.Pass, call *ast.CallExpr, arg ast.Expr, f
 		qualifier: qualifier,
 		canFix:    true,
 	}
-}
-
-func importSpecPathEquals(spec *ast.ImportSpec, pkgPath string) bool {
-	if spec == nil || spec.Path == nil {
-		return false
-	}
-	unquoted, err := stdstrconv.Unquote(spec.Path.Value)
-	if err != nil {
-		return spec.Path.Value == `"`+pkgPath+`"` || spec.Path.Value == "`"+pkgPath+"`"
-	}
-	return unquoted == pkgPath
 }
