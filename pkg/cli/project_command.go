@@ -273,7 +273,7 @@ func getOwnerNodeId(ctx context.Context, ownerType, owner string, verbose bool) 
 		jqPath = ".data.user.id"
 	}
 
-	output, err := workflow.RunGH("Getting owner ID...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner, "--jq", jqPath)
+	output, err := projectCommandRunGH("Getting owner ID...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner, "--jq", jqPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get owner node ID: %w", err)
 	}
