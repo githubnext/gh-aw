@@ -1,5 +1,10 @@
-# GitHub Agentic Workflows - AI crawler permissions
-Allow: /
+# AI crawler permissions for github.github.com/gh-aw
+Allow: GPTBot
+Allow: ClaudeBot
+Allow: PerplexityBot
+Allow: GoogleBot
+Allow: BingBot
+Name: gh-aw — GitHub Agentic Workflows CLI extension
 Llms-txt: https://github.github.com/gh-aw/llms.txt
 Agents-txt: https://github.github.com/gh-aw/agents.txt
 Summary: https://github.github.com/gh-aw/ai/summary.json
