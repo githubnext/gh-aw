@@ -66,18 +66,32 @@ been embedded, severely degrading semantic search. Complete the steps below in o
 - **Repository**: ${{ github.repository }}
 - **Memory store**: `.hippo/` (persisted in cache-memory across runs)
 
-## Step 1 — Audit and interactively prune low-quality entries
+## Step 1 — Remove previously identified low-signal memories
 
-Run the audit command and review each flagged low-quality memory in the guided
-interface. Approve pruning for stale or low-signal entries (too-short fragments,
-commit noise, vague notes) before embedding so they do not pollute the vector index:
+Delete the specific memory entries that were flagged as low-signal by a prior audit
+run. These are path fragments or incomplete snippets that add noise without carrying
+actionable project knowledge:
 
 ```
-mcpscripts-hippo args: "audit"
+mcpscripts hippo --args "forget mem_650c0682ae4c"
+mcpscripts hippo --args "forget mem_b78c884146c7"
+mcpscripts hippo --args "forget mem_b168e03a0eca"
+mcpscripts hippo --args "forget mem_cd88fb9179d1"
 ```
 
-This maintenance pass is expected to include 7 low-quality memories flagged for
-review. Note how many entries are pruned for your summary.
+If a memory ID is not found (already deleted), continue with the remaining IDs.
+
+## Step 1b — Audit and auto-prune remaining low-quality entries
+
+Run the audit with `--fix` to automatically remove any remaining junk entries
+(too-short fragments, commit noise, vague notes) before embedding so they do not
+pollute the vector index:
+
+```
+mcpscripts hippo --args "audit --fix"
+```
+
+Note how many entries were pruned for your summary.
 
 ## Step 2 — Embed all memories
 
