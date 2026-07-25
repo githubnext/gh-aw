@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,20 +10,38 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/parser"
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+var updateValidationLog = logger.New("cli:update_validation")
+
 var sha256DigestPattern = regexp.MustCompile(`^sha256:[a-f0-9]{64}$`)
 
-var resolveActionRefSHAForValidation = func(ctx context.Context, repo, ref string) (string, error) {
+// resolveActionVersionToSHAForValidation resolves a version tag/ref to its commit SHA.
+// Used to verify that the stored SHA in the lock entry matches the pinned version.
+var resolveActionVersionToSHAForValidation = func(ctx context.Context, repo, ref string) (string, error) {
 	baseRepo := gitutil.ExtractBaseRepo(repo)
 	owner, name, ok := strings.Cut(baseRepo, "/")
 	if !ok || owner == "" || name == "" {
 		return "", fmt.Errorf("invalid action repository %q", repo)
 	}
 	return parser.ResolveRefToSHAForHost(ctx, owner, name, ref, "")
+}
+
+// verifyActionCommitExistsForValidation checks that a commit SHA actually exists in the
+// action repository. Returns parser.ErrVerificationSkipped for auth/network failures so
+// callers can treat those as non-fatal.
+var verifyActionCommitExistsForValidation = func(ctx context.Context, repo, sha string) error {
+	baseRepo := gitutil.ExtractBaseRepo(repo)
+	owner, name, ok := strings.Cut(baseRepo, "/")
+	if !ok || owner == "" || name == "" {
+		return fmt.Errorf("invalid action repository %q", repo)
+	}
+	return parser.VerifyCommitExists(ctx, owner, name, sha, "")
 }
 
 var resolveContainerDigestForValidation = func(ctx context.Context, image string) (string, error) {
@@ -62,16 +81,23 @@ func validateUpdateSHAEntries(ctx context.Context, repoRoot string) error {
 		if entry.Version == "" {
 			issues = append(issues, fmt.Sprintf("action entry %q has empty version", key))
 		}
+		validSHA := false
 		if entry.SHA == "" {
 			issues = append(issues, fmt.Sprintf("action entry %q has empty SHA", key))
 		} else if !IsCommitSHA(entry.SHA) {
 			issues = append(issues, fmt.Sprintf("action entry %q has invalid SHA %q (expected 40-character commit SHA)", key, entry.SHA))
-		} else if entry.Repo != "" {
-			resolvedSHA, err := resolveActionRefSHAForValidation(ctx, entry.Repo, entry.SHA)
-			if err != nil {
-				issues = append(issues, fmt.Sprintf("action entry %q has unresolved commit SHA %q in %q: %v", key, entry.SHA, entry.Repo, err))
-			} else if !strings.EqualFold(resolvedSHA, entry.SHA) {
-				issues = append(issues, fmt.Sprintf("action entry %q resolved commit SHA mismatch: got %q from %q", key, resolvedSHA, entry.SHA))
+		} else {
+			validSHA = true
+			// Verify the commit SHA actually exists in the repository. Auth/network
+			// failures are non-fatal and logged; only a definitive not-found is an error.
+			if entry.Repo != "" {
+				if err := verifyActionCommitExistsForValidation(ctx, entry.Repo, entry.SHA); err != nil {
+					if errors.Is(err, parser.ErrVerificationSkipped) {
+						updateValidationLog.Printf("action entry %q: skipping commit existence check (auth/network error): %v", key, err)
+					} else {
+						issues = append(issues, fmt.Sprintf("action entry %q commit SHA %q does not exist in %q: %v", key, entry.SHA, entry.Repo, err))
+					}
+				}
 			}
 		}
 		if entry.Repo != "" && entry.Version != "" {
@@ -79,11 +105,15 @@ func validateUpdateSHAEntries(ctx context.Context, repoRoot string) error {
 			if key != expectedKey {
 				issues = append(issues, fmt.Sprintf("action entry key/version mismatch: key %q should be %q", key, expectedKey))
 			}
-			resolvedVersionSHA, err := resolveActionRefSHAForValidation(ctx, entry.Repo, entry.Version)
-			if err != nil {
-				issues = append(issues, fmt.Sprintf("action entry %q has unresolved version %q in %q: %v", key, entry.Version, entry.Repo, err))
-			} else if entry.SHA != "" && IsCommitSHA(entry.SHA) && !strings.EqualFold(resolvedVersionSHA, entry.SHA) {
-				issues = append(issues, fmt.Sprintf("action entry %q SHA/version mismatch: version %q resolves to %q but entry has %q", key, entry.Version, resolvedVersionSHA, entry.SHA))
+			if validSHA {
+				// Verify the stored version tag resolves to the stored SHA.
+				// Auth/network failures are non-fatal; only a confirmed mismatch is an error.
+				resolvedVersionSHA, err := resolveActionVersionToSHAForValidation(ctx, entry.Repo, entry.Version)
+				if err != nil {
+					updateValidationLog.Printf("action entry %q: skipping version/SHA check (resolution failed): %v", key, err)
+				} else if !strings.EqualFold(resolvedVersionSHA, entry.SHA) {
+					issues = append(issues, fmt.Sprintf("action entry %q SHA/version mismatch: version %q resolves to %q but entry has %q", key, entry.Version, resolvedVersionSHA, entry.SHA))
+				}
 			}
 		}
 	}
@@ -101,11 +131,17 @@ func validateUpdateSHAEntries(ctx context.Context, repoRoot string) error {
 		if !sha256DigestPattern.MatchString(pin.Digest) {
 			issues = append(issues, fmt.Sprintf("container pin %q has invalid digest %q (expected sha256:<64 lowercase hex chars>)", image, pin.Digest))
 		} else {
+			// Verify the stored digest matches the current digest for the image tag.
+			// Lookup failures are non-fatal (e.g. registry unavailable). A mismatch is
+			// surfaced as a warning rather than a hard failure because a mutable tag may
+			// have been updated after pinning and the update command cannot auto-repair it.
 			resolvedDigest, err := resolveContainerDigestForValidation(ctx, image)
 			if err != nil {
-				issues = append(issues, fmt.Sprintf("container pin %q digest could not be resolved for %q: %v", image, image, err))
+				updateValidationLog.Printf("container pin %q: skipping digest check (lookup failed): %v", image, err)
 			} else if resolvedDigest != pin.Digest {
-				issues = append(issues, fmt.Sprintf("container pin %q digest/version mismatch: expected %q but resolved %q", image, pin.Digest, resolvedDigest))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+					fmt.Sprintf("container pin %q digest is stale: stored %q but image tag resolves to %q; re-run 'gh aw update' after removing the pin to refresh", image, pin.Digest, resolvedDigest),
+				))
 			}
 		}
 		expectedPinnedImage := image + "@" + pin.Digest

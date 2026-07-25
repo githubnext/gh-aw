@@ -212,3 +212,29 @@ func resolveRefToSHAViaPublicAPI(ctx context.Context, owner, repo, ref string) (
 func ResolveRefToSHAForHost(ctx context.Context, owner, repo, ref, host string) (string, error) {
 	return resolveRefToSHA(ctx, owner, repo, ref, host)
 }
+
+// ErrVerificationSkipped is returned by VerifyCommitExists when the check cannot be
+// performed due to an auth or network failure. Callers should treat it as non-fatal.
+var ErrVerificationSkipped = errors.New("commit verification skipped")
+
+// VerifyCommitExists confirms that a full commit SHA exists in the given repository by
+// querying the GitHub commits API. Unlike ResolveRefToSHAForHost, it always performs
+// an API call so that a missing commit is detected (not silently passed through).
+//
+// Returns nil if the commit is found, ErrVerificationSkipped (wrapped) for auth or
+// network errors where existence cannot be determined, and an unwrapped error when the
+// API definitively reports the commit does not exist (e.g. HTTP 404).
+func VerifyCommitExists(ctx context.Context, owner, repo, sha, host string) error {
+	client, err := createRESTClientForHostFunc(host)
+	if err != nil {
+		return fmt.Errorf("%w: failed to create REST client: %w", ErrVerificationSkipped, err)
+	}
+	var result commitLookupResponse
+	if apiErr := client.DoWithContext(ctx, http.MethodGet, buildCommitLookupAPIPath(owner, repo, sha), nil, &result); apiErr != nil {
+		if isGitHubAPIAuthError(apiErr) {
+			return fmt.Errorf("%w: %w", ErrVerificationSkipped, apiErr)
+		}
+		return apiErr
+	}
+	return nil
+}
