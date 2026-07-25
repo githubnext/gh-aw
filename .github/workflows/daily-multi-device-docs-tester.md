@@ -88,15 +88,37 @@ pre-agent-steps:
     run: |
       cd "$EXPR_GITHUB_WORKSPACE/docs"
       node ../scripts/ensure-docs-slide-pdf.js
-  - name: Configure Chrome sandbox
+  - name: Configure Playwright CLI launch options
+    env:
+      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      # The chrome-sandbox helper must be owned by root with mode 4755 (SUID) for Chrome
-      # to launch inside the agent container. The runner has mode 0777 by default.
-      if [ -f /opt/google/chrome/chrome-sandbox ]; then
-        sudo chmod 4755 /opt/google/chrome/chrome-sandbox
-        echo "chrome-sandbox configured (mode 4755)"
+      mkdir -p "$EXPR_GITHUB_WORKSPACE/.playwright"
+      cat > "$EXPR_GITHUB_WORKSPACE/.playwright/cli.config.json" <<'EOF'
+      {
+        "browser": {
+          "launchOptions": {
+            "chromiumSandbox": false,
+            "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+          }
+        }
+      }
+      EOF
+  - name: Playwright browser launch preflight
+    env:
+      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
+    run: |
+      PREFLIGHT_LOG=/tmp/playwright-preflight.log
+      set +e
+      cd "$EXPR_GITHUB_WORKSPACE"
+      playwright-cli open --config "$EXPR_GITHUB_WORKSPACE/.playwright/cli.config.json" about:blank > "$PREFLIGHT_LOG" 2>&1
+      PREFLIGHT_STATUS=$?
+      playwright-cli close >> "$PREFLIGHT_LOG" 2>&1 || true
+      if [ $PREFLIGHT_STATUS -ne 0 ]; then
+        echo "PLAYWRIGHT_PREFLIGHT_FAILED=1" >> "$GITHUB_ENV"
+        echo "PLAYWRIGHT_PREFLIGHT_LOG=$PREFLIGHT_LOG" >> "$GITHUB_ENV"
+        echo "Playwright preflight failed; agent will report infrastructure blocker separately."
       else
-        echo "chrome-sandbox not found — skipping"
+        echo "PLAYWRIGHT_PREFLIGHT_FAILED=0" >> "$GITHUB_ENV"
       fi
   - name: Install and build docs
     env:
@@ -131,6 +153,8 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 3. Use absolute paths or change directory explicitly
 4. Keep token usage low by being efficient with your code and minimizing iterations
 5. **Playwright is available as `playwright-cli` commands in bash** — use `playwright-cli <command>` to automate the browser
+6. Use this Playwright config for every browser command: `${{ github.workspace }}/.playwright/cli.config.json`
+7. If `PLAYWRIGHT_PREFLIGHT_FAILED=1`, treat this run as an infrastructure blocker (not a docs regression)
 
 ## Your Mission
 
@@ -178,9 +202,10 @@ Test these device types based on input `${{ inputs.devices }}`:
 
 Playwright is pre-installed as `@playwright/cli`. Use `playwright-cli <command>` in bash — no MCP tools or Docker container is involved:
 
-- ✅ **Correct**: `playwright-cli browser_navigate --url "http://localhost:4321/gh-aw/"`
-- ✅ **Correct**: Use `playwright-cli browser_run_code --code "async (page) => { ... }"` for custom Playwright code
-- ❌ **Incorrect**: Do NOT use `playwright-cli open` in this workflow (it is less reliable in CI than explicit `browser_*` commands)
+- ✅ **Correct**: `playwright-cli open --config "${{ github.workspace }}/.playwright/cli.config.json" "http://localhost:4321/gh-aw/"`
+- ✅ **Correct**: `playwright-cli goto "http://localhost:4321/gh-aw/"`
+- ✅ **Correct**: Use `playwright-cli run-code "async page => { ... }"` for custom Playwright code
+- ❌ **Incorrect**: Do NOT use `playwright-cli browser_*` command names in this workflow (they are MCP tool names, not playwright-cli commands)
 - ❌ **Incorrect**: Do NOT try to `require('playwright')` or create standalone Node.js scripts
 - ❌ **Incorrect**: Do NOT use `mcp__playwright__*` tool names — those are the deprecated MCP mode
 
@@ -189,14 +214,24 @@ Playwright is pre-installed as `@playwright/cli`. Use `playwright-cli <command>`
 Use `waitUntil: 'domcontentloaded'` for navigation to keep checks fast and consistent:
 
 ```bash
-playwright-cli browser_run_code --code "async (page) => {
+playwright-cli run-code "async page => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('http://localhost:4321/gh-aw/', { waitUntil: 'domcontentloaded', timeout: 30000 });
   return { url: page.url(), title: await page.title() };
 }"
 ```
 
+Before device testing, run this preflight gate:
+
+```bash
+if [ "${PLAYWRIGHT_PREFLIGHT_FAILED:-0}" = "1" ]; then
+  echo "Playwright preflight failed before docs checks. See ${PLAYWRIGHT_PREFLIGHT_LOG:-/tmp/playwright-preflight.log}"
+  # Call noop and stop. Do not classify this as a documentation regression.
+fi
+```
+
 For each device viewport, use playwright-cli to:
+- Open browser with `--config "${{ github.workspace }}/.playwright/cli.config.json"` once per run
 - Set viewport size and navigate to `http://localhost:4321/gh-aw/`
 - Take screenshots and run accessibility audits
 - Test interactions (navigation, search, buttons)
