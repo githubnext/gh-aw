@@ -232,7 +232,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 	// already reflect the current AWF version; stale pins from superseded versions are pruned
 	// and new versions are resolved in a single pass.
 	updateLog.Print("Updating container image digest pins")
-	newContainerPins, err := UpdateContainerPins(ctx, opts.WorkflowsDir, opts.Verbose)
+	newContainerPins, err := updateContainerPins(ctx, defaultContainerPinUpdateDeps(), opts.WorkflowsDir, opts.Verbose, containerPinUpdateOptions{refreshExisting: true})
 	if err != nil {
 		// Non-fatal: Docker may not be available in all environments.
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))

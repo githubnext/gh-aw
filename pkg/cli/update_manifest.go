@@ -83,7 +83,7 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 	if currentRef == "" {
 		currentRef = "main"
 	}
-	latestRef, err := resolveLatestRefFn(ctx, repoSpec.RepoSlug, currentRef, opts.AllowMajor, opts.Verbose, opts.CoolDown)
+	latestRefResult, err := resolveLatestRefFn(ctx, repoSpec.RepoSlug, currentRef, opts.AllowMajor, opts.Verbose, opts.CoolDown)
 	if err != nil {
 		updateManifestLog.Printf("Failed to resolve latest manifest ref for %s: %v", repoSpec.RepoSlug, err)
 		for _, wf := range grouped {
@@ -91,6 +91,11 @@ func updateManifestWorkflowGroup(ctx context.Context, source string, grouped []*
 		}
 		return successes, failures
 	}
+	if latestRefResult.CoolDownBlocked {
+		updateManifestLog.Printf("Skipping manifest update for %s due to commit cooldown", repoSpec.RepoSlug)
+		return successes, failures
+	}
+	latestRef := latestRefResult.Ref
 	updateManifestLog.Printf("Resolved manifest refs: current=%s, latest=%s", currentRef, latestRef)
 	sourceFieldRef := latestRef
 	// Preserve branch-tracking behavior: when source points to a branch, keep the

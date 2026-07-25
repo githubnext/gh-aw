@@ -16,7 +16,8 @@ import (
 
 var cooldownLog = logger.New("cli:update_cooldown")
 
-const coolDownFlagUsage = "Cool-down period before applying a new release (e.g., 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories"
+const coolDownFlagUsage = "Cool-down period before applying a new release (e.g., 7d, 24h, 0 to disable). Does not apply to actions/* or github/* repositories. Commit-tracked sources use a fixed 3d cooldown when cool-down is enabled."
+const commitRefCoolDown = 3 * 24 * time.Hour
 
 // parseCoolDownFlag parses a cooldown duration string.
 // Accepts day-suffix notation ("7d") or Go duration format ("168h", "0").
@@ -102,6 +103,35 @@ func checkReleaseCoolDownWithDate(repo, tag string, publishedAt time.Time, coolD
 	periodStr := formatCoolDownDuration(coolDown)
 	msg := fmt.Sprintf("%s@%s was published %s ago and needs to cool down (%s remaining out of %s cooldown period)",
 		repo, tag, ageStr, remainingStr, periodStr)
+	return coolDownCheckResult{InCoolDown: true, Message: msg}
+}
+
+// effectiveCommitCoolDown returns the commit-age cooldown used for branch- and
+// commit-tracked workflow sources. Commit cooldown defaults to 3 days and can
+// be disabled only when the user explicitly disables cooldowns entirely.
+func effectiveCommitCoolDown(coolDown time.Duration) time.Duration {
+	if coolDown <= 0 {
+		return 0
+	}
+	return commitRefCoolDown
+}
+
+// checkCommitCoolDownWithDate checks whether a moving branch/default-branch
+// commit is old enough to adopt during update resolution.
+func checkCommitCoolDownWithDate(repo, ref string, committedAt time.Time, coolDown time.Duration) coolDownCheckResult {
+	if coolDown <= 0 {
+		return coolDownCheckResult{}
+	}
+	age := max(time.Since(committedAt), 0)
+	if age >= coolDown {
+		return coolDownCheckResult{}
+	}
+	remaining := coolDown - age
+	ageStr := formatCoolDownDuration(age)
+	remainingStr := formatCoolDownDuration(remaining)
+	periodStr := formatCoolDownDuration(coolDown)
+	msg := fmt.Sprintf("%s@%s latest commit is %s old and needs to cool down (%s remaining out of %s cooldown period)",
+		repo, ref, ageStr, remainingStr, periodStr)
 	return coolDownCheckResult{InCoolDown: true, Message: msg}
 }
 

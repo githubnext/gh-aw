@@ -440,13 +440,14 @@ func TestGetRepoDefaultBranch_Integration(t *testing.T) {
 	assert.Equal(t, "main", branch, "actions/checkout default branch should be 'main'")
 }
 
-// TestGetLatestBranchCommitSHA_Integration verifies fetching the latest commit SHA for a branch.
-func TestGetLatestBranchCommitSHA_Integration(t *testing.T) {
+// TestGetLatestBranchCommitInfo_Integration verifies fetching the latest commit info for a branch.
+func TestGetLatestBranchCommitInfo_Integration(t *testing.T) {
 	skipWithoutGitHubAuth(t)
 
-	sha, err := getLatestBranchCommitSHA(context.Background(), "actions/checkout", "main")
-	require.NoError(t, err, "Should fetch latest commit SHA for actions/checkout main branch")
-	assert.True(t, IsCommitSHA(sha), "Result should be a 40-char commit SHA, got: %s", sha)
+	info, err := getLatestBranchCommitInfo(context.Background(), "actions/checkout", "main")
+	require.NoError(t, err, "Should fetch latest commit info for actions/checkout main branch")
+	assert.True(t, IsCommitSHA(info.SHA), "Result should be a 40-char commit SHA, got: %s", info.SHA)
+	assert.False(t, info.CommittedAt.IsZero(), "CommittedAt should be populated")
 }
 
 // --- Org Dry-Run Integration Tests ---
