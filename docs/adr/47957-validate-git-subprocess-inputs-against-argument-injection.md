@@ -1,8 +1,8 @@
 # ADR-47957: Validate Git Subprocess Inputs Against Argument Injection (CWE-88)
 
 **Date**: 2026-07-25
-**Status**: Draft
-**Deciders**: Unknown (security fix by copilot-swe-agent, see VULN-001)
+**Status**: Accepted
+**Deciders**: GitHub Agentic Workflows maintainers
 
 ---
 
@@ -12,36 +12,38 @@ The remote workflow import feature resolves `owner/repo/path@ref` workflowspec s
 
 ### Decision
 
-We will apply a two-layer defence against git argument injection for all user-supplied `ref` and `path` values passed to git subprocesses:
+We will apply targeted validation at parse time and subprocess boundaries, and use git-specific argument forms that preserve command semantics while preventing option injection:
 
-1. **Centralised input validation** — two new shared guards, `gitutil.ValidateGitRef` and `gitutil.ValidateGitPath`, are called at the earliest possible points (workflowspec parse time and at each subprocess call site) and return an error for empty values, values starting with `-`, and refs containing `..`.
-2. **`--` end-of-options separators** — all git subprocess invocations that accept a ref or path as a positional argument are updated to insert `--` before those arguments, ensuring that even if validation were bypassed, git itself would not interpret them as flags (defence-in-depth per the git(1) specification).
+1. **Centralised input validation** — shared guards `gitutil.ValidateGitRef` and `gitutil.ValidateGitPath` are called at the earliest possible points (workflowspec parse time and at each subprocess call site). `ValidateGitRef` rejects empty refs, leading `-`, NUL bytes, and `..` traversal expressions. `ValidateGitPath` rejects empty paths, leading `-`, absolute paths, and `..` path traversal after normalization.
+2. **Use only git argument separators that preserve semantics** — `git archive` keeps `--` before the pathspec, because that command explicitly separates `<tree-ish>` from `<path>`. `git checkout --detach <sha>` is used for full-SHA clone fallbacks so the validated SHA remains a revision argument rather than becoming a pathspec. `git ls-remote` does not receive an extra `--`, because its interface does not define a remote/refs separator there.
+3. **Propagate invalid remote-origin refs as errors** — remote-origin parsing now returns an error for unsafe workflowspec refs instead of silently dropping the origin, so callers can distinguish security rejections from non-workflowspec inputs.
 
 ### Alternatives Considered
 
 #### Alternative 1: `--` separator only, no validation guards
 
-Add `--` end-of-options separators to every git call without introducing explicit validation functions. This is the minimal fix: it stops git from interpreting leading-`-` values as flags at the subprocess level. It was not chosen because it provides no early-fail signal — an attacker-controlled ref would still reach the subprocess and produce a confusing git error rather than a clear security rejection. It also gives no protection against `..`-based git object traversal expressions, which are not mitigated by `--`. Centralised validation makes the security invariant visible, testable, and reusable for future subprocess additions.
+Add `--` end-of-options separators to every git call without introducing explicit validation functions. This is the minimal fix for commands that define such a separator, but it was not chosen because it provides no early-fail signal and does not apply uniformly across git commands. `git ls-remote` has no supported separator in this position, and `git checkout -- <sha>` changes semantics entirely. Centralised validation makes the invariant visible, testable, and reusable.
 
-#### Alternative 2: Allowlist-based validation only (no `--` separator)
+#### Alternative 2: Allowlist-based validation only (no command-specific argument hardening)
 
-Reject any ref or path that does not match an explicit allowlist pattern (e.g., alphanumeric characters, slashes, dots, hyphens, underscores). This would be stricter and would block a wider class of unexpected inputs. It was not chosen because an allowlist tight enough to be safe is also tight enough to break legitimate edge-case refs (e.g., refs with `@`, unicode characters, or non-standard tag formats used in real repositories). The denylist approach (`ValidateGitRef`/`ValidateGitPath`) blocks the specific injection vectors (leading `-`, `..`) without rejecting valid refs. Using `--` as defence-in-depth alongside the denylist gives comparable protection without the breakage risk of an allowlist.
+Reject any ref or path that does not match an explicit allowlist pattern (e.g., alphanumeric characters, slashes, dots, hyphens, underscores). This would be stricter and would block a wider class of unexpected inputs. It was not chosen because an allowlist tight enough to be safe is also tight enough to break legitimate edge-case refs (for example refs with `@`, unicode characters, or non-standard tag formats used in real repositories). The chosen validation blocks the concrete dangerous forms while preserving valid git syntax, and the command-specific git argument changes provide the remaining defence-in-depth where supported.
 
 ### Consequences
 
 #### Positive
-- Closes the CWE-88 argument injection attack vector across all git fallback paths (`git archive`, `git ls-remote`, `git clone`, `git checkout`) for both ref and path inputs.
+- Closes the CWE-88 argument injection attack vector across all git fallback paths (`git archive`, `git ls-remote`, `git clone`, `git checkout`) for both ref and path inputs without changing the semantics of SHA checkout or ref resolution.
 - `ValidateGitRef` and `ValidateGitPath` are centralised in `pkg/gitutil` and reusable for any future git subprocess additions, ensuring the security invariant is easy to apply consistently.
-- Unit tests covering valid inputs, empty values, leading-`-` injection, and `..` traversal cases provide a regression safety net.
+- Unit tests covering valid inputs, empty values, leading-`-` injection, NUL bytes, absolute paths, and traversal cases provide a regression safety net.
+- Invalid remote-origin refs now surface as explicit errors to callers instead of being visible only through debug logging.
 
 #### Negative
-- Legitimate refs or paths that start with `-` (an unusual but theoretically valid git ref format) or contain `..` (e.g., range expressions used in some tooling) will now be rejected. In practice these are not expected in normal workflow import usage, but the restriction is a breaking change for any consumer relying on such values.
-- Validation is applied redundantly at multiple layers (parse time and again at each subprocess call site), which adds some code repetition and means a failed import may report the rejection at the subprocess call rather than at parse time if the parse-time guard is bypassed by future code paths.
+- Legitimate refs or paths that start with `-` (an unusual but theoretically valid git ref format), contain NUL bytes, or resolve to absolute/traversing paths will now be rejected. In practice these are not expected in normal workflow import usage, but the restriction is a breaking change for any consumer relying on such values.
+- Validation is applied redundantly at multiple layers (parse time and again at each subprocess call site), which adds some code repetition in exchange for defence-in-depth.
 
 #### Neutral
-- The `--` separator changes git command signatures (e.g., `git ls-remote <url> -- <ref>` instead of `git ls-remote <url> <ref>`). This is semantically equivalent for all supported git versions and should have no observable behaviour change for valid inputs.
+- `git archive` retains a `--` pathspec separator, while other commands rely on validation plus git-native argument forms instead of a one-size-fits-all separator rule.
 - The `#nosec G204` annotation on the `git archive` call was retained; its justification (exec.CommandContext with separate args, not shell execution) remains accurate, and the new validation further strengthens the rationale.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*Finalized from the draft generated by the adr-writer agent to match the merged implementation in this PR.*
