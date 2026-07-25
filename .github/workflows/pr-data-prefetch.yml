@@ -35,6 +35,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
+          PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           GITHUB_REPOSITORY: ${{ github.repository }}
           PR_DIFF_MAX_LINES: "3000"
         run: |
@@ -49,8 +50,9 @@ jobs:
           LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
           gh pr view "$PR_NUMBER" \
             --repo "$GITHUB_REPOSITORY" \
-            --json number,title,body,headRefName,additions,deletions,changedFiles,files \
+            --json number,title,body,headRefName,headRefOid,additions,deletions,changedFiles,files \
             > /tmp/gh-aw/agent/pr-meta.json
+          printf '%s\n' "$PR_HEAD_SHA" > /tmp/gh-aw/agent/pr-data-head-sha.txt
           gh api "repos/$GITHUB_REPOSITORY/pulls/$PR_NUMBER/comments" \
             --paginate \
             --jq '.[] | {id, path, line: (.line // .original_line), body: .body[:200], user: .user.login}' \
