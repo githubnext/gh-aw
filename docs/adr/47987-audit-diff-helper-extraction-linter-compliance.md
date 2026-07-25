@@ -8,7 +8,7 @@
 
 ### Context
 
-`pkg/cli/audit_diff.go` contains two functions — `computeFirewallDiff` (144 lines) and `computeMCPToolsDiff` — that exceeded the project's `golint-custom` function-length limit of 60 lines. The linter was reporting 662 total violations across `pkg/workflow` and `pkg/cli`. These functions are core to the audit-comparison workflow, computing diff entries for firewall domain statistics and MCP tool usage across two workflow runs. The project's lint discipline requires violations to be resolved by structural refactoring rather than suppression.
+`pkg/cli/audit_diff.go` contains two functions — `computeFirewallDiff` (144 lines) and `computeMCPToolsDiff` (80+ lines) — that exceeded the project's `golint-custom` function-length limit of 60 lines. The linter was reporting 662 total violations across `pkg/workflow` and `pkg/cli`. These functions are core to the audit-comparison workflow, computing diff entries for firewall domain statistics and MCP tool usage across two workflow runs. The project's lint discipline requires violations to be resolved by structural refactoring rather than suppression.
 
 ### Decision
 
@@ -31,7 +31,7 @@ Move each `compute*Diff` function and its helpers into its own file (e.g., `audi
 ### Consequences
 
 #### Positive
-- `computeFirewallDiff` is no longer flagged by the function-length linter, reducing the shared backlog from 662 to 661 findings.
+- Both `computeFirewallDiff` and `computeMCPToolsDiff` are no longer flagged by the function-length linter, reducing the shared backlog from 662 to 660 findings (a net reduction of 2).
 - Each extracted helper has a single, well-named responsibility, making the logic easier to read and independently testable.
 - The extraction pattern establishes a clear template for follow-up refactors of remaining violators in the same file.
 
@@ -41,7 +41,7 @@ Move each `compute*Diff` function and its helpers into its own file (e.g., `audi
 
 #### Neutral
 - External callers of `computeFirewallDiff` and `computeMCPToolsDiff` are unaffected — the public API of `audit_diff.go` is unchanged.
-- `computeMCPToolsDiff` remains a follow-up candidate for the same refactoring approach in a subsequent PR; only partial reduction was targeted here.
+- The three remaining violators in the same file (`computeRunMetricsDiff`, `computeToolCallsDiff`, `computeTokenUsageDiff`) are candidates for follow-up refactoring using the same extraction pattern established here.
 
 ---
 
