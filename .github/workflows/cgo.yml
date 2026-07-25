@@ -164,6 +164,16 @@ jobs:
         # Generate coverage HTML report
         go tool cover -html=coverage.out -o coverage.html
 
+    - name: Validate pkg/cli and pkg/console tests executed
+      run: |
+        set -euo pipefail
+        for package in pkg/cli pkg/console; do
+          if ! grep -q "\"Action\":\"run\",\"Package\":\"github.com/github/gh-aw/${package}\"" test-result-unit.json; then
+            echo "Missing unit test execution records for ${package}" >&2
+            exit 1
+          fi
+        done
+
     - name: Report test failures
       if: failure() && steps.run-unit-tests.outcome == 'failure'
       run: |
