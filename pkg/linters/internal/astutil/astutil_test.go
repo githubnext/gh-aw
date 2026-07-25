@@ -539,3 +539,97 @@ func f(s string, b []byte) {
 		t.Fatal("IsStringType(b) = true, want false")
 	}
 }
+
+func TestFileForPos(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	src := `package p
+
+func f() {}
+`
+	file, err := parser.ParseFile(fset, "snippet.go", src, 0)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	// pos inside the file should return the file
+	got := FileForPos([]*ast.File{file}, file.Pos())
+	if got != file {
+		t.Fatalf("FileForPos(file.Pos()) = %v, want the file", got)
+	}
+
+	// pos at file end should return the file
+	got = FileForPos([]*ast.File{file}, file.End())
+	if got != file {
+		t.Fatalf("FileForPos(file.End()) = %v, want the file", got)
+	}
+
+	// pos before the file should return nil
+	got = FileForPos([]*ast.File{file}, file.Pos()-1)
+	if got != nil {
+		t.Fatalf("FileForPos(before) = %v, want nil", got)
+	}
+
+	// empty file list should return nil
+	got = FileForPos(nil, file.Pos())
+	if got != nil {
+		t.Fatalf("FileForPos(nil files) = %v, want nil", got)
+	}
+}
+
+func TestCountPkgUsesInFile(t *testing.T) {
+	t.Parallel()
+
+	const src = `package p
+
+import "fmt"
+
+func f() {
+	fmt.Println("hello")
+	fmt.Println("world")
+}
+`
+	pass, file := typecheckSnippet(t, src)
+	pass.Files = []*ast.File{file}
+
+	count := CountPkgUsesInFile(pass, file, "fmt")
+	if count != 2 {
+		t.Fatalf("CountPkgUsesInFile(fmt) = %d, want 2", count)
+	}
+
+	count = CountPkgUsesInFile(pass, file, "strconv")
+	if count != 0 {
+		t.Fatalf("CountPkgUsesInFile(strconv) = %d, want 0", count)
+	}
+}
+
+func TestImportSpecLineRange(t *testing.T) {
+	t.Parallel()
+
+	fset := token.NewFileSet()
+	src := `package p
+
+import (
+	"fmt"
+	"os"
+)
+`
+	file, err := parser.ParseFile(fset, "snippet.go", src, 0)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+
+	if len(file.Imports) != 2 {
+		t.Fatalf("expected 2 imports, got %d", len(file.Imports))
+	}
+	spec := file.Imports[0] // "fmt"
+	start, end := ImportSpecLineRange(fset, spec)
+	if start >= end {
+		t.Fatalf("ImportSpecLineRange start=%d >= end=%d, want start < end", start, end)
+	}
+	// The line range should include the spec itself.
+	if spec.Pos() < start || spec.End() > end {
+		t.Fatalf("ImportSpecLineRange does not contain spec: range [%d, %d), spec [%d, %d)", start, end, spec.Pos(), spec.End())
+	}
+}
