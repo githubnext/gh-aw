@@ -1700,6 +1700,8 @@ safe-outputs:
 
 **Domain Filtering** (`allowed-domains`): Controls which domains are allowed in URLs. URLs from other domains are replaced with `(redacted)`. Accepts specific domain strings or [ecosystem identifiers](/gh-aw/reference/network/#ecosystem-identifiers):
 
+> **Note:** `safe-outputs.allowed-domains` applies to **both** output sanitization (the domains the agent may reference in its outputs) and input sanitization (the `sanitized` activation step that redacts URLs in incoming issue/PR text before passing it to the agent). Domains listed here are therefore permitted in both directions.
+
 ```yaml wrap
 safe-outputs:
   # Allow specific domains
