@@ -771,6 +771,24 @@ func registerCompileFlags() {
 	cli.RegisterDirFlagCompletion(compileCmd, "dir")
 }
 
+// registerNewCmdFlags registers all flags on newCmd.
+func registerNewCmdFlags() {
+	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
+	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
+	newCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
+	cli.RegisterEngineFlagCompletion(newCmd)
+}
+
+// registerRemoveCmdFlags registers all flags on removeCmd.
+func registerRemoveCmdFlags() {
+	removeCmd.Flags().Bool("no-remove-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
+	_ = removeCmd.Flags().MarkDeprecated("keep-orphans", "use --no-remove-orphans instead")
+	removeCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
+	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	cli.RegisterDirFlagCompletion(removeCmd, "dir")
+}
+
 // setupSetupGroupCmds creates, configures, and registers all "setup" group commands.
 func setupSetupGroupCmds() {
 	addCmd := cli.NewAddCommand(validateEngine)
@@ -783,16 +801,8 @@ func setupSetupGroupCmds() {
 	doctorCmd := cli.NewDoctorCommand()
 	initCmd := cli.NewInitCommand()
 	cli.RegisterEngineFlagCompletion(initCmd)
-	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
-	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
-	newCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
-	cli.RegisterEngineFlagCompletion(newCmd)
-	removeCmd.Flags().Bool("no-remove-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
-	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
-	_ = removeCmd.Flags().MarkDeprecated("keep-orphans", "use --no-remove-orphans instead")
-	removeCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
-	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
-	cli.RegisterDirFlagCompletion(removeCmd, "dir")
+	registerNewCmdFlags()
+	registerRemoveCmdFlags()
 	newCmd.GroupID = "setup"
 	removeCmd.GroupID = "setup"
 	initCmd.GroupID = "setup"

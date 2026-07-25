@@ -103,6 +103,11 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 	if !ok {
 		return
 	}
+	// Cheap arg-count guard: eliminates ordinary multi-arg function calls before
+	// the more expensive file-skip and nolint-directive lookups below.
+	if len(outer.Args) != 1 || outer.Ellipsis.IsValid() {
+		return
+	}
 
 	pos := pass.Fset.PositionFor(outer.Pos(), false)
 	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
