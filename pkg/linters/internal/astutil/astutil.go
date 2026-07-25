@@ -506,6 +506,8 @@ func ImportSpecLineRange(fset *token.FileSet, spec *ast.ImportSpec) (token.Pos, 
 // block, convert a single non-grouped import to a grouped block, or insert a
 // standalone declaration after the package name.
 func AddImportEdit(pass *analysis.Pass, file *ast.File, pkg string) (analysis.TextEdit, bool) {
+	quotedPkg := strconv.Quote(pkg)
+
 	// Append to an existing grouped import block.
 	for _, decl := range file.Decls {
 		genDecl, ok := decl.(*ast.GenDecl)
@@ -515,7 +517,7 @@ func AddImportEdit(pass *analysis.Pass, file *ast.File, pkg string) (analysis.Te
 		return analysis.TextEdit{
 			Pos:     genDecl.Rparen,
 			End:     genDecl.Rparen,
-			NewText: []byte("\t\"" + pkg + "\"\n"),
+			NewText: []byte("\t" + quotedPkg + "\n"),
 		}, true
 	}
 
@@ -533,7 +535,7 @@ func AddImportEdit(pass *analysis.Pass, file *ast.File, pkg string) (analysis.Te
 			return analysis.TextEdit{
 				Pos:     genDecl.Pos(),
 				End:     genDecl.End(),
-				NewText: []byte("import (\n\t" + specText + "\n\t\"" + pkg + "\"\n)"),
+				NewText: []byte("import (\n\t" + specText + "\n\t" + quotedPkg + "\n)"),
 			}, true
 		}
 	}
@@ -542,7 +544,7 @@ func AddImportEdit(pass *analysis.Pass, file *ast.File, pkg string) (analysis.Te
 	return analysis.TextEdit{
 		Pos:     file.Name.End(),
 		End:     file.Name.End(),
-		NewText: []byte("\n\nimport \"" + pkg + "\""),
+		NewText: []byte("\n\nimport " + quotedPkg),
 	}, true
 }
 
@@ -618,23 +620,24 @@ func SwapImportEdits(fset *token.FileSet, file *ast.File, addPkg, removePkg stri
 		return []analysis.TextEdit{{
 			Pos:     removeDecl.Pos(),
 			End:     removeDecl.End(),
-			NewText: []byte(`import "` + addPkg + `"`),
+			NewText: []byte("import " + strconv.Quote(addPkg)),
 		}}
 	}
 
-	// Grouped block with removePkg alongside other packages: insert addPkg
-	// before the closing paren and delete the entire removePkg spec line.
+	// Grouped block with removePkg alongside other packages: delete the
+	// removePkg spec line (lower position) then insert addPkg before the
+	// closing paren (higher position), so edits are ordered by position.
 	lineStart, lineEnd := ImportSpecLineRange(fset, removeSpec)
 	return []analysis.TextEdit{
-		{
-			Pos:     removeDecl.Rparen,
-			End:     removeDecl.Rparen,
-			NewText: []byte("\t\"" + addPkg + "\"\n"),
-		},
 		{
 			Pos:     lineStart,
 			End:     lineEnd,
 			NewText: nil,
+		},
+		{
+			Pos:     removeDecl.Rparen,
+			End:     removeDecl.Rparen,
+			NewText: []byte("\t" + strconv.Quote(addPkg) + "\n"),
 		},
 	}
 }

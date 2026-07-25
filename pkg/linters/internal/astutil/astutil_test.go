@@ -9,6 +9,7 @@ import (
 	"go/parser"
 	"go/token"
 	"go/types"
+	"sort"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -34,6 +35,61 @@ func typecheckSnippet(t *testing.T, src string) (*analysis.Pass, *ast.File) {
 	}
 
 	return &analysis.Pass{TypesInfo: info}, file
+}
+
+// parseSnippet parses src and returns the fset, ast.File, and an analysis.Pass
+// suitable for passing to AddImportEdit. It does not type-check.
+func parseSnippet(t *testing.T, src string) (*token.FileSet, *ast.File, *analysis.Pass) {
+	t.Helper()
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "snippet.go", src, 0)
+	if err != nil {
+		t.Fatalf("ParseFile() error = %v", err)
+	}
+	pass := &analysis.Pass{Fset: fset}
+	return fset, file, pass
+}
+
+// applyTextEdits applies edits to src and returns the resulting string.
+// Edits must be non-overlapping. They are applied in reverse position order so
+// that earlier offsets remain valid after each replacement.
+func applyTextEdits(t *testing.T, fset *token.FileSet, src []byte, edits []analysis.TextEdit) string {
+	t.Helper()
+	// Sort edits by Pos descending so we apply from end to start.
+	sorted := make([]analysis.TextEdit, len(edits))
+	copy(sorted, edits)
+	sort.Slice(sorted, func(i, j int) bool {
+		return sorted[i].Pos > sorted[j].Pos
+	})
+
+	result := make([]byte, len(src))
+	copy(result, src)
+
+	tokFile := fset.File(sorted[0].Pos)
+	if tokFile == nil && len(sorted) > 0 {
+		t.Fatalf("applyTextEdits: no token.File for pos %d", sorted[0].Pos)
+	}
+
+	for _, e := range sorted {
+		tf := fset.File(e.Pos)
+		if tf == nil {
+			t.Fatalf("applyTextEdits: no token.File for pos %d", e.Pos)
+		}
+		start := tf.Offset(e.Pos)
+		// Handle the case where End == Pos (pure insertion).
+		var end int
+		if e.End == e.Pos {
+			end = start
+		} else {
+			end = tf.Offset(e.End)
+		}
+		var replacement []byte
+		if e.NewText != nil {
+			replacement = e.NewText
+		}
+		result = append(result[:start], append(replacement, result[end:]...)...)
+	}
+	return string(result)
 }
 
 func TestRhsExprForIndex(t *testing.T) {
@@ -631,5 +687,306 @@ import (
 	// The line range should include the spec itself.
 	if spec.Pos() < start || spec.End() > end {
 		t.Fatalf("ImportSpecLineRange does not contain spec: range [%d, %d), spec [%d, %d)", start, end, spec.Pos(), spec.End())
+	}
+}
+
+func TestAddImportEdit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		src    string
+		pkg    string
+		want   string
+		wantOK bool
+	}{
+		{
+			name: "append to grouped import block",
+			src: `package p
+
+import (
+	"fmt"
+)
+
+func f() { fmt.Println() }
+`,
+			pkg:    "os",
+			wantOK: true,
+			want: `package p
+
+import (
+	"fmt"
+	"os"
+)
+
+func f() { fmt.Println() }
+`,
+		},
+		{
+			name: "convert single ungrouped import to grouped block",
+			src: `package p
+
+import "fmt"
+
+func f() { fmt.Println() }
+`,
+			pkg:    "os",
+			wantOK: true,
+			want: `package p
+
+import (
+	"fmt"
+	"os"
+)
+
+func f() { fmt.Println() }
+`,
+		},
+		{
+			name: "no existing imports — insert standalone after package name",
+			src: `package p
+
+func f() {}
+`,
+			pkg:    "os",
+			wantOK: true,
+			want: `package p
+
+import "os"
+
+func f() {}
+`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			fset, file, pass := parseSnippet(t, tt.src)
+			edit, ok := AddImportEdit(pass, file, tt.pkg)
+			if ok != tt.wantOK {
+				t.Fatalf("AddImportEdit() ok = %v, want %v", ok, tt.wantOK)
+			}
+			if !tt.wantOK {
+				return
+			}
+			got := applyTextEdits(t, fset, []byte(tt.src), []analysis.TextEdit{edit})
+			if got != tt.want {
+				t.Fatalf("AddImportEdit() result:\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestRemoveImportEdit(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		src    string
+		pkg    string
+		want   string
+		wantOK bool
+	}{
+		{
+			name: "remove spec from grouped multi-import block",
+			src: `package p
+
+import (
+	"fmt"
+	"os"
+)
+
+func f() {}
+`,
+			pkg:    "fmt",
+			wantOK: true,
+			want: `package p
+
+import (
+	"os"
+)
+
+func f() {}
+`,
+		},
+		{
+			name: "remove sole spec from grouped block removes entire decl",
+			src: `package p
+
+import (
+	"fmt"
+)
+
+func f() {}
+`,
+			pkg:    "fmt",
+			wantOK: true,
+			want: `package p
+
+
+
+func f() {}
+`,
+		},
+		{
+			name: "remove ungrouped single import removes entire decl",
+			src: `package p
+
+import "fmt"
+
+func f() {}
+`,
+			pkg:    "fmt",
+			wantOK: true,
+			want: `package p
+
+
+
+func f() {}
+`,
+		},
+		{
+			name: "import not present returns false",
+			src: `package p
+
+import "fmt"
+
+func f() {}
+`,
+			pkg:    "os",
+			wantOK: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			fset, file, _ := parseSnippet(t, tt.src)
+			edit, ok := RemoveImportEdit(fset, file, tt.pkg)
+			if ok != tt.wantOK {
+				t.Fatalf("RemoveImportEdit() ok = %v, want %v", ok, tt.wantOK)
+			}
+			if !tt.wantOK {
+				return
+			}
+			got := applyTextEdits(t, fset, []byte(tt.src), []analysis.TextEdit{edit})
+			if got != tt.want {
+				t.Fatalf("RemoveImportEdit() result:\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestSwapImportEdits(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		src       string
+		addPkg    string
+		removePkg string
+		want      string
+		wantNil   bool
+	}{
+		{
+			name: "ungrouped single import replaced",
+			src: `package p
+
+import "fmt"
+
+func f() {}
+`,
+			addPkg:    "os",
+			removePkg: "fmt",
+			want: `package p
+
+import "os"
+
+func f() {}
+`,
+		},
+		{
+			name: "grouped block with only removePkg replaced",
+			src: `package p
+
+import (
+	"fmt"
+)
+
+func f() {}
+`,
+			addPkg:    "os",
+			removePkg: "fmt",
+			want: `package p
+
+import "os"
+
+func f() {}
+`,
+		},
+		{
+			name: "grouped block with multiple imports — delete then insert, edits sorted by position",
+			src: `package p
+
+import (
+	"fmt"
+	"os"
+)
+
+func f() {}
+`,
+			addPkg:    "strconv",
+			removePkg: "fmt",
+			want: `package p
+
+import (
+	"os"
+	"strconv"
+)
+
+func f() {}
+`,
+		},
+		{
+			name: "removePkg not found returns nil",
+			src: `package p
+
+import "fmt"
+
+func f() {}
+`,
+			addPkg:    "os",
+			removePkg: "log",
+			wantNil:   true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			fset, file, _ := parseSnippet(t, tt.src)
+			edits := SwapImportEdits(fset, file, tt.addPkg, tt.removePkg)
+			if tt.wantNil {
+				if edits != nil {
+					t.Fatalf("SwapImportEdits() = %v, want nil", edits)
+				}
+				return
+			}
+			if edits == nil {
+				t.Fatal("SwapImportEdits() = nil, want edits")
+			}
+			// Verify edits are sorted by position (required by analysis framework).
+			for i := 1; i < len(edits); i++ {
+				if edits[i].Pos < edits[i-1].Pos {
+					t.Fatalf("SwapImportEdits() edits not sorted by position: edits[%d].Pos=%d < edits[%d].Pos=%d",
+						i, edits[i].Pos, i-1, edits[i-1].Pos)
+				}
+			}
+			got := applyTextEdits(t, fset, []byte(tt.src), edits)
+			if got != tt.want {
+				t.Fatalf("SwapImportEdits() result:\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
 	}
 }
