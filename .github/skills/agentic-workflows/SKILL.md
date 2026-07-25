@@ -15,6 +15,13 @@ Repository overlay (optional):
 
 Read only the files you need:
 Load these files from `github/gh-aw` (they are not available locally).
+
+Critical download method for Codespaces:
+- Always download instruction files from the rawusercontent endpoint, not github.com HTML pages.
+- Use URLs in this format: `https://raw.githubusercontent.com/github/gh-aw/<ref>/<path>`.
+- Do not rely on `gh`-authenticated github.com content fetches for these files; Codespaces `gh` tokens can lack permissions to read github.com content.
+- If any required instruction file cannot be downloaded, stop immediately and report that the skill cannot continue until the file is accessible.
+
 - `.github/aw/action-container-substitutions.md`
 - `.github/aw/agentic-chat.md`
 - `.github/aw/agentic-workflows-mcp.md`
