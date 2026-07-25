@@ -671,7 +671,7 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 		if hasLocalModifications(string(sourceContent), string(currentContent), wf.SourceSpec, filepath.Dir(wf.Path), opts.Verbose) {
 			updateLog.Printf("Local modifications detected in workflow: %s", wf.Name)
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow %s is already up to date (%s)", wf.Name, shortRef(currentRef))))
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("⚠️  Local copy of %s has been modified from source", wf.Name)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Local copy of %s has been modified from source", wf.Name)))
 			return nil
 		}
 
