@@ -25,11 +25,9 @@ function parseDeduplicateByTitle(value) {
   if (value === "true") {
     return { enabled: true, maxDistance: 0 };
   }
-  if (typeof value === "string" && /^\d+$/.test(value)) {
-    value = Number.parseInt(value, 10);
-  }
-  if (typeof value === "number" && Number.isFinite(value) && Number.isInteger(value) && value >= 0 && value <= MAX_DEDUPLICATE_BY_TITLE_DISTANCE) {
-    return { enabled: true, maxDistance: value };
+  const numeric = typeof value === "string" && /^\d+$/.test(value) ? Number.parseInt(value, 10) : value;
+  if (typeof numeric === "number" && Number.isFinite(numeric) && Number.isInteger(numeric) && numeric >= 0 && numeric <= MAX_DEDUPLICATE_BY_TITLE_DISTANCE) {
+    return { enabled: true, maxDistance: numeric };
   }
   throw new Error(`deduplicate-by-title must be a boolean, a boolean-like string, or a non-negative integer (0-${MAX_DEDUPLICATE_BY_TITLE_DISTANCE})`);
 }
@@ -59,7 +57,7 @@ function normalizeTitleForDedup(title) {
  * @returns {{ title: string, distance: number } | null}
  */
 function findDuplicateByTitle(normalizedTitle, candidates, maxDistance) {
-  /** @type {any} */
+  /** @type {{ title: string, distance: number } | null} */
   let bestMatch = null;
 
   for (const candidate of candidates) {
