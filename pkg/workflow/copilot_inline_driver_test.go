@@ -333,17 +333,20 @@ func TestHeredocWrite_TrailingNewlineDoesNotProduceBlankLine(t *testing.T) {
 	// Find the heredoc block for the Python source and verify the delimiter
 	// immediately follows the last content line with no intervening blank line.
 	lines := strings.Split(content, "\n")
+	heredocFound := false
 	for i, line := range lines {
 		if strings.Contains(line, "cat > ") && strings.Contains(line, inlineCopilotSDKDriverPythonPath) {
-			// Find the delimiter name (last token on the cat line)
+			heredocFound = true
+			// Find the delimiter name (last token on the cat line, strip heredoc single-quotes)
 			fields := strings.Fields(line)
-			delimiter := fields[len(fields)-1]
+			delimiter := strings.Trim(fields[len(fields)-1], "'")
 			// Scan forward: immediately after the last non-blank content line
 			// we expect the delimiter, not a blank line.
+			delimiterFound := false
 			for j := i + 1; j < len(lines); j++ {
 				trimmed := strings.TrimSpace(lines[j])
 				if trimmed == delimiter {
-					// Good: delimiter found before any blank line.
+					delimiterFound = true
 					break
 				}
 				if trimmed == "" {
@@ -351,6 +354,9 @@ func TestHeredocWrite_TrailingNewlineDoesNotProduceBlankLine(t *testing.T) {
 					break
 				}
 			}
+			assert.True(t, delimiterFound, "heredoc delimiter %q must be present after content lines", delimiter)
+			break
 		}
 	}
+	assert.True(t, heredocFound, "expected a heredoc block writing to %s in the generated step", inlineCopilotSDKDriverPythonPath)
 }
