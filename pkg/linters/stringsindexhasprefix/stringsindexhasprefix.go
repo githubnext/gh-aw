@@ -132,9 +132,12 @@ func matchIndexComparison(pass *analysis.Pass, expr *ast.BinaryExpr) (call *ast.
 
 // normalizeOperands returns (left, right) such that if the strings.Index call
 // is on the right side, the operands are swapped and flipped=true.
+// Both operands are unwrapped of any redundant parentheses before the check.
 func normalizeOperands(pass *analysis.Pass, expr *ast.BinaryExpr) (left, right ast.Expr, flipped bool) {
-	if _, ok := astutil.AsStringsMethodCall(pass, expr.X, "Index"); ok {
-		return expr.X, expr.Y, false
+	x := astutil.UnwrapParenExpr(expr.X)
+	y := astutil.UnwrapParenExpr(expr.Y)
+	if _, ok := astutil.AsStringsMethodCall(pass, x, "Index"); ok {
+		return x, y, false
 	}
-	return expr.Y, expr.X, true
+	return y, x, true
 }
