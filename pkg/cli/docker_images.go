@@ -140,12 +140,6 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) 
 	pullState.mu.Lock()
 	defer pullState.mu.Unlock()
 
-	// Check if already available (inside lock for atomicity)
-	if isDockerImageAvailableUnlocked(ctx, image) {
-		dockerImagesLog.Printf("Image %s is already available", image)
-		return false, func() {}
-	}
-
 	// Check if already downloading
 	if pullState.downloading[image] {
 		dockerImagesLog.Printf("Image %s is already downloading", image)
@@ -155,6 +149,12 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) 
 				<-done
 			}
 		}
+	}
+
+	// Check if already available (inside lock for atomicity)
+	if isDockerImageAvailableUnlocked(ctx, image) {
+		dockerImagesLog.Printf("Image %s is already available", image)
+		return false, func() {}
 	}
 
 	done := make(chan struct{})

@@ -535,9 +535,21 @@ func TestStartDockerImageDownload_JoinPointForExistingDownload(t *testing.T) {
 		t.Fatal("Expected second call to observe existing download")
 	}
 
+	secondJoined := make(chan struct{})
+	go func() {
+		defer close(secondJoined)
+		joinSecond()
+	}()
+
+	select {
+	case <-secondJoined:
+		t.Fatal("Expected second join to block while shared download is still running")
+	case <-time.After(100 * time.Millisecond):
+	}
+
 	cancel()
-	joinFirst()
 	joinSecond()
+	joinFirst()
 
 	if IsDockerImageDownloading(testImage) {
 		t.Error("Expected image to not be marked as downloading after joined cancellation")
