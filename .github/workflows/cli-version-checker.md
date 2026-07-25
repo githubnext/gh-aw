@@ -1,7 +1,7 @@
 ---
 private: true
 emoji: "🔢"
-description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway, Pi) for new versions
+description: Monitors and updates agentic CLI tools (Claude Code, GitHub Copilot CLI, OpenAI Codex, GitHub MCP Server, Playwright MCP, Playwright CLI, Playwright Browser, MCP Gateway, Pi) and Docker images (actionlint, syft, grype, grant, zizmor, poutine, runner-guard, yamllint) for new versions
 on:
   schedule: daily
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
 strict: false
 engine: claude
 network: 
-   allowed: [defaults, node, go, "api.github.com", "ghcr.io"]
+   allowed: [defaults, node, go, "api.github.com", containers]
 imports:
   - ../skills/jqschema/SKILL.md
   - shared/reporting.md
@@ -40,6 +40,8 @@ features:
 evals:
   - id: cli_versions_checked
     question: Did the agent check for new versions of agentic CLI tools (Claude Code, GitHub Copilot CLI, Codex, MCP servers, etc.)?
+  - id: docker_images_checked
+    question: Did the agent check for new versions of Docker images in pkg/cli/docker_images.go (actionlint, syft, grype, grant, zizmor, poutine, runner-guard, yamllint)?
   - id: updates_applied_or_noop
     question: Were version updates applied and a PR created, or was noop used when all tools were already up to date?
 ---
@@ -156,10 +158,12 @@ Check cache-memory first (`/tmp/gh-aw/cache-memory/`). Only install and run `--h
 For each CLI tool update, install (`npm install -g <package>@<version>`), run `--help` on the main command and key subcommands (Copilot: `config`, `environment`), and compare with the cached output to identify new flags, removed features, or behavior changes.
 
 ### Update Process
-1. Edit `./pkg/constants/constants.go` with new version(s)
-2. **REQUIRED**: Run `make recompile` in the **foreground** — do NOT background it with `&` or follow it with `sleep`. Wait for it to finish completely before proceeding. Example: `make recompile && echo "done"`.
-3. Verify changes with `git status`
-4. **REQUIRED**: Create issue via safe-outputs with detailed analysis (do NOT skip this step)
+1. Edit `./pkg/constants/constants.go` with new CLI version(s)
+2. Edit `./pkg/cli/docker_images.go` with new Docker image version(s) and digest(s) (if any Docker images were updated)
+3. Run `make fmt` after editing any Go files
+4. **REQUIRED**: Run `make recompile` in the **foreground** — do NOT background it with `&` or follow it with `sleep`. Wait for it to finish completely before proceeding. Example: `make recompile && echo "done"`.
+5. Verify changes with `git status`
+6. **REQUIRED**: Create issue via safe-outputs with detailed analysis (do NOT skip this step)
 
 ## Issue Format
 
@@ -193,6 +197,112 @@ For each updated CLI, include: version old → new, release timeline, changes ca
 - **SAVE TO CACHE**: Store help outputs (main and all subcommands) and version check results in cache-memory
 - **REQUIRED**: Always run `make recompile` in the **foreground** (not backgrounded) after updating constants — wait for completion before proceeding
 - **DO NOT COMMIT** `*.lock.yml` or `pkg/workflow/js/*.js` files directly
+
+## Docker Image Version Checking
+
+After checking CLI tools, also check the Docker images defined in `./pkg/cli/docker_images.go` for updates.
+
+### Docker Image Sources
+
+Fetch the latest release for each image from its GitHub repository:
+
+| Constant | Current image | GitHub releases URL |
+|---|---|---|
+| `ActionlintImage` | `rhysd/actionlint:<version>` | `https://api.github.com/repos/rhysd/actionlint/releases/latest` |
+| `SyftImage` | `anchore/syft:<version>@sha256:<digest>` | `https://api.github.com/repos/anchore/syft/releases/latest` |
+| `GrypeImage` | `anchore/grype:<version>@sha256:<digest>` | `https://api.github.com/repos/anchore/grype/releases/latest` |
+| `GrantImage` | `anchore/grant:<version>@sha256:<digest>` | `https://api.github.com/repos/anchore/grant/releases/latest` |
+| `ZizmorImage` | `ghcr.io/zizmorcore/zizmor:latest` | `https://api.github.com/repos/zizmorcore/zizmor/releases/latest` |
+| `PoutineImage` | `ghcr.io/boostsecurityio/poutine:latest` | `https://api.github.com/repos/boostsecurityio/poutine/releases/latest` |
+| `RunnerGuardImage` | `ghcr.io/vigilant-llc/runner-guard:latest` | `https://api.github.com/repos/vigilant-llc/runner-guard/releases/latest` |
+| `YamllintImage` | `pipelinecomponents/yamllint:latest` | `https://api.github.com/repos/PipelineComponents/yamllint/releases/latest` |
+
+**Optimization**: Fetch all GitHub release endpoints in parallel in a single turn.
+
+### 3-Day Cooldown
+
+Before considering any Docker image update, check that the release is **at least 3 days old**:
+1. Parse the `published_at` field from the GitHub releases API response.
+2. Compute `(current date) - published_at`. If less than 3 days, **skip** that image — do not update it or include it in the issue.
+3. Only proceed with images whose latest release is ≥ 3 days old.
+
+This avoids picking up immature or quickly-retracted releases.
+
+### Fetching the Container SHA
+
+For each Docker image that has a newer version (and passed the 3-day cooldown), fetch its digest:
+
+**Docker Hub images** (actionlint, syft, grype, grant, yamllint):
+```bash
+# Get a Docker Hub anonymous token for the repo
+TOKEN=$(curl -s "https://auth.docker.io/token?scope=repository:anchore/syft:pull&service=registry.docker.io" | jq -r .token)
+# Fetch the manifest digest (amd64 manifest list or single-arch)
+curl -sI \
+  -H "Authorization: ******" \
+  -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+  -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+  "https://registry-1.docker.io/v2/anchore/syft/manifests/v1.49.0" \
+  | grep -i "Docker-Content-Digest:" | awk '{print $2}' | tr -d '\r'
+```
+Replace the `scope` repository slug and the tag as appropriate for each image.
+
+**GHCR images** (zizmor, poutine, runner-guard):
+```bash
+# Use docker manifest inspect (no auth required for public GHCR images)
+docker manifest inspect "ghcr.io/zizmorcore/zizmor:v1.0.0" --verbose 2>/dev/null \
+  | jq -r 'if type == "array" then .[0].Descriptor.digest else .config.digest end'
+```
+If `docker` is unavailable, fall back to the GHCR anonymous API:
+```bash
+TOKEN=$(curl -s "https://ghcr.io/token?scope=repository:zizmorcore/zizmor:pull&service=ghcr.io" | jq -r .token)
+curl -sI \
+  -H "Authorization: ******" \
+  -H "Accept: application/vnd.docker.distribution.manifest.v2+json" \
+  -H "Accept: application/vnd.docker.distribution.manifest.list.v2+json" \
+  "https://ghcr.io/v2/zizmorcore/zizmor/manifests/v1.0.0" \
+  | grep -i "Docker-Content-Digest:" | awk '{print $2}' | tr -d '\r'
+```
+
+**CRITICAL**: Always record the digest as `sha256:<hex>`. This is the value that goes after `@` in the image reference.
+
+### Updating docker_images.go
+
+After fetching the new version and digest, edit `./pkg/cli/docker_images.go`:
+
+- **Versioned images with existing digest** (syft, grype, grant): update both the version tag and the `@sha256:...` digest in the existing string format, e.g.:
+  ```
+  SyftImage = "anchore/syft:v1.49.0@sha256:<new-digest>"
+  ```
+- **Versioned images without digest** (actionlint): update only the version tag, e.g.:
+  ```
+  ActionlintImage = "rhysd/actionlint:1.7.13"
+  ```
+- **Images currently tagged `:latest`** (zizmor, poutine, runner-guard, yamllint): **pin** them to the new versioned tag with digest, e.g.:
+  ```
+  ZizmorImage = "ghcr.io/zizmorcore/zizmor:v1.0.0@sha256:<digest>"
+  ```
+
+### Docker Image Update Process
+
+1. Fetch all latest releases in parallel via `api.github.com`.
+2. Apply the 3-day cooldown — skip any image whose release is < 3 days old.
+3. For images with a passing release, fetch the container digest (see "Fetching the Container SHA" above).
+4. Edit `./pkg/cli/docker_images.go` with the new version(s) and digest(s).
+5. Run `make fmt` to format any changed Go files.
+6. Include Docker image update details in the issue created by safe-outputs.
+
+### Docker Image Section in the Issue
+
+For each updated Docker image, include:
+- Image name and constant (e.g., `SyftImage`)
+- Version change: old → new
+- Release date and cooldown confirmation (e.g., "Released 2026-07-20 — 5 days ago, cooldown passed")
+- Container digest (e.g., `sha256:abc123...`)
+- Full image reference: `anchore/syft:v1.49.0@sha256:abc123...`
+- Link to the GitHub release
+- Summary of release notes (Breaking / Features / Fixes / Security)
+
+Wrap long changelogs in `<details>` tags. Use plain URLs (no backticks). Convert `#1234` references to full external URLs.
 
 ## JSON Parsing Tips
 
