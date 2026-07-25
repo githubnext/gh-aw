@@ -105,6 +105,8 @@ Record shape: `workflow_id, agent_name, timestamp, quality_score, effectiveness_
 Track regression signals (quality drop, PR rejection increase, runtime regression).
 Treat `copilot-swe-agent` as a built-in team member in attribution/engagement filters (internal actor, not external community traffic).
 
+**CI vs. agentic workflow distinction:** Workflows such as `CWI`, `CGO`, `CI`, `CJS`, and `CPI` are plain CI workflows — not agentic workflows. An `action_required` conclusion on a CI workflow means GitHub is waiting for a maintainer to approve a pull-request workflow run (a GitHub Actions permission gate), **not** an agentic activation-refused. Do not count CI-workflow `action_required` runs as agentic AR. Report them separately under "CI approval-pending" and note that the fix is to approve the Copilot-bot's workflow runs at the org level or in the PR, not an agent-side change.
+
 ### Phase 1: Data Collection (10m)
 1. Load shared metrics/memory files (use `metrics-extractor` with listed paths).
 2. Gather recent agent outputs (issues/PRs/discussions/comments + metadata).
@@ -402,6 +404,7 @@ The Metrics Collector workflow runs daily and stores performance metrics in a st
    - Extract agent decisions and actions
    - Capture error messages and warnings
    - Record resource usage metrics
+   - **CI vs. agentic distinction:** Workflows `CWI`, `CGO`, `CI`, `CJS`, and `CPI` are plain CI workflows, not agentic workflows. An `action_required` conclusion on a CI workflow means GitHub is waiting for a maintainer to approve a pull-request workflow run (a GitHub Actions permission gate). Do **not** count CI-workflow `action_required` as agentic activation-refused (AR). Track these separately as "CI approval-pending" and recommend approving the Copilot-bot's workflow runs at the org level rather than treating them as agent failures.
 
 4. **Build agent profiles:**
    - For each agent, compile:
