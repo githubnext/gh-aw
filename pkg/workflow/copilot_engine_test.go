@@ -545,8 +545,8 @@ func TestCopilotEngineExecutionStepsWithCopilotSDKTypeScriptDriver(t *testing.T)
 	}
 
 	stepContent := strings.Join([]string(steps[0]), "\n")
-	if !strings.Contains(stepContent, "ts-node") {
-		t.Fatalf("Expected TypeScript SDK driver mode to use ts-node runtime, got:\n%s", stepContent)
+	if !strings.Contains(stepContent, "${GITHUB_WORKSPACE}/node_modules/.bin/ts-node") {
+		t.Fatalf("Expected TypeScript SDK driver mode to use workspace-local ts-node binary, got:\n%s", stepContent)
 	}
 	if !strings.Contains(stepContent, "my_driver.ts") {
 		t.Fatalf("Expected SDK driver mode to include my_driver.ts, got:\n%s", stepContent)

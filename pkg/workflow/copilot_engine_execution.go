@@ -133,11 +133,11 @@ const copilotSDKPythonPathExpression = "${{ github.workspace }}/.gh-aw/copilot-s
 // SetupActionDestinationShell). For bare command names (no extension), the driver is treated
 // as an arbitrary executable in PATH: runtimeCmd is the command itself and driverArg is empty.
 //
-//   - .js/.cjs/.mjs → ("$GH_AW_NODE_EXEC", "driver.cjs")
-//   - .py           → ("python3",           "driver.py")
-//   - .ts/.mts      → ("ts-node",           "driver.ts")
-//   - .rb           → ("ruby",              "driver.rb")
-//   - (no ext)      → ("my-driver",         "")
+//   - .js/.cjs/.mjs → ("$GH_AW_NODE_EXEC",                                     "driver.cjs")
+//   - .py           → ("python3",                                                "driver.py")
+//   - .ts/.mts      → ("${GITHUB_WORKSPACE}/node_modules/.bin/ts-node",         "driver.ts")
+//   - .rb           → ("ruby",                                                   "driver.rb")
+//   - (no ext)      → ("my-driver",                                              "")
 func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) {
 	ext := strings.ToLower(filepath.Ext(driverName))
 	switch ext {
@@ -146,7 +146,10 @@ func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) 
 	case ".py":
 		return "python3", driverName
 	case ".ts", ".mts":
-		return "ts-node", driverName
+		// ts-node is installed locally via npm into ${GITHUB_WORKSPACE}/node_modules/.bin/
+		// and is not added to PATH. Use the full workspace-relative path so the harness
+		// can resolve and spawn the binary regardless of the container PATH configuration.
+		return `"${GITHUB_WORKSPACE}/node_modules/.bin/ts-node"`, driverName
 	case ".rb":
 		return "ruby", driverName
 	default:
