@@ -60,6 +60,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/stringsconcatloop"
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
+	"github.com/github/gh-aw/pkg/linters/stringsindexhasprefix"
 	"github.com/github/gh-aw/pkg/linters/stringsjoinone"
 	"github.com/github/gh-aw/pkg/linters/timeafterleak"
 	"github.com/github/gh-aw/pkg/linters/timenowsub"
@@ -84,7 +85,7 @@ type docAnalyzer struct {
 }
 
 // documentedAnalyzers returns the analyzer subpackages documented in the README
-// "Public API > Subpackages" table. The README documents 58 analyzers
+// "Public API > Subpackages" table. The README documents 59 analyzers
 // subpackages (the non-analyzer `internal` helper subpackage is excluded because
 // it exposes no Analyzer).
 //
@@ -95,7 +96,7 @@ type docAnalyzer struct {
 //	hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	logfatallibrary, manualmutexunlock, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
 //	regexpcompileinfunction, seenmapbool, sortslice, sprintferrdot, sprintferrorsnew, sprintfbool, sprintfint, ssljson,
-//	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringsindexcontains, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
+//	strconvparseignorederror, stringbytesroundtrip, stringreplaceminusone, stringsconcatloop, stringscountcontains, stringsindexcontains, stringsindexhasprefix, stringsjoinone, timeafterleak, timesleepnocontext, timenowsub,
 //	tolowerequalfold, trimleftright, uncheckedtypeassertion, wgdonenotdeferred, writebytestring
 func documentedAnalyzers() []docAnalyzer {
 	return []docAnalyzer{
@@ -148,6 +149,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"stringsconcatloop", stringsconcatloop.Analyzer},
 		{"stringscountcontains", stringscountcontains.Analyzer},
 		{"stringsindexcontains", stringsindexcontains.Analyzer},
+		{"stringsindexhasprefix", stringsindexhasprefix.Analyzer},
 		{"stringsjoinone", stringsjoinone.Analyzer},
 		{"timeafterleak", timeafterleak.Analyzer},
 		{"timesleepnocontext", timesleepnocontext.Analyzer},
