@@ -3,8 +3,11 @@ package cli
 import (
 	"slices"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/semverutil"
 )
+
+var releaseCandidatesLog = logger.New("cli:release_candidates")
 
 type releaseCandidate struct {
 	tag     string
@@ -15,6 +18,7 @@ type releaseCandidate struct {
 // applies the major-version compatibility rule, and returns candidates sorted
 // newest-first.
 func sortedCompatibleReleaseCandidates(releases []string, currentVer *semverutil.SemanticVersion, allowMajor bool) []releaseCandidate {
+	releaseCandidatesLog.Printf("Filtering %d release(s) for compatibility: allowMajor=%v", len(releases), allowMajor)
 	var compatibleReleases []releaseCandidate
 	for _, release := range releases {
 		releaseVer := parseVersion(release)
@@ -38,6 +42,7 @@ func sortedCompatibleReleaseCandidates(releases []string, currentVer *semverutil
 		}
 	})
 
+	releaseCandidatesLog.Printf("Found %d compatible release candidate(s)", len(compatibleReleases))
 	return compatibleReleases
 }
 
@@ -54,5 +59,6 @@ func newerReleaseCandidates(candidates []releaseCandidate, currentVer *semveruti
 			newer = append(newer, c)
 		}
 	}
+	releaseCandidatesLog.Printf("Retained %d candidate(s) newer than current version out of %d", len(newer), len(candidates))
 	return newer
 }

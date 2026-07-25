@@ -6,13 +6,19 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
+var mcpSetupScriptsLog = logger.New("workflow:mcp_setup_scripts")
+
 func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) error {
 	if !IsMCPScriptsEnabled(workflowData.MCPScripts) {
+		mcpSetupScriptsLog.Print("MCP scripts not enabled, skipping setup generation")
 		return nil
 	}
+
+	mcpSetupScriptsLog.Printf("Generating MCP scripts setup: tools=%d", len(workflowData.MCPScripts.Tools))
 	yaml.WriteString("      - name: Write MCP Scripts Config\n")
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-scripts/logs\"\n")
@@ -45,6 +51,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 	yaml.WriteString("        run: |\n")
 	mcpScriptToolNames := sliceutil.MapKeys(workflowData.MCPScripts.Tools)
 	sort.Strings(mcpScriptToolNames)
+	mcpSetupScriptsLog.Printf("Writing %d MCP script tool file(s)", len(mcpScriptToolNames))
 	for _, toolName := range mcpScriptToolNames {
 		toolConfig := workflowData.MCPScripts.Tools[toolName]
 		if err := appendMCPScriptToolFile(yaml, workflowData, toolName, toolConfig); err != nil {
@@ -98,6 +105,7 @@ func generateMCPScriptsSetup(yaml *strings.Builder, workflowData *WorkflowData) 
 
 func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, toolName string, toolConfig *MCPScriptToolConfig) error {
 	if toolConfig.Script != "" {
+		mcpSetupScriptsLog.Printf("Appending MCP script tool %q (type=js)", toolName)
 		toolScript := GenerateMCPScriptJavaScriptToolScript(toolConfig)
 		jsDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_JS_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, jsDelimiter); err != nil {
@@ -111,6 +119,7 @@ func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, 
 		return nil
 	}
 	if toolConfig.Run != "" {
+		mcpSetupScriptsLog.Printf("Appending MCP script tool %q (type=sh)", toolName)
 		toolScript := GenerateMCPScriptShellToolScript(toolConfig)
 		shDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_SH_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, shDelimiter); err != nil {
@@ -125,6 +134,7 @@ func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, 
 		return nil
 	}
 	if toolConfig.Py != "" {
+		mcpSetupScriptsLog.Printf("Appending MCP script tool %q (type=py)", toolName)
 		toolScript := GenerateMCPScriptPythonToolScript(toolConfig)
 		pyDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_PY_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, pyDelimiter); err != nil {
@@ -139,6 +149,7 @@ func appendMCPScriptToolFile(yaml *strings.Builder, workflowData *WorkflowData, 
 		return nil
 	}
 	if toolConfig.Go != "" {
+		mcpSetupScriptsLog.Printf("Appending MCP script tool %q (type=go)", toolName)
 		toolScript := GenerateMCPScriptGoToolScript(toolConfig)
 		goDelimiter := GenerateHeredocDelimiterFromContent("MCP_SCRIPTS_GO_"+strings.ToUpper(toolName), toolScript)
 		if err := ValidateHeredocContent(toolScript, goDelimiter); err != nil {
