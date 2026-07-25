@@ -18,6 +18,11 @@ model: "${{ needs.activation.outputs.model_size }}"
 engine:
   id: copilot
   max-continuations: 15
+cache:
+  key: pr-test-prefetch-${{ github.event.pull_request.head.sha || github.event.issue.number }}
+  path: /tmp/gh-aw/agent
+  restore-keys:
+    - pr-test-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
 tools:
   cli-proxy: true
   bash:
@@ -29,15 +34,32 @@ steps:
   - name: Pre-fetch PR data
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      PR_NUMBER: ${{ github.event.pull_request.number }}
+      PR_NUMBER: ${{ github.event.issue.number || github.event.pull_request.number }}
+      PR_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       EXPR_GITHUB_EVENT_PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
     run: |
       set -euo pipefail
       mkdir -p /tmp/gh-aw/agent
+      CURRENT_HEAD_SHA="${PR_HEAD_SHA:-}"
+      if [ -z "$CURRENT_HEAD_SHA" ]; then
+        CURRENT_HEAD_SHA=$(gh pr view "$PR_NUMBER" --json headRefOid --jq '.headRefOid' 2>/dev/null || true)
+      fi
+      CACHE_HEAD_SHA=""
+      if [ -f /tmp/gh-aw/agent/test-data-head-sha.txt ]; then
+        CACHE_HEAD_SHA="$(tr -d '\n' < /tmp/gh-aw/agent/test-data-head-sha.txt)"
+      fi
+      if [ -n "$CURRENT_HEAD_SHA" ] && [ "$CURRENT_HEAD_SHA" = "$CACHE_HEAD_SHA" ] && \
+         [ -f /tmp/gh-aw/agent/pr-meta.json ] && \
+         [ -f /tmp/gh-aw/agent/test-files.txt ] && \
+         [ -f /tmp/gh-aw/agent/test-diff.txt ] && \
+         [ -f /tmp/gh-aw/agent/diff-numstat.txt ]; then
+        echo "Cache hit: using pre-fetched test data for head ${CURRENT_HEAD_SHA}"
+        exit 0
+      fi
 
       # PR metadata
       gh pr view "$PR_NUMBER" \
-        --json files,additions,deletions,baseRefName,headRefName \
+        --json files,additions,deletions,baseRefName,headRefName,headRefOid \
         > /tmp/gh-aw/agent/pr-meta.json
 
       # List of changed test files
@@ -129,6 +151,14 @@ steps:
               /tmp/gh-aw/agent/js-test-stats.txt \
               /tmp/gh-aw/agent/go-testmain-funcs.txt \
               /tmp/gh-aw/agent/go-goleak-entries.txt
+      fi
+      if [ -z "$CURRENT_HEAD_SHA" ]; then
+        CURRENT_HEAD_SHA="$(jq -r '.headRefOid // empty' /tmp/gh-aw/agent/pr-meta.json)"
+      fi
+      if [ -n "$CURRENT_HEAD_SHA" ]; then
+        printf '%s\n' "$CURRENT_HEAD_SHA" > /tmp/gh-aw/agent/test-data-head-sha.txt
+      else
+        rm -f /tmp/gh-aw/agent/test-data-head-sha.txt
       fi
 
       echo "Pre-fetched $(grep -c . /tmp/gh-aw/agent/test-files.txt || echo 0) test files"
