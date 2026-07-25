@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/gitutil"
 )
 
 // IsWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref]).
@@ -120,6 +122,11 @@ func parseWorkflowSpecParts(spec string) (string, string, string, string, string
 	} else {
 		remoteLog.Print("No ref specified, defaulting to 'main'")
 	}
+
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return "", "", "", "", "", fmt.Errorf("invalid workflowspec ref: %w", err)
+	}
+
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
 		remoteLog.Printf("Invalid workflowspec format: %s", spec)
@@ -128,10 +135,18 @@ func parseWorkflowSpecParts(spec string) (string, string, string, string, string
 
 	// Optional host-prefixed format: host/owner/repo/path[@ref]
 	if len(slashParts) >= 4 && strings.Contains(slashParts[0], ".") {
-		return slashParts[0], slashParts[1], slashParts[2], strings.Join(slashParts[3:], "/"), ref, nil
+		filePath := strings.Join(slashParts[3:], "/")
+		if err := gitutil.ValidateGitPath(filePath); err != nil {
+			return "", "", "", "", "", fmt.Errorf("invalid workflowspec path: %w", err)
+		}
+		return slashParts[0], slashParts[1], slashParts[2], filePath, ref, nil
 	}
 
-	return "", slashParts[0], slashParts[1], strings.Join(slashParts[2:], "/"), ref, nil
+	filePath := strings.Join(slashParts[2:], "/")
+	if err := gitutil.ValidateGitPath(filePath); err != nil {
+		return "", "", "", "", "", fmt.Errorf("invalid workflowspec path: %w", err)
+	}
+	return "", slashParts[0], slashParts[1], filePath, ref, nil
 }
 
 func resolveWorkflowSpecSHAForCache(owner, repo, ref, host string, cache *ImportCache) string {

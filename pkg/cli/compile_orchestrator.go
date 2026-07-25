@@ -46,6 +46,18 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 		return nil, err
 	}
 
+	// When --validate is set, run a pre-gate integrity check on actions-lock.json
+	// before compiling. This catches malformed or inconsistent pins early so the
+	// user sees the problem before any lock files are rewritten.
+	// Structural-only validation is used (no live API calls) to keep compile fast
+	// and avoid false positives from floating tags.
+	if config.Validate {
+		compileOrchestratorLog.Print("Running actions-lock.json SHA integrity pre-gate check")
+		if err := validateUpdateSHAEntriesStructural(ctx, "."); err != nil {
+			return nil, fmt.Errorf("actions-lock.json integrity check failed (pre-compile): %w", err)
+		}
+	}
+
 	// Initialize actionlint statistics if actionlint is enabled
 	if config.Actionlint && !config.NoEmit {
 		initActionlintStats()
