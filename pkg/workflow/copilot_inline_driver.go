@@ -13,6 +13,7 @@ const (
 	inlineCopilotSDKDriverNodePath      = inlineCopilotSDKDriverDir + "/inline-driver.cjs"
 	inlineCopilotSDKDriverPythonPath    = inlineCopilotSDKDriverDir + "/inline-driver.py"
 	inlineCopilotSDKDriverGoPath        = inlineCopilotSDKDriverDir + "/inline-driver.go"
+	inlineCopilotSDKDriverGoBinPath     = inlineCopilotSDKDriverDir + "/inline-driver-bin"
 	inlineCopilotSDKDriverGoModPath     = inlineCopilotSDKDriverDir + "/go.mod"
 	inlineCopilotSDKDriverJavaPath      = inlineCopilotSDKDriverDir + "/Main.java"
 	inlineCopilotSDKDriverJavaPomPath   = inlineCopilotSDKDriverDir + "/pom.xml"
@@ -51,9 +52,17 @@ func (d *InlineEngineDriver) wrapperScript() string {
 	case "python":
 		return "#!/usr/bin/env bash\nset -euo pipefail\nexec python3 \"${GITHUB_WORKSPACE}/" + sourcePath + "\" \"$@\"\n"
 	case "go":
-		return "#!/usr/bin/env bash\nset -euo pipefail\ncd \"${GITHUB_WORKSPACE}/" + inlineCopilotSDKDriverDir + "\"\nexec go run \"" + inlineCopilotSDKDriverGoPath[strings.LastIndex(inlineCopilotSDKDriverGoPath, "/")+1:] + "\" \"$@\"\n"
+		// Execute the pre-compiled binary produced during the install step.
+		// Using a compiled binary avoids the recompilation overhead of `go run`
+		// on every agent invocation and removes the need for the Go toolchain at runtime.
+		return "#!/usr/bin/env bash\nset -euo pipefail\nexec \"${GITHUB_WORKSPACE}/" + inlineCopilotSDKDriverGoBinPath + "\" \"$@\"\n"
 	case "java":
-		return "#!/usr/bin/env bash\nset -euo pipefail\nif [ -f \"${GITHUB_WORKSPACE}/" + inlineCopilotSDKDriverJavaClassPath + "\" ]; then\n  CLASSPATH_CONTENT=$(cat \"${GITHUB_WORKSPACE}/" + inlineCopilotSDKDriverJavaClassPath + "\")\n  exec java -cp \"$CLASSPATH_CONTENT\" \"${GITHUB_WORKSPACE}/" + sourcePath + "\" \"$@\"\nfi\nexec java \"${GITHUB_WORKSPACE}/" + sourcePath + "\" \"$@\"\n"
+		// classpath.txt is written by the Maven install step; its absence means
+		// the install step failed and we should surface that clearly rather than
+		// attempting a classpath-less invocation that would fail with a cryptic JVM error.
+		return "#!/usr/bin/env bash\nset -euo pipefail\n" +
+			"CLASSPATH_CONTENT=$(cat \"${GITHUB_WORKSPACE}/" + inlineCopilotSDKDriverJavaClassPath + "\")\n" +
+			"exec java -cp \"$CLASSPATH_CONTENT\" " + inlineCopilotSDKDriverJavaMainClass + " \"$@\"\n"
 	default:
 		return ""
 	}
@@ -134,7 +143,10 @@ func buildInlineCopilotSDKDriverWriteStep(workflowData *WorkflowData) GitHubActi
 	appendHeredocWrite := func(path, content string, chmod bool) {
 		delimiter := GenerateHeredocDelimiterFromContent("INLINE_COPILOT_SDK_DRIVER", content)
 		step = append(step, fmt.Sprintf("          cat > \"${GITHUB_WORKSPACE}/%s\" << '%s'", path, delimiter))
-		for line := range strings.SplitSeq(content, "\n") {
+		// Trim the trailing newline before splitting so the final heredoc line is the
+		// delimiter itself, not a blank line followed by the delimiter. Source files
+		// typically end with "\n", which would otherwise emit an extra blank line.
+		for line := range strings.SplitSeq(strings.TrimSuffix(content, "\n"), "\n") {
 			step = append(step, "          "+line)
 		}
 		step = append(step, "          "+delimiter)

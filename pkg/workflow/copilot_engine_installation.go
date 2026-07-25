@@ -306,22 +306,20 @@ func getInlineCopilotSDKInstallSpec(runtimeID string) copilotSDKInstallSpec {
 			copilotSDKPythonTargetDir,
 			version,
 		)
-	case "typescript":
-		spec.stepName = "Install GitHub Copilot SDK (TypeScript)"
-		spec.command = workspaceCommandPrefix + "npm install --ignore-scripts --no-save @github/copilot-sdk@" + version + " ts-node typescript"
 	case "go":
 		spec.stepName = "Install GitHub Copilot SDK (Go)"
+		// Fetch the SDK and compile the driver to a binary in one step.
+		// Using a pre-compiled binary eliminates per-invocation `go run` recompilation
+		// and removes the Go toolchain requirement from the agent's runtime path.
+		goSrcFile := inlineCopilotSDKDriverGoPath[strings.LastIndex(inlineCopilotSDKDriverGoPath, "/")+1:]
+		goBinFile := inlineCopilotSDKDriverGoBinPath[strings.LastIndex(inlineCopilotSDKDriverGoBinPath, "/")+1:]
 		spec.command = fmt.Sprintf(
-			`mkdir -p "${GITHUB_WORKSPACE}/%[1]s" && cd "${GITHUB_WORKSPACE}/%[1]s" && go get github.com/github/copilot-sdk/go@v%[2]s`,
+			`mkdir -p "${GITHUB_WORKSPACE}/%[1]s" && cd "${GITHUB_WORKSPACE}/%[1]s" && go get github.com/github/copilot-sdk/go@v%[2]s && go build -o "%[4]s" "./%[3]s"`,
 			inlineCopilotSDKDriverDir,
 			version,
+			goSrcFile,
+			goBinFile,
 		)
-	case "rust":
-		spec.stepName = "Install GitHub Copilot SDK (Rust)"
-		spec.command = workspaceCommandPrefix + "cargo add github-copilot-sdk@" + version
-	case "dotnet":
-		spec.stepName = "Install GitHub Copilot SDK (.NET)"
-		spec.command = workspaceCommandPrefix + "dotnet add package GitHub.Copilot.SDK --version " + version
 	case "java":
 		spec.stepName = "Install GitHub Copilot SDK (Java)"
 		classpathFile := inlineCopilotSDKDriverJavaClassPath[strings.LastIndex(inlineCopilotSDKDriverJavaClassPath, "/")+1:]

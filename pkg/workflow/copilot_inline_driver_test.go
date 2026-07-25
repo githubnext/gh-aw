@@ -233,3 +233,124 @@ func flattenStepText(steps []GitHubActionStep) string {
 	}
 	return strings.Join(parts, "\n")
 }
+
+func TestValidateEngineDriver_MultipleRuntimeKeysRejected(t *testing.T) {
+	// A driver map containing more than one runtime key should be rejected with a clear error,
+	// not silently pick the first key.
+	err := NewCompiler().validateEngineDriver(&WorkflowData{
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+			InlineDriver: &InlineEngineDriver{
+				Runtime:         "node",
+				Source:          "console.log('hi')",
+				MultipleRuntime: true,
+			},
+			Driver: inlineCopilotSDKDriverWrapperPath,
+		},
+	})
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "exactly one runtime key")
+}
+
+func TestExtractEngineConfig_MultipleRuntimeKeys_SetsMultipleRuntimeFlag(t *testing.T) {
+	// When the driver map has both node and python keys, MultipleRuntime must be true
+	// so validation can produce a clear error instead of silently picking node.
+	c := NewCompiler()
+
+	_, config, _ := c.ExtractEngineConfig(map[string]any{
+		"engine": map[string]any{
+			"id": "copilot",
+			"driver": map[string]any{
+				"node":   "console.log('hi')",
+				"python": "print('hi')",
+			},
+		},
+	})
+
+	require.NotNil(t, config)
+	require.NotNil(t, config.InlineDriver)
+	assert.True(t, config.InlineDriver.MultipleRuntime, "MultipleRuntime must be set when more than one runtime key is present")
+}
+
+func TestInlineGoInstallStep_CompilesBinary(t *testing.T) {
+	// The Go inline install step must compile a binary during install so the wrapper
+	// can exec it directly without recompiling on every agent invocation.
+	engine := NewCopilotEngine()
+
+	steps := engine.GetInstallationSteps(&WorkflowData{
+		EngineConfig: &EngineConfig{
+			ID:           "copilot",
+			CopilotSDK:   true,
+			InlineDriver: &InlineEngineDriver{Runtime: "go", Source: "package main\nfunc main(){}"},
+			Driver:       inlineCopilotSDKDriverWrapperPath,
+		},
+	})
+
+	allSteps := flattenStepText(steps)
+	assert.Contains(t, allSteps, "go build", "install step must compile the driver to a binary")
+	assert.Contains(t, allSteps, "inline-driver-bin", "install step must produce the binary used by the wrapper")
+	assert.NotContains(t, allSteps, "go run", "install step must not use go run")
+}
+
+func TestInlineGoWrapperScript_ExecsBinaryNotGoRun(t *testing.T) {
+	// The Go wrapper must exec the pre-compiled binary rather than using go run,
+	// which would recompile on every agent invocation.
+	d := &InlineEngineDriver{Runtime: "go", Source: "package main\nfunc main(){}"}
+	script := d.wrapperScript()
+
+	assert.Contains(t, script, inlineCopilotSDKDriverGoBinPath, "wrapper must reference the compiled binary path")
+	assert.NotContains(t, script, "go run", "wrapper must not use go run")
+}
+
+func TestInlineJavaWrapperScript_RequiresClasspath(t *testing.T) {
+	// The Java wrapper must require classpath.txt and fail loudly when absent,
+	// rather than silently falling back to a plain `java` invocation that would
+	// produce a cryptic JVM error.
+	d := &InlineEngineDriver{Runtime: "java", Source: "public class Main {}"}
+	script := d.wrapperScript()
+
+	assert.Contains(t, script, inlineCopilotSDKDriverJavaClassPath, "wrapper must read classpath.txt")
+	assert.NotContains(t, script, "if [ -f", "wrapper must not conditionally check for classpath.txt existence")
+	// The wrapper uses cat which will fail with a clear error if the file is absent.
+	assert.Contains(t, script, "cat \"", "wrapper must use cat to read classpath.txt, failing clearly if absent")
+}
+
+func TestHeredocWrite_TrailingNewlineDoesNotProduceBlankLine(t *testing.T) {
+	// A source that ends with "\n" must not produce an extra blank line between
+	// the last content line and the heredoc delimiter in the generated step.
+	wd := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			ID:           "copilot",
+			CopilotSDK:   true,
+			InlineDriver: &InlineEngineDriver{Runtime: "python", Source: "print('hello')\n"},
+			Driver:       inlineCopilotSDKDriverWrapperPath,
+		},
+	}
+	step := buildInlineCopilotSDKDriverWriteStep(wd)
+	content := strings.Join(step, "\n")
+
+	// Find the heredoc block for the Python source and verify the delimiter
+	// immediately follows the last content line with no intervening blank line.
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if strings.Contains(line, "cat > ") && strings.Contains(line, inlineCopilotSDKDriverPythonPath) {
+			// Find the delimiter name (last token on the cat line)
+			fields := strings.Fields(line)
+			delimiter := fields[len(fields)-1]
+			// Scan forward: immediately after the last non-blank content line
+			// we expect the delimiter, not a blank line.
+			for j := i + 1; j < len(lines); j++ {
+				trimmed := strings.TrimSpace(lines[j])
+				if trimmed == delimiter {
+					// Good: delimiter found before any blank line.
+					break
+				}
+				if trimmed == "" {
+					t.Errorf("blank line at position %d found before heredoc delimiter %q; source trailing newline was not trimmed", j, delimiter)
+					break
+				}
+			}
+		}
+	}
+}

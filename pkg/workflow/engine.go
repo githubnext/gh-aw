@@ -111,8 +111,9 @@ type EngineConfig struct {
 // InlineEngineDriver represents an inline engine.driver source block that gh-aw materializes
 // into runtime files before launching the engine.
 type InlineEngineDriver struct {
-	Runtime string
-	Source  string
+	Runtime         string
+	Source          string
+	MultipleRuntime bool // true when the driver map contained more than one runtime key
 }
 
 // EngineAuthConfig represents engine.auth frontmatter settings that map to
@@ -470,21 +471,31 @@ func applyEngineDriverField(config *EngineConfig, engineObj map[string]any) {
 		return
 	}
 
+	// Count how many runtime keys are present in the map. Multiple keys are
+	// rejected via validateInlineEngineDriver; a single key is extracted.
+	var matched []string
 	for _, runtime := range []string{"node", "python", "go", "java"} {
-		source, ok := driverMap[runtime].(string)
-		if !ok {
-			continue
+		if _, ok := driverMap[runtime].(string); ok {
+			matched = append(matched, runtime)
 		}
-		// Preserve runtime even for empty source so validateInlineEngineDriver
-		// can reject it with a clear error rather than silently bypassing checks.
-		config.InlineDriver = &InlineEngineDriver{
-			Runtime: runtime,
-			Source:  source,
-		}
-		config.Driver = inlineCopilotSDKDriverWrapperPath
-		engineLog.Printf("Extracted inline engine.driver runtime: %s", runtime)
+	}
+
+	if len(matched) == 0 {
 		return
 	}
+
+	// Pick the first match. Validation will reject the map when len > 1.
+	runtime := matched[0]
+	source, _ := driverMap[runtime].(string)
+	// Preserve runtime even for empty source so validateInlineEngineDriver
+	// can reject it with a clear error rather than silently bypassing checks.
+	config.InlineDriver = &InlineEngineDriver{
+		Runtime:         runtime,
+		Source:          source,
+		MultipleRuntime: len(matched) > 1,
+	}
+	config.Driver = inlineCopilotSDKDriverWrapperPath
+	engineLog.Printf("Extracted inline engine.driver runtime: %s", runtime)
 }
 
 func applyEngineHarnessField(config *EngineConfig, engineObj map[string]any) {

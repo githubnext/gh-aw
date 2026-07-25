@@ -184,11 +184,16 @@ func (c *Compiler) validateInlineEngineDriver(workflowData *WorkflowData) error 
 		return nil
 	}
 
+	inlineDriver := workflowData.EngineConfig.InlineDriver
+
+	if inlineDriver.MultipleRuntime {
+		return fmt.Errorf("engine.driver: exactly one runtime key is allowed (node, python, go, java); found multiple.\n\nSee: %s", constants.DocsEnginesURL)
+	}
+
 	if workflowData.EngineConfig.ID != "copilot" {
 		return fmt.Errorf("inline engine.driver sources are only supported for the copilot engine.\n\nSee: %s", constants.DocsEnginesURL)
 	}
 
-	inlineDriver := workflowData.EngineConfig.InlineDriver
 	if strings.TrimSpace(inlineDriver.Source) == "" {
 		return fmt.Errorf("engine.driver.%s must not be empty.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
 	}
