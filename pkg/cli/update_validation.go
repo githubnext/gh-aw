@@ -31,6 +31,9 @@ type validationResolvers struct {
 	// resolveActionVersionToSHA resolves a version tag/ref to its commit SHA.
 	// Used to verify that the stored SHA matches the pinned version.
 	resolveActionVersionToSHA func(ctx context.Context, repo, ref string) (string, error)
+	// resolveContainerDigest resolves the current digest for a mutable container
+	// image reference so the stored pin can be checked against the live registry.
+	resolveContainerDigest func(ctx context.Context, image string) (string, error)
 }
 
 func defaultValidationResolvers() validationResolvers {
@@ -51,14 +54,16 @@ func defaultValidationResolvers() validationResolvers {
 			}
 			return parser.ResolveRefToSHAForHost(ctx, owner, name, ref, "")
 		},
+		resolveContainerDigest: func(ctx context.Context, image string) (string, error) {
+			return fetchContainerDigest(ctx, image, false)
+		},
 	}
 }
 
 // validateUpdateSHAEntries validates the structural and liveness integrity of
-// .github/aw/actions-lock.json after a workflow update. Container pins are
-// validated structurally only (format, key/image/pinned_image consistency);
-// live digest re-resolution is not performed because refreshing a mutable tag
-// is an explicit update operation.
+// .github/aw/actions-lock.json after a workflow update. Action SHAs and
+// container digests are both re-resolved when possible so malformed or stale
+// pins are caught before the updated lock file is kept.
 func validateUpdateSHAEntries(ctx context.Context, repoRoot string) error {
 	return validateUpdateSHAEntriesWithResolvers(ctx, repoRoot, defaultValidationResolvers())
 }
@@ -82,6 +87,9 @@ func structuralOnlyResolvers() validationResolvers {
 			// Return ErrVerificationSkipped so the caller treats this as non-fatal and
 			// skips the version→SHA round-trip check entirely. Structural-only mode
 			// validates format and key consistency without live API calls.
+			return "", fmt.Errorf("%w: structural-only mode", parser.ErrVerificationSkipped)
+		},
+		resolveContainerDigest: func(_ context.Context, _ string) (string, error) {
 			return "", fmt.Errorf("%w: structural-only mode", parser.ErrVerificationSkipped)
 		},
 	}
@@ -161,15 +169,24 @@ func validateUpdateSHAEntriesWithResolvers(ctx context.Context, repoRoot string,
 	sort.Strings(containerKeys)
 	for _, image := range containerKeys {
 		pin := cache.ContainerPins[image]
+		validDigest := sha256DigestPattern.MatchString(pin.Digest)
 		if pin.Image != image {
 			issues = append(issues, fmt.Sprintf("container pin key/image mismatch: key %q has image %q", image, pin.Image))
 		}
-		if !sha256DigestPattern.MatchString(pin.Digest) {
+		if !validDigest {
 			issues = append(issues, fmt.Sprintf("container pin %q has invalid digest %q (expected sha256:<64 lowercase hex chars>)", image, pin.Digest))
 		}
 		expectedPinnedImage := image + "@" + pin.Digest
 		if pin.PinnedImage != expectedPinnedImage {
 			issues = append(issues, fmt.Sprintf("container pin %q has inconsistent pinned_image %q (expected %q)", image, pin.PinnedImage, expectedPinnedImage))
+		}
+		if validDigest && pin.Image == image {
+			resolvedDigest, err := r.resolveContainerDigest(ctx, image)
+			if err != nil {
+				updateValidationLog.Printf("container pin %q: skipping digest check (resolution failed): %v", image, err)
+			} else if !strings.EqualFold(resolvedDigest, pin.Digest) {
+				issues = append(issues, fmt.Sprintf("container pin %q digest mismatch: image resolves to %q but stored digest is %q", image, resolvedDigest, pin.Digest))
+			}
 		}
 	}
 
