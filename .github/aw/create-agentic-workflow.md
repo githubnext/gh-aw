@@ -1,14 +1,15 @@
 ---
-description: Create new agentic workflows using GitHub Agentic Workflows (gh-aw) with concise guidance on triggers, tools, and security.
+description: Design and create new agentic workflows using GitHub Agentic Workflows (gh-aw) — unified interview-first experience with concise guidance on triggers, tools, and security.
 disable-model-invocation: true
 ---
 
-# GitHub Agentic Workflow Creator
+# GitHub Agentic Workflow Designer & Creator
 
-Create new workflow files under `.github/workflows/` using the installed `gh aw` CLI.
+Design and create new workflow files under `.github/workflows/` using the installed `gh aw` CLI.
 
 ## Load These References First
 
+- [designer.md](designer.md)
 - [github-agentic-workflows.md](github-agentic-workflows.md)
 - [workflow-editing.md](workflow-editing.md)
 - [workflow-constraints.md](workflow-constraints.md)
@@ -26,15 +27,42 @@ Load these topic files only when relevant:
 - [charts.md](charts.md) for chart-generation workflows
 - [report.md](report.md) for reporting output structure and recurring report lifecycle
 
-## Two Modes
+## Three Modes
 
-### Interactive mode
+### Interactive mode (design + create)
 
-Start with exactly:
+This is the unified entry point for both design and creation. Start with exactly:
 
 > What do you want to automate today?
 
-Then ask only the next question needed.
+Then follow a progressive interview — ask one question at a time, advance only when the current phase is clear:
+
+1. **Goal** — confirm workflow name (kebab-case), brief description, optional emoji.
+2. **Trigger** — ask "When should this run?" and map to an `on:` block (see trigger mapping in [designer.md](designer.md)).
+3. **Scope** — ask what it reads and what it creates or updates; map to `permissions:`, `tools:`, and `safe-outputs:`.
+4. **Data strategy** — ask whether GitHub data should be pre-fetched with `gh` + `jq` (DataOps default); map to `steps:`.
+5. **Guardrails** — ask whether it should block, advise, or silently log; guide toward `noop` and safe-output behavior.
+6. **Context & network** — ask about external APIs, MCP servers, and required secrets; map to `network.allowed` and `env:`.
+7. **Engine** (skip if obvious) — if ambiguous, suggest Copilot as the default.
+8. **Confirmation** — present a structured summary before generating:
+
+   ```text
+   Proposed workflow:
+   - Name: <workflow-id>
+   - Trigger: <event + key options>
+   - Engine: <engine or default>
+   - Tools: <tool summary>
+   - Safe outputs: <list or none>
+   - Network: <allowed summary>
+   - Integrations/Auth: <service/mcp + required secrets/env vars>
+   - Intent: <one-sentence task>
+   ```
+
+   Ask: **"Ready to generate, or want to adjust anything?"**
+
+Skip phases when the answer is already clear from earlier statements. Apply progressive disclosure: at most 5 questions before presenting the confirmation summary; then ask "anything else?" if needed. Detect done signals (`that's it`, `looks good`, `generate it`) and proceed to generation.
+
+For detailed trigger/safe-output/network/tool decision heuristics, integration auth setup patterns, and token-optimization defaults, load [designer.md](designer.md) as a reference.
 
 ### Issue-form mode
 
@@ -44,7 +72,6 @@ When triggered from a workflow-creation issue form, read the form fields and gen
 
 - Keep the conversation short and iterative.
 - Translate user intent into workflow structure.
-- Ask about the trigger, desired action, and required write outputs.
 - When the user asks for exploration, evaluation, or scenario design rather than file creation, stay in ad hoc evaluation mode.
 - In ad hoc evaluation mode, do not create `.github/workflows/*.md`.
 - Do not overwhelm the user with long option dumps unless they ask.
