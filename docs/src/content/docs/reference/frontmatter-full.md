@@ -1755,10 +1755,18 @@ env: "example-value"
 # Feature flags and configuration options for experimental or optional features in
 # the workflow. Each feature can be a boolean flag or a string value. The
 # 'action-tag' feature (string) specifies the tag or SHA to use when referencing
-# actions/setup in compiled workflows (for testing purposes only).
+# actions/setup in compiled workflows (for testing purposes only). The
+# 'intentional-failure' feature (boolean) marks the workflow as one that is
+# intentionally expected to fail (e.g., guardrail stress-tests); such workflows
+# are excluded from fleet-health and prod-main success-rate rollups.
 # (optional)
 features:
-  {}
+  # Mark the workflow as one that is intentionally expected to fail (e.g., guardrail
+  # stress-tests). Workflows tagged with features.intentional-failure: true are
+  # excluded from fleet-health and prod-main success-rate rollups so they do not
+  # depress real-regression baselines.
+  # (optional)
+  intentional-failure: true
 
 # Model policy and optional pricing configuration. The policy fields
 # (allowed/blocked) are experimental and merged as unions across imports. The
@@ -1782,6 +1790,62 @@ models:
   # (optional)
   providers:
     {}
+
+  # Fallback per-token pricing ($/1M tokens) for models not in the built-in pricing
+  # table. Required when max-ai-credits is active and the model is self-hosted or
+  # unrecognized (e.g. BYOK Ollama). Without this, the AWF API proxy rejects
+  # unrecognized models with HTTP 400.
+  # (optional)
+  default-ai-credits-pricing:
+    # Cost per input token in USD.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: number
+    input: 1
+
+    # Format 2: string
+    input: "example-value"
+
+    # Cost per output token in USD.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: number
+    output: 1
+
+    # Format 2: string
+    output: "example-value"
+
+    # Cost per cached-read token in USD.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: number
+    cache_read: 1
+
+    # Format 2: string
+    cache_read: "example-value"
+
+    # Cost per cache-write token in USD.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: number
+    cache_write: 1
+
+    # Format 2: string
+    cache_write: "example-value"
+
+    # Cost per reasoning token in USD.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: number
+    reasoning: 1
+
+    # Format 2: string
+    reasoning: "example-value"
 
 # A/B testing experiments. Each key is an experiment name; the value is either an
 # array of two or more variant strings (bare-array form) or an object with a
@@ -2016,9 +2080,10 @@ sandbox:
     model-fallback: "example-value"
 
     # Container runtime for the agent container. Use 'gvisor' to run the agent under
-    # gVisor's runsc runtime for additional kernel-level isolation. Requires
-    # sandbox.agent.sudo: true (root access is needed to install and register runsc).
-    # Incompatible with runner.topology: arc-dind.
+    # gVisor's runsc runtime for additional kernel-level isolation. Use 'docker-sbx'
+    # to run the agent inside a Docker sbx microVM with KVM hypervisor-level isolation
+    # — requires sandbox.agent.sudo: true, DOCKER_PAT and DOCKER_USERNAME secrets, and
+    # a KVM-capable runner. Incompatible with runner.topology: arc-dind.
     # (optional)
     runtime: "gvisor"
 
@@ -2075,6 +2140,12 @@ sandbox:
         # "x-api-key" for Anthropic). Example: "api-key" for Azure OpenAI gateways.
         # (optional)
         authHeader: "example-value"
+
+    # Opt into legacy security mode. When set to 'enable', AWF runs with sudo and
+    # --enable-host-access for backward compatibility. The default (omitted) uses
+    # strict security mode where AWF runs rootless without host-access flags.
+    # (optional)
+    legacy-security: "enable"
 
   # Legacy custom Sandbox Runtime configuration (use agent.config instead). Note:
   # Network configuration is controlled by the top-level 'network' field, not here.
@@ -2231,11 +2302,6 @@ engine:
   # handling.
   # (optional)
   version: null
-
-  # Optional specific LLM model to use (e.g., 'claude-3-5-sonnet-20241022',
-  # 'gpt-4'). Has sensible defaults and can typically be omitted.
-  # (optional)
-  model: "example-value"
 
   # Optional inference provider override for this engine. Defaults to the engine's
   # native provider (copilot: github, claude: anthropic, codex: openai, pi: github).
@@ -2468,15 +2534,25 @@ engine:
   # (optional)
   copilot-sdk: true
 
-  # Custom driver script or command for the engine. Accepts a workspace-relative
-  # path or bare name. Supported extensions depend on the engine: the copilot engine
-  # accepts .js, .cjs, .mjs (Node.js), .py (Python), .ts or .mts (TypeScript), or
-  # .rb (Ruby); other engines (e.g. pi) accept .js, .cjs, or .mjs only. A bare name
-  # without an extension is also valid for any engine (treated as a built-in driver
-  # or executable in PATH). Examples: `.github/drivers/my_driver.cjs`,
-  # `.github/drivers/my_driver.py`, `my-copilot-driver`.
+  # Custom driver script, command, or inline source for the engine. String values
+  # accept a workspace-relative path or bare name. Inline object values are
+  # supported for the Copilot engine and materialize runtime files before execution.
+  # Supported inline runtimes are node, python, go, and java.
   # (optional)
+  # Accepted formats:
+
+  # Format 1: Workspace-relative driver path or bare command name. The copilot
+  # engine accepts .js, .cjs, .mjs, .py, .ts, .mts, and .rb drivers; other engines
+  # accept .js, .cjs, and .mjs. Bare names without an extension are treated as
+  # built-in drivers or executables in PATH.
   driver: "example-value"
+
+  # Format 2: Inline Copilot SDK driver source. Provide exactly one runtime key.
+  # The supported runtime keys are node, python, go, and java.
+  driver:
+    # Inline Node.js driver source written to a generated .cjs file.
+    # (optional)
+    node: "example-value"
 
   # Engine-specific plugin names to install before launching the engine. Currently
   # used by the Pi engine: each entry is passed to `pi install <extension>`.
@@ -2592,7 +2668,8 @@ engine:
   # (optional)
   description: "Description of the workflow"
 
-  # Marks the engine as experimental so compiled workflows can surface a warning
+  # Marks the engine as experimental so compiled workflows can surface an explicit
+  # warning.
   # (optional)
   experimental: true
 
@@ -2601,11 +2678,15 @@ engine:
   # (optional)
   runtime-id: "example-value"
 
-  # Optional engine-specific secret bindings for behavior-defined engines
+  # Optional engine-specific secret bindings for behavior-defined engines.
   # (optional)
-  auth:
-    - role: session
-      secret: AUGMENT_SESSION_AUTH
+  auth: []
+    # Array items:
+      # Logical authentication role name.
+      role: "example-value"
+
+      # GitHub Actions secret name exposed to the engine runtime.
+      secret: "example-value"
 
   # Provider metadata for the engine
   # (optional)
@@ -2680,96 +2761,144 @@ engine:
     {}
 
   # Declarative custom-engine runtime behavior used to materialize a shared CLI
-  # engine from frontmatter
+  # engine from frontmatter.
   # (optional)
   behaviors:
-    # Secret resolution mode (for example universal provider/model routing)
+    # Secret resolution mode for the engine (for example 'universal-llm-consumer').
     # (optional)
-    secret-strategy: universal-llm-consumer
+    secret-strategy: "example-value"
 
-    # Secret or env var keys accepted through engine.env
+    # Secret or env var keys the engine accepts through engine.env.
     # (optional)
-    supported-env-var-keys:
-      - AUGMENT_SESSION_AUTH
+    supported-env-var-keys: []
+      # Array of strings
 
-    # Capability flags exposed by the engine runtime
     # (optional)
     capabilities:
+      # (optional)
+      tools-allowlist: true
+
+      # (optional)
       max-turns: true
 
-    # Files and directories treated as engine manifests
+      # (optional)
+      web-search: true
+
+      # (optional)
+      max-continuations: true
+
+      # (optional)
+      native-agent-file: true
+
+      # (optional)
+      bare-mode: true
+
     # (optional)
     manifest:
-      files:
-        - .auggie.json
-      path-prefixes:
-        - .auggie/
+      # (optional)
+      files: []
+        # Array of strings
 
-    # CLI installation metadata
+      # (optional)
+      path-prefixes: []
+        # Array of strings
+
     # (optional)
     installation:
-      package-manager: npm
-      package-name: "@augmentcode/auggie"
-      version: "1.0.0"
-      step-name: Install Auggie
-      binary-name: auggie
-      include-node-setup: true
-      post-install-scripts: false
-      cooldown: true
-      verify-command: auggie --version
-      verify-step-name: Verify Auggie CLI installation
-      docs-url: https://docs.augmentcode.com
+      # (optional)
+      package-manager: "example-value"
 
-    # Optional config file written before execution
+      # (optional)
+      package-name: "example-value"
+
+      # (optional)
+      version: "example-value"
+
+      # (optional)
+      step-name: "example-value"
+
+      # (optional)
+      binary-name: "example-value"
+
+      # (optional)
+      include-node-setup: true
+
+      # (optional)
+      post-install-scripts: true
+
+      # (optional)
+      cooldown: true
+
+      # (optional)
+      verify-command: "example-value"
+
+      # (optional)
+      verify-step-name: "example-value"
+
+      # (optional)
+      docs-url: "example-value"
+
     # (optional)
     config-file:
-      path: .auggie.json
-      step-name: Write Auggie Config
-      content: '{"sandbox":"workspace-write"}'
-      merge-strategy: json-merge
+      # (optional)
+      path: "example-value"
 
-    # Shared execution pattern
+      # (optional)
+      step-name: "example-value"
+
+      # (optional)
+      content: "example-value"
+
+      # (optional)
+      merge-strategy: "example-value"
+
     # (optional)
     execution:
-      command-name: auggie
-      args:
-        - run
-      step-name: Execute Auggie CLI
-      model-env-var: AUGGIE_MODEL
-      # Optional: rewrite the provider prefix in the model string before setting
-      # the model env var. For example, if set to "openai" and the engine.model
-      # is "copilot/gpt-5", the env var receives "openai/gpt-5" so the CLI uses
-      # its own openai provider instead of an unrecognised "copilot" prefix.
-      # model-env-provider-prefix: openai
-      model-flag: --model
-      mcp-config-env-var: AUGGIE_MCP_CONFIG
-      mcp-config-flag: --mcp-config
-      write-timestamp: true
-      provider-env-mode: universal-llm-consumer
+      # (optional)
+      command-name: "example-value"
 
-    # MCP config rendering target
+      # (optional)
+      args: []
+        # Array of strings
+
+      # (optional)
+      step-name: "example-value"
+
+      # (optional)
+      model-env-var: "example-value"
+
+      # (optional)
+      model-env-provider-prefix: "example-value"
+
+      # (optional)
+      model-flag: "example-value"
+
+      # (optional)
+      mcp-config-env-var: "example-value"
+
+      # (optional)
+      mcp-config-flag: "example-value"
+
+      # (optional)
+      write-timestamp: true
+
+      # (optional)
+      provider-env-mode: "example-value"
+
     # (optional)
     mcp:
-      config-path: .auggie.json
+      # (optional)
+      config-path: "example-value"
 
-    # Optional Node.js harness script for engines that need dynamic /reflect-based
-    # configuration at runtime. When set, the script is written to
-    # ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before execution and the
-    # engine is launched as:
-    #   node <harness-path> <command-name> [args...]
-    # The harness can read process.env.GH_AW_PROMPT for the prompt file path.
-    # When the AWF firewall is active, process.env.AWF_REFLECT_ENABLED is set to "1"
-    # so the harness can read /reflect data to dynamically configure the engine CLI.
+    # JavaScript source of a Node.js harness that spawns the engine CLI. When set, the
+    # script is written to ${RUNNER_TEMP}/gh-aw/actions/<engine-id>_harness.cjs before
+    # execution and the engine is launched as: node <harness-path> <command-name>
+    # [args...]. The harness reads process.env.GH_AW_PROMPT for the prompt-file path
+    # and, when the AWF firewall is active, process.env.AWF_REFLECT_ENABLED is set to
+    # '1' so the harness can read /reflect data to dynamically configure the engine
+    # CLI.
     # (optional)
-    harness-script: |
-      "use strict";
-      // Example minimal harness — replace with your engine's logic.
-      const fs = require("fs");
-      const { spawnSync } = require("child_process");
-      const cmd = process.argv[2];
-      const args = process.argv.slice(3);
-      const prompt = fs.readFileSync(process.env.GH_AW_PROMPT, "utf8");
-      spawnSync(cmd, [...args, prompt], { stdio: "inherit" });
+    harness-script: "example-value"
 
 # Format 5: MCP gateway configuration for shared workflows. Declares engine.mcp
 # settings (tool-timeout, session-timeout) that consumers inherit during import
@@ -2798,9 +2927,7 @@ engine:
 # committing to a specific engine. The runtime selects an appropriate engine using
 # its default, and the model preference is applied to it.
 engine:
-  # Model preference or size category (e.g. 'small', 'large', 'gpt-4.1'). Applied to
-  # the default engine when engine.id is not specified.
-  model: "example-value"
+
 
 # AWF turn cap (`max_turns`) applied consistently across all agentic engines.
 # Supports GitHub Actions expressions (e.g. '${{ inputs.max-turns }}') for
@@ -3468,6 +3595,30 @@ tools:
         # (optional)
         workflows: "read"
 
+    # Opts out of cross-visibility protections for private-to-public data flows. Set
+    # to 'allow' for a blanket opt-out (disables forcePublicRepos and default
+    # sink-visibility enforcement), or provide an array of MCP server IDs to exempt
+    # only those servers from default sink-visibility enforcement. Incompatible with
+    # strict mode when set to 'allow'. See MCP Gateway Specification Section 10.9.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: Blanket opt-out: disables forcePublicRepos and sink-visibility
+    # enforcement for all servers. Not allowed in strict mode.
+    private-to-public-flows: "allow"
+
+    # Format 2: Selective exemption: disables default sink-visibility enforcement for
+    # the listed MCP server IDs only. Compatible with strict mode.
+    private-to-public-flows: []
+      # Array items: MCP server ID to exempt from sink-visibility enforcement
+
+    # Comma-separated list of GitHub MCP server feature flags to enable. Forwarded as
+    # GITHUB_FEATURES (Docker/local) or X-MCP-Features (remote). When omitted,
+    # 'fields_param' is enabled by default for server v1.6.0 and later. Set to an
+    # empty string to disable all feature flags.
+    # (optional)
+    features: "example-value"
+
   # Bash shell command execution tool. Supports wildcards: '*' (all commands),
   # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
   # commands: echo, ls, pwd, cat, head, tail, grep, wc, sort, uniq, date.
@@ -3673,6 +3824,11 @@ tools:
 
     # Format 2: GitHub Actions expression that resolves to a boolean at runtime
     staged: "example-value"
+
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4051,6 +4207,11 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to a boolean at runtime
     staged: "example-value"
 
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
+
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
     # --use-samples` flag to replace the agentic step with a deterministic replay
@@ -4130,6 +4291,11 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to a boolean at runtime
     staged: "example-value"
+
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -4940,6 +5106,11 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to a boolean at runtime
     staged: "example-value"
 
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
+
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
     # --use-samples` flag to replace the agentic step with a deterministic replay
@@ -4958,9 +5129,19 @@ safe-outputs:
     samples:
       {}
 
-    # Reason for closing the issue (default: completed)
+    # Reason for closing the issue. Scalar: fixed reason (default: completed). Array:
+    # agent selects from the listed subset at runtime.
     # (optional)
+    # Accepted formats:
+
+    # Format 1: Fixed reason for closing the issue; the agent cannot override this
+    # value.
     state-reason: "completed"
+
+    # Format 2: Restricted subset of allowed reasons; the agent may choose from this
+    # list at runtime.
+    state-reason: []
+      # Array items: string
 
   # Format 2: Enable issue closing with default configuration
   close-issue: null
@@ -5418,6 +5599,12 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # Optional fork or head repository in format 'owner/repo' where the pull request
+    # branch is pushed. When set, the pull request is still created in target-repo but
+    # uses an owner-qualified head.
+    # (optional)
+    head-repo: "example-value"
+
     # List of additional repositories in format 'owner/repo' that pull requests can be
     # created in. When specified, the agent can use a 'repo' field in the output to
     # specify which repository to create the pull request in. The target repository
@@ -5439,6 +5626,206 @@ safe-outputs:
     # if specified.
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # Optional GitHub token used only for branch writes to head-repo. Use this when
+    # the upstream PR repository and the fork head repository require different
+    # credentials.
+    # (optional)
+    head-github-token: "example-value"
+
+    # Optional GitHub App credentials to mint an ephemeral token for head-repo branch
+    # writes at runtime. When configured, the minted token takes precedence over
+    # head-github-token. The app installation must have contents: write on head-repo.
+    # (optional)
+    head-github-app:
+      # Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID
+      # }}').
+      # (optional)
+      app-id: "example-value"
+
+      # GitHub App client ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App
+      # token.
+      # (optional)
+      client-id: "example-value"
+
+      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
+      # mint a GitHub App token.
+      # (optional)
+      private-key: "example-value"
+
+      # If true, skip token minting when client-id/private-key resolve to empty strings
+      # at runtime. Defaults to false.
+      # (optional)
+      ignore-if-missing: true
+
+      # Optional owner of the GitHub App installation (defaults to current repository
+      # owner if not specified)
+      # (optional)
+      owner: "example-value"
+
+      # Optional list of repositories to grant access to (defaults to current repository
+      # if not specified)
+      # (optional)
+      repositories: []
+        # Array of strings
+
+      # Optional extra GitHub App-only permissions to merge into the minted token. Takes
+      # effect for tools.github.github-app and safe-outputs.github-app; ignored in
+      # on.github-app and the top-level github-app fallback. Use to add GitHub App-only
+      # scopes (e.g. members, organization-administration) not expressible via standard
+      # handler declarations.
+      # (optional)
+      permissions:
+        # Permission level for repository administration (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission for repository administration.
+        # (optional)
+        administration: "read"
+
+        # Permission level for Codespaces (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        codespaces: "read"
+
+        # Permission level for Codespaces lifecycle administration (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        codespaces-lifecycle-admin: "read"
+
+        # Permission level for Codespaces metadata (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        codespaces-metadata: "read"
+
+        # Permission level for user email addresses (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        email-addresses: "read"
+
+        # Permission level for repository environments (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        environments: "read"
+
+        # Permission level for git signing (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        git-signing: "read"
+
+        # Permission level for organization members (read/none; "write" is rejected by the
+        # compiler). Required for org team membership API calls.
+        # (optional)
+        members: "read"
+
+        # Permission level for organization administration (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-administration: "read"
+
+        # Permission level for organization announcement banners (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-announcement-banners: "read"
+
+        # Permission level for organization Codespaces (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-codespaces: "read"
+
+        # Permission level for organization Copilot (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-copilot: "read"
+
+        # Permission level for organization custom org roles (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-org-roles: "read"
+
+        # Permission level for organization custom properties (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-properties: "read"
+
+        # Permission level for organization custom repository roles (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-repository-roles: "read"
+
+        # Permission level for organization events (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-events: "read"
+
+        # Permission level for organization webhooks (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-hooks: "read"
+
+        # Permission level for organization members management (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-members: "read"
+
+        # Permission level for organization packages (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-packages: "read"
+
+        # Permission level for organization personal access token requests (read/none;
+        # "write" is rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-personal-access-token-requests: "read"
+
+        # Permission level for organization personal access tokens (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-personal-access-tokens: "read"
+
+        # Permission level for organization plan (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-plan: "read"
+
+        # Permission level for organization self-hosted runners (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-self-hosted-runners: "read"
+
+        # Permission level for organization user blocking (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-user-blocking: "read"
+
+        # Permission level for repository custom properties (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        repository-custom-properties: "read"
+
+        # Permission level for repository webhooks (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        repository-hooks: "read"
+
+        # Permission level for single file access (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        single-file: "read"
+
+        # Permission level for team discussions (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        team-discussions: "read"
+
+        # Permission level for Dependabot vulnerability alerts (read/none; "write" is
+        # rejected by the compiler). Also available as a GITHUB_TOKEN scope. When used
+        # with a GitHub App, forwarded as permission-vulnerability-alerts input.
+        # (optional)
+        vulnerability-alerts: "read"
+
+        # Permission level for GitHub Actions workflow files (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        workflows: "read"
 
     # Time until the pull request expires and should be automatically closed (only for
     # same-repo PRs without target-repo). Supports integer (days) or relative time
@@ -6722,6 +7109,11 @@ safe-outputs:
     # (optional)
     required-title-prefix: "example-value"
 
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
+
     # When true, emit step summary messages instead of making GitHub API calls for
     # this specific output type (preview mode)
     # (optional)
@@ -7149,6 +7541,11 @@ safe-outputs:
     # Format 2: GitHub Actions expression that resolves to a boolean at runtime
     staged: "example-value"
 
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
+
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
     # --use-samples` flag to replace the agentic step with a deterministic replay
@@ -7238,6 +7635,11 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to a boolean at runtime
     staged: "example-value"
+
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
 
     # Internal hidden feature. Optional list of declarative sample payloads that
     # exercise this safe-output handler. Used by the hidden `gh aw compile
@@ -7906,6 +8308,212 @@ safe-outputs:
     # (optional)
     target-repo: "example-value"
 
+    # Optional head repository in format 'owner/repo' that is allowed for fork-backed
+    # pull request branch updates. When set, the pull request head repository must
+    # match exactly.
+    # (optional)
+    head-repo: "example-value"
+
+    # Optional GitHub token used only for branch writes to head-repo. Use this when
+    # the upstream pull request repository and the fork head repository require
+    # different credentials.
+    # (optional)
+    head-github-token: "example-value"
+
+    # Optional GitHub App credentials to mint an ephemeral token for head-repo branch
+    # writes at runtime. When configured, the minted token takes precedence over
+    # head-github-token. The app installation must have contents: write on head-repo.
+    # (optional)
+    head-github-app:
+      # Deprecated alias for client-id. GitHub App ID/client ID (e.g., '${{ vars.APP_ID
+      # }}').
+      # (optional)
+      app-id: "example-value"
+
+      # GitHub App client ID (e.g., '${{ vars.APP_ID }}'). Required to mint a GitHub App
+      # token.
+      # (optional)
+      client-id: "example-value"
+
+      # GitHub App private key (e.g., '${{ secrets.APP_PRIVATE_KEY }}'). Required to
+      # mint a GitHub App token.
+      # (optional)
+      private-key: "example-value"
+
+      # If true, skip token minting when client-id/private-key resolve to empty strings
+      # at runtime. Defaults to false.
+      # (optional)
+      ignore-if-missing: true
+
+      # Optional owner of the GitHub App installation (defaults to current repository
+      # owner if not specified)
+      # (optional)
+      owner: "example-value"
+
+      # Optional list of repositories to grant access to (defaults to current repository
+      # if not specified)
+      # (optional)
+      repositories: []
+        # Array of strings
+
+      # Optional extra GitHub App-only permissions to merge into the minted token. Takes
+      # effect for tools.github.github-app and safe-outputs.github-app; ignored in
+      # on.github-app and the top-level github-app fallback. Use to add GitHub App-only
+      # scopes (e.g. members, organization-administration) not expressible via standard
+      # handler declarations.
+      # (optional)
+      permissions:
+        # Permission level for repository administration (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission for repository administration.
+        # (optional)
+        administration: "read"
+
+        # Permission level for Codespaces (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        codespaces: "read"
+
+        # Permission level for Codespaces lifecycle administration (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        codespaces-lifecycle-admin: "read"
+
+        # Permission level for Codespaces metadata (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        codespaces-metadata: "read"
+
+        # Permission level for user email addresses (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        email-addresses: "read"
+
+        # Permission level for repository environments (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        environments: "read"
+
+        # Permission level for git signing (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        git-signing: "read"
+
+        # Permission level for organization members (read/none; "write" is rejected by the
+        # compiler). Required for org team membership API calls.
+        # (optional)
+        members: "read"
+
+        # Permission level for organization administration (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-administration: "read"
+
+        # Permission level for organization announcement banners (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-announcement-banners: "read"
+
+        # Permission level for organization Codespaces (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-codespaces: "read"
+
+        # Permission level for organization Copilot (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-copilot: "read"
+
+        # Permission level for organization custom org roles (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-org-roles: "read"
+
+        # Permission level for organization custom properties (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-properties: "read"
+
+        # Permission level for organization custom repository roles (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-custom-repository-roles: "read"
+
+        # Permission level for organization events (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-events: "read"
+
+        # Permission level for organization webhooks (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-hooks: "read"
+
+        # Permission level for organization members management (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-members: "read"
+
+        # Permission level for organization packages (read/none; "write" is rejected by
+        # the compiler). GitHub App-only permission.
+        # (optional)
+        organization-packages: "read"
+
+        # Permission level for organization personal access token requests (read/none;
+        # "write" is rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-personal-access-token-requests: "read"
+
+        # Permission level for organization personal access tokens (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-personal-access-tokens: "read"
+
+        # Permission level for organization plan (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        organization-plan: "read"
+
+        # Permission level for organization self-hosted runners (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-self-hosted-runners: "read"
+
+        # Permission level for organization user blocking (read/none; "write" is rejected
+        # by the compiler). GitHub App-only permission.
+        # (optional)
+        organization-user-blocking: "read"
+
+        # Permission level for repository custom properties (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        repository-custom-properties: "read"
+
+        # Permission level for repository webhooks (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        repository-hooks: "read"
+
+        # Permission level for single file access (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        single-file: "read"
+
+        # Permission level for team discussions (read/none; "write" is rejected by the
+        # compiler). GitHub App-only permission.
+        # (optional)
+        team-discussions: "read"
+
+        # Permission level for Dependabot vulnerability alerts (read/none; "write" is
+        # rejected by the compiler). Also available as a GITHUB_TOKEN scope. When used
+        # with a GitHub App, forwarded as permission-vulnerability-alerts input.
+        # (optional)
+        vulnerability-alerts: "read"
+
+        # Permission level for GitHub Actions workflow files (read/none; "write" is
+        # rejected by the compiler). GitHub App-only permission.
+        # (optional)
+        workflows: "read"
+
     # List of additional repositories in format 'owner/repo' that push to pull request
     # branch can target. When specified, the agent can use a 'repo' field in the
     # output to specify which repository to push to. The target repository (current or
@@ -8160,6 +8768,17 @@ safe-outputs:
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
 
+    # Optional GitHub token used only for branch writes to head-repo. Use this when
+    # the upstream pull request repository and the fork head repository require
+    # different credentials.
+    # (optional)
+    head-github-token: "example-value"
+
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
+
     # When true, emit step summary messages instead of making GitHub API calls for
     # this specific output type (preview mode)
     # (optional)
@@ -8249,6 +8868,11 @@ safe-outputs:
     # if specified.
     # (optional)
     github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+    # Enable issue-intent metadata support (rationale/confidence/suggest) for this
+    # output type.
+    # (optional)
+    issue-intent: true
 
     # When true, emit step summary messages instead of making GitHub API calls for
     # this specific output type (preview mode)
@@ -8462,10 +9086,82 @@ safe-outputs:
       staged: "example-value"
 
   # Deprecated alias for dispatch-repository.
-  # Rename this key to dispatch-repository to avoid deprecation warnings.
-  # The configuration shape is identical to dispatch-repository above.
   # (optional)
-  dispatch_repository: {}
+  dispatch_repository:
+    # Configuration for a single repository dispatch tool
+    trigger-ci:
+      # Human-readable description of what this dispatch tool does
+      # (optional)
+      description: "Description of the workflow"
+
+      # Target workflow name (for traceability and inclusion in client_payload)
+      workflow: "example-value"
+
+      # The repository_dispatch event_type string sent to the target repository
+      event_type: "example-value"
+
+      # Target repository in 'owner/repo' format. Dispatches to this repository when no
+      # 'allowed_repositories' list is given.
+      # (optional)
+      repository: "example-value"
+
+      # List of allowed target repositories (owner/repo). Supports glob patterns like
+      # 'org/*'.
+      # (optional)
+      allowed_repositories: []
+        # Array of strings
+
+      # Input schema for the dispatch tool. Inputs are validated and compiled into
+      # client_payload.
+      # (optional)
+      inputs:
+        repo-name:
+          # Input type
+          # (optional)
+          type: "string"
+
+          # Input description
+          # (optional)
+          description: "Description of the workflow"
+
+          # Whether this input is required
+          # (optional)
+          required: true
+
+          # Default value for this input
+          # (optional)
+          default: null
+
+          # Allowed options for 'choice' type inputs
+          # (optional)
+          options: []
+            # Array of strings
+
+      # Maximum number of dispatch executions for this tool per run (default: 1, max:
+      # 50). Supports integer or GitHub Actions expression.
+      # (optional)
+      # Accepted formats:
+
+      # Format 1: integer
+      max: 1
+
+      # Format 2: GitHub Actions expression that resolves to an integer at runtime
+      max: "example-value"
+
+      # GitHub token to use for dispatching. Overrides global github-token if specified.
+      # (optional)
+      github-token: "${{ secrets.GITHUB_TOKEN }}"
+
+      # When true, emit step summary messages instead of making GitHub API calls
+      # (preview mode)
+      # (optional)
+      # Accepted formats:
+
+      # Format 1: boolean
+      staged: true
+
+      # Format 2: GitHub Actions expression that resolves to a boolean at runtime
+      staged: "example-value"
 
   # Call reusable workflows via workflow_call fan-out. The compiler generates static
   # conditional jobs; the agent selects which worker to activate. Use this for
@@ -10050,6 +10746,15 @@ private: true
 # (optional)
 check-for-updates: true
 
+# Optional list of environment variable names to unconditionally exclude from the
+# AWF agent container via --exclude-env. Use when an env var is set from a source
+# the compiler cannot auto-detect as credential-bearing (e.g. a workflow_dispatch
+# input carrying a token). Names are deduplicated and merged with those
+# auto-detected from secrets.* and needs.*.outputs.* references.
+# (optional)
+excluded-env: []
+  # Array of Environment variable name to exclude from the agent container.
+
 # MCP Scripts configuration for defining custom lightweight MCP tools as
 # JavaScript, shell scripts, or Python scripts. Tools are mounted in an MCP server
 # and have access to secrets specified by the user. Only one of 'script'
@@ -10757,6 +11462,13 @@ github-app:
 # (optional)
 import-schema:
   {}
+
+# Optional top-level LLM model override. Sets the model used by the agentic engine
+# for this workflow. Takes precedence over engine.model when both are specified.
+# Supports full model IDs (e.g. 'claude-3-5-sonnet-20241022', 'gpt-5.4') and model
+# aliases (e.g. 'small', 'large').
+# (optional)
+model: "example-value"
 
 # ⚠️ Experimental. BinEval binary evaluation questions to run after safe-outputs
 # and before the conclusion job. Can be a plain list of questions (shorthand) or

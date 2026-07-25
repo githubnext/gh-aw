@@ -442,6 +442,36 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineDriverPatter
 		t.Fatalf("expected arbitrary command engine.driver to pass schema validation, got: %v", err)
 	}
 
+	inlineNodeDriverFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id": "copilot",
+			"driver": map[string]any{
+				"node": "console.log('hi')",
+			},
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(inlineNodeDriverFrontmatter, "/tmp/gh-aw/engine-driver-inline-node-test.md")
+	if err != nil {
+		t.Fatalf("expected inline node engine.driver to pass schema validation, got: %v", err)
+	}
+
+	inlineJavaDriverFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id": "copilot",
+			"driver": map[string]any{
+				"java": "class Main {}",
+			},
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(inlineJavaDriverFrontmatter, "/tmp/gh-aw/engine-driver-inline-java-test.md")
+	if err != nil {
+		t.Fatalf("expected inline java engine.driver to pass schema validation, got: %v", err)
+	}
+
 	invalidFrontmatter := map[string]any{
 		"on": "push",
 		"engine": map[string]any{
@@ -466,6 +496,22 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_EngineDriverPatter
 	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidFlagLikeFrontmatter, "/tmp/gh-aw/engine-driver-invalid-flaglike-pattern-test.md")
 	if err == nil {
 		t.Fatal("expected flag-like engine.driver pattern to fail schema validation")
+	}
+
+	invalidInlineFrontmatter := map[string]any{
+		"on": "push",
+		"engine": map[string]any{
+			"id": "copilot",
+			"driver": map[string]any{
+				"node":   "console.log('hi')",
+				"python": "print('hi')",
+			},
+		},
+	}
+
+	err = ValidateMainWorkflowFrontmatterWithSchemaAndLocation(invalidInlineFrontmatter, "/tmp/gh-aw/engine-driver-invalid-inline-runtime-count-test.md")
+	if err == nil {
+		t.Fatal("expected multi-runtime inline engine.driver to fail schema validation")
 	}
 }
 

@@ -227,6 +227,70 @@ steps:
 	}
 }
 
+func TestRuntimeSetupWithInlineCopilotDriver(t *testing.T) {
+	workflowMarkdown := `---
+on: workflow_dispatch
+engine:
+  id: copilot
+  driver:
+    python: |
+      import sys
+      print("hello from inline driver", file=sys.stderr)
+---
+
+# Test workflow`
+
+	tmpDir := testutil.TempDir(t, "test-inline-driver-*")
+	testFile := tmpDir + "/test-workflow.md"
+
+	if err := os.WriteFile(testFile, []byte(workflowMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	lockContent := string(content)
+	agentJobSection := extractJobSection(lockContent, "agent")
+
+	expectedStrings := []string{
+		"Setup Python",
+		"Write Inline Copilot SDK Driver",
+		"Install GitHub Copilot SDK (Python)",
+		".gh-aw/copilot-sdk/inline-driver.py",
+		`print("hello from inline driver", file=sys.stderr)`,
+		".gh-aw/copilot-sdk/inline-driver",
+		"PYTHONPATH: ${{ github.workspace }}/.gh-aw/copilot-sdk/python",
+	}
+	for _, expected := range expectedStrings {
+		if !strings.Contains(lockContent, expected) {
+			t.Errorf("Expected compiled workflow to contain %q", expected)
+		}
+	}
+
+	setupPythonIndex := indexInNonCommentLines(agentJobSection, "Setup Python")
+	writeDriverIndex := indexInNonCommentLines(agentJobSection, "Write Inline Copilot SDK Driver")
+	installSDKIndex := indexInNonCommentLines(agentJobSection, "Install GitHub Copilot SDK (Python)")
+	if setupPythonIndex == -1 || writeDriverIndex == -1 || installSDKIndex == -1 {
+		t.Fatalf("Expected inline driver setup steps in agent job, got:\n%s", agentJobSection)
+	}
+	if !(setupPythonIndex < writeDriverIndex && writeDriverIndex < installSDKIndex) {
+		t.Fatalf("Expected runtime setup, inline driver write, and SDK install ordering in agent job, got:\n%s", agentJobSection)
+	}
+
+	if !containsInNonCommentLines(agentJobSection, "${GITHUB_WORKSPACE}/.gh-aw/copilot-sdk/inline-driver") {
+		t.Fatalf("Expected agent job to execute the generated inline driver wrapper, got:\n%s", agentJobSection)
+	}
+}
+
 func TestRuntimeSetupWithEngineNode(t *testing.T) {
 	// Test that auto-detected runtime setup works alongside engine requirements
 	// Both the auto-detection and engine may add setup steps, which is acceptable

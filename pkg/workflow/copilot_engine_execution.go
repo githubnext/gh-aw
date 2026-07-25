@@ -162,6 +162,9 @@ func copilotSDKRuntimeID(workflowData *WorkflowData) string {
 	if workflowData == nil || workflowData.EngineConfig == nil {
 		return "node"
 	}
+	if runtimeID := copilotSDKInlineDriverRuntimeID(workflowData); runtimeID != "" {
+		return runtimeID
+	}
 	command := workflowData.EngineConfig.Command
 	if command != "" {
 		return detectRuntimeFromCopilotCommand(command)
@@ -385,6 +388,9 @@ func (e *CopilotEngine) buildCopilotSDKExecPrefix(workflowData *WorkflowData, co
 	// by extension; bare command names (no extension) are treated as arbitrary executables in PATH.
 	driverRuntimeCmd, driverArg := copilotSDKDriverExecArgs(sdkDriverScriptName)
 	if driverArg == "" {
+		if customSDKDriverConfigured && strings.Contains(sdkDriverScriptName, "/") {
+			driverRuntimeCmd = `"${GITHUB_WORKSPACE}/` + sdkDriverScriptName + `"`
+		}
 		return fmt.Sprintf(`%s %s/%s %s %s`, runtimeResolutionCommand, SetupActionDestinationShell, harnessScriptName, driverRuntimeCmd, commandName)
 	}
 	driverPath := fmt.Sprintf(`"%s/%s"`, SetupActionDestinationShell, sdkDriverScriptName)

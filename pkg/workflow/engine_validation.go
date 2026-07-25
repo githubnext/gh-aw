@@ -131,6 +131,10 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 		return nil
 	}
 
+	if workflowData.EngineConfig.InlineDriver != nil {
+		return c.validateInlineEngineDriver(workflowData)
+	}
+
 	name := workflowData.EngineConfig.Driver
 	isCopilotEngine := workflowData.EngineConfig.ID == "copilot"
 
@@ -172,6 +176,33 @@ func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
 			return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a script ending with .js, .cjs, .mjs, .py, .ts, .mts, or .rb, or a bare command name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
 		}
 		return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
+	}
+}
+
+func (c *Compiler) validateInlineEngineDriver(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.InlineDriver == nil {
+		return nil
+	}
+
+	inlineDriver := workflowData.EngineConfig.InlineDriver
+
+	if inlineDriver.MultipleRuntime {
+		return fmt.Errorf("engine.driver: exactly one runtime key is allowed (node, python, go, java); found multiple.\n\nSee: %s", constants.DocsEnginesURL)
+	}
+
+	if workflowData.EngineConfig.ID != "copilot" {
+		return fmt.Errorf("inline engine.driver sources are only supported for the copilot engine.\n\nSee: %s", constants.DocsEnginesURL)
+	}
+
+	if strings.TrimSpace(inlineDriver.Source) == "" {
+		return fmt.Errorf("engine.driver.%s must not be empty.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
+	}
+
+	switch inlineDriver.Runtime {
+	case "node", "python", "go", "java":
+		return nil
+	default:
+		return fmt.Errorf("engine.driver inline runtime %q is not supported. Use one of: node, python, go, java.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
 	}
 }
 
