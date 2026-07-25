@@ -386,6 +386,9 @@ func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host s
 	if err := gitutil.ValidateGitRef(ref); err != nil {
 		return nil, fmt.Errorf("refusing git clone fallback: %w", err)
 	}
+	if err := gitutil.ValidateGitPath(path); err != nil {
+		return nil, fmt.Errorf("refusing git clone fallback: %w", err)
+	}
 
 	// Create a temporary directory for the shallow clone
 	tmpDir, err := os.MkdirTemp("", "gh-aw-git-clone-*")
@@ -419,8 +422,9 @@ func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host s
 			}
 		}
 
-		// Now checkout the specific commit; '--' prevents ref from being parsed as a flag.
-		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "--", ref)
+		// Now checkout the specific commit in detached HEAD mode. ValidateGitRef above
+		// guarantees ref does not start with '-', so it remains a revision argument.
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "--detach", ref)
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
 		}

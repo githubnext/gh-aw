@@ -40,17 +40,15 @@ func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (
 	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
-	// Try to resolve the ref using git ls-remote
-	// Format: git ls-remote <repo> -- <ref>
-	// The '--' end-of-options separator ensures ref is never parsed as a flag even
-	// if it begins with '-' (argument injection, CWE-88). ValidateGitRef above also
-	// rejects such values; '--' is kept as defence-in-depth.
-	cmd := exec.CommandContext(ctx, "git", "ls-remote", repoURL, "--", ref)
+	// Try to resolve the ref using git ls-remote.
+	// ValidateGitRef above guarantees ref does not begin with '-' before it is passed
+	// as a separate argument, so no extra separator is needed here.
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", repoURL, ref)
 	output, err := cmd.Output()
 	if err != nil {
 		// If exact ref doesn't work, try with refs/heads/ and refs/tags/ prefixes
 		for _, prefix := range []string{"refs/heads/", "refs/tags/"} {
-			cmd = exec.CommandContext(ctx, "git", "ls-remote", repoURL, "--", prefix+ref)
+			cmd = exec.CommandContext(ctx, "git", "ls-remote", repoURL, prefix+ref)
 			output, err = cmd.Output()
 			if err == nil && len(output) > 0 {
 				break

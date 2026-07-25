@@ -493,6 +493,12 @@ func TestValidateGitRef(t *testing.T) {
 			errContains: "must not contain '..'",
 		},
 		{
+			name:        "NUL byte is rejected",
+			ref:         "main\x00evil",
+			expectError: true,
+			errContains: "NUL",
+		},
+		{
 			name:        "dotdot prefix is rejected",
 			ref:         "..evil",
 			expectError: true,
@@ -547,6 +553,18 @@ func TestValidateGitPath(t *testing.T) {
 			path:        "--output=/etc/passwd",
 			expectError: true,
 			errContains: "must not start with '-'",
+		},
+		{
+			name:        "path traversal is rejected",
+			path:        "../etc/passwd",
+			expectError: true,
+			errContains: "must not contain '..'",
+		},
+		{
+			name:        "absolute path is rejected",
+			path:        "/etc/passwd",
+			expectError: true,
+			errContains: "must not be absolute",
 		},
 	}
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	stdpath "path"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -78,6 +79,9 @@ func ValidateGitRef(ref string) error {
 	if strings.HasPrefix(ref, "-") {
 		return fmt.Errorf("invalid git ref %q: refs must not start with '-' to prevent argument injection", ref)
 	}
+	if strings.ContainsRune(ref, '\x00') {
+		return fmt.Errorf("invalid git ref %q: refs must not contain NUL bytes", ref)
+	}
 	if strings.Contains(ref, "..") {
 		return fmt.Errorf("invalid git ref %q: refs must not contain '..'", ref)
 	}
@@ -93,6 +97,13 @@ func ValidateGitPath(path string) error {
 	}
 	if strings.HasPrefix(path, "-") {
 		return fmt.Errorf("invalid git path %q: paths must not start with '-' to prevent argument injection", path)
+	}
+	if stdpath.IsAbs(path) {
+		return fmt.Errorf("invalid git path %q: paths must not be absolute", path)
+	}
+	cleaned := stdpath.Clean(path)
+	if cleaned == ".." || strings.HasPrefix(cleaned, "../") {
+		return fmt.Errorf("invalid git path %q: paths must not contain '..' path traversal", path)
 	}
 	return nil
 }
