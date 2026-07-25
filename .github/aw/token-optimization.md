@@ -381,6 +381,8 @@ max-daily-ai-credits: 500M  # per-user 24h cap; -1 disables
 
 For custom or private models, the top-level **`models:`** frontmatter field supplies pricing in the same structure as `models.json` (keyed `providers.<provider>.models.<model>.cost` with `input`/`output`/`cache_read`/`cache_write` per-token costs). Entries are merged with the built-in `models.json` at runtime — they override matching models and fill gaps for unknown ones — so AI Credit accounting stays accurate for models gh-aw does not price by default.
 
+For self-hosted or BYOK models absent from the built-in table (e.g. Ollama, vLLM), set **`models.default-ai-credits-pricing`** (`input`/`output` in $/1M tokens, both `0` for free/local models); without it the AWF proxy rejects unrecognized models with HTTP 400 `unknown_model_ai_credits`.
+
 ---
 
 ## Additional Resources
