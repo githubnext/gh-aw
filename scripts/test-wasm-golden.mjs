@@ -200,6 +200,16 @@ function normalizeCopilotDefaultModel(content) {
   );
 }
 
+// ── Normalize actions/checkout pin ──────────────────────────────────────
+// Keep golden fixtures stable across actions/checkout pin version bumps.
+// Mirrors testCheckoutPinRE / normalizeOutput() in pkg/workflow/wasm_golden_test.go.
+function normalizeCheckoutPin(content) {
+  return content.replace(
+    /actions\/checkout@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+/g,
+    "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0"
+  );
+}
+
 // ── Normalize default runtime versions ───────────────────────────────────
 // Keep tracked wasm snapshots stable across default AWF/MCPG version bumps
 // without masking explicitly pinned non-default versions in fixtures.
@@ -234,16 +244,6 @@ function normalizeDefaultRuntimeVersions(content) {
       new RegExp(`(ghcr\\.io/github/gh-aw-mcpg:)${escapeRegex(mcpgVersion)}\\b`, "g"),
       "$1MCPG_VERSION"
     );
-}
-
-// ── Normalize actions/checkout pin/version ───────────────────────────────
-// Keep golden fixtures stable across checkout action pin updates in wasm-vs-native
-// comparisons. Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
-function normalizeCheckoutPin(content) {
-  return content.replace(
-    /actions\/checkout@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+/g,
-    "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0"
-  );
 }
 
 // ── Normalize output ──────────────────────────────────────────────────

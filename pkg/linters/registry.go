@@ -49,6 +49,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/strconvparseignorederror"
 	"github.com/github/gh-aw/pkg/linters/stringbytesroundtrip"
 	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
+	"github.com/github/gh-aw/pkg/linters/stringsconcatloop"
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsjoinone"
@@ -112,6 +113,7 @@ func All() []*analysis.Analyzer {
 		strconvparseignorederror.Analyzer,
 		stringbytesroundtrip.Analyzer,
 		stringreplaceminusone.Analyzer,
+		stringsconcatloop.Analyzer,
 		stringsindexcontains.Analyzer,
 		stringsjoinone.Analyzer,
 		stringscountcontains.Analyzer,

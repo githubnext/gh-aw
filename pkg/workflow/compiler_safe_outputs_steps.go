@@ -289,10 +289,7 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	c.addSafeOutputGitHubTokenForConfig(&steps, data, configToken)
 
 	steps = append(steps, "          script: |\n")
-	steps = append(steps, "            const { setupGlobals } = require('"+SetupActionDestination+"/setup_globals.cjs');\n")
-	steps = append(steps, "            setupGlobals(core, github, context, exec, io, getOctokit);\n")
-	steps = append(steps, "            const { main } = require('"+SetupActionDestination+"/safe_output_handler_manager.cjs');\n")
-	steps = append(steps, "            await main();\n")
+	steps = append(steps, generateGitHubScriptWithRequire("process_safe_outputs.cjs"))
 
 	return steps, nil
 }
