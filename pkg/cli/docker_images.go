@@ -33,9 +33,9 @@ const (
 	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
 	ActionlintImage  = "rhysd/actionlint:1.7.12"
 	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
-	SyftImage        = "anchore/syft:v1.48.0"
-	GrypeImage       = "anchore/grype:v0.116.0"
-	GrantImage       = "anchore/grant:v0.6.8"
+	SyftImage        = "anchore/syft:v1.48.0@sha256:b4f1df79f97b817682d8b5ff941eb6bfe74f6172553a5e312c75bbc2eabc405c"
+	GrypeImage       = "anchore/grype:v0.116.0@sha256:fd4ab4d1042b522c896e73bdf09ab8bf384fa417df99d6dd0d6e1008c7e7c821"
+	GrantImage       = "anchore/grant:v0.6.8@sha256:172463611795f43b77302cdfbd7b3f81295492a7330e0820cfe41c3674920237"
 	YamllintImage    = "pipelinecomponents/yamllint:latest"
 )
 
