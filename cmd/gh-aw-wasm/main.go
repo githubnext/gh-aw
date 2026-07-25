@@ -47,13 +47,17 @@ func compileWorkflow(this js.Value, args []js.Value) any {
 
 		go func() {
 			defer handler.Release()
-
-			result, err := doCompile(markdown, files, filename)
-			if err != nil {
-				reject.Invoke(js.Global().Get("Error").New(err.Error()))
-				return
-			}
-			resolve.Invoke(result)
+			runCompileWithRecovery(
+				func() (any, error) {
+					return doCompile(markdown, files, filename)
+				},
+				func(result any) {
+					resolve.Invoke(result)
+				},
+				func(err error) {
+					reject.Invoke(js.Global().Get("Error").New(err.Error()))
+				},
+			)
 		}()
 
 		return nil

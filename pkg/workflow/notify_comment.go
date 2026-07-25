@@ -89,7 +89,7 @@ func (c *Compiler) buildConclusionJob(data *WorkflowData, mainJobName string, sa
 	}
 	return &Job{
 		Name:        "conclusion",
-		If:          RenderCondition(buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
+		If:          RenderCondition(c.buildConclusionJobCondition(data, mainJobName, safeOutputJobNames)),
 		RunsOn:      c.formatFrameworkJobRunsOn(data),
 		Environment: c.indentYAMLLines(resolveSafeOutputsEnvironment(data), "    "),
 		Permissions: conclusionPerms.RenderToYAML(),

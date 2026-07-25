@@ -1467,6 +1467,15 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		assert.Contains(t, errors[0].Message, "ERROR: connection refused")
 	})
 
+	t.Run("returns nil when workflow-logs cannot be read even if agent-stdio exists", func(t *testing.T) {
+		dir := testutil.TempDir(t, "audit-step-*")
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "agent-stdio.log"), []byte("ERROR: should not be used"), 0600))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "workflow-logs"), []byte("not a directory"), 0600))
+
+		errors := extractPreAgentStepErrors(dir)
+		assert.Nil(t, errors, "Should preserve early return when workflow-logs exists but cannot be scanned")
+	})
+
 	t.Run("extracts error from last step log file", func(t *testing.T) {
 		dir := testutil.TempDir(t, "audit-step-*")
 		// No agent-stdio.log

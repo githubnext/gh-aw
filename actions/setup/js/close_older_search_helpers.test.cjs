@@ -1,7 +1,7 @@
 // @ts-check
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { buildMarkerSearchQuery, filterByMarker, logFilterSummary } from "./close_older_search_helpers.cjs";
+import { buildMarkerSearchQuery, searchOlderEntitiesByMarker, filterByMarker, logFilterSummary } from "./close_older_search_helpers.cjs";
 
 // Mock globals
 global.core = {
@@ -397,6 +397,78 @@ describe("close_older_search_helpers", () => {
       expect(issueResult.counters.filteredCount).toBe(discResult.counters.filteredCount);
       expect(issueResult.counters.excludedCount).toBe(discResult.counters.excludedCount);
       expect(issueResult.counters.markerMismatchCount).toBe(discResult.counters.markerMismatchCount);
+    });
+  });
+
+  describe("searchOlderEntitiesByMarker", () => {
+    it("should return empty array when neither workflowId nor closeOlderKey is provided", async () => {
+      const executeSearch = vi.fn();
+
+      const result = await searchOlderEntitiesByMarker({
+        owner: "owner",
+        repo: "repo",
+        workflowId: "",
+        excludeNumber: 10,
+        entityType: "issue",
+        executeSearch,
+        getItems: () => [],
+        mapItem: item => item,
+      });
+
+      expect(result).toEqual([]);
+      expect(executeSearch).not.toHaveBeenCalled();
+    });
+
+    it("should search, filter, map, and log summary with shared pipeline", async () => {
+      const executeSearch = vi.fn().mockResolvedValue({
+        data: {
+          items: [
+            { number: 1, title: "Old issue", body: "<!-- gh-aw-workflow-id: test -->", labels: [{ name: "bug" }] },
+            { number: 2, title: "New issue", body: "<!-- gh-aw-workflow-id: test -->", labels: [] },
+            { number: 3, title: "PR", body: "<!-- gh-aw-workflow-id: test -->", pull_request: {} },
+          ],
+        },
+      });
+
+      const result = await searchOlderEntitiesByMarker({
+        owner: "owner",
+        repo: "repo",
+        workflowId: "test",
+        excludeNumber: 2,
+        entityType: "issue",
+        entityQualifier: "is:issue",
+        executeSearch,
+        getItems: response => response?.data?.items,
+        mapItem: item => ({ number: item.number, title: item.title }),
+        additionalFilter: (item, extra) => {
+          if (item.pull_request) {
+            extra.pullRequestCount = (extra.pullRequestCount || 0) + 1;
+            return false;
+          }
+          return true;
+        },
+        extraLabels: [["pullRequestCount", "Excluded pull requests"]],
+      });
+
+      expect(result).toEqual([{ number: 1, title: "Old issue" }]);
+      expect(executeSearch).toHaveBeenCalledWith('repo:owner/repo is:issue is:open "gh-aw-workflow-id: test" in:body');
+      expect(global.core.info).toHaveBeenCalledWith("  - Excluded pull requests: 1");
+    });
+
+    it("should return empty array when the API result shape does not include items", async () => {
+      const result = await searchOlderEntitiesByMarker({
+        owner: "owner",
+        repo: "repo",
+        workflowId: "test",
+        excludeNumber: 10,
+        entityType: "discussion",
+        executeSearch: () => Promise.resolve({ search: {} }),
+        getItems: response => response?.search?.nodes,
+        mapItem: item => item,
+      });
+
+      expect(result).toEqual([]);
+      expect(global.core.info).toHaveBeenCalledWith("No results returned from search API");
     });
   });
 });
