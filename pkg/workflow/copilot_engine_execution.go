@@ -133,11 +133,11 @@ const copilotSDKPythonPathExpression = "${{ github.workspace }}/.gh-aw/copilot-s
 // SetupActionDestinationShell). For bare command names (no extension), the driver is treated
 // as an arbitrary executable in PATH: runtimeCmd is the command itself and driverArg is empty.
 //
-//   - .js/.cjs/.mjs → ("$GH_AW_NODE_EXEC", "driver.cjs")
-//   - .py           → ("python3",           "driver.py")
-//   - .ts/.mts      → ("ts-node",           "driver.ts")
-//   - .rb           → ("ruby",              "driver.rb")
-//   - (no ext)      → ("my-driver",         "")
+//   - .js/.cjs/.mjs → ("$GH_AW_NODE_EXEC",  "driver.cjs")
+//   - .py           → ("python3",             "driver.py")
+//   - .ts/.mts      → ("$GH_AW_NODE_EXEC",   "driver.ts")
+//   - .rb           → ("ruby",                "driver.rb")
+//   - (no ext)      → ("my-driver",           "")
 func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) {
 	ext := strings.ToLower(filepath.Ext(driverName))
 	switch ext {
@@ -146,7 +146,8 @@ func copilotSDKDriverExecArgs(driverName string) (runtimeCmd, driverArg string) 
 	case ".py":
 		return "python3", driverName
 	case ".ts", ".mts":
-		return "ts-node", driverName
+		// Node 24 runs TypeScript natively; use the same node executor as .js drivers.
+		return `"$GH_AW_NODE_EXEC"`, driverName
 	case ".rb":
 		return "ruby", driverName
 	default:

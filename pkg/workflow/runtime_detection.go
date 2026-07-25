@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"maps"
+	"path/filepath"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -84,6 +85,17 @@ func DetectRuntimeRequirements(workflowData *WorkflowData) []RuntimeRequirement 
 		}
 	}
 
+	// When using a TypeScript Copilot SDK driver (.ts/.mts extension), require Node 24.
+	// Node 24 runs TypeScript natively; earlier versions do not support this.
+	// This only applies to file-extension-based driver detection, not to engine.command
+	// configurations (e.g. "ts-node driver.ts") which manage their own toolchain.
+	if requiresNode24ForTypeScriptSDKDriver(workflowData) {
+		nodeRuntime := findRuntimeByID("node")
+		if nodeRuntime != nil {
+			updateRequiredRuntime(nodeRuntime, string(constants.DefaultNodeVersion), requirements)
+		}
+	}
+
 	// Detect runtimes required by LSP server configurations.
 	// Each known LSP server declares the runtime it needs (e.g. "go" for gopls,
 	// "ruby" for solargraph). Feeding these through the runtime manager ensures
@@ -148,6 +160,27 @@ func requiresNodeForEngineHarness(workflowData *WorkflowData) bool {
 	// installation steps (GenerateNpmInstallSteps with includeNodeSetup=true), so no
 	// additional Node runtime requirement is needed for custom harness execution.
 	return strings.EqualFold(engineID, string(constants.CopilotEngine))
+}
+
+// requiresNode24ForTypeScriptSDKDriver returns true when a Copilot SDK driver is a TypeScript
+// file (.ts or .mts) detected by extension. Node 24 runs TypeScript natively; the runtime
+// setup ensures the correct version is provisioned.
+//
+// This does not apply when engine.command is set (e.g., "ts-node driver.ts"), since those
+// configurations manage their own TypeScript toolchain independently.
+func requiresNode24ForTypeScriptSDKDriver(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.EngineConfig == nil {
+		return false
+	}
+	if !workflowData.EngineConfig.CopilotSDK {
+		return false
+	}
+	// engine.command takes precedence; the user manages the toolchain explicitly.
+	if workflowData.EngineConfig.Command != "" {
+		return false
+	}
+	ext := filepath.Ext(workflowData.EngineConfig.Driver)
+	return strings.EqualFold(ext, ".ts") || strings.EqualFold(ext, ".mts")
 }
 
 func detectFromInlineEngineDriver(workflowData *WorkflowData, requirements map[string]*RuntimeRequirement) {
