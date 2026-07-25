@@ -6,16 +6,73 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 /** Function node types that form an async boundary. */
 const FUNCTION_BOUNDARY_TYPES = new Set<string>([AST_NODE_TYPES.FunctionDeclaration, AST_NODE_TYPES.FunctionExpression, AST_NODE_TYPES.ArrowFunctionExpression]);
 
+function getMemberPropertyName(node: TSESTree.MemberExpression): string | null {
+  const property = node.property;
+  if (!node.computed && property.type === AST_NODE_TYPES.Identifier) return property.name;
+  if (node.computed && property.type === AST_NODE_TYPES.Literal && typeof property.value === "string") return property.value;
+  return null;
+}
+
 /**
- * Returns true when the node is an `await fetch(...)` expression (AwaitExpression wrapping
- * a CallExpression whose callee is the global `fetch` identifier).
+ * Returns true when a call argument is statically non-callable.
+ * Promise rejection callbacks of `null`, `undefined`, any literal value, or spread elements
+ * are replaced by the default thrower and do NOT suppress rejection.
  */
-function isAwaitFetchCall(node: TSESTree.Node): node is TSESTree.AwaitExpression {
-  if (node.type !== AST_NODE_TYPES.AwaitExpression) return false;
-  const argument = node.argument;
-  if (argument.type !== AST_NODE_TYPES.CallExpression) return false;
-  const callee = argument.callee;
-  return callee.type === AST_NODE_TYPES.Identifier && callee.name === "fetch";
+function isStaticallyNonCallable(node: TSESTree.Expression | TSESTree.SpreadElement): boolean {
+  if (node.type === AST_NODE_TYPES.SpreadElement) return true;
+  if (node.type === AST_NODE_TYPES.Literal) return true;
+  if (node.type === AST_NODE_TYPES.Identifier && node.name === "undefined") return true;
+  return false;
+}
+
+interface AwaitedFetchInfo {
+  fetchCall: TSESTree.CallExpression;
+  hasRejectionHandler: boolean;
+}
+
+/**
+ * Returns info when the node is an awaited fetch call, including member-chained forms like
+ * `await fetch(url).then(...)` and whether the chain already carries a rejection handler.
+ */
+function getAwaitedFetchInfo(node: TSESTree.Node): AwaitedFetchInfo | null {
+  if (node.type !== AST_NODE_TYPES.AwaitExpression) return null;
+
+  let current: TSESTree.Expression | TSESTree.Super = node.argument;
+  let hasRejectionHandler = false;
+
+  while (true) {
+    if (current.type === AST_NODE_TYPES.Super) return null;
+
+    // Unwrap optional chains: `fetch(url)?.then(ok)` is wrapped in a ChainExpression by Espree.
+    if (current.type === AST_NODE_TYPES.ChainExpression) {
+      current = current.expression;
+      continue;
+    }
+
+    if (current.type === AST_NODE_TYPES.CallExpression) {
+      const callee = current.callee;
+
+      if (callee.type === AST_NODE_TYPES.Identifier && callee.name === "fetch") {
+        return { fetchCall: current, hasRejectionHandler };
+      }
+
+      if (callee.type !== AST_NODE_TYPES.MemberExpression) return null;
+
+      const methodName = getMemberPropertyName(callee);
+      if (methodName === "catch" && current.arguments.length >= 1 && !isStaticallyNonCallable(current.arguments[0])) hasRejectionHandler = true;
+      if (methodName === "then" && current.arguments.length >= 2 && !isStaticallyNonCallable(current.arguments[1])) hasRejectionHandler = true;
+
+      current = callee.object;
+      continue;
+    }
+
+    if (current.type === AST_NODE_TYPES.MemberExpression) {
+      current = current.object;
+      continue;
+    }
+
+    return null;
+  }
 }
 
 export const requireFetchTryCatchRule = createRule({
@@ -83,12 +140,14 @@ export const requireFetchTryCatchRule = createRule({
 
     return {
       AwaitExpression(node) {
-        if (!isAwaitFetchCall(node)) return;
+        const fetchInfo = getAwaitedFetchInfo(node);
+        if (!fetchInfo) return;
         // Skip when fetch is shadowed by a local binding (e.g. a parameter or import named fetch).
         if (hasLocalBinding(node, "fetch")) return;
+        if (fetchInfo.hasRejectionHandler) return;
         if (isInsideTryBlock(node)) return;
 
-        const fetchCall = node.argument as TSESTree.CallExpression;
+        const { fetchCall } = fetchInfo;
         const firstArg = fetchCall.arguments[0];
         const urlText = firstArg !== undefined ? sourceCode.getText(firstArg as TSESTree.Node) : "";
         const stmt = findEnclosingStatement(sourceCode, node);
