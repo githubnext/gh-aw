@@ -121,7 +121,7 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **144** = batch-SMALL clean-single. batch = idx135-179 (files=(i//45)%4==3);
+Next index: **148** = batch-SMALL ahead-multi. batch = idx135-179 (files=(i//45)%4==3);
 batch-small/medium/large/xlarge = idx144-179 finish FILES=batch. HISTORY=deep(500) &
 SIZE>tiny (idx720+) far ahead. **BATCH boundary confirmed (idx135):** 100 files ==
 default max-patch-files 100 → workflow sets 200 so safe; measure file-count from PATCH
@@ -140,3 +140,10 @@ misfire, ff is-ancestor rc0. **Diverged GOTCHA:** `diff --name-only main..featur
 (100+followup+phantom history.md tree-revert) but format-patch commit-range=true set.
 First real `rejected` still needs: PATCH tier >4096, batch under default-100, or 3×
 single-long-line same-file-append. batch-xlarge (~4080 KB, 100f, idx~170s) — watch both.
+
+**batch-SMALL clean tier COMPLETE (idx144-147), all PASS:** 100f, 50 KB payload → framing
++~22 KB (~220 B/file header) → patch ~72 KB (~1.44×, ~1.8% of 4096; 100≤200, only
+max-patch-files live). clean-single(144) 71.97/1c, clean-multi(145) 72.51/3 disjoint ~1×,
+clean-merge_msg(146) 71.96/1c filename leak+parent=1, ahead-single(147) 71.96 push delta
++1.01 KB FF is-ancestor rc0 (2c). batch-100 framing % tracks file-count: micro ~24× →
+small ~1.44× → converges ~1.0× as payload grows (large/xlarge remain the cap watch).
