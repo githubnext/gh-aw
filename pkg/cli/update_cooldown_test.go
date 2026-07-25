@@ -230,3 +230,38 @@ func TestFormatCoolDownDuration(t *testing.T) {
 		})
 	}
 }
+
+func TestEffectiveCommitCoolDown(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    time.Duration
+		expected time.Duration
+	}{
+		{name: "disabled when zero", input: 0, expected: 0},
+		{name: "disabled when negative", input: -1 * time.Hour, expected: 0},
+		{name: "fixed three day cooldown", input: 7 * 24 * time.Hour, expected: 3 * 24 * time.Hour},
+		{name: "explicit shorter release cooldown still uses three days", input: 24 * time.Hour, expected: 3 * 24 * time.Hour},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, effectiveCommitCoolDown(tt.input))
+		})
+	}
+}
+
+func TestCheckCommitCoolDownWithDate(t *testing.T) {
+	committedAt := time.Now().Add(-2 * 24 * time.Hour)
+	result := checkCommitCoolDownWithDate("owner/repo", "main", committedAt, 3*24*time.Hour)
+	assert.True(t, result.InCoolDown, "commit 2d old should be in cooldown with 3d window")
+	assert.Contains(t, result.Message, "owner/repo")
+	assert.Contains(t, result.Message, "main")
+	assert.Contains(t, result.Message, "cool down")
+}
+
+func TestCheckCommitCoolDownWithDate_NotInCoolDown(t *testing.T) {
+	committedAt := time.Now().Add(-4 * 24 * time.Hour)
+	result := checkCommitCoolDownWithDate("owner/repo", "main", committedAt, 3*24*time.Hour)
+	assert.False(t, result.InCoolDown, "commit 4d old should not be in cooldown with 3d window")
+	assert.Empty(t, result.Message)
+}

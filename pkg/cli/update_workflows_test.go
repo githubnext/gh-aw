@@ -137,3 +137,44 @@ func TestResolveLatestRelease_CooldownAllInWindow(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, "v1.0.0", result, "should return currentRef when all upgrade candidates are in cooldown")
 }
+
+func TestResolveLatestRef_BranchCommitCooldownReturnsCurrentBranch(t *testing.T) {
+	t.Parallel()
+
+	deps := defaultWorkflowUpdateDeps()
+	deps.getLatestBranchCommit = func(_ context.Context, repo, branch string) (latestBranchCommitInfo, error) {
+		require.Equal(t, "owner/repo", repo)
+		require.Equal(t, "main", branch)
+		return latestBranchCommitInfo{
+			SHA:         "abc123def456abc123def456abc123def456abc1",
+			CommittedAt: time.Now().Add(-2 * 24 * time.Hour),
+		}, nil
+	}
+
+	result, err := resolveLatestRefWithDeps(context.Background(), deps, "owner/repo", "main", false, false, 7*24*time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, "main", result, "branch update should be skipped while latest commit is in cooldown")
+}
+
+func TestResolveLatestRef_CommitCooldownReturnsCurrentSHA(t *testing.T) {
+	t.Parallel()
+
+	deps := defaultWorkflowUpdateDeps()
+	deps.getRepoDefaultBranch = func(_ context.Context, repo string) (string, error) {
+		require.Equal(t, "owner/repo", repo)
+		return "main", nil
+	}
+	deps.getLatestBranchCommit = func(_ context.Context, repo, branch string) (latestBranchCommitInfo, error) {
+		require.Equal(t, "owner/repo", repo)
+		require.Equal(t, "main", branch)
+		return latestBranchCommitInfo{
+			SHA:         "abc123def456abc123def456abc123def456abc1",
+			CommittedAt: time.Now().Add(-1 * 24 * time.Hour),
+		}, nil
+	}
+
+	currentSHA := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
+	result, err := resolveLatestRefWithDeps(context.Background(), deps, "owner/repo", currentSHA, false, false, 7*24*time.Hour)
+	require.NoError(t, err)
+	assert.Equal(t, currentSHA, result, "commit-pinned update should be skipped while latest default-branch commit is in cooldown")
+}
