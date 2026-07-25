@@ -20,7 +20,7 @@ strict: true
 timeout-minutes: 30
 tools:
   github: false
-  bash: false
+  bash: ["*"]
   edit: false
 safe-outputs:
   mentions: false
