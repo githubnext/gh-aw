@@ -17,7 +17,7 @@ describe("no-err-stack-then-string-fallback", () => {
     });
   });
 
-  it("valid: instanceof form is handled by prefer-get-error-message", () => {
+  it("valid: instanceof .message form is handled by prefer-get-error-message", () => {
     cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
       valid: [`const msg = err instanceof Error ? err.message : String(err);`],
       invalid: [],
@@ -55,6 +55,61 @@ describe("no-err-stack-then-string-fallback", () => {
   it("valid: test with different property than stack is excluded", () => {
     cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
       valid: [`const msg = err && err.message ? err.message : String(err);`],
+      invalid: [],
+    });
+  });
+
+  it("invalid: instanceof Error form with .stack consequent is flagged", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const msg = err instanceof Error ? err.stack : String(err);`,
+          errors: [
+            {
+              messageId: "preferGetErrorMessage",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "replaceWithGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `const msg = getErrorMessage(err);`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: instanceof Error form in template literal is flagged", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "core.setFailed(`unhandled error: ${err instanceof Error ? err.stack : String(err)}`);",
+          errors: [
+            {
+              messageId: "preferGetErrorMessage",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "replaceWithGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: "core.setFailed(`unhandled error: ${getErrorMessage(err)}`);",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: instanceof non-Error check with .stack is excluded", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [`const msg = err instanceof MyError ? err.stack : String(err);`],
       invalid: [],
     });
   });
