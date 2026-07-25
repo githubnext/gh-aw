@@ -67,6 +67,36 @@ func IsValidFullSHA(s string) bool {
 	return fullSHARegex.MatchString(s)
 }
 
+// ValidateGitRef returns an error if ref would be unsafe to pass as a positional
+// argument to a git subprocess. A ref starting with '-' would be parsed as an
+// option flag rather than a value (argument injection, CWE-88). Refs containing
+// '..' can trigger git object traversal expressions.
+func ValidateGitRef(ref string) error {
+	if ref == "" {
+		return errors.New("git ref must not be empty")
+	}
+	if strings.HasPrefix(ref, "-") {
+		return fmt.Errorf("invalid git ref %q: refs must not start with '-' to prevent argument injection", ref)
+	}
+	if strings.Contains(ref, "..") {
+		return fmt.Errorf("invalid git ref %q: refs must not contain '..'", ref)
+	}
+	return nil
+}
+
+// ValidateGitPath returns an error if path would be unsafe to pass as a positional
+// argument to a git subprocess. A path starting with '-' would be parsed as an
+// option flag rather than a value (argument injection, CWE-88).
+func ValidateGitPath(path string) error {
+	if path == "" {
+		return errors.New("git path must not be empty")
+	}
+	if strings.HasPrefix(path, "-") {
+		return fmt.Errorf("invalid git path %q: paths must not start with '-' to prevent argument injection", path)
+	}
+	return nil
+}
+
 // ExtractBaseRepo extracts the base repository (owner/repo) from a repository path
 // that may include subfolders.
 // For "actions/checkout" -> "actions/checkout"

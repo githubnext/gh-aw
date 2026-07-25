@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -52,6 +53,12 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 	ref := "main"
 	if len(parts) == 2 {
 		ref = parts[1]
+	}
+
+	// Reject refs that would be unsafe to pass to git subprocesses.
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		importRemoteLog.Printf("Rejecting spec %q: invalid ref: %v", spec, err)
+		return nil
 	}
 
 	// Parse path: owner/repo/path/to/file.md

@@ -293,6 +293,13 @@ func resolveAndValidateRemoteSymlinkBase(parentDir, target, dirPath string) (str
 func downloadFileViaGit(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 	remoteLog.Printf("Attempting git fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return nil, fmt.Errorf("refusing git fallback: %w", err)
+	}
+	if err := gitutil.ValidateGitPath(path); err != nil {
+		return nil, fmt.Errorf("refusing git fallback: %w", err)
+	}
+
 	// First, try via raw.githubusercontent.com — no auth required for public repos and
 	// no dependency on git being installed.
 	// Only attempt raw URL for github.com repos (not GHE) since raw.githubusercontent.com
@@ -315,10 +322,14 @@ func downloadFileViaGit(ctx context.Context, owner, repo, path, ref, host string
 	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
-	// git archive command: git archive --remote=<repo> <ref> <path>
+	// git archive command: git archive --remote=<repo> <ref> -- <path>
+	// The '--' end-of-options separator ensures ref and path are never parsed as
+	// git flags even if they begin with '-' (argument injection, CWE-88).
+	// ValidateGitRef/ValidateGitPath above guard against leading '-' and '..' at
+	// this layer; '--' is kept as defence-in-depth per the git(1) specification.
 	// #nosec G204 -- repoURL, ref, and path are from workflow import configuration authored by the
 	// developer; exec.CommandContext with separate args (not shell execution) prevents shell injection.
-	cmd := exec.CommandContext(ctx, "git", "archive", "--remote="+repoURL, ref, path)
+	cmd := exec.CommandContext(ctx, "git", "archive", "--remote="+repoURL, ref, "--", path)
 	archiveOutput, err := cmd.Output()
 	if err != nil {
 		// If git archive fails, try with git clone + git show as a fallback
@@ -372,6 +383,10 @@ func downloadFileViaRawURL(ctx context.Context, owner, repo, filePath, ref strin
 func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 	remoteLog.Printf("Attempting git clone fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return nil, fmt.Errorf("refusing git clone fallback: %w", err)
+	}
+
 	// Create a temporary directory for the shallow clone
 	tmpDir, err := os.MkdirTemp("", "gh-aw-git-clone-*")
 	if err != nil {
@@ -404,13 +419,14 @@ func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host s
 			}
 		}
 
-		// Now checkout the specific commit
-		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", ref)
+		// Now checkout the specific commit; '--' prevents ref from being parsed as a flag.
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "--", ref)
 		if output, err := checkoutCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
 		}
 	} else {
-		// For branch/tag refs, use --branch flag
+		// For branch/tag refs, use --branch flag; the value is passed via a separate
+		// argument slot and cannot be confused with a flag because it follows --branch.
 		cloneCmd = exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, repoURL, tmpDir)
 		if output, err := cloneCmd.CombinedOutput(); err != nil {
 			return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
