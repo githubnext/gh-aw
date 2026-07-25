@@ -74,13 +74,16 @@ Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
    the same image are deduplicated. If the scan step failed to produce output,
    create a `Container scan operational failure` issue.
 3. If there are no findings and no operational errors, call `noop`.
-4. In each image issue, include:
+4. Format each image issue with `###` and `####` headings only. Keep a visible
+   `### Summary` section at the top, and wrap verbose per-vulnerability or
+   per-license breakdowns in `<details><summary>...</summary>` blocks.
+5. In each image issue, include:
    - the image name and pinned reference;
    - every vulnerability with severity, CVE ID, package, installed version, and
      fixed versions;
    - every rejected or unknown license and the affected package;
    - actionable remediation guidance.
-5. Keep the report factual and compact. Never omit lower-severity
+6. Keep the report factual and compact. Never omit lower-severity
    vulnerabilities.
 
 The configured `create-issue` safe output is the only allowed write operation.
