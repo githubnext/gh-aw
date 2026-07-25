@@ -266,14 +266,14 @@ func getOwnerNodeId(ctx context.Context, ownerType, owner string, verbose bool) 
 	var query string
 	var jqPath string
 	if ownerType == "org" {
-		query = fmt.Sprintf(`query { organization(login: "%s") { id } }`, escapeGraphQLString(owner))
+		query = `query($login: String!) { organization(login: $login) { id } }`
 		jqPath = ".data.organization.id"
 	} else {
-		query = fmt.Sprintf(`query { user(login: "%s") { id } }`, escapeGraphQLString(owner))
+		query = `query($login: String!) { user(login: $login) { id } }`
 		jqPath = ".data.user.id"
 	}
 
-	output, err := workflow.RunGH("Getting owner ID...", "api", "graphql", "-f", "query="+query, "--jq", jqPath)
+	output, err := projectCommandRunGH("Getting owner ID...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner, "--jq", jqPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get owner node ID: %w", err)
 	}

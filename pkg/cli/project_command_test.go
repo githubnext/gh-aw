@@ -589,6 +589,71 @@ func TestValidateOwnerUsesStringLoginField(t *testing.T) {
 	}
 }
 
+func TestGetOwnerNodeIdUsesStringLoginField(t *testing.T) {
+	oldRunGH := projectCommandRunGH
+	defer func() { projectCommandRunGH = oldRunGH }()
+
+	tests := []struct {
+		name      string
+		ownerType string
+		owner     string
+		wantJQ    string
+		wantQuery string
+	}{
+		{
+			name:      "organization login false stays string",
+			ownerType: "org",
+			owner:     "false",
+			wantJQ:    ".data.organization.id",
+			wantQuery: `query($login: String!) { organization(login: $login) { id } }`,
+		},
+		{
+			name:      "user login null stays string",
+			ownerType: "user",
+			owner:     "null",
+			wantJQ:    ".data.user.id",
+			wantQuery: `query($login: String!) { user(login: $login) { id } }`,
+		},
+		{
+			name:      "special characters are passed via login field",
+			ownerType: "org",
+			owner:     `octo"cat\team`,
+			wantJQ:    ".data.organization.id",
+			wantQuery: `query($login: String!) { organization(login: $login) { id } }`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var captured []string
+			projectCommandRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+				captured = append([]string(nil), args...)
+				return []byte("NODE_ID_123"), nil
+			}
+
+			nodeID, err := getOwnerNodeId(context.Background(), tt.ownerType, tt.owner, false)
+			require.NoError(t, err)
+			assert.Equal(t, "NODE_ID_123", nodeID)
+
+			queryArg := "query=" + tt.wantQuery
+			require.Contains(t, captured, queryArg)
+			queryIndex := slices.Index(captured, queryArg)
+			require.Positive(t, queryIndex)
+			assert.Equal(t, "-f", captured[queryIndex-1], "query must be passed with -f")
+
+			require.Contains(t, captured, "login="+tt.owner)
+			loginIndex := slices.Index(captured, "login="+tt.owner)
+			require.Positive(t, loginIndex)
+			assert.Equal(t, "-f", captured[loginIndex-1], "login must be passed with -f so gh keeps String! values as strings")
+
+			jqIndex := slices.Index(captured, "--jq")
+			require.Positive(t, jqIndex)
+			require.Less(t, jqIndex, len(captured)-1)
+			assert.Equal(t, tt.wantJQ, captured[jqIndex+1])
+		})
+	}
+}
+
 func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
 	oldRunGH := projectCommandRunGH
 	defer func() { projectCommandRunGH = oldRunGH }()
