@@ -7,6 +7,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -33,12 +34,12 @@ type importQueueItem struct {
 }
 
 // parseRemoteOrigin extracts the remote origin (owner, repo, ref, basePath) from a workflowspec path.
-// Returns nil if the path is not a valid workflowspec.
+// Returns nil, nil if the path is not a valid workflowspec.
 // Format: owner/repo/path[@ref] where ref defaults to "main" if not specified.
 // BasePath is derived from the parent workflowspec path and used for resolving nested relative imports.
 // For example, "elastic/ai-github-actions/gh-agent-workflows/gh-aw-workflows/file.md@main"
 // produces BasePath="gh-agent-workflows" so nested imports resolve relative to that directory.
-func parseRemoteOrigin(spec string) *remoteImportOrigin {
+func parseRemoteOrigin(spec string) (*remoteImportOrigin, error) {
 	importRemoteLog.Printf("Parsing remote import origin from spec: %q", spec)
 	// Remove section reference if present
 	cleanSpec := spec
@@ -54,11 +55,16 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 		ref = parts[1]
 	}
 
+	// Reject refs that would be unsafe to pass to git subprocesses.
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return nil, err
+	}
+
 	// Parse path: owner/repo/path/to/file.md
 	slashParts := strings.Split(pathPart, "/")
 	if len(slashParts) < 3 {
 		importRemoteLog.Printf("Spec %q has fewer than 3 path components; not a valid workflowspec", spec)
-		return nil
+		return nil, nil
 	}
 
 	// Derive BasePath: everything between owner/repo and the last component (filename)
@@ -88,5 +94,5 @@ func parseRemoteOrigin(spec string) *remoteImportOrigin {
 		Repo:     slashParts[1],
 		Ref:      ref,
 		BasePath: basePath,
-	}
+	}, nil
 }

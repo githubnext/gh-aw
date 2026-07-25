@@ -28,6 +28,10 @@ var resolveRefToSHAViaGitFunc = resolveRefToSHAViaGit
 func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (string, error) {
 	remoteLog.Printf("Attempting git ls-remote fallback for ref resolution: %s/%s@%s", owner, repo, ref)
 
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return "", fmt.Errorf("refusing git ls-remote fallback: %w", err)
+	}
+
 	var githubHost string
 	if host != "" {
 		githubHost = "https://" + host
@@ -36,8 +40,9 @@ func resolveRefToSHAViaGit(ctx context.Context, owner, repo, ref, host string) (
 	}
 	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
 
-	// Try to resolve the ref using git ls-remote
-	// Format: git ls-remote <repo> <ref>
+	// Try to resolve the ref using git ls-remote.
+	// ValidateGitRef above guarantees ref does not begin with '-' before it is passed
+	// as a separate argument, so no extra separator is needed here.
 	cmd := exec.CommandContext(ctx, "git", "ls-remote", repoURL, ref)
 	output, err := cmd.Output()
 	if err != nil {
@@ -211,4 +216,30 @@ func resolveRefToSHAViaPublicAPI(ctx context.Context, owner, repo, ref string) (
 // An empty host uses the default configured host (GH_HOST or github.com).
 func ResolveRefToSHAForHost(ctx context.Context, owner, repo, ref, host string) (string, error) {
 	return resolveRefToSHA(ctx, owner, repo, ref, host)
+}
+
+// ErrVerificationSkipped is returned by VerifyCommitExists when the check cannot be
+// performed due to an auth or network failure. Callers should treat it as non-fatal.
+var ErrVerificationSkipped = errors.New("commit verification skipped")
+
+// VerifyCommitExists confirms that a full commit SHA exists in the given repository by
+// querying the GitHub commits API. Unlike ResolveRefToSHAForHost, it always performs
+// an API call so that a missing commit is detected (not silently passed through).
+//
+// Returns nil if the commit is found, ErrVerificationSkipped (wrapped) for auth or
+// network errors where existence cannot be determined, and an unwrapped error when the
+// API definitively reports the commit does not exist (e.g. HTTP 404).
+func VerifyCommitExists(ctx context.Context, owner, repo, sha, host string) error {
+	client, err := createRESTClientForHostFunc(host)
+	if err != nil {
+		return fmt.Errorf("%w: failed to create REST client: %w", ErrVerificationSkipped, err)
+	}
+	var result commitLookupResponse
+	if apiErr := client.DoWithContext(ctx, http.MethodGet, buildCommitLookupAPIPath(owner, repo, sha), nil, &result); apiErr != nil {
+		if isGitHubAPIAuthError(apiErr) {
+			return fmt.Errorf("%w: %w", ErrVerificationSkipped, apiErr)
+		}
+		return apiErr
+	}
+	return nil
 }
