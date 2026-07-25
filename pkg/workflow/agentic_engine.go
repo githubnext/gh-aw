@@ -104,6 +104,16 @@ type Engine interface {
 	// GetGHSkillAgentName returns the gh skill --agent value for this engine.
 	// Returns an empty string when gh skill install does not support the engine.
 	GetGHSkillAgentName() string
+
+	// IsUserFacingDocumented returns true if this engine should appear in user-facing
+	// documentation such as docs/src/content/docs/reference/engines.md. Engines that
+	// return false are fully operational but are intentionally excluded from end-user
+	// documentation (e.g. internal or transitional engines). Documentation drift
+	// detectors MUST reconcile engines.md against the documented-engines set only
+	// (i.e. engines where IsUserFacingDocumented() == true) rather than the full
+	// registry, to avoid recurring false-positive gaps for intentionally undocumented
+	// engines. The default implementation in BaseEngine returns true.
+	IsUserFacingDocumented() bool
 }
 
 // EngineCapabilities captures optional engine features.
@@ -320,10 +330,17 @@ type CodingAgentEngine interface {
 
 // BaseEngine provides common functionality for agentic engines
 type BaseEngine struct {
-	id                      string
-	displayName             string
-	description             string
-	experimental            bool
+	id           string
+	displayName  string
+	description  string
+	experimental bool
+	// undocumented marks the engine as intentionally excluded from user-facing
+	// documentation (e.g. docs/src/content/docs/reference/engines.md).
+	// The engine is fully operational; the flag only controls whether drift
+	// detectors should flag a missing engines.md row as a documentation gap.
+	// When true, IsUserFacingDocumented() returns false. Default is false
+	// (all engines are documented unless explicitly opted out).
+	undocumented            bool
 	ghSkillAgentName        string
 	capabilities            EngineCapabilities
 	dedicatedLLMGatewayPort int
@@ -343,6 +360,13 @@ func (e *BaseEngine) GetDescription() string {
 
 func (e *BaseEngine) IsExperimental() bool {
 	return e.experimental
+}
+
+// IsUserFacingDocumented returns true when the engine should appear in user-facing
+// docs. Returns false for engines that carry undocumented: true, signalling drift
+// detectors to omit them from documentation-gap analysis.
+func (e *BaseEngine) IsUserFacingDocumented() bool {
+	return !e.undocumented
 }
 
 func (e *BaseEngine) GetGHSkillAgentName() string {
@@ -563,6 +587,22 @@ func (r *EngineRegistry) GetSupportedEngines() []string {
 	agenticEngineLog.Print("Getting list of supported engines")
 	engines := sliceutil.SortedKeys(r.engines)
 	return engines
+}
+
+// GetDocumentedEngines returns the sorted IDs of engines where IsUserFacingDocumented()
+// returns true. Documentation drift detectors (e.g. DDUw) MUST use this set — not
+// GetSupportedEngines() — when reconciling engines.md, so that intentionally
+// undocumented engines do not generate recurring false-positive gap issues.
+func (r *EngineRegistry) GetDocumentedEngines() []string {
+	var ids []string
+	for id, engine := range r.engines {
+		if engine.IsUserFacingDocumented() {
+			ids = append(ids, id)
+		}
+	}
+	sort.Strings(ids)
+	agenticEngineLog.Printf("Documented engines: %v", ids)
+	return ids
 }
 
 // IsValidEngine checks if an engine ID is valid

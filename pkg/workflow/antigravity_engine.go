@@ -21,10 +21,17 @@ var _ CodingAgentEngine = (*AntigravityEngine)(nil)
 func NewAntigravityEngine() *AntigravityEngine {
 	return &AntigravityEngine{
 		BaseEngine: BaseEngine{
-			id:               "antigravity",
-			displayName:      "Antigravity CLI",
-			description:      "Antigravity CLI with headless mode and LLM gateway support",
-			experimental:     true,
+			id:           "antigravity",
+			displayName:  "Antigravity CLI",
+			description:  "Antigravity CLI with headless mode and LLM gateway support",
+			experimental: true,
+			// undocumented intentionally excludes this engine from user-facing docs
+			// (docs/src/content/docs/reference/engines.md). Maintainer decision: the
+			// engine is production-registered but deliberately omitted from the public
+			// engine reference. All documentation drift detectors must call
+			// GetDocumentedEngines() rather than GetSupportedEngines() to avoid
+			// recurring false-positive gap issues (see gh-aw#47875).
+			undocumented:     true,
 			ghSkillAgentName: "antigravity",
 			capabilities: EngineCapabilities{
 				ToolsAllowlist:   true,

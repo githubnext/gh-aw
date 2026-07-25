@@ -288,6 +288,72 @@ func TestSpec_Engine_DocumentedEnginesRegistered(t *testing.T) {
 	}
 }
 
+// TestSpec_Engine_GetDocumentedEngines validates that GetDocumentedEngines() returns only
+// engines where IsUserFacingDocumented() == true. Specifically, "antigravity" is intentionally
+// excluded from user-facing documentation (undocumented: true), so it must not appear in the
+// list returned by GetDocumentedEngines(), even though it is present in GetSupportedEngines().
+// This prevents drift detectors (DDUw) from generating recurring false-positive gap issues.
+func TestSpec_Engine_GetDocumentedEngines(t *testing.T) {
+	registry := workflow.NewEngineRegistry()
+	require.NotNil(t, registry)
+
+	documented := registry.GetDocumentedEngines()
+	supported := registry.GetSupportedEngines()
+
+	t.Run("antigravity is excluded from documented engines", func(t *testing.T) {
+		assert.NotContains(t, documented, "antigravity",
+			"antigravity must not appear in GetDocumentedEngines(): it is intentionally undocumented")
+	})
+
+	t.Run("antigravity is still in supported engines", func(t *testing.T) {
+		assert.Contains(t, supported, "antigravity",
+			"antigravity must still appear in GetSupportedEngines(): it is fully operational")
+	})
+
+	t.Run("documented engines are a subset of supported engines", func(t *testing.T) {
+		for _, id := range documented {
+			assert.Contains(t, supported, id,
+				"every documented engine %q must also be in GetSupportedEngines()", id)
+		}
+	})
+
+	t.Run("well-known user-facing engines are all documented", func(t *testing.T) {
+		userFacingEngines := []string{"copilot", "claude", "codex", "gemini", "opencode", "pi"}
+		for _, id := range userFacingEngines {
+			assert.Contains(t, documented, id,
+				"user-facing engine %q must appear in GetDocumentedEngines()", id)
+		}
+	})
+}
+
+// TestSpec_Engine_IsUserFacingDocumented validates that each engine's IsUserFacingDocumented()
+// matches its intended inclusion in user-facing engine reference docs.
+func TestSpec_Engine_IsUserFacingDocumented(t *testing.T) {
+	tests := []struct {
+		engineID   string
+		documented bool
+	}{
+		{"copilot", true},
+		{"claude", true},
+		{"codex", true},
+		{"gemini", true},
+		{"opencode", true},
+		{"pi", true},
+		// antigravity is intentionally excluded from user-facing docs (undocumented: true)
+		{"antigravity", false},
+	}
+
+	registry := workflow.NewEngineRegistry()
+	for _, tt := range tests {
+		t.Run(tt.engineID, func(t *testing.T) {
+			engine, err := registry.GetEngine(tt.engineID)
+			require.NoError(t, err)
+			assert.Equal(t, tt.documented, engine.IsUserFacingDocumented(),
+				"engine %q IsUserFacingDocumented() must be %v", tt.engineID, tt.documented)
+		})
+	}
+}
+
 // TestSpec_Engine_GlobalRegistrySingleton validates the documented thread-safety contract that
 // GetGlobalEngineRegistry returns a singleton initialized once at startup.
 // Spec ("Thread Safety"): "The GetGlobalEngineRegistry() singleton is initialized once at startup

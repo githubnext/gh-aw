@@ -151,6 +151,7 @@ repo:${{ github.repository }} is:issue is:closed label:documentation closed:>=YY
 
 For each closed issue:
 - **Classify first**: If the issue clearly describes a site-build or UI concern — i.e., the fix would touch `docs/src/components/**`, `docs/astro.config.*`, the pagefind/search index, or CSS rather than Markdown/MDX content under `docs/src/content/docs/` — classify it as **site-build/UI (out of scope)**. Record it in the **Skipped Issues** section of the PR description as `#NNN — site-build/UI: needs Astro/site-build agent` and skip all further processing for this issue.
+- **Intentionally-undocumented engine check**: If the issue describes a missing engine row in `engines.md` and the engine in question has `undocumented: true` in its `NewXxxEngine()` constructor (check with `grep -r "undocumented:" pkg/workflow/`), the gap is intentional — **skip the issue entirely** and record it in **Skipped Issues** as `#NNN — intentionally undocumented engine: no action needed`. Do not re-open the gap analysis for such issues under any closure state.
 - **closed as completed**: Check whether a `[docs]` PR references it. If no such PR exists, also search for any merged PR that closes or fixes the issue by number (e.g. `closes #NNN`, `fixes #NNN`, `resolves #NNN` in the PR body). If such a PR is found and its documentation change is complete, skip the issue.
   - If no explicit issue-reference PR is found, run a fallback heuristic for likely spec-librarian/copilot fix PRs that omit issue numbers:
     1. Infer the package from the issue title/body (for example `pkg/constants`).
@@ -163,7 +164,7 @@ For each closed issue:
     3. Verify whether each listed gap is still present.
     4. If all listed items are already documented, treat the issue as already addressed and skip it (do not continue to Step 2 for this issue).
   - Otherwise, treat it as an unaddressed gap and follow the normal Step 2 flow.
-- **closed as not_planned**: Do not create documentation based solely on this issue. Instead, cross-reference the issue's subject matter against commits from the same 7-day window (Step 2). If a related code change is found, treat it as a new documentation gap (independent of the original issue decision) and follow the normal Step 2 flow for that code change.
+- **closed as not_planned**: Do not create documentation based solely on this issue. Additionally, check whether PRs that previously attempted the same fix direction were closed unmerged. If two or more PRs with the same fix direction (docs or code) were closed unmerged, treat the fix direction as rejected by maintainers and **do not re-attempt it** — record it in **Skipped Issues** as `#NNN — fix direction rejected (N prior closed PRs): needs fresh maintainer decision`. Instead, cross-reference the issue's subject matter against commits from the same 7-day window (Step 2). If a related code change is found, treat it as a new documentation gap (independent of the original issue decision) and follow the normal Step 2 flow for that code change.
   - **Cross-cutting docs-coverage / convention gaps (no triggering code change)**: If the issue describes a cross-cutting documentation **coverage or convention** gap (e.g., example parity across multiple reference pages, consistent terminology, missing cross-links) and carries the `cookie`, `improvement`, or `quick-win` label, *and no triggering code change was found above*, do not require a code change to act. Instead:
     1. Sample the files listed in the issue to confirm the gap still exists.
     2. If the gap persists **and** the fix direction is unambiguous (e.g., a phrase is clearly missing from a specific location), apply the fix and reference the issue with `Closes #NNN`.
@@ -235,6 +236,14 @@ Review the documentation in the `docs/src/content/docs/` directory:
 - Identify which documentation files need updates
 - Determine the appropriate documentation type (tutorial, how-to, reference, explanation)
 - Find the best location for new content
+
+**Engine documentation gaps — documented-engines-only rule**: When checking whether an AI engine is missing from `docs/src/content/docs/reference/engines.md`, only flag engines whose `IsUserFacingDocumented()` returns `true`. Engines marked `undocumented: true` in their `NewXxxEngine()` constructor (e.g. `antigravity`) are intentionally excluded from user-facing docs and MUST NOT be treated as a documentation gap, even if they appear in `GetSupportedEngines()` or `pkg/constants/AgenticEngines`. To determine which engines require documentation, run:
+
+```bash
+grep -r "undocumented:" pkg/workflow/
+```
+
+Any engine constructor that sets `undocumented: true` is intentionally excluded. Do not open issues or PRs to add such engines to `engines.md`.
 
 Use bash commands to explore documentation structure when needed:
 
