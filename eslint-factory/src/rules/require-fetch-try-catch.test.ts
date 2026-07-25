@@ -125,6 +125,33 @@ describe("require-fetch-try-catch", () => {
     });
   });
 
+  it("valid: await fetch chain with .catch() rejection handler", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [
+        `async function f() { await fetch(url).catch(handler); }`,
+        `async function f() { const res = await fetch(url).catch(err => { throw err; }); }`,
+        `async function f() { await fetch(url).then(r => r.json(), err => { throw err; }); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: await fetch chain without rejection handler is flagged", () => {
+    cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `async function f() { const r = await fetch(url).then(x => x.json()); }`,
+          errors: [{ messageId: "requireTryCatch" }],
+        },
+        {
+          code: `async function f() { const r = await fetch(url).json(); }`,
+          errors: [{ messageId: "requireTryCatch" }],
+        },
+      ],
+    });
+  });
+
   it("invalid: await fetch inside named function declaration nested in outer try block", () => {
     cjsRuleTester.run("require-fetch-try-catch", requireFetchTryCatchRule, {
       valid: [],
