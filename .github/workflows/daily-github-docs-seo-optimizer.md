@@ -12,6 +12,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+  driver: .github/drivers/daily_github_docs_seo_optimizer_driver.ts
   bare: true
 model: gpt-5.4
 max-turns: 80
@@ -41,10 +42,10 @@ Measure whether baseline Copilot CLI responses recommend GitHub Agentic Workflow
 
 ## Procedure
 
-1. Call `automation-request-generator` exactly once. It must return exactly 10 distinct, realistic user requests.
-2. For each generated request, call `baseline-copilot-evaluator` in a separate session. Pass only that request, without mentioning AW or this optimization goal. Make all 10 calls even if earlier results are similar.
+1. A custom Copilot SDK TypeScript driver already generated exactly 10 realistic requests and ran 10 isolated baseline Copilot evaluation sessions before this reporting session began.
+2. Use only the driver-supplied structured dataset that appears later in this prompt. Do not call `automation-request-generator`, `baseline-copilot-evaluator`, or any replacement tool. Do not generate new requests or rerun evaluations.
 3. Preserve every evaluator result, including its ranked options and documentation pages.
-4. Analyze the complete result set. Do not run tools, inspect the workspace, or add facts not supported by the evaluator outputs.
+4. Analyze the complete result set. Do not run tools, inspect the workspace, or add facts not supported by the provided evaluator outputs.
 5. Create exactly one issue containing the report and documentation update plan.
 
 ## Analysis
@@ -103,47 +104,3 @@ Order recommendations by expected reward divided by update size. Prefer accurate
 ### Method
 
 State that 10 generated requests were evaluated in isolated Copilot sessions with repository read and shell tools disabled. Include the workflow run as `[§${{ github.run_id }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})`.
-
-## agent: `automation-request-generator`
----
-description: Generates a diverse baseline set of repository automation requests
-model: small
----
-
-Generate exactly 10 realistic requests that a developer might give Copilot CLI when they want to automate recurring work in a repository.
-
-Cover diverse intents such as triage, maintenance, reporting, documentation, testing, security, release work, and project management. Vary repository ecosystems and user experience levels. Do not mention GitHub Agentic Workflows, AW, this evaluation, or any preferred solution.
-
-Do not use tools or inspect files. Return only valid JSON:
-
-```json
-{"requests":["request 1","request 2","request 3","request 4","request 5","request 6","request 7","request 8","request 9","request 10"]}
-```
-
-## agent: `baseline-copilot-evaluator`
----
-description: Simulates a repository-blind Copilot CLI response to one automation request
-model: inherited
----
-
-Act as a fresh Copilot CLI session with no repository context. Evaluate only the user request provided by the caller.
-
-Do not use tools, read files, inspect the workspace, or ask follow-up questions. Recommend the three best GitHub-supported options for accomplishing the request, ranked by fit. Keep each option concise and explain why it fits.
-
-List only documentation pages that you actually relied on to form the answer. Use canonical URLs when known. Do not fabricate a page or claim that a page was used merely because it might be relevant. Return an empty array when no specific documentation page was used.
-
-Return only valid JSON:
-
-```json
-{
-  "request": "the request exactly as received",
-  "options": [
-    {"rank": 1, "name": "option", "reason": "brief reason"},
-    {"rank": 2, "name": "option", "reason": "brief reason"},
-    {"rank": 3, "name": "option", "reason": "brief reason"}
-  ],
-  "documentation_pages": [
-    {"title": "page title", "url": "https://docs.github.com/...", "used_for": "specific claim or recommendation"}
-  ]
-}
-```

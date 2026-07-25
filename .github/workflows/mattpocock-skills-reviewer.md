@@ -1,9 +1,9 @@
 ---
 cache:
-  key: pr-prefetch-${{ github.event.pull_request.head.sha }}
+  key: pr-prefetch-${{ github.event.pull_request.head.sha || github.event.issue.number }}
   path: /tmp/gh-aw/agent
   restore-keys:
-  - pr-prefetch-${{ github.event.pull_request.number }}-
+  - pr-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
 description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
 emoji: 🔍
 engine:
