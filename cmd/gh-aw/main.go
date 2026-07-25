@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/signal"
 	"sort"
@@ -285,137 +286,7 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
   ` + string(constants.CLIExtensionPrefix) + ` compile --dependabot --force  # Force overwrite existing dependabot.yml
   ` + string(constants.CLIExtensionPrefix) + ` compile --gh-aw-ref main       # Pin workflows to the SHA of github/gh-aw main at compile time
   ` + string(constants.CLIExtensionPrefix) + ` compile --action-tag v1.2.3    # Pin workflows to a specific release tag`,
-	RunE: func(cmd *cobra.Command, args []string) error {
-		engineOverride, _ := cmd.Flags().GetString("engine")
-		actionMode, _ := cmd.Flags().GetString("action-mode")
-		actionTag, _ := cmd.Flags().GetString("action-tag")
-		actionsRepo, _ := cmd.Flags().GetString("actions-repo")
-		ghAwRef, _ := cmd.Flags().GetString("gh-aw-ref")
-		if ghAwRef != "" {
-			// --gh-aw-ref is a convenience alias: emit refs like
-			// `github/gh-aw/actions/setup@<sha>` so external e2e harnesses can
-			// test the compiled workflows against a specific gh-aw revision.
-			// Resolve branch/tag names to their commit SHA so the baked-in ref
-			// is immutable and not vulnerable to branch/tag mutation.
-			resolvedRef, resolveErr := workflow.ResolveGhAwRef(cmd.Context(), ghAwRef)
-			if resolveErr != nil {
-				return fmt.Errorf("--gh-aw-ref: %w", resolveErr)
-			}
-			actionMode = string(workflow.ActionModeRelease)
-			actionTag = resolvedRef
-		}
-		validate, _ := cmd.Flags().GetBool("validate")
-		watch, _ := cmd.Flags().GetBool("watch")
-		dir, _ := cmd.Flags().GetString("dir")
-		workflowsDir, _ := cmd.Flags().GetString("workflows-dir")
-		noEmit, _ := cmd.Flags().GetBool("no-emit")
-		purge, _ := cmd.Flags().GetBool("purge")
-		strict, _ := cmd.Flags().GetBool("strict")
-		trial, _ := cmd.Flags().GetBool("trial")
-		logicalRepo, _ := cmd.Flags().GetString("logical-repo")
-		dependabot, _ := cmd.Flags().GetBool("dependabot")
-		forceOverwrite, _ := cmd.Flags().GetBool("force")
-		refreshStopTime, _ := cmd.Flags().GetBool("refresh-stop-time")
-		forceRefreshActionPins, _ := cmd.Flags().GetBool("force-refresh-action-pins")
-		allowActionRefs, _ := cmd.Flags().GetBool("allow-action-refs")
-		zizmor, _ := cmd.Flags().GetBool("zizmor")
-		poutine, _ := cmd.Flags().GetBool("poutine")
-		actionlint, _ := cmd.Flags().GetBool("actionlint")
-		runnerGuard, _ := cmd.Flags().GetBool("runner-guard")
-		syft, _ := cmd.Flags().GetBool("syft")
-		grype, _ := cmd.Flags().GetBool("grype")
-		grant, _ := cmd.Flags().GetBool("grant")
-		yamllint, _ := cmd.Flags().GetBool("yamllint")
-		jsonOutput, _ := cmd.Flags().GetBool("json")
-		showAllErrors, _ := cmd.Flags().GetBool("show-all")
-		fix, _ := cmd.Flags().GetBool("fix")
-		stats, _ := cmd.Flags().GetBool("stats")
-		failFast, _ := cmd.Flags().GetBool("fail-fast")
-		noCheckUpdate, _ := cmd.Flags().GetBool("no-check-update")
-		scheduleSeed, _ := cmd.Flags().GetString("schedule-seed")
-		staged, _ := cmd.Flags().GetBool("staged")
-		approve, _ := cmd.Flags().GetBool("approve")
-		validateImages, _ := cmd.Flags().GetBool("validate-images")
-		disableModelsDevLookup, _ := cmd.Flags().GetBool("no-models-dev-lookup")
-		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
-		ghes, _ := cmd.Flags().GetBool("ghes")
-		verbose, _ := cmd.Flags().GetBool("verbose")
-		useSamples, _ := cmd.Flags().GetBool("use-samples")
-		if err := validateEngine(engineOverride); err != nil {
-			return err
-		}
-
-		finishCompileUpdateCheck := cli.StartCompileUpdateCheck(cmd.Context(), noCheckUpdate, verbose)
-		defer finishCompileUpdateCheck()
-
-		// If --fix is specified, run fix --write first
-		if fix {
-			fixConfig := cli.FixConfig{
-				WorkflowIDs: args,
-				Write:       true,
-				Verbose:     verbose,
-				WorkflowDir: dir,
-			}
-			if err := cli.RunFix(fixConfig); err != nil {
-				return err
-			}
-		}
-
-		// Handle --workflows-dir deprecation (mutual exclusion is enforced by Cobra)
-		workflowDir := dir
-		if workflowsDir != "" {
-			workflowDir = workflowsDir
-		}
-		config := cli.CompileConfig{
-			MarkdownFiles:          args,
-			Verbose:                verbose,
-			EngineOverride:         engineOverride,
-			ActionMode:             actionMode,
-			ActionTag:              actionTag,
-			ActionsRepo:            actionsRepo,
-			Validate:               validate,
-			Watch:                  watch,
-			WorkflowDir:            workflowDir,
-			SkipInstructions:       false, // Deprecated field, kept for backward compatibility
-			NoEmit:                 noEmit,
-			Purge:                  purge,
-			TrialMode:              trial,
-			TrialLogicalRepoSlug:   logicalRepo,
-			Strict:                 strict,
-			Dependabot:             dependabot,
-			ForceOverwrite:         forceOverwrite,
-			RefreshStopTime:        refreshStopTime,
-			ForceRefreshActionPins: forceRefreshActionPins,
-			AllowActionRefs:        allowActionRefs,
-			Zizmor:                 zizmor,
-			Poutine:                poutine,
-			Actionlint:             actionlint,
-			RunnerGuard:            runnerGuard,
-			Syft:                   syft,
-			Grype:                  grype,
-			Grant:                  grant,
-			Yamllint:               yamllint,
-			JSONOutput:             jsonOutput,
-			ShowAllErrors:          showAllErrors,
-			Stats:                  stats,
-			FailFast:               failFast,
-			ScheduleSeed:           scheduleSeed,
-			Staged:                 staged,
-			Approve:                approve,
-			ValidateImages:         validateImages,
-			DisableModelsDevLookup: disableModelsDevLookup,
-			PriorManifestFile:      priorManifestFile,
-			GHESCompat:             ghes,
-			UseSamples:             useSamples,
-		}
-		if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
-			// Return error as-is without additional formatting
-			// Errors from CompileWorkflows are already formatted with console.FormatError
-			// which provides IDE-parseable location information (file:line:column)
-			return err
-		}
-		return nil
-	},
+	RunE: runCompileCmd,
 }
 
 var runCmd = &cobra.Command{
@@ -513,50 +384,229 @@ var versionCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	// Add command groups to root command
-	rootCmd.AddGroup(&cobra.Group{
-		ID:    "setup",
-		Title: "Setup Commands:",
-	})
-	rootCmd.AddGroup(&cobra.Group{
-		ID:    "development",
-		Title: "Development Commands:",
-	})
-	rootCmd.AddGroup(&cobra.Group{
-		ID:    "execution",
-		Title: "Execution Commands:",
-	})
-	rootCmd.AddGroup(&cobra.Group{
-		ID:    "analysis",
-		Title: "Analysis Commands:",
-	})
-	rootCmd.AddGroup(&cobra.Group{
-		ID:    "utilities",
-		Title: "Utilities:",
-	})
+// compileFlags holds all parsed flags for the compile command.
+type compileFlags struct {
+	engineOverride         string
+	actionMode             string
+	actionTag              string
+	actionsRepo            string
+	validate               bool
+	watch                  bool
+	dir                    string
+	workflowsDir           string
+	noEmit                 bool
+	purge                  bool
+	strict                 bool
+	trial                  bool
+	logicalRepo            string
+	dependabot             bool
+	forceOverwrite         bool
+	refreshStopTime        bool
+	forceRefreshActionPins bool
+	allowActionRefs        bool
+	zizmor                 bool
+	poutine                bool
+	actionlint             bool
+	runnerGuard            bool
+	syft                   bool
+	grype                  bool
+	grant                  bool
+	yamllint               bool
+	jsonOutput             bool
+	showAllErrors          bool
+	fix                    bool
+	stats                  bool
+	failFast               bool
+	noCheckUpdate          bool
+	scheduleSeed           string
+	staged                 bool
+	approve                bool
+	validateImages         bool
+	disableModelsDevLookup bool
+	priorManifestFile      string
+	ghes                   bool
+	verbose                bool
+	useSamples             bool
+}
 
+// parseCompileFlags reads all compile-command flags from cmd and resolves
+// --gh-aw-ref to (actionMode, actionTag). Returns an error only when
+// --gh-aw-ref resolution fails.
+func parseCompileFlags(ctx context.Context, cmd *cobra.Command) (compileFlags, error) {
+	var f compileFlags
+	f.engineOverride, _ = cmd.Flags().GetString("engine")
+	f.actionMode, _ = cmd.Flags().GetString("action-mode")
+	f.actionTag, _ = cmd.Flags().GetString("action-tag")
+	f.actionsRepo, _ = cmd.Flags().GetString("actions-repo")
+	ghAwRef, _ := cmd.Flags().GetString("gh-aw-ref")
+	if ghAwRef != "" {
+		// --gh-aw-ref is a convenience alias: emit refs like
+		// `github/gh-aw/actions/setup@<sha>` so external e2e harnesses can
+		// test the compiled workflows against a specific gh-aw revision.
+		// Resolve branch/tag names to their commit SHA so the baked-in ref
+		// is immutable and not vulnerable to branch/tag mutation.
+		resolvedRef, resolveErr := workflow.ResolveGhAwRef(ctx, ghAwRef)
+		if resolveErr != nil {
+			return compileFlags{}, fmt.Errorf("--gh-aw-ref: %w", resolveErr)
+		}
+		f.actionMode = string(workflow.ActionModeRelease)
+		f.actionTag = resolvedRef
+	}
+	f.validate, _ = cmd.Flags().GetBool("validate")
+	f.watch, _ = cmd.Flags().GetBool("watch")
+	f.dir, _ = cmd.Flags().GetString("dir")
+	f.workflowsDir, _ = cmd.Flags().GetString("workflows-dir")
+	f.noEmit, _ = cmd.Flags().GetBool("no-emit")
+	f.purge, _ = cmd.Flags().GetBool("purge")
+	f.strict, _ = cmd.Flags().GetBool("strict")
+	f.trial, _ = cmd.Flags().GetBool("trial")
+	f.logicalRepo, _ = cmd.Flags().GetString("logical-repo")
+	f.dependabot, _ = cmd.Flags().GetBool("dependabot")
+	f.forceOverwrite, _ = cmd.Flags().GetBool("force")
+	f.refreshStopTime, _ = cmd.Flags().GetBool("refresh-stop-time")
+	f.forceRefreshActionPins, _ = cmd.Flags().GetBool("force-refresh-action-pins")
+	f.allowActionRefs, _ = cmd.Flags().GetBool("allow-action-refs")
+	f.zizmor, _ = cmd.Flags().GetBool("zizmor")
+	f.poutine, _ = cmd.Flags().GetBool("poutine")
+	f.actionlint, _ = cmd.Flags().GetBool("actionlint")
+	f.runnerGuard, _ = cmd.Flags().GetBool("runner-guard")
+	f.syft, _ = cmd.Flags().GetBool("syft")
+	f.grype, _ = cmd.Flags().GetBool("grype")
+	f.grant, _ = cmd.Flags().GetBool("grant")
+	f.yamllint, _ = cmd.Flags().GetBool("yamllint")
+	f.jsonOutput, _ = cmd.Flags().GetBool("json")
+	f.showAllErrors, _ = cmd.Flags().GetBool("show-all")
+	f.fix, _ = cmd.Flags().GetBool("fix")
+	f.stats, _ = cmd.Flags().GetBool("stats")
+	f.failFast, _ = cmd.Flags().GetBool("fail-fast")
+	f.noCheckUpdate, _ = cmd.Flags().GetBool("no-check-update")
+	f.scheduleSeed, _ = cmd.Flags().GetString("schedule-seed")
+	f.staged, _ = cmd.Flags().GetBool("staged")
+	f.approve, _ = cmd.Flags().GetBool("approve")
+	f.validateImages, _ = cmd.Flags().GetBool("validate-images")
+	f.disableModelsDevLookup, _ = cmd.Flags().GetBool("no-models-dev-lookup")
+	f.priorManifestFile, _ = cmd.Flags().GetString("prior-manifest-file")
+	f.ghes, _ = cmd.Flags().GetBool("ghes")
+	f.verbose, _ = cmd.Flags().GetBool("verbose")
+	f.useSamples, _ = cmd.Flags().GetBool("use-samples")
+	return f, nil
+}
+
+// buildCompileConfig converts parsed compile flags and positional args into a
+// cli.CompileConfig, resolving the --workflows-dir deprecation alias.
+func buildCompileConfig(f compileFlags, args []string) cli.CompileConfig {
+	// Handle --workflows-dir deprecation (mutual exclusion is enforced by Cobra)
+	workflowDir := f.dir
+	if f.workflowsDir != "" {
+		workflowDir = f.workflowsDir
+	}
+	return cli.CompileConfig{
+		MarkdownFiles:          args,
+		Verbose:                f.verbose,
+		EngineOverride:         f.engineOverride,
+		ActionMode:             f.actionMode,
+		ActionTag:              f.actionTag,
+		ActionsRepo:            f.actionsRepo,
+		Validate:               f.validate,
+		Watch:                  f.watch,
+		WorkflowDir:            workflowDir,
+		SkipInstructions:       false, // Deprecated field, kept for backward compatibility
+		NoEmit:                 f.noEmit,
+		Purge:                  f.purge,
+		TrialMode:              f.trial,
+		TrialLogicalRepoSlug:   f.logicalRepo,
+		Strict:                 f.strict,
+		Dependabot:             f.dependabot,
+		ForceOverwrite:         f.forceOverwrite,
+		RefreshStopTime:        f.refreshStopTime,
+		ForceRefreshActionPins: f.forceRefreshActionPins,
+		AllowActionRefs:        f.allowActionRefs,
+		Zizmor:                 f.zizmor,
+		Poutine:                f.poutine,
+		Actionlint:             f.actionlint,
+		RunnerGuard:            f.runnerGuard,
+		Syft:                   f.syft,
+		Grype:                  f.grype,
+		Grant:                  f.grant,
+		Yamllint:               f.yamllint,
+		JSONOutput:             f.jsonOutput,
+		ShowAllErrors:          f.showAllErrors,
+		Stats:                  f.stats,
+		FailFast:               f.failFast,
+		ScheduleSeed:           f.scheduleSeed,
+		Staged:                 f.staged,
+		Approve:                f.approve,
+		ValidateImages:         f.validateImages,
+		DisableModelsDevLookup: f.disableModelsDevLookup,
+		PriorManifestFile:      f.priorManifestFile,
+		GHESCompat:             f.ghes,
+		UseSamples:             f.useSamples,
+	}
+}
+
+// runCompileCmd is the RunE handler for compileCmd.
+func runCompileCmd(cmd *cobra.Command, args []string) error {
+	flags, err := parseCompileFlags(cmd.Context(), cmd)
+	if err != nil {
+		return err
+	}
+	if err := validateEngine(flags.engineOverride); err != nil {
+		return err
+	}
+
+	finishCompileUpdateCheck := cli.StartCompileUpdateCheck(cmd.Context(), flags.noCheckUpdate, flags.verbose)
+	defer finishCompileUpdateCheck()
+
+	// If --fix is specified, run fix --write first
+	if flags.fix {
+		fixConfig := cli.FixConfig{
+			WorkflowIDs: args,
+			Write:       true,
+			Verbose:     flags.verbose,
+			WorkflowDir: flags.dir,
+		}
+		if err := cli.RunFix(fixConfig); err != nil {
+			return err
+		}
+	}
+
+	config := buildCompileConfig(flags, args)
+	if _, err := cli.CompileWorkflows(cmd.Context(), config); err != nil {
+		// Return error as-is without additional formatting.
+		// Errors from CompileWorkflows are already formatted with console.FormatError
+		// which provides IDE-parseable location information (file:line:column).
+		return err
+	}
+	return nil
+}
+
+// setupRootCmdGroups registers the five top-level command groups on rootCmd.
+func setupRootCmdGroups() {
+	rootCmd.AddGroup(&cobra.Group{ID: "setup", Title: "Setup Commands:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "development", Title: "Development Commands:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "execution", Title: "Execution Commands:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "analysis", Title: "Analysis Commands:"})
+	rootCmd.AddGroup(&cobra.Group{ID: "utilities", Title: "Utilities:"})
+}
+
+// setupRootCmdMeta configures root-command metadata: persistent flags, output,
+// silencing, version template, and help/version flag text overrides.
+func setupRootCmdMeta() {
 	// Add global verbose flag to root command
 	rootCmd.PersistentFlags().BoolVarP(&verboseFlag, "verbose", "v", false, "Enable verbose output showing detailed information")
-
 	// Add global banner flag to root command
 	rootCmd.PersistentFlags().BoolVar(&bannerFlag, "banner", false, "Display ASCII logo banner with purple GitHub color theme")
-
 	// Set output to stderr for consistency with CLI logging guidelines
 	rootCmd.SetOut(os.Stderr)
-
 	// Silence usage output on errors - prevents cluttering terminal output with
 	// full usage text when application errors occur (e.g., compilation errors,
 	// network timeouts). Users can still run --help for usage information.
 	rootCmd.SilenceUsage = true
-
 	// Silence errors - since we're using RunE and returning errors, Cobra will
 	// print errors automatically. We handle error formatting ourselves in main().
 	rootCmd.SilenceErrors = true
-
 	// Set version template to match the version subcommand format
 	rootCmd.SetVersionTemplate(string(constants.CLIExtensionPrefix) + " version {{.Version}}\n")
-
 	// Cobra generates flag descriptions using c.Name() which returns the first
 	// word of Use ("gh" from "gh aw"), producing "help for gh" and "version for
 	// gh". Explicitly initialize and override these flags so they display "gh aw".
@@ -568,89 +618,66 @@ func init() {
 	if f := rootCmd.Flags().Lookup("version"); f != nil {
 		f.Usage = "Print the current version"
 	}
+}
 
-	// Fix usage lines so subcommands show "gh aw <cmd>" instead of "gh <cmd>".
-	// Cobra derives the root name from the first word of Use ("gh" from "gh aw"),
-	// so CommandPath() for subcommands omits "aw". We use SetUsageFunc to
-	// post-process the default output, replacing "gh " with "gh aw " in the
-	// two lines that reference the command path.
-	rootCmd.SetUsageFunc(func(cmd *cobra.Command) error {
-		fixPath := func(s string) string {
-			if s == "gh" {
-				return "gh aw"
+// fixUsagePath rewrites "gh " prefixes in command-path strings to "gh aw "
+// so that usage output displays the correct two-word extension name.
+func fixUsagePath(s string) string {
+	if s == "gh" {
+		return "gh aw"
+	}
+	if strings.HasPrefix(s, "gh ") && !strings.HasPrefix(s, "gh aw") {
+		return "gh aw " + s[3:]
+	}
+	return s
+}
+
+// printUsageSubCmds renders the subcommand listing section of the usage output.
+func printUsageSubCmds(out io.Writer, cmd *cobra.Command) {
+	if !cmd.HasAvailableSubCommands() {
+		return
+	}
+	cmds := cmd.Commands()
+	// Compute column width dynamically so long command names (e.g. hash-frontmatter)
+	// are aligned properly instead of overflowing a hard-coded width.
+	colWidth := 0
+	for _, sub := range cmds {
+		if (sub.IsAvailableCommand() || sub.Name() == "help") && len(sub.Name()) > colWidth {
+			colWidth = len(sub.Name())
+		}
+	}
+	colFmt := fmt.Sprintf("\n  %%-%ds %%s", colWidth)
+	if len(cmd.Groups()) == 0 {
+		fmt.Fprint(out, "\n\nAvailable Commands:")
+		for _, sub := range cmds {
+			if sub.IsAvailableCommand() || sub.Name() == "help" {
+				fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
 			}
-			if strings.HasPrefix(s, "gh ") && !strings.HasPrefix(s, "gh aw") {
-				return "gh aw " + s[3:]
-			}
-			return s
 		}
-		out := cmd.OutOrStderr()
-		fmt.Fprint(out, "Usage:")
-		if cmd.Runnable() {
-			fmt.Fprintf(out, "\n  %s", fixPath(cmd.UseLine()))
-		}
-		if cmd.HasAvailableSubCommands() {
-			fmt.Fprintf(out, "\n  %s [command]", fixPath(cmd.CommandPath()))
-		}
-		if len(cmd.Aliases) > 0 {
-			fmt.Fprintf(out, "\n\nAliases:\n  %s", cmd.NameAndAliases())
-		}
-		if cmd.HasExample() {
-			fmt.Fprintf(out, "\n\nExamples:\n%s", cmd.Example)
-		}
-		if cmd.HasAvailableSubCommands() {
-			cmds := cmd.Commands()
-			// Compute column width dynamically so long command names (e.g. hash-frontmatter)
-			// are aligned properly instead of overflowing a hard-coded width.
-			colWidth := 0
+	} else {
+		for _, group := range cmd.Groups() {
+			fmt.Fprintf(out, "\n\n%s", group.Title)
 			for _, sub := range cmds {
-				if (sub.IsAvailableCommand() || sub.Name() == "help") && len(sub.Name()) > colWidth {
-					colWidth = len(sub.Name())
-				}
-			}
-			colFmt := fmt.Sprintf("\n  %%-%ds %%s", colWidth)
-			if len(cmd.Groups()) == 0 {
-				fmt.Fprint(out, "\n\nAvailable Commands:")
-				for _, sub := range cmds {
-					if sub.IsAvailableCommand() || sub.Name() == "help" {
-						fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
-					}
-				}
-			} else {
-				for _, group := range cmd.Groups() {
-					fmt.Fprintf(out, "\n\n%s", group.Title)
-					for _, sub := range cmds {
-						if sub.GroupID == group.ID && (sub.IsAvailableCommand() || sub.Name() == "help") {
-							fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
-						}
-					}
-				}
-				if !cmd.AllChildCommandsHaveGroup() {
-					fmt.Fprint(out, "\n\nAdditional Commands:")
-					for _, sub := range cmds {
-						if sub.GroupID == "" && (sub.IsAvailableCommand() || sub.Name() == "help") {
-							fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
-						}
-					}
+				if sub.GroupID == group.ID && (sub.IsAvailableCommand() || sub.Name() == "help") {
+					fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
 				}
 			}
 		}
-		if cmd.HasAvailableLocalFlags() {
-			fmt.Fprintf(out, "\n\nFlags:\n%s", strings.TrimRight(cmd.LocalFlags().FlagUsages(), " \t\n"))
+		if !cmd.AllChildCommandsHaveGroup() {
+			fmt.Fprint(out, "\n\nAdditional Commands:")
+			for _, sub := range cmds {
+				if sub.GroupID == "" && (sub.IsAvailableCommand() || sub.Name() == "help") {
+					fmt.Fprintf(out, colFmt, sub.Name(), sub.Short)
+				}
+			}
 		}
-		if cmd.HasAvailableInheritedFlags() {
-			fmt.Fprintf(out, "\n\nGlobal Flags:\n%s", strings.TrimRight(cmd.InheritedFlags().FlagUsages(), " \t\n"))
-		}
-		if cmd.HasAvailableSubCommands() {
-			fmt.Fprintf(out, "\n\nUse \"%s [command] --help\" for more information about a command.\n", fixPath(cmd.CommandPath()))
-		} else {
-			fmt.Fprintln(out)
-		}
-		return nil
-	})
+	}
+}
 
-	// Create custom help command that supports "all" subcommand
-	customHelpCmd := &cobra.Command{
+// makeCustomHelpCmd creates the custom "help" subcommand that adds support for
+// the "help all" argument to print every command's help at once.
+func makeCustomHelpCmd() *cobra.Command {
+	return &cobra.Command{
 		Use:   "help [command]",
 		Short: "Help about any command",
 		Long: `Help provides help for any command in the application.
@@ -658,75 +685,35 @@ Simply type ` + string(constants.CLIExtensionPrefix) + ` help [path to command] 
 
 Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all commands.`,
 		RunE: func(c *cobra.Command, args []string) error {
-			// Check if the argument is "all"
 			if len(args) == 1 && args[0] == "all" {
-				// Print header
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("GitHub Agentic Workflows CLI - Complete Command Reference"))
 				fmt.Fprintln(os.Stderr, "")
-
-				// Iterate through all commands and print their help
 				for _, subCmd := range rootCmd.Commands() {
-					// Skip hidden commands and help itself
 					if subCmd.Hidden || subCmd.Name() == "help" {
 						continue
 					}
-
-					// Print command separator
 					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("═══════════════════════════════════════════════════════════════"))
 					fmt.Fprintf(os.Stderr, "\n%s\n\n", console.FormatInfoMessage(fmt.Sprintf("Command: %s %s", string(constants.CLIExtensionPrefix), subCmd.Name())))
-
-					// Print the command's help
 					_ = subCmd.Help()
 					fmt.Fprintln(os.Stderr, "")
 				}
-
-				// Print footer
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("═══════════════════════════════════════════════════════════════"))
 				fmt.Fprintln(os.Stderr, "")
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("For more information, visit: https://github.github.com/gh-aw/"))
 				return nil
 			}
-
-			// Otherwise, use the default help behavior
 			cmd, _, e := rootCmd.Find(args)
 			if cmd == nil || e != nil {
 				return fmt.Errorf("unknown help topic [%#q]", args)
-			} else {
-				cmd.InitDefaultHelpFlag() // make possible 'help' flag to be shown
-				return cmd.Help()
 			}
+			cmd.InitDefaultHelpFlag()
+			return cmd.Help()
 		},
 	}
+}
 
-	// Replace the default help command
-	rootCmd.SetHelpCommand(customHelpCmd)
-
-	// Create and setup add command
-	addCmd := cli.NewAddCommand(validateEngine)
-
-	// Create and setup add-wizard command
-	addWizardCmd := cli.NewAddWizardCommand(validateEngine)
-
-	// Create and setup update command
-	updateCmd := cli.NewUpdateCommand(validateEngine)
-
-	// Create and setup deploy command
-	deployCmd := cli.NewDeployCommand(validateEngine)
-
-	// Create and setup trial command
-	trialCmd := cli.NewTrialCommand(validateEngine)
-
-	// Create and setup init command
-	initCmd := cli.NewInitCommand()
-	cli.RegisterEngineFlagCompletion(initCmd)
-
-	// Add flags to new command
-	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
-	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
-	newCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
-	cli.RegisterEngineFlagCompletion(newCmd)
-
-	// Add AI flag to compile and add commands
+// registerCompileFlags registers all flags on compileCmd.
+func registerCompileFlags() {
 	compileCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
 	compileCmd.Flags().String("action-mode", "", "How gh-aw action scripts are referenced in compiled workflows: 'dev' uses local paths (for developing gh-aw itself), 'release' emits SHA-pinned remote refs from github/gh-aw, 'action' uses the github/gh-aw-actions repository. Auto-detected from the binary build type if not specified")
 	compileCmd.Flags().String("action-tag", "", "Pin compiled workflows to a specific version of gh-aw actions. Accepts a full commit SHA or a version tag (e.g. v1, v1.2.3). Sets --action-mode to 'release' unless --action-mode action is also specified. Cannot be combined with --gh-aw-ref; use --gh-aw-ref when you want to resolve a branch or tag name to its current SHA")
@@ -779,31 +766,67 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	// combining it with either of those flags leads to one silently overwriting the other.
 	compileCmd.MarkFlagsMutuallyExclusive("gh-aw-ref", "action-tag")
 	compileCmd.MarkFlagsMutuallyExclusive("gh-aw-ref", "action-mode")
-
-	// Register completions for compile command
 	compileCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(compileCmd)
 	cli.RegisterDirFlagCompletion(compileCmd, "dir")
+}
 
-	rootCmd.AddCommand(compileCmd)
-
-	// Add flags to remove command
+// setupSetupGroupCmds creates, configures, and registers all "setup" group commands.
+func setupSetupGroupCmds() {
+	addCmd := cli.NewAddCommand(validateEngine)
+	addWizardCmd := cli.NewAddWizardCommand(validateEngine)
+	updateCmd := cli.NewUpdateCommand(validateEngine)
+	deployCmd := cli.NewDeployCommand(validateEngine)
+	upgradeCmd := cli.NewUpgradeCommand(validateEngine)
+	secretsCmd := cli.NewSecretsCommand()
+	envCmd := cli.NewEnvCommand()
+	doctorCmd := cli.NewDoctorCommand()
+	initCmd := cli.NewInitCommand()
+	cli.RegisterEngineFlagCompletion(initCmd)
+	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
+	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
+	newCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
+	cli.RegisterEngineFlagCompletion(newCmd)
 	removeCmd.Flags().Bool("no-remove-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
 	removeCmd.Flags().Bool("keep-orphans", false, "Skip removal of orphaned include files that are no longer referenced by any workflow")
 	_ = removeCmd.Flags().MarkDeprecated("keep-orphans", "use --no-remove-orphans instead")
 	removeCmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
-	// Register completions for remove command
 	removeCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterDirFlagCompletion(removeCmd, "dir")
+	newCmd.GroupID = "setup"
+	removeCmd.GroupID = "setup"
+	initCmd.GroupID = "setup"
+	addCmd.GroupID = "setup"
+	addWizardCmd.GroupID = "setup"
+	updateCmd.GroupID = "setup"
+	deployCmd.GroupID = "setup"
+	upgradeCmd.GroupID = "setup"
+	secretsCmd.GroupID = "setup"
+	envCmd.GroupID = "setup"
+	doctorCmd.GroupID = "setup"
+	rootCmd.AddCommand(newCmd, removeCmd, initCmd, addCmd, addWizardCmd, updateCmd, deployCmd, upgradeCmd, secretsCmd, envCmd, doctorCmd)
+}
 
-	// Add flags to enable/disable commands
-	enableCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
-	disableCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
-	// Register completions for enable/disable commands
-	enableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
-	disableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+// setupDevelopmentGroupCmds creates, configures, and registers all "development" group commands.
+func setupDevelopmentGroupCmds() {
+	registerCompileFlags()
+	validateCmd := cli.NewValidateCommand(validateEngine)
+	lintCmd := cli.NewLintCommand()
+	mcpCmd := cli.NewMCPCommand()
+	fixCmd := cli.NewFixCommand()
+	domainsCmd := cli.NewDomainsCommand()
+	compileCmd.GroupID = "development"
+	validateCmd.GroupID = "development"
+	lintCmd.GroupID = "development"
+	mcpCmd.GroupID = "development"
+	fixCmd.GroupID = "development"
+	domainsCmd.GroupID = "development"
+	rootCmd.AddCommand(compileCmd, validateCmd, lintCmd, mcpCmd, fixCmd, domainsCmd)
+}
 
-	// Add flags to run command
+// setupExecutionGroupCmds creates, configures, and registers all "execution" group commands.
+func setupExecutionGroupCmds() {
+	trialCmd := cli.NewTrialCommand(validateEngine)
 	runCmd.Flags().Int("repeat", 0, "Number of additional times to run after the initial execution (e.g., --repeat 3 runs 4 times total)")
 	runCmd.Flags().Bool("enable-if-needed", false, "Enable the workflow before running if needed, and restore state afterward")
 	runCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
@@ -816,132 +839,64 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	runCmd.Flags().Bool("dry-run", false, "Preview workflow execution without triggering runs on GitHub Actions")
 	runCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	runCmd.Flags().Bool("approve", false, "Approve safe update manifest changes when --push triggers an automatic recompile step. When strict mode is active (the default), the recompile step enforces safe update checking; pass this flag to approve those changes.")
-	// Register completions for run command
 	runCmd.ValidArgsFunction = cli.CompleteWorkflowNames
 	cli.RegisterEngineFlagCompletion(runCmd)
+	enableCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
+	disableCmd.Flags().StringP("repo", "r", "", "Target repository ([HOST/]owner/repo format). Defaults to current repository")
+	enableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	disableCmd.ValidArgsFunction = cli.CompleteWorkflowNames
+	runCmd.GroupID = "execution"
+	enableCmd.GroupID = "execution"
+	disableCmd.GroupID = "execution"
+	trialCmd.GroupID = "execution"
+	rootCmd.AddCommand(runCmd, enableCmd, disableCmd, trialCmd)
+}
 
-	// Create and setup status command
+// setupAnalysisGroupCmds creates, configures, and registers all "analysis" group commands.
+func setupAnalysisGroupCmds() {
 	statusCmd := cli.NewStatusCommand()
-
-	// Create and setup list command
 	listCmd := cli.NewListCommand()
-
-	// Create commands that need group assignment
-	mcpCmd := cli.NewMCPCommand()
 	logsCmd := cli.NewLogsCommand()
 	auditCmd := cli.NewAuditCommand()
 	viewCmd := cli.NewViewCommand()
 	healthCmd := cli.NewHealthCommand()
 	outcomesCmd := cli.NewOutcomesCommand()
-	mcpServerCmd := cli.NewMCPServerCommand()
-	prCmd := cli.NewPRCommand()
-	secretsCmd := cli.NewSecretsCommand()
-	fixCmd := cli.NewFixCommand()
-	upgradeCmd := cli.NewUpgradeCommand(validateEngine)
-	completionCmd := cli.NewCompletionCommand()
-	hashCmd := cli.NewHashCommand()
-	projectCmd := cli.NewProjectCommand()
-	doctorCmd := cli.NewDoctorCommand()
 	checksCmd := cli.NewChecksCommand()
-	validateCmd := cli.NewValidateCommand(validateEngine)
-	lintCmd := cli.NewLintCommand()
-	domainsCmd := cli.NewDomainsCommand()
 	experimentsCmd := cli.NewExperimentsCommand()
 	forecastCmd := cli.NewForecastCommand()
-	envCmd := cli.NewEnvCommand()
-
-	// Assign commands to groups
-	// Setup Commands
-	initCmd.GroupID = "setup"
-	newCmd.GroupID = "setup"
-	addCmd.GroupID = "setup"
-	addWizardCmd.GroupID = "setup"
-	removeCmd.GroupID = "setup"
-	updateCmd.GroupID = "setup"
-	deployCmd.GroupID = "setup"
-	upgradeCmd.GroupID = "setup"
-	secretsCmd.GroupID = "setup"
-	envCmd.GroupID = "setup"
-	doctorCmd.GroupID = "setup"
-
-	// Development Commands
-	compileCmd.GroupID = "development"
-	validateCmd.GroupID = "development"
-	lintCmd.GroupID = "development"
-	mcpCmd.GroupID = "development"
-	fixCmd.GroupID = "development"
-	domainsCmd.GroupID = "development"
-
-	// Execution Commands
-	runCmd.GroupID = "execution"
-	enableCmd.GroupID = "execution"
-	disableCmd.GroupID = "execution"
-	trialCmd.GroupID = "execution"
-
-	// Analysis Commands
+	statusCmd.GroupID = "analysis"
+	listCmd.GroupID = "analysis"
 	logsCmd.GroupID = "analysis"
 	auditCmd.GroupID = "analysis"
 	viewCmd.GroupID = "analysis"
 	healthCmd.GroupID = "analysis"
 	outcomesCmd.GroupID = "analysis"
 	checksCmd.GroupID = "analysis"
-	statusCmd.GroupID = "analysis"
-	listCmd.GroupID = "analysis"
 	experimentsCmd.GroupID = "analysis"
 	forecastCmd.GroupID = "analysis"
+	rootCmd.AddCommand(statusCmd, listCmd, logsCmd, auditCmd, viewCmd, healthCmd, outcomesCmd, checksCmd, experimentsCmd, forecastCmd)
+}
 
-	// Utilities
+// setupUtilityGroupCmds creates, configures, and registers all "utilities" group commands.
+func setupUtilityGroupCmds() {
+	mcpServerCmd := cli.NewMCPServerCommand()
+	prCmd := cli.NewPRCommand()
+	completionCmd := cli.NewCompletionCommand()
+	hashCmd := cli.NewHashCommand()
+	projectCmd := cli.NewProjectCommand()
 	mcpServerCmd.GroupID = "utilities"
 	prCmd.GroupID = "utilities"
 	completionCmd.GroupID = "utilities"
 	hashCmd.GroupID = "utilities"
 	projectCmd.GroupID = "utilities"
+	rootCmd.AddCommand(mcpServerCmd, prCmd, completionCmd, hashCmd, projectCmd, versionCmd)
+}
 
-	// version command is intentionally left without a group (common practice)
-
-	// Add all commands to root
-	rootCmd.AddCommand(addCmd)
-	rootCmd.AddCommand(addWizardCmd)
-	rootCmd.AddCommand(updateCmd)
-	rootCmd.AddCommand(deployCmd)
-	rootCmd.AddCommand(upgradeCmd)
-	rootCmd.AddCommand(trialCmd)
-	rootCmd.AddCommand(newCmd)
-	rootCmd.AddCommand(initCmd)
-
-	rootCmd.AddCommand(runCmd)
-	rootCmd.AddCommand(removeCmd)
-	rootCmd.AddCommand(statusCmd)
-	rootCmd.AddCommand(listCmd)
-	rootCmd.AddCommand(enableCmd)
-	rootCmd.AddCommand(disableCmd)
-	rootCmd.AddCommand(logsCmd)
-	rootCmd.AddCommand(auditCmd)
-	rootCmd.AddCommand(viewCmd)
-	rootCmd.AddCommand(healthCmd)
-	rootCmd.AddCommand(outcomesCmd)
-	rootCmd.AddCommand(checksCmd)
-	rootCmd.AddCommand(mcpCmd)
-	rootCmd.AddCommand(mcpServerCmd)
-	rootCmd.AddCommand(prCmd)
-	rootCmd.AddCommand(versionCmd)
-	rootCmd.AddCommand(secretsCmd)
-	rootCmd.AddCommand(fixCmd)
-	rootCmd.AddCommand(validateCmd)
-	rootCmd.AddCommand(lintCmd)
-	rootCmd.AddCommand(completionCmd)
-	rootCmd.AddCommand(hashCmd)
-	rootCmd.AddCommand(projectCmd)
-	rootCmd.AddCommand(doctorCmd)
-	rootCmd.AddCommand(domainsCmd)
-	rootCmd.AddCommand(experimentsCmd)
-	rootCmd.AddCommand(forecastCmd)
-	rootCmd.AddCommand(envCmd)
-
-	// Fix help flag descriptions for all subcommands to be consistent with the
-	// root command ("Show help for gh aw" vs the Cobra default "help for [cmd]").
-	var fixSubCmdHelpFlags func(cmd *cobra.Command)
-	fixSubCmdHelpFlags = func(cmd *cobra.Command) {
+// fixAllSubCmdHelpFlags updates every subcommand's help flag description to
+// display the correct "gh aw <cmd>" path instead of the Cobra default "gh <cmd>".
+func fixAllSubCmdHelpFlags() {
+	var fix func(cmd *cobra.Command)
+	fix = func(cmd *cobra.Command) {
 		cmd.InitDefaultHelpFlag()
 		if f := cmd.Flags().Lookup("help"); f != nil {
 			cmdPath := cmd.CommandPath()
@@ -955,12 +910,58 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 			f.Usage = "Show help for " + cmdPath
 		}
 		for _, sub := range cmd.Commands() {
-			fixSubCmdHelpFlags(sub)
+			fix(sub)
 		}
 	}
 	for _, sub := range rootCmd.Commands() {
-		fixSubCmdHelpFlags(sub)
+		fix(sub)
 	}
+}
+
+func init() {
+	setupRootCmdGroups()
+	setupRootCmdMeta()
+	// Fix usage lines so subcommands show "gh aw <cmd>" instead of "gh <cmd>".
+	// Cobra derives the root name from the first word of Use ("gh" from "gh aw"),
+	// so CommandPath() for subcommands omits "aw". We use SetUsageFunc to
+	// post-process the default output, replacing "gh " with "gh aw " in the
+	// two lines that reference the command path.
+	rootCmd.SetUsageFunc(func(cmd *cobra.Command) error {
+		out := cmd.OutOrStderr()
+		fmt.Fprint(out, "Usage:")
+		if cmd.Runnable() {
+			fmt.Fprintf(out, "\n  %s", fixUsagePath(cmd.UseLine()))
+		}
+		if cmd.HasAvailableSubCommands() {
+			fmt.Fprintf(out, "\n  %s [command]", fixUsagePath(cmd.CommandPath()))
+		}
+		if len(cmd.Aliases) > 0 {
+			fmt.Fprintf(out, "\n\nAliases:\n  %s", cmd.NameAndAliases())
+		}
+		if cmd.HasExample() {
+			fmt.Fprintf(out, "\n\nExamples:\n%s", cmd.Example)
+		}
+		printUsageSubCmds(out, cmd)
+		if cmd.HasAvailableLocalFlags() {
+			fmt.Fprintf(out, "\n\nFlags:\n%s", strings.TrimRight(cmd.LocalFlags().FlagUsages(), " \t\n"))
+		}
+		if cmd.HasAvailableInheritedFlags() {
+			fmt.Fprintf(out, "\n\nGlobal Flags:\n%s", strings.TrimRight(cmd.InheritedFlags().FlagUsages(), " \t\n"))
+		}
+		if cmd.HasAvailableSubCommands() {
+			fmt.Fprintf(out, "\n\nUse \"%s [command] --help\" for more information about a command.\n", fixUsagePath(cmd.CommandPath()))
+		} else {
+			fmt.Fprintln(out)
+		}
+		return nil
+	})
+	rootCmd.SetHelpCommand(makeCustomHelpCmd())
+	setupSetupGroupCmds()
+	setupDevelopmentGroupCmds()
+	setupExecutionGroupCmds()
+	setupAnalysisGroupCmds()
+	setupUtilityGroupCmds()
+	fixAllSubCmdHelpFlags()
 }
 
 func main() {

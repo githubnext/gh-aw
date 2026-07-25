@@ -47,15 +47,60 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
+// roundTripTypes holds the underlying types of a two-level conversion expression.
+type roundTripTypes struct {
+	outer    types.Type
+	inner    types.Type
+	innerArg types.Type
+}
+
+// unpackConversionPair validates that outer is a two-level type conversion and
+// returns the inner call expression and the resolved underlying types.
+// Returns (nil, nil, false) when the expression is not a well-formed pair.
+func unpackConversionPair(pass *analysis.Pass, outer *ast.CallExpr) (*ast.CallExpr, *roundTripTypes, bool) {
+	if len(outer.Args) != 1 || outer.Ellipsis.IsValid() {
+		return nil, nil, false
+	}
+	outerFunInfo, ok := pass.TypesInfo.Types[outer.Fun]
+	if !ok || !outerFunInfo.IsType() {
+		return nil, nil, false
+	}
+	outerType := pass.TypesInfo.TypeOf(outer)
+	if outerType == nil {
+		return nil, nil, false
+	}
+	inner, ok := outer.Args[0].(*ast.CallExpr)
+	if !ok {
+		return nil, nil, false
+	}
+	if len(inner.Args) != 1 || inner.Ellipsis.IsValid() {
+		return nil, nil, false
+	}
+	// The inner call must also be a type conversion, not a function call.
+	innerFunInfo, ok := pass.TypesInfo.Types[inner.Fun]
+	if !ok || !innerFunInfo.IsType() {
+		return nil, nil, false
+	}
+	innerType := pass.TypesInfo.TypeOf(inner)
+	if innerType == nil {
+		return nil, nil, false
+	}
+	innerArgType := pass.TypesInfo.TypeOf(inner.Args[0])
+	if innerArgType == nil {
+		return nil, nil, false
+	}
+	return inner, &roundTripTypes{
+		outer:    outerType.Underlying(),
+		inner:    innerType.Underlying(),
+		innerArg: innerArgType.Underlying(),
+	}, true
+}
+
 // analyzeRoundTrip checks whether a conversion expression is a redundant
 // string/[]byte round-trip and reports a diagnostic if so.
 func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
 	outer, ok := n.(*ast.CallExpr)
 	if !ok {
-		return
-	}
-	// Must be a type conversion (single argument, no ellipsis).
-	if len(outer.Args) != 1 || outer.Ellipsis.IsValid() {
 		return
 	}
 
@@ -67,46 +112,13 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 		return
 	}
 
-	// Must be a type conversion, not a function call.
-	outerFunInfo, ok := pass.TypesInfo.Types[outer.Fun]
-	if !ok || !outerFunInfo.IsType() {
-		return
-	}
-
-	outerType := pass.TypesInfo.TypeOf(outer)
-	if outerType == nil {
-		return
-	}
-
-	inner, ok := outer.Args[0].(*ast.CallExpr)
+	inner, rtt, ok := unpackConversionPair(pass, outer)
 	if !ok {
 		return
 	}
-	if len(inner.Args) != 1 || inner.Ellipsis.IsValid() {
-		return
-	}
-
-	// The inner call must also be a type conversion, not a function call.
-	innerFunInfo, ok := pass.TypesInfo.Types[inner.Fun]
-	if !ok || !innerFunInfo.IsType() {
-		return
-	}
-
-	innerType := pass.TypesInfo.TypeOf(inner)
-	if innerType == nil {
-		return
-	}
-	innerArgType := pass.TypesInfo.TypeOf(inner.Args[0])
-	if innerArgType == nil {
-		return
-	}
-
-	outerUnderlying := outerType.Underlying()
-	innerUnderlying := innerType.Underlying()
-	innerArgUnderlying := innerArgType.Underlying()
 
 	// Check string([]byte(s)) where s is already a string.
-	if isStringType(outerUnderlying) && isByteSliceType(innerUnderlying) && isStringType(innerArgUnderlying) {
+	if isStringType(rtt.outer) && isByteSliceType(rtt.inner) && isStringType(rtt.innerArg) {
 		argText := astutil.NodeText(pass.Fset, inner.Args[0])
 		pass.ReportRangef(outer,
 			"string([]byte(%s)) is a redundant round-trip; the inner []byte conversion copies the string unnecessarily",
@@ -116,7 +128,7 @@ func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.
 	}
 
 	// Check []byte(string(b)) where b is already a []byte.
-	if isByteSliceType(outerUnderlying) && isStringType(innerUnderlying) && isByteSliceType(innerArgUnderlying) {
+	if isByteSliceType(rtt.outer) && isStringType(rtt.inner) && isByteSliceType(rtt.innerArg) {
 		argText := astutil.NodeText(pass.Fset, inner.Args[0])
 		pass.ReportRangef(outer,
 			"[]byte(string(%s)) is a redundant round-trip; the inner string conversion copies the bytes unnecessarily",

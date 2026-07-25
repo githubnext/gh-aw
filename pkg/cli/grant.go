@@ -19,6 +19,10 @@ var grantLog = logger.New("cli:grant")
 
 const grantPolicyFilename = ".grant.yaml"
 
+// grantContainerPolicyPath is the path inside the Docker container where the
+// grant policy file is mounted.
+const grantContainerPolicyPath = "/tmp/gh-aw-grant-policy.yaml"
+
 type grantOutput struct {
 	Tool string `json:"tool"`
 	Run  struct {
@@ -149,7 +153,7 @@ func grantPolicyFile() (string, error) {
 }
 
 func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, error) {
-	containerPolicyPath := "/tmp/gh-aw-grant-policy.yaml"
+	containerPolicyPath := grantContainerPolicyPath
 
 	// #nosec G204 -- imageRef and policyFile are derived from compiled lock files and the
 	// current repository checkout. exec.Command passes arguments directly without a shell.
