@@ -1656,7 +1656,7 @@ jobs:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/safe_output_handler_manager.cjs');
+            const { main } = require('${{ runner.temp }}/gh-aw/actions/process_safe_outputs.cjs');
             await main();
       - name: Upload Safe Outputs Items
         if: always()
@@ -1666,4 +1666,6 @@ jobs:
           path: |
             /tmp/gh-aw/safe-output-items.jsonl
             /tmp/gh-aw/temporary-id-map.json
+            /tmp/gh-aw/process-safe-outputs.stdout.log
+            /tmp/gh-aw/process-safe-outputs.stderr.log
           if-no-files-found: ignore

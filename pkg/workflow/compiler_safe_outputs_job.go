@@ -905,6 +905,8 @@ func buildSafeOutputItemsManifestUploadStep(prefix string, pinAction func(string
 		"          path: |\n",
 		"            /tmp/gh-aw/safe-output-items.jsonl\n",
 		fmt.Sprintf("            /tmp/gh-aw/%s\n", constants.TemporaryIdMapFilename),
+		"            /tmp/gh-aw/process-safe-outputs.stdout.log\n",
+		"            /tmp/gh-aw/process-safe-outputs.stderr.log\n",
 		"          if-no-files-found: ignore\n",
 	}
 }
