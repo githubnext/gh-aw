@@ -121,8 +121,6 @@ Common mappings:
 
 Use [triggers.md](triggers.md), [workflow-patterns.md](workflow-patterns.md), and [create-agentic-workflow-trigger-details.md](create-agentic-workflow-trigger-details.md) for detailed trigger-selection patterns.
 
-> **Compliance and persona trigger default**: When a request is framed around changed files (for example "review new dependencies in this PR" or "check policy docs"), prefer `pull_request` with tight `paths:` filters. Reserve `schedule` for recurring audits that run on a cadence regardless of file changes. When ambiguous — choose `pull_request` first and add a `workflow_dispatch` fallback for manual reruns.
-
 ### 3. Keep permissions read-only
 
 The main agent job must stay read-only.

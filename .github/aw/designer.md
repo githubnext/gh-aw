@@ -266,34 +266,7 @@ Never suggest committing plaintext tokens.
 | "search for patterns across repos" | add `steps:` using `gh search` + `jq` filters |
 | "just respond to a comment" | no pre-fetch needed (event payload is enough) |
 | "process each item individually" | suggest sub-agent pattern with `model: small` |
-| "weekly digest", "compliance report", "license review", "policy audit" | add `steps:` to pre-fetch relevant GitHub data with `gh` + `jq`; store compact JSON under `/tmp/gh-aw/data/` so the agent reads summaries instead of raw API responses |
-
-### DataOps example — persona-style reporting and compliance
-
-Use this pattern for non-technical persona scenarios (PM digests, compliance reviews, design audits) where the agent needs aggregated GitHub data:
-
-```yaml
-steps:
-  - name: Fetch data for report
-    run: |
-      mkdir -p /tmp/gh-aw/data
-      # Example: pre-fetch open issues for a PM digest
-      gh issue list --state open --json number,title,labels,assignees,updatedAt \
-        --jq '[.[] | select(.updatedAt > (now - 604800 | todate))]' \
-        > /tmp/gh-aw/data/recent-issues.json
-      # Example: pre-fetch changed dependency manifests for a compliance review
-      gh pr view "${{ github.event.pull_request.number }}" \
-        --json files --jq '[.files[] | select(.filename | test("package\\.json|go\\.mod|requirements\\.txt|Cargo\\.toml"))]' \
-        > /tmp/gh-aw/data/manifest-files.json
-```
-
-Point the prompt to these files:
-```text
-Read /tmp/gh-aw/data/recent-issues.json for this week's issues.
-Read /tmp/gh-aw/data/manifest-files.json for changed dependency manifests.
-```
-
-This keeps the agent context small and avoids repeated live fetches.
+| "weekly digest", "compliance report", "license review", "policy audit" | pre-fetch with `gh` + `jq` into `/tmp/gh-aw/data/`; point prompt to those files |
 
 ## Token Optimization Defaults
 

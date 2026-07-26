@@ -98,8 +98,6 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 
 ### Non-technical persona examples
 
-When the request is framed in non-engineering language, apply these defaults before asking further questions:
-
 | Persona | Default trigger | Default output | Key prompt details |
 |---|---|---|---|
 | Program Manager | `schedule` (+ `workflow_dispatch` for previews/backfills) | `create-issue` with `close-older-issues: true` | Report window, grouping dimensions, stable dedup key, and `noop` for empty windows |
