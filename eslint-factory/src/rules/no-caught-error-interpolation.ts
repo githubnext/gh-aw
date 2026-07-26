@@ -89,6 +89,7 @@ export const noCaughtErrorInterpolationRule = createRule({
         return true;
       }
       const definitionNode = definition.name ?? definition.node;
+      // range is absent on synthetic/virtual nodes; treat as unavailable rather than throwing
       if (!definitionNode?.range || !node.range) return false;
       return definitionNode.range[0] < node.range[0];
     }
