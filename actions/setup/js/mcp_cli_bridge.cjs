@@ -693,8 +693,9 @@ function tryExtractJsonFieldFromStdin(trimmedStdin, canonicalKey, schemaProperti
  * mistake where the whole JSON payload ends up as a string field value:
  *   printf '{"title":"Fix bug","body":"Details"}' \
  *     | safeoutputs create_pull_request --title "Fix bug" --body .
- * When stdin is empty or the key is absent from the JSON, the '.' is passed
- * through as a literal value.
+ * When stdin is empty, the '.' is passed through as a literal value.  When
+ * stdin is non-empty but the key is absent from the JSON (or stdin is not a
+ * JSON object), the entire trimmed stdin string is used as the field value.
  *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
