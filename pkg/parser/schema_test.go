@@ -2526,6 +2526,139 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets
 			t.Error("unknown provider in sandbox.agent.targets should be rejected")
 		}
 	})
+
+	t.Run("copilot extraHeaders map is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraHeaders": map[string]any{
+								"x-openrouter-title": "my-workflow",
+								"http-referer":       "https://github.com/org/repo",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-extra-headers-test.md")
+		if err != nil {
+			t.Errorf("valid copilot extraHeaders should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot extraBodyFields map is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraBodyFields": map[string]any{
+								"custom-field": "custom-value",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-extra-body-fields-test.md")
+		if err != nil {
+			t.Errorf("valid copilot extraBodyFields should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot sessionId string is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"sessionId": "${{ github.run_id }}",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-session-id-test.md")
+		if err != nil {
+			t.Errorf("valid copilot sessionId should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot all three BYOK fields together are accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraHeaders": map[string]any{
+								"x-openrouter-title": "my-workflow",
+							},
+							"extraBodyFields": map[string]any{
+								"custom-field": "custom-value",
+							},
+							"sessionId": "${{ github.run_id }}",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-byok-all-fields-test.md")
+		if err != nil {
+			t.Errorf("all three copilot BYOK fields together should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot non-string extraHeaders value is rejected", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraHeaders": map[string]any{
+								"x-count": 42,
+							},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-extra-headers-invalid-test.md")
+		if err == nil {
+			t.Error("non-string extraHeaders value should be rejected by schema validation")
+		}
+	})
+
+	t.Run("copilot unknown field in target is rejected", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"unknownField": "value",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-unknown-field-test.md")
+		if err == nil {
+			t.Error("unknown field in copilot target should be rejected by schema validation")
+		}
+	})
 }
 
 // TestValidateMainWorkflowFrontmatter_OnPermissionsVulnerabilityAlerts validates that

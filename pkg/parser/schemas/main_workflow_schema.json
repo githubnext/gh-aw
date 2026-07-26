@@ -3515,6 +3515,9 @@
                         },
                         "anthropic": {
                           "$ref": "#/$defs/sandbox_agent_api_target"
+                        },
+                        "copilot": {
+                          "$ref": "#/$defs/sandbox_copilot_api_target"
                         }
                       },
                       "additionalProperties": false
@@ -13804,6 +13807,35 @@
         "authHeader": {
           "type": "string",
           "description": "Custom authentication header name to use when forwarding requests to this provider's API. Overrides the provider default (\"Authorization\" for OpenAI, \"x-api-key\" for Anthropic). Example: \"api-key\" for Azure OpenAI gateways."
+        }
+      },
+      "additionalProperties": false
+    },
+    "sandbox_copilot_api_target": {
+      "type": "object",
+      "description": "AWF API proxy target configuration for the Copilot BYOK provider. Supports injecting additional headers, body fields, and an optional session ID on upstream requests.",
+      "properties": {
+        "authHeader": {
+          "type": "string",
+          "description": "Custom authentication header name to use when forwarding requests to the Copilot API. Example: \"api-key\" for Azure OpenAI gateways."
+        },
+        "extraHeaders": {
+          "type": "object",
+          "description": "Additional non-sensitive HTTP headers to inject on Copilot BYOK upstream requests. Maps to AWF_BYOK_EXTRA_HEADERS. Example: { \"x-openrouter-title\": \"my-workflow\" }.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "extraBodyFields": {
+          "type": "object",
+          "description": "Additional non-sensitive JSON body fields to inject on Copilot BYOK upstream requests. Maps to AWF_BYOK_EXTRA_BODY_FIELDS. Example: { \"custom-field\": \"custom-value\" }.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it — strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
         }
       },
       "additionalProperties": false
