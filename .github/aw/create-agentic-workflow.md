@@ -113,7 +113,7 @@ Common mappings:
 | Scenario | Trigger and default output | Details |
 |---|---|---|
 | Recurring reports and stakeholder digests | `schedule` (+ `workflow_dispatch` for reruns), usually `create-issue` | [Reporting/digest guidance](create-agentic-workflow-trigger-details.md#reporting-and-digest-guidance) |
-| Persona-oriented requests (PM, design governance, compliance policy) | `schedule` or `pull_request` with scoped `paths:` | [Persona scenario map](create-agentic-workflow-trigger-details.md#persona-oriented-scenario-map) |
+| Persona-oriented requests (PM, design governance, compliance policy) | `pull_request` with scoped `paths:` when the request is framed around changed files; `schedule` (+ `workflow_dispatch`) for recurring audits | [Persona scenario map](create-agentic-workflow-trigger-details.md#persona-oriented-scenario-map) |
 | Backend schema/API review | `pull_request` with backend contract `paths:` and `add-comment` | [Backend review guidance](create-agentic-workflow-trigger-details.md#backend-review-guidance) |
 | PR analyzers deciding comment vs issue vs noop | `pull_request` + escalation logic | [PR analyzer escalation](create-agentic-workflow-trigger-details.md#pr-analyzer-escalation-guidance) |
 | Incident workflows | `workflow_run` / `deployment_status` with `create-issue` dedup | [Incident dedup-key templates](create-agentic-workflow-trigger-details.md#incident-dedup-key-templates-workflow_run-and-deployment_status) |
