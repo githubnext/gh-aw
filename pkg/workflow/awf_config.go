@@ -294,6 +294,22 @@ type AWFAPITargetConfig struct {
 	// that require "api-key: <rawkey>" in place of the standard provider scheme.
 	// Maps to: --openai-api-auth-header / --anthropic-api-auth-header
 	AuthHeader string `json:"authHeader,omitempty"`
+
+	// ExtraHeaders holds additional non-sensitive headers injected on Copilot BYOK upstream
+	// requests. Only valid for the "copilot" provider target (copilotTarget in the AWF schema).
+	// Maps to AWF_BYOK_EXTRA_HEADERS in the sidecar.
+	ExtraHeaders map[string]string `json:"extraHeaders,omitempty"`
+
+	// ExtraBodyFields holds additional non-sensitive JSON body fields injected on Copilot BYOK
+	// upstream requests. Only valid for the "copilot" provider target.
+	// Maps to AWF_BYOK_EXTRA_BODY_FIELDS in the sidecar.
+	ExtraBodyFields map[string]string `json:"extraBodyFields,omitempty"`
+
+	// SessionId is an opt-in session identifier injected as the x-session-id request header
+	// and session_id body field on Copilot BYOK upstream requests. Only valid for the
+	// "copilot" provider target. Must be set explicitly; never auto-derived from GITHUB_RUN_ID.
+	// Maps to AWF_PROVIDER_SESSION_ID in the sidecar.
+	SessionId string `json:"sessionId,omitempty"`
 }
 
 // AWFContainerConfig is the "container" section of the AWF config file.
@@ -543,6 +559,29 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if copilotTarget := GetCopilotAPITarget(config.WorkflowData); copilotTarget != "" {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
+	}
+
+	// Apply BYOK supplemental fields from sandbox.agent.targets.copilot frontmatter.
+	// extraHeaders, extraBodyFields, and sessionId are Copilot-specific and map to
+	// AWF_BYOK_EXTRA_HEADERS, AWF_BYOK_EXTRA_BODY_FIELDS, and AWF_PROVIDER_SESSION_ID.
+	if copilotFrontmatter := extractCopilotTargetConfig(config.WorkflowData); copilotFrontmatter != nil {
+		existing, ok := targets["copilot"]
+		if !ok {
+			existing = &AWFAPITargetConfig{}
+			targets["copilot"] = existing
+		}
+		if len(copilotFrontmatter.ExtraHeaders) > 0 {
+			existing.ExtraHeaders = copilotFrontmatter.ExtraHeaders
+			awfConfigLog.Printf("API proxy: copilot extraHeaders configured (%d header(s))", len(copilotFrontmatter.ExtraHeaders))
+		}
+		if len(copilotFrontmatter.ExtraBodyFields) > 0 {
+			existing.ExtraBodyFields = copilotFrontmatter.ExtraBodyFields
+			awfConfigLog.Printf("API proxy: copilot extraBodyFields configured (%d field(s))", len(copilotFrontmatter.ExtraBodyFields))
+		}
+		if copilotFrontmatter.SessionId != "" {
+			existing.SessionId = copilotFrontmatter.SessionId
+			awfConfigLog.Printf("API proxy: copilot sessionId configured")
+		}
 	}
 	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
 		// Route the Antigravity-resolved API target through the "gemini" provider key
