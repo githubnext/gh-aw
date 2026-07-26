@@ -410,6 +410,18 @@ func ConstIntValue(pass *analysis.Pass, expr ast.Expr) (int64, bool) {
 	return v, exact
 }
 
+// UnwrapParenExpr unwraps any layers of redundant parentheses around expr,
+// returning the innermost non-parenthesized expression.
+func UnwrapParenExpr(expr ast.Expr) ast.Expr {
+	for {
+		p, ok := expr.(*ast.ParenExpr)
+		if !ok {
+			return expr
+		}
+		expr = p.X
+	}
+}
+
 // AsStringsMethodCall returns the *ast.CallExpr if expr is a call to the
 // named method on the "strings" package (e.g. "Index" or "Count").
 func AsStringsMethodCall(pass *analysis.Pass, expr ast.Expr, methodName string) (*ast.CallExpr, bool) {
