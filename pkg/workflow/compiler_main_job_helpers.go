@@ -256,13 +256,17 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 	// sandboxing is unavailable, which causes playwright-cli to abort with
 	// "Playwright can't run in this sandbox environment".
 	if isPlaywrightCLIMode(data.Tools) {
-		env = make(map[string]string)
+		if env == nil {
+			env = make(map[string]string)
+		}
 		env["PLAYWRIGHT_MCP_SANDBOX"] = "false"
 	}
 
 	if data.SafeOutputs != nil {
 		compilerMainJobLog.Printf("Configuring safe-outputs job env for main job (uploadAssets=%v)", data.SafeOutputs.UploadAssets != nil)
-		env = make(map[string]string)
+		if env == nil {
+			env = make(map[string]string)
+		}
 
 		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
 		// Store in mcp-logs directory so it's included in mcp-logs artifact
