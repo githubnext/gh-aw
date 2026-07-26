@@ -395,7 +395,12 @@ Run for /triage comments or state:approved labels on open issues.
 	require.True(t, ok, "activation job should have an if condition")
 	assert.Contains(t, activationIf, "needs.pre_activation.outputs.activated == 'true'")
 	assert.Contains(t, activationIf, "github.event.label.name == 'state:approved'")
-	assert.Contains(t, activationIf, "startsWith(github.event.comment.body, '/triage")
+	assert.True(
+		t,
+		strings.Contains(activationIf, "startsWith(github.event.comment.body, '/triage ')") ||
+			strings.Contains(activationIf, "startsWith(github.event.comment.body, '/triage\\n')"),
+		"activation if should include slash command prefix guard for /triage",
+	)
 	assert.Contains(t, activationIf, "github.event.issue.state == 'open'")
 }
 
