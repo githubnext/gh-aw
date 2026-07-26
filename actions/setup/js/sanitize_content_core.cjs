@@ -266,6 +266,8 @@ function sanitizeUrlProtocols(s) {
  * @returns {string} The string with unknown domains redacted
  */
 function sanitizeUrlDomains(s, allowed) {
+  const angleBracketHttpsAutolinkRegex = /<https:\/\/([\w.-]+(?::\d+)?)(\/[^\s<>|]*)?(?:\|([^<>]*))?>/gi;
+
   // Match HTTPS URLs with optional port and path
   // This regex is designed to:
   // 1. Match https:// URIs with explicit protocol
@@ -317,6 +319,14 @@ function sanitizeUrlDomains(s, allowed) {
       return sanitized ? `(${sanitized}/redacted)` : "(redacted)";
     }
   }
+
+  // First pass: handle angle-bracket autolinks and Slack mrkdwn links as a unit so
+  // later generic URL matching does not consume the trailing ">" or "|label".
+  s = s.replace(angleBracketHttpsAutolinkRegex, (match, hostnameWithPort, path = "") => {
+    const url = `https://${hostnameWithPort}${path || ""}`;
+    const filtered = applyDomainFilter(url, hostnameWithPort);
+    return filtered === url ? match : filtered;
+  });
 
   // First pass: handle explicit https:// URLs
   s = s.replace(httpsUrlRegex, (match, hostnameWithPort) => applyDomainFilter(match, hostnameWithPort));
@@ -722,6 +732,22 @@ function convertXmlTags(s) {
     "ul",
   ];
 
+  /**
+   * Slack/CommonMark autolinks use angle brackets but are not HTML tags.
+   * Preserve HTTPS forms here so downstream URL filtering can inspect them
+   * without convertXmlTags rewriting them to parentheses first.
+   *
+   * Supported forms:
+   *   <https://example.com/path>
+   *   <https://example.com/path|label>
+   *
+   * @param {string} tagContent
+   * @returns {boolean}
+   */
+  function isHttpsAngleBracketAutolink(tagContent) {
+    return /^https:\/\/[^\s<>|]+(?:\|[^<>]*)?$/i.test(tagContent);
+  }
+
   // First, process CDATA sections specially - convert tags inside them and the CDATA markers
   s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
     // Convert tags inside CDATA content
@@ -767,6 +793,9 @@ function convertXmlTags(s) {
   // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
   // But preserve allowed safe tags (with dangerous attributes stripped)
   return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+    if (isHttpsAngleBracketAutolink(tagContent)) {
+      return match;
+    }
     // Extract tag name from the content (handle closing tags and attributes)
     const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
     if (tagNameMatch) {

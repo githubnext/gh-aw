@@ -441,9 +441,9 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should move title into link text for inline link with angle-bracket URL", () => {
-      // Note: convertXmlTags runs after neutralizeMarkdownLinkTitles and converts <url> to (url)
+      // Angle-bracket HTTPS autolinks are preserved so CommonMark/Slack link syntax survives sanitization.
       const result = sanitizeContent('[click here](<https://github.com/path> "injected payload")');
-      expect(result).toBe("[click here (injected payload)]((https://github.com/path))");
+      expect(result).toBe("[click here (injected payload)](<https://github.com/path>)");
     });
 
     it("should move multiple link titles into link text in the same content", () => {
@@ -579,6 +579,16 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("<img/onerror=alert(1) src=x>");
       expect(result).toContain("<img");
       expect(result).not.toContain("onerror");
+    });
+
+    it("should preserve HTTPS angle-bracket autolinks", () => {
+      const input = "Tracking issue: <https://github.com/octo-org/octo-repo/issues/123>";
+      expect(sanitizeContent(input)).toBe(input);
+    });
+
+    it("should preserve Slack mrkdwn links on allowed HTTPS domains", () => {
+      const input = "Tracking issue: <https://github.com/octo-org/octo-repo/issues/123|Build failure — Build github/gh-aw#456>";
+      expect(sanitizeContent(input)).toBe(input);
     });
 
     it("should handle CDATA sections", () => {
