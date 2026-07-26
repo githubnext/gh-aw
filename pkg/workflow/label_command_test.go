@@ -353,6 +353,52 @@ Run when the state:approved label is added to an open issue.
 	assert.Contains(t, activationIf, "github.event.issue.state == 'open'")
 }
 
+func TestSlashAndLabelCommandWorkflowCompileCombinesCustomIf(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Slash + Label Command Custom If Test
+on:
+  slash_command: triage
+  label_command:
+    name: state:approved
+engine: copilot
+if: ${{ github.event.issue.state == 'open' }}
+---
+
+Run for /triage comments or state:approved labels on open issues.
+`
+
+	workflowPath := filepath.Join(tempDir, "slash-and-label-command-custom-if.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err, "failed to write test workflow")
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "CompileWorkflow() should not error")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err, "failed to read lock file")
+
+	var workflow map[string]any
+	err = yaml.Unmarshal(lockContent, &workflow)
+	require.NoError(t, err, "failed to parse lock file as YAML")
+
+	jobs, ok := workflow["jobs"].(map[string]any)
+	require.True(t, ok, "workflow should have jobs")
+
+	activation, ok := jobs["activation"].(map[string]any)
+	require.True(t, ok, "workflow should have an activation job")
+
+	activationIf, ok := activation["if"].(string)
+	require.True(t, ok, "activation job should have an if condition")
+	assert.Contains(t, activationIf, "needs.pre_activation.outputs.activated == 'true'")
+	assert.Contains(t, activationIf, "github.event.label.name == 'state:approved'")
+	assert.Contains(t, activationIf, "startsWith(github.event.comment.body, '/triage")
+	assert.Contains(t, activationIf, "github.event.issue.state == 'open'")
+}
+
 // TestLabelCommandWorkflowCompileShorthand verifies the "label-command <name>" string shorthand.
 func TestLabelCommandWorkflowCompileShorthand(t *testing.T) {
 	tempDir := t.TempDir()
