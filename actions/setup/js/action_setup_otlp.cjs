@@ -178,11 +178,11 @@ async function run() {
 
   // Always propagate trace/span context to subsequent steps in this job so
   // that the conclusion span can find the same trace ID.
+  if (isValidTraceId(traceId)) writeEnvLine(githubEnv, "GITHUB_AW_OTEL_TRACE_ID", traceId, "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_ENV");
+  if (isValidSpanId(spanId)) writeEnvLine(githubEnv, "GITHUB_AW_OTEL_PARENT_SPAN_ID", spanId, "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_ENV");
+  // Propagate setup-end timestamp so the conclusion span can measure actual
+  // job execution duration (setup-end → conclusion-start).
   if (githubEnv) {
-    if (isValidTraceId(traceId)) writeEnvLine(githubEnv, "GITHUB_AW_OTEL_TRACE_ID", traceId, "GITHUB_AW_OTEL_TRACE_ID", "GITHUB_ENV");
-    if (isValidSpanId(spanId)) writeEnvLine(githubEnv, "GITHUB_AW_OTEL_PARENT_SPAN_ID", spanId, "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_ENV");
-    // Propagate setup-end timestamp so the conclusion span can measure actual
-    // job execution duration (setup-end → conclusion-start).
     const setupEndMs = String(Math.floor(nowMs()));
     writeEnvLine(githubEnv, "GITHUB_AW_OTEL_JOB_START_MS", setupEndMs, "GITHUB_AW_OTEL_JOB_START_MS", "GITHUB_ENV");
   }
