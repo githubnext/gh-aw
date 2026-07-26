@@ -86,7 +86,7 @@ Computes the next semantic version from existing GitHub releases/tags using `act
     steps:
       - name: Compute Release Config
         id: compute_config
-        uses: actions/github-script@v7
+        uses: actions/github-script@v9
         with:
           script: |
             const releaseType = context.payload.inputs.release_type;
@@ -106,11 +106,11 @@ Checks out the repository, builds binaries, and uploads them as a GitHub Actions
     needs: ["pre_activation", "activation", "config"]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { persist-credentials: false }
       - name: Build
         run: bash scripts/build-release.sh ${{ needs.config.outputs.release_tag }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-binaries-${{ needs.config.outputs.release_tag }}
           path: dist/
@@ -130,9 +130,9 @@ Creates the GitHub release using `gh release create`. Use `--prerelease --latest
     outputs:
       release_id: ${{ steps.create_release.outputs.release_id }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 0, persist-credentials: true }
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v8
         with:
           name: release-binaries-${{ needs.config.outputs.release_tag }}
           path: dist/
