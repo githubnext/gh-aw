@@ -176,7 +176,7 @@ func TestGitHubTokenValidationInSafeOutputs(t *testing.T) {
 		},
 		{
 			name:        "valid same-job step output token in safe-outputs",
-			token:       "${{ steps.fetch_token.outputs.token }}",
+			token:       "${{ steps.fetch-token.outputs.my-token }}",
 			expectError: false,
 		},
 		{
@@ -243,7 +243,7 @@ func TestGitHubTokenValidationInIndividualSafeOutput(t *testing.T) {
 		},
 		{
 			name:        "valid same-job step output token in individual safe-output",
-			token:       "${{ steps.fetch_token.outputs.token }}",
+			token:       "${{ steps.fetch-token.outputs.my-token }}",
 			expectError: false,
 		},
 		{
@@ -310,7 +310,7 @@ func TestGitHubTokenValidationInGitHubTool(t *testing.T) {
 		},
 		{
 			name:        "valid same-job step output token in github tool",
-			token:       "${{ steps.fetch_token.outputs.token }}",
+			token:       "${{ steps.fetch-token.outputs.my-token }}",
 			expectError: false,
 		},
 		{
