@@ -1227,6 +1227,24 @@ func TestMainWorkflowSchema_CreateDiscussionRequiredCategoryAllowed(t *testing.T
 	}
 }
 
+func TestMainWorkflowSchema_GitHubTokenAllowsStepOutputs(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"github-token": "${{ steps.fetch_token.outputs.token }}",
+			"create-issue": map[string]any{
+				"github-token": "${{ steps.fetch_token.outputs.token }}",
+			},
+		},
+	}
+
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		t.Fatalf("expected steps.*.outputs.* github-token expression to pass schema validation, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchemaPushToPullRequestBranchHasMaxPatchSize(t *testing.T) {
 	schemaPath := "schemas/main_workflow_schema.json"
 	schemaContent, err := os.ReadFile(schemaPath)

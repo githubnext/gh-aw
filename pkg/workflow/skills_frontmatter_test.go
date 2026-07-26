@@ -84,6 +84,18 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("accepts object form with steps output github-token", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				map[string]any{
+					"skill":        "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+					"github-token": "${{ steps.fetch_token.outputs.token }}",
+				},
+			},
+		})
+		require.NoError(t, err)
+	})
+
 	t.Run("rejects object form with github-token literal", func(t *testing.T) {
 		err := validateFrontmatterSkills(map[string]any{
 			"skills": []any{
