@@ -197,6 +197,9 @@ func intensityChar(count int) string {
 
 // intensityStyle returns a centralized style appropriate for the given trigger
 // count.
+// scheduleCalendarRenderer keeps this function compatible with both normal
+// builds (lipgloss.Style) and js/wasm builds (styles.WasmStyle), which both
+// provide Render(...string) string.
 type scheduleCalendarRenderer interface {
 	Render(...string) string
 }
@@ -216,6 +219,8 @@ func intensityStyle(count int) scheduleCalendarRenderer {
 	}
 }
 
+// hasNoColorEnviron returns true when NO_COLOR is present in the provided
+// environment list, indicating color output should be disabled.
 func hasNoColorEnviron(environ []string) bool {
 	for _, envVar := range environ {
 		if strings.HasPrefix(envVar, "NO_COLOR=") {

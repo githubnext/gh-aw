@@ -224,6 +224,8 @@ func TestRenderScheduleCalendarCell_NoANSIWhenNoColor(t *testing.T) {
 }
 
 func TestRenderScheduleCalendarCell_UsesANSIInColorTerminal(t *testing.T) {
+	// This test intentionally avoids t.Parallel because it temporarily overrides
+	// a shared style token.
 	prevCritical := styles.ScheduleCalendarCritical
 	styles.ScheduleCalendarCritical = lipgloss.NewStyle().Transform(func(s string) string {
 		return "\x1b[31m" + s + "\x1b[0m"
