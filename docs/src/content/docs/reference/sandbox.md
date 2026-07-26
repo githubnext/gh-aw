@@ -145,6 +145,28 @@ jobs:
 Use `go build` or `python3` - both are available.
 ```
 
+#### Copilot BYOK request customization (`sandbox.agent.targets.copilot`)
+
+When routing Copilot through a BYOK-compatible upstream behind the AWF proxy, you can attach custom headers, extra request body fields, and an explicit session identifier on upstream requests:
+
+```yaml wrap
+sandbox:
+  agent:
+    targets:
+      copilot:
+        extraHeaders:
+          x-openrouter-title: my-workflow
+          http-referer: https://github.com/${{ github.repository }}
+        extraBodyFields:
+          custom-field: custom-value
+        sessionId: ${{ github.run_id }}
+```
+
+Use this for OpenAI-compatible proxies and gateways that expect additional request metadata. `sessionId` is opt-in only; gh-aw does not derive it automatically.
+
+> [!NOTE]
+> Set `sessionId` only when your upstream expects a session identifier. Some strict OpenAI-compatible providers reject unknown `session_id` fields, so automatic injection would be unsafe.
+
 #### Go cache paths in AWF (`GOMODCACHE` / `GOCACHE`)
 
 When using `actions/setup-go` in AWF, pin Go cache paths explicitly so restore behavior is predictable:

@@ -67,6 +67,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -258,6 +259,12 @@ type AWFAPIProxyConfig struct {
 	// Supported keys: "openai", "anthropic", "copilot", "gemini"
 	// The "gemini" target is also used for Antigravity engine routing.
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
+
+	// Providers holds per-provider model pricing overlays used by the API proxy
+	// AI-credits guardrails for models not present in the built-in pricing table.
+	// Structure matches models.json provider format:
+	//   providers.<provider>.models.<model>.cost.{input,output,cache_read,cache_write,reasoning}
+	Providers map[string]any `json:"providers,omitempty"`
 
 	// Models contains model alias and fallback policy definitions.
 	// Keys are alias names (empty string "" = default policy); values are ordered
@@ -602,6 +609,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
 	}
 
+	if providers := extractModelCostProviders(config.WorkflowData); len(providers) > 0 {
+		if awfSupportsAPIProxyProviders(firewallConfig) {
+			apiProxy.Providers = providers
+			awfConfigLog.Printf("API proxy: %d model-cost provider override(s) configured", len(providers))
+		} else {
+			awfConfigLog.Printf("Skipping apiProxy.providers: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAPIProxyProvidersMinVersion)
+		}
+	}
+
 	// ── Models section (nested under apiProxy per AWF config schema) ──────────
 	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
 		apiProxy.Models = config.WorkflowData.ModelMappings
@@ -864,6 +880,23 @@ func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AiCreditsPricin
 		CachedInput: p.CachedInput,
 		CacheWrite:  p.CacheWrite,
 	}
+}
+
+func extractModelCostProviders(workflowData *WorkflowData) map[string]any {
+	if workflowData == nil || len(workflowData.ModelCosts) == 0 {
+		return nil
+	}
+	providers, ok := workflowData.ModelCosts["providers"].(map[string]any)
+	if !ok {
+		awfConfigLog.Printf("API proxy: models.providers has unexpected type %T; skipping provider overlay", workflowData.ModelCosts["providers"])
+		return nil
+	}
+	if len(providers) == 0 {
+		return nil
+	}
+	clone := make(map[string]any, len(providers))
+	maps.Copy(clone, providers)
+	return clone
 }
 
 // getRunnerTopology extracts the runner topology string from WorkflowData.

@@ -12,6 +12,8 @@ const AI_CREDITS_RATE_LIMIT_ERROR_FIELDS = new Set(["ai_credits_rate_limit_error
 const AI_CREDITS_RATE_LIMIT_TEXT_FIELDS = new Set(["error", "message", "reason", "details", "detail", "type", "code"]);
 const AI_CREDITS_RATE_LIMIT_PATTERNS = [/ai[\s_-]*credits?.*(?:rate[\s-]*limit|limit exceeded|budget exceeded|exceeded)/i, /(?:rate[\s-]*limit|too many requests).*(?:ai[\s_-]*credits?)/i, /\bai_credits_limit_exceeded\b/i];
 const MAX_AI_CREDITS_EXCEEDED_FIELDS = new Set(["max_ai_credits_exceeded", "maxAiCreditsExceeded"]);
+/** @type {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean, maxAICreditsExceeded: boolean }} */
+const EMPTY_AI_CREDITS_STATE = { aiCredits: "", maxAICredits: "", rateLimitError: false, maxAICreditsExceeded: false };
 const BUDGET_EXCEEDED_EVENT = "budget_exceeded";
 // The literal error type emitted by the AWF API proxy (HTTP 400) when maxAiCredits is active
 // and the requested model is not in the built-in pricing table.
@@ -304,9 +306,7 @@ function parseUnknownModelAICreditsFromAuditLog(auditJsonlPathOverride) {
  * @returns {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean, maxAICreditsExceeded: boolean }}
  */
 function parseAuditLogCombined(auditJsonlPathOverride) {
-  /** @type {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean, maxAICreditsExceeded: boolean }} */
-  const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false, maxAICreditsExceeded: false };
-  return iterateAuditEntries(auditJsonlPathOverride, initial, null, (acc, entry) => {
+  return iterateAuditEntries(auditJsonlPathOverride, EMPTY_AI_CREDITS_STATE, null, (acc, entry) => {
     const errorInfo = parseAICreditsErrorInfoFromAuditEntry(entry);
     const max = parseMaxAICreditsFromAuditEntry(entry);
     const maxAICreditsExceeded = parseMaxAICreditsExceededFromAuditEntry(entry);
@@ -376,7 +376,6 @@ function resolveAICreditsFailureState({ logProvenance = true } = {}) {
  * @returns {{ aiCredits: string, maxAICredits: string, rateLimitError: boolean, maxAICreditsExceeded: boolean }}
  */
 function parseAICreditsExceededFromAgentStdio() {
-  const initial = { aiCredits: "", maxAICredits: "", rateLimitError: false, maxAICreditsExceeded: false };
   try {
     const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
     // Derive the stdio log path from GH_AW_AGENT_OUTPUT when set, but always
@@ -384,11 +383,11 @@ function parseAICreditsExceededFromAgentStdio() {
     // silently break detection.
     const derivedPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : null;
     const stdioLogPath = derivedPath && fs.existsSync(derivedPath) ? derivedPath : DEFAULT_AGENT_STDIO_LOG;
-    if (!fs.existsSync(stdioLogPath)) return initial;
+    if (!fs.existsSync(stdioLogPath)) return EMPTY_AI_CREDITS_STATE;
     // Read only the tail to avoid OOM on large logs; the error token always
     // appears near the end of the file.
     const stat = fs.statSync(stdioLogPath);
-    if (stat.size === 0) return initial;
+    if (stat.size === 0) return EMPTY_AI_CREDITS_STATE;
     const readSize = Math.min(stat.size, AGENT_STDIO_LOG_MAX_TAIL);
     const buf = Buffer.alloc(readSize);
     const fd = fs.openSync(stdioLogPath, "r");
@@ -403,7 +402,7 @@ function parseAICreditsExceededFromAgentStdio() {
     const RE_G = new RegExp(MAX_AI_CREDITS_EXCEEDED_STDIO_RE.source, "gi");
     const allMatches = [...content.matchAll(RE_G)];
     const match = allMatches.at(-1);
-    if (!match) return initial;
+    if (!match) return EMPTY_AI_CREDITS_STATE;
     const aiCredits = parsePositiveNumberString(match[1] || "");
     const maxAICredits = parsePositiveNumberString(match[2] || "");
     return {
@@ -413,7 +412,7 @@ function parseAICreditsExceededFromAgentStdio() {
       maxAICreditsExceeded: true,
     };
   } catch {
-    return initial;
+    return EMPTY_AI_CREDITS_STATE;
   }
 }
 

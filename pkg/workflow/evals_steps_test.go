@@ -410,6 +410,7 @@ func TestBuildEvalsEngineStepsModelMappingsPropagated(t *testing.T) {
 		if !strings.Contains(steps, `\"models\"`) {
 			t.Errorf("expected evals engine steps to include AWF config with \"models\" key when ModelMappings is set;\ngot:\n%s", steps)
 		}
+
 	})
 
 	t.Run("model mappings absent from evals AWF config when nil on parent WorkflowData", func(t *testing.T) {
@@ -430,4 +431,51 @@ func TestBuildEvalsEngineStepsModelMappingsPropagated(t *testing.T) {
 			t.Errorf("expected evals engine steps to exclude \"models\" key from AWF config when ModelMappings is nil;\ngot:\n%s", steps)
 		}
 	})
+}
+
+func TestBuildEvalsEngineStepsModelCostsProvidersPropagated(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI:    "claude",
+		Model: "accounts/fireworks/models/minimax-m3",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+		ModelCosts: map[string]any{
+			"providers": map[string]any{
+				"anthropic": map[string]any{
+					"models": map[string]any{
+						"accounts/fireworks/models/minimax-m3": map[string]any{
+							"cost": map[string]any{
+								"input":  "3e-07",
+								"output": "1.5e-06",
+							},
+						},
+					},
+				},
+			},
+		},
+		Evals: &EvalsConfig{
+			Questions: []EvalDefinition{
+				{ID: "check", Question: "Did the agent complete the task?"},
+			},
+		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFAPIProxyProvidersMinVersion)},
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Version: string(constants.AWFAPIProxyProvidersMinVersion),
+			},
+		},
+	}
+
+	steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
+	if !strings.Contains(steps, "providers") {
+		t.Errorf("expected evals awf-config.json to contain apiProxy.providers; got:\n%s", steps)
+	}
+	if !strings.Contains(steps, "accounts/fireworks/models/minimax-m3") {
+		t.Errorf("expected evals awf-config.json to contain custom model pricing key; got:\n%s", steps)
+	}
 }

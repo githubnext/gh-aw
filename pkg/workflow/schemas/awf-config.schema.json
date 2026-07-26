@@ -129,6 +129,11 @@
           },
           "additionalProperties": false
         },
+        "providers": {
+          "type": "object",
+          "description": "Per-provider model pricing catalog overlays merged into the API proxy model pricing table for AI-credits accounting.",
+          "additionalProperties": true
+        },
         "modelMultipliers": {
           "type": "object",
           "description": "Per-model multipliers for effective token accounting. Each model's weighted tokens are multiplied by this value before accumulation. Unlisted models use defaultModelMultiplier when set, otherwise the highest configured multiplier. See spec \u00a710.2.",

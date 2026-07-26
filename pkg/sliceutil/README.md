@@ -64,12 +64,20 @@ keys := sliceutil.SortedKeys(m)
 **External**:
 - None beyond the Go standard library (`slices`).
 
+## Thread Safety
+
+All functions in this package are pure and stateless — they create and return new slices or maps without writing to shared state. Callers MAY call any function concurrently without synchronization.
+
 ## Design Notes
 
 - `Any` is implemented via `slices.ContainsFunc` from the standard library.
 - `Deduplicate`, `MergeUnique`, and `Exclude` use hash sets (`map[T]struct{}`) for O(n) behavior.
 - `SortedKeys` delegates to `slices.Sorted(maps.Keys(m))` from the standard library and returns a new sorted slice each call.
 - None of the other functions sort their output; callers that require sorted results should call `slices.Sort` on the returned slice.
+
+## Source Synchronization
+
+Reviewed against source on 2026-07-26; no public-contract deltas identified.
 
 ---
 

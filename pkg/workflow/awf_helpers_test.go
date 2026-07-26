@@ -1819,6 +1819,48 @@ func TestAWFSupportsChrootConfig(t *testing.T) {
 	}
 }
 
+// TestAWFSupportsAPIProxyProviders tests the awfSupportsAPIProxyProviders version gate.
+func TestAWFSupportsAPIProxyProviders(t *testing.T) {
+	tests := []struct {
+		name           string
+		firewallConfig *FirewallConfig
+		want           bool
+	}{
+		{
+			name:           "nil firewall config returns false (uses default version)",
+			firewallConfig: nil,
+			want:           false,
+		},
+		{
+			name:           "empty version returns false (uses default version)",
+			firewallConfig: &FirewallConfig{},
+			want:           false,
+		},
+		{
+			name:           "latest returns true",
+			firewallConfig: &FirewallConfig{Version: "latest"},
+			want:           true,
+		},
+		{
+			name:           "v0.27.42 supports apiProxy.providers (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.27.42"},
+			want:           true,
+		},
+		{
+			name:           "v0.27.41 does not support apiProxy.providers",
+			firewallConfig: &FirewallConfig{Version: "v0.27.41"},
+			want:           false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := awfSupportsAPIProxyProviders(tt.firewallConfig)
+			assert.Equal(t, tt.want, got, "awfSupportsAPIProxyProviders result")
+		})
+	}
+}
+
 // TestBuildAWFCommand_IncludesChrootInjectScript verifies that BuildAWFCommand
 // includes the chroot injection script in the generated run step when the AWF
 // version supports it.

@@ -129,8 +129,13 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 	threatDetectionData.Model = resolvedDetectionModel
 	threatDetectionData.EngineConfig = detectionEngineConfig
 	threatDetectionData.ModelMappings = data.ModelMappings // propagate alias map so detection awf-config.json can resolve model aliases
+	var detectionFirewall *FirewallConfig
+	if threatDetectionData.NetworkPermissions != nil {
+		detectionFirewall = threatDetectionData.NetworkPermissions.Firewall
+	}
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
-		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
+		Allowed:  getThreatDetectionAdditionalAllowedDomains(data),
+		Firewall: detectionFirewall,
 	}
 
 	var steps []string
