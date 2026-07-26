@@ -260,6 +260,24 @@ describe("no-caught-error-interpolation", () => {
             },
           ],
         },
+        {
+          // FunctionDeclaration inside catch — err resolves to the catch binding,
+          // so the interpolation is unsafe and must be flagged
+          code: `try { f(); } catch (err) { function helper() { return \`msg: \${err}\`; } }`,
+          errors: [
+            {
+              messageId: "bareErrorInterpolation",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { function helper() { return \`msg: \${String(err)}\`; } }`,
+                },
+              ],
+            },
+          ],
+        },
       ],
     });
   });
