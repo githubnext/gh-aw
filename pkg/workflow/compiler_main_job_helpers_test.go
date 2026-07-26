@@ -260,6 +260,40 @@ func TestBuildMainJobEnv(t *testing.T) {
 		require.NotNil(t, env)
 		assert.Contains(t, env["GH_AW_PROJECT_UTC"], "+05:30")
 	})
+
+	t.Run("playwright CLI mode sets PLAYWRIGHT_MCP_SANDBOX=false", func(t *testing.T) {
+		c := NewCompiler()
+		c.repoConfigLoaded = true
+		c.repoConfig = &RepoConfig{}
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+		}
+		env := c.buildMainJobEnv(data)
+		require.NotNil(t, env)
+		assert.Equal(t, "false", env["PLAYWRIGHT_MCP_SANDBOX"])
+	})
+
+	t.Run("safe-outputs with playwright CLI preserves PLAYWRIGHT_MCP_SANDBOX", func(t *testing.T) {
+		c := NewCompiler()
+		c.repoConfigLoaded = true
+		c.repoConfig = &RepoConfig{}
+		data := &WorkflowData{
+			Tools: map[string]any{
+				"playwright": map[string]any{
+					"mode": "cli",
+				},
+			},
+			SafeOutputs: &SafeOutputsConfig{},
+		}
+		env := c.buildMainJobEnv(data)
+		require.NotNil(t, env)
+		assert.Equal(t, "false", env["PLAYWRIGHT_MCP_SANDBOX"])
+		assert.Equal(t, "${{ github.event.repository.default_branch }}", env["DEFAULT_BRANCH"])
+	})
 }
 
 // TestBuildMainJobPermissions tests that permissions are built correctly.
