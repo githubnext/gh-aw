@@ -642,7 +642,11 @@ function readStdinSync() {
  * from the object, or when JSON parsing fails — in all those cases the caller
  * falls back to using the raw stdin content.
  *
- * @param {string} trimmedStdin - Pre-trimmed stdin content
+ * @param {string} trimmedStdin - Pre-trimmed stdin content.  Must have no
+ *   leading whitespace — the function uses a `startsWith('{')` fast-path to
+ *   avoid parsing non-JSON input, so leading whitespace will cause a JSON
+ *   object to be treated as non-JSON and return `undefined`.  All callers
+ *   must pass `stdinContent.trim()` before invoking this function.
  * @param {string} canonicalKey - Canonical schema key to look up
  * @param {Record<string, {type?: string|string[]}>} schemaProperties - Tool input schema properties
  * @param {Map<string, string>} normalizedSchemaKeyMap - Map from normalized key to canonical schema key

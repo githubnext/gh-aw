@@ -901,6 +901,24 @@ describe("mcp_cli_bridge.cjs", () => {
       const result = tryExtractJsonFieldFromStdin("plain text", "body", {}, new Map(), new Set());
       expect(result).toBeUndefined();
     });
+
+    it("preserves null value extracted from JSON stdin (does not fall back to raw stdin)", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const result = tryExtractJsonFieldFromStdin('{"body":null}', "body", schemaProperties, new Map([["body", "body"]]), new Set());
+      expect(result).toBeNull();
+    });
+
+    it("preserves false boolean extracted from JSON stdin", () => {
+      const schemaProperties = { draft: { type: "boolean" } };
+      const result = tryExtractJsonFieldFromStdin('{"draft":false}', "draft", schemaProperties, new Map([["draft", "draft"]]), new Set());
+      expect(result).toBe(false);
+    });
+
+    it("preserves 0 number extracted from JSON stdin", () => {
+      const schemaProperties = { count: { type: "number" } };
+      const result = tryExtractJsonFieldFromStdin('{"count":0}', "count", schemaProperties, new Map([["count", "count"]]), new Set());
+      expect(result).toBe(0);
+    });
   });
 
   describe("unescapeCliStringArg", () => {
