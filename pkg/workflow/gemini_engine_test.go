@@ -611,7 +611,7 @@ func TestGeminiVertexWIF(t *testing.T) {
 				ID: "gemini",
 				Auth: &EngineAuthConfig{
 					Type:                           "github-oidc",
-					Provider:                       "google",
+					Provider:                       "gcp",
 					GoogleWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
 					GoogleServiceAccount:           "my-sa@my-project.iam.gserviceaccount.com",
 					GoogleProject:                  project,
@@ -621,7 +621,7 @@ func TestGeminiVertexWIF(t *testing.T) {
 		}
 	}
 
-	t.Run("isGeminiVertexWIF returns true when auth type is github-oidc and provider is google", func(t *testing.T) {
+	t.Run("isGeminiVertexWIF returns true when auth type is github-oidc and provider is gcp with required fields", func(t *testing.T) {
 		wd := makeVertexWIFData("my-project", "us-central1")
 		assert.True(t, isGeminiVertexWIF(wd), "Should detect Vertex WIF")
 	})
@@ -631,7 +631,7 @@ func TestGeminiVertexWIF(t *testing.T) {
 		assert.False(t, isGeminiVertexWIF(wd), "Should not detect WIF when no auth")
 	})
 
-	t.Run("isGeminiVertexWIF returns false when provider is not google", func(t *testing.T) {
+	t.Run("isGeminiVertexWIF returns false when provider is not gcp", func(t *testing.T) {
 		wd := &WorkflowData{
 			Name: "test",
 			EngineConfig: &EngineConfig{
@@ -641,7 +641,21 @@ func TestGeminiVertexWIF(t *testing.T) {
 				},
 			},
 		}
-		assert.False(t, isGeminiVertexWIF(wd), "Should not detect WIF when provider is not google")
+		assert.False(t, isGeminiVertexWIF(wd), "Should not detect WIF when provider is not gcp")
+	})
+
+	t.Run("isGeminiVertexWIF returns false when required fields are missing", func(t *testing.T) {
+		wd := &WorkflowData{
+			Name: "test",
+			EngineConfig: &EngineConfig{
+				Auth: &EngineAuthConfig{
+					Type:     "github-oidc",
+					Provider: "gcp",
+					// Missing: GoogleWorkloadIdentityProvider, GoogleServiceAccount, GoogleProject
+				},
+			},
+		}
+		assert.False(t, isGeminiVertexWIF(wd), "Should not detect WIF when required fields are missing")
 	})
 
 	t.Run("GEMINI_API_KEY not required when Vertex WIF is configured", func(t *testing.T) {
@@ -678,21 +692,21 @@ func TestGeminiVertexWIF(t *testing.T) {
 		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
 		stepContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, stepContent, "GOOGLE_GENAI_USE_VERTEXAI: 1", "Should set Vertex AI backend env var")
+		assert.Contains(t, stepContent, "GOOGLE_GENAI_USE_VERTEXAI: true", "Should set Vertex AI backend env var to 'true'")
 		assert.Contains(t, stepContent, "GOOGLE_CLOUD_PROJECT: my-project", "Should set project env var")
 		assert.Contains(t, stepContent, "GOOGLE_CLOUD_LOCATION: us-central1", "Should set location env var")
 		assert.NotContains(t, stepContent, "GEMINI_API_KEY", "Should not include GEMINI_API_KEY with Vertex WIF")
 	})
 
-	t.Run("execution step omits location when not configured", func(t *testing.T) {
+	t.Run("execution step defaults location to us-central1 when not configured", func(t *testing.T) {
 		wd := makeVertexWIFData("my-project", "")
 		steps := engine.GetExecutionSteps(wd, "/tmp/test.log")
 		require.Len(t, steps, 2, "Should generate settings step and execution step")
 
 		stepContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, stepContent, "GOOGLE_GENAI_USE_VERTEXAI: 1", "Should set Vertex AI backend env var")
+		assert.Contains(t, stepContent, "GOOGLE_GENAI_USE_VERTEXAI: true", "Should set Vertex AI backend env var to 'true'")
 		assert.Contains(t, stepContent, "GOOGLE_CLOUD_PROJECT: my-project", "Should set project env var")
-		assert.NotContains(t, stepContent, "GOOGLE_CLOUD_LOCATION", "Should not set location when not configured")
+		assert.Contains(t, stepContent, "GOOGLE_CLOUD_LOCATION: us-central1", "Should default location to us-central1")
 		assert.NotContains(t, stepContent, "GEMINI_API_KEY", "Should not include GEMINI_API_KEY with Vertex WIF")
 	})
 
@@ -704,6 +718,21 @@ func TestGeminiVertexWIF(t *testing.T) {
 		stepContent := strings.Join(steps[1], "\n")
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should include GEMINI_API_KEY without WIF")
 		assert.NotContains(t, stepContent, "GOOGLE_GENAI_USE_VERTEXAI", "Should not set Vertex AI vars without WIF")
+	})
+
+	t.Run("engine.env cannot overwrite WIF-emitted Vertex AI env vars", func(t *testing.T) {
+		wd := makeVertexWIFData("my-project", "us-central1")
+		// User tries to override WIF vars via engine.env — compiler must ignore them.
+		wd.EngineConfig.Env = map[string]string{
+			"GOOGLE_GENAI_USE_VERTEXAI": "false",
+			"GOOGLE_CLOUD_PROJECT":      "other-project",
+		}
+		steps := engine.GetExecutionSteps(wd, "/tmp/test.log")
+		require.Len(t, steps, 2, "Should generate settings step and execution step")
+
+		stepContent := strings.Join(steps[1], "\n")
+		assert.Contains(t, stepContent, "GOOGLE_GENAI_USE_VERTEXAI: true", "WIF env var must not be overridden by engine.env")
+		assert.Contains(t, stepContent, "GOOGLE_CLOUD_PROJECT: my-project", "WIF project must not be overridden by engine.env")
 	})
 }
 

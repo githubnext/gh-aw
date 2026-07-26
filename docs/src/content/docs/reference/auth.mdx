@@ -343,7 +343,7 @@ See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for add
 Workload Identity Federation lets workflows authenticate with Gemini using short-lived
 GitHub OIDC tokens exchanged for Google Cloud credentials instead of a long-lived `GEMINI_API_KEY` secret.
 When WIF is active, the compiler suppresses the static-key requirement, switches the Gemini CLI to the
-Vertex AI backend (`GOOGLE_GENAI_USE_VERTEXAI=1`), and emits `AWF_AUTH_GOOGLE_*` environment variables
+Vertex AI backend (`GOOGLE_GENAI_USE_VERTEXAI=true`), and emits `AWF_AUTH_GCP_*` environment variables
 consumed by the AWF firewall api-proxy sidecar.
 
 **Prerequisites:**
@@ -363,7 +363,7 @@ engine:
   id: gemini
   auth:
     type: github-oidc
-    provider: google
+    provider: gcp
     workload-identity-provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
     service-account: my-sa@my-project.iam.gserviceaccount.com
     project: my-project
@@ -388,17 +388,17 @@ Vertex AI backend env vars for the Gemini CLI:
 | Field | Env var |
 |---|---|
 | `type: github-oidc` | `AWF_AUTH_TYPE=github-oidc` |
-| `provider: google` | `AWF_AUTH_PROVIDER=google` |
-| `workload-identity-provider` | `AWF_AUTH_GOOGLE_WORKLOAD_IDENTITY_PROVIDER` |
-| `service-account` | `AWF_AUTH_GOOGLE_SERVICE_ACCOUNT` |
-| `project` | `AWF_AUTH_GOOGLE_PROJECT`, `GOOGLE_CLOUD_PROJECT` |
-| `location` | `AWF_AUTH_GOOGLE_LOCATION`, `GOOGLE_CLOUD_LOCATION` |
+| `provider: gcp` | `AWF_AUTH_PROVIDER=gcp` |
+| `workload-identity-provider` | `AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER` |
+| `service-account` | `AWF_AUTH_GCP_SERVICE_ACCOUNT` |
+| `project` | `GOOGLE_CLOUD_PROJECT` |
+| `location` | `GOOGLE_CLOUD_LOCATION` (defaults to `us-central1`) |
 
-Additionally, `GOOGLE_GENAI_USE_VERTEXAI=1` is always set when Google WIF is active.
+Additionally, `GOOGLE_GENAI_USE_VERTEXAI=true` is always set when GCP WIF is active.
 
 ---
 
-
+## Troubleshooting auth errors
 
 Common authentication errors and how to resolve them:
 

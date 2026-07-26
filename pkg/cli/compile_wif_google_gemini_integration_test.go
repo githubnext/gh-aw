@@ -42,16 +42,14 @@ func TestCompileGeminiWIFGoogle(t *testing.T) {
 	// All WIF fields from the fixture must be emitted as env vars in the compiled lock
 	// file. Checking for "KEY: value" pairs ensures both the key and the value round-trip
 	// correctly through the schema → parser → compiler pipeline.
-	assert.Contains(t, lockStr, "AWF_AUTH_PROVIDER: google", "lock file should contain AWF_AUTH_PROVIDER=google")
-	assert.Contains(t, lockStr, "AWF_AUTH_GOOGLE_WORKLOAD_IDENTITY_PROVIDER: projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github",
-		"lock file should contain AWF_AUTH_GOOGLE_WORKLOAD_IDENTITY_PROVIDER")
-	assert.Contains(t, lockStr, "AWF_AUTH_GOOGLE_SERVICE_ACCOUNT: my-sa@my-project.iam.gserviceaccount.com",
-		"lock file should contain AWF_AUTH_GOOGLE_SERVICE_ACCOUNT")
-	assert.Contains(t, lockStr, "AWF_AUTH_GOOGLE_PROJECT: my-project", "lock file should contain AWF_AUTH_GOOGLE_PROJECT")
-	assert.Contains(t, lockStr, "AWF_AUTH_GOOGLE_LOCATION: us-central1", "lock file should contain AWF_AUTH_GOOGLE_LOCATION")
+	assert.Contains(t, lockStr, "AWF_AUTH_PROVIDER: gcp", "lock file should contain AWF_AUTH_PROVIDER=gcp")
+	assert.Contains(t, lockStr, "AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER: projects/123456789/locations/global/workloadIdentityPools/github-pool/providers/github",
+		"lock file should contain AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER")
+	assert.Contains(t, lockStr, "AWF_AUTH_GCP_SERVICE_ACCOUNT: my-sa@my-project.iam.gserviceaccount.com",
+		"lock file should contain AWF_AUTH_GCP_SERVICE_ACCOUNT")
 
 	// Vertex AI backend env var and project/location must be set
-	assert.Contains(t, lockStr, "GOOGLE_GENAI_USE_VERTEXAI:", "lock file should set GOOGLE_GENAI_USE_VERTEXAI")
+	assert.Contains(t, lockStr, "GOOGLE_GENAI_USE_VERTEXAI: true", "lock file should set GOOGLE_GENAI_USE_VERTEXAI=true")
 	assert.Contains(t, lockStr, "GOOGLE_CLOUD_PROJECT: my-project", "lock file should set GOOGLE_CLOUD_PROJECT")
 	assert.Contains(t, lockStr, "GOOGLE_CLOUD_LOCATION: us-central1", "lock file should set GOOGLE_CLOUD_LOCATION")
 

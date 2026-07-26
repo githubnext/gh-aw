@@ -1,8 +1,8 @@
 # ADR-48185: Google Vertex AI Workload Identity Federation Auth for Gemini Engine
 
 **Date**: 2026-07-26
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: Gemini engine maintainers
 
 ---
 
@@ -18,15 +18,21 @@ disrupting existing `GEMINI_API_KEY`-based workflows.
 
 ### Decision
 
-We will add a `provider: google` discriminator to `engine.auth` that enables Google Cloud Workload
-Identity Federation (WIF) for the Gemini engine. When `type: github-oidc` and `provider: google` are
-set, the compiler skips the `GEMINI_API_KEY` secret requirement, suppresses static-key validation,
-switches the Gemini CLI to the Vertex AI backend (`GOOGLE_GENAI_USE_VERTEXAI=1`), and emits
-`AWF_AUTH_GOOGLE_*` environment variables for the AWF api-proxy sidecar. The feature is implemented
-by extending `EngineAuthConfig` with four new fields (`GoogleWorkloadIdentityProvider`,
+We add a `provider: gcp` discriminator to `engine.auth` that enables Google Cloud Workload
+Identity Federation (WIF) for the Gemini engine. When `type: github-oidc` and `provider: gcp` are
+set with the three required fields (`workload-identity-provider`, `service-account`, `project`), the
+compiler skips the `GEMINI_API_KEY` secret requirement, suppresses static-key validation, switches
+the Gemini CLI to the Vertex AI backend (`GOOGLE_GENAI_USE_VERTEXAI=true`), and emits
+`AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER` and `AWF_AUTH_GCP_SERVICE_ACCOUNT` environment variables
+for the AWF api-proxy sidecar. The `GOOGLE_CLOUD_PROJECT` and `GOOGLE_CLOUD_LOCATION` vars are set
+directly for the Gemini CLI (defaulting `location` to `us-central1`). The Vertex AI env vars are
+applied after any `engine.env` merge so they cannot be overridden by users. The feature is
+implemented by extending `EngineAuthConfig` with four new fields (`GoogleWorkloadIdentityProvider`,
 `GoogleServiceAccount`, `GoogleProject`, `GoogleLocation`), parsing them in `engine_config_parser.go`,
-and branching on `isGeminiVertexWIF()` in the Gemini engine compilation path. Existing `GEMINI_API_KEY`
-flows are unchanged.
+adding `validateGCPWIFEngineAuth()` for compile-time required-field validation, and branching on
+`isGeminiVertexWIF()` in the Gemini engine compilation path. Existing `GEMINI_API_KEY` flows are
+unchanged. The provider name `gcp` was chosen to match the AWF firewall's existing OIDC provider
+contract (`AWF_AUTH_PROVIDER=gcp`).
 
 ### Alternatives Considered
 
@@ -62,17 +68,18 @@ structured today) achieves the same goal with minimal risk and easier auditabili
 - Four new fields added to `EngineAuthConfig` struct and the `engine.auth` JSON schema; the parser and
   compiler now have an additional branch (`isGeminiVertexWIF`) to maintain and test for each future
   Gemini engine change.
-- The `service-account` and `project` keys in `engine.auth` are shared key names without a `google-`
+- The `service-account` and `project` keys in `engine.auth` are shared key names without a `gcp-`
   prefix, which could cause ambiguity if a future provider also uses these field names for different
-  semantics. [TODO: verify whether key namespacing should be addressed before accepting]
+  semantics. This is accepted as a known trade-off consistent with the existing `engine.auth` pattern.
 
 #### Neutral
-- The `location` field is optional and defaults to `us-central1` when omitted; this default is
-  documented but not validated by the schema, so invalid region strings will fail at runtime rather
-  than at compile time.
+- The `location` field is optional and defaults to `us-central1` when omitted. The compile-time
+  validation (`validateGCPWIFEngineAuth()`) only checks for the presence of the required fields
+  (`workload-identity-provider`, `service-account`, `project`); it does not validate that the region
+  string is valid, so an invalid region will fail at runtime rather than compile time.
 - The AWF api-proxy sidecar handles the actual OIDC token exchange with Google Cloud; this ADR covers
-  only the compiler-side changes that emit the required `AWF_AUTH_GOOGLE_*` environment variables.
+  only the compiler-side changes that emit the required `AWF_AUTH_GCP_*` environment variables.
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR accepted. Provider name changed from `google` to `gcp` to match the AWF firewall OIDC contract.*

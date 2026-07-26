@@ -184,6 +184,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating max-daily-ai-credits frontmatter", validateFn: func() error { return validateMaxDailyAICFrontmatter(workflowData) }},
 		{logMessage: "Validating private-to-public-flows string value", validateFn: func() error { return validatePrivateToPublicFlowsStringValue(workflowData) }},
 		{logMessage: "Validating private-to-public-flows server IDs", validateFn: func() error { return validatePrivateToPublicFlowsServerIDs(workflowData) }},
+		{logMessage: "Validating GCP WIF engine auth required fields", validateFn: func() error { return validateGCPWIFEngineAuth(workflowData) }},
 	}
 	// This validation is intentionally outside the table below because strict mode
 	// turns the same validation result into either an error or a warning.
@@ -423,4 +424,33 @@ func hasWeightedTrafficExperiment(configs map[string]*ExperimentConfig) bool {
 		}
 	}
 	return false
+}
+
+// validateGCPWIFEngineAuth returns an error when engine.auth declares
+// provider=gcp with type=github-oidc but is missing one or more of the three
+// required fields (workload-identity-provider, service-account, project).
+// Without these fields the WIF exchange cannot succeed and GEMINI_API_KEY will
+// also be absent, causing a guaranteed runtime failure that is hard to diagnose.
+func validateGCPWIFEngineAuth(workflowData *WorkflowData) error {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
+		return nil
+	}
+	auth := workflowData.EngineConfig.Auth
+	if auth.Type != "github-oidc" || auth.Provider != "gcp" {
+		return nil
+	}
+	var missing []string
+	if auth.GoogleWorkloadIdentityProvider == "" {
+		missing = append(missing, "workload-identity-provider")
+	}
+	if auth.GoogleServiceAccount == "" {
+		missing = append(missing, "service-account")
+	}
+	if auth.GoogleProject == "" {
+		missing = append(missing, "project")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("engine.auth with provider=gcp requires the following fields: %s", strings.Join(missing, ", "))
+	}
+	return nil
 }

@@ -101,13 +101,17 @@ func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHu
 }
 
 // isGeminiVertexWIF returns true when the workflow is configured to use Google
-// Workload Identity Federation (github-oidc auth type with provider=google).
+// Workload Identity Federation (github-oidc auth type with provider=gcp) and
+// has the required fields set (workload-identity-provider, service-account, project).
 func isGeminiVertexWIF(workflowData *WorkflowData) bool {
 	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
 		return false
 	}
 	auth := workflowData.EngineConfig.Auth
-	return auth.Type == "github-oidc" && auth.Provider == "google"
+	return auth.Type == "github-oidc" && auth.Provider == "gcp" &&
+		auth.GoogleWorkloadIdentityProvider != "" &&
+		auth.GoogleServiceAccount != "" &&
+		auth.GoogleProject != ""
 }
 
 func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
@@ -299,18 +303,10 @@ touch %s
 		// approval mode when the workspace is untrusted, which causes exit code 55.
 		"GEMINI_CLI_TRUST_WORKSPACE": "true",
 	}
-	if vertexWIF {
-		// When Google/Vertex WIF is configured, switch Gemini CLI to the Vertex AI backend.
-		// GEMINI_API_KEY is not needed; authentication is handled by the AWF api-proxy sidecar
-		// via the AWF_AUTH_GOOGLE_* env vars set through engine.auth.
-		env["GOOGLE_GENAI_USE_VERTEXAI"] = "1"
-		if workflowData.EngineConfig.Auth.GoogleProject != "" {
-			env["GOOGLE_CLOUD_PROJECT"] = workflowData.EngineConfig.Auth.GoogleProject
-		}
-		if workflowData.EngineConfig.Auth.GoogleLocation != "" {
-			env["GOOGLE_CLOUD_LOCATION"] = workflowData.EngineConfig.Auth.GoogleLocation
-		}
-	} else {
+	if !vertexWIF {
+		// Set static API key when WIF is not configured.
+		// When WIF is active, authentication is handled by the AWF api-proxy sidecar
+		// via the AWF_AUTH_GCP_* env vars set through engine.auth.
 		env["GEMINI_API_KEY"] = "${{ secrets.GEMINI_API_KEY }}"
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
@@ -375,6 +371,20 @@ touch %s
 	if agentConfig != nil && len(agentConfig.Env) > 0 {
 		maps.Copy(env, agentConfig.Env)
 		geminiLog.Printf("Added %d custom env vars from agent config", len(agentConfig.Env))
+	}
+
+	// Apply Vertex AI WIF env vars AFTER engine.env and agent.env merges to ensure
+	// they cannot be overridden by user-provided engine.env values.
+	if vertexWIF {
+		auth := workflowData.EngineConfig.Auth
+		// Gemini CLI v0.39+ selects Vertex AI backend when this is set to "true".
+		env["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
+		env["GOOGLE_CLOUD_PROJECT"] = auth.GoogleProject
+		location := auth.GoogleLocation
+		if location == "" {
+			location = "us-central1"
+		}
+		env["GOOGLE_CLOUD_LOCATION"] = location
 	}
 
 	// Generate the execution step

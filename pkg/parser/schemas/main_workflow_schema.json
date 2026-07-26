@@ -12434,7 +12434,7 @@
                 },
                 "provider": {
                   "type": "string",
-                  "description": "Optional WIF provider discriminator. Recognized values are 'azure', 'anthropic', and 'google'."
+                  "description": "Optional WIF provider discriminator. Recognized values are 'azure', 'anthropic', and 'gcp'."
                 },
                 "federation-rule-id": {
                   "type": "string",
