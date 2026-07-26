@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -223,8 +224,21 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 		}
 	}
 
-	// Display reformatted output for each completed file
-	for _, filePath := range completedFiles {
+	// Build the ordered list of files to display findings for.
+	// Prefer the order from stderr "completed" messages when available;
+	// fall back to sorting file paths from the JSON findings so that output
+	// is displayed even if the zizmor log format has changed (e.g., after
+	// a Docker image upgrade that drops or reformats the "completed" log line).
+	displayFiles := completedFiles
+	if len(displayFiles) == 0 && len(fileFindings) > 0 {
+		for filePath := range fileFindings {
+			displayFiles = append(displayFiles, filePath)
+		}
+		sort.Strings(displayFiles)
+	}
+
+	// Display reformatted output for each file with findings
+	for _, filePath := range displayFiles {
 		findings := fileFindings[filePath]
 		count := len(findings)
 

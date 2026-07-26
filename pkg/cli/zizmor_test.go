@@ -255,6 +255,45 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "findings displayed even when stderr has no completed messages (log format change fallback)",
+			stdout: `[
+  {
+    "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
+    "determinations": {
+      "severity": "Medium"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "given_path": "./.github/workflows/test.lock.yml"
+            }
+          },
+          "annotation": "uses write-all permissions"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 6,
+              "column": 4
+            }
+          }
+        }
+      }
+    ]
+  }
+]`,
+			// No "completed" messages in stderr — simulates a zizmor log format change
+			stderr: "some other stderr output without completed markers\n",
+			expectedOutput: []string{
+				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
