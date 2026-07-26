@@ -182,8 +182,10 @@ async function run() {
   if (isValidSpanId(spanId)) writeEnvLine(githubEnv, "GITHUB_AW_OTEL_PARENT_SPAN_ID", spanId, "GITHUB_AW_OTEL_PARENT_SPAN_ID", "GITHUB_ENV");
   // Propagate setup-end timestamp so the conclusion span can measure actual
   // job execution duration (setup-end → conclusion-start).
-  const setupEndMs = String(Math.floor(nowMs()));
-  writeEnvLine(githubEnv, "GITHUB_AW_OTEL_JOB_START_MS", setupEndMs, "GITHUB_AW_OTEL_JOB_START_MS", "GITHUB_ENV");
+  if (githubEnv) {
+    const setupEndMs = String(Math.floor(nowMs()));
+    writeEnvLine(githubEnv, "GITHUB_AW_OTEL_JOB_START_MS", setupEndMs, "GITHUB_AW_OTEL_JOB_START_MS", "GITHUB_ENV");
+  }
 }
 
 module.exports = { run };
