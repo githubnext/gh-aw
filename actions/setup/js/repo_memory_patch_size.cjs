@@ -4,15 +4,26 @@
 /**
  * Count total UTF-8 bytes for added lines in a unified diff.
  * Added lines start with "+" and exclude file header lines ("+++").
+ * Uses hunk-state tracking so content lines that begin with "++" are
+ * counted correctly (they appear as "+++" inside a hunk but are not headers).
  *
  * @param {string} patchContent
  * @returns {number}
  */
 function getAddedPatchSizeBytesFromDiff(patchContent) {
-  return patchContent
-    .split("\n")
-    .filter(line => line.startsWith("+") && !line.startsWith("+++"))
-    .reduce((sum, line) => sum + Buffer.byteLength(line + "\n", "utf8"), 0);
+  let inHunk = false;
+  let total = 0;
+  for (const line of patchContent.split("\n")) {
+    if (line.startsWith("@@")) {
+      inHunk = true;
+    } else if (line.startsWith("diff ")) {
+      inHunk = false;
+    }
+    if (inHunk && line.startsWith("+")) {
+      total += Buffer.byteLength(line + "\n", "utf8");
+    }
+  }
+  return total;
 }
 
 /**
