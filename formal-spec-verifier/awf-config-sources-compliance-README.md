@@ -1,41 +1,45 @@
 # Formal Notes: awf-config-sources-compliance/README.md
 
-**Last formalized**: 2026-07-23-16-03-14
+**Last formalized**: 2026-07-26-15-46-07
 **Notation**: TLA+ / Z3 / F*
-**Issue**: pending
+**Issue**: (pending)
 
 ## Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
-| P1 | `DriftRecordRequiredFields` | Every DriftRecord must have all four required fields |
-| P2 | `DriftCategoryEnum` | drift_category must be one of the three allowed enum values |
-| P3 | `DetectedAtISO8601` | detected_at must be a valid ISO 8601 UTC timestamp |
-| P4 | `SuggestedActionNonEmpty` | suggested_action must not be empty |
-| P5 | `NoAdditionalProperties` | DriftRecord must not contain extra properties |
-| P6 | `CorrectivePRTrigger` | Actionable drift categories trigger corrective PR |
-| P7 | `SLAEscalationTrigger` | Exceeded SLA window triggers escalation issue |
-| P8 | `CorrectivePREmbedsList` | PR description must embed full DriftRecord list as JSON |
-| P9 | `EmptyListIsValid` | Empty drift list is valid, no PR or escalation triggered |
-| P10 | `DriftOutputIsJSONArray` | Step 5 output must be a JSON array conforming to schema |
+| P1 | `RequiredFieldsComplete` | All four required fields (property_path, drift_category, suggested_action, detected_at) must be non-zero |
+| P2 | `DriftCategoryEnum` | drift_category ∈ {missing_in_ghaw, missing_in_schema, spec_mismatch}; no other value admitted |
+| P3 | `DetectedAtISO8601` | detected_at must parse as a valid RFC 3339 / ISO 8601 UTC timestamp |
+| P4 | `SuggestedActionNonEmpty` | suggested_action string length must be ≥ 1 |
+| P5 | `NoAdditionalProperties` | DriftRecord keys are exactly the four required fields; extra properties rejected |
+| P6 | `CorrectivePRTrigger` | missing_in_ghaw or spec_mismatch category → corrective PR must be opened (CR-05) |
+| P7 | `SLAEscalationTrigger` | SLA exceeded AND actionable drift present → escalation issue opened/updated (CR-06) |
+| P8 | `CorrectivePREmbedsFullList` | Corrective PR body must embed full DriftRecord list as JSON |
+| P9 | `EmptyListNoAction` | Empty drift list must NOT trigger PR or escalation |
+| P10 | `DriftProcedureOutputIsJSONArray` | Drift detection output must be a valid JSON array of DriftRecord objects |
 
 ## Key Invariants
 
-- A DriftRecord without all four required fields is invalid and must be rejected
-- drift_category is a closed enum; no other values are permitted
-- An empty drift list suppresses all corrective actions
-- Corrective PR body must contain the serialized DriftRecord array
+- Schema closed: no properties beyond the four required fields are allowed
+- Enum strict: drift_category restricted to three values; case-sensitive
+- Timestamp format: ISO 8601 UTC; YYYY-MM-DDTHH:MM:SSZ canonical form
+- PR trigger: missing_in_ghaw OR spec_mismatch (not missing_in_schema) triggers CR-05
+- SLA escalation: requires both SLA breach AND at least one actionable record
+- Empty list is valid: an empty list must silently pass with no side effects
 
 ## Edge Cases Identified
 
-- DriftRecord with all required fields but extra unknown property
-- detected_at with non-UTC timezone offset (e.g., +05:00)
-- suggested_action containing only whitespace (should this be rejected?)
-- Mixed-category lists (some actionable, some not) — should trigger PR
-- Empty property_path string
+- missing_in_schema category: does NOT trigger corrective PR (only missing_in_ghaw and spec_mismatch do)
+- Empty drift list with SLA exceeded: must still not trigger escalation (no actionable records)
+- Mixed list (actionable + non-actionable): corrective PR opened; full list embedded
+- Whitespace-only suggested_action: syntactically non-empty; spec may clarify
+- detected_at with timezone offset (not Z): spec says UTC; implementation should validate or normalize
 
 ## Notes for Future Runs
 
-- The spec's compliance README closely mirrors the main awf-config-sources-spec.md §6.5 section
-- Cross-spec dependency: CR-05 and CR-06 are defined in the parent spec
-- The stub interface pattern is needed since DriftRecord validation lives in automation, not yet in pkg/workflow
+- Test file target: pkg/workflow/awf_config_drift_formal_test.go
+- Implementation is aspirational (DriftRecord validation not yet found in pkg/workflow/)
+- Cross-spec dependency: parent spec awf-config-sources-spec.md §6.5 is the canonical source
+- CR-06a (escalation owner assignment) is a rich sub-predicate worth formalizing separately
+- SLA window computation (business days Mon-Fri UTC) is a non-trivial temporal property for TLA+
