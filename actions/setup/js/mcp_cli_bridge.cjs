@@ -623,6 +623,63 @@ function readStdinSync() {
 }
 
 /**
+ * Try to extract a specific field value from a JSON object string.
+ *
+ * When per-field stdin mode (`--key .`) is used and stdin contains a JSON
+ * object, this function checks whether that object has the target key.  If so,
+ * it returns the field value, allowing agents to pipe a full JSON payload and
+ * extract individual fields without the entire JSON string ending up as the
+ * field value.
+ *
+ * Example: an agent may construct a full payload JSON and still pass individual
+ * fields via `--key .`:
+ *   printf '{"title":"Fix bug","body":"Details here"}' \
+ *     | safeoutputs create_pull_request --title "Fix bug" --body .
+ * Without this helper the body would be the raw JSON string.  With it, the
+ * body is correctly extracted as "Details here".
+ *
+ * Returns `undefined` when stdin is not a JSON object, when the key is absent
+ * from the object, or when JSON parsing fails — in all those cases the caller
+ * falls back to using the raw stdin content.
+ *
+ * @param {string} trimmedStdin - Pre-trimmed stdin content.  Must have no
+ *   leading whitespace — the function uses a `startsWith('{')` fast-path to
+ *   avoid parsing non-JSON input, so leading whitespace will cause a JSON
+ *   object to be treated as non-JSON and return `undefined`.  All callers
+ *   must pass `stdinContent.trim()` before invoking this function.
+ * @param {string} canonicalKey - Canonical schema key to look up
+ * @param {Record<string, {type?: string|string[]}>} schemaProperties - Tool input schema properties
+ * @param {Map<string, string>} normalizedSchemaKeyMap - Map from normalized key to canonical schema key
+ * @param {Set<string>} ambiguousNormalizedSchemaKeys - Normalized keys that map to multiple schema keys
+ * @returns {unknown} The extracted field value, or `undefined` if not found
+ */
+function tryExtractJsonFieldFromStdin(trimmedStdin, canonicalKey, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys) {
+  if (!trimmedStdin.startsWith("{")) {
+    return undefined;
+  }
+  try {
+    const parsed = JSON.parse(trimmedStdin);
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) {
+      return undefined;
+    }
+    // Try the canonical key first, then any schema-aliased form.
+    if (Object.prototype.hasOwnProperty.call(parsed, canonicalKey)) {
+      return parsed[canonicalKey];
+    }
+    // Search for a key in the JSON that resolves to the same canonical key.
+    for (const jsonKey of Object.keys(parsed)) {
+      const resolved = resolveSchemaPropertyKey(jsonKey, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
+      if (resolved === canonicalKey) {
+        return parsed[jsonKey];
+      }
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Parse user-provided --key value pairs into a tool arguments object.
  * Supports both --key value and --key=value styles.
  * Boolean flags (--key without a value) are set to true.
@@ -634,10 +691,15 @@ function readStdinSync() {
  *   printf '{"issue_number":42,"body":"hello"}' | safeoutputs add_comment .
  *
  * When `stdinContent` is provided and non-empty, any '--key .' or '--key=.'
- * pair substitutes that field's value with the raw stdin text (per-field
- * stdin mode). This enables agents to pipe large text into a single field:
- *   printf 'Long issue body...' | safeoutputs create_issue --title "Bug" --body .
- * When stdin is empty, the '.' is passed through as a literal value.
+ * pair substitutes that field's value with stdin.  If stdin is a JSON object
+ * that contains the target key, the matching field value is extracted from the
+ * JSON instead of using the entire stdin string.  This prevents a common agent
+ * mistake where the whole JSON payload ends up as a string field value:
+ *   printf '{"title":"Fix bug","body":"Details"}' \
+ *     | safeoutputs create_pull_request --title "Fix bug" --body .
+ * When stdin is empty, the '.' is passed through as a literal value.  When
+ * stdin is non-empty but the key is absent from the JSON (or stdin is not a
+ * JSON object), the entire trimmed stdin string is used as the field value.
  *
  * @param {string[]} args - User arguments after the tool name
  * @param {Record<string, {type?: string|string[]}>} [schemaProperties] - Tool input schema properties
@@ -686,7 +748,8 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
           const canonicalKey = resolveSchemaPropertyKey(key, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
           const rawValue = raw.slice(eqIdx + 1);
           if (rawValue === "." && trimmedStdin) {
-            result[canonicalKey] = trimmedStdin;
+            const extracted = tryExtractJsonFieldFromStdin(trimmedStdin, canonicalKey, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
+            result[canonicalKey] = extracted !== undefined ? extracted : trimmedStdin;
           } else {
             result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
           }
@@ -697,7 +760,8 @@ function parseToolArgs(args, schemaProperties = {}, stdinContent = null) {
         const canonicalKey = resolveSchemaPropertyKey(raw, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
         const rawValue = args[i + 1];
         if (rawValue === "." && trimmedStdin) {
-          result[canonicalKey] = trimmedStdin;
+          const extracted = tryExtractJsonFieldFromStdin(trimmedStdin, canonicalKey, schemaProperties, normalizedSchemaKeyMap, ambiguousNormalizedSchemaKeys);
+          result[canonicalKey] = extracted !== undefined ? extracted : trimmedStdin;
         } else {
           result[canonicalKey] = coerceToolArgValue(canonicalKey, rawValue, schemaProperties[canonicalKey], result[canonicalKey], !hasSchemaProperties);
         }
@@ -1441,6 +1505,7 @@ module.exports = {
   parseToolArgs,
   coerceToolArgValue,
   unescapeCliStringArg,
+  tryExtractJsonFieldFromStdin,
   extractJSONRPCMessages,
   renderProgressMessages,
   formatResponse,
