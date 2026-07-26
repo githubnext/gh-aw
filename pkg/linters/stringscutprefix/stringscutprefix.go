@@ -5,7 +5,6 @@ package stringscutprefix
 
 import (
 	"go/ast"
-	"go/token"
 	"go/types"
 
 	"golang.org/x/tools/go/analysis"
@@ -82,12 +81,28 @@ func extractHasPrefixCall(pass *analysis.Pass, expr ast.Expr) (*ast.CallExpr, as
 	return call, call.Args[0], call.Args[1]
 }
 
-// bodyContainsTrimPrefix returns true if the block contains at least one call
-// to strings.TrimPrefix with arguments that textually match s and prefix.
+// bodyContainsTrimPrefix returns true if the block contains a direct statement
+// that calls strings.TrimPrefix with the same arguments, before either argument
+// is reassigned in the enclosing if body.
 func bodyContainsTrimPrefix(pass *analysis.Pass, body *ast.BlockStmt, s, prefix ast.Expr) bool {
+	for _, stmt := range body.List {
+		if stmtContainsTrimPrefix(pass, stmt, s, prefix) {
+			return true
+		}
+		if stmtReassignsExpr(pass, stmt, s) || stmtReassignsExpr(pass, stmt, prefix) {
+			return false
+		}
+	}
+	return false
+}
+
+func stmtContainsTrimPrefix(pass *analysis.Pass, stmt ast.Stmt, s, prefix ast.Expr) bool {
 	found := false
-	ast.Inspect(body, func(n ast.Node) bool {
-		if found {
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if found || n == nil {
+			return false
+		}
+		if n != stmt && shouldSkipNestedFlow(n) {
 			return false
 		}
 		call, ok := n.(*ast.CallExpr)
@@ -103,6 +118,43 @@ func bodyContainsTrimPrefix(pass *analysis.Pass, body *ast.BlockStmt, s, prefix 
 		return true
 	})
 	return found
+}
+
+func stmtReassignsExpr(pass *analysis.Pass, stmt ast.Stmt, target ast.Expr) bool {
+	reassigned := false
+	ast.Inspect(stmt, func(n ast.Node) bool {
+		if reassigned || n == nil {
+			return false
+		}
+		if _, ok := n.(*ast.FuncLit); ok {
+			return false
+		}
+		switch node := n.(type) {
+		case *ast.AssignStmt:
+			for _, lhs := range node.Lhs {
+				if sameExpr(pass, lhs, target) {
+					reassigned = true
+					return false
+				}
+			}
+		case *ast.IncDecStmt:
+			if sameExpr(pass, node.X, target) {
+				reassigned = true
+				return false
+			}
+		}
+		return true
+	})
+	return reassigned
+}
+
+func shouldSkipNestedFlow(n ast.Node) bool {
+	switch n.(type) {
+	case *ast.BlockStmt, *ast.FuncLit, *ast.IfStmt, *ast.ForStmt, *ast.RangeStmt, *ast.SwitchStmt, *ast.TypeSwitchStmt, *ast.SelectStmt:
+		return true
+	default:
+		return false
+	}
 }
 
 // isStringsFunc reports whether call invokes strings.<name>.
@@ -152,6 +204,7 @@ func sameExpr(pass *analysis.Pass, a, b ast.Expr) bool {
 		}
 		return sameExpr(pass, av.X, bv.X) && sameExpr(pass, av.Index, bv.Index)
 	}
-	// For unary/binary/call, check token position equality as a last resort.
-	return a.Pos() != token.NoPos && a.Pos() == b.Pos()
+	// Complex expressions are not structurally compared; treat them as unequal
+	// to avoid false positives.
+	return false
 }

@@ -54,6 +54,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `stringreplaceminusone` — reports `strings.Replace` calls whose `n` argument is `-1`, which should use the more readable `strings.ReplaceAll`.
 - `stringsconcatloop` — reports `string +=` concatenation inside `for`/`range` loop bodies, which allocates a new string copy on every iteration (O(n²) memory); use `strings.Builder` instead.
 - `stringscountcontains` — reports `strings.Count(s, sub)` comparisons with `0` or `1` (e.g. `> 0`, `>= 1`, `== 0`, `!= 0`, `< 1`, `<= 0`) and their yoda-order variants that should use `strings.Contains(s, sub)` or `!strings.Contains(s, sub)` instead.
+- `stringscutprefix` — reports `strings.HasPrefix(s, prefix)` guards whose bodies directly call `strings.TrimPrefix(s, prefix)` and recommends `strings.CutPrefix`.
 - `stringsindexcontains` — reports `strings.Index(s, substr)` comparisons with `-1` or `0` (e.g. `!= -1`, `>= 0`, `> -1`, `== -1`, `< 0`, `<= -1`) and their yoda-order variants that should use `strings.Contains(s, substr)` or `!strings.Contains(s, substr)` instead.
 - `stringsindexhasprefix` — reports `strings.Index(s, sub)` comparisons with `0` (`== 0`, `!= 0`) and their yoda-order variants that should use `strings.HasPrefix(s, sub)` or `!strings.HasPrefix(s, sub)` instead.
 - `stringsjoinone` — reports `strings.Join([]string{s}, sep)` calls with a single-element slice literal where the separator is never used and the call is equivalent to just `s`.
@@ -121,6 +122,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `stringreplaceminusone` | Custom `go/analysis` analyzer that flags `strings.Replace` calls with `n=-1` that should use `strings.ReplaceAll` |
 | `stringsconcatloop` | Custom `go/analysis` analyzer that flags `string +=` concatenation inside `for`/`range` loops that should use `strings.Builder` |
 | `stringscountcontains` | Custom `go/analysis` analyzer that flags `strings.Count(s, sub)` comparisons with `0` or `1` that should use `strings.Contains` or `!strings.Contains` |
+| `stringscutprefix` | Custom `go/analysis` analyzer that flags `strings.HasPrefix(s, prefix)` guards whose bodies directly call `strings.TrimPrefix(s, prefix)` and should use `strings.CutPrefix` |
 | `stringsindexcontains` | Custom `go/analysis` analyzer that flags `strings.Index(s, substr)` comparisons with `-1` or `0` that should use `strings.Contains` or `!strings.Contains` |
 | `stringsindexhasprefix` | Custom `go/analysis` analyzer that flags `strings.Index(s, sub)` comparisons with `0` (`== 0`, `!= 0`) that should use `strings.HasPrefix` or `!strings.HasPrefix` |
 | `stringsjoinone` | Custom `go/analysis` analyzer that flags `strings.Join([]string{s}, sep)` calls with a single-element slice literal where the separator is unused and the call is equivalent to just `s` |
@@ -251,6 +253,7 @@ _ = trimleftright.Analyzer
 - `github.com/github/gh-aw/pkg/linters/stringbytesroundtrip` — string-bytes-round-trip analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringreplaceminusone` — string-replace-minus-one analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringscountcontains` — strings-count-contains analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/stringscutprefix` — strings-cut-prefix analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringsindexcontains` — strings-index-contains analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringsindexhasprefix` — strings-index-has-prefix analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/stringsjoinone` — strings-join-one analyzer subpackage
