@@ -92,6 +92,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		Features:          data.Features,
 		Permissions:       data.Permissions,
 		CachedPermissions: data.CachedPermissions,
+		ModelCosts:        data.ModelCosts,
 		IsDetectionRun:    true,
 		RunnerConfig:      data.RunnerConfig,
 		SandboxConfig: &SandboxConfig{

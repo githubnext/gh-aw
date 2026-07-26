@@ -1003,6 +1003,44 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotContains(t, jsonStr, `"defaultAiCreditsPricing"`, "apiProxy should omit defaultAiCreditsPricing when not configured")
 	})
+
+	t.Run("models.providers cost overlay is emitted in apiProxy config", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+				},
+				ModelCosts: map[string]any{
+					"providers": map[string]any{
+						"anthropic": map[string]any{
+							"models": map[string]any{
+								"accounts/fireworks/models/minimax-m3": map[string]any{
+									"cost": map[string]any{
+										"input":       "3e-07",
+										"output":      "1.5e-06",
+										"cache_read":  "3e-08",
+										"cache_write": "3.75e-07",
+									},
+								},
+							},
+						},
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"providers"`, "apiProxy should emit providers when model cost overlay is configured")
+		assert.Contains(t, jsonStr, `"anthropic"`, "apiProxy.providers should include anthropic provider key")
+		assert.Contains(t, jsonStr, `"accounts/fireworks/models/minimax-m3"`, "apiProxy.providers should include custom model key")
+		assert.Contains(t, jsonStr, `"cache_read":"3e-08"`, "apiProxy.providers should preserve custom cache_read pricing")
+	})
 }
 
 // TestBuildAWFConfigSchemaURL verifies that buildAWFConfigSchemaURL returns a release-pinned

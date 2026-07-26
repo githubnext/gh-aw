@@ -2701,3 +2701,46 @@ func TestBuildDetectionEngineExecutionStepPropagatesModelMappings(t *testing.T) 
 		t.Errorf("expected detection awf-config.json to contain model alias 'mini'; got:\n%s", allSteps)
 	}
 }
+
+func TestBuildDetectionEngineExecutionStepPropagatesModelCostsProviders(t *testing.T) {
+	compiler := NewCompiler()
+
+	data := &WorkflowData{
+		AI:    "claude",
+		Model: "accounts/fireworks/models/minimax-m3",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+		ModelCosts: map[string]any{
+			"providers": map[string]any{
+				"anthropic": map[string]any{
+					"models": map[string]any{
+						"accounts/fireworks/models/minimax-m3": map[string]any{
+							"cost": map[string]any{
+								"input":  "3e-07",
+								"output": "1.5e-06",
+							},
+						},
+					},
+				},
+			},
+		},
+		SafeOutputs: &SafeOutputsConfig{
+			ThreatDetection: &ThreatDetectionConfig{},
+		},
+	}
+
+	steps := compiler.buildDetectionEngineExecutionStep(data)
+	if len(steps) == 0 {
+		t.Fatal("expected non-empty detection steps")
+	}
+
+	allSteps := strings.Join(steps, "")
+
+	if !strings.Contains(allSteps, "providers") {
+		t.Errorf("expected detection awf-config.json to contain apiProxy.providers; got:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, "accounts/fireworks/models/minimax-m3") {
+		t.Errorf("expected detection awf-config.json to contain custom model pricing key; got:\n%s", allSteps)
+	}
+}
