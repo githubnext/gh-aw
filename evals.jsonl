@@ -1,0 +1,2 @@
+{"id":"artifacts_analyzed","question":"Did the agent analyze GitHub Actions artifacts usage across all workflows in the repository?","answer":"YES","model":"small","timestamp":"2026-07-26T06:32:47.152Z","runid":"30190999524"}
+{"id":"summary_produced","question":"Was a comprehensive summary report of artifacts usage produced?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-26T06:32:47.152Z","runid":"30190999524"}
