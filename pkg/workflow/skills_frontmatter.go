@@ -12,7 +12,7 @@ import (
 var skillsFrontmatterLog = logger.New("workflow:skills_frontmatter")
 
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
-var githubTokenExpressionRegexp = regexp.MustCompile(`^\$\{\{\s*(secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*|needs\.[A-Za-z_][A-Za-z0-9_]*\.outputs\.[A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
+var skillsGitHubTokenExpressionRegexp = regexp.MustCompile(`^\$\{\{\s*(secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*|needs\.[A-Za-z_][A-Za-z0-9_]*\.outputs\.[A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
 
 // SkillReference describes a single skills[] entry in workflow frontmatter.
 // It supports both legacy string-only entries and object entries with per-skill auth.
@@ -92,7 +92,7 @@ func validateFrontmatterSkills(frontmatter map[string]any) error {
 				if !ok {
 					return fmt.Errorf("skills[%d].github-token must be a string. Example: skills[%d].github-token: \"${{ secrets.MY_TOKEN }}\"", i, i)
 				}
-				if !githubTokenExpressionRegexp.MatchString(token) {
+				if !skillsGitHubTokenExpressionRegexp.MatchString(token) {
 					return fmt.Errorf(
 						"skills[%d].github-token must be a valid GitHub token expression. Example: skills[%d].github-token: \"${{ secrets.NAME }}\" or \"${{ needs.auth.outputs.token }}\"",
 						i,

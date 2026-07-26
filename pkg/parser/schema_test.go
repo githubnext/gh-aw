@@ -1227,6 +1227,46 @@ func TestMainWorkflowSchema_CreateDiscussionRequiredCategoryAllowed(t *testing.T
 	}
 }
 
+func TestMainWorkflowSchema_GitHubTokenAllowsStepOutputs(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"github-token": "${{ steps.fetch-token.outputs.my-token }}",
+			"create-issue": map[string]any{
+				"github-token": "${{ steps.fetch-token.outputs.my-token }}",
+			},
+		},
+	}
+
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		t.Fatalf("expected steps.*.outputs.* github-token expression to pass schema validation, got: %v", err)
+	}
+}
+
+func TestMainWorkflowSchema_SkillsGitHubTokenRejectsStepOutputs(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"skills": []any{
+			map[string]any{
+				"skill":        "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+				"github-token": "${{ steps.fetch-token.outputs.my-token }}",
+			},
+		},
+	}
+
+	err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file")
+	if err == nil {
+		t.Fatal("expected skills[].github-token steps.*.outputs.* expression to fail schema validation")
+	}
+	if !strings.Contains(err.Error(), "github-token") {
+		t.Fatalf("expected schema error to mention github-token, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchemaPushToPullRequestBranchHasMaxPatchSize(t *testing.T) {
 	schemaPath := "schemas/main_workflow_schema.json"
 	schemaContent, err := os.ReadFile(schemaPath)
