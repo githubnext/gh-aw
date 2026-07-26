@@ -371,6 +371,10 @@ To build and test repository custom linters:
 [@zarenner (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azarenner)
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
 
+### @austenstone
+
+- [[bug] Intake Triage agent job: MODULE_NOT_FOUND for merge_awf_model_multipliers.cjs (5 failures in 8d, v0.77.5)](https://github.com/github/gh-aw/issues/42874) _(via follow-up #43299)_
+
 
 ## Share Feedback
 
