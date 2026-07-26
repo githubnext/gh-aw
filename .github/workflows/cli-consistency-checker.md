@@ -32,6 +32,7 @@ pre-agent-steps:
 
       output_dir="/tmp/gh-aw/agent/help-output"
       mkdir -p "${output_dir}"
+      # shellcheck disable=SC2016  # awk program uses $1 as an awk field variable, not a shell variable
       extract_commands='
         /^[[:space:]]+[[:alnum:]_-]+([[:space:]]|$)/ {
           cmd=$1

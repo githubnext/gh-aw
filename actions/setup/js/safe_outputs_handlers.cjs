@@ -21,6 +21,7 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
+const { getStagedPatchAdditionsSizeBytes } = require("./repo_memory_patch_size.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
@@ -1645,17 +1646,35 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Check total content size. totalSize is the raw sum of all file sizes in the memory
-    // directory (excluding .git). It is compared against max_patch_size × 1.2 so that
-    // a full rewrite of all memory content would remain within the push gate limit in
-    // push_repo_memory.cjs, which applies the same 1.2× factor to diff additions.
     const totalSize = files.reduce((sum, f) => sum + f.size, 0);
     const totalSizeKb = Math.ceil(totalSize / 1024);
     const effectiveMaxKb = Math.floor(effectiveMaxPatchSize / 1024);
+    const maxPatchSizeKb = Math.floor(maxPatchSize / 1024);
 
-    core.debug(`push_repo_memory validation: ${files.length} files, total ${totalSize} bytes, effective limit ${effectiveMaxPatchSize} bytes`);
+    let patchSizeBytes;
+    try {
+      ensureSafeDirectoryTrust(memoryDir, server);
+      execGitSync(["add", "--sparse", "."], { cwd: memoryDir, stdio: "pipe" });
+      patchSizeBytes = getStagedPatchAdditionsSizeBytes({ execGitSyncFn: execGitSync, cwd: memoryDir });
+    } catch (/** @type {any} */ error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              result: "error",
+              error: `Failed to compute staged patch additions size for '${memoryDir}': ${getErrorMessage(error)}`,
+            }),
+          },
+        ],
+        isError: true,
+      };
+    }
+    const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-    if (totalSize > effectiveMaxPatchSize) {
+    core.debug(`push_repo_memory validation: ${files.length} files, total ${totalSize} bytes, patch additions ${patchSizeBytes} bytes, effective limit ${effectiveMaxPatchSize} bytes`);
+
+    if (patchSizeBytes > effectiveMaxPatchSize) {
       return {
         content: [
           {
@@ -1663,11 +1682,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             text: JSON.stringify({
               result: "error",
               error:
-                `Total memory size (${totalSizeKb} KB) exceeds the allowed limit of ${effectiveMaxKb} KB ` +
-                `(configured max-patch-size: ${Math.floor(maxPatchSize / 1024)} KB).\n\n` +
-                `Please reduce the total size of files in '${memoryDir}' before the workflow completes. ` +
-                `Consider: summarizing notes instead of keeping full history, removing outdated entries, or compressing data. ` +
-                `Then call push_repo_memory again to verify the size is within limits.`,
+                `Patch additions size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds the allowed limit of ${effectiveMaxKb} KB ` +
+                `(${effectiveMaxPatchSize} bytes, configured max-patch-size: ${maxPatchSizeKb} KB / ${maxPatchSize} bytes with 20% overhead).\n\n` +
+                `Please reduce the size of staged changes in '${memoryDir}' before the workflow completes. ` +
+                `Then call push_repo_memory again to verify the patch size is within limits.`,
             }),
           },
         ],
@@ -1681,7 +1699,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           type: "text",
           text: JSON.stringify({
             result: "success",
-            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total (limit: ${effectiveMaxKb} KB).`,
+            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total content, ` + `${patchSizeKb} KB patch additions (${patchSizeBytes} bytes) (limit: ${effectiveMaxKb} KB / ${effectiveMaxPatchSize} bytes).`,
           }),
         },
       ],
