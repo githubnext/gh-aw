@@ -603,6 +603,21 @@ describe("sanitize_content.cjs", () => {
       expect(result).not.toContain("<https://github.com@evil.example");
     });
 
+    it("should redact Slack mrkdwn links with disallowed domains", () => {
+      // Domain is blocked — URL is redacted but label text is preserved so the
+      // author's visible link text is not silently lost.
+      const result = sanitizeContent("<https://evil.example.com/path|Build failure>");
+      expect(result).toContain("evil.example.com/redacted"); // domain shows in redacted form
+      expect(result).toContain("Build failure"); // label is preserved
+      expect(result).not.toContain("<https://evil.example.com"); // not in original angle-bracket form
+    });
+
+    it("should redact plain angle-bracket autolinks with disallowed domains", () => {
+      const result = sanitizeContent("<https://evil.example.com/path>");
+      expect(result).toContain("evil.example.com/redacted"); // domain shows in redacted form
+      expect(result).not.toContain("<https://evil.example.com"); // not in original angle-bracket form
+    });
+
     it("should handle CDATA sections", () => {
       const result = sanitizeContent("<![CDATA[<script>alert('xss')</script>]]>");
       expect(result).toBe("(![CDATA[(script)alert('xss')(/script)]])");
