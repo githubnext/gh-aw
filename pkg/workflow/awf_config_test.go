@@ -876,6 +876,34 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.Contains(t, jsonStr, `"${{ github.run_id }}"`, "should include sessionId value")
 	})
 
+	t.Run("copilot authHeader from frontmatter sandbox.agent.targets.copilot is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"copilot": {
+								AuthHeader: "api-key",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"copilot"`, "should include copilot target")
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include copilot authHeader in apiProxy targets")
+		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
+	})
+
 	t.Run("copilot BYOK fields coexist with host from GetCopilotAPITarget", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",

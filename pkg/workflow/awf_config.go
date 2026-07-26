@@ -570,6 +570,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 			existing = &AWFAPITargetConfig{}
 			targets["copilot"] = existing
 		}
+		if copilotFrontmatter.AuthHeader != "" {
+			existing.AuthHeader = copilotFrontmatter.AuthHeader
+			awfConfigLog.Printf("API proxy: copilot authHeader=%s", copilotFrontmatter.AuthHeader)
+		}
 		if len(copilotFrontmatter.ExtraHeaders) > 0 {
 			existing.ExtraHeaders = copilotFrontmatter.ExtraHeaders
 			awfConfigLog.Printf("API proxy: copilot extraHeaders configured (%d header(s))", len(copilotFrontmatter.ExtraHeaders))
