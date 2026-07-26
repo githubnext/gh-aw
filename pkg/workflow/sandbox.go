@@ -103,6 +103,31 @@ type AgentAPIProxyTargetConfig struct {
 	// provider default ("Authorization" for OpenAI, "x-api-key" for Anthropic).
 	// Example: "api-key" for Azure OpenAI gateways.
 	AuthHeader string `yaml:"authHeader,omitempty"`
+
+	// ExtraHeaders holds additional non-sensitive headers to include on Copilot BYOK
+	// upstream requests. Applies only to the "copilot" provider target.
+	// Maps to apiProxy.targets.copilot.extraHeaders in the AWF config (AWF_BYOK_EXTRA_HEADERS).
+	// Example:
+	//   sandbox:
+	//     agent:
+	//       targets:
+	//         copilot:
+	//           extraHeaders:
+	//             x-openrouter-title: my-workflow
+	//             http-referer: https://github.com/org/repo
+	ExtraHeaders map[string]string `yaml:"extraHeaders,omitempty"`
+
+	// ExtraBodyFields holds additional non-sensitive JSON body fields to include on Copilot
+	// BYOK upstream requests. Applies only to the "copilot" provider target.
+	// Maps to apiProxy.targets.copilot.extraBodyFields in the AWF config (AWF_BYOK_EXTRA_BODY_FIELDS).
+	ExtraBodyFields map[string]string `yaml:"extraBodyFields,omitempty"`
+
+	// SessionId is an opt-in session identifier injected as the x-session-id request header
+	// and session_id body field on Copilot BYOK upstream requests. Applies only to the
+	// "copilot" provider target. Strict OpenAI-compatible servers (e.g. Azure OpenAI) reject
+	// the unknown body field with HTTP 400, so this value must be set explicitly.
+	// Maps to apiProxy.targets.copilot.sessionId in the AWF config (AWF_PROVIDER_SESSION_ID).
+	SessionId string `yaml:"sessionId,omitempty"`
 }
 
 // SandboxRuntimeConfig represents the Anthropic Sandbox Runtime configuration
