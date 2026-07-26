@@ -46,7 +46,8 @@ describe("create_issue", () => {
             data: {
               resources: {
                 search: {
-                  remaining: 1000,
+                  limit: 30,
+                  remaining: 30,
                 },
               },
             },
@@ -680,6 +681,7 @@ describe("create_issue", () => {
         data: {
           resources: {
             search: {
+              limit: 30,
               remaining: 1,
             },
           },

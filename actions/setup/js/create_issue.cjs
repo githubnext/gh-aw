@@ -35,7 +35,7 @@ const ISSUE_FIELD_DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 const RECENTLY_CLOSED_DEDUP_DAYS = 30;
 const TITLE_DEDUP_SEARCH_PER_PAGE = 100;
 const TITLE_DEDUP_MAX_SEARCH_PAGES = 2;
-const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING = 500;
+const TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_FRACTION = 0.2;
 
 /**
  * Create a dedicated GitHub client for copilot assignment operations.
@@ -494,14 +494,16 @@ async function getRepoTitleDedupCandidates(githubClient, owner, repo) {
 async function shouldSkipRepoTitleDedupSearch(githubClient, owner, repo) {
   try {
     const response = await githubClient.rest.rateLimit.get();
-    const rawRemaining = response?.data?.resources?.search?.remaining;
+    const { remaining: rawRemaining, limit: rawLimit } = response?.data?.resources?.search ?? {};
     const remaining = Number(rawRemaining);
-    if (!Number.isFinite(remaining)) {
+    const limit = Number(rawLimit);
+    if (!Number.isFinite(remaining) || !Number.isFinite(limit)) {
       core.warning(`Could not determine search rate limit remaining for ${owner}/${repo}; proceeding with repo-level title dedup search`);
       return false;
     }
-    if (remaining <= TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING) {
-      core.warning(`Skipping repo-level title dedup search for ${owner}/${repo}: search rate limit remaining is ${remaining} (threshold <= ${TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_REMAINING})`);
+    const threshold = limit * TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_FRACTION;
+    if (remaining <= threshold) {
+      core.warning(`Skipping repo-level title dedup search for ${owner}/${repo}: search rate limit remaining is ${remaining}/${limit} (threshold <= ${Math.round(threshold)})`);
       return true;
     }
   } catch (error) {
