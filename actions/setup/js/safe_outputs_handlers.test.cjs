@@ -2512,6 +2512,12 @@ describe("safe_outputs_handlers", () => {
       });
     }
 
+    function initGitRepo(repoDir) {
+      execSync("git init", { cwd: repoDir, stdio: "pipe" });
+      execSync('git config user.email "test@example.com"', { cwd: repoDir, stdio: "pipe" });
+      execSync('git config user.name "Test User"', { cwd: repoDir, stdio: "pipe" });
+    }
+
     it("should return success when no repo-memory is configured", () => {
       const h = createHandlers(mockServer, mockAppendSafeOutput, {});
       const result = h.pushRepoMemoryHandler({});
@@ -2543,6 +2549,7 @@ describe("safe_outputs_handlers", () => {
     it("should return success for valid files within limits", () => {
       const h = makeHandlersWithMemory();
       fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
       fs.writeFileSync(path.join(memoryDir, "state.json"), "x".repeat(100));
       const result = h.pushRepoMemoryHandler({ memory_id: "default" });
       const data = JSON.parse(result.content[0].text);
@@ -2576,42 +2583,43 @@ describe("safe_outputs_handlers", () => {
       expect(data.error).toContain("3 files");
     });
 
-    it("should return error when total size exceeds effective max_patch_size", () => {
-      // max_patch_size = 500 bytes, effective limit = floor(500 * 1.2) = 600 bytes
-      const h = makeHandlersWithMemory({ max_patch_size: 500, max_file_size: 1024 * 1024 });
+    it("should pass when total folder size is large but staged diff is tiny", () => {
+      const h = makeHandlersWithMemory({ max_patch_size: 50, max_file_size: 1024 * 1024 });
       fs.mkdirSync(memoryDir, { recursive: true });
-      // Write two files totaling 650 bytes (above the 600 byte effective limit)
-      fs.writeFileSync(path.join(memoryDir, "a.json"), "x".repeat(350));
-      fs.writeFileSync(path.join(memoryDir, "b.json"), "x".repeat(300));
+      initGitRepo(memoryDir);
+      fs.writeFileSync(path.join(memoryDir, "large.json"), `${"x\n".repeat(3000)}`);
+      execSync("git add . && git commit -m 'seed'", { cwd: memoryDir, stdio: "pipe" });
+      fs.appendFileSync(path.join(memoryDir, "large.json"), "small-diff\n");
       const result = h.pushRepoMemoryHandler({ memory_id: "default" });
-      expect(result.isError).toBe(true);
+      expect(result.isError).toBeUndefined();
       const data = JSON.parse(result.content[0].text);
-      expect(data.result).toBe("error");
-      expect(data.error).toContain("exceeds the allowed limit");
-      expect(data.error).toContain("push_repo_memory again");
+      expect(data.result).toBe("success");
+      expect(data.message).toContain("patch additions");
     });
 
     it("should use 'default' memory_id when memory_id is not specified", () => {
       const h = makeHandlersWithMemory();
       fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
       fs.writeFileSync(path.join(memoryDir, "notes.md"), "hello");
       const result = h.pushRepoMemoryHandler({}); // no memory_id
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
     });
 
-    it("should scan files recursively in subdirectories", () => {
+    it("should fail when staged patch additions exceed effective max_patch_size", () => {
       // max_patch_size = 500 bytes, effective limit = 600 bytes
       const h = makeHandlersWithMemory({ max_patch_size: 500, max_file_size: 1024 * 1024 });
+      fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
       const subDir = path.join(memoryDir, "history");
       fs.mkdirSync(subDir, { recursive: true });
-      // Write a nested file that pushes total above effective limit
       fs.writeFileSync(path.join(subDir, "log.jsonl"), "x".repeat(700));
       const result = h.pushRepoMemoryHandler({ memory_id: "default" });
       expect(result.isError).toBe(true);
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("error");
-      // The nested file path should appear correctly
+      expect(data.error).toContain("Patch additions size");
       expect(data.error).toContain("exceeds the allowed limit");
     });
 
@@ -2622,6 +2630,7 @@ describe("safe_outputs_handlers", () => {
       // files are small but .git directory content is large — must not count toward limit.
       const h = makeHandlersWithMemory({ max_patch_size: 500, max_file_size: 1024 * 1024 });
       fs.mkdirSync(memoryDir, { recursive: true });
+      initGitRepo(memoryDir);
       // Small memory files (well within limit)
       fs.writeFileSync(path.join(memoryDir, "memory.json"), "x".repeat(100));
       fs.writeFileSync(path.join(memoryDir, "state.json"), "x".repeat(100));

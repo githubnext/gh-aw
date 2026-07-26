@@ -46,7 +46,8 @@ describe("create_issue", () => {
             data: {
               resources: {
                 search: {
-                  remaining: 1000,
+                  limit: 30,
+                  remaining: 30,
                 },
               },
             },
@@ -680,7 +681,8 @@ describe("create_issue", () => {
         data: {
           resources: {
             search: {
-              remaining: 1,
+              limit: 35,
+              remaining: 6,
             },
           },
         },
@@ -699,6 +701,71 @@ describe("create_issue", () => {
       expect(mockGithub.rest.rateLimit.get).toHaveBeenCalledTimes(1);
       expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
       expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping repo-level title dedup search"));
+    });
+
+    it("should skip repo-level search when search rate limit is exactly at 20 percent threshold", async () => {
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          resources: {
+            search: {
+              limit: 30,
+              remaining: 6,
+            },
+          },
+        },
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "At threshold title" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.search.issuesAndPullRequests).not.toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Skipping repo-level title dedup search"));
+    });
+
+    it("should not skip repo-level search when search rate limit is just above 20 percent threshold", async () => {
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          resources: {
+            search: {
+              limit: 30,
+              remaining: 7,
+            },
+          },
+        },
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Above threshold title" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalled();
+      expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Skipping repo-level title dedup search"));
+    });
+
+    it("should proceed with repo-level search when search rate limit values are missing", async () => {
+      mockGithub.rest.rateLimit.get.mockResolvedValue({
+        data: {
+          resources: {
+            search: {
+              remaining: 30,
+            },
+          },
+        },
+      });
+
+      const handler = await main({
+        deduplicate_by_title: true,
+      });
+      const result = await handler({ title: "Missing limit title" });
+
+      expect(result.success).toBe(true);
+      expect(mockGithub.rest.search.issuesAndPullRequests).toHaveBeenCalled();
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("remaining=30, limit=undefined"));
     });
 
     it("should reject invalid deduplicate-by-title configuration", async () => {

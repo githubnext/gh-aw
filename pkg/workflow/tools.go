@@ -202,24 +202,23 @@ func (c *Compiler) applyCommandTriggerOnSection(data *WorkflowData) error {
 		if err != nil {
 			return fmt.Errorf("failed to build command condition: %w", err)
 		}
-		if data.If == "" {
-			if len(data.LabelCommand) > 0 {
-				labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
-				if err != nil {
-					return fmt.Errorf("failed to build combined label-command condition: %w", err)
-				}
-				data.If = RenderCondition(&OrNode{Left: commandConditionTree, Right: labelConditionTree})
-			} else {
-				data.If = RenderCondition(commandConditionTree)
+
+		derivedConditionTree := commandConditionTree
+		if len(data.LabelCommand) > 0 {
+			labelConditionTree, err := buildLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents, false)
+			if err != nil {
+				return fmt.Errorf("failed to build combined label-command condition: %w", err)
 			}
+			derivedConditionTree = &OrNode{Left: commandConditionTree, Right: labelConditionTree}
 		}
-	} else if data.If == "" && len(data.LabelCommand) > 0 {
+		data.If = RenderCondition(BuildConditionTree(data.If, derivedConditionTree.Render()))
+	} else if len(data.LabelCommand) > 0 {
 		// Centralized command mode: label checks for dispatches derive from aw_context metadata.
 		labelConditionTree, err := buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
 		if err != nil {
 			return fmt.Errorf("failed to build label-command condition: %w", err)
 		}
-		data.If = RenderCondition(labelConditionTree)
+		data.If = RenderCondition(BuildConditionTree(data.If, labelConditionTree.Render()))
 	}
 	return nil
 }
@@ -296,15 +295,13 @@ func (c *Compiler) applyLabelCommandTriggerOnSection(data *WorkflowData) error {
 	if err != nil {
 		return fmt.Errorf("failed to build label-command condition: %w", err)
 	}
-	if data.If == "" {
-		if data.LabelCommandDecentralized {
-			labelConditionTree, err = buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
-			if err != nil {
-				return fmt.Errorf("failed to build decentralized label-command condition: %w", err)
-			}
+	if data.LabelCommandDecentralized {
+		labelConditionTree, err = buildDispatchLabelCommandCondition(data.LabelCommand, data.LabelCommandEvents)
+		if err != nil {
+			return fmt.Errorf("failed to build decentralized label-command condition: %w", err)
 		}
-		data.If = RenderCondition(labelConditionTree)
 	}
+	data.If = RenderCondition(BuildConditionTree(data.If, labelConditionTree.Render()))
 	return nil
 }
 

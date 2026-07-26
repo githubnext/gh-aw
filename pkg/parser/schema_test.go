@@ -1227,6 +1227,46 @@ func TestMainWorkflowSchema_CreateDiscussionRequiredCategoryAllowed(t *testing.T
 	}
 }
 
+func TestMainWorkflowSchema_GitHubTokenAllowsStepOutputs(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"safe-outputs": map[string]any{
+			"github-token": "${{ steps.fetch-token.outputs.my-token }}",
+			"create-issue": map[string]any{
+				"github-token": "${{ steps.fetch-token.outputs.my-token }}",
+			},
+		},
+	}
+
+	if err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file"); err != nil {
+		t.Fatalf("expected steps.*.outputs.* github-token expression to pass schema validation, got: %v", err)
+	}
+}
+
+func TestMainWorkflowSchema_SkillsGitHubTokenRejectsStepOutputs(t *testing.T) {
+	t.Parallel()
+
+	frontmatter := map[string]any{
+		"on": "daily",
+		"skills": []any{
+			map[string]any{
+				"skill":        "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6",
+				"github-token": "${{ steps.fetch-token.outputs.my-token }}",
+			},
+		},
+	}
+
+	err := validateWithSchema(frontmatter, mainWorkflowSchema, "main workflow file")
+	if err == nil {
+		t.Fatal("expected skills[].github-token steps.*.outputs.* expression to fail schema validation")
+	}
+	if !strings.Contains(err.Error(), "github-token") {
+		t.Fatalf("expected schema error to mention github-token, got: %v", err)
+	}
+}
+
 func TestMainWorkflowSchemaPushToPullRequestBranchHasMaxPatchSize(t *testing.T) {
 	schemaPath := "schemas/main_workflow_schema.json"
 	schemaContent, err := os.ReadFile(schemaPath)
@@ -2484,6 +2524,139 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_AwfApiProxyTargets
 		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-unknown-provider-test.md")
 		if err == nil {
 			t.Error("unknown provider in sandbox.agent.targets should be rejected")
+		}
+	})
+
+	t.Run("copilot extraHeaders map is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraHeaders": map[string]any{
+								"x-openrouter-title": "my-workflow",
+								"http-referer":       "https://github.com/org/repo",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-extra-headers-test.md")
+		if err != nil {
+			t.Errorf("valid copilot extraHeaders should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot extraBodyFields map is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraBodyFields": map[string]any{
+								"custom-field": "custom-value",
+							},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-extra-body-fields-test.md")
+		if err != nil {
+			t.Errorf("valid copilot extraBodyFields should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot sessionId string is accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"sessionId": "${{ github.run_id }}",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-session-id-test.md")
+		if err != nil {
+			t.Errorf("valid copilot sessionId should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot all three BYOK fields together are accepted", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraHeaders": map[string]any{
+								"x-openrouter-title": "my-workflow",
+							},
+							"extraBodyFields": map[string]any{
+								"custom-field": "custom-value",
+							},
+							"sessionId": "${{ github.run_id }}",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-byok-all-fields-test.md")
+		if err != nil {
+			t.Errorf("all three copilot BYOK fields together should be accepted, got error: %v", err)
+		}
+	})
+
+	t.Run("copilot non-string extraHeaders value is rejected", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"extraHeaders": map[string]any{
+								"x-count": 42,
+							},
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-extra-headers-invalid-test.md")
+		if err == nil {
+			t.Error("non-string extraHeaders value should be rejected by schema validation")
+		}
+	})
+
+	t.Run("copilot unknown field in target is rejected", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"on":     "push",
+			"engine": "copilot",
+			"sandbox": map[string]any{
+				"agent": map[string]any{
+					"targets": map[string]any{
+						"copilot": map[string]any{
+							"unknownField": "value",
+						},
+					},
+				},
+			},
+		}
+		err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/awf-copilot-unknown-field-test.md")
+		if err == nil {
+			t.Error("unknown field in copilot target should be rejected by schema validation")
 		}
 	})
 }
