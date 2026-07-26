@@ -130,6 +130,7 @@ type WorkflowData struct {
 	SandboxConfig                  *SandboxConfig                  // parsed sandbox configuration (AWF or SRT)
 	RunnerConfig                   *RunnerConfig                   // parsed runner topology configuration (e.g., arc-dind)
 	SafeOutputs                    *SafeOutputsConfig              // output configuration for automatic output routes
+	SafeOutputsInputEnvVars        map[string]string               // GH_AW_INPUT_* env vars referenced by safe-outputs config; populated during MCP setup generation so renderers can forward them to the nested container
 	MCPScripts                     *MCPScriptsConfig               // mcp-scripts configuration for custom MCP tools
 	LabelNames                     []string                        // label names that must match for pull_request_target labeled events (on.labels)
 	Roles                          []string                        // permission levels required to trigger workflow

@@ -216,5 +216,65 @@ describe("safe_outputs_config", () => {
       expect(debugOutput).toContain("***REDACTED***");
       expect(debugOutput).not.toContain("runtime-project-token");
     });
+
+    it("should emit exactly one diagnostic when a GH_AW_INPUT_* placeholder is duplicated and unresolved", () => {
+      const configDir = path.dirname(testConfigPath);
+      fs.mkdirSync(configDir, { recursive: true });
+
+      // ${GH_AW_INPUT_FOO} appears twice but the env var is not set
+      fs.writeFileSync(
+        testConfigPath,
+        JSON.stringify({
+          "create-pull-request": {
+            "base-branch": "${GH_AW_INPUT_FOO}",
+            "head-branch": "${GH_AW_INPUT_FOO}",
+          },
+        })
+      );
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        loadConfig(mockServer);
+
+        // Deduplication: only one diagnostic per unique unresolved var
+        const errorCalls = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_FOO"));
+        expect(errorCalls).toHaveLength(1);
+
+        const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
+        expect(debugOutput).toContain("GH_AW_INPUT_FOO");
+        expect(debugOutput).toContain("Unresolved workflow input placeholder");
+      } finally {
+        consoleSpy.mockRestore();
+      }
+    });
+
+    it("should emit no diagnostic when all GH_AW_INPUT_* placeholders are resolved", () => {
+      const configDir = path.dirname(testConfigPath);
+      fs.mkdirSync(configDir, { recursive: true });
+      process.env.GH_AW_INPUT_BASE_BRANCH = "develop";
+
+      fs.writeFileSync(
+        testConfigPath,
+        JSON.stringify({
+          "create-pull-request": {
+            "base-branch": "${GH_AW_INPUT_BASE_BRANCH}",
+          },
+        })
+      );
+
+      const consoleSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+      try {
+        loadConfig(mockServer);
+
+        const errorCalls = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_"));
+        expect(errorCalls).toHaveLength(0);
+
+        const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
+        expect(debugOutput).not.toContain("Unresolved workflow input placeholder");
+      } finally {
+        consoleSpy.mockRestore();
+        delete process.env.GH_AW_INPUT_BASE_BRANCH;
+      }
+    });
   });
 });

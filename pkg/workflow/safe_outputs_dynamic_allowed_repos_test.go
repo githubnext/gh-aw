@@ -82,6 +82,15 @@ Test workflow
 		"MCP gateway docker run command should include -e GH_AW_INPUT_TARGET_REPO so the container can resolve the placeholder")
 	assert.Contains(t, compiled, "-e GH_AW_INPUT_BASE_BRANCH",
 		"MCP gateway docker run command should include -e GH_AW_INPUT_BASE_BRANCH so the container can resolve the placeholder")
+
+	// Verify GH_AW_INPUT_* vars also appear in the nested safe-outputs MCP server container
+	// config (the JSON env block written into mcp-servers.json). The gateway forwards env vars
+	// to nested containers only if they appear in that config's env allowlist; without this the
+	// containerised safe-outputs server cannot resolve the ${GH_AW_INPUT_…} placeholders.
+	assert.Contains(t, compiled, `"GH_AW_INPUT_TARGET_REPO": "\${GH_AW_INPUT_TARGET_REPO}"`,
+		"safe-outputs MCP server JSON env block should include GH_AW_INPUT_TARGET_REPO so the nested container inherits the value")
+	assert.Contains(t, compiled, `"GH_AW_INPUT_BASE_BRANCH": "\${GH_AW_INPUT_BASE_BRANCH}"`,
+		"safe-outputs MCP server JSON env block should include GH_AW_INPUT_BASE_BRANCH so the nested container inherits the value")
 }
 
 func TestSafeOutputsConfigPreservesSecretPlaceholdersOnDisk(t *testing.T) {
@@ -183,4 +192,11 @@ Test workflow
 	// inherits the value from the runner step environment.
 	assert.Contains(t, compiled, "-e GH_AW_INPUT_BASE_BRANCH",
 		"MCP gateway docker run command must include -e GH_AW_INPUT_BASE_BRANCH so the containerised MCP server can resolve the placeholder")
+
+	// The nested safe-outputs MCP server container config must include GH_AW_INPUT_BASE_BRANCH
+	// in its env allowlist. The gateway only forwards env vars to nested containers that are
+	// listed in the server config's env block; without this the placeholder remains unresolved
+	// inside the containerised safe-outputs server, causing the merge-base failure.
+	assert.Contains(t, compiled, `"GH_AW_INPUT_BASE_BRANCH": "\${GH_AW_INPUT_BASE_BRANCH}"`,
+		"safe-outputs MCP server JSON env block must include GH_AW_INPUT_BASE_BRANCH so the nested container inherits the runtime value")
 }

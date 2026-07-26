@@ -126,13 +126,15 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 		return fmt.Errorf("failed to generate mcp-scripts setup YAML: %w", err)
 	}
 	// Extract GH_AW_INPUT_* env vars from the safe-outputs config so the MCP
-	// gateway container receives them in its -e allowlist.  Without this, any
-	// safe-outputs field that references ${{ inputs.* }} is written to config.json
-	// as a ${GH_AW_INPUT_…} placeholder that the containerised MCP server cannot
-	// resolve, causing failures such as "No remote refs available for merge-base
-	// calculation" when using a dynamic base-branch.
-	safeOutputsInputEnvVars := extractSafeOutputsInputEnvVars(safeOutputConfig)
-	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows, safeOutputsInputEnvVars)
+	// gateway container receives them in its -e allowlist and the nested
+	// safe-outputs container inherits them via its env_vars/env allowlist.
+	// Without this, any safe-outputs field that references ${{ inputs.* }} is
+	// written to config.json as a ${GH_AW_INPUT_…} placeholder that the
+	// containerised MCP server cannot resolve, causing failures such as
+	// "No remote refs available for merge-base calculation" when using a
+	// dynamic base-branch.
+	workflowData.SafeOutputsInputEnvVars = extractSafeOutputsInputEnvVars(safeOutputConfig)
+	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows, workflowData.SafeOutputsInputEnvVars)
 }
 
 func collectMCPTools(workflowData *WorkflowData) []string {
