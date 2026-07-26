@@ -16,6 +16,7 @@ describe("safe_outputs_config", () => {
     // Create a mock server with debug function
     mockServer = {
       debug: vi.fn(),
+      error: vi.fn(),
     };
 
     // Use unique paths for each test
@@ -240,9 +241,9 @@ describe("safe_outputs_config", () => {
         const unresolvedPlaceholderErrors = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_FOO"));
         expect(unresolvedPlaceholderErrors).toHaveLength(1);
 
-        const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
-        expect(debugOutput).toContain("GH_AW_INPUT_FOO");
-        expect(debugOutput).toContain("Unresolved workflow input placeholder");
+        const errorOutput = mockServer.error.mock.calls.map(call => String(call[0])).join("\n");
+        expect(errorOutput).toContain("GH_AW_INPUT_FOO");
+        expect(errorOutput).toContain("Unresolved workflow input placeholder");
       } finally {
         consoleSpy.mockRestore();
       }
@@ -269,8 +270,8 @@ describe("safe_outputs_config", () => {
         const inputPlaceholderErrors = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_"));
         expect(inputPlaceholderErrors).toHaveLength(0);
 
-        const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
-        expect(debugOutput).not.toContain("Unresolved workflow input placeholder");
+        const errorOutput = mockServer.error.mock.calls.map(call => String(call[0])).join("\n");
+        expect(errorOutput).not.toContain("Unresolved workflow input placeholder");
       } finally {
         consoleSpy.mockRestore();
         delete process.env.GH_AW_INPUT_BASE_BRANCH;

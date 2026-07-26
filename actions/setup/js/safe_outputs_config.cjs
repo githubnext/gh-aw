@@ -73,10 +73,10 @@ function loadConfig(server) {
       const unresolvedInputs = collectUnresolvedInputPlaceholders(configFileContent);
       if (unresolvedInputs.length > 0) {
         const varList = unresolvedInputs.join(", ");
-        server.debug(
-          `ERR_CONFIG: Unresolved workflow input placeholder(s) in safe-outputs config: ${varList}. The values were not passed to the MCP container. Verify that the workflow was compiled with a version that forwards GH_AW_INPUT_* to the container env.`
-        );
+        const unresolvedMsg = `ERR_CONFIG: Unresolved workflow input placeholder(s) in safe-outputs config: ${varList}. The values were not passed to the MCP container. Verify that the workflow was compiled with a version that forwards GH_AW_INPUT_* to the container env.`;
+        server.error(unresolvedMsg);
         console.error(`[safe_outputs_config] ERR_CONFIG: Unresolved workflow input placeholder(s): ${varList}`);
+        throw new Error(unresolvedMsg);
       }
       safeOutputsConfigRaw = resolveEnvPlaceholders(JSON.parse(configFileContent));
       server.debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
