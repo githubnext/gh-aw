@@ -402,15 +402,16 @@ fi`,
 		} else {
 			printfArg = shellEscapeArg(awfConfigJSON)
 		}
-		configFileSetup = fmt.Sprintf(
-			// shellcheck disable=SC2016 on the next line: the AWF config JSON contains
-			// "$schema" (a JSON Schema key) as a literal dollar sign inside single-quoted
-			// shell arguments when no runtime variables are injected. No shell expansion
-			// is intended; shellcheck incorrectly warns that $schema won't expand.
-			"# shellcheck disable=SC2016\nprintf '%%s\\n' %s > %q",
-			printfArg,
-			awfConfigRuntimePathExpr,
-		)
+		// SC2016 ("Expressions don't expand in single quotes") is only triggered when
+		// printfArg is single-quoted (no runtime variables injected). Double-quoted args
+		// already escape bare $ signs as \$schema, so shellcheck does not warn there.
+		var printfLine string
+		if strings.HasPrefix(printfArg, "'") {
+			printfLine = "# shellcheck disable=SC2016\nprintf '%%s\\n' %s > %q"
+		} else {
+			printfLine = "printf '%%s\\n' %s > %q"
+		}
+		configFileSetup = fmt.Sprintf(printfLine, printfArg, awfConfigRuntimePathExpr)
 		if maxAICreditsExportLine != "" {
 			configFileSetup = maxAICreditsExportLine + "\n" + configFileSetup
 		}

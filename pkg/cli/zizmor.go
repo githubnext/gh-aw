@@ -225,17 +225,26 @@ func parseAndDisplayZizmorOutput(stdout, stderr string, verbose bool) (int, erro
 	}
 
 	// Build the ordered list of files to display findings for.
-	// Prefer the order from stderr "completed" messages when available;
-	// fall back to sorting file paths from the JSON findings so that output
-	// is displayed even if the zizmor log format has changed (e.g., after
-	// a Docker image upgrade that drops or reformats the "completed" log line).
-	displayFiles := completedFiles
-	if len(displayFiles) == 0 && len(fileFindings) > 0 {
-		for filePath := range fileFindings {
-			displayFiles = append(displayFiles, filePath)
-		}
-		sort.Strings(displayFiles)
+	// Preserve the stderr "completed" ordering first, then append (in sorted order)
+	// any finding paths absent from that list.  This handles two failure modes:
+	//  (a) the zizmor Docker image changes its log format and no "completed"
+	//      lines are emitted at all — completedFiles stays empty and we fall
+	//      back entirely to sorted fileFindings keys.
+	//  (b) the log format is partially intact — some "completed" lines arrive
+	//      but not all — so findings for the unlisted files would otherwise be
+	//      silently dropped.
+	listedSet := make(map[string]struct{}, len(completedFiles))
+	for _, fp := range completedFiles {
+		listedSet[fp] = struct{}{}
 	}
+	var extraFiles []string
+	for fp := range fileFindings {
+		if _, seen := listedSet[fp]; !seen {
+			extraFiles = append(extraFiles, fp)
+		}
+	}
+	sort.Strings(extraFiles)
+	displayFiles := append(completedFiles, extraFiles...)
 
 	// Display reformatted output for each file with findings
 	for _, filePath := range displayFiles {
