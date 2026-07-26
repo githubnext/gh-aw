@@ -49,7 +49,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/optimize-agentic-workflow.md`
 - `.github/aw/patterns.md`
 - `.github/aw/pr-reviewer.md`
-- `.github/aw/release-workflow.md`
 - `.github/aw/report.md`
 - `.github/aw/reuse.md`
 - `.github/aw/safe-outputs-automation.md`
