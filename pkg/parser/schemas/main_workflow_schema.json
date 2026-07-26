@@ -12434,27 +12434,7 @@
                 },
                 "provider": {
                   "type": "string",
-                  "description": "Optional WIF provider discriminator. Recognized values are 'azure', 'gcp', and 'anthropic'."
-                },
-                "workload-identity-provider": {
-                  "type": "string",
-                  "description": "GCP Workload Identity Provider resource name (for example, projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL_ID/providers/PROVIDER_ID)."
-                },
-                "service-account": {
-                  "type": "string",
-                  "description": "Optional GCP service account email to impersonate for Vertex AI."
-                },
-                "scope": {
-                  "type": "string",
-                  "description": "Optional GCP OAuth scope for Vertex AI token exchange (defaults to https://www.googleapis.com/auth/cloud-platform in the AWF sidecar)."
-                },
-                "project": {
-                  "type": "string",
-                  "description": "GCP project ID for Gemini CLI Vertex AI mode."
-                },
-                "location": {
-                  "type": "string",
-                  "description": "GCP location/region for Gemini CLI Vertex AI mode (for example, us-central1)."
+                  "description": "Optional WIF provider discriminator. Recognized values are 'azure' and 'anthropic'."
                 },
                 "federation-rule-id": {
                   "type": "string",

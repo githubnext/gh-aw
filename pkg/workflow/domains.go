@@ -933,9 +933,6 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 
 	// Add Gemini API target domains for backward compat with deprecated Gemini engine workflows.
 	// Resolved from GEMINI_API_BASE_URL in engine.env or default generativelanguage.googleapis.com.
-	if geminiVertexAPITarget := GetGeminiVertexAPITarget(data, engineID); geminiVertexAPITarget != "" {
-		base = mergeAPITargetDomains(base, geminiVertexAPITarget)
-	}
 	if geminiAPITarget := GetGeminiAPITarget(data, engineID); geminiAPITarget != "" {
 		base = mergeAPITargetDomains(base, geminiAPITarget)
 	}

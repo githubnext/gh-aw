@@ -11,12 +11,6 @@ import (
 
 var geminiLog = logger.New("workflow:gemini_engine")
 
-const (
-	geminiVertexProxyURL          = "http://host.docker.internal:10004"
-	geminiVertexAPIKeyPlaceholder = "awf-vertex-oidc"
-	geminiVertexAuthDocsURL       = "https://github.github.com/gh-aw/reference/auth/#gemini-vertex-ai-via-github-oidc"
-)
-
 // GeminiEngine represents the Google Gemini CLI agentic engine
 type GeminiEngine struct {
 	BaseEngine
@@ -55,10 +49,7 @@ func (e *GeminiEngine) GetModelEnvVarName() string {
 // HTTP MCP header secrets, and mcp-scripts secrets
 func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	geminiLog.Print("Collecting required secrets for Gemini engine")
-	secrets := []string{}
-	if !isGeminiVertexOIDC(workflowData) {
-		secrets = append(secrets, "GEMINI_API_KEY")
-	}
+	secrets := []string{"GEMINI_API_KEY"}
 
 	// Add common MCP secrets (MCP_GATEWAY_API_KEY if MCP servers present, mcp-scripts secrets)
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
@@ -86,81 +77,18 @@ func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []stri
 func (e *GeminiEngine) GetSupportedEnvVarKeys() []string {
 	return []string{
 		constants.GeminiAPIKey,
-		"GOOGLE_CLOUD_LOCATION",
-		"GOOGLE_CLOUD_PROJECT",
-		"GOOGLE_GENAI_USE_VERTEXAI",
-		"GOOGLE_VERTEX_BASE_URL",
 	}
 }
 
 // GetSecretValidationStep returns the secret validation step for the Gemini engine.
 // Returns an empty step if custom command is specified.
 func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if isGeminiVertexOIDC(workflowData) {
-		return buildGeminiVertexValidationStep(workflowData)
-	}
 	return BuildDefaultSecretValidationStep(
 		workflowData,
 		[]string{"GEMINI_API_KEY"},
 		"Gemini CLI",
 		"https://geminicli.com/docs/get-started/authentication/",
 	)
-}
-
-func isGeminiVertexOIDC(workflowData *WorkflowData) bool {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
-		return false
-	}
-	auth := workflowData.EngineConfig.Auth
-	return auth.Type == "github-oidc" && auth.Provider == "gcp"
-}
-
-func geminiVertexAuthEnv(workflowData *WorkflowData) map[string]string {
-	env := map[string]string{}
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
-		return env
-	}
-	auth := workflowData.EngineConfig.Auth
-	if auth.GCPWorkloadIdentityProvider != "" {
-		env["AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER"] = auth.GCPWorkloadIdentityProvider
-	}
-	if auth.GCPProject != "" {
-		env["GOOGLE_CLOUD_PROJECT"] = auth.GCPProject
-	}
-	if auth.GCPLocation != "" {
-		env["GOOGLE_CLOUD_LOCATION"] = auth.GCPLocation
-	}
-	return env
-}
-
-func buildGeminiVertexValidationStep(workflowData *WorkflowData) GitHubActionStep {
-	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
-		geminiLog.Printf("Skipping Vertex validation step: custom command specified (%s)", workflowData.EngineConfig.Command)
-		return GitHubActionStep{}
-	}
-	env := geminiVertexAuthEnv(workflowData)
-	if workflowData != nil && workflowData.EngineConfig != nil && len(workflowData.EngineConfig.Env) > 0 {
-		maps.Copy(env, workflowData.EngineConfig.Env)
-	}
-	return GitHubActionStep{
-		"      - name: Validate Gemini Vertex AI configuration",
-		"        id: validate-secret",
-		"        run: |",
-		"          missing=()",
-		"          [[ -n \"${AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER:-}\" ]] || missing+=(\"engine.auth.workload-identity-provider\")",
-		"          [[ -n \"${GOOGLE_CLOUD_PROJECT:-}\" ]] || missing+=(\"engine.auth.project or engine.env.GOOGLE_CLOUD_PROJECT\")",
-		"          [[ -n \"${GOOGLE_CLOUD_LOCATION:-}\" ]] || missing+=(\"engine.auth.location or engine.env.GOOGLE_CLOUD_LOCATION\")",
-		"          if (( ${#missing[@]} > 0 )); then",
-		"            echo \"verification_result=failed\" >> \"$GITHUB_OUTPUT\"",
-		"            printf 'Missing Gemini Vertex AI configuration: %s\\nSee: %s\\n' \"${missing[*]}\" " + shellEscapeArg(geminiVertexAuthDocsURL) + " >&2",
-		"            exit 1",
-		"          fi",
-		"          echo \"verification_result=passed\" >> \"$GITHUB_OUTPUT\"",
-		"        env:",
-		appendEnvVarLine(nil, "AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER", env["AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER"])[0],
-		appendEnvVarLine(nil, "GOOGLE_CLOUD_LOCATION", env["GOOGLE_CLOUD_LOCATION"])[0],
-		appendEnvVarLine(nil, "GOOGLE_CLOUD_PROJECT", env["GOOGLE_CLOUD_PROJECT"])[0],
-	}
 }
 
 func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
@@ -332,7 +260,8 @@ touch %s
 
 	// Build environment variables
 	env := map[string]string{
-		"GH_AW_PROMPT": constants.AwPromptsFile,
+		"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}",
+		"GH_AW_PROMPT":   constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
@@ -350,12 +279,6 @@ touch %s
 		// Trust the workspace to prevent Gemini CLI v1.x from overriding --yolo to default
 		// approval mode when the workspace is untrusted, which causes exit code 55.
 		"GEMINI_CLI_TRUST_WORKSPACE": "true",
-	}
-	if isGeminiVertexOIDC(workflowData) {
-		env["GOOGLE_GENAI_USE_VERTEXAI"] = "true"
-		maps.Copy(env, geminiVertexAuthEnv(workflowData))
-	} else {
-		env["GEMINI_API_KEY"] = "${{ secrets.GEMINI_API_KEY }}"
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection,
@@ -376,12 +299,7 @@ touch %s
 	// When the firewall (AWF) is enabled with --enable-api-proxy, point Gemini CLI at the
 	// LLM gateway sidecar instead of the real googleapis.com endpoint.
 	if firewallEnabled {
-		if isGeminiVertexOIDC(workflowData) {
-			env["GOOGLE_API_KEY"] = geminiVertexAPIKeyPlaceholder
-			env["GOOGLE_VERTEX_BASE_URL"] = geminiVertexProxyURL
-		} else {
-			env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
-		}
+		env["GEMINI_API_BASE_URL"] = fmt.Sprintf("http://host.docker.internal:%d", constants.GeminiLLMGatewayPort)
 
 		// Set git identity environment variables so the first git commit succeeds inside the
 		// container. AWF's --env-all forwards these to the container, ensuring git does not

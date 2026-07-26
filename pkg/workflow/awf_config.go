@@ -560,11 +560,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
-	if vertexTarget := GetGeminiVertexAPITarget(config.WorkflowData, config.EngineName); vertexTarget != "" {
-		awfConfigLog.Printf("API proxy: custom vertex target=%s", vertexTarget)
-		targets["vertex"] = &AWFAPITargetConfig{Host: vertexTarget}
-	}
-
 	// Apply BYOK supplemental fields from sandbox.agent.targets.copilot frontmatter.
 	// extraHeaders, extraBodyFields, and sessionId are Copilot-specific and map to
 	// AWF_BYOK_EXTRA_HEADERS, AWF_BYOK_EXTRA_BODY_FIELDS, and AWF_PROVIDER_SESSION_ID.

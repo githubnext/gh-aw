@@ -37,25 +37,6 @@ func TestGeminiEngine(t *testing.T) {
 		assert.Contains(t, secrets, "GEMINI_API_KEY", "Should require GEMINI_API_KEY")
 	})
 
-	t.Run("required secrets skip GEMINI_API_KEY for Vertex OIDC", func(t *testing.T) {
-		workflowData := &WorkflowData{
-			Name:        "test",
-			ParsedTools: &ToolsConfig{},
-			Tools:       map[string]any{},
-			EngineConfig: &EngineConfig{
-				Auth: &EngineAuthConfig{
-					Type:                        "github-oidc",
-					Provider:                    "gcp",
-					GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
-					GCPProject:                  "my-project",
-					GCPLocation:                 "us-central1",
-				},
-			},
-		}
-		secrets := engine.GetRequiredSecretNames(workflowData)
-		assert.NotContains(t, secrets, "GEMINI_API_KEY", "Should not require GEMINI_API_KEY for Vertex OIDC")
-	})
-
 	t.Run("required secrets with MCP servers", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Name: "test",
@@ -182,30 +163,6 @@ func TestGeminiEngineExecution(t *testing.T) {
 		assert.Contains(t, stepContent, `--prompt "$(cat /tmp/gh-aw/aw-prompts/prompt.txt)"`, "Should include prompt argument with correct shell quoting")
 		assert.Contains(t, stepContent, "/tmp/test.log", "Should include log file")
 		assert.Contains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should set GEMINI_API_KEY env var")
-	})
-
-	t.Run("with Vertex OIDC auth", func(t *testing.T) {
-		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			EngineConfig: &EngineConfig{
-				Auth: &EngineAuthConfig{
-					Type:                        "github-oidc",
-					Provider:                    "gcp",
-					GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
-					GCPProject:                  "my-project",
-					GCPLocation:                 "us-central1",
-				},
-			},
-		}
-
-		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 2, "Should generate settings step and execution step")
-
-		stepContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, stepContent, "GOOGLE_GENAI_USE_VERTEXAI: true", "Should enable Vertex AI mode")
-		assert.Contains(t, stepContent, "GOOGLE_CLOUD_PROJECT: my-project", "Should set GOOGLE_CLOUD_PROJECT")
-		assert.Contains(t, stepContent, "GOOGLE_CLOUD_LOCATION: us-central1", "Should set GOOGLE_CLOUD_LOCATION")
-		assert.NotContains(t, stepContent, "GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}", "Should not set GEMINI_API_KEY in Vertex OIDC mode")
 	})
 
 	t.Run("with model", func(t *testing.T) {
@@ -387,35 +344,6 @@ func TestGeminiEngineFirewallIntegration(t *testing.T) {
 		assert.Contains(t, stepContent, "allowDomains", "Should include allowDomains in config JSON")
 		assert.Contains(t, stepContent, `\"enabled\":true`, "Should include apiProxy enabled in config JSON")
 		assert.Contains(t, stepContent, "GEMINI_API_BASE_URL: http://host.docker.internal:10003", "Should set GEMINI_API_BASE_URL to LLM gateway URL")
-	})
-
-	t.Run("firewall enabled with Vertex OIDC", func(t *testing.T) {
-		workflowData := &WorkflowData{
-			Name: "test-workflow",
-			NetworkPermissions: &NetworkPermissions{
-				Allowed: []string{"defaults"},
-				Firewall: &FirewallConfig{
-					Enabled: true,
-				},
-			},
-			EngineConfig: &EngineConfig{
-				Auth: &EngineAuthConfig{
-					Type:                        "github-oidc",
-					Provider:                    "gcp",
-					GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
-					GCPProject:                  "my-project",
-					GCPLocation:                 "us-central1",
-				},
-			},
-		}
-
-		steps := engine.GetExecutionSteps(workflowData, "/tmp/test.log")
-		require.Len(t, steps, 2, "Should generate settings step and execution step")
-
-		stepContent := strings.Join(steps[1], "\n")
-		assert.Contains(t, stepContent, "GOOGLE_VERTEX_BASE_URL: http://host.docker.internal:10004", "Should route Vertex AI traffic through the Vertex proxy")
-		assert.Contains(t, stepContent, "GOOGLE_API_KEY: awf-vertex-oidc", "Should provide the non-secret placeholder API key required by Gemini CLI")
-		assert.NotContains(t, stepContent, "GEMINI_API_BASE_URL", "Should not route Vertex AI traffic through the public Gemini proxy")
 	})
 
 	t.Run("firewall disabled", func(t *testing.T) {

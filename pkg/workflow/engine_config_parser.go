@@ -144,21 +144,6 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 	if s, ok := authObj["azure-cloud"].(string); ok {
 		auth.AzureCloud = s
 	}
-	if s, ok := authObj["workload-identity-provider"].(string); ok {
-		auth.GCPWorkloadIdentityProvider = s
-	}
-	if s, ok := authObj["service-account"].(string); ok {
-		auth.GCPServiceAccount = s
-	}
-	if s, ok := authObj["scope"].(string); ok {
-		auth.GCPScope = s
-	}
-	if s, ok := authObj["project"].(string); ok {
-		auth.GCPProject = s
-	}
-	if s, ok := authObj["location"].(string); ok {
-		auth.GCPLocation = s
-	}
 	if s, ok := authObj["federation-rule-id"].(string); ok {
 		auth.AnthropicFederationRuleID = s
 	}

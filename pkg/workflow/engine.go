@@ -121,18 +121,12 @@ type InlineEngineDriver struct {
 type EngineAuthConfig struct {
 	Type     string
 	Audience string
-	Provider string // "azure", "gcp", or "anthropic"
+	Provider string // "azure" or "anthropic"
 	// Azure WIF fields
 	AzureTenantID string
 	AzureClientID string
 	AzureScope    string
 	AzureCloud    string
-	// GCP WIF / Vertex AI fields
-	GCPWorkloadIdentityProvider string
-	GCPServiceAccount           string
-	GCPScope                    string
-	GCPProject                  string
-	GCPLocation                 string
 	// Anthropic WIF fields
 	AnthropicFederationRuleID string
 	AnthropicOrganizationID   string
@@ -729,9 +723,6 @@ func applyEngineAuthEnv(config *EngineConfig) {
 	setEngineAuthEnv(config.Env, "AWF_AUTH_AZURE_SCOPE", config.Auth.AzureScope)
 	setEngineAuthEnv(config.Env, "AWF_AUTH_AZURE_CLOUD", config.Auth.AzureCloud)
 	setEngineAuthEnv(config.Env, "AWF_AUTH_PROVIDER", config.Auth.Provider)
-	setEngineAuthEnv(config.Env, "AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER", config.Auth.GCPWorkloadIdentityProvider)
-	setEngineAuthEnv(config.Env, "AWF_AUTH_GCP_SERVICE_ACCOUNT", config.Auth.GCPServiceAccount)
-	setEngineAuthEnv(config.Env, "AWF_AUTH_GCP_SCOPE", config.Auth.GCPScope)
 	setEngineAuthEnv(config.Env, "AWF_AUTH_ANTHROPIC_FEDERATION_RULE_ID", config.Auth.AnthropicFederationRuleID)
 	setEngineAuthEnv(config.Env, "AWF_AUTH_ANTHROPIC_ORGANIZATION_ID", config.Auth.AnthropicOrganizationID)
 	setEngineAuthEnv(config.Env, "AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID", config.Auth.AnthropicServiceAccountID)
