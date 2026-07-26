@@ -13,6 +13,7 @@ import {
   shouldShowToolHelpForEmptyArgs,
   showHelp,
   showToolHelp,
+  tryExtractJsonFieldFromStdin,
   unescapeCliStringArg,
   writeStdoutAndFlush,
 } from "./mcp_cli_bridge.cjs";
@@ -761,6 +762,144 @@ describe("mcp_cli_bridge.cjs", () => {
       const { args } = parseToolArgs(["--title", ".", "--body", "."], schemaProperties, stdinContent);
 
       expect(args).toEqual({ title: "Shared stdin content.", body: "Shared stdin content." });
+    });
+  });
+
+  describe("per-field stdin mode with JSON stdin — field extraction", () => {
+    it("extracts matching field from JSON stdin when --body . is used (space-separated)", () => {
+      // Root cause of gh-aw-workshop#2118: agent piped JSON payload and used --body .
+      // expecting the body field to be extracted, but the entire JSON string ended up as body.
+      const schemaProperties = { title: { type: "string" }, body: { type: "string" } };
+      const stdinContent = '{"title":"Fix bug","body":"This PR fixes the issue."}';
+
+      const { args } = parseToolArgs(["--title", "Fix bug", "--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ title: "Fix bug", body: "This PR fixes the issue." });
+    });
+
+    it("extracts matching field from JSON stdin when --body=. is used (equals-separated)", () => {
+      const schemaProperties = { title: { type: "string" }, body: { type: "string" } };
+      const stdinContent = '{"title":"Fix bug","body":"Details here."}';
+
+      const { args } = parseToolArgs(["--title", "Fix bug", "--body=."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ title: "Fix bug", body: "Details here." });
+    });
+
+    it("extracts both title and body when --title . --body . used with JSON stdin", () => {
+      const schemaProperties = { title: { type: "string" }, body: { type: "string" } };
+      const stdinContent = '{"title":"Fix: Bug #123","body":"This PR fixes bug #123."}';
+
+      const { args } = parseToolArgs(["--title", ".", "--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ title: "Fix: Bug #123", body: "This PR fixes bug #123." });
+    });
+
+    it("falls back to raw stdin when JSON does not contain the target key", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = '{"other_field":"value"}';
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, stdinContent);
+
+      // No 'body' key in JSON → use raw stdin content
+      expect(args).toEqual({ body: stdinContent });
+    });
+
+    it("falls back to raw stdin when stdin is not a JSON object", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = "This is a long body from stdin.";
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ body: stdinContent });
+    });
+
+    it("falls back to raw stdin when stdin is a JSON array", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = '["item1","item2"]';
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ body: stdinContent });
+    });
+
+    it("falls back to raw stdin when stdin is invalid JSON", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const stdinContent = '{"body": not-valid-json}';
+
+      const { args } = parseToolArgs(["--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ body: stdinContent });
+    });
+
+    it("resolves dash/underscore aliased JSON key to canonical schema key", () => {
+      const schemaProperties = { issue_number: { type: "integer" } };
+      const stdinContent = '{"issue-number":42}';
+
+      const { args } = parseToolArgs(["--issue_number", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ issue_number: 42 });
+    });
+
+    it("preserves non-string JSON values extracted from stdin (e.g. boolean, number)", () => {
+      const schemaProperties = { draft: { type: "boolean" }, count: { type: "integer" } };
+      const stdinContent = '{"draft":true,"count":5}';
+
+      const { args: draftArgs } = parseToolArgs(["--draft", "."], schemaProperties, stdinContent);
+      const { args: countArgs } = parseToolArgs(["--count", "."], schemaProperties, stdinContent);
+
+      expect(draftArgs).toEqual({ draft: true });
+      expect(countArgs).toEqual({ count: 5 });
+    });
+
+    it("handles multiline JSON payload with --body . correctly", () => {
+      const schemaProperties = { title: { type: "string" }, body: { type: "string" } };
+      const stdinContent = `{
+  "title": "Fix bug",
+  "body": "### Summary\\n\\nDetails here."
+}`;
+
+      const { args } = parseToolArgs(["--title", "Fix bug", "--body", "."], schemaProperties, stdinContent);
+
+      expect(args).toEqual({ title: "Fix bug", body: "### Summary\n\nDetails here." });
+    });
+  });
+
+  describe("tryExtractJsonFieldFromStdin", () => {
+    it("extracts a field value from a JSON object string", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const result = tryExtractJsonFieldFromStdin(
+        '{"title":"Fix","body":"PR description"}',
+        "body",
+        schemaProperties,
+        new Map([
+          ["title", "title"],
+          ["body", "body"],
+        ]),
+        new Set()
+      );
+      expect(result).toBe("PR description");
+    });
+
+    it("returns undefined when the key is absent from the JSON", () => {
+      const schemaProperties = { body: { type: "string" } };
+      const result = tryExtractJsonFieldFromStdin('{"title":"Fix"}', "body", schemaProperties, new Map([["title", "title"]]), new Set());
+      expect(result).toBeUndefined();
+    });
+
+    it("returns undefined for non-object JSON (array)", () => {
+      const result = tryExtractJsonFieldFromStdin('["a","b"]', "body", {}, new Map(), new Set());
+      expect(result).toBeUndefined();
+    });
+
+    it("returns undefined for invalid JSON", () => {
+      const result = tryExtractJsonFieldFromStdin("{not valid}", "body", {}, new Map(), new Set());
+      expect(result).toBeUndefined();
+    });
+
+    it("returns undefined for plain text (not starting with {)", () => {
+      const result = tryExtractJsonFieldFromStdin("plain text", "body", {}, new Map(), new Set());
+      expect(result).toBeUndefined();
     });
   });
 
