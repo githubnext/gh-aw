@@ -13829,7 +13829,7 @@
         },
         "sessionId": {
           "type": "string",
-          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Must be set explicitly — strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
+          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it — strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
         }
       },
       "additionalProperties": false
