@@ -339,6 +339,57 @@ See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for add
 
 ---
 
+### Gemini Vertex AI via GitHub OIDC
+
+For enterprise Gemini workloads, gh-aw also supports keyless Vertex AI auth via `engine.auth` with `provider: gcp`. This routes Gemini CLI through the AWF Vertex AI proxy and exchanges the GitHub Actions OIDC token for Google Cloud access in the sidecar.
+
+```aw wrap
+permissions:
+  contents: read
+  id-token: write
+
+engine:
+  id: gemini
+  auth:
+    type: github-oidc
+    provider: gcp
+    workload-identity-provider: projects/123456789012/locations/global/workloadIdentityPools/github/providers/github
+    # Optional: impersonate a service account instead of using the federated principal directly
+    service-account: gemini-cli@my-project.iam.gserviceaccount.com
+    # Optional: override Google OAuth scope
+    # scope: https://www.googleapis.com/auth/cloud-platform
+    project: my-project
+    location: us-central1
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|---|---|---|
+| `workload-identity-provider` | ✅ | Full Google Cloud Workload Identity Provider resource name |
+| `service-account` | Optional | Service account email to impersonate |
+| `scope` | Optional | OAuth scope override (default: `https://www.googleapis.com/auth/cloud-platform`) |
+| `project` | ✅ | Google Cloud project ID used by Gemini CLI Vertex mode |
+| `location` | ✅ | Google Cloud region used by Gemini CLI Vertex mode (for example, `us-central1`) |
+
+**Emitted environment variables:**
+
+| Field | Env var |
+|---|---|
+| `type: github-oidc` | `AWF_AUTH_TYPE=github-oidc` |
+| `provider: gcp` | `AWF_AUTH_PROVIDER=gcp` |
+| `workload-identity-provider` | `AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER` |
+| `service-account` | `AWF_AUTH_GCP_SERVICE_ACCOUNT` |
+| `scope` | `AWF_AUTH_GCP_SCOPE` |
+| `project` | `GOOGLE_CLOUD_PROJECT` |
+| `location` | `GOOGLE_CLOUD_LOCATION` |
+
+At runtime gh-aw also enables `GOOGLE_GENAI_USE_VERTEXAI=true` automatically and, when the firewall/api-proxy is enabled, routes Gemini CLI through the AWF Vertex AI proxy with a non-secret placeholder `GOOGLE_API_KEY`.
+
+Available since: vNEXT.
+
+---
+
 ## Troubleshooting auth errors
 
 Common authentication errors and how to resolve them:

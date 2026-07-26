@@ -2002,7 +2002,7 @@ const ENGINE_ID_TO_CREDENTIAL = /** @type {Record<string, string>} */ {
   copilot: "`COPILOT_GITHUB_TOKEN`",
   claude: "`ANTHROPIC_API_KEY`",
   codex: "`CODEX_API_KEY` / `OPENAI_API_KEY`",
-  gemini: "`GEMINI_API_KEY`",
+  gemini: "`GEMINI_API_KEY` or Vertex AI `engine.auth` (provider: gcp)",
 };
 
 // Maps engine ID to a human-readable provider label.
@@ -2020,6 +2020,7 @@ const FIREWALL_AUTH_PROVIDER_HOSTS = /** @type {Array<{provider: string, pattern
   { provider: "OpenAI Codex", pattern: /^api\.openai\.com/i, credential: "`CODEX_API_KEY` / `OPENAI_API_KEY`" },
   { provider: "Anthropic Claude", pattern: /^api\.anthropic\.com/i, credential: "`ANTHROPIC_API_KEY`" },
   { provider: "Google Gemini", pattern: /^generativelanguage\.googleapis\.com/i, credential: "`GEMINI_API_KEY`" },
+  { provider: "Google Gemini", pattern: /(?:^|[.-])aiplatform\.googleapis\.com/i, credential: "Vertex AI `engine.auth` (provider: gcp) or `GOOGLE_API_KEY`" },
 ];
 
 /**

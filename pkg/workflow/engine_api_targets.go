@@ -212,6 +212,9 @@ const DefaultAntigravityAPITarget = "generativelanguage.googleapis.com"
 // Deprecated: Use DefaultAntigravityAPITarget. This constant is kept for backward compatibility.
 const DefaultGeminiAPITarget = DefaultAntigravityAPITarget
 
+// DefaultGeminiVertexAPITarget is the default Vertex AI API endpoint hostname.
+const DefaultGeminiVertexAPITarget = "aiplatform.googleapis.com"
+
 // GetAntigravityAPITarget returns the effective Antigravity API target hostname for the LLM gateway proxy.
 // Unlike other engines where AWF has built-in default routing, Antigravity requires an explicit target.
 //
@@ -256,13 +259,38 @@ func GetGeminiAPITarget(workflowData *WorkflowData, engineName string) string {
 	}
 
 	// Default to the standard Gemini API endpoint when engine is Gemini
-	if engineName == "gemini" {
+	if engineName == "gemini" && !isGeminiVertexOIDC(workflowData) {
 		awfHelpersLog.Printf("Using default Gemini API target: %s", DefaultGeminiAPITarget)
 		return DefaultGeminiAPITarget
 	}
 
 	awfHelpersLog.Print("No Gemini API target configured (engine is not gemini and no custom URL)")
 	return ""
+}
+
+// GetGeminiVertexAPITarget returns the effective Vertex AI API target hostname for Gemini Vertex mode.
+//
+// Resolution order:
+//  1. GOOGLE_VERTEX_BASE_URL in engine.env (custom endpoint)
+//  2. <location>-aiplatform.googleapis.com when Gemini Vertex auth is configured with a location
+//  3. Default: aiplatform.googleapis.com when Gemini Vertex auth is configured without a location
+func GetGeminiVertexAPITarget(workflowData *WorkflowData, engineName string) string {
+	awfHelpersLog.Printf("Getting Gemini Vertex API target for engine: %s", engineName)
+	if customTarget := extractAPITargetHost(workflowData, "GOOGLE_VERTEX_BASE_URL"); customTarget != "" {
+		awfHelpersLog.Printf("Using custom Gemini Vertex API target from GOOGLE_VERTEX_BASE_URL: %s", customTarget)
+		return customTarget
+	}
+	if engineName != "gemini" || !isGeminiVertexOIDC(workflowData) {
+		awfHelpersLog.Print("No Gemini Vertex API target configured")
+		return ""
+	}
+	if auth := workflowData.EngineConfig.Auth; auth != nil && strings.TrimSpace(auth.GCPLocation) != "" {
+		target := strings.TrimSpace(auth.GCPLocation) + "-aiplatform.googleapis.com"
+		awfHelpersLog.Printf("Using regional Gemini Vertex API target: %s", target)
+		return target
+	}
+	awfHelpersLog.Printf("Using default Gemini Vertex API target: %s", DefaultGeminiVertexAPITarget)
+	return DefaultGeminiVertexAPITarget
 }
 
 // getEngineAPIHosts returns the primary AI inference API hostnames for the given engine and
@@ -299,6 +327,9 @@ func getEngineAPIHosts(data *WorkflowData, engine CodingAgentEngine) []string {
 	case *CodexEngine:
 		return []string{"api.openai.com"}
 	case *GeminiEngine:
+		if vertexTarget := GetGeminiVertexAPITarget(data, engine.GetID()); vertexTarget != "" {
+			return []string{vertexTarget, DefaultGeminiVertexAPITarget}
+		}
 		return []string{DefaultGeminiAPITarget}
 	case *AntigravityEngine:
 		return []string{DefaultAntigravityAPITarget}

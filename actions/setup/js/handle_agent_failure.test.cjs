@@ -4274,6 +4274,15 @@ describe("handle_agent_failure", () => {
       expect(result[0].credential).toContain("GEMINI_API_KEY");
     });
 
+    it("detects Gemini Vertex AI auth rejection via hardcoded fallback", () => {
+      const jsonlPath = path.join(tmpDir, "audit.jsonl");
+      fs.writeFileSync(jsonlPath, JSON.stringify({ ts: 1000, host: "us-central1-aiplatform.googleapis.com:443", status: 403 }));
+      const result = parseFirewallAuthErrors(jsonlPath);
+      expect(result).toHaveLength(1);
+      expect(result[0].provider).toBe("Google Gemini");
+      expect(result[0].credential).toContain("provider: gcp");
+    });
+
     it("deduplicates multiple auth errors for the same provider", () => {
       const jsonlPath = path.join(tmpDir, "audit.jsonl");
       fs.writeFileSync(jsonlPath, [JSON.stringify({ ts: 1000, host: "api.enterprise.githubcopilot.com:443", status: 401 }), JSON.stringify({ ts: 1001, host: "api.githubcopilot.com:443", status: 401 })].join("\n"));

@@ -1971,12 +1971,93 @@ func TestGetGeminiAPITarget(t *testing.T) {
 			engineName: "custom",
 			expected:   "custom-proxy.example.com",
 		},
+		{
+			name: "returns empty for gemini public API target when Vertex OIDC is configured",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "gemini",
+					Auth: &EngineAuthConfig{
+						Type:                        "github-oidc",
+						Provider:                    "gcp",
+						GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+						GCPProject:                  "my-project",
+						GCPLocation:                 "us-central1",
+					},
+				},
+			},
+			engineName: "gemini",
+			expected:   "",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GetGeminiAPITarget(tt.workflowData, tt.engineName)
 			assert.Equal(t, tt.expected, result, "GetGeminiAPITarget should return expected hostname")
+		})
+	}
+}
+
+func TestGetGeminiVertexAPITarget(t *testing.T) {
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		engineName   string
+		expected     string
+	}{
+		{
+			name: "returns regional target for gemini vertex auth",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "gemini",
+					Auth: &EngineAuthConfig{
+						Type:                        "github-oidc",
+						Provider:                    "gcp",
+						GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+						GCPProject:                  "my-project",
+						GCPLocation:                 "us-central1",
+					},
+				},
+			},
+			engineName: "gemini",
+			expected:   "us-central1-aiplatform.googleapis.com",
+		},
+		{
+			name: "custom GOOGLE_VERTEX_BASE_URL takes precedence",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "gemini",
+					Env: map[string]string{
+						"GOOGLE_VERTEX_BASE_URL": "https://vertex-proxy.internal.example.com/v1",
+					},
+					Auth: &EngineAuthConfig{
+						Type:                        "github-oidc",
+						Provider:                    "gcp",
+						GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+						GCPProject:                  "my-project",
+						GCPLocation:                 "us-central1",
+					},
+				},
+			},
+			engineName: "gemini",
+			expected:   "vertex-proxy.internal.example.com",
+		},
+		{
+			name: "returns empty when vertex auth is not configured",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "gemini",
+				},
+			},
+			engineName: "gemini",
+			expected:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GetGeminiVertexAPITarget(tt.workflowData, tt.engineName)
+			assert.Equal(t, tt.expected, result, "GetGeminiVertexAPITarget should return expected hostname")
 		})
 	}
 }
@@ -2073,6 +2154,39 @@ func TestAWFGeminiAPITargetFlags(t *testing.T) {
 		args := BuildAWFArgs(config)
 		argsStr := strings.Join(args, " ")
 		assert.NotContains(t, argsStr, "--gemini-api-target", "Should not include --gemini-api-target for non-gemini engine")
+	})
+
+	t.Run("includes vertex target in config JSON for gemini vertex auth", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "test-workflow",
+			EngineConfig: &EngineConfig{
+				ID: "gemini",
+				Auth: &EngineAuthConfig{
+					Type:                        "github-oidc",
+					Provider:                    "gcp",
+					GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+					GCPProject:                  "my-project",
+					GCPLocation:                 "us-central1",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+				},
+			},
+		}
+
+		config := AWFCommandConfig{
+			EngineName:     "gemini",
+			WorkflowData:   workflowData,
+			AllowedDomains: "github.com",
+		}
+
+		awfConfigJSON, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err, "BuildAWFConfigJSON should succeed")
+		assert.Contains(t, awfConfigJSON, `"vertex"`, "Should include vertex target in config JSON")
+		assert.Contains(t, awfConfigJSON, "us-central1-aiplatform.googleapis.com", "Should include regional Vertex AI hostname")
+		assert.NotContains(t, awfConfigJSON, `"gemini":{"host":"generativelanguage.googleapis.com"`, "Should not include the public Gemini target in Vertex mode")
 	})
 
 	t.Run("includes gemini-api-base-path when custom URL has path component", func(t *testing.T) {

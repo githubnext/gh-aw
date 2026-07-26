@@ -128,6 +128,33 @@ func TestClaudeEngineWIFSkipsSecretValidation(t *testing.T) {
 	}
 }
 
+func TestGeminiEngineVertexOIDCUsesConfigValidationStep(t *testing.T) {
+	engine := NewGeminiEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Auth: &EngineAuthConfig{
+				Type:                        "github-oidc",
+				Provider:                    "gcp",
+				GCPWorkloadIdentityProvider: "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+				GCPProject:                  "my-project",
+				GCPLocation:                 "us-central1",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected a non-empty Vertex AI validation step")
+	}
+
+	stepContent := strings.Join(step, "\n")
+	assert.Contains(t, stepContent, "Validate Gemini Vertex AI configuration")
+	assert.Contains(t, stepContent, "id: validate-secret")
+	assert.Contains(t, stepContent, "AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER")
+	assert.Contains(t, stepContent, "GOOGLE_CLOUD_PROJECT")
+	assert.Contains(t, stepContent, "GOOGLE_CLOUD_LOCATION")
+}
+
 func TestCopilotEngineHasSecretValidation(t *testing.T) {
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{}

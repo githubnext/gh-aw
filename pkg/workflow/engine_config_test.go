@@ -772,6 +772,41 @@ func TestExtractEngineConfig_AnthropicWIFMapsToAWFEnv(t *testing.T) {
 	assert.Equal(t, "ws_01GHI", config.Env["AWF_AUTH_ANTHROPIC_WORKSPACE_ID"])
 }
 
+func TestExtractEngineConfig_GCPWIFMapsToAWFEnv(t *testing.T) {
+	compiler := NewCompiler()
+	_, config, _ := compiler.ExtractEngineConfig(map[string]any{
+		"engine": map[string]any{
+			"id": "gemini",
+			"auth": map[string]any{
+				"type":                       "github-oidc",
+				"provider":                   "gcp",
+				"workload-identity-provider": "projects/123/locations/global/workloadIdentityPools/pool/providers/github",
+				"service-account":            "gemini@project.iam.gserviceaccount.com",
+				"scope":                      "https://www.googleapis.com/auth/cloud-platform",
+				"project":                    "my-project",
+				"location":                   "us-central1",
+			},
+		},
+	})
+
+	assert.NotNil(t, config)
+	if assert.NotNil(t, config.Auth) {
+		assert.Equal(t, "github-oidc", config.Auth.Type)
+		assert.Equal(t, "gcp", config.Auth.Provider)
+		assert.Equal(t, "projects/123/locations/global/workloadIdentityPools/pool/providers/github", config.Auth.GCPWorkloadIdentityProvider)
+		assert.Equal(t, "gemini@project.iam.gserviceaccount.com", config.Auth.GCPServiceAccount)
+		assert.Equal(t, "https://www.googleapis.com/auth/cloud-platform", config.Auth.GCPScope)
+		assert.Equal(t, "my-project", config.Auth.GCPProject)
+		assert.Equal(t, "us-central1", config.Auth.GCPLocation)
+	}
+
+	assert.Equal(t, "github-oidc", config.Env["AWF_AUTH_TYPE"])
+	assert.Equal(t, "gcp", config.Env["AWF_AUTH_PROVIDER"])
+	assert.Equal(t, "projects/123/locations/global/workloadIdentityPools/pool/providers/github", config.Env["AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER"])
+	assert.Equal(t, "gemini@project.iam.gserviceaccount.com", config.Env["AWF_AUTH_GCP_SERVICE_ACCOUNT"])
+	assert.Equal(t, "https://www.googleapis.com/auth/cloud-platform", config.Env["AWF_AUTH_GCP_SCOPE"])
+}
+
 func TestCompileWorkflowWithExtendedEngine(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "extended-engine-test")

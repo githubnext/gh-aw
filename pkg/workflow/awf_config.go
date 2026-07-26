@@ -544,7 +544,10 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
-	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
+	if vertexTarget := GetGeminiVertexAPITarget(config.WorkflowData, config.EngineName); vertexTarget != "" {
+		awfConfigLog.Printf("API proxy: custom vertex target=%s", vertexTarget)
+		targets["vertex"] = &AWFAPITargetConfig{Host: vertexTarget}
+	} else if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
 		// Route the Antigravity-resolved API target through the "gemini" provider key
 		// to match AWF's supported target providers.
 		awfConfigLog.Printf("API proxy: mapped antigravity target to gemini provider target=%s", antigravityTarget)

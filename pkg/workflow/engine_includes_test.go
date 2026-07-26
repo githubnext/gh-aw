@@ -905,3 +905,62 @@ imports:
 	assert.Contains(t, lockStr, "AWF_AUTH_AZURE_SCOPE: https://cognitiveservices.azure.com/.default", "lock file must contain Azure scope")
 	assert.Contains(t, lockStr, "AWF_AUTH_AZURE_CLOUD: public", "lock file must contain Azure cloud")
 }
+
+func TestImportedEngineWithGeminiVertexOIDCAuth(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-gemini-vertex-auth-import-*")
+	workflowsDir := filepath.Join(tmpDir, constants.GetWorkflowDir())
+	sharedDir := filepath.Join(workflowsDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+
+	sharedContent := `---
+engine:
+  id: gemini
+  auth:
+    type: github-oidc
+    provider: gcp
+    workload-identity-provider: projects/123/locations/global/workloadIdentityPools/pool/providers/github
+    service-account: gemini@project.iam.gserviceaccount.com
+    scope: https://www.googleapis.com/auth/cloud-platform
+    project: my-project
+    location: us-central1
+---
+
+# Shared Gemini Vertex auth config
+`
+	sharedFile := filepath.Join(sharedDir, "gemini-vertex-auth.md")
+	require.NoError(t, os.WriteFile(sharedFile, []byte(sharedContent), 0644))
+
+	mainContent := `---
+name: Test Imported Gemini Vertex Auth
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+  id-token: write
+imports:
+  - shared/gemini-vertex-auth.md
+---
+
+# Test Workflow
+`
+	mainFile := filepath.Join(workflowsDir, "test-gemini-vertex-auth.md")
+	require.NoError(t, os.WriteFile(mainFile, []byte(mainContent), 0644))
+
+	compiler := NewCompiler()
+	err := compiler.CompileWorkflow(mainFile)
+	require.NoError(t, err, "compilation must succeed for imported Gemini Vertex auth mapping")
+
+	lockFile := filepath.Join(workflowsDir, "test-gemini-vertex-auth.lock.yml")
+	lockContent, err := os.ReadFile(lockFile)
+	require.NoError(t, err, "lock file should be created")
+
+	lockStr := string(lockContent)
+	assert.Contains(t, lockStr, "AWF_AUTH_TYPE: github-oidc")
+	assert.Contains(t, lockStr, "AWF_AUTH_PROVIDER: gcp")
+	assert.Contains(t, lockStr, "AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER: projects/123/locations/global/workloadIdentityPools/pool/providers/github")
+	assert.Contains(t, lockStr, "AWF_AUTH_GCP_SERVICE_ACCOUNT: gemini@project.iam.gserviceaccount.com")
+	assert.Contains(t, lockStr, "AWF_AUTH_GCP_SCOPE: https://www.googleapis.com/auth/cloud-platform")
+	assert.Contains(t, lockStr, "GOOGLE_CLOUD_PROJECT: my-project")
+	assert.Contains(t, lockStr, "GOOGLE_CLOUD_LOCATION: us-central1")
+	assert.Contains(t, lockStr, "GOOGLE_GENAI_USE_VERTEXAI: true")
+}
