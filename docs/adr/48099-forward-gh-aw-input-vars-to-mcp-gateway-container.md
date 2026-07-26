@@ -1,7 +1,7 @@
 # ADR-48099: Forward GH_AW_INPUT_* Vars to MCP Gateway Container
 
 **Date**: 2026-07-26
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
