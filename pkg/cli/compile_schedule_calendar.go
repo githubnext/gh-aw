@@ -197,11 +197,11 @@ func intensityChar(count int) string {
 
 // intensityStyle returns a centralized style appropriate for the given trigger
 // count.
-type scheduleCalendarStyle interface {
+type scheduleCalendarRenderer interface {
 	Render(...string) string
 }
 
-func intensityStyle(count int) scheduleCalendarStyle {
+func intensityStyle(count int) scheduleCalendarRenderer {
 	switch {
 	case count == 0:
 		return styles.ScheduleCalendarEmpty
@@ -218,7 +218,7 @@ func intensityStyle(count int) scheduleCalendarStyle {
 
 func hasNoColorEnviron(environ []string) bool {
 	for _, envVar := range environ {
-		if envVar == "NO_COLOR" || strings.HasPrefix(envVar, "NO_COLOR=") {
+		if strings.HasPrefix(envVar, "NO_COLOR=") {
 			return true
 		}
 	}
