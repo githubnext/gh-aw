@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	lipgloss "charm.land/lipgloss/v2"
 	"github.com/github/gh-aw/pkg/colorwriter"
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/styles"
@@ -198,7 +197,11 @@ func intensityChar(count int) string {
 
 // intensityStyle returns a centralized style appropriate for the given trigger
 // count.
-func intensityStyle(count int) lipgloss.Style {
+type scheduleCalendarStyle interface {
+	Render(...string) string
+}
+
+func intensityStyle(count int) scheduleCalendarStyle {
 	switch {
 	case count == 0:
 		return styles.ScheduleCalendarEmpty
@@ -213,8 +216,17 @@ func intensityStyle(count int) lipgloss.Style {
 	}
 }
 
+func hasNoColorEnviron(environ []string) bool {
+	for _, envVar := range environ {
+		if envVar == "NO_COLOR" || strings.HasPrefix(envVar, "NO_COLOR=") {
+			return true
+		}
+	}
+	return false
+}
+
 func renderScheduleCalendarCell(count int, text string, isTerminal bool, environ []string) string {
-	if !isTerminal {
+	if !isTerminal || hasNoColorEnviron(environ) {
 		return text
 	}
 	return colorwriter.Degrade(intensityStyle(count).Render(text), environ)
