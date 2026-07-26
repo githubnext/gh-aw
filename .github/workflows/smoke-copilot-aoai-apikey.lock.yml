@@ -100,8 +100,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' &&
-      fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'smoke' || !(fromJSON(github.event.inputs.aw_context ||
+      needs.pre_activation.outputs.activated == 'true' && ((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request') &&
+      (fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'smoke') || !(fromJSON(github.event.inputs.aw_context ||
       '{}').event_type == 'pull_request'))
     runs-on: ubuntu-slim
     permissions:
@@ -2796,8 +2796,8 @@ jobs:
 
   pre_activation:
     if: >
-      fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' && fromJSON(github.event.inputs.aw_context ||
-      '{}').trigger_label == 'smoke' || !(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')
+      (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request') && (fromJSON(github.event.inputs.aw_context ||
+      '{}').trigger_label == 'smoke') || !(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')
     runs-on: ubuntu-slim
     permissions:
       contents: read
