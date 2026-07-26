@@ -196,6 +196,8 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 	// ModelMappings is propagated so the evals awf-config.json includes the alias map
 	// (apiProxy.models). Without it, copilot_harness.cjs cannot resolve alias model names
 	// (e.g. "small") to concrete ids before spawning the engine in the evals job.
+	// ModelCosts is propagated so evals awf-config.json includes provider pricing overlays
+	// (apiProxy.providers), allowing max-ai-credits pricing lookup for custom/BYOK models.
 	evalsData := &WorkflowData{
 		Tools: map[string]any{
 			"bash": []any{"*"},
@@ -211,6 +213,7 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		IsEvalsRun:        true,
 		RunnerConfig:      data.RunnerConfig,  // propagate runner.topology (e.g. arc-dind) to the evals job
 		ModelMappings:     data.ModelMappings, // propagate alias map so evals awf-config.json can resolve model aliases
+		ModelCosts:        data.ModelCosts,    // propagate pricing providers so evals awf-config.json can resolve AI-credit costs
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 		},
@@ -219,6 +222,17 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 				Type: SandboxTypeAWF,
 			},
 		},
+	}
+	if firewallConfig := getFirewallConfig(data); firewallConfig != nil {
+		firewallCopy := *firewallConfig
+		evalsData.NetworkPermissions.Firewall = &firewallCopy
+		if evalsData.SandboxConfig == nil {
+			evalsData.SandboxConfig = &SandboxConfig{}
+		}
+		if evalsData.SandboxConfig.Agent == nil {
+			evalsData.SandboxConfig.Agent = &AgentSandboxConfig{Type: SandboxTypeAWF}
+		}
+		evalsData.SandboxConfig.Agent.Version = firewallCopy.Version
 	}
 
 	var steps []string
