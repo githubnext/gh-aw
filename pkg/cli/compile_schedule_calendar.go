@@ -195,15 +195,16 @@ func intensityChar(count int) string {
 	}
 }
 
-// intensityStyle returns a centralized style appropriate for the given trigger
-// count.
-// scheduleCalendarRenderer keeps this function compatible with both normal
-// builds (lipgloss.Style) and js/wasm builds (styles.WasmStyle), which both
-// provide Render(...string) string.
+// scheduleCalendarRenderer abstracts the shared Render method implemented by
+// both lipgloss.Style (normal builds) and styles.WasmStyle (js/wasm builds).
+// Using this interface keeps intensityStyle free of a concrete lipgloss.Style
+// return type that would fail to compile for wasm style tokens.
 type scheduleCalendarRenderer interface {
 	Render(...string) string
 }
 
+// intensityStyle returns a centralized style appropriate for the given trigger
+// count.
 func intensityStyle(count int) scheduleCalendarRenderer {
 	switch {
 	case count == 0:
