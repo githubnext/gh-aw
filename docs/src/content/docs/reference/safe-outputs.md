@@ -1631,6 +1631,24 @@ safe-outputs:
     github-token: ${{ secrets.PR_PAT }}    # per-output
 ```
 
+`github-token` accepts these GitHub Actions expression forms:
+
+- `secrets.NAME`
+- `needs.<job>.outputs.<name>`
+- `steps.<id>.outputs.<name>`
+
+The `steps.*.outputs.*` form is useful when the safe-outputs job mints a short-lived token in `pre-steps:` or `setup-steps:` and then reuses that token for `Process Safe Outputs` in the same job.
+
+```yaml wrap
+pre-steps:
+  - id: fetch_token
+    run: echo "token=${TOKEN}" >> "$GITHUB_OUTPUT"
+
+safe-outputs:
+  github-token: ${{ steps.fetch_token.outputs.token }}
+  create-pull-request:
+```
+
 ### Using a GitHub App for Authentication (`github-app:`)
 
 Use GitHub App tokens for enhanced security: on-demand token minting, automatic revocation, fine-grained permissions, and better attribution.
