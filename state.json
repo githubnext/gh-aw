@@ -2,7 +2,7 @@
   "counts": {
     "tool_verbosity": {
       "full_bash": 29,
-      "minimal_toolset": 33
+      "minimal_toolset": 34
     }
   },
   "runs": [
@@ -436,6 +436,13 @@
     {
       "run_id": "30143603985",
       "timestamp": "2026-07-25T04:12:34.544Z",
+      "assignments": {
+        "tool_verbosity": "minimal_toolset"
+      }
+    },
+    {
+      "run_id": "30187569831",
+      "timestamp": "2026-07-26T04:19:19.756Z",
       "assignments": {
         "tool_verbosity": "minimal_toolset"
       }
