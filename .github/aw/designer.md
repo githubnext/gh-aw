@@ -266,6 +266,7 @@ Never suggest committing plaintext tokens.
 | "search for patterns across repos" | add `steps:` using `gh search` + `jq` filters |
 | "just respond to a comment" | no pre-fetch needed (event payload is enough) |
 | "process each item individually" | suggest sub-agent pattern with `model: small` |
+| "weekly digest", "compliance report", "license review", "policy audit" | pre-fetch with `gh` + `jq` into `/tmp/gh-aw/data/`; point prompt to those files |
 
 ## Token Optimization Defaults
 
