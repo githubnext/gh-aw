@@ -5,34 +5,21 @@ sidebar:
   order: 350
 ---
 
-Agentic workflows support four simple templating/substitution mechanisms: 
-
-* GitHub Actions expressions in frontmatter or markdown
-* Conditional Templating blocks in markdown
-* [Imports](/gh-aw/reference/imports/) in frontmatter or markdown (compile-time)
-* Runtime imports in markdown (runtime file/URL inclusion)
+Agentic workflows support four templating and substitution mechanisms: GitHub Actions expressions in frontmatter or markdown, conditional markdown blocks, [compile-time imports](/gh-aw/reference/imports/), and runtime imports for files or URLs.
 
 ## GitHub Actions Expressions
 
-Agentic workflows restrict expressions in **markdown content** to prevent security vulnerabilities from exposing secrets or environment variables to the LLM.
+Agentic workflows restrict expressions in **markdown content** so prompts cannot expose secrets or environment variables to the LLM.
 
-> **Note**: These restrictions apply only to markdown content. YAML frontmatter can use secrets and environment variables for workflow configuration.
+> **Note**: These restrictions apply only to markdown content. YAML frontmatter can still use secrets and environment variables for workflow configuration.
 
-**Permitted expressions** in markdown include:
-- Event properties: `github.event.*` (issue/PR numbers, titles, states, SHAs, IDs, etc.)
-- Repository context: `github.actor`, `github.owner`, `github.repository`, `github.server_url`, `github.workspace`
-- Run metadata: `github.run_id`, `github.run_number`, `github.job`, `github.workflow`
-- Pattern expressions: `needs.*`, `steps.*`, `github.event.inputs.*`
+Markdown allows event properties (`github.event.*`), repository context (`github.actor`, `github.owner`, `github.repository`, `github.server_url`, `github.workspace`), run metadata (`github.run_id`, `github.run_number`, `github.job`, `github.workflow`), and pattern expressions such as `needs.*`, `steps.*`, and `github.event.inputs.*`.
 
 ### Activation Outputs
 
-Use `steps.sanitized.outputs.text/title/body` in your markdown prompts to access sanitized event content:
+Use `steps.sanitized.outputs.text`, `.title`, or `.body` in markdown prompts to access sanitized event content. `text` includes the full sanitized context (title + body for issues and PRs, body for comments), while `title` and `body` expose those fields individually.
 
-- `steps.sanitized.outputs.text` — sanitized full context (title + body for issues/PRs, body for comments)
-- `steps.sanitized.outputs.title` — sanitized title of the triggering issue or PR
-- `steps.sanitized.outputs.body` — sanitized body of the triggering issue or PR
-
-Other activation outputs like `comment_id`, `comment_repo`, and `slash_command` are available as `needs.activation.outputs.*` in _downstream_ jobs (not in the markdown prompt itself).
+Other activation outputs such as `comment_id`, `comment_repo`, and `slash_command` are available as `needs.activation.outputs.*` in _downstream_ jobs, not in the markdown prompt itself.
 
 ### Prohibited Expressions
 
@@ -96,9 +83,7 @@ Runtime imports include content from files and URLs in workflow prompts **at run
 
 ### Macro Syntax
 
-Use `{{#runtime-import filepath}}` to include file content at runtime. Optional imports use `{{#runtime-import? filepath}}` which don't fail if the file is missing.
-
-**Important:** All file paths are resolved within the `.github` folder. You can specify paths with or without the `.github/` prefix:
+Use `{{#runtime-import filepath}}` to include file content at runtime. Use `{{#runtime-import? filepath}}` when the file is optional. All file paths resolve within `.github`, with or without the `.github/` prefix:
 
 ```aw wrap
 ---
@@ -150,11 +135,9 @@ The macro syntax supports HTTP/HTTPS URLs. URLs are **not restricted to `.github
 
 ### Security Features
 
-All runtime imports include automatic security protections.
+Runtime imports automatically strip YAML front matter and HTML/XML comments. GitHub Actions expressions (`${{ ... }}`) are rejected to prevent template injection or unintended variable expansion.
 
-**Content Sanitization:** YAML front matter and HTML/XML comments are automatically stripped. GitHub Actions expressions (`${{ ... }}`) are **rejected with error** to prevent template injection and unintended variable expansion.
-
-**Path Validation:** File paths are restricted to the `.github` folder to prevent access to arbitrary repository files. Path traversal and absolute paths are rejected:
+File paths are restricted to `.github` to prevent access to arbitrary repository files. Path traversal and absolute paths are rejected:
 
 ```aw wrap
 {{#runtime-import ../src/config.go}}  # Error: Relative traversal outside .github
@@ -167,18 +150,15 @@ Fetched URLs are cached for 1 hour per workflow run at `/tmp/gh-aw/url-cache/` (
 
 ### Processing Order
 
-Runtime imports are processed before other substitutions:
+Runtime imports run before other substitutions:
 
-1. `{{#runtime-import}}` macros processed (files and URLs)
+1. `{{#runtime-import}}` macros for files and URLs
 2. `${GH_AW_EXPR_*}` variable interpolation
-3. `{{#if}}` template conditionals rendered
+3. `{{#if}}` conditional rendering
 
 ### Limitations
 
-- **`.github` folder only:** File paths are restricted to `.github` folder for security
-- **No authentication:** URL fetching doesn't support private URLs with tokens
-- **Per-run cache:** URL cache doesn't persist across workflow runs
-- **Line numbers:** Refer to raw file content before front matter removal
+Runtime imports are limited to the `.github` folder for files, do not support authenticated URL fetches, use a per-run URL cache that does not persist across workflow runs, and interpret line numbers against the raw file before front matter removal.
 
 ### Deprecated `{{#import}}`
 
@@ -196,7 +176,7 @@ Runtime imports are processed before other substitutions:
 
 ## Related Documentation
 
-- [Markdown](/gh-aw/reference/markdown/) - Writing effective agentic markdown
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Overall workflow organization
-- [Frontmatter](/gh-aw/reference/frontmatter/) - YAML configuration
-- [Imports](/gh-aw/reference/imports/) - Compile-time imports in frontmatter
+- [Markdown](/gh-aw/reference/markdown/) for writing effective agentic markdown
+- [Workflow Structure](/gh-aw/reference/workflow-structure/) for overall workflow organization
+- [Frontmatter](/gh-aw/reference/frontmatter/) for YAML configuration
+- [Imports](/gh-aw/reference/imports/) for compile-time imports in frontmatter
