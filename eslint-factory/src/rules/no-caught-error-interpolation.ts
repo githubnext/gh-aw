@@ -2,11 +2,6 @@ import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-esl
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
-interface ErrorScope {
-  varName: string;
-  isSentinel: boolean;
-}
-
 /**
  * Returns true when the function node is an inline rejection handler passed to
  * a promise method (.catch(fn) or .then(onFulfilled, onRejected)).
@@ -24,16 +19,41 @@ function isInlineRejectionHandler(node: TSESTree.ArrowFunctionExpression | TSEST
 }
 
 /**
- * Returns true when `node` is a `TemplateLiteral` expression inside a
- * `TemplateLiteral` expression. Used to identify `${someVar}` directly
- * interpolated (as opposed to `${someVar.message}` or `${fn(someVar)}`).
- *
- * A "bare interpolation" is a `TSESTree.TemplateElement` expression where the
- * expression is exactly an `Identifier` — no member access, no call, no
- * unary/binary operation, no nullish coercion.
+ * Returns true when `node` is a bare `Identifier` expression — no member
+ * access, no call, no unary/binary operation, no nullish coercion. Used to
+ * identify direct `${someVar}` interpolations as opposed to safe forms such
+ * as `${someVar.message}` or `${fn(someVar)}`.
  */
 function isBareIdentifierExpression(node: TSESTree.Expression): node is TSESTree.Identifier {
   return node.type === AST_NODE_TYPES.Identifier;
+}
+
+/**
+ * Returns true when the variable definition represents a caught error binding
+ * that should not be interpolated directly:
+ *   - A try/catch clause with a simple identifier param (not destructured).
+ *   - A parameter of an inline promise rejection handler (.catch(fn) /
+ *     .then(_, fn)).
+ */
+function isCaughtErrorVariableDef(def: TSESLint.Scope.Definition): boolean {
+  // try/catch binding — only flag simple identifier params, not destructured ones
+  // (e.g. `catch ({ message })` introduces string properties, not raw error objects)
+  if (def.type === "CatchClause") {
+    const catchNode = def.node as TSESTree.CatchClause;
+    return catchNode.param?.type === AST_NODE_TYPES.Identifier;
+  }
+
+  // Inline rejection handler parameter (.catch(err => ...) / .then(_, err => ...))
+  // def.node is the function node for Parameter definitions
+  if (def.type === "Parameter") {
+    const fn = def.node as TSESTree.Node;
+    if (fn.type !== AST_NODE_TYPES.ArrowFunctionExpression && fn.type !== AST_NODE_TYPES.FunctionExpression) {
+      return false;
+    }
+    return isInlineRejectionHandler(fn as TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression);
+  }
+
+  return false;
 }
 
 export const noCaughtErrorInterpolationRule = createRule({
@@ -62,47 +82,19 @@ export const noCaughtErrorInterpolationRule = createRule({
   defaultOptions: [],
   create(context) {
     const sourceCode = context.sourceCode;
-    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
-
-    const scopeStack: ErrorScope[] = [];
-
-    function getCaughtVarNames(): Set<string> {
-      const names = new Set<string>();
-      for (let i = scopeStack.length - 1; i >= 0; i--) {
-        const scope = scopeStack[i];
-        if (scope.isSentinel) break;
-        if (scope.varName) names.add(scope.varName);
-      }
-      return names;
-    }
-
-    function enterFunction(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): void {
-      if (isInlineRejectionHandler(node)) {
-        const params = node.params;
-        if (params.length === 1 && params[0].type === AST_NODE_TYPES.Identifier) {
-          scopeStack.push({ varName: params[0].name, isSentinel: false });
-        } else {
-          scopeStack.push({ varName: "", isSentinel: true });
-        }
-      } else {
-        scopeStack.push({ varName: "", isSentinel: true });
-      }
-    }
-
-    function exitFunction(): void {
-      scopeStack.pop();
-    }
+    type Scope = ReturnType<typeof sourceCode.getScope>;
 
     function isDefinitionAvailableAtNode(definition: TSESLint.Scope.Definition, node: TSESTree.Node): boolean {
       if (definition.type === "ImportBinding" || definition.type === "FunctionName") {
         return true;
       }
       const definitionNode = definition.name ?? definition.node;
+      if (!definitionNode?.range || !node.range) return false;
       return definitionNode.range[0] < node.range[0];
     }
 
     function hasResolvableLocalBinding(node: TSESTree.Node, name: string): boolean {
-      let scope: SourceCodeScope | null = sourceCode.getScope(node);
+      let scope: Scope | null = sourceCode.getScope(node);
       while (scope) {
         const variable = scope.set.get(name);
         if (variable && variable.defs.some(def => isDefinitionAvailableAtNode(def, node))) {
@@ -114,30 +106,29 @@ export const noCaughtErrorInterpolationRule = createRule({
     }
 
     return {
-      CatchClause(node) {
-        const param = node.param;
-        if (!param || param.type !== AST_NODE_TYPES.Identifier) {
-          scopeStack.push({ varName: "", isSentinel: true });
-        } else {
-          scopeStack.push({ varName: param.name, isSentinel: false });
-        }
-      },
-      "CatchClause:exit"() {
-        scopeStack.pop();
-      },
-
-      ArrowFunctionExpression: enterFunction,
-      "ArrowFunctionExpression:exit": exitFunction,
-      FunctionExpression: enterFunction,
-      "FunctionExpression:exit": exitFunction,
-
       TemplateLiteral(node) {
-        const caughtNames = getCaughtVarNames();
-        if (caughtNames.size === 0) return;
+        // Tagged templates pass values to the tag function as-is; they are not
+        // string-coerced by interpolation, so flagging them would be incorrect.
+        if (node.parent?.type === AST_NODE_TYPES.TaggedTemplateExpression) return;
 
         for (const expr of node.expressions) {
           if (!isBareIdentifierExpression(expr)) continue;
-          if (!caughtNames.has(expr.name)) continue;
+
+          // Resolve the identifier through the full scope chain. This correctly
+          // handles closures: an identifier inside a nested function can still
+          // resolve to an outer catch binding.
+          let scope: Scope | null = sourceCode.getScope(expr);
+          let variable: TSESLint.Scope.Variable | null = null;
+          while (scope) {
+            const v = scope.set.get(expr.name);
+            if (v) {
+              variable = v;
+              break;
+            }
+            scope = scope.upper;
+          }
+
+          if (!variable || !variable.defs.some(isCaughtErrorVariableDef)) continue;
 
           const errorVar = expr.name;
           const getErrorMessageAvailable = hasResolvableLocalBinding(node, "getErrorMessage");

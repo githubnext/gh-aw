@@ -19,11 +19,7 @@ const esmRuleTester = new RuleTester({
 describe("no-caught-error-interpolation", () => {
   it("valid: non-caught variable interpolation is not flagged", () => {
     cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
-      valid: [
-        `const err = new Error("test"); const msg = \`Error: \${err}\`;`,
-        `const name = "world"; const s = \`Hello \${name}\`;`,
-        `fetch(url).then(r => \`status: \${r}\`);`,
-      ],
+      valid: [`const err = new Error("test"); const msg = \`Error: \${err}\`;`, `const name = "world"; const s = \`Hello \${name}\`;`, `fetch(url).then(r => \`status: \${r}\`);`],
       invalid: [],
     });
   });
@@ -41,20 +37,14 @@ describe("no-caught-error-interpolation", () => {
 
   it("valid: String(err) interpolation is not flagged", () => {
     cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
-      valid: [
-        `try { f(); } catch (err) { console.log(\`failed: \${String(err)}\`); }`,
-        `p.catch(err => \`error: \${String(err)}\`);`,
-      ],
+      valid: [`try { f(); } catch (err) { console.log(\`failed: \${String(err)}\`); }`, `p.catch(err => \`error: \${String(err)}\`);`],
       invalid: [],
     });
   });
 
   it("valid: err.message interpolation is not flagged (covered by no-unsafe-catch-error-property)", () => {
     cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
-      valid: [
-        `try { f(); } catch (err) { console.log(\`failed: \${err.message}\`); }`,
-        `try { f(); } catch (err) { console.log(\`stack: \${err.stack}\`); }`,
-      ],
+      valid: [`try { f(); } catch (err) { console.log(\`failed: \${err.message}\`); }`, `try { f(); } catch (err) { console.log(\`stack: \${err.stack}\`); }`],
       invalid: [],
     });
   });
@@ -66,11 +56,30 @@ describe("no-caught-error-interpolation", () => {
     });
   });
 
-  it("valid: outer catch variable not accessible inside nested non-rejection function", () => {
+  it("valid: tagged template expression is not flagged (tag receives raw values)", () => {
     cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
       valid: [
-        // The setTimeout callback is a sentinel: outer 'err' is not accessible
-        `try { f(); } catch (err) { setTimeout(function() { log(\`msg: \${err}\`); }, 0); }`,
+        // Tagged templates pass values to the tag as-is; no unsafe coercion occurs
+        `try { f(); } catch (err) { tag\`msg: \${err}\`; }`,
+        `p.catch(err => format\`error: \${err}\`);`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: .catch() with zero params is not flagged", () => {
+    cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
+      valid: [`fetch(url).catch(() => { log("caught"); });`],
+      invalid: [],
+    });
+  });
+
+  it("valid: destructured catch param elements are not flagged", () => {
+    cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
+      valid: [
+        // `message` is already a string extracted from the error object
+        `try { f(); } catch ({ message }) { log(\`failed: \${message}\`); }`,
+        `try { f(); } catch ({ message, code }) { log(\`\${code}: \${message}\`); }`,
       ],
       invalid: [],
     });
@@ -206,6 +215,70 @@ describe("no-caught-error-interpolation", () => {
                   messageId: "useStringFallback",
                   data: { errorVar: "err" },
                   output: `try { f(); } catch (err) { log(\`got \${err} at step, original: \${String(err)}\`); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: closure inside catch body still flags outer catch variable", () => {
+    cjsRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `try { f(); } catch (err) { setTimeout(function() { log(\`msg: \${err}\`); }, 0); }`,
+          errors: [
+            {
+              messageId: "bareErrorInterpolation",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { setTimeout(function() { log(\`msg: \${String(err)}\`); }, 0); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `try { f(); } catch (err) { [1].forEach(x => { log(\`\${err}\`); }); }`,
+          errors: [
+            {
+              messageId: "bareErrorInterpolation",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useStringFallback",
+                  data: { errorVar: "err" },
+                  output: `try { f(); } catch (err) { [1].forEach(x => { log(\`\${String(err)}\`); }); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: ESM import of getErrorMessage triggers getErrorMessage suggestion", () => {
+    esmRuleTester.run("no-caught-error-interpolation", noCaughtErrorInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `import { getErrorMessage } from "./error_helpers.js"; try { f(); } catch (err) { log(\`failed: \${err}\`); }`,
+          errors: [
+            {
+              messageId: "bareErrorInterpolation",
+              data: { errorVar: "err" },
+              suggestions: [
+                {
+                  messageId: "useGetErrorMessage",
+                  data: { errorVar: "err" },
+                  output: `import { getErrorMessage } from "./error_helpers.js"; try { f(); } catch (err) { log(\`failed: \${getErrorMessage(err)}\`); }`,
                 },
               ],
             },
