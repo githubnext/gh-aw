@@ -237,8 +237,8 @@ describe("safe_outputs_config", () => {
         loadConfig(mockServer);
 
         // Deduplication: only one diagnostic per unique unresolved var
-        const errorCalls = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_FOO"));
-        expect(errorCalls).toHaveLength(1);
+        const unresolvedPlaceholderErrors = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_FOO"));
+        expect(unresolvedPlaceholderErrors).toHaveLength(1);
 
         const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
         expect(debugOutput).toContain("GH_AW_INPUT_FOO");
@@ -266,8 +266,8 @@ describe("safe_outputs_config", () => {
       try {
         loadConfig(mockServer);
 
-        const errorCalls = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_"));
-        expect(errorCalls).toHaveLength(0);
+        const inputPlaceholderErrors = consoleSpy.mock.calls.filter(call => String(call[0]).includes("GH_AW_INPUT_"));
+        expect(inputPlaceholderErrors).toHaveLength(0);
 
         const debugOutput = mockServer.debug.mock.calls.map(call => String(call[0])).join("\n");
         expect(debugOutput).not.toContain("Unresolved workflow input placeholder");
