@@ -1,0 +1,2 @@
+{"id":"activity_investigated","question":"Did the agent investigate suspicious repository activity?","answer":"YES","model":"small","timestamp":"2026-07-26T12:48:55.568Z","runid":"30202694741"}
+{"id":"triage_issue_updated_or_noop","question":"Was the triage issue updated with findings, or was noop correctly used when no suspicious activity was detected?","answer":"YES","model":"small","timestamp":"2026-07-26T12:48:55.568Z","runid":"30202694741"}
