@@ -3515,6 +3515,9 @@
                         },
                         "anthropic": {
                           "$ref": "#/$defs/sandbox_agent_api_target"
+                        },
+                        "copilot": {
+                          "$ref": "#/$defs/sandbox_copilot_api_target"
                         }
                       },
                       "additionalProperties": false
@@ -4038,7 +4041,7 @@
                   "default": true
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "Optional custom GitHub token (e.g., '${{ secrets.CUSTOM_PAT }}'). For 'remote' type, defaults to GH_AW_GITHUB_TOKEN if not specified."
                 },
                 "toolsets": {
@@ -4590,7 +4593,7 @@
                   "description": "Controls whether AI-generated footer is added to the managed comment. Defaults to true."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for comment-memory operations. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -5248,7 +5251,7 @@
                   "default": true
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -5351,7 +5354,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that agent sessions can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the agent session in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -5426,7 +5429,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that agent sessions can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the agent session in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -5483,7 +5486,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "project": {
@@ -5648,7 +5651,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Must have Projects write permission. Overrides global github-token if specified."
                 },
                 "target-owner": {
@@ -5779,7 +5782,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified. Must have Projects: Read+Write permission."
                 },
                 "project": {
@@ -5935,7 +5938,7 @@
                   "description": "Time until the discussion expires and should be automatically closed. Supports integer (days), relative time format like '2h' (2 hours), '7d' (7 days), '2w' (2 weeks), '1m' (1 month), '1y' (1 year), or false to disable expiration. Minimum duration: 2 hours. When set, a maintenance workflow will be generated. Defaults to 7 days if not specified."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -6176,7 +6179,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 }
               },
@@ -6360,7 +6363,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be closed in. The target repository is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -6457,7 +6460,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be marked as ready in. The target repository is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -6597,7 +6600,7 @@
                   "default": true
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "required-labels": {
@@ -6811,11 +6814,11 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "head-github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream PR repository and the fork head repository require different credentials."
                 },
                 "head-github-app": {
@@ -7117,7 +7120,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that PR review comments can be created in. When specified, the agent can use a 'repo' field in the output to specify which repository to create the review comment in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -7226,7 +7229,7 @@
                   "description": "When true, after posting a replacement review this workflow dismisses older REQUEST_CHANGES reviews previously posted by the same workflow on the same pull request. This is best-effort and requires workflow markers in prior review bodies."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -7308,7 +7311,7 @@
                   "description": "List of additional repositories in format 'owner/repo' where review dismissals are allowed. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -7398,7 +7401,7 @@
                   "default": true
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -7480,7 +7483,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that PR review threads can be resolved in. When specified, the agent can use a 'repo' field in the output to specify which repository to resolve threads in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -7550,7 +7553,7 @@
                   "description": "Driver name for SARIF tool.driver.name field (default: 'GitHub Agentic Workflows Security Scanner')"
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "target-repo": {
@@ -7616,7 +7619,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -7675,7 +7678,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -7781,7 +7784,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository label addition. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "allowed-repos": {
@@ -7886,7 +7889,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository label removal. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "allowed-repos": {
@@ -8030,7 +8033,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that reviewers can be added in. The target repository is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8120,7 +8123,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that milestone assignments can target. The target repository is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8244,7 +8247,7 @@
                   "description": "Base branch for pull request creation in the target repository. Defaults to the target repo's default branch. Only relevant when pull-request-repo is configured."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8330,7 +8333,7 @@
                   "default": false
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "allowed-repos": {
@@ -8436,7 +8439,7 @@
                   "description": "List of allowed repositories in format 'owner/repo' for cross-repository unassignment operations. Use with 'repo' field in tool calls."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8554,7 +8557,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8643,7 +8646,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that issues can be updated in. When specified, the agent can use a 'repo' field in the output to specify which repository to update the issue in. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8747,7 +8750,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be updated in. The target repository is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8857,7 +8860,7 @@
                   "description": "List of additional repositories in format 'owner/repo' that pull requests can be merged in. The target repository is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -8992,7 +8995,7 @@
                   "maximum": 10240
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -9295,11 +9298,11 @@
                   "description": "List of additional repositories in format 'owner/repo' where issue types can be set. When specified, the agent can use a 'repo' field in the output to specify which repository to target. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "head-github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "Optional GitHub token used only for branch writes to head-repo. Use this when the upstream pull request repository and the fork head repository require different credentials."
                 },
                 "issue-intent": {
@@ -9391,7 +9394,7 @@
                   "description": "List of additional repositories in format 'owner/repo' where issue fields can be updated. When specified, the agent can use a 'repo' field in the output to specify which repository to target. The target repository (current or target-repo) is always implicitly allowed."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "issue-intent": {
@@ -9469,7 +9472,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for dispatching workflows. Overrides global github-token if specified."
                 },
                 "target-repo": {
@@ -9621,7 +9624,7 @@
                 ]
               },
               "github-token": {
-                "$ref": "#/$defs/github_token",
+                "$ref": "#/$defs/github_token_same_job",
                 "description": "GitHub token to use for dispatching. Overrides global github-token if specified."
               },
               "staged": {
@@ -9671,7 +9674,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token passed to called workflows. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -9751,7 +9754,7 @@
                   "default": []
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -9829,7 +9832,7 @@
                   "default": []
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -9890,7 +9893,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "report-as-issue": {
@@ -9976,7 +9979,7 @@
                   ]
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -10097,7 +10100,7 @@
                   "additionalProperties": false
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -10195,7 +10198,7 @@
           "additionalProperties": false
         },
         "github-token": {
-          "$ref": "#/$defs/github_token",
+          "$ref": "#/$defs/github_token_same_job",
           "description": "GitHub token to use for safe output jobs. Typically a secret reference like ${{ secrets.GITHUB_TOKEN }} or ${{ secrets.CUSTOM_PAT }}",
           "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}"]
         },
@@ -10354,7 +10357,7 @@
                   "$ref": "#/properties/permissions"
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token for this specific job"
                 },
                 "output": {
@@ -10926,7 +10929,7 @@
                   "default": []
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "staged": {
@@ -11046,7 +11049,7 @@
                   "description": "Target repository in format 'owner/repo' for cross-repository label replacement. Takes precedence over trial target repo settings."
                 },
                 "github-token": {
-                  "$ref": "#/$defs/github_token",
+                  "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
                 },
                 "allowed-repos": {
@@ -13271,8 +13274,14 @@
     "github_token": {
       "type": "string",
       "pattern": "^\\$\\{\\{\\s*(secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*|needs\\.[A-Za-z_][A-Za-z0-9_]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_]*)\\s*\\}\\}$",
-      "description": "GitHub token expression. Accepts a secrets expression (e.g., `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`) or a job output expression (e.g., `${{ needs.auth.outputs.token }}`). Pattern details: secret names match `[A-Za-z_][A-Za-z0-9_]*`; job IDs and output names in dot notation match `[A-Za-z_][A-Za-z0-9_]*` (identifiers without hyphens).",
+      "description": "GitHub token expression for cross-job or activation-time contexts. Accepts a secrets expression (e.g., `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`) or a cross-job output expression (e.g., `${{ needs.auth.outputs.token }}`). Pattern details: secret names, job IDs, and output names in dot notation match `[A-Za-z_][A-Za-z0-9_]*` (identifiers without hyphens).",
       "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}", "${{ needs.auth.outputs.token }}"]
+    },
+    "github_token_same_job": {
+      "type": "string",
+      "pattern": "^\\$\\{\\{\\s*(secrets\\.[A-Za-z_][A-Za-z0-9_]*(\\s*\\|\\|\\s*secrets\\.[A-Za-z_][A-Za-z0-9_]*)*|needs\\.[A-Za-z_][A-Za-z0-9_]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_]*|steps\\.[A-Za-z_][A-Za-z0-9_-]*\\.outputs\\.[A-Za-z_][A-Za-z0-9_-]*)\\s*\\}\\}$",
+      "description": "GitHub token expression for same-job contexts. Accepts a secrets expression (e.g., `${{ secrets.NAME }}` or `${{ secrets.NAME1 || secrets.NAME2 }}`), a cross-job output expression (e.g., `${{ needs.auth.outputs.token }}`), or a same-job step output expression (e.g., `${{ steps.fetch-token.outputs.my-token }}`). Pattern details: secret names and job IDs match `[A-Za-z_][A-Za-z0-9_]*`; same-job step IDs and output names match `[A-Za-z_][A-Za-z0-9_-]*`.",
+      "examples": ["${{ secrets.GITHUB_TOKEN }}", "${{ secrets.CUSTOM_PAT }}", "${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}", "${{ needs.auth.outputs.token }}", "${{ steps.fetch-token.outputs.my-token }}"]
     },
     "github_app": {
       "type": "object",
@@ -13818,6 +13827,35 @@
         "authHeader": {
           "type": "string",
           "description": "Custom authentication header name to use when forwarding requests to this provider's API. Overrides the provider default (\"Authorization\" for OpenAI, \"x-api-key\" for Anthropic). Example: \"api-key\" for Azure OpenAI gateways."
+        }
+      },
+      "additionalProperties": false
+    },
+    "sandbox_copilot_api_target": {
+      "type": "object",
+      "description": "AWF API proxy target configuration for the Copilot BYOK provider. Supports injecting additional headers, body fields, and an optional session ID on upstream requests.",
+      "properties": {
+        "authHeader": {
+          "type": "string",
+          "description": "Custom authentication header name to use when forwarding requests to the Copilot API. Example: \"api-key\" for Azure OpenAI gateways."
+        },
+        "extraHeaders": {
+          "type": "object",
+          "description": "Additional non-sensitive HTTP headers to inject on Copilot BYOK upstream requests. Maps to AWF_BYOK_EXTRA_HEADERS. Example: { \"x-openrouter-title\": \"my-workflow\" }.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "extraBodyFields": {
+          "type": "object",
+          "description": "Additional non-sensitive JSON body fields to inject on Copilot BYOK upstream requests. Maps to AWF_BYOK_EXTRA_BODY_FIELDS. Example: { \"custom-field\": \"custom-value\" }.",
+          "additionalProperties": {
+            "type": "string"
+          }
+        },
+        "sessionId": {
+          "type": "string",
+          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it — strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
         }
       },
       "additionalProperties": false

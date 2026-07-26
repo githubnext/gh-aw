@@ -301,6 +301,44 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract targets (per-provider API proxy target overrides, e.g. authHeader, extraHeaders)
+	if targetsVal, hasTargets := agentObj["targets"]; hasTargets {
+		if targetsObj, ok := targetsVal.(map[string]any); ok {
+			agentConfig.Targets = make(map[string]*AgentAPIProxyTargetConfig)
+			for provider, targetAny := range targetsObj {
+				targetObj, ok := targetAny.(map[string]any)
+				if !ok {
+					continue
+				}
+				targetConfig := &AgentAPIProxyTargetConfig{}
+				if authHeader, ok := targetObj["authHeader"].(string); ok {
+					targetConfig.AuthHeader = authHeader
+				}
+				if extraHeaders, ok := targetObj["extraHeaders"].(map[string]any); ok {
+					targetConfig.ExtraHeaders = make(map[string]string)
+					for k, v := range extraHeaders {
+						if s, ok := v.(string); ok {
+							targetConfig.ExtraHeaders[k] = s
+						}
+					}
+				}
+				if extraBodyFields, ok := targetObj["extraBodyFields"].(map[string]any); ok {
+					targetConfig.ExtraBodyFields = make(map[string]string)
+					for k, v := range extraBodyFields {
+						if s, ok := v.(string); ok {
+							targetConfig.ExtraBodyFields[k] = s
+						}
+					}
+				}
+				if sessionId, ok := targetObj["sessionId"].(string); ok {
+					targetConfig.SessionId = sessionId
+				}
+				agentConfig.Targets[provider] = targetConfig
+			}
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.targets: %d provider(s)", len(agentConfig.Targets))
+		}
+	}
+
 	return agentConfig
 }
 

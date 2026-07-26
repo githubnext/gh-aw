@@ -133,6 +133,19 @@ func extractAPITargetAuthHeader(workflowData *WorkflowData, provider string) str
 	return target.AuthHeader
 }
 
+// extractCopilotTargetConfig returns the AgentAPIProxyTargetConfig for the "copilot" provider
+// from the sandbox.agent.targets frontmatter section. Returns nil if not configured.
+func extractCopilotTargetConfig(workflowData *WorkflowData) *AgentAPIProxyTargetConfig {
+	if workflowData == nil || workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
+		return nil
+	}
+	targets := workflowData.SandboxConfig.Agent.Targets
+	if targets == nil {
+		return nil
+	}
+	return targets["copilot"]
+}
+
 // GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
 //  1. engine.api-target (explicit, takes precedence)
 //  2. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)

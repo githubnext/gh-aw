@@ -4,8 +4,10 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { createRequire } from "module";
 
-const { validateMemoryFiles } = require("./validate_memory_files.cjs");
+const req = createRequire(import.meta.url);
+const { validateMemoryFiles } = req("./validate_memory_files.cjs");
 
 // Mock core globally with vi.fn() so we can assert on calls
 global.core = {
@@ -38,11 +40,27 @@ describe("validateMemoryFiles", () => {
     expect(result.invalidFiles).toEqual([]);
   });
 
+  it("calls core.info when allowedExtensions is not provided", () => {
+    validateMemoryFiles(tempDir, "cache");
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("All file extensions are allowed in cache-memory directory"));
+  });
+
+  it("calls core.info when allowedExtensions is empty array", () => {
+    validateMemoryFiles(tempDir, "repo", []);
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining("All file extensions are allowed in repo-memory directory"));
+  });
+
   it("returns valid for non-existent directory", () => {
     const nonExistentDir = path.join(tempDir, "does-not-exist");
     const result = validateMemoryFiles(nonExistentDir, "cache");
     expect(result.valid).toBe(true);
     expect(result.invalidFiles).toEqual([]);
+  });
+
+  it("calls core.info when directory does not exist", () => {
+    const nonExistentDir = path.join(tempDir, "does-not-exist");
+    validateMemoryFiles(nonExistentDir, "repo", [".json"]);
+    expect(global.core.info).toHaveBeenCalledWith(expect.stringContaining(`Memory directory does not exist: ${nonExistentDir}`));
   });
 
   it("accepts .json files by default (allow all)", () => {
