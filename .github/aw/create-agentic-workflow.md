@@ -26,6 +26,7 @@ Load these topic files only when relevant:
 - [deployment-status.md](deployment-status.md) for external deployment monitoring
 - [charts.md](charts.md) for chart-generation workflows
 - [report.md](report.md) for reporting output structure and recurring report lifecycle
+- [release-workflow.md](release-workflow.md) for release workflows that build, test, publish a GitHub release, and generate release highlights
 
 ## Modes
 

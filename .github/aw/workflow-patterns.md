@@ -221,6 +221,19 @@ For PRs adding/modifying migration files:
 - output: `add-comment` flagging risky operations; `noop` when clean
 - prompt: include migration best practices
 
+## Release Automation Pattern
+
+For workflows that build, test, publish a GitHub release, and generate release highlights:
+
+- trigger: `workflow_dispatch` with a `release_type` input (`patch`, `minor`, `major`); restrict with `roles: [admin, maintainer]`
+- structure: **Classic + Agent** hybrid — all build/test/release jobs are standard GitHub Actions jobs; the agent job runs last and only updates the release description
+- classic jobs: `config` (compute semver), `build` (compile + upload artifact), `test`, `release` (create prerelease with `--generate-notes --latest=false`); output `release_id` from the release job
+- agent job: depends on `release` job; pre-fetches merged PRs and changelog in `steps:`; uses `tools: cli-proxy: true`; writes highlights via `update-release` with `operation: prepend`
+- safe output: `update-release` with `threat-detection: false` (release bodies contain code snippets)
+- permissions: global `contents: read`; per-job `contents: write` only on jobs that push tags or create releases
+
+See [release-workflow.md](release-workflow.md) for the full pattern, frontmatter template, job skeletons, and reference implementation pointer.
+
 ## Cross-Repository Pattern
 
 For cross-repo reads and writes:
