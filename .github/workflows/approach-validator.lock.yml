@@ -93,8 +93,8 @@ jobs:
       needs.pre_activation.outputs.activated == 'true' && ((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' ||
       fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request') && (fromJSON(github.event.inputs.aw_context ||
       '{}').trigger_label == 'approach-proposal' || fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'needs-design') ||
-      (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues')) && (!(fromJSON(github.event.inputs.aw_context ||
-      '{}').event_type == 'pull_request')))
+      !(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'pull_request'))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1956,8 +1956,8 @@ jobs:
     if: >
       (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context ||
       '{}').event_type == 'pull_request') && (fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'approach-proposal' ||
-      fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'needs-design') || (!(fromJSON(github.event.inputs.aw_context ||
-      '{}').event_type == 'issues')) && (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request'))
+      fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'needs-design') || !(fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')
     runs-on: ubuntu-slim
     permissions:
       contents: read
