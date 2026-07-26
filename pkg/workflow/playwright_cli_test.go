@@ -20,7 +20,7 @@ func TestGeneratePlaywrightCLIInstallSteps_DefaultVersionUsesCooldown(t *testing
 		},
 	})
 
-	require.Len(t, steps, 2, "expected npm install step plus skills install step")
+	require.Len(t, steps, 2, "expected npm install step and skills install step")
 
 	installStep := strings.Join(steps[0], "\n")
 	assert.Contains(t, installStep, "npm install -g @playwright/cli@"+string(constants.DefaultPlaywrightCLIVersion))
