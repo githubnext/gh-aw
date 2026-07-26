@@ -251,6 +251,15 @@ func (c *Compiler) buildMainJobOutputs(data *WorkflowData) map[string]string {
 func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 	var env map[string]string
 
+	// Disable the Chromium process sandbox for playwright CLI mode.
+	// GitHub Actions runners are containerised environments where kernel namespace
+	// sandboxing is unavailable, which causes playwright-cli to abort with
+	// "Playwright can't run in this sandbox environment".
+	if isPlaywrightCLIMode(data.Tools) {
+		env = make(map[string]string)
+		env["PLAYWRIGHT_MCP_SANDBOX"] = "false"
+	}
+
 	if data.SafeOutputs != nil {
 		compilerMainJobLog.Printf("Configuring safe-outputs job env for main job (uploadAssets=%v)", data.SafeOutputs.UploadAssets != nil)
 		env = make(map[string]string)
