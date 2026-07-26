@@ -1,2 +1,2 @@
-{"id":"firewall_data_collected","question":"Did the agent collect firewall log events for the reporting period?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-25T03:28:19.615Z","runid":"30141784664"}
-{"id":"report_with_charts_created","question":"Was a report created with trend charts and network security analysis?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-25T03:28:19.615Z","runid":"30141784664"}
+{"id":"firewall_data_collected","question":"Did the agent collect firewall log events for the reporting period?","answer":"YES","model":"small","timestamp":"2026-07-26T03:28:38.866Z","runid":"30185804045"}
+{"id":"report_with_charts_created","question":"Was a report created with trend charts and network security analysis?","answer":"NO","model":"small","timestamp":"2026-07-26T03:28:38.866Z","runid":"30185804045"}
