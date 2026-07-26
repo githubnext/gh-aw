@@ -498,12 +498,12 @@ async function shouldSkipRepoTitleDedupSearch(githubClient, owner, repo) {
     const remaining = Number(rawRemaining);
     const limit = Number(rawLimit);
     if (!Number.isFinite(remaining) || !Number.isFinite(limit)) {
-      core.warning(`Could not determine search rate limit remaining for ${owner}/${repo}; proceeding with repo-level title dedup search`);
+      core.warning(`Could not determine search rate limit values for ${owner}/${repo} (remaining=${rawRemaining}, limit=${rawLimit}); proceeding with repo-level title dedup search`);
       return false;
     }
     const threshold = limit * TITLE_DEDUP_MIN_SEARCH_RATE_LIMIT_FRACTION;
     if (remaining <= threshold) {
-      core.warning(`Skipping repo-level title dedup search for ${owner}/${repo}: search rate limit remaining is ${remaining}/${limit} (threshold <= ${Math.round(threshold)})`);
+      core.warning(`Skipping repo-level title dedup search for ${owner}/${repo}: search rate limit remaining is ${remaining}/${limit} (threshold <= ${Math.floor(threshold)})`);
       return true;
     }
   } catch (error) {
