@@ -20,7 +20,7 @@ func TestGeneratePlaywrightCLIInstallSteps_DefaultVersionUsesCooldown(t *testing
 		},
 	})
 
-	require.Len(t, steps, 2, "expected npm install step plus skills install step")
+	require.Len(t, steps, 3, "expected npm install step, skills install step, and sandbox configuration step")
 
 	installStep := strings.Join(steps[0], "\n")
 	assert.Contains(t, installStep, "npm install -g @playwright/cli@"+string(constants.DefaultPlaywrightCLIVersion))
@@ -30,4 +30,9 @@ func TestGeneratePlaywrightCLIInstallSteps_DefaultVersionUsesCooldown(t *testing
 	skillsStep := strings.Join(steps[1], "\n")
 	assert.Contains(t, skillsStep, "playwright-cli install --skills")
 	assert.Contains(t, skillsStep, "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'")
+
+	sandboxStep := strings.Join(steps[2], "\n")
+	assert.Contains(t, sandboxStep, "Configure Playwright CLI sandbox")
+	assert.Contains(t, sandboxStep, "PLAYWRIGHT_MCP_SANDBOX=false")
+	assert.Contains(t, sandboxStep, "$GITHUB_ENV")
 }

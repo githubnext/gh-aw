@@ -757,6 +757,8 @@ jobs:
         env:
           PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: '1'
         timeout-minutes: 10
+      - name: Configure Playwright CLI sandbox
+        run: echo 'PLAYWRIGHT_MCP_SANDBOX=false' >> "$GITHUB_ENV"
       - name: Determine automatic lockdown mode for GitHub MCP Server
         id: determine-automatic-lockdown
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)

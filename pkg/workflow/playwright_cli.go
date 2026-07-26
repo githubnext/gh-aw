@@ -104,6 +104,19 @@ func generatePlaywrightCLIInstallSteps(workflowData *WorkflowData) []GitHubActio
 	}
 	steps = append(steps, installSkillsStep)
 
+	// Disable the Chromium process sandbox for all subsequent steps by writing
+	// PLAYWRIGHT_MCP_SANDBOX=false to $GITHUB_ENV.  GitHub Actions runners are
+	// containerised environments where kernel namespace sandboxing is unavailable,
+	// which causes playwright-cli to abort with "Playwright can't run in this
+	// sandbox environment".  Setting this variable makes playwright-cli skip the
+	// sandbox (equivalent to --no-sandbox in Docker/MCP mode) without disabling
+	// any other security boundary of the runner itself.
+	sandboxStep := GitHubActionStep{
+		"      - name: Configure Playwright CLI sandbox",
+		`        run: echo 'PLAYWRIGHT_MCP_SANDBOX=false' >> "$GITHUB_ENV"`,
+	}
+	steps = append(steps, sandboxStep)
+
 	playwrightCLILog.Printf("Generated %d Playwright CLI install steps", len(steps))
 	return steps
 }
