@@ -12,6 +12,9 @@ applyTo: ".github/workflows/*.md,.github/workflows/**/*.md"
 | Backend Engineer | `pull_request` with `paths:` scoped to migrations, schema, and API contracts | `github` (`gh-proxy`) | `add-comment` for PR-local findings; `create-issue` only for cross-cutting incidents | `noop` when no backend contract files changed |
 | Frontend Developer | `pull_request` with `paths:` scoped to UI, design-token, and asset files | `github` (`gh-proxy`), optional `playwright`, optional `cache-memory` for baselines | `add-comment` | `noop` when no UI/token files changed or no actionable visual/token issues were found |
 | DevOps Engineer | `workflow_run` for GitHub Actions failures, `deployment_status` for external deployment failures | `github` (`gh-proxy`) with `actions: read` or `deployments: read` | `create-issue` with stable dedup key | `noop` when status is non-terminal, self-recovered, or an open incident already exists for the same dedup key |
+| Program Manager | `schedule` (+ `workflow_dispatch` for previews and backfills) | `github` (`gh-proxy`) | `create-issue` with `close-older-issues: true` for recurring digests | `noop` when the reporting window contains no qualifying updates |
+| Designer | `pull_request` with `paths:` scoped to UI, design-token, copy, and asset files | `github` (`gh-proxy`); optional `playwright` for visual checks | `add-comment` on the PR | `noop` when scoped paths are unchanged or no actionable design/token issue is found |
+| Legal / Compliance | `pull_request` with `paths:` scoped to dependency manifests or policy docs for PR reviews; `schedule` for recurring audits | `github` (`gh-proxy`) | `add-comment` for findings; `create-issue` only for violations requiring team-wide follow-up | `noop` when no in-scope files changed or all findings are in the allowed tier; always search for an existing open issue before escalating |
 
 ## File Format
 
@@ -93,14 +96,15 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 - Return a compact design recommendation covering trigger, scope, tools, permissions, safe outputs, `noop` behavior, and any report window / grouping / deduplication requirements.
 - Offer to turn the recommendation into `.github/workflows/<workflow-id>.md` only if the user asks to proceed.
 
-### Non-technical persona example (Program Management)
+### Non-technical persona examples
 
-When the request is framed as a PM or stakeholder workflow (for example "weekly product health digest"):
+When the request is framed in non-engineering language, apply these defaults before asking further questions:
 
-- prefer `schedule: weekly` (or `daily on weekdays` for operational digests) plus `workflow_dispatch` for preview/backfill runs
-- read with `github` (`gh-proxy`) and default to `create-issue` for the digest destination
-- require an explicit report window, grouping dimensions, and a stable dedup key before creating output
-- use `close-older-issues: true` for recurring issue-style digests and call `noop` when the selected window has no qualifying updates
+| Persona | Default trigger | Default output | Key prompt details |
+|---|---|---|---|
+| Program Manager | `schedule` (+ `workflow_dispatch` for previews/backfills) | `create-issue` with `close-older-issues: true` | Report window, grouping dimensions, stable dedup key, and `noop` for empty windows |
+| Designer | `pull_request` with `paths:` scoped to UI, design-token, copy, and asset files | `add-comment` | Review rubric (accessibility, token consistency, asset policy); `noop` when scoped files unchanged |
+| Legal / Compliance | `pull_request` with `paths:` scoped to dependency manifests or policy docs; `schedule` for recurring audits | `add-comment` for findings; `create-issue` for violations | Classify against policy tiers; dedup before escalating; `noop` when no in-scope change or violation |
 
 ## PR Checks with Linked References
 
