@@ -220,7 +220,8 @@ func intensityStyle(count int) scheduleCalendarRenderer {
 }
 
 // hasNoColorEnviron returns true when NO_COLOR is present in the provided
-// environment list, indicating color output should be disabled.
+// environment list, indicating color output should be disabled. Per no-color.org,
+// presence of NO_COLOR disables color regardless of its value.
 func hasNoColorEnviron(environ []string) bool {
 	for _, envVar := range environ {
 		if strings.HasPrefix(envVar, "NO_COLOR=") {

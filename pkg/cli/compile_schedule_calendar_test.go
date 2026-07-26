@@ -236,6 +236,7 @@ func TestRenderScheduleCalendarCell_UsesANSIInColorTerminal(t *testing.T) {
 
 	got := renderScheduleCalendarCell(8, intensityChar(8), true, []string{"CLICOLOR_FORCE=1", "TERM=xterm-256color"})
 	assert.Contains(t, got, "\x1b[", "TTY with color support should contain ANSI escapes")
+	assert.Contains(t, got, "\x1b[31m", "TTY path should apply the mocked critical style")
 }
 
 // ---------------------------------------------------------------------------
