@@ -1,2 +1,2 @@
-{"id":"api_usage_collected","question":"Did the agent collect GitHub REST API consumption data across agentic workflows?","answer":"YES","model":"small","timestamp":"2026-07-25T11:23:35.690Z","runid":"30155594318"}
-{"id":"report_with_charts_created","question":"Was a report or discussion created with trending charts and quota analysis?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-25T11:23:35.690Z","runid":"30155594318"}
+{"id":"api_usage_collected","question":"Did the agent collect GitHub REST API consumption data across agentic workflows?","answer":"NO","model":"small","timestamp":"2026-07-26T11:16:18.083Z","runid":"30199598800"}
+{"id":"report_with_charts_created","question":"Was a report or discussion created with trending charts and quota analysis?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-26T11:16:18.083Z","runid":"30199598800"}
