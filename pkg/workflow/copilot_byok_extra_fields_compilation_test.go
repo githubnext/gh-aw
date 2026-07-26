@@ -82,11 +82,13 @@ safe-outputs:
 		t.Error("expected custom-value body field value in compiled AWF config JSON")
 	}
 
-	// sessionId should appear in the AWF config JSON.
+	// sessionId should appear in the AWF config JSON with the full expression preserved.
 	if !strings.Contains(lockStr, `"sessionId"`) && !strings.Contains(lockStr, `\"sessionId\"`) {
 		t.Error("expected sessionId to be present in compiled AWF config JSON")
 	}
-	if !strings.Contains(lockStr, `github.run_id`) {
-		t.Error("expected github.run_id expression in compiled AWF config JSON sessionId")
+	// The ${{ github.run_id }} GitHub Actions expression must be preserved verbatim so
+	// it is evaluated at runtime. Check for the full expression syntax.
+	if !strings.Contains(lockStr, `${{ github.run_id }}`) {
+		t.Error("expected full '${{ github.run_id }}' expression in compiled AWF config JSON sessionId")
 	}
 }
