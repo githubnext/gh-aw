@@ -116,6 +116,12 @@ const AWFContainerRuntimeMinVersion Version = "v0.27.30"
 // Workflows pinning an older AWF version must use the old --security-mode compat behavior.
 const AWFLegacySecurityMinVersion Version = "v0.27.32"
 
+// AWFAPIProxyProvidersMinVersion is the minimum AWF version that supports
+// apiProxy.providers in awf-config.json.
+// Workflows pinning an older AWF version must not emit this field because older
+// AWF strict config validation rejects unknown apiProxy properties.
+const AWFAPIProxyProvidersMinVersion Version = "v0.27.42"
+
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
 // reproducible, verifiable installs. Each release provides SHA-512 files for

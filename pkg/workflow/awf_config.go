@@ -67,6 +67,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -566,8 +567,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	if providers := extractModelCostProviders(config.WorkflowData); len(providers) > 0 {
-		apiProxy.Providers = providers
-		awfConfigLog.Printf("API proxy: %d model-cost provider override(s) configured", len(providers))
+		if awfSupportsAPIProxyProviders(firewallConfig) {
+			apiProxy.Providers = providers
+			awfConfigLog.Printf("API proxy: %d model-cost provider override(s) configured", len(providers))
+		} else {
+			awfConfigLog.Printf("Skipping apiProxy.providers: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAPIProxyProvidersMinVersion)
+		}
 	}
 
 	// ── Models section (nested under apiProxy per AWF config schema) ──────────
@@ -839,10 +844,16 @@ func extractModelCostProviders(workflowData *WorkflowData) map[string]any {
 		return nil
 	}
 	providers, ok := workflowData.ModelCosts["providers"].(map[string]any)
-	if !ok || len(providers) == 0 {
+	if !ok {
+		awfConfigLog.Printf("API proxy: models.providers has unexpected type %T; skipping provider overlay", workflowData.ModelCosts["providers"])
 		return nil
 	}
-	return providers
+	if len(providers) == 0 {
+		return nil
+	}
+	clone := make(map[string]any, len(providers))
+	maps.Copy(clone, providers)
+	return clone
 }
 
 // getRunnerTopology extracts the runner topology string from WorkflowData.

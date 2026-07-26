@@ -2728,6 +2728,14 @@ func TestBuildDetectionEngineExecutionStepPropagatesModelCostsProviders(t *testi
 		SafeOutputs: &SafeOutputsConfig{
 			ThreatDetection: &ThreatDetectionConfig{},
 		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFAPIProxyProvidersMinVersion)},
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Version: string(constants.AWFAPIProxyProvidersMinVersion),
+			},
+		},
 	}
 
 	steps := compiler.buildDetectionEngineExecutionStep(data)

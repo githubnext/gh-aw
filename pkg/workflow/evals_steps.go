@@ -223,6 +223,17 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 			},
 		},
 	}
+	if firewallConfig := getFirewallConfig(data); firewallConfig != nil {
+		firewallCopy := *firewallConfig
+		evalsData.NetworkPermissions.Firewall = &firewallCopy
+		if evalsData.SandboxConfig == nil {
+			evalsData.SandboxConfig = &SandboxConfig{}
+		}
+		if evalsData.SandboxConfig.Agent == nil {
+			evalsData.SandboxConfig.Agent = &AgentSandboxConfig{Type: SandboxTypeAWF}
+		}
+		evalsData.SandboxConfig.Agent.Version = firewallCopy.Version
+	}
 
 	var steps []string
 

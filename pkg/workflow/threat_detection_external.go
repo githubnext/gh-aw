@@ -86,7 +86,7 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 		engineID = "claude"
 	}
 
-	return &WorkflowData{
+	detectionData := &WorkflowData{
 		AI:                engineID,
 		ActionCache:       data.ActionCache,
 		Features:          data.Features,
@@ -101,6 +101,20 @@ func buildThreatDetectionWorkflowData(data *WorkflowData, engineID string) *Work
 			},
 		},
 	}
+
+	if firewallConfig := getFirewallConfig(data); firewallConfig != nil {
+		firewallCopy := *firewallConfig
+		detectionData.NetworkPermissions = &NetworkPermissions{Firewall: &firewallCopy}
+		if detectionData.SandboxConfig == nil {
+			detectionData.SandboxConfig = &SandboxConfig{}
+		}
+		if detectionData.SandboxConfig.Agent == nil {
+			detectionData.SandboxConfig.Agent = &AgentSandboxConfig{Type: SandboxTypeAWF}
+		}
+		detectionData.SandboxConfig.Agent.Version = firewallCopy.Version
+	}
+
+	return detectionData
 }
 
 // buildPullAWFContainersStep creates a step that pre-pulls AWF (agent workflow firewall)

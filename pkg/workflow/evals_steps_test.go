@@ -461,6 +461,14 @@ func TestBuildEvalsEngineStepsModelCostsProvidersPropagated(t *testing.T) {
 				{ID: "check", Question: "Did the agent complete the task?"},
 			},
 		},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFAPIProxyProvidersMinVersion)},
+		},
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				Version: string(constants.AWFAPIProxyProvidersMinVersion),
+			},
+		},
 	}
 
 	steps := strings.Join(compiler.buildEvalsEngineSteps(data), "")
