@@ -99,6 +99,96 @@ Test workflow.`
 	}
 }
 
+// TestCompileWorkflow_FirewallImagesPinnedForAWF02711WithGhProxy is a regression test for
+// gh-aw#47765: the embedded fallback pin table must include cli-proxy for the historical
+// 0.27.11 firewall image set so compiles without a local action-cache still emit
+// digest-pinned references for all four sidecars.
+func TestCompileWorkflow_FirewallImagesPinnedForAWF02711WithGhProxy(t *testing.T) {
+	imageTag := "0.27.11"
+
+	frontmatter := `---
+on: workflow_dispatch
+engine: claude
+sandbox:
+  agent:
+    id: awf
+    version: v0.27.11
+network:
+  allowed:
+    - defaults
+tools:
+  github:
+    mode: gh-proxy
+---
+
+# Test
+Test workflow.`
+
+	tmpDir := testutil.TempDir(t, "docker-firewall-pins-02711-test")
+	testFile := filepath.Join(tmpDir, "test-workflow.md")
+	if err := os.WriteFile(testFile, []byte(frontmatter), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(testFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(testFile)
+	yaml, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	yamlStr := string(yaml)
+
+	expectedPins := []struct {
+		name  string
+		image string
+	}{
+		{name: "agent", image: constants.DefaultFirewallRegistry + "/agent:" + imageTag},
+		{name: "api-proxy", image: constants.DefaultFirewallRegistry + "/api-proxy:" + imageTag},
+		{name: "cli-proxy", image: constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag},
+		{name: "squid", image: constants.DefaultFirewallRegistry + "/squid:" + imageTag},
+	}
+
+	for _, expectedPin := range expectedPins {
+		pin, ok := getEmbeddedContainerPin(expectedPin.image)
+		if !ok {
+			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
+		}
+		pinnedImage := pin.Image + "@" + pin.Digest
+		if !strings.Contains(yamlStr, `"image":"`+pin.Image+`","digest":"`+pin.Digest+`","pinned_image":"`+pinnedImage+`"`) {
+			t.Errorf("Expected manifest header to include pinned metadata for %s", pin.Image)
+		}
+		if !strings.Contains(yamlStr, "#   - "+pinnedImage) {
+			t.Errorf("Expected pinned container comment for %s", pin.Image)
+		}
+		if !strings.Contains(yamlStr, pinnedImage) {
+			t.Errorf("Expected pinned download reference for %s", pin.Image)
+		}
+	}
+
+	imageTagParts := []string{
+		`imageTag`,
+		imageTag + `,`,
+	}
+	for _, expectedPin := range expectedPins {
+		pin, ok := getEmbeddedContainerPin(expectedPin.image)
+		if !ok {
+			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
+		}
+		imageTagParts = append(imageTagParts, expectedPin.name+"="+pin.Digest)
+	}
+
+	for _, imageTagPart := range imageTagParts {
+		if !strings.Contains(yamlStr, imageTagPart) {
+			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)
+		}
+	}
+}
+
 // TestCompileWorkflow_FirewallImagesPinnedForDefaultVersion is a regression test for
 // gh-aw#43307: the four gh-aw-firewall images at the current default version
 // (constants.DefaultFirewallVersion) must all be digest-pinned in consumer lock files
