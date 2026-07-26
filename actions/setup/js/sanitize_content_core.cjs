@@ -745,7 +745,14 @@ function convertXmlTags(s) {
    * @returns {boolean}
    */
   function isHttpsAngleBracketAutolink(tagContent) {
-    return /^https:\/\/[^\s<>|]+(?:\|[^<>]*)?$/i.test(tagContent);
+    // Only match simple hostname forms that sanitizeUrlDomains can parse and
+    // filter.  The hostname must consist of word characters, dots, and hyphens
+    // ([\w.-]+), which excludes:
+    //   - IPv6 literals  e.g. https://[2001:db8::1]/
+    //   - Userinfo forms e.g. https://user@evil.example/
+    // Those forms fall through to the generic tag-conversion path and are
+    // wrapped in parentheses instead of being preserved as autolinks.
+    return /^https:\/\/[\w.-]+(?::\d+)?(\/[^\s<>|]*)?(?:\|[^<>]*)?$/i.test(tagContent);
   }
 
   // First, process CDATA sections specially - convert tags inside them and the CDATA markers

@@ -591,6 +591,18 @@ describe("sanitize_content.cjs", () => {
       expect(sanitizeContent(input)).toBe(input);
     });
 
+    it("should not preserve IPv6 angle-bracket links", () => {
+      // IPv6 authority is not a simple [\w.-]+ hostname — treat as unknown tag
+      const result = sanitizeContent("<https://[2001:db8::1]/path>");
+      expect(result).not.toContain("<https://[2001:db8::1]");
+    });
+
+    it("should not preserve userinfo angle-bracket links", () => {
+      // Userinfo (user@host) must not bypass domain filtering
+      const result = sanitizeContent("<https://github.com@evil.example/path>");
+      expect(result).not.toContain("<https://github.com@evil.example");
+    });
+
     it("should handle CDATA sections", () => {
       const result = sanitizeContent("<![CDATA[<script>alert('xss')</script>]]>");
       expect(result).toBe("(![CDATA[(script)alert('xss')(/script)]])");
