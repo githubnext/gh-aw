@@ -90,6 +90,7 @@ steps:
       OWNER="${REPO%%/*}"
       NAME="${REPO#*/}"
 
+      # shellcheck disable=SC2016  # GraphQL variables $owner/$name/$endCursor are GraphQL syntax, not shell variables
       if ! gh api graphql --paginate \
         -f owner="$OWNER" \
         -f name="$NAME" \

@@ -255,6 +255,115 @@ func TestParseAndDisplayZizmorOutput(t *testing.T) {
 			},
 			expectError: false,
 		},
+		{
+			name: "findings displayed even when stderr has no completed messages (log format change fallback)",
+			stdout: `[
+  {
+    "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
+    "determinations": {
+      "severity": "Medium"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "given_path": "./.github/workflows/test.lock.yml"
+            }
+          },
+          "annotation": "uses write-all permissions"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 6,
+              "column": 4
+            }
+          }
+        }
+      }
+    ]
+  }
+]`,
+			// No "completed" messages in stderr — simulates a zizmor log format change
+			stderr: "some other stderr output without completed markers\n",
+			expectedOutput: []string{
+				"./.github/workflows/test.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
+			},
+			expectError: false,
+		},
+		{
+			name: "partial stderr markers: file absent from completed list still shows findings",
+			stdout: `[
+  {
+    "ident": "excessive-permissions",
+    "desc": "overly broad permissions",
+    "url": "https://docs.zizmor.sh/audits/#excessive-permissions",
+    "determinations": {
+      "severity": "Medium"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "given_path": "./.github/workflows/test1.lock.yml"
+            }
+          },
+          "annotation": "uses write-all permissions"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 6,
+              "column": 4
+            }
+          }
+        }
+      }
+    ]
+  },
+  {
+    "ident": "template-injection",
+    "desc": "template injection with untrusted input",
+    "url": "https://docs.zizmor.sh/audits/#template-injection",
+    "determinations": {
+      "severity": "High"
+    },
+    "locations": [
+      {
+        "symbolic": {
+          "key": {
+            "Local": {
+              "given_path": "./.github/workflows/test2.lock.yml"
+            }
+          },
+          "annotation": "may expand into attacker-controllable code"
+        },
+        "concrete": {
+          "location": {
+            "start_point": {
+              "row": 11,
+              "column": 23
+            }
+          }
+        }
+      }
+    ]
+  }
+]`,
+			// Only test1 has a "completed" marker; test2's marker was dropped (partial log)
+			stderr: " INFO audit: zizmor: 🌈 completed ./.github/workflows/test1.lock.yml\n",
+			expectedOutput: []string{
+				// test1 shows first (from completedFiles ordering)
+				"./.github/workflows/test1.lock.yml:7:5: warning: [Medium] excessive-permissions: overly broad permissions (https://docs.zizmor.sh/audits/#excessive-permissions)",
+				// test2 still shows (appended in sorted order as extra file)
+				"./.github/workflows/test2.lock.yml:12:24: error: [High] template-injection: template injection with untrusted input (https://docs.zizmor.sh/audits/#template-injection)",
+			},
+			expectError: false,
+		},
 	}
 
 	for _, tt := range tests {
