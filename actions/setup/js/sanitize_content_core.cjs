@@ -37,7 +37,7 @@ const SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION = "allowed-or-code-region";
  * is allocated once and reused across calls.  String.prototype.replace resets
  * lastIndex automatically, so the /g flag is safe here.
  */
-const angleBracketHttpsAutolinkRegex = /<https:\/\/([\w.-]+(?::\d+)?)(\/[^\s<>|]*)?(?:\|([^<>]*))?>/gi;
+const angleBracketHttpsAutolinkRegex = /<https:\/\/([\w.-]+(?::\d+)?)(\/[^\s<>|]*)?(?:\|([^<>]*))?>/g;
 
 /**
  * Module-level set to collect redacted URL domains across sanitization calls.
@@ -790,7 +790,7 @@ function convertXmlTags(s) {
     //
     // (\/[^\s<>|]*)? — optional path (mirrors angleBracketHttpsAutolinkRegex)
     // (?:\|[^<>]*)?  — optional Slack label, may contain spaces
-    return /^https:\/\/[\w.-]+(?::\d+)?(\/[^\s<>|]*)?(?:\|[^<>]*)?$/i.test(tagContent);
+    return /^https:\/\/[\w.-]+(?::\d+)?(\/[^\s<>|]*)?(?:\|[^<>]*)?$/.test(tagContent);
   }
 
   // First, process CDATA sections specially - convert tags inside them and the CDATA markers
