@@ -14,11 +14,11 @@ import (
 	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
-func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool) error {
+func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpTools []string, engine CodingAgentEngine, workflowData *WorkflowData, hasAgenticWorkflows bool, safeOutputsInputEnvVars map[string]string) error {
 	yaml.WriteString("      - name: Start MCP Gateway\n")
 	yaml.WriteString("        id: start-mcp-gateway\n")
 	mcpEnvVars := collectMCPEnvironmentVariables(tools, mcpTools, workflowData, hasAgenticWorkflows)
-	writeMCPGatewayStepEnv(yaml, mcpEnvVars)
+	writeMCPGatewayStepEnv(yaml, mcpEnvVars, safeOutputsInputEnvVars)
 	yaml.WriteString("        run: |\n")
 	yaml.WriteString("          set -eo pipefail\n")
 	yaml.WriteString("          mkdir -p \"${RUNNER_TEMP}/gh-aw/mcp-config\"\n")
@@ -44,15 +44,16 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 		payloadSizeThreshold: payloadSizeThreshold,
 	})
 	containerCmd := buildMCPGatewayContainerCommand(buildMCPGatewayContainerCommandOptions{
-		engine:            engine,
-		workflowData:      workflowData,
-		gatewayConfig:     gatewayConfig,
-		mcpEnvVars:        mcpEnvVars,
-		payloadDir:        payloadDir,
-		payloadPathPrefix: payloadPathPrefix,
-		hasGitHub:         hasGitHub,
-		githubTool:        githubTool,
-		tools:             tools,
+		engine:                  engine,
+		workflowData:            workflowData,
+		gatewayConfig:           gatewayConfig,
+		mcpEnvVars:              mcpEnvVars,
+		payloadDir:              payloadDir,
+		payloadPathPrefix:       payloadPathPrefix,
+		hasGitHub:               hasGitHub,
+		githubTool:              githubTool,
+		tools:                   tools,
+		safeOutputsInputEnvVars: safeOutputsInputEnvVars,
 	})
 	yaml.WriteString("          MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')\n")
 	yaml.WriteString("          MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')\n")
@@ -67,15 +68,22 @@ func generateMCPGatewaySetup(yaml *strings.Builder, tools map[string]any, mcpToo
 	return engine.RenderMCPConfig(yaml, tools, mcpTools, workflowData)
 }
 
-func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string) {
-	if len(mcpEnvVars) == 0 {
+func writeMCPGatewayStepEnv(yaml *strings.Builder, mcpEnvVars map[string]string, safeOutputsInputEnvVars map[string]string) {
+	if len(mcpEnvVars) == 0 && len(safeOutputsInputEnvVars) == 0 {
 		return
 	}
 	yaml.WriteString("        env:\n")
+	// Write MCP env vars first (sorted)
 	envVarNames := sliceutil.MapKeys(mcpEnvVars)
 	sort.Strings(envVarNames)
 	for _, envVarName := range envVarNames {
 		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, mcpEnvVars[envVarName])
+	}
+	// Write safe-outputs input env vars (sorted); these must also be present in the
+	// runner step environment so the docker -e flag can forward them to the container.
+	inputVarNames := sliceutil.SortedKeys(safeOutputsInputEnvVars)
+	for _, envVarName := range inputVarNames {
+		fmt.Fprintf(yaml, "          %s: %s\n", envVarName, safeOutputsInputEnvVars[envVarName])
 	}
 }
 
@@ -190,15 +198,16 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 
 // buildMCPGatewayContainerCommandOptions holds configuration for buildMCPGatewayContainerCommand.
 type buildMCPGatewayContainerCommandOptions struct {
-	engine            CodingAgentEngine
-	workflowData      *WorkflowData
-	gatewayConfig     *MCPGatewayRuntimeConfig
-	mcpEnvVars        map[string]string
-	payloadDir        string
-	payloadPathPrefix string
-	hasGitHub         bool
-	githubTool        map[string]any
-	tools             map[string]any
+	engine                  CodingAgentEngine
+	workflowData            *WorkflowData
+	gatewayConfig           *MCPGatewayRuntimeConfig
+	mcpEnvVars              map[string]string
+	payloadDir              string
+	payloadPathPrefix       string
+	hasGitHub               bool
+	githubTool              map[string]any
+	tools                   map[string]any
+	safeOutputsInputEnvVars map[string]string
 }
 
 func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions) string {
@@ -211,6 +220,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	hasGitHub := opts.hasGitHub
 	githubTool := opts.githubTool
 	tools := opts.tools
+	safeOutputsInputEnvVars := opts.safeOutputsInputEnvVars
 	containerImage := gatewayConfig.Container
 	if gatewayConfig.Version != "" {
 		containerImage += ":" + gatewayConfig.Version
@@ -257,6 +267,7 @@ func buildMCPGatewayContainerCommand(opts buildMCPGatewayContainerCommandOptions
 	containerCmd.WriteString(" -v ${DOCKER_SOCK_PATH}:/var/run/docker.sock")
 	appendMCPGatewayBaseEnvFlags(&containerCmd, payloadPathPrefix)
 	appendMCPGatewayConditionalEnvFlags(&containerCmd, workflowData, engine, hasGitHub, githubTool, tools)
+	appendMCPGatewaySafeOutputsInputEnvFlags(&containerCmd, safeOutputsInputEnvVars)
 	appendMCPGatewayCustomAndHTTPEnvFlags(&containerCmd, workflowData, gatewayConfig, mcpEnvVars, hasGitHub, githubTool, tools, engine)
 	if payloadDir != "" {
 		containerCmd.WriteString(" -v " + payloadDir + ":" + payloadDir + ":rw")
@@ -348,6 +359,20 @@ func appendMCPGatewayConditionalEnvFlags(containerCmd *strings.Builder, workflow
 	if hasGitHubOIDCAuthInTools(tools) {
 		containerCmd.WriteString(" -e ACTIONS_ID_TOKEN_REQUEST_URL")
 		containerCmd.WriteString(" -e ACTIONS_ID_TOKEN_REQUEST_TOKEN")
+	}
+}
+
+// appendMCPGatewaySafeOutputsInputEnvFlags adds -e flags for GH_AW_INPUT_* environment variables
+// that are referenced by the safe-outputs config. These variables are written into config.json as
+// ${GH_AW_INPUT_…} shell-style placeholders at compile time and must be resolvable inside the
+// containerised safe-outputs MCP server at runtime.
+func appendMCPGatewaySafeOutputsInputEnvFlags(containerCmd *strings.Builder, safeOutputsInputEnvVars map[string]string) {
+	if len(safeOutputsInputEnvVars) == 0 {
+		return
+	}
+	envVarNames := sliceutil.SortedKeys(safeOutputsInputEnvVars)
+	for _, envVarName := range envVarNames {
+		containerCmd.WriteString(" -e " + envVarName)
 	}
 }
 

@@ -125,7 +125,14 @@ func (c *Compiler) generateMCPSetup(yaml *strings.Builder, tools map[string]any,
 	if err := generateMCPScriptsSetup(yaml, workflowData); err != nil {
 		return fmt.Errorf("failed to generate mcp-scripts setup YAML: %w", err)
 	}
-	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows)
+	// Extract GH_AW_INPUT_* env vars from the safe-outputs config so the MCP
+	// gateway container receives them in its -e allowlist.  Without this, any
+	// safe-outputs field that references ${{ inputs.* }} is written to config.json
+	// as a ${GH_AW_INPUT_…} placeholder that the containerised MCP server cannot
+	// resolve, causing failures such as "No remote refs available for merge-base
+	// calculation" when using a dynamic base-branch.
+	safeOutputsInputEnvVars := extractSafeOutputsInputEnvVars(safeOutputConfig)
+	return generateMCPGatewaySetup(yaml, tools, mcpTools, engine, workflowData, hasAgenticWorkflows, safeOutputsInputEnvVars)
 }
 
 func collectMCPTools(workflowData *WorkflowData) []string {
@@ -171,4 +178,26 @@ func generateSafeOutputsConfigIfEnabled(workflowData *WorkflowData) (string, err
 		return "", fmt.Errorf("failed to generate safe outputs config: %w", err)
 	}
 	return safeOutputConfig, nil
+}
+
+// extractSafeOutputsInputEnvVars returns a map of GH_AW_INPUT_* environment variable names
+// to their GitHub Actions expressions for all ${{ inputs.* }} references in the safe-outputs
+// config. The map is used to populate the MCP gateway step env block AND the docker run -e
+// allowlist, so the containerised safe-outputs MCP server can resolve the ${GH_AW_INPUT_…}
+// shell-style placeholders written into config.json at compile time.
+func extractSafeOutputsInputEnvVars(safeOutputConfig string) map[string]string {
+	if safeOutputConfig == "" {
+		return nil
+	}
+	envKeys, envValues := buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig)
+	result := make(map[string]string)
+	for _, key := range envKeys {
+		if strings.HasPrefix(key, "GH_AW_INPUT_") {
+			result[key] = envValues[key]
+		}
+	}
+	if len(result) == 0 {
+		return nil
+	}
+	return result
 }
