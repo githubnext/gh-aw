@@ -46,10 +46,16 @@ func (e *GeminiEngine) GetModelEnvVarName() string {
 
 // GetRequiredSecretNames returns the list of secrets required by the Gemini engine
 // This includes GEMINI_API_KEY and optionally MCP_GATEWAY_API_KEY, GITHUB_MCP_SERVER_TOKEN,
-// HTTP MCP header secrets, and mcp-scripts secrets
+// HTTP MCP header secrets, and mcp-scripts secrets.
+// When Google/Vertex WIF (github-oidc + provider=google) is configured, no static API key
+// is needed and only common MCP secrets are returned.
 func (e *GeminiEngine) GetRequiredSecretNames(workflowData *WorkflowData) []string {
 	geminiLog.Print("Collecting required secrets for Gemini engine")
-	secrets := []string{"GEMINI_API_KEY"}
+
+	var secrets []string
+	if !isGeminiVertexWIF(workflowData) {
+		secrets = append(secrets, "GEMINI_API_KEY")
+	}
 
 	// Add common MCP secrets (MCP_GATEWAY_API_KEY if MCP servers present, mcp-scripts secrets)
 	secrets = append(secrets, collectCommonMCPSecrets(workflowData)...)
@@ -81,14 +87,27 @@ func (e *GeminiEngine) GetSupportedEnvVarKeys() []string {
 }
 
 // GetSecretValidationStep returns the secret validation step for the Gemini engine.
-// Returns an empty step if custom command is specified.
+// Returns an empty step if custom command is specified or if Google/Vertex WIF is configured.
 func (e *GeminiEngine) GetSecretValidationStep(workflowData *WorkflowData) GitHubActionStep {
+	if isGeminiVertexWIF(workflowData) {
+		return GitHubActionStep{}
+	}
 	return BuildDefaultSecretValidationStep(
 		workflowData,
 		[]string{"GEMINI_API_KEY"},
 		"Gemini CLI",
 		"https://geminicli.com/docs/get-started/authentication/",
 	)
+}
+
+// isGeminiVertexWIF returns true when the workflow is configured to use Google
+// Workload Identity Federation (github-oidc auth type with provider=google).
+func isGeminiVertexWIF(workflowData *WorkflowData) bool {
+	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Auth == nil {
+		return false
+	}
+	auth := workflowData.EngineConfig.Auth
+	return auth.Type == "github-oidc" && auth.Provider == "google"
 }
 
 func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHubActionStep {
@@ -248,7 +267,7 @@ func (e *GeminiEngine) GetExecutionSteps(workflowData *WorkflowData, logFile str
 			PathSetup: "touch " + AgentStepSummaryPath,
 			// Exclude every env var whose step-env value is a secret so the agent
 			// cannot read raw token values via bash tools (env / printenv).
-			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, []string{"GEMINI_API_KEY"}),
+			ExcludeEnvVarNames: ComputeAWFExcludeEnvVarNames(workflowData, e.GetRequiredSecretNames(workflowData)),
 		})
 	} else {
 		command = fmt.Sprintf(`set -o pipefail
@@ -259,9 +278,9 @@ touch %s
 	}
 
 	// Build environment variables
+	vertexWIF := isGeminiVertexWIF(workflowData)
 	env := map[string]string{
-		"GEMINI_API_KEY": "${{ secrets.GEMINI_API_KEY }}",
-		"GH_AW_PROMPT":   constants.AwPromptsFile,
+		"GH_AW_PROMPT": constants.AwPromptsFile,
 		// Tag the step as a GitHub AW agentic execution for discoverability by agents
 		"GITHUB_AW":        "true",
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
@@ -279,6 +298,20 @@ touch %s
 		// Trust the workspace to prevent Gemini CLI v1.x from overriding --yolo to default
 		// approval mode when the workspace is untrusted, which causes exit code 55.
 		"GEMINI_CLI_TRUST_WORKSPACE": "true",
+	}
+	if vertexWIF {
+		// When Google/Vertex WIF is configured, switch Gemini CLI to the Vertex AI backend.
+		// GEMINI_API_KEY is not needed; authentication is handled by the AWF api-proxy sidecar
+		// via the AWF_AUTH_GOOGLE_* env vars set through engine.auth.
+		env["GOOGLE_GENAI_USE_VERTEXAI"] = "1"
+		if workflowData.EngineConfig.Auth.GoogleProject != "" {
+			env["GOOGLE_CLOUD_PROJECT"] = workflowData.EngineConfig.Auth.GoogleProject
+		}
+		if workflowData.EngineConfig.Auth.GoogleLocation != "" {
+			env["GOOGLE_CLOUD_LOCATION"] = workflowData.EngineConfig.Auth.GoogleLocation
+		}
+	} else {
+		env["GEMINI_API_KEY"] = "${{ secrets.GEMINI_API_KEY }}"
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
 	// Indicate the phase: "agent" for the main run, "detection" for threat detection,

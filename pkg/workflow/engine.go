@@ -121,7 +121,7 @@ type InlineEngineDriver struct {
 type EngineAuthConfig struct {
 	Type     string
 	Audience string
-	Provider string // "azure" or "anthropic"
+	Provider string // "azure", "anthropic", or "google"
 	// Azure WIF fields
 	AzureTenantID string
 	AzureClientID string
@@ -132,6 +132,11 @@ type EngineAuthConfig struct {
 	AnthropicOrganizationID   string
 	AnthropicServiceAccountID string
 	AnthropicWorkspaceID      string
+	// Google / Vertex AI WIF fields
+	GoogleWorkloadIdentityProvider string
+	GoogleServiceAccount           string
+	GoogleProject                  string
+	GoogleLocation                 string
 }
 
 // NetworkPermissions represents network access permissions for workflow execution
@@ -727,6 +732,10 @@ func applyEngineAuthEnv(config *EngineConfig) {
 	setEngineAuthEnv(config.Env, "AWF_AUTH_ANTHROPIC_ORGANIZATION_ID", config.Auth.AnthropicOrganizationID)
 	setEngineAuthEnv(config.Env, "AWF_AUTH_ANTHROPIC_SERVICE_ACCOUNT_ID", config.Auth.AnthropicServiceAccountID)
 	setEngineAuthEnv(config.Env, "AWF_AUTH_ANTHROPIC_WORKSPACE_ID", config.Auth.AnthropicWorkspaceID)
+	setEngineAuthEnv(config.Env, "AWF_AUTH_GOOGLE_WORKLOAD_IDENTITY_PROVIDER", config.Auth.GoogleWorkloadIdentityProvider)
+	setEngineAuthEnv(config.Env, "AWF_AUTH_GOOGLE_SERVICE_ACCOUNT", config.Auth.GoogleServiceAccount)
+	setEngineAuthEnv(config.Env, "AWF_AUTH_GOOGLE_PROJECT", config.Auth.GoogleProject)
+	setEngineAuthEnv(config.Env, "AWF_AUTH_GOOGLE_LOCATION", config.Auth.GoogleLocation)
 }
 
 func setEngineAuthEnv(env map[string]string, key, value string) {

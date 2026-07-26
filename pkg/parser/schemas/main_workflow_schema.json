@@ -12434,7 +12434,7 @@
                 },
                 "provider": {
                   "type": "string",
-                  "description": "Optional WIF provider discriminator. Recognized values are 'azure' and 'anthropic'."
+                  "description": "Optional WIF provider discriminator. Recognized values are 'azure', 'anthropic', and 'google'."
                 },
                 "federation-rule-id": {
                   "type": "string",
@@ -12451,6 +12451,22 @@
                 "workspace-id": {
                   "type": "string",
                   "description": "Anthropic WIF workspace ID (e.g., ws_...)."
+                },
+                "workload-identity-provider": {
+                  "type": "string",
+                  "description": "Google Cloud WIF workload identity provider resource name (e.g., projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER)."
+                },
+                "service-account": {
+                  "type": "string",
+                  "description": "Google Cloud service account email to impersonate via WIF (e.g., my-sa@my-project.iam.gserviceaccount.com)."
+                },
+                "project": {
+                  "type": "string",
+                  "description": "Google Cloud project ID used for Vertex AI / Gemini Enterprise inference."
+                },
+                "location": {
+                  "type": "string",
+                  "description": "Google Cloud region for Vertex AI inference (e.g., us-central1). Defaults to us-central1 when omitted."
                 }
               },
               "required": ["type"],
