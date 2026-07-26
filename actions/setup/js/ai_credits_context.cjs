@@ -274,6 +274,7 @@ function parseMaxAICreditsExceededFromAuditLog(auditJsonlPathOverride) {
 function parseUnknownModelAICreditsFromAuditEntry(entry) {
   return traverseObjectTree(entry, (_key, value) => {
     if (value === UNKNOWN_MODEL_AI_CREDITS_TYPE) return true;
+    return false;
   });
 }
 
