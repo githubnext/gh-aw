@@ -205,10 +205,21 @@ func TestIntensityChar(t *testing.T) {
 	}
 }
 
-func TestIntensityStyle_NoANSIWhenNotTerminal(t *testing.T) {
+func TestRenderScheduleCalendarCell_NoANSIWhenNotTerminal(t *testing.T) {
 	for _, count := range []int{0, 1, 2, 5, 8} {
-		got := intensityStyle(count, false).Render(intensityChar(count))
+		text := intensityChar(count)
+		got := renderScheduleCalendarCell(count, text, false, []string{"TERM=xterm-256color"})
+		assert.Equal(t, text, got, "non-TTY output should return plain text")
 		assert.NotContains(t, got, "\x1b[", "non-TTY output should not contain ANSI escapes")
+	}
+}
+
+func TestRenderScheduleCalendarCell_NoANSIWhenNoColor(t *testing.T) {
+	for _, count := range []int{0, 1, 2, 5, 8} {
+		text := intensityChar(count)
+		got := renderScheduleCalendarCell(count, text, true, []string{"NO_COLOR=1", "TERM=xterm-256color"})
+		assert.Equal(t, text, got, "NO_COLOR output should return plain text")
+		assert.NotContains(t, got, "\x1b[", "NO_COLOR output should not contain ANSI escapes")
 	}
 }
 
