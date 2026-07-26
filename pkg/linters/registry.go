@@ -51,6 +51,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/stringreplaceminusone"
 	"github.com/github/gh-aw/pkg/linters/stringsconcatloop"
 	"github.com/github/gh-aw/pkg/linters/stringscountcontains"
+	"github.com/github/gh-aw/pkg/linters/stringscutprefix"
 	"github.com/github/gh-aw/pkg/linters/stringsindexcontains"
 	"github.com/github/gh-aw/pkg/linters/stringsindexhasprefix"
 	"github.com/github/gh-aw/pkg/linters/stringsjoinone"
@@ -117,6 +118,7 @@ func All() []*analysis.Analyzer {
 		stringsconcatloop.Analyzer,
 		stringsindexcontains.Analyzer,
 		stringsindexhasprefix.Analyzer,
+		stringscutprefix.Analyzer,
 		stringsjoinone.Analyzer,
 		stringscountcontains.Analyzer,
 		jsonmarshalignoredeerror.Analyzer,
