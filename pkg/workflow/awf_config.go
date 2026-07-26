@@ -67,6 +67,7 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"slices"
 	"strconv"
 	"strings"
@@ -259,6 +260,12 @@ type AWFAPIProxyConfig struct {
 	// The "gemini" target is also used for Antigravity engine routing.
 	Targets map[string]*AWFAPITargetConfig `json:"targets,omitempty"`
 
+	// Providers holds per-provider model pricing overlays used by the API proxy
+	// AI-credits guardrails for models not present in the built-in pricing table.
+	// Structure matches models.json provider format:
+	//   providers.<provider>.models.<model>.cost.{input,output,cache_read,cache_write,reasoning}
+	Providers map[string]any `json:"providers,omitempty"`
+
 	// Models contains model alias and fallback policy definitions.
 	// Keys are alias names (empty string "" = default policy); values are ordered
 	// lists of vendor/modelid patterns or other alias names to try in sequence.
@@ -294,6 +301,22 @@ type AWFAPITargetConfig struct {
 	// that require "api-key: <rawkey>" in place of the standard provider scheme.
 	// Maps to: --openai-api-auth-header / --anthropic-api-auth-header
 	AuthHeader string `json:"authHeader,omitempty"`
+
+	// ExtraHeaders holds additional non-sensitive headers injected on Copilot BYOK upstream
+	// requests. Only valid for the "copilot" provider target (copilotTarget in the AWF schema).
+	// Maps to AWF_BYOK_EXTRA_HEADERS in the sidecar.
+	ExtraHeaders map[string]string `json:"extraHeaders,omitempty"`
+
+	// ExtraBodyFields holds additional non-sensitive JSON body fields injected on Copilot BYOK
+	// upstream requests. Only valid for the "copilot" provider target.
+	// Maps to AWF_BYOK_EXTRA_BODY_FIELDS in the sidecar.
+	ExtraBodyFields map[string]string `json:"extraBodyFields,omitempty"`
+
+	// SessionId is an opt-in session identifier injected as the x-session-id request header
+	// and session_id body field on Copilot BYOK upstream requests. Only valid for the
+	// "copilot" provider target. Must be set explicitly; never auto-derived from GITHUB_RUN_ID.
+	// Maps to AWF_PROVIDER_SESSION_ID in the sidecar.
+	SessionId string `json:"sessionId,omitempty"`
 }
 
 // AWFContainerConfig is the "container" section of the AWF config file.
@@ -544,6 +567,33 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["copilot"] = &AWFAPITargetConfig{Host: copilotTarget}
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
+
+	// Apply BYOK supplemental fields from sandbox.agent.targets.copilot frontmatter.
+	// extraHeaders, extraBodyFields, and sessionId are Copilot-specific and map to
+	// AWF_BYOK_EXTRA_HEADERS, AWF_BYOK_EXTRA_BODY_FIELDS, and AWF_PROVIDER_SESSION_ID.
+	if copilotFrontmatter := extractCopilotTargetConfig(config.WorkflowData); copilotFrontmatter != nil {
+		existing, ok := targets["copilot"]
+		if !ok {
+			existing = &AWFAPITargetConfig{}
+			targets["copilot"] = existing
+		}
+		if copilotFrontmatter.AuthHeader != "" {
+			existing.AuthHeader = copilotFrontmatter.AuthHeader
+			awfConfigLog.Printf("API proxy: copilot authHeader=%s", copilotFrontmatter.AuthHeader)
+		}
+		if len(copilotFrontmatter.ExtraHeaders) > 0 {
+			existing.ExtraHeaders = copilotFrontmatter.ExtraHeaders
+			awfConfigLog.Printf("API proxy: copilot extraHeaders configured (%d header(s))", len(copilotFrontmatter.ExtraHeaders))
+		}
+		if len(copilotFrontmatter.ExtraBodyFields) > 0 {
+			existing.ExtraBodyFields = copilotFrontmatter.ExtraBodyFields
+			awfConfigLog.Printf("API proxy: copilot extraBodyFields configured (%d field(s))", len(copilotFrontmatter.ExtraBodyFields))
+		}
+		if copilotFrontmatter.SessionId != "" {
+			existing.SessionId = copilotFrontmatter.SessionId
+			awfConfigLog.Printf("API proxy: copilot sessionId configured")
+		}
+	}
 	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
 		// Route the Antigravity-resolved API target through the "gemini" provider key
 		// to match AWF's supported target providers.
@@ -557,6 +607,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if len(targets) > 0 {
 		apiProxy.Targets = targets
 		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
+	}
+
+	if providers := extractModelCostProviders(config.WorkflowData); len(providers) > 0 {
+		if awfSupportsAPIProxyProviders(firewallConfig) {
+			apiProxy.Providers = providers
+			awfConfigLog.Printf("API proxy: %d model-cost provider override(s) configured", len(providers))
+		} else {
+			awfConfigLog.Printf("Skipping apiProxy.providers: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFAPIProxyProvidersMinVersion)
+		}
 	}
 
 	// ── Models section (nested under apiProxy per AWF config schema) ──────────
@@ -821,6 +880,23 @@ func extractDefaultAiCreditsPricing(workflowData *WorkflowData) *AiCreditsPricin
 		CachedInput: p.CachedInput,
 		CacheWrite:  p.CacheWrite,
 	}
+}
+
+func extractModelCostProviders(workflowData *WorkflowData) map[string]any {
+	if workflowData == nil || len(workflowData.ModelCosts) == 0 {
+		return nil
+	}
+	providers, ok := workflowData.ModelCosts["providers"].(map[string]any)
+	if !ok {
+		awfConfigLog.Printf("API proxy: models.providers has unexpected type %T; skipping provider overlay", workflowData.ModelCosts["providers"])
+		return nil
+	}
+	if len(providers) == 0 {
+		return nil
+	}
+	clone := make(map[string]any, len(providers))
+	maps.Copy(clone, providers)
+	return clone
 }
 
 // getRunnerTopology extracts the runner topology string from WorkflowData.

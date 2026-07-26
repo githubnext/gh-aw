@@ -7,6 +7,7 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
+const { getStagedPatchAdditionsSizeBytes } = require("./repo_memory_patch_size.cjs");
 const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
@@ -544,13 +545,7 @@ async function main() {
   // Deletions are ignored since removing content is acceptable and does not
   // contribute to the size of the content being pushed.
   try {
-    const patchContent = execGitSync(["diff", "--cached"], { stdio: "pipe" });
-    // Count only added lines (starting with '+', excluding '+++' file-header lines)
-    const addedSizeBytes = patchContent
-      .split("\n")
-      .filter(line => line.startsWith("+") && !line.startsWith("+++"))
-      .reduce((sum, line) => sum + Buffer.byteLength(line + "\n", "utf8"), 0);
-    const patchSizeBytes = addedSizeBytes;
+    const patchSizeBytes = getStagedPatchAdditionsSizeBytes({ execGitSyncFn: execGitSync });
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
     const maxPatchSizeKb = Math.floor(maxPatchSize / 1024);
     // Allow 20% overhead to account for git diff format (headers, context lines, etc.)

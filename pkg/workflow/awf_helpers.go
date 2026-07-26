@@ -402,11 +402,16 @@ fi`,
 		} else {
 			printfArg = shellEscapeArg(awfConfigJSON)
 		}
-		configFileSetup = fmt.Sprintf(
-			"printf '%%s\\n' %s > %q",
-			printfArg,
-			awfConfigRuntimePathExpr,
-		)
+		// SC2016 ("Expressions don't expand in single quotes") is only triggered when
+		// printfArg is single-quoted (no runtime variables injected). Double-quoted args
+		// already escape bare $ signs as \$schema, so shellcheck does not warn there.
+		var printfLine string
+		if strings.HasPrefix(printfArg, "'") {
+			printfLine = "# shellcheck disable=SC2016\nprintf '%%s\\n' %s > %q"
+		} else {
+			printfLine = "printf '%%s\\n' %s > %q"
+		}
+		configFileSetup = fmt.Sprintf(printfLine, printfArg, awfConfigRuntimePathExpr)
 		if maxAICreditsExportLine != "" {
 			configFileSetup = maxAICreditsExportLine + "\n" + configFileSetup
 		}
@@ -1086,6 +1091,12 @@ func awfSupportsContainerRuntime(firewallConfig *FirewallConfig) bool {
 // recognize this flag.
 func awfSupportsLegacySecurity(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFLegacySecurityMinVersion)
+}
+
+// awfSupportsAPIProxyProviders returns true when the effective AWF version supports
+// apiProxy.providers in awf-config.json.
+func awfSupportsAPIProxyProviders(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFAPIProxyProvidersMinVersion)
 }
 
 // buildArcDindChrootConfigPatchBody returns the Node.js command that patches the AWF

@@ -18,6 +18,7 @@ func TestAWFHelpersDoesNotContainEngineAPITargetHelpers(t *testing.T) {
 		"func extractAPITargetHost(",
 		"func extractAPIBasePath(",
 		"func extractAPITargetAuthHeader(",
+		"func extractCopilotTargetConfig(",
 		"func GetCopilotAPITarget(",
 		"func extractLiteralEngineEnvHost(",
 		"func GetCopilotAllowlistTargets(",

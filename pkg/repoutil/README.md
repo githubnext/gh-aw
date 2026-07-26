@@ -32,11 +32,19 @@ if err != nil {
 **Internal**:
 - `github.com/github/gh-aw/pkg/logger` — debug logging
 
+## Thread Safety
+
+Both functions are pure and stateless; they MAY be called concurrently without synchronization.
+
 ## Design Notes
 
 - All debug output uses `logger.New("repoutil:repoutil")` and is only emitted when `DEBUG=repoutil:*`.
 - For paths that include sub-folders (e.g. GitHub Actions `uses:` fields such as `github/codeql-action/upload-sarif`), use `gitutil.ExtractBaseRepo` first to strip the sub-path before calling `SplitRepoSlug`.
 - `NormalizeRepoForAPI` only treats three-segment strings as `HOST/owner/repo`; plain `owner/repo` values are returned unchanged with an empty host.
+
+## Source Synchronization
+
+Reviewed against source on 2026-07-26; no public-contract deltas identified.
 
 ---
 

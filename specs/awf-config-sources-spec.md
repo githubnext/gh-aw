@@ -63,6 +63,9 @@ The following fields previously existed in schema but were missed in spec CLI ma
 | `apiProxy.auth.*` | config-only (maps to `AWF_AUTH_*` env vars) |
 | `apiProxy.targets.openai.authHeader` | `--openai-api-auth-header` (frontmatter: `sandbox.agent.targets.openai.authHeader`) |
 | `apiProxy.targets.anthropic.authHeader` | `--anthropic-api-auth-header` (frontmatter: `sandbox.agent.targets.anthropic.authHeader`) |
+| `apiProxy.targets.copilot.extraHeaders` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraHeaders`; maps to `AWF_BYOK_EXTRA_HEADERS`) |
+| `apiProxy.targets.copilot.extraBodyFields` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraBodyFields`; maps to `AWF_BYOK_EXTRA_BODY_FIELDS`) |
+| `apiProxy.targets.copilot.sessionId` | config-only (frontmatter: `sandbox.agent.targets.copilot.sessionId`; maps to `AWF_PROVIDER_SESSION_ID`) |
 | `container.dockerHostPathPrefix` | `--docker-host-path-prefix` |
 
 Agents SHOULD treat this class of mismatch as a regression signal and open a corrective PR when detected.

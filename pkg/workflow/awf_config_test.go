@@ -787,6 +787,206 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		assert.NotContains(t, jsonStr, `"authHeader"`, "authHeader should be absent when not configured")
 	})
 
+	t.Run("copilot extraHeaders from frontmatter sandbox.agent.targets.copilot are included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"copilot": {
+								ExtraHeaders: map[string]string{
+									"x-openrouter-title": "my-workflow",
+									"http-referer":       "https://github.com/org/repo",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"copilot"`, "should include copilot target")
+		assert.Contains(t, jsonStr, `"extraHeaders"`, "should include extraHeaders in copilot target")
+		assert.Contains(t, jsonStr, `"x-openrouter-title"`, "should include x-openrouter-title header key")
+		assert.Contains(t, jsonStr, `"my-workflow"`, "should include header value")
+	})
+
+	t.Run("copilot extraBodyFields from frontmatter sandbox.agent.targets.copilot are included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"copilot": {
+								ExtraBodyFields: map[string]string{
+									"custom-field": "custom-value",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"extraBodyFields"`, "should include extraBodyFields in copilot target")
+		assert.Contains(t, jsonStr, `"custom-field"`, "should include body field key")
+		assert.Contains(t, jsonStr, `"custom-value"`, "should include body field value")
+	})
+
+	t.Run("copilot sessionId from frontmatter sandbox.agent.targets.copilot is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"copilot": {
+								SessionId: "${{ github.run_id }}",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"sessionId"`, "should include sessionId in copilot target")
+		assert.Contains(t, jsonStr, `"${{ github.run_id }}"`, "should include sessionId value")
+	})
+
+	t.Run("copilot authHeader from frontmatter sandbox.agent.targets.copilot is included", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"copilot": {
+								AuthHeader: "api-key",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"copilot"`, "should include copilot target")
+		assert.Contains(t, jsonStr, `"authHeader":"api-key"`, "should include copilot authHeader in apiProxy targets")
+		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host when only authHeader is set")
+	})
+
+	t.Run("copilot BYOK fields coexist with host from GetCopilotAPITarget", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:        "copilot",
+					APITarget: "copilot-gateway.internal",
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"copilot": {
+								ExtraHeaders: map[string]string{
+									"x-title": "my-workflow",
+								},
+								SessionId: "run-123",
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, "copilot-gateway.internal", "should include host from api-target")
+		assert.Contains(t, jsonStr, `"extraHeaders"`, "should include extraHeaders alongside host")
+		assert.Contains(t, jsonStr, `"sessionId"`, "should include sessionId alongside host")
+	})
+
+	t.Run("copilot BYOK fields create entry even without host override", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+				SandboxConfig: &SandboxConfig{
+					Agent: &AgentSandboxConfig{
+						Targets: map[string]*AgentAPIProxyTargetConfig{
+							"copilot": {
+								ExtraHeaders: map[string]string{
+									"x-title": "my-workflow",
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.Contains(t, jsonStr, `"copilot"`, "should include copilot target entry even without host")
+		assert.Contains(t, jsonStr, `"extraHeaders"`, "should include extraHeaders")
+		assert.NotContains(t, jsonStr, `"host":""`, "should not emit empty host")
+	})
+
+	t.Run("copilot BYOK fields are absent when not configured", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		assert.NotContains(t, jsonStr, `"extraHeaders"`, "extraHeaders should be absent when not configured")
+		assert.NotContains(t, jsonStr, `"extraBodyFields"`, "extraBodyFields should be absent when not configured")
+		assert.NotContains(t, jsonStr, `"sessionId"`, "sessionId should be absent when not configured")
+	})
+
 	t.Run("sandbox agent platform is emitted in awf platform config", func(t *testing.T) {
 		config := AWFCommandConfig{
 			EngineName:     "copilot",
@@ -1002,6 +1202,123 @@ func TestBuildAWFConfigJSON(t *testing.T) {
 		jsonStr, err := BuildAWFConfigJSON(config)
 		require.NoError(t, err)
 		assert.NotContains(t, jsonStr, `"defaultAiCreditsPricing"`, "apiProxy should omit defaultAiCreditsPricing when not configured")
+	})
+
+	t.Run("models.providers cost overlay is emitted in apiProxy config when AWF supports providers", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+				},
+				ModelCosts: map[string]any{
+					"providers": map[string]any{
+						"anthropic": map[string]any{
+							"models": map[string]any{
+								"accounts/fireworks/models/minimax-m3": map[string]any{
+									"cost": map[string]any{
+										"input":       "3e-07",
+										"output":      "1.5e-06",
+										"cache_read":  "3e-08",
+										"cache_write": "3.75e-07",
+									},
+								},
+							},
+						},
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: string(constants.AWFAPIProxyProvidersMinVersion)},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok, "expected apiProxy object")
+		providers, ok := apiProxy["providers"].(map[string]any)
+		require.True(t, ok, "expected apiProxy.providers object")
+		anthropic, ok := providers["anthropic"].(map[string]any)
+		require.True(t, ok, "expected anthropic provider")
+		models, ok := anthropic["models"].(map[string]any)
+		require.True(t, ok, "expected anthropic.models object")
+		model, ok := models["accounts/fireworks/models/minimax-m3"].(map[string]any)
+		require.True(t, ok, "expected custom model key in providers")
+		cost, ok := model["cost"].(map[string]any)
+		require.True(t, ok, "expected model cost object")
+		assert.Equal(t, "3e-08", cost["cache_read"], "apiProxy.providers should preserve custom cache_read pricing")
+	})
+
+	t.Run("models.providers is not emitted when AWF version does not support apiProxy.providers", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "claude",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "claude",
+				},
+				ModelCosts: map[string]any{
+					"providers": map[string]any{
+						"anthropic": map[string]any{
+							"models": map[string]any{
+								"accounts/fireworks/models/minimax-m3": map[string]any{
+									"cost": map[string]any{
+										"input":  "3e-07",
+										"output": "1.5e-06",
+									},
+								},
+							},
+						},
+					},
+				},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true, Version: "v0.27.41"},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok, "expected apiProxy object")
+		_, hasProviders := apiProxy["providers"]
+		assert.False(t, hasProviders, "apiProxy should omit providers when AWF version does not support it")
+	})
+}
+
+func TestExtractModelCostProviders(t *testing.T) {
+	t.Run("returns a cloned providers map", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			ModelCosts: map[string]any{
+				"providers": map[string]any{
+					"anthropic": map[string]any{"models": map[string]any{}},
+				},
+			},
+		}
+
+		got := extractModelCostProviders(workflowData)
+		require.NotNil(t, got)
+		got["openai"] = map[string]any{}
+
+		origProviders := workflowData.ModelCosts["providers"].(map[string]any)
+		_, mutatedOriginal := origProviders["openai"]
+		assert.False(t, mutatedOriginal, "returned providers map should not alias ModelCosts.providers")
+	})
+
+	t.Run("returns nil when providers has unexpected type", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			ModelCosts: map[string]any{
+				"providers": map[string]string{"anthropic": "invalid"},
+			},
+		}
+		assert.Nil(t, extractModelCostProviders(workflowData))
 	})
 }
 
@@ -1220,6 +1537,35 @@ func TestBuildAWFConfigJSON_SchemaCompliance(t *testing.T) {
 						},
 					}
 				}(),
+			},
+		},
+		{
+			name: "config with copilot BYOK extra headers and sessionId",
+			config: AWFCommandConfig{
+				EngineName:     "copilot",
+				AllowedDomains: "github.com",
+				WorkflowData: &WorkflowData{
+					EngineConfig: &EngineConfig{ID: "copilot"},
+					NetworkPermissions: &NetworkPermissions{
+						Firewall: &FirewallConfig{Enabled: true},
+					},
+					SandboxConfig: &SandboxConfig{
+						Agent: &AgentSandboxConfig{
+							Targets: map[string]*AgentAPIProxyTargetConfig{
+								"copilot": {
+									ExtraHeaders: map[string]string{
+										"x-openrouter-title": "my-workflow",
+										"http-referer":       "https://github.com/org/repo",
+									},
+									ExtraBodyFields: map[string]string{
+										"custom-field": "custom-value",
+									},
+									SessionId: "run-12345",
+								},
+							},
+						},
+					},
+				},
 			},
 		},
 	}

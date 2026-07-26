@@ -99,9 +99,9 @@ jobs:
     if: >
       needs.pre_activation.outputs.activated == 'true' && ((fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' ||
       fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context ||
-      '{}').event_type == 'discussion') && fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'dev' ||
-      (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues')) && (!(fromJSON(github.event.inputs.aw_context ||
-      '{}').event_type == 'pull_request')) && (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion')))
+      '{}').event_type == 'discussion') && (fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'dev') ||
+      !(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion'))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1714,9 +1714,9 @@ jobs:
     if: >
       (fromJSON(github.event.inputs.aw_context || '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context ||
       '{}').event_type == 'pull_request' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion') &&
-      fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'dev' || (!(fromJSON(github.event.inputs.aw_context ||
-      '{}').event_type == 'issues')) && (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request')) &&
-      (!(fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion'))
+      (fromJSON(github.event.inputs.aw_context || '{}').trigger_label == 'dev') || !(fromJSON(github.event.inputs.aw_context ||
+      '{}').event_type == 'issues' || fromJSON(github.event.inputs.aw_context || '{}').event_type == 'pull_request' ||
+      fromJSON(github.event.inputs.aw_context || '{}').event_type == 'discussion')
     runs-on: ubuntu-slim
     permissions:
       contents: read
