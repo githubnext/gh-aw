@@ -19,6 +19,7 @@ const { parseTokenUsageJsonl, generateTokenUsageSummary } = require("./parse_mcp
 const { readDedupedTokenUsage, TOKEN_USAGE_PATHS } = require("./parse_token_usage.cjs");
 const { extractShellCommandFromToolData } = require("./tool_call_details.cjs");
 const fs = require("fs");
+const https = require("https");
 const os = require("os");
 const path = require("path");
 
@@ -245,6 +246,7 @@ function buildFailureMatchCategories(options) {
   if (options.http400ResponseError) categories.push("http_400_response_error");
   if (options.aiCreditsRateLimitError) categories.push("ai_credits_rate_limit_error");
   if (options.unknownModelAICredits) categories.push("unknown_model_ai_credits");
+  if (options.missingModelPricingError) categories.push("missing_model_pricing");
   if (options.maxAICreditsExceeded) categories.push("max_ai_credits_exceeded");
   if (options.hasAppTokenMintingFailed) categories.push("app_token_minting_failed");
   if (options.hasLockdownCheckFailed) categories.push("lockdown_check_failed");
@@ -285,6 +287,8 @@ function buildFailureMatchCategories(options) {
  * @param {boolean} options.hasAssignmentErrors
  * @param {boolean} options.http400ResponseError
  * @param {boolean} options.unknownModelAICredits
+ * @param {boolean} [options.missingModelPricingError]
+ * @param {string} [options.missingModelPricingModelName]
  * @returns {string}
  */
 function buildFailureIssueTitle(options) {
@@ -295,6 +299,13 @@ function buildFailureIssueTitle(options) {
   // Keep HTTP 400 below AI-credits signals: quota/rate-limit indicates an account-level
   // budget state that should take precedence when both classes are detected.
   if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
+  // Missing model pricing detected directly from agent-stdio.log takes precedence over
+  // the generic unknown_model_ai_credits signal when both are present, since it carries
+  // a model name and more specific remediation.
+  if (options.missingModelPricingError) {
+    const modelSuffix = options.missingModelPricingModelName ? ` (${options.missingModelPricingModelName})` : "";
+    return `[aw] ${workflowName} has no AI credits pricing for model${modelSuffix}`;
+  }
   // Unknown model pricing is a configuration error that may also trigger a timeout;
   // report it explicitly so the title is not misleadingly "timed out".
   if (options.unknownModelAICredits) return `[aw] ${workflowName} has unknown model pricing`;
@@ -1710,6 +1721,158 @@ function buildUnknownModelAICreditsContext(hasUnknownModelAICreditsError) {
 }
 
 /**
+ * Fetch the models.dev pricing catalog and look up per-million-token pricing for a model.
+ * Returns null when the catalog is unavailable, the model is not found, or pricing is missing.
+ * @param {string} modelName - The model name to look up (e.g. "claude-opus-5")
+ * @returns {Promise<{input: number, output: number, cacheRead?: number, cacheWrite?: number}|null>}
+ */
+async function fetchModelPricingFromModelsDev(modelName) {
+  if (!modelName) return null;
+  const url = "https://models.dev/catalog.json";
+  const normalizedModel = modelName.toLowerCase().replace(/[._]/g, "-");
+  /** @type {string} */
+  const rawJson = await new Promise((resolve, reject) => {
+    const req = https.get(url, { timeout: 5000 }, res => {
+      if (res.statusCode !== 200) {
+        res.resume();
+        reject(new Error(`models.dev returned HTTP ${res.statusCode}`));
+        return;
+      }
+      const chunks = [];
+      res.on("data", chunk => chunks.push(chunk));
+      res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
+      res.on("error", reject);
+    });
+    req.on("timeout", () => {
+      req.destroy();
+      reject(new Error("models.dev request timed out"));
+    });
+    req.on("error", reject);
+  });
+
+  /** @type {any} */
+  const catalog = JSON.parse(rawJson);
+  const providers = catalog?.providers ?? {};
+
+  for (const [, providerData] of Object.entries(providers)) {
+    const models = /** @type {any} */ providerData?.models ?? {};
+    for (const [mName, mData] of Object.entries(models)) {
+      const normalized = mName.toLowerCase().replace(/[._]/g, "-");
+      if (normalized === normalizedModel) {
+        const cost = /** @type {any} */ mData?.cost ?? {};
+        const inputPerMillion = typeof cost.input === "number" ? cost.input : null;
+        const outputPerMillion = typeof cost.output === "number" ? cost.output : null;
+        if (inputPerMillion === null || outputPerMillion === null) return null;
+        /** @type {{input: number, output: number, cacheRead?: number, cacheWrite?: number}} */
+        const result = { input: inputPerMillion, output: outputPerMillion };
+        if (typeof cost.cache_read === "number") result.cacheRead = cost.cache_read;
+        if (typeof cost.cache_write === "number") result.cacheWrite = cost.cache_write;
+        return result;
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * Format a per-million-token price as a YAML-safe per-token scientific notation string.
+ * @param {number} perMillionTokens
+ * @returns {string}
+ */
+function formatPerTokenPrice(perMillionTokens) {
+  const perToken = perMillionTokens / 1_000_000;
+  return perToken.toExponential().replace(/e\+?(-?)0*(\d+)$/, "e$1$2");
+}
+
+/**
+ * Infer the frontmatter provider key from the engine ID.
+ * @param {string} engineId
+ * @returns {string}
+ */
+function inferProviderKeyFromEngineId(engineId) {
+  switch ((engineId || "").toLowerCase()) {
+    case "claude":
+      return "anthropic";
+    case "codex":
+      return "openai";
+    case "copilot":
+      return "github-copilot";
+    default:
+      return "github-copilot";
+  }
+}
+
+/**
+ * Build a frontmatter YAML pricing snippet for the missing model.
+ * Returns null when pricing data is unavailable.
+ * @param {string} modelName
+ * @param {string} engineId
+ * @param {{input: number, output: number, cacheRead?: number, cacheWrite?: number}|null} pricing Per-million-token values from models.dev
+ * @returns {string|null}
+ */
+function buildModelPricingFrontmatterSnippet(modelName, engineId, pricing) {
+  if (!modelName || !pricing) return null;
+  const provider = inferProviderKeyFromEngineId(engineId);
+  const inputStr = formatPerTokenPrice(pricing.input);
+  const outputStr = formatPerTokenPrice(pricing.output);
+  let costBlock = `            input: "${inputStr}"      # $${pricing.input.toFixed(2)} per million input tokens\n`;
+  costBlock += `            output: "${outputStr}"     # $${pricing.output.toFixed(2)} per million output tokens\n`;
+  if (pricing.cacheRead !== undefined) {
+    costBlock += `            cache_read: "${formatPerTokenPrice(pricing.cacheRead)}"  # $${pricing.cacheRead.toFixed(2)} per million cache-read tokens\n`;
+  }
+  if (pricing.cacheWrite !== undefined) {
+    costBlock += `            cache_write: "${formatPerTokenPrice(pricing.cacheWrite)}" # $${pricing.cacheWrite.toFixed(2)} per million cache-write tokens\n`;
+  }
+  return `\`\`\`yaml
+models:
+  providers:
+    ${provider}:
+      models:
+        ${modelName}:
+          cost:
+${costBlock.trimEnd()}
+\`\`\``;
+}
+
+/**
+ * Builds the missing_model_pricing failure context block for templates.
+ * Fetches current pricing from models.dev and includes a ready-to-use frontmatter snippet.
+ * @param {boolean} hasMissingModelPricingError
+ * @param {string} modelName
+ * @param {string} engineId
+ * @returns {Promise<string>}
+ */
+async function buildMissingModelPricingContext(hasMissingModelPricingError, modelName, engineId) {
+  if (!hasMissingModelPricingError) {
+    return "";
+  }
+
+  let pricingSnippet = "";
+  if (modelName) {
+    try {
+      const pricing = await fetchModelPricingFromModelsDev(modelName);
+      if (pricing) {
+        const snippet = buildModelPricingFrontmatterSnippet(modelName, engineId, pricing);
+        if (snippet) {
+          pricingSnippet = snippet;
+        }
+      }
+    } catch (err) {
+      core.info(`Could not fetch pricing from models.dev for model "${modelName}": ${getErrorMessage(err)}`);
+    }
+  }
+
+  return (
+    "\n" +
+    renderPromptTemplate("missing_model_pricing.md", {
+      model_name: modelName || "unknown",
+      pricing_snippet: pricingSnippet,
+      has_pricing_snippet: pricingSnippet ? "true" : "",
+    })
+  );
+}
+
+/**
  * Detect HTTP 429/rate-limit engine failures in text payloads.
  * @param {string} content
  * @returns {boolean}
@@ -2865,6 +3028,8 @@ async function main() {
     const unknownModelAICreditsFromOutput = process.env.GH_AW_UNKNOWN_MODEL_AI_CREDITS === "true";
     const unknownModelAICreditsFromAudit = parseUnknownModelAICreditsFromAuditLog();
     const unknownModelAICredits = unknownModelAICreditsFromAudit || (unknownModelAICreditsFromOutput && agentConclusion === "failure");
+    const missingModelPricingError = process.env.GH_AW_MISSING_MODEL_PRICING_ERROR === "true" && agentConclusion === "failure";
+    const missingModelPricingModelName = process.env.GH_AW_MISSING_MODEL_PRICING_MODEL_NAME || "";
     const pushRepoMemoryResult = process.env.GH_AW_PUSH_REPO_MEMORY_RESULT || "";
     const reportFailureAsIssue = parseBoolTemplatable(process.env.GH_AW_FAILURE_REPORT_AS_ISSUE, true);
     // Parse included categories filter for report-failure-as-issue (optional JSON array of category strings)
@@ -2977,6 +3142,7 @@ async function main() {
     core.info(`HTTP 400 response error: ${http400ResponseError}`);
     core.info(`Unknown model AI credits error: ${unknownModelAICredits}`);
     core.info(`Unknown model AI credits sources (audit/output): ${unknownModelAICreditsFromAudit}/${unknownModelAICreditsFromOutput}`);
+    core.info(`Missing model pricing error: ${missingModelPricingError} (model: ${missingModelPricingModelName || "(unknown)"})`);
     core.info(`Push repo-memory result: ${pushRepoMemoryResult}`);
     core.info(`App token minting failed (safe_outputs/conclusion/activation): ${safeOutputsAppTokenMintingFailed}/${conclusionAppTokenMintingFailed}/${activationAppTokenMintingFailed}`);
     core.info(`Lockdown check failed: ${hasLockdownCheckFailed}`);
@@ -3274,6 +3440,8 @@ async function main() {
       hasAssignmentErrors,
       http400ResponseError,
       unknownModelAICredits,
+      missingModelPricingError,
+      missingModelPricingModelName,
     });
     const failureCategories = buildFailureMatchCategories({
       agentConclusion,
@@ -3298,6 +3466,7 @@ async function main() {
       http400ResponseError,
       aiCreditsRateLimitError,
       unknownModelAICredits,
+      missingModelPricingError,
       maxAICreditsExceeded,
       hasAppTokenMintingFailed,
       hasLockdownCheckFailed,
@@ -3484,6 +3653,9 @@ async function main() {
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
 
+        // Build missing model pricing context (fetches current pricing from models.dev)
+        const missingModelPricingContext = await buildMissingModelPricingContext(missingModelPricingError, missingModelPricingModelName, process.env.GH_AW_ENGINE_ID || "");
+
         // Create template context
         const templateContext = {
           run_url: runUrl,
@@ -3516,6 +3688,7 @@ async function main() {
           http_400_response_error_context: http400ResponseErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
           unknown_model_ai_credits_context: unknownModelAICreditsContext,
+          missing_model_pricing_context: missingModelPricingContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           oauth_token_check_failed_context: oauthTokenCheckFailedContext,
@@ -3703,6 +3876,9 @@ async function main() {
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
 
+        // Build missing model pricing context (fetches current pricing from models.dev)
+        const missingModelPricingContext = await buildMissingModelPricingContext(missingModelPricingError, missingModelPricingModelName, process.env.GH_AW_ENGINE_ID || "");
+
         // Build optimize token consumption context (shown when a guardrail was the failure root cause)
         const optimizeTokenConsumptionContext = buildOptimizeTokenConsumptionContext({ maxAICreditsExceeded, hasDailyAICExceeded, hasToolDenialsExceeded, isTimedOut, runUrl });
 
@@ -3739,6 +3915,7 @@ async function main() {
           http_400_response_error_context: http400ResponseErrorContext,
           ai_credits_rate_limit_error_context: aiCreditsRateLimitErrorContext,
           unknown_model_ai_credits_context: unknownModelAICreditsContext,
+          missing_model_pricing_context: missingModelPricingContext,
           app_token_minting_failed_context: appTokenMintingFailedContext,
           lockdown_check_failed_context: lockdownCheckFailedContext,
           oauth_token_check_failed_context: oauthTokenCheckFailedContext,
@@ -3851,6 +4028,9 @@ module.exports = {
   buildAssignmentErrorsContext,
   buildAICreditsRateLimitErrorContext,
   buildUnknownModelAICreditsContext,
+  buildMissingModelPricingContext,
+  buildModelPricingFrontmatterSnippet,
+  fetchModelPricingFromModelsDev,
   hasEngineMaxRunsExceededSignal,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,

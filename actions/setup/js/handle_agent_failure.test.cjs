@@ -94,6 +94,8 @@ describe("handle_agent_failure", () => {
       hasAssignmentErrors: false,
       http400ResponseError: false,
       unknownModelAICredits: false,
+      missingModelPricingError: false,
+      missingModelPricingModelName: "",
     };
 
     const cases = [
@@ -125,6 +127,20 @@ describe("handle_agent_failure", () => {
 
     it("prefers unknownModelAICredits over isTimedOut when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow has unknown model pricing");
+    });
+
+    it("returns missing model pricing title with model name when missingModelPricingError is true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5" })).toBe("[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)");
+    });
+
+    it("returns missing model pricing title without model name when model name is empty", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "" })).toBe("[aw] Test Workflow has no AI credits pricing for model");
+    });
+
+    it("prefers missingModelPricingError over unknownModelAICredits when both are true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", unknownModelAICredits: true })).toBe(
+        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+      );
     });
   });
 
@@ -3082,6 +3098,52 @@ describe("handle_agent_failure", () => {
   });
   // ──────────────────────────────────────────────────────
 
+  describe("buildMissingModelPricingContext", () => {
+    let buildMissingModelPricingContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-missing-pricing-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildMissingModelPricingContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when hasMissingModelPricingError is false", async () => {
+      const result = await buildMissingModelPricingContext(false, "claude-opus-5", "claude");
+      expect(result).toBe("");
+    });
+
+    it("returns template content with model name substituted when template exists", async () => {
+      const templateContent = "> [!WARNING]\n> **Missing AI Credits Pricing for model `{model_name}`**: Test message.\n{pricing_snippet}";
+      fs.writeFileSync(path.join(promptsDir, "missing_model_pricing.md"), templateContent);
+      const result = await buildMissingModelPricingContext(true, "claude-opus-5", "claude");
+      expect(result).toContain("claude-opus-5");
+    });
+
+    it("throws when template is missing and error is true", async () => {
+      await expect(buildMissingModelPricingContext(true, "claude-opus-5", "claude")).rejects.toThrow(/ENOENT|no such file/i);
+    });
+  });
+  // ──────────────────────────────────────────────────────
+
   describe("resolveCacheMemoryRestored", () => {
     let resolveCacheMemoryRestored;
 
@@ -4901,6 +4963,21 @@ describe("handle_agent_failure", () => {
         isAWFFirewallStartupFailed: false,
       });
       expect(categories).not.toContain("awf_firewall_startup_failed");
+    });
+
+    it("returns missing_model_pricing category when missingModelPricingError is true", () => {
+      const categories = buildFailureMatchCategories({
+        missingModelPricingError: true,
+      });
+      expect(categories).toContain("missing_model_pricing");
+    });
+
+    it("does not return missing_model_pricing category when missingModelPricingError is false", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        missingModelPricingError: false,
+      });
+      expect(categories).not.toContain("missing_model_pricing");
     });
   });
 

@@ -11,6 +11,8 @@ const {
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
   INVOCATION_CAP_EXCEEDED_PATTERN,
+  MISSING_MODEL_PRICING_PATTERN,
+  extractMissingModelPricingModelName,
   buildOutputLines,
 } = require("./detect_agent_errors.cjs");
 
@@ -271,6 +273,41 @@ describe("detect_agent_errors.cjs", () => {
     });
   });
 
+  describe("MISSING_MODEL_PRICING_PATTERN / extractMissingModelPricingModelName", () => {
+    it("matches the exact error from issue #48344 with claude-opus-5", () => {
+      const msg = 'Model "claude-opus-5" has no AI credits pricing and no default pricing is configured.';
+      expect(MISSING_MODEL_PRICING_PATTERN.test(msg)).toBe(true);
+    });
+
+    it("matches case-insensitively", () => {
+      expect(MISSING_MODEL_PRICING_PATTERN.test('model "some-model" HAS NO AI CREDITS PRICING')).toBe(true);
+    });
+
+    it("matches when embedded in a larger log line", () => {
+      const log = 'some prior output\nError: 400 Model "gpt-4.1" has no AI credits pricing and no default pricing is configured.\nmore output';
+      expect(MISSING_MODEL_PRICING_PATTERN.test(log)).toBe(true);
+    });
+
+    it("does not match unrelated pricing messages", () => {
+      expect(MISSING_MODEL_PRICING_PATTERN.test("AI credits pricing updated for model")).toBe(false);
+      expect(MISSING_MODEL_PRICING_PATTERN.test("no default pricing is configured")).toBe(false);
+    });
+
+    it("extractMissingModelPricingModelName returns model name from matching log", () => {
+      const log = 'Error: 400 Model "claude-opus-5" has no AI credits pricing and no default pricing is configured.';
+      expect(extractMissingModelPricingModelName(log)).toBe("claude-opus-5");
+    });
+
+    it("extractMissingModelPricingModelName returns empty string for non-matching log", () => {
+      expect(extractMissingModelPricingModelName("Some unrelated error")).toBe("");
+    });
+
+    it("extractMissingModelPricingModelName handles model names with dots", () => {
+      const log = 'Model "gpt-4.1-mini" has no AI credits pricing';
+      expect(extractMissingModelPricingModelName(log)).toBe("gpt-4.1-mini");
+    });
+  });
+
   describe("detectErrors", () => {
     it("returns all false for empty log", () => {
       const result = detectErrors("");
@@ -281,6 +318,8 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(false);
+      expect(result.missingModelPricingError).toBe(false);
+      expect(result.missingModelPricingModelName).toBe("");
     });
 
     it("detects inference access error only", () => {
@@ -386,6 +425,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(true);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(false);
+      expect(result.missingModelPricingError).toBe(false);
     });
 
     it("detects both errors in the same log", () => {
@@ -444,6 +484,28 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(false);
+      expect(result.missingModelPricingError).toBe(false);
+    });
+
+    it("detects missing model pricing error from agent-stdio.log message", () => {
+      const log = 'Error: 400 Model "claude-opus-5" has no AI credits pricing and no default pricing is configured. Set apiProxy.defaultAiCreditsPricing in the AWF config.';
+      const result = detectErrors(log);
+      expect(result.missingModelPricingError).toBe(true);
+      expect(result.missingModelPricingModelName).toBe("claude-opus-5");
+      expect(result.http400ResponseError).toBe(false);
+    });
+
+    it("detects missing model pricing with model name containing dots", () => {
+      const log = 'Model "gpt-4.1-mini" has no AI credits pricing';
+      const result = detectErrors(log);
+      expect(result.missingModelPricingError).toBe(true);
+      expect(result.missingModelPricingModelName).toBe("gpt-4.1-mini");
+    });
+
+    it("does not false-positive on unrelated AI credits error messages", () => {
+      const result = detectErrors("Maximum AI credits exceeded for this run");
+      expect(result.missingModelPricingError).toBe(false);
+      expect(result.missingModelPricingModelName).toBe("");
     });
   });
 
@@ -461,6 +523,40 @@ describe("detect_agent_errors.cjs", () => {
 
       expect(lines).toContain("capi_quota_exceeded_error=false");
       expect(lines).toContain("invocation_cap_exceeded=true");
+    });
+
+    it("emits missing_model_pricing_error and missing_model_pricing_model_name outputs", () => {
+      const lines = buildOutputLines({
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+        http400ResponseError: false,
+        capiQuotaExceededError: false,
+        invocationCapExceeded: false,
+        missingModelPricingError: true,
+        missingModelPricingModelName: "claude-opus-5",
+      });
+
+      expect(lines).toContain("missing_model_pricing_error=true");
+      expect(lines).toContain("missing_model_pricing_model_name=claude-opus-5");
+    });
+
+    it("emits missing_model_pricing_error=false and empty model name when not detected", () => {
+      const lines = buildOutputLines({
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+        http400ResponseError: false,
+        capiQuotaExceededError: false,
+        invocationCapExceeded: false,
+        missingModelPricingError: false,
+        missingModelPricingModelName: "",
+      });
+
+      expect(lines).toContain("missing_model_pricing_error=false");
+      expect(lines).toContain("missing_model_pricing_model_name=");
     });
   });
 });

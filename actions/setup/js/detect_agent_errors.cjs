@@ -80,6 +80,13 @@ const MODEL_NOT_SUPPORTED_PATTERN =
 const HTTP_400_RESPONSE_ERROR_PATTERN =
   /(?:Response status code does not indicate success:\s*400(?:\s*\(Bad Request\))?|400[^\n]*no model endpoints available given user constraints|400[^\n]*stream_options:\s*Extra inputs are not permitted)/i;
 
+// Pattern: AWF API proxy rejects a request because the model has no AI credits pricing configured
+// and no default fallback pricing is set. Emitted as:
+//   "400 400 Model "claude-opus-5" has no AI credits pricing and no default pricing is configured."
+//   "400 Model "claude-opus-5" has no AI credits pricing"
+// Captures the model name in group 1 for use in remediation guidance.
+const MISSING_MODEL_PRICING_PATTERN = /Model\s+"([^"]+)"\s+has no AI credits pricing/i;
+
 // Pattern: Copilot/CAPI quota exhaustion and rate-limit responses.
 // Matches all observed forms:
 //   "CAPIError: 429 429 quota exceeded"  (original observed form)
@@ -129,11 +136,22 @@ function isInvocationCapExceededError(output) {
 }
 
 /**
+ * Extract model name from a "no AI credits pricing" error message.
+ * @param {string} logContent - Contents of the agent stdio log
+ * @returns {string} Model name, or empty string if not found
+ */
+function extractMissingModelPricingModelName(logContent) {
+  const match = logContent.match(MISSING_MODEL_PRICING_PATTERN);
+  return match ? match[1] : "";
+}
+
+/**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }}
  */
 function detectErrors(logContent) {
+  const missingModelPricingModelName = extractMissingModelPricingModelName(logContent);
   return {
     inferenceAccessError: INFERENCE_ACCESS_ERROR_PATTERN.test(logContent),
     mcpPolicyError: MCP_POLICY_BLOCKED_PATTERN.test(logContent),
@@ -142,12 +160,14 @@ function detectErrors(logContent) {
     http400ResponseError: HTTP_400_RESPONSE_ERROR_PATTERN.test(logContent),
     capiQuotaExceededError: isCAPIQuotaExceededError(logContent),
     invocationCapExceeded: isInvocationCapExceededError(logContent),
+    missingModelPricingError: missingModelPricingModelName !== "",
+    missingModelPricingModelName,
   };
 }
 
 /**
  * Build GitHub Actions output lines from detection results.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
  * @returns {string[]}
  */
 function buildOutputLines(results) {
@@ -160,12 +180,14 @@ function buildOutputLines(results) {
     `http_400_response_error=${results.http400ResponseError}`,
     `capi_quota_exceeded_error=${effectiveCAPIQuotaExceeded}`,
     `invocation_cap_exceeded=${results.invocationCapExceeded}`,
+    `missing_model_pricing_error=${results.missingModelPricingError}`,
+    `missing_model_pricing_model_name=${results.missingModelPricingModelName}`,
   ];
 }
 
 /**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -218,6 +240,9 @@ function main() {
   if (results.invocationCapExceeded) {
     process.stderr.write("[detect-agent-errors] Detected invocation cap exhaustion: the pooled per-run LLM invocation budget is fully saturated\n");
   }
+  if (results.missingModelPricingError) {
+    process.stderr.write(`[detect-agent-errors] Detected missing model pricing: model "${results.missingModelPricingModelName}" has no AI credits pricing configured\n`);
+  }
 
   writeOutputs(results);
 }
@@ -228,6 +253,7 @@ if (require.main === module) {
 
 module.exports = {
   detectErrors,
+  extractMissingModelPricingModelName,
   isCAPIQuotaExceededError,
   isInvocationCapExceededError,
   INFERENCE_ACCESS_ERROR_PATTERN,
@@ -237,5 +263,6 @@ module.exports = {
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
   INVOCATION_CAP_EXCEEDED_PATTERN,
+  MISSING_MODEL_PRICING_PATTERN,
   buildOutputLines,
 };

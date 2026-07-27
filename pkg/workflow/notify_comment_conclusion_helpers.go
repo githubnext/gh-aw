@@ -262,6 +262,8 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.%s.outputs.agentic_engine_timeout }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_MODEL_NOT_SUPPORTED_ERROR: ${{ needs.%s.outputs.model_not_supported_error }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_HTTP_400_RESPONSE_ERROR: ${{ needs.%s.outputs.http_400_response_error }}\n", mainJobName))
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_MISSING_MODEL_PRICING_ERROR: ${{ needs.%s.outputs.missing_model_pricing_error }}\n", mainJobName))
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_MISSING_MODEL_PRICING_MODEL_NAME: ${{ needs.%s.outputs.missing_model_pricing_model_name }}\n", mainJobName))
 	}
 	if apiHosts := getEngineAPIHosts(data, engine); len(apiHosts) > 0 {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_ENGINE_API_HOSTS: %q\n", strings.Join(apiHosts, ",")))
