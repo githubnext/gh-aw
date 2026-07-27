@@ -5,8 +5,11 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/sliceutil"
 )
+
+var safeOutputsSetupLog = logger.New("workflow:mcp_setup_safe_outputs")
 
 // safeOutputsSecretEnvPrefix is prepended to secret names when generating step env var names for
 // safe-outputs config placeholders. The prefix avoids accidental collisions between a workflow
@@ -20,9 +23,11 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 	if !HasSafeOutputsEnabled(workflowData.SafeOutputs) {
 		return
 	}
+	safeOutputsSetupLog.Printf("Generating safe outputs setup: configLen=%d", len(safeOutputConfig))
 	yaml.WriteString("      - name: Generate Safe Outputs Config\n")
 	sanitizedConfig, envKeys, envValues := buildSafeOutputsConfigRuntimeData(safeOutputConfig)
 	if len(envKeys) > 0 {
+		safeOutputsSetupLog.Printf("Safe outputs config: envVars=%d", len(envKeys))
 		yaml.WriteString("        env:\n")
 		writeStepEnvVars(yaml, envKeys, envValues)
 	}
@@ -111,6 +116,7 @@ func buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig string) ([]string, ma
 func buildSafeOutputsConfigRuntimeData(safeOutputConfig string) (string, []string, map[string]string) {
 	sanitizedConfig := safeOutputConfig
 	envKeys, envValues := buildSafeOutputsConfigRuntimeEnvVars(safeOutputConfig)
+	safeOutputsSetupLog.Printf("Building safe outputs config runtime data: envKeys=%d", len(envKeys))
 	for _, varName := range envKeys {
 		value := envValues[varName]
 		sanitizedConfig = strings.ReplaceAll(sanitizedConfig, value, "${"+varName+"}")

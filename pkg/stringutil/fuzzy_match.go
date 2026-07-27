@@ -14,6 +14,10 @@ var fuzzyMatchLog = logger.New("stringutil:fuzzy_match")
 // It returns up to maxResults matches that have a Levenshtein distance of 3 or less.
 // Results are sorted by distance (closest first), then alphabetically for ties.
 //
+// Before computing distance, both target and each candidate are separator-normalized
+// by replacing underscores with hyphens. This means "add_comment" and "add-comment"
+// compare at distance 0 and the hyphenated candidate is returned as the suggestion.
+//
 // This function is useful for "Did you mean?" suggestions when a user provides
 // an unrecognized value (e.g., a typo in an engine name or event type).
 func FindClosestMatches(target string, candidates []string, maxResults int) []string {
@@ -27,16 +31,22 @@ func FindClosestMatches(target string, candidates []string, maxResults int) []st
 
 	var matches []match
 	targetLower := strings.ToLower(target)
+	// Normalize separators so that underscore and hyphen variants compare equally.
+	targetNorm := strings.ReplaceAll(targetLower, "_", "-")
 
 	for _, candidate := range candidates {
 		candidateLower := strings.ToLower(candidate)
 
-		// Skip exact matches
+		// Skip exact matches (case-insensitive, before normalization)
 		if targetLower == candidateLower {
 			continue
 		}
 
-		distance := LevenshteinDistance(targetLower, candidateLower)
+		candidateNorm := strings.ReplaceAll(candidateLower, "_", "-")
+
+		// Compute distance on separator-normalized forms so that underscore/hyphen
+		// variants (e.g. "add_comment" vs "add-comment") count as distance 0.
+		distance := LevenshteinDistance(targetNorm, candidateNorm)
 
 		// Only include if distance is within acceptable range
 		if distance <= maxDistance {

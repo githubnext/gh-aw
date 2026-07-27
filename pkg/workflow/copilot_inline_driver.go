@@ -5,7 +5,10 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var inlineDriverLog = logger.New("workflow:copilot_inline_driver")
 
 const (
 	inlineCopilotSDKDriverDir           = ".gh-aw/copilot-sdk"
@@ -45,6 +48,7 @@ func (d *InlineEngineDriver) wrapperScript() string {
 		return ""
 	}
 
+	inlineDriverLog.Printf("Generating wrapper script for runtime=%s", d.Runtime)
 	sourcePath := d.sourcePath()
 	switch d.Runtime {
 	case "node":
@@ -121,6 +125,7 @@ func buildInlineCopilotSDKDriverWriteStep(workflowData *WorkflowData) GitHubActi
 	inlineDriver := workflowData.EngineConfig.InlineDriver
 	sourcePath := inlineDriver.sourcePath()
 	if sourcePath == "" {
+		inlineDriverLog.Printf("No source path for inline driver runtime=%s, skipping write step", inlineDriver.Runtime)
 		return GitHubActionStep{}
 	}
 
@@ -133,6 +138,7 @@ func buildInlineCopilotSDKDriverWriteStep(workflowData *WorkflowData) GitHubActi
 		workflowData.ParsedFrontmatter.RuntimesTyped.Go.Version != "" {
 		goVersion = workflowData.ParsedFrontmatter.RuntimesTyped.Go.Version
 	}
+	inlineDriverLog.Printf("Building inline Copilot SDK driver write step: runtime=%s source=%s goVersion=%s", inlineDriver.Runtime, sourcePath, goVersion)
 
 	step := GitHubActionStep{
 		"      - name: Write Inline Copilot SDK Driver",
