@@ -1299,10 +1299,6 @@ jobs:
           make golint
         fi
 
-      # Error message linting (requires Go only)
-    - name: Lint error messages
-      run: make lint-errors
-
       # Enforce selected production custom analyzers without blocking on unrelated
       # legacy custom analyzer findings in tests or other analyzer families.
       # Note: -test=false intentionally scopes this gate to production code only.
@@ -1315,6 +1311,28 @@ jobs:
       # Ensure no action shell scripts invoke python or python3
     - name: Lint action shell scripts
       run: make lint-action-sh
+
+  lint-error-messages:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-lint-error-messages
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+      # Error message linting (requires Go only)
+    - name: Lint error messages
+      run: make lint-errors
 
   actions-build:
     runs-on: ubuntu-latest
@@ -2434,6 +2452,7 @@ jobs:
     - bench
     - check-validator-sizes
     - lint-go
+    - lint-error-messages
     - actions-build
     - fuzz
     - security
