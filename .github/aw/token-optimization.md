@@ -20,6 +20,7 @@ Apply these in order, measuring cost and quality after each change:
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
 - [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
 - [ ] **Pull context on demand**: query logs/data only after a hypothesis forms; avoid preloading large raw dumps into the initial prompt
+- [ ] **Bound file reads**: for files > 20 KB, use `bash`/`grep`/`glob`/`view_range` instead of full-file MCP reads — late-session token spikes most often trace to unguarded `get_file_contents` calls on large workflow or skill markdown
 - [ ] **Prompt caching**: Put stable instructions before dynamic content to maximize cache hits
 - [ ] **Context hygiene**: keep the orchestrator context compact; prefer short worker summaries over raw output
 - [ ] **Harness-wide diagnosis**: classify failures across context, tools, generation, orchestration, memory, and output processing before changing configuration
@@ -382,6 +383,61 @@ max-daily-ai-credits: 500M  # per-user 24h cap; -1 disables
 For custom or private models, the top-level **`models:`** frontmatter field supplies pricing in the same structure as `models.json` (keyed `providers.<provider>.models.<model>.cost` with `input`/`output`/`cache_read`/`cache_write` per-token costs). Entries are merged with the built-in `models.json` at runtime — they override matching models and fill gaps for unknown ones — so AI Credit accounting stays accurate for models gh-aw does not price by default.
 
 For self-hosted or BYOK models absent from the built-in table (e.g. Ollama, vLLM), set **`models.default-ai-credits-pricing`** (`input`/`output` in $/1M tokens, both `0` for free/local models); without it the AWF proxy rejects unrecognized models with HTTP 400 `unknown_model_ai_credits`.
+
+---
+
+## Technique 11 — Cap Session Context Growth from Large File Reads
+
+Unguarded full-file reads via `github-mcp-server-get_file_contents` are the single most common cause of late-session token spikes. Workflow markdown files (`.github/aw/*.md`, `.github/workflows/*.md`) and skill files can exceed hundreds of KB. Loading even two such files mid-session can 2–2.5× the input context size, degrading model performance and inflating cost.
+
+**Observed evidence:** In session `30290667268`, input grew from **44,043 → 108,331 tokens** (2.46×) across 8 turns. The spike occurred at turn 7 when two large workflow markdown files were loaded via MCP without a size guard.
+
+### The Rule
+
+> **Files larger than 20 KB must never be read in full.** Use targeted reads instead.
+
+### Targeted Read Strategies
+
+| Tool | When to use |
+|---|---|
+| `grep` | Search for a specific symbol, heading, or pattern |
+| `glob` | List files matching a pattern without reading content |
+| `bash` with `head`/`tail` | Sample the first or last N lines for orientation |
+| `view` with `view_range` | Read only a known section (e.g., lines 1–80 for frontmatter + summary) |
+| `bash` with `wc -c` | Check file size before deciding how to read |
+
+### Before Reading Any File via MCP
+
+1. **Check the size first** — run `wc -c <path>` or use `bash ls -lh` before calling `get_file_contents`.
+2. **If > 20 KB**, do one of the following instead:
+   - Use `grep` to find the specific function, heading, or section you need.
+   - Use `view` with `view_range` to fetch only the relevant lines.
+   - Use `bash head -100 <file>` for a quick overview.
+3. **Do not load multiple large files in the same turn** — accumulation across a single turn causes the sharpest spikes.
+
+### Lazy Skill Loading and `glob **/*.md`
+
+Skills that discover files with `glob **/*.md` and then read each one in full compound context growth. Apply the same rule: after globbing, read each matched file with `grep` or `view_range` rather than full-file reads. Stop as soon as you have the information you need.
+
+### Example — Before (unbounded)
+
+```bash
+# Reads the entire 200 KB file into context
+github-mcp-server-get_file_contents path=".github/aw/syntax-agentic.md"
+```
+
+### Example — After (targeted)
+
+```bash
+# 1. Check size first
+bash: wc -c .github/aw/syntax-agentic.md        # → 33908 bytes (> 20 KB)
+
+# 2a. Use grep to find the specific section
+bash: grep -n "## Sub-agents" .github/aw/syntax-agentic.md
+
+# 2b. Or use view_range to read only the section you need
+view: .github/aw/syntax-agentic.md view_range=[45, 90]
+```
 
 ---
 
