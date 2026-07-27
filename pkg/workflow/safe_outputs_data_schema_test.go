@@ -112,3 +112,21 @@ func TestValidateSafeOutputsDataSchemaAllowsExpression(t *testing.T) {
 	assert.Nil(t, cfg.NormalizedDataSchema)
 	assert.Equal(t, "${{ fromJSON(inputs.safe_outputs_data_schema) }}", cfg.DataSchemaExpression)
 }
+
+func TestValidateSafeOutputsDataSchemaAllowsJSONStringSchema(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		Data: `{"type":"object","properties":{"verdict":{"type":"string"}},"required":["verdict"],"additionalProperties":false}`,
+	}
+	err := validateSafeOutputsDataSchema(cfg)
+	require.NoError(t, err)
+	assert.True(t, cfg.DataEnabled)
+	require.NotNil(t, cfg.NormalizedDataSchema)
+	assert.Equal(t, "object", cfg.NormalizedDataSchema["type"])
+}
+
+func TestValidateSafeOutputsDataSchemaRejectsInvalidStringSyntax(t *testing.T) {
+	cfg := &SafeOutputsConfig{Data: "not json and not expression"}
+	err := validateSafeOutputsDataSchema(cfg)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be a GitHub Actions expression or JSON object schema")
+}
