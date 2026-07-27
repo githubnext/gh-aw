@@ -19,11 +19,11 @@ Every safe output type has a measurable outcome. This spec defines the exact eva
 
 ## Norms
 
-The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119).
+The key words **MUST**, **MUST NOT**, and **SHOULD** in this document are to be interpreted as described in [RFC 2119](https://www.rfc-editor.org/rfc/rfc2119). These requirements apply to **outcome evaluation workers** as the primary conformance target unless a different conformance target is explicitly named in the requirement.
 
 1. Outcome evaluation workers **MUST** treat GitHub API `404` responses as terminal for deleted or inaccessible objects and classify according to object semantics (for example, a deleted issue/PR should be `rejected`, while a transient target with no persistent evaluable object should be `ignored`).
 2. Outcome evaluation workers **MUST** treat GitHub API `5xx` responses as transient infrastructure failures and return `pending` for that check cycle while recording retry metadata (`status_code`, `retry_after`, `attempt`).
-3. Outcome evaluation workers **MUST** treat GitHub API rate-limit responses (`403` with limit exhaustion or `429`) as transient and **SHOULD** reschedule evaluation using the reset window before emitting final outcomes.
+3. Outcome evaluation workers **MUST** treat GitHub API rate-limit responses (`403` with limit exhaustion or `429`) as transient. Outcome evaluation workers **SHOULD** reschedule evaluation using the reset window before emitting final outcomes.
 4. Outcome evaluation workers **MUST NOT** emit `accepted` or `rejected` when API failures prevent verification of the authoritative object state.
 
 ## Provenance Limits
@@ -669,6 +669,48 @@ No outcome to evaluate. Skip.
 
 No outcome to evaluate. Skip.
 
+## 30. `replace_label`
+
+**Question:** Did the label replacement stick? Specifically: is `label_to_add` present on the item and is `label_to_remove` absent?
+
+**API:** `GET /repos/{owner}/{repo}/issues/{number}/labels`
+
+**Evaluation:**
+
+| Condition | Outcome |
+|-----------|---------|
+| `label_to_add` is present on the item AND `label_to_remove` is absent | `accepted` |
+| `label_to_add` is absent from the item | `rejected` |
+| `label_to_add` is present but `label_to_remove` is also still present | `rejected` (partial failure — remove did not apply) |
+| Item not found (`404`) | `rejected` |
+| API transient failure (`5xx`, timeout, transport error) | `pending` |
+| `lifecycle` | N/A — `replace_label` has no lifecycle bot-close behavior |
+| `lifecycle_close` | N/A — `replace_label` has no lifecycle bot-close behavior |
+| `ignored` | N/A — label state is always evaluable when the item is accessible; no time-bounded engagement signal applies |
+
+**Extra signals:**
+- `label_to_add`: the label name that should be present after the replacement
+- `label_to_remove`: the label name that should be absent after the replacement
+- `zero_touch`: `accepted` and no actor-visible non-bot label changes detected after the replacement
+
+**Additional OTel attributes:**
+
+| Attribute | Type | Description |
+|-----------|------|-------------|
+| `ghaw.outcome.replace_label.label_to_add` | string | Label that should be present after the replacement |
+| `ghaw.outcome.replace_label.label_to_remove` | string | Label that should be absent after the replacement |
+| `ghaw.outcome.replace_label.add_present` | bool | Whether `label_to_add` is present at evaluation time |
+| `ghaw.outcome.replace_label.remove_absent` | bool | Whether `label_to_remove` is absent at evaluation time |
+
+**API failure safeguards (`replace_label`):**
+
+1. If `GET /repos/{owner}/{repo}/issues/{number}/labels` returns `404`, outcome evaluation workers **MUST** classify as `rejected` because the authoritative labeling target is no longer reachable.
+2. If the API returns `5xx`, timeout, or transport failure, outcome evaluation workers **MUST** classify as `pending`, record retry metadata, and retry without emitting a terminal outcome.
+3. If the API returns rate-limit responses (`403` exhaustion or `429`), outcome evaluation workers **MUST** classify as `pending` and reschedule evaluation using the reset window.
+4. While any transient API failure condition exists, outcome evaluation workers **MUST NOT** emit `accepted` or `rejected` for label replacement state.
+
+**References:** See [replace-label-spec.md](replace-label-spec.md) for the full definition of the `replace_label` safe-output type, including the message schema, processing model, and REST interface.
+
 ---
 
 ## Derived Metrics
@@ -735,6 +777,7 @@ The table below specifies one conformance test row per safe-output type. Each ro
 | `update_release` | `update_release` | Release field(s) (name, body, tag, draft status) match the values the bot submitted at evaluation time | Release field(s) were reverted by a visible non-bot actor, or the release was deleted within the evaluation window |
 | `noop` | `noop` | Evaluation is skipped; no outcome is computed | N/A — `noop` always results in `ignored` |
 | `missing_tool` | `missing_tool` | Evaluation is skipped; no outcome is computed | N/A — `missing_tool` always results in `ignored` |
+| `replace_label` | `replace_label` | `label_to_add` is present on the target item AND `label_to_remove` is absent at evaluation time | `label_to_add` is absent, or `label_to_remove` is still present, or the item was deleted within the evaluation window |
 
 ### OTel Backend Unavailability
 

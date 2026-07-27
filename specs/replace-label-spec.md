@@ -429,7 +429,7 @@ In the Octokit client this is `githubClient.rest.issues.setLabels(params)`.
 
 **RL-043**: The `PUT /repos/{owner}/{repo}/issues/{issue_number}/labels` REST call replaces the entire label set of the target item in a single atomic operation. Either the new label set is applied successfully or the call fails — there is no intermediate state where neither label is present.
 
-> **Informative note**: Unlike the former GraphQL approach (two root mutations in one request), this REST call provides true atomicity: both the removal and addition are reflected by a single server-side update. There is no partial-success scenario (see §7.2).
+> **Informative note**: Unlike the former GraphQL approach (two root mutations in one request), this REST call provides true atomicity at the API layer: both the removal and addition are reflected by a single server-side update. While the call itself cannot partially fail (see §7.2), the implementation MUST still verify the returned label set matches the expected post-operation state — see §7.4 for the partial-success response handling requirement.
 
 ---
 
@@ -455,11 +455,26 @@ In the Octokit client this is `githubClient.rest.issues.setLabels(params)`.
 
 ### 7.2 REST Call Failure
 
-**RL-046**: When the `setLabels` REST call fails (e.g., HTTP 422 for an invalid label name), the implementation MUST log a `core.error()` entry and MUST return `{ success: false, error: <message> }`. Because this is a single atomic REST call, there is no partial-success scenario: either all label changes are applied or none are.
+**RL-046**: When the `setLabels` REST call fails (e.g., HTTP 422 for an invalid label name), the implementation MUST log a `core.error()` entry and MUST return `{ success: false, error: <message> }`. For HTTP-level failures the call is all-or-nothing — either all label changes are applied or none are. For HTTP 200 responses, see §7.4 for partial-success response handling.
 
 ### 7.3 Rate-Limit Retry Policy
 
 **RL-048**: The `setLabels` REST call (Stage 8) MUST apply the `RATE_LIMIT_RETRY_CONFIG` retry policy from `actions/setup/js/error_recovery.cjs`. This policy covers secondary rate-limit responses (HTTP 403 with Retry-After header) and primary rate-limit responses (HTTP 429).
+
+### 7.4 Partial-Success Response Handling
+
+A partial-success condition arises when the `setLabels` REST call returns HTTP 200 but the label set on the item after the call does not match the expected post-operation set (i.e., `label_to_add` is absent from the returned labels, or `label_to_remove` is still present in the returned labels).
+
+**RL-057**: After a successful HTTP 200 response from `setLabels`, the implementation MUST verify that the returned label array satisfies all of the following conditions:
+
+1. `label_to_add` is present in the returned label array.
+2. `label_to_remove` is absent from the returned label array (when it was present before the call and was not the same label as `label_to_add`).
+
+**RL-058 (Partial-success outcome)**: If either condition in RL-057 is not satisfied, the implementation MUST treat this as a `rejected` outcome and MUST log a `core.error()` entry describing which expected label condition was not met (e.g., `"replace_label: label_to_add '<name>' not found in POST-setLabels response"` or `"replace_label: label_to_remove '<name>' still present after setLabels call"`). The implementation MUST return `{ success: false, error: <message> }` in this case.
+
+**RL-059 (No new error code)**: The partial-success condition described in this section MUST be treated as a `rejected` outcome using the existing `SETLABELS_FAILED` error category (Section 7.1). No new error code is introduced for partial-success; the HTTP status alone is insufficient to determine outcome correctness.
+
+**Rationale:** Although the GitHub REST API `PUT /repos/{owner}/{repo}/issues/{number}/labels` is intended to be atomic, race conditions (e.g., concurrent label modifications by another actor between the read in Stage 7 and the write in Stage 8) or API behavioral edge cases may cause the returned label set to diverge from the intended post-operation state. Verifying the response ensures the implementation does not silently report success when the state transition did not complete as expected.
 
 ---
 
@@ -513,6 +528,8 @@ The test suite for `replace-label` spans two layers:
 
 - **Unit tests** (`actions/setup/js/replace_label.test.cjs`): Test the JavaScript handler in isolation using mocked GitHub API clients.
 - **Integration tests** (`pkg/workflow/`): Test Go configuration parsing and schema validation using the common safe-output test infrastructure.
+
+For outcome evaluation compliance (verifying that the `replace_label` outcome evaluator correctly classifies `accepted`, `rejected`, `pending`, and API-failure scenarios), see the outcome evaluation conformance test requirements in [`specs/safe-output-outcome-evaluation.md`](safe-output-outcome-evaluation.md) — specifically the `replace_label` section (Section 30) and the Conformance Test Table entry for `replace_label`.
 
 ### 9.2 Test Requirements
 
