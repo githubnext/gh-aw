@@ -498,6 +498,10 @@ func (c *ActionCache) GetInputs(repo, version string) (map[string]*ActionYAMLInp
 // Inputs are only stored for entries that already have a resolved SHA, preventing
 // placeholder entries with empty SHAs from being written to the on-disk cache.
 func (c *ActionCache) SetInputs(repo, version string, inputs map[string]*ActionYAMLInput) {
+	if inputs == nil {
+		actionCacheLog.Printf("Nil inputs for %s@%s, skipping cache update", repo, version)
+		return
+	}
 	key := formatActionCacheKey(repo, version)
 	entry, exists := c.Entries[key]
 	if !exists || entry.SHA == "" {
