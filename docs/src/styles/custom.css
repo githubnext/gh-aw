@@ -772,7 +772,7 @@ header::after {
 .sl-markdown-content code {
   background-color: rgba(110, 118, 129, 0.4);
   border-radius: 4px;
-  font-size: 85%;
+  font-size: 1em;
   font-family: var(--sl-font-mono);
   overflow-wrap: break-word;
   word-wrap: break-word;
