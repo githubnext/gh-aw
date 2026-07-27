@@ -14,16 +14,21 @@ import (
 
 	"charm.land/huh/v2"
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/repoutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+var githubAppBootstrapLog = logger.New("cli:bootstrap_profile_github_app")
 
 func runBootstrapGitHubAppAction(ctx context.Context, repo string, action repositoryPackageBootstrapAction, state *bootstrapProfileExistingState) (*bootstrapCreatedGitHubApp, error) {
 	_, hasVar := state.variables[action.AppIDVariable]
 	_, hasSecret := state.secrets[action.PrivateKeySecret]
 	if hasVar && hasSecret {
+		githubAppBootstrapLog.Printf("GitHub App already configured: appIDVar=%s privateKeySecret=%s, skipping", action.AppIDVariable, action.PrivateKeySecret)
 		return nil, nil
 	}
+	githubAppBootstrapLog.Printf("Running GitHub App bootstrap action: repo=%s appIDVar=%s", repo, action.AppIDVariable)
 
 	overrides, err := loadBootstrapGitHubAppOverrides()
 	if err != nil {
@@ -88,6 +93,7 @@ func handleBootstrapGitHubAppExistingFlow(ctx context.Context, repo string, acti
 	if clientID == "" && privateKey == "" && action.Mode != "existing" && overrides.Mode != "existing" {
 		return false, nil
 	}
+	githubAppBootstrapLog.Printf("Applying existing GitHub App credentials: repo=%s hasClientID=%v hasPrivateKey=%v", repo, clientID != "", privateKey != "")
 	resolvedClientID, resolvedPrivateKey, err := completeExistingGitHubAppCredentials(clientID, privateKey, action, repo)
 	if err != nil {
 		return false, err
@@ -389,6 +395,7 @@ func waitForBootstrapGitHubAppInstallation(ctx context.Context, repo string, cre
 	if createdApp == nil || createdApp.InstallURL == "" || createdApp.Slug == "" {
 		return nil
 	}
+	githubAppBootstrapLog.Printf("Waiting for GitHub App installation: repo=%s slug=%s installURL=%s", repo, createdApp.Slug, createdApp.InstallURL)
 	bootstrapLog.Printf("Polling for GitHub App installation: repo=%s, slug=%s", repo, createdApp.Slug)
 	deadlineTimer := time.NewTimer(bootstrapProfileManifestTimeout)
 	defer deadlineTimer.Stop()
