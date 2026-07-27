@@ -7,10 +7,10 @@ on:
     name: smoke
     events: [pull_request]
   workflow_dispatch:
-  github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 permissions:
   contents: read
   pull-requests: read
+  copilot-requests: write
 name: Smoke Copilot Auto
 model: auto
 engine:
