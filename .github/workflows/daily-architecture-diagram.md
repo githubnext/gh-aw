@@ -110,20 +110,20 @@ Perform a full analysis of the repository structure (see below).
 Use bash to gather structural information:
 
 ```bash
-# 1. List all Go packages with their doc comments
+### 1. List all Go packages with their doc comments
 find pkg/ cmd/ -name "*.go" -not -name "*_test.go" | head -80
 
-# 2. Get top-level directory structure
+### 2. Get top-level directory structure
 ls -d pkg/*/
 
-# 3. For each package, get the package doc comment (first comment block)
+### 3. For each package, get the package doc comment (first comment block)
 for dir in pkg/*/; do
   pkg=$(basename "$dir")
   doc=$(head -20 "$dir"/*.go 2>/dev/null | grep -A2 "^// Package" | head -3)
   echo "=== $pkg === $doc"
 done
 
-# 4. Identify import relationships between packages
+### 4. Identify import relationships between packages
 grep -r '"github.com/github/gh-aw/pkg/' pkg/ --include="*.go" -h | sort -u | head -60
 ```
 
@@ -236,11 +236,11 @@ After creating the issue, update `scratchpad/architecture.md` with the latest di
 The file should contain:
 
 ````markdown
-# Architecture Diagram
+### Architecture Diagram
 
 > Last updated: <YYYY-MM-DD> · Source: [Issue #<number>](<issue_url>)
 
-## Overview
+#### Overview
 
 This diagram shows the package structure and dependencies of the `gh-aw` codebase.
 
@@ -248,7 +248,7 @@ This diagram shows the package structure and dependencies of the `gh-aw` codebas
 <ASCII diagram>
 ```
 
-## Package Reference
+#### Package Reference
 
 <package table>
 ````

@@ -132,23 +132,23 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# GEO Optimizer Daily Audit
+### GEO Optimizer Daily Audit
 
 You are the GEO (Generative Engine Optimization) audit agent. Your task is to analyze the audit results produced by `geo-optimizer-skill` and report on the AI visibility of the `${{ github.repository }}` README and documentation site.
 
-## Context
+#### Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Run URL**: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-## Your Mission
+#### Your Mission
 
 Analyze the GEO audit results downloaded from the `geo-optimizer-results` artifact into `/tmp/gh-aw/agent/geo-optimizer/` and create a GitHub Discussion summarizing the findings and actionable recommendations to improve AI-engine citation coverage for this project.
 
 ---
 
-## Phase 1: Load Audit Results
+#### Phase 1: Load Audit Results
 
 Read all JSON files from the results directory:
 
@@ -168,7 +168,7 @@ Use `cat` and `jq` to inspect the contents of each file. Focus on:
 - Negative signals detected
 - Scores broken down by area: Robots.txt, llms.txt, Schema JSON-LD, Meta Tags, Content, Brand & Entity, Signals, AI Discovery
 
-## Phase 2: Analyze and Summarize
+#### Phase 2: Analyze and Summarize
 
 Based on the audit results, identify:
 
@@ -177,7 +177,7 @@ Based on the audit results, identify:
 3. **Critical Gaps** — What's missing or scoring poorly?
 4. **High-Impact Fixes** — Which specific recommendations would most improve AI citation coverage?
 
-## Phase 3: Create Discussion Report
+#### Phase 3: Create Discussion Report
 
 ### Title
 `[geo-optimizer] GEO Audit Report — YYYY-MM-DD`
@@ -187,7 +187,7 @@ Use today's date derived from the metadata.json timestamp.
 ### Body
 
 ```markdown
-## GEO Audit Report — ${{ github.repository }}
+#### GEO Audit Report — ${{ github.repository }}
 
 **Audit Date**: [date from metadata]
 **Run**: [link to run]
@@ -239,7 +239,7 @@ Use today's date derived from the metadata.json timestamp.
 
 ---
 
-## Phase 4: Create Improvement Issue
+#### Phase 4: Create Improvement Issue
 
 After successfully publishing the discussion report, identify the **single highest-impact recommendation** from the entire audit and create one GitHub issue for it.
 
@@ -259,7 +259,7 @@ If **all scores are already Excellent (90+/100)** and there are no actionable re
 ### Issue body
 
 ```markdown
-## GEO Improvement: <short title>
+#### GEO Improvement: <short title>
 
 **Source audit**: [GEO Audit Report — YYYY-MM-DD](<link to the discussion you just created>)
 **Audit date**: <date from metadata>
@@ -280,7 +280,7 @@ If **all scores are already Excellent (90+/100)** and there are no actionable re
 
 ---
 
-## Important Guidelines
+#### Important Guidelines
 
 - **Be specific**: Quote actual scores and finding text from the JSON, don't make them up.
 - **If a file is missing or empty**: Note it clearly rather than fabricating data.

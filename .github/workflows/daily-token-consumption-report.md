@@ -43,17 +43,17 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily AIC Consumption Report (Sentry + Grafana OTel)
+### Daily AIC Consumption Report (Sentry + Grafana OTel)
 
 You are an observability analyst. Generate a daily AI Credits (AIC) consumption report across all agentic workflows in this repository using OpenTelemetry telemetry in both Sentry and Grafana.
 
-## Context
+#### Context
 
 - Repository: `${{ github.repository }}`
 - Run ID: `${{ github.run_id }}`
 - Time Window: last 24 hours
 
-## Mission
+#### Mission
 
 1. Query Sentry and Grafana telemetry for the last 24 hours.
 2. Aggregate AIC usage by workflow when available.
@@ -61,7 +61,7 @@ You are an observability analyst. Generate a daily AI Credits (AIC) consumption 
 4. Call out backend-specific AIC reporting gaps and likely causes.
 5. Publish a concise daily GitHub issue report.
 
-## Data Collection
+#### Data Collection
 
 ### Step 1: Discover Sentry Context
 
@@ -131,7 +131,7 @@ For each Sentry event/span and Grafana span, derive:
 
 For Sentry spans, normalize missing values to `0`. For Grafana spans, treat absent AIC fields as unknown and do not zero-fill them.
 
-## Analysis Requirements
+#### Analysis Requirements
 
 Calculate:
 
@@ -156,7 +156,7 @@ For each workflow include:
 - average AIC/event
 - highest-AIC event (with run id if available)
 
-## Report Output
+#### Report Output
 
 Create exactly one issue titled:
 
@@ -212,7 +212,7 @@ Use this body structure:
 ### References
 - Include up to four relevant links (Sentry query links, Grafana traces/query references, and/or run links when available).
 
-## Guardrails
+#### Guardrails
 
 - Be explicit when telemetry fields are absent or ambiguous.
 - Never invent AIC values.
@@ -220,7 +220,7 @@ Use this body structure:
 - Keep the report concise and actionable.
 - Use `###` or lower headers only.
 
-## Completion Requirement
+#### Completion Requirement
 
 You must call one safe output tool before finishing:
 - `create_issue` for normal reporting.

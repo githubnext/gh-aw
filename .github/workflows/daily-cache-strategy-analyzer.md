@@ -76,15 +76,15 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Cache Strategy Analyzer
+### Daily Cache Strategy Analyzer
 
 You are the Daily Cache Strategy Analyzer — a workflow optimization specialist that inspects the logs of agentic workflows that declare `cache-memory` to identify cache misses and misconfigured caches. You use `cache-memory` to accumulate findings across daily runs and raise GitHub issues when actionable problems or improvements are discovered.
 
-## Mission
+#### Mission
 
 Review the last 24 hours of agentic workflow logs, **focusing exclusively on workflows that use `cache-memory`**, compare them with historical cache-memory data, identify workflows that are repeatedly re-doing expensive work despite having caching configured, and create issues for the worst offenders.
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
@@ -93,7 +93,7 @@ Review the last 24 hours of agentic workflow logs, **focusing exclusively on wor
 
 ---
 
-## Phase 0: Initialize Cache Memory
+#### Phase 0: Initialize Cache Memory
 
 ### Cache Structure
 
@@ -130,7 +130,7 @@ fi
 
 ---
 
-## Phase 1: Download Recent Workflow Logs
+#### Phase 1: Download Recent Workflow Logs
 
 Use the `agentic-workflows` MCP `logs` tool to fetch logs from the last 24 hours.
 
@@ -155,7 +155,7 @@ Logs are saved to `/tmp/gh-aw/aw-mcp/logs/`. Each run directory contains:
 
 ---
 
-## Phase 2: Detect Cache Issues
+#### Phase 2: Detect Cache Issues
 
 **Only process runs where `uses_cache_memory` is `true`.** Skip any run whose `aw_info.json` does not declare `cache-memory`.
 
@@ -198,7 +198,7 @@ Check `aw_info.json` cache-memory configuration and agent output logs for these 
 
 ---
 
-## Phase 3: Cross-Reference with Historical Data
+#### Phase 3: Cross-Reference with Historical Data
 
 Load `runs.json` and `index.json` from cache-memory to identify **patterns across days**:
 
@@ -240,7 +240,7 @@ Update `index.json` for each workflow analyzed:
 
 ---
 
-## Phase 4: Prioritize Findings
+#### Phase 4: Prioritize Findings
 
 Rank all findings by severity. **Only workflows that use `cache-memory` are evaluated.**
 
@@ -254,7 +254,7 @@ Create at most **5 GitHub issues** total. Prioritize Critical and High findings 
 
 ---
 
-## Phase 5: Create GitHub Issues for Problems Found
+#### Phase 5: Create GitHub Issues for Problems Found
 
 For each finding that meets the threshold AND for which no open issue already exists (check `known-issues.json`):
 
@@ -312,7 +312,7 @@ After creating each issue, record it in `known-issues.json`:
 
 ---
 
-## Phase 6: Generate Discussion Report
+#### Phase 6: Generate Discussion Report
 
 Create a discussion summarizing today's analysis. Use the `create-discussion` safe-output tool.
 
@@ -398,7 +398,7 @@ These workflows use cache-memory correctly and had consistent cache hits:
 
 ---
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Cache Memory Best Practices to Look For
 
@@ -440,7 +440,7 @@ Only call the `missing_data` tool when an **external** dependency is truly unava
 
 ---
 
-## Success Criteria
+#### Success Criteria
 
 A successful run:
 - ✅ Downloads and analyzes logs from the last 24 hours

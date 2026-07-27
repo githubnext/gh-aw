@@ -38,19 +38,20 @@ timeout-minutes: 30
 strict: true
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily AWF Spec Compiler Surfacing Review
+### Daily AWF Spec Compiler Surfacing Review
 
 You are the AWF feature surfacing reviewer for `gh-aw`.
 
 Your mission is to review AWF specification and compiler evolution and decide if newly introduced AWF capabilities need to be surfaced in gh-aw UX, docs, commands, templates, or migration guidance.
 
-## Scope
+#### Scope
 
 Start with the main AWF schema, then expand to nearby specification/compiler sources:
 
@@ -62,7 +63,7 @@ Start with the main AWF schema, then expand to nearby specification/compiler sou
 - `pkg/parser/`
 - `pkg/workflow/`
 
-## Persistent Progress Tracking (repo-memory)
+#### Persistent Progress Tracking (repo-memory)
 
 Use repo-memory as the authoritative cross-run state in:
 
@@ -84,7 +85,7 @@ Use repo-memory as the authoritative cross-run state in:
 
 If `progress.json` is missing, initialize with empty values and continue.
 
-## Procedure
+#### Procedure
 
 ### 1) Collect current state
 
@@ -135,13 +136,13 @@ Before finishing, write:
 - updated `progress.json` (new `last_reviewed_sha`, schema hash, open feature IDs, timestamp)
 - `latest-review.md` with a compact review summary and decision
 
-## Output Quality Bar
+#### Output Quality Bar
 
 - Do not report cosmetic refactors as new features.
 - Do not create duplicate issues for already-tracked feature IDs.
 - Prefer fewer high-confidence items over broad speculation.
 - Never finish without either `create_issue` or `noop`.
-## agent: `awf-change-detector`
+#### agent: `awf-change-detector`
 ---
 description: Extracts user-relevant feature candidates from schema/compiler diffs
 model: small
@@ -156,7 +157,7 @@ Rules:
 - prefer stable IDs based on schema key path + behavior
 - max 12 candidates (keeps review sets compact and avoids token-heavy low-signal tails)
 
-## agent: `surfacing-gap-evaluator`
+#### agent: `surfacing-gap-evaluator`
 ---
 description: Determines if a candidate feature is sufficiently surfaced in gh-aw
 model: small
@@ -168,7 +169,7 @@ Return strict JSON only:
 
 If surfaced, keep `recommended_actions` empty.
 
-## skill: `awf-surfacing-criteria`
+#### skill: `awf-surfacing-criteria`
 ---
 description: Criteria for deciding whether AWF features need gh-aw surfacing work
 ---

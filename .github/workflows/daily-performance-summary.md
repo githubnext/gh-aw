@@ -53,13 +53,13 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Project Performance Summary Generator (Using MCP Scripts)
+### Daily Project Performance Summary Generator (Using MCP Scripts)
 
 You are an expert analyst that generates comprehensive daily performance summaries using **mcp-script tools** to query GitHub data (PRs, issues, discussions) and creates trend visualizations.
 
 **IMPORTANT**: This workflow uses mcp-script tools imported from `shared/github-queries-mcp-script.md`. All data gathering MUST be done through these tools.
 
-## Mission
+#### Mission
 
 Generate a daily performance summary analyzing the last 90 days of project activity:
 1. **Use mcp-script tools** to query PRs, issues, and discussions
@@ -68,13 +68,13 @@ Generate a daily performance summary analyzing the last 90 days of project activ
 4. Create a discussion with the comprehensive performance report
 5. Close previous daily performance discussions
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Report Period**: Last 90 days (updated daily)
 
-## Phase 1: Gather Data Using Safe-Input Tools
+#### Phase 1: Gather Data Using Safe-Input Tools
 
 **CRITICAL**: Use the mcp-script tools to query GitHub data. These tools are imported from `shared/github-queries-mcp-script.md` and provide the same functionality as the previous Skillz-based approach.
 
@@ -126,7 +126,7 @@ The tool provides:
 - Answered vs unanswered discussions
 - Active discussion authors
 
-## Phase 2: Python Analysis
+#### Phase 2: Python Analysis
 
 Create Python scripts to analyze the gathered data and calculate metrics.
 
@@ -155,13 +155,13 @@ from datetime import datetime, timedelta
 import json
 import os
 
-# Configuration
+### Configuration
 CHARTS_DIR = '/tmp/gh-aw/python/charts'
 DATA_DIR = '/tmp/gh-aw/python/data'
 os.makedirs(CHARTS_DIR, exist_ok=True)
 os.makedirs(DATA_DIR, exist_ok=True)
 
-# Set visualization style
+### Set visualization style
 sns.set_style("whitegrid")
 sns.set_palette("husl")
 
@@ -172,16 +172,16 @@ def load_json_data(filepath):
             return json.load(f)
     return []
 
-# Load data
+### Load data
 prs = load_json_data(f'{DATA_DIR}/prs.json')
 issues = load_json_data(f'{DATA_DIR}/issues.json')
 discussions = load_json_data(f'{DATA_DIR}/discussions.json')
 
-# Calculate metrics
+### Calculate metrics
 now = datetime.now()
 ninety_days_ago = now - timedelta(days=90)
 
-# PR metrics
+### PR metrics
 pr_df = pd.DataFrame(prs) if prs else pd.DataFrame()
 if not pr_df.empty:
     pr_df['createdAt'] = pd.to_datetime(pr_df['createdAt'])
@@ -201,7 +201,7 @@ if not pr_df.empty:
 else:
     pr_metrics = {'total': 0, 'merged': 0, 'open': 0, 'avg_merge_time_hours': 0, 'unique_authors': 0}
 
-# Issue metrics
+### Issue metrics
 issue_df = pd.DataFrame(issues) if issues else pd.DataFrame()
 if not issue_df.empty:
     issue_df['createdAt'] = pd.to_datetime(issue_df['createdAt'])
@@ -220,7 +220,7 @@ if not issue_df.empty:
 else:
     issue_metrics = {'total': 0, 'open': 0, 'closed': 0, 'avg_close_time_hours': 0}
 
-# Discussion metrics
+### Discussion metrics
 discussion_df = pd.DataFrame(discussions) if discussions else pd.DataFrame()
 if not discussion_df.empty:
     discussion_metrics = {
@@ -230,7 +230,7 @@ if not discussion_df.empty:
 else:
     discussion_metrics = {'total': 0, 'answered': 0}
 
-# Save metrics
+### Save metrics
 all_metrics = {
     'prs': pr_metrics,
     'issues': issue_metrics,
@@ -244,7 +244,7 @@ print("Metrics calculated and saved!")
 print(json.dumps(all_metrics, indent=2, default=str))
 ```
 
-## Phase 3: Generate Trend Charts
+#### Phase 3: Generate Trend Charts
 
 Generate exactly **3 high-quality charts**:
 
@@ -263,11 +263,11 @@ import os
 CHARTS_DIR = '/tmp/gh-aw/python/charts'
 DATA_DIR = '/tmp/gh-aw/python/data'
 
-# Load metrics
+### Load metrics
 with open(f'{DATA_DIR}/metrics.json', 'r') as f:
     metrics = json.load(f)
 
-# Create activity overview chart
+### Create activity overview chart
 sns.set_style("whitegrid")
 fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
 
@@ -281,7 +281,7 @@ totals = [
 colors = ['#4ECDC4', '#FF6B6B', '#45B7D1']
 bars = ax.bar(categories, totals, color=colors, edgecolor='white', linewidth=2)
 
-# Add value labels on bars
+### Add value labels on bars
 for bar, value in zip(bars, totals):
     ax.text(bar.get_x() + bar.get_width()/2, bar.get_height() + 0.5,
             str(value), ha='center', va='bottom', fontsize=14, fontweight='bold')
@@ -317,7 +317,7 @@ with open(f'{DATA_DIR}/metrics.json', 'r') as f:
 sns.set_style("whitegrid")
 fig, axes = plt.subplots(1, 2, figsize=(14, 6), dpi=300)
 
-# Chart 2a: PR Status Distribution
+### Chart 2a: PR Status Distribution
 pr_data = [metrics['prs']['merged'], metrics['prs']['open']]
 pr_labels = ['Merged', 'Open']
 colors = ['#2ECC71', '#E74C3C']
@@ -325,7 +325,7 @@ axes[0].pie(pr_data, labels=pr_labels, colors=colors, autopct='%1.1f%%',
             startangle=90, explode=(0.05, 0), textprops={'fontsize': 12})
 axes[0].set_title('PR Status Distribution', fontsize=14, fontweight='bold')
 
-# Chart 2b: Issue Status Distribution
+### Chart 2b: Issue Status Distribution
 issue_data = [metrics['issues']['closed'], metrics['issues']['open']]
 issue_labels = ['Closed', 'Open']
 colors = ['#3498DB', '#F39C12']
@@ -358,7 +358,7 @@ with open(f'{DATA_DIR}/metrics.json', 'r') as f:
 sns.set_style("whitegrid")
 fig, ax = plt.subplots(figsize=(12, 7), dpi=300)
 
-# Velocity metrics
+### Velocity metrics
 categories = ['Avg PR Merge Time\n(hours)', 'Avg Issue Close Time\n(hours)', 'PR Authors', 'Discussion Answer Rate\n(%)']
 values = [
     round(metrics['prs']['avg_merge_time_hours'], 1),
@@ -370,7 +370,7 @@ values = [
 colors = ['#9B59B6', '#1ABC9C', '#E67E22', '#3498DB']
 bars = ax.barh(categories, values, color=colors, edgecolor='white', linewidth=2)
 
-# Add value labels
+### Add value labels
 for bar, value in zip(bars, values):
     ax.text(bar.get_width() + 0.5, bar.get_y() + bar.get_height()/2,
             str(value), ha='left', va='center', fontsize=12, fontweight='bold')
@@ -384,7 +384,7 @@ plt.savefig(f'{CHARTS_DIR}/velocity_metrics.png', dpi=300, bbox_inches='tight', 
 print("Velocity metrics chart saved!")
 ```
 
-## Phase 4: Upload Charts
+#### Phase 4: Upload Charts
 
 Upload all three charts as assets:
 1. Call the `upload_asset` safe-output tool for each chart using its absolute path:
@@ -393,7 +393,7 @@ Upload all three charts as assets:
    - `/tmp/gh-aw/python/charts/velocity_metrics.png`
 2. Record the returned asset URLs for each chart
 
-## Phase 5: Close Previous Discussions
+#### Phase 5: Close Previous Discussions
 
 Before creating the new discussion, find and close previous daily performance discussions:
 
@@ -401,7 +401,7 @@ Before creating the new discussion, find and close previous daily performance di
 2. Close each found discussion with reason "OUTDATED"
 3. Add a closing comment: "This discussion has been superseded by a newer daily performance report."
 
-## Phase 6: Create Discussion Report
+#### Phase 6: Create Discussion Report
 
 Create a new discussion with the comprehensive performance report.
 
@@ -495,7 +495,7 @@ Create a new discussion with the comprehensive performance report.
 *Powered by **Safe-Input Tools** - GitHub queries exposed as MCP tools*
 ```
 
-## Success Criteria
+#### Success Criteria
 
 A successful run will:
 - ✅ **Query data using mcp-script tools** (github-pr-query, github-issue-query, github-discussion-query)
@@ -505,7 +505,7 @@ A successful run will:
 - ✅ Close previous daily performance discussions
 - ✅ Create a new discussion with the complete report
 
-## Safe-Input Tools Usage Reminder
+#### Safe-Input Tools Usage Reminder
 
 This workflow uses mcp-script tools imported from `shared/github-queries-mcp-script.md`:
 1. Tools are defined in the shared workflow with shell script implementations

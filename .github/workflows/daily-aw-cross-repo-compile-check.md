@@ -58,11 +58,11 @@ evals:
     question: Was a report created identifying compatibility gaps or was the cache updated with results?
 ---
 
-# Daily AW Cross-Repo Compilation Agent
+### Daily AW Cross-Repo Compilation Agent
 
 You are a compatibility auditor for GitHub Agentic Workflows (`gh-aw`).
 
-## Mission
+#### Mission
 
 Every run must:
 
@@ -77,13 +77,13 @@ Every run must:
    - potential missing codemods,
    - recurring syntax/configuration mistakes.
 
-## Run Context
+#### Run Context
 
 - Cache root: `/tmp/gh-aw/cache-memory/aw-compat`
 - Work root: `/tmp/gh-aw/agent/aw-compat-work`
 - Use filesystem-safe timestamps only: `YYYY-MM-DD-HH-MM-SS-sss` (no colons).
 
-## Phase 0: Prepare Workspace and Build Latest gh-aw
+#### Phase 0: Prepare Workspace and Build Latest gh-aw
 
 ```bash
 set -euo pipefail
@@ -95,7 +95,7 @@ WORK_ROOT="/tmp/gh-aw/agent/aw-compat-work/$RUN_TS"
 
 mkdir -p "$RUN_DIR" "$WORK_ROOT" "$CACHE_ROOT/index"
 
-# Build latest gh-aw from current repository state.
+### Build latest gh-aw from current repository state.
 cd "${{ github.workspace }}"
 if make build; then
   GH_AW_BIN="${{ github.workspace }}/gh-aw"
@@ -114,7 +114,7 @@ fi
 
 If `make build` fails, only use `gh aw` fallback when available and mention fallback usage in the final report.
 
-## Phase 1: Discover Candidate Repositories via GitHub Search
+#### Phase 1: Discover Candidate Repositories via GitHub Search
 
 Use **`gh` CLI search** (not manual scraping):
 
@@ -136,7 +136,7 @@ Also persist latest selection pointer:
 
 - `$CACHE_ROOT/index/latest-selected.json`
 
-## Phase 2: Per-Repository Compile and Upgrade Pass
+#### Phase 2: Per-Repository Compile and Upgrade Pass
 
 Process repositories sequentially (one by one).
 
@@ -159,29 +159,29 @@ fi
 
 cd "$REPO_DIR"
 
-# Snapshot workflow inventory.
+### Snapshot workflow inventory.
 find .github/workflows -maxdepth 3 -type f \( -name "*.md" -o -name "*.lock.yml" \) \
   >"$LOG_DIR/workflow-files.txt" 2>/dev/null || true
 
-# Baseline compile using latest gh-aw binary.
+### Baseline compile using latest gh-aw binary.
 set +e
 "$GH_AW_BIN" compile --strict >"$LOG_DIR/compile-before.out" 2>&1
 COMPILE_BEFORE_STATUS=$?
 set -e
 
-# Try automated fix/upgrade path.
+### Try automated fix/upgrade path.
 set +e
 "$GH_AW_BIN" fix --write >"$LOG_DIR/fix.out" 2>&1
 FIX_STATUS=$?
 set -e
 
-# Recompile after fix attempt.
+### Recompile after fix attempt.
 set +e
 "$GH_AW_BIN" compile --strict >"$LOG_DIR/compile-after.out" 2>&1
 COMPILE_AFTER_STATUS=$?
 set -e
 
-# Capture diff if fixes changed files.
+### Capture diff if fixes changed files.
 (git status --porcelain; git diff -- .github/workflows) >"$LOG_DIR/diff.txt" 2>&1 || true
 ```
 
@@ -212,7 +212,7 @@ Also update rolling history:
 
 - `$CACHE_ROOT/index/history.jsonl`
 
-## Phase 3: Analyze Failures for Compatibility Gaps
+#### Phase 3: Analyze Failures for Compatibility Gaps
 
 From repositories with `compile_after_status != success`, perform clustering by error signature.
 
@@ -228,7 +228,7 @@ Produce these files:
 - `$RUN_DIR/error-clusters.json`
 - `$RUN_DIR/missing-codemods.json`
 
-## Phase 4: Create Issues with Actionable Findings
+#### Phase 4: Create Issues with Actionable Findings
 
 If failures exist, create issues with concise actionable guidance.
 
@@ -246,7 +246,7 @@ Formatting rules:
 - Include concrete examples and suggested remediations.
 - Include references to up to 3 representative repositories per cluster.
 
-## Output Requirements
+#### Output Requirements
 
 At the end, do one of the following:
 
@@ -259,7 +259,7 @@ At the end, do one of the following:
 
 Never finish without a safe-output call.
 
-## Quality Bar
+#### Quality Bar
 
 A successful run means:
 

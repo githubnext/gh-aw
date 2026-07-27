@@ -48,26 +48,26 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Evals Feature Report
+### Daily Evals Feature Report
 
 You are a data scientist analyzing the `evals` feature in GitHub Agentic Workflows.
 The `evals` feature lets workflow authors declare BinEval-style binary YES/NO questions
 that are automatically evaluated after each run. Results are stored as `evals.jsonl`
 artifacts per run and persisted to dedicated `evals/<workflow-id>` git branches.
 
-## Mission
+#### Mission
 
 Analyze the last 7 days of workflow runs that use the `evals` feature. Compute per-question
 YES/NO pass rates, identify workflows with failing evals, and produce a data science summary.
 When the evals feature is degraded or broken, produce an actionable issue to guide investigation.
 
-## Context
+#### Context
 
 - Repository: `${{ github.repository }}`
 - Run ID: `${{ github.run_id }}`
 - Window: last 7 full days ending at workflow start (UTC)
 
-## Phase 1: Fetch Evals Runs
+#### Phase 1: Fetch Evals Runs
 
 Call the `logs` MCP tool once to download runs with evals artifacts from the past 7 days.
 
@@ -86,7 +86,7 @@ Logs are saved to `/tmp/gh-aw/aw-mcp/logs/run-<id>/`.
 
 Do **not** enumerate every workflow first. One broad fetch is the right starting point.
 
-## Phase 2: Discover Evals Data
+#### Phase 2: Discover Evals Data
 
 For each downloaded run directory at `/tmp/gh-aw/aw-mcp/logs/run-<id>/`:
 
@@ -99,7 +99,7 @@ For each downloaded run directory at `/tmp/gh-aw/aw-mcp/logs/run-<id>/`:
 
 Cap analysis at **40 runs total**. Apply prioritization before capping: first include all runs that produced `evals.jsonl` (up to 40), then fill any remaining capacity with evals-failure runs (declared evals but no results). If there are more than 40 runs with evals results, use the most recent 40 and note in the report that analysis was capped. Evals failures are still recorded even if the 40-run cap is reached from results-only runs — count them but do not analyze their artifacts.
 
-## Phase 3: Parse Evals JSONL
+#### Phase 3: Parse Evals JSONL
 
 For each `evals.jsonl` found, read every JSONL line. Each record contains:
 - `id` — question ID
@@ -112,7 +112,7 @@ Extract per-run:
 - Per-question answer list
 - Overall pass/fail: **pass** if every question is YES, **fail** if any question is NO
 
-## Phase 4: Aggregate Statistics
+#### Phase 4: Aggregate Statistics
 
 ### Per-Workflow
 
@@ -134,7 +134,7 @@ For each unique workflow:
 - `overall_yes_rate` — YES answers / total answers across all runs
 - `most_failing_questions` — top 3 questions (by NO rate) across all workflows
 
-## Phase 5: Classify Feature Health
+#### Phase 5: Classify Feature Health
 
 | Status | Condition |
 |---|---|
@@ -142,7 +142,7 @@ For each unique workflow:
 | **DEGRADED** | `overall_evals_job_success_rate` between 50–80%, OR `overall_yes_rate` between 30–60% |
 | **BROKEN** | `overall_evals_job_success_rate < 50%`, OR zero evals runs found, OR evals job not producing any results |
 
-## Phase 6: Generate Output
+#### Phase 6: Generate Output
 
 ### HEALTHY or DEGRADED — Create Issue with Data Science Summary
 
@@ -237,7 +237,7 @@ noop("Evals declared in N workflows but no evals.jsonl artifacts found. Use [eva
 ```
 (Skip the noop and create the BROKEN issue instead in this case.)
 
-## Token Budget Guidelines
+#### Token Budget Guidelines
 
 - **One broad `logs` call** — do not enumerate workflows individually before calling logs.
 - **Cap at 40 runs** — stop analyzing once the cap is reached.

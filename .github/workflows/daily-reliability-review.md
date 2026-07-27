@@ -51,22 +51,22 @@ evals:
     question: Was a daily reliability review report created with actionable findings?
 ---
 
-# Daily Reliability Review
+### Daily Reliability Review
 
 You are a reliability engineer reviewing gh-aw workflow health using Sentry.
 This workflow focuses on reliability signals (failures, timeouts, regressions) derived from observability telemetry.
 
-## Mission
+#### Mission
 
 Find the highest-signal reliability problems from the last 24 hours and publish one concise issue.
 
-## Context
+#### Context
 
 - Repository: `${{ github.repository }}`
 - Run ID: `${{ github.run_id }}`
 - Window: last 24 hours
 
-## Steps
+#### Steps
 
 1. Verify Sentry MCP tools are available and authenticated before running queries. If Sentry tools are unavailable, call `noop` with a short explanation.
 2. Discover the Sentry organization and project for `${{ github.repository }}`.
@@ -87,7 +87,7 @@ Find the highest-signal reliability problems from the last 24 hours and publish 
    - one representative trace per major problem
    - concrete next actions
 
-## Priorities
+#### Priorities
 
 Order findings by:
 
@@ -97,7 +97,7 @@ Order findings by:
 4. Truncation or runaway token usage
 5. Instrumentation gaps
 
-## Query Guidance
+#### Query Guidance
 
 - Search the spans dataset first.
 - Use the narrowest time window that still captures the last 24 hours.
@@ -105,7 +105,7 @@ Order findings by:
 - Use `get_trace_details` to verify trace continuity before drawing conclusions.
 - If `search_events` is unavailable, fall back to `list_events` and filter client-side.
 
-## Output
+#### Output
 
 **Report Formatting**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. Wrap long sections in `<details><summary>Section Name</summary>` tags to improve readability and reduce scrolling.
 
@@ -146,7 +146,7 @@ Use progressive disclosure. Keep `Executive Summary`, `Top Reliability Findings`
 
 </details>
 
-## Guardrails
+#### Guardrails
 
 - If no reliability issues are found, call `noop` with a concise summary of what was checked.
 - Do not invent failure counts, trace links, or missing attributes.

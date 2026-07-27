@@ -39,6 +39,7 @@ tools:
   edit:
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: firewall_data_collected
     question: Did the agent collect firewall log events for the reporting period?
@@ -48,11 +49,11 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Firewall Logs Collector and Reporter
+### Daily Firewall Logs Collector and Reporter
 
 Collect and analyze firewall logs from all agentic workflows that use the firewall feature.
 
-## 📊 Trend Charts
+#### 📊 Trend Charts
 
 Use the `firewall-chart-generator` agent to collect 30-day firewall data, generate the two trend charts, and return their upload URLs. Record the returned `CHART1_URL` and `CHART2_URL` values for embedding in Step 5 of the report using markdown image links:
 - `![Firewall Request Trends](<CHART1_URL returned by the sub-agent>)`
@@ -63,7 +64,7 @@ If the agent returns an `error` field, omit both image embeds and include a brie
 
 ---
 
-## Objective
+#### Objective
 
 Generate a comprehensive daily report of all rejected domains across all agentic workflows that use the firewall feature. This helps identify:
 - Which domains are being blocked
@@ -71,7 +72,7 @@ Generate a comprehensive daily report of all rejected domains across all agentic
 - Potential issues with network permissions
 - Security insights from blocked requests
 
-## Instructions
+#### Instructions
 
 ### Tooling and output policy
 
@@ -244,17 +245,17 @@ Ensure the discussion body:
 - Wraps detailed data (per-workflow breakdowns, complete domain list) in `<details>` tags
 - Keeps critical information visible (summary, key metrics, top domains, recommendations)
 
-## Notes
+#### Notes
 
 - **Early exit**: If no firewall-enabled workflow runs are found in the past 7 days, exit early without creating a report (see Step 1.5)
 - Include timestamps and run URLs for traceability
 - Use tables and formatting for better readability
 - Add emojis to make the report more engaging (🔥 for firewall, 🚫 for blocked, ✅ for allowed)
 
-## Expected Output
+#### Expected Output
 
 A GitHub discussion in the "audits" category containing a comprehensive daily firewall analysis report.
-## agent: `firewall-chart-generator`
+#### agent: `firewall-chart-generator`
 ---
 model: small
 description: Collects 30-day firewall data, generates two trend charts, uploads them, and returns chart URLs
@@ -294,7 +295,7 @@ If chart generation or upload ultimately fails after reasonable retries, return:
 }
 ```
 
-## agent: `firewall-data-aggregator`
+#### agent: `firewall-data-aggregator`
 ---
 model: small
 description: Audits firewall-enabled run IDs and returns aggregated firewall, policy-rule, and denied-request statistics

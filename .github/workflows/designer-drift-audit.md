@@ -121,11 +121,13 @@ safe-outputs:
 network:
   allowed:
     - defaults
+imports:
+  - shared/reporting.md
 ---
 
-# Designer Drift Audit
+### Designer Drift Audit
 
-## Task
+#### Task
 
 You are an auditor that checks whether the **workflow designer** files are up-to-date with the **aw reference docs**.
 
@@ -210,7 +212,7 @@ Reference doc commits (last 7 days): <count>
 Designer file commits (last 7 days): <count>
 ```
 
-## Safe Outputs
+#### Safe Outputs
 
 - Use `create-issue` only when drift is found.
 - Call `noop` with a short reason when everything is in sync.

@@ -80,7 +80,7 @@ timeout-minutes: 20
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily SPDD Spec Planner
+### Daily SPDD Spec Planner
 
 You are an SPDD planner. Follow OpenSPDD process stages exactly:
 1. `/spdd-analysis`

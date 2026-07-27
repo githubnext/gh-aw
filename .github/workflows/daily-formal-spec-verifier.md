@@ -64,7 +64,7 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Formal Spec Verifier 🔬
+### Daily Formal Spec Verifier 🔬
 
 You are a formal methods expert and Go test engineer. Your mission is to:
 
@@ -75,7 +75,7 @@ You are a formal methods expert and Go test engineer. Your mission is to:
 
 ---
 
-## Step 1 — Rotation (cache-memory)
+#### Step 1 — Rotation (cache-memory)
 
 Load `/tmp/gh-aw/cache-memory/formal-spec-verifier/rotation.json`.
 
@@ -96,7 +96,7 @@ Schema:
 
 ---
 
-## Step 1b — Load Prior Notes (repo-memory)
+#### Step 1b — Load Prior Notes (repo-memory)
 
 Before analyzing the selected spec, check for existing notes from previous runs:
 
@@ -124,7 +124,7 @@ If a note file exists for the selected spec, read it and use the prior predicate
 
 ---
 
-## Step 2 — Read and Parse the Specification
+#### Step 2 — Read and Parse the Specification
 
 Read the selected spec file in full with `bash`.
 
@@ -143,7 +143,7 @@ Extract:
 
 ---
 
-## Step 3 — Formalize Using Verification Language Notation
+#### Step 3 — Formalize Using Verification Language Notation
 
 Produce a **Formal Model** section using the most appropriate notation(s) from:
 
@@ -162,7 +162,7 @@ Rules:
 
 ---
 
-## Step 4 — Generate Go Testify Unit Tests
+#### Step 4 — Generate Go Testify Unit Tests
 
 Produce a complete Go test file that:
 
@@ -179,7 +179,7 @@ Use existing types, functions, and interfaces from the codebase where possible (
 
 ---
 
-## Step 5 — Create Issue
+#### Step 5 — Create Issue
 
 Create exactly one issue using the `create_issue` safe output.
 
@@ -264,7 +264,7 @@ If these checks cannot be met, emit `report_incomplete` directly as a safe outpu
 
 ---
 
-## Step 6 — Persist Rotation State
+#### Step 6 — Persist Rotation State
 
 After `create_issue` succeeds, write updated `rotation.json` to
 `/tmp/gh-aw/cache-memory/formal-spec-verifier/rotation.json`:
@@ -277,7 +277,7 @@ Use the `write` tool (not shell redirection) to persist the file.
 
 ---
 
-## Step 7 — Persist Formal Notes (repo-memory)
+#### Step 7 — Persist Formal Notes (repo-memory)
 
 After writing the rotation state, save the formal model notes for this run so future runs
 can build on them.
@@ -287,28 +287,28 @@ can build on them.
 Write `/tmp/gh-aw/repo-memory/default/formal-spec-verifier/<spec-slug>.md`:
 
 ```markdown
-# Formal Notes: <SpecFileName>
+### Formal Notes: <SpecFileName>
 
 **Last formalized**: <YYYY-MM-DD-HH-MM-SS>
 **Notation**: <TLA+ / Lean 4 / Z3 / F* / mixed>
 **Issue**: #<number>
 
-## Predicates
+#### Predicates
 
 | ID | Predicate | Description |
 |---|---|---|
 | P1 | `<name>` | <what it asserts> |
 ...
 
-## Key Invariants
+#### Key Invariants
 
 <bullet list of invariants>
 
-## Edge Cases Identified
+#### Edge Cases Identified
 
 <bullet list of edge cases>
 
-## Notes for Future Runs
+#### Notes for Future Runs
 
 <any observations about gaps, areas that need deeper formalization, or cross-spec dependencies>
 ```
@@ -321,7 +321,7 @@ file back.
 
 ---
 
-## Constraints
+#### Constraints
 
 - **No runtime dependency on Lean, F*, Z3, Coq, or TLA+.** All formal notation is illustrative only — embedded as quoted blocks in the issue body.
 - **No network calls** beyond what the tools provide.

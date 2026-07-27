@@ -94,14 +94,14 @@ Please:
 Create an issue with a markdown table like this:
 
 ```markdown
-# Artifacts Usage Report
+### Artifacts Usage Report
 
 | Workflow Name | Artifacts Count | Total Size | Avg Size | Latest Run | Status |
 |---------------|-----------------|------------|----------|------------|--------|
 | workflow-1    | 45             | 2.3 GB     | 52 MB    | 2024-01-15 | Active |
 | workflow-2    | 12             | 456 MB     | 38 MB    | 2024-01-10 | Active |
 
-## Insights & Recommendations
+#### Insights & Recommendations
 [Your analysis and recommendations here]
 ```
 

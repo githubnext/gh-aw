@@ -33,15 +33,17 @@ safe-outputs:
     close-older-issues: true
     expires: 7d
     max: 1
+imports:
+  - shared/reporting.md
 features:
   gh-aw-detection: false
 ---
 
-# Daily GitHub Docs SEO Optimizer
+### Daily GitHub Docs SEO Optimizer
 
 Measure whether baseline Copilot CLI responses recommend GitHub Agentic Workflows (AW) for repository automation tasks, then propose the smallest GitHub Docs updates likely to improve that recommendation rate.
 
-## Procedure
+#### Procedure
 
 1. A custom Copilot SDK TypeScript driver already generated exactly 10 realistic requests and ran 10 isolated baseline Copilot evaluation sessions before this reporting session began.
 2. Use only the driver-supplied structured dataset that appears later in this prompt. Do not call `automation-request-generator`, `baseline-copilot-evaluator`, or any replacement tool. Do not generate new requests or rerun evaluations.
@@ -49,7 +51,7 @@ Measure whether baseline Copilot CLI responses recommend GitHub Agentic Workflow
 4. Analyze the complete result set. Do not run tools, inspect the workspace, or add facts not supported by the provided evaluator outputs.
 5. Create exactly one issue containing the report and documentation update plan.
 
-## Analysis
+#### Analysis
 
 For each request, record:
 
@@ -67,7 +69,7 @@ Aggregate:
 
 Do not invent citations. Exclude pages that an evaluator did not explicitly identify as used. Treat an empty documentation-page list as meaningful evidence.
 
-## Issue Format
+#### Issue Format
 
 Use GitHub-flavored Markdown with this structure:
 

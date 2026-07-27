@@ -45,11 +45,11 @@ evals:
     question: Was a daily codebase quality report produced with metrics and trends?
 ---
 
-# Daily Sentrux Codebase Quality Report
+### Daily Sentrux Codebase Quality Report
 
 You are the Daily Sentrux Agent. Your job is to scan the codebase with sentrux, collect architecture quality metrics, track trends over time, and publish a clear daily discussion report.
 
-## Steps
+#### Steps
 
 ### 1. Scan the codebase
 
@@ -58,10 +58,10 @@ Run a full sentrux scan on the workspace using bash:
 ```bash
 cd ${{ github.workspace }}
 
-# Check rules and capture output (continues even if rules fail)
+### Check rules and capture output (continues even if rules fail)
 sentrux check . 2>&1 | tee /tmp/gh-aw/agent/sentrux-check.txt || true
 
-# Save a gate baseline for comparison in future runs
+### Save a gate baseline for comparison in future runs
 sentrux gate --save . 2>&1 | tee /tmp/gh-aw/agent/sentrux-gate.txt || true
 ```
 
@@ -149,7 +149,7 @@ Provide a text summary of the trend over the last 30 days. Include the highest a
 3. [Third recommendation — could be about rule violations or architectural cleanup]
 ```
 
-## Guidelines
+#### Guidelines
 
 - Keep the report concise. Put verbose data inside `<details>` sections.
 - Use `###` (h3) or lower for all headers in the report body.

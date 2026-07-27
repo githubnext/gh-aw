@@ -84,6 +84,7 @@ network:
     - github
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 evals:
   - id: scan_completed
     question: Did the agent download the prepared VulnHunter bundle artifact, load its vulnhunt skill instructions, and complete a repository scan?
@@ -91,11 +92,11 @@ evals:
     question: Was a security issue created for verified exploitable findings, or was noop used when VulnHunter found nothing actionable?
 ---
 
-# Daily VulnHunter Scan
+### Daily VulnHunter Scan
 
 Run Capital One's [VulnHunter](https://github.com/capitalone/VulnHunter) methodology inside the sandbox against the repository snapshot packaged by the `vulnhunter_bundle` job.
 
-## Task
+#### Task
 
 1. Read `/tmp/gh-aw/agent/vulnhunter/README.md` for the prepared bundle layout.
 2. Load only the core scanner instructions:
@@ -108,14 +109,14 @@ Run Capital One's [VulnHunter](https://github.com/capitalone/VulnHunter) methodo
    - Do **not** exhaustively scan every file — prioritize files likely to contain critical vulnerabilities.
 4. Apply the selected phases to the scoped entry points, falsify any candidate findings, and save confirmed findings to `/tmp/gh-aw/agent/vulnhunter/out/`.
 
-## Reporting Rules
+#### Reporting Rules
 
 - Only report findings that survive VulnHunter's falsification/disproof process.
 - Do not report speculative, low-confidence, or test-only issues.
 - If there are no verified exploitable findings, call `noop` with a short explanation.
 - If there are verified findings, create exactly one issue summarizing up to the 3 highest-confidence vulnerabilities.
 
-## Issue Format
+#### Issue Format
 
 Use the title `VulnHunter findings in ${{ github.repository }}`.
 

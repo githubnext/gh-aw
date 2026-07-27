@@ -134,11 +134,11 @@ features:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Multi-Device Documentation Testing
+### Multi-Device Documentation Testing
 
 You are a documentation testing specialist. Your task is to comprehensively test the documentation site across multiple devices and form factors.
 
-## Context
+#### Context
 
 - Repository: ${{ github.repository }}
 - Triggered by: @${{ github.actor }}
@@ -157,11 +157,11 @@ This workflow has `strict: true` — it will fail if no safe output is produced.
 6. Use this Playwright config for every browser command: `${{ github.workspace }}/.playwright/cli.config.json`
 7. If `${{ github.workspace }}/.playwright/preflight.log` contains a Chromium startup error, treat this run as an infrastructure blocker (not a docs regression)
 
-## Your Mission
+#### Your Mission
 
 Start the documentation preview server and perform comprehensive multi-device testing. Test layout responsiveness, accessibility, interactive elements, and visual rendering across all device types. Use a single Playwright browser instance for efficiency.
 
-## Step 1: Start Server
+#### Step 1: Start Server
 
 The docs dependencies are already installed and the site is already built. Start the Astro preview server inside this container:
 
@@ -189,7 +189,7 @@ done
 echo "Docs server ready at http://localhost:4321/gh-aw/"
 ```
 
-## Step 2: Device Configuration
+#### Step 2: Device Configuration
 
 Test these device types based on input `${{ inputs.devices }}`:
 
@@ -197,7 +197,7 @@ Test these device types based on input `${{ inputs.devices }}`:
 **Tablet:** iPad (768x1024), iPad Pro 11 (834x1194), iPad Pro 12.9 (1024x1366)
 **Desktop:** HD (1366x768), FHD (1920x1080), 4K (2560x1440)
 
-## Step 3: Run Playwright Tests
+#### Step 3: Run Playwright Tests
 
 **Using Playwright in gh-aw Workflows (CLI mode)**
 
@@ -240,14 +240,14 @@ For each device viewport, use playwright-cli to:
 - Test interactions (navigation, search, buttons)
 - Check for layout issues (overflow, truncation, broken layouts)
 
-## Step 4: Analyze Results
+#### Step 4: Analyze Results
 
 Organize findings by severity:
 - 🔴 **Critical**: Blocks functionality or major accessibility issues
 - 🟡 **Warning**: Minor issues or potential problems
 - 🟢 **Passed**: Everything working as expected
 
-## Step 5: Report Results
+#### Step 5: Report Results
 
 ### If NO Issues Found
 
@@ -312,11 +312,11 @@ Create a GitHub issue titled "🔍 Multi-Device Docs Testing Report - [Date]" wi
 
 Label with: `documentation`, `testing`, `automated`
 
-## Step 6: Cleanup
+#### Step 6: Cleanup
 
 No manual server cleanup is required. The server process will be cleaned up automatically when the agent job exits.
 
-## Summary
+#### Summary
 
 **⚠️ MANDATORY: Always provide a safe output before finishing:**
 - **If issues found**: Create GitHub issue with test results, findings, and recommendations

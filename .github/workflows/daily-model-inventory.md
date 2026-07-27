@@ -27,9 +27,9 @@ network:
     - github
     - models.dev
 
-# Supply pricing for a private/enterprise model not yet in the models.dev catalog.
-# Cost values are per-token USD in scientific notation (e.g. 3e-06 = $3 per million tokens).
-# Entries are merged with the built-in models.json at runtime and fill gaps for unknown models.
+### Supply pricing for a private/enterprise model not yet in the models.dev catalog.
+### Cost values are per-token USD in scientific notation (e.g. 3e-06 = $3 per million tokens).
+### Entries are merged with the built-in models.json at runtime and fill gaps for unknown models.
 models:
   providers:
     openai:
@@ -280,6 +280,7 @@ safe-outputs:
 
 imports:
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 evals:
@@ -289,7 +290,7 @@ evals:
     question: Were updates to the builtin model alias mapping proposed, or was noop used when no changes were needed?
 ---
 
-# Daily Model Inventory Checker
+### Daily Model Inventory Checker
 
 You are an AI model catalog analyst for `${{ github.repository }}`.
 
@@ -297,7 +298,7 @@ Your task is to analyze the current model inventories from all configured AI pro
 determine whether the built-in model alias mapping in `pkg/workflow/data/model_aliases.json` needs
 updating.
 
-## Inputs
+#### Inputs
 
 The pre-job steps have already fetched model lists from OpenAI, Anthropic, and Gemini, then merged
 them into:
@@ -335,7 +336,7 @@ serves models from multiple vendors (Anthropic, OpenAI, Google), and those model
 If a provider's API key was not configured, the entry will have `"error": "... not set"` and an
 empty `models` array. Skip providers with errors or empty model lists.
 
-## Built-in Alias Reference
+#### Built-in Alias Reference
 
 Read `pkg/workflow/data/model_aliases.json` to understand the current alias definitions. The current
 built-in aliases are:
@@ -358,7 +359,7 @@ The alias pattern syntax is:
 - `"vendor/model*id"` — wildcard glob (e.g. `"copilot/*sonnet*"`)
 - `"alias"` — recursive reference to another alias
 
-## Task
+#### Task
 
 ### Step 0: Fetch Copilot Models from API Proxy
 
@@ -375,9 +376,9 @@ mkdir -p "$(dirname "$OUT")"
 if ! curl -fsS http://api-proxy:10000/reflect > "$OUT"; then
   printf '%s' '{"endpoints":[],"error":"reflect endpoint unavailable"}' > "$OUT"
 fi
-# For configured endpoints where /reflect returned null models, fetch directly from
-# models_url (the api-proxy injects auth headers). Mirrors enrichReflectModels() in
-# awf_reflect.cjs — see .github/aw/llms.md for endpoint port/URL reference.
+### For configured endpoints where /reflect returned null models, fetch directly from
+### models_url (the api-proxy injects auth headers). Mirrors enrichReflectModels() in
+### awf_reflect.cjs — see .github/aw/llms.md for endpoint port/URL reference.
 while IFS= read -r entry; do
   provider=$(printf '%s' "$entry" | jq -r '.provider')
   models_url=$(printf '%s' "$entry" | jq -r '.models_url')
@@ -486,8 +487,8 @@ URL="https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pri
 EXCLUDED='["gpt-4o-mini","gpt-4.1","gpt-4o","gpt-5.4-nano"]'
 OUT="/tmp/gh-aw/agent/model-inventory/artifacts/copilot-billing-models/models.json"
 mkdir -p "$(dirname "$OUT")"
-# Replace <PLAYWRIGHT_OUTPUT> below with the JSON string captured from browser_evaluate:
-# echo "{\"source\":\"$URL\",\"excluded_models\":$EXCLUDED,<PLAYWRIGHT_OUTPUT>}" | jq . > "$OUT"
+### Replace <PLAYWRIGHT_OUTPUT> below with the JSON string captured from browser_evaluate:
+### echo "{\"source\":\"$URL\",\"excluded_models\":$EXCLUDED,<PLAYWRIGHT_OUTPUT>}" | jq . > "$OUT"
 ```
 
 If playwright extraction fails or returns an empty `models` array, note this in the issue report and

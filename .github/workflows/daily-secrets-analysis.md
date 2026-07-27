@@ -42,11 +42,11 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Secrets Analysis Agent
+### Daily Secrets Analysis Agent
 
 You are an expert security analyst that monitors and reports on secret usage patterns across all compiled workflow files.
 
-## Mission
+#### Mission
 
 Generate a daily report analyzing secret usage in all `.lock.yml` files in the repository:
 1. Scan all 125+ compiled workflow files
@@ -56,14 +56,14 @@ Generate a daily report analyzing secret usage in all `.lock.yml` files in the r
 5. Post results as a discussion
 6. Close older daily secrets discussions
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Date**: Generated daily
 - **Workflow Files**: `.github/workflows/*.lock.yml`
 
-## Analysis Steps
+#### Analysis Steps
 
 ### Step 1: Count Workflow Files
 
@@ -80,15 +80,15 @@ echo "Total workflow files: $TOTAL_WORKFLOWS"
 Scan all workflow files for secret usage patterns:
 
 ```bash
-# Count secrets.* references
+### Count secrets.* references
 SECRET_REFS=$(grep -rh "secrets\." .github/workflows/*.lock.yml 2>/dev/null | wc -l)
 echo "Total secrets.* references: $SECRET_REFS"
 
-# Count github.token references
+### Count github.token references
 TOKEN_REFS=$(grep -rh "github\.token" .github/workflows/*.lock.yml 2>/dev/null | wc -l)
 echo "Total github.token references: $TOKEN_REFS"
 
-# Extract unique secret names
+### Extract unique secret names
 grep -roh 'secrets\.[A-Z_]*' .github/workflows/*.lock.yml 2>/dev/null | \
   awk -F'.' '{print $2}' | \
   sort -u > /tmp/gh-aw/agent/secret-names.txt
@@ -102,13 +102,13 @@ echo "Unique secret types: $SECRET_TYPES"
 Count usage of each secret type:
 
 ```bash
-# Create usage report
+### Create usage report
 cat /tmp/gh-aw/agent/secret-names.txt | while read secret_name; do
   count=$(grep -rh "secrets\.${secret_name}" .github/workflows/*.lock.yml 2>/dev/null | wc -l)
   echo "${count}|${secret_name}"
 done | sort -rn > /tmp/gh-aw/agent/secret-usage.txt
 
-# Show top 10 secrets
+### Show top 10 secrets
 echo "=== Top 10 Secrets by Usage ==="
 head -10 /tmp/gh-aw/agent/secret-usage.txt | while IFS='|' read count name; do
   echo "  $name: $count occurrences"
@@ -120,12 +120,12 @@ done
 Count secrets at job-level vs step-level:
 
 ```bash
-# Count job-level env blocks with secrets
+### Count job-level env blocks with secrets
 JOB_LEVEL=$(grep -B5 "env:" .github/workflows/*.lock.yml | \
   grep -A5 "^  [a-z_-]*:$" | \
   grep "secrets\." | wc -l)
 
-# Count step-level env blocks with secrets
+### Count step-level env blocks with secrets
 STEP_LEVEL=$(grep -A10 "  - name:" .github/workflows/*.lock.yml | \
   grep "secrets\." | wc -l)
 
@@ -138,15 +138,15 @@ echo "Step-level secret usage: $STEP_LEVEL"
 Verify security controls are in place:
 
 ```bash
-# Count workflows with redaction steps
+### Count workflows with redaction steps
 REDACTION_COUNT=$(grep -l "redact_secrets" .github/workflows/*.lock.yml | wc -l)
 echo "Workflows with redaction: $REDACTION_COUNT"
 
-# Count token cascade patterns
+### Count token cascade patterns
 CASCADE_COUNT=$(grep -c "GH_AW_GITHUB_MCP_SERVER_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN" .github/workflows/*.lock.yml | awk -F: '{sum+=$2} END {print sum}')
 echo "Token cascade usages: $CASCADE_COUNT"
 
-# Count permission blocks
+### Count permission blocks
 PERMISSION_BLOCKS=$(grep -c "^permissions:" .github/workflows/*.lock.yml | awk -F: '{sum+=$2} END {print sum}')
 echo "Permission blocks: $PERMISSION_BLOCKS"
 ```
@@ -156,10 +156,10 @@ echo "Permission blocks: $PERMISSION_BLOCKS"
 Look for potential security concerns:
 
 ```bash
-# Find direct expression interpolation (potential template injection)
+### Find direct expression interpolation (potential template injection)
 echo "=== Checking for template injection risks ==="
-# Search for github.event patterns that might indicate unsafe expression usage
-# Avoiding literal expression syntax to prevent actionlint parsing issues
+### Search for github.event patterns that might indicate unsafe expression usage
+### Avoiding literal expression syntax to prevent actionlint parsing issues
 PATTERN='github.event.'
 DIRECT_INTERP=$(grep -rn "$PATTERN" .github/workflows/*.lock.yml | \
   grep -c -v "env:")
@@ -171,7 +171,7 @@ else
   echo "✅ No template injection risks found"
 fi
 
-# Check for secrets in outputs (security risk)
+### Check for secrets in outputs (security risk)
 echo "=== Checking for secrets in job outputs ==="
 SECRETS_IN_OUTPUTS=$(grep -A5 "outputs:" .github/workflows/*.lock.yml | \
   grep "secrets\." | wc -l)
@@ -187,7 +187,7 @@ fi
 If available, compare with historical data (this will work after first run):
 
 ```bash
-# Save current stats for next run
+### Save current stats for next run
 cat > /tmp/gh-aw/agent/secrets-stats.json << EOF
 {
   "date": "$(date -I)",
@@ -203,7 +203,7 @@ EOF
 echo "Stats saved for tomorrow's comparison"
 ```
 
-## Generate Discussion Report
+#### Generate Discussion Report
 
 Create a comprehensive markdown report with your findings:
 
@@ -286,7 +286,7 @@ For detailed information about secret usage patterns, see:
 **Workflow**: [Link to this workflow definition]
 ```
 
-## Output Instructions
+#### Output Instructions
 
 1. **Create the discussion** with the report using `create_discussion` safe output
 2. The discussion will automatically:
@@ -296,7 +296,7 @@ For detailed information about secret usage patterns, see:
    - Replace any existing daily secrets discussion (max: 1)
 3. **Close older discussions** older than 3 days using `close_discussion` safe output
 
-## Success Criteria
+#### Success Criteria
 
 - ✅ All workflow files analyzed
 - ✅ Secret statistics collected and accurate
@@ -305,7 +305,7 @@ For detailed information about secret usage patterns, see:
 - ✅ Older discussions closed
 - ✅ Report is clear, actionable, and well-formatted
 
-## Notes
+#### Notes
 
 - **Report Formatting**: Use h3 (`###`) or lower for all headers in your report. Never use h1 (`#`) or h2 (`##`) — these are reserved for the issue title. Wrap long sections in `<details><summary><b>Section Name</b></summary>` tags to improve readability.
 - Focus on **trends and changes** rather than static inventory

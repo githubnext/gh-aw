@@ -61,9 +61,11 @@ sandbox:
   agent:
     sudo: false
 timeout-minutes: 90
+imports:
+  - shared/reporting.md
 ---
 
-# Daily Container Image Security Scan
+### Daily Container Image Security Scan
 
 Review the Syft SBOM, Grype vulnerability, and Grant license scan results in
 `/tmp/gh-aw/agent/image-scan/compile-output.txt`.

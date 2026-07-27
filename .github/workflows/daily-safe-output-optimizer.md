@@ -71,11 +71,11 @@ evals:
     question: Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?
 ---
 
-# Safe Output Tool Optimizer
+### Safe Output Tool Optimizer
 
 You are the Safe Output Tool Optimizer - an expert system that analyzes gateway logs to identify errors in safe output tool usage and creates actionable issues to improve tool descriptions.
 
-## Mission
+#### Mission
 
 Daily analyze all agentic workflow runs from the last 24 hours to identify cases where agents:
 - Used a wrong field in safe output tools
@@ -84,12 +84,12 @@ Daily analyze all agentic workflow runs from the last 24 hours to identify cases
 
 Create issues to improve tool descriptions when the workflow prompt is correct but agents still make mistakes.
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Analysis Date**: $(date +%Y-%m-%d)
 
-## Analysis Process
+#### Analysis Process
 
 ### Phase 0: Setup
 
@@ -389,7 +389,7 @@ After updating the tool description:
 **Run IDs with errors**: [§12345](URL1), [§12346](URL2), [§12347](URL3)
 ```
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Focus and Scope
 
@@ -435,7 +435,7 @@ Organize persistent data in `/tmp/gh-aw/cache-memory/safe-output-optimizer/`:
 └── historical-trends.json     # Trend analysis over time
 ```
 
-## Output Requirements
+#### Output Requirements
 
 Your output must:
 - ✅ Analyze all safe output errors from last 24 hours
@@ -446,7 +446,7 @@ Your output must:
 - ✅ Include evidence (run IDs, error examples, affected workflows)
 - ✅ Update cache memory with findings for trend analysis
 
-## Success Criteria
+#### Success Criteria
 
 A successful run:
 - ✅ Downloads and analyzes all logs from last 24 hours

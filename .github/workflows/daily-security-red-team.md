@@ -99,14 +99,14 @@ Use filesystem-safe timestamps for all cache files to ensure artifact compatibil
 ### Cache File Structure
 
 ```bash
-# Cache directory setup
+### Cache directory setup
 CACHE_DIR="/tmp/gh-aw/cache-memory/security-red-team"
 mkdir -p "$CACHE_DIR"
 
-# Filesystem-safe timestamp format (no colons)
+### Filesystem-safe timestamp format (no colons)
 TIMESTAMP=$(date +%Y-%m-%d-%H-%M-%S)
 
-# Cache files (using filesystem-safe timestamps)
+### Cache files (using filesystem-safe timestamps)
 SCAN_HISTORY="$CACHE_DIR/scan-history.json"
 CURRENT_SCAN="$CACHE_DIR/current-scan-${TIMESTAMP}.json"
 TECHNIQUE_TRACKER="$CACHE_DIR/technique-tracker.json"
@@ -155,13 +155,13 @@ set -e
 CACHE_DIR="/tmp/gh-aw/cache-memory/security-red-team"
 mkdir -p "$CACHE_DIR"
 
-# Filesystem-safe timestamp (no colons for artifact compatibility)
+### Filesystem-safe timestamp (no colons for artifact compatibility)
 TIMESTAMP=$(date +%Y-%m-%d-%H-%M-%S)
 SCAN_HISTORY="$CACHE_DIR/scan-history.json"
 TECHNIQUE_TRACKER="$CACHE_DIR/technique-tracker.json"
 CURRENT_SCAN="$CACHE_DIR/current-scan-${TIMESTAMP}.json"
 
-# Initialize scan history if not exists
+### Initialize scan history if not exists
 if [ ! -f "$SCAN_HISTORY" ]; then
   cat > "$SCAN_HISTORY" <<EOF
 {
@@ -174,7 +174,7 @@ if [ ! -f "$SCAN_HISTORY" ]; then
 EOF
 fi
 
-# Initialize technique tracker if not exists
+### Initialize technique tracker if not exists
 if [ ! -f "$TECHNIQUE_TRACKER" ]; then
   cat > "$TECHNIQUE_TRACKER" <<EOF
 {
@@ -204,7 +204,7 @@ echo "📝 Current scan: $CURRENT_SCAN"
 ```bash
 #!/bin/bash
 
-# Determine if this is a weekly full scan (Sunday = 7)
+### Determine if this is a weekly full scan (Sunday = 7)
 DAY_OF_WEEK=$(date +%u)
 IS_FULL_SCAN=false
 
@@ -232,7 +232,7 @@ fi
 echo "🎯 Technique: $TECHNIQUE"
 echo "📅 Scan mode: $SCAN_MODE"
 
-# Initialize current scan record
+### Initialize current scan record
 cat > "$CURRENT_SCAN" <<EOF
 {
   "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)",
@@ -251,7 +251,7 @@ EOF
 ```bash
 #!/bin/bash
 
-# Target directories
+### Target directories
 JS_DIR="actions/setup/js"
 SH_DIR="actions/setup/sh"
 
@@ -284,7 +284,7 @@ FILE_COUNT=$(wc -l < /tmp/gh-aw/agent/files-to-scan.txt)
 echo "📊 Files to scan: $FILE_COUNT"
 cat /tmp/gh-aw/agent/files-to-scan.txt
 
-# Update current scan with file count
+### Update current scan with file count
 jq ".files_analyzed = $FILE_COUNT" "$CURRENT_SCAN" > "${CURRENT_SCAN}.tmp"
 mv "${CURRENT_SCAN}.tmp" "$CURRENT_SCAN"
 ```
@@ -359,7 +359,7 @@ Analyze code structure for suspicious patterns:
 
 echo "🔍 Executing AST Inspection"
 
-# For JavaScript files, check for suspicious structures
+### For JavaScript files, check for suspicious structures
 while IFS= read -r file; do
   if [[ "$file" == *.cjs ]]; then
     echo "Analyzing AST: $file"
@@ -400,7 +400,7 @@ Detect obfuscated code by measuring entropy:
 
 echo "🔍 Executing Entropy Analysis"
 
-# Function to calculate entropy (simplified)
+### Function to calculate entropy (simplified)
 calculate_entropy() {
   local file=$1
   local content=$(cat "$file" | tr -d '[:space:]')
@@ -527,7 +527,7 @@ Check for vulnerable dependencies:
 
 echo "🔍 Executing Dependency Audit"
 
-# Check package.json for known vulnerable packages
+### Check package.json for known vulnerable packages
 if [ -f ".github/workflows/package.json" ]; then
   echo "Auditing Node.js dependencies"
   
@@ -538,7 +538,7 @@ if [ -f ".github/workflows/package.json" ]; then
   fi
 fi
 
-# Check for suspicious require() patterns
+### Check for suspicious require() patterns
 while IFS= read -r file; do
   if [[ "$file" == *.cjs ]]; then
     # Check for requires to unusual paths
@@ -562,8 +562,8 @@ Execute all techniques for complete coverage:
 echo "🔍 Executing FULL COMPREHENSIVE SCAN"
 echo "Running all 6 techniques..."
 
-# Execute all techniques above in sequence
-# (Pattern Analysis, AST Inspection, Entropy Analysis, Network Analysis, Behavioral Analysis, Dependency Audit)
+### Execute all techniques above in sequence
+### (Pattern Analysis, AST Inspection, Entropy Analysis, Network Analysis, Behavioral Analysis, Dependency Audit)
 
 echo "✅ Full comprehensive scan complete"
 ```
@@ -590,13 +590,13 @@ Before proceeding to Phase 5, perform a **second-pass validation** of every find
 
 echo "📊 Analyzing findings..."
 
-# Save findings to current scan
+### Save findings to current scan
 FINDINGS_JSON=$(printf '%s\n' "${FINDINGS[@]}" | jq -R -s -c 'split("\n") | map(select(length > 0))')
 
 jq ".findings = $FINDINGS_JSON | .status = \"complete\"" "$CURRENT_SCAN" > "${CURRENT_SCAN}.tmp"
 mv "${CURRENT_SCAN}.tmp" "$CURRENT_SCAN"
 
-# Update scan history
+### Update scan history
 TOTAL_SCANS=$(jq -r '.total_scans' "$SCAN_HISTORY")
 TOTAL_FINDINGS=$(jq -r '.total_findings' "$SCAN_HISTORY")
 
@@ -645,28 +645,28 @@ if [ ${#FINDINGS[@]} -gt 0 ]; then
   
   # Create issue using safe-outputs
   cat > /tmp/gh-aw/agent/security-issue.md <<EOF
-# 🚨 Security Red Team Findings - $(date +%Y-%m-%d)
+### 🚨 Security Red Team Findings - $(date +%Y-%m-%d)
 
 **Scan Mode**: $SCAN_MODE  
 **Technique**: $TECHNIQUE  
 **Files Analyzed**: $FILE_COUNT  
 **Findings**: ${#FINDINGS[@]}
 
-## 📋 Executive Summary
+#### 📋 Executive Summary
 
 The daily security red team scan has detected **${#FINDINGS[@]}** potential security issues in the \`actions/setup/js\` and \`actions/setup/sh\` directories using the **$TECHNIQUE** technique.
 
-## 🔍 Detailed Findings
+#### 🔍 Detailed Findings
 
 $FINDINGS_DETAILS
 
-## 🛠️ Remediation Tasks
+#### 🛠️ Remediation Tasks
 
 @pelikhan The following tasks have been generated to address the security findings. Please review and execute as appropriate:
 
 $FIX_TASKS
 
-## 📊 Analysis Metadata
+#### 📊 Analysis Metadata
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
@@ -675,7 +675,7 @@ $FIX_TASKS
 - **Scan Type**: $SCAN_MODE
 - **Cache Location**: /tmp/gh-aw/cache-memory/security-red-team
 
-## 🎯 Next Steps
+#### 🎯 Next Steps
 
 1. **Triage**: Review each finding and determine if it's a true positive or false positive
 2. **Prioritize**: Address high-severity issues first (secret exfiltration, backdoors)
@@ -771,7 +771,7 @@ For each finding, run `git blame` to extract commit origin metadata and output a
 
 ```bash
 #!/bin/bash
-# Read findings from stdin, one per line
+### Read findings from stdin, one per line
 while IFS= read -r finding; do
   [ -z "$finding" ] && continue
   TYPE=$(echo "$finding" | cut -d: -f1)

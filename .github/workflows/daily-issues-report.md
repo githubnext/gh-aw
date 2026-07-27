@@ -71,11 +71,11 @@ evals:
 
 {{#runtime-import .github/shared/editorial.md}}
 
-# Daily Issues Report Generator
+### Daily Issues Report Generator
 
 You are an expert analyst that generates comprehensive daily reports about repository issues, using Python for clustering and visualization.
 
-## Mission
+#### Mission
 
 Generate a daily report analyzing up to 1000 issues from the repository (see `issues_analyzed` in scratchpad/metrics-glossary.md):
 1. Cluster issues by topic/theme using natural language analysis
@@ -84,13 +84,13 @@ Generate a daily report analyzing up to 1000 issues from the repository (see `is
 4. Create a new discussion with the report
 5. Close previous daily issues discussions to avoid clutter
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Date**: Generated daily at 6 AM UTC
 
-## Phase 1: Load and Prepare Data
+#### Phase 1: Load and Prepare Data
 
 The issues data has been pre-fetched and is available at `/tmp/gh-aw/agent/issues-data/issues.json`.
 
@@ -103,7 +103,7 @@ The issues data has been pre-fetched and is available at `/tmp/gh-aw/agent/issue
    - Copy issues.json to `/tmp/gh-aw/python/data/issues.json`
    - Validate the data is properly formatted
 
-## Phase 2: Python Analysis with Clustering
+#### Phase 2: Python Analysis with Clustering
 
 Create a Python script to analyze and cluster the issues. Use scikit-learn for clustering if available, or implement simple keyword-based clustering.
 
@@ -142,45 +142,45 @@ import json
 from collections import Counter
 import re
 
-# Load issues data
+### Load issues data
 with open('/tmp/gh-aw/python/data/issues.json', 'r') as f:
     issues = json.load(f)
 
 df = pd.DataFrame(issues)
 
-# Convert dates
+### Convert dates
 df['createdAt'] = pd.to_datetime(df['createdAt'])
 df['updatedAt'] = pd.to_datetime(df['updatedAt'])
 df['closedAt'] = pd.to_datetime(df['closedAt'])
 
-# Calculate basic metrics (see scratchpad/metrics-glossary.md for definitions)
+### Calculate basic metrics (see scratchpad/metrics-glossary.md for definitions)
 
-# Scope: All issues in repository, no filters
+### Scope: All issues in repository, no filters
 total_issues = len(df)
 
-# Scope: Issues where state = "open" at report time
+### Scope: Issues where state = "open" at report time
 open_issues = len(df[df['state'] == 'OPEN'])
 
-# Scope: Issues where state = "closed" at report time
+### Scope: Issues where state = "closed" at report time
 closed_issues = len(df[df['state'] == 'CLOSED'])
 
-# Time-based metrics
+### Time-based metrics
 now = datetime.now(df['createdAt'].iloc[0].tzinfo if len(df) > 0 else None)
 
-# Scope: Issues created in last 7 days
+### Scope: Issues created in last 7 days
 issues_opened_7d = len(df[df['createdAt'] > now - timedelta(days=7)])
 
-# Scope: Issues created in last 30 days
+### Scope: Issues created in last 30 days
 issues_opened_30d = len(df[df['createdAt'] > now - timedelta(days=30)])
 
-# Average time to close
-# Scope: Closed issues with valid timestamps
+### Average time to close
+### Scope: Closed issues with valid timestamps
 closed_df = df[df['closedAt'].notna()]
 if len(closed_df) > 0:
     closed_df['time_to_close'] = closed_df['closedAt'] - closed_df['createdAt']
     avg_close_time = closed_df['time_to_close'].mean()
 
-# Extract labels for clustering
+### Extract labels for clustering
 def extract_labels(labels_list):
     if labels_list:
         return [l['name'] for l in labels_list]
@@ -188,7 +188,7 @@ def extract_labels(labels_list):
 
 df['label_names'] = df['labels'].apply(extract_labels)
 
-# Simple keyword-based clustering from titles
+### Simple keyword-based clustering from titles
 def cluster_by_keywords(title):
     title_lower = title.lower() if title else ''
     if 'bug' in title_lower or 'fix' in title_lower or 'error' in title_lower:
@@ -210,8 +210,8 @@ def cluster_by_keywords(title):
 
 df['cluster'] = df['title'].apply(cluster_by_keywords)
 
-# Save metrics to JSON for report
-# Note: Using standardized metric names from scratchpad/metrics-glossary.md
+### Save metrics to JSON for report
+### Note: Using standardized metric names from scratchpad/metrics-glossary.md
 metrics = {
     'total_issues': total_issues,
     'open_issues': open_issues,
@@ -228,7 +228,7 @@ with open('/tmp/gh-aw/python/data/metrics.json', 'w') as f:
 
 scikit-learn, NLTK, TextBlob, and WordCloud are pre-installed via the shared NLP environment.
 
-## Phase 3: Generate Trend Charts
+#### Phase 3: Generate Trend Charts
 
 Generate exactly **2 high-quality charts**:
 
@@ -256,14 +256,14 @@ Generate exactly **2 high-quality charts**:
 - Clear labels and legend
 - Grid lines for readability
 
-## Phase 4: Upload Charts
+#### Phase 4: Upload Charts
 
 Use the `upload asset` tool to upload both charts:
 1. Upload `/tmp/gh-aw/python/charts/issue_activity_trends.png`
 2. Upload `/tmp/gh-aw/python/charts/issue_clusters.png`
 3. Collect the returned URLs for embedding in the discussion
 
-## Phase 5: Close Previous Discussions
+#### Phase 5: Close Previous Discussions
 
 Before creating the new discussion, find and close previous daily issues discussions:
 
@@ -273,7 +273,7 @@ Before creating the new discussion, find and close previous daily issues discuss
 
 Use the `close_discussion` safe output for each discussion found.
 
-## Phase 6: Create Discussion Report
+#### Phase 6: Create Discussion Report
 
 Create a new discussion with the comprehensive report.
 
@@ -375,7 +375,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 *Data source: Last 1000 issues from ${{ github.repository }}*
 ```
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Data Quality
 - Handle missing fields gracefully (null checks)
@@ -397,7 +397,7 @@ Brief 2-3 paragraph summary of key findings: total issues analyzed, main cluster
 - Highlight actionable insights
 - Keep the summary brief but informative
 
-## Success Criteria
+#### Success Criteria
 
 A successful run will:
 - ✅ Load and analyze all available issues data

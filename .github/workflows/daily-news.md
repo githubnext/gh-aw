@@ -78,8 +78,8 @@ tools:
     - "*"
   web-fetch:
 
-# Pre-download GitHub data in steps to avoid excessive MCP calls
-# Uses repo-memory to persist data across runs and avoid re-fetching
+### Pre-download GitHub data in steps to avoid excessive MCP calls
+### Uses repo-memory to persist data across runs and avoid re-fetching
 steps:
   - name: Install gh CLI
     run: |
@@ -339,11 +339,11 @@ evals:
 
 {{#runtime-import .github/shared/editorial.md}}
 
-# Daily News
+### Daily News
 
 Write an upbeat, friendly, motivating summary of recent activity in the repo.
 
-## 📁 Pre-Downloaded Data Available
+#### 📁 Pre-Downloaded Data Available
 
 **IMPORTANT**: All GitHub data has been pre-downloaded to `/tmp/gh-aw/agent/daily-news-data/` to avoid excessive MCP calls. Use these files instead of making GitHub API calls:
 
@@ -356,7 +356,7 @@ Write an upbeat, friendly, motivating summary of recent activity in the repo.
 
 **Load and analyze these files** instead of making repeated GitHub MCP calls. All data is in JSON format (except changesets.txt which lists file paths).
 
-## 💾 Repo Memory Available
+#### 💾 Repo Memory Available
 
 **Repo-memory is enabled** - You have access to persistent storage at `/tmp/gh-aw/repo-memory/default/` that persists across workflow runs:
 
@@ -371,14 +371,14 @@ Write an upbeat, friendly, motivating summary of recent activity in the repo.
 - Store analysis results that can inform future reports
 
 {{#if experiments.prompt_style == 'concise'}}
-## 📊 Trend Charts Requirement
+#### 📊 Trend Charts Requirement
 
 Generate exactly **2 trend charts** (issues/PRs activity and commit activity) using data from
 `/tmp/gh-aw/agent/daily-news-data/`. Use Python (pandas + matplotlib/seaborn) to process the JSON
 files, produce PNGs at 300 DPI, upload them via `upload asset`, and embed them in the
 discussion under a `### 📈 Trend Analysis` section with a 2-3 sentence interpretation each.
 {{else}}
-## 📊 Trend Charts Requirement
+#### 📊 Trend Charts Requirement
 
 **IMPORTANT**: Generate exactly 2 trend charts that showcase key metrics of the project. These charts should visualize trends over time to give the team insights into project health and activity patterns.
 

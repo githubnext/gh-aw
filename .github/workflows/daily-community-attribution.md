@@ -77,6 +77,7 @@ imports:
   - shared/otlp.md
   - shared/issue-dedup.md
 
+  - shared/reporting.md
 steps:
   - name: Re-fetch full community issue history with pagination
     env:
@@ -364,13 +365,13 @@ evals:
     question: Was the README community section or the Community Contributors wiki page updated, or was noop used when no changes were needed?
 ---
 
-# Daily Community Attribution Updater
+### Daily Community Attribution Updater
 
 Maintain an up-to-date **🌍 Community Contributions** section in `README.md`
 and an all-time **Community Contributors** wiki page by attributing all
 resolved community-labeled issues using the five-tier attribution strategy.
 
-## Mission
+#### Mission
 
 The `community` label is the **primary attribution signal**: every issue
 tagged with it was explicitly identified by a maintainer as community-authored.
@@ -378,29 +379,29 @@ This workflow attributes those issues (including direct-issue contributions
 with `stateReason == "COMPLETED"`), updates `README.md`, maintains the wiki,
 and opens a PR for review.
 
-## Pre-fetched Data
+#### Pre-fetched Data
 
 All data is in `/tmp/gh-aw/agent/community-data/`. Use `cat` to read files — no
 shell pipelines or data-processing scripts are needed:
 
 ```bash
-# Pre-formatted README section (Tier 0-2 only — agent adds Tier 3 results):
+### Pre-formatted README section (Tier 0-2 only — agent adds Tier 3 results):
 cat /tmp/gh-aw/agent/community-data/readme_community_section_tier012.md
 
-# Tier 0-2 issues grouped by author (structured JSON, agent-ready):
+### Tier 0-2 issues grouped by author (structured JSON, agent-ready):
 cat /tmp/gh-aw/agent/community-data/attribution_by_author.json
 
-# Issues still needing Tier 3 agent lookup (capped at 5 per run):
+### Issues still needing Tier 3 agent lookup (capped at 5 per run):
 cat /tmp/gh-aw/agent/community-data/tier3_candidates_capped.json
 
-# Current README (pre-fetched):
+### Current README (pre-fetched):
 head -80 /tmp/gh-aw/agent/community-data/README_current.md
 
-# Existing wiki page (if any):
+### Existing wiki page (if any):
 cat /tmp/gh-aw/repo-memory-default/Community-Contributors.md
 ```
 
-## Workflow
+#### Workflow
 
 {{#if experiments.prompt_style == 'concise'}}
 ### 1. Attribute Issues
@@ -456,7 +457,7 @@ uses issue titles. Both use full GitHub issue URLs.
 The wiki page format:
 
 ```markdown
-# Community Contributors
+### Community Contributors
 
 ### @author
 
@@ -497,7 +498,7 @@ only add new lines.
 The expected format (for reference):
 
 ```markdown
-## 🌍 Community Contributions
+#### 🌍 Community Contributions
 
 <sup>Community members whose issues were resolved — updated automatically.</sup>
 
@@ -572,7 +573,7 @@ and the Community Contributors wiki page.
 {{#endif}}
 
 {{#if experiments.prompt_style == 'concise'}}
-## Token Budget
+#### Token Budget
 
 - Read each data file once only; use `cat` on pre-formatted files — no bash pipelines
 - Process only `tier3_candidates_capped.json` (≤5 issues)
@@ -581,7 +582,7 @@ and the Community Contributors wiki page.
 - PR body under 400 words
 - Do not access external URLs; use only GitHub MCP `issue_read` for GitHub data
 {{#else}}
-## Token Budget Guidelines
+#### Token Budget Guidelines
 
 This workflow uses the Copilot engine — max-turns is not available. Follow these rules to avoid runaway token consumption:
 

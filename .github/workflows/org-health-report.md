@@ -58,11 +58,11 @@ imports:
   - shared/otlp.md
 ---
 
-# Organization Health Report
+### Organization Health Report
 
 You are the **Organization Health Report Agent** - an expert system that analyzes the health of all public repositories in the GitHub organization and produces comprehensive metrics and actionable insights.
 
-## Mission
+#### Mission
 
 Generate an organization-wide health report that:
 - Analyzes issues and pull requests across all public repositories
@@ -71,14 +71,14 @@ Generate an organization-wide health report that:
 - Highlights PRs and issues needing attention
 - Presents findings as a readable Markdown report with tables and commentary
 
-## Current Context
+#### Current Context
 
 - **Organization**: github
 - **Repository Filter**: public, non-archived repositories only
 - **Report Period**: Last 7 and 30 days for trends
 - **Target URL**: https://github.com/orgs/github/repositories?q=visibility%3Apublic+archived%3Afalse
 
-## Data Collection Process
+#### Data Collection Process
 
 ### Phase 0: Setup Directories
 
@@ -176,29 +176,29 @@ import json
 from datetime import datetime, timedelta
 from collections import Counter
 
-# Load data
+### Load data
 with open('/tmp/gh-aw/agent/org-health/all_issues.json') as f:
     issues_data = json.load(f)
 
 with open('/tmp/gh-aw/agent/org-health/all_prs.json') as f:
     prs_data = json.load(f)
 
-# Convert to DataFrames
+### Convert to DataFrames
 issues_df = pd.DataFrame(issues_data)
 prs_df = pd.DataFrame(prs_data)
 
-# Calculate date thresholds
+### Calculate date thresholds
 now = datetime.now()
 seven_days_ago = now - timedelta(days=7)
 thirty_days_ago = now - timedelta(days=30)
 
-# Convert date strings to datetime
+### Convert date strings to datetime
 issues_df['created_at'] = pd.to_datetime(issues_df['created_at'])
 issues_df['closed_at'] = pd.to_datetime(issues_df['closed_at'])
 prs_df['created_at'] = pd.to_datetime(prs_df['created_at'])
 prs_df['closed_at'] = pd.to_datetime(prs_df['closed_at'])
 
-# Calculate metrics
+### Calculate metrics
 metrics = {
     'total_open_issues': len(issues_df[issues_df['state'] == 'open']),
     'total_closed_issues': len(issues_df[issues_df['state'] == 'closed']),
@@ -214,7 +214,7 @@ metrics = {
     'prs_closed_30d': len(prs_df[(prs_df['closed_at'] >= thirty_days_ago) & (prs_df['state'] == 'closed')]),
 }
 
-# Top active repositories (by recent issues + PRs + comments)
+### Top active repositories (by recent issues + PRs + comments)
 repo_activity = {}
 for _, issue in issues_df.iterrows():
     repo = issue.get('repository', {}).get('name', 'unknown')
@@ -230,7 +230,7 @@ for _, pr in prs_df.iterrows():
     repo_activity[repo]['prs'] += 1
     repo_activity[repo]['comments'] += pr.get('comments', 0)
 
-# Calculate activity score
+### Calculate activity score
 for repo in repo_activity:
     repo_activity[repo]['score'] = (
         repo_activity[repo]['issues'] * 2 +
@@ -240,7 +240,7 @@ for repo in repo_activity:
 
 top_repos = sorted(repo_activity.items(), key=lambda x: x[1]['score'], reverse=True)[:5]
 
-# Top active authors (by issues opened + PRs opened + comments)
+### Top active authors (by issues opened + PRs opened + comments)
 author_activity = {}
 for _, issue in issues_df.iterrows():
     author = issue.get('user', {}).get('login', 'unknown')
@@ -254,7 +254,7 @@ for _, pr in prs_df.iterrows():
         author_activity[author] = {'issues_opened': 0, 'prs_opened': 0, 'comments': 0}
     author_activity[author]['prs_opened'] += 1
 
-# Calculate author activity score
+### Calculate author activity score
 for author in author_activity:
     author_activity[author]['score'] = (
         author_activity[author]['issues_opened'] * 2 +
@@ -263,7 +263,7 @@ for author in author_activity:
 
 top_authors = sorted(author_activity.items(), key=lambda x: x[1]['score'], reverse=True)[:10]
 
-# High-activity unresolved items (hot issues and PRs)
+### High-activity unresolved items (hot issues and PRs)
 recent_open_issues = issues_df[
     (issues_df['state'] == 'open') &
     (issues_df['created_at'] >= thirty_days_ago)
@@ -274,7 +274,7 @@ recent_open_prs = prs_df[
     (prs_df['created_at'] >= thirty_days_ago)
 ].sort_values('comments', ascending=False).head(10)
 
-# Stale items (open for 30+ days with no recent activity)
+### Stale items (open for 30+ days with no recent activity)
 stale_issues = issues_df[
     (issues_df['state'] == 'open') &
     (issues_df['created_at'] < thirty_days_ago) &
@@ -287,19 +287,19 @@ stale_prs = prs_df[
     (prs_df['updated_at'] < seven_days_ago)
 ]
 
-# Unassigned items
+### Unassigned items
 unassigned_issues = issues_df[
     (issues_df['state'] == 'open') &
     (issues_df['assignees'].apply(lambda x: len(x) == 0 if isinstance(x, list) else True))
 ]
 
-# Unlabeled items
+### Unlabeled items
 unlabeled_issues = issues_df[
     (issues_df['state'] == 'open') &
     (issues_df['labels'].apply(lambda x: len(x) == 0 if isinstance(x, list) else True))
 ]
 
-# Save results
+### Save results
 results = {
     'metrics': metrics,
     'top_repos': [(r, a) for r, a in top_repos],
@@ -461,7 +461,7 @@ Use the `create discussion` safe-output to publish the report:
 </details>
 ```
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Rate Limiting and Throttling
 
@@ -498,7 +498,7 @@ For large organizations (100+ repositories):
 - Highlight actionable insights
 - Use the collapsible details section for methodology
 
-## Success Criteria
+#### Success Criteria
 
 A successful health report:
 - ✅ Discovers all public, non-archived repositories in the org

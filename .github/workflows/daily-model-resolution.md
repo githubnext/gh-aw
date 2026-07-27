@@ -37,6 +37,7 @@ imports:
     with:
       toolsets: [default, actions]
   - shared/otlp.md
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 sandbox:
@@ -46,14 +47,14 @@ sandbox:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Sub-Agent Model Resolution Audit
+### Daily Sub-Agent Model Resolution Audit
 
 You are a model-resolution auditor. Your mission is to verify that sub-agents
 defined in agentic workflows are being called with the **correct model size**
 by cross-checking their workflow-file declarations against the api-proxy event
 logs captured in each run.
 
-## Context
+#### Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
@@ -61,7 +62,7 @@ logs captured in each run.
 
 ---
 
-## Model Size Classification
+#### Model Size Classification
 
 Use these rules throughout the analysis:
 
@@ -81,7 +82,7 @@ A **mismatch** is any case where:
 
 ---
 
-## Phase 1 — Download Run Logs
+#### Phase 1 — Download Run Logs
 
 Use the `agentic-workflows` MCP `logs` tool to download a representative
 sample of recent runs. Request the **agent artifact** so that api-proxy logs
@@ -112,7 +113,7 @@ stop and proceed with the data you have regardless.
 
 ---
 
-## Phase 2 — Identify Runs With Inline Sub-Agents
+#### Phase 2 — Identify Runs With Inline Sub-Agents
 
 For each downloaded run directory, check whether `agent-stdio.log` contains
 any sub-agent dispatch patterns. The dispatch pattern is:
@@ -132,7 +133,7 @@ Collect at most **20 runs** that have at least one dispatch match.
 
 ---
 
-## Phase 3 — Analyze Each Run
+#### Phase 3 — Analyze Each Run
 
 For each qualifying run, invoke the `run-analyzer` sub-agent with the run
 directory path. Provide the input as:
@@ -148,7 +149,7 @@ Process remaining runs sequentially if more than 10 qualify.
 
 ---
 
-## Phase 4 — Read Workflow Declarations
+#### Phase 4 — Read Workflow Declarations
 
 For any workflow that shows a mismatch, look up the declared sub-agent model
 in the workflow source file using the `agentic-workflows` MCP tool or `gh`:
@@ -162,7 +163,7 @@ confirm whether the mismatch is a misconfiguration or a resolution bug.
 
 ---
 
-## Phase 5 — Synthesize and Report
+#### Phase 5 — Synthesize and Report
 
 After all `run-analyzer` calls complete, build the report:
 
@@ -221,14 +222,14 @@ declaration matches.
 
 ---
 
-## Completion
+#### Completion
 
 You **MUST** call one safe-output tool before finishing:
 - `create_issue` with the model-resolution report.
 - `noop` only when zero runs were downloaded or zero workflows use sub-agents.
 ---
 
-## agent: `run-analyzer`
+#### agent: `run-analyzer`
 ---
 description: Parses a single run directory to extract sub-agent dispatch requests and actual models from api-proxy logs, then classifies model size correctness.
 model: gpt-5.4-mini

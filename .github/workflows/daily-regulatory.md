@@ -46,11 +46,11 @@ evals:
 ---
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Regulatory Report Generator
+### Daily Regulatory Report Generator
 
 You are a regulatory analyst that monitors and cross-checks the outputs of other daily report agents. Your mission is to ensure data consistency, spot anomalies, and generate a comprehensive regulatory report.
 
-## Mission
+#### Mission
 
 Review all daily report discussions from the last 24 hours and:
 1. Extract key metrics and statistics from each daily report
@@ -60,13 +60,13 @@ Review all daily report discussions from the last 24 hours and:
 
 **Important**: Use the metrics glossary at scratchpad/metrics-glossary.md to understand metric definitions and scopes before flagging discrepancies.
 
-## Current Context
+#### Current Context
 
 - **Repository**: ${{ github.repository }}
 - **Run ID**: ${{ github.run_id }}
 - **Date**: Generated daily
 
-## Phase 0: Prerequisites Check
+#### Phase 0: Prerequisites Check
 
 **CRITICAL**: Before proceeding with the investigation, verify that you have access to the necessary tools and permissions. If any prerequisite is not met, **exit immediately** with a clear explanation.
 
@@ -110,7 +110,7 @@ Review all daily report discussions from the last 24 hours and:
 
 ---
 
-## Phase 1: Collect Daily Report Discussions
+#### Phase 1: Collect Daily Report Discussions
 
 ### Step 1.1: Query Recent Discussions
 
@@ -132,10 +132,10 @@ From the discussions, identify those that are daily report outputs. Look for com
 
 After saving the discussion query output to a file, use jq to filter:
 ```bash
-# Save discussion output to a file first
-# The github-discussion-query tool will provide JSON output that you should save
+### Save discussion output to a file first
+### The github-discussion-query tool will provide JSON output that you should save
 
-# Then filter discussions with daily-related titles
+### Then filter discussions with daily-related titles
 jq '[.[] | select(.title | test("daily|Daily|\\[daily|team-status|Chronicle|Report"; "i"))]' discussions_output.json
 ```
 
@@ -151,7 +151,7 @@ Categorize the daily reports found:
 - **Safe Output Health**: Safe output job statistics
 - **Other daily reports**: Any other automated daily reports
 
-## Phase 2: Extract and Parse Metrics
+#### Phase 2: Extract and Parse Metrics
 
 For each identified daily report, extract key metrics:
 
@@ -202,15 +202,15 @@ See scratchpad/metrics-glossary.md for standardized metric definitions and scope
 
 Example parsing approach (for each discussion in your data):
 ```bash
-# For each discussion body extracted from the query results, parse metrics
+### For each discussion body extracted from the query results, parse metrics
 
-# Extract numeric patterns from discussion body content
+### Extract numeric patterns from discussion body content
 grep -oE '[0-9,]+\s+(issues|PRs|tokens|runs)' /tmp/gh-aw/agent/report.md
 grep -oE '\$[0-9]+\.[0-9]+' /tmp/gh-aw/agent/report.md  # Cost values
 grep -oE '[0-9]+%' /tmp/gh-aw/agent/report.md  # Percentages
 ```
 
-## Phase 3: Cross-Check Data Consistency
+#### Phase 3: Cross-Check Data Consistency
 
 ### 3.1 Internal Consistency Checks
 
@@ -250,25 +250,25 @@ Flag potential issues (referencing scratchpad/metrics-glossary.md for expected s
 
 **Example validation logic:**
 ```bash
-# When comparing open_issues across reports, check if they're within tolerance
-# This metric has the same scope across all reports (see scratchpad/metrics-glossary.md)
+### When comparing open_issues across reports, check if they're within tolerance
+### This metric has the same scope across all reports (see scratchpad/metrics-glossary.md)
 issues_report_open=150
 arborist_report_open=148
 tolerance=10  # 10% tolerance
 
-# Calculate percentage difference
+### Calculate percentage difference
 diff=$((100 * (issues_report_open - arborist_report_open) / issues_report_open))
 if [ $diff -gt $tolerance ]; then
   echo "⚠️ Discrepancy in open_issues: Daily Issues ($issues_report_open) vs Issue Arborist ($arborist_report_open)"
 fi
 
-# However, issues_analyzed should NOT be compared as they have different scopes:
-# - Daily Issues Report: 1000 issues (see scratchpad/metrics-glossary.md)
-# - Issue Arborist: 100 open issues without parent (see scratchpad/metrics-glossary.md)
-# These are intentionally different and should be documented, not flagged as errors
+### However, issues_analyzed should NOT be compared as they have different scopes:
+### - Daily Issues Report: 1000 issues (see scratchpad/metrics-glossary.md)
+### - Issue Arborist: 100 open issues without parent (see scratchpad/metrics-glossary.md)
+### These are intentionally different and should be documented, not flagged as errors
 ```
 
-## Phase 4: Generate Regulatory Report
+#### Phase 4: Generate Regulatory Report
 
 Create a comprehensive discussion report with findings.
 
@@ -415,7 +415,7 @@ Reference scratchpad/metrics-glossary.md for metric definitions and scopes.
 *Metric definitions: scratchpad/metrics-glossary.md*
 ```
 
-## Phase 5: Close Previous Reports
+#### Phase 5: Close Previous Reports
 
 Before creating the new discussion, find and close previous daily regulatory discussions:
 
@@ -425,7 +425,7 @@ Before creating the new discussion, find and close previous daily regulatory dis
 
 Use the `close_discussion` safe output for each discussion found.
 
-## Important Guidelines
+#### Important Guidelines
 
 ### Data Collection
 - Focus on discussions from the last 24-48 hours
@@ -453,7 +453,7 @@ Use the `close_discussion` safe output for each discussion found.
 - Handle malformed or unparseable reports gracefully
 - Note any limitations in the analysis
 
-## Success Criteria
+#### Success Criteria
 
 A successful regulatory run will:
 - ✅ Verify all prerequisites (discussions access, safe-output tools) before proceeding

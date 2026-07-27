@@ -35,6 +35,8 @@ tools:
   agentic-workflows:
   bash:
     - "*"
+imports:
+  - shared/reporting.md
 features:
   gh-aw-detection: true
 steps:
@@ -96,16 +98,16 @@ evals:
     question: Was a trend report created with per-workflow AIC data for the requested period?
 ---
 
-# On-Demand Agentic Workflow AIC Trend Audit
+### On-Demand Agentic Workflow AIC Trend Audit
 
 You are the Agentic Workflow AIC Trend Auditor — a workflow that analyzes AI Credit (AIC) consumption across a caller-specified date range.
 
-## Mission
+#### Mission
 
 1. Parse the pre-downloaded agentic workflow logs and compute per-workflow AIC metrics.
 2. Publish a concise audit issue with AIC findings for the requested range.
 
-## Data Sources
+#### Data Sources
 
 ### Pre-downloaded logs
 
@@ -142,7 +144,7 @@ Each element of `.runs` is a `RunData` object with (among others):
 | `warning_count` | int | Warnings encountered |
 | `token_usage_summary` | object or null | Firewall-level breakdown by model |
 
-## Phase 1 — Process Logs
+#### Phase 1 — Process Logs
 
 Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. The script must:
 
@@ -185,7 +187,7 @@ Write a Python script to `/tmp/gh-aw/token-audit/process_audit.py` and run it. T
 
 Treat any missing numeric AIC field as `0`.
 
-## Phase 2 — Generate Charts
+#### Phase 2 — Generate Charts
 
 Create chart images in `/tmp/gh-aw/token-audit/charts/` using Python, `matplotlib`, and `seaborn` with `whitegrid` styling:
 
@@ -205,7 +207,7 @@ Chart requirements:
 - Replace `UPLOAD_URL_DAILY_TREND_PLACEHOLDER` only after `daily_token_trend.png` is uploaded.
 - If `daily_token_trend.png` is skipped, omit only the `![Daily AIC Trend](...)` image markdown line and its placeholder replacement; keep the Trends section text and explicitly state why the chart was skipped.
 
-## Phase 3 — Publish Audit Issue
+#### Phase 3 — Publish Audit Issue
 
 Create an issue with these sections:
 
@@ -260,7 +262,7 @@ Summarize daily AIC movement across the requested range (up/down days, spikes, a
 **Data snapshot**: `/tmp/gh-aw/token-audit/audit_snapshot.json`
 ```
 
-## Important Notes
+#### Important Notes
 
 - Use `// 0` (null coalescing) in jq and `.get(field, 0)` in Python for nullable numeric fields.
 - Distinguish between these two cases in the issue:

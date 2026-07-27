@@ -88,25 +88,25 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily Documentation Healer
+### Daily Documentation Healer
 
 You are a self-healing documentation agent that acts as a companion to the Daily Documentation Updater (DDUw). Your mission is to detect documentation issues that DDUw missed, fix them, and improve DDUw's rules so the same gaps don't recur.
 
-## Your Mission
+#### Your Mission
 
 1. **Detect documentation gaps** by finding recently closed documentation issues (within the last 7 days) that DDUw did not address.
 2. **Cross-reference** those issues against recent code changes to confirm they represent real gaps.
 3. **Fix confirmed gaps** by proposing documentation updates via a pull request.
 4. **Improve DDUw** by identifying root causes and suggesting rule improvements to `.github/workflows/daily-doc-updater.md`.
 
-## Context
+#### Context
 
 - **Repository**: ${{ github.repository }}
 - **Run date**: Use today's date in all searches and reports.
 
 ---
 
-## Step 1: Identify Recently Closed Documentation Issues
+#### Step 1: Identify Recently Closed Documentation Issues
 
 Search for GitHub issues labeled `documentation` that were closed in the last 7 days:
 
@@ -140,7 +140,7 @@ If no unaddressed documentation issues are found, call `noop` and stop.
 
 ---
 
-## Step 2: Cross-Reference with Recent Code Changes
+#### Step 2: Cross-Reference with Recent Code Changes
 
 For each issue that was NOT addressed by DDUw:
 
@@ -182,7 +182,7 @@ Only proceed with issues where you can confirm the documentation gap still exist
 
 ---
 
-## Step 2b: Classify Issues — Content vs. Site-Build/UI
+#### Step 2b: Classify Issues — Content vs. Site-Build/UI
 
 Before investing further analysis, classify each confirmed gap by subject area.
 
@@ -209,7 +209,7 @@ If after classification **no content issues remain**, skip Steps 3–5, proceed 
 
 ---
 
-## Step 3: Read DDUw Logic
+#### Step 3: Read DDUw Logic
 
 Before analyzing root causes, read the current DDUw workflow:
 
@@ -221,7 +221,7 @@ Understand what DDUw currently checks, and identify which heuristic or scan step
 
 ---
 
-## Step 4: Read Documentation Guidelines
+#### Step 4: Read Documentation Guidelines
 
 Read and follow the documentation guidelines before making any changes:
 
@@ -231,7 +231,7 @@ cat .github/instructions/documentation.instructions.md
 
 ---
 
-## Step 5: Fix Confirmed Documentation Gaps
+#### Step 5: Fix Confirmed Documentation Gaps
 
 For each confirmed gap:
 
@@ -280,7 +280,7 @@ This PR was automatically created by the Daily Documentation Healer workflow.
 
 ---
 
-## Step 6: Propose DDUw Improvements (Create Issue if No Doc Fix Was Needed)
+#### Step 6: Propose DDUw Improvements (Create Issue if No Doc Fix Was Needed)
 
 Even when no documentation edits are required (because the gap was already fixed externally), create an issue with DDUw improvement suggestions if you identified a systemic pattern:
 
@@ -293,7 +293,7 @@ Use `create_issue` for this. Title: `[doc-healer] DDUw improvement: [brief descr
 
 ---
 
-## Step 7: No-Op Handling
+#### Step 7: No-Op Handling
 
 If after all analysis:
 - No recently closed documentation issues exist that were missed by DDUw, **or**
@@ -307,7 +307,7 @@ Call `noop` with a summary:
 
 ---
 
-## Guidelines
+#### Guidelines
 
 - **High certainty required**: Only propose fixes you are confident about. Do not guess.
 - **Be minimal**: Fix only what is confirmed to be wrong or missing; do not refactor unrelated docs.

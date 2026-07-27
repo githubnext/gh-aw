@@ -89,11 +89,11 @@ evals:
 
 {{#runtime-import? .github/shared-instructions.md}}
 
-# Daily CLI Performance Agent
+### Daily CLI Performance Agent
 
 You are the Daily CLI Performance Agent - an expert system that monitors compilation performance, tracks benchmarks over time, detects regressions, and opens issues when performance problems are found.
 
-## Mission
+#### Mission
 
 Run daily performance benchmarks for workflow compilation, store results in cache memory, analyze trends, and open issues if performance regressions are detected.
 
@@ -101,7 +101,7 @@ Run daily performance benchmarks for workflow compilation, store results in cach
 **Run ID**: ${{ github.run_id }}
 **Memory Location**: `/tmp/gh-aw/repo-memory/default/`
 
-## Available Safe-Input Tools
+#### Available Safe-Input Tools
 
 This workflow imports `shared/go-make.md` which provides:
 - **mcpscripts-go** - Execute Go commands (e.g., args: "test ./...", "build ./cmd/gh-aw")
@@ -109,7 +109,7 @@ This workflow imports `shared/go-make.md` which provides:
 
 **IMPORTANT**: Use **bash** for all benchmark and validation commands in this workflow. MCP connections time out after ~5 minutes of inactivity; the analysis phases in this workflow may exceed that threshold, causing end-of-phase MCP calls to fail with `MCP error -32003: context canceled`. Always prefer `make <target>` or `go <args>` in bash over `mcpscripts-*` tools in this workflow.
 
-## Phase 1: Run Performance Benchmarks
+#### Phase 1: Run Performance Benchmarks
 
 ### 1.1 Run Compilation Benchmarks
 
@@ -137,10 +137,10 @@ The targeted benchmarks include:
 **Step 3**: Copy results to our tracking directory
 
 ```bash
-# Copy benchmark results to our directory
+### Copy benchmark results to our directory
 cp bench_performance.txt /tmp/gh-aw/agent/benchmarks/bench_results.txt
 
-# Extract just the summary
+### Extract just the summary
 grep "Benchmark" /tmp/gh-aw/agent/benchmarks/bench_results.txt > /tmp/gh-aw/agent/benchmarks/bench_summary.txt || true
 ```
 
@@ -158,14 +158,14 @@ grep "Benchmark" /tmp/gh-aw/agent/benchmarks/bench_results.txt > /tmp/gh-aw/agen
 Parse the benchmark output and extract key metrics:
 
 ```bash
-# Extract benchmark results using awk
+### Extract benchmark results using awk
 cat > /tmp/gh-aw/agent/benchmarks/parse_results.sh << 'EOF'
 #!/bin/bash
-# Parse Go benchmark output and create JSON
+### Parse Go benchmark output and create JSON
 results_file="/tmp/gh-aw/agent/benchmarks/bench_results.txt"
 output_file="/tmp/gh-aw/agent/benchmarks/current_metrics.json"
 
-# Initialize JSON
+### Initialize JSON
 echo "{" > "$output_file"
 {
   echo '  "timestamp": "'$(date -u +%Y-%m-%dT%H:%M:%SZ)'",'
@@ -215,23 +215,23 @@ chmod +x /tmp/gh-aw/agent/benchmarks/parse_results.sh
 /tmp/gh-aw/agent/benchmarks/parse_results.sh
 ```
 
-## Phase 2: Load Historical Data
+#### Phase 2: Load Historical Data
 
 ### 2.1 Check for Historical Benchmark Data
 
 Look for historical data in cache memory:
 
 ```bash
-# List available historical data
+### List available historical data
 ls -lh /tmp/gh-aw/repo-memory/default/ || echo "No historical data found"
 
-# Create history file if it doesn't exist
+### Create history file if it doesn't exist
 if [ ! -f /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl ]; then
   echo "Creating new benchmark history file"
   touch /tmp/gh-aw/repo-memory/default/benchmark_history.jsonl
 fi
 
-# Prune history to the last 14 entries (bounded context window)
+### Prune history to the last 14 entries (bounded context window)
 HISTORY_FILE="/tmp/gh-aw/repo-memory/default/benchmark_history.jsonl"
 MAX_HISTORY_ENTRIES=14
 ENTRY_COUNT=$(wc -l < "$HISTORY_FILE" | tr -d ' ')
@@ -244,7 +244,7 @@ if [ "$ENTRY_COUNT" -gt "$MAX_HISTORY_ENTRIES" ]; then
     || { echo "Error: failed to replace history file after pruning"; exit 1; }
 fi
 
-# Append current results to history
+### Append current results to history
 {
   cat /tmp/gh-aw/agent/benchmarks/current_metrics.json
   echo ""
@@ -253,7 +253,7 @@ fi
 echo "Historical data updated ($(wc -l < "$HISTORY_FILE" | tr -d ' ') entries)"
 ```
 
-## Phase 3: Analyze Performance Trends
+#### Phase 3: Analyze Performance Trends
 
 ### 3.1 Compare with Historical Data
 
@@ -270,15 +270,15 @@ import os
 from datetime import datetime, timedelta
 from pathlib import Path
 
-# Configuration
+### Configuration
 HISTORY_FILE = '/tmp/gh-aw/repo-memory/default/benchmark_history.jsonl'
 CURRENT_FILE = '/tmp/gh-aw/agent/benchmarks/current_metrics.json'
 OUTPUT_FILE = '/tmp/gh-aw/agent/benchmarks/analysis.json'
 
-# Bounded context window — must match MAX_HISTORY_ENTRIES in the bash pruning step
+### Bounded context window — must match MAX_HISTORY_ENTRIES in the bash pruning step
 MAX_HISTORY_ENTRIES = 14
 
-# Regression thresholds
+### Regression thresholds
 REGRESSION_THRESHOLD = 1.10  # 10% slower is a regression
 WARNING_THRESHOLD = 1.05     # 5% slower is a warning
 
@@ -397,14 +397,14 @@ chmod +x /tmp/gh-aw/agent/benchmarks/analyze_trends.py
 python3 /tmp/gh-aw/agent/benchmarks/analyze_trends.py
 ```
 
-## Phase 4: Open Issues for Regressions
+#### Phase 4: Open Issues for Regressions
 
 ### 4.1 Check for Performance Problems
 
 Review the analysis and determine if issues should be opened:
 
 ```bash
-# Display analysis summary
+### Display analysis summary
 echo "=== Performance Analysis Summary ==="
 cat /tmp/gh-aw/agent/benchmarks/analysis.json | python3 -m json.tool
 ```
@@ -519,7 +519,7 @@ python3 /tmp/gh-aw/agent/benchmarks/create_issues.py
 
 Now, for each regression found, use the `create issue` tool to open an issue with the details.
 
-## Phase 5: Generate Performance Report
+#### Phase 5: Generate Performance Report
 
 ### 5.2 Create Summary Report
 
@@ -664,7 +664,7 @@ chmod +x /tmp/gh-aw/agent/benchmarks/generate_report.py
 python3 /tmp/gh-aw/agent/benchmarks/generate_report.py
 ```
 
-## Success Criteria
+#### Success Criteria
 
 A successful daily run will:
 
@@ -677,14 +677,14 @@ A successful daily run will:
 ✅ **Open issues** - Create GitHub issues for each regression detected (max 3)  
 ✅ **Generate report** - Display comprehensive performance summary
 
-## Performance Baselines
+#### Performance Baselines
 
 Target compilation times (from PR description):
 - **Simple workflows**: <100ms (0.1s or 100,000,000 ns)
 - **Complex workflows**: <500ms (0.5s or 500,000,000 ns)
 - **MCP-heavy workflows**: <1s (1,000,000,000 ns)
 
-## Cache Memory Structure
+#### Cache Memory Structure
 
 Performance data is stored in:
 - **Location**: `/tmp/gh-aw/repo-memory/default/`

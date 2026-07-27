@@ -194,13 +194,13 @@ Use the "logs" tool with count parameter to limit results (e.g., count: 5)
 Examine the downloaded logs:
 
 ```bash
-# List downloaded logs
+### List downloaded logs
 ls -R /tmp/gh-aw/aw-mcp/logs/
 
-# Check log structure
+### Check log structure
 find /tmp/gh-aw/aw-mcp/logs/ -type f -name "*.txt" | head -5
 
-# Verify log content
+### Verify log content
 for logfile in $(find /tmp/gh-aw/aw-mcp/logs/ -name "agent.txt" -type f | head -3); do
   echo "=== $logfile ==="
   head -20 "$logfile"
@@ -428,10 +428,10 @@ Use the "compile" tool with strict validation enabled (if supported by MCP inter
 After compilation, inspect generated lock files:
 
 ```bash
-# Find recently compiled lock files
+### Find recently compiled lock files
 find .github/workflows/ -name "*.lock.yml" -mmin -10 | head -5
 
-# Check a generated lock file structure
+### Check a generated lock file structure
 for lockfile in $(find .github/workflows/ -name "*.lock.yml" -mmin -10 | head -3); do
   echo "=== $lockfile ==="
   head -50 "$lockfile"
@@ -451,13 +451,13 @@ done
 Test whether compilation correctly detects changes:
 
 ```bash
-# Record current state
+### Record current state
 ls -la .github/workflows/*.lock.yml > /tmp/gh-aw/agent/before.txt
 
-# Compile again without changes
-# Use the "compile" tool to recompile all workflows
+### Compile again without changes
+### Use the "compile" tool to recompile all workflows
 
-# Check if lock files changed
+### Check if lock files changed
 ls -la .github/workflows/*.lock.yml > /tmp/gh-aw/agent/after.txt
 diff /tmp/gh-aw/agent/before.txt /tmp/gh-aw/agent/after.txt
 ```
@@ -536,13 +536,13 @@ Test how the commands work together:
 Measure and document performance:
 
 ```bash
-# Measure logs download time
+### Measure logs download time
 time Use_agentic_workflows_logs_tool
 
-# Measure audit time
+### Measure audit time
 time Use_agentic_workflows_audit_tool_with_recent_run_id
 
-# Measure compile time
+### Measure compile time
 time Use_agentic_workflows_compile_tool
 ```
 
@@ -561,13 +561,13 @@ time Use_agentic_workflows_compile_tool
 Monitor resource consumption during testing:
 
 ```bash
-# Check disk usage
+### Check disk usage
 df -h /tmp/gh-aw/agent/
 
-# Count log files downloaded
+### Count log files downloaded
 find /tmp/gh-aw/aw-mcp/logs/ -type f | wc -l
 
-# Check log file sizes
+### Check log file sizes
 du -sh /tmp/gh-aw/aw-mcp/logs/
 ```
 
