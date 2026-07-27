@@ -410,6 +410,45 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.title).toContain("`@mention`");
     });
 
+    it("should append structured metadata as fenced JSON to body fields", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem(
+        {
+          type: "add_comment",
+          body: "Review complete.",
+          metadata: {
+            verdict: "APPROVE",
+            marker: "<!-- [PIPELINE-VERDICT] APPROVE -->",
+            criteria_passed: 5,
+          },
+        },
+        "add_comment",
+        1
+      );
+
+      expect(result.isValid).toBe(true);
+      expect(result.normalizedItem.body).toContain("Review complete.");
+      expect(result.normalizedItem.body).toContain("Structured metadata:");
+      expect(result.normalizedItem.body).toContain("```json");
+      expect(result.normalizedItem.body).toContain('"verdict": "APPROVE"');
+      expect(result.normalizedItem.body).toContain('"marker": "<!-- [PIPELINE-VERDICT] APPROVE -->"');
+      expect(result.normalizedItem.metadata).toEqual({
+        verdict: "APPROVE",
+        marker: "<!-- [PIPELINE-VERDICT] APPROVE -->",
+        criteria_passed: 5,
+      });
+    });
+
+    it("should reject metadata values that are not objects", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "add_comment", body: "Review complete.", metadata: ["APPROVE"] }, "add_comment", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("'metadata' must be an object");
+    });
+
     it("should normalize a backticked issue reference when enabled", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 

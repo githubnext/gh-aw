@@ -40,6 +40,7 @@ const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOS
 const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 const ISSUE_INTENT_LABEL_TYPES = new Set(["add_labels", "remove_labels", "update_issue"]);
+const STRUCTURED_METADATA_LABEL = "Structured metadata:";
 
 /**
  * Remove markdown backticks around recognized issue-closing keyword references.
@@ -708,6 +709,41 @@ function validateItem(item, itemType, lineNum, options) {
 
   if (errors.length > 0) {
     return { isValid: false, error: errors[0] }; // Return first error
+  }
+
+  if (item.metadata !== undefined) {
+    if (!item.metadata || typeof item.metadata !== "object" || Array.isArray(item.metadata)) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} 'metadata' must be an object`,
+      };
+    }
+
+    let metadataJSON;
+    let normalizedMetadata;
+    try {
+      metadataJSON = JSON.stringify(item.metadata, null, 2);
+      normalizedMetadata = JSON.parse(metadataJSON);
+    } catch {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} 'metadata' must be JSON-serializable`,
+      };
+    }
+
+    // Preserve normalized metadata on the item for downstream automation.
+    normalizedItem.metadata = normalizedMetadata;
+
+    // If this safe-output type supports a body field, append structured metadata
+    // as fenced JSON so it survives body sanitization.
+    if (Object.prototype.hasOwnProperty.call(typeConfig.fields, "body")) {
+      const metadataBlock = `${STRUCTURED_METADATA_LABEL}\n\`\`\`json\n${metadataJSON}\n\`\`\``;
+      if (typeof normalizedItem.body === "string" && normalizedItem.body.length > 0) {
+        normalizedItem.body = `${normalizedItem.body}\n\n${metadataBlock}`;
+      } else {
+        normalizedItem.body = metadataBlock;
+      }
+    }
   }
 
   return { isValid: true, normalizedItem };

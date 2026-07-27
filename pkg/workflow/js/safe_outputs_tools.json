@@ -69,6 +69,11 @@
             "temporaryId"
           ]
         },
+        "metadata": {
+          "type": "object",
+          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -426,6 +431,11 @@
           ],
           "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
+        "metadata": {
+          "type": "object",
+          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -498,6 +508,11 @@
             "temporaryId"
           ]
         },
+        "metadata": {
+          "type": "object",
+          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -569,6 +584,11 @@
           "type": "string",
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
+        "metadata": {
+          "type": "object",
+          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -626,6 +646,11 @@
           "type": "string",
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
+        "metadata": {
+          "type": "object",
+          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -680,6 +705,11 @@
           "x-synonyms": [
             "pullRequestNumber"
           ]
+        },
+        "metadata": {
+          "type": "object",
+          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
         },
         "secrecy": {
           "type": "string",
