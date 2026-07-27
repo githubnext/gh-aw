@@ -1,4 +1,17 @@
-# License allowlist from CONTRIBUTING.md.
+# License allowlist for container image scanning.
+#
+# Permissive open-source licenses (compatible with this project's MIT license):
+#   See CONTRIBUTING.md for the source-code dependency policy.
+#
+# OS system library licenses (Debian Bookworm base packages):
+#   Debian base images include system packages (libc6, libssl3, tzdata, etc.)
+#   whose copyright files list additional licenses. These entries allow standard
+#   OS runtime libraries; they do not relax the source-code dependency policy.
+#   - public-domain: tzdata timezone database (unencumbered)
+#   - HPND: Historical Permission Notice and Disclaimer (permissive, OSI-approved)
+#   - LGPL-2.1-or-later: GNU C Library (glibc / libc6) core library license
+#   - Spencer-94: Henry Spencer's regex code included in glibc
+#   - GPL-2.0-only: glibc utilities distributed in libc6 (ldd, ldconfig, etc.)
 require-license: true
 require-known-license: true
 
@@ -8,4 +21,9 @@ allow:
   - BSD-2-Clause
   - BSD-3-Clause
   - ISC
+  - public-domain
+  - HPND
+  - LGPL-2.1-or-later
+  - Spencer-94
+  - GPL-2.0-only
 
