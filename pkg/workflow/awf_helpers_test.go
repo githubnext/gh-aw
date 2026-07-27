@@ -1842,9 +1842,14 @@ func TestAWFSupportsAPIProxyProviders(t *testing.T) {
 			want:           true,
 		},
 		{
-			name:           "v0.27.42 supports apiProxy.providers (exact minimum version)",
-			firewallConfig: &FirewallConfig{Version: "v0.27.42"},
+			name:           "v0.27.43 supports apiProxy.providers (exact minimum version)",
+			firewallConfig: &FirewallConfig{Version: "v0.27.43"},
 			want:           true,
+		},
+		{
+			name:           "v0.27.42 does not support apiProxy.providers (schema not present)",
+			firewallConfig: &FirewallConfig{Version: "v0.27.42"},
+			want:           false,
 		},
 		{
 			name:           "v0.27.41 does not support apiProxy.providers",
