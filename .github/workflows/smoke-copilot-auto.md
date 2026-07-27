@@ -3,8 +3,9 @@ private: true
 emoji: "🌸"
 description: Smoke Copilot Auto — generates a haiku and posts it as a PR comment
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
+  label_command:
+    name: smoke
+    events: [pull_request]
   workflow_dispatch:
   github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
 permissions:
