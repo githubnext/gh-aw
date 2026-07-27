@@ -1,2 +1,2 @@
-{"id":"scan_completed","question":"Did the agent complete a Semgrep security scan and report on the findings?","answer":"YES","model":"small","timestamp":"2026-07-26T05:37:05.228Z","runid":"30189459127"}
-{"id":"alert_created_or_noop","question":"Was a code scanning alert created for real security findings, or does the agent output confirm no vulnerabilities were found?","answer":"YES","model":"small","timestamp":"2026-07-26T05:37:05.228Z","runid":"30189459127"}
+{"id":"scan_completed","question":"Did the agent complete a Semgrep security scan and report on the findings?","answer":"NO","model":"small","timestamp":"2026-07-27T05:38:14.811Z","runid":"30240046495"}
+{"id":"alert_created_or_noop","question":"Was a code scanning alert created for real security findings, or does the agent output confirm no vulnerabilities were found?","answer":"YES","model":"small","timestamp":"2026-07-27T05:38:14.811Z","runid":"30240046495"}
