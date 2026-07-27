@@ -504,6 +504,51 @@ describe("apply_samples.cjs preStagePatch (create_pull_request / push_to_pull_re
     }
   });
 
+  it("derives push_to_pull_request_branch branch from workflow_dispatch inputs.pull_request_number", async () => {
+    const workspace = makeTempDir("gh-aw-prestage-push-dispatch-input-");
+    initRepo(workspace, "main");
+
+    const headRef = "feat/dispatch-pr-number";
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ head: { ref: headRef } }),
+    });
+
+    const eventPath = path.join(workspace, "event.json");
+    fs.writeFileSync(
+      eventPath,
+      JSON.stringify({
+        inputs: { pull_request_number: "123" },
+      })
+    );
+
+    const prevBase = process.env.GH_AW_CUSTOM_BASE_BRANCH;
+    const prevEvent = process.env.GITHUB_EVENT_PATH;
+    const prevRepo = process.env.GITHUB_REPOSITORY;
+    process.env.GH_AW_CUSTOM_BASE_BRANCH = "main";
+    process.env.GITHUB_EVENT_PATH = eventPath;
+    process.env.GITHUB_REPOSITORY = "owner/repo";
+    try {
+      const entry = {
+        tool: "push_to_pull_request_branch",
+        arguments: { message: "Push update" },
+        sidecars: { patch: newFileDiff("dispatch-input.txt", "via workflow_dispatch input\n") },
+      };
+      await preStagePatch(entry, 0, workspace);
+      expect(git(["rev-parse", "--abbrev-ref", "HEAD"], workspace).trim()).toBe(headRef);
+      expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/repos/owner/repo/pulls/123"), expect.anything());
+    } finally {
+      fetchSpy.mockRestore();
+      if (prevBase === undefined) delete process.env.GH_AW_CUSTOM_BASE_BRANCH;
+      else process.env.GH_AW_CUSTOM_BASE_BRANCH = prevBase;
+      if (prevEvent === undefined) delete process.env.GITHUB_EVENT_PATH;
+      else process.env.GITHUB_EVENT_PATH = prevEvent;
+      if (prevRepo === undefined) delete process.env.GITHUB_REPOSITORY;
+      else process.env.GITHUB_REPOSITORY = prevRepo;
+    }
+  });
+
   it("derives push_to_pull_request_branch branch from explicit arguments.pull_request_number when no event payload exists", async () => {
     // Resolution path 3: no GITHUB_EVENT_PATH, but the sample entry carries an
     // explicit `arguments.pull_request_number`. The driver should hit the PR
