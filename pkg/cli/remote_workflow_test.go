@@ -660,6 +660,58 @@ imports:
 	}
 }
 
+func TestFetchAndSaveRemoteIncludes_PathTraversalRejected(t *testing.T) {
+	mockFetch := func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+		return []byte("# include body\n"), "", nil
+	}
+
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(targetDir, 0o755))
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+	}
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include ../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch)
+	require.Error(t, err)
+	require.NoFileExists(t, filepath.Join(tmpDir, ".github", "secrets", "evil.md"))
+}
+
+func TestFetchAndSaveRemoteIncludes_NestedTraversalRejected(t *testing.T) {
+	mockFetch := func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+		return []byte("# include body\n"), "", nil
+	}
+
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(targetDir, 0o755))
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+	}
+	// A path that doesn't start with "../" but still escapes via a sub-directory component.
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include subdir/../../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch)
+	require.Error(t, err)
+	require.NoFileExists(t, filepath.Join(tmpDir, ".github", "secrets", "evil.md"))
+}
+
+func TestFetchAndSaveRemoteIncludes_SharedIncludeStaysUnderSharedDir(t *testing.T) {
+	mockFetch := func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+		return []byte("# include body\n"), "", nil
+	}
+
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(targetDir, 0o755))
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+	}
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include shared/helper.md\n", spec, targetDir, false, false, nil, mockFetch)
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(tmpDir, ".github", "shared", "helper.md"))
+}
+
 // TestFetchAndSaveRemoteFrontmatterImports_InvalidRepoSlug verifies that an invalid
 // RepoSlug (not in owner/repo format) causes the function to return early without error.
 func TestFetchAndSaveRemoteFrontmatterImports_InvalidRepoSlug(t *testing.T) {

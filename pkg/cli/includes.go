@@ -23,6 +23,11 @@ import (
 var includeDirectivePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 var downloadRemoteImportFile = parser.DownloadFileFromGitHub
 
+// includesFetcher is the function type used by fetchAndSaveRemoteIncludes to retrieve
+// a single include file. Passing a non-nil value overrides the default FetchIncludeFromSource
+// implementation; this is used in tests to avoid real network calls.
+type includesFetcher func(ctx context.Context, includePath string, baseSpec *WorkflowSpec, verbose bool) ([]byte, string, error)
+
 // FetchIncludeFromSource fetches an include file from GitHub directly using a workflowspec format path.
 // The includePath should be in the format: owner/repo/path/to/file.md[@ref]
 // If the includePath is a relative path, it's resolved relative to the baseSpec.
@@ -435,9 +440,13 @@ func fetchFrontmatterImportsRecursive(ctx context.Context, content, currentBaseD
 	}
 }
 
-// fetchAndSaveRemoteIncludes parses the workflow content for @include directives and fetches them from the remote source
-func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+// fetchAndSaveRemoteIncludes parses the workflow content for @include directives and fetches them from the remote source.
+// The optional fetchFn parameter overrides the default FetchIncludeFromSource implementation; pass nil to use the default.
+func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker, fetchFn includesFetcher) error {
 	remoteWorkflowLog.Printf("Fetching remote includes for workflow: %s", spec.String())
+	if fetchFn == nil {
+		fetchFn = FetchIncludeFromSource
+	}
 
 	// Parse the workflow content to find @include directives
 	scanner := bufio.NewScanner(strings.NewReader(content))
@@ -460,6 +469,11 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 			filePath = before
 		}
 
+		// Reject paths with traversal components before any further processing.
+		if strings.Contains(filePath, "..") {
+			return fmt.Errorf("include path %q contains illegal path traversal components", filePath)
+		}
+
 		// Skip if already processed
 		if setutil.Contains(seen, filePath) {
 			continue
@@ -468,7 +482,7 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 		}{}
 
 		// Fetch the include file
-		includeContent, _, err := FetchIncludeFromSource(ctx, includePath, spec, verbose)
+		includeContent, _, err := fetchFn(ctx, includePath, spec, verbose)
 		if err != nil {
 			if isOptional {
 				if verbose {
@@ -492,6 +506,13 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 		} else {
 			// Relative includes go alongside the workflow
 			targetPath = filepath.Join(targetDir, filePath)
+		}
+		writeBase := targetDir
+		if strings.HasPrefix(filePath, "shared/") || isWorkflowSpecFormat(filePath) {
+			writeBase = filepath.Join(filepath.Dir(targetDir), "shared")
+		}
+		if err := fileutil.ValidatePathWithinBase(writeBase, targetPath); err != nil {
+			return fmt.Errorf("refusing to write include outside allowed directory %s: %w", writeBase, err)
 		}
 
 		// Create target directory if needed
@@ -530,7 +551,7 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 		}
 
 		// Recursively fetch includes from the fetched file
-		if err := fetchAndSaveRemoteIncludes(ctx, string(includeContent), spec, targetDir, verbose, force, tracker); err != nil {
+		if err := fetchAndSaveRemoteIncludes(ctx, string(includeContent), spec, targetDir, verbose, force, tracker, fetchFn); err != nil {
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch nested includes from %s: %v", filePath, err)))
 			}
@@ -551,7 +572,7 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 func fetchAllRemoteDependencies(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
 	remoteWorkflowLog.Printf("Fetching all remote dependencies: spec=%s, targetDir=%s, force=%v", spec.String(), targetDir, force)
 	// Fetch and save @include directive dependencies (best-effort: errors are not fatal).
-	if err := fetchAndSaveRemoteIncludes(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
+	if err := fetchAndSaveRemoteIncludes(ctx, content, spec, targetDir, verbose, force, tracker, nil); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch include dependencies: %v", err)))
 		}
