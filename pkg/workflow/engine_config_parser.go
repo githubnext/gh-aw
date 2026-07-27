@@ -156,6 +156,18 @@ func parseEngineAuthConfig(authObj map[string]any) *EngineAuthConfig {
 	if s, ok := authObj["workspace-id"].(string); ok {
 		auth.AnthropicWorkspaceID = s
 	}
+	if s, ok := authObj["workload-identity-provider"].(string); ok {
+		auth.GoogleWorkloadIdentityProvider = s
+	}
+	if s, ok := authObj["service-account"].(string); ok {
+		auth.GoogleServiceAccount = s
+	}
+	if s, ok := authObj["project"].(string); ok {
+		auth.GoogleProject = s
+	}
+	if s, ok := authObj["location"].(string); ok {
+		auth.GoogleLocation = s
+	}
 	return auth
 }
 
