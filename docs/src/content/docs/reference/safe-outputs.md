@@ -1709,13 +1709,13 @@ Validation rules:
 The text output by AI agents is automatically sanitized to prevent injection of malicious content and ensure safe rendering on GitHub. The auto-sanitization applied is: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.
 
 HTML/XML comments (`<!-- ... -->`) are removed from sanitized body fields.
-If you need a machine-readable channel that survives sanitization, add a top-level `metadata` object on safe outputs that support `body`. The validator preserves `metadata` and appends it to the body as fenced JSON:
+If you need a machine-readable channel that survives sanitization, add a top-level `data` object on safe outputs that support `body`. The validator preserves `data` and appends it to the body as fenced JSON:
 
 ```json
 {
   "type": "add_comment",
   "body": "Review complete. All criteria pass.",
-  "metadata": {
+  "data": {
     "verdict": "APPROVE",
     "criteria_passed": 5
   }

@@ -69,9 +69,9 @@
             "temporaryId"
           ]
         },
-        "metadata": {
+        "data": {
           "type": "object",
-          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
           "additionalProperties": true
         },
         "secrecy": {
@@ -431,9 +431,9 @@
           ],
           "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
-        "metadata": {
+        "data": {
           "type": "object",
-          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
           "additionalProperties": true
         },
         "secrecy": {
@@ -508,9 +508,9 @@
             "temporaryId"
           ]
         },
-        "metadata": {
+        "data": {
           "type": "object",
-          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
           "additionalProperties": true
         },
         "secrecy": {
@@ -584,9 +584,9 @@
           "type": "string",
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
-        "metadata": {
+        "data": {
           "type": "object",
-          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
           "additionalProperties": true
         },
         "secrecy": {
@@ -646,9 +646,9 @@
           "type": "string",
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
-        "metadata": {
+        "data": {
           "type": "object",
-          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
           "additionalProperties": true
         },
         "secrecy": {
@@ -706,9 +706,9 @@
             "pullRequestNumber"
           ]
         },
-        "metadata": {
+        "data": {
           "type": "object",
-          "description": "Optional structured metadata to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
           "additionalProperties": true
         },
         "secrecy": {

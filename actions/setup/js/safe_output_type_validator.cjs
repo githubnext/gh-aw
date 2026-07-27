@@ -40,7 +40,7 @@ const ISSUE_CLOSING_KEYWORD_BACKTICK_PATTERN = new RegExp(`\`(\\b(?:${ISSUE_CLOS
 const ISSUE_CLOSING_REFERENCE_BACKTICK_PATTERN = new RegExp(`(\\b(?:${ISSUE_CLOSING_KEYWORDS})\\b)(\\s+)\`(${ISSUE_REFERENCE_PATTERN})\``, "gi");
 const NORMALIZE_CLOSER_BODY_TYPES = new Set(["create_issue", "add_comment", "create_pull_request"]);
 const ISSUE_INTENT_LABEL_TYPES = new Set(["add_labels", "remove_labels", "update_issue"]);
-const STRUCTURED_METADATA_LABEL = "Structured metadata:";
+const STRUCTURED_DATA_LABEL = "Structured data:";
 
 /**
  * Remove markdown backticks around recognized issue-closing keyword references.
@@ -711,37 +711,37 @@ function validateItem(item, itemType, lineNum, options) {
     return { isValid: false, error: errors[0] }; // Return first error
   }
 
-  if (item.metadata !== undefined) {
-    if (!item.metadata || typeof item.metadata !== "object" || Array.isArray(item.metadata)) {
+  if (item.data !== undefined) {
+    if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) {
       return {
         isValid: false,
-        error: `Line ${lineNum}: ${itemType} 'metadata' must be an object`,
+        error: `Line ${lineNum}: ${itemType} 'data' must be an object`,
       };
     }
 
-    let metadataJSON;
-    let normalizedMetadata;
+    let dataJSON;
+    let normalizedData;
     try {
-      metadataJSON = JSON.stringify(item.metadata, null, 2);
-      normalizedMetadata = JSON.parse(metadataJSON);
+      dataJSON = JSON.stringify(item.data, null, 2);
+      normalizedData = JSON.parse(dataJSON);
     } catch {
       return {
         isValid: false,
-        error: `Line ${lineNum}: ${itemType} 'metadata' must be JSON-serializable`,
+        error: `Line ${lineNum}: ${itemType} 'data' must be JSON-serializable`,
       };
     }
 
-    // Preserve normalized metadata on the item for downstream automation.
-    normalizedItem.metadata = normalizedMetadata;
+    // Preserve normalized data on the item for downstream automation.
+    normalizedItem.data = normalizedData;
 
-    // If this safe-output type supports a body field, append structured metadata
+    // If this safe-output type supports a body field, append structured data
     // as fenced JSON so it survives body sanitization.
     if (Object.prototype.hasOwnProperty.call(typeConfig.fields, "body")) {
-      const metadataBlock = `${STRUCTURED_METADATA_LABEL}\n\`\`\`json\n${metadataJSON}\n\`\`\``;
+      const dataBlock = `${STRUCTURED_DATA_LABEL}\n\`\`\`json\n${dataJSON}\n\`\`\``;
       if (typeof normalizedItem.body === "string" && normalizedItem.body.length > 0) {
-        normalizedItem.body = `${normalizedItem.body}\n\n${metadataBlock}`;
+        normalizedItem.body = `${normalizedItem.body}\n\n${dataBlock}`;
       } else {
-        normalizedItem.body = metadataBlock;
+        normalizedItem.body = dataBlock;
       }
     }
   }

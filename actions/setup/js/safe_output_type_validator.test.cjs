@@ -410,14 +410,14 @@ describe("safe_output_type_validator", () => {
       expect(result.normalizedItem.title).toContain("`@mention`");
     });
 
-    it("should append structured metadata as fenced JSON to body fields", async () => {
+    it("should append structured data as fenced JSON to body fields", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
       const result = validateItem(
         {
           type: "add_comment",
           body: "Review complete.",
-          metadata: {
+          data: {
             verdict: "APPROVE",
             marker: "<!-- [PIPELINE-VERDICT] APPROVE -->",
             criteria_passed: 5,
@@ -429,24 +429,24 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(true);
       expect(result.normalizedItem.body).toContain("Review complete.");
-      expect(result.normalizedItem.body).toContain("Structured metadata:");
+      expect(result.normalizedItem.body).toContain("Structured data:");
       expect(result.normalizedItem.body).toContain("```json");
       expect(result.normalizedItem.body).toContain('"verdict": "APPROVE"');
       expect(result.normalizedItem.body).toContain('"marker": "<!-- [PIPELINE-VERDICT] APPROVE -->"');
-      expect(result.normalizedItem.metadata).toEqual({
+      expect(result.normalizedItem.data).toEqual({
         verdict: "APPROVE",
         marker: "<!-- [PIPELINE-VERDICT] APPROVE -->",
         criteria_passed: 5,
       });
     });
 
-    it("should reject metadata values that are not objects", async () => {
+    it("should reject data values that are not objects", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 
-      const result = validateItem({ type: "add_comment", body: "Review complete.", metadata: ["APPROVE"] }, "add_comment", 1);
+      const result = validateItem({ type: "add_comment", body: "Review complete.", data: ["APPROVE"] }, "add_comment", 1);
 
       expect(result.isValid).toBe(false);
-      expect(result.error).toContain("'metadata' must be an object");
+      expect(result.error).toContain("'data' must be an object");
     });
 
     it("should normalize a backticked issue reference when enabled", async () => {
@@ -1294,12 +1294,12 @@ describe("safe_output_type_validator", () => {
         type: "create_issue",
         title: "Test",
         body: "Detailed issue body text.",
-        metadata: { project: "test" },
+        data: { project: "test" },
       };
 
       const result = validateItem(item, "create_issue", 1);
       expect(result.isValid).toBe(true);
-      expect(result.normalizedItem.metadata).toEqual({ project: "test" });
+      expect(result.normalizedItem.data).toEqual({ project: "test" });
     });
   });
 });
