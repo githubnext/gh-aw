@@ -32,6 +32,9 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 	}
 
 	// Parse optional data schema configuration (inline or file-backed)
+	if data, exists := outputMap["data"]; exists {
+		config.Data = data
+	}
 	if dataSchema, exists := outputMap["data-schema"]; exists {
 		config.DataSchema = dataSchema
 	}

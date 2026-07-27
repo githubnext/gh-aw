@@ -593,6 +593,7 @@ func TestComputePropertyInjectionsAllInvalidFallsBackToFullSet(t *testing.T) {
 
 func TestComputePropertyInjectionsAddsDataSchemaForBodyTypes(t *testing.T) {
 	injections := computePropertyInjections(&SafeOutputsConfig{
+		DataEnabled: true,
 		NormalizedDataSchema: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
@@ -607,5 +608,16 @@ func TestComputePropertyInjectionsAddsDataSchemaForBodyTypes(t *testing.T) {
 		prop, ok := injections[typeName]["data"].(map[string]any)
 		require.True(t, ok)
 		assert.Equal(t, "object", prop["type"])
+	}
+}
+
+func TestComputePropertyInjectionsAddsGenericDataForBodyTypes(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{DataEnabled: true})
+
+	for _, typeName := range dataSchemaBodyTypes {
+		require.Contains(t, injections, typeName)
+		prop, ok := injections[typeName]["data"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "#/0/inputSchema/$defs/structured_data", prop["$ref"])
 	}
 }

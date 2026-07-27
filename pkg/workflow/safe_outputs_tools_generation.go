@@ -340,12 +340,16 @@ func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[st
 		}
 	}
 
-	if safeOutputs.NormalizedDataSchema != nil {
+	if safeOutputs.DataEnabled {
+		dataProperty := map[string]any{"$ref": "#/0/inputSchema/$defs/structured_data"}
+		if safeOutputs.NormalizedDataSchema != nil {
+			dataProperty = safeOutputs.NormalizedDataSchema
+		}
 		for _, typeName := range dataSchemaBodyTypes {
 			if injections[typeName] == nil {
 				injections[typeName] = make(map[string]any)
 			}
-			injections[typeName]["data"] = safeOutputs.NormalizedDataSchema
+			injections[typeName]["data"] = dataProperty
 		}
 	}
 

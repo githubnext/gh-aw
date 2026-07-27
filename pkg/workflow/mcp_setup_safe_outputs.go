@@ -71,10 +71,12 @@ func generateSafeOutputsSetup(c *Compiler, yaml *strings.Builder, safeOutputConf
 		mentionsBlock = buildMentionsHandlerConfig(workflowData.SafeOutputs.Mentions)
 	}
 	var normalizedDataSchema map[string]any
+	dataEnabled := false
 	if workflowData.SafeOutputs != nil {
 		normalizedDataSchema = workflowData.SafeOutputs.NormalizedDataSchema
+		dataEnabled = workflowData.SafeOutputs.DataEnabled
 	}
-	validationConfigJSON, err := GetValidationConfigJSONWithDataSchema(enabledTypes, mentionsBlock, normalizedDataSchema)
+	validationConfigJSON, err := GetValidationConfigJSONWithDataSchema(enabledTypes, mentionsBlock, dataEnabled, normalizedDataSchema)
 	if err != nil {
 		mcpSetupGeneratorLog.Printf("CRITICAL: Error generating validation config JSON: %v - validation will not work correctly", err)
 		validationConfigJSON = "{}"

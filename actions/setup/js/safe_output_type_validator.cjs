@@ -713,6 +713,13 @@ function validateItem(item, itemType, lineNum, options) {
   }
 
   if (item.data !== undefined) {
+    const dataEnabled = typeConfig.dataEnabled === true || (typeConfig.dataSchema && typeof typeConfig.dataSchema === "object");
+    if (!dataEnabled) {
+      return {
+        isValid: false,
+        error: `Line ${lineNum}: ${itemType} 'data' is not enabled (set safe-outputs.data in workflow frontmatter)`,
+      };
+    }
     if (!item.data || typeof item.data !== "object" || Array.isArray(item.data)) {
       return {
         isValid: false,

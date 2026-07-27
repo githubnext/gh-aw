@@ -191,7 +191,7 @@ func TestGetValidationConfigJSONWithDataSchema(t *testing.T) {
 		"additionalProperties": false,
 	}
 
-	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"add_comment", "close_issue"}, nil, dataSchema)
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"add_comment", "close_issue"}, nil, true, dataSchema)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSONWithDataSchema() error = %v", err)
 	}
@@ -204,8 +204,14 @@ func TestGetValidationConfigJSONWithDataSchema(t *testing.T) {
 	if parsed["add_comment"].DataSchema == nil {
 		t.Fatal("expected add_comment dataSchema to be present")
 	}
+	if !parsed["add_comment"].DataEnabled {
+		t.Fatal("expected add_comment dataEnabled to be true")
+	}
 	if parsed["close_issue"].DataSchema != nil {
 		t.Fatal("did not expect close_issue dataSchema to be present")
+	}
+	if parsed["close_issue"].DataEnabled {
+		t.Fatal("did not expect close_issue dataEnabled to be true")
 	}
 }
 

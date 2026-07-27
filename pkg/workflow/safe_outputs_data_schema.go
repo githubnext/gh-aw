@@ -52,25 +52,49 @@ func validateSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath strin
 	if config == nil {
 		return nil
 	}
-	schema, err := resolveSafeOutputsDataSchema(config, markdownPath)
+	enabled, schema, err := resolveSafeOutputsDataSchema(config, markdownPath)
 	if err != nil {
 		return err
 	}
+	config.DataEnabled = enabled
 	config.NormalizedDataSchema = schema
 	return nil
 }
 
-func resolveSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath string) (map[string]any, error) {
+func resolveSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath string) (bool, map[string]any, error) {
 	if config == nil {
-		return nil, nil
+		return false, nil, nil
 	}
+	hasData := config.Data != nil
 	hasInline := config.DataSchema != nil
 	hasFile := strings.TrimSpace(config.DataSchemaFile) != ""
+	if hasData && (hasInline || hasFile) {
+		return false, nil, errors.New("safe-outputs.data cannot be combined with safe-outputs.data-schema or safe-outputs.data-schema-file")
+	}
+	if hasData {
+		switch v := config.Data.(type) {
+		case bool:
+			if !v {
+				return false, nil, nil
+			}
+			return true, nil, nil
+		case string:
+			path := strings.TrimSpace(v)
+			if path == "" {
+				return false, nil, errors.New("safe-outputs.data: schema file path must be a non-empty string")
+			}
+			config.DataSchemaFile = path
+			hasFile = true
+		default:
+			config.DataSchema = v
+			hasInline = true
+		}
+	}
 	if !hasInline && !hasFile {
-		return nil, nil
+		return false, nil, nil
 	}
 	if hasInline && hasFile {
-		return nil, errors.New("safe-outputs.data-schema and safe-outputs.data-schema-file are mutually exclusive")
+		return false, nil, errors.New("safe-outputs.data-schema and safe-outputs.data-schema-file are mutually exclusive")
 	}
 
 	var rawSchema any
@@ -84,21 +108,21 @@ func resolveSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath string
 		}
 		content, err := os.ReadFile(schemaPath)
 		if err != nil {
-			return nil, fmt.Errorf("safe-outputs.data-schema-file: failed to read %q: %w", config.DataSchemaFile, err)
+			return false, nil, fmt.Errorf("safe-outputs.data-schema-file: failed to read %q: %w", config.DataSchemaFile, err)
 		}
 		if err := json.Unmarshal(content, &rawSchema); err != nil {
-			return nil, fmt.Errorf("safe-outputs.data-schema-file: invalid JSON in %q: %w", config.DataSchemaFile, err)
+			return false, nil, fmt.Errorf("safe-outputs.data-schema-file: invalid JSON in %q: %w", config.DataSchemaFile, err)
 		}
 	}
 
 	normalized, err := simplifyDataSchemaNode(rawSchema, "safe-outputs.data-schema", true, true)
 	if err != nil {
-		return nil, err
+		return false, nil, err
 	}
 	if normalizedType, _ := normalized["type"].(string); normalizedType != "object" {
-		return nil, fmt.Errorf("safe-outputs.data-schema must resolve to an object schema, got %q", normalizedType)
+		return false, nil, fmt.Errorf("safe-outputs.data-schema must resolve to an object schema, got %q", normalizedType)
 	}
-	return normalized, nil
+	return true, normalized, nil
 }
 
 func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, _ bool) (map[string]any, error) {

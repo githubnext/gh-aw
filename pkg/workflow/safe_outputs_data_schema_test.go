@@ -13,7 +13,7 @@ import (
 
 func TestValidateSafeOutputsDataSchemaInlineShorthand(t *testing.T) {
 	cfg := &SafeOutputsConfig{
-		DataSchema: map[string]any{
+		Data: map[string]any{
 			"verdict":         "string",
 			"criteria_passed": "number",
 		},
@@ -21,6 +21,7 @@ func TestValidateSafeOutputsDataSchemaInlineShorthand(t *testing.T) {
 
 	err := validateSafeOutputsDataSchema(cfg, "/tmp/workflow.md")
 	require.NoError(t, err)
+	assert.True(t, cfg.DataEnabled)
 	require.NotNil(t, cfg.NormalizedDataSchema)
 	assert.Equal(t, "object", cfg.NormalizedDataSchema["type"])
 	assert.Equal(t, false, cfg.NormalizedDataSchema["additionalProperties"])
@@ -47,11 +48,12 @@ func TestValidateSafeOutputsDataSchemaFile(t *testing.T) {
 	require.NoError(t, err)
 
 	cfg := &SafeOutputsConfig{
-		DataSchemaFile: "data-schema.json",
+		Data: "data-schema.json",
 	}
 
 	err = validateSafeOutputsDataSchema(cfg, filepath.Join(tempDir, "workflow.md"))
 	require.NoError(t, err)
+	assert.True(t, cfg.DataEnabled)
 	require.NotNil(t, cfg.NormalizedDataSchema)
 	assert.Equal(t, "object", cfg.NormalizedDataSchema["type"])
 	assert.Equal(t, false, cfg.NormalizedDataSchema["additionalProperties"])
@@ -65,18 +67,19 @@ func TestValidateSafeOutputsDataSchemaFile(t *testing.T) {
 
 func TestValidateSafeOutputsDataSchemaMutuallyExclusiveSources(t *testing.T) {
 	cfg := &SafeOutputsConfig{
+		Data:           true,
 		DataSchema:     map[string]any{"verdict": "string"},
 		DataSchemaFile: "data-schema.json",
 	}
 
 	err := validateSafeOutputsDataSchema(cfg, "/tmp/workflow.md")
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "mutually exclusive")
+	assert.Contains(t, err.Error(), "cannot be combined")
 }
 
 func TestValidateSafeOutputsDataSchemaRejectsUnsupportedKeyword(t *testing.T) {
 	cfg := &SafeOutputsConfig{
-		DataSchema: map[string]any{
+		Data: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"verdict": map[string]any{
@@ -94,7 +97,7 @@ func TestValidateSafeOutputsDataSchemaRejectsUnsupportedKeyword(t *testing.T) {
 
 func TestValidateSafeOutputsDataSchemaRejectsAdditionalPropertiesTrue(t *testing.T) {
 	cfg := &SafeOutputsConfig{
-		DataSchema: map[string]any{
+		Data: map[string]any{
 			"type": "object",
 			"properties": map[string]any{
 				"verdict": "string",
@@ -106,4 +109,20 @@ func TestValidateSafeOutputsDataSchemaRejectsAdditionalPropertiesTrue(t *testing
 	err := validateSafeOutputsDataSchema(cfg, "/tmp/workflow.md")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "must be false for OpenAI Codex structured outputs compatibility")
+}
+
+func TestValidateSafeOutputsDataSchemaDisabledByDefault(t *testing.T) {
+	cfg := &SafeOutputsConfig{}
+	err := validateSafeOutputsDataSchema(cfg, "/tmp/workflow.md")
+	require.NoError(t, err)
+	assert.False(t, cfg.DataEnabled)
+	assert.Nil(t, cfg.NormalizedDataSchema)
+}
+
+func TestValidateSafeOutputsDataSchemaBooleanTrueAllowsAnyObject(t *testing.T) {
+	cfg := &SafeOutputsConfig{Data: true}
+	err := validateSafeOutputsDataSchema(cfg, "/tmp/workflow.md")
+	require.NoError(t, err)
+	assert.True(t, cfg.DataEnabled)
+	assert.Nil(t, cfg.NormalizedDataSchema)
 }

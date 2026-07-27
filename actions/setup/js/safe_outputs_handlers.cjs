@@ -376,6 +376,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     const entry = { ...(args || {}), type };
     if (entry.data !== undefined) {
       const toolConfig = getSafeOutputsToolConfig(config, type);
+      const dataEnabled = toolConfig?.data_enabled === true || (toolConfig?.data_schema && typeof toolConfig.data_schema === "object");
+      if (!dataEnabled) {
+        return buildIntentErrorResponse(`${type} data is not enabled (set safe-outputs.data in workflow frontmatter)`);
+      }
       const dataSchema = toolConfig?.data_schema;
       if (dataSchema && typeof dataSchema === "object") {
         const dataSchemaError = validateValueAgainstSchema(entry.data, dataSchema);

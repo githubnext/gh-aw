@@ -214,6 +214,7 @@ describe("safe_outputs_handlers", () => {
     it("should enforce data_schema for default handler payloads", () => {
       const handlersWithSchema = createHandlers(mockServer, mockAppendSafeOutput, {
         add_comment: {
+          data_enabled: true,
           data_schema: {
             type: "object",
             properties: {
@@ -230,6 +231,14 @@ describe("safe_outputs_handlers", () => {
 
       expect(result.isError).toBe(true);
       expect(result.content[0].text).toContain("data.extra");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should reject data when not enabled in handler config", () => {
+      const handler = handlers.defaultHandler("add_comment");
+      const result = handler({ body: "ok", data: { verdict: "APPROVE" } });
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("data is not enabled");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
   });

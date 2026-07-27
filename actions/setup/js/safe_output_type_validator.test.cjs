@@ -12,6 +12,7 @@ global.core = mockCore;
 const SAMPLE_VALIDATION_CONFIG = {
   create_issue: {
     defaultMax: 1,
+    dataEnabled: true,
     fields: {
       title: { required: true, type: "string", sanitize: true, maxLength: 128 },
       body: { required: true, type: "string", sanitize: true, maxLength: 65000, minLength: 20 },
@@ -22,6 +23,7 @@ const SAMPLE_VALIDATION_CONFIG = {
   },
   add_comment: {
     defaultMax: 1,
+    dataEnabled: true,
     fields: {
       body: { required: true, type: "string", sanitize: true, maxLength: 65000 },
       item_number: { issueOrPRNumber: true },
@@ -447,6 +449,18 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("'data' must be an object");
+    });
+
+    it("should reject data when not enabled", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      const configWithoutData = JSON.parse(JSON.stringify(SAMPLE_VALIDATION_CONFIG));
+      delete configWithoutData.add_comment.dataEnabled;
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify(configWithoutData);
+      resetValidationConfigCache();
+
+      const result = validateItem({ type: "add_comment", body: "Review complete.", data: { verdict: "APPROVE" } }, "add_comment", 1);
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("'data' is not enabled");
     });
 
     it("should enforce data schema when configured", async () => {

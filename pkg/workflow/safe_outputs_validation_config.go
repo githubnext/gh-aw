@@ -42,6 +42,7 @@ type TypeValidationConfig struct {
 	DefaultMax       int                        `json:"defaultMax"`
 	Fields           map[string]FieldValidation `json:"fields"`
 	CustomValidation string                     `json:"customValidation,omitempty"`
+	DataEnabled      bool                       `json:"dataEnabled,omitempty"`
 	DataSchema       map[string]any             `json:"dataSchema,omitempty"`
 }
 
@@ -496,16 +497,16 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 // during the initial sanitization pass (mirroring what the publish-side handlers
 // receive via GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG).
 func GetValidationConfigJSON(enabledTypes []string, mentions map[string]any) (string, error) {
-	return GetValidationConfigJSONWithDataSchema(enabledTypes, mentions, nil)
+	return GetValidationConfigJSONWithDataSchema(enabledTypes, mentions, false, nil)
 }
 
 // GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSON and additionally
 // injects a normalized data schema into body-bearing safe-output types.
-func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataSchema map[string]any) (string, error) {
+func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 
 	// Cache only the schema-only path; mentions are workflow-specific and cheap to remarshal.
-	if len(mentions) == 0 && dataSchema == nil {
+	if len(mentions) == 0 && !dataEnabled && dataSchema == nil {
 		cacheKey := buildValidationConfigCacheKey(enabledTypes)
 		if cached, ok := validationConfigJSONCache.Load(cacheKey); ok {
 			safeOutputValidationLog.Print("Returning cached validation config JSON")
@@ -530,11 +531,12 @@ func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[s
 	} else {
 		safeOutputValidationLog.Print("Returning all validation configs")
 	}
-	if dataSchema != nil {
+	if dataEnabled || dataSchema != nil {
 		withDataSchema := make(map[string]TypeValidationConfig, len(configToMarshal))
 		for typeName, typeConfig := range configToMarshal {
 			copied := typeConfig
 			if isDataSchemaEnabledType(typeName) {
+				copied.DataEnabled = dataEnabled
 				copied.DataSchema = dataSchema
 			}
 			withDataSchema[typeName] = copied
@@ -560,7 +562,7 @@ func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[s
 	}
 	result := string(data)
 	safeOutputValidationLog.Printf("Generated validation config JSON with %d bytes", len(result))
-	if len(mentions) == 0 && dataSchema == nil {
+	if len(mentions) == 0 && !dataEnabled && dataSchema == nil {
 		validationConfigJSONCache.Store(buildValidationConfigCacheKey(enabledTypes), result)
 	}
 	return result, nil
