@@ -1,2 +1,2 @@
-{"id":"high_aic_workflow_identified","question":"Did the agent identify a high-AIC workflow and audit its recent runs?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-24T15:36:43.812Z","runid":"30104757961"}
-{"id":"recommendations_produced","question":"Were efficiency improvement recommendations produced, including any inline sub-agent refactor suggestions?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-24T15:36:43.812Z","runid":"30104757961"}
+{"id":"high_aic_workflow_identified","question":"Did the agent identify a high-AIC workflow and audit its recent runs?","answer":"YES","model":"small","timestamp":"2026-07-27T16:05:09.435Z","runid":"30281550237"}
+{"id":"recommendations_produced","question":"Were efficiency improvement recommendations produced, including any inline sub-agent refactor suggestions?","answer":"YES","model":"small","timestamp":"2026-07-27T16:05:09.435Z","runid":"30281550237"}
