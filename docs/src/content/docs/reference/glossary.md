@@ -143,6 +143,14 @@ Static Analysis Results Interchange Format - a standardized JSON format for repo
 
 An open-source vulnerability hunting methodology from Capital One that provides structured guidance for agentic security analysis. When used in GitHub Agentic Workflows, a preparatory job downloads the VulnHunter source tree and bundles it with a clean repository snapshot as an artifact. The agent job mounts the bundle and applies the VulnHunter methodology to produce structured findings. See [Daily VulnHunter Scan](https://github.com/github/gh-aw/blob/main/.github/workflows/daily-vulnhunter-scan.md) for a reference implementation.
 
+### Workload Identity Federation (WIF)
+
+A keyless authentication mechanism that exchanges short-lived GitHub OIDC tokens for provider-specific credentials, eliminating the need for long-lived API key secrets in the repository. Supported for the `claude` engine (Anthropic WIF) and the `gemini` engine (Google Cloud WIF via Vertex AI). Configured under `engine.auth` with `type: github-oidc` and a `provider` discriminator (`anthropic` or `gcp`). When active, the compiler suppresses static-key validation and emits the appropriate authentication environment variables for the runtime. See [Auth Reference](/gh-aw/reference/auth/).
+
+### Safe-Output Field Aliases
+
+A compiler feature that maps common agent mistakes — including MCP tool name variants (e.g., `create_issue_comment`) and underscore-to-hyphen swaps (e.g., `add_comment`) — to their correct `safe-outputs` canonical field names (e.g., `add-comment`). When a schema validation error is raised under the `/safe-outputs` path, the compiler consults a curated alias map and emits a precise "Did you mean 'X'?" suggestion instead of a generic field list. Improves the authoring iteration cycle for agents and workflow authors encountering `safe-outputs` configuration errors.
+
 ### Safe Outputs
 
 Pre-approved actions the AI can take without elevated permissions. The AI generates structured output describing what to create (issues, comments, pull requests), processed by separate permission-controlled jobs. Configured via `safe-outputs:` section, letting AI agents create GitHub content without direct write access.
