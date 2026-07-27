@@ -56,7 +56,6 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/setutil"
 )
 
 var toolsParserLog = logger.New("workflow:tools_parser")
@@ -116,8 +115,8 @@ func NewTools(toolsMap map[string]any) *Tools {
 	}
 
 	tools := &Tools{
-		Custom: make(map[string]MCPServerConfig),
-		raw:    make(map[string]any),
+		Custom: make(map[string]MCPServerConfig, len(toolsMap)),
+		raw:    make(map[string]any, len(toolsMap)),
 	}
 
 	// Copy raw map
@@ -176,7 +175,7 @@ func NewTools(toolsMap map[string]any) *Tools {
 	// Extract custom MCP tools (anything not in the known list)
 	customCount := 0
 	for name, config := range toolsMap {
-		if !setutil.Contains(knownTools, name) {
+		if !isKnownToolName(name) {
 			tools.Custom[name] = parseMCPServerConfig(config)
 			customCount++
 		}
@@ -184,6 +183,11 @@ func NewTools(toolsMap map[string]any) *Tools {
 
 	toolsParserLog.Printf("Parsed tools: github=%v, bash=%v, playwright=%v, custom=%d", tools.GitHub != nil, tools.Bash != nil, tools.Playwright != nil, customCount)
 	return tools
+}
+
+func isKnownToolName(name string) bool {
+	_, ok := knownTools[name]
+	return ok
 }
 
 // parseGitHubTool converts raw github tool configuration to GitHubToolConfig
@@ -741,7 +745,7 @@ func parseMCPServerConfig(val any) MCPServerConfig {
 	}
 
 	for key, value := range configMap {
-		if !setutil.Contains(knownFields, key) {
+		if _, isKnownField := knownFields[key]; !isKnownField {
 			config.CustomFields[key] = value
 		}
 	}

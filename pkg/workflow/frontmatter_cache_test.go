@@ -79,6 +79,8 @@ engine: copilot
 				if tt.expectOnExists && workflowData.ParsedFrontmatter != nil {
 					assert.NotNil(t, workflowData.ParsedFrontmatter.On, "ParsedFrontmatter.On should not be nil")
 				}
+			} else {
+				assert.Nil(t, workflowData.ParsedFrontmatter, "ParsedFrontmatter should stay nil when no cached map-form on section is needed")
 			}
 		})
 	}

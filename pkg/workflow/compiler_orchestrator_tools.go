@@ -419,12 +419,51 @@ func (c *Compiler) logAndDetectTextOutput(markdownContent string, frontmatter ma
 }
 
 func (c *Compiler) tryParseFrontmatterConfig(frontmatter map[string]any) *FrontmatterConfig {
+	if !shouldParseFrontmatterConfig(frontmatter) {
+		return nil
+	}
+
 	parsedFrontmatter, err := ParseFrontmatterConfig(frontmatter)
 	if err != nil {
 		orchestratorToolsLog.Printf("Failed to parse frontmatter config: %v", err)
 		return nil
 	}
 	return parsedFrontmatter
+}
+
+func shouldParseFrontmatterConfig(frontmatter map[string]any) bool {
+	if len(frontmatter) == 0 {
+		return false
+	}
+
+	// Cache parsed on: only when it is the map form used by filter/trigger helpers.
+	if onValue, ok := frontmatter["on"]; ok {
+		if _, isMap := onValue.(map[string]any); isMap {
+			return true
+		}
+	}
+
+	// Parse only when typed/config-only fields are present.
+	keysThatNeedParsedFrontmatter := []string{
+		"checkout",
+		"excluded-env",
+		"labels",
+		"lsp",
+		"observability",
+		"resources",
+		"runs-on",
+		"runs-on-slim",
+		"runtimes",
+		"safe-outputs",
+		"skills",
+	}
+	for _, key := range keysThatNeedParsedFrontmatter {
+		if _, ok := frontmatter[key]; ok {
+			return true
+		}
+	}
+
+	return false
 }
 
 // detectTextOutputUsage checks if the markdown content uses ${{ steps.sanitized.outputs.text }},
