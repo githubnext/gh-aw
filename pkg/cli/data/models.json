@@ -235,6 +235,15 @@
             "cache_write": "2.5e-06"
           },
           "provider_type": "anthropic"
+        },
+        "claude-opus-5": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          },
+          "provider_type": "anthropic"
         }
       }
     },
@@ -286,6 +295,15 @@
           "provider_type": "anthropic"
         },
         "claude-opus-4.8": {
+          "cost": {
+            "input": "5e-06",
+            "output": "2.5e-05",
+            "cache_read": "5e-07",
+            "cache_write": "6.25e-06"
+          },
+          "provider_type": "anthropic"
+        },
+        "claude-opus-5": {
           "cost": {
             "input": "5e-06",
             "output": "2.5e-05",

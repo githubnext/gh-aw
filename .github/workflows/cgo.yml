@@ -39,13 +39,106 @@ on:
     - 'install-gh-aw.sh'
   workflow_dispatch:
 jobs:
-  test:
+  verify-integration-build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
       contents: read
     concurrency:
-      group: ci-${{ github.ref }}-test
+      group: ci-${{ github.ref }}-verify-integration-build
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Set up Go
+      id: setup-go
+      uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
+      with:
+        go-version-file: go.mod
+        cache: true
+
+    - name: Report Go cache status
+      run: |
+        if [ "${{ steps.setup-go.outputs.cache-hit }}" == "true" ]; then
+          echo "✅ Go cache hit" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "⚠️ Go cache miss" >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Download dependencies with retry
+      if: steps.setup-go.outputs.cache-hit != 'true'
+      run: |
+        set -e
+        MAX_RETRIES=3
+        RETRY_DELAY=5
+
+        for i in $(seq 1 $MAX_RETRIES); do
+          echo "Attempt $i of $MAX_RETRIES: Downloading Go modules..."
+          # Use -x for verbose output to see what's being downloaded
+          if go mod download -x; then
+            echo "✅ Successfully downloaded Go modules"
+            break
+          else
+            EXIT_CODE=$?
+            if [ $i -eq $MAX_RETRIES ]; then
+              echo "❌ Failed to download Go modules after $MAX_RETRIES attempts (exit code: $EXIT_CODE)"
+              echo "This indicates that proxy.golang.org is unreachable or returning errors"
+              echo ""
+              echo "Diagnostic information:"
+              echo "- GOPROXY: $(go env GOPROXY)"
+              echo "- GOSUMDB: $(go env GOSUMDB)"
+              echo "- Network connectivity: checking proxy.golang.org..."
+              if curl -s -I --connect-timeout 5 https://proxy.golang.org/golang.org/@v/list >/dev/null 2>&1; then
+                echo "  ✓ proxy.golang.org is reachable"
+              else
+                echo "  ✗ proxy.golang.org is NOT reachable"
+              fi
+              exit 1
+            fi
+            echo "⚠️ Download failed, retrying in ${RETRY_DELAY}s..."
+            sleep $RETRY_DELAY
+          fi
+        done
+
+    - name: Verify dependencies
+      run: go mod verify
+
+    - name: Verify integration build
+      run: |
+        # Compile and link all integration-tagged test binaries without
+        # executing package test binaries or TestMain side effects.
+        # Regular unit tests use -tags '!integration', so build errors in
+        # integration-tagged files (e.g. unused imports) would otherwise
+        # go undetected until the fuzz job runs on main.
+        go test -run='^$' -exec=true -tags=integration ./...
+
+  test:
+    name: Unit tests (${{ matrix.name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs:
+    - verify-integration-build
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+        - name: A-C
+          pattern: ^Test[A-C]
+          shard: a-c
+        - name: D-L
+          pattern: ^Test[D-L]
+          shard: d-l
+        - name: M-R
+          pattern: ^Test[M-R]
+          shard: m-r
+        - name: S-Z and other
+          pattern: ^Test([S-Z]|[^A-R])
+          shard: s-z
+    concurrency:
+      group: ci-${{ github.ref }}-test-${{ matrix.shard }}
       cancel-in-progress: true
     steps:
     - name: Checkout code
@@ -111,15 +204,6 @@ jobs:
     - name: Verify dependencies
       run: go mod verify
 
-    - name: Verify integration build
-      run: |
-        # Compile and link all integration-tagged test binaries without
-        # executing package test binaries or TestMain side effects.
-        # Regular unit tests use -tags '!integration', so build errors in
-        # integration-tagged files (e.g. unused imports) would otherwise
-        # go undetected until the fuzz job runs on main.
-        go test -run='^$' -exec=true -tags=integration ./...
-
     - name: Pre-flight check - Validate test dependencies
       run: |
         echo "Validating that test dependencies are available..."
@@ -152,26 +236,16 @@ jobs:
       run: |
         set -o pipefail
         # Run tests with JSON output for artifacts, but also show failures
-        go test -v -parallel=8 -timeout=3m -run='^Test' -tags '!integration' -coverprofile=coverage.out -json ./... | tee test-result-unit.json
+        go test -v -parallel=8 -timeout=3m -run='${{ matrix.pattern }}' -tags '!integration' -coverprofile=coverage-${{ matrix.shard }}.out -json ./... | tee test-result-unit-${{ matrix.shard }}.json
 
         # Check if tests failed by looking at JSON output
-        if grep -q '"Action":"fail"' test-result-unit.json; then
+        if grep -q '"Action":"fail"' test-result-unit-${{ matrix.shard }}.json; then
           echo "❌ Tests failed - see output above"
           exit 1
         fi
 
         # Generate coverage HTML report
-        go tool cover -html=coverage.out -o coverage.html
-
-    - name: Validate pkg/cli and pkg/console tests executed
-      run: |
-        set -euo pipefail
-        for package in pkg/cli pkg/console; do
-          if ! grep -q "\"Action\":\"run\",\"Package\":\"github.com/github/gh-aw/${package}\"" test-result-unit.json; then
-            echo "Missing unit test execution records for ${package}" >&2
-            exit 1
-          fi
-        done
+        go tool cover -html=coverage-${{ matrix.shard }}.out -o coverage-${{ matrix.shard }}.html
 
     - name: Report test failures
       if: failure() && steps.run-unit-tests.outcome == 'failure'
@@ -182,7 +256,7 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
 
         # Run the failure report script
-        if ./scripts/report-test-failures.sh test-result-unit.json | tee /tmp/failure-report.txt; then
+        if ./scripts/report-test-failures.sh test-result-unit-${{ matrix.shard }}.json | tee /tmp/failure-report.txt; then
           echo "No failures detected in JSON output (unexpected - tests failed but no failure records found)" >> $GITHUB_STEP_SUMMARY
         else
           # Script found failures - add to summary
@@ -195,16 +269,16 @@ jobs:
     - name: Upload coverage report
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
       with:
-        name: coverage-report
-        path: coverage.html
+        name: coverage-report-${{ matrix.shard }}
+        path: coverage-${{ matrix.shard }}.html
         retention-days: 7
 
     - name: Upload unit test results
       if: always()    # Upload even if tests fail so canary-go can track coverage
       uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02   # v4
       with:
-        name: test-result-cgo-unit
-        path: test-result-unit.json
+        name: test-result-cgo-unit-${{ matrix.shard }}
+        path: test-result-unit-${{ matrix.shard }}.json
         retention-days: 7
 
   canary-go:
@@ -230,7 +304,7 @@ jobs:
       uses: actions/download-artifact@fa0a91b85d4f404e444e00e005971372dc801d16   # v4
       with:
         path: test-results
-        pattern: test-result-cgo-unit
+        pattern: test-result-cgo-unit-*
         merge-multiple: false
 
     - name: List downloaded artifacts
@@ -240,6 +314,16 @@ jobs:
         find test-results -type f -name "*.json" | sort
         echo ""
         echo "Total JSON files: $(find test-results -type f -name \"*.json\" | wc -l)"
+
+    - name: Validate pkg/cli and pkg/console tests executed
+      run: |
+        set -euo pipefail
+        for package in pkg/cli pkg/console; do
+          if ! grep -R -q "\"Action\":\"run\",\"Package\":\"github.com/github/gh-aw/${package}\"" test-results; then
+            echo "Missing unit test execution records for ${package}" >&2
+            exit 1
+          fi
+        done
 
     - name: Extract executed tests from artifacts
       run: |
@@ -2341,6 +2425,7 @@ jobs:
     timeout-minutes: 5
     if: always() && github.ref == 'refs/heads/main'
     needs:
+    - verify-integration-build
     - test
     - canary-go
     - build

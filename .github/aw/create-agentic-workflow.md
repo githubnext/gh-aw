@@ -27,6 +27,7 @@ Load these topic files only when relevant:
 - [charts.md](charts.md) for chart-generation workflows
 - [report.md](report.md) for reporting output structure and recurring report lifecycle
 - [release-workflow.md](release-workflow.md) for release workflows that build, test, publish a GitHub release, and generate release highlights
+- [linter-workflows.md](linter-workflows.md) for mining, refining, or applying custom linter rules
 
 ## Modes
 

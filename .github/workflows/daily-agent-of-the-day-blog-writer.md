@@ -17,6 +17,7 @@ tracker-id: daily-agent-of-the-day-blog-writer
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 strict: true
 timeout-minutes: 45
 network:

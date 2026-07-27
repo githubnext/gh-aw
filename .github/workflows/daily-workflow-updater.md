@@ -23,6 +23,7 @@ tracker-id: daily-workflow-updater
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 strict: true
 
 network:

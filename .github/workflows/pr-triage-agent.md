@@ -17,6 +17,7 @@ sandbox:
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 imports:
   - shared/reporting.md
   - uses: shared/pr-review-base.md
