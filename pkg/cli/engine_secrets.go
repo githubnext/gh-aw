@@ -576,7 +576,7 @@ func uploadSecretToRepo(secretName, secretValue, repoSlug string, verbose bool, 
 		context.Background(),
 		"Setting secret...",
 		bytes.NewBufferString(secretValue),
-		"secret", "set", secretName, "--repo", repoSlug, "--body", "-",
+		"secret", "set", secretName, "--repo", repoSlug,
 	)
 	if err != nil {
 		return fmt.Errorf("failed to set %s secret: %w (output: %s)", secretName, err, string(output))

@@ -510,6 +510,29 @@ func TestValidatePathWithinBase(t *testing.T) {
 		require.Error(t, err, "ValidatePathWithinBase should reject symlink that points outside base")
 		require.ErrorContains(t, err, "escapes base directory", "Error should describe the symlink escape")
 	})
+
+	t.Run("symlink directory ancestor with new file", func(t *testing.T) {
+		// Create a real directory outside the base to serve as the symlink target.
+		outsideDir, err := os.MkdirTemp("", "validatepathwithinbase-outsidedir-*")
+		require.NoError(t, err, "failed to create outside directory")
+		t.Cleanup(func() { _ = os.RemoveAll(outsideDir) })
+
+		// Place a symlinked directory inside base that points to the outside directory.
+		linkDir := filepath.Join(base, "link-dir")
+		if err := os.Symlink(outsideDir, linkDir); err != nil {
+			t.Skipf("symlinks not supported: %v", err)
+		}
+		t.Cleanup(func() { _ = os.Remove(linkDir) })
+
+		// The target file does not exist yet — this is the bypass scenario:
+		// EvalSymlinks(linkDir/new.md) fails, and the old fallback filepath.Abs
+		// would return base/link-dir/new.md which lexically looks safe, while
+		// MkdirAll + WriteFile would follow the symlink and write outside base.
+		candidate := filepath.Join(linkDir, "new.md")
+		err = ValidatePathWithinBase(base, candidate)
+		require.Error(t, err, "ValidatePathWithinBase should reject write via symlinked directory to outside base")
+		require.ErrorContains(t, err, "escapes base directory", "Error should describe the symlink directory escape")
+	})
 }
 
 func TestExtractFileFromTar_UnsafePaths(t *testing.T) {

@@ -364,7 +364,8 @@ func TestUploadSecretToRepo_UsesStdinForSecretValue(t *testing.T) {
 	argsBytes, readArgsErr := os.ReadFile(argsLog)
 	require.NoError(t, readArgsErr)
 	args := string(argsBytes)
-	assert.Contains(t, args, "secret set TEST_SECRET --repo owner/repo --body -")
+	assert.Contains(t, args, "secret set TEST_SECRET --repo owner/repo")
+	assert.NotContains(t, args, "--body")
 	assert.NotContains(t, args, "super-secret-value")
 
 	stdinBytes, readStdinErr := os.ReadFile(stdinLog)
