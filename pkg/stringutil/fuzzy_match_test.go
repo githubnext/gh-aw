@@ -114,6 +114,34 @@ func TestFindClosestMatches(t *testing.T) {
 			maxResults: 2,
 			want:       []string{"zzza", "zzzb"},
 		},
+		{
+			name:       "underscore variant finds hyphenated candidate at distance 0",
+			target:     "add_comment",
+			candidates: []string{"add-comment", "add-labels", "create-issue"},
+			maxResults: 3,
+			want:       []string{"add-comment"},
+		},
+		{
+			name:       "hyphen variant finds underscored candidate at distance 0",
+			target:     "add-comment",
+			candidates: []string{"add_comment", "add_labels"},
+			maxResults: 3,
+			want:       []string{"add_comment"},
+		},
+		{
+			name:       "underscore typo with extra char still suggests hyphenated form",
+			target:     "add_comments",
+			candidates: []string{"add-comment", "add-labels"},
+			maxResults: 3,
+			want:       []string{"add-comment"},
+		},
+		{
+			name:       "multi-word underscore maps to hyphen at distance 0",
+			target:     "update_pull_request",
+			candidates: []string{"update-pull-request", "create-pull-request"},
+			maxResults: 2,
+			want:       []string{"update-pull-request", "create-pull-request"},
+		},
 	}
 
 	for _, tt := range tests {
