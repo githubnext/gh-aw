@@ -1,6 +1,6 @@
 # Architecture Diagram
 
-> Last updated: 2026-07-06 · Source: [Issue #aw_arch_2026_0706](#aw_arch_2026_0706)
+> Last updated: 2026-07-27 · Source: [Issue #aw_arch_2026_0727](#aw_arch_2026_0727)
 
 ## Overview
 
@@ -71,6 +71,10 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 │  ┌──────────┐ ┌──────────┐ ┌─────────┐ ┌────────────────────────────┐ ┌──────────────┐   │
 │  │ typeutil │ │  styles  │ │ setutil │ │  importinpututil           │ │  testutil    │   │
 │  └──────────┘ └──────────┘ └─────────┘ └────────────────────────────┘ └──────────────┘   │
+│                                                                                          │
+│  ┌─────────────────────────────────────────────────────────────────────────────────┐    │
+│  │  githubapi  —  GitHub REST client options factory (host, auth, timeout wiring)  │    │
+│  └─────────────────────────────────────────────────────────────────────────────────┘    │
 └──────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -111,6 +115,7 @@ CLI entry points → core packages (cli, workflow, parser, console) → domain h
 | `importinpututil` | Util | Import path / sub-key resolver |
 | `testutil` | Util | Test helpers (test-only, not used in production) |
 | `colorwriter` | Util | Color-profile-aware io.Writer (NO_COLOR/COLORTERM/TERM aware) |
+| `githubapi` | Util | GitHub REST client options factory (host, auth, timeout wiring) |
 
 ## Maintenance
 
