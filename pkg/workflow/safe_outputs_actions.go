@@ -235,6 +235,13 @@ func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutput
 				// Cache the fetched inputs and description so subsequent compilations are
 				// deterministic even when the network is unavailable.
 				if actionYAML != nil && data.ActionCache != nil {
+					seedSHA := fetchRef
+					if !gitutil.IsValidFullSHA(seedSHA) {
+						seedSHA = extractSHAFromPinnedRef(resolvedRef)
+					}
+					if gitutil.IsValidFullSHA(seedSHA) {
+						data.ActionCache.Set(ref.Repo, ref.Ref, seedSHA)
+					}
 					if actionYAML.Inputs != nil {
 						data.ActionCache.SetInputs(ref.Repo, ref.Ref, actionYAML.Inputs)
 					}
