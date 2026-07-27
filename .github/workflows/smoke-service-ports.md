@@ -15,7 +15,7 @@ permissions:
   pull-requests: read
 name: Smoke Service Ports
 engine: copilot
-strict: true
+strict: false
 sandbox:
   agent:
     legacy-security: enable

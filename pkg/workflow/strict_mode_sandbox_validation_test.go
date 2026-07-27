@@ -246,7 +246,65 @@ func TestValidateStrictSandboxCustomizationSetsAWFDefault(t *testing.T) {
 	}
 }
 
-// TestValidateStrictSandboxCustomizationSudoTrue tests that sandbox.agent.sudo: true
+// TestValidateStrictSandboxCustomizationLegacySecurity tests that sandbox.agent.legacy-security: enable
+// (LegacySecurity=true) is an error in strict mode and a warning in non-strict mode.
+func TestValidateStrictSandboxCustomizationLegacySecurity(t *testing.T) {
+	legacySecuritySandbox := &SandboxConfig{
+		Agent: &AgentSandboxConfig{
+			ID:             "awf",
+			LegacySecurity: true,
+		},
+	}
+
+	t.Run("strict mode: legacy-security: enable is an error", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = true
+
+		err := compiler.validateStrictSandboxCustomization(legacySecuritySandbox)
+		if err == nil {
+			t.Fatal("Expected error for sandbox.agent.legacy-security: enable in strict mode, got nil")
+		}
+		if !strings.Contains(err.Error(), "strict mode") {
+			t.Errorf("Expected error to mention strict mode, got: %v", err)
+		}
+		if !strings.Contains(err.Error(), "legacy-security") {
+			t.Errorf("Expected error to mention legacy-security, got: %v", err)
+		}
+	})
+
+	t.Run("non-strict mode: legacy-security: enable emits warning but no error", func(t *testing.T) {
+		compiler := NewCompiler()
+		compiler.strictMode = false
+		initialWarnings := compiler.GetWarningCount()
+
+		err := compiler.validateStrictSandboxCustomization(legacySecuritySandbox)
+		if err != nil {
+			t.Errorf("Expected no error for sandbox.agent.legacy-security: enable in non-strict mode, got: %v", err)
+		}
+		if compiler.GetWarningCount() <= initialWarnings {
+			t.Error("Expected warning count to increase for sandbox.agent.legacy-security: enable in non-strict mode")
+		}
+	})
+
+	t.Run("legacy-security omitted does not trigger warning or error", func(t *testing.T) {
+		sandbox := &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID:             "awf",
+				LegacySecurity: false,
+			},
+		}
+		for _, strict := range []bool{true, false} {
+			compiler := NewCompiler()
+			compiler.strictMode = strict
+
+			err := compiler.validateStrictSandboxCustomization(sandbox)
+			if err != nil {
+				t.Errorf("Expected no error when legacy-security is omitted (strict=%v), got: %v", strict, err)
+			}
+		}
+	})
+}
+
 // (SudoExplicitlyEnabled=true) is an error in strict mode and a warning in non-strict mode.
 func TestValidateStrictSandboxCustomizationSudoTrue(t *testing.T) {
 	sudoTrueSandbox := &SandboxConfig{
