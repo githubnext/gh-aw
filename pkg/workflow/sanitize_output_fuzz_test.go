@@ -135,7 +135,7 @@ func FuzzSanitizeOutput(f *testing.F) {
 	f.Add("<https://github.com/path|<nested>>", "", 0)                         // nested angle brackets in label
 	f.Add("Tracking: <https://github.com/octo-org/octo-repo/issues/1>", "", 0) // realistic use
 
-	(func(t *testing.T, text string, allowedAliasesCSV string, maxLength int) {
+	f.Fuzz(func(t *testing.T, text string, allowedAliasesCSV string, maxLength int) {
 		// Skip inputs that are too large to avoid timeout
 		if len(text) > 100000 {
 			t.Skip("Input too large")
