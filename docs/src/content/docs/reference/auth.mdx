@@ -33,9 +33,8 @@ Configure the authentication method your engine needs before running your first 
 
 ### Gemini
 
-- **Required secret:** [`GEMINI_API_KEY`](#gemini_api_key)
-- **Alternative:** None
-- **Notes:** API key from Google AI Studio
+- **Standard:** [`GEMINI_API_KEY`](#gemini_api_key) — static API key from Google AI Studio
+- **Keyless alternative:** [`engine.auth` Google WIF](#google-workload-identity-federation-wif) — short-lived OIDC token via Google Cloud Workload Identity Federation; no long-lived secret on the repo
 
 Most workflows will run without any additional secrets or additional authentication beyond this one engine secret.
 
@@ -336,6 +335,66 @@ If using the Gemini by Google engine, you need to set a GitHub Actions secret `G
    ```
 
 See also [AI Engines](/gh-aw/reference/engines/#available-coding-agents) for additional configuration needed when using Gemini with GitHub MCP.
+
+---
+
+### Google Workload Identity Federation (WIF)
+
+Workload Identity Federation lets workflows authenticate with Gemini using short-lived
+GitHub OIDC tokens exchanged for Google Cloud credentials instead of a long-lived `GEMINI_API_KEY` secret.
+When WIF is active, the compiler suppresses the static-key requirement, switches the Gemini CLI to the
+Vertex AI backend (`GOOGLE_GENAI_USE_VERTEXAI=true`), and emits `AWF_AUTH_GCP_*` environment variables
+consumed by the AWF firewall api-proxy sidecar.
+
+**Prerequisites:**
+- A Google Cloud Workload Identity Pool and Provider configured for GitHub Actions
+  (see [Google Cloud WIF for GitHub Actions](https://cloud.google.com/iam/docs/workload-identity-federation-with-deployment-pipelines))
+- A Google Cloud service account with Vertex AI User permissions, granted impersonation from the WIF provider
+- `permissions: id-token: write` in the workflow job
+
+**Frontmatter:**
+
+```yaml wrap
+permissions:
+  contents: read
+  id-token: write
+
+engine:
+  id: gemini
+  auth:
+    type: github-oidc
+    provider: gcp
+    workload-identity-provider: projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER
+    service-account: my-sa@my-project.iam.gserviceaccount.com
+    project: my-project
+    # Optional: Cloud region (defaults to us-central1)
+    # location: us-central1
+```
+
+**Fields:**
+
+| Field | Required | Description |
+|---|---|---|
+| `workload-identity-provider` | ✅ | Full resource name of the Google Cloud WIF provider |
+| `service-account` | ✅ | Service account email to impersonate |
+| `project` | ✅ | Google Cloud project ID for Vertex AI inference |
+| `location` | Optional | Cloud region for Vertex AI (default: `us-central1`) |
+
+**Emitted environment variables:**
+
+The compiler maps each field to an env var passed to the AWF api-proxy sidecar and sets the
+Vertex AI backend env vars for the Gemini CLI:
+
+| Field | Env var |
+|---|---|
+| `type: github-oidc` | `AWF_AUTH_TYPE=github-oidc` |
+| `provider: gcp` | `AWF_AUTH_PROVIDER=gcp` |
+| `workload-identity-provider` | `AWF_AUTH_GCP_WORKLOAD_IDENTITY_PROVIDER` |
+| `service-account` | `AWF_AUTH_GCP_SERVICE_ACCOUNT` |
+| `project` | `GOOGLE_CLOUD_PROJECT` |
+| `location` | `GOOGLE_CLOUD_LOCATION` (defaults to `us-central1`) |
+
+Additionally, `GOOGLE_GENAI_USE_VERTEXAI=true` is always set when GCP WIF is active.
 
 ---
 
