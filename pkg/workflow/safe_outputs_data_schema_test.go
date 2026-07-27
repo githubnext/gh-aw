@@ -24,6 +24,7 @@ func TestValidateSafeOutputsDataSchemaInlineShorthand(t *testing.T) {
 	require.NotNil(t, cfg.NormalizedDataSchema)
 	assert.Equal(t, "object", cfg.NormalizedDataSchema["type"])
 	assert.Equal(t, false, cfg.NormalizedDataSchema["additionalProperties"])
+	assert.Equal(t, []string{"criteria_passed", "verdict"}, cfg.NormalizedDataSchema["required"])
 	properties, ok := cfg.NormalizedDataSchema["properties"].(map[string]any)
 	require.True(t, ok)
 	verdict, ok := properties["verdict"].(map[string]any)
@@ -53,6 +54,8 @@ func TestValidateSafeOutputsDataSchemaFile(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, cfg.NormalizedDataSchema)
 	assert.Equal(t, "object", cfg.NormalizedDataSchema["type"])
+	assert.Equal(t, false, cfg.NormalizedDataSchema["additionalProperties"])
+	assert.Equal(t, []string{"score", "verdict"}, cfg.NormalizedDataSchema["required"])
 	properties, ok := cfg.NormalizedDataSchema["properties"].(map[string]any)
 	require.True(t, ok)
 	score, ok := properties["score"].(map[string]any)
@@ -87,4 +90,20 @@ func TestValidateSafeOutputsDataSchemaRejectsUnsupportedKeyword(t *testing.T) {
 	err := validateSafeOutputsDataSchema(cfg, "/tmp/workflow.md")
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unsupported keyword")
+}
+
+func TestValidateSafeOutputsDataSchemaRejectsAdditionalPropertiesTrue(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		DataSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"verdict": "string",
+			},
+			"additionalProperties": true,
+		},
+	}
+
+	err := validateSafeOutputsDataSchema(cfg, "/tmp/workflow.md")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "must be false for OpenAI Codex structured outputs compatibility")
 }

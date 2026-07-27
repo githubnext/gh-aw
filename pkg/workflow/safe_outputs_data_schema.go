@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"sort"
 	"strings"
 )
 
@@ -100,7 +101,7 @@ func resolveSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath string
 	return normalized, nil
 }
 
-func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, isRoot bool) (map[string]any, error) {
+func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, _ bool) (map[string]any, error) {
 	if typeName, ok := raw.(string); ok {
 		if !allowShorthand {
 			return nil, fmt.Errorf("%s: string shorthand is not allowed here", path)
@@ -199,12 +200,12 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, isRoot bo
 			normalizedProperties[key] = normalizedProperty
 		}
 		result["properties"] = normalizedProperties
+		requiredSet := make(map[string]struct{}, len(normalizedProperties))
 		if requiredVal, exists := node["required"]; exists {
 			requiredItems, ok := requiredVal.([]any)
 			if !ok {
 				return nil, fmt.Errorf("%s.required: must be an array of strings", path)
 			}
-			required := make([]string, 0, len(requiredItems))
 			for i, requiredItem := range requiredItems {
 				requiredName, ok := requiredItem.(string)
 				if !ok || strings.TrimSpace(requiredName) == "" {
@@ -213,17 +214,32 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, isRoot bo
 				if _, exists := normalizedProperties[requiredName]; !exists {
 					return nil, fmt.Errorf("%s.required[%d]: unknown property %q", path, i, requiredName)
 				}
-				required = append(required, requiredName)
+				requiredSet[requiredName] = struct{}{}
 			}
-			result["required"] = required
 		}
+		// OpenAI Codex structured outputs compatibility:
+		// - require all object properties at every object level
+		// - represent optionality explicitly in schema types instead of omitting from required
+		// To keep output deterministic, store names in lexical order.
+		requiredNames := make([]string, 0, len(normalizedProperties))
+		for propertyName := range normalizedProperties {
+			requiredSet[propertyName] = struct{}{}
+		}
+		for requiredName := range requiredSet {
+			requiredNames = append(requiredNames, requiredName)
+		}
+		sort.Strings(requiredNames)
+		result["required"] = requiredNames
 		if additionalProps, exists := node["additionalProperties"]; exists {
 			additionalPropsBool, ok := additionalProps.(bool)
 			if !ok {
 				return nil, fmt.Errorf("%s.additionalProperties: must be boolean", path)
 			}
-			result["additionalProperties"] = additionalPropsBool
-		} else if isRoot {
+			if additionalPropsBool {
+				return nil, fmt.Errorf("%s.additionalProperties: must be false for OpenAI Codex structured outputs compatibility", path)
+			}
+			result["additionalProperties"] = false
+		} else {
 			result["additionalProperties"] = false
 		}
 	case "array":
