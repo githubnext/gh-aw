@@ -478,7 +478,7 @@ func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, c
 
 func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap map[string]any, data *WorkflowData) error {
 	if job.RunsOn == "" {
-		job.RunsOn = data.RunsOn
+		job.RunsOn = c.indentYAMLLines(data.RunsOn, "    ")
 		if job.RunsOn == "" {
 			job.RunsOn = "runs-on: ubuntu-latest"
 		}
