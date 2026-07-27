@@ -335,7 +335,6 @@ const (
 	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
 	//
 	// Use Claude Sonnet 5 as the explicit default model for Copilot BYOK mode.
-	// This matches the current Copilot default model.
 	CopilotBYOKDefaultModel = "claude-sonnet-5"
 
 	// CodexDefaultModel is the default model for the Codex agentic engine.
