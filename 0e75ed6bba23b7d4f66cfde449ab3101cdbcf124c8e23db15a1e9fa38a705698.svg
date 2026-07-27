@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" style="background:#fff;font-family:sans-serif">
+<text x="450" y="30" text-anchor="middle" font-size="18" font-weight="bold">Commit Activity &amp; Contributors — Last 3 Days (github/gh-aw)</text>
+<line x1="70" y1="420.0" x2="830" y2="420.0" stroke="#eee" stroke-width="1"/>
+<text x="62" y="424.0" text-anchor="end" font-size="11" fill="#2196F3">0</text>
+<line x1="70" y1="354.5" x2="830" y2="354.5" stroke="#eee" stroke-width="1"/>
+<text x="62" y="358.5" text-anchor="end" font-size="11" fill="#2196F3">8</text>
+<line x1="70" y1="289.1" x2="830" y2="289.1" stroke="#eee" stroke-width="1"/>
+<text x="62" y="293.1" text-anchor="end" font-size="11" fill="#2196F3">16</text>
+<line x1="70" y1="223.6" x2="830" y2="223.6" stroke="#eee" stroke-width="1"/>
+<text x="62" y="227.6" text-anchor="end" font-size="11" fill="#2196F3">24</text>
+<line x1="70" y1="158.2" x2="830" y2="158.2" stroke="#eee" stroke-width="1"/>
+<text x="62" y="162.2" text-anchor="end" font-size="11" fill="#2196F3">32</text>
+<line x1="70" y1="92.7" x2="830" y2="92.7" stroke="#eee" stroke-width="1"/>
+<text x="62" y="96.7" text-anchor="end" font-size="11" fill="#2196F3">40</text>
+<line x1="70" y1="60" x2="70" y2="420" stroke="#2196F3" stroke-width="2"/>
+<line x1="830" y1="60" x2="830" y2="420" stroke="#FF5722" stroke-width="2"/>
+<line x1="70" y1="420" x2="830" y2="420" stroke="#333" stroke-width="2"/>
+<text x="20" y="250" text-anchor="middle" font-size="13" fill="#2196F3" transform="rotate(-90,20,250)">Commits</text>
+<text x="885" y="250" text-anchor="middle" font-size="13" fill="#FF5722" transform="rotate(90,885,250)">Contributors</text>
+<text x="838" y="424.0" font-size="11" fill="#FF5722">0</text>
+<text x="838" y="352.0" font-size="11" fill="#FF5722">1</text>
+<text x="838" y="280.0" font-size="11" fill="#FF5722">2</text>
+<text x="838" y="208.0" font-size="11" fill="#FF5722">3</text>
+<rect x="120.7" y="60.0" width="152.0" height="360.0" fill="#2196F3" opacity="0.7"/>
+<text x="196.7" y="55.0" text-anchor="middle" font-size="13" font-weight="bold" fill="#2196F3">44</text>
+<text x="196.7" y="440" text-anchor="middle" font-size="12" fill="#444">2026-07-25</text>
+<rect x="374.0" y="248.2" width="152.0" height="171.8" fill="#2196F3" opacity="0.7"/>
+<text x="450.0" y="243.2" text-anchor="middle" font-size="13" font-weight="bold" fill="#2196F3">21</text>
+<text x="450.0" y="440" text-anchor="middle" font-size="12" fill="#444">2026-07-26</text>
+<rect x="627.3" y="133.6" width="152.0" height="286.4" fill="#2196F3" opacity="0.7"/>
+<text x="703.3" y="128.6" text-anchor="middle" font-size="13" font-weight="bold" fill="#2196F3">35</text>
+<text x="703.3" y="440" text-anchor="middle" font-size="12" fill="#444">2026-07-27</text>
+<path d="M196.7,276.0 L450.0,276.0 L703.3,276.0" fill="none" stroke="#FF5722" stroke-width="2.5"/>
+<circle cx="196.7" cy="276.0" r="7" fill="#FF5722" stroke="white" stroke-width="2"/>
+<circle cx="450.0" cy="276.0" r="7" fill="#FF5722" stroke="white" stroke-width="2"/>
+<circle cx="703.3" cy="276.0" r="7" fill="#FF5722" stroke="white" stroke-width="2"/>
+<rect x="80" y="485" width="14" height="12" fill="#2196F3" opacity="0.7"/>
+<text x="100" y="496" font-size="12" fill="#333">Commits</text>
+<circle cx="220" cy="491" r="6" fill="#FF5722"/>
+<text x="232" y="496" font-size="12" fill="#333">Contributors</text>
+</svg>

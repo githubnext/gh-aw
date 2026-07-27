@@ -1,0 +1,49 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="500" style="background:#fff;font-family:sans-serif">
+<text x="450" y="30" text-anchor="middle" font-size="18" font-weight="bold">Issues &amp; Pull Requests Activity — Last 3 Days (github/gh-aw)</text>
+<line x1="70" y1="420.0" x2="870" y2="420.0" stroke="#eee" stroke-width="1"/>
+<text x="62" y="424.0" text-anchor="end" font-size="11" fill="#666">0</text>
+<line x1="70" y1="348.0" x2="870" y2="348.0" stroke="#eee" stroke-width="1"/>
+<text x="62" y="352.0" text-anchor="end" font-size="11" fill="#666">20</text>
+<line x1="70" y1="276.0" x2="870" y2="276.0" stroke="#eee" stroke-width="1"/>
+<text x="62" y="280.0" text-anchor="end" font-size="11" fill="#666">40</text>
+<line x1="70" y1="204.0" x2="870" y2="204.0" stroke="#eee" stroke-width="1"/>
+<text x="62" y="208.0" text-anchor="end" font-size="11" fill="#666">60</text>
+<line x1="70" y1="132.0" x2="870" y2="132.0" stroke="#eee" stroke-width="1"/>
+<text x="62" y="136.0" text-anchor="end" font-size="11" fill="#666">80</text>
+<line x1="70" y1="60.0" x2="870" y2="60.0" stroke="#eee" stroke-width="1"/>
+<text x="62" y="64.0" text-anchor="end" font-size="11" fill="#666">100</text>
+<text x="70.0" y="440" text-anchor="middle" font-size="12" fill="#444">2026-07-25</text>
+<text x="470.0" y="440" text-anchor="middle" font-size="12" fill="#444">2026-07-26</text>
+<text x="870.0" y="440" text-anchor="middle" font-size="12" fill="#444">2026-07-27</text>
+<line x1="70" y1="60" x2="70" y2="420" stroke="#333" stroke-width="2"/>
+<line x1="70" y1="420" x2="870" y2="420" stroke="#333" stroke-width="2"/>
+<text x="20" y="250" text-anchor="middle" font-size="13" fill="#444" transform="rotate(-90,20,250)">Count</text>
+<path d="M70.0,420.0 L470.0,420.0 L870.0,60.0" fill="none" stroke="#e41a1c" stroke-width="2.5"/>
+<circle cx="70.0" cy="420.0" r="6" fill="#e41a1c" stroke="white" stroke-width="1.5"/>
+<circle cx="470.0" cy="420.0" r="6" fill="#e41a1c" stroke="white" stroke-width="1.5"/>
+<circle cx="870.0" cy="60.0" r="6" fill="#e41a1c" stroke="white" stroke-width="1.5"/>
+<rect x="80" y="475" width="16" height="4" fill="#e41a1c"/>
+<circle cx="88" cy="477" r="5" fill="#e41a1c"/>
+<text x="102" y="481" font-size="12" fill="#333">Issues Opened</text>
+<path d="M70.0,420.0 L470.0,420.0 L870.0,330.0" fill="none" stroke="#377eb8" stroke-width="2.5"/>
+<circle cx="70.0" cy="420.0" r="6" fill="#377eb8" stroke="white" stroke-width="1.5"/>
+<circle cx="470.0" cy="420.0" r="6" fill="#377eb8" stroke="white" stroke-width="1.5"/>
+<circle cx="870.0" cy="330.0" r="6" fill="#377eb8" stroke="white" stroke-width="1.5"/>
+<rect x="280" y="475" width="16" height="4" fill="#377eb8"/>
+<circle cx="288" cy="477" r="5" fill="#377eb8"/>
+<text x="302" y="481" font-size="12" fill="#333">Issues Closed</text>
+<path d="M70.0,304.8 L470.0,297.6 L870.0,297.6" fill="none" stroke="#4daf4a" stroke-width="2.5"/>
+<circle cx="70.0" cy="304.8" r="6" fill="#4daf4a" stroke="white" stroke-width="1.5"/>
+<circle cx="470.0" cy="297.6" r="6" fill="#4daf4a" stroke="white" stroke-width="1.5"/>
+<circle cx="870.0" cy="297.6" r="6" fill="#4daf4a" stroke="white" stroke-width="1.5"/>
+<rect x="480" y="475" width="16" height="4" fill="#4daf4a"/>
+<circle cx="488" cy="477" r="5" fill="#4daf4a"/>
+<text x="502" y="481" font-size="12" fill="#333">PRs Opened</text>
+<path d="M70.0,337.2 L470.0,344.4 L870.0,294.0" fill="none" stroke="#984ea3" stroke-width="2.5"/>
+<circle cx="70.0" cy="337.2" r="6" fill="#984ea3" stroke="white" stroke-width="1.5"/>
+<circle cx="470.0" cy="344.4" r="6" fill="#984ea3" stroke="white" stroke-width="1.5"/>
+<circle cx="870.0" cy="294.0" r="6" fill="#984ea3" stroke="white" stroke-width="1.5"/>
+<rect x="680" y="475" width="16" height="4" fill="#984ea3"/>
+<circle cx="688" cy="477" r="5" fill="#984ea3"/>
+<text x="702" y="481" font-size="12" fill="#333">PRs Merged</text>
+</svg>
