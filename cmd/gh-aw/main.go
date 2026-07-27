@@ -482,7 +482,7 @@ This command only works with workflows that have workflow_dispatch triggers.
 				return errors.New("workflow inputs cannot be specified in interactive mode (they will be collected interactively)")
 			}
 
-			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, push, engineOverride, dryRun)
+			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, push, engineOverride, dryRun, approveRun)
 		}
 
 		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, cli.RunOptions{
