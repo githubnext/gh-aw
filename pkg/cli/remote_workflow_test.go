@@ -1145,6 +1145,371 @@ safe-outputs:
 	assert.Empty(t, entries, "no files should be created for an invalid RepoSlug")
 }
 
+// --- fetchAndSaveRemoteCallWorkflows tests ---
+
+// TestFetchAndSaveRemoteCallWorkflows_NoSafeOutputs verifies the function is a no-op when
+// the workflow has no safe-outputs section.
+func TestFetchAndSaveRemoteCallWorkflows_NoSafeOutputs(t *testing.T) {
+	content := `---
+engine: copilot
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err)
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries)
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_EmptyRepoSlug verifies the function is a no-op for
+// local workflows.
+func TestFetchAndSaveRemoteCallWorkflows_EmptyRepoSlug(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "", // local workflow
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err)
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries)
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_OnlyMacros verifies that macro-only worker lists
+// are skipped without error.
+func TestFetchAndSaveRemoteCallWorkflows_OnlyMacros(t *testing.T) {
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    - ${{ vars.WORKER }}
+---
+
+# Workflow
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	tmpDir := t.TempDir()
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err)
+
+	entries, readErr := os.ReadDir(tmpDir)
+	require.NoError(t, readErr)
+	assert.Empty(t, entries)
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_SkipExistingWithoutForce verifies that a pre-existing
+// worker from the same source is silently skipped.
+func TestFetchAndSaveRemoteCallWorkflows_SkipExistingWithoutForce(t *testing.T) {
+	tmpDir := t.TempDir()
+	// Pre-existing worker whose source matches what we would install.
+	existingContent := []byte(`---
+source: github/gh-aw/.github/workflows/worker.md@v1.0.0
+engine: copilot
+---
+# Existing worker
+`)
+	existingFile := filepath.Join(tmpDir, "worker.md")
+	require.NoError(t, os.WriteFile(existingFile, existingContent, 0600))
+
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.NoError(t, err)
+
+	// File must be unchanged (no download attempted because source matches).
+	gotContent, readErr := os.ReadFile(existingFile)
+	require.NoError(t, readErr)
+	assert.Equal(t, existingContent, gotContent)
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_ConflictDifferentSource verifies that an existing
+// worker from a different source causes an error when force=false.
+func TestFetchAndSaveRemoteCallWorkflows_ConflictDifferentSource(t *testing.T) {
+	tmpDir := t.TempDir()
+	conflictContent := `---
+source: otherorg/other-repo/.github/workflows/worker.md@v1
+---
+# Worker from other repo
+`
+	require.NoError(t, os.WriteFile(filepath.Join(tmpDir, "worker.md"), []byte(conflictContent), 0600))
+
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "call-workflow worker")
+	require.ErrorContains(t, err, "already exists")
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_DownloadsWorker verifies that a worker is fetched
+// from the remote repository and written with a source field.
+func TestFetchAndSaveRemoteCallWorkflows_DownloadsWorker(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	workerContent := `---
+engine: copilot
+---
+# Worker
+`
+	downloader := func(_ context.Context, _, _, path, _ string) ([]byte, error) {
+		if filepath.Ext(path) == ".md" {
+			return []byte(workerContent), nil
+		}
+		return nil, errors.New("not found")
+	}
+
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
+	}
+
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, tracker, downloader)
+	require.NoError(t, err)
+
+	workerPath := filepath.Join(tmpDir, "worker.md")
+	got, readErr := os.ReadFile(workerPath)
+	require.NoError(t, readErr)
+	assert.Contains(t, string(got), "source:", "worker should have a source field injected")
+	assert.Contains(t, string(got), "github/gh-aw", "worker source should include the repo slug")
+
+	// New file must be in CreatedFiles.
+	assert.Contains(t, tracker.CreatedFiles, workerPath)
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_YmlFallback verifies that when the .md download
+// fails, the function retries with a .yml extension.
+func TestFetchAndSaveRemoteCallWorkflows_YmlFallback(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	ymlContent := `name: Reusable worker
+on:
+  workflow_call:
+jobs:
+  run: {runs-on: ubuntu-latest, steps: [{run: echo hello}]}
+`
+	downloader := func(_ context.Context, _, _, remotePath, _ string) ([]byte, error) {
+		switch filepath.Ext(remotePath) {
+		case ".md":
+			return nil, errors.New("not found")
+		case ".yml":
+			return []byte(ymlContent), nil
+		}
+		return nil, fmt.Errorf("unexpected path: %s", remotePath)
+	}
+
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
+	}
+
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, tracker, downloader)
+	require.NoError(t, err)
+
+	ymlPath := filepath.Join(tmpDir, "worker.yml")
+	got, readErr := os.ReadFile(ymlPath)
+	require.NoError(t, readErr)
+	assert.YAMLEq(t, ymlContent, string(got), "yml fallback content should be written verbatim")
+
+	// New .yml file must be in CreatedFiles.
+	assert.Contains(t, tracker.CreatedFiles, ymlPath)
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_TrackingBeforeWrite verifies that TrackModified is
+// called with the original file content (i.e. before os.WriteFile overwrites it), so that
+// RollbackAllFiles can restore the correct previous state.
+func TestFetchAndSaveRemoteCallWorkflows_TrackingBeforeWrite(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	originalContent := `---
+source: github/gh-aw/.github/workflows/worker.md@v0.9.0
+engine: copilot
+---
+# Old worker
+`
+	workerPath := filepath.Join(tmpDir, "worker.md")
+	require.NoError(t, os.WriteFile(workerPath, []byte(originalContent), 0600))
+
+	newContent := `---
+engine: copilot
+---
+# New worker
+`
+	downloader := func(_ context.Context, _, _, remotePath, _ string) ([]byte, error) {
+		if filepath.Ext(remotePath) == ".md" {
+			return []byte(newContent), nil
+		}
+		return nil, errors.New("not found")
+	}
+
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "v1.0.0",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	tracker := &FileTracker{
+		OriginalContent: make(map[string][]byte),
+		gitRoot:         tmpDir,
+	}
+
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, true, tracker, downloader)
+	require.NoError(t, err)
+
+	// The tracker must have captured the *original* content, not the newly written bytes.
+	absWorkerPath, _ := filepath.Abs(workerPath)
+	captured, ok := tracker.OriginalContent[absWorkerPath]
+	require.True(t, ok, "worker.md should be in OriginalContent")
+	assert.Equal(t, []byte(originalContent), captured, "tracker should capture original content before overwrite")
+}
+
+// TestFetchAndSaveRemoteCallWorkflows_MapFormConfig verifies that the map-form
+// call-workflow configuration (workflows: [...]) is also handled.
+func TestFetchAndSaveRemoteCallWorkflows_MapFormConfig(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	downloader := func(_ context.Context, _, _, remotePath, _ string) ([]byte, error) {
+		if filepath.Ext(remotePath) == ".md" {
+			return []byte("# worker\n"), nil
+		}
+		return nil, errors.New("not found")
+	}
+
+	content := `---
+engine: copilot
+safe-outputs:
+  call-workflow:
+    workflows:
+      - worker-a
+      - worker-b
+---
+
+# Orchestrator
+`
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "main",
+		},
+		WorkflowPath: ".github/workflows/orchestrator.md",
+	}
+
+	err := fetchAndSaveRemoteCallWorkflows(context.Background(), content, spec, tmpDir, false, false, nil, downloader)
+	require.NoError(t, err)
+
+	for _, name := range []string{"worker-a", "worker-b"} {
+		_, statErr := os.Stat(filepath.Join(tmpDir, name+".md"))
+		require.NoError(t, statErr, "%s.md should be created", name)
+	}
+}
+
 // --- extractResources tests ---
 
 // TestExtractResources_BasicList verifies that resource paths are extracted from the resources field.
