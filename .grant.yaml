@@ -5,7 +5,46 @@ require-known-license: true
 allow:
   - MIT
   - Apache-2.0
+  - Apache 2.0
   - BSD-2-Clause
   - BSD-3-Clause
   - ISC
+  - Artistic-2.0
+  - CC0-1.0
+  - MPL-2.0
+  - Zlib
 
+ignore-packages:
+  # Reviewed gh-aw-node runtime packages:
+  # - npm currently bundles these BlueOak-licensed utilities
+  # - Alpine/git base packages bring the reviewed GPL/LGPL/custom-metadata items below
+  - chownr
+  - common-ancestor-path
+  - glob
+  - isexe
+  - lru-cache
+  - minimatch
+  - minipass
+  - minipass-flush
+  - path-scurry
+  - tar
+  - yallist
+  - alpine-baselayout
+  - alpine-baselayout-data
+  - apk-tools
+  - busybox
+  - busybox-binsh
+  - git
+  - git-init-template
+  - libapk
+  - libgcc
+  - libidn2
+  - libstdc++
+  - libunistring
+  - libcurl
+  - musl-utils
+  - node
+  - scanelf
+  - spdx-exceptions
+  - ssl_client
+  - zstd-libs

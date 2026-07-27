@@ -7,13 +7,27 @@ ARG NODE_IMAGE
 ARG NODE_IMAGE_DIGEST=""
 ARG NODE_IMAGE_UPDATED_AT=""
 ARG DOCKERFILE_HASH=""
-ARG NPM_VERSION=11.18.0
+ARG NPM_VERSION=12.0.1
+ARG TAR_VERSION=7.5.21
+ARG BRACE_EXPANSION_VERSION=5.0.8
 
 # Intentional: upgrade all packages to pick up security fixes; downstream digest pins the result.
 RUN apk upgrade --no-cache \
     && apk add --no-cache git \
     && apk info -v | sort \
     && npm install --global "npm@${NPM_VERSION}" \
+    && base="/usr/local/lib/node_modules/npm/node_modules" \
+    && tmp="$(mktemp -d)" \
+    && cd "$tmp" \
+    && npm pack "tar@${TAR_VERSION}" \
+    && npm pack "brace-expansion@${BRACE_EXPANSION_VERSION}" \
+    && mkdir tarpkg bracepkg \
+    && tar -xzf "tar-${TAR_VERSION}.tgz" -C tarpkg \
+    && tar -xzf "brace-expansion-${BRACE_EXPANSION_VERSION}.tgz" -C bracepkg \
+    && rm -rf "$base/tar" "$base/brace-expansion" \
+    && mv tarpkg/package "$base/tar" \
+    && mv bracepkg/package "$base/brace-expansion" \
+    && rm -rf "$tmp" \
     && npm cache clean --force
 
 LABEL org.opencontainers.image.source="https://github.com/github/gh-aw" \
