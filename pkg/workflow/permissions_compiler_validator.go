@@ -41,7 +41,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var permissionsCompilerLog = logger.New("workflow:permissions_compiler_validator")
 
 // validatePermissions validates all permission-related configuration: dangerous
 // permissions, GitHub App-only constraints, MCP app write restrictions, workflow_run
@@ -204,6 +208,8 @@ func (c *Compiler) repositoryOwnerIsIndividualUser() bool {
 		ownerType = strings.TrimSpace(string(output))
 		c.ownerTypeCache[owner] = ownerType
 		workflowLog.Printf("Owner type for %q: %s", owner, ownerType)
+	} else {
+		permissionsCompilerLog.Printf("Owner type cache hit: owner=%s type=%q", owner, ownerType)
 	}
 	return ownerType == "User"
 }
@@ -242,6 +248,8 @@ func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Pe
 	if !requiresIDTokenWrite {
 		return nil
 	}
+
+	permissionsCompilerLog.Printf("OIDC permission check: requiresIDTokenWrite=true prefix=%q", errorPrefix)
 
 	if workflowPermissions == nil {
 		return errors.New(errorPrefix + " requires permissions.id-token: write")

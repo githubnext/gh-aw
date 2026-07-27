@@ -141,26 +141,20 @@ Use `releases/latest/download/` in place of a specific tag to track the most rec
 
 ## `agent`
 
-The unified `agent` artifact contains all agent job outputs.
-
-### Contents
+The unified `agent` artifact contains agent job outputs:
 
 - Agent execution logs
 - Safe output data (`agent_output.json`)
 - GitHub API rate limit logs (`github_rate_limits.jsonl`)
 - Token usage summary (`agent_usage.json`) — aggregated totals only; per-request data is in `firewall-audit-logs`
-- `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters (only present when `observability.otlp` is configured)
-- `copilot-otel.jsonl` — OTLP spans emitted by Copilot CLI (only present when `observability.otlp` is configured)
+- `otel.jsonl` — OTLP span mirror written by gh-aw's JavaScript span exporters when `observability.otlp` is configured
+- `copilot-otel.jsonl` — OTLP spans emitted by Copilot CLI when `observability.otlp` is configured
 
-For OTLP configuration, runtime environment variables, and
-span semantics, see the
-[OpenTelemetry guide](/gh-aw/guides/open-telemetry/).
+For OTLP configuration, runtime environment variables, and span semantics, see the [OpenTelemetry guide](/gh-aw/guides/open-telemetry/).
 
 ## `activation`
 
-The `activation` artifact contains activation job outputs.
-
-### Contents
+The `activation` artifact contains activation job outputs:
 
 - `aw_info.json` — Engine configuration and workflow metadata
 - `prompt.txt` — The generated prompt sent to the AI agent
@@ -168,19 +162,11 @@ The `activation` artifact contains activation job outputs.
 
 ## `detection`
 
-The `detection` artifact contains threat detection output.
-
-### Contents
-
-- `detection.log` — Threat detection analysis results
-
-Legacy name: `threat-detection.log` (still supported for backward compatibility).
+The `detection` artifact contains `detection.log`, the threat-detection analysis output. Legacy name: `threat-detection.log`.
 
 ## `experiment`
 
-The `experiment` artifact is uploaded by the **activation job** only when the workflow frontmatter declares one or more `experiments` entries. It is not present on runs without experiments.
-
-### Contents
+The `experiment` artifact is uploaded by the activation job only when the workflow frontmatter declares one or more `experiments` entries. It contains:
 
 - `state.json` — Cumulative per-variant invocation counters used to balance A/B assignments across runs
 
@@ -205,7 +191,7 @@ See [A/B Experiments](/gh-aw/experimental/experiments/) for how to declare exper
 
 ## `usage`
 
-The `usage` artifact is a compact artifact produced by the conclusion job. It carries workflow-run metadata and token-usage files used by lightweight reporting and forecasting paths, so downstream tools can read aggregated usage data without downloading the full `agent` artifact.
+The `usage` artifact is a compact conclusion-job artifact with workflow-run metadata and token-usage files for lightweight reporting and forecasting, so downstream tools can read aggregated usage data without downloading the full `agent` artifact.
 
 ### Accessing usage data
 
@@ -219,9 +205,7 @@ gh run download <run-id> -n usage
 
 ## `evals`
 
-The `evals` artifact is uploaded by the **evals job** only when the workflow frontmatter declares one or more `evals` entries. It is not present on runs without evals.
-
-### Contents
+The `evals` artifact is uploaded by the evals job only when the workflow frontmatter declares one or more `evals` entries. It is not present on runs without evals and contains:
 
 - `evals.jsonl` — Per-question BinEval evaluation results (YES/NO records) produced by running the declared evaluation questions against the agent output
 
@@ -268,7 +252,4 @@ When workflows are invoked via `workflow_call`, GitHub Actions prepends a short 
 
 ## Related Documentation
 
-- [Audit Commands](/gh-aw/reference/audit/) — Download and analyze workflow run artifacts
-- [Cost Management](/gh-aw/reference/cost-management/) — Track token usage and inference spend
-- [Network](/gh-aw/reference/network/) — Firewall and domain allow/deny configuration
-- [Compilation Process](/gh-aw/reference/compilation-process/) — How workflows are compiled including artifact upload steps
+See [Audit Commands](/gh-aw/reference/audit/) for downloading and analyzing workflow run artifacts, [Cost Management](/gh-aw/reference/cost-management/) for token-usage and spend reporting, [Network](/gh-aw/reference/network/) for firewall configuration, and [Compilation Process](/gh-aw/reference/compilation-process/) for how workflows upload artifacts.

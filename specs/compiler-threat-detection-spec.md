@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Actions Compiler Threat Detection Specification
 
-**Version**: 1.0.17  
+**Version**: 1.0.18  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/compiler-threat-detection-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -78,6 +78,7 @@ This section anchors the specification version to the minimum gh-aw binary versi
 
 | Spec version | Minimum gh-aw binary version | Lock-file compatibility notes |
 |--------------|------------------------------|-------------------------------|
+| `1.0.18` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. Playwright CLI mode (`tools.playwright.mode: cli`) is compiler-generated infrastructure with no new constraint on `.lock.yml` semantics. |
 | `1.0.17` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. |
 | `1.0.16` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). The `docker-sbx` runtime enforcement (CTR-004 scope) requires `sudo: true`, compatible runner topology, and a minimum AWF version; the credential refresh step emitted before agent execution is a security improvement with no new constraint on `.lock.yml` semantics. |
 | `1.0.15` | `v0.72.1` (or newer) | Threat-detection behavior must remain compatible with current `.lock.yml` compilation semantics, including manifest drift enforcement (`gh-aw-manifest` checks for CTR-016), update-check validation (`check-for-updates` handling for CTR-018), cache-memory integrity enforcement (`update_cache_memory` gating for CTR-019), conditional import rejection (`imports.if` rejection for CTR-020), and `workflow_run` trigger branch scope enforcement (CTR-021). |
@@ -273,7 +274,9 @@ The mappings above are pattern-based references and MUST be validated against co
 
 When mappings change, this table MUST be updated in the same change set as the implementation update.
 
-### 7.2 Mapping Audit (2026-07-20)
+### 7.2 Mapping Audit (2026-07-27)
+
+Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit d4872c2 (fix: disable Chromium sandbox for playwright-cli mode in CI containers), merged 2026-07-26. Security-relevant items evaluated: (1) **Playwright CLI mode** (`pkg/workflow/playwright_cli.go`): compiler adds `tools.playwright.mode: cli` support; in CLI mode, `@playwright/cli` is installed via npm and `playwright-cli install --skills` runs before the agent; the npm install step uses `RunInstallScripts: true` internally, but this is a compiler-controlled invocation for a single trusted package (`@playwright/cli`) rather than a user-controlled `runtimes.node.run-install-scripts: true` frontmatter flag — CTR-014 validates the latter only; no new threat class; no new CTR rule required. (2) **Playwright MCP deprecation warning** (`pkg/workflow/playwright_validation.go`): compiler emits a non-blocking deprecation warning when `tools.playwright` is in MCP mode; no new permissions or trust surface introduced; no new threat class; no new CTR rule required. (3) **Playwright Chromium `--no-sandbox` flag** (MCP mode, `pkg/workflow/mcp_config_playwright_renderer.go`): disabling Chromium's process sandbox is required for Chromium to reach `localhost` inside CI containers; this is a browser-process-level flag, not a workflow sandbox bypass; threat class is distinct from CTR-004 (workflow sandbox bypass) and is an expected and documented operational necessity for containerized Playwright; no new CTR rule required.
 
 Audit result: ✅ all listed `CTR-001` through `CTR-021` rows currently include non-empty implementation references and non-empty test coverage targets; no `TODO` placeholders were found in the mapping table. Review window: commit 7bdc455 (docs: add weekly update blog post for 2026-07-20), merged 2026-07-20. Security-relevant items evaluated: (1) **Weekly update blog post** (`7bdc455`): documentation-only change; no compiler source, parser, or validation logic modified; no new threat class; no new CTR rule required. No compiler changes, security-sensitive diffs, or open security findings were identified in this review cycle.
 
@@ -350,6 +353,11 @@ The following test IDs map one-to-one to the CTR rules in Section 5.1. Each test
 ---
 
 ## 10. Change Log
+
+### 1.0.18 (2026-07-27)
+
+- Updated Section 7.2 mapping audit to 2026-07-27 covering commit d4872c2 (fix: disable Chromium sandbox for playwright-cli mode in CI containers, 2026-07-26): evaluated Playwright CLI mode (`playwright_cli.go`: compiler-generated npm install for `@playwright/cli`, not user-frontmatter-controlled `run-install-scripts`), Playwright MCP deprecation warning (`playwright_validation.go`: non-blocking deprecation warning, no new trust surface), and Playwright Chromium `--no-sandbox` flag (`mcp_config_playwright_renderer.go`: browser-process-level flag distinct from CTR-004 workflow sandbox bypass); no new threat class; no new CTR rules required
+- Updated Section 2 spec-to-implementation sync table with version 1.0.18 entry
 
 ### 1.0.17 (2026-07-20)
 

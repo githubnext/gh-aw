@@ -47,6 +47,12 @@ func generateSchemaBasedSuggestions(schemaJSON, errorMessage, jsonPath, frontmat
 		return suggestion
 	}
 
+	// Check for safe-output alias suggestions (e.g., create-issue-comment → add-comment)
+	// before falling through to general field suggestions.
+	if suggestion := safeOutputAliasSuggestion(errorMessage, jsonPath); suggestion != "" {
+		return suggestion
+	}
+
 	if suggestion := additionalPropertiesSuggestion(schemaDoc, errorMessage, jsonPath); suggestion != "" {
 		return suggestion
 	}
