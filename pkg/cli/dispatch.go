@@ -15,10 +15,14 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
-// extractDispatchWorkflowNames extracts workflow names from the safe-outputs.dispatch-workflow
-// frontmatter field. It handles both array and map forms of the configuration.
+// extractWorkflowNamesFromSafeOutputs extracts workflow names from a named key under
+// safe-outputs in workflow frontmatter. It handles both array and map forms:
+//
+//	key: [name1, name2]
+//	key: {workflows: [name1, name2]}
+//
 // Workflow names that contain GitHub Actions expression syntax (e.g. "${{") are skipped.
-func extractDispatchWorkflowNames(content string) []string {
+func extractWorkflowNamesFromSafeOutputs(content, safeOutputsKey string) []string {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil || result.Frontmatter == nil {
 		return nil
@@ -29,23 +33,21 @@ func extractDispatchWorkflowNames(content string) []string {
 		return nil
 	}
 
-	dispatchWorkflow, exists := safeOutputsMap["dispatch-workflow"]
+	workflowConfig, exists := safeOutputsMap[safeOutputsKey]
 	if !exists {
 		return nil
 	}
 
 	var workflowNames []string
 
-	switch v := dispatchWorkflow.(type) {
+	switch v := workflowConfig.(type) {
 	case []any:
-		// Array format: dispatch-workflow: [name1, name2]
 		for _, item := range v {
 			if name, ok := item.(string); ok && !strings.Contains(name, "${{") {
 				workflowNames = append(workflowNames, name)
 			}
 		}
 	case map[string]any:
-		// Map format: dispatch-workflow: {workflows: [name1, name2]}
 		if workflowsArray, ok := v["workflows"].([]any); ok {
 			for _, item := range workflowsArray {
 				if name, ok := item.(string); ok && !strings.Contains(name, "${{") {
@@ -58,47 +60,18 @@ func extractDispatchWorkflowNames(content string) []string {
 	return workflowNames
 }
 
+// extractDispatchWorkflowNames extracts workflow names from the safe-outputs.dispatch-workflow
+// frontmatter field. It handles both array and map forms of the configuration.
+// Workflow names that contain GitHub Actions expression syntax (e.g. "${{") are skipped.
+func extractDispatchWorkflowNames(content string) []string {
+	return extractWorkflowNamesFromSafeOutputs(content, "dispatch-workflow")
+}
+
 // extractCallWorkflowNames extracts worker workflow names from the safe-outputs.call-workflow
 // frontmatter field. It handles both array and map forms of the configuration.
 // Workflow names that contain GitHub Actions expression syntax (e.g. "${{") are skipped.
 func extractCallWorkflowNames(content string) []string {
-	result, err := parser.ExtractFrontmatterFromContent(content)
-	if err != nil || result.Frontmatter == nil {
-		return nil
-	}
-
-	safeOutputsMap, ok := result.Frontmatter["safe-outputs"].(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	callWorkflow, exists := safeOutputsMap["call-workflow"]
-	if !exists {
-		return nil
-	}
-
-	var workflowNames []string
-
-	switch v := callWorkflow.(type) {
-	case []any:
-		// Array format: call-workflow: [name1, name2]
-		for _, item := range v {
-			if name, ok := item.(string); ok && !strings.Contains(name, "${{") {
-				workflowNames = append(workflowNames, name)
-			}
-		}
-	case map[string]any:
-		// Map format: call-workflow: {workflows: [name1, name2]}
-		if workflowsArray, ok := v["workflows"].([]any); ok {
-			for _, item := range workflowsArray {
-				if name, ok := item.(string); ok && !strings.Contains(name, "${{") {
-					workflowNames = append(workflowNames, name)
-				}
-			}
-		}
-	}
-
-	return workflowNames
+	return extractWorkflowNamesFromSafeOutputs(content, "call-workflow")
 }
 
 // fileDownloadFn is the type for a function that downloads a file from a GitHub repository.

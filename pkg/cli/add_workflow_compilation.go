@@ -130,7 +130,23 @@ func compileWorkflowWithTrackingAndRefresh(ctx context.Context, filePath string,
 // called before compiling the main workflow, because the dispatch-workflow validator
 // requires every referenced .md workflow to have an up-to-date .lock.yml.
 func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
-	workflowNames := dispatchWorkflowNamesForCompilation(workflowFile)
+	compileSafeOutputsWorkflowDependencies(ctx, workflowFile, "dispatch-workflow dependency", dispatchWorkflowNamesForCompilation, verbose, quiet, engineOverride, tracker)
+}
+
+// compileCallWorkflowDependencies compiles any call-workflow .md worker dependencies of
+// workflowFile that are present locally but lack a corresponding .lock.yml. This must be
+// called before compiling the main workflow, because the call-workflow validator requires
+// every referenced .md worker to have an up-to-date .lock.yml.
+func compileCallWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
+	compileSafeOutputsWorkflowDependencies(ctx, workflowFile, "call-workflow worker", callWorkflowNamesForCompilation, verbose, quiet, engineOverride, tracker)
+}
+
+// compileSafeOutputsWorkflowDependencies is the shared implementation for compiling
+// local .md worker/dependency files referenced by a workflow. namesFunc extracts the
+// list of referenced workflow names from workflowFile; label is used in log/console
+// messages to identify the dependency type (e.g. "dispatch-workflow dependency").
+func compileSafeOutputsWorkflowDependencies(ctx context.Context, workflowFile, label string, namesFunc func(string) []string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
+	workflowNames := namesFunc(workflowFile)
 	if len(workflowNames) == 0 {
 		return
 	}
@@ -149,9 +165,9 @@ func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile strin
 			continue // .lock.yml already exists, nothing to do
 		}
 
-		addWorkflowCompilationLog.Printf("Compiling dispatch-workflow dependency: %s", mdPath)
+		addWorkflowCompilationLog.Printf("Compiling %s: %s", label, mdPath)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling dispatch-workflow dependency: "+mdPath))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Compiling %s: %s", label, mdPath)))
 		}
 
 		var compileErr error
@@ -163,75 +179,25 @@ func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile strin
 		if compileErr != nil {
 			// Best-effort: log and continue so the main workflow can still give a clear error.
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile dispatch-workflow dependency %s: %v", mdPath, compileErr)))
-			}
-		}
-	}
-}
-
-// compileCallWorkflowDependencies compiles any call-workflow .md worker dependencies of
-// workflowFile that are present locally but lack a corresponding .lock.yml. This must be
-// called before compiling the main workflow, because the call-workflow validator requires
-// every referenced .md worker to have an up-to-date .lock.yml.
-func compileCallWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
-	workflowNames := callWorkflowNamesForCompilation(workflowFile)
-	if len(workflowNames) == 0 {
-		return
-	}
-
-	workflowsDir := filepath.Dir(workflowFile)
-
-	for _, name := range workflowNames {
-		mdPath := filepath.Join(workflowsDir, name+".md")
-		lockPath := stringutil.MarkdownToLockFile(mdPath)
-
-		if _, mdErr := os.Stat(mdPath); mdErr != nil {
-			continue // .md doesn't exist locally
-		}
-		if fileutil.FileExists(lockPath) {
-			continue // .lock.yml already exists, nothing to do
-		}
-
-		addWorkflowCompilationLog.Printf("Compiling call-workflow worker: %s", mdPath)
-		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling call-workflow worker: "+mdPath))
-		}
-
-		var compileErr error
-		if tracker != nil {
-			compileErr = compileWorkflowWithTracking(ctx, mdPath, verbose, quiet, engineOverride, tracker)
-		} else {
-			compileErr = compileWorkflow(ctx, mdPath, verbose, quiet, engineOverride)
-		}
-		if compileErr != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile call-workflow worker %s: %v", mdPath, compileErr)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile %s %s: %v", label, mdPath, compileErr)))
 			}
 		}
 	}
 }
 
 func callWorkflowNamesForCompilation(workflowFile string) []string {
-	compiler := workflow.NewCompiler()
-	data, err := compiler.ParseWorkflowFile(workflowFile)
-	if err == nil && data != nil && data.SafeOutputs != nil && data.SafeOutputs.CallWorkflow != nil {
-		if names := dedupeDispatchWorkflowNames(data.SafeOutputs.CallWorkflow.Workflows); len(names) > 0 {
-			return names
+	return safeOutputsWorkflowNamesForCompilation(workflowFile, "call-workflow", func(data *workflow.WorkflowData) []string {
+		if data.SafeOutputs.CallWorkflow == nil {
+			return nil
 		}
-	}
-
-	if err != nil {
-		var sharedErr *workflow.SharedWorkflowError
-		var redirectErr *workflow.RedirectOnlyWorkflowError
-		if !errors.As(err, &sharedErr) && !errors.As(err, &redirectErr) {
-			addWorkflowCompilationLog.Printf("Falling back to raw call-workflow extraction for %s after parse error: %v", workflowFile, err)
-		}
-	}
-
-	return extractCallWorkflowNamesFromFrontmatter(workflowFile)
+		return data.SafeOutputs.CallWorkflow.Workflows
+	})
 }
 
-func extractCallWorkflowNamesFromFrontmatter(workflowFile string) []string {
+// extractSafeOutputsNamesFromFrontmatter reads workflowFile and extracts workflow names from
+// the named key under safe-outputs. It handles both array and map (with a "workflows" field)
+// forms of the configuration.
+func extractSafeOutputsNamesFromFrontmatter(workflowFile, safeOutputsKey string) []string {
 	content, err := os.ReadFile(workflowFile)
 	if err != nil {
 		return nil
@@ -247,13 +213,13 @@ func extractCallWorkflowNamesFromFrontmatter(workflowFile string) []string {
 		return nil
 	}
 
-	callConfig, exists := safeOutputs["call-workflow"]
+	configVal, exists := safeOutputs[safeOutputsKey]
 	if !exists {
 		return nil
 	}
 
 	var names []string
-	switch config := callConfig.(type) {
+	switch config := configVal.(type) {
 	case []any:
 		names = appendDispatchWorkflowNames(names, config)
 	case map[string]any:
@@ -266,10 +232,25 @@ func extractCallWorkflowNamesFromFrontmatter(workflowFile string) []string {
 }
 
 func dispatchWorkflowNamesForCompilation(workflowFile string) []string {
+	return safeOutputsWorkflowNamesForCompilation(workflowFile, "dispatch-workflow", func(data *workflow.WorkflowData) []string {
+		if data.SafeOutputs.DispatchWorkflow == nil {
+			return nil
+		}
+		return data.SafeOutputs.DispatchWorkflow.Workflows
+	})
+}
+
+// safeOutputsWorkflowNamesForCompilation is the shared implementation for resolving
+// the list of workflow names that need pre-compilation. It first tries to parse the
+// workflow file with the compiler (which merges imports), then falls back to raw
+// frontmatter extraction when the file cannot be fully parsed. safeOutputsKey is
+// used in the fallback log message; getWorkflows selects the relevant workflow list
+// from the parsed safe-outputs data.
+func safeOutputsWorkflowNamesForCompilation(workflowFile, safeOutputsKey string, getWorkflows func(*workflow.WorkflowData) []string) []string {
 	compiler := workflow.NewCompiler()
 	data, err := compiler.ParseWorkflowFile(workflowFile)
-	if err == nil && data != nil && data.SafeOutputs != nil && data.SafeOutputs.DispatchWorkflow != nil {
-		if names := dedupeDispatchWorkflowNames(data.SafeOutputs.DispatchWorkflow.Workflows); len(names) > 0 {
+	if err == nil && data != nil && data.SafeOutputs != nil {
+		if names := dedupeDispatchWorkflowNames(getWorkflows(data)); len(names) > 0 {
 			return names
 		}
 	}
@@ -278,45 +259,11 @@ func dispatchWorkflowNamesForCompilation(workflowFile string) []string {
 		var sharedErr *workflow.SharedWorkflowError
 		var redirectErr *workflow.RedirectOnlyWorkflowError
 		if !errors.As(err, &sharedErr) && !errors.As(err, &redirectErr) {
-			addWorkflowCompilationLog.Printf("Falling back to raw dispatch-workflow extraction for %s after parse error: %v", workflowFile, err)
+			addWorkflowCompilationLog.Printf("Falling back to raw %s extraction for %s after parse error: %v", safeOutputsKey, workflowFile, err)
 		}
 	}
 
-	return extractDispatchWorkflowNamesFromFrontmatter(workflowFile)
-}
-
-func extractDispatchWorkflowNamesFromFrontmatter(workflowFile string) []string {
-	content, err := os.ReadFile(workflowFile)
-	if err != nil {
-		return nil
-	}
-
-	frontmatter, err := parser.ExtractFrontmatterFromContent(string(content))
-	if err != nil || frontmatter == nil {
-		return nil
-	}
-
-	safeOutputs, ok := frontmatter.Frontmatter["safe-outputs"].(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	dispatchConfig, exists := safeOutputs["dispatch-workflow"]
-	if !exists {
-		return nil
-	}
-
-	var names []string
-	switch config := dispatchConfig.(type) {
-	case []any:
-		names = appendDispatchWorkflowNames(names, config)
-	case map[string]any:
-		if workflows, ok := config["workflows"].([]any); ok {
-			names = appendDispatchWorkflowNames(names, workflows)
-		}
-	}
-
-	return dedupeDispatchWorkflowNames(names)
+	return extractSafeOutputsNamesFromFrontmatter(workflowFile, safeOutputsKey)
 }
 
 func appendDispatchWorkflowNames(names []string, raw []any) []string {
