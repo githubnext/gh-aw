@@ -33,7 +33,7 @@ function hasAnnotationProperties(call: TSESTree.CallExpression): boolean {
 
 /**
  * Returns true when the expression is provably side-effect-free: no call,
- * new, or assignment expression at any nesting level.  Conservatively returns
+ * new, or assignment expression at any nesting level. Conservatively returns
  * false for any node type not listed here.
  */
 function isSideEffectFree(node: TSESTree.Expression): boolean {
@@ -60,9 +60,11 @@ function isSideEffectFree(node: TSESTree.Expression): boolean {
 
 /**
  * Returns true when `node` is an expression statement containing a call to
- * `core.error(...)` (direct, computed, or aliased).
+ * `<coreObj>.<methodName>(...)` where the receiver is a known core alias
+ * (direct or assigned alias). Also returns the receiver identifier name via
+ * the `objectName` out-param so the caller can enforce same-object pairing.
  */
-function isCoreErrorStatement(node: TSESTree.Statement, sourceCode: SourceCode): node is TSESTree.ExpressionStatement {
+function isCoreMethodCallStatement(node: TSESTree.Statement, sourceCode: SourceCode, methodName: string): node is TSESTree.ExpressionStatement {
   if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
   const expr = node.expression;
   if (expr.type !== AST_NODE_TYPES.CallExpression) return false;
@@ -71,33 +73,30 @@ function isCoreErrorStatement(node: TSESTree.Statement, sourceCode: SourceCode):
 
   const obj = callee.object;
   const prop = callee.property;
-  const isErrorNonComputed = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "error";
-  const isErrorComputed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "error";
-  if (!isErrorNonComputed && !isErrorComputed) return false;
+  const isNonComputed = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && (prop as TSESTree.Identifier).name === methodName;
+  const isComputed = callee.computed && prop.type === AST_NODE_TYPES.Literal && (prop as TSESTree.Literal).value === methodName;
+  if (!isNonComputed && !isComputed) return false;
   if (obj.type !== AST_NODE_TYPES.Identifier) return false;
 
-  return isCoreLikeIdentifier(obj.name) || isCoreAliasIdentifier(obj, sourceCode);
+  return isCoreLikeIdentifier((obj as TSESTree.Identifier).name) || isCoreAliasIdentifier(obj as TSESTree.Identifier, sourceCode);
+}
+
+function isCoreErrorStatement(node: TSESTree.Statement, sourceCode: SourceCode): node is TSESTree.ExpressionStatement {
+  return isCoreMethodCallStatement(node, sourceCode, "error");
+}
+
+function isCoreSetFailedStatement(node: TSESTree.Statement, sourceCode: SourceCode): node is TSESTree.ExpressionStatement {
+  return isCoreMethodCallStatement(node, sourceCode, "setFailed");
 }
 
 /**
- * Returns true when `node` is an expression statement containing a call to
- * `core.setFailed(...)` (direct, computed, or aliased).
+ * Returns the receiver identifier name from a matched core-method call statement.
+ * Precondition: `isCoreErrorStatement` or `isCoreSetFailedStatement` returned true.
  */
-function isCoreSetFailedStatement(node: TSESTree.Statement, sourceCode: SourceCode): node is TSESTree.ExpressionStatement {
-  if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
-  const expr = node.expression;
-  if (expr.type !== AST_NODE_TYPES.CallExpression) return false;
-  const callee = expr.callee;
-  if (callee.type !== AST_NODE_TYPES.MemberExpression) return false;
-
-  const obj = callee.object;
-  const prop = callee.property;
-  const isSetFailedNonComputed = !callee.computed && prop.type === AST_NODE_TYPES.Identifier && prop.name === "setFailed";
-  const isSetFailedComputed = callee.computed && prop.type === AST_NODE_TYPES.Literal && prop.value === "setFailed";
-  if (!isSetFailedNonComputed && !isSetFailedComputed) return false;
-  if (obj.type !== AST_NODE_TYPES.Identifier) return false;
-
-  return isCoreLikeIdentifier(obj.name) || isCoreAliasIdentifier(obj, sourceCode);
+function getCoreObjectName(stmt: TSESTree.ExpressionStatement): string {
+  const call = stmt.expression as TSESTree.CallExpression;
+  const callee = call.callee as TSESTree.MemberExpression;
+  return (callee.object as TSESTree.Identifier).name;
 }
 
 export const noCoreErrorThenSetFailedRule = createRule({
@@ -129,6 +128,11 @@ export const noCoreErrorThenSetFailedRule = createRule({
 
         const next = stmts[i + 1];
         if (!isCoreSetFailedStatement(next, sourceCode)) continue;
+
+        // Both calls must reference the same receiver identifier to avoid
+        // flagging `c1.error("x"); c2.setFailed("x")` where c1 and c2 are
+        // different objects that happen to both be in CORE_ALIASES.
+        if (getCoreObjectName(current) !== getCoreObjectName(next)) continue;
 
         const errorCall = (current as TSESTree.ExpressionStatement).expression as TSESTree.CallExpression;
         const setFailedCall = (next as TSESTree.ExpressionStatement).expression as TSESTree.CallExpression;
@@ -179,7 +183,14 @@ export const noCoreErrorThenSetFailedRule = createRule({
         checkStatements(node.consequent);
       },
       Program(node: TSESTree.Program) {
-        const stmts = node.body.filter((s): s is TSESTree.Statement => s.type !== AST_NODE_TYPES.ImportDeclaration && s.type !== AST_NODE_TYPES.ExportAllDeclaration);
+        // Filter out all module declarations (ImportDeclaration, ExportAllDeclaration,
+        // ExportNamedDeclaration, ExportDefaultDeclaration) — they are not Statements
+        // and their type assertion would be incorrect. BlockStatement visitor handles
+        // the bodies of any exported function/class declarations separately.
+        const stmts = node.body.filter(
+          (s): s is TSESTree.Statement =>
+            s.type !== AST_NODE_TYPES.ImportDeclaration && s.type !== AST_NODE_TYPES.ExportAllDeclaration && s.type !== AST_NODE_TYPES.ExportNamedDeclaration && s.type !== AST_NODE_TYPES.ExportDefaultDeclaration
+        );
         checkStatements(stmts);
       },
     };

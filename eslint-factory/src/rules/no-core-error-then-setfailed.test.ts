@@ -41,6 +41,11 @@ describe("no-core-error-then-setfailed", () => {
         },
         // core.error with annotation properties — carries extra diagnostic context
         `core.error("msg", { title: "Upload error" }); core.setFailed("msg");`,
+        // Different core objects (cross-alias false-positive guard):
+        // c1 and c2 are different objects even if both are in CORE_ALIASES
+        `const c1 = core; const c2 = coreObj; c1.error("msg"); c2.setFailed("msg");`,
+        // Non-core alias is not flagged
+        `const c = notCore; c.error("msg"); c.setFailed("msg");`,
       ],
       invalid: [
         // Adjacent core.error then core.setFailed with same literal — has suggestion
