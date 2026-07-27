@@ -1,11 +1,8 @@
 package workflow
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -48,11 +45,11 @@ func isDataSchemaEnabledType(typeName string) bool {
 	return slices.Contains(dataSchemaBodyTypes, typeName)
 }
 
-func validateSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath string) error {
+func validateSafeOutputsDataSchema(config *SafeOutputsConfig) error {
 	if config == nil {
 		return nil
 	}
-	enabled, schema, err := resolveSafeOutputsDataSchema(config, markdownPath)
+	enabled, schema, err := resolveSafeOutputsDataSchema(config)
 	if err != nil {
 		return err
 	}
@@ -61,71 +58,35 @@ func validateSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath strin
 	return nil
 }
 
-func resolveSafeOutputsDataSchema(config *SafeOutputsConfig, markdownPath string) (bool, map[string]any, error) {
+func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]any, error) {
 	if config == nil {
 		return false, nil, nil
 	}
-	hasData := config.Data != nil
-	hasInline := config.DataSchema != nil
-	hasFile := strings.TrimSpace(config.DataSchemaFile) != ""
-	if hasData && (hasInline || hasFile) {
-		return false, nil, errors.New("safe-outputs.data cannot be combined with safe-outputs.data-schema or safe-outputs.data-schema-file")
-	}
-	if hasData {
-		switch v := config.Data.(type) {
-		case bool:
-			if !v {
-				return false, nil, nil
-			}
-			return true, nil, nil
-		case string:
-			path := strings.TrimSpace(v)
-			if path == "" {
-				return false, nil, errors.New("safe-outputs.data: schema file path must be a non-empty string")
-			}
-			config.DataSchemaFile = path
-			hasFile = true
-		default:
-			config.DataSchema = v
-			hasInline = true
-		}
-	}
-	if !hasInline && !hasFile {
+	if config.Data == nil {
 		return false, nil, nil
 	}
-	if hasInline && hasFile {
-		return false, nil, errors.New("safe-outputs.data-schema and safe-outputs.data-schema-file are mutually exclusive")
-	}
 
-	var rawSchema any
-	if hasInline {
-		rawSchema = config.DataSchema
-	} else {
-		baseDir := filepath.Dir(markdownPath)
-		schemaPath := config.DataSchemaFile
-		if !filepath.IsAbs(schemaPath) {
-			schemaPath = filepath.Join(baseDir, schemaPath)
+	switch v := config.Data.(type) {
+	case bool:
+		if !v {
+			return false, nil, nil
 		}
-		content, err := os.ReadFile(schemaPath)
+		return true, nil, nil
+	case map[string]any:
+		normalized, err := simplifyDataSchemaNode(v, "safe-outputs.data", true)
 		if err != nil {
-			return false, nil, fmt.Errorf("safe-outputs.data-schema-file: failed to read %q: %w", config.DataSchemaFile, err)
+			return false, nil, err
 		}
-		if err := json.Unmarshal(content, &rawSchema); err != nil {
-			return false, nil, fmt.Errorf("safe-outputs.data-schema-file: invalid JSON in %q: %w", config.DataSchemaFile, err)
+		if normalizedType, _ := normalized["type"].(string); normalizedType != "object" {
+			return false, nil, fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q", normalizedType)
 		}
+		return true, normalized, nil
+	default:
+		return false, nil, errors.New("safe-outputs.data must be false, true, or an inline schema object")
 	}
-
-	normalized, err := simplifyDataSchemaNode(rawSchema, "safe-outputs.data-schema", true, true)
-	if err != nil {
-		return false, nil, err
-	}
-	if normalizedType, _ := normalized["type"].(string); normalizedType != "object" {
-		return false, nil, fmt.Errorf("safe-outputs.data-schema must resolve to an object schema, got %q", normalizedType)
-	}
-	return true, normalized, nil
 }
 
-func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, _ bool) (map[string]any, error) {
+func simplifyDataSchemaNode(raw any, path string, allowShorthand bool) (map[string]any, error) {
 	if typeName, ok := raw.(string); ok {
 		if !allowShorthand {
 			return nil, fmt.Errorf("%s: string shorthand is not allowed here", path)
@@ -144,7 +105,7 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, _ bool) (
 	explicit := hasDataSchemaKeywords(node)
 	if !explicit && allowShorthand {
 		// Shorthand object syntax:
-		// data-schema:
+		// data:
 		//   verdict: string
 		//   score: number
 		explicit = true
@@ -217,7 +178,7 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, _ bool) (
 		}
 		normalizedProperties := make(map[string]any, len(propertiesMap))
 		for key, propertySchema := range propertiesMap {
-			normalizedProperty, err := simplifyDataSchemaNode(propertySchema, fmt.Sprintf("%s.properties.%s", path, key), true, false)
+			normalizedProperty, err := simplifyDataSchemaNode(propertySchema, fmt.Sprintf("%s.properties.%s", path, key), true)
 			if err != nil {
 				return nil, err
 			}
@@ -271,7 +232,7 @@ func simplifyDataSchemaNode(raw any, path string, allowShorthand bool, _ bool) (
 		if !exists {
 			return nil, fmt.Errorf("%s.items: is required for array schemas", path)
 		}
-		normalizedItems, err := simplifyDataSchemaNode(items, path+".items", true, false)
+		normalizedItems, err := simplifyDataSchemaNode(items, path+".items", true)
 		if err != nil {
 			return nil, err
 		}
