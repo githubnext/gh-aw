@@ -36,6 +36,14 @@ func processObj(o Obj) string {
 	return o.Name
 }
 
+// flagged: parenthesized arguments still match
+func processParen(s string) string {
+	if strings.HasPrefix((s), "foo") { // want `strings\.HasPrefix \+ strings\.TrimPrefix can be replaced with strings\.CutPrefix`
+		return strings.TrimPrefix(s, "foo")
+	}
+	return s
+}
+
 // not flagged: uses CutPrefix already (control case)
 func usesCutPrefix(s string) (string, bool) {
 	after, found := strings.CutPrefix(s, "foo")

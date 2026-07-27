@@ -179,6 +179,21 @@ func isStringsFunc(pass *analysis.Pass, call *ast.CallExpr, name string) bool {
 // expressions (identifiers or selector expressions) referring to the same
 // object, or are equal basic literals.
 func sameExpr(pass *analysis.Pass, a, b ast.Expr) bool {
+	for {
+		paren, ok := a.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		a = paren.X
+	}
+	for {
+		paren, ok := b.(*ast.ParenExpr)
+		if !ok {
+			break
+		}
+		b = paren.X
+	}
+
 	switch av := a.(type) {
 	case *ast.Ident:
 		bv, ok := b.(*ast.Ident)
@@ -196,7 +211,9 @@ func sameExpr(pass *analysis.Pass, a, b ast.Expr) bool {
 		if !ok {
 			return false
 		}
-		return sameExpr(pass, av.X, bv.X) && av.Sel.Name == bv.Sel.Name
+		ao := pass.TypesInfo.ObjectOf(av.Sel)
+		bo := pass.TypesInfo.ObjectOf(bv.Sel)
+		return ao != nil && ao == bo && sameExpr(pass, av.X, bv.X)
 	case *ast.IndexExpr:
 		bv, ok := b.(*ast.IndexExpr)
 		if !ok {
