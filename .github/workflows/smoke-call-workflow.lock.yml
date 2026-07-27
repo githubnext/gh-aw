@@ -619,6 +619,11 @@ jobs:
                   "inputSchema": {
                     "additionalProperties": false,
                     "properties": {
+                      "aw_context": {
+                        "default": "",
+                        "description": "Agent caller context (used internally by Agentic Workflows).",
+                        "type": "string"
+                      },
                       "payload": {
                         "description": "Input parameter 'payload' for workflow smoke-workflow-call",
                         "type": "string"
@@ -1104,15 +1109,25 @@ jobs:
     needs: safe_outputs
     if: needs.safe_outputs.outputs.call_workflow_name == 'smoke-workflow-call'
     # Imported from called workflow "smoke-workflow-call" because GitHub requires the caller job to grant permissions requested by reusable workflow jobs.
-    # Review the called workflow's frontmatter permissions in ./.github/workflows/smoke-workflow-call.md.
+    # Review the called workflow's job-level permissions in ./.github/workflows/smoke-workflow-call.lock.yml.
     permissions:
+      actions: read
       contents: read
-      pull-requests: read
+      issues: write
+      pull-requests: write
     uses: ./.github/workflows/smoke-workflow-call.lock.yml
     with:
+      aw_context: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload).aw_context }}
       payload: ${{ needs.safe_outputs.outputs.call_workflow_payload }}
       task-description: ${{ fromJSON(needs.safe_outputs.outputs.call_workflow_payload)['task-description'] }}
-    secrets: inherit
+    secrets:
+      COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+      GH_AW_GITHUB_MCP_SERVER_TOKEN: ${{ secrets.GH_AW_GITHUB_MCP_SERVER_TOKEN }}
+      GH_AW_GITHUB_TOKEN: ${{ secrets.GH_AW_GITHUB_TOKEN }}
+      GH_AW_OTEL_GRAFANA_AUTHORIZATION: ${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+      GH_AW_OTEL_GRAFANA_ENDPOINT: ${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}
+      GH_AW_OTEL_SENTRY_AUTHORIZATION: ${{ secrets.GH_AW_OTEL_SENTRY_AUTHORIZATION }}
+      GH_AW_OTEL_SENTRY_ENDPOINT: ${{ secrets.GH_AW_OTEL_SENTRY_ENDPOINT }}
 
   conclusion:
     needs:
