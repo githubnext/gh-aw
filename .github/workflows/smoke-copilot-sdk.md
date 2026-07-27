@@ -20,6 +20,7 @@ engine:
   id: copilot
   copilot-sdk: true
   bare: true
+max-tool-denials: 3
 tools:
   bash:
     - "*"

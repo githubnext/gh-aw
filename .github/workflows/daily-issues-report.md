@@ -14,6 +14,7 @@ engine:
   id: copilot
   copilot-sdk: true
   driver: .github/drivers/copilot_sdk_driver_sample_node.cjs
+max-tool-denials: 3
 runs-on: aw-gpu-runner-T4
 strict: true
 tracker-id: daily-issues-report

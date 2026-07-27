@@ -20,6 +20,7 @@ engine:
   id: copilot
   copilot-sdk: true
 
+max-tool-denials: 3
 network:
   allowed:
     - defaults
