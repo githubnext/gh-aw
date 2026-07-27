@@ -8,6 +8,13 @@
         "title",
         "body"
       ],
+      "$defs": {
+        "structured_data": {
+          "type": "object",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
+        }
+      },
       "properties": {
         "title": {
           "type": "string",
@@ -70,9 +77,7 @@
           ]
         },
         "data": {
-          "type": "object",
-          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
-          "additionalProperties": true
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",
@@ -432,9 +437,7 @@
           "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
         "data": {
-          "type": "object",
-          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
-          "additionalProperties": true
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",
@@ -509,9 +512,7 @@
           ]
         },
         "data": {
-          "type": "object",
-          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
-          "additionalProperties": true
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",
@@ -585,9 +586,7 @@
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
         "data": {
-          "type": "object",
-          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
-          "additionalProperties": true
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",
@@ -647,9 +646,7 @@
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
         "data": {
-          "type": "object",
-          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
-          "additionalProperties": true
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",
@@ -707,9 +704,7 @@
           ]
         },
         "data": {
-          "type": "object",
-          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
-          "additionalProperties": true
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",

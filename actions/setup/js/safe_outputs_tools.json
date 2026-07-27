@@ -5,6 +5,13 @@
     "inputSchema": {
       "type": "object",
       "required": ["title", "body"],
+      "$defs": {
+        "structured_data": {
+          "type": "object",
+          "description": "Optional structured data to carry machine-readable context through sanitization-safe channels. When provided, this object is preserved and appended to the body as fenced JSON.",
+          "additionalProperties": true
+        }
+      },
       "properties": {
         "title": {
           "type": "string",
@@ -51,6 +58,9 @@
           "pattern": "^#?aw_[A-Za-z0-9_]{3,12}$",
           "description": "Unique temporary identifier for this issue. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_abc1', '#aw_pr_fix'. The bare 'aw_abc1' form is also accepted and normalised to '#aw_abc1'. Use this same '#aw_ID' form in body text to cross-reference the issue; these references are replaced with the real issue number after creation.",
           "x-synonyms": ["temporaryId"]
+        },
+        "data": {
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",
@@ -330,6 +340,9 @@
           "enum": ["status"],
           "description": "When set to 'status', updates the activation status comment for this run (if available) instead of creating a new comment."
         },
+        "data": {
+          "$ref": "#/0/inputSchema/$defs/structured_data"
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -393,6 +406,9 @@
           "description": "Unique temporary identifier for this pull request. Canonical form: '#aw_' followed by 3 to 12 alphanumeric or underscore characters (A-Za-z0-9_) — e.g., '#aw_pr1', '#aw_fix_123'. The bare 'aw_pr1' form is also accepted and normalised to '#aw_pr1'. Use this same '#aw_ID' form in body text to cross-reference this PR; these references are replaced with the real pull request number after creation.",
           "x-synonyms": ["temporaryId"]
         },
+        "data": {
+          "$ref": "#/0/inputSchema/$defs/structured_data"
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -444,6 +460,9 @@
           "type": "string",
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
+        "data": {
+          "$ref": "#/0/inputSchema/$defs/structured_data"
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -488,6 +507,9 @@
           "type": "string",
           "description": "Target repository in 'owner/repo' format. If omitted, uses the configured target repository. Must be in the allowed-repos list if specified."
         },
+        "data": {
+          "$ref": "#/0/inputSchema/$defs/structured_data"
+        },
         "secrecy": {
           "type": "string",
           "description": "Confidentiality level of the message content (e.g., \"public\", \"internal\", \"private\")."
@@ -527,6 +549,9 @@
           "type": ["number", "string"],
           "description": "Pull request number to reply on. This is the numeric ID from the GitHub URL (e.g., 876 in github.com/owner/repo/pull/876). If omitted, replies on the PR that triggered this workflow.",
           "x-synonyms": ["pullRequestNumber"]
+        },
+        "data": {
+          "$ref": "#/0/inputSchema/$defs/structured_data"
         },
         "secrecy": {
           "type": "string",
