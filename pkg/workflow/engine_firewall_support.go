@@ -136,7 +136,7 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 	// uses plain sudo.
 	scriptArg := ""
 	agentCfg := getAgentConfig(workflowData)
-	if isAWFNetworkIsolationEnabled(workflowData) && (agentCfg == nil || !agentCfg.LegacySecurity) {
+	if isAWFNetworkIsolationEnabled(workflowData) && !agentCfg.LegacySecurity {
 		scriptArg = " --rootless"
 	}
 

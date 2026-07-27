@@ -157,6 +157,7 @@ network:
 sandbox:
   agent:
     id: awf
+    sudo: false
     legacy-security: enable
 ---
 
