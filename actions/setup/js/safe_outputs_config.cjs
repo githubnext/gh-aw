@@ -7,6 +7,26 @@ const { ERR_SYSTEM } = require("./error_codes.cjs");
 const fs = require("fs");
 const path = require("path");
 
+/**
+ * Collect the names of any ${GH_AW_INPUT_*} placeholders that are unresolved
+ * (i.e. the corresponding environment variable is absent from process.env).
+ * Returns an empty array when all placeholders are resolved.
+ * @param {string} rawJson - The raw JSON string before placeholder substitution
+ * @returns {string[]}
+ */
+function collectUnresolvedInputPlaceholders(rawJson) {
+  const unresolved = [];
+  const pattern = /\$\{(GH_AW_INPUT_[A-Z0-9_]+)\}/g;
+  let match;
+  while ((match = pattern.exec(rawJson)) !== null) {
+    const envName = match[1];
+    if (process.env[envName] === undefined && !unresolved.includes(envName)) {
+      unresolved.push(envName);
+    }
+  }
+  return unresolved;
+}
+
 function resolveEnvPlaceholders(value) {
   if (Array.isArray(value)) {
     return value.map(resolveEnvPlaceholders);
@@ -45,6 +65,19 @@ function loadConfig(server) {
       server.debug(`Config file content length: ${configFileContent.length} characters`);
       // Don't log raw content to avoid exposing sensitive configuration data
       server.debug(`Config file read successfully, attempting to parse JSON`);
+      // Warn about any GH_AW_INPUT_* placeholders that cannot be resolved before substitution.
+      // This should not happen when the workflow is compiled correctly (the compiler ensures these
+      // env vars are in the MCP gateway step env and the docker -e allowlist), but if it does the
+      // error will surface later as a cryptic "No remote refs available for merge-base calculation"
+      // rather than pointing at the root cause.
+      const unresolvedInputs = collectUnresolvedInputPlaceholders(configFileContent);
+      if (unresolvedInputs.length > 0) {
+        const varList = unresolvedInputs.join(", ");
+        const unresolvedMsg = `ERR_CONFIG: Unresolved workflow input placeholder(s) in safe-outputs config: ${varList}. The values were not passed to the MCP container. Verify that the workflow was compiled with a version that forwards GH_AW_INPUT_* to the container env.`;
+        server.error(unresolvedMsg);
+        console.error(`[safe_outputs_config] ERR_CONFIG: Unresolved workflow input placeholder(s): ${varList}`);
+        throw new Error(unresolvedMsg);
+      }
       safeOutputsConfigRaw = resolveEnvPlaceholders(JSON.parse(configFileContent));
       server.debug(`Successfully parsed config from file with ${Object.keys(safeOutputsConfigRaw).length} configuration keys`);
     } else {
