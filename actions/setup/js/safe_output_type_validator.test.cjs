@@ -449,6 +449,29 @@ describe("safe_output_type_validator", () => {
       expect(result.error).toContain("'data' must be an object");
     });
 
+    it("should enforce data schema when configured", async () => {
+      const { validateItem, resetValidationConfigCache } = await import("./safe_output_type_validator.cjs");
+      const configWithDataSchema = JSON.parse(JSON.stringify(SAMPLE_VALIDATION_CONFIG));
+      configWithDataSchema.add_comment.dataSchema = {
+        type: "object",
+        properties: {
+          verdict: { type: "string", enum: ["APPROVE", "REJECT"] },
+          criteria_passed: { type: "number" },
+        },
+        required: ["verdict"],
+        additionalProperties: false,
+      };
+      process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify(configWithDataSchema);
+      resetValidationConfigCache();
+
+      const invalid = validateItem({ type: "add_comment", body: "Review complete.", data: { verdict: "APPROVE", extra: "x" } }, "add_comment", 1);
+      expect(invalid.isValid).toBe(false);
+      expect(invalid.error).toContain("'data'.extra");
+
+      const valid = validateItem({ type: "add_comment", body: "Review complete.", data: { verdict: "APPROVE", criteria_passed: 5 } }, "add_comment", 1);
+      expect(valid.isValid).toBe(true);
+    });
+
     it("should normalize a backticked issue reference when enabled", async () => {
       const { validateItem } = await import("./safe_output_type_validator.cjs");
 

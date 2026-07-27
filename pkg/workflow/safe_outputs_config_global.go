@@ -31,6 +31,16 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		}
 	}
 
+	// Parse optional data schema configuration (inline or file-backed)
+	if dataSchema, exists := outputMap["data-schema"]; exists {
+		config.DataSchema = dataSchema
+	}
+	if dataSchemaFile, exists := outputMap["data-schema-file"]; exists {
+		if dataSchemaFileStr, ok := dataSchemaFile.(string); ok {
+			config.DataSchemaFile = strings.TrimSpace(dataSchemaFileStr)
+		}
+	}
+
 	// Parse allowed-github-references configuration
 	if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
 		if refsArray, ok := allowGitHubRefs.([]any); ok {

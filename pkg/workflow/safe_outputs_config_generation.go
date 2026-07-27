@@ -62,6 +62,9 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 					handlerCfg["protected_dot_folder_excludes"] = dotFolderExcludes
 				}
 			}
+			if data.SafeOutputs != nil && data.SafeOutputs.NormalizedDataSchema != nil && isDataSchemaEnabledType(handlerName) {
+				handlerCfg["data_schema"] = data.SafeOutputs.NormalizedDataSchema
+			}
 			safeOutputsConfig[handlerName] = handlerCfg
 		}
 	}

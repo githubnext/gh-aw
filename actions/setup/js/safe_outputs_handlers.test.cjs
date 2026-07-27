@@ -210,6 +210,28 @@ describe("safe_outputs_handlers", () => {
       expect(mockAppendSafeOutput).toHaveBeenCalledWith({ type: "test-type" });
       expect(result.content[0].text).toBe(JSON.stringify({ result: "success" }));
     });
+
+    it("should enforce data_schema for default handler payloads", () => {
+      const handlersWithSchema = createHandlers(mockServer, mockAppendSafeOutput, {
+        add_comment: {
+          data_schema: {
+            type: "object",
+            properties: {
+              verdict: { type: "string" },
+            },
+            required: ["verdict"],
+            additionalProperties: false,
+          },
+        },
+      });
+      const handler = handlersWithSchema.defaultHandler("add_comment");
+
+      const result = handler({ body: "ok", data: { verdict: "APPROVE", extra: "nope" } });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).toContain("data.extra");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
   });
 
   describe("uploadAssetHandler", () => {

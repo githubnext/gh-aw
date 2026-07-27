@@ -13,6 +13,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
+const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
 
 /**
  * Default max body length for GitHub content
@@ -733,6 +734,17 @@ function validateItem(item, itemType, lineNum, options) {
 
     // Preserve normalized data on the item for downstream automation.
     normalizedItem.data = normalizedData;
+
+    if (typeConfig.dataSchema && typeof typeConfig.dataSchema === "object") {
+      const dataSchemaError = validateValueAgainstSchema(normalizedData, typeConfig.dataSchema);
+      if (dataSchemaError) {
+        const errorPath = dataSchemaError.path ? `.${dataSchemaError.path}` : "";
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} 'data'${errorPath} ${dataSchemaError.message}`,
+        };
+      }
+    }
 
     // If this safe-output type supports a body field, append structured data
     // as fenced JSON so it survives body sanitization.

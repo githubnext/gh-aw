@@ -42,6 +42,7 @@ type TypeValidationConfig struct {
 	DefaultMax       int                        `json:"defaultMax"`
 	Fields           map[string]FieldValidation `json:"fields"`
 	CustomValidation string                     `json:"customValidation,omitempty"`
+	DataSchema       map[string]any             `json:"dataSchema,omitempty"`
 }
 
 // Constants for validation
@@ -495,10 +496,16 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 // during the initial sanitization pass (mirroring what the publish-side handlers
 // receive via GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG).
 func GetValidationConfigJSON(enabledTypes []string, mentions map[string]any) (string, error) {
+	return GetValidationConfigJSONWithDataSchema(enabledTypes, mentions, nil)
+}
+
+// GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSON and additionally
+// injects a normalized data schema into body-bearing safe-output types.
+func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 
 	// Cache only the schema-only path; mentions are workflow-specific and cheap to remarshal.
-	if len(mentions) == 0 {
+	if len(mentions) == 0 && dataSchema == nil {
 		cacheKey := buildValidationConfigCacheKey(enabledTypes)
 		if cached, ok := validationConfigJSONCache.Load(cacheKey); ok {
 			safeOutputValidationLog.Print("Returning cached validation config JSON")
@@ -523,6 +530,17 @@ func GetValidationConfigJSON(enabledTypes []string, mentions map[string]any) (st
 	} else {
 		safeOutputValidationLog.Print("Returning all validation configs")
 	}
+	if dataSchema != nil {
+		withDataSchema := make(map[string]TypeValidationConfig, len(configToMarshal))
+		for typeName, typeConfig := range configToMarshal {
+			copied := typeConfig
+			if isDataSchemaEnabledType(typeName) {
+				copied.DataSchema = dataSchema
+			}
+			withDataSchema[typeName] = copied
+		}
+		configToMarshal = withDataSchema
+	}
 
 	var data []byte
 	var err error
@@ -542,7 +560,7 @@ func GetValidationConfigJSON(enabledTypes []string, mentions map[string]any) (st
 	}
 	result := string(data)
 	safeOutputValidationLog.Printf("Generated validation config JSON with %d bytes", len(result))
-	if len(mentions) == 0 {
+	if len(mentions) == 0 && dataSchema == nil {
 		validationConfigJSONCache.Store(buildValidationConfigCacheKey(enabledTypes), result)
 	}
 	return result, nil

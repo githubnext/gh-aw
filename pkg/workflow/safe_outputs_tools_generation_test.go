@@ -590,3 +590,22 @@ func TestComputePropertyInjectionsAllInvalidFallsBackToFullSet(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, closeIssueStateReasonValues, prop["enum"])
 }
+
+func TestComputePropertyInjectionsAddsDataSchemaForBodyTypes(t *testing.T) {
+	injections := computePropertyInjections(&SafeOutputsConfig{
+		NormalizedDataSchema: map[string]any{
+			"type": "object",
+			"properties": map[string]any{
+				"verdict": map[string]any{"type": "string"},
+			},
+			"additionalProperties": false,
+		},
+	})
+
+	for _, typeName := range dataSchemaBodyTypes {
+		require.Contains(t, injections, typeName)
+		prop, ok := injections[typeName]["data"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "object", prop["type"])
+	}
+}
