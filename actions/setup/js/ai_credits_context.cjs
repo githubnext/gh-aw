@@ -297,6 +297,37 @@ function parseUnknownModelAICreditsFromAuditLog(auditJsonlPathOverride) {
 }
 
 /**
+ * Detects `unknown_model_ai_credits` from the firewall audit JSONL log and extracts the model name.
+ * Audit log entries emitted by the AWF API proxy carry both the error type and the model name, e.g.:
+ *   { "type": "unknown_model_ai_credits", "model": "claude-opus-5" }
+ *
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {{ detected: boolean, modelName: string }}
+ */
+function parseUnknownModelAICreditsAndModelFromAuditLog(auditJsonlPathOverride) {
+  return iterateAuditEntries(
+    auditJsonlPathOverride,
+    { detected: false, modelName: "" },
+    content => content.includes(UNKNOWN_MODEL_AI_CREDITS_TYPE),
+    (acc, entry) => {
+      if (acc.detected && acc.modelName) return acc; // fully resolved, skip remaining entries
+      if (!parseUnknownModelAICreditsFromAuditEntry(entry)) return undefined; // not a matching entry
+      let modelName = acc.modelName;
+      if (!modelName) {
+        traverseObjectTree(entry, (key, value) => {
+          if (key === "model" && typeof value === "string" && value) {
+            modelName = value;
+            return true;
+          }
+          return false;
+        });
+      }
+      return { detected: true, modelName };
+    }
+  );
+}
+
+/**
  * Single-pass combined read of the audit log, returning all AI credits fields at once.
  * Used by resolveAICreditsFailureState to avoid reading the same file twice.
  * No contentGuard is applied: rate-limit signal detection must scan all entries anyway,
@@ -422,5 +453,6 @@ module.exports = {
   parseAICreditsErrorInfoFromAuditLog,
   parseMaxAICreditsExceededFromAuditLog,
   parseUnknownModelAICreditsFromAuditLog,
+  parseUnknownModelAICreditsAndModelFromAuditLog,
   resolveAICreditsFailureState,
 };

@@ -1,10 +1,11 @@
 // @ts-check
 
 /**
- * Detect agent engine errors in the agent stdio log.
+ * Detect agent engine errors in the agent stdio log and AWF firewall audit log.
  *
- * Scans the agent stdio log for known error patterns and sets GitHub Actions
- * output variables for each detected error class:
+ * Scans the agent stdio log for known error patterns and the AWF firewall audit
+ * JSONL log for structured error events, then sets GitHub Actions output variables
+ * for each detected error class:
  *
  *   - inference_access_error: The COPILOT_GITHUB_TOKEN does not have valid
  *     access to inference (e.g., "Access denied by policy settings").
@@ -28,6 +29,11 @@
  *     fully exhausted (e.g., "CAPIError: 429 Maximum LLM invocations exceeded (N/N)"
  *     or `"type":"max_runs_exceeded"`). This is more specific than generic
  *     CAPI quota exhaustion and takes precedence in step outputs.
+ *   - missing_model_pricing_error / missing_model_pricing_model_name: The AWF API
+ *     proxy rejected a request because the model has no AI credits pricing entry.
+ *     Detected from the agent stdio log (text pattern) and the AWF firewall audit
+ *     JSONL log (`unknown_model_ai_credits` event type). Both sources are checked
+ *     and their results merged.
  * This replaces the individual bash scripts (detect_inference_access_error.sh,
  * detect_mcp_policy_error.sh) with a single JavaScript step.
  *
@@ -39,6 +45,7 @@
 
 const fs = require("fs");
 const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
+const { parseUnknownModelAICreditsAndModelFromAuditLog } = require("./ai_credits_context.cjs");
 
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
@@ -217,7 +224,21 @@ function main() {
     process.stderr.write(`[detect-agent-errors] Log file not found: ${LOG_FILE}\n`);
   }
 
-  const results = detectErrors(logContent);
+  const stdioResults = detectErrors(logContent);
+
+  // Also check the AWF firewall audit JSONL log for the structured `unknown_model_ai_credits`
+  // event — this log is written by the AWF API proxy and carries both the error type and
+  // the model name, providing a more reliable detection source than text-scanning the stdio log.
+  const { detected: auditMissingPricing, modelName: auditModelName } = parseUnknownModelAICreditsAndModelFromAuditLog();
+  if (auditMissingPricing && !stdioResults.missingModelPricingError) {
+    process.stderr.write(`[detect-agent-errors] Detected missing model pricing from firewall audit log: model "${auditModelName}" has no AI credits pricing configured\n`);
+  }
+
+  const results = {
+    ...stdioResults,
+    missingModelPricingError: stdioResults.missingModelPricingError || auditMissingPricing,
+    missingModelPricingModelName: stdioResults.missingModelPricingModelName || auditModelName,
+  };
 
   if (results.inferenceAccessError) {
     process.stderr.write("[detect-agent-errors] Detected inference access error in agent log\n");
@@ -240,7 +261,7 @@ function main() {
   if (results.invocationCapExceeded) {
     process.stderr.write("[detect-agent-errors] Detected invocation cap exhaustion: the pooled per-run LLM invocation budget is fully saturated\n");
   }
-  if (results.missingModelPricingError) {
+  if (results.missingModelPricingError && !auditMissingPricing) {
     process.stderr.write(`[detect-agent-errors] Detected missing model pricing: model "${results.missingModelPricingModelName}" has no AI credits pricing configured\n`);
   }
 

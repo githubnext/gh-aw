@@ -248,6 +248,76 @@ describe("ai_credits_context unknown_model_ai_credits detection", () => {
   });
 });
 
+describe("ai_credits_context parseUnknownModelAICreditsAndModelFromAuditLog", () => {
+  let tmpDir;
+  let parseUnknownModelAICreditsAndModelFromAuditLog;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-unknown-model-test-"));
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    const mod = await import("./ai_credits_context.cjs");
+    const exports = mod.default || mod;
+    parseUnknownModelAICreditsAndModelFromAuditLog = exports.parseUnknownModelAICreditsAndModelFromAuditLog;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    delete process.env.GH_AW_AGENT_OUTPUT;
+  });
+
+  function writeAuditLog(lines, filename = "log.jsonl") {
+    const auditDir = path.join(tmpDir, "sandbox", "firewall", "audit");
+    fs.mkdirSync(auditDir, { recursive: true });
+    const logPath = path.join(auditDir, filename);
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
+  it("detects and returns model name from matching entry", () => {
+    writeAuditLog([{ type: "unknown_model_ai_credits", model: "claude-opus-5" }]);
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: true, modelName: "claude-opus-5" });
+  });
+
+  it("detects without model name when model field is absent", () => {
+    writeAuditLog([{ type: "unknown_model_ai_credits" }]);
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: true, modelName: "" });
+  });
+
+  it("returns first model name from matching entry in multi-entry log", () => {
+    writeAuditLog([
+      { type: "response", status: 200 },
+      { type: "unknown_model_ai_credits", model: "gpt-4.1-mini" },
+      { type: "response", status: 200 },
+    ]);
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: true, modelName: "gpt-4.1-mini" });
+  });
+
+  it("returns model name from first entry with model when earlier entry has no model", () => {
+    writeAuditLog([{ type: "unknown_model_ai_credits" }, { type: "unknown_model_ai_credits", model: "my-model" }]);
+    const result = parseUnknownModelAICreditsAndModelFromAuditLog();
+    expect(result.detected).toBe(true);
+    expect(result.modelName).toBe("my-model");
+  });
+
+  it("returns { detected: false, modelName: '' } when no matching entry", () => {
+    writeAuditLog([{ type: "response", status: 200 }]);
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: false, modelName: "" });
+  });
+
+  it("returns default for missing audit log", () => {
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog("/nonexistent/path/log.jsonl")).toEqual({ detected: false, modelName: "" });
+  });
+
+  it("does not detect other error types", () => {
+    writeAuditLog([{ type: "ai_credits_rate_limit_error", model: "some-model" }]);
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: false, modelName: "" });
+  });
+});
+
 describe("ai_credits_context parseMaxAICreditsFromAuditLog", () => {
   let tmpDir;
   /** @type {(path?: string) => string} */
