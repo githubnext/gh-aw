@@ -58,8 +58,8 @@ jobs:
         - name: M-R
           pattern: ^Test[M-R]
           shard: m-r
-        - name: S-Z
-          pattern: ^Test[S-Z]
+        - name: S-Z and other
+          pattern: ^Test([S-Z]|[^A-R])
           shard: s-z
     concurrency:
       group: ci-${{ github.ref }}-test-${{ matrix.shard }}

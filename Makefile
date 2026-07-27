@@ -360,12 +360,11 @@ test-impacted-go:
 			rm -rf "$$UNIT_RESULT_DIR"; \
 			mkdir -p "$$UNIT_RESULT_DIR"; \
 			if gh run download "$$UNIT_RUN_ID" --pattern "$(CI_UNIT_TEST_ARTIFACT_PATTERN)" --dir "$$UNIT_RESULT_DIR" >/dev/null 2>&1; then \
-				UNIT_RESULT_FILES=$$(find "$$UNIT_RESULT_DIR" -type f -name '*.json'); \
-				if [ -n "$$UNIT_RESULT_FILES" ]; then \
+				if find "$$UNIT_RESULT_DIR" -type f -name '*.json' -print -quit | grep -q .; then \
 					IMPACTED_PACKAGE_FILE="$(CI_COVERAGE_DIR)/impacted-go-packages.txt"; \
 					printf '%s\n' "$$CHANGED_GO_PACKAGES" | sed 's|^\./|github.com/github/gh-aw/|' > "$$IMPACTED_PACKAGE_FILE"; \
 					IMPACTED_TEST_CANDIDATES="$(CI_COVERAGE_DIR)/impacted-go-test-candidates.tsv"; \
-					jq -r 'select(.Action == "pass" and .Package != null and .Test != null and (.Test | contains("/") | not) and .Elapsed != null) | [.Package, .Test, (.Elapsed | tostring)] | @tsv' $$UNIT_RESULT_FILES \
+					find "$$UNIT_RESULT_DIR" -type f -name '*.json' -exec jq -r 'select(.Action == "pass" and .Package != null and .Test != null and (.Test | contains("/") | not) and .Elapsed != null) | [.Package, .Test, (.Elapsed | tostring)] | @tsv' {} + \
 						| awk 'NR==FNR { pkgs[$$1] = 1; next } $$1 in pkgs { print }' "$$IMPACTED_PACKAGE_FILE" - \
 						| sort -u > "$$IMPACTED_TEST_CANDIDATES"; \
 					if [ -s "$$IMPACTED_TEST_CANDIDATES" ]; then \
