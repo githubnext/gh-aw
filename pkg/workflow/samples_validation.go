@@ -77,20 +77,29 @@ func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
 			compiledToolSchemasErr = fmt.Errorf("failed to parse safe_outputs_tools.json for samples validation: %w", err)
 			return
 		}
+
+		sharedDefs := extractSharedInputSchemaDefs(tools)
 		out := make(map[string]toolSchemaEntry, len(tools))
 		for _, t := range tools {
 			if len(t.InputSchema) == 0 {
 				continue
 			}
-			schemaURL := fmt.Sprintf("inmem://safe-outputs-tools/%s.json", t.Name)
-			schema, err := compileSchema(string(t.InputSchema), schemaURL)
-			if err != nil {
-				compiledToolSchemasErr = fmt.Errorf("failed to compile inputSchema for tool %q: %w", t.Name, err)
-				return
-			}
 			var rawMap map[string]any
 			if err := json.Unmarshal(t.InputSchema, &rawMap); err != nil {
 				compiledToolSchemasErr = fmt.Errorf("failed to parse inputSchema for tool %q: %w", t.Name, err)
+				return
+			}
+			normalizeInputSchemaRefs(rawMap, sharedDefs)
+			normalizedSchemaBytes, err := json.Marshal(rawMap)
+			if err != nil {
+				compiledToolSchemasErr = fmt.Errorf("failed to normalize inputSchema for tool %q: %w", t.Name, err)
+				return
+			}
+
+			schemaURL := fmt.Sprintf("inmem://safe-outputs-tools/%s.json", t.Name)
+			schema, err := compileSchema(string(normalizedSchemaBytes), schemaURL)
+			if err != nil {
+				compiledToolSchemasErr = fmt.Errorf("failed to compile inputSchema for tool %q: %w", t.Name, err)
 				return
 			}
 			out[t.Name] = toolSchemaEntry{raw: rawMap, compiled: schema}
@@ -99,6 +108,70 @@ func getCompiledToolSchemas() (map[string]toolSchemaEntry, error) {
 		compiledToolSchemas = out
 	})
 	return compiledToolSchemas, compiledToolSchemasErr
+}
+
+func extractSharedInputSchemaDefs(tools []struct {
+	Name        string          `json:"name"`
+	InputSchema json.RawMessage `json:"inputSchema"`
+}) map[string]any {
+	if len(tools) == 0 || len(tools[0].InputSchema) == 0 {
+		return nil
+	}
+
+	var firstSchema map[string]any
+	if err := json.Unmarshal(tools[0].InputSchema, &firstSchema); err != nil {
+		return nil
+	}
+	defs, ok := firstSchema["$defs"].(map[string]any)
+	if !ok || len(defs) == 0 {
+		return nil
+	}
+	return defs
+}
+
+func normalizeInputSchemaRefs(schema map[string]any, sharedDefs map[string]any) {
+	if schema == nil {
+		return
+	}
+
+	rewroteRefs := rewriteSchemaRefPaths(schema)
+	if !rewroteRefs || len(sharedDefs) == 0 {
+		return
+	}
+
+	localDefs, _ := schema["$defs"].(map[string]any)
+	if localDefs == nil {
+		localDefs = map[string]any{}
+		schema["$defs"] = localDefs
+	}
+	for name, def := range sharedDefs {
+		if _, exists := localDefs[name]; !exists {
+			localDefs[name] = def
+		}
+	}
+}
+
+func rewriteSchemaRefPaths(node any) bool {
+	rewrote := false
+	switch typed := node.(type) {
+	case map[string]any:
+		if ref, ok := typed["$ref"].(string); ok && strings.HasPrefix(ref, "#/0/inputSchema/$defs/") {
+			typed["$ref"] = "#/$defs/" + strings.TrimPrefix(ref, "#/0/inputSchema/$defs/")
+			rewrote = true
+		}
+		for _, value := range typed {
+			if rewriteSchemaRefPaths(value) {
+				rewrote = true
+			}
+		}
+	case []any:
+		for _, item := range typed {
+			if rewriteSchemaRefPaths(item) {
+				rewrote = true
+			}
+		}
+	}
+	return rewrote
 }
 
 func getSortedSafeOutputFieldNames() []string {
