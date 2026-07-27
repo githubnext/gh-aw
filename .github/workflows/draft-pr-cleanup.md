@@ -19,6 +19,7 @@ sandbox:
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 strict: true
 imports:
   - shared/otlp.md

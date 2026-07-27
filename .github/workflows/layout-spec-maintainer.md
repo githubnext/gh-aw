@@ -38,6 +38,7 @@ emoji: 📐
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 name: Layout Specification Maintainer
 strict: true
 timeout-minutes: 20

@@ -522,7 +522,7 @@ on:
 # Worker
 `), 0o644))
 
-	compileDispatchWorkflowDependencies(context.Background(), mainPath, false, true, "", nil)
+	compileDispatchWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
 
 	lockPath := filepath.Join(workflowsDir, "worker.lock.yml")
 	_, err := os.Stat(lockPath)
@@ -530,6 +530,83 @@ on:
 	lockContent, err := os.ReadFile(lockPath)
 	require.NoError(t, err)
 	assert.Contains(t, string(lockContent), "name: \"Worker\"", "compiled dispatch dependency should preserve its workflow name")
+}
+
+// TestCompileCallWorkflowDependencies_PropagatesError verifies that a worker compilation
+// failure causes compileCallWorkflowDependencies to return an error rather than silently
+// continuing. A bad worker .md that contains invalid content triggers this path.
+func TestCompileCallWorkflowDependencies_PropagatesError(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "call-workflow-error-*")
+	workflowsDir := setupMinimalGitRepo(t, tmpDir)
+
+	mainPath := filepath.Join(workflowsDir, "orchestrator.md")
+	workerPath := filepath.Join(workflowsDir, "worker.md")
+
+	require.NoError(t, os.WriteFile(mainPath, []byte(`---
+name: Orchestrator
+on:
+  workflow_dispatch:
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Orchestrator
+`), 0o644))
+
+	// Write an intentionally broken worker file (no frontmatter — compile will fail).
+	require.NoError(t, os.WriteFile(workerPath, []byte(`not valid workflow content`), 0o644))
+
+	err := compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	require.Error(t, err, "worker compilation failure should propagate as an error")
+	require.ErrorContains(t, err, "worker", "error should mention the worker name")
+}
+
+// TestCompileCallWorkflowDependencies_ForceRecompilesStale verifies that when force=true,
+// a worker whose .lock.yml already exists is still recompiled.
+func TestCompileCallWorkflowDependencies_ForceRecompilesStale(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "call-workflow-force-*")
+	workflowsDir := setupMinimalGitRepo(t, tmpDir)
+
+	mainPath := filepath.Join(workflowsDir, "orchestrator.md")
+	workerPath := filepath.Join(workflowsDir, "worker.md")
+	lockPath := filepath.Join(workflowsDir, "worker.lock.yml")
+
+	require.NoError(t, os.WriteFile(mainPath, []byte(`---
+name: Orchestrator
+on:
+  workflow_dispatch:
+safe-outputs:
+  call-workflow:
+    - worker
+---
+
+# Orchestrator
+`), 0o644))
+	require.NoError(t, os.WriteFile(workerPath, []byte(`---
+name: Worker
+on:
+  workflow_dispatch:
+---
+
+# Worker
+`), 0o644))
+
+	// Write a stale (empty) lock file.
+	require.NoError(t, os.WriteFile(lockPath, []byte("# stale lock"), 0o644))
+
+	// Without force: stale lock is preserved.
+	err := compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", false, nil)
+	require.NoError(t, err)
+	content, _ := os.ReadFile(lockPath)
+	assert.Equal(t, "# stale lock", string(content), "without force, stale lock should not be recompiled")
+
+	// With force: stale lock gets recompiled.
+	err = compileCallWorkflowDependencies(context.Background(), mainPath, false, true, "", true, nil)
+	require.NoError(t, err)
+	recompiled, _ := os.ReadFile(lockPath)
+	assert.NotEqual(t, "# stale lock", string(recompiled), "with force, stale lock should be recompiled")
+	assert.Contains(t, string(recompiled), "name: \"Worker\"", "recompiled lock should contain worker name")
 }
 
 func TestValidateWorkflowDestination_SkipsExistingWorkflowFromSameSource(t *testing.T) {

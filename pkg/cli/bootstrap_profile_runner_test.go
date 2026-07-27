@@ -3,10 +3,10 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
 )
 
 func TestBootstrapActionNeedsMutation(t *testing.T) {
@@ -72,66 +72,63 @@ func TestBootstrapProfileState(t *testing.T) {
 	}
 }
 
-func TestBootstrapProfileAddWizardPhases(t *testing.T) {
-	expectedPreInstallActionTypes := []string{"require-owner-type", "github-app", "repo-variable", "repo-secret"}
-	expectedPostInstallActionTypes := []string{"copilot-auth", "commit-and-push", "handoff"}
-	expectedTotalActions := len(expectedPreInstallActionTypes) + len(expectedPostInstallActionTypes) + 1 // unsupported
-
+// TestPrintBootstrapConfigTODO_PreservesManifestOrder verifies that all declared config
+// actions are included in the TODO output in their exact manifest order. This guards
+// against regressions that split actions into pre-install and post-install phases and
+// thereby reorder or omit steps.
+func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
+	// Declare a profile with an interleaved mix of action types to ensure ordering
+	// cannot be accidentally satisfied by any implicit categorisation.
 	profile := &resolvedBootstrapProfile{
 		PackageID: "owner/repo",
 		Profile: &repositoryPackageBootstrap{
 			Config: []repositoryPackageBootstrapAction{
-				{Type: "require-owner-type"},
-				{Type: "github-app"},
-				{Type: "repo-variable"},
-				{Type: "repo-secret"},
-				{Type: "copilot-auth"},
-				{Type: "commit-and-push"},
-				{Type: "handoff"},
-				{Type: "unsupported"},
+				{Type: "require-owner-type", Value: "Organization"},
+				{Type: "copilot-auth", Secret: "COPILOT_TOKEN"},
+				{Type: "repo-variable", Name: "MY_VAR"},
+				{Type: "github-app", AppIDVariable: "APP_ID", PrivateKeySecret: "APP_KEY"},
+				{Type: "repo-secret", Name: "MY_SECRET"},
+				{Type: "commit-and-push", Message: "commit changes"},
+				{Type: "handoff", Message: "all done"},
 			},
 		},
 	}
 
-	preInstall := bootstrapProfileAddWizardPreInstall(profile)
-	if preInstall == nil || preInstall.Profile == nil {
-		t.Fatal("expected pre-install bootstrap profile")
-	}
-	assert.Equal(t, expectedPreInstallActionTypes, bootstrapActionTypes(preInstall.Profile.Config))
+	var buf bytes.Buffer
+	printBootstrapConfigTODO(&buf, profile)
+	output := buf.String()
 
-	postInstall := bootstrapProfileAddWizardPostInstall(profile)
-	if postInstall == nil || postInstall.Profile == nil {
-		t.Fatal("expected post-install bootstrap profile")
-	}
-	assert.Equal(t, expectedPostInstallActionTypes, bootstrapActionTypes(postInstall.Profile.Config))
-
-	if got := len(profile.Profile.Config); got != expectedTotalActions {
-		t.Fatalf("original profile should remain unchanged, got %d actions", got)
-	}
-
-	unsupportedOnlyProfile := &resolvedBootstrapProfile{
-		PackageID: "owner/repo",
-		Profile: &repositoryPackageBootstrap{
-			Config: []repositoryPackageBootstrapAction{{Type: "unsupported"}},
-		},
-	}
-	for _, tt := range []struct {
-		name   string
-		filter func(*resolvedBootstrapProfile) *resolvedBootstrapProfile
-	}{
-		{name: "pre-install", filter: bootstrapProfileAddWizardPreInstall},
-		{name: "post-install", filter: bootstrapProfileAddWizardPostInstall},
+	// Every action type must appear in the output.
+	for _, want := range []string{
+		"Organization",   // require-owner-type
+		"COPILOT_TOKEN",  // copilot-auth
+		"MY_VAR",         // repo-variable
+		"APP_ID",         // github-app
+		"MY_SECRET",      // repo-secret
+		"commit changes", // commit-and-push
+		"all done",       // handoff
 	} {
-		if tt.filter(unsupportedOnlyProfile) != nil {
-			t.Fatalf("unsupported actions should be excluded from the %s phase", tt.name)
+		if !strings.Contains(output, want) {
+			t.Errorf("expected %q in output, got:\n%s", want, output)
 		}
 	}
-}
 
-func bootstrapActionTypes(actions []repositoryPackageBootstrapAction) []string {
-	types := make([]string, 0, len(actions))
-	for _, action := range actions {
-		types = append(types, action.Type)
+	// Verify declared order is preserved in the output.
+	positions := []int{
+		strings.Index(output, "Organization"),
+		strings.Index(output, "COPILOT_TOKEN"),
+		strings.Index(output, "MY_VAR"),
+		strings.Index(output, "APP_ID"),
+		strings.Index(output, "MY_SECRET"),
+		strings.Index(output, "commit changes"),
+		strings.Index(output, "all done"),
 	}
-	return types
+	for i := 1; i < len(positions); i++ {
+		if positions[i-1] < 0 || positions[i] < 0 {
+			continue // already reported above
+		}
+		if positions[i-1] >= positions[i] {
+			t.Errorf("action at position %d appears after action at position %d (ordering regression)", i-1, i)
+		}
+	}
 }

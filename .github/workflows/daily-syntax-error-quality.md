@@ -20,6 +20,7 @@ tracker-id: daily-syntax-error-quality
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 tools:
   cli-proxy: true
   bash: true

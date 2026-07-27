@@ -14,6 +14,32 @@ const SAFE_OUTPUTS_URLS_ALLOWED_ONLY = "allowed-only";
 const SAFE_OUTPUTS_URLS_ALLOWED_OR_CODE_REGION = "allowed-or-code-region";
 
 /**
+ * Matches angle-bracket HTTPS autolinks in CommonMark and Slack mrkdwn form:
+ *   <https://example.com/path>
+ *   <https://example.com/path|Slack label>
+ *
+ * Capture groups:
+ *   1: hostname with optional port  ([\w.-]+(?::\d+)?)
+ *   2: optional path                (\/[^\s<>|]*)
+ *   3: optional Slack label         ([^<>]*)
+ *
+ * The path intentionally stops at "|" so that the Slack label is captured
+ * separately.  A bare "|" inside a URL path or query string (valid per
+ * RFC 3986 but uncommon — browsers percent-encode it as %7C) is therefore
+ * treated as the Slack label separator.  This is a known limitation; use
+ * %7C in URLs where a literal "|" must be preserved verbatim.
+ *
+ * The strict hostname pattern ([\w.-]+) deliberately excludes IPv6 literals
+ * and userinfo forms so that those fall through to tag-conversion instead of
+ * being preserved as autolinks.
+ *
+ * Defined at module level (not inside sanitizeUrlDomains) so the RegExp object
+ * is allocated once and reused across calls.  String.prototype.replace resets
+ * lastIndex automatically, so the /g flag is safe here.
+ */
+const angleBracketHttpsAutolinkRegex = /<https:\/\/([\w.-]+(?::\d+)?)(\/[^\s<>|]*)?(?:\|([^<>]*))?>/g;
+
+/**
  * Module-level set to collect redacted URL domains across sanitization calls.
  * @type {string[]}
  */
@@ -318,7 +344,26 @@ function sanitizeUrlDomains(s, allowed) {
     }
   }
 
-  // First pass: handle explicit https:// URLs
+  // Pass 1: handle angle-bracket autolinks and Slack mrkdwn links as a unit so
+  // later generic URL matching does not consume the trailing ">" or "|label".
+  //
+  // Capture groups from angleBracketHttpsAutolinkRegex:
+  //   1: hostnameWithPort
+  //   2: optional path (stops before "|")
+  //   3: optional Slack label (everything after "|" up to ">", may contain spaces)
+  //
+  // If the domain is disallowed the label text is preserved alongside the
+  // redacted URL so that the author's visible link text is not silently lost.
+  s = s.replace(angleBracketHttpsAutolinkRegex, (match, hostnameWithPort, path = "", label = "") => {
+    const url = `https://${hostnameWithPort}${path}`;
+    const filtered = applyDomainFilter(url, hostnameWithPort);
+    if (filtered === url) return match; // allowed — preserve original angle-bracket form
+    // Disallowed — redact URL but preserve label text if present so the author's
+    // visible link text is not silently lost.
+    return label ? `${filtered}|${label}` : filtered;
+  });
+
+  // Pass 2: handle remaining explicit https:// URLs
   s = s.replace(httpsUrlRegex, (match, hostnameWithPort) => applyDomainFilter(match, hostnameWithPort));
 
   // Second pass: handle protocol-relative URLs (//hostname/path).
@@ -722,6 +767,32 @@ function convertXmlTags(s) {
     "ul",
   ];
 
+  /**
+   * Slack/CommonMark autolinks use angle brackets but are not HTML tags.
+   * Preserve HTTPS forms here so downstream URL filtering can inspect them
+   * without convertXmlTags rewriting them to parentheses first.
+   *
+   * Supported forms:
+   *   <https://example.com/path>
+   *   <https://example.com/path|label>
+   *
+   * @param {string} tagContent
+   * @returns {boolean}
+   */
+  function isHttpsAngleBracketAutolink(tagContent) {
+    // Only match simple hostname forms that sanitizeUrlDomains can parse and
+    // filter.  The hostname must consist of word characters, dots, and hyphens
+    // ([\w.-]+), which excludes:
+    //   - IPv6 literals  e.g. https://[2001:db8::1]/
+    //   - Userinfo forms e.g. https://user@evil.example/
+    // Those forms fall through to the generic tag-conversion path and are
+    // wrapped in parentheses instead of being preserved as autolinks.
+    //
+    // (\/[^\s<>|]*)? — optional path (mirrors angleBracketHttpsAutolinkRegex)
+    // (?:\|[^<>]*)?  — optional Slack label, may contain spaces
+    return /^https:\/\/[\w.-]+(?::\d+)?(\/[^\s<>|]*)?(?:\|[^<>]*)?$/.test(tagContent);
+  }
+
   // First, process CDATA sections specially - convert tags inside them and the CDATA markers
   s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (match, content) => {
     // Convert tags inside CDATA content
@@ -767,6 +838,9 @@ function convertXmlTags(s) {
   // Convert self-closing tags: <tag/> or <tag /> to (tag/) or (tag /)
   // But preserve allowed safe tags (with dangerous attributes stripped)
   return s.replace(/<(\/?[A-Za-z!][^>]*?)>/g, (match, tagContent) => {
+    if (isHttpsAngleBracketAutolink(tagContent)) {
+      return match;
+    }
     // Extract tag name from the content (handle closing tags and attributes)
     const tagNameMatch = tagContent.match(/^\/?\s*([A-Za-z][A-Za-z0-9]*)/);
     if (tagNameMatch) {

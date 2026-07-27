@@ -1572,9 +1572,9 @@ When done, call add_label with the appropriate label.
 		t.Errorf("Lock file should contain GITHUB_TOKEN env var in the action step\nLock file content:\n%s", lockContentStr)
 	}
 
-	// Verify the handler manager step is present (required to process action payloads)
-	if !strings.Contains(lockContentStr, "safe_output_handler_manager.cjs") {
-		t.Errorf("Lock file should contain the safe_output_handler_manager.cjs step\nLock file content:\n%s", lockContentStr)
+	// Verify the process safe outputs step is present (required to process action payloads)
+	if !strings.Contains(lockContentStr, "process_safe_outputs.cjs") {
+		t.Errorf("Lock file should contain the process_safe_outputs.cjs step\nLock file content:\n%s", lockContentStr)
 	}
 }
 

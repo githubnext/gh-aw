@@ -16,6 +16,7 @@ engine:
   id: copilot
   copilot-sdk: true
   bare: true
+max-tool-denials: 3
 experiments:
   sub_agent_strategy:
     variants: [inline_strict, delegated_sequential, single_agent_control]

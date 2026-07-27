@@ -9,7 +9,9 @@ import (
 	"strings"
 	"testing"
 
+	lipgloss "charm.land/lipgloss/v2"
 	"github.com/github/gh-aw/pkg/parser"
+	"github.com/github/gh-aw/pkg/styles"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -205,11 +207,37 @@ func TestIntensityChar(t *testing.T) {
 	}
 }
 
-func TestIntensityStyle_NoANSIWhenNotTerminal(t *testing.T) {
+func TestRenderScheduleCalendarCell_NoANSIWhenNotTerminal(t *testing.T) {
 	for _, count := range []int{0, 1, 2, 5, 8} {
-		got := intensityStyle(count, false).Render(intensityChar(count))
-		assert.NotContains(t, got, "\x1b[", "non-TTY output should not contain ANSI escapes")
+		text := intensityChar(count)
+		got := renderScheduleCalendarCell(count, text, false, []string{"TERM=xterm-256color"})
+		assert.Equal(t, text, got, "non-TTY output should return plain text")
 	}
+}
+
+func TestRenderScheduleCalendarCell_NoANSIWhenNoColor(t *testing.T) {
+	for _, count := range []int{0, 1, 2, 5, 8} {
+		text := intensityChar(count)
+		got := renderScheduleCalendarCell(count, text, true, []string{"NO_COLOR=1", "TERM=xterm-256color"})
+		assert.Equal(t, text, got, "NO_COLOR output should return plain text")
+	}
+}
+
+func TestRenderScheduleCalendarCell_UsesANSIInColorTerminal(t *testing.T) {
+	// This test intentionally avoids t.Parallel because it temporarily overrides
+	// a shared style token; running in parallel could race with other tests that
+	// read styles.ScheduleCalendarCritical.
+	prevCritical := styles.ScheduleCalendarCritical
+	styles.ScheduleCalendarCritical = lipgloss.NewStyle().Transform(func(s string) string {
+		return "\x1b[31m" + s + "\x1b[0m"
+	})
+	t.Cleanup(func() {
+		styles.ScheduleCalendarCritical = prevCritical
+	})
+
+	got := renderScheduleCalendarCell(8, intensityChar(8), true, []string{"CLICOLOR_FORCE=1", "TERM=xterm-256color"})
+	assert.Contains(t, got, "\x1b[", "TTY with color support should contain ANSI escapes")
+	assert.Contains(t, got, "\x1b[31m", "TTY path should apply the mocked critical style")
 }
 
 // ---------------------------------------------------------------------------

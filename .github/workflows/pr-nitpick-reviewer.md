@@ -14,6 +14,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 imports:
   - uses: shared/pr-review-base.md
   - shared/reporting.md

@@ -12,6 +12,7 @@ tracker-id: jsweep-daily
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 runtimes:
   node:
     version: "20"

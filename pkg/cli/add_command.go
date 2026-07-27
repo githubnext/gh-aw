@@ -471,15 +471,26 @@ func validateWorkflowDestination(githubWorkflowsDir, workflowName, sourceRepo st
 
 func compileAddedWorkflow(ctx context.Context, destFile string, workflowSpec *WorkflowSpec, githubWorkflowsDir string, tracker *FileTracker, opts AddOptions) {
 	// For remote workflows: now that the main workflow and all its imports are on disk,
-	// parse the fully merged safe-outputs configuration to discover any dispatch workflows
-	// that originate from imported shared workflows (not visible in the raw frontmatter).
+	// parse the fully merged safe-outputs configuration to discover any dispatch or
+	// call-workflow workers that originate from imported shared workflows (not visible
+	// in the raw frontmatter).
 	if !isLocalWorkflowPath(workflowSpec.WorkflowPath) {
 		fetchAndSaveDispatchWorkflowsFromParsedFile(ctx, destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
+		fetchAndSaveCallWorkflowsFromParsedFile(ctx, destFile, workflowSpec, githubWorkflowsDir, opts.Verbose, opts.Force, tracker)
 	}
 	// Compile any dispatch-workflow .md dependencies that were just fetched and lack a
 	// .lock.yml. The dispatch-workflow validator requires every .md dispatch target to be
-	// compiled before the main workflow can be validated.
-	compileDispatchWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker)
+	// compiled before the main workflow can be validated. With --force, always recompile
+	// to pick up freshly overwritten worker files.
+	compileDispatchWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.Force, tracker)
+	// Compile any call-workflow .md worker dependencies that were just fetched and lack a
+	// .lock.yml. Errors are propagated: a missing worker .lock.yml would leave the
+	// orchestrator referencing a non-existent file. With --force, always recompile to
+	// pick up freshly overwritten worker files.
+	if err := compileCallWorkflowDependencies(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, opts.Force, tracker); err != nil {
+		printCompilationError(err, opts.Quiet)
+		return
+	}
 	// Compile the workflow
 	if tracker != nil {
 		if err := compileWorkflowWithTracking(ctx, destFile, opts.Verbose, opts.Quiet, opts.EngineOverride, tracker); err != nil {

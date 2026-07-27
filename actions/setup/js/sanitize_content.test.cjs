@@ -441,9 +441,9 @@ describe("sanitize_content.cjs", () => {
     });
 
     it("should move title into link text for inline link with angle-bracket URL", () => {
-      // Note: convertXmlTags runs after neutralizeMarkdownLinkTitles and converts <url> to (url)
+      // Angle-bracket HTTPS autolinks are preserved so CommonMark/Slack link syntax survives sanitization.
       const result = sanitizeContent('[click here](<https://github.com/path> "injected payload")');
-      expect(result).toBe("[click here (injected payload)]((https://github.com/path))");
+      expect(result).toBe("[click here (injected payload)](<https://github.com/path>)");
     });
 
     it("should move multiple link titles into link text in the same content", () => {
@@ -579,6 +579,43 @@ describe("sanitize_content.cjs", () => {
       const result = sanitizeContent("<img/onerror=alert(1) src=x>");
       expect(result).toContain("<img");
       expect(result).not.toContain("onerror");
+    });
+
+    it("should preserve HTTPS angle-bracket autolinks", () => {
+      const input = "Tracking issue: <https://github.com/octo-org/octo-repo/issues/123>";
+      expect(sanitizeContent(input)).toBe(input);
+    });
+
+    it("should preserve Slack mrkdwn links on allowed HTTPS domains", () => {
+      const input = "Tracking issue: <https://github.com/octo-org/octo-repo/issues/123|Build failure — Build github/gh-aw#456>";
+      expect(sanitizeContent(input)).toBe(input);
+    });
+
+    it("should not preserve IPv6 angle-bracket links", () => {
+      // IPv6 authority is not a simple [\w.-]+ hostname — treat as unknown tag
+      const result = sanitizeContent("<https://[2001:db8::1]/path>");
+      expect(result).not.toContain("<https://[2001:db8::1]");
+    });
+
+    it("should not preserve userinfo angle-bracket links", () => {
+      // Userinfo (user@host) must not bypass domain filtering
+      const result = sanitizeContent("<https://github.com@evil.example/path>");
+      expect(result).not.toContain("<https://github.com@evil.example");
+    });
+
+    it("should redact Slack mrkdwn links with disallowed domains", () => {
+      // Domain is blocked — URL is redacted but label text is preserved so the
+      // author's visible link text is not silently lost.
+      const result = sanitizeContent("<https://evil.example.com/path|Build failure>");
+      expect(result).toContain("evil.example.com/redacted"); // domain shows in redacted form
+      expect(result).toContain("Build failure"); // label is preserved
+      expect(result).not.toContain("<https://evil.example.com"); // not in original angle-bracket form
+    });
+
+    it("should redact plain angle-bracket autolinks with disallowed domains", () => {
+      const result = sanitizeContent("<https://evil.example.com/path>");
+      expect(result).toContain("evil.example.com/redacted"); // domain shows in redacted form
+      expect(result).not.toContain("<https://evil.example.com"); // not in original angle-bracket form
     });
 
     it("should handle CDATA sections", () => {

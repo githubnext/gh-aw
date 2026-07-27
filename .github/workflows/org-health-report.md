@@ -18,6 +18,7 @@ sandbox:
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 tools:
   cli-proxy: true
   github:
