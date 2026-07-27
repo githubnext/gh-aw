@@ -689,16 +689,16 @@ func TestActionCacheInputs(t *testing.T) {
 		t.Error("Expected nil inputs after SHA change, got non-nil")
 	}
 
-	// SetInputs on a missing key now creates a new entry
+	// SetInputs on a missing key is now a no-op — it does not create empty-SHA entries.
 	cache.SetInputs("owner/repo", "v99", map[string]*ActionYAMLInput{
 		"x": {Description: "x"},
 	})
 	inputs, ok = cache.GetInputs("owner/repo", "v99")
-	if !ok {
-		t.Error("Expected SetInputs on missing key to create entry")
+	if ok {
+		t.Error("Expected SetInputs on missing key to be a no-op (not create entry)")
 	}
-	if len(inputs) != 1 || inputs["x"] == nil {
-		t.Error("Expected created entry to have the given inputs")
+	if inputs != nil {
+		t.Error("Expected nil inputs for missing entry")
 	}
 }
 

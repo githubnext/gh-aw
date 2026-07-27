@@ -494,17 +494,15 @@ func (c *ActionCache) GetInputs(repo, version string) (map[string]*ActionYAMLInp
 }
 
 // SetInputs stores the action inputs in the cache entry for the given repo and version.
-// If no cache entry exists for the key, a new entry is created with an empty SHA so that
-// inputs fetched from the network are persisted even before the SHA is resolved.
+// If no cache entry with a non-empty SHA exists for the key, the call is a no-op.
+// Inputs are only stored for entries that already have a resolved SHA, preventing
+// placeholder entries with empty SHAs from being written to the on-disk cache.
 func (c *ActionCache) SetInputs(repo, version string, inputs map[string]*ActionYAMLInput) {
 	key := formatActionCacheKey(repo, version)
 	entry, exists := c.Entries[key]
-	if !exists {
-		actionCacheLog.Printf("No cache entry for key=%s, creating new entry to store inputs", key)
-		entry = ActionCacheEntry{
-			Repo:    repo,
-			Version: version,
-		}
+	if !exists || entry.SHA == "" {
+		actionCacheLog.Printf("No existing cache entry with SHA for key=%s, skipping inputs update", key)
+		return
 	}
 	entry.Inputs = inputs
 	c.Entries[key] = entry
@@ -524,7 +522,9 @@ func (c *ActionCache) GetActionDescription(repo, version string) (string, bool) 
 }
 
 // SetActionDescription stores the action description in the cache entry for the given repo and version.
-// If no cache entry exists for the key, a new entry is created.
+// If no cache entry with a non-empty SHA exists for the key, the call is a no-op.
+// Descriptions are only stored for entries that already have a resolved SHA, preventing
+// placeholder entries with empty SHAs from being written to the on-disk cache.
 // Empty descriptions are not stored; actions without a description string are treated the same as
 // actions whose description has not yet been fetched, so we avoid caching an empty string that
 // would prevent a later fetch from populating the field.
@@ -538,11 +538,9 @@ func (c *ActionCache) SetActionDescription(repo, version, description string) {
 	}
 	key := formatActionCacheKey(repo, version)
 	entry, exists := c.Entries[key]
-	if !exists {
-		entry = ActionCacheEntry{
-			Repo:    repo,
-			Version: version,
-		}
+	if !exists || entry.SHA == "" {
+		actionCacheLog.Printf("No existing cache entry with SHA for key=%s, skipping description update", key)
+		return
 	}
 	entry.ActionDescription = description
 	c.Entries[key] = entry
@@ -562,15 +560,18 @@ func (c *ActionCache) GetReleasedAt(repo, version string) (time.Time, bool) {
 }
 
 // SetReleasedAt stores the release publication date for the given repo and version.
-// If no cache entry exists for the key, a new entry is created.
+// If no cache entry with a non-empty SHA exists for the key, the call is a no-op.
+// Release dates are only stored for entries that already have a resolved SHA, preventing
+// placeholder entries with empty SHAs from being written to the on-disk cache.
+// This matters most when checking cooldown for a new target version that is not yet pinned:
+// without this guard, storing the release date would create a shell entry whose empty SHA
+// would later fail the actions-lock.json validation.
 func (c *ActionCache) SetReleasedAt(repo, version string, t time.Time) {
 	key := formatActionCacheKey(repo, version)
 	entry, exists := c.Entries[key]
-	if !exists {
-		entry = ActionCacheEntry{
-			Repo:    repo,
-			Version: version,
-		}
+	if !exists || entry.SHA == "" {
+		actionCacheLog.Printf("No existing cache entry with SHA for key=%s, skipping release date update", key)
+		return
 	}
 	entry.ReleasedAt = &t
 	c.Entries[key] = entry
