@@ -1,0 +1,2 @@
+{"id":"patterns_identified","question":"Did the agent identify repeated cross-user prompt patterns suitable for centralization?","answer":"NO","model":"small","timestamp":"2026-07-27T04:40:44.087Z","runid":"30237572382"}
+{"id":"recommendations_produced","question":"Were recommendations produced for new workflows, tools, shared prompts, or other automations?","answer":"NO","model":"small","timestamp":"2026-07-27T04:40:44.087Z","runid":"30237572382"}
