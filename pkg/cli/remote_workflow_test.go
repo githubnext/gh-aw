@@ -660,6 +660,49 @@ imports:
 	}
 }
 
+func TestFetchAndSaveRemoteIncludes_PathTraversalRejected(t *testing.T) {
+	originalFetchInclude := fetchIncludeFromSource
+	t.Cleanup(func() {
+		fetchIncludeFromSource = originalFetchInclude
+	})
+	fetchIncludeFromSource = func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+		return []byte("# include body\n"), "", nil
+	}
+
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(targetDir, 0o755))
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+	}
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include ../secrets/evil.md\n", spec, targetDir, false, false, nil)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "refusing to write include outside allowed directory")
+	require.NoFileExists(t, filepath.Join(tmpDir, ".github", "secrets", "evil.md"))
+}
+
+func TestFetchAndSaveRemoteIncludes_SharedIncludeStaysUnderSharedDir(t *testing.T) {
+	originalFetchInclude := fetchIncludeFromSource
+	t.Cleanup(func() {
+		fetchIncludeFromSource = originalFetchInclude
+	})
+	fetchIncludeFromSource = func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+		return []byte("# include body\n"), "", nil
+	}
+
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(targetDir, 0o755))
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+	}
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include shared/helper.md\n", spec, targetDir, false, false, nil)
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(tmpDir, ".github", "shared", "helper.md"))
+}
+
 // TestFetchAndSaveRemoteFrontmatterImports_InvalidRepoSlug verifies that an invalid
 // RepoSlug (not in owner/repo format) causes the function to return early without error.
 func TestFetchAndSaveRemoteFrontmatterImports_InvalidRepoSlug(t *testing.T) {

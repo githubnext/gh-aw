@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"strings"
@@ -50,7 +51,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 
 // addRepositorySecret adds a secret to the repository
 func (c *AddInteractiveConfig) addRepositorySecret(name, value string) error {
-	output, err := workflow.RunGHCombined("Adding repository secret...", "secret", "set", name, "--repo", c.RepoOverride, "--body", value)
+	output, err := workflow.RunGHInputContext(c.Ctx, "Adding repository secret...", bytes.NewBufferString(value), "secret", "set", name, "--repo", c.RepoOverride, "--body", "-")
 	if err != nil {
 		return fmt.Errorf("failed to set secret: %w (output: %s)", err, string(output))
 	}

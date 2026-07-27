@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -571,7 +572,12 @@ func uploadSecretToRepo(secretName, secretValue, repoSlug string, verbose bool, 
 		console.PrintInfoMessage(fmt.Sprintf("Uploading %s secret to repository", secretName))
 	}
 
-	output, err = workflow.RunGHCombined("Setting secret...", "secret", "set", secretName, "--repo", repoSlug, "--body", secretValue)
+	output, err = workflow.RunGHInputContext(
+		context.Background(),
+		"Setting secret...",
+		bytes.NewBufferString(secretValue),
+		"secret", "set", secretName, "--repo", repoSlug, "--body", "-",
+	)
 	if err != nil {
 		return fmt.Errorf("failed to set %s secret: %w (output: %s)", secretName, err, string(output))
 	}

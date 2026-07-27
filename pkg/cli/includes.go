@@ -22,6 +22,7 @@ import (
 // includeDirectivePattern matches @include or @include? directives with their path argument
 var includeDirectivePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 var downloadRemoteImportFile = parser.DownloadFileFromGitHub
+var fetchIncludeFromSource = FetchIncludeFromSource
 
 // FetchIncludeFromSource fetches an include file from GitHub directly using a workflowspec format path.
 // The includePath should be in the format: owner/repo/path/to/file.md[@ref]
@@ -468,7 +469,7 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 		}{}
 
 		// Fetch the include file
-		includeContent, _, err := FetchIncludeFromSource(ctx, includePath, spec, verbose)
+		includeContent, _, err := fetchIncludeFromSource(ctx, includePath, spec, verbose)
 		if err != nil {
 			if isOptional {
 				if verbose {
@@ -492,6 +493,13 @@ func fetchAndSaveRemoteIncludes(ctx context.Context, content string, spec *Workf
 		} else {
 			// Relative includes go alongside the workflow
 			targetPath = filepath.Join(targetDir, filePath)
+		}
+		writeBase := targetDir
+		if strings.HasPrefix(filePath, "shared/") || isWorkflowSpecFormat(filePath) {
+			writeBase = filepath.Join(filepath.Dir(targetDir), "shared")
+		}
+		if err := fileutil.ValidatePathWithinBase(writeBase, targetPath); err != nil {
+			return fmt.Errorf("refusing to write include outside allowed directory %s: %w", writeBase, err)
 		}
 
 		// Create target directory if needed
