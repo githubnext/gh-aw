@@ -248,14 +248,28 @@ async function derivePrHeadRef(entry) {
     if (ref) return ref;
   }
 
-  // 3. Explicit pull_request_number on the sample arguments.
-  const argNumber = Number(entry.arguments.pull_request_number);
-  if (Number.isFinite(argNumber) && argNumber > 0) {
-    const ref = await fetchPullRequestHeadRef({ owner, repo, pullNumber: argNumber });
+  // 3. PR number from sample arguments, workflow_dispatch inputs, or config target.
+  const pullNumber =
+    toPositivePullRequestNumber(entry.arguments.pull_request_number) ||
+    toPositivePullRequestNumber(payload?.inputs?.pull_request_number) ||
+    toPositivePullRequestNumber(payload?.client_payload?.pull_request_number) ||
+    readConfiguredTargetPullRequestNumber(entry.tool);
+  if (pullNumber) {
+    const ref = await fetchPullRequestHeadRef({ owner, repo, pullNumber });
     if (ref) return ref;
   }
 
   return null;
+}
+
+/**
+ * Convert unknown value to a positive pull request number, or null.
+ * @param {any} value
+ * @returns {number|null}
+ */
+function toPositivePullRequestNumber(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 /**
@@ -289,6 +303,44 @@ function readConfiguredTargetRepo(tool) {
     core.debug(`apply_samples: could not read target-repo from ${configPath}: ${getErrorMessage(err)}`);
   }
   return "";
+}
+
+/**
+ * Read configured `target` for a safe-output tool and coerce it into a PR number.
+ * Supports plain numeric values and `${ENV_VAR}` placeholders.
+ * @param {string} tool
+ * @returns {number|null}
+ */
+function readConfiguredTargetPullRequestNumber(tool) {
+  const configPath = process.env.GH_AW_SAFE_OUTPUTS_CONFIG_PATH;
+  if (!configPath || !configPath.trim()) {
+    return null;
+  }
+
+  const toolKey = typeof tool === "string" ? tool.replace(/-/g, "_") : "";
+
+  try {
+    const raw = fs.readFileSync(configPath, "utf8");
+    const parsed = JSON.parse(raw);
+    const config = parsed && typeof parsed === "object" ? Object.fromEntries(Object.entries(parsed).map(([k, v]) => [String(k).replace(/-/g, "_"), v])) : {};
+    const toolConfig = toolKey && config && typeof config === "object" ? config[toolKey] : null;
+    const target = toolConfig && typeof toolConfig === "object" ? toolConfig.target : null;
+
+    if (typeof target === "number") {
+      return toPositivePullRequestNumber(target);
+    }
+    if (typeof target === "string") {
+      const trimmed = target.trim();
+      const envMatch = /^\$\{([A-Za-z_][A-Za-z0-9_]*)\}$/.exec(trimmed);
+      if (envMatch) {
+        return toPositivePullRequestNumber(process.env[envMatch[1]]);
+      }
+      return toPositivePullRequestNumber(trimmed);
+    }
+  } catch (err) {
+    core.debug(`apply_samples: could not read target from ${configPath}: ${getErrorMessage(err)}`);
+  }
+  return null;
 }
 
 /**
