@@ -124,7 +124,7 @@ config:
     description: Leave blank to skip this optional setup value.
     optional: true
   - type: handoff
-    message: Post-install handoff should not appear before engine selection.
+    message: Post-install handoff message.
 `
 	require.NoError(t, os.WriteFile(filepath.Join(packagePath, "aw.yml"), []byte(manifestContent), 0644), "Failed to write local package manifest")
 	require.NoError(t, os.WriteFile(filepath.Join(packagePath, "README.md"), []byte("# Local Add Wizard Package\n"), 0644), "Failed to write local package README")
@@ -391,16 +391,15 @@ func TestTuistoryAddWizardIntegration(t *testing.T) {
 	assert.ErrorIs(t, statErr, os.ErrNotExist, "Workflow file should not be created when add-wizard is cancelled")
 }
 
-func TestTuistoryAddWizardManifestBootstrapRunsBeforeEngineSelection(t *testing.T) {
+func TestTuistoryAddWizardManifestBootstrapRunsAfterEngineSelection(t *testing.T) {
 	setup := setupAddWizardManifestTuistoryTest(t)
 	defer func() {
 		_ = os.RemoveAll(setup.tempDir)
 		_ = os.RemoveAll(setup.fakeGHDir)
 	}()
 
-	const earlyPrompt = "Enter optional bootstrap variable"
+	const bootstrapPrompt = "Enter optional bootstrap variable"
 	const enginePrompt = "Which coding agent would you like to use?"
-	const lateMessage = "Post-install handoff should not appear before engine selection."
 
 	cmd := exec.Command(setup.binaryPath, "add-wizard", "./local-package", "--no-secret")
 	cmd.Dir = setup.tempDir
@@ -418,27 +417,11 @@ func TestTuistoryAddWizardManifestBootstrapRunsBeforeEngineSelection(t *testing.
 	session := startInteractivePTYSession(t, cmd)
 	defer session.close(t)
 
-	require.NoError(t, session.waitForText(earlyPrompt, 30*time.Second), "Expected pre-install bootstrap prompt")
-
-	beforeEngineOutput := session.readAll()
-	assert.Contains(t, beforeEngineOutput, earlyPrompt, "Expected pre-install bootstrap prompt to be shown")
-	assert.NotContains(t, beforeEngineOutput, enginePrompt, "Engine selection should not start before pre-install bootstrap setup")
-	assert.NotContains(t, beforeEngineOutput, lateMessage, "Post-install bootstrap steps should not run before engine selection")
-
-	session.writeString(t, "\r")
-
 	require.NoError(t, session.waitForText(enginePrompt, 30*time.Second), "Expected engine selection prompt")
 
-	afterEngineOutput := session.readAll()
-	assert.Contains(t, afterEngineOutput, earlyPrompt, "Expected pre-install bootstrap prompt in final session output")
-	assert.Contains(t, afterEngineOutput, enginePrompt, "Expected engine selection prompt after pre-install bootstrap setup")
-	assert.NotContains(t, afterEngineOutput, lateMessage, "Post-install bootstrap steps should not run before installation")
-
-	earlyPromptIndex := strings.Index(afterEngineOutput, earlyPrompt)
-	enginePromptIndex := strings.Index(afterEngineOutput, enginePrompt)
-	require.NotEqual(t, -1, earlyPromptIndex, "Expected to find pre-install bootstrap prompt in session output")
-	require.NotEqual(t, -1, enginePromptIndex, "Expected to find engine selection prompt in session output")
-	assert.Less(t, earlyPromptIndex, enginePromptIndex, "Pre-install bootstrap prompt should appear before engine selection")
+	beforeInterruptOutput := session.readAll()
+	assert.Contains(t, beforeInterruptOutput, enginePrompt, "Expected engine selection prompt to be shown")
+	assert.NotContains(t, beforeInterruptOutput, bootstrapPrompt, "Bootstrap variable prompt should not appear before engine selection")
 
 	session.interrupt(t)
 }
