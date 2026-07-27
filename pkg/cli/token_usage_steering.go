@@ -1,0 +1,76 @@
+package cli
+
+import (
+	"bufio"
+	"encoding/json"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+)
+
+func countAPIProxySteeringEvents(runDir string) int {
+	eventsPath := findAPIProxyEventsFile(runDir)
+	if eventsPath == "" {
+		return 0
+	}
+	count, err := parseAPIProxySteeringEvents(eventsPath)
+	if err != nil {
+		tokenUsageLog.Printf("Failed to parse API proxy events file %s: %v", eventsPath, err)
+		return 0
+	}
+	return count
+}
+
+// scanSteeringEntries reads all valid steering proxyEventsEntry records from r.
+// Lines that fail the quick-keyword check or JSON decoding are silently skipped.
+// The caller is responsible for the lifetime of r.
+func scanSteeringEntries(r io.Reader) ([]proxyEventsEntry, error) {
+	var entries []proxyEventsEntry
+	scanner := bufio.NewScanner(r)
+	buf := make([]byte, maxScannerBufferSize)
+	scanner.Buffer(buf, maxScannerBufferSize)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || !containsSteeringKeyword(line) {
+			continue
+		}
+		var entry proxyEventsEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			continue
+		}
+		if isSteeringEvent(entry.eventName(), strings.TrimSpace(entry.Message)) {
+			entries = append(entries, entry)
+		}
+	}
+	return entries, scanner.Err()
+}
+
+func parseAPIProxySteeringEvents(filePath string) (int, error) {
+	file, err := os.Open(filepath.Clean(filePath))
+	if err != nil {
+		return 0, err
+	}
+	defer file.Close()
+	entries, err := scanSteeringEntries(file)
+	return len(entries), err
+}
+
+func containsSteeringKeyword(line string) bool {
+	return strings.Contains(line, "steering") ||
+		strings.Contains(line, "STEERING") ||
+		strings.Contains(line, "Steering")
+}
+
+// isSteeringEvent matches AWF proxy steering events using both event name and
+// message format from the firewall specification.
+func isSteeringEvent(eventName, message string) bool {
+	switch eventName {
+	case tokenSteeringEventName:
+		return strings.HasPrefix(message, awfTokenWarningPrefix)
+	case timeoutSteeringEventName:
+		return strings.HasPrefix(message, awfTimeWarningPrefix)
+	default:
+		return false
+	}
+}
