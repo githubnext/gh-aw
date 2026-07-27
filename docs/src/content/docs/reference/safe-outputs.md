@@ -1726,7 +1726,10 @@ safe-outputs:
   # data:       # enforce inline schema for output `data`
   #   verdict: string
   #   score: number
+  # data: ${{ fromJSON(needs.schema.outputs.data_schema) }} # runtime schema expression
 ```
+
+Inline object schemas are validated at compile-time (Go) and runtime (JavaScript). Expression-based schemas are resolved and validated at runtime in JavaScript.
 
 For safe outputs that support `body`, the validator preserves output `data` and appends it to the body as fenced JSON:
 

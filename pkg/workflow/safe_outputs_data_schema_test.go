@@ -49,7 +49,7 @@ func TestValidateSafeOutputsDataSchemaRejectsInvalidDataType(t *testing.T) {
 
 			err := validateSafeOutputsDataSchema(cfg)
 			require.Error(t, err)
-			assert.Contains(t, err.Error(), "must be false, true, or an inline schema object")
+			assert.Contains(t, err.Error(), "safe-outputs.data")
 		})
 	}
 }
@@ -102,4 +102,13 @@ func TestValidateSafeOutputsDataSchemaBooleanTrueAllowsAnyObject(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, cfg.DataEnabled)
 	assert.Nil(t, cfg.NormalizedDataSchema)
+}
+
+func TestValidateSafeOutputsDataSchemaAllowsExpression(t *testing.T) {
+	cfg := &SafeOutputsConfig{Data: "${{ fromJSON(inputs.safe_outputs_data_schema) }}"}
+	err := validateSafeOutputsDataSchema(cfg)
+	require.NoError(t, err)
+	assert.True(t, cfg.DataEnabled)
+	assert.Nil(t, cfg.NormalizedDataSchema)
+	assert.Equal(t, "${{ fromJSON(inputs.safe_outputs_data_schema) }}", cfg.DataSchemaExpression)
 }

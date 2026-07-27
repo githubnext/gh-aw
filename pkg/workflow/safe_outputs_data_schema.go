@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"slices"
@@ -49,40 +50,62 @@ func validateSafeOutputsDataSchema(config *SafeOutputsConfig) error {
 	if config == nil {
 		return nil
 	}
-	enabled, schema, err := resolveSafeOutputsDataSchema(config)
+	enabled, schema, schemaExpression, err := resolveSafeOutputsDataSchema(config)
 	if err != nil {
 		return err
 	}
 	config.DataEnabled = enabled
 	config.NormalizedDataSchema = schema
+	config.DataSchemaExpression = schemaExpression
 	return nil
 }
 
-func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]any, error) {
+func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]any, string, error) {
 	if config == nil {
-		return false, nil, nil
+		return false, nil, "", nil
 	}
 	if config.Data == nil {
-		return false, nil, nil
+		return false, nil, "", nil
 	}
 
 	switch v := config.Data.(type) {
 	case bool:
 		if !v {
-			return false, nil, nil
+			return false, nil, "", nil
 		}
-		return true, nil, nil
+		return true, nil, "", nil
 	case map[string]any:
 		normalized, err := simplifyDataSchemaNode(v, "safe-outputs.data", true)
 		if err != nil {
-			return false, nil, err
+			return false, nil, "", err
 		}
 		if normalizedType, _ := normalized["type"].(string); normalizedType != "object" {
-			return false, nil, fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q", normalizedType)
+			return false, nil, "", fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q", normalizedType)
 		}
-		return true, normalized, nil
+		return true, normalized, "", nil
+	case string:
+		trimmed := strings.TrimSpace(v)
+		if containsExpression(trimmed) {
+			return true, nil, trimmed, nil
+		}
+		var parsed any
+		if err := json.Unmarshal([]byte(trimmed), &parsed); err == nil {
+			schemaMap, ok := parsed.(map[string]any)
+			if !ok {
+				return false, nil, "", errors.New("safe-outputs.data string JSON must decode to an object schema")
+			}
+			normalized, normalizeErr := simplifyDataSchemaNode(schemaMap, "safe-outputs.data", true)
+			if normalizeErr != nil {
+				return false, nil, "", normalizeErr
+			}
+			if normalizedType, _ := normalized["type"].(string); normalizedType != "object" {
+				return false, nil, "", fmt.Errorf("safe-outputs.data must resolve to an object schema, got %q", normalizedType)
+			}
+			return true, normalized, "", nil
+		}
+		return false, nil, "", errors.New("safe-outputs.data string values must be a GitHub Actions expression or JSON object schema")
 	default:
-		return false, nil, errors.New("safe-outputs.data must be false, true, or an inline schema object")
+		return false, nil, "", errors.New("safe-outputs.data must be false, true, an inline schema object, or a GitHub Actions expression")
 	}
 }
 

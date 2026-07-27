@@ -478,12 +478,28 @@ describe("safe_output_type_validator", () => {
       process.env.GH_AW_VALIDATION_CONFIG = JSON.stringify(configWithDataSchema);
       resetValidationConfigCache();
 
-      const invalid = validateItem({ type: "add_comment", body: "Review complete.", data: { verdict: "APPROVE", extra: "x" } }, "add_comment", 1);
+      const invalid = validateItem({ type: "add_comment", body: "Review complete.", data: { verdict: "APPROVE", criteria_passed: 5, extra: "x" } }, "add_comment", 1);
       expect(invalid.isValid).toBe(false);
       expect(invalid.error).toContain("'data'.extra");
 
       const valid = validateItem({ type: "add_comment", body: "Review complete.", data: { verdict: "APPROVE", criteria_passed: 5 } }, "add_comment", 1);
       expect(valid.isValid).toBe(true);
+    });
+
+    it("should enforce runtime data schema supplied as JSON string", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const invalid = validateItem({ type: "add_comment", body: "Review complete.", data: { verdict: "APPROVE", extra: "x" } }, "add_comment", 1, {
+        dataEnabled: true,
+        dataSchema: JSON.stringify({
+          type: "object",
+          properties: { verdict: { type: "string" } },
+          required: ["verdict"],
+          additionalProperties: false,
+        }),
+      });
+      expect(invalid.isValid).toBe(false);
+      expect(invalid.error).toContain("'data'.extra");
     });
 
     it("should normalize a backticked issue reference when enabled", async () => {

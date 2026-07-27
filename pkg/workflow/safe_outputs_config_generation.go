@@ -66,6 +66,8 @@ func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
 				handlerCfg["data_enabled"] = true
 				if data.SafeOutputs.NormalizedDataSchema != nil {
 					handlerCfg["data_schema"] = data.SafeOutputs.NormalizedDataSchema
+				} else if strings.TrimSpace(data.SafeOutputs.DataSchemaExpression) != "" {
+					handlerCfg["data_schema"] = data.SafeOutputs.DataSchemaExpression
 				}
 			}
 			safeOutputsConfig[handlerName] = handlerCfg

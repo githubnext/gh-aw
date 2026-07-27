@@ -14,6 +14,7 @@ const { isTemporaryId, normalizeTemporaryId } = require("./temporary_id.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { unfenceMarkdown } = require("./markdown_unfencing.cjs");
 const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { resolveDataSchema } = require("./data_schema_normalizer.cjs");
 
 /**
  * Default max body length for GitHub content
@@ -28,7 +29,13 @@ const MAX_GITHUB_USERNAME_LENGTH = 39;
 const ISSUE_INTENT_RATIONALE_MAX_LENGTH = 280;
 
 /**
- * @typedef {{ allowedAliases?: string[], maxBotMentions?: number, normalizeIssueClosingKeywords?: boolean }} ValidateOptions
+ * @typedef {{
+ *   allowedAliases?: string[],
+ *   maxBotMentions?: number,
+ *   normalizeIssueClosingKeywords?: boolean,
+ *   dataEnabled?: boolean,
+ *   dataSchema?: any
+ * }} ValidateOptions
  */
 
 // GitHub issue-closing keywords:
@@ -713,7 +720,10 @@ function validateItem(item, itemType, lineNum, options) {
   }
 
   if (item.data !== undefined) {
-    const dataEnabled = typeConfig.dataEnabled === true || (typeConfig.dataSchema && typeof typeConfig.dataSchema === "object");
+    const runtimeDataSchema = options?.dataSchema;
+    const runtimeDataEnabled = options?.dataEnabled === true || runtimeDataSchema !== undefined;
+    const configDataEnabled = typeConfig.dataEnabled === true || typeConfig.dataSchema !== undefined;
+    const dataEnabled = runtimeDataEnabled || configDataEnabled;
     if (!dataEnabled) {
       return {
         isValid: false,
@@ -742,8 +752,18 @@ function validateItem(item, itemType, lineNum, options) {
     // Preserve normalized data on the item for downstream automation.
     normalizedItem.data = normalizedData;
 
-    if (typeConfig.dataSchema && typeof typeConfig.dataSchema === "object") {
-      const dataSchemaError = validateValueAgainstSchema(normalizedData, typeConfig.dataSchema);
+    const schemaSource = runtimeDataSchema !== undefined ? runtimeDataSchema : typeConfig.dataSchema;
+    if (schemaSource !== undefined) {
+      let dataSchema;
+      try {
+        dataSchema = resolveDataSchema(schemaSource, `safe-outputs.${itemType}.data`);
+      } catch (error) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} 'data' schema is invalid: ${getErrorMessage(error)}`,
+        };
+      }
+      const dataSchemaError = validateValueAgainstSchema(normalizedData, dataSchema);
       if (dataSchemaError) {
         const errorPath = dataSchemaError.path ? `.${dataSchemaError.path}` : "";
         return {
