@@ -59,6 +59,10 @@ checkout:
   fetch: ["*"]
   fetch-depth: 0
 timeout-minutes: 45
+models:
+  default-ai-credits-pricing:
+    input: 5.0
+    output: 25.0
 ---
 
 # Daily Safe Outputs Git Simulator

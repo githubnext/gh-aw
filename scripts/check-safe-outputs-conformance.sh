@@ -1803,6 +1803,74 @@ check_close_entity_allow_body() {
 }
 check_close_entity_allow_body
 
+# TYPE-012: Fork-Backed Pull Request Semantics (Section 7.1, v1.26.0)
+echo "Running TYPE-012: Fork-Backed Pull Request Semantics..."
+check_fork_backed_pr_semantics() {
+    local pr_handler="actions/setup/js/create_pull_request.cjs"
+    local push_handler="actions/setup/js/push_to_pull_request_branch.cjs"
+    local compiler_job="pkg/workflow/compiler_safe_outputs_job.go"
+    local failed=0
+
+    # Per spec Section 7.1 v1.26.0:
+    # 1. head-repo MUST be validated against the configured allowlist (same as target-repo).
+    # 2. When head-repo differs from target-repo, the PR MUST use an owner-qualified head ref.
+    # 3. Implicit reuse of arbitrary pre-existing fork branches MUST NOT occur.
+    # 4. head-github-app takes precedence over head-github-token when both are configured.
+    # 5. Successful executions MUST record head_repo in the safe-output summary and manifest.
+    # 6. push_to_pull_request_branch follow-up is limited to PRs whose head repo matches head-repo.
+
+    if [ ! -f "$pr_handler" ]; then
+        log_high "TYPE-012: create_pull_request handler missing: $pr_handler"
+        failed=1
+    else
+        # Check head-repo is resolved and validated against allowlist (requirement 1)
+        if ! grep -qE "resolveAndValidateRepo.*head.repo|head.*repo.*allowedRepos|headRepo.*allowlist" "$pr_handler"; then
+            log_high "TYPE-012: create_pull_request handler does not validate head-repo against allowlist (Section 7.1 v1.26.0 requirement 1)"
+            failed=1
+        fi
+
+        # Check owner-qualified head ref is used when repos differ (requirement 2)
+        # The pattern `owner:branch` is the owner-qualified form used by GitHub API
+        if ! grep -qE "getPullRequestHeadRef|pushRepoParts\.owner.*branch|owner.*:.*branch" "$pr_handler"; then
+            log_high "TYPE-012: create_pull_request handler missing owner-qualified head reference for fork-backed PRs (Section 7.1 v1.26.0 requirement 2)"
+            failed=1
+        fi
+
+        # Check head_repo is recorded in summary/manifest (requirement 5)
+        if ! grep -q "head_repo" "$pr_handler"; then
+            log_high "TYPE-012: create_pull_request handler does not record head_repo in summary/manifest (Section 7.1 v1.26.0 requirement 5)"
+            failed=1
+        fi
+    fi
+
+    # Check push_to_pull_request_branch restricts to configured head-repo (requirement 6)
+    if [ -f "$push_handler" ]; then
+        if ! grep -qE "head.repo|headRepo|head_repo" "$push_handler"; then
+            log_high "TYPE-012: push_to_pull_request_branch handler does not enforce head-repo restriction (Section 7.1 v1.26.0 requirement 6)"
+            failed=1
+        fi
+    else
+        log_medium "TYPE-012: push_to_pull_request_branch handler missing: $push_handler"
+        failed=1
+    fi
+
+    # Check head-github-app precedence over head-github-token is implemented (requirement 4)
+    if [ -f "$compiler_job" ]; then
+        if ! grep -qE "HeadGitHubApp|head.github.app|headGithubApp" "$compiler_job"; then
+            log_high "TYPE-012: Compiler missing head-github-app support for fork credential precedence (Section 7.1 v1.26.0 requirement 4)"
+            failed=1
+        fi
+    else
+        log_medium "TYPE-012: Compiler job file missing: $compiler_job"
+        failed=1
+    fi
+
+    if [ $failed -eq 0 ]; then
+        log_pass "TYPE-012: Fork-backed PR semantics implemented: allowlist, owner-qualified refs, head_repo provenance, and head-github-app precedence (Section 7.1 v1.26.0)"
+    fi
+}
+check_fork_backed_pr_semantics
+
 # Summary
 echo ""
 echo "=================================================="

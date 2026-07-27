@@ -15,6 +15,7 @@ tracker-id: malicious-code-scan
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 safe-outputs:
   create-code-scanning-alert:
     driver: "Malicious Code Scanner"

@@ -20,6 +20,7 @@ tracker-id: eslint-miner
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 lsp:
   typescript:
     command: typescript-language-server

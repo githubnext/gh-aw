@@ -39,6 +39,7 @@ tracker-id: daily-cli-performance
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 tools:
   cli-proxy: true
   repo-memory:
