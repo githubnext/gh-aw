@@ -9,71 +9,22 @@ import (
 // safeOutputsSchemaPath is the JSON schema path for the safe-outputs section.
 const safeOutputsSchemaPath = "/safe-outputs"
 
-// safeOutputAliases maps common agent mistakes and MCP tool name variations to their
-// correct safe-output field names. Agents frequently use GitHub MCP tool names
-// (e.g. "create_issue_comment") or underscore variants instead of the hyphenated
-// safe-output fields (e.g. "add-comment"). These aliases enable the compiler to
-// produce a precise "Did you mean 'X'?" suggestion instead of a generic field list.
+// safeOutputAliases maps common agent mistakes to their correct safe-output field names.
+// Only includes true concept remappings where the alias remains far from the canonical
+// field even after separator normalization (underscore→hyphen). Simple underscore variants
+// (e.g. "add_labels" → "add-labels") are handled automatically by the Levenshtein
+// separator-normalization in FindClosestMatches and do not need explicit entries here.
 var safeOutputAliases = map[string]string{
-	// add-comment aliases (most common agent mistake: MCP tool name vs safe-output)
+	// add-comment: MCP tool names and common misphrases that Levenshtein cannot bridge
+	// (e.g. "create-issue-comment" vs "add-comment" is distance ~14 after normalization)
 	"create-issue-comment": "add-comment",
 	"create_issue_comment": "add-comment",
-	"add_comment":          "add-comment",
 	"add-issue-comment":    "add-comment",
 	"add_issue_comment":    "add-comment",
 	"post-comment":         "add-comment",
 	"post_comment":         "add-comment",
 	"create-comment":       "add-comment",
 	"create_comment":       "add-comment",
-
-	// underscore → hyphen for common operation fields
-	"add_labels":                   "add-labels",
-	"remove_labels":                "remove-labels",
-	"replace_label":                "replace-label",
-	"create_issue":                 "create-issue",
-	"close_issue":                  "close-issue",
-	"update_issue":                 "update-issue",
-	"create_discussion":            "create-discussion",
-	"close_discussion":             "close-discussion",
-	"update_discussion":            "update-discussion",
-	"create_pull_request":          "create-pull-request",
-	"close_pull_request":           "close-pull-request",
-	"update_pull_request":          "update-pull-request",
-	"merge_pull_request":           "merge-pull-request",
-	"assign_to_user":               "assign-to-user",
-	"unassign_from_user":           "unassign-from-user",
-	"assign_to_agent":              "assign-to-agent",
-	"assign_milestone":             "assign-milestone",
-	"hide_comment":                 "hide-comment",
-	"set_issue_type":               "set-issue-type",
-	"set_issue_field":              "set-issue-field",
-	"add_reviewer":                 "add-reviewer",
-	"link_sub_issue":               "link-sub-issue",
-	"dispatch_workflow":            "dispatch-workflow",
-	"update_release":               "update-release",
-	"create_check_run":             "create-check-run",
-	"upload_artifact":              "upload-artifact",
-	"upload_asset":                 "upload-asset",
-	"update_project":               "update-project",
-	"create_project":               "create-project",
-	"create_project_status_update": "create-project-status-update",
-	"report_failure_as_issue":      "report-failure-as-issue",
-	"missing_tool":                 "missing-tool",
-	"missing_data":                 "missing-data",
-	"report_incomplete":            "report-incomplete",
-	"create_agent_session":         "create-agent-session",
-	"create_agent_task":            "create-agent-task",
-	"autofix_code_scanning_alert":  "autofix-code-scanning-alert",
-	"create_code_scanning_alert":   "create-code-scanning-alert",
-
-	// longer pull-request operation fields
-	"push_to_pull_request_branch":           "push-to-pull-request-branch",
-	"submit_pull_request_review":            "submit-pull-request-review",
-	"dismiss_pull_request_review":           "dismiss-pull-request-review",
-	"create_pull_request_review_comment":    "create-pull-request-review-comment",
-	"reply_to_pull_request_review_comment":  "reply-to-pull-request-review-comment",
-	"resolve_pull_request_review_thread":    "resolve-pull-request-review-thread",
-	"mark_pull_request_as_ready_for_review": "mark-pull-request-as-ready-for-review",
 }
 
 // safeOutputAliasSuggestion returns a "Did you mean 'X'?" suggestion when an unknown
