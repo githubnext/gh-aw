@@ -119,6 +119,13 @@ describe("collect_ndjson_output.cjs", () => {
             defaultMax: 1,
             fields: { tag: { type: "string", sanitize: !0, maxLength: 256 }, operation: { required: !0, type: "string", enum: ["replace", "append", "prepend"] }, body: { required: !0, type: "string", sanitize: !0, maxLength: 65e3 } },
           },
+          dispatch_workflow: {
+            defaultMax: 1,
+            fields: {
+              workflow_name: { required: !0, type: "string", sanitize: !0, minLength: 1, maxLength: 256, pattern: ".*\\S.*", patternError: "must not be empty" },
+              inputs: { type: "object" },
+            },
+          },
         })
       ));
   }),
@@ -194,6 +201,32 @@ describe("collect_ndjson_output.cjs", () => {
       expect(outputCall).toBeDefined();
       const parsedOutput = JSON.parse(outputCall[1]);
       (expect(parsedOutput.items).toHaveLength(2), expect(parsedOutput.items[0].type).toBe("create_issue"), expect(parsedOutput.items[1].type).toBe("add_comment"), expect(parsedOutput.errors).toHaveLength(0));
+    }),
+    it("should infer dispatch_workflow workflow_name when one workflow is configured", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
+        ndjsonContent = '{"type": "dispatch_workflow", "inputs": {"message": "hello"}}';
+      (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
+      const __config = '{"dispatch_workflow":{"workflows":["workflow-handler"]}}',
+        configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].type).toBe("dispatch_workflow"), expect(parsedOutput.items[0].workflow_name).toBe("workflow-handler"), expect(parsedOutput.errors).toHaveLength(0));
+    }),
+    it("should not infer dispatch_workflow workflow_name when multiple workflows are configured", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
+        ndjsonContent = '{"type": "dispatch_workflow", "inputs": {"message": "hello"}}';
+      (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
+      const __config = '{"dispatch_workflow":{"workflows":["worker", " "]}}',
+        configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.errors).toHaveLength(1);
     }),
     it("should preserve Slack mrkdwn links in custom safe-job string inputs", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
