@@ -195,6 +195,20 @@ describe("collect_ndjson_output.cjs", () => {
       const parsedOutput = JSON.parse(outputCall[1]);
       (expect(parsedOutput.items).toHaveLength(2), expect(parsedOutput.items[0].type).toBe("create_issue"), expect(parsedOutput.items[1].type).toBe("add_comment"), expect(parsedOutput.errors).toHaveLength(0));
     }),
+    it("should preserve Slack mrkdwn links in custom safe-job string inputs", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const slackText = "Tracking issue: <https://github.com/octo-org/octo-repo/issues/123|Build failure — Build github/gh-aw#456>";
+      const ndjsonContent = JSON.stringify({ type: "post_to_slack", text: slackText });
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      fs.writeFileSync("/tmp/gh-aw/safeoutputs/config.json", JSON.stringify({ post_to_slack: { inputs: { text: { type: "string", required: true } } } }));
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      (expect(parsedOutput.errors).toHaveLength(0), expect(parsedOutput.items).toEqual([{ type: "post_to_slack", text: slackText }]));
+    }),
     it("should reject items with unexpected output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{"type": "unexpected-type", "data": "some data"}';

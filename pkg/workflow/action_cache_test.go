@@ -689,16 +689,16 @@ func TestActionCacheInputs(t *testing.T) {
 		t.Error("Expected nil inputs after SHA change, got non-nil")
 	}
 
-	// SetInputs on a missing key now creates a new entry
+	// SetInputs on a missing key is now a no-op — it does not create empty-SHA entries.
 	cache.SetInputs("owner/repo", "v99", map[string]*ActionYAMLInput{
 		"x": {Description: "x"},
 	})
 	inputs, ok = cache.GetInputs("owner/repo", "v99")
-	if !ok {
-		t.Error("Expected SetInputs on missing key to create entry")
+	if ok {
+		t.Error("Expected SetInputs on missing key to be a no-op (not create entry)")
 	}
-	if len(inputs) != 1 || inputs["x"] == nil {
-		t.Error("Expected created entry to have the given inputs")
+	if inputs != nil {
+		t.Error("Expected nil inputs for missing entry")
 	}
 }
 
@@ -1075,5 +1075,57 @@ func TestActionCache_Set_EmptySHARejected(t *testing.T) {
 	}
 	if entry.SHA != sha {
 		t.Errorf("entry SHA = %q, want %q", entry.SHA, sha)
+	}
+}
+
+func TestActionCache_SettersNoOpOnEmptySHAEntry(t *testing.T) {
+	cache := NewActionCache(t.TempDir())
+	key := formatActionCacheKey("owner/action", "v9")
+	cache.Entries[key] = ActionCacheEntry{
+		Repo:    "owner/action",
+		Version: "v9",
+	}
+	cache.dirty = false
+
+	cache.SetReleasedAt("owner/action", "v9", time.Now())
+	cache.SetInputs("owner/action", "v9", map[string]*ActionYAMLInput{
+		"input": {Description: "desc"},
+	})
+	cache.SetActionDescription("owner/action", "v9", "description")
+
+	entry := cache.Entries[key]
+	if entry.ReleasedAt != nil {
+		t.Error("Expected ReleasedAt to remain nil for empty-SHA entry")
+	}
+	if entry.Inputs != nil {
+		t.Error("Expected Inputs to remain nil for empty-SHA entry")
+	}
+	if entry.ActionDescription != "" {
+		t.Error("Expected ActionDescription to remain empty for empty-SHA entry")
+	}
+	if cache.dirty {
+		t.Error("Expected cache to remain clean when setters are no-op on empty-SHA entry")
+	}
+}
+
+func TestActionCache_SetInputsNilNoOp(t *testing.T) {
+	cache := NewActionCache(t.TempDir())
+	cache.Set("owner/action", "v1", "sha1234567890123456789012345678901234567890")
+	cache.SetInputs("owner/action", "v1", map[string]*ActionYAMLInput{
+		"existing": {Description: "existing"},
+	})
+	cache.dirty = false
+
+	cache.SetInputs("owner/action", "v1", nil)
+
+	inputs, ok := cache.GetInputs("owner/action", "v1")
+	if !ok {
+		t.Fatal("Expected existing inputs to remain cached")
+	}
+	if _, exists := inputs["existing"]; !exists {
+		t.Error("Expected existing input to be preserved after nil SetInputs")
+	}
+	if cache.dirty {
+		t.Error("Expected cache to remain clean after nil SetInputs")
 	}
 }

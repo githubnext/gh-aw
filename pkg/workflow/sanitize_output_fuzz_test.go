@@ -125,6 +125,16 @@ func FuzzSanitizeOutput(f *testing.F) {
 	f.Add("https://evil.com/<script>", "", 0)
 	f.Add("@user https://github.com @other", "user", 0)
 
+	// HTTPS angle-bracket autolinks (CommonMark / Slack mrkdwn)
+	f.Add("<https://github.com/path>", "", 0)                                  // plain allowed autolink
+	f.Add("<https://github.com/path|label>", "", 0)                            // Slack mrkdwn allowed
+	f.Add("<https://evil.com/path>", "", 0)                                    // blocked domain plain
+	f.Add("<https://evil.com/path|Click here>", "", 0)                         // blocked domain Slack
+	f.Add("<https://[2001:db8::1]/>", "", 0)                                   // IPv6 authority — must not bypass filter
+	f.Add("<https://github.com@evil.example/path>", "", 0)                     // userinfo trick — must not bypass filter
+	f.Add("<https://github.com/path|<nested>>", "", 0)                         // nested angle brackets in label
+	f.Add("Tracking: <https://github.com/octo-org/octo-repo/issues/1>", "", 0) // realistic use
+
 	f.Fuzz(func(t *testing.T, text string, allowedAliasesCSV string, maxLength int) {
 		// Skip inputs that are too large to avoid timeout
 		if len(text) > 100000 {
