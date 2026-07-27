@@ -477,6 +477,13 @@ func configureCustomReusableWorkflow(job *Job, jobName string, usesStr string, c
 }
 
 func (c *Compiler) configureCustomJobSteps(job *Job, jobName string, configMap map[string]any, data *WorkflowData) error {
+	if job.RunsOn == "" {
+		job.RunsOn = data.RunsOn
+		if job.RunsOn == "" {
+			job.RunsOn = "runs-on: ubuntu-latest"
+		}
+	}
+
 	// Add basic steps if specified (only for non-reusable workflow jobs).
 	// `setup-steps` and `pre-steps` stay distinct so setup-steps can remain the
 	// first injected steps in the job, followed by compiler scaffolding,

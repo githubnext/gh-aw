@@ -81,6 +81,47 @@ Reads cache memory and dispatches tasks.
 	assert.NotContains(t, yamlStr, "update_cache_memory:", "update_cache_memory job should not be created without threat detection")
 }
 
+// TestCustomJobRestoreMemoryUsesDefaultRunsOn verifies that custom restore-memory
+// jobs inherit the workflow runner when runs-on is omitted.
+func TestCustomJobRestoreMemoryUsesDefaultRunsOn(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "custom-job-restore-default-runs-on")
+
+	frontmatter := `---
+name: Orchestrator
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+strict: false
+tools:
+  cache-memory: true
+jobs:
+  setup:
+    restore-memory: true
+    steps:
+      - name: Verify setup
+        run: echo "ok"
+---
+
+# Orchestrator Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(frontmatter), 0644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(testFile))
+
+	lockFile := filepath.Join(tmpDir, "test.lock.yml")
+	content, err := os.ReadFile(lockFile)
+	require.NoError(t, err)
+
+	section := extractJobSection(string(content), "setup")
+	require.NotEmpty(t, section, "Expected setup job section in lock file")
+	assert.Contains(t, section, "runs-on: ubuntu-latest", "custom job should inherit default workflow runner when runs-on is omitted")
+	assert.Contains(t, section, "Restore cache-memory", "restore-memory steps should still be present")
+}
+
 // TestCustomJobRestoreMemoryRepoMemory verifies that a custom job with
 // restore-memory: true gets repo-memory clone steps injected when repo-memory is configured.
 func TestCustomJobRestoreMemoryRepoMemory(t *testing.T) {
