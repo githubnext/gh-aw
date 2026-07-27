@@ -62,14 +62,13 @@ async function main() {
 
 /**
  * Extract a required field from the event payload, calling setFailed if missing.
- * @param {Record<string, any>} payload
  * @param {unknown} value - The extracted value (already resolved by caller)
  * @param {string} fieldName - Human-readable field name for error messages
  * @param {string} errorCode - Error code prefix (ERR_NOT_FOUND or ERR_VALIDATION)
  * @returns {boolean} true if valid, false if missing (setFailed already called)
  */
-function requirePayloadField(payload, value, fieldName, errorCode) {
-  if (!value) {
+function requirePayloadField(value, fieldName, errorCode) {
+  if (value == null) {
     core.setFailed(`${errorCode}: ${fieldName} not found in event payload`);
     return false;
   }
@@ -89,26 +88,26 @@ function resolveRestEndpoint(eventName, owner, repo, payload) {
   switch (eventName) {
     case "issues": {
       const issueNumber = payload?.issue?.number;
-      if (!requirePayloadField(payload, issueNumber, "Issue number", ERR_NOT_FOUND)) return null;
+      if (!requirePayloadField(issueNumber, "Issue number", ERR_NOT_FOUND)) return null;
       return { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: issueNumber } };
     }
 
     case "issue_comment": {
       const commentId = payload?.comment?.id;
-      if (!requirePayloadField(payload, commentId, "Comment ID", ERR_VALIDATION)) return null;
+      if (!requirePayloadField(commentId, "Comment ID", ERR_VALIDATION)) return null;
       return { route: "POST /repos/{owner}/{repo}/issues/comments/{comment_id}/reactions", params: { owner, repo, comment_id: commentId } };
     }
 
     case "pull_request": {
       const prNumber = payload?.pull_request?.number;
-      if (!requirePayloadField(payload, prNumber, "Pull request number", ERR_NOT_FOUND)) return null;
+      if (!requirePayloadField(prNumber, "Pull request number", ERR_NOT_FOUND)) return null;
       // PRs are "issues" for the reactions endpoint
       return { route: "POST /repos/{owner}/{repo}/issues/{issue_number}/reactions", params: { owner, repo, issue_number: prNumber } };
     }
 
     case "pull_request_review_comment": {
       const reviewCommentId = payload?.comment?.id;
-      if (!requirePayloadField(payload, reviewCommentId, "Review comment ID", ERR_VALIDATION)) return null;
+      if (!requirePayloadField(reviewCommentId, "Review comment ID", ERR_VALIDATION)) return null;
       return { route: "POST /repos/{owner}/{repo}/pulls/comments/{comment_id}/reactions", params: { owner, repo, comment_id: reviewCommentId } };
     }
 
@@ -139,27 +138,32 @@ function isRestReactionEvent(eventName) {
  */
 async function handleGraphQLOrUnknownEvent(eventName, owner, repo, payload, reaction) {
   let subjectId;
-  switch (eventName) {
-    case "discussion": {
-      const discussionNumber = payload?.discussion?.number;
-      if (!requirePayloadField(payload, discussionNumber, "Discussion number", ERR_NOT_FOUND)) return;
-      subjectId = await getDiscussionNodeId(owner, repo, discussionNumber);
-      break;
-    }
-
-    case "discussion_comment": {
-      const commentNodeId = payload?.comment?.node_id;
-      if (!requirePayloadField(payload, commentNodeId, "Discussion comment node ID", ERR_NOT_FOUND)) return;
-      subjectId = commentNodeId;
-      break;
-    }
-
-    default:
-      core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
-      return;
-  }
-
   try {
+    switch (eventName) {
+      case "discussion": {
+        const discussionNumber = payload?.discussion?.number;
+        if (!requirePayloadField(discussionNumber, "Discussion number", ERR_NOT_FOUND)) return;
+        subjectId = await getDiscussionNodeId(owner, repo, discussionNumber);
+        break;
+      }
+
+      case "discussion_comment": {
+        const commentNodeId = payload?.comment?.node_id;
+        if (!requirePayloadField(commentNodeId, "Discussion comment node ID", ERR_NOT_FOUND)) return;
+        subjectId = commentNodeId;
+        break;
+      }
+
+      default:
+        core.setFailed(`${ERR_VALIDATION}: Unsupported event type: ${eventName}`);
+        return;
+    }
+
+    if (subjectId == null) {
+      core.setFailed(`${ERR_VALIDATION}: subjectId could not be resolved for event: ${eventName}`);
+      return;
+    }
+
     await addDiscussionReaction(subjectId, reaction);
   } catch (error) {
     handleReactionError(error);
