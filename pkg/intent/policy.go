@@ -1,6 +1,12 @@
 package intent
 
-import "slices"
+import (
+	"slices"
+
+	"github.com/github/gh-aw/pkg/logger"
+)
+
+var policyLog = logger.New("intent:policy")
 
 // autonomyRank maps autonomy levels to a restriction rank (higher = more restrictive).
 // propose_only is the most restrictive (agents may only propose changes, not execute);
@@ -98,9 +104,11 @@ type PolicyCompiler struct {
 // rules are merged with stricter-wins semantics. If no rules match, the safest
 // default policy is returned.
 func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) ExecutionPolicy {
+	policyLog.Printf("Compiling policy: status=%s rules=%d", rec.Status, len(c.Rules))
 	// Fail-closed for indeterminate statuses: unlinked and ambiguous records
 	// must never receive a relaxed policy from a matching wildcard rule.
 	if rec.Status == AttributionUnlinked || rec.Status == AttributionAmbiguous {
+		policyLog.Printf("Fail-closed for indeterminate status=%s, returning safest default policy", rec.Status)
 		return safestDefaultPolicy()
 	}
 
@@ -118,14 +126,18 @@ func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) Execut
 			accumulated = deepCopyPolicy(rule.Set)
 			accumulated.RuleIDs = []string{rule.ID}
 			matched = true
+			policyLog.Printf("First matching rule: id=%s autonomy=%s write_scope=%s", rule.ID, rule.Set.Autonomy, rule.Set.WriteScope)
 		} else {
 			accumulated = mergePolicy(accumulated, rule.Set)
 			accumulated.RuleIDs = append(accumulated.RuleIDs, rule.ID)
+			policyLog.Printf("Merging additional rule: id=%s", rule.ID)
 		}
 	}
 	if !matched {
+		policyLog.Print("No rules matched, returning safest default policy")
 		return safestDefaultPolicy()
 	}
+	policyLog.Printf("Compiled policy: autonomy=%s write_scope=%s human_approval=%v matched_rules=%d", accumulated.Autonomy, accumulated.WriteScope, accumulated.HumanApprovalRequired, len(accumulated.RuleIDs))
 	return accumulated
 }
 
