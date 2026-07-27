@@ -12,6 +12,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 experiments:
   tone_variant:
     variants: [neutral, urgent]

@@ -15,6 +15,7 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 imports:
   - uses: shared/skip-if-issue-open.md
     with:

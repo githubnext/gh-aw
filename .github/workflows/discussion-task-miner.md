@@ -45,6 +45,7 @@ emoji: ⛏️
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 strict: true
 timeout-minutes: 20
 tools:

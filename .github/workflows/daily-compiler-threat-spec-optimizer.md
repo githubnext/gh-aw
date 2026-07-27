@@ -30,6 +30,7 @@ emoji: 🔒
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 name: Daily Compiler Threat Spec Optimizer
 strict: true
 timeout-minutes: 30

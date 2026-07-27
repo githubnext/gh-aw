@@ -32,6 +32,7 @@ emoji: 📊
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 experiments:
   output_format:
     analysis_type: mann_whitney
