@@ -93,7 +93,7 @@ steps:
       ACTIVATION_BACKUP_DIR=/tmp/gh-aw-activation-backup
       rm -rf "$ACTIVATION_BACKUP_DIR"
       mkdir -p "$ACTIVATION_BACKUP_DIR"
-      for activation_path in aw-prompts aw_info.json base .github/agents .github/skills; do
+      for activation_path in aw-prompts aw_info.json base .github/agents .github/skills agent cache-memory; do
         if [ -e "/tmp/gh-aw/${activation_path}" ]; then
           cp -a "/tmp/gh-aw/${activation_path}" "$ACTIVATION_BACKUP_DIR/"
         fi
