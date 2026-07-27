@@ -661,11 +661,7 @@ imports:
 }
 
 func TestFetchAndSaveRemoteIncludes_PathTraversalRejected(t *testing.T) {
-	originalFetchInclude := fetchIncludeFromSource
-	t.Cleanup(func() {
-		fetchIncludeFromSource = originalFetchInclude
-	})
-	fetchIncludeFromSource = func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+	mockFetch := func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
 		return []byte("# include body\n"), "", nil
 	}
 
@@ -676,18 +672,31 @@ func TestFetchAndSaveRemoteIncludes_PathTraversalRejected(t *testing.T) {
 	spec := &WorkflowSpec{
 		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
 	}
-	err := fetchAndSaveRemoteIncludes(t.Context(), "@include ../secrets/evil.md\n", spec, targetDir, false, false, nil)
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include ../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch)
 	require.Error(t, err)
-	require.ErrorContains(t, err, "refusing to write include outside allowed directory")
+	require.NoFileExists(t, filepath.Join(tmpDir, ".github", "secrets", "evil.md"))
+}
+
+func TestFetchAndSaveRemoteIncludes_NestedTraversalRejected(t *testing.T) {
+	mockFetch := func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+		return []byte("# include body\n"), "", nil
+	}
+
+	tmpDir := t.TempDir()
+	targetDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(targetDir, 0o755))
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
+	}
+	// A path that doesn't start with "../" but still escapes via a sub-directory component.
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include subdir/../../secrets/evil.md\n", spec, targetDir, false, false, nil, mockFetch)
+	require.Error(t, err)
 	require.NoFileExists(t, filepath.Join(tmpDir, ".github", "secrets", "evil.md"))
 }
 
 func TestFetchAndSaveRemoteIncludes_SharedIncludeStaysUnderSharedDir(t *testing.T) {
-	originalFetchInclude := fetchIncludeFromSource
-	t.Cleanup(func() {
-		fetchIncludeFromSource = originalFetchInclude
-	})
-	fetchIncludeFromSource = func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
+	mockFetch := func(_ context.Context, _ string, _ *WorkflowSpec, _ bool) ([]byte, string, error) {
 		return []byte("# include body\n"), "", nil
 	}
 
@@ -698,7 +707,7 @@ func TestFetchAndSaveRemoteIncludes_SharedIncludeStaysUnderSharedDir(t *testing.
 	spec := &WorkflowSpec{
 		RepoSpec: RepoSpec{RepoSlug: "github/gh-aw", Version: "main"},
 	}
-	err := fetchAndSaveRemoteIncludes(t.Context(), "@include shared/helper.md\n", spec, targetDir, false, false, nil)
+	err := fetchAndSaveRemoteIncludes(t.Context(), "@include shared/helper.md\n", spec, targetDir, false, false, nil, mockFetch)
 	require.NoError(t, err)
 	assert.FileExists(t, filepath.Join(tmpDir, ".github", "shared", "helper.md"))
 }

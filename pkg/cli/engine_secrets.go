@@ -28,8 +28,8 @@ var (
 	engineSecretsPromptFn = func(req SecretRequirement, config EngineSecretConfig) error {
 		return promptForSecret(req, config)
 	}
-	engineSecretsUploadFn = func(secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
-		return uploadSecretToRepo(secretName, secretValue, repoSlug, verbose, overwriteExisting)
+	engineSecretsUploadFn = func(ctx context.Context, secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
+		return uploadSecretToRepo(ctx, secretName, secretValue, repoSlug, verbose, overwriteExisting)
 	}
 )
 
@@ -289,7 +289,7 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 				console.PrintSuccessMessage(fmt.Sprintf("Found valid %s in environment", req.Name))
 				// Upload to repository if we have a repo slug
 				if config.RepoSlug != "" {
-					return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+					return engineSecretsUploadFn(config.ctx(), req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 				}
 				return nil
 			}
@@ -297,7 +297,7 @@ func ensureSecretAvailable(req SecretRequirement, config EngineSecretConfig) err
 			console.PrintSuccessMessage(fmt.Sprintf("Found %s in environment", req.Name))
 			// Upload to repository if we have a repo slug
 			if config.RepoSlug != "" {
-				return engineSecretsUploadFn(req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+				return engineSecretsUploadFn(config.ctx(), req.Name, envValue, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 			}
 			return nil
 		}
@@ -392,7 +392,7 @@ func promptForCopilotPATUnified(req SecretRequirement, config EngineSecretConfig
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
-		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+		return uploadSecretToRepo(config.ctx(), req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 	}
 
 	return nil
@@ -470,7 +470,7 @@ func promptForSystemTokenUnified(req SecretRequirement, config EngineSecretConfi
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
-		return uploadSecretToRepo(req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+		return uploadSecretToRepo(config.ctx(), req.Name, token, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 	}
 
 	return nil
@@ -522,7 +522,7 @@ func promptForGenericAPIKeyUnified(req SecretRequirement, config EngineSecretCon
 
 	// Upload to repository if we have a repo slug
 	if config.RepoSlug != "" {
-		return uploadSecretToRepo(req.Name, apiKey, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
+		return uploadSecretToRepo(config.ctx(), req.Name, apiKey, config.RepoSlug, config.Verbose, config.OverwriteExistingSecret)
 	}
 
 	return nil
@@ -550,7 +550,7 @@ func checkOptionalSecret(req SecretRequirement, config EngineSecretConfig) error
 }
 
 // uploadSecretToRepo uploads a secret to the repository and can optionally replace an existing value.
-func uploadSecretToRepo(secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
+func uploadSecretToRepo(ctx context.Context, secretName, secretValue, repoSlug string, verbose bool, overwriteExisting bool) error {
 	engineSecretsLog.Printf("Uploading secret %s to %s", secretName, repoSlug)
 
 	// Check if secret already exists
@@ -573,7 +573,7 @@ func uploadSecretToRepo(secretName, secretValue, repoSlug string, verbose bool, 
 	}
 
 	output, err = workflow.RunGHInputContext(
-		context.Background(),
+		ctx,
 		"Setting secret...",
 		bytes.NewBufferString(secretValue),
 		"secret", "set", secretName, "--repo", repoSlug,

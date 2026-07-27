@@ -358,7 +358,7 @@ func TestUploadSecretToRepo_UsesStdinForSecretValue(t *testing.T) {
 	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
 	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
 
-	err := uploadSecretToRepo("TEST_SECRET", "super-secret-value", "owner/repo", false, true)
+	err := uploadSecretToRepo(t.Context(), "TEST_SECRET", "super-secret-value", "owner/repo", false, true)
 	require.NoError(t, err)
 
 	argsBytes, readArgsErr := os.ReadFile(argsLog)
