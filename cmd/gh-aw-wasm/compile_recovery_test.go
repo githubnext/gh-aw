@@ -7,6 +7,7 @@ import (
 )
 
 func TestRunCompileWithRecoverySuccess(t *testing.T) {
+	t.Parallel()
 	var resolved any
 	var rejected error
 
@@ -25,6 +26,7 @@ func TestRunCompileWithRecoverySuccess(t *testing.T) {
 }
 
 func TestRunCompileWithRecoveryError(t *testing.T) {
+	t.Parallel()
 	want := errors.New("compile failed")
 	var resolved any
 	var rejected error
@@ -44,6 +46,7 @@ func TestRunCompileWithRecoveryError(t *testing.T) {
 }
 
 func TestRunCompileWithRecoveryPanic(t *testing.T) {
+	t.Parallel()
 	var resolved any
 	var rejected error
 
