@@ -131,17 +131,38 @@ steps:
       run_step build       ""                       make build
       run_step recompile   ""                       make recompile
 
+      # Snapshot accumulated preflight step results before go test, which invokes
+      # actions/setup/setup.sh (lines 94-119) and deletes all of /tmp/gh-aw.
+      cp "$STATUS_FILE" "$ACTIVATION_BACKUP_DIR/validation-status.json" 2>/dev/null || true
+
       mkdir -p /tmp/gh-aw/agent
       go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... \
         | tee /tmp/gh-aw/agent/test-results.json >/dev/null
       TEST_EXIT=${PIPESTATUS[0]}
+
+      # Restore STATUS_FILE from pre-go-test snapshot if go test wiped it.
       if [ ! -f "$STATUS_FILE" ]; then
         mkdir -p "$(dirname "$STATUS_FILE")"
-        echo '{"steps":[]}' > "$STATUS_FILE"
+        if [ -f "$ACTIVATION_BACKUP_DIR/validation-status.json" ]; then
+          cp "$ACTIVATION_BACKUP_DIR/validation-status.json" "$STATUS_FILE"
+        else
+          echo '{"steps":[]}' > "$STATUS_FILE"
+        fi
       fi
-      if [ ! -s /tmp/gh-aw/aw-prompts/prompt.txt ] && [ -d "$ACTIVATION_BACKUP_DIR/aw-prompts" ]; then
+
+      # Restore activation artifacts and runtime data when go test wiped /tmp/gh-aw.
+      # Restore per-path rather than a blanket copy so that test-results.json and
+      # validation-status.json written after the backup are never overwritten.
+      # None of the backed-up paths (.github/agents, .github/skills, etc.) are
+      # modified by any preflight step (lint/build/recompile only touch lock files),
+      # so restoring them is always safe.
+      if [ -d "$ACTIVATION_BACKUP_DIR/aw-prompts" ]; then
         mkdir -p /tmp/gh-aw
-        cp -a "$ACTIVATION_BACKUP_DIR"/. /tmp/gh-aw/
+        for activation_path in aw-prompts aw_info.json base .github/agents .github/skills agent cache-memory; do
+          if [ -e "$ACTIVATION_BACKUP_DIR/${activation_path}" ]; then
+            cp -a "$ACTIVATION_BACKUP_DIR/${activation_path}" /tmp/gh-aw/
+          fi
+        done
       fi
       jq --argjson code "$TEST_EXIT" \
          '.steps += [{name:"test-unit", exit_code:$code, log:"/tmp/gh-aw/agent/test-results.json", ok:($code==0)}]' \
