@@ -12,6 +12,7 @@ permissions:
   contents: read
   pull-requests: read
 name: Smoke Copilot Auto
+model: auto
 engine:
   id: copilot
   bare: true
