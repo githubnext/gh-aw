@@ -17,6 +17,7 @@ engine:
   id: copilot
   copilot-sdk: true
 
+max-tool-denials: 3
 timeout-minutes: 45
 
 network:

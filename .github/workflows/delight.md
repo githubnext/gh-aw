@@ -46,6 +46,7 @@ emoji: ✨
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 name: Delight
 pre-agent-steps:
 - name: Sample files and load memory

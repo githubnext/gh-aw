@@ -16,6 +16,7 @@ engine:
   id: copilot
   copilot-sdk: true
   driver: .github/drivers/copilot_sdk_driver_sample_node.cjs
+max-tool-denials: 3
 strict: true
 timeout-minutes: 45
 

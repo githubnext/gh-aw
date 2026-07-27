@@ -20,6 +20,7 @@ model: gpt-5.4-mini
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 strict: true
 tools:
   agentic-workflows: true

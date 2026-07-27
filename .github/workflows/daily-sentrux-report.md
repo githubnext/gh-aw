@@ -37,6 +37,7 @@ engine:
   id: copilot
   copilot-sdk: true
 
+max-tool-denials: 3
 evals:
   - id: codebase_quality_analyzed
     question: Did the agent run sentrux to analyze architecture health, quality signals, and structural trends?

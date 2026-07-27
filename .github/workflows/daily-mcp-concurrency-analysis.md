@@ -40,6 +40,7 @@ emoji: 📊
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 name: Daily MCP Tool Concurrency Analysis
 strict: true
 timeout-minutes: 45
