@@ -90,6 +90,15 @@ steps:
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       set +e
+      ACTIVATION_BACKUP_DIR=/tmp/gh-aw-activation-backup
+      rm -rf "$ACTIVATION_BACKUP_DIR"
+      mkdir -p "$ACTIVATION_BACKUP_DIR"
+      for activation_path in aw-prompts aw_info.json base .github/agents .github/skills; do
+        if [ -e "/tmp/gh-aw/${activation_path}" ]; then
+          cp -a "/tmp/gh-aw/${activation_path}" "$ACTIVATION_BACKUP_DIR/"
+        fi
+      done
+
       mkdir -p /tmp/gh-aw/agent/validation
       STATUS_FILE=/tmp/gh-aw/agent/validation/validation-status.json
       echo '{"steps":[]}' > "$STATUS_FILE"
@@ -126,6 +135,14 @@ steps:
       go test -v -json -count=1 -timeout=3m -tags '!integration' -run='^Test' ./... \
         | tee /tmp/gh-aw/agent/test-results.json >/dev/null
       TEST_EXIT=${PIPESTATUS[0]}
+      if [ ! -f "$STATUS_FILE" ]; then
+        mkdir -p "$(dirname "$STATUS_FILE")"
+        echo '{"steps":[]}' > "$STATUS_FILE"
+      fi
+      if [ ! -s /tmp/gh-aw/aw-prompts/prompt.txt ] && [ -d "$ACTIVATION_BACKUP_DIR/aw-prompts" ]; then
+        mkdir -p /tmp/gh-aw
+        cp -a "$ACTIVATION_BACKUP_DIR"/. /tmp/gh-aw/
+      fi
       jq --argjson code "$TEST_EXIT" \
          '.steps += [{name:"test-unit", exit_code:$code, log:"/tmp/gh-aw/agent/test-results.json", ok:($code==0)}]' \
          "$STATUS_FILE" > "$STATUS_FILE.tmp" && mv "$STATUS_FILE.tmp" "$STATUS_FILE"
