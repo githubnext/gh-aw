@@ -129,26 +129,35 @@ func compileWorkflowWithTrackingAndRefresh(ctx context.Context, filePath string,
 // workflowFile that are present locally but lack a corresponding .lock.yml. This must be
 // called before compiling the main workflow, because the dispatch-workflow validator
 // requires every referenced .md workflow to have an up-to-date .lock.yml.
-func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
-	compileSafeOutputsWorkflowDependencies(ctx, workflowFile, "dispatch-workflow dependency", dispatchWorkflowNamesForCompilation, verbose, quiet, engineOverride, tracker)
+func compileDispatchWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, force bool, tracker *FileTracker) {
+	compileSafeOutputsWorkflowDependencies(ctx, workflowFile, "dispatch-workflow dependency", dispatchWorkflowNamesForCompilation, verbose, quiet, engineOverride, force, false, tracker)
 }
 
 // compileCallWorkflowDependencies compiles any call-workflow .md worker dependencies of
 // workflowFile that are present locally but lack a corresponding .lock.yml. This must be
 // called before compiling the main workflow, because the call-workflow validator requires
 // every referenced .md worker to have an up-to-date .lock.yml.
-func compileCallWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
-	compileSafeOutputsWorkflowDependencies(ctx, workflowFile, "call-workflow worker", callWorkflowNamesForCompilation, verbose, quiet, engineOverride, tracker)
+//
+// Unlike dispatch-workflow dependencies, call-workflow compilation failures are propagated:
+// the dynamic tool-generation path maps every worker .md to a .lock.yml reference, so a
+// worker whose lock cannot be produced would leave the orchestrator referencing a file that
+// does not exist.
+func compileCallWorkflowDependencies(ctx context.Context, workflowFile string, verbose, quiet bool, engineOverride string, force bool, tracker *FileTracker) error {
+	return compileSafeOutputsWorkflowDependencies(ctx, workflowFile, "call-workflow worker", callWorkflowNamesForCompilation, verbose, quiet, engineOverride, force, true, tracker)
 }
 
 // compileSafeOutputsWorkflowDependencies is the shared implementation for compiling
 // local .md worker/dependency files referenced by a workflow. namesFunc extracts the
 // list of referenced workflow names from workflowFile; label is used in log/console
 // messages to identify the dependency type (e.g. "dispatch-workflow dependency").
-func compileSafeOutputsWorkflowDependencies(ctx context.Context, workflowFile, label string, namesFunc func(string) []string, verbose, quiet bool, engineOverride string, tracker *FileTracker) {
+// When propagateErrors is true the first compilation failure is returned to the caller
+// instead of being logged and swallowed.
+// When force is true, dependencies are recompiled even when a .lock.yml already exists
+// (needed after --force re-fetches a stale worker .md).
+func compileSafeOutputsWorkflowDependencies(ctx context.Context, workflowFile, label string, namesFunc func(string) []string, verbose, quiet bool, engineOverride string, force bool, propagateErrors bool, tracker *FileTracker) error {
 	workflowNames := namesFunc(workflowFile)
 	if len(workflowNames) == 0 {
-		return
+		return nil
 	}
 
 	workflowsDir := filepath.Dir(workflowFile)
@@ -157,12 +166,13 @@ func compileSafeOutputsWorkflowDependencies(ctx context.Context, workflowFile, l
 		mdPath := filepath.Join(workflowsDir, name+".md")
 		lockPath := stringutil.MarkdownToLockFile(mdPath)
 
-		// Only compile if the .md is present but the .lock.yml is absent.
+		// Skip if the .md is not present locally.
 		if _, mdErr := os.Stat(mdPath); mdErr != nil {
-			continue // .md doesn't exist locally
+			continue
 		}
-		if fileutil.FileExists(lockPath) {
-			continue // .lock.yml already exists, nothing to do
+		// Skip recompilation when a lock already exists, unless --force was specified.
+		if !force && fileutil.FileExists(lockPath) {
+			continue
 		}
 
 		addWorkflowCompilationLog.Printf("Compiling %s: %s", label, mdPath)
@@ -177,12 +187,16 @@ func compileSafeOutputsWorkflowDependencies(ctx context.Context, workflowFile, l
 			compileErr = compileWorkflow(ctx, mdPath, verbose, quiet, engineOverride)
 		}
 		if compileErr != nil {
+			if propagateErrors {
+				return fmt.Errorf("failed to compile %s %s: %w", label, mdPath, compileErr)
+			}
 			// Best-effort: log and continue so the main workflow can still give a clear error.
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to compile %s %s: %v", label, mdPath, compileErr)))
 			}
 		}
 	}
+	return nil
 }
 
 func callWorkflowNamesForCompilation(workflowFile string) []string {

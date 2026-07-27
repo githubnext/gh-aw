@@ -3,12 +3,10 @@
 package cli
 
 import (
+	"bytes"
 	"context"
-	"slices"
+	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestBootstrapActionNeedsMutation(t *testing.T) {
@@ -74,52 +72,63 @@ func TestBootstrapProfileState(t *testing.T) {
 	}
 }
 
-func TestBootstrapProfileFilterActions(t *testing.T) {
-	// Verify that filterBootstrapProfileActions correctly filters actions and
-	// preserves the original profile unchanged.
-	allTypes := []string{"require-owner-type", "github-app", "repo-variable", "repo-secret", "copilot-auth", "commit-and-push", "handoff"}
-
+// TestPrintBootstrapConfigTODO_PreservesManifestOrder verifies that all declared config
+// actions are included in the TODO output in their exact manifest order. This guards
+// against regressions that split actions into pre-install and post-install phases and
+// thereby reorder or omit steps.
+func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
+	// Declare a profile with an interleaved mix of action types to ensure ordering
+	// cannot be accidentally satisfied by any implicit categorisation.
 	profile := &resolvedBootstrapProfile{
 		PackageID: "owner/repo",
 		Profile: &repositoryPackageBootstrap{
 			Config: []repositoryPackageBootstrapAction{
-				{Type: "require-owner-type"},
-				{Type: "github-app"},
-				{Type: "repo-variable"},
-				{Type: "repo-secret"},
-				{Type: "copilot-auth"},
-				{Type: "commit-and-push"},
-				{Type: "handoff"},
-				{Type: "unsupported"},
+				{Type: "require-owner-type", Value: "Organization"},
+				{Type: "copilot-auth", Secret: "COPILOT_TOKEN"},
+				{Type: "repo-variable", Name: "MY_VAR"},
+				{Type: "github-app", AppIDVariable: "APP_ID", PrivateKeySecret: "APP_KEY"},
+				{Type: "repo-secret", Name: "MY_SECRET"},
+				{Type: "commit-and-push", Message: "commit changes"},
+				{Type: "handoff", Message: "all done"},
 			},
 		},
 	}
 
-	// Filter to only known action types (excludes "unsupported")
-	filtered := filterBootstrapProfileActions(profile, func(action repositoryPackageBootstrapAction) bool {
-		return slices.Contains(allTypes, action.Type)
-	})
-	require.NotNil(t, filtered)
-	assert.Equal(t, allTypes, bootstrapActionTypes(filtered.Profile.Config))
+	var buf bytes.Buffer
+	printBootstrapConfigTODO(&buf, profile)
+	output := buf.String()
 
-	// Original profile should remain unchanged
-	assert.Len(t, profile.Profile.Config, 8)
-
-	// nil / empty profile returns nil
-	assert.Nil(t, filterBootstrapProfileActions(nil, func(_ repositoryPackageBootstrapAction) bool { return true }))
-
-	unsupportedOnlyProfile := &resolvedBootstrapProfile{
-		PackageID: "owner/repo",
-		Profile:   &repositoryPackageBootstrap{Config: []repositoryPackageBootstrapAction{{Type: "unsupported"}}},
+	// Every action type must appear in the output.
+	for _, want := range []string{
+		"Organization",   // require-owner-type
+		"COPILOT_TOKEN",  // copilot-auth
+		"MY_VAR",         // repo-variable
+		"APP_ID",         // github-app
+		"MY_SECRET",      // repo-secret
+		"commit changes", // commit-and-push
+		"all done",       // handoff
+	} {
+		if !strings.Contains(output, want) {
+			t.Errorf("expected %q in output, got:\n%s", want, output)
+		}
 	}
-	assert.Nil(t, filterBootstrapProfileActions(unsupportedOnlyProfile, func(_ repositoryPackageBootstrapAction) bool { return false }),
-		"all-filtered-out profile should return nil")
-}
 
-func bootstrapActionTypes(actions []repositoryPackageBootstrapAction) []string {
-	types := make([]string, 0, len(actions))
-	for _, action := range actions {
-		types = append(types, action.Type)
+	// Verify declared order is preserved in the output.
+	positions := []int{
+		strings.Index(output, "Organization"),
+		strings.Index(output, "COPILOT_TOKEN"),
+		strings.Index(output, "MY_VAR"),
+		strings.Index(output, "APP_ID"),
+		strings.Index(output, "MY_SECRET"),
+		strings.Index(output, "commit changes"),
+		strings.Index(output, "all done"),
 	}
-	return types
+	for i := 1; i < len(positions); i++ {
+		if positions[i-1] < 0 || positions[i] < 0 {
+			continue // already reported above
+		}
+		if positions[i-1] >= positions[i] {
+			t.Errorf("action at position %d appears after action at position %d (ordering regression)", i-1, i)
+		}
+	}
 }

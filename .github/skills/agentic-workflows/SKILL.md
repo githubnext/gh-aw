@@ -37,7 +37,6 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/github-agentic-workflows.md`
 - `.github/aw/github-mcp-server.md`
 - `.github/aw/instructions.md`
-- `.github/aw/linter-workflows.md`
 - `.github/aw/llms.md`
 - `.github/aw/loop.md`
 - `.github/aw/lsp.md`
