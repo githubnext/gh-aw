@@ -83,6 +83,30 @@ func TestSafeOutputAliasSuggestion(t *testing.T) {
 			want:         "Did you mean 'mark-pull-request-as-ready-for-review'?",
 		},
 		{
+			name:         "missing_tool maps to missing-tool",
+			errorMessage: "additional properties 'missing_tool' not allowed",
+			jsonPath:     "/safe-outputs",
+			want:         "Did you mean 'missing-tool'?",
+		},
+		{
+			name:         "missing_data maps to missing-data",
+			errorMessage: "additional properties 'missing_data' not allowed",
+			jsonPath:     "/safe-outputs",
+			want:         "Did you mean 'missing-data'?",
+		},
+		{
+			name:         "report_incomplete maps to report-incomplete",
+			errorMessage: "additional properties 'report_incomplete' not allowed",
+			jsonPath:     "/safe-outputs",
+			want:         "Did you mean 'report-incomplete'?",
+		},
+		{
+			name:         "create_project_status_update maps to create-project-status-update",
+			errorMessage: "additional properties 'create_project_status_update' not allowed",
+			jsonPath:     "/safe-outputs",
+			want:         "Did you mean 'create-project-status-update'?",
+		},
+		{
 			name:         "truly unknown field returns empty (not an alias)",
 			errorMessage: "additional properties 'totally-unknown-field' not allowed",
 			jsonPath:     "/safe-outputs",

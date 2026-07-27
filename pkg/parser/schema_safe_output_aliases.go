@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -26,40 +27,44 @@ var safeOutputAliases = map[string]string{
 	"create_comment":       "add-comment",
 
 	// underscore → hyphen for common operation fields
-	"add_labels":                  "add-labels",
-	"remove_labels":               "remove-labels",
-	"replace_label":               "replace-label",
-	"create_issue":                "create-issue",
-	"close_issue":                 "close-issue",
-	"update_issue":                "update-issue",
-	"create_discussion":           "create-discussion",
-	"close_discussion":            "close-discussion",
-	"update_discussion":           "update-discussion",
-	"create_pull_request":         "create-pull-request",
-	"close_pull_request":          "close-pull-request",
-	"update_pull_request":         "update-pull-request",
-	"merge_pull_request":          "merge-pull-request",
-	"assign_to_user":              "assign-to-user",
-	"unassign_from_user":          "unassign-from-user",
-	"assign_to_agent":             "assign-to-agent",
-	"assign_milestone":            "assign-milestone",
-	"hide_comment":                "hide-comment",
-	"set_issue_type":              "set-issue-type",
-	"set_issue_field":             "set-issue-field",
-	"add_reviewer":                "add-reviewer",
-	"link_sub_issue":              "link-sub-issue",
-	"dispatch_workflow":           "dispatch-workflow",
-	"update_release":              "update-release",
-	"create_check_run":            "create-check-run",
-	"upload_artifact":             "upload-artifact",
-	"upload_asset":                "upload-asset",
-	"update_project":              "update-project",
-	"create_project":              "create-project",
-	"report_failure_as_issue":     "report-failure-as-issue",
-	"create_agent_session":        "create-agent-session",
-	"create_agent_task":           "create-agent-task",
-	"autofix_code_scanning_alert": "autofix-code-scanning-alert",
-	"create_code_scanning_alert":  "create-code-scanning-alert",
+	"add_labels":                   "add-labels",
+	"remove_labels":                "remove-labels",
+	"replace_label":                "replace-label",
+	"create_issue":                 "create-issue",
+	"close_issue":                  "close-issue",
+	"update_issue":                 "update-issue",
+	"create_discussion":            "create-discussion",
+	"close_discussion":             "close-discussion",
+	"update_discussion":            "update-discussion",
+	"create_pull_request":          "create-pull-request",
+	"close_pull_request":           "close-pull-request",
+	"update_pull_request":          "update-pull-request",
+	"merge_pull_request":           "merge-pull-request",
+	"assign_to_user":               "assign-to-user",
+	"unassign_from_user":           "unassign-from-user",
+	"assign_to_agent":              "assign-to-agent",
+	"assign_milestone":             "assign-milestone",
+	"hide_comment":                 "hide-comment",
+	"set_issue_type":               "set-issue-type",
+	"set_issue_field":              "set-issue-field",
+	"add_reviewer":                 "add-reviewer",
+	"link_sub_issue":               "link-sub-issue",
+	"dispatch_workflow":            "dispatch-workflow",
+	"update_release":               "update-release",
+	"create_check_run":             "create-check-run",
+	"upload_artifact":              "upload-artifact",
+	"upload_asset":                 "upload-asset",
+	"update_project":               "update-project",
+	"create_project":               "create-project",
+	"create_project_status_update": "create-project-status-update",
+	"report_failure_as_issue":      "report-failure-as-issue",
+	"missing_tool":                 "missing-tool",
+	"missing_data":                 "missing-data",
+	"report_incomplete":            "report-incomplete",
+	"create_agent_session":         "create-agent-session",
+	"create_agent_task":            "create-agent-task",
+	"autofix_code_scanning_alert":  "autofix-code-scanning-alert",
+	"create_code_scanning_alert":   "create-code-scanning-alert",
 
 	// longer pull-request operation fields
 	"push_to_pull_request_branch":           "push-to-pull-request-branch",
@@ -107,6 +112,8 @@ func safeOutputAliasSuggestion(errorMessage, jsonPath string) string {
 	if len(suggestions) == 0 {
 		return ""
 	}
+
+	sort.Strings(suggestions)
 
 	if len(suggestions) == 1 {
 		return fmt.Sprintf("Did you mean %s?", suggestions[0])
