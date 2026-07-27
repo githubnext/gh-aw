@@ -22,6 +22,7 @@
   "github-mcp-server.md",
   "instructions.md",
   "llms.md",
+  "linter-workflows.md",
   "loop.md",
   "lsp.md",
   "mcp-clis.md",
