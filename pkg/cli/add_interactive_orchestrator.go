@@ -134,10 +134,22 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	if config.resolvedWorkflows != nil {
 		bootstrapProfile = config.resolvedWorkflows.BootstrapProfile
 	}
-	// All config steps run post-install in the exact order they are declared in the
-	// manifest. We no longer split them into a pre-install and post-install phase so
-	// that the declared ordering is preserved.
-	remainingBootstrapProfile := bootstrapProfile
+	// Split bootstrap config into pre-install (repo-variable, repo-secret) and
+	// post-install phases. Pre-install steps collect configuration values before
+	// engine selection; post-install steps run after the workflow PR is created.
+	preInstallBootstrapProfile, remainingBootstrapProfile := splitBootstrapProfile(bootstrapProfile)
+
+	// Step 5b: Run pre-install bootstrap config steps (repo-variable, repo-secret)
+	// before engine selection so required configuration is collected up front.
+	if preInstallBootstrapProfile != nil {
+		if config.hasWriteAccess {
+			if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, preInstallBootstrapProfile, config.UseCopilotRequests, config.Verbose); err != nil {
+				return err
+			}
+		} else {
+			printBootstrapConfigTODO(os.Stderr, preInstallBootstrapProfile)
+		}
+	}
 
 	// Step 6: Select coding agent and collect API key
 	if err := config.selectAIEngineAndKey(); err != nil {

@@ -74,8 +74,8 @@ func TestBootstrapProfileState(t *testing.T) {
 
 // TestPrintBootstrapConfigTODO_PreservesManifestOrder verifies that all declared config
 // actions are included in the TODO output in their exact manifest order. This guards
-// against regressions that split actions into pre-install and post-install phases and
-// thereby reorder or omit steps.
+// against regressions to printBootstrapConfigTODO that would reorder or omit steps;
+// note that the add-wizard flow intentionally splits pre-install and post-install actions.
 func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
 	// Declare a profile with an interleaved mix of action types to ensure ordering
 	// cannot be accidentally satisfied by any implicit categorisation.
@@ -130,5 +130,108 @@ func TestPrintBootstrapConfigTODO_PreservesManifestOrder(t *testing.T) {
 		if positions[i-1] >= positions[i] {
 			t.Errorf("action at position %d appears after action at position %d (ordering regression)", i-1, i)
 		}
+	}
+}
+
+func TestSplitBootstrapProfile(t *testing.T) {
+	tests := []struct {
+		name          string
+		profile       *resolvedBootstrapProfile
+		wantPreTypes  []string
+		wantPostTypes []string
+	}{
+		{
+			name:          "nil profile",
+			profile:       nil,
+			wantPreTypes:  nil,
+			wantPostTypes: nil,
+		},
+		{
+			name:          "empty config",
+			profile:       &resolvedBootstrapProfile{Profile: &repositoryPackageBootstrap{}},
+			wantPreTypes:  nil,
+			wantPostTypes: nil,
+		},
+		{
+			name: "only pre-install types",
+			profile: &resolvedBootstrapProfile{
+				PackageID: "owner/repo",
+				Profile: &repositoryPackageBootstrap{
+					Config: []repositoryPackageBootstrapAction{
+						{Type: "repo-variable", Name: "MY_VAR"},
+						{Type: "repo-secret", Name: "MY_SECRET"},
+					},
+				},
+			},
+			wantPreTypes:  []string{"repo-variable", "repo-secret"},
+			wantPostTypes: nil,
+		},
+		{
+			name: "only post-install types",
+			profile: &resolvedBootstrapProfile{
+				PackageID: "owner/repo",
+				Profile: &repositoryPackageBootstrap{
+					Config: []repositoryPackageBootstrapAction{
+						{Type: "handoff", Message: "done"},
+						{Type: "copilot-auth", Secret: "TOKEN"},
+					},
+				},
+			},
+			wantPreTypes:  nil,
+			wantPostTypes: []string{"handoff", "copilot-auth"},
+		},
+		{
+			name: "mixed pre and post install types",
+			profile: &resolvedBootstrapProfile{
+				PackageID: "owner/repo",
+				Profile: &repositoryPackageBootstrap{
+					Config: []repositoryPackageBootstrapAction{
+						{Type: "repo-variable", Name: "MY_VAR"},
+						{Type: "handoff", Message: "done"},
+						{Type: "repo-secret", Name: "MY_SECRET"},
+						{Type: "require-owner-type", Value: "org"},
+					},
+				},
+			},
+			wantPreTypes:  []string{"repo-variable", "repo-secret"},
+			wantPostTypes: []string{"handoff", "require-owner-type"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pre, post := splitBootstrapProfile(tt.profile)
+
+			checkPart := func(part *resolvedBootstrapProfile, want []string, label string) {
+				if want == nil {
+					if part != nil {
+						t.Errorf("%s: expected nil, got profile with %d actions", label, len(part.Profile.Config))
+					}
+					return
+				}
+				if part == nil {
+					t.Fatalf("%s: expected non-nil profile with types %v, got nil", label, want)
+				}
+				got := make([]string, len(part.Profile.Config))
+				for i, a := range part.Profile.Config {
+					got[i] = a.Type
+				}
+				if len(got) != len(want) {
+					t.Errorf("%s: got types %v, want %v", label, got, want)
+					return
+				}
+				for i := range want {
+					if got[i] != want[i] {
+						t.Errorf("%s: action[%d] type=%q, want %q", label, i, got[i], want[i])
+					}
+				}
+				if tt.profile != nil && part.PackageID != tt.profile.PackageID {
+					t.Errorf("%s: PackageID=%q, want %q", label, part.PackageID, tt.profile.PackageID)
+				}
+			}
+
+			checkPart(pre, tt.wantPreTypes, "pre-install")
+			checkPart(post, tt.wantPostTypes, "post-install")
+		})
 	}
 }
