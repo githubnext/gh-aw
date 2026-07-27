@@ -68,28 +68,6 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 	fmt.Fprintln(w, "")
 }
 
-func bootstrapProfileAddWizardPreInstall(profile *resolvedBootstrapProfile) *resolvedBootstrapProfile {
-	return filterBootstrapProfileActions(profile, func(action repositoryPackageBootstrapAction) bool {
-		switch action.Type {
-		case "require-owner-type", "repo-variable", "repo-secret", "github-app":
-			return true
-		default:
-			return false
-		}
-	})
-}
-
-func bootstrapProfileAddWizardPostInstall(profile *resolvedBootstrapProfile) *resolvedBootstrapProfile {
-	return filterBootstrapProfileActions(profile, func(action repositoryPackageBootstrapAction) bool {
-		switch action.Type {
-		case "copilot-auth", "commit-and-push", "handoff":
-			return true
-		default:
-			return false
-		}
-	})
-}
-
 // filterBootstrapProfileActions returns a shallow clone of profile containing only
 // actions for which keep returns true. It returns nil when the input profile is
 // nil, has no bootstrap payload, or no actions survive filtering.
