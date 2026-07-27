@@ -329,8 +329,8 @@ async function main() {
         if (itemType === "dispatch_workflow") {
           const hasWorkflowName = typeof item.workflow_name === "string" && item.workflow_name.trim().length > 0;
           if (!hasWorkflowName && typeConfig !== null && typeof typeConfig === "object" && Array.isArray(typeConfig.workflows)) {
-            const configuredWorkflows = typeConfig.workflows.filter(name => typeof name === "string" && name.trim().length > 0);
-            if (configuredWorkflows.length === 1) {
+            const { workflows: configuredWorkflows } = typeConfig;
+            if (configuredWorkflows.length === 1 && typeof configuredWorkflows[0] === "string" && configuredWorkflows[0].trim().length > 0) {
               item.workflow_name = configuredWorkflows[0].trim();
               core.info(`[INGESTION] Line ${i + 1}: Inferred dispatch_workflow workflow_name='${item.workflow_name}' from safe-outputs config`);
             }

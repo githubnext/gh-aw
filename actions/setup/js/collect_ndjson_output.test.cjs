@@ -215,6 +215,33 @@ describe("collect_ndjson_output.cjs", () => {
       const parsedOutput = JSON.parse(outputCall[1]);
       (expect(parsedOutput.items).toHaveLength(1), expect(parsedOutput.items[0].type).toBe("dispatch_workflow"), expect(parsedOutput.items[0].workflow_name).toBe("workflow-handler"), expect(parsedOutput.errors).toHaveLength(0));
     }),
+    it("should not infer dispatch_workflow workflow_name when multiple workflows are configured", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
+        ndjsonContent = '{"type": "dispatch_workflow", "inputs": {"message": "hello"}}';
+      (fs.writeFileSync(testFile, ndjsonContent), (process.env.GH_AW_SAFE_OUTPUTS = testFile));
+      const __config = '{"dispatch_workflow":{"workflows":["worker", " "]}}',
+        configPath = "/tmp/gh-aw/safeoutputs/config.json";
+      (fs.mkdirSync("/tmp/gh-aw/safeoutputs", { recursive: !0 }), fs.writeFileSync(configPath, __config), await eval(`(async () => { ${collectScript}; await main(); })()`));
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      expect(parsedOutput.errors).toHaveLength(1);
+    }),
+    it("should preserve Slack mrkdwn links in custom safe-job string inputs", async () => {
+      const testFile = "/tmp/gh-aw/test-ndjson-output.txt";
+      const slackText = "Tracking issue: <https://github.com/octo-org/octo-repo/issues/123|Build failure — Build github/gh-aw#456>";
+      const ndjsonContent = JSON.stringify({ type: "post_to_slack", text: slackText });
+      fs.writeFileSync(testFile, ndjsonContent);
+      process.env.GH_AW_SAFE_OUTPUTS = testFile;
+      fs.writeFileSync("/tmp/gh-aw/safeoutputs/config.json", JSON.stringify({ post_to_slack: { inputs: { text: { type: "string", required: true } } } }));
+      await eval(`(async () => { ${collectScript}; await main(); })()`);
+      const setOutputCalls = mockCore.setOutput.mock.calls,
+        outputCall = setOutputCalls.find(call => "output" === call[0]);
+      expect(outputCall).toBeDefined();
+      const parsedOutput = JSON.parse(outputCall[1]);
+      (expect(parsedOutput.errors).toHaveLength(0), expect(parsedOutput.items).toEqual([{ type: "post_to_slack", text: slackText }]));
+    }),
     it("should reject items with unexpected output types", async () => {
       const testFile = "/tmp/gh-aw/test-ndjson-output.txt",
         ndjsonContent = '{"type": "create_issue", "title": "Test Issue", "body": "Test body"}\n{"type": "unexpected-type", "data": "some data"}';
