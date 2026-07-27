@@ -16,6 +16,7 @@ tracker-id: daily-geo-optimizer
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 strict: true
 timeout-minutes: 30
 tools:

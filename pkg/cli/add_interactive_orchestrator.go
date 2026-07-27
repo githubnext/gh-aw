@@ -134,13 +134,10 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	if config.resolvedWorkflows != nil {
 		bootstrapProfile = config.resolvedWorkflows.BootstrapProfile
 	}
+	// All config steps run post-install in the exact order they are declared in the
+	// manifest. We no longer split them into a pre-install and post-install phase so
+	// that the declared ordering is preserved.
 	remainingBootstrapProfile := bootstrapProfile
-	if config.hasWriteAccess {
-		if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, nil, bootstrapProfileAddWizardPreInstall(bootstrapProfile), false, config.Verbose); err != nil {
-			return err
-		}
-		remainingBootstrapProfile = bootstrapProfileAddWizardPostInstall(bootstrapProfile)
-	}
 
 	// Step 6: Select coding agent and collect API key
 	if err := config.selectAIEngineAndKey(); err != nil {

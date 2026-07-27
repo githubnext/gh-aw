@@ -19,6 +19,7 @@ on:
 engine:
   id: copilot
   copilot-sdk: true
+max-tool-denials: 3
 permissions:
   contents: read
   issues: read
