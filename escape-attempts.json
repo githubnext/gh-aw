@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-02-16T17:28:44Z",
-  "run_id": "22072077651",
+  "last_updated": "2026-07-28T05:42:29.050843Z",
+  "run_id": "30332032816",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -260,6 +260,111 @@
       "description": "Reviewed all prior escape attempts and patterns",
       "result": "success-reconnaissance",
       "date": "2026-02-16"
+    },
+    {
+      "name": "CONNECT Trailing Dot FQDN Bypass (example.com.)",
+      "category": "Squid-specific / DNS normalization",
+      "description": "CONNECT Trailing Dot FQDN Bypass (example.com.)",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "CONNECT Trailing Dot Allowed Domain (api.github.com.)",
+      "category": "Squid-specific / DNS normalization",
+      "description": "CONNECT Trailing Dot Allowed Domain (api.github.com.)",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "CONNECT Uppercase Domain Case Bypass",
+      "category": "Squid-specific / case normalization",
+      "description": "CONNECT Uppercase Domain Case Bypass",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "CONNECT Direct-by-IP for example.com (multiple known IPs)",
+      "category": "IP-based bypass",
+      "description": "CONNECT Direct-by-IP for example.com (multiple known IPs)",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "Subdomain Suffix Confusion (example.com.github.com)",
+      "category": "Domain obfuscation",
+      "description": "Subdomain Suffix Confusion (example.com.github.com)",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "Subdomain Prefix Confusion (github.com.example.com)",
+      "category": "Domain obfuscation",
+      "description": "Subdomain Prefix Confusion (github.com.example.com)",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "Null Byte Injection in CONNECT Host",
+      "category": "HTTP protocol manipulation",
+      "description": "Null Byte Injection in CONNECT Host",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "CRLF Injection in CONNECT Request Line",
+      "category": "HTTP request smuggling",
+      "description": "CRLF Injection in CONNECT Request Line",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "Tab Whitespace Before Port in CONNECT",
+      "category": "HTTP protocol manipulation",
+      "description": "Tab Whitespace Before Port in CONNECT",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "CONNECT/SNI Mismatch (CONNECT to allowed host, TLS SNI=example.com)",
+      "category": "TLS SNI confusion / ssl_bump peek",
+      "description": "CONNECT/SNI Mismatch (CONNECT to allowed host, TLS SNI=example.com)",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "IDN Punycode Typosquat of github.com",
+      "category": "Domain obfuscation / IDN",
+      "description": "IDN Punycode Typosquat of github.com",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "api-proxy/cli-proxy Internal Service as Open Proxy",
+      "category": "Internal service abuse",
+      "description": "api-proxy/cli-proxy Internal Service as Open Proxy",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "Direct DNS UDP Query to 8.8.8.8 bypassing Docker DNS",
+      "category": "DNS-based / network isolation",
+      "description": "Direct DNS UDP Query to 8.8.8.8 bypassing Docker DNS",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "/etc/hosts Write Attempt",
+      "category": "Filesystem tampering",
+      "description": "/etc/hosts Write Attempt",
+      "result": "failure",
+      "date": "2026-07-28"
+    },
+    {
+      "name": "iptables Ruleset Enumeration",
+      "category": "Container reconnaissance",
+      "description": "iptables Ruleset Enumeration",
+      "result": "failure",
+      "date": "2026-07-28"
     }
   ]
 }

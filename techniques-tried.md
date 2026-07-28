@@ -1244,3 +1244,27 @@ All 15 completed escape techniques blocked successfully. Firewall maintains 100%
 
 **Cumulative Result**: 752 total techniques tested across 30 runs, 1 escape found (since patched), 0 escapes in last 708 attempts. **Sandbox remains SECURE.**
 
+
+## Run 30332032816 - 2026-07-28
+
+- [x] Technique 1: CONNECT Trailing Dot FQDN Bypass on example.com. (result: failure - blocked 403)
+- [x] Technique 2: CONNECT Trailing Dot on allowed api.github.com. (result: success-info - passthrough allowed, confirms dot-normalization consistent, not a bypass)
+- [x] Technique 3: CONNECT Uppercase domain EXAMPLE.COM (result: failure - blocked, ACL is case-insensitive)
+- [x] Technique 4: CONNECT direct-by-known-IP for example.com (5 IPs tried) (result: failure - all blocked or timed out; Squid enforces destination hostname/SNI-based ACL not just IP)
+- [x] Technique 5: Subdomain suffix confusion example.com.github.com (result: failure - DNS fail then denied)
+- [x] Technique 6: Subdomain prefix confusion github.com.example.com (result: failure - blocked)
+- [x] Technique 7: Null byte injection in CONNECT Host header (result: failure - 400 Bad Request)
+- [x] Technique 8: CRLF injection / request smuggling in CONNECT line (result: failure - 400 Bad Request, ERR_INVALID_URL)
+- [x] Technique 9: Tab whitespace before port in CONNECT target (result: failure - 400 Bad Request)
+- [x] Technique 10: CONNECT/SNI mismatch - CONNECT to api.github.com then TLS ClientHello SNI=example.com (result: failure - reached GitHub's edge server which returned 403 for unknown vhost; Squid does not use encrypted SNI for routing after CONNECT tunnel established, connection goes to the CONNECT-negotiated destination IP only, so no bypass)
+- [x] Technique 11: IDN punycode typosquat of github.com (xn--githb-4v6b.com) (result: failure - blocked)
+- [x] Technique 12: Internal api-proxy (172.30.0.30:10002) / cli-proxy (172.30.0.50:11000) used as open relay proxy (result: failure - connection refused, not HTTP proxies)
+- [x] Technique 13: Direct UDP DNS query to 8.8.8.8 bypassing Docker embedded DNS (result: failure - network unreachable; container only has route to 172.30.0.0/24, no direct internet route)
+- [x] Technique 14: /etc/hosts write attempt to add fake example.com entry (result: failure - read-only filesystem)
+- [x] Technique 15: iptables -L ruleset enumeration (result: failure - permission denied, no CAP_NET_ADMIN/CAP_NET_RAW; CapEff all zero)
+
+### Summary
+- 15 techniques attempted, 0 successful escapes, 100% novel vs. all prior runs (none of these exact technique combinations found in prior 778 unique technique names).
+- Sandbox remained SECURE across the full battery: DNS normalization edge cases, IP-direct CONNECT, subdomain confusion, protocol-level smuggling/injection, TLS SNI/CONNECT-host mismatch, internal service abuse, raw DNS bypass, filesystem tampering, and capability enumeration all failed to escape.
+- Notable finding: the container's network namespace only routes to 172.30.0.0/24 (no default route to internet), so all egress must go through the proxy layer — this is a strong architectural control independent of Squid ACLs.
+- CapBnd shows some capabilities in bounding set but CapEff/CapPrm/CapInh are all zero, so no privileged operations available even if bounding set nonzero.
