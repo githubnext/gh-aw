@@ -1,27 +1,16 @@
-# Task Mining Run - 2026-07-28
+# Task Mining Run - 2026-07-28T19:08:00Z
 
 ## Summary
-- Discussions scanned: 5 (unprocessed since last run on 2026-07-18)
-- Tasks identified: 7
-- Issues created: 4
-- Duplicates avoided: 3 (already tracked in open issues)
+- Discussions scanned: 9 new (of 30 fetched)
+- Tasks identified: 2
+- Issues created: 1
+- Duplicates avoided: 1 (already closed as #48680/#48673)
 
 ## Created Issues
-- Propagate caller context through remote workflow spec fetchers (remote_workflow_spec.go) — from discussion #48389
-- Thread context.Context through upgradeExtensionIfOutdated for cancellable release checks — from discussion #48389
-- Propagate live context into buildRunsModel / fetchJobStatusesForProcessedRun (logs_orchestrator_filters.go) — from discussion #48389
-- Split 117-line generateSetupStepWithArtifactClientCondition into per-mode helpers — from discussion #48508
+- Document why WASM builds skip repository feature validation (source: discussion #48665)
 
 ## Duplicates Skipped
-- ExecGH/RunGH/RunGHCombined deprecation — already tracked in an open "[Code Quality]" issue
-- ctxbackground linter wrapper-pattern extension — already tracked in an open "[Code Quality]" issue
-- syft image-scan context propagation — already tracked in an open "[Code Quality]" issue
+- CLI Flag Boilerplate Duplication (discussion #48629) — fully covered by already-closed issues #48680 and #48673
 
-## Discussions Reviewed But No New Tasks Extracted
-- #48511 (lint-monster) — already self-managing via its own issue-creation workflow (created its own tracking issues)
-- #48572 (terminal-stylist) — no action needed; report concludes codebase is already consistent, only optional low-value polish suggested
-- #48462 (observability) — findings are about missing telemetry/logs in specific workflow *runs*, not a code-quality defect with a fixable file/line; not actionable as a 1-3 day code task
-
-## Top Patterns Observed
-- context.Background() call-chain leakage remains the dominant recurring theme (context propagation gaps across parser, cli, and compiler packages)
-- Large/complex functions in compiler YAML generation code continue to surface in daily quality scans
+## Notes
+- Discussions #48711 (cache-strategy), #48710/#48615/#48552 (auto-triage), #48709 (copilot-agent-analysis), #48704 (secrets), #48694 (geo-optimizer), #48682 (uk-ai-resilience), #48462 (observability) contained no new actionable code-quality tasks or reported no issues found.

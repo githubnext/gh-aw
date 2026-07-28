@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-28T13:17:00Z",
+  "last_run": "2026-07-28T19:08:00Z",
   "tasks": [
     {
       "source_discussion": 48389,
@@ -42,6 +42,18 @@
       "title": "Propagate context into syft image-scan loop (already tracked)",
       "created_at": "2026-07-28T13:17:00Z",
       "status": "skipped_duplicate_existing_issue"
+    },
+    {
+      "source_discussion": 48629,
+      "title": "CLI flag boilerplate consolidation (already fully tracked/closed as issues #48680, #48673)",
+      "created_at": "2026-07-28T19:08:00Z",
+      "status": "skipped_duplicate_existing_issue"
+    },
+    {
+      "source_discussion": 48665,
+      "title": "Document why WASM builds skip repository feature validation",
+      "created_at": "2026-07-28T19:08:00Z",
+      "status": "created"
     }
   ]
 }

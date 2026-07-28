@@ -1,10 +1,75 @@
 {
-  "last_run": "2026-07-28T13:17:00Z",
+  "last_run": "2026-07-28T19:08:00Z",
   "discussions_processed": [
-    {"id": 48389, "title": "[repository-quality] Repository Quality Improvement Report — context.Background() Call-Chain Leakage", "processed_at": "2026-07-28T13:17:00Z"},
-    {"id": 48511, "title": "[lint-monster] LintMonster daily custom-lint scan summary 2026-07-28", "processed_at": "2026-07-28T13:17:00Z"},
-    {"id": 48508, "title": "[daily-compiler-quality] Daily Compiler Code Quality Report - 2026-07-28", "processed_at": "2026-07-28T13:17:00Z"},
-    {"id": 48572, "title": "[terminal-stylist] Terminal Stylist: Console Output Consistency Audit", "processed_at": "2026-07-28T13:17:00Z"},
-    {"id": 48462, "title": "[observability] Observability Coverage Report - 2026-07-28", "processed_at": "2026-07-28T13:17:00Z"}
+    {
+      "id": 48389,
+      "title": "[repository-quality] Repository Quality Improvement Report — context.Background() Call-Chain Leakage",
+      "processed_at": "2026-07-28T13:17:00Z"
+    },
+    {
+      "id": 48511,
+      "title": "[lint-monster] LintMonster daily custom-lint scan summary 2026-07-28",
+      "processed_at": "2026-07-28T13:17:00Z"
+    },
+    {
+      "id": 48508,
+      "title": "[daily-compiler-quality] Daily Compiler Code Quality Report - 2026-07-28",
+      "processed_at": "2026-07-28T13:17:00Z"
+    },
+    {
+      "id": 48572,
+      "title": "[terminal-stylist] Terminal Stylist: Console Output Consistency Audit",
+      "processed_at": "2026-07-28T13:17:00Z"
+    },
+    {
+      "id": 48462,
+      "title": "[observability] Observability Coverage Report - 2026-07-28",
+      "processed_at": "2026-07-28T13:17:00Z"
+    },
+    {
+      "id": 48711,
+      "title": "[cache-strategy] Cache Strategy Analysis - 2026-07-28",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48710,
+      "title": "[Auto-Triage] Auto-Triage Issues Report",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48709,
+      "title": "[copilot-agent-analysis] Daily Copilot Agent Analysis - 2026-07-28",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48704,
+      "title": "[daily secrets] Daily Secrets Analysis Report",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48694,
+      "title": "[geo-optimizer] GEO Audit Report — 2026-07-28",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48682,
+      "title": "[uk ai resilience] UK AI Open-Code Resilience Review — 2026-07-28",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48665,
+      "title": "[delight] User Experience Analysis Report - 2026-07-28",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48629,
+      "title": "[repository-quality] CLI Flag Boilerplate Duplication & Legacy-Alias Drift",
+      "processed_at": "2026-07-28T19:08:00Z"
+    },
+    {
+      "id": 48462,
+      "title": "[observability] Observability Coverage Report - 2026-07-28",
+      "processed_at": "2026-07-28T19:08:00Z"
+    }
   ]
 }
