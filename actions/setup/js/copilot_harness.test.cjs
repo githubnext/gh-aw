@@ -404,8 +404,9 @@ describe("copilot_harness.cjs", () => {
     function shouldRetry(result, attempt, isStartupRetryEligible, scheduledExit2Retries) {
       if (result.exitCode === 0) return false;
 
+      const isStartupNoOutputRetryCandidate = !result.hasOutput && result.exitCode === 2;
       // Scheduled or push startup outage: retry once even when no output was produced.
-      if (isStartupRetryEligible && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
+      if (isStartupRetryEligible && isStartupNoOutputRetryCandidate && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
         return true;
       }
 
@@ -426,6 +427,11 @@ describe("copilot_harness.cjs", () => {
       expect(isEligible).toBe(true);
       expect(shouldRetry(result, 0, isEligible, 0)).toBe(true);
       expect(shouldRetry(result, 1, isEligible, 1)).toBe(false);
+    });
+
+    it("does not retry exit code 1 with no output (watchdog-fired exits are suppressed as late-activity, not retried)", () => {
+      const result = { exitCode: 1, hasOutput: false };
+      expect(shouldRetry(result, 0, true, 0)).toBe(false);
     });
 
     it("does not retry on exit code 2 with no output for non-eligible triggers", () => {
@@ -465,7 +471,8 @@ describe("copilot_harness.cjs", () => {
        * Returns true when the incomplete diagnostic should be emitted.
        */
       function shouldEmitIncomplete({ isStartupRetryEligible, lastExitCode, retryAttempted, lastHasOutput }) {
-        return isStartupRetryEligible && lastExitCode === 2 && retryAttempted && !lastHasOutput;
+        const isStartupNoOutputRetryCandidate = !lastHasOutput && lastExitCode === 2;
+        return isStartupRetryEligible && isStartupNoOutputRetryCandidate && retryAttempted;
       }
 
       it("emits diagnostic when terminal attempt had no output", () => {
@@ -479,6 +486,10 @@ describe("copilot_harness.cjs", () => {
 
       it("does not emit diagnostic when no retry was attempted", () => {
         expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 2, retryAttempted: false, lastHasOutput: false })).toBe(false);
+      });
+
+      it("does not emit diagnostic for exit code 1 (watchdog-fired exits are suppressed as late-activity, not emitted as incomplete)", () => {
+        expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 1, retryAttempted: true, lastHasOutput: false })).toBe(false);
       });
 
       it("does not emit diagnostic for non-eligible event", () => {
@@ -2565,6 +2576,49 @@ process.exit(1);`,
       // Harness exits 1 because retries are exhausted with no output
       expect(result.status).toBe(1);
       expect(result.stderr).not.toContain("late-activity exit suppressed");
+    });
+
+    it("exits 0 without retrying when watchdog fires after terminal safe-output was produced (no stdio output)", () => {
+      const tempDir = makeHarnessTempDir("copilot-watchdog-no-stdio-suppression-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub writes a terminal safe-output but produces NO stdio output.
+      // The watchdog arms (because hasTerminalSafeOutput is true) and fires after inactivity.
+      // This exercises the no_output + watchdogFired + hasTerminalSafeOutput suppression path.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add_comment",body:"Report posted"}) + "\\n");
+// No stdout output — hasOutput remains false
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "generate the report", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Only one attempt — no retries when watchdog suppression applies
+      expect(callCount).toBe(1);
+      // Harness exits 0 because the terminal safe-output was already produced
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
+      expect(result.stderr).toContain("late-activity exit suppressed");
     });
   });
 

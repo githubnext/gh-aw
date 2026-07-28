@@ -295,6 +295,15 @@ function computeStartupRetryEligible(eventName) {
 }
 
 /**
+ * Returns true when a failed attempt qualifies for the startup no-output retry budget.
+ * @param {{exitCode: number, hasOutput: boolean}} result
+ * @returns {boolean}
+ */
+function isStartupNoOutputRetryCandidate(result) {
+  return !result.hasOutput && result.exitCode === 2;
+}
+
+/**
  * Read AWF config written by the compiler before the agent runs.
  * @returns {any|null}
  */
@@ -1258,7 +1267,11 @@ async function main() {
         // (watchdogFired=true), as well as any other partial_execution failure that occurs
         // after the primary task output was already produced.  Retrying would reproduce the
         // same pattern and exhaust the retry budget without ever posting a final safe-output.
-        if ((failureClass === "partial_execution" || failureClass === "long_run_exit") && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+        // The no_output + watchdogFired case is also handled here: the post-result watchdog is
+        // only armed after hasTerminalSafeOutput is true, so watchdogFired on a no-stdio-output
+        // run means the agent completed its task (wrote safe-output) but produced no console
+        // output before the watchdog terminated the idle process.
+        if ((failureClass === "partial_execution" || failureClass === "long_run_exit" || (failureClass === "no_output" && result.watchdogFired)) && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
           const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
           log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
           lastExitCode = 0;
@@ -1379,7 +1392,7 @@ async function main() {
         // Scheduled and push-triggered runs: retry once on exit code 2 even when no output was
         // produced. This specifically targets transient Copilot API outages at startup where
         // there is no partial session state to continue from (Turns=0 driver-handoff failure).
-        if (isStartupRetryEligible && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
+        if (isStartupRetryEligible && isStartupNoOutputRetryCandidate(result) && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
           scheduledExit2Retries += 1;
           scheduledExit2RetryAttempted = true;
           useContinueOnRetry = false;
@@ -1387,7 +1400,7 @@ async function main() {
           log(`attempt ${attempt + 1}: ${triggerLabel} startup interruption (exit code 2, no output — driver-handoff Turns=0)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
           continue;
         }
-        if (isStartupRetryEligible && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= maxRetries) {
+        if (isStartupRetryEligible && isStartupNoOutputRetryCandidate(result) && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= maxRetries) {
           log(`attempt ${attempt + 1}: startup interruption detected (driver-handoff Turns=0) but retry budget exhausted — no attempts remain`);
         }
 
@@ -1416,7 +1429,7 @@ async function main() {
         break;
       }
 
-      if (isStartupRetryEligible && lastExitCode === 2 && scheduledExit2RetryAttempted && !lastHasOutput) {
+      if (isStartupRetryEligible && scheduledExit2RetryAttempted && isStartupNoOutputRetryCandidate({ exitCode: lastExitCode, hasOutput: lastHasOutput })) {
         const triggerLabel = isScheduledRun ? "scheduled" : "push";
         emitInfrastructureIncomplete(
           `Copilot API interruption (exit code 2) persisted after automatic retry in ${triggerLabel} workflow run. ` + "This is the Turns=0 driver-handoff failure signature. Check the agent-stdio.log for startup diagnostics."
