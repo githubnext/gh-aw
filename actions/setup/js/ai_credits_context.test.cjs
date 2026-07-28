@@ -205,6 +205,33 @@ describe("ai_credits_context unknown_model_ai_credits detection", () => {
     return logPath;
   }
 
+  function writeEventLog(lines, filename = "event-logs.jsonl") {
+    const logDir = path.join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs");
+    fs.mkdirSync(logDir, { recursive: true });
+    const logPath = path.join(logDir, filename);
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
+  function writeEventLog(lines, filename = "event-logs.jsonl") {
+    const logDir = path.join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs");
+    fs.mkdirSync(logDir, { recursive: true });
+    const logPath = path.join(logDir, filename);
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
+  function writeEventLog(lines, filename = "event-logs.jsonl") {
+    const logDir = path.join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs");
+    fs.mkdirSync(logDir, { recursive: true });
+    const logPath = path.join(logDir, filename);
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
   it("detects unknown_model_ai_credits type in audit log", () => {
     writeAuditLog([{ type: "unknown_model_ai_credits", model: "my-custom-model" }]);
     expect(parseUnknownModelAICreditsFromAuditLog()).toBe(true);
@@ -276,6 +303,15 @@ describe("ai_credits_context parseUnknownModelAICreditsAndModelFromAuditLog", ()
     return logPath;
   }
 
+  function writeEventLog(lines, filename = "event-logs.jsonl") {
+    const logDir = path.join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs");
+    fs.mkdirSync(logDir, { recursive: true });
+    const logPath = path.join(logDir, filename);
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
   it("detects and returns model name from matching entry", () => {
     writeAuditLog([{ type: "unknown_model_ai_credits", model: "claude-opus-5" }]);
     expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: true, modelName: "claude-opus-5" });
@@ -300,6 +336,16 @@ describe("ai_credits_context parseUnknownModelAICreditsAndModelFromAuditLog", ()
     const result = parseUnknownModelAICreditsAndModelFromAuditLog();
     expect(result.detected).toBe(true);
     expect(result.modelName).toBe("my-model");
+  });
+
+  it("detects and returns model name from firewall event-logs.jsonl", () => {
+    writeEventLog([{ type: "unknown_model_ai_credits", model: "claude-opus-5" }]);
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: true, modelName: "claude-opus-5" });
+  });
+
+  it("detects and returns model name from firewall events.jsonl fallback", () => {
+    writeEventLog([{ type: "unknown_model_ai_credits", model: "gpt-4.1-mini" }], "events.jsonl");
+    expect(parseUnknownModelAICreditsAndModelFromAuditLog()).toEqual({ detected: true, modelName: "gpt-4.1-mini" });
   });
 
   it("returns { detected: false, modelName: '' } when no matching entry", () => {

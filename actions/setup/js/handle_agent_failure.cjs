@@ -296,16 +296,15 @@ function buildFailureIssueTitle(options) {
   if (options.hasDailyAICExceeded) return `[aw] ${workflowName} exceeded daily AI credits budget`;
   if (options.maxAICreditsExceeded) return `[aw] ${workflowName} exceeded max AI credits`;
   if (options.aiCreditsRateLimitError) return `[aw] ${workflowName} hit AI credits rate limit`;
-  // Keep HTTP 400 below AI-credits signals: quota/rate-limit indicates an account-level
-  // budget state that should take precedence when both classes are detected.
-  if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
-  // Missing model pricing detected directly from agent-stdio.log takes precedence over
-  // the generic unknown_model_ai_credits signal when both are present, since it carries
-  // a model name and more specific remediation.
+  // Missing model pricing is surfaced by the proxy as HTTP 400, so prefer the
+  // specialized title before falling back to the generic transport-level error.
   if (options.missingModelPricingError) {
     const modelSuffix = options.missingModelPricingModelName ? ` (${options.missingModelPricingModelName})` : "";
     return `[aw] ${workflowName} has no AI credits pricing for model${modelSuffix}`;
   }
+  // Keep HTTP 400 below AI-credits signals: quota/rate-limit indicates an account-level
+  // budget state that should take precedence when both classes are detected.
+  if (options.http400ResponseError) return `[aw] ${workflowName} hit HTTP 400 bad request`;
   // Unknown model pricing is a configuration error that may also trigger a timeout;
   // report it explicitly so the title is not misleadingly "timed out".
   if (options.unknownModelAICredits) return `[aw] ${workflowName} has unknown model pricing`;
@@ -1724,37 +1723,56 @@ function buildUnknownModelAICreditsContext(hasUnknownModelAICreditsError) {
  * Fetch the models.dev pricing catalog and look up per-million-token pricing for a model.
  * Returns null when the catalog is unavailable, the model is not found, or pricing is missing.
  * @param {string} modelName - The model name to look up (e.g. "claude-opus-5")
+ * @param {string} [providerName] - Preferred provider key (e.g. "anthropic")
  * @returns {Promise<{input: number, output: number, cacheRead?: number, cacheWrite?: number}|null>}
  */
-async function fetchModelPricingFromModelsDev(modelName) {
+async function fetchModelPricingFromModelsDev(modelName, providerName = "") {
   if (!modelName) return null;
   const url = "https://models.dev/catalog.json";
   const normalizedModel = modelName.toLowerCase().replace(/[._]/g, "-");
+  const normalizedProvider = (providerName || "").trim().toLowerCase();
+  const MAX_MODELS_DEV_RESPONSE_BYTES = 2 * 1024 * 1024;
   /** @type {string} */
   const rawJson = await new Promise((resolve, reject) => {
-    const req = https.get(url, { timeout: 5000 }, res => {
+    const req = https.get(url, res => {
       if (res.statusCode !== 200) {
         res.resume();
         reject(new Error(`models.dev returned HTTP ${res.statusCode}`));
         return;
       }
+      let receivedBytes = 0;
       const chunks = [];
-      res.on("data", chunk => chunks.push(chunk));
+      res.on("data", chunk => {
+        receivedBytes += chunk.length;
+        if (receivedBytes > MAX_MODELS_DEV_RESPONSE_BYTES) {
+          req.destroy(new Error(`models.dev response exceeded ${MAX_MODELS_DEV_RESPONSE_BYTES} bytes`));
+          return;
+        }
+        chunks.push(chunk);
+      });
       res.on("end", () => resolve(Buffer.concat(chunks).toString("utf8")));
       res.on("error", reject);
     });
-    req.on("timeout", () => {
-      req.destroy();
-      reject(new Error("models.dev request timed out"));
-    });
+    const hardDeadline = setTimeout(() => req.destroy(new Error("models.dev request timed out")), 5000);
+    req.on("close", () => clearTimeout(hardDeadline));
     req.on("error", reject);
   });
 
   /** @type {any} */
-  const catalog = JSON.parse(rawJson);
+  let catalog;
+  try {
+    catalog = JSON.parse(rawJson);
+  } catch {
+    throw new Error("models.dev returned non-JSON response");
+  }
   const providers = catalog?.providers ?? {};
 
-  for (const [, providerData] of Object.entries(providers)) {
+  const providerEntries = Object.entries(providers);
+  const lookupOrder = normalizedProvider
+    ? [...providerEntries.filter(([provider]) => provider.toLowerCase() === normalizedProvider), ...providerEntries.filter(([provider]) => provider.toLowerCase() !== normalizedProvider)]
+    : providerEntries;
+
+  for (const [, providerData] of lookupOrder) {
     const models = /** @type {any} */ providerData?.models ?? {};
     for (const [mName, mData] of Object.entries(models)) {
       const normalized = mName.toLowerCase().replace(/[._]/g, "-");
@@ -1803,6 +1821,14 @@ function inferProviderKeyFromEngineId(engineId) {
 }
 
 /**
+ * @param {string} value
+ * @returns {string}
+ */
+function quoteYAMLKey(value) {
+  return `'${String(value).replace(/'/g, "''")}'`;
+}
+
+/**
  * Build a frontmatter YAML pricing snippet for the missing model.
  * Returns null when pricing data is unavailable.
  * @param {string} modelName
@@ -1815,6 +1841,7 @@ function buildModelPricingFrontmatterSnippet(modelName, engineId, pricing) {
   const provider = inferProviderKeyFromEngineId(engineId);
   const inputStr = formatPerTokenPrice(pricing.input);
   const outputStr = formatPerTokenPrice(pricing.output);
+  const quotedModelName = quoteYAMLKey(modelName);
   let costBlock = `            input: "${inputStr}"      # $${pricing.input.toFixed(2)} per million input tokens\n`;
   costBlock += `            output: "${outputStr}"     # $${pricing.output.toFixed(2)} per million output tokens\n`;
   if (pricing.cacheRead !== undefined) {
@@ -1828,10 +1855,20 @@ models:
   providers:
     ${provider}:
       models:
-        ${modelName}:
+          ${quotedModelName}:
           cost:
 ${costBlock.trimEnd()}
 \`\`\``;
+}
+
+/**
+ * Build a frontmatter YAML pricing skeleton for manual completion when live pricing is unavailable.
+ * @param {string} modelName
+ * @param {string} engineId
+ * @returns {string|null}
+ */
+function buildManualModelPricingFrontmatterSnippet(modelName, engineId) {
+  return buildModelPricingFrontmatterSnippet(modelName, engineId, { input: 0, output: 0 });
 }
 
 /**
@@ -1847,12 +1884,13 @@ async function buildMissingModelPricingContext(hasMissingModelPricingError, mode
     return "";
   }
 
-  let pricingSnippet = "";
+  const resolvedModelName = modelName || "unknown";
+  let pricingSnippet = buildManualModelPricingFrontmatterSnippet(resolvedModelName, engineId) || "";
   if (modelName) {
     try {
-      const pricing = await fetchModelPricingFromModelsDev(modelName);
+      const pricing = await fetchModelPricingFromModelsDev(modelName, inferProviderKeyFromEngineId(engineId));
       if (pricing) {
-        const snippet = buildModelPricingFrontmatterSnippet(modelName, engineId, pricing);
+        const snippet = buildModelPricingFrontmatterSnippet(resolvedModelName, engineId, pricing);
         if (snippet) {
           pricingSnippet = snippet;
         }
@@ -1865,7 +1903,8 @@ async function buildMissingModelPricingContext(hasMissingModelPricingError, mode
   return (
     "\n" +
     renderPromptTemplate("missing_model_pricing.md", {
-      model_name: modelName || "unknown",
+      model_name: resolvedModelName,
+      model_name_yaml_key: quoteYAMLKey(resolvedModelName),
       pricing_snippet: pricingSnippet,
       has_pricing_snippet: pricingSnippet ? "true" : "",
     })
@@ -3542,6 +3581,10 @@ async function main() {
         failureCategories,
       });
 
+      // Build missing model pricing context once; both issue-create and issue-comment
+      // paths render the same remediation block and should not refetch models.dev.
+      const missingModelPricingContext = await buildMissingModelPricingContext(missingModelPricingError, missingModelPricingModelName, process.env.GH_AW_ENGINE_ID || "");
+
       if (existingIssue) {
         // Issue exists, add a comment
         core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
@@ -3615,7 +3658,6 @@ async function main() {
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
         const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
-
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
@@ -3652,9 +3694,6 @@ async function main() {
 
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
-
-        // Build missing model pricing context (fetches current pricing from models.dev)
-        const missingModelPricingContext = await buildMissingModelPricingContext(missingModelPricingError, missingModelPricingModelName, process.env.GH_AW_ENGINE_ID || "");
 
         // Create template context
         const templateContext = {
@@ -3875,9 +3914,6 @@ async function main() {
 
         // Build credential auth error context (firewall audit.jsonl 401/403 from provider endpoints)
         const credentialAuthErrorContext = buildCredentialAuthErrorContext();
-
-        // Build missing model pricing context (fetches current pricing from models.dev)
-        const missingModelPricingContext = await buildMissingModelPricingContext(missingModelPricingError, missingModelPricingModelName, process.env.GH_AW_ENGINE_ID || "");
 
         // Build optimize token consumption context (shown when a guardrail was the failure root cause)
         const optimizeTokenConsumptionContext = buildOptimizeTokenConsumptionContext({ maxAICreditsExceeded, hasDailyAICExceeded, hasToolDenialsExceeded, isTimedOut, runUrl });

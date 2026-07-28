@@ -502,6 +502,14 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.missingModelPricingModelName).toBe("gpt-4.1-mini");
     });
 
+    it("normalizes multiline model names to a single line", () => {
+      const log = `Model "claude-opus-5
+commentary" has no AI credits pricing`;
+      const result = detectErrors(log);
+      expect(result.missingModelPricingError).toBe(true);
+      expect(result.missingModelPricingModelName).toBe("claude-opus-5 commentary");
+    });
+
     it("does not false-positive on unrelated AI credits error messages", () => {
       const result = detectErrors("Maximum AI credits exceeded for this run");
       expect(result.missingModelPricingError).toBe(false);

@@ -143,13 +143,22 @@ function isInvocationCapExceededError(output) {
 }
 
 /**
+ * Normalize model names to a single safe line for GitHub Actions outputs and issue titles.
+ * @param {string} value
+ * @returns {string}
+ */
+function sanitizeModelName(value) {
+  return value.replace(/\r?\n|\r/g, " ").trim();
+}
+
+/**
  * Extract model name from a "no AI credits pricing" error message.
  * @param {string} logContent - Contents of the agent stdio log
  * @returns {string} Model name, or empty string if not found
  */
 function extractMissingModelPricingModelName(logContent) {
   const match = logContent.match(MISSING_MODEL_PRICING_PATTERN);
-  return match ? match[1] : "";
+  return match ? sanitizeModelName(match[1]) : "";
 }
 
 /**
@@ -226,18 +235,19 @@ function main() {
 
   const stdioResults = detectErrors(logContent);
 
-  // Also check the AWF firewall audit JSONL log for the structured `unknown_model_ai_credits`
-  // event — this log is written by the AWF API proxy and carries both the error type and
-  // the model name, providing a more reliable detection source than text-scanning the stdio log.
+  // Also check the AWF firewall structured JSONL logs for the `unknown_model_ai_credits`
+  // event — the API proxy event log is preferred and the audit log is used as a fallback.
+  // These logs carry both the error type and the model name, providing a more reliable
+  // detection source than text-scanning the stdio log.
   const { detected: auditMissingPricing, modelName: auditModelName } = parseUnknownModelAICreditsAndModelFromAuditLog();
   if (auditMissingPricing && !stdioResults.missingModelPricingError) {
-    process.stderr.write(`[detect-agent-errors] Detected missing model pricing from firewall audit log: model "${auditModelName}" has no AI credits pricing configured\n`);
+    process.stderr.write(`[detect-agent-errors] Detected missing model pricing from firewall structured log: model "${auditModelName}" has no AI credits pricing configured\n`);
   }
 
   const results = {
     ...stdioResults,
     missingModelPricingError: stdioResults.missingModelPricingError || auditMissingPricing,
-    missingModelPricingModelName: stdioResults.missingModelPricingModelName || auditModelName,
+    missingModelPricingModelName: stdioResults.missingModelPricingModelName || sanitizeModelName(auditModelName),
   };
 
   if (results.inferenceAccessError) {

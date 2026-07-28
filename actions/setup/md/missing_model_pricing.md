@@ -18,8 +18,8 @@ If `{model_name}` is an alias for a model already in the built-in pricing table,
 
 ```yaml
 models:
-  {model_name}:
-    model: claude-sonnet-4-5
+  {model_name_yaml_key}:
+    - claude-sonnet-4-5
 ```
 
 **Option 3 — Switch to a model already in the built-in pricing table:**

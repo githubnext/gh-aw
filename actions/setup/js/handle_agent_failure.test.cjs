@@ -13,6 +13,9 @@ describe("handle_agent_failure", () => {
   let buildPushRepoMemoryFailureContext;
   let buildReportIncompleteContext;
   let buildFailureIssueTitle;
+  let buildModelPricingFrontmatterSnippet;
+  let fetchModelPricingFromModelsDev;
+  let buildMissingModelPricingContext;
   let buildSecretVerificationContext;
   let buildAssignmentErrorsContext;
   let buildAssignCopilotFailureContext;
@@ -41,6 +44,9 @@ describe("handle_agent_failure", () => {
       buildPushRepoMemoryFailureContext,
       buildReportIncompleteContext,
       buildFailureIssueTitle,
+      buildModelPricingFrontmatterSnippet,
+      fetchModelPricingFromModelsDev,
+      buildMissingModelPricingContext,
       buildSecretVerificationContext,
       buildAssignmentErrorsContext,
       buildAssignCopilotFailureContext,
@@ -139,6 +145,12 @@ describe("handle_agent_failure", () => {
 
     it("prefers missingModelPricingError over unknownModelAICredits when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", unknownModelAICredits: true })).toBe(
+        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+      );
+    });
+
+    it("prefers missingModelPricingError over http400ResponseError when both are true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", http400ResponseError: true })).toBe(
         "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
       );
     });
@@ -3098,6 +3110,45 @@ describe("handle_agent_failure", () => {
   });
   // ──────────────────────────────────────────────────────
 
+  describe("models.dev pricing helpers", () => {
+    it("prefers the inferred provider match before cross-provider fallback", async () => {
+      const https = require("https");
+      const { EventEmitter } = require("events");
+      vi.spyOn(https, "get").mockImplementation((url, callback) => {
+        expect(url).toBe("https://models.dev/catalog.json");
+        const req = new EventEmitter();
+        req.destroy = vi.fn();
+        process.nextTick(() => {
+          const res = new EventEmitter();
+          res.statusCode = 200;
+          callback(res);
+          res.emit(
+            "data",
+            Buffer.from(
+              JSON.stringify({
+                providers: {
+                  openai: { models: { "shared-model": { cost: { input: 1, output: 2 } } } },
+                  anthropic: { models: { "shared-model": { cost: { input: 3, output: 4 } } } },
+                },
+              })
+            )
+          );
+          res.emit("end");
+          req.emit("close");
+        });
+        return req;
+      });
+
+      await expect(fetchModelPricingFromModelsDev("shared-model", "anthropic")).resolves.toEqual({ input: 3, output: 4 });
+    });
+
+    it("quotes model names when building frontmatter pricing snippets", () => {
+      const snippet = buildModelPricingFrontmatterSnippet("model: alias", "claude", { input: 15, output: 75 });
+      expect(snippet).toContain("anthropic:");
+      expect(snippet).toContain("'model: alias':");
+    });
+  });
+
   describe("buildMissingModelPricingContext", () => {
     let buildMissingModelPricingContext;
     const fs = require("fs");
@@ -3136,6 +3187,30 @@ describe("handle_agent_failure", () => {
       fs.writeFileSync(path.join(promptsDir, "missing_model_pricing.md"), templateContent);
       const result = await buildMissingModelPricingContext(true, "claude-opus-5", "claude");
       expect(result).toContain("claude-opus-5");
+    });
+
+    it("renders the manual pricing fallback when no pricing snippet is available", async () => {
+      const https = require("https");
+      const { EventEmitter } = require("events");
+      vi.spyOn(https, "get").mockImplementation((url, callback) => {
+        const req = new EventEmitter();
+        req.destroy = vi.fn();
+        process.nextTick(() => {
+          const res = new EventEmitter();
+          res.statusCode = 200;
+          callback(res);
+          res.emit("data", Buffer.from(JSON.stringify({ providers: {} })));
+          res.emit("end");
+          req.emit("close");
+        });
+        return req;
+      });
+      fs.writeFileSync(path.join(promptsDir, "missing_model_pricing.md"), "manual snippet:\n{pricing_snippet}\noption2 key {model_name_yaml_key}");
+      const result = await buildMissingModelPricingContext(true, "model: alias", "claude");
+      expect(result).toContain("manual snippet:");
+      expect(result).toContain("anthropic:");
+      expect(result).toContain("'model: alias':");
+      expect(result).toContain('input: "0e0"');
     });
 
     it("throws when template is missing and error is true", async () => {
