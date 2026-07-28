@@ -169,6 +169,10 @@ Do not stage the PNG with `git add` and do not include any binary files in the P
    - `seoDescription` (max 160 chars, SERP-friendly),
    - `linkedPostText` (short, clickable link text for post cards/social snippets).
    - If `seoDescription` is over 160 characters, rewrite it before continuing.
+4. When calling sub-agents via the `task` tool, always set an explicit compatible chat model:
+   - `persona-generator`: `model: claude-haiku-4.5`
+   - `story-writer`: `model: claude-sonnet-4.6`
+   - `seo-optimizer`: `model: claude-haiku-4.5`
 
 ### 5) Create blog post file
 
@@ -234,7 +238,7 @@ Never end with plain text only and no safe-output call.
 #### agent: `persona-generator`
 ---
 description: Generates a rotating, policy-safe blogger persona for daily workflow storytelling
-model: mai-code
+model: claude-haiku-4.5
 ---
 Produce a short persona profile for a GitHub blog voice.
 
@@ -253,7 +257,7 @@ Constraints:
 #### agent: `story-writer`
 ---
 description: Writes a lively, evidence-grounded Agent of the Day story in GitHub blog style
-model: large
+model: claude-sonnet-4.6
 ---
 Write a concise blog post body in GitHub blog style using the provided persona and evidence.
 
@@ -270,7 +274,7 @@ Return only markdown body content (no frontmatter).
 #### agent: `seo-optimizer`
 ---
 description: Produces SEO metadata for Astro blog cards and link previews
-model: mai-code
+model: claude-haiku-4.5
 ---
 Generate:
 1) `seoDescription`: <= 160 characters, search-optimized, accurate.
