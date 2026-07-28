@@ -430,7 +430,11 @@ func (c *Compiler) tryParseFrontmatterConfig(frontmatter map[string]any) *Frontm
 // detectTextOutputUsage checks if the markdown content uses ${{ steps.sanitized.outputs.text }},
 // ${{ steps.sanitized.outputs.title }}, or ${{ steps.sanitized.outputs.body }}.
 // It also recognises the deprecated ${{ needs.activation.outputs.{text,title,body} }} forms so
-// that workflows that have not yet been migrated still compile correctly.
+// that external workflows that have not yet migrated still compile correctly.
+//
+// This repository's own workflow sources no longer use the deprecated form
+// (enforced by TestNoDeprecatedActivationOutputsInWorkflowMarkdown), so the
+// deprecated-form checks below serve only external callers of the compiler.
 func (c *Compiler) detectTextOutputUsage(markdownContent string) bool {
 	// Check for any of the text-related output expressions (modern form)
 	hasTextUsage := strings.Contains(markdownContent, "${{ steps.sanitized.outputs.text }}")

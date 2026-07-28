@@ -174,7 +174,11 @@ func (e *ExpressionExtractor) ExtractExpressions(markdown string) ([]*Expression
 }
 
 // transformActivationOutputs transforms needs.activation.outputs.* expressions to steps.sanitized.outputs.*
-// for backward compatibility with existing workflows.
+// for backward compatibility with external workflows that have not yet migrated.
+//
+// This repository's own workflow sources no longer use the deprecated form
+// (enforced by TestNoDeprecatedActivationOutputsInWorkflowMarkdown). This function
+// is retained solely for external callers of the compiler.
 //
 // NEW WORKFLOWS should use steps.sanitized.outputs.* directly in their markdown.
 //
