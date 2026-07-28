@@ -29,7 +29,7 @@ Everything else should be loaded **lazily** through skills only when needed.
 4. After workflow markdown changes (`.md` under `.github/workflows/`), run `make recompile`.
 5. Do not add `.lock.yml` files to `.gitignore`.
 6. Never attempt to trigger a workflow run (e.g., `gh run`, `gh aw run`) as part of a Copilot cloud agent run. The token does not have the required access. Always fail with an error — do not task the user or ask them to run it manually.
-7. **Large-file guard**: before reading any file with `github-mcp-server-get_file_contents`, check its size. Files larger than 20 KB must be read with targeted tools (`grep`, `glob`, `bash`, or `view` with `view_range`) instead of full-file reads. Full reads of large files are the primary cause of late-session token spikes. See [token-optimization.md](.github/aw/token-optimization.md) for the full technique.
+7. **Large-file guard**: before reading any file with `github-mcp-server-get_file_contents`, check its size. Files larger than 20 KB must be read with targeted tools (`grep`, `glob`, `bash`, or `view` with `view_range`) instead of full-file reads. See [token-optimization.md](.github/aw/token-optimization.md) for the full technique.
 
 ## Upstream-managed workflow sources (read-only in this repo)
 

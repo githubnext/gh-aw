@@ -388,54 +388,17 @@ For self-hosted or BYOK models absent from the built-in table (e.g. Ollama, vLLM
 
 ## Technique 11 — Cap Session Context Growth from Large File Reads
 
-Unguarded full-file reads via `github-mcp-server-get_file_contents` are the single most common cause of late-session token spikes. Workflow markdown files (`.github/aw/*.md`, `.github/workflows/*.md`) and skill files can exceed hundreds of KB. Loading even two such files mid-session can 2–2.5× the input context size, degrading model performance and inflating cost.
+> **Files larger than 20 KB must not be read in full.** Use targeted reads instead.
 
-**Observed evidence:** In session `30290667268`, input grew from **44,043 → 108,331 tokens** (2.46×) across 8 turns. The spike occurred at turn 7 when two large workflow markdown files were loaded via MCP without a size guard.
-
-### The Rule
-
-> **Files larger than 20 KB must never be read in full.** Use targeted reads instead.
-
-### Targeted Read Strategies
-
-| Tool | When to use |
-|---|---|
-| `grep` | Search for a specific symbol, heading, or pattern |
-| `glob` | List files matching a pattern without reading content |
-| `bash` with `head`/`tail` | Sample the first or last N lines for orientation |
-| `view` with `view_range` | Read only a known section (e.g., lines 1–80 for frontmatter + summary) |
-| `bash` with `wc -c` | Check file size before deciding how to read |
-
-### Before Reading Any File via MCP
-
-1. **Check the size first** — run `wc -c <path>` or use `bash ls -lh` before calling `get_file_contents`.
-2. **If > 20 KB**, do one of the following instead:
-   - Use `grep` to find the specific function, heading, or section you need.
-   - Use `view` with `view_range` to fetch only the relevant lines.
-   - Use `bash head -100 <file>` for a quick overview.
-3. **Do not load multiple large files in the same turn** — accumulation across a single turn causes the sharpest spikes.
-
-### Lazy Skill Loading and `glob **/*.md`
-
-Skills that discover files with `glob **/*.md` and then read each one in full compound context growth. Apply the same rule: after globbing, read each matched file with `grep` or `view_range` rather than full-file reads. Stop as soon as you have the information you need.
-
-### Example — Before (unbounded)
+Before calling `get_file_contents`, check size with `wc -c <path>`. If > 20 KB, use `grep`, `glob`, `bash head`, or `view` with `view_range` to read only the section you need. The same rule applies after `glob **/*.md` — read each matched file with `grep` or `view_range`, not full-file reads.
 
 ```bash
-# Reads the entire 200 KB file into context
-github-mcp-server-get_file_contents path=".github/aw/syntax-agentic.md"
-```
+# Before — injects full file into context
+get_file_contents path=".github/aw/syntax-agentic.md"    # 33908 bytes
 
-### Example — After (targeted)
-
-```bash
-# 1. Check size first
-bash: wc -c .github/aw/syntax-agentic.md        # → 33908 bytes (> 20 KB)
-
-# 2a. Use grep to find the specific section
+# After — targeted
 bash: grep -n "## Sub-agents" .github/aw/syntax-agentic.md
-
-# 2b. Or use view_range to read only the section you need
+# or
 view: .github/aw/syntax-agentic.md view_range=[45, 90]
 ```
 
