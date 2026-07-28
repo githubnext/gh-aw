@@ -72,7 +72,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "[vulnhunter] "
-    labels: [security, vulnhunter]
+    labels: [security, vulnhunter, cookie]
     close-older-issues: true
     max: 1
   noop:

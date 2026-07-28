@@ -2978,6 +2978,16 @@ func TestCopilotSupportsNoAskUser(t *testing.T) {
 			engineConfig: &EngineConfig{Version: "main"},
 			expected:     false,
 		},
+		{
+			name:         "expression version is treated as supported",
+			engineConfig: &EngineConfig{Version: "${{ inputs.engine-version }}"},
+			expected:     true,
+		},
+		{
+			name:         "github event input expression is treated as supported",
+			engineConfig: &EngineConfig{Version: "${{ github.event.inputs.engine-version }}"},
+			expected:     true,
+		},
 	}
 
 	for _, tt := range tests {
