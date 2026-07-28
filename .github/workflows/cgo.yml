@@ -39,7 +39,24 @@ on:
     - 'install-gh-aw.sh'
   workflow_dispatch:
 jobs:
+  checkout-cache:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+      with:
+        persist-credentials: false
+    - name: Cache repository checkout
+      uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+
   verify-integration-build:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -48,8 +65,12 @@ jobs:
       group: ci-${{ github.ref }}-verify-integration-build
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -118,6 +139,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs:
+    - checkout-cache
     - verify-integration-build
     permissions:
       contents: read
@@ -141,8 +163,12 @@ jobs:
       group: ci-${{ github.ref }}-test-${{ matrix.shard }}
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -285,13 +311,18 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs:
+    - checkout-cache
     - test
     if: always() && needs.test.result == 'success'  # Skip coverage check for cancelled/failed test runs
     permissions:
       contents: read
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: List unit tests in codebase
       run: |
@@ -372,6 +403,7 @@ jobs:
       run: make test-impacted-go BASE_REF=origin/main CI_COVERAGE_SOURCE_BRANCH=main
 
   build:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -380,8 +412,12 @@ jobs:
       group: ci-${{ github.ref }}-build
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
     - name: Set up Node.js
       id: setup-node
       uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f   # v6
@@ -460,6 +496,7 @@ jobs:
         GH_TOKEN: ${{ github.token }}
 
   build-wasm:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -468,8 +505,12 @@ jobs:
       group: ci-${{ github.ref }}-build-wasm
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -555,13 +596,18 @@ jobs:
       run: node scripts/test-wasm-golden.mjs
 
   validate-yaml:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Check for ANSI escape sequences in YAML files
       run: |
@@ -1008,6 +1054,7 @@ jobs:
   bench:
     # Only run benchmarks on main branch for performance tracking
     if: github.ref == 'refs/heads/main'
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -1017,8 +1064,12 @@ jobs:
       group: ci-${{ github.ref }}-bench
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -1171,6 +1222,7 @@ jobs:
 
   check-validator-sizes:
     name: Check validator file sizes
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     # Non-blocking: report violations but don't fail the build until existing files are cleaned up
@@ -1178,8 +1230,12 @@ jobs:
     permissions:
       contents: read
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Check validator file sizes
       id: check
@@ -1313,6 +1369,7 @@ jobs:
       run: make lint-action-sh
 
   lint-error-messages:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1321,8 +1378,12 @@ jobs:
       group: ci-${{ github.ref }}-lint-error-messages
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c   # v6
@@ -1335,6 +1396,7 @@ jobs:
       run: make lint-errors
 
   actions-build:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1343,8 +1405,12 @@ jobs:
       group: ci-${{ github.ref }}-actions-build
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -1397,6 +1463,7 @@ jobs:
   fuzz:
     # Only run fuzz tests on main branch (10s is insufficient for PRs)
     if: github.ref == 'refs/heads/main'
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -1441,8 +1508,12 @@ jobs:
             FuzzParseInputDefinition:./pkg/workflow/
             FuzzParseInputDefinitions:./pkg/workflow/
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -1564,6 +1635,7 @@ jobs:
         retention-days: 7
 
   security:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -1572,8 +1644,12 @@ jobs:
       group: ci-${{ github.ref }}-security
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -1623,6 +1699,7 @@ jobs:
   security-scan:
     # Only run security scans on main branch to reduce PR overhead
     if: github.ref == 'refs/heads/main'
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 10  # Prevent jobs from hanging indefinitely
     permissions:
@@ -1644,8 +1721,12 @@ jobs:
       cancel-in-progress: true
     name: "Security Scan: ${{ matrix.tool.name }}"
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -1693,6 +1774,7 @@ jobs:
       run: ./gh-aw compile poem-bot ${{ matrix.tool.flag }} --verbose
 
   mcp-server-compile-test:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -1701,8 +1783,12 @@ jobs:
       group: ci-${{ github.ref }}-mcp-server-compile-test
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -2250,6 +2336,7 @@ jobs:
 
   alpine-container-test:
     name: Alpine Container Test
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -2258,8 +2345,12 @@ jobs:
       group: ci-${{ github.ref }}-alpine-container
       cancel-in-progress: true
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Set up Go
       id: setup-go
@@ -2386,13 +2477,18 @@ jobs:
         rm -rf test-workspace
 
   safe-outputs-conformance:
+    needs: [checkout-cache]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
       contents: read
     steps:
-    - name: Checkout code
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+    - name: Restore checkout
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9   # v6.1.0
+      with:
+        path: .
+        key: checkout-${{ github.sha }}
+        fail-on-cache-miss: true
 
     - name: Run Safe Outputs Conformance Checker
       id: conformance
@@ -2443,6 +2539,7 @@ jobs:
     timeout-minutes: 5
     if: always() && github.ref == 'refs/heads/main'
     needs:
+    - checkout-cache
     - verify-integration-build
     - test
     - canary-go
