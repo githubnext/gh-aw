@@ -71,7 +71,7 @@ func TestSecretsCommandStructure(t *testing.T) {
 	}
 }
 
-func TestSecretsBootstrapEngineFlagIncludesGemini(t *testing.T) {
+func TestSecretsBootstrapEngineFlagUsage(t *testing.T) {
 	cmd := NewSecretsCommand()
 
 	var bootstrapCmd *cobra.Command
@@ -86,7 +86,12 @@ func TestSecretsBootstrapEngineFlagIncludesGemini(t *testing.T) {
 
 	engineFlag := bootstrapCmd.Flags().Lookup("engine")
 	require.NotNil(t, engineFlag, "--engine flag should exist on bootstrap")
-	assert.Contains(t, engineFlag.Usage, "gemini", "--engine help should include gemini engine")
+
+	// Assert the full shared engine list is present so future additions are detected.
+	expectedEngines := []string{"copilot", "claude", "codex", "gemini", "antigravity", "opencode", "pi"}
+	for _, engine := range expectedEngines {
+		assert.Contains(t, engineFlag.Usage, engine, "--engine help should include %s engine", engine)
+	}
 }
 
 func TestSecretsCommandUnknownSubcommandReturnsError(t *testing.T) {
