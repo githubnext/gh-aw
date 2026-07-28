@@ -84,6 +84,27 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
 
+// Post-result watchdog: once the agent writes a terminal safe-output the harness
+// arms a watchdog timer and kills the Codex process if it is still running after
+// POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS of inactivity.  This prevents the step from
+// hitting its hard timeout when Codex hangs on exit after completing its work.
+const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
+const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
+
+/**
+ * @param {NodeJS.ProcessEnv} [env]
+ * @returns {number}
+ */
+function resolvePostResultWatchdogIdleTimeoutMs(env = process.env) {
+  const configuredTimeoutMs = Number(env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
+  if (!Number.isFinite(configuredTimeoutMs) || configuredTimeoutMs <= 0) {
+    return DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS;
+  }
+  return Math.max(MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, configuredTimeoutMs);
+}
+
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
+
 /**
  * Emit a timestamped diagnostic log line to stderr.
  * All driver messages are prefixed with "[codex-harness]" so they are easy to
@@ -509,7 +530,20 @@ async function main() {
       }
     }
 
-    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs, env: codexEnv });
+    const result = await runProcess({
+      command,
+      args: resolvedArgs,
+      attempt,
+      log,
+      logArgs: safeArgs,
+      env: codexEnv,
+      postResultWatchdog: safeOutputsPath
+        ? {
+            shouldArm: () => hasExpectedSafeOutputs(safeOutputsPath, { logger: log }) || hasNoopInSafeOutputs(safeOutputsPath, { logger: log }),
+            inactivityTimeoutMs: POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+          }
+        : undefined,
+    });
     lastExitCode = result.exitCode;
 
     // Success — stop retrying
@@ -530,6 +564,7 @@ async function main() {
     log(
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
+        ` watchdogFired=${result.watchdogFired}` +
         ` isRateLimitError=${isRateLimit}` +
         ` isTokenPerMinuteRateLimitError=${isTokenPerMinuteRateLimit}` +
         ` isAuthenticationFailedError=${isAuthenticationFailed}` +
@@ -547,6 +582,17 @@ async function main() {
     // would not produce different results and could waste resources.
     if (safeOutputsPath && hasNoopInSafeOutputs(safeOutputsPath, { logger: log })) {
       log(`attempt ${attempt + 1}: noop message found in safe-outputs — not retrying (work is already complete or no work needed)`);
+      lastExitCode = 0;
+      break;
+    }
+
+    // When the post-result watchdog fired (SIGTERM sent to a hanging Codex process) and the
+    // safe-outputs file already contains a terminal result, treat the run as a success.
+    // The agent completed its work and wrote its output — the hang on exit is a cosmetic
+    // failure, not a task failure.  Retrying would reproduce the same hang pattern without
+    // producing a different output.
+    if (result.watchdogFired && safeOutputsPath && (hasExpectedSafeOutputs(safeOutputsPath, { logger: log }) || hasNoopInSafeOutputs(safeOutputsPath, { logger: log }))) {
+      log(`attempt ${attempt + 1}: post-result watchdog fired after terminal safe-output was emitted — treating as success (late-activity exit suppressed)`);
       lastExitCode = 0;
       break;
     }
@@ -662,6 +708,10 @@ if (typeof module !== "undefined" && module.exports) {
     applyModelFallback,
     injectModelFlagAfterExec,
     getCodexModelEnvVar,
+    resolvePostResultWatchdogIdleTimeoutMs,
+    POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+    DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+    MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS,
   };
 }
 
