@@ -1,2 +1,2 @@
-{"id":"issue_assigned","question":"Did the agent assign at least one issue to the Copilot coding agent, or correctly skip when no suitable issues were found?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-07-28T17:51:34.272Z","runid":"30383821933"}
-{"id":"single_issue_scoped","question":"Does the agent output show that at most one issue was assigned to Copilot per run?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-28T17:51:34.272Z","runid":"30383821933"}
+{"id":"issue_assigned","question":"Did the agent assign at least one issue to the Copilot coding agent, or correctly skip when no suitable issues were found?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-07-28T18:46:02.789Z","runid":"30388292415"}
+{"id":"single_issue_scoped","question":"Does the agent output show that at most one issue was assigned to Copilot per run?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-28T18:46:02.789Z","runid":"30388292415"}
