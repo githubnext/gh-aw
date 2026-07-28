@@ -264,6 +264,32 @@ describe("safe_output_summary", () => {
       expect(summary).toContain("medium");
     });
 
+    it("should render message data as a JSON code region", () => {
+      const options = {
+        type: "add_comment",
+        messageIndex: 2,
+        success: true,
+        result: {
+          repo: "owner/repo",
+          number: 456,
+        },
+        message: {
+          body: "A comment",
+          data: {
+            verdict: "APPROVE",
+            criteria_passed: 5,
+          },
+        },
+      };
+
+      const summary = generateSafeOutputSummary(options);
+
+      expect(summary).toContain("**Data:**");
+      expect(summary).toContain("``````json");
+      expect(summary).toContain('"verdict": "APPROVE"');
+      expect(summary).toContain('"criteria_passed": 5');
+    });
+
     it("should use result.body (final posted body) over message.body for body preview", () => {
       const options = {
         type: "add_comment",

@@ -182,6 +182,39 @@ func TestGetValidationConfigJSONWithMentions(t *testing.T) {
 	}
 }
 
+func TestGetValidationConfigJSONWithDataSchema(t *testing.T) {
+	dataSchema := map[string]any{
+		"type": "object",
+		"properties": map[string]any{
+			"verdict": map[string]any{"type": "string"},
+		},
+		"additionalProperties": false,
+	}
+
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"add_comment", "close_issue"}, nil, true, dataSchema)
+	if err != nil {
+		t.Fatalf("GetValidationConfigJSONWithDataSchema() error = %v", err)
+	}
+
+	var parsed map[string]TypeValidationConfig
+	if err := json.Unmarshal([]byte(jsonStr), &parsed); err != nil {
+		t.Fatalf("Failed to parse validation config JSON: %v", err)
+	}
+
+	if parsed["add_comment"].DataSchema == nil {
+		t.Fatal("expected add_comment dataSchema to be present")
+	}
+	if !parsed["add_comment"].DataEnabled {
+		t.Fatal("expected add_comment dataEnabled to be true")
+	}
+	if parsed["close_issue"].DataSchema != nil {
+		t.Fatal("did not expect close_issue dataSchema to be present")
+	}
+	if parsed["close_issue"].DataEnabled {
+		t.Fatal("did not expect close_issue dataEnabled to be true")
+	}
+}
+
 func containsNewline(s string) bool {
 	for _, r := range s {
 		if r == '\n' {

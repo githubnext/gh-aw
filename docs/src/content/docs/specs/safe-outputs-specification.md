@@ -1417,6 +1417,50 @@ The `["*"]` behavior MUST apply to activation-job token minting and to subsequen
 
 In `workflow_call` and other reusable-workflow scenarios, conforming implementations MUST preserve the `["*"]` behavior so that activation can read agent configuration from the callee repository when the App installation grant permits it.
 
+#### GP6: data
+
+**Syntax**: `safe-outputs.data: false | true | <schema-object> | <github-expression>`
+
+**Default**: `false` (disabled)
+
+**Semantics**: Controls whether body-capable safe output types MAY include a top-level `data` object, and optionally enforces the schema of that object.
+
+**Modes**:
+
+1. `false` or omitted: `data` MUST be rejected.
+2. `true`: `data` MUST be allowed and MUST be an object.
+3. `<schema-object>`: `data` MUST be allowed and MUST satisfy the normalized simplified schema.
+4. `<github-expression>`: schema resolution MUST occur at runtime in JavaScript and the resolved schema MUST satisfy this section before `data` validation.
+
+**Conformance Requirement GP6-1: Accepted Frontmatter Shapes**
+
+Implementations MUST accept exactly the four syntactic forms above. Non-boolean scalar literals other than GitHub Actions expressions (for example, `data: "schema.json"`) MUST be rejected.
+
+**Conformance Requirement GP6-2: Simplified Schema Grammar**
+
+When `<schema-object>` is used, implementations MUST support this simplified schema syntax:
+
+- Allowed keywords: `type`, `description`, `properties`, `required`, `items`, `enum`, `additionalProperties`, `minLength`, `maxLength`, `minimum`, `maximum`, `pattern`
+- Supported primitive type names: `object`, `array`, `string`, `number`, `integer`, `boolean`
+- Shorthand property syntax: object literals without schema keywords MUST be interpreted as:
+  - `type: object`
+  - `properties: <literal>`
+
+**Conformance Requirement GP6-3: OpenAI Codex Structured Outputs Compatibility**
+
+For every object schema node, implementations MUST:
+
+1. Set `additionalProperties: false` (or reject if explicitly `true`).
+2. Require every declared property in `required` (lexical ordering of `required` entries is RECOMMENDED for deterministic output).
+
+**Conformance Requirement GP6-4: Runtime Validation Placement**
+
+Compile-time validation SHOULD be applied when schema content is statically available. Runtime validation in JavaScript MUST be applied before operation execution for expression-resolved schemas and for handler-side enforcement.
+
+**Data Validation Errors**
+
+When `data` validation fails, implementations MUST return actionable field-path errors that identify the failing location (for example, `data.extra` or `data.required[0]`).
+
 ### 5.3 Type-Specific Common Parameters
 
 Every safe output type supports these parameters:

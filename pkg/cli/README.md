@@ -213,8 +213,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `IsDockerAvailable` | `func(ctx context.Context) bool` | Returns true if the Docker daemon is reachable |
 | `IsDockerImageAvailable` | `func(ctx context.Context, image string) bool` | Returns true if a Docker image is present locally |
 | `IsDockerImageDownloading` | `func(string) bool` | Returns true if an image pull is in progress |
-| `StartDockerImageDownload` | `func(ctx, image string) bool` | Begins a background image pull; returns false if already pulling |
-| `CheckAndPrepareDockerImages` | `func(ctx, useZizmor, usePoutine, useActionlint, useRunnerGuard, useGrype, useYamllint bool) error` | Pre-pulls security-scanner Docker images |
+| `StartDockerImageDownload` | `func(ctx context.Context, image string) (bool, func() error)` | Begins a background image pull; returns false if already pulling. The join function blocks until the goroutine exits and returns any download error. |
+| `CheckAndPrepareDockerImages` | `func(ctx context.Context, opts DockerImagesOptions) error` | Pre-pulls security-scanner Docker images |
 | `UpdateContainerPins` | `func(ctx, workflowDir string, verbose bool) error` | Updates container image SHA pins in workflow files |
 | `CreatePRWithChanges` | `func(branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |
 | `AutoMergePullRequestsCreatedAfter` | `func(repoSlug string, createdAfter time.Time, verbose bool) error` | Auto-merges eligible PRs created after a given time |
@@ -645,8 +645,8 @@ This appendix is generated from the current non-test Go source files in this pac
 | `outcome_evaluation.go` | `OutcomeStatus` | `type OutcomeStatus string` | OutcomeStatus is the normalized classification for a safe output outcome. |
 | `packages.go` | `IncludeDependency` | `type IncludeDependency struct { SourcePath string // Path in the source (local) TargetPath string // Relative path where it should be copied in .github/workflows IsOptional bool // Whether this is an optional include (@include?) }` | IncludeDependency represents a file dependency from @include directives |
 | `run_interactive.go` | `RunWorkflowOptions` | `type RunWorkflowOptions struct { WorkflowName string Verbose bool EngineOverride string RepoOverride string RefOverride string AutoMergePRs bool Push bool DryRun bool }` | RunWorkflowOptions holds parameters for RunSpecificWorkflowInteractively. |
-| `token_usage.go` | `SubagentModelActual` | `type SubagentModelActual struct { Model string `json:"model"` Provider string `json:"provider,omitempty"` Requests int `json:"requests"` }` | SubagentModelActual captures model usage observed in token-usage logs. |
-| `token_usage.go` | `SubagentModelRequest` | `type SubagentModelRequest struct { AgentName string `json:"agent_name"` RequestedModel string `json:"requested_model"` InvocationCount int `json:"invocation_count"` EffectiveModel string `json:"effective_model,omitempty"` ReasonCode string `json:"reason_code,omitempty"` }` | SubagentModelRequest captures requested/effective model attribution for a sub-agent. |
+| `token_usage_types.go` | `SubagentModelActual` | `type SubagentModelActual struct { Model string `json:"model"` Provider string `json:"provider,omitempty"` Requests int `json:"requests"` }` | SubagentModelActual captures model usage observed in token-usage logs. |
+| `token_usage_types.go` | `SubagentModelRequest` | `type SubagentModelRequest struct { AgentName string `json:"agent_name"` RequestedModel string `json:"requested_model"` InvocationCount int `json:"invocation_count"` EffectiveModel string `json:"effective_model,omitempty"` ReasonCode string `json:"reason_code,omitempty"` }` | SubagentModelRequest captures requested/effective model attribution for a sub-agent. |
 | `update_workflows.go` | `UpdateWorkflowsOptions` | `type UpdateWorkflowsOptions struct { WorkflowNames []string AllowMajor bool Force bool Yes bool Verbose bool EngineOverride string WorkflowsDir string NoStopAfter bool StopAfter string NoMerge bool DisableReleaseBump bool DisableSecurityScanner bool NoCompile bool NoRedirect bool CoolDown time.Duration }` | UpdateWorkflowsOptions configures workflow update behavior. |
 | `view_command.go` | `ViewOptions` | `type ViewOptions struct { Owner string Repo string Hostname string OutputDir string Verbose bool }` | ViewOptions holds configuration for the view command. |
 
@@ -758,9 +758,9 @@ This appendix is generated from the current non-test Go source files in this pac
 | `packages.go` | `ExtractWorkflowPrivateSetting` | `func ExtractWorkflowPrivateSetting(content string) (bool, bool)` | ExtractWorkflowPrivateSetting extracts the private field from workflow content string. |
 | `pr_automerge.go` | `AutoMergePullRequestsLegacy` | `func AutoMergePullRequestsLegacy(repoSlug string, verbose bool) error` | AutoMergePullRequestsLegacy is the legacy function that auto-merges all open PRs (used by trial command for backward compatibility) |
 | `project_timezone.go` | `ConfigureProjectTimezone` | `func ConfigureProjectTimezone()` | ConfigureProjectTimezone applies the configured project timezone to CLI time rendering. |
-| `token_usage.go` | `(*TokenUsageSummary).AvgDurationMs` | `func (*TokenUsageSummary).AvgDurationMs() int` | AvgDurationMs returns the average request duration in milliseconds |
-| `token_usage.go` | `(*TokenUsageSummary).ModelRows` | `func (*TokenUsageSummary).ModelRows() []ModelTokenUsageRow` | ModelRows returns the by-model data as sorted rows for console rendering |
-| `token_usage.go` | `(*TokenUsageSummary).TotalTokens` | `func (*TokenUsageSummary).TotalTokens() int` | TotalTokens returns the sum of all token types |
+| `token_usage_analyze.go` | `(*TokenUsageSummary).AvgDurationMs` | `func (*TokenUsageSummary).AvgDurationMs() int` | AvgDurationMs returns the average request duration in milliseconds |
+| `token_usage_analyze.go` | `(*TokenUsageSummary).ModelRows` | `func (*TokenUsageSummary).ModelRows() []ModelTokenUsageRow` | ModelRows returns the by-model data as sorted rows for console rendering |
+| `token_usage_analyze.go` | `(*TokenUsageSummary).TotalTokens` | `func (*TokenUsageSummary).TotalTokens() int` | TotalTokens returns the sum of all token types |
 | `tool_graph.go` | `(*ToolGraph).AddSequence` | `func (*ToolGraph).AddSequence(tools []string)` | AddSequence adds a tool call sequence to the graph |
 | `tool_graph.go` | `(*ToolGraph).GenerateMermaidGraph` | `func (*ToolGraph).GenerateMermaidGraph() string` | GenerateMermaidGraph generates a Mermaid state diagram from the tool graph |
 | `tool_graph.go` | `NewToolGraph` | `func NewToolGraph() *ToolGraph` | NewToolGraph creates a new empty tool graph |

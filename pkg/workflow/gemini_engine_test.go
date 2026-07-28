@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -777,5 +778,73 @@ func TestGeminiEngineWithExpressionVersion(t *testing.T) {
 	// Should NOT embed expression directly in npm install command
 	if strings.Contains(installStep, "@google/gemini-cli@"+expressionVersion) {
 		t.Errorf("Expression should NOT be embedded directly in npm install command, got:\n%s", installStep)
+	}
+}
+
+func TestGeminiEngineWithVersion(t *testing.T) {
+	engine := NewGeminiEngine()
+
+	customVersion := "0.99.0"
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			ID:      "gemini",
+			Version: customVersion,
+		},
+	}
+
+	installSteps := engine.GetInstallationSteps(workflowData)
+
+	var installStep string
+	for _, step := range installSteps {
+		stepContent := strings.Join([]string(step), "\n")
+		if strings.Contains(stepContent, "npm install") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find npm install step")
+	}
+
+	if !strings.Contains(installStep, "@google/gemini-cli@"+customVersion) {
+		t.Errorf("Expected custom version %q in install step, got:\n%s", customVersion, installStep)
+	}
+	if strings.Contains(installStep, "@google/gemini-cli@"+string(constants.DefaultGeminiVersion)) {
+		t.Errorf("Expected user-specified version, not default, in install step:\n%s", installStep)
+	}
+}
+
+func TestGeminiEngineWithoutVersion(t *testing.T) {
+	engine := NewGeminiEngine()
+
+	workflowData := &WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{},
+	}
+
+	installSteps := engine.GetInstallationSteps(workflowData)
+
+	// EngineConfig.Version must be normalized to the default version.
+	if workflowData.EngineConfig.Version != string(constants.DefaultGeminiVersion) {
+		t.Fatalf("Expected engine config version to be normalized to default Gemini version %q, got: %q", constants.DefaultGeminiVersion, workflowData.EngineConfig.Version)
+	}
+
+	var installStep string
+	for _, step := range installSteps {
+		stepContent := strings.Join([]string(step), "\n")
+		if strings.Contains(stepContent, "npm install") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find npm install step")
+	}
+
+	if !strings.Contains(installStep, "@google/gemini-cli@"+string(constants.DefaultGeminiVersion)) {
+		t.Errorf("Expected default version %q in install step when no engine.version set, got:\n%s", constants.DefaultGeminiVersion, installStep)
 	}
 }

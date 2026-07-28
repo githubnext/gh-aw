@@ -246,7 +246,7 @@ type ModelEnvVarProvider interface {
 type InferenceProviderResolver interface {
 	// ResolveLLMProvider returns the effective provider for the workflow
 	// (for example "github", "anthropic", or "openai").
-	ResolveLLMProvider(workflowData *WorkflowData) string
+	ResolveLLMProvider(workflowData *WorkflowData) LLMProvider
 }
 
 // LLMProviderResolver is kept as a backward-compatible alias.

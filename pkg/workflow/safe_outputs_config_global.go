@@ -31,6 +31,11 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		}
 	}
 
+	// Parse safe-outputs.data configuration (false, true, inline schema object, or expression).
+	if data, exists := outputMap["data"]; exists {
+		config.Data = data
+	}
+
 	// Parse allowed-github-references configuration
 	if allowGitHubRefs, exists := outputMap["allowed-github-references"]; exists {
 		if refsArray, ok := allowGitHubRefs.([]any); ok {

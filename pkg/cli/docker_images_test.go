@@ -15,7 +15,7 @@ func TestCheckAndPrepareDockerImages_NoToolsRequested(t *testing.T) {
 	ResetDockerPullState()
 
 	// When no tools are requested, should return nil
-	err := CheckAndPrepareDockerImages(context.Background(), false, false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{})
 	if err != nil {
 		t.Errorf("Expected no error when no tools requested, got: %v", err)
 	}
@@ -31,7 +31,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyDownloading(t *testing.T) {
 	SetDockerImageDownloading(ZizmorImage, true)
 
 	// Should return an error indicating to retry
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true})
 	if err == nil {
 		t.Error("Expected error when image is downloading, got nil")
 	}
@@ -146,7 +146,7 @@ func TestCheckAndPrepareDockerImages_MultipleImages(t *testing.T) {
 	SetDockerImageDownloading(PoutineImage, true)
 
 	// Request all tools
-	err := CheckAndPrepareDockerImages(context.Background(), true, true, true, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true, Poutine: true, Actionlint: true})
 	if err == nil {
 		t.Error("Expected error when images are downloading, got nil")
 	}
@@ -172,7 +172,7 @@ func TestCheckAndPrepareDockerImages_RetryMessageFormat(t *testing.T) {
 	// Simulate zizmor downloading
 	SetDockerImageDownloading(ZizmorImage, true)
 
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true})
 	if err == nil {
 		t.Fatal("Expected error when image is downloading")
 	}
@@ -207,7 +207,7 @@ func TestCheckAndPrepareDockerImages_StartedDownloadingMessage(t *testing.T) {
 	// when the image is marked as downloading
 	SetDockerImageDownloading(ZizmorImage, true)
 
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true})
 	if err == nil {
 		t.Fatal("Expected error when image is downloading")
 	}
@@ -231,7 +231,7 @@ func TestCheckAndPrepareDockerImages_ImageAlreadyAvailable(t *testing.T) {
 	SetMockImageAvailable(ZizmorImage, true)
 
 	// Should not return an error since the image is available
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true})
 	if err != nil {
 		t.Errorf("Expected no error when image is available, got: %v", err)
 	}
@@ -339,29 +339,40 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	// Mock the image as not available
 	SetMockImageAvailable(testImage, false)
 
+	// Use a cancellable context so we can stop background goroutines after assertions.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Track how many times StartDockerImageDownload returns true (indicating it started a download)
 	const numGoroutines = 10
-	started := make([]bool, numGoroutines)
+	type result struct {
+		started bool
+		join    func() error
+	}
+	results := make(chan result, numGoroutines)
 
 	// Use a channel to synchronize all goroutines to start at roughly the same time
 	startChan := make(chan struct{})
-	doneChan := make(chan int, numGoroutines)
 
 	// Launch multiple goroutines that all try to start downloading the same image
-	for i := range numGoroutines {
-		go func(index int) {
+	for range numGoroutines {
+		go func() {
 			<-startChan // Wait for the signal to start
-			started[index], _ = StartDockerImageDownload(context.Background(), testImage)
-			doneChan <- index
-		}(i)
+			s, j := StartDockerImageDownload(ctx, testImage)
+			results <- result{s, j}
+		}()
 	}
 
 	// Signal all goroutines to start simultaneously
 	close(startChan)
 
-	// Wait for all goroutines to finish
+	// Collect all results
+	started := make([]bool, 0, numGoroutines)
+	joins := make([]func() error, 0, numGoroutines)
 	for range numGoroutines {
-		<-doneChan
+		r := <-results
+		started = append(started, r.started)
+		joins = append(joins, r.join)
 	}
 
 	// Count how many goroutines successfully started a download
@@ -380,6 +391,12 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	// Verify the image is marked as downloading
 	if !IsDockerImageDownloading(testImage) {
 		t.Error("Expected image to be marked as downloading")
+	}
+
+	// Cancel context and join all download goroutines to prevent goroutine leaks.
+	cancel()
+	for _, j := range joins {
+		j() //nolint:errcheck // error ignored intentionally: test only checks concurrency, not pull result
 	}
 
 	// Clean up
@@ -453,28 +470,45 @@ func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
 	// Initially not available
 	SetMockImageAvailable(testImage, false)
 
+	// Use a cancellable context so we can stop background goroutines after assertions.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Start multiple goroutines attempting to download
 	const numGoroutines = 5
-	results := make(chan bool, numGoroutines)
+	type result struct {
+		started bool
+		join    func() error
+	}
+	resultsCh := make(chan result, numGoroutines)
 
 	for range numGoroutines {
 		go func() {
-			started, _ := StartDockerImageDownload(context.Background(), testImage)
-			results <- started
+			s, j := StartDockerImageDownload(ctx, testImage)
+			resultsCh <- result{s, j}
 		}()
 	}
 
 	// Collect results
 	downloadStarts := 0
+	joins := make([]func() error, 0, numGoroutines)
 	for range numGoroutines {
-		if <-results {
+		r := <-resultsCh
+		if r.started {
 			downloadStarts++
 		}
+		joins = append(joins, r.join)
 	}
 
 	// Should only have one successful start
 	if downloadStarts != 1 {
 		t.Errorf("Expected exactly 1 download to start, got %d", downloadStarts)
+	}
+
+	// Cancel context and join all download goroutines to prevent goroutine leaks.
+	cancel()
+	for _, j := range joins {
+		j() //nolint:errcheck // error ignored intentionally: test only checks concurrency, not pull result
 	}
 
 	// Clean up
@@ -608,7 +642,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable(t *testing.T) {
 	SetMockDockerAvailable(false)
 
 	// Should return a clear error about Docker not being available
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true})
 	if err == nil {
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
@@ -646,7 +680,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_MultipleTools(t *testing.
 	SetMockDockerAvailable(false)
 
 	// Request multiple tools
-	err := CheckAndPrepareDockerImages(context.Background(), true, false, true, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true, Actionlint: true})
 	if err == nil {
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
@@ -685,7 +719,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_NoTools(t *testing.T) {
 	SetMockDockerAvailable(false)
 
 	// When no tools requested, should return nil even if Docker is unavailable
-	err := CheckAndPrepareDockerImages(context.Background(), false, false, false, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{})
 	if err != nil {
 		t.Errorf("Expected no error when no tools requested (even with Docker unavailable), got: %v", err)
 	}
@@ -717,7 +751,7 @@ func TestCheckAndPrepareDockerImages_DockerUnavailable_ReturnsTypedError(t *test
 	ResetDockerPullState()
 	SetMockDockerAvailable(false)
 
-	err := CheckAndPrepareDockerImages(context.Background(), false, false, true, false, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Actionlint: true})
 	if err == nil {
 		t.Fatal("Expected error when Docker is unavailable, got nil")
 	}
@@ -746,7 +780,7 @@ func TestCheckAndPrepareDockerImages_RunnerGuardImageDownloading(t *testing.T) {
 	SetDockerImageDownloading(RunnerGuardImage, true)
 
 	// Request all tools, including runner-guard
-	err := CheckAndPrepareDockerImages(context.Background(), true, true, true, true, false, false, false, false)
+	err := CheckAndPrepareDockerImages(context.Background(), DockerImagesOptions{Zizmor: true, Poutine: true, Actionlint: true, RunnerGuard: true})
 	if err == nil {
 		t.Error("Expected error when images are downloading, got nil")
 	}

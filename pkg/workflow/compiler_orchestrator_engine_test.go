@@ -318,6 +318,54 @@ imports:
 	assert.Equal(t, 3, result.engineConfig.MaxTurnCacheMisses, "main workflow max-turn-cache-misses must win over import")
 }
 
+// TestSetupEngineAndImports_ImportedModelPreservedWithTopLevelMaxAICredits is a regression
+// test for the bug where an engine.model pin from an imported file was silently dropped
+// when the main workflow also set max-ai-credits.
+//
+// Root cause: top-level max-ai-credits causes ExtractEngineConfig to return a non-nil
+// engineConfig, which caused the model-extraction branch in resolveEngineFromIncludesAndImports
+// to be skipped (it was guarded by engineConfig == nil).
+func TestSetupEngineAndImports_ImportedModelPreservedWithTopLevelMaxAICredits(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "engine-imported-model-max-ai-credits")
+
+	sharedContent := `---
+engine:
+  id: copilot
+  model: gpt-5.6-sol
+---
+
+# Shared Workflow
+`
+	sharedDir := filepath.Join(tmpDir, "shared")
+	require.NoError(t, os.MkdirAll(sharedDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(sharedDir, "model.md"), []byte(sharedContent), 0644))
+
+	testContent := `---
+on: push
+max-ai-credits: 1500
+imports:
+  - shared/model.md
+---
+
+# Test Workflow
+`
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	content := []byte(testContent)
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(string(content))
+	require.NoError(t, err)
+
+	result, err := compiler.setupEngineAndImports(frontmatterResult, testFile, content, tmpDir)
+	require.NoError(t, err)
+	require.NotNil(t, result)
+	require.NotNil(t, result.engineConfig)
+	assert.Equal(t, "copilot", result.engineSetting)
+	assert.Equal(t, "gpt-5.6-sol", result.model, "imported engine.model must not be dropped when main workflow sets max-ai-credits")
+	assert.Equal(t, int64(1500), result.engineConfig.MaxAICredits, "max-ai-credits from main workflow must be preserved")
+}
+
 // TestSetupEngineAndImports_EngineOverride tests command-line engine override
 func TestSetupEngineAndImports_EngineOverride(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "engine-override")

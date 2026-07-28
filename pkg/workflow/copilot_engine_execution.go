@@ -520,7 +520,7 @@ type copilotStepEnvFlags struct {
 
 func (e *CopilotEngine) buildCopilotStepEnv(
 	workflowData *WorkflowData,
-	llmProvider string,
+	llmProvider LLMProvider,
 	modelEnvVar string,
 	timeoutValue string,
 	flags copilotStepEnvFlags,
@@ -537,8 +537,8 @@ func (e *CopilotEngine) buildCopilotStepEnv(
 	return env
 }
 
-func (e *CopilotEngine) buildCopilotBaseStepEnv(workflowData *WorkflowData, llmProvider, timeoutValue string, isBYOKMode, useCopilotRequests bool) map[string]string {
-	env := map[string]string{"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE", "GITHUB_STEP_SUMMARY": AgentStepSummaryPath, "GITHUB_HEAD_REF": "${{ github.head_ref }}", "GITHUB_REF_NAME": "${{ github.ref_name }}", "GITHUB_WORKSPACE": "${{ github.workspace }}", "RUNNER_TEMP": "${{ runner.temp }}", "GH_AW_TIMEOUT_MINUTES": timeoutValue, "GITHUB_SERVER_URL": "${{ github.server_url }}", "GITHUB_API_URL": "${{ github.api_url }}", "GH_AW_LLM_PROVIDER": llmProvider}
+func (e *CopilotEngine) buildCopilotBaseStepEnv(workflowData *WorkflowData, llmProvider LLMProvider, timeoutValue string, isBYOKMode, useCopilotRequests bool) map[string]string {
+	env := map[string]string{"COPILOT_AGENT_RUNNER_TYPE": "STANDALONE", "GITHUB_STEP_SUMMARY": AgentStepSummaryPath, "GITHUB_HEAD_REF": "${{ github.head_ref }}", "GITHUB_REF_NAME": "${{ github.ref_name }}", "GITHUB_WORKSPACE": "${{ github.workspace }}", "RUNNER_TEMP": "${{ runner.temp }}", "GH_AW_TIMEOUT_MINUTES": timeoutValue, "GITHUB_SERVER_URL": "${{ github.server_url }}", "GITHUB_API_URL": "${{ github.api_url }}", "GH_AW_LLM_PROVIDER": string(llmProvider)}
 	// Auto-configure Copilot BYOK routing when engine.model-provider selects a non-GitHub provider.
 	// Explicit engine.env values still win later via maps.Copy.
 	if llmProvider != LLMProviderGitHub && isFirewallEnabled(workflowData) {
@@ -708,6 +708,9 @@ func (e *CopilotEngine) buildCopilotExecutionStep(workflowData *WorkflowData, co
 //     DefaultCopilotVersion. This preserves existing behavior while avoiding drift if
 //     DefaultCopilotVersion is ever lowered below CopilotNoAskUserMinVersion.
 //   - "latest": always returns true (latest is always a new release).
+//   - Expression (e.g. "${{ inputs.engine-version }}"): returns true. The version resolves
+//     at runtime so we cannot gate at compile time; the installer already handles expression
+//     versions via ENGINE_VERSION env-var injection, ensuring the right binary is installed.
 //   - Any semver string ≥ CopilotNoAskUserMinVersion: returns true.
 //   - Any semver string < CopilotNoAskUserMinVersion: returns false.
 //   - Non-semver string (e.g. a branch name): returns false (conservative).
@@ -715,6 +718,12 @@ func copilotSupportsNoAskUser(engineConfig *EngineConfig) bool {
 	var versionStr string
 	if engineConfig != nil && engineConfig.Version != "" {
 		versionStr = engineConfig.Version
+	}
+	// Expression versions resolve at runtime; treat as supported so the generated execution
+	// flags match the installed binary for any version >= CopilotNoAskUserMinVersion.
+	if containsExpression(versionStr) {
+		copilotExecLog.Printf("copilotSupportsNoAskUser: expression version %q treated as supported", versionStr)
+		return true
 	}
 	return versionAtLeast(
 		versionStr,

@@ -276,6 +276,10 @@ function validateArgumentsAgainstSchema(args, inputSchema) {
   return validateSchemaNode(args, inputSchema, "", { skipRequiredAtRoot: true });
 }
 
+function validateValueAgainstSchema(value, schema) {
+  return validateSchemaNode(value, schema, "", { skipRequiredAtRoot: false });
+}
+
 function formatSchemaValidationError(toolName, args, error) {
   if (toolName === "add_labels" && typeof error?.path === "string" && /^labels\[\d+\]$/.test(error.path) && Array.isArray(args?.labels)) {
     const index = Number(error.path.match(/^labels\[(\d+)\]$/)?.[1] || -1);
@@ -308,6 +312,7 @@ module.exports = {
   buildStringLengthValidationError,
   validateStringMinLengths,
   validateArgumentsAgainstSchema,
+  validateValueAgainstSchema,
   formatSchemaValidationError,
   MAX_STRING_INPUT_BYTES,
 };

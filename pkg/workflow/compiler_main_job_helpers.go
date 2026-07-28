@@ -198,6 +198,10 @@ func (c *Compiler) addMainJobEngineErrorOutputs(outputs map[string]string, data 
 	compilerMainJobLog.Printf("Added http_400_response_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 	outputs["invocation_cap_exceeded"] = fmt.Sprintf("${{ %s.invocation_cap_exceeded || 'false' }}", stepRef)
 	compilerMainJobLog.Printf("Added invocation_cap_exceeded output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
+	outputs["missing_model_pricing_error"] = fmt.Sprintf("${{ %s.missing_model_pricing_error || 'false' }}", stepRef)
+	compilerMainJobLog.Printf("Added missing_model_pricing_error output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
+	outputs["missing_model_pricing_model_name"] = fmt.Sprintf("${{ %s.missing_model_pricing_model_name || '' }}", stepRef)
+	compilerMainJobLog.Printf("Added missing_model_pricing_model_name output (engine=%s, step=%s)", engine.GetID(), constants.DetectAgentErrorsStepID)
 }
 
 // buildMainJobOutputs builds the complete outputs map for the main agent job.

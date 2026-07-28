@@ -1344,6 +1344,15 @@ function formatSafeOutputsPreview(safeOutputsContent, options = {}) {
         preview.push("</details>");
         preview.push("");
       }
+
+      if (entry.data !== undefined) {
+        const dataString = truncateString(JSON.stringify(entry.data, null, 2), 400);
+        preview.push("**Data:**");
+        preview.push("```json");
+        preview.push(dataString);
+        preview.push("```");
+        preview.push("");
+      }
     }
 
     if (hasMore) {

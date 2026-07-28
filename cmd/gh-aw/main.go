@@ -336,7 +336,6 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
 		staged, _ := cmd.Flags().GetBool("staged")
 		approve, _ := cmd.Flags().GetBool("approve")
 		validateImages, _ := cmd.Flags().GetBool("validate-images")
-		disableModelsDevLookup, _ := cmd.Flags().GetBool("no-models-dev-lookup")
 		priorManifestFile, _ := cmd.Flags().GetString("prior-manifest-file")
 		ghes, _ := cmd.Flags().GetBool("ghes")
 		verbose, _ := cmd.Flags().GetBool("verbose")
@@ -403,7 +402,6 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
 			Staged:                 staged,
 			Approve:                approve,
 			ValidateImages:         validateImages,
-			DisableModelsDevLookup: disableModelsDevLookup,
 			PriorManifestFile:      priorManifestFile,
 			GHESCompat:             ghes,
 			UseSamples:             useSamples,
@@ -482,7 +480,16 @@ This command only works with workflows that have workflow_dispatch triggers.
 				return errors.New("workflow inputs cannot be specified in interactive mode (they will be collected interactively)")
 			}
 
-			return cli.RunWorkflowInteractively(cmd.Context(), verboseFlag, repoOverride, refOverride, autoMergePRs, push, engineOverride, dryRun, approveRun)
+			return cli.RunWorkflowInteractively(cmd.Context(), cli.RunWorkflowOptions{
+				Verbose:        verboseFlag,
+				RepoOverride:   repoOverride,
+				RefOverride:    refOverride,
+				AutoMergePRs:   autoMergePRs,
+				Push:           push,
+				EngineOverride: engineOverride,
+				DryRun:         dryRun,
+				Approve:        approveRun,
+			})
 		}
 
 		return cli.RunWorkflowsOnGitHub(cmd.Context(), args, cli.RunOptions{
@@ -767,7 +774,6 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("staged", false, "Force all safe-outputs into staged mode")
 	compileCmd.Flags().Bool("approve", false, "Approve all safe update changes. When strict mode is active (the default), the compiler emits warnings for new restricted secrets or unapproved action additions/removals not present in the existing gh-aw-manifest. Use this flag to approve and skip safe update enforcement")
 	compileCmd.Flags().Bool("validate-images", false, "Require Docker to be available for container image validation. Without this flag, container image validation is silently skipped when Docker is not installed or the daemon is not running")
-	compileCmd.Flags().Bool("no-models-dev-lookup", false, "Disable compile-time models.dev pricing lookup for models missing from the embedded catalog")
 	compileCmd.Flags().String("prior-manifest-file", "", "Path to a JSON file containing pre-cached gh-aw-manifests (map[lockFile]*GHAWManifest); used by the MCP server to supply a tamper-proof manifest baseline captured at startup")
 	compileCmd.Flags().Bool("ghes", false, "Enable GitHub Enterprise Server (GHES) compatibility mode. Artifact actions continue using latest non-v3 pins (v3 is deprecated). Overrides the aw.json ghes field")
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {

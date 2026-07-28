@@ -22,6 +22,28 @@ describe("Safe Outputs MCP Schema Validation", () => {
   const toolsContent = fs.readFileSync(toolsPath, "utf8");
   tools = JSON.parse(toolsContent);
 
+  function resolveSchemaProperty(property) {
+    if (!property || !property.$ref || typeof property.$ref !== "string") {
+      return property;
+    }
+
+    if (!property.$ref.startsWith("#/")) {
+      return property;
+    }
+
+    const refPath = property.$ref.slice(2).split("/");
+    let resolved = tools;
+    for (const segment of refPath) {
+      if (resolved && Object.prototype.hasOwnProperty.call(resolved, segment)) {
+        resolved = resolved[segment];
+        continue;
+      }
+      return property;
+    }
+
+    return resolved && typeof resolved === "object" ? resolved : property;
+  }
+
   describe("Schema Completeness", () => {
     it("should load tools schema successfully", () => {
       expect(tools).toBeDefined();
@@ -206,7 +228,7 @@ describe("Safe Outputs MCP Schema Validation", () => {
         const optionalFields = allFields.filter(field => !requiredFields.includes(field));
 
         optionalFields.forEach(field => {
-          const property = schema.properties[field];
+          const property = resolveSchemaProperty(schema.properties[field]);
 
           if (!property.description || property.description.trim() === "") {
             missingDescriptions.push({
@@ -278,8 +300,10 @@ describe("Safe Outputs MCP Schema Validation", () => {
         const properties = tool.inputSchema.properties;
 
         Object.entries(properties).forEach(([fieldName, property]) => {
+          const resolvedProperty = resolveSchemaProperty(property);
+
           // Check that type is defined
-          if (!property.type) {
+          if (!resolvedProperty.type) {
             inconsistentTypes.push({
               tool: tool.name,
               field: fieldName,
@@ -288,8 +312,8 @@ describe("Safe Outputs MCP Schema Validation", () => {
           }
 
           // Check for array types
-          if (property.type === "array") {
-            if (!property.items) {
+          if (resolvedProperty.type === "array") {
+            if (!resolvedProperty.items) {
               inconsistentTypes.push({
                 tool: tool.name,
                 field: fieldName,
@@ -299,10 +323,10 @@ describe("Safe Outputs MCP Schema Validation", () => {
           }
 
           // Check for union types (multiple types)
-          if (Array.isArray(property.type)) {
+          if (Array.isArray(resolvedProperty.type)) {
             // Union types are valid but should be intentional
             // Just verify they're not empty
-            if (property.type.length === 0) {
+            if (resolvedProperty.type.length === 0) {
               inconsistentTypes.push({
                 tool: tool.name,
                 field: fieldName,

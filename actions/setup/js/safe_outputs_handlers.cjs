@@ -28,6 +28,8 @@ const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, 
 const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { lstatGuard } = require("./symlink_guard.cjs");
+const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
+const { resolveDataSchema } = require("./data_schema_normalizer.cjs");
 
 /** PR event names used for target:triggering context validation across all safe-output handlers. */
 const PR_EVENT_NAMES = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
@@ -373,6 +375,28 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const defaultHandler = type => args => {
     const entry = { ...(args || {}), type };
+    if (entry.data !== undefined) {
+      const toolConfig = getSafeOutputsToolConfig(config, type);
+      const dataEnabled = toolConfig?.data_enabled === true || (toolConfig?.data_schema && typeof toolConfig.data_schema === "object");
+      if (!dataEnabled) {
+        return buildIntentErrorResponse(`${type} data is not enabled (set safe-outputs.data in workflow frontmatter)`);
+      }
+      let dataSchema;
+      try {
+        if (toolConfig?.data_schema !== undefined) {
+          dataSchema = resolveDataSchema(toolConfig.data_schema, `safe-outputs.${type}.data`);
+        }
+      } catch (error) {
+        return buildIntentErrorResponse(`${type} data schema is invalid: ${getErrorMessage(error)}`);
+      }
+      if (dataSchema) {
+        const dataSchemaError = validateValueAgainstSchema(entry.data, dataSchema);
+        if (dataSchemaError) {
+          const errorPath = dataSchemaError.path ? `.${dataSchemaError.path}` : "";
+          return buildIntentErrorResponse(`${type} data${errorPath} ${dataSchemaError.message}`);
+        }
+      }
+    }
     const wildcardTargetValidationError = validateWildcardTargetRequirement(entry);
     if (wildcardTargetValidationError) {
       return wildcardTargetValidationError;

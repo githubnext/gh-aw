@@ -39,11 +39,19 @@ const (
 	YamllintImage    = "pipelinecomponents/yamllint:latest"
 )
 
+// inflightDownload holds the join channel and result for an in-progress pull.
+// err is written by the download goroutine before done is closed; it is safe
+// to read after receiving from done.
+type inflightDownload struct {
+	done chan struct{}
+	err  error
+}
+
 // dockerPullState tracks the state of docker pull operations
 type dockerPullState struct {
 	mu                  sync.RWMutex
 	downloading         map[string]bool // image -> is currently downloading
-	inflight            map[string]chan struct{}
+	inflight            map[string]*inflightDownload
 	mockAvailable       map[string]bool // for testing: override IsDockerImageAvailable
 	mockAvailableInUse  bool            // for testing: whether to use mockAvailable
 	mockDockerAvailable bool            // for testing: override IsDockerAvailable (default true)
@@ -51,7 +59,7 @@ type dockerPullState struct {
 
 var pullState = &dockerPullState{
 	downloading:         make(map[string]bool),
-	inflight:            make(map[string]chan struct{}),
+	inflight:            make(map[string]*inflightDownload),
 	mockAvailable:       make(map[string]bool),
 	mockDockerAvailable: true,
 }
@@ -129,11 +137,12 @@ func IsDockerAvailable(ctx context.Context) bool {
 	return available
 }
 
-// StartDockerImageDownload starts downloading a Docker image in the background
-// Returns true if download was started, false if already downloading or available
-// The download can be cancelled by cancelling the provided context
-// The returned join function blocks until the corresponding download goroutine exits.
-func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) {
+// StartDockerImageDownload starts downloading a Docker image in the background.
+// Returns true if the download was started, false if already downloading or available.
+// The download can be cancelled by cancelling the provided context.
+// The returned join function blocks until the download goroutine exits and returns
+// any error that occurred (nil on success or context cancellation).
+func StartDockerImageDownload(ctx context.Context, image string) (bool, func() error) {
 	ctx = normalizeDockerContext(ctx)
 
 	// Check availability and downloading status atomically under lock
@@ -143,37 +152,44 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) 
 	// Check if already downloading
 	if pullState.downloading[image] {
 		dockerImagesLog.Printf("Image %s is already downloading", image)
-		done := pullState.inflight[image]
-		return false, func() {
-			if done != nil {
-				<-done
+		dl := pullState.inflight[image]
+		return false, func() error {
+			if dl != nil {
+				<-dl.done
+				return dl.err
 			}
+			return nil
 		}
 	}
 
 	// Check if already available (inside lock for atomicity)
 	if isDockerImageAvailableUnlocked(ctx, image) {
 		dockerImagesLog.Printf("Image %s is already available", image)
-		return false, func() {}
+		return false, func() error { return nil }
 	}
 
-	done := make(chan struct{})
+	dl := &inflightDownload{done: make(chan struct{})}
 	pullState.downloading[image] = true
-	pullState.inflight[image] = done
+	pullState.inflight[image] = dl
 
-	// Start the download in a goroutine with retry logic
+	// Start the download in a goroutine with retry logic.
+	// Defer order (LIFO): recover+set-error runs first, cleanup runs second,
+	// close(done) runs last so callers only unblock after dl.err is set.
 	go func() {
-		defer close(done)
+		var lastErr error
+		defer close(dl.done)
 		defer func() {
-			func() {
-				pullState.mu.Lock()
-				defer pullState.mu.Unlock()
-				delete(pullState.downloading, image)
-				delete(pullState.inflight, image)
-			}()
+			pullState.mu.Lock()
+			defer pullState.mu.Unlock()
+			delete(pullState.downloading, image)
+			delete(pullState.inflight, image)
+		}()
+		defer func() {
 			if r := recover(); r != nil {
+				lastErr = fmt.Errorf("panic in docker image download for %s: %v", image, r)
 				dockerImagesLog.Printf("Panic in docker image download for %s (recovered): %v", image, r)
 			}
+			dl.err = lastErr
 		}()
 
 		dockerImagesLog.Printf("Starting download of image %s", image)
@@ -182,7 +198,6 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) 
 		maxAttempts := 3
 		waitTime := 5 // seconds
 
-		var lastErr error
 		var lastOutput []byte
 
 		for attempt := 1; attempt <= maxAttempts; attempt++ {
@@ -230,9 +245,15 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) 
 		dockerImagesLog.Printf("Failed to download image %s after %d attempts: %v\nOutput: %s", image, maxAttempts, lastErr, string(lastOutput))
 	}()
 
-	return true, func() {
-		<-done
+	return true, func() error {
+		<-dl.done
+		return dl.err
 	}
+}
+
+// DockerImagesOptions specifies which Docker-based static analysis tools are requested.
+type DockerImagesOptions struct {
+	Zizmor, Poutine, Actionlint, RunnerGuard, Syft, Grype, Grant, Yamllint bool
 }
 
 // CheckAndPrepareDockerImages checks if required Docker images are available
@@ -242,9 +263,9 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func()) 
 // Returns:
 //   - nil if all required images are available
 //   - error if Docker is unavailable or images are downloading/need to be downloaded
-func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype, useGrant, useYamllint bool) error {
+func CheckAndPrepareDockerImages(ctx context.Context, opts DockerImagesOptions) error {
 	// If no tools requested, nothing to do
-	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useSyft && !useGrype && !useGrant && !useYamllint {
+	if !opts.Zizmor && !opts.Poutine && !opts.Actionlint && !opts.RunnerGuard && !opts.Syft && !opts.Grype && !opts.Grant && !opts.Yamllint {
 		return nil
 	}
 
@@ -252,42 +273,42 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 	if !IsDockerAvailable(ctx) {
 		var requestedTools []string
 		var paramsList []string
-		if useZizmor {
+		if opts.Zizmor {
 			tool := "zizmor"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if usePoutine {
+		if opts.Poutine {
 			tool := "poutine"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useActionlint {
+		if opts.Actionlint {
 			tool := "actionlint"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useRunnerGuard {
+		if opts.RunnerGuard {
 			tool := "runner-guard"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useSyft {
+		if opts.Syft {
 			tool := "syft"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useGrype {
+		if opts.Grype {
 			tool := "grype"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useGrant {
+		if opts.Grant {
 			tool := "grant"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useYamllint {
+		if opts.Yamllint {
 			tool := "yamllint"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
@@ -310,14 +331,14 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		image string
 		name  string
 	}{
-		{useZizmor, ZizmorImage, "zizmor"},
-		{usePoutine, PoutineImage, "poutine"},
-		{useActionlint, ActionlintImage, "actionlint"},
-		{useRunnerGuard, RunnerGuardImage, "runner-guard"},
-		{useSyft, SyftImage, "syft"},
-		{useGrype, GrypeImage, "grype"},
-		{useGrant, GrantImage, "grant"},
-		{useYamllint, YamllintImage, "yamllint"},
+		{opts.Zizmor, ZizmorImage, "zizmor"},
+		{opts.Poutine, PoutineImage, "poutine"},
+		{opts.Actionlint, ActionlintImage, "actionlint"},
+		{opts.RunnerGuard, RunnerGuardImage, "runner-guard"},
+		{opts.Syft, SyftImage, "syft"},
+		{opts.Grype, GrypeImage, "grype"},
+		{opts.Grant, GrantImage, "grant"},
+		{opts.Yamllint, YamllintImage, "yamllint"},
 	}
 
 	for _, img := range imagesToCheck {

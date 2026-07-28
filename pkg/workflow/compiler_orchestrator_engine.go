@@ -296,6 +296,16 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 		if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
 			return "", nil, "", err
 		}
+	} else if model == "" && len(allEngines) > 0 {
+		// engineConfig is non-nil (e.g. from top-level max-ai-credits or other
+		// budget fields) but model has not been set by the main workflow. Extract
+		// just the model from the imported engine config so that an engine.model
+		// pin in an imported file is not silently dropped.
+		_, extractedModel, extractErr := c.extractEngineConfigFromJSON(allEngines[0])
+		if extractErr == nil && extractedModel != "" {
+			model = extractedModel
+			orchestratorEngineLog.Printf("Applied model from imported engine config: %s", model)
+		}
 	}
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()

@@ -141,8 +141,8 @@ func TestResolveEngineProviderForPricing(t *testing.T) {
 		config *EngineConfig
 		want   string
 	}{
-		{"LLMProvider wins", &EngineConfig{LLMProvider: "openai", InlineProviderID: "other", ID: "claude"}, "openai"},
-		{"LLMProvider alias normalized", &EngineConfig{LLMProvider: "github_models", ID: "claude"}, "github-copilot"},
+		{"LLMProvider wins", &EngineConfig{LLMProvider: LLMProviderOpenAI, InlineProviderID: "other", ID: "claude"}, "openai"},
+		{"LLMProvider alias normalized", &EngineConfig{LLMProvider: LLMProvider("github_models"), ID: "claude"}, "github-copilot"},
 		{"InlineProviderID second", &EngineConfig{InlineProviderID: "openai", ID: "claude"}, "openai"},
 		{"claude engine → anthropic", &EngineConfig{ID: "claude"}, "anthropic"},
 		{"codex engine → openai", &EngineConfig{ID: "codex"}, "openai"},
@@ -260,5 +260,24 @@ func TestResolveModelPricingIfMissing_SkipsMalformedQualifiedModel(t *testing.T)
 
 	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "/gpt-4.1", EngineConfig: &EngineConfig{}}))
 	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "openai/", EngineConfig: &EngineConfig{}}))
+	assert.False(t, called)
+}
+
+func TestResolveModelPricingIfMissing_SkipsDynamicAutoModelAlias(t *testing.T) {
+	c := &Compiler{}
+	called := false
+	c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
+		called = true
+		return map[string]float64{"input": 1e-06}, true
+	})
+
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{
+		Model:        "auto",
+		EngineConfig: &EngineConfig{ID: "copilot"},
+	}))
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{
+		Model:        "github_models/auto",
+		EngineConfig: &EngineConfig{ID: "copilot"},
+	}))
 	assert.False(t, called)
 }

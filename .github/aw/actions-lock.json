@@ -165,16 +165,6 @@
     }
   },
   "containers": {
-    "docker.io/mcp/brave-search": {
-      "image": "docker.io/mcp/brave-search",
-      "digest": "sha256:f58a5c22c1196ec7bd1ca586ce216f2334fc298550ddcf652c0e8adb6d256d78",
-      "pinned_image": "docker.io/mcp/brave-search@sha256:f58a5c22c1196ec7bd1ca586ce216f2334fc298550ddcf652c0e8adb6d256d78"
-    },
-    "ghcr.io/chopratejas/headroom:latest": {
-      "image": "ghcr.io/chopratejas/headroom:latest",
-      "digest": "sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e",
-      "pinned_image": "ghcr.io/chopratejas/headroom:latest@sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e"
-    },
     "ghcr.io/github/gh-aw-firewall/agent-act:0.27.41": {
       "image": "ghcr.io/github/gh-aw-firewall/agent-act:0.27.41",
       "digest": "sha256:2f1f6d53dd798911aa7b0b849de1b5caae27d928cf6d4b12513d21a853b7ae79",

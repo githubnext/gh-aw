@@ -61,7 +61,7 @@ func (e *PiEngine) GetModelEnvVarName() string {
 
 // ResolveLLMProvider returns the effective provider for Pi inference.
 // Default is github, overridable via engine.model-provider.
-func (e *PiEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
+func (e *PiEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvider {
 	return resolveEngineLLMProvider(workflowData, LLMProviderGitHub)
 }
 

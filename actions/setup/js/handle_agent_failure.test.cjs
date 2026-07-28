@@ -13,6 +13,9 @@ describe("handle_agent_failure", () => {
   let buildPushRepoMemoryFailureContext;
   let buildReportIncompleteContext;
   let buildFailureIssueTitle;
+  let buildModelPricingFrontmatterSnippet;
+  let fetchModelPricingFromModelsDev;
+  let buildMissingModelPricingContext;
   let buildSecretVerificationContext;
   let buildAssignmentErrorsContext;
   let buildAssignCopilotFailureContext;
@@ -41,6 +44,9 @@ describe("handle_agent_failure", () => {
       buildPushRepoMemoryFailureContext,
       buildReportIncompleteContext,
       buildFailureIssueTitle,
+      buildModelPricingFrontmatterSnippet,
+      fetchModelPricingFromModelsDev,
+      buildMissingModelPricingContext,
       buildSecretVerificationContext,
       buildAssignmentErrorsContext,
       buildAssignCopilotFailureContext,
@@ -94,6 +100,8 @@ describe("handle_agent_failure", () => {
       hasAssignmentErrors: false,
       http400ResponseError: false,
       unknownModelAICredits: false,
+      missingModelPricingError: false,
+      missingModelPricingModelName: "",
     };
 
     const cases = [
@@ -125,6 +133,26 @@ describe("handle_agent_failure", () => {
 
     it("prefers unknownModelAICredits over isTimedOut when both are true", () => {
       expect(buildFailureIssueTitle({ ...baseOptions, unknownModelAICredits: true, isTimedOut: true })).toBe("[aw] Test Workflow has unknown model pricing");
+    });
+
+    it("returns missing model pricing title with model name when missingModelPricingError is true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5" })).toBe("[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)");
+    });
+
+    it("returns missing model pricing title without model name when model name is empty", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "" })).toBe("[aw] Test Workflow has no AI credits pricing for model");
+    });
+
+    it("prefers missingModelPricingError over unknownModelAICredits when both are true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", unknownModelAICredits: true })).toBe(
+        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+      );
+    });
+
+    it("prefers missingModelPricingError over http400ResponseError when both are true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, missingModelPricingError: true, missingModelPricingModelName: "claude-opus-5", http400ResponseError: true })).toBe(
+        "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
+      );
     });
   });
 
@@ -2201,6 +2229,10 @@ describe("handle_agent_failure", () => {
       expect(shouldBuildEngineFailureContext("failure", true, false)).toBe(false);
     });
 
+    it("returns false when missing model pricing error is present", () => {
+      expect(shouldBuildEngineFailureContext("failure", false, false, true)).toBe(false);
+    });
+
     it("returns false for non-failure conclusions", () => {
       expect(shouldBuildEngineFailureContext("timed_out", false, true)).toBe(false);
       expect(shouldBuildEngineFailureContext("success", false, false)).toBe(false);
@@ -3078,6 +3110,118 @@ describe("handle_agent_failure", () => {
 
     it("throws when template is missing", () => {
       expect(() => buildUnknownModelAICreditsContext(true)).toThrow(/ENOENT|no such file/i);
+    });
+  });
+  // ──────────────────────────────────────────────────────
+
+  describe("models.dev pricing helpers", () => {
+    it("prefers the inferred provider match before cross-provider fallback", async () => {
+      const https = require("https");
+      const { EventEmitter } = require("events");
+      vi.spyOn(https, "get").mockImplementation((url, callback) => {
+        expect(url).toBe("https://models.dev/catalog.json");
+        const req = new EventEmitter();
+        req.destroy = vi.fn();
+        process.nextTick(() => {
+          const res = new EventEmitter();
+          res.statusCode = 200;
+          callback(res);
+          res.emit(
+            "data",
+            Buffer.from(
+              JSON.stringify({
+                providers: {
+                  openai: { models: { "shared-model": { cost: { input: 1, output: 2 } } } },
+                  anthropic: { models: { "shared-model": { cost: { input: 3, output: 4 } } } },
+                },
+              })
+            )
+          );
+          res.emit("end");
+          req.emit("close");
+        });
+        return req;
+      });
+
+      await expect(fetchModelPricingFromModelsDev("shared-model", "anthropic")).resolves.toEqual({ input: 3, output: 4 });
+    });
+
+    it("quotes model names when building frontmatter pricing snippets", () => {
+      const snippet = buildModelPricingFrontmatterSnippet("model: alias", "claude", { input: 15, output: 75 });
+      expect(snippet).toContain("anthropic:");
+      expect(snippet).toContain("'model: alias':");
+    });
+  });
+
+  describe("buildMissingModelPricingContext", () => {
+    let buildMissingModelPricingContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-missing-pricing-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildMissingModelPricingContext } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns empty string when hasMissingModelPricingError is false", async () => {
+      const result = await buildMissingModelPricingContext(false, "claude-opus-5", "claude");
+      expect(result).toBe("");
+    });
+
+    it("returns template content with model name substituted when template exists", async () => {
+      const templateContent = "> [!WARNING]\n> **Missing AI Credits Pricing for model `{model_name}`**: Test message.\n{pricing_snippet}";
+      fs.writeFileSync(path.join(promptsDir, "missing_model_pricing.md"), templateContent);
+      const result = await buildMissingModelPricingContext(true, "claude-opus-5", "claude");
+      expect(result).toContain("claude-opus-5");
+    });
+
+    it("renders the manual pricing fallback when no pricing snippet is available", async () => {
+      const https = require("https");
+      const { EventEmitter } = require("events");
+      vi.spyOn(https, "get").mockImplementation((url, callback) => {
+        const req = new EventEmitter();
+        req.destroy = vi.fn();
+        process.nextTick(() => {
+          const res = new EventEmitter();
+          res.statusCode = 200;
+          callback(res);
+          res.emit("data", Buffer.from(JSON.stringify({ providers: {} })));
+          res.emit("end");
+          req.emit("close");
+        });
+        return req;
+      });
+      fs.writeFileSync(path.join(promptsDir, "missing_model_pricing.md"), "manual snippet:\n{pricing_snippet}\noption2 key {model_name_yaml_key}");
+      const result = await buildMissingModelPricingContext(true, "model: alias", "claude");
+      expect(result).toContain("manual snippet:");
+      expect(result).toContain("anthropic:");
+      expect(result).toContain("'model: alias':");
+      expect(result).toContain('input: "0e0"');
+      expect(result).toContain('cache_read: "0e0"');
+      expect(result).toContain('cache_write: "0e0"');
+      expect(result).toContain("Placeholder values");
+    });
+
+    it("throws when template is missing and error is true", async () => {
+      await expect(buildMissingModelPricingContext(true, "claude-opus-5", "claude")).rejects.toThrow(/ENOENT|no such file/i);
     });
   });
   // ──────────────────────────────────────────────────────
@@ -4901,6 +5045,21 @@ describe("handle_agent_failure", () => {
         isAWFFirewallStartupFailed: false,
       });
       expect(categories).not.toContain("awf_firewall_startup_failed");
+    });
+
+    it("returns missing_model_pricing category when missingModelPricingError is true", () => {
+      const categories = buildFailureMatchCategories({
+        missingModelPricingError: true,
+      });
+      expect(categories).toContain("missing_model_pricing");
+    });
+
+    it("does not return missing_model_pricing category when missingModelPricingError is false", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        missingModelPricingError: false,
+      });
+      expect(categories).not.toContain("missing_model_pricing");
     });
   });
 

@@ -123,6 +123,13 @@ func (e *GeminiEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHub
 		return []GitHubActionStep{}
 	}
 
+	// Normalize engine config version when not explicitly set, so downstream consumers
+	// (e.g. execution steps) observe the effective installed version.
+	if workflowData.EngineConfig != nil && workflowData.EngineConfig.Version == "" {
+		workflowData.EngineConfig.Version = string(constants.DefaultGeminiVersion)
+		geminiLog.Printf("No engine.version specified, using default Gemini CLI version: %s", workflowData.EngineConfig.Version)
+	}
+
 	npmSteps := BuildStandardNpmEngineInstallStepsNoCooldown(
 		"@google/gemini-cli",
 		string(constants.DefaultGeminiVersion),

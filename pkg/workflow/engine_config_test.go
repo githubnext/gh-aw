@@ -253,7 +253,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: "github"},
+			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: LLMProviderGitHub},
 		},
 		{
 			name: "object format - with provider override",
@@ -264,7 +264,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: "openai"},
+			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: LLMProviderOpenAI},
 		},
 		{
 			name: "object format - provider override wins over model-provider",
@@ -276,7 +276,7 @@ func TestExtractEngineConfig(t *testing.T) {
 				},
 			},
 			expectedEngineSetting: "claude",
-			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: "openai"},
+			expectedConfig:        &EngineConfig{ID: "claude", LLMProvider: LLMProviderOpenAI},
 		},
 		{
 			name: "object format - deprecated llm-provider ignored",

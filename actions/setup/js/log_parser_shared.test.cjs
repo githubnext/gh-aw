@@ -2164,6 +2164,22 @@ describe("log_parser_shared.cjs", () => {
       expect(result).toContain("<summary>Preview</summary>");
     });
 
+    it("should render entry data as JSON code block in markdown mode", async () => {
+      const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
+
+      const safeOutputs = JSON.stringify({
+        type: "add_comment",
+        body: "Review complete",
+        data: { verdict: "APPROVE", criteria_passed: 5 },
+      });
+      const result = formatSafeOutputsPreview(safeOutputs, { isPlainText: false });
+
+      expect(result).toContain("**Data:**");
+      expect(result).toContain("```json");
+      expect(result).toContain('"verdict": "APPROVE"');
+      expect(result).toContain('"criteria_passed": 5');
+    });
+
     it("should format multiple entries", async () => {
       const { formatSafeOutputsPreview } = await import("./log_parser_shared.cjs");
 

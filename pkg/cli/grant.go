@@ -17,7 +17,10 @@ import (
 
 var grantLog = logger.New("cli:grant")
 
-const grantPolicyFilename = ".grant.yaml"
+const (
+	grantPolicyFilename      = ".grant.yaml"
+	grantContainerPolicyPath = "/tmp/gh-aw-grant-policy.yaml"
+)
 
 type grantOutput struct {
 	Tool string `json:"tool"`
@@ -149,7 +152,7 @@ func grantPolicyFile() (string, error) {
 }
 
 func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, error) {
-	containerPolicyPath := "/tmp/gh-aw-grant-policy.yaml"
+	containerPolicyPath := grantContainerPolicyPath
 
 	// #nosec G204 -- imageRef and policyFile are derived from compiled lock files and the
 	// current repository checkout. exec.Command passes arguments directly without a shell.

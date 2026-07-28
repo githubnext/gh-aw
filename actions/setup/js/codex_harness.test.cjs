@@ -28,6 +28,10 @@ const {
   configureCodexProviderFromReflect,
   hasNoopInSafeOutputs,
   resolveRetryConfig,
+  resolvePostResultWatchdogIdleTimeoutMs,
+  DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+  MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS,
+  MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS,
 } = require("./codex_harness.cjs");
 const { detectNonRetryableHarnessGuard } = require("./harness_retry_guard.cjs");
 
@@ -670,6 +674,216 @@ process.exit(1);`,
       // Harness exits 0 because noop means the work is done
       expect(result.status).toBe(0);
       expect(result.stderr).toContain("noop message found in safe-outputs — not retrying");
+    });
+  });
+
+  describe("post-result watchdog suppression when terminal safe-output already produced", () => {
+    it("exits 0 without retrying when a terminal safe-output was produced and the process hangs on exit", () => {
+      const tempDir = makeHarnessTempDir("codex-watchdog-suppression-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub writes a terminal safe-output, then remains alive until SIGTERM.
+      // This exercises the watchdog-fired path end-to-end.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add-labels",labels:["spam"]}) + "\\n");
+process.stdout.write("Label applied. Continuing cleanup...\\n");
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "moderate the issue", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Only one attempt — no retries when watchdog suppression applies
+      expect(callCount).toBe(1);
+      // Harness exits 0 because the terminal safe-output was already produced
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
+      expect(result.stderr).toContain("late-activity exit suppressed");
+    });
+
+    it("exits 0 without retrying when a noop safe-output was produced and the process hangs on exit", () => {
+      const tempDir = makeHarnessTempDir("codex-watchdog-noop-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub writes a noop safe-output, then remains alive until SIGTERM.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"noop",message:"nothing to do"}) + "\\n");
+process.stdout.write("Noop recorded. Waiting...\\n");
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "moderate the issue", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      expect(callCount).toBe(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
+      expect(result.stderr).toContain("late-activity exit suppressed");
+    });
+
+    it("still retries partial_execution when no terminal safe-output was produced (watchdog not armed)", () => {
+      const tempDir = makeHarnessTempDir("codex-watchdog-no-output-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub produces output but exits 1 without writing any safe-output.
+      // The watchdog cannot fire (no terminal safe-output to arm it), so this
+      // should fall through to the normal partial-execution retry path.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("partial work done\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "moderate the issue", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          // Override retry config to keep the test fast.
+          GH_AW_HARNESS_MAX_RETRIES: "1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Should retry (2 attempts total with max_retries=1)
+      expect(callCount).toBeGreaterThan(1);
+      // Harness exits 1 because retries are exhausted with no output
+      expect(result.status).toBe(1);
+      expect(result.stderr).not.toContain("late-activity exit suppressed");
+    });
+
+    it("does not arm watchdog on retry from terminal output left by a previous attempt", () => {
+      // Attempt 0 writes a terminal safe-output and exits non-zero quickly (no hang).
+      // Attempt 1 should NOT have its watchdog armed by attempt 0's output, and
+      // should NOT be suppressed as a success.
+      const tempDir = makeHarnessTempDir("codex-watchdog-baseline-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Attempt 0: writes a terminal safe-output, produces output, then exits 1 (no hang).
+      // Attempt 1+: produces output and exits 1 without writing anything new to safe-outputs.
+      // The watchdog on attempt 1 must NOT arm from attempt 0's output.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.CODEX_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+const calls = fs.existsSync(callsPath) ? fs.readFileSync(callsPath, "utf8").trim().split("\\n").filter(Boolean).length : 0;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+if (calls === 0) {
+  // First attempt: write terminal output and exit immediately
+  fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add-labels",labels:["spam"]}) + "\\n");
+}
+// All attempts: produce output (so harness classifies as partial execution and retries)
+process.stdout.write("partial work done\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "moderate the issue", "utf8");
+
+      const result = spawnSync(process.execPath, ["codex_harness.cjs", process.execPath, stubPath, "exec", "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./codex_harness.cjs")),
+        env: {
+          ...process.env,
+          CODEX_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          CODEX_API_KEY: "fake-key-for-test",
+          GH_AW_HARNESS_MAX_RETRIES: "1",
+          GH_AW_HARNESS_INITIAL_DELAY_MS: "1",
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      // Should retry: attempt 0's output does not suppress attempt 1
+      expect(callCount).toBeGreaterThan(1);
+      // Harness exits 1: attempt 1 produced no new terminal safe-output
+      expect(result.status).toBe(1);
+      // The watchdog-suppression path must not have fired
+      expect(result.stderr).not.toContain("late-activity exit suppressed");
+    });
+  });
+
+  describe("resolvePostResultWatchdogIdleTimeoutMs", () => {
+    it("returns the default when no env var is set", () => {
+      expect(resolvePostResultWatchdogIdleTimeoutMs({})).toBe(DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS);
+    });
+
+    it("returns the configured value when GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS is a positive number", () => {
+      expect(resolvePostResultWatchdogIdleTimeoutMs({ GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "5000" })).toBe(5000);
+    });
+
+    it("clamps to MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS when configured value is too small", () => {
+      expect(resolvePostResultWatchdogIdleTimeoutMs({ GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "1" })).toBe(MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS);
+    });
+
+    it("clamps to MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS when configured value is too large", () => {
+      expect(resolvePostResultWatchdogIdleTimeoutMs({ GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: String(MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS + 1) })).toBe(MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS);
+    });
+
+    it("returns the default for non-numeric input", () => {
+      expect(resolvePostResultWatchdogIdleTimeoutMs({ GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "not-a-number" })).toBe(DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS);
+    });
+
+    it("returns the default for zero", () => {
+      expect(resolvePostResultWatchdogIdleTimeoutMs({ GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "0" })).toBe(DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS);
+    });
+
+    it("returns the default for negative values", () => {
+      expect(resolvePostResultWatchdogIdleTimeoutMs({ GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "-100" })).toBe(DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS);
     });
   });
 
