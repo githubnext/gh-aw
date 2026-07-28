@@ -112,6 +112,12 @@ if: contains(fromJson('["failure","timed_out","cancelled","action_required"]'), 
 
 These are "non-success outcomes requiring triage"; keep the list explicit so readers can tighten (e.g., only `failure`) or broaden it.
 
+Escalation rules for this pattern (required):
+
+- Derive a stable failure key before any write (for example `<workflow>:<job>:<step>:<error-signature>`).
+- Search for an existing open incident by that key **before** calling `create-issue`.
+- Call `noop` instead of creating a new issue when an open incident already exists for the same key.
+
 No-op expectations for this pattern:
 
 - `noop` when the monitored run concludes `success`.

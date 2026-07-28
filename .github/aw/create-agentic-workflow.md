@@ -114,7 +114,7 @@ Common mappings:
 | Scenario | Trigger and default output | Details |
 |---|---|---|
 | Recurring reports and stakeholder digests | `schedule` (+ `workflow_dispatch` for reruns), usually `create-issue` | [Reporting/digest guidance](create-agentic-workflow-trigger-details.md#reporting-and-digest-guidance) |
-| Persona-oriented requests (PM, design governance, compliance policy) | `pull_request` with scoped `paths:` when the request is framed around changed files; `schedule` (+ `workflow_dispatch`) for recurring audits | [Persona scenario map](create-agentic-workflow-trigger-details.md#persona-oriented-scenario-map) |
+| Persona-oriented requests (PM, design governance, compliance policy) | `pull_request` with scoped `paths:` when the request is framed around changed files (`tokens/**`, `**/*tokens*.json`, `**/theme/**`, `policy/**`, `compliance/**`, `controls/**`, `docs/policies/**`); `schedule` (+ `workflow_dispatch`) for recurring audits | [Persona scenario map](create-agentic-workflow-trigger-details.md#persona-oriented-scenario-map) |
 | Backend schema/API review | `pull_request` with backend contract `paths:` and `add-comment` | [Backend review guidance](create-agentic-workflow-trigger-details.md#backend-review-guidance) |
 | PR analyzers deciding comment vs issue vs noop | `pull_request` + escalation logic | [PR analyzer escalation](create-agentic-workflow-trigger-details.md#pr-analyzer-escalation-guidance) |
 | Incident workflows | `workflow_run` / `deployment_status` with `create-issue` dedup | [Incident dedup-key templates](create-agentic-workflow-trigger-details.md#incident-dedup-key-templates-workflow_run-and-deployment_status) |
@@ -299,7 +299,7 @@ Before finalizing any newly generated workflow, verify:
 
 Before finalizing any newly generated workflow, verify:
 
-- [ ] **Paths scope**: include `paths:`/`paths-ignore:` when the automation should ignore unrelated files (for backend reviews, include migration/schema/API contract globs)
+- [ ] **Paths scope**: include `paths:`/`paths-ignore:` when the automation should ignore unrelated files (for backend reviews, include migration/schema/API contract globs; for design governance, include design-token/theme globs like `tokens/**` and `**/theme/**`; for compliance policy reviews, include policy/control docs like `policy/**`, `compliance/**`, `controls/**`, `docs/policies/**`)
 - [ ] **Labels scope**: define required labels (for example `label_command` names or PR/issue label filters) when label-based routing is expected
 - [ ] **Workflow-name scope**: for `workflow_run`, explicitly set `workflows:` to named targets and gate conclusions via `if:` on `${{ github.event.workflow_run.conclusion }}` (for incident triage, prefer failure-only outcomes)
 - [ ] **Date-window scope**: for reporting/triage, state the exact window (for example `last 24h`, `since previous run`, `current week`)
