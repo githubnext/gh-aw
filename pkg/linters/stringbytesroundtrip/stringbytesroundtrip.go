@@ -53,82 +53,79 @@ func run(pass *analysis.Pass) (any, error) {
 // string/[]byte round-trip (string([]byte(s))) or a wasteful two-copy clone
 // ([]byte(string(b))) and reports a diagnostic if so.
 func analyzeRoundTrip(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) {
-	outer, ok := n.(*ast.CallExpr)
+	outer, inner, ok := roundTripCalls(n)
+	if !ok || shouldSkipRoundTrip(pass, outer, generatedFiles, noLintIndex) {
+		return
+	}
+	outerUnderlying, innerUnderlying, innerArgUnderlying, ok := roundTripUnderlyingTypes(pass, outer, inner)
 	if !ok {
 		return
 	}
-	// Must be a type conversion (single argument, no ellipsis).
-	if len(outer.Args) != 1 || outer.Ellipsis.IsValid() {
+	if reportRedundantRoundTrip(pass, outer, inner, outerUnderlying, innerUnderlying, innerArgUnderlying) {
 		return
 	}
+	reportWastefulCloneRoundTrip(pass, outer, inner, outerUnderlying, innerUnderlying, innerArgUnderlying)
+}
 
+func roundTripCalls(n ast.Node) (*ast.CallExpr, *ast.CallExpr, bool) {
+	outer, ok := n.(*ast.CallExpr)
+	if !ok || len(outer.Args) != 1 || outer.Ellipsis.IsValid() {
+		return nil, nil, false
+	}
+	inner, ok := outer.Args[0].(*ast.CallExpr)
+	if !ok || len(inner.Args) != 1 || inner.Ellipsis.IsValid() {
+		return nil, nil, false
+	}
+	return outer, inner, true
+}
+
+func shouldSkipRoundTrip(pass *analysis.Pass, outer *ast.CallExpr, generatedFiles filecheck.GeneratedIndex, noLintIndex nolint.DirectiveIndex) bool {
 	pos := pass.Fset.PositionFor(outer.Pos(), false)
 	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-		return
+		return true
 	}
-	if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringbytesroundtrip") {
-		return
-	}
+	return nolint.HasDirectiveForLinter(pos, noLintIndex, "stringbytesroundtrip")
+}
 
-	// Must be a type conversion, not a function call.
+func roundTripUnderlyingTypes(pass *analysis.Pass, outer, inner *ast.CallExpr) (types.Type, types.Type, types.Type, bool) {
 	outerFunInfo, ok := pass.TypesInfo.Types[outer.Fun]
 	if !ok || !outerFunInfo.IsType() {
-		return
+		return nil, nil, nil, false
 	}
-
-	outerType := pass.TypesInfo.TypeOf(outer)
-	if outerType == nil {
-		return
-	}
-
-	inner, ok := outer.Args[0].(*ast.CallExpr)
-	if !ok {
-		return
-	}
-	if len(inner.Args) != 1 || inner.Ellipsis.IsValid() {
-		return
-	}
-
-	// The inner call must also be a type conversion, not a function call.
 	innerFunInfo, ok := pass.TypesInfo.Types[inner.Fun]
 	if !ok || !innerFunInfo.IsType() {
-		return
+		return nil, nil, nil, false
 	}
-
+	outerType := pass.TypesInfo.TypeOf(outer)
 	innerType := pass.TypesInfo.TypeOf(inner)
-	if innerType == nil {
-		return
-	}
 	innerArgType := pass.TypesInfo.TypeOf(inner.Args[0])
-	if innerArgType == nil {
+	if outerType == nil || innerType == nil || innerArgType == nil {
+		return nil, nil, nil, false
+	}
+	return outerType.Underlying(), innerType.Underlying(), innerArgType.Underlying(), true
+}
+
+func reportRedundantRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, outerUnderlying, innerUnderlying, innerArgUnderlying types.Type) bool {
+	if !isStringType(outerUnderlying) || !isByteSliceType(innerUnderlying) || !isStringType(innerArgUnderlying) {
+		return false
+	}
+	argText := astutil.NodeText(pass.Fset, inner.Args[0])
+	pass.ReportRangef(outer,
+		"string([]byte(%s)) is a redundant round-trip; the inner []byte conversion copies the string unnecessarily",
+		argText,
+	)
+	return true
+}
+
+func reportWastefulCloneRoundTrip(pass *analysis.Pass, outer, inner *ast.CallExpr, outerUnderlying, innerUnderlying, innerArgUnderlying types.Type) {
+	if !isByteSliceType(outerUnderlying) || !isStringType(innerUnderlying) || !isByteSliceType(innerArgUnderlying) {
 		return
 	}
-
-	outerUnderlying := outerType.Underlying()
-	innerUnderlying := innerType.Underlying()
-	innerArgUnderlying := innerArgType.Underlying()
-
-	// Check string([]byte(s)) where s is already a string.
-	if isStringType(outerUnderlying) && isByteSliceType(innerUnderlying) && isStringType(innerArgUnderlying) {
-		argText := astutil.NodeText(pass.Fset, inner.Args[0])
-		pass.ReportRangef(outer,
-			"string([]byte(%s)) is a redundant round-trip; the inner []byte conversion copies the string unnecessarily",
-			argText,
-		)
-		return
-	}
-
-	// Check []byte(string(b)) where b is already a []byte.
-	// This is the defensive-copy idiom: the result is a non-aliasing copy, not
-	// a no-op.  The diagnostic is therefore not "redundant" but "wasteful":
-	// two memory copies are made when one would suffice.
-	if isByteSliceType(outerUnderlying) && isStringType(innerUnderlying) && isByteSliceType(innerArgUnderlying) {
-		argText := astutil.NodeText(pass.Fset, inner.Args[0])
-		pass.ReportRangef(outer,
-			"[]byte(string(%s)) makes two copies to clone %s; use slices.Clone(%s) or bytes.Clone(%s) for a single-copy independent slice",
-			argText, argText, argText, argText,
-		)
-	}
+	argText := astutil.NodeText(pass.Fset, inner.Args[0])
+	pass.ReportRangef(outer,
+		"[]byte(string(%s)) makes two copies to clone %s; use slices.Clone(%s) or bytes.Clone(%s) for a single-copy independent slice",
+		argText, argText, argText, argText,
+	)
 }
 
 func isStringType(t types.Type) bool {
