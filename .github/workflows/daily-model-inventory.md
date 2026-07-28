@@ -84,6 +84,11 @@ jobs:
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Log raw response
+        if: always()
+        shell: bash
+        run: cat /tmp/gh-aw/agent/model-inventory/openai/raw.json 2>/dev/null || echo "(no raw.json)"
+
       - name: Upload OpenAI artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
@@ -137,6 +142,11 @@ jobs:
             echo "{\"provider\":\"anthropic\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Log raw response
+        if: always()
+        shell: bash
+        run: cat /tmp/gh-aw/agent/model-inventory/anthropic/raw.json 2>/dev/null || echo "(no raw.json)"
 
       - name: Upload Anthropic artifacts
         if: always()
@@ -193,6 +203,11 @@ jobs:
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Log raw response
+        if: always()
+        shell: bash
+        run: cat /tmp/gh-aw/agent/model-inventory/gemini/raw.json 2>/dev/null || echo "(no raw.json)"
+
       - name: Upload Gemini artifacts
         if: always()
         uses: actions/upload-artifact@v7.0.1
@@ -227,46 +242,17 @@ jobs:
             > "$OUT/models.json"
           echo "status=placeholder" >> "$GITHUB_OUTPUT"
 
+      - name: Log placeholder
+        if: always()
+        shell: bash
+        run: cat /tmp/gh-aw/agent/model-inventory/copilot-billing/models.json 2>/dev/null || echo "(no models.json)"
+
       - name: Upload Copilot billing models artifact
         if: always()
         uses: actions/upload-artifact@v7.0.1
         with:
           name: copilot-billing-models
           path: /tmp/gh-aw/agent/model-inventory/copilot-billing/models.json
-          if-no-files-found: error
-          retention-days: 7
-
-  collect_copilot_api_models:
-    runs-on: ubuntu-latest
-    needs: [activation]
-    permissions:
-      copilot-requests: write
-    steps:
-      - name: Fetch GitHub Copilot API models
-        id: fetch
-        shell: bash
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          OUT="/tmp/gh-aw/agent/model-inventory/copilot-api"
-          mkdir -p "$OUT"
-          HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
-            -H "Authorization: ******" \
-            https://api.githubcopilot.com/models) || true
-          if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            echo "status=ok" >> "$GITHUB_OUTPUT"
-          else
-            echo "{\"error\":\"HTTP $HTTP_STATUS\"}" > "$OUT/raw.json"
-            echo "status=error" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Upload Copilot API models artifact
-        if: always()
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: copilot-api-models
-          path: /tmp/gh-aw/agent/model-inventory/copilot-api/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -309,6 +295,11 @@ jobs:
             await client.stop();
           }
           EOF
+
+      - name: Log models
+        if: always()
+        shell: bash
+        run: cat /tmp/gh-aw/agent/model-inventory/copilot-sdk/models.json 2>/dev/null || echo "(no models.json)"
 
       - name: Upload Copilot SDK models artifact
         if: always()
@@ -383,16 +374,13 @@ updating.
 
 ## Inputs
 
-The pre-job steps have already fetched model lists from OpenAI, Anthropic, Gemini, and the GitHub Copilot API, then merged
+The pre-job steps have already fetched model lists from OpenAI, Anthropic, and Gemini, then merged
 them into:
 
 - Combined inventory: `/tmp/gh-aw/agent/model-inventory/inventory.json`
 - Individual provider files: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
 - Predownloaded models.dev API index: `/tmp/gh-aw/agent/model-inventory/models-dev/api.json`
-- GitHub Copilot API models: `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json`
-  (fetched from `https://api.githubcopilot.com/models`; raw API response — if the file contains an `error` field,
-  treat Copilot API data as unavailable for this run)
 - Copilot SDK models: `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-sdk-models/models.json`
   (fetched through the Copilot CLI SDK; use each model's `billing` fields for pricing validation)
 - Copilot live provider metadata: `/tmp/gh-aw/agent/model-inventory/reflect.json` (generated in
@@ -598,21 +586,12 @@ The Copilot pricing table is now in:
 This file was populated in Step 2.5 from:
 `https://docs.github.com/en/copilot/reference/copilot-billing/models-and-pricing`.
 
-The GitHub Copilot API response is available at:
-
-- `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json`
-
-This file is the raw response fetched from `https://api.githubcopilot.com/models`. If the file contains an `error` field,
-treat it as unavailable and skip its use as a validation source for this run.
-
 The Copilot SDK models are available at:
 
 - `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-sdk-models/models.json`
 
-Use the Copilot SDK (`billing` fields), reflect endpoint (`billing.multiplier`), Copilot API endpoint
-(`billing.multiplier`), and docs pricing table as validation sources for `models.json` pricing fields.
-Prefer Copilot SDK data when available; cross-check it against reflect data, use the Copilot API for
-discovering models absent from the other sources, and use docs table values as a tertiary cross-check.
+Use the Copilot SDK (`billing` fields), reflect endpoint (`billing.multiplier`), and docs pricing table as validation sources for `models.json` pricing fields.
+Prefer Copilot SDK data when available; cross-check it against reflect data, and use docs table values as a secondary cross-check.
 
 Also validate Copilot SDK routing metadata in `models.json` for `github-copilot` models:
 - `provider_type` (for SDK provider selection)
@@ -622,7 +601,7 @@ When updating `models.json`, preserve or add `wire_api` for Copilot models where
 provides it. Keep `wire_api` absent for models/providers where it is not applicable.
 
 Treat `gpt-4o-mini`, `gpt-4.1`, `gpt-4o`, and `gpt-5.4-nano` as intentionally deprecated
-Copilot-facing model IDs. Keep ignoring them even if they appear in the reflect data, Copilot API,
+Copilot-facing model IDs. Keep ignoring them even if they appear in the reflect data,
 docs table, `models.dev`, or live provider inventories: do not propose adding or restoring them in
 `pkg/cli/data/models.json` (or `actions/setup/js/models.json`), and exclude them from
 missing/discrepancy tables.
@@ -634,7 +613,7 @@ When pricing updates are required, first run:
 make refresh-models-json
 ```
 
-Then validate/adjust pricing entries against Copilot SDK, reflect, Copilot API, and docs-derived data.
+Then validate/adjust pricing entries against Copilot SDK, reflect, and docs-derived data.
 
 For each provider's enriched data, validate pricing/model coverage for each model:
 
@@ -647,25 +626,18 @@ For each provider's enriched data, validate pricing/model coverage for each mode
    `/tmp/gh-aw/agent/model-inventory/reflect.json`. For each model, use
    the `billing.multiplier` field to cross-check the SDK multiplier. Compare against the
    matching `github/<model-id>` entry in `models.json`, and list discrepancies or missing models.
-   Cross-reference against the Copilot API and docs table as secondary validation sources.
+   Cross-reference against the docs table as a secondary validation source.
 
-3. **GitHub Copilot API** — use the `copilot-api` models from
-   `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json` as a supplementary
-   source. For each model in `.data[]`, use `billing.multiplier` where present as a secondary cross-check against
-   the SDK and reflect data. Flag any model IDs in the Copilot API response that are not in the SDK or reflect data,
-   or not in `models.json` — these may be newly available models. Skip this source if the file
-   contains an `error` field.
-
-4. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
+3. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
    Large-context, high-output-limit models typically correspond to higher-priced tiers; smaller
    Flash models to lower-priced tiers. Flag any models whose limits suggest a pricing-tier change
    versus what is currently in `models.json`.
 
-5. **OpenAI API** — use `owned_by` and model-ID naming conventions (e.g. `-mini`, `-nano`, `o1`,
+4. **OpenAI API** — use `owned_by` and model-ID naming conventions (e.g. `-mini`, `-nano`, `o1`,
    `o3`) to cross-check current pricing tiers. Flag missing models or likely mismatches.
 
-6. **Anthropic API** — use `display_name` family grouping (haiku/sonnet/opus) to validate
+5. **Anthropic API** — use `display_name` family grouping (haiku/sonnet/opus) to validate
    current pricing tiers. Flag any new model IDs not yet in `models.json`.
 
 Produce a consolidated pricing gap table listing:
@@ -723,7 +695,7 @@ If you found any meaningful updates to propose, create a GitHub issue using `cre
 
 Brief description of what was found.
 
-- Providers queried: OpenAI, Anthropic, Gemini, Copilot SDK, Copilot (reflect), Copilot API
+- Providers queried: OpenAI, Anthropic, Gemini, Copilot SDK, Copilot (reflect)
 - Total models found: <count>
 - Proposed alias changes: <count>
 - Pricing gaps found: <count>
@@ -737,7 +709,6 @@ Brief description of what was found.
 | gemini   | 28              | ✅ ok  |
 | copilot-sdk | 35          | ✅ ok  |
 | copilot (reflect) | 35    | ✅ ok  |
-| copilot-api | 38           | ✅ ok  |
 
 ### Raw API Fields Discovered
 

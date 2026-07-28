@@ -4,7 +4,7 @@ import path from "path";
 const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn().mockReturnThis(), write: vi.fn().mockResolvedValue() } };
 ((global.core = mockCore),
   describe("parse_firewall_logs.cjs", () => {
-    let parseFirewallLogLine, isRequestAllowed, analyzeFirewallLogLines, generateFirewallSummary;
+    let parseFirewallLogLine, isRequestAllowed, analyzeFirewallLogLines, generateFirewallSummary, isInternalSidecarHost;
     (beforeEach(() => {
       vi.clearAllMocks();
       const scriptPath = path.join(process.cwd(), "parse_firewall_logs.cjs"),
@@ -13,13 +13,14 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
           .replace(/if \(typeof module === "undefined".*?\) \{[\s\S]*?main\(\);[\s\S]*?\}/g, "// main() execution disabled for testing")
           .replace(
             "// Export for testing",
-            "global.testParseFirewallLogLine = parseFirewallLogLine;\n        global.testIsRequestAllowed = isRequestAllowed;\n        global.testAnalyzeFirewallLogLines = analyzeFirewallLogLines;\n        global.testGenerateFirewallSummary = generateFirewallSummary;\n        // Export for testing"
+            "global.testParseFirewallLogLine = parseFirewallLogLine;\n        global.testIsRequestAllowed = isRequestAllowed;\n        global.testAnalyzeFirewallLogLines = analyzeFirewallLogLines;\n        global.testGenerateFirewallSummary = generateFirewallSummary;\n        global.testIsInternalSidecarHost = isInternalSidecarHost;\n        // Export for testing"
           );
       (eval(scriptForTesting),
         (parseFirewallLogLine = global.testParseFirewallLogLine),
         (isRequestAllowed = global.testIsRequestAllowed),
         (analyzeFirewallLogLines = global.testAnalyzeFirewallLogLines),
-        (generateFirewallSummary = global.testGenerateFirewallSummary));
+        (generateFirewallSummary = global.testGenerateFirewallSummary),
+        (isInternalSidecarHost = global.testIsInternalSidecarHost));
     }),
       describe("parseFirewallLogLine", () => {
         (test("should parse valid firewall log line", () => {
@@ -242,6 +243,60 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
               expect(summary).toContain("0 blocked"),
               expect(summary).toContain("| api.github.com:443 | 10 | 0 |"),
               expect(summary).not.toContain("error:"));
+          }));
+      }),
+      describe("isInternalSidecarHost", () => {
+        (test("should identify awmg-mcpg with port as internal sidecar", () => {
+          expect(isInternalSidecarHost("awmg-mcpg:8080")).toBe(true);
+        }),
+          test("should identify awmg-mcpg without port as internal sidecar", () => {
+            expect(isInternalSidecarHost("awmg-mcpg")).toBe(true);
+          }),
+          test("should identify awmg-cli-proxy with port as internal sidecar", () => {
+            expect(isInternalSidecarHost("awmg-cli-proxy:3128")).toBe(true);
+          }),
+          test("should not identify external domain as internal sidecar", () => {
+            expect(isInternalSidecarHost("api.github.com:443")).toBe(false);
+          }),
+          test("should not identify placeholder as internal sidecar", () => {
+            (expect(isInternalSidecarHost("-")).toBe(false), expect(isInternalSidecarHost("")).toBe(false), expect(isInternalSidecarHost(null)).toBe(false));
+          }));
+      }),
+      describe("analyzeFirewallLogLines - internal sidecar filtering", () => {
+        (test("should not count awmg-mcpg blocked entries in blockedRequests", () => {
+          const lines = [
+            '1761332530.474 172.30.0.20:35288 awmg-mcpg:8080 10.0.0.1:8080 1.1 CONNECT 403 NONE_NONE:HIER_NONE awmg-mcpg:8080 "-"',
+            '1761332530.475 172.30.0.20:35289 blocked.example.com:443 140.82.112.22:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
+            '1761332530.476 172.30.0.20:35290 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
+          ];
+          const result = analyzeFirewallLogLines(lines);
+          (expect(result.blockedRequests).toBe(1),
+            expect(result.blockedDomains.has("awmg-mcpg:8080")).toBe(false),
+            expect(result.blockedDomains.has("blocked.example.com:443")).toBe(true),
+            expect(result.requestsByDomain.has("awmg-mcpg:8080")).toBe(false));
+        }),
+          test("should not count awmg-cli-proxy blocked entries in blockedRequests", () => {
+            const lines = [
+              '1761332530.474 172.30.0.20:35288 awmg-cli-proxy:3128 10.0.0.2:3128 1.1 CONNECT 403 NONE_NONE:HIER_NONE awmg-cli-proxy:3128 "-"',
+              '1761332530.475 172.30.0.20:35289 blocked.example.com:443 1.2.3.4:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
+            ];
+            const result = analyzeFirewallLogLines(lines);
+            (expect(result.blockedRequests).toBe(1),
+              expect(result.blockedDomains.has("awmg-cli-proxy:3128")).toBe(false),
+              expect(result.blockedDomains.has("blocked.example.com:443")).toBe(true),
+              expect(result.requestsByDomain.has("awmg-cli-proxy:3128")).toBe(false));
+          }),
+          test("should report zero blocked requests when only sidecar entries were blocked", () => {
+            const lines = [
+              '1761332530.474 172.30.0.20:35288 awmg-mcpg:8080 10.0.0.1:8080 1.1 CONNECT 403 NONE_NONE:HIER_NONE awmg-mcpg:8080 "-"',
+              '1761332530.475 172.30.0.20:35289 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
+            ];
+            const result = analyzeFirewallLogLines(lines);
+            (expect(result.totalRequests).toBe(2),
+              expect(result.blockedRequests).toBe(0),
+              expect(result.allowedRequests).toBe(1),
+              expect(result.blockedDomains.size).toBe(0),
+              expect(result.requestsByDomain.has("awmg-mcpg:8080")).toBe(false));
           }));
       }));
   }));

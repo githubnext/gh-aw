@@ -181,6 +181,22 @@ async function main() {
       return;
     }
     if (!fs.existsSync(outputFile)) {
+      // Before treating a missing outputs file as a graceful no-op, check whether
+      // the safeoutputs MCP gateway reported 0 registered tools during setup.
+      // When that flag exists the agent could not emit any safe outputs because
+      // every safeoutputs call failed with "unknown tool" — this is a gateway
+      // infrastructure failure, not an intentional no-op, and must surface as an
+      // error rather than a silent green run.
+      const runnerTemp = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
+      const gatewayEmptyFlagPath = `${runnerTemp}/gh-aw/safeoutputs/gateway_empty.flag`;
+      if (fs.existsSync(gatewayEmptyFlagPath)) {
+        core.setFailed(
+          `safeoutputs MCP gateway registered 0 tools during setup; the agent could not emit any safe outputs. ` +
+            `This is a gateway infrastructure failure, not a normal no-op. ` +
+            `Check the MCP gateway startup logs for ECONNRESET errors or delayed backend registration and re-run the workflow.`
+        );
+        return;
+      }
       core.info(`Output file does not exist: ${outputFile} — no safe-output items were emitted; treating as empty collection (graceful no-op)`);
       const emptyOutput = { items: [], errors: [] };
       const emptyOutputJson = JSON.stringify(emptyOutput);
