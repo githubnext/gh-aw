@@ -2583,7 +2583,6 @@ process.exit(1);`,
               "gpt-5-mini": { wire_api: "responses" },
               "gpt-5.5": { wire_api: "responses" },
               "gemini-2.5-pro": { wire_api: "completions" },
-              "mai-code": { wire_api: "responses" },
               "mai-code-1-flash-picker": { wire_api: "responses" },
               "claude-sonnet-4": {},
             },
@@ -2598,8 +2597,8 @@ process.exit(1);`,
       expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
     });
 
-    it("sets COPILOT_PROVIDER_WIRE_API=responses for mai-code alias model id", () => {
-      process.env.COPILOT_MODEL = "mai-code";
+    it("sets COPILOT_PROVIDER_WIRE_API=responses for mai-code model id", () => {
+      process.env.COPILOT_MODEL = "mai-code-1-flash-picker";
       applyCopilotWireAPI({ modelsJson: makeModelsJson(), logger: () => {} });
       expect(process.env.COPILOT_PROVIDER_WIRE_API).toBe("responses");
     });
