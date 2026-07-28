@@ -31,6 +31,7 @@ import { noErrStackThenStringFallbackRule } from "./rules/no-err-stack-then-stri
 import { noCaughtErrorInterpolationRule } from "./rules/no-caught-error-interpolation";
 import { requireFetchTryCatchRule } from "./rules/require-fetch-try-catch";
 import { noCoreErrorThenSetFailedRule } from "./rules/no-core-error-then-setfailed";
+import { noDuplicateConstantValuesRule } from "./rules/no-duplicate-constant-values";
 
 const plugin = {
   meta: {
@@ -71,6 +72,7 @@ const plugin = {
     "no-caught-error-interpolation": noCaughtErrorInterpolationRule,
     "require-fetch-try-catch": requireFetchTryCatchRule,
     "no-core-error-then-setfailed": noCoreErrorThenSetFailedRule,
+    "no-duplicate-constant-values": noDuplicateConstantValuesRule,
   },
 };
 
