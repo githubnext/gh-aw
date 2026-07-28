@@ -708,6 +708,9 @@ func (e *CopilotEngine) buildCopilotExecutionStep(workflowData *WorkflowData, co
 //     DefaultCopilotVersion. This preserves existing behavior while avoiding drift if
 //     DefaultCopilotVersion is ever lowered below CopilotNoAskUserMinVersion.
 //   - "latest": always returns true (latest is always a new release).
+//   - Expression (e.g. "${{ inputs.engine-version }}"): returns true. The version resolves
+//     at runtime so we cannot gate at compile time; the installer already handles expression
+//     versions via ENGINE_VERSION env-var injection, ensuring the right binary is installed.
 //   - Any semver string ≥ CopilotNoAskUserMinVersion: returns true.
 //   - Any semver string < CopilotNoAskUserMinVersion: returns false.
 //   - Non-semver string (e.g. a branch name): returns false (conservative).
@@ -715,6 +718,12 @@ func copilotSupportsNoAskUser(engineConfig *EngineConfig) bool {
 	var versionStr string
 	if engineConfig != nil && engineConfig.Version != "" {
 		versionStr = engineConfig.Version
+	}
+	// Expression versions resolve at runtime; treat as supported so the generated execution
+	// flags match the installed binary for any version >= CopilotNoAskUserMinVersion.
+	if containsExpression(versionStr) {
+		copilotExecLog.Printf("copilotSupportsNoAskUser: expression version %q treated as supported", versionStr)
+		return true
 	}
 	return versionAtLeast(
 		versionStr,
