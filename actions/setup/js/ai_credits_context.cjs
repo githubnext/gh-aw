@@ -72,6 +72,14 @@ function isTrueLike(value) {
 }
 
 /**
+ * @param {unknown} value
+ * @returns {string}
+ */
+function sanitizeModelName(value) {
+  return typeof value === "string" ? value.replace(/\r?\n|\r/g, " ").trim() : "";
+}
+
+/**
  * @param {string} [auditJsonlPathOverride]
  * @returns {string}
  */
@@ -93,6 +101,44 @@ function resolveFirewallAuditLogPath(auditJsonlPathOverride) {
     }
   }
   return path.join(candidateBases[0], "log.jsonl");
+}
+
+/**
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {string[]}
+ */
+function resolveUnknownModelAICreditsLogPaths(auditJsonlPathOverride) {
+  if (auditJsonlPathOverride) return [auditJsonlPathOverride];
+  const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
+  const roots = [];
+  if (agentOutputFile) {
+    roots.push(path.dirname(agentOutputFile));
+  }
+
+  /** @type {string[]} */
+  const candidates = [];
+  const seen = new Set();
+  const addCandidate = candidate => {
+    if (!candidate || seen.has(candidate)) return;
+    seen.add(candidate);
+    candidates.push(candidate);
+  };
+
+  for (const root of roots) {
+    addCandidate(path.join(root, "sandbox", "firewall", "logs", "api-proxy-logs", "event-logs.jsonl"));
+    addCandidate(path.join(root, "sandbox", "firewall", "logs", "api-proxy-logs", "events.jsonl"));
+    addCandidate(path.join(root, "sandbox", "firewall", "audit", "api-proxy-logs", "event-logs.jsonl"));
+    addCandidate(path.join(root, "sandbox", "firewall", "audit", "api-proxy-logs", "events.jsonl"));
+  }
+
+  addCandidate("/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/event-logs.jsonl");
+  addCandidate("/tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/events.jsonl");
+  addCandidate("/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/event-logs.jsonl");
+  addCandidate("/tmp/gh-aw/sandbox/firewall-audit-logs/api-proxy-logs/events.jsonl");
+  addCandidate("/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/event-logs.jsonl");
+  addCandidate("/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/events.jsonl");
+  addCandidate(resolveFirewallAuditLogPath());
+  return candidates;
 }
 
 /**
@@ -185,6 +231,48 @@ function iterateAuditEntries(auditJsonlPathOverride, defaultValue, contentGuard,
         if (nextResult !== undefined) result = nextResult;
       } catch {
         // ignore malformed lines
+      }
+    }
+    return result;
+  } catch {
+    return defaultValue;
+  }
+}
+
+/**
+ * Iterates one or more JSONL files, accumulating parsed entries across every existing file.
+ * Missing, unreadable, or malformed files/lines are ignored.
+ *
+ * @template T
+ * @param {string[]} filePaths
+ * @param {T} defaultValue
+ * @param {((content: string) => boolean) | null} contentGuard
+ * @param {(acc: T, entry: unknown) => T | undefined} accumulate
+ * @param {(acc: T) => boolean} [shouldStop]
+ * @returns {T}
+ */
+function iterateJSONLFiles(filePaths, defaultValue, contentGuard, accumulate, shouldStop) {
+  let result = defaultValue;
+  try {
+    for (const filePath of filePaths) {
+      try {
+        if (!fs.existsSync(filePath)) continue;
+        const content = fs.readFileSync(filePath, "utf8");
+        if (!content.trim()) continue;
+        if (contentGuard && !contentGuard(content)) continue;
+        for (const line of content.split("\n")) {
+          const trimmed = line.trim();
+          if (!trimmed || trimmed[0] !== "{") continue;
+          try {
+            const nextResult = accumulate(result, JSON.parse(trimmed));
+            if (nextResult !== undefined) result = nextResult;
+            if (shouldStop && shouldStop(result)) return result;
+          } catch {
+            // ignore malformed lines
+          }
+        }
+      } catch {
+        // ignore unreadable files and continue to the next candidate
       }
     }
     return result;
@@ -288,11 +376,52 @@ function parseUnknownModelAICreditsFromAuditEntry(entry) {
  * @returns {boolean}
  */
 function parseUnknownModelAICreditsFromAuditLog(auditJsonlPathOverride) {
-  return iterateAuditEntries(
-    auditJsonlPathOverride,
+  return iterateJSONLFiles(
+    resolveUnknownModelAICreditsLogPaths(auditJsonlPathOverride),
     false,
     content => content.includes(UNKNOWN_MODEL_AI_CREDITS_TYPE),
-    (acc, entry) => acc || parseUnknownModelAICreditsFromAuditEntry(entry)
+    (acc, entry) => acc || parseUnknownModelAICreditsFromAuditEntry(entry),
+    acc => acc
+  );
+}
+
+/**
+ * Detects `unknown_model_ai_credits` from the firewall event/audit JSONL logs and extracts the model name.
+ * Structured entries emitted by the AWF API proxy carry both the error type and the model name, e.g.:
+ *   { "type": "unknown_model_ai_credits", "model": "claude-opus-5" }
+ *
+ * @param {string} [auditJsonlPathOverride]
+ * @returns {{ detected: boolean, modelName: string }}
+ */
+function parseUnknownModelAICreditsAndModelFromAuditLog(auditJsonlPathOverride) {
+  /** @type {{ detected: boolean, modelName: string }} */
+  const initial = { detected: false, modelName: "" };
+  return iterateJSONLFiles(
+    resolveUnknownModelAICreditsLogPaths(auditJsonlPathOverride),
+    initial,
+    content => content.includes(UNKNOWN_MODEL_AI_CREDITS_TYPE),
+    /**
+     * @param {{ detected: boolean, modelName: string }} acc
+     * @param {unknown} entry
+     * @returns {{ detected: boolean, modelName: string } | undefined}
+     */
+    (acc, entry) => {
+      if (acc.detected && acc.modelName) return acc; // fully resolved, skip remaining entries
+      if (!parseUnknownModelAICreditsFromAuditEntry(entry)) return undefined; // not a matching entry
+      let modelName = acc.modelName;
+      if (!modelName) {
+        traverseObjectTree(entry, (key, value) => {
+          const sanitized = sanitizeModelName(value);
+          if (key === "model" && sanitized) {
+            modelName = sanitized;
+            return true;
+          }
+          return false;
+        });
+      }
+      return { detected: true, modelName };
+    },
+    acc => acc.detected && !!acc.modelName
   );
 }
 
@@ -422,5 +551,6 @@ module.exports = {
   parseAICreditsErrorInfoFromAuditLog,
   parseMaxAICreditsExceededFromAuditLog,
   parseUnknownModelAICreditsFromAuditLog,
+  parseUnknownModelAICreditsAndModelFromAuditLog,
   resolveAICreditsFailureState,
 };
