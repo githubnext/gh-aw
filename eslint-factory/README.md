@@ -20,6 +20,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 |---|---|
 | [`no-core-exportvariable-non-string`](#no-core-exportvariable-non-string) | Require explicit string values for `core.exportVariable` calls |
 | [`no-core-setoutput-non-string`](#no-core-setoutput-non-string) | Require explicit string values for `core.setOutput` calls |
+| [`no-duplicate-constant-values`](#no-duplicate-constant-values) | Report constants with duplicate static primitive values in the same file |
 | [`no-child-process-interpolated-command`](#no-child-process-interpolated-command) | Disallow interpolated command strings in shell-evaluated `child_process` calls |
 | [`no-github-request-interpolated-route`](#no-github-request-interpolated-route) | Disallow interpolated route arguments in Octokit `.request()` calls |
 | [`no-json-stringify-error`](#no-json-stringify-error) | Disallow `JSON.stringify()` on caught error variables |
@@ -43,6 +44,12 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-execsync-try-catch`](#require-execsync-try-catch) | Require try/catch around `execSync(...)` calls from `child_process` |
 | [`require-execfilesync-try-catch`](#require-execfilesync-try-catch) | Require try/catch around `execFileSync(...)` calls from `child_process` |
 | [`require-spawnsync-error-check`](#require-spawnsync-error-check) | Require checking `result.error` after `spawnSync` calls |
+
+### `no-duplicate-constant-values`
+
+Inventory module-level `const` declarations with static primitive initializers and report each declaration after the first one that uses the same value in a file. The diagnostic names both constants and shows the duplicated value.
+
+The rule compares string, number, boolean, `null`, bigint, regular-expression, static template-literal, and signed numeric initializers. Dynamic expressions, object and array literals, destructuring declarations, function-local declarations, and `let` or `var` declarations are ignored.
 
 ### `no-github-request-interpolated-route`
 
