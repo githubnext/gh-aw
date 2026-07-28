@@ -202,6 +202,33 @@ func TestBuildCustomJob_InvalidTimeoutMinutesError(t *testing.T) {
 	require.ErrorContains(t, err, "timeout-minutes")
 }
 
+func TestBuildCustomJob_InputsNotSupportedError(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+
+	data := &WorkflowData{Name: "Test"}
+	configMap := map[string]any{
+		"runs-on": "ubuntu-latest",
+		"inputs": map[string]any{
+			"my-input": map[string]any{"description": "an input"},
+		},
+		"steps": []any{map[string]any{"run": "echo hello"}},
+	}
+
+	_, err := compiler.buildCustomJob(
+		"my-job",
+		configMap,
+		data,
+		false,
+		map[string]struct{}{},
+		map[string]struct{}{},
+	)
+
+	require.Error(t, err)
+	require.ErrorContains(t, err, "jobs.my-job.inputs")
+	require.ErrorContains(t, err, "inputs are not supported on jobs")
+}
+
 func TestBuildCustomJob_UsesReusableWorkflow(t *testing.T) {
 	compiler := NewCompiler()
 	compiler.jobManager = NewJobManager()

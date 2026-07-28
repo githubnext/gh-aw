@@ -505,16 +505,17 @@ func applyClaudeTimeoutEnvVars(env map[string]string, workflowData *WorkflowData
 // applyClaudeModelEnvVars configures ANTHROPIC_MODEL (or fallback env vars) in env.
 // When model is configured, the Claude CLI reads ANTHROPIC_MODEL natively, avoiding
 // template injection issues from embedding the value in shell commands.
-// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION/EVALS_CLAUDE.
+// When model is not configured, fall back to GH_AW_MODEL_AGENT/DETECTION/EVALS_CLAUDE
+// with an explicit Claude Sonnet default so Claude CLI does not choose Opus implicitly.
 func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) {
 	phase := workflowRunPhase(workflowData)
 	if workflowData.Model == "" {
 		if phase == runPhaseEvals {
-			env[constants.EnvVarModelEvalsClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude)
+			env[constants.EnvVarModelEvalsClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 		} else if phase == runPhaseDetection || isDetectionRun(workflowData) {
-			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude)
+			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 		} else {
-			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude)
+			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 		}
 		return
 	}
@@ -527,7 +528,7 @@ func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) 
 		claudeModelVar = constants.EnvVarModelAgentClaude
 	}
 	if containsExpression(workflowData.Model) {
-		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpressionEmptyFallback(claudeModelVar, compilerenv.DefaultModelClaude)
+		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(claudeModelVar, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 	}
 	claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
 	env[constants.ClaudeCLIModelEnvVar] = workflowData.Model

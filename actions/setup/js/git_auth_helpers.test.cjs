@@ -6,6 +6,7 @@ describe("git_auth_helpers.cjs", () => {
   let checkoutHasPersistedExtraheader;
   let overridePersistedExtraheader;
   let restorePersistedExtraheader;
+  let withGitHubHostToken;
 
   const SERVER_URL = "https://github.com";
   const EXTRAHEADER_KEY = "http.https://github.com/.extraheader";
@@ -25,7 +26,7 @@ describe("git_auth_helpers.cjs", () => {
     global.exec = mockExec;
 
     delete require.cache[require.resolve("./git_auth_helpers.cjs")];
-    ({ checkoutHasPersistedExtraheader, overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs"));
+    ({ checkoutHasPersistedExtraheader, overridePersistedExtraheader, restorePersistedExtraheader, withGitHubHostToken } = require("./git_auth_helpers.cjs"));
   });
 
   afterEach(() => {
@@ -221,6 +222,111 @@ describe("git_auth_helpers.cjs", () => {
       // null is treated as empty by the length check
       // @ts-expect-error intentional null test
       await expect(restorePersistedExtraheader(SERVER_URL, null)).resolves.toBeUndefined();
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // withGitHubHostToken
+  // ──────────────────────────────────────────────────────
+
+  describe("withGitHubHostToken", () => {
+    it("should call the callback without any git config changes when token is empty", async () => {
+      let callbackCalled = false;
+      await withGitHubHostToken("", async () => {
+        callbackCalled = true;
+      });
+      expect(callbackCalled).toBe(true);
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should call the callback without any git config changes when token is undefined", async () => {
+      let callbackCalled = false;
+      // @ts-expect-error intentional undefined test
+      await withGitHubHostToken(undefined, async () => {
+        callbackCalled = true;
+      });
+      expect(callbackCalled).toBe(true);
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should override extraheader with fork token before calling callback", async () => {
+      const token = "fork-token";
+      const expectedHeader = `Authorization: basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+      const execCalls = [];
+
+      mockExec.exec.mockImplementation(async (_cmd, args) => {
+        execCalls.push(args);
+        return 0;
+      });
+
+      await withGitHubHostToken(token, async () => {
+        // Inside callback the override should already be applied
+        const overrideCall = execCalls.find(a => a[1] === "--replace-all");
+        expect(overrideCall).toBeDefined();
+        expect(overrideCall[3]).toBe(expectedHeader);
+      });
+    });
+
+    it("should restore the previous extraheader after the callback completes", async () => {
+      const upstreamHeader = `Authorization: basic ${Buffer.from("x-access-token:upstream").toString("base64")}`;
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: upstreamHeader + "\n", stderr: "" });
+
+      await withGitHubHostToken("fork-token", async () => {});
+
+      // After callback, the last --replace-all should restore the upstream header
+      const replaceAllCalls = mockExec.exec.mock.calls.filter(c => c[1][1] === "--replace-all");
+      expect(replaceAllCalls.length).toBeGreaterThanOrEqual(2);
+      const restoreCall = replaceAllCalls[replaceAllCalls.length - 1];
+      expect(restoreCall[1][3]).toBe(upstreamHeader);
+    });
+
+    it("should restore extraheader even when the callback throws", async () => {
+      const upstreamHeader = `Authorization: basic ${Buffer.from("x-access-token:upstream").toString("base64")}`;
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: upstreamHeader + "\n", stderr: "" });
+
+      const callbackError = new Error("push failed");
+      await expect(
+        withGitHubHostToken("fork-token", async () => {
+          throw callbackError;
+        })
+      ).rejects.toThrow(callbackError);
+
+      // Restore must still run after the callback throws — the last --replace-all is the restore
+      const replaceAllCalls = mockExec.exec.mock.calls.filter(c => c[1][1] === "--replace-all");
+      expect(replaceAllCalls.length).toBeGreaterThanOrEqual(2);
+      const restoreCall = replaceAllCalls[replaceAllCalls.length - 1];
+      expect(restoreCall[1][3]).toBe(upstreamHeader);
+    });
+
+    it("should unset extraheader after callback when no previous value existed", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "" });
+
+      await withGitHubHostToken("fork-token", async () => {});
+
+      const unsetCall = mockExec.exec.mock.calls.find(c => c[1][1] === "--unset-all");
+      expect(unsetCall).toBeDefined();
+      expect(unsetCall[1][2]).toBe(EXTRAHEADER_KEY);
+    });
+
+    it("should return the callback's return value", async () => {
+      const result = await withGitHubHostToken("fork-token", async () => "expected-result");
+      expect(result).toBe("expected-result");
+    });
+
+    it("should pass cwd to overridePersistedExtraheader and restorePersistedExtraheader", async () => {
+      const cwd = "/some/repo";
+      const upstreamHeader = `Authorization: basic ${Buffer.from("x-access-token:upstream").toString("base64")}`;
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 0, stdout: upstreamHeader + "\n", stderr: "" });
+
+      await withGitHubHostToken("fork-token", async () => {}, cwd);
+
+      // All git config calls should include cwd
+      for (const call of mockExec.exec.mock.calls) {
+        expect(call[2]).toMatchObject({ cwd });
+      }
+      for (const call of mockExec.getExecOutput.mock.calls) {
+        expect(call[2]).toMatchObject({ cwd });
+      }
     });
   });
 });

@@ -14,6 +14,18 @@ const { sanitizeDomainName } = require("./sanitize_content_core.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { renderMarkdownTemplate } = require("./render_template.cjs");
 
+// Internal AWF sidecar container hostnames added to network.topologyAttach by
+// gh-aw itself (e.g. the MCP Gateway and the CLI proxy). These are
+// framework-managed, not user-controllable external domains, and must never
+// surface in the "blocked domains" warning shown on issues/PRs.
+const AWF_INTERNAL_SIDECAR_HOSTS = ["awmg-mcpg", "awmg-cli-proxy"];
+
+// Pre-compute sanitized forms at module load time.
+// sanitizeDomainName strips non-alphanumeric characters (including hyphens),
+// which is exactly how these container names appear after log sanitization
+// (e.g. "awmg-mcpg" → "awmgmcpg", "awmg-cli-proxy" → "awmgcliproxy").
+const AWF_INTERNAL_SIDECAR_HOSTS_SANITIZED = new Set(AWF_INTERNAL_SIDECAR_HOSTS.map(h => sanitizeDomainName(h)));
+
 /**
  * Parses a single firewall log line
  * Format: timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent
@@ -173,7 +185,7 @@ function getBlockedDomains(logsDir) {
           domainField = entry.destIpPort;
         }
         const sanitizedDomain = extractAndSanitizeDomain(domainField);
-        if (sanitizedDomain && sanitizedDomain !== "-") {
+        if (sanitizedDomain && sanitizedDomain !== "-" && !AWF_INTERNAL_SIDECAR_HOSTS_SANITIZED.has(sanitizedDomain)) {
           blockedDomainsSet.add(sanitizedDomain);
         }
       }

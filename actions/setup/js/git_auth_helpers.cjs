@@ -144,8 +144,41 @@ async function restorePersistedExtraheader(serverUrl, previousValues, cwd) {
   core.info(`git_auth_helpers: extraheader restored`);
 }
 
+/**
+ * Temporarily override the persisted GitHub extraheader for remote git operations.
+ *
+ * Saves the current extraheader value(s), replaces them with the fork token for the
+ * duration of the callback, then restores the original value(s). This ensures that
+ * only one Authorization source is active at a time, preventing duplicate-header HTTP 400s
+ * when a fork token and the checkout-persisted upstream token both apply to the same host.
+ *
+ * @template T
+ * @param {string} token
+ * @param {() => Promise<T>} callback
+ * @param {string} [cwd] - Optional working directory; scopes the git config override to the correct checkout
+ * @returns {Promise<T>}
+ */
+async function withGitHubHostToken(token, callback, cwd) {
+  if (!token) {
+    return callback();
+  }
+  const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+  let previousExtraheaders = [];
+  let overrideApplied = false;
+  try {
+    previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token, cwd);
+    overrideApplied = true;
+    return await callback();
+  } finally {
+    if (overrideApplied) {
+      await restorePersistedExtraheader(githubServerUrl, previousExtraheaders, cwd);
+    }
+  }
+}
+
 module.exports = {
   checkoutHasPersistedExtraheader,
   overridePersistedExtraheader,
   restorePersistedExtraheader,
+  withGitHubHostToken,
 };
