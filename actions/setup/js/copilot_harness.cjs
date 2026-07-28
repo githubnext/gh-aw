@@ -45,7 +45,16 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
 const crypto = require("crypto");
 const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
-const { runProcess, formatDuration, sleep, isCopilotSDKEnabled, buildCopilotSDKEnv } = require("./process_runner.cjs");
+const {
+  runProcess,
+  formatDuration,
+  sleep,
+  isCopilotSDKEnabled,
+  buildCopilotSDKEnv,
+  MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS,
+  DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+  resolvePostResultWatchdogIdleTimeoutMs,
+} = require("./process_runner.cjs");
 const { buildCopilotSDKServerArgs, getCopilotSDKServerPort, startCopilotSDKServer, stopCopilotSDKServer, waitForCopilotSDKServer } = require("./copilot_sdk_sidecar.cjs");
 const { resolveRetryConfig: resolveSharedRetryConfig } = require("./harness_retry_config.cjs");
 const {
@@ -82,8 +91,6 @@ const PROMPT_FILE_INLINE_THRESHOLD_LABEL = "100KB";
 const MAX_ENV_VAR_PREVIEW_LENGTH = 120;
 const OUTPUT_TAIL_MAX_CHARS = 600;
 const OUTPUT_TAIL_MAX_LINES = 12;
-const MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS = 50;
-const DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = 20 * 1000;
 // Default token count threshold above which a 0-turn failure is classified as "long_run_exit"
 // rather than the generic "partial_execution". Corresponds to ~30+ minutes of Copilot
 // CLI work where the wrapper exits non-zero after the agent has completed substantial work.
@@ -97,13 +104,6 @@ function resolveLongRunTokenThreshold(env = process.env) {
   return configured;
 }
 const LONG_RUN_TOKEN_THRESHOLD = resolveLongRunTokenThreshold();
-function resolvePostResultWatchdogIdleTimeoutMs(env = process.env) {
-  const configuredTimeoutMs = Number(env.GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS);
-  if (!Number.isFinite(configuredTimeoutMs) || configuredTimeoutMs <= 0) {
-    return DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS;
-  }
-  return Math.max(MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, configuredTimeoutMs);
-}
 const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
 const COPILOT_REQUESTS_PROXY_AUTH_403_TEMPLATE_NAME = "copilot_requests_proxy_auth_403.md";
 // Pattern to detect transient CAPIError 400 in copilot output
