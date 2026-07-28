@@ -14,6 +14,17 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// countingResolver records how many times ResolveSHA is called, for use in tests
+// that verify whether dynamic resolution is invoked.
+type countingResolver struct {
+	called int
+}
+
+func (r *countingResolver) ResolveSHA(_ context.Context, _, _ string) (string, error) {
+	r.called++
+	return "", nil
+}
+
 func TestBuildByRepoIndex_GroupsByRepoAndSortsDescending(t *testing.T) {
 	pins := []ActionPin{
 		{Repo: "actions/checkout", Version: "v4.0.0", SHA: "sha-v4"},
@@ -105,9 +116,11 @@ func TestLoadActionPinsData_PanicsWhenEntrySHAIsEmpty(t *testing.T) {
 		}
 	}`)
 
-	assert.Panics(t, func() {
-		loadActionPinsData(fixture)
-	}, "Expected loadActionPinsData to panic when embedded pin data contains an empty SHA")
+	assert.PanicsWithValue(t,
+		"action_pins.json has 1 entries with empty SHA [ruby/setup-ruby@v1.319.0] — these would produce invalid workflow YAML (e.g. 'owner/repo@ # version'); remove or fix these entries before releasing",
+		func() {
+			loadActionPinsData(fixture)
+		}, "Expected loadActionPinsData to panic with specific message when embedded pin data contains an empty SHA")
 }
 
 func TestLoadActionPinsData_LoadsContainerPins(t *testing.T) {
@@ -137,9 +150,11 @@ func TestLoadActionPinsData_LoadsContainerPins(t *testing.T) {
 }
 
 func TestFormatPinnedActionReference_PanicsWhenSHAIsEmpty(t *testing.T) {
-	assert.Panics(t, func() {
-		FormatPinnedActionReference("ruby/setup-ruby", "", "v1.319.0")
-	}, "Expected FormatPinnedActionReference to panic when SHA is empty")
+	assert.PanicsWithValue(t,
+		"FormatPinnedActionReference called with empty SHA for repo=ruby/setup-ruby version=v1.319.0 — this would produce invalid workflow YAML",
+		func() {
+			FormatPinnedActionReference("ruby/setup-ruby", "", "v1.319.0")
+		}, "Expected FormatPinnedActionReference to panic with specific message when SHA is empty")
 }
 
 func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
@@ -153,19 +168,13 @@ func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 	})
 
 	t.Run("preserves existing warnings map", func(t *testing.T) {
-		existing := map[string]struct{}{"actions/checkout@v5": {}}
-		ctx := &PinContext{Warnings: make(map[string]bool, len(existing))}
-		for warning := range existing {
-			ctx.Warnings[warning] = true
-		}
+		existing := map[string]bool{"actions/checkout@v5": true}
+		ctx := &PinContext{Warnings: existing}
 
 		initWarnings(ctx)
 
 		require.NotNil(t, ctx.Warnings, "Expected warnings map to remain initialized")
-		assert.Len(t, ctx.Warnings, len(existing), "Expected existing warnings entries to be preserved")
-		for warning := range existing {
-			assert.True(t, ctx.Warnings[warning], "Expected warning %q to be preserved", warning)
-		}
+		assert.Equal(t, existing, ctx.Warnings, "Expected existing warnings to be preserved unchanged")
 	})
 }
 
@@ -407,21 +416,22 @@ func TestGetContainerPin_DefaultMCPImagesArePinned(t *testing.T) {
 	}
 
 	for _, image := range images {
-		pin, ok := GetContainerPin(image)
-		require.True(t, ok, "Expected embedded container pin for %s", image)
-		assert.Equal(t, image, pin.Image, "Expected image name to match key")
-		assert.NotEmpty(t, pin.Digest, "Expected digest to be populated for %s", image)
-		assert.Equal(t, image+"@"+pin.Digest, pin.PinnedImage, "Expected pinned image to include digest for %s", image)
+		t.Run(image, func(t *testing.T) {
+			pin, ok := GetContainerPin(image)
+			require.True(t, ok, "Expected embedded container pin for %s", image)
+			assert.Equal(t, image, pin.Image, "Expected image name to match key")
+			assert.NotEmpty(t, pin.Digest, "Expected digest to be populated for %s", image)
+			assert.Equal(t, image+"@"+pin.Digest, pin.PinnedImage, "Expected pinned image to include digest for %s", image)
+		})
 	}
 }
 
-type countingResolver struct {
-	called int
-}
+func TestGetActionPins_CacheCorrectnessOnRepeatedCalls(t *testing.T) {
+	first := getActionPins()
+	second := getActionPins()
 
-func (r *countingResolver) ResolveSHA(_ context.Context, _, _ string) (string, error) {
-	r.called++
-	return "", nil
+	require.NotEmpty(t, first, "Expected at least one action pin in embedded data")
+	assert.Equal(t, first, second, "Expected repeated calls to getActionPins() to return equal data (cache correctness)")
 }
 
 func TestResolveActionPinDynamically_SkipsForSHAInput(t *testing.T) {
@@ -480,52 +490,98 @@ func TestRecordPinResolutionFailure_NilSafety(t *testing.T) {
 }
 
 func TestResolveActionPinFromHardcodedPins_StrictModeNoFallback(t *testing.T) {
-	ctx := &PinContext{StrictMode: true, Warnings: make(map[string]bool)}
+	t.Run("strict mode does not fall back when no exact match", func(t *testing.T) {
+		ctx := &PinContext{StrictMode: true, Warnings: make(map[string]bool)}
 
-	result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v999", false, ctx)
+		result, ok := resolveActionPinFromHardcodedPins("actions/checkout", "v999", false, ctx)
 
-	assert.False(t, ok, "Expected strict mode not to fall back to any other hardcoded version")
-	assert.Empty(t, result, "Expected no pinned result in strict mode without exact match")
+		assert.False(t, ok, "Expected strict mode not to fall back to any other hardcoded version")
+		assert.Empty(t, result, "Expected no pinned result in strict mode without exact match")
+	})
+
+	t.Run("strict mode resolves exact version match", func(t *testing.T) {
+		latestPin, ok := GetLatestActionPinByRepo("actions/checkout")
+		require.True(t, ok, "prerequisite: embedded pin must exist for actions/checkout")
+
+		ctx := &PinContext{StrictMode: true, Warnings: make(map[string]bool)}
+
+		result, resolved := resolveActionPinFromHardcodedPins("actions/checkout", latestPin.Version, false, ctx)
+
+		require.True(t, resolved, "Expected exact version match to resolve in strict mode")
+		assert.Contains(t, result, latestPin.SHA, "Expected result to include matched SHA")
+		assert.Contains(t, result, latestPin.Version, "Expected result to include matched version")
+	})
 }
 
-func TestResolveExactHardcodedPin_BySHA(t *testing.T) {
-	pins := []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}}
+// --- resolveExactHardcodedPin ---
 
-	result, ok := resolveExactHardcodedPin("actions/checkout", "sha-v5", true, pins)
+func TestResolveExactHardcodedPin(t *testing.T) {
+	tests := []struct {
+		name         string
+		pins         []ActionPin
+		repo         string
+		version      string
+		isSHA        bool
+		wantOK       bool
+		wantContains []string
+	}{
+		{
+			name:         "SHA input matches by SHA field",
+			pins:         []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}},
+			repo:         "actions/checkout",
+			version:      "sha-v5",
+			isSHA:        true,
+			wantOK:       true,
+			wantContains: []string{"sha-v5"},
+		},
+		{
+			name:         "version input matches by Version field",
+			pins:         []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}},
+			repo:         "actions/checkout",
+			version:      "v5.0.0",
+			isSHA:        false,
+			wantOK:       true,
+			wantContains: []string{"sha-v5", "v5.0.0"},
+		},
+		{
+			name:    "no match returns false",
+			pins:    []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}},
+			repo:    "actions/checkout",
+			version: "v4.0.0",
+			isSHA:   false,
+			wantOK:  false,
+		},
+		{
+			// When isAlreadySHA=false, only the version-match path runs; the SHA-match loop is
+			// skipped entirely. This case uses a pin whose Version and SHA fields are identical
+			// to make the path selection explicit: the version loop matches and returns before
+			// the SHA loop would ever execute.
+			name:         "version-match path takes precedence over SHA path when isAlreadySHA=false",
+			pins:         []ActionPin{{Repo: "actions/checkout", Version: "sha-v5", SHA: "sha-v5"}},
+			repo:         "actions/checkout",
+			version:      "sha-v5",
+			isSHA:        false,
+			wantOK:       true,
+			wantContains: []string{"sha-v5"},
+		},
+	}
 
-	require.True(t, ok, "Expected exact SHA match to resolve")
-	assert.Contains(t, result, "sha-v5", "Expected result to include matched SHA")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, ok := resolveExactHardcodedPin(tt.repo, tt.version, tt.isSHA, tt.pins)
+			assert.Equal(t, tt.wantOK, ok, "ok should match expected")
+			if tt.wantOK {
+				for _, want := range tt.wantContains {
+					assert.Contains(t, result, want, "result should contain %q", want)
+				}
+			} else {
+				assert.Empty(t, result, "Expected empty result when no exact match is found")
+			}
+		})
+	}
 }
 
-func TestResolveExactHardcodedPin_ByVersion(t *testing.T) {
-	pins := []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}}
-
-	result, ok := resolveExactHardcodedPin("actions/checkout", "v5.0.0", false, pins)
-
-	require.True(t, ok, "Expected exact version match to resolve")
-	assert.Contains(t, result, "sha-v5", "Expected result to include matched SHA")
-	assert.Contains(t, result, "v5.0.0", "Expected result to include matched version")
-}
-
-func TestResolveExactHardcodedPin_NoMatch(t *testing.T) {
-	pins := []ActionPin{{Repo: "actions/checkout", Version: "v5.0.0", SHA: "sha-v5"}}
-
-	result, ok := resolveExactHardcodedPin("actions/checkout", "v4.0.0", false, pins)
-
-	assert.False(t, ok, "Expected no resolution when version does not match and input is not SHA")
-	assert.Empty(t, result, "Expected empty result when no exact match is found")
-}
-
-func TestResolveExactHardcodedPin_VersionTakesPrecedenceOverSHA(t *testing.T) {
-	// When isAlreadySHA=false, only the version-match path runs; the SHA-match loop is
-	// skipped entirely. This test uses a pin whose Version and SHA fields are identical
-	// to make the path selection explicit: the version loop matches and returns before
-	// the SHA loop would ever execute.
-	pins := []ActionPin{{Repo: "actions/checkout", Version: "sha-v5", SHA: "sha-v5"}}
-	result, ok := resolveExactHardcodedPin("actions/checkout", "sha-v5", false, pins)
-	require.True(t, ok, "Expected version-match path to resolve when isAlreadySHA=false")
-	assert.Contains(t, result, "sha-v5", "Expected result to include the matched pin's SHA/version")
-}
+// --- resolveNonStrictHardcodedPin ---
 
 func TestResolveNonStrictHardcodedPin_SelectsHighestCompatible(t *testing.T) {
 	pins := []ActionPin{
