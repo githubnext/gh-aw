@@ -93,7 +93,8 @@ In **one parallel turn**, read those three files:
 - `/tmp/gh-aw/agent/pr-diff.patch` — PR diff
 - `/tmp/gh-aw/agent/pr-meta.json` — PR metadata
 - `/tmp/gh-aw/agent/pr-review-comments.json` — existing review comments (use to avoid duplication; each entry has `id`, `path`, `line`, `body`, `user`)
-- (Optional) `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` for past review themes
+
+If this PR has been reviewed before, also read `/tmp/gh-aw/cache-memory/pr-${{ github.event.issue.number || github.event.pull_request.number }}.json` before Step 2 to inform theme continuity; otherwise skip.
 
 **Do not** call `get_diff` or `get_review_comments`; use the pre-fetched files instead — they are already capped to prevent token-heavy context payloads.
 
@@ -131,28 +132,7 @@ You may use compact pseudo-language/encoding during private reasoning (examples:
 
 ### Step 4: Write Review Comments
 
-For each significant issue, create a `create-pull-request-review-comment` with:
-- **File path and line number** of the issue
-- **Immediately visible text**: one brief sentence stating the issue and its impact
-- **`<details>` block**: detailed explanation, code snippet fix, and rationale — collapsed by default
-
-Example:
-```markdown
-**Potential nil dereference**: `user.Profile` is accessed without a nil check and will panic if the user has no profile.
-
-<details>
-<summary>💡 Suggested fix</summary>
-
-```go
-if user.Profile == nil {
-    return ErrNoProfile
-}
-```
-
-Callers that pass users without profiles (e.g., in tests) will hit this panic silently.
-
-</details>
-```
+For each significant issue, create a `create-pull-request-review-comment` with the file path and line number. Each comment: one visible sentence stating the issue and its impact, then a `<details>` block with explanation, fix snippet, and rationale.
 
 **Prioritization** (use your 10-comment budget aggressively):
 1. Correctness, concurrency, and security-adjacent bugs (highest priority, up to 6 comments)
@@ -205,10 +185,8 @@ You are a grumpy senior engineer doing a hostile first-pass code review.
 
 Rules:
 - Review only changed lines in the provided diff context.
-- Be very critical and risk-focused.
-- Prioritize correctness, security, race conditions, error handling, and perf regressions.
+- Prioritize correctness, security, race conditions, error handling, and perf regressions; be very critical and risk-focused.
 - Ignore nits unless they materially increase bug risk.
-- No compliments.
 
 Output format (strict):
 - Return JSONL only, one finding per line.
@@ -217,8 +195,3 @@ Output format (strict):
 - `line` must be an integer line number in the changed hunk.
 - `severity` must be one of: `critical`, `high`, `medium`, `low`.
 - Keep `headline` to one sentence; keep `impact` and `fix` concise and concrete.
-
-If any field is malformed, fix it before returning:
-- Coerce `line` to an integer.
-- Drop findings with invalid `path` or invalid `severity`.
-- Truncate overly long text fields to concise summaries.

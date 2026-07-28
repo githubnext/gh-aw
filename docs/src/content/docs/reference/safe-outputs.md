@@ -1222,6 +1222,14 @@ safe-outputs:
 
 At compile time, for same-repo dispatch (`target-repo` unset or `${{ github.repository }}`), the compiler validates that each workflow exists (`.md`, `.lock.yml`, or `.yml`), declares `workflow_dispatch` in its `on:` section, does not self-reference, and resolves the correct file extension. For cross-repo dispatch (`target-repo` set to another repository), local workflow file validation is skipped and GitHub enforces existence at dispatch time.
 
+At runtime, when exactly one workflow is configured, the agent may omit `workflow_name` in the emitted `dispatch_workflow` item and gh-aw infers the only allowed target. When two or more workflows are configured, `workflow_name` remains required so the dispatch target stays explicit.
+
+```json
+{ "type": "dispatch_workflow", "inputs": { "message": "hello" } }
+```
+
+With `dispatch-workflow: [workflow-handler]`, that item is normalized to target `workflow-handler` automatically before validation.
+
 #### Defining Workflow Inputs
 
 Define `workflow_dispatch` inputs in the target workflow so the agent can provide values when dispatching:

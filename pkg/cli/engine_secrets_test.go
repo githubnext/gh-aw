@@ -5,6 +5,8 @@ package cli
 import (
 	"net/url"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -336,6 +338,39 @@ func TestStringContainsSecretName(t *testing.T) {
 				tt.output, tt.secretName, got, tt.want)
 		})
 	}
+}
+
+func TestUploadSecretToRepo_UsesStdinForSecretValue(t *testing.T) {
+	fakeBinDir := t.TempDir()
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLog := filepath.Join(fakeBinDir, "gh-args.log")
+	stdinLog := filepath.Join(fakeBinDir, "gh-stdin.log")
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLog + "\"\n" +
+		"if [ \"$1\" = \"secret\" ] && [ \"$2\" = \"list\" ]; then\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"if [ \"$1\" = \"secret\" ] && [ \"$2\" = \"set\" ]; then\n" +
+		"  cat > \"" + stdinLog + "\"\n" +
+		"  exit 0\n" +
+		"fi\n" +
+		"exit 1\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	err := uploadSecretToRepo(t.Context(), "TEST_SECRET", "super-secret-value", "owner/repo", false, true)
+	require.NoError(t, err)
+
+	argsBytes, readArgsErr := os.ReadFile(argsLog)
+	require.NoError(t, readArgsErr)
+	args := string(argsBytes)
+	assert.Contains(t, args, "secret set TEST_SECRET --repo owner/repo")
+	assert.NotContains(t, args, "--body")
+	assert.NotContains(t, args, "super-secret-value")
+
+	stdinBytes, readStdinErr := os.ReadFile(stdinLog)
+	require.NoError(t, readStdinErr)
+	assert.Equal(t, "super-secret-value", strings.TrimSpace(string(stdinBytes)))
 }
 
 func TestGetEngineSecretDescription(t *testing.T) {

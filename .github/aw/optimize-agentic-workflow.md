@@ -55,9 +55,10 @@ The workflow was stopped because it consumed more AI Credits than the configured
 Priority checks:
 1. Which tool calls dominated token usage? (`token-usage.jsonl`)
 2. Is the prompt front-loading large payloads that could be fetched on demand?
-3. Are there repetitive extraction steps that sub-agents could handle cheaply?
-4. Does the frontier model handle tasks that a small model could do?
-5. Can the workflow stay within its current budget after applying and measuring all applicable optimizations?
+3. Are there large file reads (> 20 KB) via `get_file_contents` that could be replaced with `grep`/`glob`/`view_range`? These are the most common cause of late-session token spikes.
+4. Are there repetitive extraction steps that sub-agents could handle cheaply?
+5. Does the frontier model handle tasks that a small model could do?
+6. Can the workflow stay within its current budget after applying and measuring all applicable optimizations?
 
 Increasing `max-ai-credits` is the last resort. Recommend it only after the applicable optimizations below have been tried and measured, and the workflow still cannot complete with acceptable quality within the existing per-run budget.
 

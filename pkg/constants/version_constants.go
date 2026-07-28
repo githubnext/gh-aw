@@ -70,7 +70,7 @@ const DefaultGitHubMCPServerVersion Version = "v1.7.0"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultFirewallVersion Version = "v0.27.41"
+const DefaultFirewallVersion Version = "v0.27.42"
 
 // AWFExcludeEnvMinVersion is the minimum AWF version that supports the --exclude-env flag.
 // Workflows pinning an older AWF version must not emit --exclude-env flags or the run will fail.
@@ -120,7 +120,9 @@ const AWFLegacySecurityMinVersion Version = "v0.27.32"
 // apiProxy.providers in awf-config.json.
 // Workflows pinning an older AWF version must not emit this field because older
 // AWF strict config validation rejects unknown apiProxy properties.
-const AWFAPIProxyProvidersMinVersion Version = "v0.27.42"
+// NOTE: v0.27.42 does NOT include this field in its schema; gate requires a
+// future release that adds apiProxy.providers to awf-config-schema.json.
+const AWFAPIProxyProvidersMinVersion Version = "v0.27.43"
 
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
@@ -143,7 +145,7 @@ const CopilotNoAskUserMinVersion Version = "1.0.19"
 //
 // The first recompile regenerates all lock files using the new version; the second recompile
 // refreshes the container SHA pins that were resolved during the first pass.
-const DefaultMCPGatewayVersion Version = "v0.4.5"
+const DefaultMCPGatewayVersion Version = "v0.4.6"
 
 // MCPGIntegrityReactionsMinVersion is the minimum MCPG version that supports
 // endorsement-reactions and disapproval-reactions in the allow-only policy.

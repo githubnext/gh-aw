@@ -5,6 +5,7 @@ import (
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
+	"github.com/github/gh-aw/pkg/sliceutil"
 )
 
 var mcpRendererBuiltinLog = logger.New("workflow:mcp_renderer_builtin")
@@ -98,7 +99,24 @@ func (r *MCPConfigRendererUnified) renderSafeOutputsTOML(yaml *strings.Builder, 
 	yaml.WriteString("          args = [\"-w\", \"$GITHUB_WORKSPACE\"]\n")
 	yaml.WriteString("          entrypoint = \"sh\"\n")
 	yaml.WriteString("          entrypointArgs = [\"-c\", \"sh ${RUNNER_TEMP}/gh-aw/safeoutputs/start_safe_outputs_mcp.sh\"]\n")
-	yaml.WriteString("          env_vars = [\"DEBUG\", \"DEFAULT_BRANCH\", \"GH_AW_ASSETS_ALLOWED_EXTS\", \"GH_AW_ASSETS_BRANCH\", \"GH_AW_ASSETS_MAX_SIZE_KB\", \"GH_AW_MCP_LOG_DIR\", \"GH_AW_SAFE_OUTPUTS\", \"GH_AW_SAFE_OUTPUTS_CONFIG_PATH\", \"GH_AW_SAFE_OUTPUTS_TOOLS_PATH\", \"GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST\", \"GITHUB_REPOSITORY\", \"GITHUB_SHA\", \"GITHUB_TOKEN\", \"GITHUB_WORKSPACE\", \"RUNNER_TEMP\"]\n")
+
+	// Build the env_vars list: fixed vars + any GH_AW_INPUT_* vars referenced by the
+	// safe-outputs config so the nested container can resolve ${GH_AW_INPUT_…} placeholders.
+	safeOutputsEnvVars := []string{
+		"DEBUG", "DEFAULT_BRANCH",
+		"GH_AW_ASSETS_ALLOWED_EXTS", "GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB",
+		"GH_AW_MCP_LOG_DIR", "GH_AW_SAFE_OUTPUTS", "GH_AW_SAFE_OUTPUTS_CONFIG_PATH",
+		"GH_AW_SAFE_OUTPUTS_TOOLS_PATH", "GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST",
+		"GITHUB_REPOSITORY", "GITHUB_SHA", "GITHUB_TOKEN", "GITHUB_WORKSPACE", "RUNNER_TEMP",
+	}
+	if workflowData != nil {
+		safeOutputsEnvVars = append(safeOutputsEnvVars, sliceutil.SortedKeys(workflowData.SafeOutputsInputEnvVars)...)
+	}
+	quoted := make([]string, len(safeOutputsEnvVars))
+	for i, v := range safeOutputsEnvVars {
+		quoted[i] = "\"" + v + "\""
+	}
+	yaml.WriteString("          env_vars = [" + strings.Join(quoted, ", ") + "]\n")
 
 	// Check if GitHub tool has guard-policies configured (or auto-lockdown will run)
 	// If so, generate a linked write-sink guard-policy for safeoutputs
@@ -272,6 +290,18 @@ func renderSafeOutputsMCPConfigWithOptions(yaml *strings.Builder, isLast bool, i
 		{"GITHUB_TOKEN", "GITHUB_TOKEN", false},
 		{"GITHUB_WORKSPACE", "GITHUB_WORKSPACE", false},
 		{"RUNNER_TEMP", "RUNNER_TEMP", false},
+	}
+
+	// Append GH_AW_INPUT_* vars referenced by the safe-outputs config so the nested
+	// container can resolve ${GH_AW_INPUT_…} shell-style placeholders at runtime.
+	if workflowData != nil {
+		for _, name := range sliceutil.SortedKeys(workflowData.SafeOutputsInputEnvVars) {
+			envVars = append(envVars, struct {
+				name      string
+				value     string
+				isLiteral bool
+			}{name, name, false})
+		}
 	}
 
 	for i, envVar := range envVars {

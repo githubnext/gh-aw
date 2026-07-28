@@ -232,6 +232,34 @@ New threat categories do not immediately become normative rules. This section de
 
 3. **Normative stage**: The threat class is formally added to Section 5.1 and Section 8.1 via a pull request that includes: the CTR rule definition, the implementation mapping in Section 7.1, at least one test ID in Section 8.1, and a change-log entry in Section 10. The pull request **MUST** be reviewed by at least one security-focused maintainer. Once merged, the rule **MUST** be enforced by all conforming implementations. Any feature flag used during Candidate stage **MUST** be removed in the same pull request that adds the Normative definition.
 
+### 6.6 Optimizer Failure Safeguards
+
+The daily optimizer process (Section 6) is itself subject to failure. This section specifies normative behavior for the three principal failure modes: API unavailability, runner timeout, and rate-limit or quota exhaustion. These safeguards mirror the pattern established in the AWF Config Canonical Sources Specification §7.
+
+**Failure Mode 1 — API Unavailability**
+
+When the GitHub API or any external service required by the optimizer (for example, code-scanning results, issue search, or PR listing endpoints) is unavailable during the threat-coverage check:
+
+1. The optimizer **MUST** not emit false noop reports. When authoritative data cannot be retrieved, the optimizer **MUST** emit an `OPTIMIZER_DEGRADED` diagnostic entry in its daily output that records the failing endpoint(s), the HTTP status or error class, and the UTC timestamp of the failure.
+2. The optimizer **MUST NOT** open a pull request or update spec artifacts based on incomplete threat-coverage data obtained during a degraded API run.
+3. The optimizer **SHOULD** retry failed API calls with an exponential back-off policy (initial delay: 10 seconds; maximum delay: 5 minutes; maximum attempts: 3) before declaring the run degraded.
+
+**Failure Mode 2 — Runner Timeout**
+
+When the optimizer job is cancelled or exceeds its allotted execution time before completing the threat-coverage check:
+
+1. The optimizer job **MUST** emit a structured `OPTIMIZER_TIMEOUT` output entry before termination, recording the last completed step and the set of CTR rules that had not yet been evaluated at the time of cancellation.
+2. The optimizer **MUST NOT** produce a partial noop report or a partial PR when the timeout occurs mid-evaluation; any in-progress artifacts **MUST** be discarded.
+3. The optimizer workflow **SHOULD** be configured with an explicit `timeout-minutes` value and **SHOULD** schedule a follow-up retry run within the same calendar day when a timeout is detected.
+
+**Failure Mode 3 — Rate-Limit or Quota Exhaustion**
+
+When the GitHub API returns secondary rate-limit (`403` with `Retry-After` header) or primary rate-limit (`429`) responses during the optimization run:
+
+1. The optimizer **MUST** apply the `RATE_LIMIT_RETRY_CONFIG` retry policy (as defined in `actions/setup/js/error_recovery.cjs`) before emitting a terminal failure.
+2. If all retries are exhausted and the rate limit is not recovered, the optimizer **MUST** emit an `OPTIMIZER_RATE_LIMITED` diagnostic entry recording the affected endpoints and the `Retry-After` or `x-ratelimit-reset` value.
+3. The optimizer **MUST NOT** count a rate-limited run as a completed threat-coverage cycle; the run **MUST** be retried in the next scheduled window.
+
 ---
 
 ## 7. Implementation Mapping

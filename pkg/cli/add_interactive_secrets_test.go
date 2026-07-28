@@ -7,6 +7,8 @@ import (
 	"context"
 	"io"
 	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -253,6 +255,37 @@ func TestParseSecretNames(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "parseSecretNames output should match expected")
 		})
 	}
+}
+
+func TestAddInteractiveConfig_addRepositorySecret_UsesStdinForSecretValue(t *testing.T) {
+	fakeBinDir := t.TempDir()
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	argsLog := filepath.Join(fakeBinDir, "gh-args.log")
+	stdinLog := filepath.Join(fakeBinDir, "gh-stdin.log")
+	script := "#!/bin/sh\n" +
+		"printf '%s\\n' \"$*\" >> \"" + argsLog + "\"\n" +
+		"cat > \"" + stdinLog + "\"\n" +
+		"exit 0\n"
+	require.NoError(t, os.WriteFile(fakeGH, []byte(script), 0o755))
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	config := &AddInteractiveConfig{
+		Ctx:          t.Context(),
+		RepoOverride: "owner/repo",
+	}
+	err := config.addRepositorySecret("TEST_SECRET", "super-secret-value")
+	require.NoError(t, err)
+
+	argsBytes, readArgsErr := os.ReadFile(argsLog)
+	require.NoError(t, readArgsErr)
+	args := string(argsBytes)
+	assert.Contains(t, args, "secret set TEST_SECRET --repo owner/repo")
+	assert.NotContains(t, args, "--body")
+	assert.NotContains(t, args, "super-secret-value")
+
+	stdinBytes, readStdinErr := os.ReadFile(stdinLog)
+	require.NoError(t, readStdinErr)
+	assert.Equal(t, "super-secret-value", strings.TrimSpace(string(stdinBytes)))
 }
 
 func TestAddInteractiveConfig_checkExistingSecrets(t *testing.T) {
