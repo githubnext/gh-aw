@@ -1,22 +1,8 @@
 ---
 private: true
 emoji: "🏗️"
-description: Enforces Architecture Decision Records (ADRs) before implementation work can merge, detecting missing design decisions and generating draft ADRs using AI analysis
+description: "[Deprecated auto-run] Manual-only ADR gate for on-demand architecture decision checks"
 on:
-  pull_request:
-    types: [labeled, ready_for_review]
-    names: ["implementation"]
-    paths:
-      - 'actions/**'
-      - 'cmd/**'
-      - 'internal/**'
-      - 'pkg/**'
-      - 'docs/adr/**'
-      - '.design-gate.yml'
-      - 'eslint-factory/**'
-      - 'scripts/**'
-      - 'tools.go'
-      - '.github/workflows/**'
   slash_command:
     strategy: centralized
     name: review
@@ -45,6 +31,7 @@ safe-outputs:
     ignore-missing-branch-failure: true
     commit-title-suffix: " [design-decision-gate]"
   noop:
+  report-failure-as-issue: false
   messages:
     footer: "> 🏗️ *ADR gate enforced by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is checking for design decision records on this {event_type}..."

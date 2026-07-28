@@ -4,7 +4,7 @@ cache:
   path: /tmp/gh-aw/agent
   restore-keys:
   - pr-prefetch-${{ github.event.pull_request.number || github.event.issue.number }}-
-description: Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes
+description: "[Deprecated auto-run] Manual-only reviewer using Matt Pocock's engineering skills for targeted PR feedback"
 emoji: 🔍
 engine:
   id: copilot
@@ -18,15 +18,6 @@ imports:
 max-daily-ai-credits: 10000
 model: claude-sonnet-4.6
 "on":
-  pull_request:
-    paths-ignore:
-    - "*.md"
-    - docs/**
-    - .changeset/**
-    - socials/**
-    - scratchpad/**
-    types:
-    - ready_for_review
   slash_command:
     events:
     - pull_request_comment
@@ -54,6 +45,7 @@ safe-outputs:
     run-success: 🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅
   submit-pull-request-review:
     max: 1
+  report-failure-as-issue: false
 sandbox:
   agent:
     sudo: false
