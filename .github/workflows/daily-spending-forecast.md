@@ -12,6 +12,8 @@ permissions:
   copilot-requests: write
 strict: true
 tools:
+  github:
+    mode: gh-proxy
   agentic-workflows: true
 steps:
   - name: Build gh-aw from source
