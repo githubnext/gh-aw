@@ -213,8 +213,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `IsDockerAvailable` | `func(ctx context.Context) bool` | Returns true if the Docker daemon is reachable |
 | `IsDockerImageAvailable` | `func(ctx context.Context, image string) bool` | Returns true if a Docker image is present locally |
 | `IsDockerImageDownloading` | `func(string) bool` | Returns true if an image pull is in progress |
-| `StartDockerImageDownload` | `func(ctx, image string) bool` | Begins a background image pull; returns false if already pulling |
-| `CheckAndPrepareDockerImages` | `func(ctx, useZizmor, usePoutine, useActionlint, useRunnerGuard, useGrype, useYamllint bool) error` | Pre-pulls security-scanner Docker images |
+| `StartDockerImageDownload` | `func(ctx context.Context, image string) (bool, func() error)` | Begins a background image pull; returns false if already pulling. The join function blocks until the goroutine exits and returns any download error. |
+| `CheckAndPrepareDockerImages` | `func(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype, useGrant, useYamllint bool) error` | Pre-pulls security-scanner Docker images |
 | `UpdateContainerPins` | `func(ctx, workflowDir string, verbose bool) error` | Updates container image SHA pins in workflow files |
 | `CreatePRWithChanges` | `func(branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |
 | `AutoMergePullRequestsCreatedAfter` | `func(repoSlug string, createdAfter time.Time, verbose bool) error` | Auto-merges eligible PRs created after a given time |
