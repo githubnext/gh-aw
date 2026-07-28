@@ -4,7 +4,7 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { AWF_GATEWAY_IP, buildMCPCLIServersPromptList, parseMCPResponseBody, recoverSafeOutputsToolsIfNeeded, toContainerUrl } from "./mount_mcp_as_cli.cjs";
+import { AWF_GATEWAY_IP, buildMCPCLIServersPromptList, getSafeOutputsGatewayEmptyFlagPath, parseMCPResponseBody, recoverSafeOutputsToolsIfNeeded, toContainerUrl } from "./mount_mcp_as_cli.cjs";
 
 describe("mount_mcp_as_cli.cjs", () => {
   it("parses JSON object responses unchanged", () => {
@@ -64,37 +64,81 @@ describe("mount_mcp_as_cli.cjs", () => {
     }
   });
 
-  it("recovers empty safeoutputs tools from fallback tools.json", () => {
+  it("recovers empty safeoutputs tools from fallback tools.json and writes gateway-empty flag", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mount-safeoutputs-"));
     const fallbackPath = path.join(tempDir, "tools.json");
     fs.writeFileSync(fallbackPath, JSON.stringify([{ name: "create_issue" }]), "utf8");
     const originalPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    const originalRunnerTemp = process.env.RUNNER_TEMP;
     process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = fallbackPath;
+    process.env.RUNNER_TEMP = tempDir;
     try {
       const warnings = [];
       const recovered = recoverSafeOutputsToolsIfNeeded([], { warning: message => warnings.push(message) });
       expect(recovered).toHaveLength(1);
       expect(recovered[0].name).toBe("create_issue");
+      // Warning must mention live gateway being broken, not just "recovered N tool(s)"
       expect(warnings.join("\n")).toContain("recovered 1 tool(s)");
+      expect(warnings.join("\n")).toContain("live MCP gateway has 0 tools");
+      // Flag file must be written so collect_ndjson_output.cjs can detect the outage
+      const flagPath = getSafeOutputsGatewayEmptyFlagPath();
+      expect(fs.existsSync(flagPath)).toBe(true);
     } finally {
       if (originalPath === undefined) {
         delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
       } else {
         process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = originalPath;
       }
+      if (originalRunnerTemp === undefined) {
+        delete process.env.RUNNER_TEMP;
+      } else {
+        process.env.RUNNER_TEMP = originalRunnerTemp;
+      }
       fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
-  it("throws when safeoutputs tools remain empty after fallback", () => {
+  it("throws when safeoutputs tools remain empty after fallback and still writes gateway-empty flag", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mount-safeoutputs-empty-"));
     const originalPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    const originalRunnerTemp = process.env.RUNNER_TEMP;
+    process.env.RUNNER_TEMP = tempDir;
     delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
     try {
       expect(() => recoverSafeOutputsToolsIfNeeded([], { warning: () => {} })).toThrow(/safeoutputs tool schema is empty/);
+      // Flag file must still be written even when the function throws
+      const flagPath = getSafeOutputsGatewayEmptyFlagPath();
+      expect(fs.existsSync(flagPath)).toBe(true);
     } finally {
       if (originalPath !== undefined) {
         process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = originalPath;
       }
+      if (originalRunnerTemp === undefined) {
+        delete process.env.RUNNER_TEMP;
+      } else {
+        process.env.RUNNER_TEMP = originalRunnerTemp;
+      }
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("does not write gateway-empty flag when tools list is non-empty", () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mount-safeoutputs-ok-"));
+    const originalRunnerTemp = process.env.RUNNER_TEMP;
+    process.env.RUNNER_TEMP = tempDir;
+    try {
+      const tools = [{ name: "push_to_pull_request_branch" }];
+      const result = recoverSafeOutputsToolsIfNeeded(tools, { warning: () => {} });
+      expect(result).toEqual(tools);
+      const flagPath = getSafeOutputsGatewayEmptyFlagPath();
+      expect(fs.existsSync(flagPath)).toBe(false);
+    } finally {
+      if (originalRunnerTemp === undefined) {
+        delete process.env.RUNNER_TEMP;
+      } else {
+        process.env.RUNNER_TEMP = originalRunnerTemp;
+      }
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
