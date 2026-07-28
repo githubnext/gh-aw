@@ -1,0 +1,3 @@
+{"id":"held_out_validation","question":"Did the workflow keep validation examples hidden from the proposer and builder and evaluate the candidate before accepting it?","answer":"YES","model":"small","timestamp":"2026-07-28T21:17:51.900Z","runid":"30398919819"}
+{"id":"bounded_skill_change","question":"Did the workflow create or refine exactly one focused skill without changing files outside .github/skills?","answer":"YES","model":"small","timestamp":"2026-07-28T21:17:51.900Z","runid":"30398919819"}
+{"id":"evidence_based_selection","question":"Was the candidate accepted only when its validation score exceeded the baseline without a regression?","answer":"YES","model":"small","timestamp":"2026-07-28T21:17:51.900Z","runid":"30398919819"}
