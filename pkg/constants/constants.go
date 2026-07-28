@@ -484,6 +484,10 @@ const TmpMcpConfigLogsDir = TmpMcpConfigDir + "/logs/"
 // TmpMcpLogsDir is the MCP server logs root directory (with trailing slash).
 const TmpMcpLogsDir = TmpGhAwDir + "/mcp-logs/"
 
+// TmpMcpLogsDirExpr is the host-side MCP logs path resolved by Actions expression.
+// Use this in YAML `with:` fields on ARC/DinD topologies where /tmp is not daemon-visible.
+const TmpMcpLogsDirExpr = GhAwRootDir + "/mcp-logs/"
+
 // TmpMcpLogsSafeOutputsDir is the safe-outputs MCP server log directory.
 const TmpMcpLogsSafeOutputsDir = TmpGhAwDir + "/mcp-logs/safeoutputs"
 

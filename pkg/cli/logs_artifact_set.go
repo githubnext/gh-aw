@@ -45,6 +45,8 @@ const (
 	// ArtifactSetMCP downloads the agent artifact which now includes MCP
 	// gateway traffic logs (gateway.jsonl, rpc-messages.jsonl) containing tool
 	// calls, server negotiations, and RPC request/response pairs.
+	// It also downloads the dedicated mcp-logs-{name} artifact added by gh-aw#48674
+	// so telemetry is available even when the unified agent artifact is incomplete.
 	ArtifactSetMCP ArtifactSet = "mcp"
 
 	// ArtifactSetFirewall downloads the agent artifact which now includes
@@ -82,7 +84,7 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 	ArtifactSetAll:        nil, // no filtering – download all artifacts
 	ArtifactSetActivation: {constants.ActivationArtifactName},
 	ArtifactSetAgent:      {constants.AgentArtifactName},
-	ArtifactSetMCP:        {constants.AgentArtifactName},
+	ArtifactSetMCP:        {constants.AgentArtifactName, constants.MCPLogsArtifactBaseName},
 	ArtifactSetFirewall:   {constants.AgentArtifactName},
 	ArtifactSetDetection:  {constants.DetectionArtifactName},
 	// github-api: both jobs upload github_rate_limits.jsonl; fetch both for a complete view.

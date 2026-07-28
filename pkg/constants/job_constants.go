@@ -96,6 +96,12 @@ const AgentOutputArtifactName = "agent-output"
 // including safe outputs, agent output, engine logs, and other agent-related files.
 const AgentArtifactName = "agent"
 
+// MCPLogsArtifactBaseName is the base name for the dedicated MCP telemetry artifact.
+// The full artifact name is "mcp-logs-{sanitized-workflow-name}", e.g. "mcp-logs-pr-sous-chef".
+// This dedicated artifact ensures gateway.jsonl and rpc-messages.jsonl are consistently
+// captured per run, independently of the unified agent artifact.
+const MCPLogsArtifactBaseName = "mcp-logs"
+
 // DetectionArtifactName is the artifact name for the threat detection log.
 const DetectionArtifactName = "detection"
 

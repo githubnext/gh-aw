@@ -1210,6 +1210,18 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/generate_observability_summary.cjs');
             await main(core);
+      - name: Fix MCP logs permissions
+        if: always()
+        continue-on-error: true
+        run: chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || true
+      - name: Upload MCP logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mcp-logs-developer-documentation-consolidator
+          path: /tmp/gh-aw/mcp-logs/
+          if-no-files-found: ignore
       - name: Write agent output placeholder if missing
         if: always()
         run: |
