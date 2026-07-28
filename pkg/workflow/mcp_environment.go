@@ -101,6 +101,12 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
 			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
 		}
+		// GH_AW_SINK_VISIBILITY passes repository visibility to the MCP gateway config heredoc via
+		// a shell variable reference (${GH_AW_SINK_VISIBILITY}), avoiding a ${{ }} expression
+		// directly in the run: block which zizmor --persona=auditor flags as template injection.
+		// The determine-automatic-lockdown step always runs when the GitHub tool is present (even
+		// with explicit guard policies) specifically to populate this output.
+		envVars["GH_AW_SINK_VISIBILITY"] = "${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}"
 	}
 
 	// Check for safe-outputs env vars

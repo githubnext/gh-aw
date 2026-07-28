@@ -19,7 +19,11 @@ import (
 const guardExprSentinel = "__GH_AW_GUARD_EXPR:"
 
 // sinkVisibilityRuntimeExpr resolves repository visibility at workflow runtime for MCP guard policies.
-const sinkVisibilityRuntimeExpr = guardExprSentinel + "${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}"
+// Uses a shell variable reference (${GH_AW_SINK_VISIBILITY}) so that the compiled lock file
+// does not contain a ${{ }} expression inside the run: heredoc, which would be flagged as
+// template injection by zizmor --persona=auditor. The actual value is passed through the
+// GH_AW_SINK_VISIBILITY env var on the Start MCP Gateway step.
+const sinkVisibilityRuntimeExpr = "${GH_AW_SINK_VISIBILITY}"
 
 // guardExprRE matches sentinel-prefixed expression values in the JSON output:
 //
