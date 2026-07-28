@@ -1462,6 +1462,30 @@ Guard policy fields are passed to the gateway as part of the GitHub MCP server c
 | `approval-labels` | array or expression | No | `[]` | GitHub label names that promote items to `approved` integrity |
 | `refusal-labels` | array or expression | No | `[]` | GitHub label names that downgrade items to `none` integrity, overriding any promotion |
 
+Compiler-emitted gateway shape for the built-in GitHub server:
+
+```json
+{
+  "mcpServers": {
+    "github": {
+      "guard-policies": {
+        "allow-only": {
+          "repos": "all",
+          "min-integrity": "approved",
+          "blocked-users": "${{ steps.parse-guard-vars.outputs.blocked_users }}",
+          "trusted-users": "${{ steps.parse-guard-vars.outputs.trusted_users }}",
+          "approval-labels": "${{ steps.parse-guard-vars.outputs.approval_labels }}"
+        }
+      }
+    }
+  }
+}
+```
+
+:::caution
+When `tools.github.lockdown: true` is set, guard-policy fields (`allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, `approval-labels`) are ignored at runtime. Lockdown takes precedence and the compiler emits a warning for this combination.
+:::
+
 ### 10.4 Effective Integrity Computation
 
 The gateway MUST compute each item's effective integrity in the following order:
