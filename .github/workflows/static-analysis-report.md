@@ -19,7 +19,7 @@ safe-outputs:
   create-issue:
     expires: 7d
     title-prefix: "[static-analysis] "
-    labels: [security, automation]
+    labels: [security, automation, cookie]
     max: 4
     close-older-issues: true
   add-comment:
