@@ -50,7 +50,7 @@ func TestUpdateDocsIncludeCoolDownOption(t *testing.T) {
 	assert.Contains(t, updateSection, "`--cool-down`", "update docs options should include --cool-down")
 }
 
-func TestCompileDocsIncludeNoModelsDevLookupOption(t *testing.T) {
+func TestCompileDocsReflectCurrentOptions(t *testing.T) {
 	_, currentFile, _, ok := runtime.Caller(0)
 	require.True(t, ok, "should resolve current test file path")
 
@@ -63,7 +63,7 @@ func TestCompileDocsIncludeNoModelsDevLookupOption(t *testing.T) {
 	require.NotEqual(t, -1, compileIndex, "CLI setup docs should contain the compile section")
 
 	compileSection := text[compileIndex:]
-	assert.Contains(t, compileSection, "`--no-models-dev-lookup`", "compile docs options should include --no-models-dev-lookup")
+	assert.NotContains(t, compileSection, "`--no-models-dev-lookup`", "compile docs options should not include removed --no-models-dev-lookup")
 	assert.Contains(t, compileSection, "does not run codemods unless you pass `--fix`", "compile docs should explain --fix opt-in behavior")
 }
 
