@@ -68,6 +68,30 @@ func validateCommandTriggerConflicts(frontmatter map[string]any) error {
 	return nil
 }
 
+func validateUnsupportedJobInputs(frontmatter map[string]any) error {
+	jobsValue, hasJobs := frontmatter["jobs"]
+	if !hasJobs || jobsValue == nil {
+		return nil
+	}
+
+	jobsMap, ok := jobsValue.(map[string]any)
+	if !ok {
+		return nil
+	}
+
+	for jobName, jobValue := range jobsMap {
+		jobMap, ok := jobValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		if _, hasInputs := jobMap["inputs"]; hasInputs {
+			return fmt.Errorf("jobs.%s.inputs: inputs are not supported on jobs; use 'env' to pass values to job steps", jobName)
+		}
+	}
+
+	return nil
+}
+
 // IsLabelOnlyEvent checks if an event configuration only contains labeled/unlabeled types
 // This is exported for use in the compiler to validate command trigger combinations
 func IsLabelOnlyEvent(eventValue any) bool {

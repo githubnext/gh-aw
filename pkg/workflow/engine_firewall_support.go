@@ -132,9 +132,11 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 
 	// In network-isolation (rootless) mode, pass --rootless so the script uses
 	// non-interactive sudo (sudo -n) with a non-sudo chmod fallback. In non-network-isolation
-	// mode, the script uses plain sudo (AWF ran with full sudo access).
+	// mode, and in legacy-security mode (where AWF ran with full sudo access), the script
+	// uses plain sudo.
 	scriptArg := ""
-	if isAWFNetworkIsolationEnabled(workflowData) {
+	agentCfg := getAgentConfig(workflowData)
+	if isAWFNetworkIsolationEnabled(workflowData) && !agentCfg.LegacySecurity {
 		scriptArg = " --rootless"
 	}
 

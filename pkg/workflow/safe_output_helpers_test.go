@@ -272,6 +272,21 @@ func TestApplySafeOutputEnvToMap(t *testing.T) {
 				"GH_AW_ASSETS_ALLOWED_EXTS": "\".png,.jpg,.jpeg\"",
 			},
 		},
+		{
+			name: "safe outputs input env vars forwarded to agent step",
+			workflowData: &WorkflowData{
+				SafeOutputs: &SafeOutputsConfig{},
+				SafeOutputsInputEnvVars: map[string]string{
+					"GH_AW_INPUT_OWNER": "${{ inputs.owner }}",
+					"GH_AW_INPUT_REPO":  "${{ inputs.repo }}",
+				},
+			},
+			expected: map[string]string{
+				"GH_AW_SAFE_OUTPUTS": "${{ steps.set-runtime-paths.outputs.GH_AW_SAFE_OUTPUTS }}",
+				"GH_AW_INPUT_OWNER":  "${{ inputs.owner }}",
+				"GH_AW_INPUT_REPO":   "${{ inputs.repo }}",
+			},
+		},
 	}
 
 	for _, tt := range tests {
