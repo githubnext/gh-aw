@@ -15,17 +15,10 @@ func hasModelPricingResolver(compiler *workflow.Compiler) bool {
 	return !reflect.ValueOf(compiler).Elem().FieldByName("modelPricingResolver").IsNil()
 }
 
-func TestCreateAndConfigureCompiler_RegistersModelPricingResolverByDefault(t *testing.T) {
+func TestCreateAndConfigureCompiler_DoesNotRegisterModelPricingResolverByDefault(t *testing.T) {
 	compiler := createAndConfigureCompiler(CompileConfig{})
-	if !hasModelPricingResolver(compiler) {
-		t.Fatal("expected model pricing resolver to be registered by default")
-	}
-}
-
-func TestCreateAndConfigureCompiler_SkipsModelPricingResolverWhenDisabled(t *testing.T) {
-	compiler := createAndConfigureCompiler(CompileConfig{DisableModelsDevLookup: true})
 	if hasModelPricingResolver(compiler) {
-		t.Fatal("expected model pricing resolver to be nil when models.dev lookup is disabled")
+		t.Fatal("expected model pricing resolver to be nil by default")
 	}
 }
 
