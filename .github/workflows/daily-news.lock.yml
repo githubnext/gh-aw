@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"944473f784f0aced8470319f3d3328658baddba6ac482dc3e1cb16de4df33826","body_hash":"6e8e3d46c0d5b1ca97512609394002c87250c65ff6659848e95486cbe790fdd4","strict":true,"agent_id":"pi","agent_model":"copilot/gpt-5.4","engine_versions":{"pi":"0.82.0"},"agent_image_runner":"aw-gpu-runner-T4"}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","TAVILY_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/chopratejas/headroom:latest","digest":"sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e","pinned_image":"ghcr.io/chopratejas/headroom:latest@sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e"},{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.42","digest":"sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.42@sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42","digest":"sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42@sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.42","digest":"sha256:da006bf96d2d246dd269d57b233c1798d2ad63d6cd64ca02f7bf71045028781f","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.42@sha256:da006bf96d2d246dd269d57b233c1798d2ad63d6cd64ca02f7bf71045028781f"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.42","digest":"sha256:42dfeb649c680a8558cd5423dbc530b653a69413e35ffbe5e71da5d48c94bdf0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.42@sha256:42dfeb649c680a8558cd5423dbc530b653a69413e35ffbe5e71da5d48c94bdf0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.6","digest":"sha256:fecabec51bbc41f2ad61076d6bcd9a36ef23b142e672a444e054d37fc29de93c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.6@sha256:fecabec51bbc41f2ad61076d6bcd9a36ef23b142e672a444e054d37fc29de93c"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748","pinned_image":"ghcr.io/github/gh-aw-node@sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748"},{"image":"ghcr.io/github/github-mcp-server:v1.7.0","digest":"sha256:c491ffdf6f4c85cb5397021bc655edb8ab825c6f5f568e7597d77a1bd7c4d308","pinned_image":"ghcr.io/github/github-mcp-server:v1.7.0@sha256:c491ffdf6f4c85cb5397021bc655edb8ab825c6f5f568e7597d77a1bd7c4d308"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"cbbdd14193179ce1da95b3bc8879fec4b705334d7d76dbb80f559e206cd2b3cb","body_hash":"6ce268fc8ef7a0d94fb2ac32200704d74b4c33efdf84aa7c8bf2438f633aefac","strict":true,"agent_id":"pi","agent_model":"copilot/gpt-5.4","engine_versions":{"pi":"0.82.0"},"agent_image_runner":"aw-gpu-runner-T4"}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN","TAVILY_API_KEY"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.42","digest":"sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.42@sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42","digest":"sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42@sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.42","digest":"sha256:da006bf96d2d246dd269d57b233c1798d2ad63d6cd64ca02f7bf71045028781f","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.42@sha256:da006bf96d2d246dd269d57b233c1798d2ad63d6cd64ca02f7bf71045028781f"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.42","digest":"sha256:42dfeb649c680a8558cd5423dbc530b653a69413e35ffbe5e71da5d48c94bdf0","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.42@sha256:42dfeb649c680a8558cd5423dbc530b653a69413e35ffbe5e71da5d48c94bdf0"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.6","digest":"sha256:fecabec51bbc41f2ad61076d6bcd9a36ef23b142e672a444e054d37fc29de93c","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.6@sha256:fecabec51bbc41f2ad61076d6bcd9a36ef23b142e672a444e054d37fc29de93c"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748","pinned_image":"ghcr.io/github/gh-aw-node@sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748"},{"image":"ghcr.io/github/github-mcp-server:v1.7.0","digest":"sha256:c491ffdf6f4c85cb5397021bc655edb8ab825c6f5f568e7597d77a1bd7c4d308","pinned_image":"ghcr.io/github/github-mcp-server:v1.7.0@sha256:c491ffdf6f4c85cb5397021bc655edb8ab825c6f5f568e7597d77a1bd7c4d308"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -29,7 +29,6 @@
 #   Imports:
 #     - ../skills/jqschema/SKILL.md
 #     - shared/daily-audit-discussion.md
-#     - shared/mcp/headroom.md
 #     - shared/mcp/tavily.md
 #     - shared/otlp.md
 #     - shared/python-dataviz.md
@@ -61,7 +60,6 @@
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #
 # Container images used:
-#   - ghcr.io/chopratejas/headroom:latest@sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e
 #   - ghcr.io/github/gh-aw-firewall/agent:0.27.42@sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b
 #   - ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42@sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607
 #   - ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.42@sha256:da006bf96d2d246dd269d57b233c1798d2ad63d6cd64ca02f7bf71045028781f
@@ -313,24 +311,24 @@ jobs:
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_40d37d2866fea7e2_EOF'
+          cat << 'GH_AW_PROMPT_14c4ac860e6735e1_EOF'
           <system>
-          GH_AW_PROMPT_40d37d2866fea7e2_EOF
+          GH_AW_PROMPT_14c4ac860e6735e1_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_40d37d2866fea7e2_EOF'
+          cat << 'GH_AW_PROMPT_14c4ac860e6735e1_EOF'
           <safe-output-tools>
           Tools: create_discussion, upload_asset(max:5), missing_tool, missing_data, noop
 
           upload_asset: provide a file path; returns a URL; assets are published after the workflow completes (safeoutputs).
           </safe-output-tools>
-          GH_AW_PROMPT_40d37d2866fea7e2_EOF
+          GH_AW_PROMPT_14c4ac860e6735e1_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_40d37d2866fea7e2_EOF'
+          cat << 'GH_AW_PROMPT_14c4ac860e6735e1_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -359,11 +357,10 @@ jobs:
           {{/if}}
           </github-context>
 
-          GH_AW_PROMPT_40d37d2866fea7e2_EOF
+          GH_AW_PROMPT_14c4ac860e6735e1_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_40d37d2866fea7e2_EOF'
+          cat << 'GH_AW_PROMPT_14c4ac860e6735e1_EOF'
           </system>
-          {{#runtime-import .github/workflows/shared/mcp/headroom.md}}
           {{#runtime-import .github/workflows/shared/mcp/tavily.md}}
           {{#runtime-import .github/skills/jqschema/SKILL.md}}
           {{#runtime-import .github/workflows/shared/trends.md}}
@@ -372,7 +369,7 @@ jobs:
           {{#runtime-import .github/workflows/shared/python-dataviz.md}}
           {{#runtime-import .github/shared/editorial.md}}
           {{#runtime-import .github/workflows/daily-news.md}}
-          GH_AW_PROMPT_40d37d2866fea7e2_EOF
+          GH_AW_PROMPT_14c4ac860e6735e1_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -402,7 +399,7 @@ jobs:
           GH_AW_GITHUB_REPOSITORY: ${{ github.repository }}
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_MCP_CLI_SERVERS_LIST: "- `headroom` — run `headroom --help` to see available tools\n- `safeoutputs` — run `safeoutputs --help` to see available tools\n- `tavily` — run `tavily --help` to see available tools"
+          GH_AW_MCP_CLI_SERVERS_LIST: "- `safeoutputs` — run `safeoutputs --help` to see available tools\n- `tavily` — run `tavily --help` to see available tools"
           GH_AW_MEMORY_BRANCH_NAME: 'memory/daily-news'
           GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 1024 KB)\n"
           GH_AW_MEMORY_DESCRIPTION: ' Historical news digest data'
@@ -731,7 +728,7 @@ jobs:
           GH_AW_SKILL_DIR: ".pi/skills"
         run: bash "${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh"
       - name: Download container images
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/chopratejas/headroom:latest@sha256:af709363c4f9515a88a50939baec513be13c7cd778fb6635527b104d5173cb1e ghcr.io/github/gh-aw-firewall/agent:0.27.42@sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42@sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607 ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.42@sha256:da006bf96d2d246dd269d57b233c1798d2ad63d6cd64ca02f7bf71045028781f ghcr.io/github/gh-aw-firewall/squid:0.27.42@sha256:42dfeb649c680a8558cd5423dbc530b653a69413e35ffbe5e71da5d48c94bdf0 ghcr.io/github/gh-aw-mcpg:v0.4.6@sha256:fecabec51bbc41f2ad61076d6bcd9a36ef23b142e672a444e054d37fc29de93c ghcr.io/github/gh-aw-node@sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748 ghcr.io/github/github-mcp-server:v1.7.0@sha256:c491ffdf6f4c85cb5397021bc655edb8ab825c6f5f568e7597d77a1bd7c4d308
+        run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.42@sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42@sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607 ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.42@sha256:da006bf96d2d246dd269d57b233c1798d2ad63d6cd64ca02f7bf71045028781f ghcr.io/github/gh-aw-firewall/squid:0.27.42@sha256:42dfeb649c680a8558cd5423dbc530b653a69413e35ffbe5e71da5d48c94bdf0 ghcr.io/github/gh-aw-mcpg:v0.4.6@sha256:fecabec51bbc41f2ad61076d6bcd9a36ef23b142e672a444e054d37fc29de93c ghcr.io/github/gh-aw-node@sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748 ghcr.io/github/github-mcp-server:v1.7.0@sha256:c491ffdf6f4c85cb5397021bc655edb8ab825c6f5f568e7597d77a1bd7c4d308
       - name: Generate Safe Outputs Config
         env:
           GITHUB_WORKFLOW: ${{ github.workflow }}
@@ -903,38 +900,16 @@ jobs:
           export DEBUG="*"
 
           export GH_AW_ENGINE="pi"
-          export GH_AW_MCP_CLI_SERVERS='["headroom","safeoutputs","tavily"]'
+          export GH_AW_MCP_CLI_SERVERS='["safeoutputs","tavily"]'
           MCP_GATEWAY_UID=$(id -u 2>/dev/null || echo '0')
           MCP_GATEWAY_GID=$(id -g 2>/dev/null || echo '0')
           source "${RUNNER_TEMP}/gh-aw/actions/resolve_docker_socket_gid.sh"
           export MCP_GATEWAY_DOCKER_COMMAND='docker run -i --rm --network bridge -p 127.0.0.1:'"${MCP_GATEWAY_PORT}"':'"${MCP_GATEWAY_PORT}"' --name awmg-mcpg --add-host host.docker.internal:host-gateway --user '"${MCP_GATEWAY_UID}"':'"${MCP_GATEWAY_GID}"' --group-add '"${DOCKER_SOCK_GID}"' -v '"${DOCKER_SOCK_PATH}"':/var/run/docker.sock -e MCP_GATEWAY_PORT -e MCP_GATEWAY_DOMAIN -e MCP_GATEWAY_API_KEY -e MCP_GATEWAY_PAYLOAD_DIR -e MCP_GATEWAY_PAYLOAD_SIZE_THRESHOLD -e DOCKER_HOST=unix:///var/run/docker.sock -e DEBUG -e MCP_GATEWAY_LOG_DIR -e GH_AW_MCP_LOG_DIR -e GH_AW_SAFE_OUTPUTS -e GH_AW_SAFE_OUTPUTS_CONFIG_PATH -e GH_AW_SAFE_OUTPUTS_TOOLS_PATH -e GH_AW_POLICY_ALLOW_CREATE_PULL_REQUEST -e GH_AW_ASSETS_BRANCH -e GH_AW_ASSETS_MAX_SIZE_KB -e GH_AW_ASSETS_ALLOWED_EXTS -e DEFAULT_BRANCH -e GITHUB_MCP_SERVER_TOKEN -e GITHUB_MCP_GUARD_MIN_INTEGRITY -e GITHUB_MCP_GUARD_REPOS -e GITHUB_REPOSITORY -e GITHUB_SERVER_URL -e GITHUB_SHA -e GITHUB_WORKSPACE -e GITHUB_TOKEN -e GITHUB_RUN_ID -e GITHUB_RUN_NUMBER -e GITHUB_RUN_ATTEMPT -e GITHUB_JOB -e GITHUB_ACTION -e GITHUB_EVENT_NAME -e GITHUB_EVENT_PATH -e GITHUB_ACTOR -e GITHUB_ACTOR_ID -e GITHUB_TRIGGERING_ACTOR -e GITHUB_WORKFLOW -e GITHUB_WORKFLOW_REF -e GITHUB_WORKFLOW_SHA -e GITHUB_REF -e GITHUB_REF_NAME -e GITHUB_REF_TYPE -e GITHUB_HEAD_REF -e GITHUB_BASE_REF -e RUNNER_TEMP -e GITHUB_AW_OTEL_TRACE_ID -e GITHUB_AW_OTEL_PARENT_SPAN_ID -e OTEL_EXPORTER_OTLP_HEADERS -e TAVILY_API_KEY -v /tmp/gh-aw/mcp-payloads:/tmp/gh-aw/mcp-payloads:rw -v /opt:/opt:ro -v /tmp:/tmp:rw -v '"${GITHUB_WORKSPACE}"':'"${GITHUB_WORKSPACE}"':rw -v '"${RUNNER_TEMP}"'/gh-aw/safeoutputs:'"${RUNNER_TEMP}"'/gh-aw/safeoutputs:rw ghcr.io/github/gh-aw-mcpg:v0.4.6'
 
           GH_AW_NODE=$(which node 2>/dev/null || command -v node 2>/dev/null || echo node)
-          cat << GH_AW_MCP_CONFIG_583a430ac097fa7e_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
+          cat << GH_AW_MCP_CONFIG_7eed0a145a3ace5f_EOF | "$GH_AW_NODE" "${RUNNER_TEMP}/gh-aw/actions/start_mcp_gateway.cjs"
           {
             "mcpServers": {
-              "headroom": {
-                "type": "stdio",
-                "container": "ghcr.io/chopratejas/headroom:latest",
-                "entrypoint": "headroom",
-                "entrypointArgs": [
-                  "mcp",
-                  "serve"
-                ],
-                "tools": [
-                  "headroom_compress",
-                  "headroom_retrieve",
-                  "headroom_stats"
-                ],
-                "guard-policies": {
-                  "write-sink": {
-                    "accept": [
-                      "*"
-                    ],
-                    "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
-                  }
-                }
-              },
               "safeoutputs": {
                 "container": "ghcr.io/github/gh-aw-node",
                 "mounts": ["\${GITHUB_WORKSPACE}:\${GITHUB_WORKSPACE}:rw", "${RUNNER_TEMP}/gh-aw/safeoutputs:${RUNNER_TEMP}/gh-aw/safeoutputs:rw", "/tmp/gh-aw:/tmp/gh-aw:rw"],
@@ -1002,7 +977,7 @@ jobs:
               }
             }
           }
-          GH_AW_MCP_CONFIG_583a430ac097fa7e_EOF
+          GH_AW_MCP_CONFIG_7eed0a145a3ace5f_EOF
       - name: Mount MCP servers as CLIs
         id: mount-mcp-clis
         continue-on-error: true
