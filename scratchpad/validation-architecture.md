@@ -117,15 +117,34 @@ Domain-specific validation is organized into separate files based on functional 
 - ✅ Expression security validation
 - ✅ Injection prevention
 
-#### 5. **Engine Validation**: `engine.go`
+#### 5. **Engine Validation**: `engine_validation.go`, `engine_driver_validation.go`, `engine_inline_definition_validation.go`
 
-**Location**: `pkg/workflow/engine.go` (383 lines)
+**Locations**:
+- `pkg/workflow/engine_validation.go` (~255 lines) — top-level engine settings, MCP timeouts, specification consistency
+- `pkg/workflow/engine_driver_validation.go` (~171 lines) — engine.driver and engine.harness file path safety
+- `pkg/workflow/engine_inline_definition_validation.go` (~175 lines) — inline runtime/provider definitions and auth
 
 **Purpose**: Validates AI engine configuration
 
 **Validation Functions**:
-- `validateEngine()` - Validates engine ID is supported
-- `validateSingleEngineSpecification()` - Ensures single engine per workflow
+
+`engine_validation.go`:
+- `validateEngineVersion()` - Warns when engine.version is "latest"
+- `validateEngineMCPSessionTimeout()` - Validates engine.mcp.session-timeout duration
+- `validateEngineMCPToolTimeout()` - Validates engine.mcp.tool-timeout duration
+- `validateSingleEngineSpecification()` - Ensures single engine per workflow across all files
+- `EngineHasValidateSecretStep()` - Reports whether an engine provides a validate-secret step
+
+`engine_driver_validation.go`:
+- `validateEngineScriptFilename()` - Validates that a script name is a safe Node.js basename
+- `validateEngineHarnessScript()` - Validates optional engine.harness configuration
+- `validateEngineDriver()` - Validates the shared engine.driver field
+- `validateInlineEngineDriver()` - Validates an inline (source-embedded) driver configuration
+
+`engine_inline_definition_validation.go`:
+- `validateEngineInlineDefinition()` - Validates inline engine runtime.id against the registry
+- `registerInlineEngineDefinition()` - Registers a validated inline engine definition
+- `validateEngineAuthDefinition()` - Validates auth strategy fields for inline provider auth
 
 **Pattern**: Configuration validation with backward compatibility
 
@@ -133,6 +152,8 @@ Domain-specific validation is organized into separate files based on functional 
 - ✅ Engine configuration parsing
 - ✅ Engine compatibility checks
 - ✅ Engine-specific feature validation
+- ✅ Engine driver or script file path validation (→ engine_driver_validation.go)
+- ✅ Inline engine runtime/provider auth validation (→ engine_inline_definition_validation.go)
 
 #### 6. **MCP Configuration**: `mcp-config.go`
 
