@@ -393,6 +393,8 @@ them into:
 - GitHub Copilot API models: `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json`
   (fetched from `https://api.githubcopilot.com/models`; raw API response — if the file contains an `error` field,
   treat Copilot API data as unavailable for this run)
+- Copilot SDK models: `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-sdk-models/models.json`
+  (fetched through the Copilot CLI SDK; use each model's `billing` fields for pricing validation)
 - Copilot live provider metadata: `/tmp/gh-aw/agent/model-inventory/reflect.json` (generated in
   Step 0 below; filter `.endpoints[] | select(.provider == "copilot") | .models`). If the
   file contains an `error` field, treat Copilot data as unavailable for this run and
@@ -603,11 +605,14 @@ The GitHub Copilot API response is available at:
 This file is the raw response fetched from `https://api.githubcopilot.com/models`. If the file contains an `error` field,
 treat it as unavailable and skip its use as a validation source for this run.
 
-Use the Copilot reflect endpoint (`billing.multiplier`), the Copilot API endpoint (`billing.multiplier`),
-and the docs pricing table as validation sources for `models.json` pricing fields. Prefer reflect data
-when available for Copilot model multiplier validation; use the Copilot API data as a supplementary
-cross-check and for discovering models not yet in the reflect output; use docs table values as a
-tertiary cross-check.
+The Copilot SDK models are available at:
+
+- `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-sdk-models/models.json`
+
+Use the Copilot SDK (`billing` fields), reflect endpoint (`billing.multiplier`), Copilot API endpoint
+(`billing.multiplier`), and docs pricing table as validation sources for `models.json` pricing fields.
+Prefer Copilot SDK data when available; cross-check it against reflect data, use the Copilot API for
+discovering models absent from the other sources, and use docs table values as a tertiary cross-check.
 
 Also validate Copilot SDK routing metadata in `models.json` for `github-copilot` models:
 - `provider_type` (for SDK provider selection)
@@ -629,33 +634,38 @@ When pricing updates are required, first run:
 make refresh-models-json
 ```
 
-Then validate/adjust pricing entries against reflect, Copilot API, and docs-derived data.
+Then validate/adjust pricing entries against Copilot SDK, reflect, Copilot API, and docs-derived data.
 
 For each provider's enriched data, validate pricing/model coverage for each model:
 
-1. **Copilot reflect data** — use the `copilot` endpoint's `models` list from
-   `/tmp/gh-aw/agent/model-inventory/reflect.json` as the primary source. For each model, use
-   the `billing.multiplier` field as the authoritative ET multiplier value. Compare against the
+1. **Copilot SDK data** — use the `models` list from
+   `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-sdk-models/models.json`. For each model, use
+   its `billing` fields as the primary pricing source. Compare against the matching
+   `github/<model-id>` entry in `models.json`, and list discrepancies or missing models.
+
+2. **Copilot reflect data** — use the `copilot` endpoint's `models` list from
+   `/tmp/gh-aw/agent/model-inventory/reflect.json`. For each model, use
+   the `billing.multiplier` field to cross-check the SDK multiplier. Compare against the
    matching `github/<model-id>` entry in `models.json`, and list discrepancies or missing models.
    Cross-reference against the Copilot API and docs table as secondary validation sources.
 
-2. **GitHub Copilot API** — use the `copilot-api` models from
+3. **GitHub Copilot API** — use the `copilot-api` models from
    `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json` as a supplementary
    source. For each model in `.data[]`, use `billing.multiplier` where present as a secondary cross-check against
-   the reflect data. Flag any model IDs in the Copilot API response that are not in the reflect data
+   the SDK and reflect data. Flag any model IDs in the Copilot API response that are not in the SDK or reflect data,
    or not in `models.json` — these may be newly available models. Skip this source if the file
    contains an `error` field.
 
-3. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
+4. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
    Large-context, high-output-limit models typically correspond to higher-priced tiers; smaller
    Flash models to lower-priced tiers. Flag any models whose limits suggest a pricing-tier change
    versus what is currently in `models.json`.
 
-4. **OpenAI API** — use `owned_by` and model-ID naming conventions (e.g. `-mini`, `-nano`, `o1`,
+5. **OpenAI API** — use `owned_by` and model-ID naming conventions (e.g. `-mini`, `-nano`, `o1`,
    `o3`) to cross-check current pricing tiers. Flag missing models or likely mismatches.
 
-5. **Anthropic API** — use `display_name` family grouping (haiku/sonnet/opus) to validate
+6. **Anthropic API** — use `display_name` family grouping (haiku/sonnet/opus) to validate
    current pricing tiers. Flag any new model IDs not yet in `models.json`.
 
 Produce a consolidated pricing gap table listing:
@@ -713,7 +723,7 @@ If you found any meaningful updates to propose, create a GitHub issue using `cre
 
 Brief description of what was found.
 
-- Providers queried: OpenAI, Anthropic, Gemini, Copilot (reflect), Copilot API
+- Providers queried: OpenAI, Anthropic, Gemini, Copilot SDK, Copilot (reflect), Copilot API
 - Total models found: <count>
 - Proposed alias changes: <count>
 - Pricing gaps found: <count>
@@ -725,6 +735,7 @@ Brief description of what was found.
 | openai   | 42              | ✅ ok  |
 | anthropic | 15             | ✅ ok  |
 | gemini   | 28              | ✅ ok  |
+| copilot-sdk | 35          | ✅ ok  |
 | copilot (reflect) | 35    | ✅ ok  |
 | copilot-api | 38           | ✅ ok  |
 
