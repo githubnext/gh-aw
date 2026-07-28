@@ -99,9 +99,7 @@ func registerDeployFlags(cmd *cobra.Command) {
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
-	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
-	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
+	addSecurityScannerFlag(cmd)
 	cmd.Flags().String("cool-down", defaultDeployCooldown, coolDownFlagUsage)
 	cmd.Flags().String("org", "", "Deploy workflows across repositories in an organization")
 	cmd.Flags().StringSlice("repos", nil, "Limit --org mode to repositories matching one or more glob patterns")
@@ -149,9 +147,7 @@ func parseDeployCommandOptions(cmd *cobra.Command, workflows []string, validateE
 	workflowDir, _ := cmd.Flags().GetString("dir")
 	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 	stopAfter, _ := cmd.Flags().GetString("stop-after")
-	disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
-	disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
-	disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
+	disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
 	coolDownStr, _ := cmd.Flags().GetString("cool-down")
 
 	if nameFlag != "" && len(workflows) > 1 {
