@@ -58,18 +58,6 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 	compilerYamlArtifactsLog.Printf("Generated unified artifact upload step with %d paths", len(paths))
 }
 
-// generateMCPLogsPermissionsFixStep emits a best-effort ownership/permission repair
-// for MCP logs before secret redaction runs. This ensures the redactor can read and
-// scrub gateway/rpc logs even when files were written by a different UID.
-func (c *Compiler) generateMCPLogsPermissionsFixStep(yaml *strings.Builder) {
-	yaml.WriteString("      - name: Fix MCP logs permissions\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        continue-on-error: true\n")
-	yaml.WriteString("        run: |\n")
-	yaml.WriteString("          sudo -n chown -R \"$(id -u):$(id -g)\" /tmp/gh-aw/mcp-logs/ 2>/dev/null || true\n")
-	yaml.WriteString("          sudo -n chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || true\n")
-}
-
 // generateMCPLogsArtifactUpload emits a dedicated actions/upload-artifact step for the
 // mcp-logs directory, independent of the unified agent artifact so telemetry is
 // preserved even when the main upload has issues.

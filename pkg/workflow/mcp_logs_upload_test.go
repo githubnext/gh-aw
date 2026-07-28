@@ -126,14 +126,6 @@ Please navigate to example.com and take a screenshot.
 		}
 	}
 
-	// Verify the dedicated MCP logs chmod step is present (gh-aw#48674)
-	if !strings.Contains(lockContentStr, "- name: Fix MCP logs permissions") {
-		t.Error("Expected 'Fix MCP logs permissions' step for dedicated MCP telemetry capture")
-	}
-	if !strings.Contains(lockContentStr, "chmod -R a+rX /tmp/gh-aw/mcp-logs/") {
-		t.Error("Expected 'chmod -R a+rX /tmp/gh-aw/mcp-logs/' in Fix MCP logs permissions step")
-	}
-
 	// Verify the dedicated MCP logs upload step is present (gh-aw#48674)
 	if !strings.Contains(lockContentStr, "- name: Upload MCP logs") {
 		t.Error("Expected dedicated 'Upload MCP logs' step for reliable MCP telemetry capture")
@@ -144,25 +136,18 @@ Please navigate to example.com and take a screenshot.
 		t.Error("Expected dedicated MCP logs artifact named 'mcp-logs-test-mcp-logs-upload'")
 	}
 
-	// Verify ordering: Stop MCP Gateway → Fix MCP logs permissions → Upload MCP logs → Upload agent artifacts
+	// Verify ordering: Stop MCP Gateway → Upload MCP logs → Upload agent artifacts
 	stopMCPIdx := strings.Index(lockContentStr, "- name: Stop MCP Gateway")
-	fixPermIdx := strings.Index(lockContentStr, "- name: Fix MCP logs permissions")
 	uploadMCPIdx := strings.Index(lockContentStr, "- name: Upload MCP logs")
 
 	if stopMCPIdx == -1 {
 		t.Fatal("Stop MCP Gateway step not found")
 	}
-	if fixPermIdx == -1 {
-		t.Fatal("Fix MCP logs permissions step not found")
-	}
 	if uploadMCPIdx == -1 {
 		t.Fatal("Upload MCP logs step not found")
 	}
-	if fixPermIdx < stopMCPIdx {
-		t.Error("Fix MCP logs permissions should appear after Stop MCP Gateway")
-	}
-	if uploadMCPIdx < fixPermIdx {
-		t.Error("Upload MCP logs should appear after Fix MCP logs permissions")
+	if uploadMCPIdx < stopMCPIdx {
+		t.Error("Upload MCP logs should appear after Stop MCP Gateway")
 	}
 	if uploadArtifactsIndex < uploadMCPIdx {
 		t.Error("Upload agent artifacts should appear after Upload MCP logs")
@@ -236,10 +221,7 @@ This workflow does not use Playwright but should still have MCP logs upload.
 		t.Error("Did not expect 'mkdir -p /tmp/gh-aw/mcp-logs/playwright' in workflow without Playwright")
 	}
 
-	// Verify dedicated MCP logs steps are present regardless of tool configuration (gh-aw#48674)
-	if !strings.Contains(lockContentStr, "- name: Fix MCP logs permissions") {
-		t.Error("Expected 'Fix MCP logs permissions' step even without Playwright")
-	}
+	// Verify dedicated MCP logs upload step is present regardless of tool configuration (gh-aw#48674)
 	if !strings.Contains(lockContentStr, "- name: Upload MCP logs") {
 		t.Error("Expected dedicated 'Upload MCP logs' step even without Playwright")
 	}

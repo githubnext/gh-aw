@@ -487,9 +487,6 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// The MCP gateway is always enabled, even when agent sandbox is disabled
 	c.generateStopMCPGateway(yaml, data)
 
-	// Ensure MCP logs are readable before secret redaction scans artifacts.
-	c.generateMCPLogsPermissionsFixStep(yaml)
-
 	// Add secret redaction step BEFORE any artifact uploads
 	// This ensures all artifacts are scanned for secrets before being uploaded
 	c.generateSecretRedactionStep(yaml, yaml.String(), data)
