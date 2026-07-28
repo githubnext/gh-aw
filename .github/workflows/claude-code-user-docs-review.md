@@ -41,6 +41,13 @@ tools:
 
 timeout-minutes: 30
 
+models:
+  default-ai-credits-pricing:
+    input: 5.0
+    output: 25.0
+    cache_read: 0.5
+    cache_write: 6.25
+
 imports:
   - uses: shared/daily-audit-base.md
     with:
