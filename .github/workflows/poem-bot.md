@@ -154,6 +154,13 @@ strict: true
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: issue-created
+    question: Did the agent create an issue containing a poem?
+  - id: poem-on-theme
+    question: Does the agent output confirm the poem is related to the requested theme or topic?
+  - id: poem-present
+    question: Does the agent output include actual poem text (lines of verse) rather than only a description?
 ---
 
 # Poem Bot - A Creative Agentic Workflow

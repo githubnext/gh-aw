@@ -103,6 +103,13 @@ pre-agent-steps:
       echo "Server URL: http://localhost:4321/gh-aw/"
 features:
   gh-aw-detection: true
+evals:
+  - id: findings-reported
+    question: Did the agent report documentation testing findings (via asset upload or report)?
+  - id: confusing-steps-identified
+    question: Does the agent output identify at least one confusing, broken, or unclear step in the documentation?
+  - id: user-perspective-maintained
+    question: Does the agent output reflect the perspective of a new user rather than an expert reviewer?
 ---
 
 # Documentation Noob Testing

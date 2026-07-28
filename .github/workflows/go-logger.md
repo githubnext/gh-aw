@@ -124,6 +124,13 @@ tools:
     mode: gh-proxy
     toolsets:
     - default
+evals:
+  - id: pr-created
+    question: Did the agent create a pull request with Go logging improvements?
+  - id: logging-changes-made
+    question: Does the agent output confirm that logging statements were added or modified in Go source files?
+  - id: validation-run
+    question: Does the agent output show that it ran validation commands to verify the logging changes compile correctly?
 ---
 # Go Logger Enhancement
 
