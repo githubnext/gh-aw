@@ -30,21 +30,6 @@ type ExperimentData struct {
 	CumulativeCounts map[string]map[string]int `json:"cumulative_counts,omitempty"`
 }
 
-// experimentStateJSON matches the shape of the state.json written by pick_experiment.cjs:
-// { "counts": { "<name>": { "<variant>": <count> } }, "runs": [ { "run_id": "...", "timestamp": "...", "assignments": {"<name>": "<variant>"} } ] }
-type experimentStateJSON struct {
-	Counts map[string]map[string]int `json:"counts"`
-	Runs   []experimentRunRecord     `json:"runs,omitempty"`
-}
-
-// experimentRunRecord represents a single run's experiment assignment record as stored
-// in state.json's "runs" array.
-type experimentRunRecord struct {
-	RunID       string            `json:"run_id"`
-	Timestamp   string            `json:"timestamp"`
-	Assignments map[string]string `json:"assignments"`
-}
-
 // findExperimentStatePath returns the first existing state.json path inside the experiment
 // artifact directory. The file may be flattened to the run root or nested inside the
 // artifact subdirectory.
@@ -89,7 +74,7 @@ func extractExperimentData(logsPath string) *ExperimentData {
 		return nil
 	}
 
-	var state experimentStateJSON
+	var state ExperimentState
 	if err := json.Unmarshal(raw, &state); err != nil || len(state.Counts) == 0 {
 		return nil
 	}
