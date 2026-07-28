@@ -143,6 +143,15 @@ function generateSafeOutputSummary(options) {
   // secrecy indicates the confidentiality level of the message content.
   // integrity indicates the trustworthiness level of the message source.
   if (message) {
+    if (message.data !== undefined) {
+      let renderedData = "";
+      try {
+        renderedData = JSON.stringify(message.data, null, 2);
+      } catch {
+        renderedData = String(message.data);
+      }
+      summary += `**Data:**\n\`\`\`\`\`\`json\n${renderedData}\n\`\`\`\`\`\`\n\n`;
+    }
     if (message.secrecy !== undefined && message.secrecy !== null) {
       summary += `**Secrecy:** \`${message.secrecy}\`\n\n`;
     }
