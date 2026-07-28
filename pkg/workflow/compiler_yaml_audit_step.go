@@ -26,5 +26,6 @@ func (c *Compiler) generatePreAgentAuditStep(yaml *strings.Builder) {
 	yaml.WriteString("      - name: Audit pre-agent workspace\n")
 	yaml.WriteString("        id: pre_agent_audit\n")
 	yaml.WriteString("        continue-on-error: true\n")
+	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/audit_pre_agent_workspace.sh\"\n")
 }

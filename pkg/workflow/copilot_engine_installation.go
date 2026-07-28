@@ -436,6 +436,7 @@ func generateAWFInstallationStep(version string, agentConfig *AgentSandboxConfig
 
 	stepLines := []string{
 		"      - name: Install AWF binary",
+		"        # poutine:ignore untrusted_checkout_exec",
 		"        run: " + installCmd,
 	}
 

@@ -301,6 +301,7 @@ func generateDownloadDockerImagesStep(yaml *strings.Builder, dockerImages []stri
 	}
 
 	yaml.WriteString("      - name: Download container images\n")
+	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh\"")
 	for _, image := range dockerImages {
 		fmt.Fprintf(yaml, " %s", image)

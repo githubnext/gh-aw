@@ -369,6 +369,7 @@ func generateRepoMemoryArtifactUpload(builder *strings.Builder, data *WorkflowDa
 		builder.WriteString("        continue-on-error: true\n")
 		builder.WriteString("        env:\n")
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
+		builder.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh\"\n")
 
 		// Step: Upload repo-memory directory as artifact
@@ -420,6 +421,7 @@ func generateRepoMemorySteps(builder *strings.Builder, data *WorkflowData) {
 		fmt.Fprintf(builder, "          TARGET_REPO: %s\n", targetRepo)
 		fmt.Fprintf(builder, "          MEMORY_DIR: %s\n", memoryDir)
 		fmt.Fprintf(builder, "          CREATE_ORPHAN: %t\n", memory.CreateOrphan)
+		builder.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 		builder.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh\"\n")
 	}
 }

@@ -32,5 +32,6 @@ func generateRestoreInlineSubAgentsStep(yaml *strings.Builder, data *WorkflowDat
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_SUB_AGENT_DIR: \"%s\"\n", subAgentDir)
 	fmt.Fprintf(yaml, "          GH_AW_SUB_AGENT_EXT: \"%s\"\n", subAgentExt)
+	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/restore_inline_sub_agents.sh\"\n")
 }

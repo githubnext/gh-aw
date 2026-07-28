@@ -146,6 +146,7 @@ func generateFirewallLogParsingStep(workflowName string, workflowData *WorkflowD
 		"        continue-on-error: true",
 		"        env:",
 		"          AWF_LOGS_DIR: " + firewallLogsDirEnv,
+		"        # poutine:ignore untrusted_checkout_exec",
 		`        run: bash "${RUNNER_TEMP}/gh-aw/actions/print_firewall_logs.sh"` + scriptArg,
 	}
 

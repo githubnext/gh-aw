@@ -36,6 +36,7 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool) []Gi
 		copilotInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		stepLines := []string{
 			"      - name: " + stepName,
+			"        # poutine:ignore untrusted_checkout_exec",
 			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"` + rootlessFlag,
 			"        env:",
 			"          GH_HOST: github.com",
@@ -46,6 +47,7 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool) []Gi
 
 	stepLines := []string{
 		"      - name: " + stepName,
+		"        # poutine:ignore untrusted_checkout_exec",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version + rootlessFlag,
 		"        env:",
 		"          GH_HOST: github.com",

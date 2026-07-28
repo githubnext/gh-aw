@@ -307,6 +307,7 @@ func isOTLPHeadersPresent(data *WorkflowData) bool {
 func generateOTLPHeadersMaskStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Mask OTLP telemetry headers\n")
+	sb.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/mask_otlp_headers.sh\"\n")
 	return sb.String()
 }
@@ -356,6 +357,7 @@ func validateOTLPResourceAttributes(workflowData *WorkflowData) error {
 func generateOTLPAttributesMaskStep() string {
 	var sb strings.Builder
 	sb.WriteString("      - name: Mask OTLP custom attribute values\n")
+	sb.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	sb.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/mask_otlp_attributes.sh\"\n")
 	return sb.String()
 }

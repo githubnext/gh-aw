@@ -186,3 +186,36 @@ func TestActivationJobDoesNotIncludePolicyStrictEnforcementStepWhenCLIStrictFlag
 		t.Fatal("expected enforcement step to be absent when CLI --strict flag is set")
 	}
 }
+
+// TestActivationJobStepsHavePoutineIgnoreBeforeBashRun verifies that every step
+// emitting `run: bash "${RUNNER_TEMP}/gh-aw/actions/...` in the activation job
+// has a `# poutine:ignore untrusted_checkout_exec` comment immediately above it.
+// This prevents false-positive poutine findings on first-party bundled scripts.
+func TestActivationJobStepsHavePoutineIgnoreBeforeBashRun(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.repoConfigLoaded = true
+	compiler.repoConfig = &RepoConfig{}
+
+	job, err := compiler.buildActivationJob(&WorkflowData{}, false, "", "test.lock.yml")
+	if err != nil {
+		t.Fatalf("buildActivationJob() error = %v", err)
+	}
+
+	steps := job.Steps
+	for i, step := range steps {
+		if strings.Contains(step, `run: bash "${RUNNER_TEMP}/gh-aw/actions/`) {
+			// The preceding line (or a line within the same multi-line step entry) must contain the poutine:ignore comment
+			hasPoutineIgnore := false
+			if i > 0 && strings.Contains(steps[i-1], "# poutine:ignore untrusted_checkout_exec") {
+				hasPoutineIgnore = true
+			}
+			// Also check within the same step entry (for multi-line step strings)
+			if strings.Contains(step, "# poutine:ignore untrusted_checkout_exec") {
+				hasPoutineIgnore = true
+			}
+			if !hasPoutineIgnore {
+				t.Errorf("step at index %d is missing '# poutine:ignore untrusted_checkout_exec' before 'run: bash': %q", i, step)
+			}
+		}
+	}
+}

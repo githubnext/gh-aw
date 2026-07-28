@@ -62,6 +62,7 @@ func (c *Compiler) addActivationOAuthTokenCheckStep(ctx *activationJobBuildConte
 
 	ctx.steps = append(ctx.steps, "      - name: Check for OAuth tokens\n")
 	ctx.steps = append(ctx.steps, "        id: check-oauth-tokens\n")
+	ctx.steps = append(ctx.steps, "        # poutine:ignore untrusted_checkout_exec\n")
 	ctx.steps = append(ctx.steps, "        run: bash \"${RUNNER_TEMP}/gh-aw/actions/check_oauth_tokens.sh\"\n")
 	ctx.steps = append(ctx.steps, "        env:\n")
 	for _, envLine := range appendEnvVarLine([]string{}, constants.CopilotGitHubToken, copilotTokenExpr) {
@@ -88,6 +89,7 @@ func buildRuntimeFeaturesSummaryStep() []string {
 	return []string{
 		"      - name: Log runtime features\n",
 		"        if: ${{ contains(toJSON(vars), '\"GH_AW_RUNTIME_FEATURES\":') }}\n",
+		"        # poutine:ignore untrusted_checkout_exec\n",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/log_runtime_features_summary.sh\"\n",
 	}
 }
@@ -193,6 +195,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 	}
 
 	ctx.steps = append(ctx.steps, "      - name: Upgrade gh CLI for frontmatter skills\n")
+	ctx.steps = append(ctx.steps, "        # poutine:ignore untrusted_checkout_exec\n")
 	ctx.steps = append(ctx.steps, fmt.Sprintf("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh\" \"%s\"\n", constants.GhSkillsMinVersion))
 
 	for i, skillRef := range skillRefs {

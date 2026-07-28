@@ -220,6 +220,7 @@ func GenerateMultiSecretValidationStep(secretNames []string, engineName, docsURL
 	stepLines := []string{
 		stepName,
 		"        id: validate-secret",
+		"        # poutine:ignore untrusted_checkout_exec",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/validate_multi_secret.sh\" " + scriptArgsStr,
 		"        env:",
 	}

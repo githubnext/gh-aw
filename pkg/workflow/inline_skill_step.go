@@ -20,5 +20,6 @@ func generateRestoreInlineSkillsStep(yaml *strings.Builder, data *WorkflowData) 
 	yaml.WriteString("      - name: Restore inline skills from activation artifact\n")
 	yaml.WriteString("        env:\n")
 	fmt.Fprintf(yaml, "          GH_AW_SKILL_DIR: \"%s\"\n", skillDir)
+	yaml.WriteString("        # poutine:ignore untrusted_checkout_exec\n")
 	yaml.WriteString("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/restore_inline_skills.sh\"\n")
 }

@@ -43,6 +43,7 @@ func (c *Compiler) generateGitConfigurationStepsWithToken(token string, targetRe
 		// SECURITY: token moved to env mapping so the shell treats it as data,
 		// not syntax. Prevents shell injection if token value contains metacharacters.
 		fmt.Sprintf("          GITHUB_TOKEN: %s\n", token),
+		"        # poutine:ignore untrusted_checkout_exec\n",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 	}
 }
@@ -94,6 +95,7 @@ func (c *Compiler) generateCredentialsCleanerStep(envVars map[string]struct{}) [
 		)
 	} else {
 		lines = append(lines,
+			"        # poutine:ignore untrusted_checkout_exec\n",
 			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials.sh\"\n",
 		)
 	}

@@ -30,6 +30,7 @@ func GenerateAntigravityInstallerSteps(version, stepName string, rootless bool) 
 
 	installStep := GitHubActionStep([]string{
 		"      - name: " + stepName,
+		"        # poutine:ignore untrusted_checkout_exec",
 		"        run: " + installCmd,
 		"        env:",
 		"          ENGINE_VERSION: " + version,

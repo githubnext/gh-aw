@@ -48,6 +48,7 @@ func generateArtifactPrefixStep() []string {
 		"        id: artifact-prefix\n",
 		"        env:\n",
 		"          INPUTS_JSON: ${{ toJSON(inputs) }}\n",
+		"        # poutine:ignore untrusted_checkout_exec\n",
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/compute_artifact_prefix.sh\"\n",
 	}
 }

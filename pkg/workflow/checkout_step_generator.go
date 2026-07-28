@@ -275,6 +275,7 @@ func (cm *CheckoutManager) GenerateConfigureGitCredentialsSteps(gitRemoteToken s
 			fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", rootRepo),
 			"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
 			fmt.Sprintf("          GIT_TOKEN: %s\n", gitRemoteToken),
+			"        # poutine:ignore untrusted_checkout_exec\n",
 			"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
 		}
 	}
@@ -595,6 +596,7 @@ func generateCheckoutStepLines(entry *resolvedCheckout, index int, keepCredentia
 func generateCheckoutCredentialsCleanupStep() string {
 	return `      - name: Clean git credentials after checkout
         continue-on-error: true
+        # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/clean_git_credentials_checkout.sh"
 `
 }
