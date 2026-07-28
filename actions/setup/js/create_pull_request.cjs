@@ -30,7 +30,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { overridePersistedExtraheader, restorePersistedExtraheader, withGitHubHostToken } = require("./git_auth_helpers.cjs");
+const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
@@ -1657,7 +1657,7 @@ async function main(config = {}) {
             });
           };
           try {
-            await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runBundlePush, forkCwd) : runBundlePush());
+            await runBundlePush();
             core.info("Changes pushed to branch (from bundle)");
 
             // Count new commits on PR branch relative to base
@@ -1694,7 +1694,7 @@ async function main(config = {}) {
                     currentRepo: itemRepo,
                     validationConfig: config,
                   });
-                await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runRetryPush, forkCwd) : runRetryPush());
+                await runRetryPush();
                 core.info("Changes pushed to branch after bundle rewrite retry");
 
                 try {
@@ -2051,7 +2051,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
               });
             };
             try {
-              await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runPatchPush, forkCwd) : runPatchPush());
+              await runPatchPush();
               core.info("Changes pushed to branch");
 
               // Count new commits on PR branch relative to base, used to restrict
@@ -2226,7 +2226,7 @@ ${patchPreview}`;
                   validationConfig: config,
                 });
               };
-              await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runEmptyPush, forkCwd) : runEmptyPush());
+              await runEmptyPush();
               core.info("Empty branch pushed successfully");
 
               // Count new commits (will be 1 from the Initialize commit)
