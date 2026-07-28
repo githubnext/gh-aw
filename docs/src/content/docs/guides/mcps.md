@@ -217,7 +217,7 @@ Pre-configured MCP server specifications are available in [`.github/workflows/sh
 | **Jupyter** | `shared/mcp/jupyter.md` | Execute code, manage notebooks, visualize data |
 | **AgentDB** | `shared/mcp/agentdb.md` | Semantic and hybrid retrieval over agent-collected corpora (e.g. discussions, issues), backed by a runtime store at `AGENTDB_PATH` |
 | **Azure Auth (OIDC bridge)** | `shared/azure-auth.md` | Re-authenticate Azure CLI inside the agent sandbox using GitHub OIDC |
-| **Azure DevOps MCP** | `shared/mcp/azure-devops.md` | Azure DevOps MCP endpoint with org-scoped URL, auth header, and required domains |
+| **Azure DevOps MCP** *(experimental)* | `shared/mcp/azure-devops.md` | Azure DevOps MCP endpoint with org-scoped URL, auth header, and required domains |
 | **Azure MCP** | `shared/mcp/azure.md` | Azure MCP server in read-only mode with an explicit tool allowlist |
 | **Others** | `shared/mcp/*.md` | AST-Grep, Azure, Brave Search, Context7, DataDog, DeepWiki, Fabric RTI, MarkItDown, Microsoft Docs, Notion, Sentry, Serena, Server Memory, Slack, Tavily |
 
@@ -264,6 +264,9 @@ mcp-servers:
 `az login` in a pre-agent step. This bridges the runner process to the agent
 sandbox process, so `DefaultAzureCredential` can resolve `AzureCliCredential`
 inside the sandbox.
+
+Azure DevOps MCP support (`shared/mcp/azure-devops.md`) is still experimental;
+interfaces and required configuration may change in future releases.
 
 For `shared/mcp/azure-devops.md`, set `ADO_MCP_AUTH_TOKEN` to the full
 `Authorization` header value (for example, a bearer token string). In

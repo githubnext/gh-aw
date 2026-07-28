@@ -26,6 +26,9 @@ mcp-servers:
 
 ## Azure DevOps MCP Server
 
+> **Experimental:** Azure DevOps MCP support is still experimental. Interfaces,
+> defaults, and required configuration may change in future releases.
+
 This shared configuration provides the Azure DevOps MCP Server, exposing work items,
 repositories, pipelines, and other Azure DevOps resources to the agent.
 

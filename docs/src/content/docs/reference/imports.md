@@ -396,7 +396,8 @@ network:
 Consumers import it with `imports: [shared/mcp/tavily.md]`.
 
 For Azure-based integrations, combine `shared/azure-auth.md` with Azure MCP
-imports to preserve OIDC-backed Azure CLI auth inside the agent sandbox:
+imports to preserve OIDC-backed Azure CLI auth inside the agent sandbox.
+Azure DevOps MCP support (`shared/mcp/azure-devops.md`) is still experimental:
 
 ```aw wrap
 ---
