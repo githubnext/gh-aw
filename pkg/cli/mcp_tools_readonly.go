@@ -144,7 +144,16 @@ Returns JSON array with validation results for each workflow:
 		// Check if any static analysis tools are requested that require Docker images
 		if args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Syft || args.Grype || args.Grant || args.Yamllint {
 			// Check if Docker images are available; if not, start downloading and return retry message
-			if err := CheckAndPrepareDockerImages(ctx, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint); err != nil {
+			if err := CheckAndPrepareDockerImages(ctx, DockerImagesOptions{
+				Zizmor:      args.Zizmor,
+				Poutine:     args.Poutine,
+				Actionlint:  args.Actionlint,
+				RunnerGuard: args.RunnerGuard,
+				Syft:        args.Syft,
+				Grype:       args.Grype,
+				Grant:       args.Grant,
+				Yamllint:    args.Yamllint,
+			}); err != nil {
 				var dockerUnavailableErr *DockerUnavailableError
 				if errors.As(err, &dockerUnavailableErr) {
 					// Docker daemon is not running.  Instead of failing every workflow,
