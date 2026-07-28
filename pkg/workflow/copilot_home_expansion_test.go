@@ -1,3 +1,5 @@
+//go:build !integration
+
 // Tests guarding the $HOME-based shell expansion logic that resolves the
 // Copilot CLI config directory at runtime (instead of the hard-coded
 // /home/runner that broke self-hosted and containerized runners).
