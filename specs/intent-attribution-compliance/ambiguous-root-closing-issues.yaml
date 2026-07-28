@@ -1,0 +1,28 @@
+fixture_id: ambiguous-root-closing-issues
+description: Multiple distinct closing issues without explicit intent must produce ambiguous attribution.
+spec_refs:
+  - "Ambiguous-Root Handling"
+  - "Fail-Closed Behavior"
+input:
+  artifact:
+    kind: pull_request
+    number: 77
+    explicit_intent: null
+    linked_closing_issues:
+      - number: 120
+        inferred_intent: reliability
+      - number: 121
+        inferred_intent: security
+    labels:
+      - enhancement
+expected:
+  attribution:
+    source: closing_issue
+    status: ambiguous
+    intent_key: null
+  policy:
+    autonomy: propose_only
+    write_scope: none
+    human_approval_required: true
+    auto_merge_allowed: false
+    max_attempts: 1

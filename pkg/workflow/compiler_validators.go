@@ -62,6 +62,13 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 	// of the recommended /tmp/gh-aw/agent/ subtree.
 	c.validatePromptTmpPaths(workflowData, markdownPath)
 
+	// Detect agent-job step outputs referenced in the prompt. The prompt is rendered
+	// in the activation job; agent-job steps run later and their outputs are not
+	// available at prompt-creation time.
+	if err := validateStepsOutputsNotInPrompt(workflowData); err != nil {
+		return formatCompilerError(markdownPath, "error", err.Error(), err)
+	}
+
 	return nil
 }
 

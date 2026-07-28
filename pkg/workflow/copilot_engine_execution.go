@@ -491,9 +491,13 @@ func (e *CopilotEngine) buildCopilotAWFPathSetup(workflowData *WorkflowData, cus
 	if customCommandScriptSetup != "" {
 		pathSetup = customCommandScriptSetup + "\n" + pathSetup
 	}
+	homeExport := ""
+	if isArcDindTopology(workflowData) {
+		homeExport = fmt.Sprintf("export HOME=%s\n", awfArcDindHomePathExpr)
+	}
 	// Write the Copilot settings file before AWF starts. The file is created on the host and mounted
 	// into the container, where the Copilot CLI reads it to disable the rubber-duck sub-agent.
-	return buildCopilotSettingsCleanupAndExitCodeTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
+	return homeExport + buildCopilotSettingsCleanupAndExitCodeTrap() + buildCopilotSettingsSetup(buildCopilotSettingsContent(workflowData), customCommandScriptSetup != "") + buildCopilotMCPConfigExport(workflowData) + pathSetup
 }
 
 func (e *CopilotEngine) buildCopilotDirectCommand(workflowData *WorkflowData, copilotCommand, customCommandScriptSetup, mkdirCommands, logFile string) string {

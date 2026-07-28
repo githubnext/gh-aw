@@ -38,3 +38,21 @@ func addOutputFlag(cmd *cobra.Command, defaultValue string) {
 func addJSONFlag(cmd *cobra.Command) {
 	cmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 }
+
+// addSecurityScannerFlag adds the --no-security-scanner flag and its deprecated
+// --disable-security-scanner alias to a command.
+func addSecurityScannerFlag(cmd *cobra.Command) {
+	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
+	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
+	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
+}
+
+// resolveDeprecatedBoolFlag returns true if either the newName flag or the
+// deprecated oldName flag is set on cmd. It is intended for cases where a flag
+// has been renamed: callers register both names and use this helper to collapse
+// them into a single effective value.
+func resolveDeprecatedBoolFlag(cmd *cobra.Command, newName, oldName string) bool {
+	newVal, _ := cmd.Flags().GetBool(newName)
+	oldVal, _ := cmd.Flags().GetBool(oldName)
+	return newVal || oldVal
+}

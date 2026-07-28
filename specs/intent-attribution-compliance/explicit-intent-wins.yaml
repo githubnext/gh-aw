@@ -1,0 +1,27 @@
+fixture_id: explicit-intent-wins
+description: Explicit intent metadata overrides conflicting linked issue intent references.
+spec_refs:
+  - "Attribution-Resolution Order"
+  - "Fail-Closed Behavior"
+input:
+  artifact:
+    kind: pull_request
+    number: 42
+    explicit_intent:
+      key: security
+      source: explicit_metadata
+    linked_closing_issues:
+      - number: 101
+        inferred_intent: documentation
+    labels:
+      - docs
+expected:
+  attribution:
+    source: explicit_metadata
+    status: mapped
+    intent_key: security
+  policy:
+    autonomy: bounded_autonomous
+    write_scope: limited
+    human_approval_required: false
+    auto_merge_allowed: true
