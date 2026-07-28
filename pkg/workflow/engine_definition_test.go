@@ -27,6 +27,7 @@ func TestNewEngineCatalog_BuiltIns(t *testing.T) {
 		{"gemini", "Google Gemini CLI", "google"},
 		{"opencode", "OpenCode", "github"},
 		{"pi", "Pi", "github"},
+		{"antigravity", "Antigravity CLI", "google"},
 	}
 
 	for _, tt := range tests {
