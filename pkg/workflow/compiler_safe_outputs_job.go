@@ -267,27 +267,30 @@ func (c *Compiler) buildSafeOutputsSetupAndDownloadSteps(data *WorkflowData, age
 // and the named convenience outputs for first-created items.
 // It returns the collected steps, outputs map, and the list of safe-output step names registered.
 func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowData, agentArtifactPrefix, markdownPath string) ([]string, map[string]string, []string, error) {
-	var steps []string
-	outputs := make(map[string]string)
-	var safeOutputStepNames []string
+	state := &safeOutputsHandlerBuildState{
+		outputs: make(map[string]string),
+	}
+	if err := c.addCustomScriptSetupSteps(state, data); err != nil {
+		return nil, nil, nil, err
+	}
+	c.addUploadArtifactStagingDownloadStep(state, data, agentArtifactPrefix)
+	if err := c.addHandlerManagerOutputsAndSteps(state, data); err != nil {
+		return nil, nil, nil, err
+	}
+	c.addSarifOutputsAndSteps(state, data, agentArtifactPrefix)
+	c.addCustomSafeOutputActionSteps(state, data, markdownPath)
+	addConvenienceSafeOutputOutputs(state.outputs, data)
+	return state.steps, state.outputs, state.safeOutputStepNames, nil
+}
 
-	// Note: Unlock step has been moved to dedicated unlock job
-	// The safe_outputs job now depends on the unlock job, so the issue
-	// will already be unlocked when this job runs
+type safeOutputsHandlerBuildState struct {
+	steps               []string
+	outputs             map[string]string
+	safeOutputStepNames []string
+}
 
-	// === Build safe output steps ===
-	//
-	// IMPORTANT: Step order matters for safe outputs that depend on each other.
-	// The execution order ensures dependencies are satisfied:
-	// 1. Handler Manager - processes create_issue, update_issue, add_comment, etc.
-	// 2. Assign To Agent - assigns issue to agent (after handler managers complete)
-	// 3. Create Agent Session - creates agent session (after assignment)
-	//
-	// Note: All project-related operations (create_project, update_project, create_project_status_update)
-	// are now handled by the unified handler in the handler manager step.
-
-	// Check if any handler-manager-supported types are enabled
-	hasHandlerManagerTypes := data.SafeOutputs.CreateIssues != nil ||
+func hasHandlerManagerSafeOutputTypes(data *WorkflowData) bool {
+	return data.SafeOutputs.CreateIssues != nil ||
 		data.SafeOutputs.AddComments != nil ||
 		data.SafeOutputs.CreateDiscussions != nil ||
 		data.SafeOutputs.CloseIssues != nil ||
@@ -317,176 +320,144 @@ func (c *Compiler) buildSafeOutputsHandlerOutputsAndActionSteps(data *WorkflowDa
 		data.SafeOutputs.CreateCheckRun != nil ||
 		data.SafeOutputs.MissingTool != nil ||
 		data.SafeOutputs.MissingData != nil ||
-		data.SafeOutputs.AssignToAgent != nil || // assign_to_agent is now handled by the handler manager
-		data.SafeOutputs.CreateAgentSessions != nil || // create_agent_session is now handled by the handler manager
-		data.SafeOutputs.UploadArtifact != nil || // upload_artifact is handled inline in the handler loop
-		len(data.SafeOutputs.Scripts) > 0 || // Custom scripts run in the handler loop
-		len(data.SafeOutputs.Actions) > 0 // Custom actions need handler to export their payloads
+		data.SafeOutputs.AssignToAgent != nil ||
+		data.SafeOutputs.CreateAgentSessions != nil ||
+		data.SafeOutputs.UploadArtifact != nil ||
+		len(data.SafeOutputs.Scripts) > 0 ||
+		len(data.SafeOutputs.Actions) > 0
+}
 
-	// Note: All project-related operations are now handled by the unified handler.
-	// The project handler manager has been removed.
-
-	// Add custom script files step (writes inline scripts to the actions folder)
-	// This must run before the handler manager step so the files are available for require()
-	if len(data.SafeOutputs.Scripts) > 0 {
-		consolidatedSafeOutputsJobLog.Printf("Adding setup step for %d custom safe-output script(s)", len(data.SafeOutputs.Scripts))
-		scriptSetupSteps, err := buildCustomScriptFilesStep(data.SafeOutputs.Scripts)
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf("failed to build custom script files step: %w", err)
-		}
-		steps = append(steps, scriptSetupSteps...)
+func (c *Compiler) addCustomScriptSetupSteps(state *safeOutputsHandlerBuildState, data *WorkflowData) error {
+	if len(data.SafeOutputs.Scripts) == 0 {
+		return nil
 	}
+	consolidatedSafeOutputsJobLog.Printf("Adding setup step for %d custom safe-output script(s)", len(data.SafeOutputs.Scripts))
+	scriptSetupSteps, err := buildCustomScriptFilesStep(data.SafeOutputs.Scripts)
+	if err != nil {
+		return fmt.Errorf("failed to build custom script files step: %w", err)
+	}
+	state.steps = append(state.steps, scriptSetupSteps...)
+	return nil
+}
 
-	// Download the upload-artifact staging artifact before the handler manager runs so that
-	// the upload_artifact handler (which runs inline in the handler loop) can access the files.
+func (c *Compiler) addUploadArtifactStagingDownloadStep(state *safeOutputsHandlerBuildState, data *WorkflowData, agentArtifactPrefix string) {
+	if data.SafeOutputs.UploadArtifact == nil {
+		return
+	}
+	consolidatedSafeOutputsJobLog.Print("Adding upload-artifact staging download step")
+	stagingArtifactName := agentArtifactPrefix + SafeOutputsUploadArtifactStagingArtifactName
+	state.steps = append(state.steps,
+		"      - name: Download upload-artifact staging\n",
+		"        continue-on-error: true\n",
+		fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
+		"        with:\n",
+		fmt.Sprintf("          name: %s\n", stagingArtifactName),
+		fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
+	)
+}
+
+func (c *Compiler) addHandlerManagerOutputsAndSteps(state *safeOutputsHandlerBuildState, data *WorkflowData) error {
+	if !hasHandlerManagerSafeOutputTypes(data) {
+		return nil
+	}
+	consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
+	handlerManagerSteps, err := c.buildHandlerManagerStep(data)
+	if err != nil {
+		return err
+	}
+	state.steps = append(state.steps, handlerManagerSteps...)
+	state.safeOutputStepNames = append(state.safeOutputStepNames, "process_safe_outputs")
+	addBaseHandlerManagerOutputs(state.outputs)
+	addOptionalHandlerManagerOutputs(state.outputs, data)
+	return nil
+}
+
+func addBaseHandlerManagerOutputs(outputs map[string]string) {
+	outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
+	outputs["process_safe_outputs_processed_count"] = "${{ steps.process_safe_outputs.outputs.processed_count }}"
+	outputs["create_discussion_errors"] = "${{ steps.process_safe_outputs.outputs.create_discussion_errors }}"
+	outputs["create_discussion_error_count"] = "${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}"
+	outputs["code_push_failure_errors"] = "${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}"
+	outputs["code_push_failure_count"] = "${{ steps.process_safe_outputs.outputs.code_push_failure_count }}"
+}
+
+func addOptionalHandlerManagerOutputs(outputs map[string]string, data *WorkflowData) {
+	if data.SafeOutputs.AssignToAgent != nil {
+		consolidatedSafeOutputsJobLog.Print("Exposing assign_to_agent outputs from handler manager")
+		outputs["assign_to_agent_assigned"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assigned }}"
+		outputs["assign_to_agent_assignment_errors"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_errors }}"
+		outputs["assign_to_agent_assignment_error_count"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_error_count }}"
+	}
+	if data.SafeOutputs.CreateAgentSessions != nil {
+		consolidatedSafeOutputsJobLog.Print("Exposing create_agent_session outputs from handler manager")
+		outputs["create_agent_session_session_number"] = "${{ steps.process_safe_outputs.outputs.session_number }}"
+		outputs["create_agent_session_session_url"] = "${{ steps.process_safe_outputs.outputs.session_url }}"
+	}
 	if data.SafeOutputs.UploadArtifact != nil {
-		consolidatedSafeOutputsJobLog.Print("Adding upload-artifact staging download step")
-		stagingArtifactName := agentArtifactPrefix + SafeOutputsUploadArtifactStagingArtifactName
-		steps = append(steps,
-			"      - name: Download upload-artifact staging\n",
-			"        continue-on-error: true\n",
-			fmt.Sprintf("        uses: %s\n", c.getActionPin("actions/download-artifact")),
-			"        with:\n",
-			fmt.Sprintf("          name: %s\n", stagingArtifactName),
-			fmt.Sprintf("          path: %s\n", artifactStagingDirExpr),
-		)
+		addUploadArtifactOutputs(outputs, data.SafeOutputs.UploadArtifact)
 	}
+}
 
-	// 1. Handler Manager step (processes create_issue, update_issue, add_comment, assign_to_agent,
-	// upload_artifact, etc.)
-	// This processes all safe output types that are handled by the unified handler
-	// Critical for workflows that create projects and then add issues/PRs to those projects
-	if hasHandlerManagerTypes {
-		consolidatedSafeOutputsJobLog.Print("Using handler manager for safe outputs")
-		handlerManagerSteps, err := c.buildHandlerManagerStep(data)
-		if err != nil {
-			return nil, nil, nil, err
-		}
-		steps = append(steps, handlerManagerSteps...)
-		safeOutputStepNames = append(safeOutputStepNames, "process_safe_outputs")
-
-		// Add outputs from handler manager
-		outputs["process_safe_outputs_temporary_id_map"] = "${{ steps.process_safe_outputs.outputs.temporary_id_map }}"
-		outputs["process_safe_outputs_processed_count"] = "${{ steps.process_safe_outputs.outputs.processed_count }}"
-		outputs["create_discussion_errors"] = "${{ steps.process_safe_outputs.outputs.create_discussion_errors }}"
-		outputs["create_discussion_error_count"] = "${{ steps.process_safe_outputs.outputs.create_discussion_error_count }}"
-		outputs["code_push_failure_errors"] = "${{ steps.process_safe_outputs.outputs.code_push_failure_errors }}"
-		outputs["code_push_failure_count"] = "${{ steps.process_safe_outputs.outputs.code_push_failure_count }}"
-
-		// Note: Permissions are now computed centrally by ComputePermissionsForSafeOutputs()
-		// at the start of this function to ensure consistent permission calculation
-
-		// Export assign_to_agent outputs from the handler manager step
-		if data.SafeOutputs.AssignToAgent != nil {
-			consolidatedSafeOutputsJobLog.Print("Exposing assign_to_agent outputs from handler manager")
-			outputs["assign_to_agent_assigned"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assigned }}"
-			outputs["assign_to_agent_assignment_errors"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_errors }}"
-			outputs["assign_to_agent_assignment_error_count"] = "${{ steps.process_safe_outputs.outputs.assign_to_agent_assignment_error_count }}"
-		}
-
-		// Export create_agent_session outputs from the handler manager step
-		if data.SafeOutputs.CreateAgentSessions != nil {
-			consolidatedSafeOutputsJobLog.Print("Exposing create_agent_session outputs from handler manager")
-			outputs["create_agent_session_session_number"] = "${{ steps.process_safe_outputs.outputs.session_number }}"
-			outputs["create_agent_session_session_url"] = "${{ steps.process_safe_outputs.outputs.session_url }}"
-		}
-
-		// Export upload_artifact outputs.
-		// The handler sets slot_N_* outputs on the process_safe_outputs step; we expose
-		// them as upload_artifact_slot_N_* job outputs for external consumers.
-		// The actual artifact uploads are performed directly by the JS handler via
-		// @actions/artifact REST API — no additional YAML steps are required.
-		if data.SafeOutputs.UploadArtifact != nil {
-			consolidatedSafeOutputsJobLog.Print("Exposing upload_artifact outputs from handler manager")
-			cfg := data.SafeOutputs.UploadArtifact
-			outputs["upload_artifact_count"] = "${{ steps.process_safe_outputs.outputs.upload_artifact_count }}"
-			for i := range cfg.MaxUploads {
-				outputs[fmt.Sprintf("upload_artifact_slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.process_safe_outputs.outputs.slot_%d_tmp_id }}", i)
-			}
-		}
-
+func addUploadArtifactOutputs(outputs map[string]string, cfg *UploadArtifactConfig) {
+	consolidatedSafeOutputsJobLog.Print("Exposing upload_artifact outputs from handler manager")
+	outputs["upload_artifact_count"] = "${{ steps.process_safe_outputs.outputs.upload_artifact_count }}"
+	for i := range cfg.MaxUploads {
+		outputs[fmt.Sprintf("upload_artifact_slot_%d_tmp_id", i)] = fmt.Sprintf("${{ steps.process_safe_outputs.outputs.slot_%d_tmp_id }}", i)
 	}
+}
 
-	// 2. SARIF output — expose sarif_file from the handler so the dedicated
-	// upload_code_scanning_sarif job (built in buildCodeScanningUploadJob) can access it
-	// via needs.safe_outputs.outputs.sarif_file and decide whether to run.
-	// Additionally, upload the SARIF file as a GitHub Actions artifact so the upload job
-	// can retrieve the actual file (job outputs only carry the path string; the file itself
-	// only exists in the safe_outputs job workspace).
-	// NOTE: We do NOT export checkout_token as a job output. GitHub Actions masks output
-	// values that contain secret references, so the downstream job would receive an empty
-	// string. The upload job computes the token directly from static secret references.
-	if data.SafeOutputs.CreateCodeScanningAlerts != nil && !isHandlerStaged(c.trialMode || templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
-		consolidatedSafeOutputsJobLog.Print("Exposing sarif_file output for upload_code_scanning_sarif job")
-		outputs["sarif_file"] = "${{ steps.process_safe_outputs.outputs.sarif_file }}"
-
-		// Upload the SARIF file as an artifact so the upload_code_scanning_sarif job
-		// (which runs in a separate, fresh workspace) can download and process it.
-		steps = append(steps, buildSarifArtifactUploadStep(agentArtifactPrefix, c.getActionPin)...)
+func (c *Compiler) addSarifOutputsAndSteps(state *safeOutputsHandlerBuildState, data *WorkflowData, agentArtifactPrefix string) {
+	if data.SafeOutputs.CreateCodeScanningAlerts == nil ||
+		isHandlerStaged(c.trialMode || templatableBoolIsTrue(data.SafeOutputs.Staged), data.SafeOutputs.CreateCodeScanningAlerts.Staged) {
+		return
 	}
+	consolidatedSafeOutputsJobLog.Print("Exposing sarif_file output for upload_code_scanning_sarif job")
+	state.outputs["sarif_file"] = "${{ steps.process_safe_outputs.outputs.sarif_file }}"
+	state.steps = append(state.steps, buildSarifArtifactUploadStep(agentArtifactPrefix, c.getActionPin)...)
+}
 
-	// 3. Custom action steps — compiler-generated steps for each configured safe-output action.
-	// These steps run after the handler manager, which processes the agent payload and exports
-	// a JSON payload output for each action tool call. Each step is guarded by an `if:` condition
-	// that checks whether the handler manager exported a payload for this action.
-	if len(data.SafeOutputs.Actions) > 0 {
-		// resolveAllActions was already called early in buildJobs (before generateToolsMetaJSON)
-		// so action configs already have Inputs/ActionDescription populated. We only call it
-		// again here as a safety net in case compileSafeOutputsJob is called independently.
-		c.resolveAllActions(data, markdownPath)
-
-		actionStepYAML := c.buildActionSteps(data)
-		steps = append(steps, actionStepYAML...)
-
-		// Register each action as having a handler manager output
-		for actionName := range data.SafeOutputs.Actions {
-			normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
-			safeOutputStepNames = append(safeOutputStepNames, "action_"+normalizedName)
-		}
+func (c *Compiler) addCustomSafeOutputActionSteps(state *safeOutputsHandlerBuildState, data *WorkflowData, markdownPath string) {
+	if len(data.SafeOutputs.Actions) == 0 {
+		return
 	}
+	c.resolveAllActions(data, markdownPath)
+	state.steps = append(state.steps, c.buildActionSteps(data)...)
+	for actionName := range data.SafeOutputs.Actions {
+		normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
+		state.safeOutputStepNames = append(state.safeOutputStepNames, "action_"+normalizedName)
+	}
+}
 
-	// The outputs and permissions are configured in the handler manager section above
+func addConvenienceSafeOutputOutputs(outputs map[string]string, data *WorkflowData) {
 	if data.SafeOutputs.AddReviewer != nil {
 		outputs["add_reviewer_reviewers_added"] = "${{ steps.process_safe_outputs.outputs.reviewers_added }}"
 	}
-
-	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignMilestone != nil {
 		outputs["assign_milestone_milestone_assigned"] = "${{ steps.process_safe_outputs.outputs.milestone_assigned }}"
 	}
-
-	// The outputs and permissions are configured in the handler manager section above
 	if data.SafeOutputs.AssignToUser != nil {
 		outputs["assign_to_user_assigned"] = "${{ steps.process_safe_outputs.outputs.assigned }}"
 	}
-
-	// Individual named outputs for first-created items (enables workflow_call consumers to access results)
 	if data.SafeOutputs.CreateIssues != nil {
 		outputs["created_issue_number"] = "${{ steps.process_safe_outputs.outputs.created_issue_number }}"
 		outputs["created_issue_url"] = "${{ steps.process_safe_outputs.outputs.created_issue_url }}"
 	}
-
 	if data.SafeOutputs.CreatePullRequests != nil {
 		outputs["created_pr_number"] = "${{ steps.process_safe_outputs.outputs.created_pr_number }}"
 		outputs["created_pr_url"] = "${{ steps.process_safe_outputs.outputs.created_pr_url }}"
 	}
-
 	if data.SafeOutputs.AddComments != nil {
 		outputs["comment_id"] = "${{ steps.process_safe_outputs.outputs.comment_id }}"
 		outputs["comment_url"] = "${{ steps.process_safe_outputs.outputs.comment_url }}"
 	}
-
 	if data.SafeOutputs.PushToPullRequestBranch != nil {
 		outputs["push_commit_sha"] = "${{ steps.process_safe_outputs.outputs.push_commit_sha }}"
 		outputs["push_commit_url"] = "${{ steps.process_safe_outputs.outputs.push_commit_url }}"
 	}
-
 	if data.SafeOutputs.CallWorkflow != nil {
 		outputs["call_workflow_name"] = "${{ steps.process_safe_outputs.outputs.call_workflow_name }}"
 		outputs["call_workflow_payload"] = "${{ steps.process_safe_outputs.outputs.call_workflow_payload }}"
 	}
-
-	return steps, outputs, safeOutputStepNames, nil
 }
 
 // buildSafeOutputsJobFromParts finalizes the step list (app-token insertion, token invalidation,

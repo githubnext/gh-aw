@@ -22,17 +22,46 @@ func isAlreadyMergedGHError(err error) bool {
 	return strings.Contains(err.Error(), "already merged") || strings.Contains(err.Error(), "MERGED")
 }
 
+type mergeAction string
+
+const (
+	mergeActionAttempt   mergeAction = "attempt"
+	mergeActionEditTitle mergeAction = "editTitle"
+	mergeActionReview    mergeAction = "review"
+	mergeActionConfirmed mergeAction = "confirmed"
+	mergeActionExit      mergeAction = "exit"
+)
+
+type prMergeState struct {
+	done          bool
+	failed        bool
+	userReviewing bool
+}
+
 // createWorkflowPRAndConfigureSecret creates the PR, merges it, and adds the secret
 func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string) error {
 	addInteractiveLog.Print("Applying changes")
 
 	fmt.Fprintln(os.Stderr, "")
 
+	result, err := c.addResolvedWorkflowsWithPR(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to add workflow: %w", err)
+	}
+	c.addResult = result
+
+	if err := c.ensureWorkflowPRMerged(result); err != nil {
+		return err
+	}
+
+	return c.configureRepositorySecret(secretName, secretValue)
+}
+
+func (c *AddInteractiveConfig) addResolvedWorkflowsWithPR(ctx context.Context) (*AddWorkflowsResult, error) {
 	// Add the workflow using existing implementation with --create-pull-request
 	// Pass the resolved workflows to avoid re-fetching them
 	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
-	// This returns the result including PR number and HasWorkflowDispatch
-	opts := AddOptions{
+	return AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, AddOptions{
 		Verbose:                      c.Verbose,
 		Quiet:                        true,
 		EngineOverride:               c.EngineOverride,
@@ -46,154 +75,161 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 		StopAfter:                    c.StopAfter,
 		DisableSecurityScanner:       c.DisableSecurityScanner,
 		AddCopilotRequestsPermission: c.UseCopilotRequests,
-	}
-	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
-	if err != nil {
-		return fmt.Errorf("failed to add workflow: %w", err)
-	}
-	c.addResult = result
+	})
+}
 
-	// Step 8b: Optionally merge the PR – loop until merged, confirmed-merged, or user exits
+func (c *AddInteractiveConfig) ensureWorkflowPRMerged(result *AddWorkflowsResult) error {
 	if result.PRNumber == 0 {
-		if result.PRURL == "" {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Requested workflow files already exist locally; no pull request was created."))
-			return nil
+		return c.handleWorkflowPRWithoutNumber(result)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+result.PRURL))
+	fmt.Fprintln(os.Stderr, "")
+
+	state := prMergeState{}
+	for !state.done {
+		action, err := c.promptPRMergeAction(result.PRURL, state)
+		if err != nil {
+			return err
 		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
-		fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+result.PRURL))
-		fmt.Fprintln(os.Stderr, "")
-
-		// mergeAction values used in the select loop
-		type mergeAction string
-		const (
-			mergeActionAttempt   mergeAction = "attempt"
-			mergeActionEditTitle mergeAction = "editTitle"
-			mergeActionReview    mergeAction = "review"
-			mergeActionConfirmed mergeAction = "confirmed"
-			mergeActionExit      mergeAction = "exit"
-		)
-
-		mergeDone := false     // true when the PR is merged (or confirmed merged)
-		mergeFailed := false   // true after an unsuccessful merge attempt
-		userReviewing := false // true after the user chose "I'll review myself"
-
-		for !mergeDone {
-			// Build option list based on current state
-			var options []huh.Option[mergeAction]
-
-			options = append(options, huh.NewOption("Attempt to merge", mergeActionAttempt))
-
-			if mergeFailed {
-				options = append(options, huh.NewOption("Edit PR title and retry", mergeActionEditTitle))
-			}
-
-			if userReviewing {
-				options = append(options, huh.NewOption("PR has been manually merged", mergeActionConfirmed))
-			} else {
-				options = append(options, huh.NewOption("I'll review/merge myself", mergeActionReview))
-			}
-
-			if userReviewing {
-				options = append(options, huh.NewOption("Exit, I'm done here", mergeActionExit))
-			} else {
-				options = append(options, huh.NewOption("Exit", mergeActionExit))
-			}
-
-			var chosen mergeAction
-			selectForm := console.NewSelectForm(
-				huh.NewSelect[mergeAction]().
-					Title("What would you like to do with pull request " + result.PRURL + "?").
-					Options(options...).
-					Value(&chosen),
-			)
-
-			if selectErr := selectForm.Run(); selectErr != nil {
-				return fmt.Errorf("failed to get user input: %w", selectErr)
-			}
-
-			switch chosen {
-			case mergeActionAttempt:
-				if mergeErr := c.mergePullRequest(result.PRNumber); mergeErr != nil {
-					if isAlreadyMergedGHError(mergeErr) {
-						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
-						mergeDone = true
-					} else {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", mergeErr)))
-						if mergeFailed {
-							fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
-						}
-						mergeFailed = true
-					}
-				} else {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
-					mergeDone = true
-				}
-
-			case mergeActionEditTitle:
-				var newTitle string
-				titleForm := console.NewInputForm(
-					huh.NewInput().
-						Title("Enter new PR title").
-						Description("Add a prefix if required, for example: feat: or fix:").
-						Value(&newTitle),
-				)
-				if titleErr := titleForm.Run(); titleErr != nil {
-					return fmt.Errorf("failed to get user input: %w", titleErr)
-				}
-				newTitle = strings.TrimSpace(newTitle)
-				if newTitle == "" {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("PR title cannot be empty, keeping current title"))
-				} else if editErr := editPRTitle(result.PRNumber, newTitle, c.RepoOverride); editErr != nil {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update PR title: %v", editErr)))
-				} else {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR title updated to: "+newTitle))
-					mergeFailed = false
-				}
-
-			case mergeActionReview:
-				userReviewing = true
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please review and merge the pull request: "+result.PRURL))
-				fmt.Fprintln(os.Stderr, "")
-
-			case mergeActionConfirmed:
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Great – continuing with the merged pull request"))
-				mergeDone = true
-
-			case mergeActionExit:
-				fmt.Fprintln(os.Stderr, "")
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Exiting. You can merge the pull request later: "+result.PRURL))
-				return errors.New("user exited before PR was merged")
-			}
+		if err := c.handlePRMergeAction(result, action, &state); err != nil {
+			return err
 		}
 	}
 
-	// Step 8c: Add the secret (skip if no secret configured or already exists in repository)
+	return nil
+}
+
+func (c *AddInteractiveConfig) handleWorkflowPRWithoutNumber(result *AddWorkflowsResult) error {
+	if result.PRURL == "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Requested workflow files already exist locally; no pull request was created."))
+		return nil
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
+	fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
+	return nil
+}
+
+func (c *AddInteractiveConfig) promptPRMergeAction(prURL string, state prMergeState) (mergeAction, error) {
+	var chosen mergeAction
+	selectForm := console.NewSelectForm(
+		huh.NewSelect[mergeAction]().
+			Title("What would you like to do with pull request " + prURL + "?").
+			Options(c.buildPRMergeOptions(state)...).
+			Value(&chosen),
+	)
+	if err := selectForm.Run(); err != nil {
+		return "", fmt.Errorf("failed to get user input: %w", err)
+	}
+	return chosen, nil
+}
+
+func (c *AddInteractiveConfig) buildPRMergeOptions(state prMergeState) []huh.Option[mergeAction] {
+	options := []huh.Option[mergeAction]{
+		huh.NewOption("Attempt to merge", mergeActionAttempt),
+	}
+	if state.failed {
+		options = append(options, huh.NewOption("Edit PR title and retry", mergeActionEditTitle))
+	}
+	if state.userReviewing {
+		options = append(options, huh.NewOption("PR has been manually merged", mergeActionConfirmed))
+		options = append(options, huh.NewOption("Exit, I'm done here", mergeActionExit))
+		return options
+	}
+	options = append(options, huh.NewOption("I'll review/merge myself", mergeActionReview))
+	options = append(options, huh.NewOption("Exit", mergeActionExit))
+	return options
+}
+
+func (c *AddInteractiveConfig) handlePRMergeAction(result *AddWorkflowsResult, action mergeAction, state *prMergeState) error {
+	switch action {
+	case mergeActionAttempt:
+		c.attemptWorkflowPRMerge(result, state)
+	case mergeActionEditTitle:
+		return c.promptAndUpdatePRTitle(result, state)
+	case mergeActionReview:
+		state.userReviewing = true
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please review and merge the pull request: "+result.PRURL))
+		fmt.Fprintln(os.Stderr, "")
+	case mergeActionConfirmed:
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Great – continuing with the merged pull request"))
+		state.done = true
+	case mergeActionExit:
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Exiting. You can merge the pull request later: "+result.PRURL))
+		return errors.New("user exited before PR was merged")
+	}
+	return nil
+}
+
+func (c *AddInteractiveConfig) attemptWorkflowPRMerge(result *AddWorkflowsResult, state *prMergeState) {
+	if err := c.mergePullRequest(result.PRNumber); err != nil {
+		if isAlreadyMergedGHError(err) {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
+			state.done = true
+			return
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", err)))
+		if state.failed {
+			fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
+		}
+		state.failed = true
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
+	state.done = true
+}
+
+func (c *AddInteractiveConfig) promptAndUpdatePRTitle(result *AddWorkflowsResult, state *prMergeState) error {
+	var newTitle string
+	titleForm := console.NewInputForm(
+		huh.NewInput().
+			Title("Enter new PR title").
+			Description("Add a prefix if required, for example: feat: or fix:").
+			Value(&newTitle),
+	)
+	if err := titleForm.Run(); err != nil {
+		return fmt.Errorf("failed to get user input: %w", err)
+	}
+	newTitle = strings.TrimSpace(newTitle)
+	if newTitle == "" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("PR title cannot be empty, keeping current title"))
+		return nil
+	}
+	if err := editPRTitle(result.PRNumber, newTitle, c.RepoOverride); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update PR title: %v", err)))
+		return nil
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR title updated to: "+newTitle))
+	state.failed = false
+	return nil
+}
+
+func (c *AddInteractiveConfig) configureRepositorySecret(secretName, secretValue string) error {
 	if secretName == "" {
 		// No secret to configure (e.g., user doesn't have write access to the repository)
-	} else if secretValue == "" {
-		// Secret already exists in repo, nothing to do
+		return nil
+	}
+	if secretValue == "" {
 		if c.Verbose {
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' already configured", secretName)))
 		}
-	} else {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding secret '%s' to repository...", secretName)))
-
-		if err := c.addRepositorySecret(secretName, secretValue); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to add secret: %v", err)))
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "Please add the secret manually:")
-			fmt.Fprintln(os.Stderr, "  1. Go to your repository Settings → Secrets and variables → Actions")
-			fmt.Fprintf(os.Stderr, "  2. Click 'New repository secret' and add '%s'\n", secretName)
-			return fmt.Errorf("failed to add secret: %w", err)
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' added", secretName)))
+		return nil
 	}
 
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding secret '%s' to repository...", secretName)))
+	if err := c.addRepositorySecret(secretName, secretValue); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to add secret: %v", err)))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Please add the secret manually:")
+		fmt.Fprintln(os.Stderr, "  1. Go to your repository Settings → Secrets and variables → Actions")
+		fmt.Fprintf(os.Stderr, "  2. Click 'New repository secret' and add '%s'\n", secretName)
+		return fmt.Errorf("failed to add secret: %w", err)
+	}
+
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' added", secretName)))
 	return nil
 }
 

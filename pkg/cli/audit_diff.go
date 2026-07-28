@@ -66,28 +66,39 @@ type FirewallDiffSummary struct {
 // Either analysis may be nil, indicating no firewall data for that run.
 func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *FirewallDiff {
 	auditDiffLog.Printf("Computing firewall diff: run1=%d, run2=%d", run1ID, run2ID)
-	diff := &FirewallDiff{
-		Run1ID: run1ID,
-		Run2ID: run2ID,
+	diff, run1Stats, run2Stats := newFirewallDiffCollector(run1ID, run2ID, run1, run2)
+	if len(run1Stats) == 0 && len(run2Stats) == 0 {
+		return diff.diff
 	}
+	for _, domain := range collectFirewallDomains(run1Stats, run2Stats) {
+		diff.addDomain(domain, run1Stats, run2Stats)
+	}
+	diff.finalize()
+	auditDiffLog.Printf("Firewall diff complete: new=%d, removed=%d, status_changes=%d, volume_changes=%d, anomalies=%d",
+		len(diff.diff.NewDomains), len(diff.diff.RemovedDomains), len(diff.diff.StatusChanges), len(diff.diff.VolumeChanges), diff.anomalyCount)
+	return diff.diff
+}
 
-	// Handle nil cases
+type firewallDiffCollector struct {
+	diff         *FirewallDiff
+	anomalyCount int
+}
+
+func newFirewallDiffCollector(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) (*firewallDiffCollector, map[string]DomainRequestStats, map[string]DomainRequestStats) {
 	run1Stats := make(map[string]DomainRequestStats)
 	run2Stats := make(map[string]DomainRequestStats)
-
 	if run1 != nil {
 		run1Stats = run1.RequestsByDomain
 	}
 	if run2 != nil {
 		run2Stats = run2.RequestsByDomain
 	}
+	return &firewallDiffCollector{
+		diff: &FirewallDiff{Run1ID: run1ID, Run2ID: run2ID},
+	}, run1Stats, run2Stats
+}
 
-	// If both are nil/empty, return empty diff
-	if len(run1Stats) == 0 && len(run2Stats) == 0 {
-		return diff
-	}
-
-	// Collect all domains
+func collectFirewallDomains(run1Stats, run2Stats map[string]DomainRequestStats) []string {
 	allDomains := make(map[string]struct{})
 	for domain := range run1Stats {
 		allDomains[domain] = struct{}{}
@@ -95,120 +106,118 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 	for domain := range run2Stats {
 		allDomains[domain] = struct{}{}
 	}
+	return sliceutil.SortedKeys(allDomains)
+}
 
-	// Sorted domain list for deterministic output
-	sortedDomains := sliceutil.SortedKeys(allDomains)
-
-	anomalyCount := 0
-
-	for _, domain := range sortedDomains {
-		stats1, inRun1 := run1Stats[domain]
-		stats2, inRun2 := run2Stats[domain]
-
-		if !inRun1 && inRun2 {
-			// New domain in run 2
-			entry := DomainDiffEntry{
-				Domain:        domain,
-				DiffEntryBase: DiffEntryBase{Status: "new"},
-				Run2Allowed:   stats2.Allowed,
-				Run2Blocked:   stats2.Blocked,
-				Run2Status:    classifyFirewallDomainStatus(stats2),
-			}
-			// Anomaly: new denied domain
-			if stats2.Blocked > 0 {
-				entry.IsAnomaly = true
-				entry.AnomalyNote = "new denied domain"
-				anomalyCount++
-			}
-			diff.NewDomains = append(diff.NewDomains, entry)
-		} else if inRun1 && !inRun2 {
-			// Removed domain
-			entry := DomainDiffEntry{
-				Domain:        domain,
-				DiffEntryBase: DiffEntryBase{Status: "removed"},
-				Run1Allowed:   stats1.Allowed,
-				Run1Blocked:   stats1.Blocked,
-				Run1Status:    classifyFirewallDomainStatus(stats1),
-			}
-			// Anomaly: the removed domain was denied in the base run.  This indicates a
-			// transient firewall block that prevented the agent from reaching an MCP server
-			// (e.g. awmg-mcpg:8080) — even though the domain is absent from the comparison
-			// run (and therefore looks "normal"), its prior denial is worth surfacing so
-			// post-completion relaunch failures are detectable in audit diffs.
-			if stats1.Blocked > 0 {
-				entry.IsAnomaly = true
-				entry.AnomalyNote = "denied in base run — absent from comparison run"
-				anomalyCount++
-			}
-			diff.RemovedDomains = append(diff.RemovedDomains, entry)
-		} else {
-			// Domain exists in both runs - check for changes
-			status1 := classifyFirewallDomainStatus(stats1)
-			status2 := classifyFirewallDomainStatus(stats2)
-
-			if status1 != status2 {
-				// Status changed
-				entry := DomainDiffEntry{
-					Domain:        domain,
-					DiffEntryBase: DiffEntryBase{Status: "status_changed"},
-					Run1Allowed:   stats1.Allowed,
-					Run1Blocked:   stats1.Blocked,
-					Run2Allowed:   stats2.Allowed,
-					Run2Blocked:   stats2.Blocked,
-					Run1Status:    status1,
-					Run2Status:    status2,
-				}
-				// Anomaly: previously denied, now allowed
-				if status1 == "denied" && status2 == "allowed" {
-					entry.IsAnomaly = true
-					entry.AnomalyNote = "previously denied, now allowed"
-					anomalyCount++
-				}
-				// Anomaly: previously allowed, now denied
-				if status1 == "allowed" && status2 == "denied" {
-					entry.IsAnomaly = true
-					entry.AnomalyNote = "previously allowed, now denied"
-					anomalyCount++
-				}
-				diff.StatusChanges = append(diff.StatusChanges, entry)
-			} else {
-				// Check for significant volume changes (>100% threshold)
-				total1 := stats1.Allowed + stats1.Blocked
-				total2 := stats2.Allowed + stats2.Blocked
-
-				if total1 > 0 {
-					pctChange := (float64(total2-total1) / float64(total1)) * 100
-					if math.Abs(pctChange) > volumeChangeThresholdPercent {
-						entry := DomainDiffEntry{
-							Domain:        domain,
-							DiffEntryBase: DiffEntryBase{Status: "volume_changed"},
-							Run1Allowed:   stats1.Allowed,
-							Run1Blocked:   stats1.Blocked,
-							Run2Allowed:   stats2.Allowed,
-							Run2Blocked:   stats2.Blocked,
-							Run1Status:    status1,
-							Run2Status:    status2,
-							VolumeChange:  formatVolumeChange(total1, total2),
-						}
-						diff.VolumeChanges = append(diff.VolumeChanges, entry)
-					}
-				}
-			}
-		}
+func (c *firewallDiffCollector) addDomain(domain string, run1Stats, run2Stats map[string]DomainRequestStats) {
+	stats1, inRun1 := run1Stats[domain]
+	stats2, inRun2 := run2Stats[domain]
+	switch {
+	case !inRun1 && inRun2:
+		c.addNewDomain(domain, stats2)
+	case inRun1 && !inRun2:
+		c.addRemovedDomain(domain, stats1)
+	default:
+		c.addExistingDomain(domain, stats1, stats2)
 	}
+}
 
-	diff.Summary = FirewallDiffSummary{
-		NewDomainCount:     len(diff.NewDomains),
-		RemovedDomainCount: len(diff.RemovedDomains),
-		StatusChangeCount:  len(diff.StatusChanges),
-		VolumeChangeCount:  len(diff.VolumeChanges),
-		HasAnomalies:       anomalyCount > 0,
-		AnomalyCount:       anomalyCount,
+func (c *firewallDiffCollector) addNewDomain(domain string, stats DomainRequestStats) {
+	entry := DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "new"},
+		Run2Allowed:   stats.Allowed,
+		Run2Blocked:   stats.Blocked,
+		Run2Status:    classifyFirewallDomainStatus(stats),
 	}
+	if stats.Blocked > 0 {
+		c.markAnomaly(&entry, "new denied domain")
+	}
+	c.diff.NewDomains = append(c.diff.NewDomains, entry)
+}
 
-	auditDiffLog.Printf("Firewall diff complete: new=%d, removed=%d, status_changes=%d, volume_changes=%d, anomalies=%d",
-		len(diff.NewDomains), len(diff.RemovedDomains), len(diff.StatusChanges), len(diff.VolumeChanges), anomalyCount)
-	return diff
+func (c *firewallDiffCollector) addRemovedDomain(domain string, stats DomainRequestStats) {
+	entry := DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "removed"},
+		Run1Allowed:   stats.Allowed,
+		Run1Blocked:   stats.Blocked,
+		Run1Status:    classifyFirewallDomainStatus(stats),
+	}
+	if stats.Blocked > 0 {
+		c.markAnomaly(&entry, "denied in base run — absent from comparison run")
+	}
+	c.diff.RemovedDomains = append(c.diff.RemovedDomains, entry)
+}
+
+func (c *firewallDiffCollector) addExistingDomain(domain string, stats1, stats2 DomainRequestStats) {
+	status1 := classifyFirewallDomainStatus(stats1)
+	status2 := classifyFirewallDomainStatus(stats2)
+	if status1 != status2 {
+		c.addStatusChange(domain, stats1, stats2, status1, status2)
+		return
+	}
+	c.addVolumeChange(domain, stats1, stats2, status1, status2)
+}
+
+func (c *firewallDiffCollector) addStatusChange(domain string, stats1, stats2 DomainRequestStats, status1, status2 string) {
+	entry := DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "status_changed"},
+		Run1Allowed:   stats1.Allowed,
+		Run1Blocked:   stats1.Blocked,
+		Run2Allowed:   stats2.Allowed,
+		Run2Blocked:   stats2.Blocked,
+		Run1Status:    status1,
+		Run2Status:    status2,
+	}
+	if status1 == "denied" && status2 == "allowed" {
+		c.markAnomaly(&entry, "previously denied, now allowed")
+	}
+	if status1 == "allowed" && status2 == "denied" {
+		c.markAnomaly(&entry, "previously allowed, now denied")
+	}
+	c.diff.StatusChanges = append(c.diff.StatusChanges, entry)
+}
+
+func (c *firewallDiffCollector) addVolumeChange(domain string, stats1, stats2 DomainRequestStats, status1, status2 string) {
+	total1 := stats1.Allowed + stats1.Blocked
+	total2 := stats2.Allowed + stats2.Blocked
+	if total1 == 0 {
+		return
+	}
+	pctChange := (float64(total2-total1) / float64(total1)) * 100
+	if math.Abs(pctChange) <= volumeChangeThresholdPercent {
+		return
+	}
+	c.diff.VolumeChanges = append(c.diff.VolumeChanges, DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "volume_changed"},
+		Run1Allowed:   stats1.Allowed,
+		Run1Blocked:   stats1.Blocked,
+		Run2Allowed:   stats2.Allowed,
+		Run2Blocked:   stats2.Blocked,
+		Run1Status:    status1,
+		Run2Status:    status2,
+		VolumeChange:  formatVolumeChange(total1, total2),
+	})
+}
+
+func (c *firewallDiffCollector) markAnomaly(entry *DomainDiffEntry, note string) {
+	entry.IsAnomaly = true
+	entry.AnomalyNote = note
+	c.anomalyCount++
+}
+
+func (c *firewallDiffCollector) finalize() {
+	c.diff.Summary = FirewallDiffSummary{
+		NewDomainCount:     len(c.diff.NewDomains),
+		RemovedDomainCount: len(c.diff.RemovedDomains),
+		StatusChangeCount:  len(c.diff.StatusChanges),
+		VolumeChangeCount:  len(c.diff.VolumeChanges),
+		HasAnomalies:       c.anomalyCount > 0,
+		AnomalyCount:       c.anomalyCount,
+	}
 }
 
 // classifyFirewallDomainStatus returns "allowed", "denied", or "mixed" based on request stats

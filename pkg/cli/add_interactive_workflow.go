@@ -20,85 +20,129 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 	// Wait a moment for GitHub to process the merge
 	fmt.Fprintln(os.Stderr, "")
 
-	// Use spinner only in non-verbose mode (spinner can't be restarted after stop)
-	var spinner *console.SpinnerWrapper
-	if !c.Verbose {
-		spinner = console.NewSpinner("Waiting for workflow to be available...")
-		spinner.Start()
+	workflowFound, err := c.waitForWorkflowAvailability(ctx)
+	if err != nil {
+		return err
 	}
-
-	// Try a few times to see the workflow in status
-	var workflowFound bool
-	for i := range 5 {
-		// Wait 2 seconds before each check (including the first)
-		timer := time.NewTimer(2 * time.Second)
-		select {
-		case <-ctx.Done():
-			timer.Stop()
-			if spinner != nil {
-				spinner.Stop()
-			}
-			return ctx.Err()
-		case <-timer.C:
-			// Continue with check
-		}
-
-		workflowName := c.primaryWorkflowName()
-		if workflowName != "" {
-			if c.Verbose {
-				fmt.Fprintf(os.Stderr, "Checking workflow status (attempt %d/5) for: %s\n", i+1, workflowName)
-			}
-			// Check if workflow is in status
-			statuses, err := findWorkflowsByFilenamePattern(workflowName, c.RepoOverride, c.Verbose)
-			if err != nil {
-				if c.Verbose {
-					fmt.Fprintf(os.Stderr, "Status check error: %v\n", err)
-				}
-			} else if len(statuses) > 0 {
-				if c.Verbose {
-					fmt.Fprintf(os.Stderr, "Found %d workflow(s) matching pattern\n", len(statuses))
-				}
-				workflowFound = true
-				break
-			} else if c.Verbose {
-				fmt.Fprintln(os.Stderr, "No workflows found matching pattern yet")
-			}
-		}
-	}
-
-	if spinner != nil {
-		spinner.Stop()
-	}
-
 	if !workflowFound {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify workflow status."))
-		fmt.Fprintf(os.Stderr, "You can check status with: %s status\n", string(constants.CLIExtensionPrefix))
-		c.showFinalInstructions()
-		return nil
+		return c.showWorkflowStatusUnavailableMessage()
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow is ready"))
 
-	// Only offer to run if workflow has workflow_dispatch trigger
-	if c.addResult == nil || !c.addResult.HasWorkflowDispatch {
+	if !c.canOfferWorkflowRun() {
 		addInteractiveLog.Print("Workflow does not have workflow_dispatch trigger, skipping run offer")
 		c.showFinalInstructions()
 		return nil
 	}
 
-	// In Codespaces, don't offer to trigger - provide link to Actions page instead
 	if isRunningInCodespace() {
-		addInteractiveLog.Print("Running in Codespaces, skipping run offer and showing Actions link")
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in GitHub Codespaces - please trigger the workflow manually from the Actions page"))
-		fmt.Fprintf(os.Stderr, "🔗 https://github.com/%s/actions\n", c.RepoOverride)
+		return c.showCodespaceRunInstructions()
+	}
+
+	runNow, err := c.promptToRunWorkflowNow(ctx)
+	if err != nil {
+		return nil
+	}
+	if !runNow {
 		c.showFinalInstructions()
 		return nil
 	}
 
-	// Ask if user wants to run the workflow
+	return c.runWorkflowAfterStatusCheck(ctx)
+}
+
+func (c *AddInteractiveConfig) waitForWorkflowAvailability(ctx context.Context) (bool, error) {
+	spinner := c.startWorkflowStatusSpinner()
+	if spinner != nil {
+		defer spinner.Stop()
+	}
+	for i := range 5 {
+		found, err := c.checkWorkflowAvailabilityAttempt(ctx, i)
+		if err != nil || found {
+			return found, err
+		}
+	}
+	return false, nil
+}
+
+func (c *AddInteractiveConfig) startWorkflowStatusSpinner() *console.SpinnerWrapper {
+	if c.Verbose {
+		return nil
+	}
+	spinner := console.NewSpinner("Waiting for workflow to be available...")
+	spinner.Start()
+	return spinner
+}
+
+func (c *AddInteractiveConfig) checkWorkflowAvailabilityAttempt(ctx context.Context, attempt int) (bool, error) {
+	if err := waitForWorkflowStatusRetry(ctx); err != nil {
+		return false, err
+	}
+	workflowName := c.primaryWorkflowName()
+	if workflowName == "" {
+		return false, nil
+	}
+	if c.Verbose {
+		fmt.Fprintf(os.Stderr, "Checking workflow status (attempt %d/5) for: %s\n", attempt+1, workflowName)
+	}
+	statuses, err := findWorkflowsByFilenamePattern(workflowName, c.RepoOverride, c.Verbose)
+	return interpretWorkflowStatusCheck(statuses, err, c.Verbose)
+}
+
+func waitForWorkflowStatusRetry(ctx context.Context) error {
+	timer := time.NewTimer(2 * time.Second)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
+}
+
+func interpretWorkflowStatusCheck(statuses []WorkflowStatus, err error, verbose bool) (bool, error) {
+	if err != nil {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Status check error: %v\n", err)
+		}
+		return false, nil
+	}
+	if len(statuses) > 0 {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Found %d workflow(s) matching pattern\n", len(statuses))
+		}
+		return true, nil
+	}
+	if verbose {
+		fmt.Fprintln(os.Stderr, "No workflows found matching pattern yet")
+	}
+	return false, nil
+}
+
+func (c *AddInteractiveConfig) showWorkflowStatusUnavailableMessage() error {
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify workflow status."))
+	fmt.Fprintf(os.Stderr, "You can check status with: %s status\n", string(constants.CLIExtensionPrefix))
+	c.showFinalInstructions()
+	return nil
+}
+
+func (c *AddInteractiveConfig) canOfferWorkflowRun() bool {
+	return c.addResult != nil && c.addResult.HasWorkflowDispatch
+}
+
+func (c *AddInteractiveConfig) showCodespaceRunInstructions() error {
+	addInteractiveLog.Print("Running in Codespaces, skipping run offer and showing Actions link")
 	fmt.Fprintln(os.Stderr, "")
-	runNow := true // Default to yes
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Running in GitHub Codespaces - please trigger the workflow manually from the Actions page"))
+	fmt.Fprintf(os.Stderr, "🔗 https://github.com/%s/actions\n", c.RepoOverride)
+	c.showFinalInstructions()
+	return nil
+}
+
+func (c *AddInteractiveConfig) promptToRunWorkflowNow(ctx context.Context) (bool, error) {
+	fmt.Fprintln(os.Stderr, "")
+	runNow := true
 	form := console.NewConfirmForm(
 		huh.NewConfirm().
 			Title("Would you like to run the workflow once now?").
@@ -107,60 +151,62 @@ func (c *AddInteractiveConfig) checkStatusAndOfferRun(ctx context.Context) error
 			Negative("No, I'll run later").
 			Value(&runNow),
 	)
-
 	if err := form.RunWithContext(ctx); err != nil {
-		return nil // Not critical, just skip
+		return false, err
 	}
+	return runNow, nil
+}
 
-	if !runNow {
+func (c *AddInteractiveConfig) runWorkflowAfterStatusCheck(ctx context.Context) error {
+	workflowName := c.primaryWorkflowName()
+	if workflowName == "" {
 		c.showFinalInstructions()
 		return nil
 	}
 
-	// Run the workflow interactively (collects inputs if the workflow has them)
-	workflowName := c.primaryWorkflowName()
-	if workflowName != "" {
-		fmt.Fprintln(os.Stderr, "")
-
-		// Pull the merged workflow files now that we know GitHub has processed the
-		// merge (workflowFound is true). Doing this here—rather than immediately
-		// after the PR merge—avoids a race where git fetch runs before GitHub's git
-		// objects have been updated, which caused "workflow file not found" errors.
-		if !c.Verbose {
-			fmt.Fprintln(os.Stderr, "Updating local branch (this may take a few seconds)...")
-		}
-		if err := c.updateLocalBranch(); err != nil {
-			addInteractiveLog.Printf("Failed to update local branch: %v", err)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
-			fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
-		}
-		if !c.Verbose {
-			fmt.Fprintln(os.Stderr, "Finished updating local branch.")
-		}
-
-		if err := RunSpecificWorkflowInteractively(ctx, RunWorkflowOptions{
-			WorkflowName:   workflowName,
-			Verbose:        c.Verbose,
-			EngineOverride: c.EngineOverride,
-			RepoOverride:   c.RepoOverride,
-		}); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to run workflow: %v", err)))
-			c.showFinalInstructions()
-			return nil
-		}
-
-		// Get the run URL for step 10
-		runInfo, err := getLatestWorkflowRunWithRetry(workflowName+".lock.yml", c.RepoOverride, c.Verbose)
-		if err == nil && runInfo.URL != "" {
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintf(os.Stderr, "🔗 View workflow run: %s\n", runInfo.URL)
-		}
+	fmt.Fprintln(os.Stderr, "")
+	c.updateLocalBranchForRunOffer()
+	if err := RunSpecificWorkflowInteractively(ctx, RunWorkflowOptions{
+		WorkflowName:   workflowName,
+		Verbose:        c.Verbose,
+		EngineOverride: c.EngineOverride,
+		RepoOverride:   c.RepoOverride,
+	}); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to run workflow: %v", err)))
+		c.showFinalInstructions()
+		return nil
 	}
 
+	c.printLatestWorkflowRunURL(workflowName)
 	c.showFinalInstructions()
 	return nil
+}
+
+func (c *AddInteractiveConfig) updateLocalBranchForRunOffer() {
+	// Pull the merged workflow files after GitHub has processed the merge to avoid a
+	// race where git fetch completes before the new workflow is available locally.
+	if !c.Verbose {
+		fmt.Fprintln(os.Stderr, "Updating local branch (this may take a few seconds)...")
+	}
+	if err := c.updateLocalBranch(); err != nil {
+		addInteractiveLog.Printf("Failed to update local branch: %v", err)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update local branch: %v", err)))
+		fmt.Fprintln(os.Stderr, "You may need to switch to your repository's default branch (for example 'main') and run 'git pull' manually before running the workflow.")
+	}
+	if !c.Verbose {
+		fmt.Fprintln(os.Stderr, "Finished updating local branch.")
+	}
+}
+
+func (c *AddInteractiveConfig) printLatestWorkflowRunURL(workflowName string) {
+	runInfo, err := getLatestWorkflowRunWithRetry(workflowName+".lock.yml", c.RepoOverride, c.Verbose)
+	if err != nil || runInfo.URL == "" {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Workflow triggered successfully!"))
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "🔗 View workflow run: %s\n", runInfo.URL)
 }
 
 // findWorkflowsByFilenamePattern is a helper to find workflows registered in GitHub by filename pattern.
