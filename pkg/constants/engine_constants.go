@@ -330,12 +330,16 @@ const (
 	// inline next to a *_API_KEY key in the YAML env: block.
 	CopilotBYOKDummyAPIKeyEnvVar = "COPILOT_DUMMY_BYOK"
 
+	// SonnetDefaultModel is the shared Sonnet-tier fallback model used when workflows
+	// need an explicit default and no engine-specific override is configured.
+	SonnetDefaultModel = "claude-sonnet-5"
+
 	// CopilotBYOKDefaultModel is the explicit fallback model for Copilot BYOK mode.
 	// BYOK providers require a non-empty model, so this value is used when the
 	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
 	//
 	// Use Claude Sonnet 5 as the explicit default model for Copilot BYOK mode.
-	CopilotBYOKDefaultModel = "claude-sonnet-5"
+	CopilotBYOKDefaultModel = SonnetDefaultModel
 
 	// CodexDefaultModel is the default model for the Codex agentic engine.
 	// Used as the fallback when no explicit model is configured and the

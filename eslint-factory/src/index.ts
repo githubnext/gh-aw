@@ -6,6 +6,7 @@ import { noJsonStringifyErrorRule } from "./rules/no-json-stringify-error";
 import { noUnsafeCatchErrorPropertyRule } from "./rules/no-unsafe-catch-error-property";
 import { noUnsafePromiseCatchErrorPropertyRule } from "./rules/no-unsafe-promise-catch-error-property";
 import { preferGetErrorMessageRule } from "./rules/prefer-get-error-message";
+import { preferGetErrorMessageOverStringRule } from "./rules/prefer-get-error-message-over-string";
 import { preferNumberIsNanRule } from "./rules/prefer-number-isnan";
 import { requireAsyncEntrypointCatchRule } from "./rules/require-async-entrypoint-catch";
 import { requireAwaitCoreSummaryWriteRule } from "./rules/require-await-core-summary-write";
@@ -30,6 +31,7 @@ import { noErrStackThenStringFallbackRule } from "./rules/no-err-stack-then-stri
 import { noCaughtErrorInterpolationRule } from "./rules/no-caught-error-interpolation";
 import { requireFetchTryCatchRule } from "./rules/require-fetch-try-catch";
 import { noCoreErrorThenSetFailedRule } from "./rules/no-core-error-then-setfailed";
+import { noDuplicateConstantValuesRule } from "./rules/no-duplicate-constant-values";
 
 const plugin = {
   meta: {
@@ -45,6 +47,7 @@ const plugin = {
     "no-unsafe-catch-error-property": noUnsafeCatchErrorPropertyRule,
     "no-unsafe-promise-catch-error-property": noUnsafePromiseCatchErrorPropertyRule,
     "prefer-get-error-message": preferGetErrorMessageRule,
+    "prefer-get-error-message-over-string": preferGetErrorMessageOverStringRule,
     "prefer-number-isnan": preferNumberIsNanRule,
     "require-async-entrypoint-catch": requireAsyncEntrypointCatchRule,
     "require-await-core-summary-write": requireAwaitCoreSummaryWriteRule,
@@ -69,6 +72,7 @@ const plugin = {
     "no-caught-error-interpolation": noCaughtErrorInterpolationRule,
     "require-fetch-try-catch": requireFetchTryCatchRule,
     "no-core-error-then-setfailed": noCoreErrorThenSetFailedRule,
+    "no-duplicate-constant-values": noDuplicateConstantValuesRule,
   },
 };
 

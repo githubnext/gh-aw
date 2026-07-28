@@ -20,6 +20,7 @@ module.exports = [
       "gh-aw-custom/no-unsafe-catch-error-property": "warn",
       "gh-aw-custom/no-unsafe-promise-catch-error-property": "warn",
       "gh-aw-custom/prefer-get-error-message": "warn",
+      "gh-aw-custom/prefer-get-error-message-over-string": "warn",
       "gh-aw-custom/prefer-number-isnan": "warn",
       "gh-aw-custom/require-async-entrypoint-catch": "warn",
       "gh-aw-custom/require-await-core-summary-write": "warn",
@@ -44,6 +45,7 @@ module.exports = [
       "gh-aw-custom/no-caught-error-interpolation": "warn",
       "gh-aw-custom/require-fetch-try-catch": "warn",
       "gh-aw-custom/no-core-error-then-setfailed": "warn",
+      "gh-aw-custom/no-duplicate-constant-values": "warn",
     },
   },
   {

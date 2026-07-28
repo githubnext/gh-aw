@@ -139,3 +139,63 @@ This workflow verifies that sudo is omitted by default when sudo is not set (net
 		}
 	})
 }
+
+// TestLegacySecurityInstallNonRootless verifies that when sandbox.agent.legacy-security: enable
+// is set, the compiled lock.yml installs awf without --rootless (to /usr/local/bin, which is
+// on sudo's secure_path) and invokes it with "sudo -E awf".
+func TestLegacySecurityInstallNonRootless(t *testing.T) {
+	workflowsDir := t.TempDir()
+
+	markdown := `---
+on:
+  workflow_dispatch:
+engine: copilot
+strict: false
+network:
+  allowed:
+    - github.com
+sandbox:
+  agent:
+    id: awf
+    sudo: false
+    legacy-security: enable
+---
+
+# Test Legacy Security Non-Rootless Install
+
+This workflow verifies that legacy-security mode installs awf without --rootless.
+`
+
+	workflowPath := filepath.Join(workflowsDir, "test-legacy-security.md")
+	if err := os.WriteFile(workflowPath, []byte(markdown), 0644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Compilation failed: %v", err)
+	}
+
+	lockPath := filepath.Join(workflowsDir, "test-legacy-security.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("Failed to read compiled workflow: %v", err)
+	}
+	lockStr := string(lockContent)
+
+	// Install step must NOT pass --rootless: awf must land in /usr/local/bin so that
+	// the subsequent "sudo -E awf" invocation can find it on sudo's secure_path.
+	if strings.Contains(lockStr, "--rootless") {
+		t.Error("Expected no '--rootless' flag in install step when legacy-security: enable is set")
+	}
+
+	// Install step must be present.
+	if !strings.Contains(lockStr, "install_awf_binary.sh") {
+		t.Error("Expected install_awf_binary.sh in lock file for legacy-security mode")
+	}
+
+	// AWF invocation must use sudo -E awf.
+	if !strings.Contains(lockStr, "sudo -E awf") {
+		t.Error("Expected 'sudo -E awf' invocation in lock file when legacy-security: enable is set")
+	}
+}

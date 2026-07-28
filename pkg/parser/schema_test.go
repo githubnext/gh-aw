@@ -2703,3 +2703,32 @@ func TestValidateMainWorkflowFrontmatter_OnPermissionsUnknownScopeRejected(t *te
 		t.Error("unknown scope in on.permissions should be rejected by schema validation")
 	}
 }
+
+func TestValidateMainWorkflowFrontmatter_JobsInputsRejectedBeforeSchema(t *testing.T) {
+	frontmatter := map[string]any{
+		"on":     "push",
+		"engine": "copilot",
+		"jobs": map[string]any{
+			"my-job": map[string]any{
+				"runs-on": "ubuntu-latest",
+				"inputs": map[string]any{
+					"name": map[string]any{"description": "test"},
+				},
+				"steps": []any{map[string]any{"run": "echo hi"}},
+			},
+		},
+	}
+
+	err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/tmp/gh-aw/jobs-inputs-pre-schema-test.md")
+	if err == nil {
+		t.Fatal("expected jobs.<name>.inputs validation error")
+	}
+
+	errMsg := err.Error()
+	if !strings.Contains(errMsg, "jobs.my-job.inputs: inputs are not supported on jobs") {
+		t.Fatalf("expected actionable jobs.inputs error, got: %v", err)
+	}
+	if strings.Contains(errMsg, "Unknown property: inputs") {
+		t.Fatalf("expected pre-schema validation error instead of schema unknown-property error, got: %v", err)
+	}
+}
