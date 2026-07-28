@@ -62,6 +62,12 @@
         { "type": "string", "enum": ["*"] }
       ]
     },
+    "agentBound": {
+      "oneOf": [
+        { "$ref": "#/definitions/semver" },
+        { "type": "string", "enum": ["*"] }
+      ]
+    },
     "agentRows": {
       "type": "array",
       "minItems": 1,
@@ -75,18 +81,30 @@
         "min-gh-aw": { "$ref": "#/definitions/semver" },
         "max-gh-aw": { "$ref": "#/definitions/ghAwBound" },
         "min-agent": { "$ref": "#/definitions/semver" },
-        "max-agent": { "$ref": "#/definitions/semver" },
+        "max-agent": { "$ref": "#/definitions/agentBound" },
         "open": {
           "type": "boolean",
           "default": true,
-          "description": "When true (the default), the setup action's weekly release process may continue bumping max-agent for this row. Set to false to freeze during rollback or quarantine. Permitted only on the catch-all row (max-gh-aw == \"*\"); bounded rows are closed-by-construction."
+          "description": "When true (the default), max-agent must be unbounded (\"*\"). Set to false to freeze the row with a specific max-agent during rollback or quarantine. Permitted only on the catch-all row (max-gh-aw == \"*\"); bounded rows are closed-by-construction."
         }
       },
       "if": {
         "properties": { "max-gh-aw": { "const": "*" } }
       },
-      "then": {},
+      "then": {
+        "if": {
+          "properties": { "open": { "const": false } },
+          "required": ["open"]
+        },
+        "then": {
+          "properties": { "max-agent": { "$ref": "#/definitions/semver" } }
+        },
+        "else": {
+          "properties": { "max-agent": { "const": "*" } }
+        }
+      },
       "else": {
+        "properties": { "max-agent": { "$ref": "#/definitions/semver" } },
         "not": { "required": ["open"] }
       }
     }

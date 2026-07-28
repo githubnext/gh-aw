@@ -64,6 +64,10 @@ assert_found \
   "compiler default accepts an in-range cache entry" \
   "latest" "1.0.21" "1.0.75" ""
 
+assert_found \
+  "compiler default accepts an entry in an open-ended range" \
+  "latest" "1.0.21" "*" ""
+
 touch -d "20 days ago" "$cached_binary"
 assert_not_found \
   "compiler-default range fallback rejects an expired cache entry" \

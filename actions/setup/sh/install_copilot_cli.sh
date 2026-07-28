@@ -306,6 +306,9 @@ resolve_version_from_compat() {
   fi
 
   IFS='|' read -r resolved_version row_index row_min_aw row_max_aw row_min_agent row_max_agent cache_ttl_days <<< "$resolved_info"
+  if [ "$resolved_version" = "*" ]; then
+    resolved_version="latest"
+  fi
   echo "Compatibility matrix source: $(cat "$compat_source")" >&2
   echo "Compatibility matrix matched row ${row_index}: gh-aw ${row_min_aw}..${row_max_aw}, copilot ${row_min_agent}..${row_max_agent}" >&2
   echo "Resolved Copilot CLI version from compatibility matrix: ${resolved_version}" >&2
@@ -433,7 +436,7 @@ find_cached_copilot_bin() {
         continue
       fi
 
-      if [ -n "$max_version" ] && version_is_greater "$candidate_version_normalized" "$max_version"; then
+      if [ -n "$max_version" ] && [ "$max_version" != "*" ] && version_is_greater "$candidate_version_normalized" "$max_version"; then
         echo "  Skipping candidate (above compat maximum: ${candidate_version_normalized} > ${max_version})" >&2
         continue
       fi

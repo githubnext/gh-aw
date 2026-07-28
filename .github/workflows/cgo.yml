@@ -951,13 +951,16 @@ jobs:
                 }
               }
 
-              for (const k of ['min-gh-aw', 'min-agent', 'max-agent']) {
+              for (const k of ['min-gh-aw', 'min-agent']) {
                 if (k in row && !semverRe.test(row[k])) {
                   errors.push(`${where}.${k} ('${row[k]}') is not a valid semver (MAJOR.MINOR.PATCH)`);
                 }
               }
               if ('max-gh-aw' in row && row['max-gh-aw'] !== '*' && !semverRe.test(row['max-gh-aw'])) {
                 errors.push(`${where}.max-gh-aw ('${row['max-gh-aw']}') must be either '*' or a valid semver`);
+              }
+              if ('max-agent' in row && row['max-agent'] !== '*' && !semverRe.test(row['max-agent'])) {
+                errors.push(`${where}.max-agent ('${row['max-agent']}') must be either '*' or a valid semver`);
               }
 
               if ('min-agent' in row && 'max-agent' in row && semverRe.test(row['min-agent']) && semverRe.test(row['max-agent'])) {
@@ -970,6 +973,12 @@ jobs:
                 if ('open' in row && typeof row['open'] !== 'boolean') {
                   errors.push(`${where}.open must be a boolean`);
                 }
+                if (row['open'] !== false && row['max-agent'] !== '*') {
+                  errors.push(`${where}.max-agent must be '*' when the catch-all row is open`);
+                }
+                if (row['open'] === false && !semverRe.test(row['max-agent'])) {
+                  errors.push(`${where}.max-agent must be a valid semver when the catch-all row is closed`);
+                }
               } else if ('max-gh-aw' in row) {
                 if (semverRe.test(row['min-gh-aw']) && semverRe.test(row['max-gh-aw'])) {
                   if (cmp(row['min-gh-aw'], row['max-gh-aw']) > 0) {
@@ -978,6 +987,9 @@ jobs:
                 }
                 if ('open' in row) {
                   errors.push(`${where}: 'open' is only permitted on the catch-all row (max-gh-aw '*'); bounded rows are closed-by-construction`);
+                }
+                if (!semverRe.test(row['max-agent'])) {
+                  errors.push(`${where}.max-agent must be a valid semver on a bounded row`);
                 }
               }
             });

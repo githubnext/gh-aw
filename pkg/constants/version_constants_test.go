@@ -38,8 +38,7 @@ func TestDefaultPlaywrightCLIVersionOutsideCooldownWindow(t *testing.T) {
 
 // TestDefaultCopilotVersionWithinCompatWindow asserts that DefaultCopilotVersion falls
 // within the declared compat.json window so the runner toolcache can satisfy installs
-// without a network download.  Failures here indicate that either DefaultCopilotVersion
-// or the compat.json max-agent needs to be updated.
+// without a network download.
 func TestDefaultCopilotVersionWithinCompatWindow(t *testing.T) {
 	// Locate compat.json relative to this test file (three directories up from
 	// pkg/constants/ → repo root → .github/aw/compat.json).
@@ -74,27 +73,22 @@ func TestDefaultCopilotVersionWithinCompatWindow(t *testing.T) {
 
 	version := string(DefaultCopilotVersion)
 
-	// Find the first open row (open: true, or absent which defaults to true per schema).
+	// Find the open catch-all row (open: true, or absent which defaults to true per schema).
 	for _, row := range compat.AgentCompatV1.Copilot {
-		// Skip rows that are explicitly closed (open: false).
-		if row.Open != nil && !*row.Open {
+		// Skip bounded rows and catch-all rows that are explicitly closed.
+		if row.MaxGhAw != "*" || (row.Open != nil && !*row.Open) {
 			continue
 		}
 		if row.MinAgent == "" || row.MaxAgent == "" {
 			t.Fatalf("compat row missing min-agent or max-agent: %+v", row)
 		}
+		if row.MaxAgent != "*" {
+			t.Fatalf("open compat row max-agent is %q, want \"*\"", row.MaxAgent)
+		}
 		if cmp, err := semverCmp(version, row.MinAgent); err != nil {
 			t.Fatalf("semverCmp(%q, %q): %v", version, row.MinAgent, err)
 		} else if cmp < 0 {
 			t.Fatalf("DefaultCopilotVersion %q is below compat min-agent %q; bump min-agent or lower DefaultCopilotVersion", version, row.MinAgent)
-		}
-		// max-agent may be "*" (wildcard) for catch-all rows; skip the upper-bound check in that case.
-		if row.MaxAgent != "*" {
-			if cmp, err := semverCmp(version, row.MaxAgent); err != nil {
-				t.Fatalf("semverCmp(%q, %q): %v", version, row.MaxAgent, err)
-			} else if cmp > 0 {
-				t.Fatalf("DefaultCopilotVersion %q exceeds compat max-agent %q; update .github/aw/compat.json max-agent or lower DefaultCopilotVersion to prevent toolcache bypass", version, row.MaxAgent)
-			}
 		}
 		return // found and validated
 	}
