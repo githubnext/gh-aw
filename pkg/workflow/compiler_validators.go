@@ -133,10 +133,12 @@ func (c *Compiler) validateFeatureConfig(workflowData *WorkflowData, markdownPat
 	return nil
 }
 
-// validateToolConfiguration validates safe-outputs settings, on.needs and safe-job
-// declarations, network configuration, labels, concurrency expressions, sandbox
-// security constraints, GitHub tool-to-toolset alignment, the agentic-workflows
-// permission requirement, and dispatch/call-workflow configurations.
+// validateToolConfiguration validates the workflow's tool-related configuration:
+// safe-outputs settings, needs declarations, network configuration, labels,
+// concurrency expressions, sandbox constraints, GitHub tool-to-toolset
+// alignment, permission requirements, and dispatch/call-workflow settings.
+// It returns the first validation error encountered (already formatted with
+// markdownPath context by downstream validators).
 // workflowPermissions is the *Permissions value returned by validatePermissions.
 func (c *Compiler) validateToolConfiguration(workflowData *WorkflowData, markdownPath string, workflowPermissions *Permissions) error {
 	workflowLog.Printf("Validating agent file if specified")
