@@ -30,17 +30,22 @@ func (c *Compiler) extractNetworkPermissions(frontmatter map[string]any) *Networ
 				ExplicitlyDefined: true,
 			}
 
-			// Extract allowed domains if present
-			if allowed, hasAllowed := networkObj["allowed"]; hasAllowed {
-				if allowedSlice, ok := allowed.([]any); ok {
-					for _, domain := range allowedSlice {
-						if domainStr, ok := domain.(string); ok {
-							permissions.Allowed = append(permissions.Allowed, domainStr)
+			// Extract allowed domains from "allowed" (canonical) and "allowed-domains" (deprecated alias).
+			// Both are unioned when present. "allowed-domains" is accepted for backwards compatibility;
+			// users who write it by analogy with safe-outputs.allowed-domains are silently supported
+			// until gh aw fix migrates the key to "allowed".
+			for _, key := range []string{"allowed", "allowed-domains"} {
+				if raw, exists := networkObj[key]; exists {
+					if slice, ok := raw.([]any); ok {
+						for _, domain := range slice {
+							if domainStr, ok := domain.(string); ok {
+								permissions.Allowed = append(permissions.Allowed, domainStr)
+							}
 						}
 					}
-					frontmatterExtractionSecurityLog.Printf("Extracted %d allowed domains", len(permissions.Allowed))
 				}
 			}
+			frontmatterExtractionSecurityLog.Printf("Extracted %d allowed domains", len(permissions.Allowed))
 
 			if allowedInput, hasAllowedInput := networkObj["allowed-input"]; hasAllowedInput {
 				if allowedInputBool, ok := allowedInput.(bool); ok {

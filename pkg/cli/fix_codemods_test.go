@@ -216,6 +216,7 @@ func expectedCodemodOrder() []string {
 		"top-level-env-secrets-guided-error",
 		"assign-to-agent-default-agent-to-name",
 		"playwright-allowed-domains-migration",
+		"network-allowed-domains-rename",
 		"expires-integer-to-string",
 		"app-to-github-app",
 		"github-app-app-id-to-client-id",

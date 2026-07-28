@@ -104,6 +104,29 @@ These look like ecosystem identifiers but are **not recognised** — using them 
 | `docker` | Docker Hub / GHCR | `containers` |
 | `localhost` | Loopback interface | `local` |
 
+## Common Naming Mistake: `allowed-domains` vs `allowed`
+
+The top-level `network` block uses **`allowed`** — not `allowed-domains`:
+
+```yaml
+# WRONG — network.allowed-domains does not exist
+network:
+  allowed-domains:
+    - defaults
+    - github
+
+# CORRECT
+network:
+  allowed:
+    - defaults
+    - github
+```
+
+The name `allowed-domains` belongs to a different section: `safe-outputs.allowed-domains` controls which
+domains are permitted in safe-output URL content. Do not mix the two.
+
+Run `gh aw fix` to automatically rename `network.allowed-domains` to `network.allowed`.
+
 ## Domain Pattern Rules
 
 - **Wildcard `*` requires a dot prefix**: `*.example.com` valid; bare `*` blocked (rejected outright in strict mode).

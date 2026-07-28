@@ -3345,6 +3345,16 @@
                 "description": "Domain name or ecosystem identifier to block. Supports wildcards like '*.example.com' (matches sub.example.com, deep.nested.example.com, and example.com itself) and ecosystem names like 'python', 'node'."
               },
               "$comment": "Blocked domains are subtracted from the allowed list. Useful for blocking specific domains or ecosystems within broader allowed categories."
+            },
+            "allowed-domains": {
+              "type": "array",
+              "description": "Deprecated alias for 'allowed'. Use 'allowed' instead. Will be auto-migrated by gh aw fix.",
+              "deprecated": true,
+              "items": {
+                "type": "string",
+                "description": "Domain name or ecosystem identifier."
+              },
+              "$comment": "Accepted for backwards compatibility. gh aw fix migrates this to 'allowed'."
             }
           },
           "additionalProperties": false
@@ -13868,7 +13878,7 @@
         },
         "sessionId": {
           "type": "string",
-          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it — strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
+          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it \u2014 strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
         }
       },
       "additionalProperties": false
