@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"bufio"
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -80,40 +78,25 @@ func analyzeTokenUsageAICOnly(runDir string, verbose bool) (*TokenUsageSummary, 
 			console.LogVerbose(verbose, fmt.Sprintf("  Found token usage file: %s (%d bytes)", filepath.Base(filePath), fileInfo.Size()))
 		}
 
-		file, err := os.Open(filePath)
+		entries, err := scanTokenUsageEntries(filePath)
 		if err != nil {
-			return nil, fmt.Errorf("failed to open token usage file: %w", err)
+			return nil, err
 		}
-		defer file.Close()
-
+		if len(entries) == 0 {
+			goto fallback
+		}
 		totalAIC := 0.0
-		found := false
-		scanner := bufio.NewScanner(file)
-		scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-		for scanner.Scan() {
-			line := strings.TrimSpace(scanner.Text())
-			if line == "" {
-				continue
-			}
-			var entry TokenUsageEntry
-			if err := json.Unmarshal([]byte(line), &entry); err != nil {
-				continue
-			}
+		for _, entry := range entries {
 			model := entry.Model
 			if model == "" {
 				model = "unknown"
 			}
 			totalAIC += computeModelInferenceAIC(entry.Provider, model, entry.InputTokens, entry.OutputTokens, entry.CacheReadTokens, entry.CacheWriteTokens, entry.ReasoningTokens)
-			found = true
 		}
-		if err := scanner.Err(); err != nil {
-			return nil, fmt.Errorf("error reading token usage file: %w", err)
-		}
-		if found {
-			return &TokenUsageSummary{TotalAIC: totalAIC}, nil
-		}
+		return &TokenUsageSummary{TotalAIC: totalAIC}, nil
 	}
 
+fallback:
 	agentUsagePath := findAgentUsageFile(runDir)
 	if agentUsagePath == "" {
 		return nil, nil

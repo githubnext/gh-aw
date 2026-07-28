@@ -16,41 +16,14 @@ import (
 func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	tokenUsageLog.Printf("Parsing token usage file: %s", filePath)
 
-	file, err := os.Open(filePath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to open token usage file: %w", err)
-	}
-	defer file.Close()
-
 	summary := &TokenUsageSummary{
 		ByModel: make(map[string]*ModelTokenUsage),
 	}
 
-	scanner := bufio.NewScanner(file)
-	// Increase buffer size for potentially large lines
-	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-
-	entries := make([]TokenUsageEntry, 0)
-	lineNum := 0
-	for scanner.Scan() {
-		lineNum++
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" {
-			continue
-		}
-
-		var entry TokenUsageEntry
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
-			continue
-		}
-		entries = append(entries, entry)
+	entries, err := scanTokenUsageEntries(filePath)
+	if err != nil {
+		return nil, err
 	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading token usage file: %w", err)
-	}
-
 	if len(entries) == 0 {
 		tokenUsageLog.Print("No token usage entries found")
 		return nil, nil
@@ -88,13 +61,46 @@ func parseTokenUsageFile(filePath string) (*TokenUsageSummary, error) {
 	}
 
 	tokenUsageLog.Printf("Parsed %d entries: %d input, %d output, %d cache_read, %d cache_write, %d requests",
-		lineNum, summary.TotalInputTokens, summary.TotalOutputTokens,
+		len(entries), summary.TotalInputTokens, summary.TotalOutputTokens,
 		summary.TotalCacheReadTokens, summary.TotalCacheWriteTokens, summary.TotalRequests)
 
 	populateAIC(summary)
 	summary.AmbientContext = extractAmbientContextMetrics(entries)
 
 	return summary, nil
+}
+
+func scanTokenUsageEntries(filePath string) ([]TokenUsageEntry, error) {
+	file, err := os.Open(filePath)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open token usage file: %w", err)
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+
+	entries := make([]TokenUsageEntry, 0)
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+
+		var entry TokenUsageEntry
+		if err := json.Unmarshal([]byte(line), &entry); err != nil {
+			tokenUsageLog.Printf("Skipping invalid JSON at line %d: %v", lineNum, err)
+			continue
+		}
+		entries = append(entries, entry)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading token usage file: %w", err)
+	}
+	return entries, nil
 }
 
 func parseAgentUsageFile(filePath string) (*TokenUsageSummary, error) {

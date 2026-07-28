@@ -57,6 +57,7 @@ func findTokenUsageFile(runDir string) string {
 	}
 
 	// Walk sandbox directory for any token-usage.jsonl
+	var found string
 	if walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			tokenUsageLog.Printf("walk error at %s: %v", path, err)
@@ -66,16 +67,16 @@ func findTokenUsageFile(runDir string) string {
 			return nil
 		}
 		if info.Name() == "token-usage.jsonl" || info.Name() == "token_usage.jsonl" {
-			primary = path
+			found = path
 			return filepath.SkipAll
 		}
 		return nil
 	}); walkErr != nil && !errors.Is(walkErr, filepath.SkipAll) {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("filesystem error walking %s: %v", runDir, walkErr)))
 	}
-	if primary != filepath.Join(runDir, "sandbox", "firewall", "logs", tokenUsageJSONLPath) {
-		tokenUsageLog.Printf("Found token usage file via walk: %s", primary)
-		return primary
+	if found != "" {
+		tokenUsageLog.Printf("Found token usage file via walk: %s", found)
+		return found
 	}
 
 	tokenUsageLog.Print("No token usage file found")

@@ -263,3 +263,9 @@ func buildMCPSummaryStats(gatewayMetrics *GatewayMetrics, mcpData *MCPToolUsageD
 		}
 	})
 }
+
+// TODO: Implement token-usage correlation for MCP tool calls.
+func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
+	_ = tokenUsageFile
+	return toolCalls
+}

@@ -1,9 +1,6 @@
 package cli
 
 import (
-	"regexp"
-	"strings"
-
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -143,16 +140,6 @@ type proxyEventsEntry struct {
 	Timestamp string `json:"timestamp"`
 }
 
-// eventName returns the normalised event name from whichever field is populated.
-func (e proxyEventsEntry) eventName() string {
-	for _, v := range []string{e.Event, e.Type, e.EventNameSnake, e.EventNameCamel} {
-		if v = strings.TrimSpace(v); v != "" {
-			return strings.ToLower(v)
-		}
-	}
-	return ""
-}
-
 // tokenUsageJSONLPath is the relative path within the firewall logs directory
 const tokenUsageJSONLPath = "api-proxy-logs/token-usage.jsonl"
 const proxyEventsJSONLPath = "api-proxy-logs/events.jsonl"
@@ -164,5 +151,3 @@ const tokenSteeringEventName = "token_steering"
 const timeoutSteeringEventName = "timeout_steering"
 const awfTokenWarningPrefix = "[AWF TOKEN WARNING]"
 const awfTimeWarningPrefix = "[AWF TIME WARNING]"
-
-var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)

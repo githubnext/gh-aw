@@ -4,9 +4,12 @@ import (
 	"bufio"
 	"io"
 	"os"
+	"regexp"
 	"slices"
 	"strings"
 )
+
+var subagentDispatchPattern = regexp.MustCompile(`([A-Za-z0-9][A-Za-z0-9._-]*)\(([A-Za-z0-9][A-Za-z0-9._:-]*)\)`)
 
 func augmentSubagentModelAttribution(runDir string, summary *TokenUsageSummary) {
 	if summary == nil {
@@ -157,9 +160,4 @@ func extractSubagentModelRequests(runDir string) []SubagentModelRequest {
 		}
 	})
 	return rows
-}
-
-func correlateToolCallsWithTokenDelta(toolCalls []MCPToolCall, tokenUsageFile string) []MCPToolCall {
-	_ = tokenUsageFile
-	return toolCalls
 }

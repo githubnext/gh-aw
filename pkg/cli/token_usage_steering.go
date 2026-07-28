@@ -74,3 +74,13 @@ func isSteeringEvent(eventName, message string) bool {
 		return false
 	}
 }
+
+// eventName returns the normalised event name from whichever field is populated.
+func (e proxyEventsEntry) eventName() string {
+	for _, v := range []string{e.Event, e.Type, e.EventNameSnake, e.EventNameCamel} {
+		if v = strings.TrimSpace(v); v != "" {
+			return strings.ToLower(v)
+		}
+	}
+	return ""
+}

@@ -887,17 +887,17 @@ The table below maps the normative sections of this specification to the impleme
 | §5 Multi-Invocation Aggregation | `ET_total`, `raw_total_tokens`, `total_invocations` | `pkg/cli/effective_tokens.go` (`AggregateEffectiveTokens`) |
 | §6 Execution Graph Requirements | Node schema, root/sub-agent linkage, graph traversal | `pkg/cli/logs_models.go`, `pkg/cli/logs_episode.go`, `pkg/cli/logs_orchestrator.go` |
 | §7 Reporting | Console and JSON output of ET summaries and per-model breakdowns | `pkg/cli/audit_report.go`, `pkg/cli/audit_report_render_tools.go`, `pkg/cli/audit_diff.go`, `pkg/cli/logs_report.go` |
-| §7.1 OTel Attribute Requirements | OpenTelemetry span attribute emission for ET metrics | `pkg/cli/token_usage.go`, `pkg/cli/logs_run_processor.go` |
+| §7.1 OTel Attribute Requirements | OpenTelemetry span attribute emission for ET metrics | `pkg/cli/token_usage_types.go`, `pkg/cli/token_usage_parse.go`, `pkg/cli/logs_run_processor.go` |
 | §8 Implementation Requirements | Completeness, determinism, versioning, partial visibility safeguards | `pkg/cli/effective_tokens.go`, `pkg/cli/forecast_montecarlo.go` |
 
 ### §7.1 OTel Attribute Row-to-Code Mapping
 
 | §7.1 Attribute Key | Implementation Mapping |
 |---|---|
-| `llm.token.effective_total` | `pkg/cli/token_usage.go` → `TokenUsageSummary.TotalEffectiveTokens`, populated by `populateEffectiveTokensWithCustomWeights` |
-| `llm.token.input` | `pkg/cli/token_usage.go` → `TokenUsageEntry.InputTokens` and `ModelTokenUsage.InputTokens`, aggregated in `parseTokenUsageFile` |
-| `llm.token.output` | `pkg/cli/token_usage.go` → `TokenUsageEntry.OutputTokens` and `ModelTokenUsage.OutputTokens`, aggregated in `parseTokenUsageFile` |
-| `llm.token.cached_input` | `pkg/cli/token_usage.go` → `TokenUsageEntry.CacheReadTokens` and `ModelTokenUsage.CacheReadTokens`, aggregated in `parseTokenUsageFile` |
+| `llm.token.effective_total` | `pkg/cli/token_usage_types.go` → `TokenUsageSummary.TotalEffectiveTokens`, populated by `populateEffectiveTokensWithCustomWeights` |
+| `llm.token.input` | `pkg/cli/token_usage_parse.go` + `pkg/cli/token_usage_types.go` → `TokenUsageEntry.InputTokens` and `ModelTokenUsage.InputTokens`, aggregated in `parseTokenUsageFile` |
+| `llm.token.output` | `pkg/cli/token_usage_parse.go` + `pkg/cli/token_usage_types.go` → `TokenUsageEntry.OutputTokens` and `ModelTokenUsage.OutputTokens`, aggregated in `parseTokenUsageFile` |
+| `llm.token.cached_input` | `pkg/cli/token_usage_parse.go` + `pkg/cli/token_usage_types.go` → `TokenUsageEntry.CacheReadTokens` and `ModelTokenUsage.CacheReadTokens`, aggregated in `parseTokenUsageFile` |
 | `llm.token.base_weighted` | `pkg/cli/effective_tokens.go` → base token weighting in `computeModelEffectiveTokensWithWeights` (pre-multiplier term) |
 | `llm.model.multiplier` | `pkg/cli/effective_tokens.go` → multiplier resolution in `computeModelEffectiveTokensWithWeights` (`mult` selection by model key/prefix) |
 
@@ -909,7 +909,7 @@ To keep the specification and implementation synchronized:
 2. When changing aggregation semantics (§5), update `pkg/cli/effective_tokens.go` and rerun tests `T-ET-010–T-ET-012` and `T-ET-006`.
 3. When changing the execution graph node schema (§6), update `pkg/cli/logs_models.go` and `pkg/cli/logs_episode.go` in the same change.
 4. When changing reporting format or field names (§7), update the affected render files in `pkg/cli/` and run `go test ./pkg/cli/ -run TestAudit`.
-5. When changing OTel attribute names (§7.1), update `pkg/cli/token_usage.go` and verify attribute names with `grep -r "effective_tokens" pkg/`.
+5. When changing OTel attribute names (§7.1), update `pkg/cli/token_usage_types.go` and `pkg/cli/token_usage_parse.go` and verify attribute names with `grep -r "effective_tokens" pkg/`.
 6. After any §8 change affecting determinism or partial visibility, re-run `go test ./pkg/cli/ -run TestEffectiveTokens` and `go test ./pkg/cli/ -run TestRunMonteCarlo`.
 
 Run `grep -r "effective_tokens" pkg/` to confirm all implementation files are captured in the table above.
