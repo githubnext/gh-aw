@@ -392,11 +392,16 @@ For self-hosted or BYOK models absent from the built-in table (e.g. Ollama, vLLM
 
 Before calling `get_file_contents`, check size with `wc -c <path>`. If > 20 KB, use `grep`, `glob`, `bash head`, or `view` with `view_range` to read only the section you need. The same rule applies after `glob **/*.md` — read each matched file with `grep` or `view_range`, not full-file reads.
 
-```bash
-# Before — injects full file into context
-get_file_contents path=".github/aw/syntax-agentic.md"    # 33908 bytes
+For GitHub-hosted files, prefer `mode: gh-proxy` and access via `gh`/`bash` so output can be piped through `jq`, `grep`, or `head` before it enters context — the agent never receives the full file:
 
-# After — targeted
+```bash
+# gh-proxy: fetch only the lines you need, no full-file injection
+gh api repos/{owner}/{repo}/contents/.github/aw/syntax-agentic.md \
+  --jq '.content' | base64 -d | grep -n "## Sub-agents"
+```
+
+```bash
+# Without gh-proxy: targeted local read
 bash: grep -n "## Sub-agents" .github/aw/syntax-agentic.md
 # or
 view: .github/aw/syntax-agentic.md view_range=[45, 90]
