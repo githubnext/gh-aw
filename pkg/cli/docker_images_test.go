@@ -339,29 +339,40 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	// Mock the image as not available
 	SetMockImageAvailable(testImage, false)
 
+	// Use a cancellable context so we can stop background goroutines after assertions.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Track how many times StartDockerImageDownload returns true (indicating it started a download)
 	const numGoroutines = 10
-	started := make([]bool, numGoroutines)
+	type result struct {
+		started bool
+		join    func() error
+	}
+	results := make(chan result, numGoroutines)
 
 	// Use a channel to synchronize all goroutines to start at roughly the same time
 	startChan := make(chan struct{})
-	doneChan := make(chan int, numGoroutines)
 
 	// Launch multiple goroutines that all try to start downloading the same image
-	for i := range numGoroutines {
-		go func(index int) {
+	for range numGoroutines {
+		go func() {
 			<-startChan // Wait for the signal to start
-			started[index], _ = StartDockerImageDownload(context.Background(), testImage)
-			doneChan <- index
-		}(i)
+			s, j := StartDockerImageDownload(ctx, testImage)
+			results <- result{s, j}
+		}()
 	}
 
 	// Signal all goroutines to start simultaneously
 	close(startChan)
 
-	// Wait for all goroutines to finish
+	// Collect all results
+	started := make([]bool, 0, numGoroutines)
+	joins := make([]func() error, 0, numGoroutines)
 	for range numGoroutines {
-		<-doneChan
+		r := <-results
+		started = append(started, r.started)
+		joins = append(joins, r.join)
 	}
 
 	// Count how many goroutines successfully started a download
@@ -380,6 +391,12 @@ func TestStartDockerImageDownload_ConcurrentCalls(t *testing.T) {
 	// Verify the image is marked as downloading
 	if !IsDockerImageDownloading(testImage) {
 		t.Error("Expected image to be marked as downloading")
+	}
+
+	// Cancel context and join all download goroutines to prevent goroutine leaks.
+	cancel()
+	for _, j := range joins {
+		j() //nolint:errcheck // error ignored intentionally: test only checks concurrency, not pull result
 	}
 
 	// Clean up
@@ -453,28 +470,45 @@ func TestStartDockerImageDownload_RaceWithExternalDownload(t *testing.T) {
 	// Initially not available
 	SetMockImageAvailable(testImage, false)
 
+	// Use a cancellable context so we can stop background goroutines after assertions.
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
 	// Start multiple goroutines attempting to download
 	const numGoroutines = 5
-	results := make(chan bool, numGoroutines)
+	type result struct {
+		started bool
+		join    func() error
+	}
+	resultsCh := make(chan result, numGoroutines)
 
 	for range numGoroutines {
 		go func() {
-			started, _ := StartDockerImageDownload(context.Background(), testImage)
-			results <- started
+			s, j := StartDockerImageDownload(ctx, testImage)
+			resultsCh <- result{s, j}
 		}()
 	}
 
 	// Collect results
 	downloadStarts := 0
+	joins := make([]func() error, 0, numGoroutines)
 	for range numGoroutines {
-		if <-results {
+		r := <-resultsCh
+		if r.started {
 			downloadStarts++
 		}
+		joins = append(joins, r.join)
 	}
 
 	// Should only have one successful start
 	if downloadStarts != 1 {
 		t.Errorf("Expected exactly 1 download to start, got %d", downloadStarts)
+	}
+
+	// Cancel context and join all download goroutines to prevent goroutine leaks.
+	cancel()
+	for _, j := range joins {
+		j() //nolint:errcheck // error ignored intentionally: test only checks concurrency, not pull result
 	}
 
 	// Clean up
