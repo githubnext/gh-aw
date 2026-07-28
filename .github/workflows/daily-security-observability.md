@@ -115,9 +115,13 @@ steps:
         }' > "$CACHE_FILE"
 
 tools:
+  cli-proxy: true
   bash:
     - "*"
   edit:
+  github:
+    mode: gh-proxy
+    toolsets: [default, actions]
 
 safe-outputs:
   upload-asset:
@@ -360,154 +364,96 @@ Create and run chart scripts using matplotlib/seaborn. Save all charts to `/tmp/
 mkdir -p /tmp/gh-aw/agent/integrity/charts
 ```
 
-### Chart 3: DIFC Events Over Time (Daily)
+### Chart 3–5: Consolidated DIFC Chart Generation
 
-Create `/tmp/gh-aw/agent/integrity/chart_timeline.py`:
+Create `/tmp/gh-aw/agent/integrity/generate_difc_charts.py` and generate all 3 DIFC charts in one run:
 
 ```python
 #!/usr/bin/env python3
-"""Chart 3: DIFC filtered events per day."""
 import json, os
+from datetime import datetime
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import seaborn as sns
-from datetime import datetime
 
-DATA_DIR   = "/tmp/gh-aw/agent/integrity"
+DATA_DIR = "/tmp/gh-aw/agent/integrity"
 CHARTS_DIR = f"{DATA_DIR}/charts"
 os.makedirs(CHARTS_DIR, exist_ok=True)
 
 with open(f"{DATA_DIR}/summary.json") as f:
     summary = json.load(f)
 
+sns.set_style("whitegrid")
+
+# Chart 3: events timeline
 by_day = summary.get("by_day", {})
-if not by_day:
-    print("No daily data; skipping chart 3.")
-    exit(0)
+if by_day:
+    dates = [datetime.strptime(d, "%Y-%m-%d") for d in sorted(by_day)]
+    counts = [by_day[d.strftime("%Y-%m-%d")] for d in dates]
+    fig, ax = plt.subplots(figsize=(12, 5), dpi=300)
+    ax.bar(dates, counts, color="#4A90D9", edgecolor="white", linewidth=0.8)
+    ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
+    ax.xaxis.set_major_locator(mdates.DayLocator())
+    plt.xticks(rotation=45, ha="right")
+    ax.set_title("DIFC Integrity-Filtered Events — Last 7 Days", fontsize=16, fontweight="bold", pad=14)
+    ax.set_xlabel("Date", fontsize=13)
+    ax.set_ylabel("Event Count", fontsize=13)
+    ax.grid(True, axis="y", alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(f"{CHARTS_DIR}/events_timeline.png", dpi=300, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
 
-dates  = [datetime.strptime(d, "%Y-%m-%d") for d in sorted(by_day)]
-counts = [by_day[d.strftime("%Y-%m-%d")] for d in dates]
-
-sns.set_style("whitegrid")
-fig, ax = plt.subplots(figsize=(12, 5), dpi=300)
-ax.bar(dates, counts, color="#4A90D9", edgecolor="white", linewidth=0.8)
-ax.xaxis.set_major_formatter(mdates.DateFormatter("%b %d"))
-ax.xaxis.set_major_locator(mdates.DayLocator())
-plt.xticks(rotation=45, ha="right")
-ax.set_title("DIFC Integrity-Filtered Events — Last 7 Days", fontsize=16, fontweight="bold", pad=14)
-ax.set_xlabel("Date", fontsize=13)
-ax.set_ylabel("Event Count", fontsize=13)
-ax.grid(True, axis="y", alpha=0.4)
-plt.tight_layout()
-plt.savefig(f"{CHARTS_DIR}/events_timeline.png", dpi=300, bbox_inches="tight", facecolor="white")
-print("Chart 3 saved.")
-```
-
-Run: `python3 /tmp/gh-aw/agent/integrity/chart_timeline.py`
-
-### Chart 4: Top Filtered Tools (Horizontal Bar)
-
-Create `/tmp/gh-aw/agent/integrity/chart_tools.py`:
-
-```python
-#!/usr/bin/env python3
-"""Chart 4: Top tools that trigger DIFC filtering."""
-import json, os
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-DATA_DIR   = "/tmp/gh-aw/agent/integrity"
-CHARTS_DIR = f"{DATA_DIR}/charts"
-os.makedirs(CHARTS_DIR, exist_ok=True)
-
-with open(f"{DATA_DIR}/summary.json") as f:
-    summary = json.load(f)
-
+# Chart 4: top filtered tools
 by_tool = summary.get("by_tool", {})
-if not by_tool:
-    print("No tool data; skipping chart 4.")
-    exit(0)
+if by_tool:
+    items = sorted(by_tool.items(), key=lambda x: x[1], reverse=True)[:15]
+    tools = [i[0] for i in items]
+    counts = [i[1] for i in items]
+    fig, ax = plt.subplots(figsize=(12, max(5, len(tools) * 0.55)), dpi=300)
+    bars = ax.barh(tools[::-1], counts[::-1], color="#E8714A", edgecolor="white", linewidth=0.8)
+    for bar, val in zip(bars, counts[::-1]):
+        ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height() / 2, str(val), va="center", fontsize=11, fontweight="bold")
+    ax.set_title("Top Filtered Tool Calls (DIFC)", fontsize=16, fontweight="bold", pad=14)
+    ax.set_xlabel("Event Count", fontsize=13)
+    ax.set_ylabel("Tool Name", fontsize=13)
+    ax.grid(True, axis="x", alpha=0.4)
+    plt.tight_layout()
+    plt.savefig(f"{CHARTS_DIR}/top_tools.png", dpi=300, bbox_inches="tight", facecolor="white")
+    plt.close(fig)
 
-items   = sorted(by_tool.items(), key=lambda x: x[1], reverse=True)[:15]
-tools   = [i[0] for i in items]
-counts  = [i[1] for i in items]
-
-sns.set_style("whitegrid")
-fig, ax = plt.subplots(figsize=(12, max(5, len(tools) * 0.55)), dpi=300)
-bars = ax.barh(tools[::-1], counts[::-1], color="#E8714A", edgecolor="white", linewidth=0.8)
-for bar, val in zip(bars, counts[::-1]):
-    ax.text(bar.get_width() + 0.1, bar.get_y() + bar.get_height() / 2,
-            str(val), va="center", fontsize=11, fontweight="bold")
-ax.set_title("Top Filtered Tool Calls (DIFC)", fontsize=16, fontweight="bold", pad=14)
-ax.set_xlabel("Event Count", fontsize=13)
-ax.set_ylabel("Tool Name", fontsize=13)
-ax.grid(True, axis="x", alpha=0.4)
-plt.tight_layout()
-plt.savefig(f"{CHARTS_DIR}/top_tools.png", dpi=300, bbox_inches="tight", facecolor="white")
-print("Chart 4 saved.")
-```
-
-Run: `python3 /tmp/gh-aw/agent/integrity/chart_tools.py`
-
-### Chart 5: Filter Reason Breakdown (Pie / Donut)
-
-Create `/tmp/gh-aw/agent/integrity/chart_reasons.py`:
-
-```python
-#!/usr/bin/env python3
-"""Chart 5: Breakdown of filter reasons and integrity/secrecy tags."""
-import json, os
-import matplotlib.pyplot as plt
-import seaborn as sns
-
-DATA_DIR   = "/tmp/gh-aw/agent/integrity"
-CHARTS_DIR = f"{DATA_DIR}/charts"
-os.makedirs(CHARTS_DIR, exist_ok=True)
-
-with open(f"{DATA_DIR}/summary.json") as f:
-    summary = json.load(f)
-
-by_reason      = summary.get("by_reason", {})
+# Chart 5: reasons and tags
+by_reason = summary.get("by_reason", {})
 integrity_tags = summary.get("integrity_tags", {})
-secrecy_tags   = summary.get("secrecy_tags", {})
-
-sns.set_style("whitegrid")
+secrecy_tags = summary.get("secrecy_tags", {})
 fig, axes = plt.subplots(1, 2, figsize=(14, 6), dpi=300)
-
 if by_reason:
-    labels = list(by_reason.keys())
-    values = list(by_reason.values())
+    labels, values = list(by_reason.keys()), list(by_reason.values())
     colors = sns.color_palette("husl", len(labels))
-    axes[0].pie(values, labels=labels, colors=colors, autopct="%1.1f%%",
-                startangle=140, pctdistance=0.82,
-                wedgeprops=dict(width=0.6))
-    axes[0].set_title("Filter Reason Distribution", fontsize=14, fontweight="bold")
+    axes[0].pie(values, labels=labels, colors=colors, autopct="%1.1f%%", startangle=140, pctdistance=0.82, wedgeprops=dict(width=0.6))
 else:
     axes[0].text(0.5, 0.5, "No reason data", ha="center", va="center")
-    axes[0].set_title("Filter Reason Distribution", fontsize=14, fontweight="bold")
-
-all_tags = {**{f"[I] {k}": v for k, v in integrity_tags.items()},
-            **{f"[S] {k}": v for k, v in secrecy_tags.items()}}
+axes[0].set_title("Filter Reason Distribution", fontsize=14, fontweight="bold")
+all_tags = {**{f"[I] {k}": v for k, v in integrity_tags.items()}, **{f"[S] {k}": v for k, v in secrecy_tags.items()}}
 if all_tags:
     tag_items = sorted(all_tags.items(), key=lambda x: x[1], reverse=True)[:10]
-    tag_names  = [i[0] for i in tag_items]
+    tag_names = [i[0] for i in tag_items]
     tag_counts = [i[1] for i in tag_items]
-    colors2    = ["#4A90D9" if t.startswith("[I]") else "#E8714A" for t in tag_names]
+    colors2 = ["#4A90D9" if t.startswith("[I]") else "#E8714A" for t in tag_names]
     axes[1].barh(tag_names[::-1], tag_counts[::-1], color=colors2[::-1], edgecolor="white")
-    axes[1].set_title("Top Integrity [I] & Secrecy [S] Tags", fontsize=14, fontweight="bold")
     axes[1].set_xlabel("Count", fontsize=12)
     axes[1].grid(True, axis="x", alpha=0.4)
 else:
     axes[1].text(0.5, 0.5, "No tag data", ha="center", va="center")
-    axes[1].set_title("Top Integrity & Secrecy Tags", fontsize=14, fontweight="bold")
-
+axes[1].set_title("Top Integrity [I] & Secrecy [S] Tags", fontsize=14, fontweight="bold")
 fig.suptitle("DIFC Filter Analysis — Reason & Tag Breakdown", fontsize=16, fontweight="bold", y=1.01)
 plt.tight_layout()
 plt.savefig(f"{CHARTS_DIR}/reasons_tags.png", dpi=300, bbox_inches="tight", facecolor="white")
-print("Chart 5 saved.")
+plt.close(fig)
+
+print("DIFC charts generated.")
 ```
 
-Run: `python3 /tmp/gh-aw/agent/integrity/chart_reasons.py`
+Run: `python3 /tmp/gh-aw/agent/integrity/generate_difc_charts.py`
 
 ### Upload DIFC Charts
 

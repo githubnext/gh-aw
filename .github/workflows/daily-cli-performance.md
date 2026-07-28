@@ -29,6 +29,87 @@ on:
           }
           core.info(`has_changes=${hasChanges}`);
           core.setOutput('has_changes', hasChanges ? 'true' : 'false');
+
+    - name: Prepare performance report generator
+      run: |
+        mkdir -p /tmp/gh-aw/agent/benchmarks
+        cat > /tmp/gh-aw/agent/benchmarks/generate_report.py << 'EOF'
+        #!/usr/bin/env python3
+        import json
+
+        ANALYSIS_FILE = '/tmp/gh-aw/agent/benchmarks/analysis.json'
+        CURRENT_FILE = '/tmp/gh-aw/agent/benchmarks/current_metrics.json'
+        REPORT_FILE = '/tmp/gh-aw/agent/benchmarks/report.md'
+
+        def format_ns(ns):
+            if ns < 1000:
+                return f"{ns}ns"
+            if ns < 1000000:
+                return f"{ns/1000:.2f}µs"
+            if ns < 1000000000:
+                return f"{ns/1000000:.2f}ms"
+            return f"{ns/1000000000:.2f}s"
+
+        def main():
+            with open(ANALYSIS_FILE, 'r') as f:
+                analysis = json.load(f)
+            with open(CURRENT_FILE, 'r') as f:
+                current = json.load(f)
+
+            summary = analysis['summary']
+            with open(REPORT_FILE, 'w') as f:
+                f.write("### 📊 Performance Summary\n\n")
+                f.write(f"**Date**: {analysis['date']}  \n")
+                status = (
+                    f"⚠️ {summary['regressions']} regression(s) detected" if summary['regressions'] > 0
+                    else f"⚡ {summary['warnings']} warning(s) detected" if summary['warnings'] > 0
+                    else f"✨ {summary['improvements']} improvement(s) detected" if summary['improvements'] > 0
+                    else "✅ All benchmarks stable"
+                )
+                f.write(f"**Analysis Status**: {status}\n\n")
+
+                f.write("### 🎯 Key Metrics\n\n")
+                f.write(f"- **Total Benchmarks**: {summary['total']}\n")
+                f.write(f"- **Stable**: {summary['stable']}\n")
+                f.write(f"- **Warnings**: {summary['warnings']}\n")
+                f.write(f"- **Regressions**: {summary['regressions']}\n")
+                f.write(f"- **Improvements**: {summary['improvements']}\n\n")
+
+                f.write("<details>\n<summary>📈 Detailed Benchmark Results</summary>\n\n")
+                for name, result in sorted(analysis['benchmarks'].items()):
+                    metrics = current['benchmarks'][name]
+                    f.write(f"#### {name}\n\n")
+                    f.write(f"- **Current**: {format_ns(result['current_ns'])}\n")
+                    if result.get('avg_historical_ns'):
+                        f.write(f"- **Historical Average**: {format_ns(result['avg_historical_ns'])}\n")
+                        f.write(f"- **Change**: {result['change_percent']:+.1f}%\n")
+                    f.write(f"- **Memory**: {metrics['bytes_per_op']} B/op\n")
+                    f.write(f"- **Allocations**: {metrics['allocs_per_op']} allocs/op\n")
+                    f.write(f"- **Status**: {result['message']}\n\n")
+                f.write("</details>\n\n")
+
+                f.write("### 💡 Recommendations\n\n")
+                if summary['regressions'] > 0:
+                    f.write("1. Review recent changes to the compilation pipeline\n")
+                    f.write("2. Run `make bench-memory` to generate memory profiles\n")
+                    f.write("3. Use `go tool pprof` to identify performance hotspots\n")
+                    f.write("4. Compare with previous benchmark results using `benchstat`\n")
+                elif summary['warnings'] > 0:
+                    f.write("1. Monitor warned benchmarks in upcoming runs\n")
+                    f.write("2. Run manual profiling if warnings persist\n")
+                elif summary['improvements'] > 0:
+                    f.write("1. Document the changes that led to these improvements\n")
+                    f.write("2. Reuse the same optimization patterns in other areas\n")
+                else:
+                    f.write("1. Continue daily monitoring\n")
+                    f.write("2. Performance remains stable\n")
+
+            print(f"✅ Markdown report generated (date={analysis['date']} regressions={summary['regressions']} warnings={summary['warnings']})")
+
+        if __name__ == '__main__':
+            main()
+        EOF
+        chmod +x /tmp/gh-aw/agent/benchmarks/generate_report.py
 max-daily-ai-credits: 10000
 permissions:
   contents: read
@@ -526,141 +607,10 @@ Now, for each regression found, use the `create issue` tool to open an issue wit
 Generate a comprehensive summary of today's benchmark run:
 
 ```bash
-cat > /tmp/gh-aw/agent/benchmarks/generate_report.py << 'EOF'
-#!/usr/bin/env python3
-"""
-Generate performance summary report with proper markdown formatting
-"""
-import json
-
-ANALYSIS_FILE = '/tmp/gh-aw/agent/benchmarks/analysis.json'
-CURRENT_FILE = '/tmp/gh-aw/agent/benchmarks/current_metrics.json'
-
-def format_ns(ns):
-    """Format nanoseconds in human-readable form"""
-    if ns < 1000:
-        return f"{ns}ns"
-    elif ns < 1000000:
-        return f"{ns/1000:.2f}µs"
-    elif ns < 1000000000:
-        return f"{ns/1000000:.2f}ms"
-    else:
-        return f"{ns/1000000000:.2f}s"
-
-def main():
-    with open(ANALYSIS_FILE, 'r') as f:
-        analysis = json.load(f)
-    
-    with open(CURRENT_FILE, 'r') as f:
-        current = json.load(f)
-    
-    summary = analysis['summary']
-    
-    # Generate markdown report following formatting guidelines
-    with open('/tmp/gh-aw/agent/benchmarks/report.md', 'w') as f:
-        # Brief summary (always visible)
-        f.write("### 📊 Performance Summary\n\n")
-        f.write(f"**Date**: {analysis['date']}  \n")
-        f.write(f"**Analysis Status**: ")
-        
-        if summary['regressions'] > 0:
-            f.write(f"⚠️ {summary['regressions']} regression(s) detected\n\n")
-        elif summary['warnings'] > 0:
-            f.write(f"⚡ {summary['warnings']} warning(s) detected\n\n")
-        elif summary['improvements'] > 0:
-            f.write(f"✨ {summary['improvements']} improvement(s) detected\n\n")
-        else:
-            f.write("✅ All benchmarks stable\n\n")
-        
-        # Key performance metrics (always visible)
-        f.write("### 🎯 Key Metrics\n\n")
-        f.write(f"- **Total Benchmarks**: {summary['total']}\n")
-        f.write(f"- **Stable**: {summary['stable']}\n")
-        f.write(f"- **Warnings**: {summary['warnings']}\n")
-        f.write(f"- **Regressions**: {summary['regressions']}\n")
-        f.write(f"- **Improvements**: {summary['improvements']}\n\n")
-        
-        # Detailed benchmark results (in details tag)
-        f.write("<details>\n")
-        f.write("<summary>📈 Detailed Benchmark Results</summary>\n\n")
-        
-        for name, result in sorted(analysis['benchmarks'].items()):
-            metrics = current['benchmarks'][name]
-            status_icon = {
-                'regression': '⚠️',
-                'warning': '⚡',
-                'improvement': '✨',
-                'stable': '✓',
-                'baseline': 'ℹ️'
-            }.get(result['status'], '?')
-            
-            f.write(f"#### {status_icon} {name}\n\n")
-            f.write(f"- **Current**: {format_ns(result['current_ns'])}\n")
-            if result['avg_historical_ns']:
-                f.write(f"- **Historical Average**: {format_ns(result['avg_historical_ns'])}\n")
-                f.write(f"- **Change**: {result['change_percent']:+.1f}%\n")
-            f.write(f"- **Memory**: {metrics['bytes_per_op']} B/op\n")
-            f.write(f"- **Allocations**: {metrics['allocs_per_op']} allocs/op\n")
-            if result['status'] != 'baseline':
-                f.write(f"- **Status**: {result['message']}\n")
-            f.write("\n")
-        
-        f.write("</details>\n\n")
-        
-        # Historical comparisons (in details tag)
-        f.write("<details>\n")
-        f.write("<summary>📉 Historical Comparisons</summary>\n\n")
-        f.write("### Trend Analysis\n\n")
-        
-        # Group by status
-        regressions = [(name, res) for name, res in analysis['benchmarks'].items() if res['status'] == 'regression']
-        warnings = [(name, res) for name, res in analysis['benchmarks'].items() if res['status'] == 'warning']
-        improvements = [(name, res) for name, res in analysis['benchmarks'].items() if res['status'] == 'improvement']
-        
-        if regressions:
-            f.write("#### ⚠️ Regressions\n\n")
-            for name, res in regressions:
-                f.write(f"- **{name}**: {res['change_percent']:+.1f}% slower (was {format_ns(res['avg_historical_ns'])}, now {format_ns(res['current_ns'])})\n")
-            f.write("\n")
-        
-        if warnings:
-            f.write("#### ⚡ Warnings\n\n")
-            for name, res in warnings:
-                f.write(f"- **{name}**: {res['change_percent']:+.1f}% slower (was {format_ns(res['avg_historical_ns'])}, now {format_ns(res['current_ns'])})\n")
-            f.write("\n")
-        
-        if improvements:
-            f.write("#### ✨ Improvements\n\n")
-            for name, res in improvements:
-                f.write(f"- **{name}**: {res['change_percent']:+.1f}% faster (was {format_ns(res['avg_historical_ns'])}, now {format_ns(res['current_ns'])})\n")
-            f.write("\n")
-        
-        f.write("</details>\n\n")
-        
-        # Recommendations (always visible)
-        f.write("### 💡 Recommendations\n\n")
-        if summary['regressions'] > 0:
-            f.write("1. Review recent changes to the compilation pipeline\n")
-            f.write("2. Run `make bench-memory` to generate memory profiles\n")
-            f.write("3. Use `go tool pprof` to identify performance hotspots\n")
-            f.write("4. Compare with previous benchmark results using `benchstat`\n")
-        elif summary['warnings'] > 0:
-            f.write("1. Monitor the warned benchmarks closely in upcoming runs\n")
-            f.write("2. Consider running manual profiling if warnings persist\n")
-        elif summary['improvements'] > 0:
-            f.write("1. Document the changes that led to these improvements\n")
-            f.write("2. Consider applying similar optimizations to other areas\n")
-        else:
-            f.write("1. Continue monitoring performance daily\n")
-            f.write("2. Performance is stable - good work!\n")
-    
-    print(f"✅ Markdown report generated (date={analysis['date']} regressions={summary['regressions']} warnings={summary['warnings']})")
-
-if __name__ == '__main__':
-    main()
-EOF
-
-chmod +x /tmp/gh-aw/agent/benchmarks/generate_report.py
+if [ ! -x /tmp/gh-aw/agent/benchmarks/generate_report.py ]; then
+  echo "Missing report generator script at /tmp/gh-aw/agent/benchmarks/generate_report.py"
+  exit 1
+fi
 python3 /tmp/gh-aw/agent/benchmarks/generate_report.py
 ```
 

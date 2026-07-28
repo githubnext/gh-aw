@@ -277,11 +277,9 @@ Use the `close_discussion` safe output for each discussion found.
 
 Create a new discussion with the comprehensive report.
 
-**Formatting Guideline**: Use h3 (###) or lower for all headers in your report to maintain proper document hierarchy. The discussion title serves as h1, so all content headers should start at h3.
-
 **Report Structure Guidelines**
 
-- Use `###` (or lower) headers only.
+- Use `###` (or lower) headers only; the discussion title acts as h1.
 - Keep summary and critical actions visible; move long detail into `<details>` blocks.
 - Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
