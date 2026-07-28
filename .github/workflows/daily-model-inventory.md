@@ -255,21 +255,9 @@ jobs:
             -H "Authorization: ******" \
             https://api.githubcopilot.com/models) || true
           if [ "${HTTP_STATUS:-0}" = "200" ]; then
-            jq '{
-              provider: "copilot-api",
-              models: [
-                .data[]? | {
-                  id,
-                  name: (.name // .id),
-                  vendor: (.vendor // null),
-                  capabilities: (.capabilities // null),
-                  billing: (.billing // null)
-                }
-              ] | sort_by(.id)
-            }' "$OUT/raw.json" > "$OUT/models.json"
             echo "status=ok" >> "$GITHUB_OUTPUT"
           else
-            echo "{\"provider\":\"copilot-api\",\"error\":\"HTTP $HTTP_STATUS\",\"models\":[]}" > "$OUT/models.json"
+            echo "{\"error\":\"HTTP $HTTP_STATUS\"}" > "$OUT/raw.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
@@ -278,9 +266,7 @@ jobs:
         uses: actions/upload-artifact@v7.0.1
         with:
           name: copilot-api-models
-          path: |
-            /tmp/gh-aw/agent/model-inventory/copilot-api/models.json
-            /tmp/gh-aw/agent/model-inventory/copilot-api/raw.json
+          path: /tmp/gh-aw/agent/model-inventory/copilot-api/raw.json
           if-no-files-found: error
           retention-days: 7
 
@@ -355,9 +341,9 @@ them into:
 - Individual provider files: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/models.json`
 - Raw provider responses: `/tmp/gh-aw/agent/model-inventory/artifacts/<provider>-models/raw.json`
 - Predownloaded models.dev API index: `/tmp/gh-aw/agent/model-inventory/models-dev/api.json`
-- GitHub Copilot API models: `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/models.json`
-  (fetched from `https://api.githubcopilot.com/models`; if the file contains an `error` field or empty
-  `models` array, treat Copilot API data as unavailable for this run)
+- GitHub Copilot API models: `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json`
+  (fetched from `https://api.githubcopilot.com/models`; raw API response — if the file contains an `error` field,
+  treat Copilot API data as unavailable for this run)
 - Copilot live provider metadata: `/tmp/gh-aw/agent/model-inventory/reflect.json` (generated in
   Step 0 below; filter `.endpoints[] | select(.provider == "copilot") | .models`). If the
   file contains an `error` field, treat Copilot data as unavailable for this run and
@@ -563,12 +549,10 @@ This file was populated in Step 2.5 from:
 
 The GitHub Copilot API response is available at:
 
-- `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/models.json`
+- `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json`
 
-This file was fetched from `https://api.githubcopilot.com/models` and contains model entries with
-`id`, `name`, `vendor`, `capabilities`, and `billing` fields (including `billing.multiplier`
-where the endpoint provides it). If the file contains an `error` field or has an empty `models`
-array, treat it as unavailable and skip its use as a validation source for this run.
+This file is the raw response fetched from `https://api.githubcopilot.com/models`. If the file contains an `error` field,
+treat it as unavailable and skip its use as a validation source for this run.
 
 Use the Copilot reflect endpoint (`billing.multiplier`), the Copilot API endpoint (`billing.multiplier`),
 and the docs pricing table as validation sources for `models.json` pricing fields. Prefer reflect data
@@ -607,11 +591,11 @@ For each provider's enriched data, validate pricing/model coverage for each mode
    Cross-reference against the Copilot API and docs table as secondary validation sources.
 
 2. **GitHub Copilot API** — use the `copilot-api` models from
-   `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/models.json` as a supplementary
-   source. For each model, use `billing.multiplier` where present as a secondary cross-check against
+   `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json` as a supplementary
+   source. For each model in `.data[]`, use `billing.multiplier` where present as a secondary cross-check against
    the reflect data. Flag any model IDs in the Copilot API response that are not in the reflect data
    or not in `models.json` — these may be newly available models. Skip this source if the file
-   contains an `error` field or has an empty `models` array.
+   contains an `error` field.
 
 3. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
