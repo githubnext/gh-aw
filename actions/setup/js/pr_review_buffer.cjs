@@ -82,6 +82,7 @@ const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
  * @property {{owner: string, repo: string}} repoParts - Parsed owner and repo
  * @property {number} pullRequestNumber - PR number
  * @property {Object} pullRequest - Full PR object with head.sha
+ * @property {string} [commitId] - Optional commit SHA override. When present, used instead of pullRequest.head.sha as the commit_id for pulls.createReview(). Pins the review to the commit the agent actually reviewed, preventing attribution drift when new commits are pushed during the run.
  */
 
 /**
@@ -291,11 +292,19 @@ function createReviewBuffer() {
       };
     }
 
-    const { repo, repoParts, pullRequestNumber, pullRequest } = reviewContext;
+    const { repo, repoParts, pullRequestNumber, pullRequest, commitId } = reviewContext;
 
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       core.warning("Pull request head SHA not available - cannot submit review");
       return { success: false, error: "Pull request head SHA not available" };
+    }
+
+    // Use the pinned commit ID when configured, falling back to the live PR head SHA.
+    // A pinned commitId ensures the review is attributed to the commit the agent actually
+    // reviewed, preventing attribution drift when new commits are pushed during the run.
+    const resolvedCommitId = commitId || pullRequest.head.sha;
+    if (commitId) {
+      core.info(`Using pinned commit ID for review: ${commitId} (PR head is ${pullRequest.head.sha})`);
     }
 
     // Determine review event and body
@@ -465,7 +474,7 @@ function createReviewBuffer() {
       owner: repoParts.owner,
       repo: repoParts.repo,
       pull_number: pullRequestNumber,
-      commit_id: pullRequest.head.sha,
+      commit_id: resolvedCommitId,
       event: event,
     };
 

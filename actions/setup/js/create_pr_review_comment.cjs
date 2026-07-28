@@ -42,6 +42,15 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
+
+  // Optional pinned commit SHA. When set, overrides the live PR head SHA so that the
+  // review is attributed to the commit the agent actually reviewed, not whatever head
+  // the PR has at post time (which may differ under workflow_run triggers).
+  const pinnedCommitId = typeof config.commit_id === "string" && config.commit_id.trim() ? config.commit_id.trim() : null;
+  if (pinnedCommitId) {
+    core.info(`create_pull_request_review_comment: using pinned commit-id: ${pinnedCommitId}`);
+  }
+
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -343,6 +352,7 @@ async function main(config = {}) {
       repoParts: repoParts,
       pullRequestNumber: pullRequestNumber,
       pullRequest: pullRequest,
+      ...(pinnedCommitId ? { commitId: pinnedCommitId } : {}),
     });
 
     // Buffer the comment instead of posting it individually

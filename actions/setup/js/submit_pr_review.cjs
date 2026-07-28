@@ -44,6 +44,14 @@ async function main(config = {}) {
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
   const githubClient = await createAuthenticatedGitHubClient(config);
 
+  // Optional pinned commit SHA. When set, overrides the live PR head SHA so that the
+  // review is attributed to the commit the agent actually reviewed, not whatever head
+  // the PR has at post time (which may differ under workflow_run triggers).
+  const pinnedCommitId = typeof config.commit_id === "string" && config.commit_id.trim() ? config.commit_id.trim() : null;
+  if (pinnedCommitId) {
+    core.info(`submit_pull_request_review: using pinned commit-id: ${pinnedCommitId}`);
+  }
+
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
@@ -276,6 +284,7 @@ async function main(config = {}) {
         repoParts,
         pullRequestNumber: payloadPR.number,
         pullRequest: payloadPR,
+        ...(pinnedCommitId ? { commitId: pinnedCommitId } : {}),
       });
       core.info(`Set review context from triggering PR: ${repo}#${payloadPR.number}`);
     } else {
@@ -291,6 +300,7 @@ async function main(config = {}) {
             repoParts,
             pullRequestNumber: fetchedPR.number,
             pullRequest: fetchedPR,
+            ...(pinnedCommitId ? { commitId: pinnedCommitId } : {}),
           });
           core.info(`Set review context from target: ${repo}#${fetchedPR.number}`);
         } else {

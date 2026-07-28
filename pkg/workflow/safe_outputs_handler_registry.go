@@ -425,6 +425,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
+			AddIfNotEmpty("commit_id", c.CommitId).
 			Build()
 	},
 	"submit_pull_request_review": func(cfg *SafeOutputsConfig) map[string]any {
@@ -442,6 +443,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("required_title_prefix", c.RequiredTitlePrefix).AddIfNotEmpty("github-token", c.GitHubToken).
 			AddStringPtr("footer", getEffectiveFooterString(c.Footer, cfg.Footer)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
+			AddIfNotEmpty("commit_id", c.CommitId).
 			Build()
 	},
 	"reply_to_pull_request_review_comment": func(cfg *SafeOutputsConfig) map[string]any {

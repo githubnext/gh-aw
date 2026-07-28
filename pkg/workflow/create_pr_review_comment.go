@@ -14,6 +14,7 @@ type CreatePullRequestReviewCommentsConfig struct {
 	Target                 string   `yaml:"target,omitempty"`        // Target for comments: "triggering" (default), "*" (any PR), or explicit PR number
 	TargetRepoSlug         string   `yaml:"target-repo,omitempty"`   // Target repository in format "owner/repo" for cross-repository PR review comments
 	AllowedRepos           []string `yaml:"allowed-repos,omitempty"` // List of additional repositories that PR review comments can be added to (additionally to the target-repo)
+	CommitId               string   `yaml:"commit-id,omitempty"`     // Optional commit SHA to use as the reviewed commit. Pins the review to the commit the agent actually reviewed, preventing attribution drift when new commits are pushed during the run.
 }
 
 func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any) *CreatePullRequestReviewCommentsConfig {
@@ -51,6 +52,14 @@ func (c *Compiler) parsePullRequestReviewCommentsConfig(outputMap map[string]any
 			return nil // Invalid configuration, return nil to cause validation error
 		}
 		prReviewCommentsConfig.TargetRepoSlug = targetRepoSlug
+
+		// Parse optional commit-id override
+		if commitId, exists := configMap["commit-id"]; exists {
+			if commitIdStr, ok := commitId.(string); ok && commitIdStr != "" {
+				prReviewCommentsConfig.CommitId = commitIdStr
+				createPRReviewCommentLog.Printf("Commit ID override: %s", commitIdStr)
+			}
+		}
 
 		// Parse common base fields with default max of 10
 		c.parseBaseSafeOutputConfig(configMap, &prReviewCommentsConfig.BaseSafeOutputConfig, 10)

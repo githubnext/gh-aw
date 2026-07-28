@@ -556,6 +556,55 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(callArgs.comments).toBeUndefined();
     });
 
+    it("should use pinned commitId from review context instead of live PR head SHA", async () => {
+      buffer.setReviewMetadata("Review with pinned commit", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "live-head-sha-pushed-later" } },
+        commitId: "original-reviewed-sha",
+      });
+
+      mockGithub.rest.pulls.createReview.mockResolvedValue({
+        data: {
+          id: 700,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-700",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      // The pinned sha must be passed as commit_id, not the live head sha
+      const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
+      expect(callArgs.commit_id).toBe("original-reviewed-sha");
+    });
+
+    it("should fall back to pullRequest.head.sha when commitId is not set in review context", async () => {
+      buffer.setReviewMetadata("Regular review", "COMMENT");
+      buffer.setReviewContext({
+        repo: "owner/repo",
+        repoParts: { owner: "owner", repo: "repo" },
+        pullRequestNumber: 42,
+        pullRequest: { head: { sha: "current-head-sha" } },
+        // No commitId field
+      });
+
+      mockGithub.rest.pulls.createReview.mockResolvedValue({
+        data: {
+          id: 800,
+          html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-800",
+        },
+      });
+
+      const result = await buffer.submitReview();
+
+      expect(result.success).toBe(true);
+      const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
+      expect(callArgs.commit_id).toBe("current-head-sha");
+    });
+
     it("should include multi-line comment fields with side fallback for start_side", async () => {
       buffer.addComment({
         path: "src/index.js",

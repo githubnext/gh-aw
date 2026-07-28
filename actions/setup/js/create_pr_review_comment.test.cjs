@@ -523,6 +523,43 @@ describe("create_pr_review_comment.cjs", () => {
     // Footer context is set on the buffer for review-level footer generation
     expect(buffer.getBufferedCount()).toBe(1);
   });
+
+  it("should store pinned commitId in review context when commit_id is configured", async () => {
+    const handler = await createHandler({ commit_id: "pinned-sha-xyz789" });
+    const message = {
+      type: "create_pull_request_review_comment",
+      path: "src/main.js",
+      line: 10,
+      body: "Review comment body",
+    };
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.buffered).toBe(true);
+
+    const ctx = buffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    // The pinned commitId must be stored in the review context
+    expect(ctx.commitId).toBe("pinned-sha-xyz789");
+    // The live PR head SHA should still be in pullRequest.head.sha
+    expect(ctx.pullRequest.head.sha).toBe("abc123def456");
+  });
+
+  it("should not set commitId when commit_id config is not provided", async () => {
+    const handler = await createHandler();
+    const message = {
+      type: "create_pull_request_review_comment",
+      path: "src/main.js",
+      line: 10,
+      body: "Review comment without pinning",
+    };
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    const ctx = buffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.commitId).toBeUndefined();
+  });
 });
 
 describe("create_pr_review_comment.cjs — registry mode (multiple reviews)", () => {

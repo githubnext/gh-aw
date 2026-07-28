@@ -876,4 +876,152 @@ describe("submit_pr_review multi-buffer (registry mode)", () => {
     await main({ max: 1, target: "*", supersede_older_reviews: true, _prReviewBufferRegistry: registry });
     expect(setSuperSpy).toHaveBeenCalledWith(true);
   });
+
+  it("pinned commit_id is stored in review context for each buffer (registry mode)", async () => {
+    const registry = createPrReviewBufferRegistry();
+    const { main } = require("./submit_pr_review.cjs");
+    const handler = await main({
+      max: 5,
+      target: "*",
+      commit_id: "pinned-sha-abc123",
+      _prReviewBufferRegistry: registry,
+    });
+
+    await handler({ body: "Review for PR 10", event: "COMMENT", pull_request_number: 10 }, {});
+
+    const entries = registry.getAllEntries();
+    expect(entries).toHaveLength(1);
+    const ctx = entries[0].buffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.commitId).toBe("pinned-sha-abc123");
+  });
+});
+
+describe("submit_pr_review: commit-id pinning", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    delete global.context;
+    delete global.github;
+  });
+
+  it("should store pinned commitId in review context from triggering PR payload", async () => {
+    global.context = {
+      eventName: "pull_request",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        pull_request: { number: 42, head: { sha: "live-head-sha" } },
+      },
+    };
+    global.github = {
+      rest: { pulls: { get: vi.fn() } },
+      graphql: vi.fn(),
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({
+      max: 1,
+      _prReviewBuffer: localBuffer,
+      commit_id: "pinned-sha-from-eligibility",
+    });
+
+    const result = await localHandler({ type: "submit_pull_request_review", body: "Review", event: "COMMENT" }, {});
+
+    expect(result.success).toBe(true);
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    // commitId should be the pinned value, not the live head SHA
+    expect(ctx.commitId).toBe("pinned-sha-from-eligibility");
+    // The payload SHA should still be present in pullRequest.head.sha
+    expect(ctx.pullRequest.head.sha).toBe("live-head-sha");
+    // github.rest.pulls.get should NOT have been called (payload PR was used)
+    expect(global.github.rest.pulls.get).not.toHaveBeenCalled();
+  });
+
+  it("should store pinned commitId in review context fetched from API (workflow_run scenario)", async () => {
+    const fetchedPR = { number: 55, head: { sha: "live-head-after-push" } };
+    global.context = {
+      eventName: "workflow_run",
+      repo: { owner: "org", repo: "repo" },
+      payload: {},
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: fetchedPR }),
+        },
+      },
+      graphql: vi.fn(),
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({
+      max: 1,
+      target: "55",
+      _prReviewBuffer: localBuffer,
+      commit_id: "original-reviewed-sha",
+    });
+
+    const result = await localHandler({ type: "submit_pull_request_review", body: "Review", event: "COMMENT" }, {});
+
+    expect(result.success).toBe(true);
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    // commitId should be the pinned value, NOT the live head SHA returned by the API
+    expect(ctx.commitId).toBe("original-reviewed-sha");
+    // The live head SHA is still stored in pullRequest (used for other purposes)
+    expect(ctx.pullRequest.head.sha).toBe("live-head-after-push");
+  });
+
+  it("should not set commitId when commit_id config is not provided", async () => {
+    global.context = {
+      eventName: "pull_request",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        pull_request: { number: 7, head: { sha: "head-sha" } },
+      },
+    };
+    global.github = {
+      rest: { pulls: { get: vi.fn() } },
+      graphql: vi.fn(),
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({ max: 1, _prReviewBuffer: localBuffer });
+
+    await localHandler({ type: "submit_pull_request_review", body: "Review", event: "COMMENT" }, {});
+
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.commitId).toBeUndefined();
+  });
+
+  it("should not set commitId when commit_id is empty string", async () => {
+    global.context = {
+      eventName: "pull_request",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        pull_request: { number: 7, head: { sha: "head-sha" } },
+      },
+    };
+    global.github = {
+      rest: { pulls: { get: vi.fn() } },
+      graphql: vi.fn(),
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({ max: 1, _prReviewBuffer: localBuffer, commit_id: "" });
+
+    await localHandler({ type: "submit_pull_request_review", body: "Review", event: "COMMENT" }, {});
+
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.commitId).toBeUndefined();
+  });
 });

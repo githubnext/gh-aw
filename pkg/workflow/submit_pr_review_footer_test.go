@@ -622,3 +622,177 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 		}
 	})
 }
+
+func TestParseCommitIdConfig(t *testing.T) {
+	t.Run("parses commit-id for submit-pull-request-review", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":       1,
+				"commit-id": "abc123def456",
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Equal(t, "abc123def456", config.CommitId, "CommitId should be parsed")
+	})
+
+	t.Run("commit-id empty when not provided for submit-pull-request-review", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max": 1,
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Empty(t, config.CommitId, "CommitId should be empty when not configured")
+	})
+
+	t.Run("parses commit-id for create-pull-request-review-comment", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"create-pull-request-review-comment": map[string]any{
+				"commit-id": "deadbeef1234",
+			},
+		}
+
+		config := compiler.parsePullRequestReviewCommentsConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Equal(t, "deadbeef1234", config.CommitId, "CommitId should be parsed")
+	})
+
+	t.Run("commit-id empty when not provided for create-pull-request-review-comment", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"create-pull-request-review-comment": map[string]any{
+				"side": "RIGHT",
+			},
+		}
+
+		config := compiler.parsePullRequestReviewCommentsConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Empty(t, config.CommitId, "CommitId should be empty when not configured")
+	})
+
+	t.Run("commit-id emitted in submit_pull_request_review handler config", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			SafeOutputs: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					CommitId:             "pinned-sha-abc123",
+				},
+			},
+		}
+
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+		require.NotEmpty(t, steps, "Steps should not be empty")
+
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var handlerConfig map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
+					require.NoError(t, err, "Should unmarshal handler config")
+
+					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
+					require.True(t, ok, "submit_pull_request_review config should exist")
+					assert.Equal(t, "pinned-sha-abc123", submitConfig["commit_id"], "commit_id should be emitted in handler config")
+				}
+			}
+		}
+	})
+
+	t.Run("commit-id not emitted in submit_pull_request_review handler config when empty", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			SafeOutputs: &SafeOutputsConfig{
+				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+		}
+
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+		require.NotEmpty(t, steps, "Steps should not be empty")
+
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var handlerConfig map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
+					require.NoError(t, err, "Should unmarshal handler config")
+
+					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
+					require.True(t, ok, "submit_pull_request_review config should exist")
+					_, hasCommitId := submitConfig["commit_id"]
+					assert.False(t, hasCommitId, "commit_id should not be in handler config when not set")
+				}
+			}
+		}
+	})
+
+	t.Run("commit-id emitted in create_pull_request_review_comment handler config", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			SafeOutputs: &SafeOutputsConfig{
+				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
+					CommitId:             "pinned-sha-for-comments",
+				},
+			},
+		}
+
+		var steps []string
+		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
+		require.NotEmpty(t, steps, "Steps should not be empty")
+
+		for _, step := range steps {
+			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
+				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
+				if len(parts) == 2 {
+					jsonStr := strings.TrimSpace(parts[1])
+					jsonStr = strings.Trim(jsonStr, "\"")
+					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
+					var handlerConfig map[string]any
+					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
+					require.NoError(t, err, "Should unmarshal handler config")
+
+					reviewCommentConfig, ok := handlerConfig["create_pull_request_review_comment"].(map[string]any)
+					require.True(t, ok, "create_pull_request_review_comment config should exist")
+					assert.Equal(t, "pinned-sha-for-comments", reviewCommentConfig["commit_id"], "commit_id should be emitted in review comment handler config")
+				}
+			}
+		}
+	})
+
+	t.Run("accepts GitHub expression as commit-id value for submit-pull-request-review", func(t *testing.T) {
+		compiler := NewCompiler()
+		outputMap := map[string]any{
+			"submit-pull-request-review": map[string]any{
+				"max":       1,
+				"commit-id": "${{ needs.eligibility.outputs.head_sha }}",
+			},
+		}
+
+		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
+		require.NotNil(t, config, "Config should be parsed")
+		assert.Equal(t, "${{ needs.eligibility.outputs.head_sha }}", config.CommitId, "CommitId should accept GitHub expression")
+	})
+}
