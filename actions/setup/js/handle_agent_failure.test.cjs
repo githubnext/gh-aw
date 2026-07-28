@@ -3217,6 +3217,7 @@ describe("handle_agent_failure", () => {
       expect(result).toContain('input: "0e0"');
       expect(result).toContain('cache_read: "0e0"');
       expect(result).toContain('cache_write: "0e0"');
+      expect(result).toContain("Placeholder values");
     });
 
     it("throws when template is missing and error is true", async () => {
