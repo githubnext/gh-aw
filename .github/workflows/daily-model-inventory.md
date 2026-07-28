@@ -251,13 +251,44 @@ jobs:
           set -euo pipefail
           OUT="/tmp/gh-aw/agent/model-inventory/copilot-api"
           mkdir -p "$OUT"
-          HTTP_STATUS=$(curl -sf -o "$OUT/raw.json" -w "%{http_code}" \
-            -H "Authorization: ******" \
-            https://api.githubcopilot.com/models) || true
-          if [ "${HTTP_STATUS:-0}" = "200" ]; then
+          API_VERSION="2026-06-01"
+          COPILOT_API_HOSTS=(
+            "api.githubcopilot.com"
+            "api.individual.githubcopilot.com"
+            "api.business.githubcopilot.com"
+            "api.enterprise.githubcopilot.com"
+          )
+          LAST_STATUS=0
+          SUCCESS_URL=""
+          ATTEMPTS_JSON="[]"
+          for HOST in "${COPILOT_API_HOSTS[@]}"; do
+            URL="https://${HOST}/models?apiVersion=${API_VERSION}"
+            ATTEMPTS_JSON=$(jq -cn \
+              --argjson attempts "$ATTEMPTS_JSON" \
+              --arg url "$URL" \
+              '$attempts + [{url: $url}]')
+            HTTP_STATUS=$(curl -sS -o "$OUT/raw.json" -w "%{http_code}" \
+              -H "Authorization: ******" \
+              -H "Copilot-Integration-Id: agentic-workflows" \
+              "$URL") || true
+            LAST_STATUS="${HTTP_STATUS:-0}"
+            ATTEMPTS_JSON=$(jq -cn \
+              --argjson attempts "$ATTEMPTS_JSON" \
+              --arg status "$LAST_STATUS" \
+              '$attempts[:-1] + [$attempts[-1] + {status: $status}]')
+            if [ "$LAST_STATUS" = "200" ]; then
+              SUCCESS_URL="$URL"
+              break
+            fi
+          done
+          if [ -n "$SUCCESS_URL" ]; then
             echo "status=ok" >> "$GITHUB_OUTPUT"
+            echo "endpoint=$SUCCESS_URL" >> "$GITHUB_OUTPUT"
           else
-            echo "{\"error\":\"HTTP $HTTP_STATUS\"}" > "$OUT/raw.json"
+            jq -cn \
+              --arg error "HTTP $LAST_STATUS" \
+              --argjson attempts "$ATTEMPTS_JSON" \
+              '{error: $error, attempts: $attempts}' > "$OUT/raw.json"
             echo "status=error" >> "$GITHUB_OUTPUT"
           fi
 
@@ -551,8 +582,13 @@ The GitHub Copilot API response is available at:
 
 - `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json`
 
-This file is the raw response fetched from `https://api.githubcopilot.com/models`. If the file contains an `error` field,
-treat it as unavailable and skip its use as a validation source for this run.
+This file is the raw response fetched from the first successful GitHub Copilot models endpoint among
+`https://api.githubcopilot.com/models?apiVersion=2026-06-01`,
+`https://api.individual.githubcopilot.com/models?apiVersion=2026-06-01`,
+`https://api.business.githubcopilot.com/models?apiVersion=2026-06-01`, and
+`https://api.enterprise.githubcopilot.com/models?apiVersion=2026-06-01`, with
+`Copilot-Integration-Id: agentic-workflows` set on each request. If the file contains an `error`
+field, treat it as unavailable and skip its use as a validation source for this run.
 
 Use the Copilot reflect endpoint (`billing.multiplier`), the Copilot API endpoint (`billing.multiplier`),
 and the docs pricing table as validation sources for `models.json` pricing fields. Prefer reflect data
@@ -592,10 +628,11 @@ For each provider's enriched data, validate pricing/model coverage for each mode
 
 2. **GitHub Copilot API** — use the `copilot-api` models from
    `/tmp/gh-aw/agent/model-inventory/artifacts/copilot-api-models/raw.json` as a supplementary
-   source. For each model in `.data[]`, use `billing.multiplier` where present as a secondary cross-check against
-   the reflect data. Flag any model IDs in the Copilot API response that are not in the reflect data
-   or not in `models.json` — these may be newly available models. Skip this source if the file
-   contains an `error` field.
+   source. This payload comes from the first successful versioned `/models` response across the
+   Copilot API hosts above. For each model in `.data[]`, use `billing.multiplier` where present as
+   a secondary cross-check against the reflect data. Flag any model IDs in the Copilot API response
+   that are not in the reflect data or not in `models.json` — these may be newly available models.
+   Skip this source if the file contains an `error` field.
 
 3. **Gemini API** — use `inputTokenLimit` / `outputTokenLimit` as an approximate proxy for model
    complexity (this is an inference heuristic, not a definitive billing mapping).
