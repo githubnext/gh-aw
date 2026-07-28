@@ -1,38 +1,27 @@
-# Task Mining Run - 2026-07-18
+# Task Mining Run - 2026-07-28
 
 ## Summary
-- Discussions scanned: 3 new (23 total processed)
-- Tasks identified: 3 new tasks
-- Issues created: 0 (issue creation limit already reached from previous run)
-- Pending tasks carried over: 10
+- Discussions scanned: 5 (unprocessed since last run on 2026-07-18)
+- Tasks identified: 7
+- Issues created: 4
+- Duplicates avoided: 3 (already tracked in open issues)
 
-## New Discussions Analyzed
-- #46240: [typist] Go Type Consistency Analysis — 6 duplicate clusters (JobStep exact dup, JobInfo/JobData near dup, MCPToolUsage near dup, etc.)
-- #46253: [repository-quality] Error Chain Transparency — 788 non-wrapping fmt.Errorf, 4 strings.Contains(err.Error()) suppressions
-- #46294: [daily-code-metrics] Quality score 76.5/100, 806 large files (>500 LOC)
+## Created Issues
+- Propagate caller context through remote workflow spec fetchers (remote_workflow_spec.go) — from discussion #48389
+- Thread context.Context through upgradeExtensionIfOutdated for cancellable release checks — from discussion #48389
+- Propagate live context into buildRunsModel / fetchJobStatusesForProcessedRun (logs_orchestrator_filters.go) — from discussion #48389
+- Split 117-line generateSetupStepWithArtifactClientCondition into per-mode helpers — from discussion #48508
 
-## Pending Tasks (carry to next run)
-From #45983:
-- Consolidate ExperimentState/ExperimentRunRecord types
-- Generify AuditComparisonIntDelta/AuditComparisonStringDelta with generics
+## Duplicates Skipped
+- ExecGH/RunGH/RunGHCombined deprecation — already tracked in an open "[Code Quality]" issue
+- ctxbackground linter wrapper-pattern extension — already tracked in an open "[Code Quality]" issue
+- syft image-scan context propagation — already tracked in an open "[Code Quality]" issue
 
-From #45872:
-- Add godoc to unexported helpers in compiler_activation_job.go
-
-From #45899:
-- Migrate 52 workflows to reporting-otlp.md bundle
-
-From #45924:
-- Add missing engine to schema catalog
-
-From #46240:
-- Consolidate JobStep/JobStepData exact duplicate structs (HIGH priority, ~15 min)
-- Consolidate JobInfo/JobData near-duplicate structs
-
-From #46253:
-- Introduce sentinel errors for "already merged"/"INSUFFICIENT_SCOPES" (HIGH priority)
+## Discussions Reviewed But No New Tasks Extracted
+- #48511 (lint-monster) — already self-managing via its own issue-creation workflow (created its own tracking issues)
+- #48572 (terminal-stylist) — no action needed; report concludes codebase is already consistent, only optional low-value polish suggested
+- #48462 (observability) — findings are about missing telemetry/logs in specific workflow *runs*, not a code-quality defect with a fixable file/line; not actionable as a 1-3 day code task
 
 ## Top Patterns Observed
-- Type duplication (JobStep, JobData, MCPToolUsage variants) in pkg/cli
-- Error chain transparency gaps (788 non-wrapping fmt.Errorf, 4 strings.Contains suppressions)
-- Large file count (806 files >500 LOC) pulling quality score down
+- context.Background() call-chain leakage remains the dominant recurring theme (context propagation gaps across parser, cli, and compiler packages)
+- Large/complex functions in compiler YAML generation code continue to surface in daily quality scans

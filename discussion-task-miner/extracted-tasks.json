@@ -1,93 +1,47 @@
 {
-  "last_run": "2026-07-18T01:17:00Z",
+  "last_run": "2026-07-28T13:17:00Z",
   "tasks": [
     {
-      "source_discussion": 45268,
-      "temporary_id": "aw_iface9",
-      "title": "Add compile-time interface assertions for all 9 CodingAgentEngine implementors",
-      "created_at": "2026-07-14T01:08:00Z",
+      "source_discussion": 48389,
+      "title": "Propagate caller context through remote workflow spec fetchers (remote_workflow_spec.go)",
+      "created_at": "2026-07-28T13:17:00Z",
       "status": "created"
     },
     {
-      "source_discussion": 45268,
-      "temporary_id": "aw_baseeng",
-      "title": "Add compile-time assertions for BaseEngine sub-interfaces in pkg/workflow",
-      "created_at": "2026-07-14T01:08:00Z",
+      "source_discussion": 48389,
+      "title": "Thread context.Context through upgradeExtensionIfOutdated for cancellable release checks",
+      "created_at": "2026-07-28T13:17:00Z",
       "status": "created"
     },
     {
-      "source_discussion": 45259,
-      "temporary_id": "aw_typeenum",
-      "title": "Replace string enum fields with named Go types in pkg/types and pkg/cli",
-      "created_at": "2026-07-14T01:08:00Z",
+      "source_discussion": 48389,
+      "title": "Propagate live context into buildRunsModel / fetchJobStatusesForProcessedRun (logs_orchestrator_filters.go)",
+      "created_at": "2026-07-28T13:17:00Z",
       "status": "created"
     },
     {
-      "source_discussion": 45259,
-      "temporary_id": "aw_logsum",
-      "title": "Extract shared counter base struct from AccessLogSummary and FirewallLogSummary",
-      "created_at": "2026-07-14T01:08:00Z",
+      "source_discussion": 48508,
+      "title": "Split 117-line generateSetupStepWithArtifactClientCondition into per-mode helpers",
+      "created_at": "2026-07-28T13:17:00Z",
       "status": "created"
     },
     {
-      "source_discussion": 45268,
-      "temporary_id": "aw_filetrkr",
-      "title": "Add compile-time assertions for FileCreationTracker and ToolConfig implementors",
-      "created_at": "2026-07-14T01:08:00Z",
-      "status": "created"
+      "source_discussion": 48389,
+      "title": "Deprecate non-context gh wrappers ExecGH/RunGH/RunGHCombined (already tracked)",
+      "created_at": "2026-07-28T13:17:00Z",
+      "status": "skipped_duplicate_existing_issue"
     },
     {
-      "source_discussion": 45983,
-      "temporary_id": "aw_exp_dedup",
-      "title": "Consolidate duplicate ExperimentState/ExperimentRunRecord types in pkg/cli",
-      "created_at": "2026-07-16T13:15:00Z",
-      "status": "pending_issue_limit_reached"
+      "source_discussion": 48389,
+      "title": "Extend ctxbackground linter for wrapper-function pattern (already tracked)",
+      "created_at": "2026-07-28T13:17:00Z",
+      "status": "skipped_duplicate_existing_issue"
     },
     {
-      "source_discussion": 45983,
-      "temporary_id": "aw_audit_delta",
-      "title": "Generify AuditComparisonIntDelta/AuditComparisonStringDelta with Go generics",
-      "created_at": "2026-07-16T13:15:00Z",
-      "status": "pending_issue_limit_reached"
-    },
-    {
-      "source_discussion": 45872,
-      "temporary_id": "aw_actjob_doc",
-      "title": "Add godoc comments to unexported helpers in compiler_activation_job.go",
-      "created_at": "2026-07-16T13:15:00Z",
-      "status": "pending_issue_limit_reached"
-    },
-    {
-      "source_discussion": 45899,
-      "temporary_id": "aw_otlp_bundle",
-      "title": "Migrate 52 workflows from separate reporting+otlp imports to reporting-otlp.md bundle",
-      "created_at": "2026-07-16T13:15:00Z",
-      "status": "pending_issue_limit_reached"
-    },
-    {
-      "source_discussion": 45924,
-      "temporary_id": "aw_schema_eng",
-      "title": "Add missing engine to schema built-in engine catalog and remove deprecated alias examples",
-      "created_at": "2026-07-16T13:15:00Z",
-      "status": "pending_issue_limit_reached"
-    },
-    {
-      "source_discussion": 46240,
-      "title": "Consolidate JobStep/JobStepData exact duplicate structs in pkg/cli",
-      "created_at": "2026-07-18T01:17:00Z",
-      "status": "pending_issue_limit_reached"
-    },
-    {
-      "source_discussion": 46240,
-      "title": "Consolidate JobInfo/JobData near-duplicate structs in pkg/cli",
-      "created_at": "2026-07-18T01:17:00Z",
-      "status": "pending_issue_limit_reached"
-    },
-    {
-      "source_discussion": 46253,
-      "title": "Introduce sentinel errors for recurring string matches (already merged, INSUFFICIENT_SCOPES)",
-      "created_at": "2026-07-18T01:17:00Z",
-      "status": "pending_issue_limit_reached"
+      "source_discussion": 48389,
+      "title": "Propagate context into syft image-scan loop (already tracked)",
+      "created_at": "2026-07-28T13:17:00Z",
+      "status": "skipped_duplicate_existing_issue"
     }
   ]
 }
