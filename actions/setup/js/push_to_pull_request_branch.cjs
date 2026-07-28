@@ -17,7 +17,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { renderTemplateFromFile, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
+const { overridePersistedExtraheader, restorePersistedExtraheader, withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
@@ -101,33 +101,6 @@ function parsePositiveInteger(value) {
   }
   const parsed = Number.parseInt(String(value), 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-/**
- * Temporarily override the persisted GitHub extraheader for remote git operations.
- *
- * @template T
- * @param {string} token
- * @param {() => Promise<T>} callback
- * @param {string} [cwd] - Optional working directory; scopes the git config override to the correct checkout
- * @returns {Promise<T>}
- */
-async function withGitHubHostToken(token, callback, cwd) {
-  if (!token) {
-    return callback();
-  }
-  const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
-  let previousExtraheaders = [];
-  let overrideApplied = false;
-  try {
-    previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, token, cwd);
-    overrideApplied = true;
-    return await callback();
-  } finally {
-    if (overrideApplied) {
-      await restorePersistedExtraheader(githubServerUrl, previousExtraheaders, cwd);
-    }
-  }
 }
 
 /**

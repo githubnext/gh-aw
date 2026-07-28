@@ -30,7 +30,7 @@ const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
 const { checkFileProtection, checkFileProtectionPostApply } = require("./manifest_file_helpers.cjs");
 const { renderTemplateFromFile, renderFilesList, buildProtectedFileList, getPromptPath } = require("./messages_core.cjs");
-const { overridePersistedExtraheader, restorePersistedExtraheader } = require("./git_auth_helpers.cjs");
+const { overridePersistedExtraheader, restorePersistedExtraheader, withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { COPILOT_REVIEWER_BOT, FAQ_CREATE_PR_PERMISSIONS_URL } = require("./constants.cjs");
 const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
@@ -567,27 +567,18 @@ function enforcePullRequestLimits(patchContent, maxFiles = MAX_FILES) {
  * @param {string} [options.repo] - Repository name for the deleteRef call.
  * @param {string} [options.remoteTarget] - Remote name or URL used for remote branch existence checks.
  * @param {string} [options.remoteToken] - Optional token used for authenticated remote branch checks.
+ * @param {string} [options.cwd] - Optional working directory for git operations; scopes git config overrides to the correct checkout.
  * @returns {Promise<string>} The (possibly renamed) branch name to use going forward.
  */
 async function handleRemoteBranchCollision(branchName, preserveBranchName, options = {}) {
+  const cwd = options.cwd;
   let remoteBranchExists = false;
   try {
     const remoteTarget = options.remoteTarget || "origin";
-    const checkRemoteBranch = async () => exec.getExecOutput("git", ["ls-remote", "--heads", remoteTarget, branchName]);
+    const checkRemoteBranch = async () => exec.getExecOutput("git", ["ls-remote", "--heads", remoteTarget, branchName], cwd ? { cwd } : {});
     let checkResult;
     if (options.remoteToken) {
-      const githubServerUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
-      let previousExtraheaders = [];
-      let overrideApplied = false;
-      try {
-        previousExtraheaders = await overridePersistedExtraheader(githubServerUrl, options.remoteToken);
-        overrideApplied = true;
-        checkResult = await checkRemoteBranch();
-      } finally {
-        if (overrideApplied) {
-          await restorePersistedExtraheader(githubServerUrl, previousExtraheaders);
-        }
-      }
+      checkResult = await withGitHubHostToken(options.remoteToken, checkRemoteBranch, cwd);
     } else {
       checkResult = await checkRemoteBranch();
     }
@@ -659,7 +650,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
   const oldBranch = branchName;
   const renamedBranch = `${branchName}-${extraHex}`;
   // Rename local branch
-  await exec.exec("git", ["branch", "-m", oldBranch, renamedBranch]);
+  await exec.exec("git", ["branch", "-m", oldBranch, renamedBranch], cwd ? { cwd } : {});
   core.info(`Renamed branch to ${renamedBranch}`);
   return renamedBranch;
 }
@@ -1638,7 +1629,8 @@ async function main(config = {}) {
         // fallback issue can include a compare URL.  Genuine push failures are handled in
         // the catch block below.
         {
-          try {
+          const forkCwd = process.cwd();
+          const runBundlePush = async () => {
             branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
               recreateRef,
               githubClient: pushGithubClient,
@@ -1646,6 +1638,7 @@ async function main(config = {}) {
               repo: pushRepoParts.repo,
               remoteTarget: pushRemoteUrl || "origin",
               remoteToken: headGitHubToken,
+              cwd: forkCwd,
             });
 
             await pushSignedCommits({
@@ -1654,7 +1647,7 @@ async function main(config = {}) {
               repo: pushRepoParts.repo,
               branch: branchName,
               baseRef: `origin/${baseBranch}`,
-              cwd: process.cwd(),
+              cwd: forkCwd,
               pushRemoteUrl,
               pushToken: headGitHubToken,
               signedCommits,
@@ -1662,6 +1655,9 @@ async function main(config = {}) {
               currentRepo: itemRepo,
               validationConfig: config,
             });
+          };
+          try {
+            await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runBundlePush, forkCwd) : runBundlePush());
             core.info("Changes pushed to branch (from bundle)");
 
             // Count new commits on PR branch relative to base
@@ -1683,20 +1679,22 @@ async function main(config = {}) {
               core.warning("Signed push rejected merge commit topology from bundle; rewriting branch and retrying signed push");
               try {
                 await rewriteBundleBranchAsSingleCommit(baseBranch, exec);
-                await pushSignedCommits({
-                  githubClient: pushGithubClient,
-                  owner: pushRepoParts.owner,
-                  repo: pushRepoParts.repo,
-                  branch: branchName,
-                  baseRef: `origin/${baseBranch}`,
-                  cwd: process.cwd(),
-                  pushRemoteUrl,
-                  pushToken: headGitHubToken,
-                  signedCommits,
-                  resolvedTemporaryIds,
-                  currentRepo: itemRepo,
-                  validationConfig: config,
-                });
+                const runRetryPush = async () =>
+                  pushSignedCommits({
+                    githubClient: pushGithubClient,
+                    owner: pushRepoParts.owner,
+                    repo: pushRepoParts.repo,
+                    branch: branchName,
+                    baseRef: `origin/${baseBranch}`,
+                    cwd: forkCwd,
+                    pushRemoteUrl,
+                    pushToken: headGitHubToken,
+                    signedCommits,
+                    resolvedTemporaryIds,
+                    currentRepo: itemRepo,
+                    validationConfig: config,
+                  });
+                await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runRetryPush, forkCwd) : runRetryPush());
                 core.info("Changes pushed to branch after bundle rewrite retry");
 
                 try {
@@ -2025,7 +2023,8 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
           // fallback issue can include a compare URL.  Genuine push failures are handled in
           // the catch block below.
           {
-            try {
+            const forkCwd = process.cwd();
+            const runPatchPush = async () => {
               branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
                 recreateRef,
                 githubClient: pushGithubClient,
@@ -2033,6 +2032,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 repo: pushRepoParts.repo,
                 remoteTarget: pushRemoteUrl || "origin",
                 remoteToken: headGitHubToken,
+                cwd: forkCwd,
               });
 
               await pushSignedCommits({
@@ -2041,7 +2041,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 repo: pushRepoParts.repo,
                 branch: branchName,
                 baseRef: `origin/${baseBranch}`,
-                cwd: process.cwd(),
+                cwd: forkCwd,
                 pushRemoteUrl,
                 pushToken: headGitHubToken,
                 signedCommits,
@@ -2049,6 +2049,9 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                 currentRepo: itemRepo,
                 validationConfig: config,
               });
+            };
+            try {
+              await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runPatchPush, forkCwd) : runPatchPush());
               core.info("Changes pushed to branch");
 
               // Count new commits on PR branch relative to base, used to restrict
@@ -2196,29 +2199,34 @@ ${patchPreview}`;
               await exec.exec(`git commit --allow-empty -m "Initialize"`);
               core.info("Created empty commit");
 
-              branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
-                recreateRef,
-                githubClient: pushGithubClient,
-                owner: pushRepoParts.owner,
-                repo: pushRepoParts.repo,
-                remoteTarget: pushRemoteUrl || "origin",
-                remoteToken: headGitHubToken,
-              });
+              const forkCwd = process.cwd();
+              const runEmptyPush = async () => {
+                branchName = await handleRemoteBranchCollision(branchName, preserveBranchName, {
+                  recreateRef,
+                  githubClient: pushGithubClient,
+                  owner: pushRepoParts.owner,
+                  repo: pushRepoParts.repo,
+                  remoteTarget: pushRemoteUrl || "origin",
+                  remoteToken: headGitHubToken,
+                  cwd: forkCwd,
+                });
 
-              await pushSignedCommits({
-                githubClient: pushGithubClient,
-                owner: pushRepoParts.owner,
-                repo: pushRepoParts.repo,
-                branch: branchName,
-                baseRef: `origin/${baseBranch}`,
-                cwd: process.cwd(),
-                pushRemoteUrl,
-                pushToken: headGitHubToken,
-                signedCommits,
-                resolvedTemporaryIds,
-                currentRepo: itemRepo,
-                validationConfig: config,
-              });
+                await pushSignedCommits({
+                  githubClient: pushGithubClient,
+                  owner: pushRepoParts.owner,
+                  repo: pushRepoParts.repo,
+                  branch: branchName,
+                  baseRef: `origin/${baseBranch}`,
+                  cwd: forkCwd,
+                  pushRemoteUrl,
+                  pushToken: headGitHubToken,
+                  signedCommits,
+                  resolvedTemporaryIds,
+                  currentRepo: itemRepo,
+                  validationConfig: config,
+                });
+              };
+              await (headGitHubToken && pushRemoteUrl ? withGitHubHostToken(headGitHubToken, runEmptyPush, forkCwd) : runEmptyPush());
               core.info("Empty branch pushed successfully");
 
               // Count new commits (will be 1 from the Initialize commit)
