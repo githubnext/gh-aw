@@ -291,6 +291,101 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	}
 }
 
+// TestAutoModelPassedToCopilotAsIs tests that model: auto is passed to the Copilot CLI
+// via COPILOT_MODEL=auto without any transformation or fallback env var.
+func TestAutoModelPassedToCopilotAsIs(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-auto-model",
+		AI:    "copilot",
+		Model: "auto",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test-auto.log")
+
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// "auto" is a native Copilot model ID and must be passed as-is via COPILOT_MODEL
+	expectedEnvLine := constants.CopilotCLIModelEnvVar + ": auto"
+	if !strings.Contains(stepsContent, expectedEnvLine) {
+		t.Errorf("Expected '%s' not found in steps (auto must be passed as-is to Copilot):\n%s", expectedEnvLine, stepsContent)
+	}
+
+	// No fallback env var should be set for a literal model like "auto"
+	if strings.Contains(stepsContent, constants.EnvVarModelFallback+":") {
+		t.Errorf("Fallback env var %s should not be present for literal model 'auto'", constants.EnvVarModelFallback)
+	}
+
+	// "auto" should not appear as a --model CLI flag
+	if strings.Contains(stepsContent, "--model auto") {
+		t.Errorf("--model flag should not be used; model must be passed via COPILOT_MODEL:\n%s", stepsContent)
+	}
+}
+
+// TestAutoModelFallbackForNonCopilotEngine verifies that the "auto" alias provides a
+// provider-agnostic fallback path for non-Copilot engines. For a Claude workflow with
+// model: auto, the alias map must route through "large" (a provider-agnostic alias) and
+// must not expose "copilot/auto" as a reachable model in the large fallback chain.
+func TestAutoModelFallbackForNonCopilotEngine(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-auto-claude",
+		AI:    "claude",
+		Model: "auto",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs:   &SafeOutputsConfig{},
+		ModelMappings: MergeImportedModelAliases(nil, nil),
+	}
+
+	// "auto" must include "large" as the non-Copilot fallback entry
+	autoResolution := workflowData.ModelMappings["auto"]
+	if len(autoResolution) == 0 {
+		t.Fatal("auto alias must be present in ModelMappings")
+	}
+	foundLarge := false
+	for _, m := range autoResolution {
+		if m == "large" {
+			foundLarge = true
+		}
+	}
+	if !foundLarge {
+		t.Errorf("auto alias must include 'large' as a non-Copilot fallback; got %v", autoResolution)
+	}
+
+	// "large" must not contain copilot-specific entries — it is the provider-agnostic fallback
+	largeResolution := workflowData.ModelMappings["large"]
+	if len(largeResolution) == 0 {
+		t.Fatal("large alias must be present in ModelMappings")
+	}
+	for _, m := range largeResolution {
+		if strings.HasPrefix(m, "copilot/") {
+			t.Errorf("large alias must not contain Copilot-specific models; found %q in large: %v", m, largeResolution)
+		}
+	}
+}
+
 // TestCopilotFallbackModelMapsToNativeEnvVar tests that when model is not explicitly configured,
 // the Copilot engine maps the GitHub org variable to the native COPILOT_MODEL env var instead
 // of using the broken --model CLI flag.

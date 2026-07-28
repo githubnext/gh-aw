@@ -554,7 +554,7 @@ AWF ships the following builtin aliases. Workflow frontmatter definitions (and i
 | `small` | `mini` |
 | `mini` | `haiku`, `gpt-5-mini`, `gpt-5-nano`, `gemini-flash-lite` |
 | `large` | `sonnet`, `gpt-5`, `gemini-pro` |
-| `auto` | `large` |
+| `auto` | `copilot/auto`, `large` |
 | `any` | `copilot/*`, `anthropic/*`, `openai/*`, `google/*`, `gemini/*` |
 | `agent` | `sonnet-6x`, `gpt-5.4`, `gpt-5`, `gemini-pro`, `haiku`, `any` |
 | `copilot` | `agent`, `gpt-5.4`, `sonnet`, `gpt-5`, `any` |
@@ -679,7 +679,7 @@ At compile time, an implementation SHOULD:
 #### 12.1.2 Resolution Tests
 
 - **T-MAF-020**: `sonnet` resolves to first catalog match for `copilot/*sonnet*` or `anthropic/*sonnet*`
-- **T-MAF-021**: `auto` transitively resolves through `large` → `sonnet` → concrete model
+- **T-MAF-021**: `auto` resolves to `copilot/auto` for the Copilot API (passed as-is) and falls back through `large` → `sonnet` → concrete model for other providers
 - **T-MAF-022**: `opus?effort=high` propagates `effort=high` to resolved concrete model
 - **T-MAF-023**: Caller `opus?effort=high` + alias entry `opus?effort=medium` → resolved with `effort=high` (caller wins)
 - **T-MAF-024**: Custom alias `deep-think: [opus?effort=high]` resolves via `opus` builtin alias
