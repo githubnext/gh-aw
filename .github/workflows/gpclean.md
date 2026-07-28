@@ -89,6 +89,10 @@ steps:
         echo "📊 SBOM contains ${PACKAGE_COUNT} packages"
       fi
 
+evals:
+  - id: tool_verbosity_goal_met
+    question: Does the agent output show that the objective for experiment tool_verbosity was successfully completed?
+
 ---
 
 {{#if experiments.tool_verbosity == 'minimal_toolset' }}

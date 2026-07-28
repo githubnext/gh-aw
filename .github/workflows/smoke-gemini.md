@@ -71,6 +71,10 @@ safe-outputs:
       run-success: "🚀 [{workflow_name}]({run_url}) **MISSION COMPLETE!** Gemini has spoken. ✨"
       run-failure: "⚠️ [{workflow_name}]({run_url}) {status}. Gemini encountered unexpected challenges..."
 timeout-minutes: 10
+evals:
+  - id: sub_agent_strategy_goal_met
+    question: Does the agent output show that the objective for experiment sub_agent_strategy was successfully completed?
+
 ---
 
 # Smoke Test: Gemini Engine Validation

@@ -42,6 +42,10 @@ type ExperimentAnalysis struct {
 	// Empty when Metric is absent or does not reference an eval.
 	MetricQuestion string `json:"metric_question,omitempty"`
 
+	// MetricEvalResults summarizes observed eval outcomes when Metric references an eval ID
+	// and evals.jsonl data is available.
+	MetricEvalResults *MetricEvalResults `json:"metric_eval_results,omitempty"`
+
 	// MinSamples is the minimum runs per variant required before analysis is reliable.
 	// Defaults to 20 when not declared in the experiment config (R-STAT-007).
 	MinSamples int `json:"min_samples"`
@@ -104,10 +108,25 @@ type GuardrailStatus struct {
 	Threshold string `json:"threshold"`
 }
 
+// MetricEvalResults summarizes observed YES/NO/UNKNOWN outcomes for an eval-backed metric.
+type MetricEvalResults struct {
+	Yes          int    `json:"yes"`
+	No           int    `json:"no"`
+	Unknown      int    `json:"unknown"`
+	Total        int    `json:"total"`
+	LatestAnswer string `json:"latest_answer,omitempty"`
+	LatestRunID  string `json:"latest_run_id,omitempty"`
+}
+
 // computeExperimentAnalysis computes the statistical analysis for a single named experiment.
 // cfg may be nil when no workflow frontmatter is available, in which case defaults are used.
 // evals provides the eval definitions for resolving eval-backed metric references; may be nil.
-func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.ExperimentConfig, evals *workflow.EvalsConfig) ExperimentAnalysis {
+func computeExperimentAnalysis(
+	exp ExperimentVariantStats,
+	cfg *workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+	metricEvalResults map[string]MetricEvalResults,
+) ExperimentAnalysis {
 	experimentsStatsLog.Printf("Computing analysis for experiment %q: %d variant(s), %d total runs", exp.Name, len(exp.Variants), exp.Total)
 	a := ExperimentAnalysis{
 		ExperimentName: exp.Name,
@@ -132,11 +151,19 @@ func computeExperimentAnalysis(exp ExperimentVariantStats, cfg *workflow.Experim
 		if cfg.Metric != "" {
 			a.Metric = cfg.Metric
 			evalID, isEval := workflow.ParseExperimentMetricEvalReference(cfg.Metric)
-			if isEval && evalID != "" && evals != nil {
-				for _, q := range evals.Questions {
-					if q.ID == evalID {
-						a.MetricQuestion = q.Question
-						break
+			if isEval && evalID != "" {
+				if evals != nil {
+					for _, q := range evals.Questions {
+						if q.ID == evalID {
+							a.MetricQuestion = q.Question
+							break
+						}
+					}
+				}
+				if metricEvalResults != nil {
+					if summary, ok := metricEvalResults[evalID]; ok {
+						s := summary
+						a.MetricEvalResults = &s
 					}
 				}
 			}
@@ -318,6 +345,24 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 			fmt.Fprintf(os.Stderr, "  Metric     : %s — %s\n", a.Metric, a.MetricQuestion)
 		} else {
 			fmt.Fprintf(os.Stderr, "  Metric     : %s\n", a.Metric)
+		}
+		if a.MetricEvalResults != nil {
+			fmt.Fprintf(
+				os.Stderr,
+				"  Eval       : YES=%d  NO=%d  UNKNOWN=%d  TOTAL=%d",
+				a.MetricEvalResults.Yes,
+				a.MetricEvalResults.No,
+				a.MetricEvalResults.Unknown,
+				a.MetricEvalResults.Total,
+			)
+			if a.MetricEvalResults.LatestAnswer != "" {
+				fmt.Fprintf(os.Stderr, "  (latest: %s", a.MetricEvalResults.LatestAnswer)
+				if a.MetricEvalResults.LatestRunID != "" {
+					fmt.Fprintf(os.Stderr, " run %s", a.MetricEvalResults.LatestRunID)
+				}
+				fmt.Fprint(os.Stderr, ")")
+			}
+			fmt.Fprintln(os.Stderr)
 		}
 	}
 	fmt.Fprintf(os.Stderr, "  Min samples: %d per variant\n", a.MinSamples)
