@@ -121,7 +121,7 @@ Domain-specific validation is organized into separate files based on functional 
 
 **Locations**:
 - `pkg/workflow/engine_validation.go` (~255 lines) — top-level engine settings, MCP timeouts, specification consistency
-- `pkg/workflow/engine_driver_validation.go` (~155 lines) — engine.driver and engine.harness file path safety
+- `pkg/workflow/engine_driver_validation.go` (~171 lines) — engine.driver and engine.harness file path safety
 - `pkg/workflow/engine_inline_definition_validation.go` (~175 lines) — inline runtime/provider definitions and auth
 
 **Purpose**: Validates AI engine configuration
