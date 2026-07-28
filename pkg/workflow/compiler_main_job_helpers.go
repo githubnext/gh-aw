@@ -317,6 +317,16 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 		env["GH_AW_PROJECT_UTC"] = fmt.Sprintf("%q", utcOffset)
 	}
 
+	// Expose the compiler version so the Copilot install script can resolve a
+	// compatible toolcache entry via compat-matrix range matching rather than
+	// requiring an exact version download on every job.
+	if IsRelease() {
+		if env == nil {
+			env = make(map[string]string)
+		}
+		env["GH_AW_COMPILED_VERSION"] = c.version
+	}
+
 	return env
 }
 

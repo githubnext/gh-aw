@@ -191,6 +191,16 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		environment = "environment: " + data.SafeOutputs.ThreatDetection.Environment
 	}
 
+	var detectionJobEnv map[string]string
+	// Expose the compiler version so the Copilot install script can resolve a
+	// compatible toolcache entry via compat-matrix range matching rather than
+	// requiring an exact version download on every job.
+	if IsRelease() {
+		detectionJobEnv = map[string]string{
+			"GH_AW_COMPILED_VERSION": c.version,
+		}
+	}
+
 	job := &Job{
 		Name:        string(constants.DetectionJobName),
 		Needs:       needs,
@@ -198,6 +208,7 @@ func (c *Compiler) buildDetectionJob(data *WorkflowData) (*Job, error) {
 		RunsOn:      c.indentYAMLLines(runsOn, "    "),
 		Environment: c.indentYAMLLines(environment, "    "),
 		Permissions: permissions,
+		Env:         detectionJobEnv,
 		Steps:       steps,
 		Outputs:     outputs,
 	}

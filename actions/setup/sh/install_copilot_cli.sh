@@ -272,8 +272,8 @@ resolve_version_from_compat() {
     return 1
   fi
 
-  if [[ ! "$compiled_version" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-    echo "GH_AW_COMPILED_VERSION '${compiled_version}' is not in vMAJOR.MINOR.PATCH format; skipping compatibility matrix resolution." >&2
+  if [[ ! "$compiled_version" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    echo "GH_AW_COMPILED_VERSION '${compiled_version}' is not in MAJOR.MINOR.PATCH format; skipping compatibility matrix resolution." >&2
     return 1
   fi
 
@@ -422,8 +422,13 @@ find_cached_copilot_bin() {
           printf '%s\n' "$candidate"
           return 0
         fi
-        echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
-        continue
+        # If no compat range is available, an exact match is required
+        if [ -z "$min_version" ] && [ -z "$max_version" ]; then
+          echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
+          continue
+        fi
+        echo "  No exact match (want ${requested_version_normalized}); checking compat range ${min_version}..${max_version}" >&2
+        # Fall through to range check below
       fi
 
       if [ -n "$min_version" ] && version_is_greater "$min_version" "$candidate_version_normalized"; then
@@ -520,7 +525,13 @@ if [ -z "$VERSION" ]; then
     exit 1
   fi
 else
-  echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
+  echo "Explicit Copilot CLI version argument provided (${VERSION}); resolving compat window for toolcache range matching..."
+  if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
+    IFS='|' read -r _UNUSED COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
+    echo "Compat window resolved: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT} (toolcache range matching enabled)"
+  else
+    echo "Compat window unavailable; exact toolcache match required for version ${VERSION}." >&2
+  fi
 fi
 
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
