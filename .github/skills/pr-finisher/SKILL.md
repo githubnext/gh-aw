@@ -36,6 +36,7 @@ Top-level PR comments and review bodies are useful feedback but **not** a merge 
 - **Do not merge.** Never run `gh pr merge`, enable auto-merge, or enqueue. This skill stops at "ready for merge."
 - **Do not post stand-alone PR comments.** Only reply on existing review threads / comments that need a response. Do not ping reviewers or CODEOWNERS.
 - **Always disable pagers** for `gh`: prefix with `GH_PAGER=""` or pipe through `cat`. Without this, commands hang in non-interactive shells.
+- **Read PR state once per pass and reuse it.** Cache the initial `gh pr view` payload in a local snapshot file and use `jq` against that file until you perform an action that can change PR state (for example: push, update branch, resolve conflicts). Do not re-run overlapping `gh pr view` calls within the same unchanged turn sequence.
 - **Never wait for CI to re-run.** No `bash sleep`, no `gh run watch`, no `gh pr checks --watch`, no re-check loop after push. The agent's pushes will not trigger workflows; waiting is futile.
 - **Local validation is non-negotiable before each push.** Because CI will not re-run, the only correctness gate the agent gets is `make ...` locally. Treat a green local run as the bar.
 - **Commit and push every iteration that produces file changes.** Unpushed changes are not visible to the user.
@@ -66,21 +67,23 @@ The agent runs this once. There is no monitoring loop.
 ### 1. Triage
 
 ```bash
-GH_PAGER="" gh pr view <number> --json state,isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup,headRefOid
+mkdir -p /tmp/gh-aw/pr-finisher
+PR_SNAPSHOT=/tmp/gh-aw/pr-finisher/pr-state.json
+GH_PAGER="" gh pr view <number> --json state,isDraft,reviewDecision,mergeable,mergeStateStatus,statusCheckRollup,headRefOid,reviews,reviewThreads,comments > "$PR_SNAPSHOT"
 GH_PAGER="" gh pr checks <number>
 ```
 
-If merged/closed, report and stop. Otherwise classify each condition as ✅ / ❌ / ⏳ / ❓. The CI snapshot here is your **only** view of CI for this run — capture which checks failed and why before changing anything, because after you push it will be stale.
+If merged/closed, report and stop. Otherwise classify each condition as ✅ / ❌ / ⏳ / ❓ using the snapshot file plus `gh pr checks`. The CI snapshot here is your **only** view of CI for this run — capture which checks failed and why before changing anything, because after you push it will be stale.
 
 ### 2. Address Reviews
 
 Delegate to the `copilot-review` skill and treat that delegation as mandatory, not optional. Insist on full handling of each unresolved in-scope thread (including `github-actions[bot]`): make change → run relevant local validation → commit → push → reply → resolve. A thread is not handled until reply + resolve both succeed.
 
-Before editing, gather the full review surface with explicit GH queries:
+Before editing, reuse the triage snapshot instead of fetching the same PR again:
 
 ```bash
-GH_PAGER="" gh pr view <number> --json reviews,reviewThreads,comments
-GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[] | select(.isResolved==false)'
+jq '{reviews,reviewThreads,comments}' "$PR_SNAPSHOT"
+jq '.reviewThreads[]? | select(.isResolved==false)' "$PR_SNAPSHOT"
 ```
 
 When reviewing collected feedback, apply reviewer scoping from `copilot-review`: trusted automation and team/collaborator reviewers only. Ignore non-team-member feedback.
@@ -88,11 +91,12 @@ When reviewing collected feedback, apply reviewer scoping from `copilot-review`:
 ### 3. Address Mergeable
 
 ```bash
-GH_PAGER="" gh pr view <number> --json mergeable,mergeStateStatus
+jq '{state,isDraft,mergeable,mergeStateStatus,reviewDecision,headRefOid}' "$PR_SNAPSHOT"
 ```
 
 - `CONFLICTING` → resolve conflicts using the repo's conventions. If you cannot determine the correct resolution, `ask_user`.
 - `mergeStateStatus: BEHIND` → update branch from base. After updating, scan the new commits for tooling drift (lockfiles, toolchains, lint configs); re-run installs if manifests changed, and flag drift in the summary so any new errors read as drift, not regressions.
+- Refresh `PR_SNAPSHOT` only after you perform a state-changing action that can invalidate it. Otherwise keep reusing the original file for the rest of the pass.
 
 ### 4. Address Checks (local + prior CI)
 
