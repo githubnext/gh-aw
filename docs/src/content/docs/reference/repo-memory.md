@@ -38,13 +38,7 @@ tools:
 ---
 ```
 
-**Branch Prefix**: Use `branch-prefix` to customize the branch name prefix (default is `memory`). The prefix must be 4-32 characters, alphanumeric with hyphens/underscores, and cannot be `copilot`. When set, branches are created as `{branch-prefix}/{id}` instead of `memory/{id}`.
-
-**File Type Restrictions**: Use `allowed-extensions` to restrict which file types can be stored (default: empty/all files allowed). When specified, only files with listed extensions (e.g., `[".json", ".txt", ".md"]`) can be saved. Files with disallowed extensions will trigger validation failures.
-
-**JSON Formatting**: Use `format-json: true` to automatically pretty-print all `.json` files (2-space indent, trailing newline) before they are committed. This makes JSON memory files human-readable in the repository and easier to review and edit manually. Invalid JSON files are skipped with a warning. This option has no effect on `.jsonl` or other file types.
-
-**Patch Size Limit**: Use `max-patch-size` to limit the total size of changes in a single push (default: 10KB, max: 1MB). The total size of the git diff (all staged changes combined) must not exceed this value. If it does, the push is rejected with an error. Use this to prevent large unintentional memory updates.
+`branch-prefix` changes the default `memory` prefix and must be 4-32 alphanumeric, hyphen, or underscore characters; it cannot be `copilot`. `allowed-extensions` limits which file types can be stored, `format-json: true` pretty-prints `.json` files before commit, and `max-patch-size` caps the total diff size for one push (default 10KB, max 1MB) to prevent oversized updates.
 
 **File Glob Matching Rules**:
 
@@ -70,16 +64,16 @@ tools:
 ---
 ```
 
-Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. Required `id` determines folder name; `branch-name` defaults to `{branch-prefix}/{id}` (where `branch-prefix` defaults to `memory`). Files are stored within the git branch at the branch name path (e.g., for branch `memory/code-metrics`, files are stored at `memory/code-metrics/` within the branch). **File glob patterns are matched against the relative path within the artifact directory — never include the branch name in patterns. Slashless patterns (e.g. `*.json`) match files at the root of a memory subfolder (depth 1 only).**
+Mounts at `/tmp/gh-aw/repo-memory-{id}/` during workflow execution. The required `id` determines the folder name, and `branch-name` defaults to `{branch-prefix}/{id}` with `memory` as the default prefix. Files are stored inside the branch under that branch-name path. File globs always match the relative path within the artifact directory, so never include the branch name; slashless patterns such as `*.json` match only the root of a memory subfolder (depth 1).
 
 ## Behavior
 
-Branches auto-create as orphans (default) or clone with `--depth 1`. Changes auto-commit after validation (`file-glob`, `max-file-size`, `max-file-count`) and push when changes detected and threat detection passes.
+Branches auto-create as orphans by default, or clone with `--depth 1`. After validating `file-glob`, `max-file-size`, and `max-file-count`, gh-aw auto-commits and pushes when changes are present and threat detection passes.
 
-Commits are pushed via the [GitHub GraphQL `createCommitOnBranch` mutation](https://docs.github.com/en/graphql/reference/mutations#createcommitonbranch), which signs each commit with GitHub's GPG key. This means repo-memory pushes are automatically **Verified** and satisfy repository rulesets that require signed commits (e.g. enterprise "Commits must have verified signatures" baselines).
+Commits use the [GitHub GraphQL `createCommitOnBranch` mutation](https://docs.github.com/en/graphql/reference/mutations#createcommitonbranch), so they are automatically **Verified** with GitHub's GPG key and satisfy rulesets that require signed commits.
 
 :::note[Signed-commit fallback limitation]
-The GraphQL mutation does not support symlinks, executable files (`chmod +x`), or submodule entries. If your memory artifact contains any of these, the helper falls back to a plain `git push`, which will be rejected by signed-commit rulesets. Keep memory artifacts as regular plain-text files (`.json`, `.jsonl`, `.txt`, `.md`, `.csv` — the default `allowed-extensions`).
+The GraphQL mutation does not support symlinks, executable files (`chmod +x`), or submodule entries. If your memory artifact contains any of these, the helper falls back to a plain `git push`, which signed-commit rulesets usually reject. Keep memory artifacts as regular plain-text files such as `.json`, `.jsonl`, `.txt`, `.md`, and `.csv`.
 :::
 
 ## Comparison with Cache Memory
@@ -97,18 +91,15 @@ For fast 7-day caching without version control, see [Cache Memory](/gh-aw/refere
 
 ## Troubleshooting
 
-- **Branch not created**: Ensure `create-orphan: true` or create manually.
-- **Validation failures**: Match `file-glob`, stay under `max-file-size` (100KB default), `max-file-count` (100 default), and `max-patch-size` (10KB default).
-- **Patch too large**: If the total diff exceeds `max-patch-size` (default 10KB), the push is rejected. Reduce the number or size of changes, or increase `max-patch-size` in the configuration.
-- **Changes not persisting**: Check directory path, workflow completion, push errors in logs.
-- **Merge conflicts**: Concurrent pushes are handled: if another run has pushed since the branch was checked out, the GraphQL mutation replays your file diff on top of the latest remote state (your changes win).
-- **GH013 — Commits must have verified signatures**: Repo-memory uses GraphQL signed commits, so this error should not appear for standard plain-text memory files. If it does, your artifact contains a symlink, executable file, or submodule entry that forced a fallback to `git push`. Remove the unsupported file type and re-run.
+- **Branch not created**: Ensure `create-orphan: true` is enabled, or create the branch manually.
+- **Validation or patch-size failures**: Keep changes within `file-glob`, `max-file-size` (100KB default), `max-file-count` (100 default), and `max-patch-size` (10KB default).
+- **Changes not persisting**: Confirm the directory path, let the workflow finish, and check the logs for push errors.
+- **Merge conflicts**: Concurrent pushes are replayed onto the latest remote state, so your file changes win.
+- **GH013 — Commits must have verified signatures**: This usually means the artifact included a symlink, executable file, or submodule entry, which forced a fallback to plain `git push`. Remove the unsupported file type and re-run.
 
 ## Security
 
-Don't store sensitive data in repo memory. Repo memory follows repository permissions.
-
-Use private repos for sensitive data, avoid storing secrets, set constraints (`file-glob`, `max-file-size`, `max-file-count`, `max-patch-size`), consider branch protection, use `target-repo` to isolate.
+Do not store sensitive data in repo memory. It follows repository permissions, so use private repositories when appropriate, avoid secrets, set constraints such as `file-glob`, `max-file-size`, `max-file-count`, and `max-patch-size`, consider branch protection, and use `target-repo` when you want isolation.
 
 ## Examples
 
@@ -116,6 +107,4 @@ See [Deep Report](https://github.com/github/gh-aw/blob/main/.github/workflows/de
 
 ## Related Documentation
 
-- [Cache Memory](/gh-aw/reference/cache-memory/) - GitHub Actions cache-based storage with 7-day retention
-- [Frontmatter](/gh-aw/reference/frontmatter/) - Complete frontmatter configuration guide
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) - Output processing and automation
+See [Cache Memory](/gh-aw/reference/cache-memory/) for 7-day cache storage, [Frontmatter](/gh-aw/reference/frontmatter/) for full configuration details, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for output automation.
