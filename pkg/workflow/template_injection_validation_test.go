@@ -1434,9 +1434,9 @@ func TestScanRunContentExpressions(t *testing.T) {
 }
 
 // TestScanRunContentExpressionsHeredoc verifies that expressions inside heredocs
-// are not flagged as disallowed – this is the core fix for the CompileSimpleWorkflow
-// performance regression where ${{ toJSON(steps.determine-automatic-lockdown...) }}
-// inside a heredoc was triggering a full yaml.Unmarshal on every compilation.
+// are not flagged as disallowed – this ensures that ${{ }} expressions inside
+// unquoted heredocs (e.g. heredoc config blocks) are exempt from template-injection
+// checks by our internal validator.
 func TestScanRunContentExpressionsHeredoc(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -1452,7 +1452,7 @@ func TestScanRunContentExpressionsHeredoc(t *testing.T) {
       - run: |
           cat << GH_AW_MCP_CONFIG_EOF | node start_mcp.cjs
           {
-            "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
+            "some-field": ${{ toJSON(steps.some-step.outputs.some-value) }}
           }
           GH_AW_MCP_CONFIG_EOF`,
 			wantHasUnsafe:     false,
