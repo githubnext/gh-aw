@@ -216,7 +216,65 @@ Pre-configured MCP server specifications are available in [`.github/workflows/sh
 |------------|-------------|------------------|
 | **Jupyter** | `shared/mcp/jupyter.md` | Execute code, manage notebooks, visualize data |
 | **AgentDB** | `shared/mcp/agentdb.md` | Semantic and hybrid retrieval over agent-collected corpora (e.g. discussions, issues), backed by a runtime store at `AGENTDB_PATH` |
+| **Azure Auth (OIDC bridge)** | `shared/azure-auth.md` | Re-authenticate Azure CLI inside the agent sandbox using GitHub OIDC |
+| **Azure DevOps MCP** | `shared/mcp/azure-devops.md` | Azure DevOps MCP endpoint with org-scoped URL, auth header, and required domains |
+| **Azure MCP** | `shared/mcp/azure.md` | Azure MCP server in read-only mode with an explicit tool allowlist |
 | **Others** | `shared/mcp/*.md` | AST-Grep, Azure, Brave Search, Context7, DataDog, DeepWiki, Fabric RTI, MarkItDown, Microsoft Docs, Notion, Sentry, Serena, Server Memory, Slack, Tavily |
+
+### Azure shared imports (OIDC, Azure DevOps, Azure MCP)
+
+Use these shared imports together when your workflow needs Azure CLI auth plus
+Azure DevOps and Azure MCP tools:
+
+```aw wrap
+---
+permissions:
+  contents: read
+  id-token: write
+
+imports:
+  - uses: shared/azure-auth.md
+    with:
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+  - uses: shared/mcp/azure-devops.md
+    with:
+      organization: YOUR_ORG
+
+mcp-servers:
+  azure:
+    command: npx
+    args:
+      - -y
+      - "@azure/mcp@latest"
+      - server
+      - start
+      - --read-only
+    allowed:
+      - subscription_list
+      - subscription_get
+      - group_list
+      - group_get
+      - resource_list
+      - resource_get
+---
+```
+
+`shared/azure-auth.md` sets `AZURE_CONFIG_DIR=/tmp/gh-aw/agent/.azure` and runs
+`az login` in a pre-agent step. This bridges the runner process to the agent
+sandbox process, so `DefaultAzureCredential` can resolve `AzureCliCredential`
+inside the sandbox.
+
+For `shared/mcp/azure-devops.md`, set `ADO_MCP_AUTH_TOKEN` to the full
+`Authorization` header value (for example, a bearer token string). In
+diagnostics and inspect output, the header is masked as
+`Authorization: ******`; this is expected.
+
+This shared Azure DevOps configuration also requires these network domains:
+`*.dev.azure.com`, `*.visualstudio.com`, and `*.microsoftonline.com`.
+
+Keep the command-based Azure MCP variant read-only and keep an explicit
+`allowed` list. Do not switch to `allowed: ["*"]`.
 
 ## Adding MCP Servers from the Registry
 

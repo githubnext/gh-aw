@@ -395,6 +395,28 @@ network:
 
 Consumers import it with `imports: [shared/mcp/tavily.md]`.
 
+For Azure-based integrations, combine `shared/azure-auth.md` with Azure MCP
+imports to preserve OIDC-backed Azure CLI auth inside the agent sandbox:
+
+```aw wrap
+---
+imports:
+  - uses: shared/azure-auth.md
+    with:
+      azure-client-id: ${{ vars.AZURE_CLIENT_ID }}
+      azure-tenant-id: ${{ vars.AZURE_TENANT_ID }}
+  - uses: shared/mcp/azure-devops.md
+    with:
+      organization: YOUR_ORG
+---
+```
+
+`shared/azure-auth.md` sets `AZURE_CONFIG_DIR` to an agent-accessible path and
+re-authenticates `az` in `pre-agent-steps`, which bridges auth across the
+runner-to-sandbox process boundary. See
+[Using MCPs](/gh-aw/guides/mcps/#azure-shared-imports-oidc-azure-devops-azure-mcp)
+for network domains and read-only Azure MCP tool allowlist guidance.
+
 ### Importing MCP Gateway Settings
 
 Shared workflow files can export `engine.mcp.tool-timeout` and `engine.mcp.session-timeout` without specifying an engine identifier; the importing workflow always provides the engine.
