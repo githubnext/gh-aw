@@ -94,8 +94,7 @@ function writeSafeOutputsGatewayEmptyFlag(core) {
 }
 
 /**
- * Recover safeoutputs tools from the generated safe-outputs tools.json when MCP
- * tools/list returned an empty result.
+ * Validate the safeoutputs tool list and fail fast when the live gateway is empty.
  *
  * When the live gateway returns 0 tools, a flag file is written so that the
  * conclusion job (collect_ndjson_output.cjs) can detect the outage and fail with
@@ -116,17 +115,11 @@ function recoverSafeOutputsToolsIfNeeded(tools, core) {
   // silently concluding "graceful no-op" when outputs.jsonl is never written.
   writeSafeOutputsGatewayEmptyFlag(core);
 
-  const fallbackPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || `${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json`;
-  const recovered = loadToolsFromJSONFile(fallbackPath, core);
-  if (recovered.length > 0) {
-    core.warning(
-      `safeoutputs tools/list returned empty; recovered ${recovered.length} tool(s) from ${fallbackPath} for CLI help. ` +
-        `The live MCP gateway has 0 tools registered — MCP calls to safeoutputs will fail with "unknown tool". ` +
-        `Check the MCP gateway startup logs for ECONNRESET errors or delayed backend registration.`
-    );
-    return recovered;
-  }
-  throw new Error(`safeoutputs tool schema is empty (tools/list returned 0 and fallback ${fallbackPath} is empty/missing). ` + `Failing fast to avoid agent runs without discoverable safe-output tools.`);
+  throw new Error(
+    `safeoutputs tools/list returned 0 tools. ` +
+      `Failing fast — the live MCP gateway has no tools registered. ` +
+      `Check the MCP gateway startup logs for ECONNRESET errors or delayed backend registration.`
+  );
 }
 
 /**

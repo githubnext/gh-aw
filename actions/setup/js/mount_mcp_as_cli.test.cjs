@@ -64,22 +64,18 @@ describe("mount_mcp_as_cli.cjs", () => {
     }
   });
 
-  it("recovers empty safeoutputs tools from fallback tools.json and writes gateway-empty flag", () => {
+  it("fails hard even when tools.json has tools, and writes gateway-empty flag", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mount-safeoutputs-"));
     const fallbackPath = path.join(tempDir, "tools.json");
     fs.writeFileSync(fallbackPath, JSON.stringify([{ name: "create_issue" }]), "utf8");
     const originalPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
     const originalRunnerTemp = process.env.RUNNER_TEMP;
+    // Point at the tools.json to prove the function does not use it even when present
     process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = fallbackPath;
     process.env.RUNNER_TEMP = tempDir;
     try {
-      const warnings = [];
-      const recovered = recoverSafeOutputsToolsIfNeeded([], { warning: message => warnings.push(message) });
-      expect(recovered).toHaveLength(1);
-      expect(recovered[0].name).toBe("create_issue");
-      // Warning must mention live gateway being broken, not just "recovered N tool(s)"
-      expect(warnings.join("\n")).toContain("recovered 1 tool(s)");
-      expect(warnings.join("\n")).toContain("live MCP gateway has 0 tools");
+      // Must throw regardless of whether a fallback tools.json exists
+      expect(() => recoverSafeOutputsToolsIfNeeded([], { warning: () => {} })).toThrow(/safeoutputs tools\/list returned 0 tools/);
       // Flag file must be written so collect_ndjson_output.cjs can detect the outage
       const flagPath = getSafeOutputsGatewayEmptyFlagPath();
       expect(fs.existsSync(flagPath)).toBe(true);
@@ -98,19 +94,22 @@ describe("mount_mcp_as_cli.cjs", () => {
     }
   });
 
-  it("throws when safeoutputs tools remain empty after fallback and still writes gateway-empty flag", () => {
+  it("throws when safeoutputs gateway returns 0 tools and writes gateway-empty flag", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "mount-safeoutputs-empty-"));
     const originalPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
     const originalRunnerTemp = process.env.RUNNER_TEMP;
     process.env.RUNNER_TEMP = tempDir;
-    delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+    // Point at an explicitly missing file so there is no ambient fallback ambiguity
+    process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = path.join(tempDir, "tools.json");
     try {
-      expect(() => recoverSafeOutputsToolsIfNeeded([], { warning: () => {} })).toThrow(/safeoutputs tool schema is empty/);
+      expect(() => recoverSafeOutputsToolsIfNeeded([], { warning: () => {} })).toThrow(/safeoutputs tools\/list returned 0 tools/);
       // Flag file must still be written even when the function throws
       const flagPath = getSafeOutputsGatewayEmptyFlagPath();
       expect(fs.existsSync(flagPath)).toBe(true);
     } finally {
-      if (originalPath !== undefined) {
+      if (originalPath === undefined) {
+        delete process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH;
+      } else {
         process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH = originalPath;
       }
       if (originalRunnerTemp === undefined) {
