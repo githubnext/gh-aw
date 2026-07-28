@@ -3096,3 +3096,40 @@ func TestCopilotEngineLLMProviderAnthropicAutoBYOK(t *testing.T) {
 		t.Errorf("COPILOT_GITHUB_TOKEN should be omitted in auto-BYOK mode, got:\n%s", stepContent)
 	}
 }
+
+// TestCopilotEngineForwardsSafeOutputsInputEnvVars verifies that GH_AW_INPUT_* variables
+// extracted from the safe-outputs config are included in the Copilot execution step env.
+// These vars must reach the agent step so that the TOML env_vars forwarding chain
+// (runner step → AWF sandbox → Copilot CLI → safe-outputs container) can resolve
+// ${GH_AW_INPUT_…} placeholders in config.json. Without this, a dynamic target-repo
+// like "${{ inputs.owner }}/${{ inputs.repo }}" stays unexpanded in the patch filename,
+// causing a mismatch with the consumer's lookup and silently dropping the PR.
+func TestCopilotEngineForwardsSafeOutputsInputEnvVars(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				TargetRepoSlug:       "${{ inputs.owner }}/${{ inputs.repo }}",
+			},
+		},
+		SafeOutputsInputEnvVars: map[string]string{
+			"GH_AW_INPUT_OWNER": "${{ inputs.owner }}",
+			"GH_AW_INPUT_REPO":  "${{ inputs.repo }}",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/gh-aw/test.log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(stepContent, "GH_AW_INPUT_OWNER: ${{ inputs.owner }}") {
+		t.Errorf("Expected GH_AW_INPUT_OWNER in step env for TOML env_vars forwarding, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "GH_AW_INPUT_REPO: ${{ inputs.repo }}") {
+		t.Errorf("Expected GH_AW_INPUT_REPO in step env for TOML env_vars forwarding, got:\n%s", stepContent)
+	}
+}
