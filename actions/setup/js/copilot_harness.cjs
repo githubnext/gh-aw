@@ -72,8 +72,7 @@ const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
 const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
 
 // Additional startup retry budget for scheduled and push-triggered runs when Copilot exits with
-// code 2 before producing any output (typically transient API interruption at startup), or exits
-// with code 1 after the post-result watchdog terminates an idle turns=0 run.
+// code 2 before producing any output (typically transient API interruption at startup).
 // Push-triggered runs share the same transient startup-failure mode as scheduled runs; the
 // retry budget is equally useful there to avoid a deterministic red on push/main.
 const MAX_SCHEDULED_EXIT2_RETRIES = 1;
@@ -297,11 +296,11 @@ function computeStartupRetryEligible(eventName) {
 
 /**
  * Returns true when a failed attempt qualifies for the startup no-output retry budget.
- * @param {{exitCode: number, hasOutput: boolean, watchdogFired?: boolean}} result
+ * @param {{exitCode: number, hasOutput: boolean}} result
  * @returns {boolean}
  */
 function isStartupNoOutputRetryCandidate(result) {
-  return !result.hasOutput && (result.exitCode === 2 || (result.exitCode === 1 && result.watchdogFired === true));
+  return !result.hasOutput && result.exitCode === 2;
 }
 
 /**
@@ -1052,9 +1051,8 @@ async function main() {
   let delay = initialDelayMs;
   let lastExitCode = 1;
   let lastHasOutput = false;
-  let lastWatchdogFired = false;
   const isScheduledRun = process.env.GITHUB_EVENT_NAME === "schedule";
-  // Push-triggered runs are also eligible for the startup retry budget (startup no-output failure).
+  // Push-triggered runs are also eligible for the startup retry budget (exit code 2, no output).
   // The Tidy workflow was previously push-triggered and showed deterministic Turns=0 failures
   // at startup; extending the retry to push prevents the same pattern from recurring if a
   // push trigger is (re)added to any agentic workflow.
@@ -1155,7 +1153,6 @@ async function main() {
         });
         lastExitCode = result.exitCode;
         lastHasOutput = result.hasOutput;
-        lastWatchdogFired = result.watchdogFired === true;
         const attemptDetections = detectCopilotErrors(result.output);
         detectedCopilotErrors.inferenceAccessError ||= attemptDetections.inferenceAccessError;
         detectedCopilotErrors.mcpPolicyError ||= attemptDetections.mcpPolicyError;
@@ -1270,7 +1267,11 @@ async function main() {
         // (watchdogFired=true), as well as any other partial_execution failure that occurs
         // after the primary task output was already produced.  Retrying would reproduce the
         // same pattern and exhaust the retry budget without ever posting a final safe-output.
-        if ((failureClass === "partial_execution" || failureClass === "long_run_exit") && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+        // The no_output + watchdogFired case is also handled here: the post-result watchdog is
+        // only armed after hasTerminalSafeOutput is true, so watchdogFired on a no-stdio-output
+        // run means the agent completed its task (wrote safe-output) but produced no console
+        // output before the watchdog terminated the idle process.
+        if ((failureClass === "partial_execution" || failureClass === "long_run_exit" || (failureClass === "no_output" && result.watchdogFired)) && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
           const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
           log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
           lastExitCode = 0;
@@ -1388,17 +1389,15 @@ async function main() {
           }
         }
 
-        // Scheduled and push-triggered runs: retry once when startup fails before any output.
-        // This covers both exit code 2 interruptions and post-result watchdog idle exits
-        // (exit code 1 with watchdogFired=true), where there is no partial session state to
-        // continue from (Turns=0 driver-handoff failure).
+        // Scheduled and push-triggered runs: retry once on exit code 2 even when no output was
+        // produced. This specifically targets transient Copilot API outages at startup where
+        // there is no partial session state to continue from (Turns=0 driver-handoff failure).
         if (isStartupRetryEligible && isStartupNoOutputRetryCandidate(result) && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < maxRetries) {
           scheduledExit2Retries += 1;
           scheduledExit2RetryAttempted = true;
           useContinueOnRetry = false;
           const triggerLabel = isScheduledRun ? "scheduled" : "push";
-          const startupSignal = result.exitCode === 2 ? "exit code 2" : "watchdog idle exit (exit code 1)";
-          log(`attempt ${attempt + 1}: ${triggerLabel} startup interruption (${startupSignal}, no output — driver-handoff Turns=0)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
+          log(`attempt ${attempt + 1}: ${triggerLabel} startup interruption (exit code 2, no output — driver-handoff Turns=0)` + ` — retrying once as fresh run (startupRetry=${scheduledExit2Retries}/${MAX_SCHEDULED_EXIT2_RETRIES})`);
           continue;
         }
         if (isStartupRetryEligible && isStartupNoOutputRetryCandidate(result) && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt >= maxRetries) {
@@ -1430,11 +1429,10 @@ async function main() {
         break;
       }
 
-      if (isStartupRetryEligible && scheduledExit2RetryAttempted && isStartupNoOutputRetryCandidate({ exitCode: lastExitCode, hasOutput: lastHasOutput, watchdogFired: lastWatchdogFired })) {
+      if (isStartupRetryEligible && scheduledExit2RetryAttempted && isStartupNoOutputRetryCandidate({ exitCode: lastExitCode, hasOutput: lastHasOutput })) {
         const triggerLabel = isScheduledRun ? "scheduled" : "push";
-        const startupSignal = lastExitCode === 2 ? "exit code 2" : "watchdog idle exit (exit code 1)";
         emitInfrastructureIncomplete(
-          `Copilot startup interruption (${startupSignal}) persisted after automatic retry in ${triggerLabel} workflow run. ` + "This is the Turns=0 driver-handoff failure signature. Check the agent-stdio.log for startup diagnostics."
+          `Copilot API interruption (exit code 2) persisted after automatic retry in ${triggerLabel} workflow run. ` + "This is the Turns=0 driver-handoff failure signature. Check the agent-stdio.log for startup diagnostics."
         );
       }
     }
