@@ -228,6 +228,55 @@ func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	}
 }
 
+// TestAutoModelPassedToCopilotAsIs tests that model: auto is passed to the Copilot CLI
+// via COPILOT_MODEL=auto without any transformation or fallback env var.
+func TestAutoModelPassedToCopilotAsIs(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-auto-model",
+		AI:    "copilot",
+		Model: "auto",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs: &SafeOutputsConfig{},
+	}
+
+	engine, err := GetGlobalEngineRegistry().GetEngine("copilot")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "/tmp/test-auto.log")
+
+	var stepsStr strings.Builder
+	for _, step := range steps {
+		for _, line := range step {
+			stepsStr.WriteString(line)
+			stepsStr.WriteString("\n")
+		}
+	}
+	stepsContent := stepsStr.String()
+
+	// "auto" is a native Copilot model ID and must be passed as-is via COPILOT_MODEL
+	expectedEnvLine := constants.CopilotCLIModelEnvVar + ": auto"
+	if !strings.Contains(stepsContent, expectedEnvLine) {
+		t.Errorf("Expected '%s' not found in steps (auto must be passed as-is to Copilot):\n%s", expectedEnvLine, stepsContent)
+	}
+
+	// No fallback env var should be set for a literal model like "auto"
+	if strings.Contains(stepsContent, constants.EnvVarModelFallback+":") {
+		t.Errorf("Fallback env var %s should not be present for literal model 'auto'", constants.EnvVarModelFallback)
+	}
+
+	// "auto" should not appear as a --model CLI flag
+	if strings.Contains(stepsContent, "--model auto") {
+		t.Errorf("--model flag should not be used; model must be passed via COPILOT_MODEL:\n%s", stepsContent)
+	}
+}
+
 // TestCopilotFallbackModelMapsToNativeEnvVar tests that when model is not explicitly configured,
 // the Copilot engine maps the GitHub org variable to the native COPILOT_MODEL env var instead
 // of using the broken --model CLI flag.
