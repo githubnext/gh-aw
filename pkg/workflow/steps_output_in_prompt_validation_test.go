@@ -100,6 +100,14 @@ func TestValidateStepsOutputsNotInPrompt(t *testing.T) {
 			customSteps: agentJobStepsYAML,
 			shouldError: false,
 		},
+		{
+			name: "agent-job step reference as non-first operand in expression",
+			markdownBody: "# My Workflow\n\n" +
+				"Value: ${{ steps.sanitized.outputs.text || steps.fetch_data.outputs.result }}\n",
+			customSteps:   agentJobStepsYAML,
+			shouldError:   true,
+			errorContains: "fetch_data",
+		},
 	}
 
 	for _, tt := range tests {

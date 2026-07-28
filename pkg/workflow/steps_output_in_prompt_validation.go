@@ -17,9 +17,13 @@ import (
 
 var stepsOutputInPromptLog = logger.New("workflow:steps_output_in_prompt_validation")
 
-// stepsRefInPromptPattern matches ${{ steps.STEP_ID ... }} occurrences and
-// captures the step ID so it can be compared against the agent-job step list.
-var stepsRefInPromptPattern = regexp.MustCompile(`\$\{\{\s*steps\.([a-zA-Z0-9_-]+)`)
+// stepsExprBodyPattern extracts the body of each ${{ ... }} expression so that
+// all operands can be inspected for steps references.
+var stepsExprBodyPattern = regexp.MustCompile(`\$\{\{([\s\S]*?)\}\}`)
+
+// stepsRefInExprPattern matches every steps.STEP_ID occurrence inside an
+// expression body (after stripping the surrounding ${{ }}).
+var stepsRefInExprPattern = regexp.MustCompile(`\bsteps\.([a-zA-Z0-9_-]+)`)
 
 // validateStepsOutputsNotInPrompt checks that no agent-job step outputs are
 // referenced in the prompt body (MarkdownContent). The prompt is rendered in
@@ -43,19 +47,23 @@ func validateStepsOutputsNotInPrompt(workflowData *WorkflowData) error {
 		return nil
 	}
 
-	matches := stepsRefInPromptPattern.FindAllStringSubmatch(workflowData.MarkdownContent, -1)
-
 	seen := make(map[string]struct{})
 	var offending []string
-	for _, match := range matches {
-		if len(match) < 2 {
+	for _, exprMatch := range stepsExprBodyPattern.FindAllStringSubmatch(workflowData.MarkdownContent, -1) {
+		if len(exprMatch) < 2 {
 			continue
 		}
-		stepID := match[1]
-		if _, isAgentStep := agentStepIDs[stepID]; isAgentStep {
-			if _, already := seen[stepID]; !already {
-				offending = append(offending, stepID)
-				seen[stepID] = struct{}{}
+		body := exprMatch[1]
+		for _, refMatch := range stepsRefInExprPattern.FindAllStringSubmatch(body, -1) {
+			if len(refMatch) < 2 {
+				continue
+			}
+			stepID := refMatch[1]
+			if _, isAgentStep := agentStepIDs[stepID]; isAgentStep {
+				if _, already := seen[stepID]; !already {
+					offending = append(offending, stepID)
+					seen[stepID] = struct{}{}
+				}
 			}
 		}
 	}
