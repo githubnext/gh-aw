@@ -3,7 +3,7 @@
     "model_size": {
       "small-agent": 1,
       "agent": 2,
-      "claude-haiku-4.5": 27,
+      "claude-haiku-4.5": 28,
       "claude-sonnet-4.6": 23
     }
   },
@@ -375,6 +375,13 @@
     {
       "run_id": "30226357193",
       "timestamp": "2026-07-26T23:59:02.702Z",
+      "assignments": {
+        "model_size": "claude-haiku-4.5"
+      }
+    },
+    {
+      "run_id": "30315885182",
+      "timestamp": "2026-07-27T23:59:31.662Z",
       "assignments": {
         "model_size": "claude-haiku-4.5"
       }
