@@ -469,7 +469,7 @@ func buildEvalsModelFallbackExpression(engineID string) string {
 	case string(constants.CopilotEngine):
 		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsCopilot, compilerenv.DefaultModelCopilot, constants.CopilotBYOKDefaultModel)
 	case string(constants.ClaudeEngine):
-		return compilerenv.BuildModelOverrideExpressionEmptyFallback(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude)
+		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude, constants.CopilotBYOKDefaultModel)
 	case string(constants.CodexEngine):
 		return compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsCodex, compilerenv.DefaultModelCodex, constants.CodexDefaultModel)
 	default:
