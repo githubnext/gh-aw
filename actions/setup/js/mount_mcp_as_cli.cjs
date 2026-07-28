@@ -61,8 +61,45 @@ function loadToolsFromJSONFile(toolsPath, core) {
 }
 
 /**
- * Recover safeoutputs tools from the generated safe-outputs tools.json when MCP
- * tools/list returned an empty result.
+ * Return the path where the safeoutputs gateway-empty flag file is written.
+ * The path is computed at call time (not module load time) so that tests can
+ * control the location by setting process.env.RUNNER_TEMP.
+ *
+ * @returns {string}
+ */
+function getSafeOutputsGatewayEmptyFlagPath() {
+  const runnerTemp = process.env.RUNNER_TEMP || "/home/runner/work/_temp";
+  return path.join(runnerTemp, "gh-aw", "safeoutputs", "gateway_empty.flag");
+}
+
+/**
+ * Write a flag file that signals the safeoutputs MCP gateway registered 0 tools.
+ * collect_ndjson_output.cjs reads this flag and fails the conclusion job with a
+ * clear infra error instead of silently treating the missing outputs.jsonl as a
+ * graceful no-op.
+ *
+ * Failures are non-fatal — the flag is best-effort. A warning is emitted if the
+ * write fails so that the issue is still surfaced in the step log.
+ *
+ * @param {typeof import("@actions/core")} core
+ */
+function writeSafeOutputsGatewayEmptyFlag(core) {
+  const flagPath = getSafeOutputsGatewayEmptyFlagPath();
+  try {
+    fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+    fs.writeFileSync(flagPath, "", { flag: "w" });
+  } catch (err) {
+    core.warning(`Failed to write safeoutputs gateway-empty flag at ${flagPath}: ${getErrorMessage(err)}`);
+  }
+}
+
+/**
+ * Validate the safeoutputs tool list and fail fast when the live gateway is empty.
+ *
+ * When the live gateway returns 0 tools, a flag file is written so that the
+ * conclusion job (collect_ndjson_output.cjs) can detect the outage and fail with
+ * a clear infra error instead of treating the missing outputs.jsonl as a graceful
+ * no-op.
  *
  * @param {Array<{name: string, description?: string, inputSchema?: unknown}>} tools
  * @param {typeof import("@actions/core")} core
@@ -72,13 +109,13 @@ function recoverSafeOutputsToolsIfNeeded(tools, core) {
   if (tools.length > 0) {
     return tools;
   }
-  const fallbackPath = process.env.GH_AW_SAFE_OUTPUTS_TOOLS_PATH || `${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json`;
-  const recovered = loadToolsFromJSONFile(fallbackPath, core);
-  if (recovered.length > 0) {
-    core.warning(`  safeoutputs tools/list returned empty; recovered ${recovered.length} tool(s) from ${fallbackPath}`);
-    return recovered;
-  }
-  throw new Error(`safeoutputs tool schema is empty (tools/list returned 0 and fallback ${fallbackPath} is empty/missing). ` + `Failing fast to avoid agent runs without discoverable safe-output tools.`);
+
+  // The live MCP gateway returned 0 tools for safeoutputs.  Write a flag file so
+  // that collect_ndjson_output.cjs can surface this as a hard failure instead of
+  // silently concluding "graceful no-op" when outputs.jsonl is never written.
+  writeSafeOutputsGatewayEmptyFlag(core);
+
+  throw new Error(`safeoutputs tools/list returned 0 tools. ` + `Failing fast — the live MCP gateway has no tools registered. ` + `Check the MCP gateway startup logs for ECONNRESET errors or delayed backend registration.`);
 }
 
 /**
@@ -552,6 +589,8 @@ module.exports = {
   toContainerUrl,
   loadToolsFromJSONFile,
   recoverSafeOutputsToolsIfNeeded,
+  getSafeOutputsGatewayEmptyFlagPath,
+  writeSafeOutputsGatewayEmptyFlag,
   SERVER_VALIDATORS,
   buildMCPCLIServersPromptList,
 };
