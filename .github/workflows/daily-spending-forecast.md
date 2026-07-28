@@ -13,7 +13,7 @@ permissions:
 strict: true
 tools:
   github:
-    mode: gh-proxy
+    mode: local
   agentic-workflows: true
 steps:
   - name: Build gh-aw from source
