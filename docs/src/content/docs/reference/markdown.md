@@ -68,6 +68,10 @@ Otherwise: label 'question'/'discussion', provide resources
 ## Next Week: [planned priorities]
 ```
 
+## GitHub-style Emoji
+
+The docs renderer also supports GitHub-style emoji shortcodes in markdown. Custom shortcodes such as `:shipit:` render the same way they do on GitHub.com: :shipit:
+
 ## Common Pitfalls
 
 Avoid over-complexity, assumed knowledge, inconsistent formatting, missing error handling, and vague success criteria. Before deploying, read the instructions aloud, check examples for accuracy, and consider edge cases.

@@ -3,12 +3,21 @@
    Color: https://brand.github.com/foundations/color
 */
 
+@import "@primer/octicons/build/build.css";
+
 @font-face {
   font-family: "Mona Sans";
   src: url("/gh-aw/fonts/MonaSans-Regular.woff2") format("woff2");
   font-style: normal;
   font-weight: 400;
   font-display: swap;
+}
+
+.emoji,
+g-emoji {
+  background-color: transparent;
+  box-sizing: content-box;
+  vertical-align: text-top;
 }
 
 @font-face {
