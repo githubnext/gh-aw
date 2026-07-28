@@ -75,8 +75,14 @@ imports:
 mcp-servers:
   azure:
     command: npx
-    args: ["-y", "@azure/mcp@latest", "server", "start"]
-    allowed: ["*"]
+    args: ["-y", "@azure/mcp@latest", "server", "start", "--read-only"]
+    allowed:
+      - "subscription_list"
+      - "subscription_get"
+      - "group_list"
+      - "group_get"
+      - "resource_list"
+      - "resource_get"
 ---
 ```
 

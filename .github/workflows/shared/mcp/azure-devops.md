@@ -4,19 +4,20 @@ import-schema:
   organization:
     type: string
     required: true
-    description: Azure DevOps organization name (the subdomain in https://dev.azure.com/<organization>)
+    description: Azure DevOps organization name only (the subdomain in https://dev.azure.com/<organization>, not a full URL)
 
 network:
   allowed:
     - "*.dev.azure.com"
     - "*.visualstudio.com"
     - "*.microsoftonline.com"
+    - app.vssps.visualstudio.com
 
 mcp-servers:
   azure-devops:
     url: "https://mcp.dev.azure.com/${{ github.aw.import-inputs.organization }}"
     headers:
-      Authorization: "${{ secrets.ADO_MCP_AUTH_TOKEN }}"
+      Authorization: "****** secrets.ADO_MCP_AUTH_TOKEN }}"
     allowed:
       - "*"
 ---
@@ -31,12 +32,10 @@ repositories, pipelines, and other Azure DevOps resources to the agent.
 ### Authentication
 
 The server authenticates using a bearer token passed in the `Authorization` header.
-Store the token as a repository secret named `ADO_MCP_AUTH_TOKEN`.
+Store the raw token as a repository secret named `ADO_MCP_AUTH_TOKEN`; this
+component prefixes it with `Bearer`.
 
 Obtain a token using one of:
-
-- **Personal Access Token (PAT)**: Create a PAT at `https://dev.azure.com/<org>/_usersSettings/tokens`
-  with the required scopes, then add it as the `ADO_MCP_AUTH_TOKEN` secret.
 
 - **OIDC federated token** (recommended for GitHub Actions): Exchange the GitHub Actions OIDC
   token for an Azure DevOps access token using the Azure DevOps resource audience
@@ -44,9 +43,12 @@ Obtain a token using one of:
   `ADO_MCP_AUTH_TOKEN` in a `pre-steps` block. Import `shared/azure-auth.md` alongside this
   component if the agent also needs the Azure CLI.
 
+- **Microsoft Entra access token** from your own identity platform flow, saved as
+  `ADO_MCP_AUTH_TOKEN`.
+
 ### Setup
 
-1. Obtain an Azure DevOps access token (PAT or OIDC-derived) for your organization.
+1. Obtain an Azure DevOps bearer token (for example OIDC-derived) for your organization.
 
 2. Add the token as a repository secret named `ADO_MCP_AUTH_TOKEN`.
 
@@ -67,6 +69,7 @@ This component adds the following domains to the network allow-list:
 - `*.dev.azure.com`
 - `*.visualstudio.com`
 - `*.microsoftonline.com`
+- `app.vssps.visualstudio.com`
 
 ### Available Tools
 

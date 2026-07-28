@@ -25,7 +25,7 @@ pre-steps:
   - name: Fetch Azure OIDC token
     id: azure-oidc
     run: |
-      OIDC_TOKEN=$(curl -sS \
+      OIDC_TOKEN=$(curl -sS --max-time 30 \
         -H "Authorization: bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" \
         "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
         | jq -r '.value')
@@ -33,10 +33,12 @@ pre-steps:
         echo "::error::Failed to obtain Azure OIDC token — ensure id-token: write permission is granted"
         exit 1
       fi
-      TOKEN_FILE="/tmp/gh-aw/azure/oidc-token.txt"
-      mkdir -p "$(dirname "$TOKEN_FILE")"
-      printf '%s' "$OIDC_TOKEN" > "$TOKEN_FILE"
+      echo "::add-mask::$OIDC_TOKEN"
+      TOKEN_DIR="${RUNNER_TEMP:-/tmp}/gh-aw/azure"
+      mkdir -p "$TOKEN_DIR"
+      TOKEN_FILE=$(mktemp "$TOKEN_DIR/oidc-token.XXXXXX")
       chmod 600 "$TOKEN_FILE"
+      printf '%s' "$OIDC_TOKEN" > "$TOKEN_FILE"
       echo "GH_AW_AZURE_OIDC_TOKEN_FILE=$TOKEN_FILE" >> "$GITHUB_ENV"
 
 pre-agent-steps:
@@ -51,13 +53,16 @@ pre-agent-steps:
       fi
       mkdir -p "$AZURE_CONFIG_DIR"
       chmod 700 "$AZURE_CONFIG_DIR"
-      OIDC_TOKEN=$(cat "$GH_AW_AZURE_OIDC_TOKEN_FILE")
+      cleanup() {
+        rm -f "$GH_AW_AZURE_OIDC_TOKEN_FILE"
+      }
+      trap cleanup EXIT
       az login --service-principal \
         --username "$GH_AW_AZURE_CLIENT_ID" \
         --tenant "$GH_AW_AZURE_TENANT_ID" \
-        --federated-token "$OIDC_TOKEN" \
-        --output none
-      rm -f "$GH_AW_AZURE_OIDC_TOKEN_FILE"
+        --federated-token "$(cat "$GH_AW_AZURE_OIDC_TOKEN_FILE")" \
+        --output none \
+        --only-show-errors
       az account show --output table
 ---
 
@@ -143,8 +148,14 @@ imports:
 mcp-servers:
   azure:
     command: npx
-    args: ["-y", "@azure/mcp@latest", "server", "start"]
-    allowed: ["*"]
+    args: ["-y", "@azure/mcp@latest", "server", "start", "--read-only"]
+    allowed:
+      - "subscription_list"
+      - "subscription_get"
+      - "group_list"
+      - "group_get"
+      - "resource_list"
+      - "resource_get"
 network:
   allowed:
     - defaults
