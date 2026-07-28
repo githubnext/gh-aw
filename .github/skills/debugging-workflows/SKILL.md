@@ -357,6 +357,12 @@ safe-outputs:
 # Summarize failed safe-output messages and types
 gh aw audit <run-id>
 
+# Include additional artifacts when diagnosis needs more context
+gh aw audit <run-id> --artifacts usage,github-api,mcp,agent
+
+# Escalate to full artifact collection for hard-to-classify failures
+gh aw audit <run-id> --artifacts all
+
 # Inspect full failing job logs to classify each message failure
 gh run view <run-id> --job=<job-id> --log
 ```
