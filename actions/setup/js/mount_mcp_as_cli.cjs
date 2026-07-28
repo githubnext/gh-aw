@@ -115,11 +115,7 @@ function recoverSafeOutputsToolsIfNeeded(tools, core) {
   // silently concluding "graceful no-op" when outputs.jsonl is never written.
   writeSafeOutputsGatewayEmptyFlag(core);
 
-  throw new Error(
-    `safeoutputs tools/list returned 0 tools. ` +
-      `Failing fast — the live MCP gateway has no tools registered. ` +
-      `Check the MCP gateway startup logs for ECONNRESET errors or delayed backend registration.`
-  );
+  throw new Error(`safeoutputs tools/list returned 0 tools. ` + `Failing fast — the live MCP gateway has no tools registered. ` + `Check the MCP gateway startup logs for ECONNRESET errors or delayed backend registration.`);
 }
 
 /**
