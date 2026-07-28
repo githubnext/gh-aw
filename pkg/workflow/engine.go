@@ -46,7 +46,7 @@ func toEngineEnvValueString(value any) (string, bool) {
 type EngineConfig struct {
 	ID                 string
 	Version            string
-	LLMProvider        string // Inference provider override for this engine (engine.provider / engine.model-provider)
+	LLMProvider        LLMProvider // Inference provider override for this engine (engine.provider / engine.model-provider)
 	PermissionMode     string
 	MaxTurns           string
 	MaxToolDenials     string // Maximum repeated tool denials before stopping inference (copilot SDK mode only)
@@ -292,7 +292,7 @@ func extractInlineEngineConfig(runtime any, engineObj map[string]any, topLevel e
 func extractInlineProviderConfig(config *EngineConfig, provider any) string {
 	switch providerTyped := provider.(type) {
 	case string:
-		config.InlineProviderID = normalizeEngineProvider(providerTyped)
+		config.InlineProviderID = string(normalizeEngineProvider(providerTyped))
 	case map[string]any:
 		if id, ok := providerTyped["id"].(string); ok {
 			config.InlineProviderID = id
@@ -381,8 +381,8 @@ func applyEngineProviderFields(config *EngineConfig, engineObj map[string]any) {
 	}
 }
 
-func normalizeEngineProvider(provider string) string {
-	return strings.ToLower(strings.TrimSpace(provider))
+func normalizeEngineProvider(provider string) LLMProvider {
+	return LLMProvider(strings.ToLower(strings.TrimSpace(provider)))
 }
 
 func applyEnginePermissionMode(config *EngineConfig, engineObj map[string]any) {

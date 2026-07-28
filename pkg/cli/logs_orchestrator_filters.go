@@ -149,7 +149,7 @@ func applyRunFilters(ctx context.Context, result DownloadResult, opts runFilterO
 
 // buildProcessedRun constructs a ProcessedRun from a DownloadResult, computing
 // duration, action minutes, effective tokens, and job-failure counts.
-func buildProcessedRun(result DownloadResult, verbose, logFailedJobs bool) ProcessedRun {
+func buildProcessedRun(ctx context.Context, result DownloadResult, verbose, logFailedJobs bool) ProcessedRun {
 	run := result.Run
 	run.TokenUsage = result.Metrics.TokenUsage
 	applyMetricsTurnsToRun(&run, result.Metrics)
@@ -164,7 +164,7 @@ func buildProcessedRun(result DownloadResult, verbose, logFailedJobs bool) Proce
 	}
 
 	// Add failed jobs to error count.
-	if failedJobCount, err := fetchJobStatusesForProcessedRun(context.Background(), run.DatabaseID, verbose); err == nil {
+	if failedJobCount, err := fetchJobStatusesForProcessedRun(ctx, run.DatabaseID, verbose); err == nil {
 		run.ErrorCount += failedJobCount
 		if verbose && logFailedJobs && failedJobCount > 0 {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Added %d failed jobs to error count for run %d", failedJobCount, run.DatabaseID)))

@@ -242,7 +242,7 @@ func runUpgradeCommand(opts upgradeOptions) error {
 	// prevents the re-launched process from entering this branch again.
 	if !opts.skipExtensionUpgrade {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Checking gh-aw extension version..."))
-		upgraded, installPath, err := upgradeExtensionIfOutdated(opts.verbose, opts.preReleases)
+		upgraded, installPath, err := upgradeExtensionIfOutdated(opts.ctx, opts.verbose, opts.preReleases)
 		if err != nil {
 			upgradeLog.Printf("Extension upgrade failed: %v", err)
 			return err

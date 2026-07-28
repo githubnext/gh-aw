@@ -29,7 +29,7 @@ func TestPiEngine_GetModelEnvVarName(t *testing.T) {
 
 func TestPiEngine_ResolveLLMProvider_DefaultGitHub(t *testing.T) {
 	engine := NewPiEngine()
-	assert.Equal(t, "github", engine.ResolveLLMProvider(&WorkflowData{EngineConfig: &EngineConfig{ID: "pi"}}))
+	assert.Equal(t, LLMProviderGitHub, engine.ResolveLLMProvider(&WorkflowData{EngineConfig: &EngineConfig{ID: "pi"}}))
 }
 
 func TestPiEngine_GetRequiredSecretNames(t *testing.T) {

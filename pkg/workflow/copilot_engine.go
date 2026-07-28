@@ -66,7 +66,7 @@ func (e *CopilotEngine) GetModelEnvVarName() string {
 
 // ResolveLLMProvider returns the effective provider for Copilot inference.
 // Default is github, overridable via engine.model-provider.
-func (e *CopilotEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
+func (e *CopilotEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvider {
 	return resolveEngineLLMProvider(workflowData, LLMProviderGitHub)
 }
 

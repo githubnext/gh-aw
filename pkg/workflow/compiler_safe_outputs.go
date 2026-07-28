@@ -25,7 +25,8 @@ func (c *Compiler) mergeSafeJobsFromIncludedConfigs(topSafeJobs map[string]*Safe
 		// Parse the safe-outputs configuration
 		var safeOutputsConfig map[string]any
 		if err := json.Unmarshal([]byte(configJSON), &safeOutputsConfig); err != nil {
-			continue // Skip invalid JSON
+			compilerSafeOutputsLog.Printf("Warning: skipping included safe-outputs config with invalid JSON: %v", err)
+			continue
 		}
 
 		// Extract safe-jobs from the safe-outputs.jobs field
