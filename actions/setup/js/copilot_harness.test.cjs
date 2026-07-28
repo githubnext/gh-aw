@@ -390,12 +390,12 @@ describe("copilot_harness.cjs", () => {
     });
   });
 
-  describe("scheduled startup retry policy (exit code 2)", () => {
+  describe("scheduled startup retry policy (startup no-output)", () => {
     const MAX_RETRIES = 3;
     const MAX_SCHEDULED_EXIT2_RETRIES = 1;
 
     /**
-     * @param {{hasOutput: boolean, exitCode: number}} result
+     * @param {{hasOutput: boolean, exitCode: number, watchdogFired?: boolean}} result
      * @param {number} attempt
      * @param {boolean} isStartupRetryEligible
      * @param {number} scheduledExit2Retries
@@ -404,8 +404,9 @@ describe("copilot_harness.cjs", () => {
     function shouldRetry(result, attempt, isStartupRetryEligible, scheduledExit2Retries) {
       if (result.exitCode === 0) return false;
 
+      const isStartupNoOutputRetryCandidate = !result.hasOutput && (result.exitCode === 2 || (result.exitCode === 1 && result.watchdogFired === true));
       // Scheduled or push startup outage: retry once even when no output was produced.
-      if (isStartupRetryEligible && result.exitCode === 2 && !result.hasOutput && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
+      if (isStartupRetryEligible && isStartupNoOutputRetryCandidate && scheduledExit2Retries < MAX_SCHEDULED_EXIT2_RETRIES && attempt < MAX_RETRIES) {
         return true;
       }
 
@@ -426,6 +427,17 @@ describe("copilot_harness.cjs", () => {
       expect(isEligible).toBe(true);
       expect(shouldRetry(result, 0, isEligible, 0)).toBe(true);
       expect(shouldRetry(result, 1, isEligible, 1)).toBe(false);
+    });
+
+    it("retries once for scheduled watchdog idle exit with no output", () => {
+      const result = { exitCode: 1, hasOutput: false, watchdogFired: true };
+      expect(shouldRetry(result, 0, true, 0)).toBe(true);
+      expect(shouldRetry(result, 1, true, 1)).toBe(false);
+    });
+
+    it("does not retry exit code 1 with no output when watchdog did not fire", () => {
+      const result = { exitCode: 1, hasOutput: false, watchdogFired: false };
+      expect(shouldRetry(result, 0, true, 0)).toBe(false);
     });
 
     it("does not retry on exit code 2 with no output for non-eligible triggers", () => {
@@ -464,12 +476,17 @@ describe("copilot_harness.cjs", () => {
        * Mirrors the emitInfrastructureIncomplete guard in the harness.
        * Returns true when the incomplete diagnostic should be emitted.
        */
-      function shouldEmitIncomplete({ isStartupRetryEligible, lastExitCode, retryAttempted, lastHasOutput }) {
-        return isStartupRetryEligible && lastExitCode === 2 && retryAttempted && !lastHasOutput;
+      function shouldEmitIncomplete({ isStartupRetryEligible, lastExitCode, lastWatchdogFired, retryAttempted, lastHasOutput }) {
+        const isStartupNoOutputRetryCandidate = !lastHasOutput && (lastExitCode === 2 || (lastExitCode === 1 && lastWatchdogFired === true));
+        return isStartupRetryEligible && isStartupNoOutputRetryCandidate && retryAttempted;
       }
 
       it("emits diagnostic when terminal attempt had no output", () => {
         expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 2, retryAttempted: true, lastHasOutput: false })).toBe(true);
+      });
+
+      it("emits diagnostic for watchdog idle exit with no output", () => {
+        expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 1, lastWatchdogFired: true, retryAttempted: true, lastHasOutput: false })).toBe(true);
       });
 
       it("does not emit diagnostic when terminal attempt produced output", () => {
@@ -479,6 +496,10 @@ describe("copilot_harness.cjs", () => {
 
       it("does not emit diagnostic when no retry was attempted", () => {
         expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 2, retryAttempted: false, lastHasOutput: false })).toBe(false);
+      });
+
+      it("does not emit diagnostic for exit code 1 when watchdog did not fire", () => {
+        expect(shouldEmitIncomplete({ isStartupRetryEligible: true, lastExitCode: 1, lastWatchdogFired: false, retryAttempted: true, lastHasOutput: false })).toBe(false);
       });
 
       it("does not emit diagnostic for non-eligible event", () => {
