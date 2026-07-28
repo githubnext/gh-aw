@@ -19,10 +19,29 @@ function isInlineRejectionHandler(node: TSESTree.ArrowFunctionExpression | TSEST
 }
 
 /**
+ * Returns true when the given identifier is the first formal parameter of fn,
+ * or is nested within it (e.g. the bound name of an assignment pattern or rest
+ * element at the first parameter position).
+ * Promise rejection callbacks forward the rejection reason only as their first
+ * argument; additional parameters are unrelated values and must not be flagged.
+ */
+function isFirstParameterOf(fn: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression, paramNameNode: TSESTree.Node): boolean {
+  if (fn.params.length === 0) return false;
+  const firstParam = fn.params[0];
+  // Fast path: simple identifier param — the nodes are the same object.
+  if (firstParam === paramNameNode) return true;
+  // For assignment patterns (err = default) or rest params (...err) the
+  // identifier is nested inside the first param node; use range containment.
+  if (!paramNameNode.range || !firstParam.range) return false;
+  return paramNameNode.range[0] >= firstParam.range[0] && paramNameNode.range[1] <= firstParam.range[1];
+}
+
+/**
  * Returns true when the variable definition represents a caught error binding:
  *   - A try/catch clause with a simple identifier param (not destructured).
- *   - A parameter of an inline promise rejection handler (.catch(fn) /
- *     .then(_, fn)).
+ *   - The *first* parameter of an inline promise rejection handler (.catch(fn) /
+ *     .then(_, fn)). Only the first argument receives the rejection reason;
+ *     additional parameters (e.g. metadata) are not error values.
  */
 function isCaughtErrorVariableDef(def: TSESLint.Scope.Definition): boolean {
   if (def.type === "CatchClause") {
@@ -35,7 +54,9 @@ function isCaughtErrorVariableDef(def: TSESLint.Scope.Definition): boolean {
     if (fn.type !== AST_NODE_TYPES.ArrowFunctionExpression && fn.type !== AST_NODE_TYPES.FunctionExpression) {
       return false;
     }
-    return isInlineRejectionHandler(fn as TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression);
+    const fnNode = fn as TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression;
+    if (!isInlineRejectionHandler(fnNode)) return false;
+    return isFirstParameterOf(fnNode, def.name);
   }
 
   return false;

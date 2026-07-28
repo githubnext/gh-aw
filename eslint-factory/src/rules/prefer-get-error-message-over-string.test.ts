@@ -81,4 +81,11 @@ describe("prefer-get-error-message-over-string", () => {
       invalid: [],
     });
   });
+
+  it("valid: String(metadata) for a non-first rejection handler parameter is not flagged", () => {
+    cjsRuleTester.run("prefer-get-error-message-over-string", preferGetErrorMessageOverStringRule, {
+      valid: [`const { getErrorMessage } = require("./error_helpers.cjs"); p.catch((err, metadata) => log(\`info: \${String(metadata)}\`));`],
+      invalid: [],
+    });
+  });
 });
