@@ -89,8 +89,7 @@ Record this prompt-only source separately:
 3. **issues**: `list_issues` - List issues with perPage=1
 4. **pull_requests**: `list_pull_requests` - List PRs with perPage=1
 5. **actions**: `list_workflows` - List workflows with perPage=1
-6. **code_security**: `list_code_scanning_alerts`
-   - Required guard params: `state: open`, `severity: critical,high`
+6. **code_security**: `list_code_scanning_alerts` — always call with `state: open` and `severity: critical,high`
    - `head_limit` note: the GitHub MCP server's `list_code_scanning_alerts` tool does not support `head_limit`; use `head_limit: 20` only with custom wrappers that explicitly document support
 7. **discussions**: `list_discussions` (if available)
 8. **labels**: `get_label` - Get a single label

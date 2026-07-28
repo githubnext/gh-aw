@@ -262,3 +262,22 @@ func TestResolveModelPricingIfMissing_SkipsMalformedQualifiedModel(t *testing.T)
 	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{Model: "openai/", EngineConfig: &EngineConfig{}}))
 	assert.False(t, called)
 }
+
+func TestResolveModelPricingIfMissing_SkipsDynamicAutoModelAlias(t *testing.T) {
+	c := &Compiler{}
+	called := false
+	c.SetModelPricingResolver(func(_ context.Context, _, _ string) (map[string]float64, bool) {
+		called = true
+		return map[string]float64{"input": 1e-06}, true
+	})
+
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{
+		Model:        "auto",
+		EngineConfig: &EngineConfig{ID: "copilot"},
+	}))
+	assert.Nil(t, c.resolveModelPricingIfMissing(nil, &WorkflowData{
+		Model:        "github_models/auto",
+		EngineConfig: &EngineConfig{ID: "copilot"},
+	}))
+	assert.False(t, called)
+}
