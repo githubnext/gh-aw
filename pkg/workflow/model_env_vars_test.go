@@ -277,6 +277,52 @@ func TestAutoModelPassedToCopilotAsIs(t *testing.T) {
 	}
 }
 
+// TestAutoModelFallbackForNonCopilotEngine verifies that the "auto" alias provides a
+// provider-agnostic fallback path for non-Copilot engines. For a Claude workflow with
+// model: auto, the alias map must route through "large" (a provider-agnostic alias) and
+// must not expose "copilot/auto" as a reachable model in the large fallback chain.
+func TestAutoModelFallbackForNonCopilotEngine(t *testing.T) {
+	workflowData := &WorkflowData{
+		Name:  "test-auto-claude",
+		AI:    "claude",
+		Model: "auto",
+		EngineConfig: &EngineConfig{
+			ID: "claude",
+		},
+		Tools: map[string]any{
+			"bash": []any{"echo"},
+		},
+		SafeOutputs:   &SafeOutputsConfig{},
+		ModelMappings: MergeImportedModelAliases(nil, nil),
+	}
+
+	// "auto" must include "large" as the non-Copilot fallback entry
+	autoResolution := workflowData.ModelMappings["auto"]
+	if len(autoResolution) == 0 {
+		t.Fatal("auto alias must be present in ModelMappings")
+	}
+	foundLarge := false
+	for _, m := range autoResolution {
+		if m == "large" {
+			foundLarge = true
+		}
+	}
+	if !foundLarge {
+		t.Errorf("auto alias must include 'large' as a non-Copilot fallback; got %v", autoResolution)
+	}
+
+	// "large" must not contain copilot-specific entries — it is the provider-agnostic fallback
+	largeResolution := workflowData.ModelMappings["large"]
+	if len(largeResolution) == 0 {
+		t.Fatal("large alias must be present in ModelMappings")
+	}
+	for _, m := range largeResolution {
+		if strings.HasPrefix(m, "copilot/") {
+			t.Errorf("large alias must not contain Copilot-specific models; found %q in large: %v", m, largeResolution)
+		}
+	}
+}
+
 // TestCopilotFallbackModelMapsToNativeEnvVar tests that when model is not explicitly configured,
 // the Copilot engine maps the GitHub org variable to the native COPILOT_MODEL env var instead
 // of using the broken --model CLI flag.
