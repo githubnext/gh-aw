@@ -9,6 +9,8 @@
 package parser
 
 import (
+	"context"
+
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/types"
 )
@@ -106,8 +108,16 @@ type ImportSpec struct {
 // ProcessImportsFromFrontmatterWithSource processes imports field from frontmatter with source tracking
 // This version includes the workflow file path and YAML content for better error reporting
 func ProcessImportsFromFrontmatterWithSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
+	return ProcessImportsFromFrontmatterWithSourceWithContext(context.Background(), frontmatter, baseDir, cache, workflowFilePath, yamlContent)
+}
+
+// ProcessImportsFromFrontmatterWithSourceWithContext processes imports while honoring cancellation for remote workflowspec fetches.
+func ProcessImportsFromFrontmatterWithSourceWithContext(ctx context.Context, frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	importLog.Printf("Processing imports: workflowFile=%s, baseDir=%s", workflowFilePath, baseDir)
-	result, err := processImportsFromFrontmatterWithManifestAndSource(frontmatter, baseDir, cache, workflowFilePath, yamlContent)
+	result, err := processImportsFromFrontmatterWithManifestAndSource(ctx, frontmatter, baseDir, cache, workflowFilePath, yamlContent)
 	if err != nil {
 		importLog.Printf("Import processing failed for %s: %v", workflowFilePath, err)
 		return result, err

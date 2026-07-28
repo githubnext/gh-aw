@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -190,7 +191,7 @@ func (c *Compiler) processEngineImportsAndMerge(
 ) (*parser.ImportsResult, *NetworkPermissions, error) {
 	orchestratorEngineLog.Printf("Processing imports from frontmatter")
 	importCache := c.getSharedImportCache()
-	importsResult, err := parser.ProcessImportsFromFrontmatterWithSource(result.Frontmatter, markdownDir, importCache, cleanPath, string(content))
+	importsResult, err := parser.ProcessImportsFromFrontmatterWithSourceWithContext(c.ctx, result.Frontmatter, markdownDir, importCache, cleanPath, string(content))
 	if err != nil {
 		orchestratorEngineLog.Printf("Import processing failed: %v", err)
 		var cycleErr *parser.ImportCycleError
@@ -199,7 +200,7 @@ func (c *Compiler) processEngineImportsAndMerge(
 		}
 		return nil, nil, err
 	}
-	if err := scanImportedMarkdownFiles(importsResult.ImportedFiles, markdownDir, importCache); err != nil {
+	if err := scanImportedMarkdownFiles(c.ctx, importsResult.ImportedFiles, markdownDir, importCache); err != nil {
 		return nil, nil, err
 	}
 	if importsResult.MergedNetwork != "" {
@@ -221,7 +222,7 @@ func (c *Compiler) processEngineImportsAndMerge(
 	return importsResult, networkPermissions, nil
 }
 
-func scanImportedMarkdownFiles(importedFiles []string, markdownDir string, importCache *parser.ImportCache) error {
+func scanImportedMarkdownFiles(ctx context.Context, importedFiles []string, markdownDir string, importCache *parser.ImportCache) error {
 	for _, importedFile := range importedFiles {
 		importFilePath := importedFile
 		if idx := strings.Index(importFilePath, "#"); idx >= 0 {
@@ -230,7 +231,7 @@ func scanImportedMarkdownFiles(importedFiles []string, markdownDir string, impor
 		if !shouldScanImportedMarkdown(importFilePath) {
 			continue
 		}
-		fullPath, resolveErr := parser.ResolveIncludePath(importFilePath, markdownDir, importCache)
+		fullPath, resolveErr := parser.ResolveIncludePathWithContext(ctx, importFilePath, markdownDir, importCache)
 		if resolveErr != nil {
 			orchestratorEngineLog.Printf("Skipping security scan for unresolvable import: %s: %v", importedFile, resolveErr)
 			fmt.Fprintf(os.Stderr, "WARNING: Skipping security scan for unresolvable import '%s': %v\n", importedFile, resolveErr)
@@ -259,7 +260,7 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	model string,
 ) (string, *EngineConfig, string, error) {
 	orchestratorEngineLog.Printf("Expanding includes for engine configurations")
-	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
+	includedEngines, err := parser.ExpandIncludesForEnginesWithContext(c.ctx, result.Markdown, markdownDir)
 	if err != nil {
 		orchestratorEngineLog.Printf("Failed to expand includes for engines: %v", err)
 		return "", nil, "", fmt.Errorf("failed to expand includes for engines: %w", err)

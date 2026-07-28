@@ -278,3 +278,48 @@ func TestResolveRefToSHA_ClientCreationAuthError_GithubDotCom_UsesPublicAPIWhenG
 		t.Fatal("client creation auth error should not bubble up directly — public API fallback must be attempted first")
 	}
 }
+
+func TestDownloadIncludeFromWorkflowSpec_UsesProvidedContext(t *testing.T) {
+	origDownload := downloadFileFromGitHubFunc
+	t.Cleanup(func() {
+		downloadFileFromGitHubFunc = origDownload
+	})
+
+	downloadFileFromGitHubFunc = func(ctx context.Context, owner, repo, path, ref string) ([]byte, error) {
+		if err := ctx.Err(); err == nil {
+			t.Fatal("expected canceled context to be propagated to downloadFileFromGitHub")
+		}
+		return nil, ctx.Err()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	_, err := downloadIncludeFromWorkflowSpec(ctx, "owner/repo/workflows/shared.md@main", nil)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("downloadIncludeFromWorkflowSpec() error = %v, want context.Canceled", err)
+	}
+}
+
+func TestResolveWorkflowSpecSHAForCache_UsesProvidedContext(t *testing.T) {
+	origResolve := resolveRefToSHAFunc
+	t.Cleanup(func() {
+		resolveRefToSHAFunc = origResolve
+	})
+
+	resolveRefToSHAFunc = func(ctx context.Context, owner, repo, ref, host string) (string, error) {
+		if err := ctx.Err(); err == nil {
+			t.Fatal("expected canceled context to be propagated to resolveRefToSHA")
+		}
+		return "", ctx.Err()
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	cache := NewImportCache(t.TempDir())
+	sha := resolveWorkflowSpecSHAForCache(ctx, "owner", "repo", "main", "", cache)
+	if sha != "" {
+		t.Fatalf("resolveWorkflowSpecSHAForCache() = %q, want empty SHA", sha)
+	}
+}

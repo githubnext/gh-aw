@@ -12,6 +12,12 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 )
 
+var (
+	downloadFileFromGitHubFunc          = downloadFileFromGitHub
+	downloadFileFromGitHubWithDepthFunc = downloadFileFromGitHubWithDepth
+	resolveRefToSHAFunc                 = resolveRefToSHA
+)
+
 // IsWorkflowSpec checks if a path looks like a workflowspec (owner/repo/path[@ref]).
 func IsWorkflowSpec(path string) bool {
 	// Remove section reference if present
@@ -65,11 +71,7 @@ func IsWorkflowSpec(path string) bool {
 
 // downloadIncludeFromWorkflowSpec downloads an include file from GitHub using workflowspec.
 // It first checks the cache, and only downloads if not cached.
-//
-// NOTE: This function is called from ResolveIncludePath which has no context.Context
-// parameter. Threading ctx through ResolveIncludePath and its 6+ callers across multiple
-// packages is tracked as a follow-up task; context.Background() is used in the interim.
-func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, error) {
+func downloadIncludeFromWorkflowSpec(ctx context.Context, spec string, cache *ImportCache) (string, error) {
 	remoteLog.Printf("Downloading from workflowspec: %s", spec)
 	host, owner, repo, filePath, ref, err := parseWorkflowSpecParts(spec)
 	if err != nil {
@@ -77,7 +79,7 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	}
 	remoteLog.Printf("Parsed workflowspec: host=%s, owner=%s, repo=%s, file=%s, ref=%s", host, owner, repo, filePath, ref)
 
-	sha := resolveWorkflowSpecSHAForCache(owner, repo, ref, host, cache)
+	sha := resolveWorkflowSpecSHAForCache(ctx, owner, repo, ref, host, cache)
 	if cache != nil && sha != "" {
 		if cachedPath, found := cache.Get(owner, repo, filePath, sha); found {
 			remoteLog.Printf("Using cached import: %s/%s/%s@%s (SHA: %s)", owner, repo, filePath, ref, sha)
@@ -88,9 +90,9 @@ func downloadIncludeFromWorkflowSpec(spec string, cache *ImportCache) (string, e
 	remoteLog.Printf("Fetching file from GitHub: %s/%s/%s@%s", owner, repo, filePath, ref)
 	var content []byte
 	if host == "" {
-		content, err = downloadFileFromGitHub(context.Background(), owner, repo, filePath, ref)
+		content, err = downloadFileFromGitHubFunc(ctx, owner, repo, filePath, ref)
 	} else {
-		content, err = downloadFileFromGitHubWithDepth(context.Background(), owner, repo, filePath, ref, 0, host)
+		content, err = downloadFileFromGitHubWithDepthFunc(ctx, owner, repo, filePath, ref, 0, host)
 	}
 	if err != nil {
 		return "", fmt.Errorf("failed to download include from %s: %w", spec, err)
@@ -149,11 +151,11 @@ func parseWorkflowSpecParts(spec string) (string, string, string, string, string
 	return "", slashParts[0], slashParts[1], filePath, ref, nil
 }
 
-func resolveWorkflowSpecSHAForCache(owner, repo, ref, host string, cache *ImportCache) string {
+func resolveWorkflowSpecSHAForCache(ctx context.Context, owner, repo, ref, host string, cache *ImportCache) string {
 	if cache == nil {
 		return ""
 	}
-	resolvedSHA, err := resolveRefToSHA(context.Background(), owner, repo, ref, host)
+	resolvedSHA, err := resolveRefToSHAFunc(ctx, owner, repo, ref, host)
 	if err != nil {
 		remoteLog.Printf("Failed to resolve ref to SHA, will skip cache: %v", err)
 		return ""

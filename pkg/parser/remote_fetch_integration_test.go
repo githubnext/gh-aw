@@ -249,7 +249,7 @@ func TestDownloadIncludeFromWorkflowSpecWithCache(t *testing.T) {
 	spec := "github/gitignore/Go.gitignore@main"
 
 	// First download - should fetch from GitHub
-	path1, err := downloadIncludeFromWorkflowSpec(spec, cache)
+	path1, err := downloadIncludeFromWorkflowSpec(t.Context(), spec, cache)
 	if err != nil {
 		if strings.Contains(err.Error(), "auth") || strings.Contains(err.Error(), "forbidden") {
 			t.Skip("Skipping test due to authentication requirements")
@@ -262,7 +262,7 @@ func TestDownloadIncludeFromWorkflowSpecWithCache(t *testing.T) {
 	}
 
 	// Second download - should use cache if SHA resolution succeeded
-	path2, err := downloadIncludeFromWorkflowSpec(spec, cache)
+	path2, err := downloadIncludeFromWorkflowSpec(t.Context(), spec, cache)
 	if err != nil {
 		t.Fatalf("Second download failed: %v", err)
 	}

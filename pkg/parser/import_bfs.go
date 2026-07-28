@@ -6,6 +6,7 @@ package parser
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,7 +22,7 @@ import (
 )
 
 // processImportsFromFrontmatterWithManifestAndSource is the internal implementation that includes source tracking.
-func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
+func processImportsFromFrontmatterWithManifestAndSource(ctx context.Context, frontmatter map[string]any, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (*ImportsResult, error) {
 	importsField, exists := frontmatter["imports"]
 	if !exists {
 		return &ImportsResult{}, nil
@@ -36,14 +37,14 @@ func processImportsFromFrontmatterWithManifestAndSource(frontmatter map[string]a
 	}
 	parserLog.Printf("Found %d direct imports to process", len(importSpecs))
 	state := newImportBFSState()
-	if err := seedInitialImportQueue(importSpecs, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+	if err := seedInitialImportQueue(ctx, importSpecs, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 		return nil, err
 	}
-	if err := processImportQueue(baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+	if err := processImportQueue(ctx, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 		return nil, err
 	}
 	parserLog.Printf("Completed BFS traversal. Processed %d imports in total", len(state.processedOrder))
-	topologicalOrder, err := topologicalSortImports(state.processedOrder, baseDir, cache, workflowFilePath)
+	topologicalOrder, err := topologicalSortImports(ctx, state.processedOrder, baseDir, cache, workflowFilePath)
 	if err != nil {
 		return nil, err
 	}
@@ -112,16 +113,16 @@ func importSpecsFromStringSlice(paths []string) []ImportSpec {
 	return specs
 }
 
-func seedInitialImportQueue(importSpecs []ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func seedInitialImportQueue(ctx context.Context, importSpecs []ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	for _, importSpec := range importSpecs {
-		if err := seedSingleImportSpec(importSpec, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+		if err := seedSingleImportSpec(ctx, importSpec, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func seedSingleImportSpec(ctx context.Context, importSpec ImportSpec, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	importPath := importSpec.Path
 	if isRepositoryImport(importPath) {
 		parserLog.Printf("Detected repository import: %s", importPath)
@@ -129,7 +130,7 @@ func seedSingleImportSpec(importSpec ImportSpec, baseDir string, cache *ImportCa
 		return nil
 	}
 	filePath, sectionName := splitImportPathAndSection(importPath)
-	fullPath, err := resolveSeedImportPath(filePath, importPath, baseDir, cache, workflowFilePath, yamlContent)
+	fullPath, err := resolveSeedImportPath(ctx, filePath, importPath, baseDir, cache, workflowFilePath, yamlContent)
 	if err != nil {
 		return err
 	}
@@ -148,8 +149,8 @@ func splitImportPathAndSection(importPath string) (string, string) {
 	return importPath, ""
 }
 
-func resolveSeedImportPath(filePath, importPath, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (string, error) {
-	fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
+func resolveSeedImportPath(ctx context.Context, filePath, importPath, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string) (string, error) {
+	fullPath, err := ResolveIncludePathWithContext(ctx, filePath, baseDir, cache)
 	if err != nil {
 		return "", formatInitialImportResolveError(filePath, importPath, workflowFilePath, yamlContent, err)
 	}
@@ -218,18 +219,18 @@ func enqueueImportPath(state *importBFSState, importPath, fullPath, sectionName,
 	return nil
 }
 
-func processImportQueue(baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func processImportQueue(ctx context.Context, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	for len(state.queue) > 0 {
 		item := state.queue[0]
 		state.queue = state.queue[1:]
-		if err := processQueueItem(item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+		if err := processQueueItem(ctx, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func processQueueItem(item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func processQueueItem(ctx context.Context, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	parserLog.Printf("Processing import from queue: %s", item.fullPath)
 	maps.Copy(state.acc.importInputs, item.inputs)
 	state.processedOrder = append(state.processedOrder, item.importPath)
@@ -241,7 +242,7 @@ func processQueueItem(item importQueueItem, baseDir string, cache *ImportCache, 
 	if handled || err != nil {
 		return err
 	}
-	return handleStandardImportItem(item, baseDir, cache, workflowFilePath, yamlContent, state)
+	return handleStandardImportItem(ctx, item, baseDir, cache, workflowFilePath, yamlContent, state)
 }
 
 func handleAgentImportItem(item importQueueItem, state *importBFSState) (bool, error) {
@@ -328,7 +329,7 @@ func appendYAMLImportServices(acc *importAccumulator, importPath, servicesJSON s
 	parserLog.Printf("Added services from YAML workflow: %s", importPath)
 }
 
-func handleStandardImportItem(item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func handleStandardImportItem(ctx context.Context, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	content, err := readFileFunc(item.fullPath)
 	if err != nil {
 		return fmt.Errorf("failed to read imported file '%s': %w", item.fullPath, err)
@@ -337,7 +338,7 @@ func handleStandardImportItem(item importQueueItem, baseDir string, cache *Impor
 	if parseErr != nil {
 		parserLog.Printf("Failed to extract frontmatter from %s: %v", item.fullPath, parseErr)
 	} else if result.Frontmatter != nil {
-		if err := enqueueNestedImports(result.Frontmatter, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+		if err := enqueueNestedImports(ctx, result.Frontmatter, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
 		}
 	}
@@ -371,7 +372,7 @@ func extractFrontmatterForImport(fullPath string, content []byte) (*FrontmatterR
 	return ExtractFrontmatterFromContent(string(content))
 }
 
-func enqueueNestedImports(frontmatter map[string]any, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func enqueueNestedImports(ctx context.Context, frontmatter map[string]any, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	importsField, hasImports := frontmatter["imports"]
 	if !hasImports {
 		return nil
@@ -382,7 +383,7 @@ func enqueueNestedImports(frontmatter map[string]any, item importQueueItem, base
 	}
 	nestedImports := nestedEntriesFromSpecs(importSpecs)
 	for _, nestedEntry := range nestedImports {
-		if err := enqueueNestedImportEntry(nestedEntry, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
+		if err := enqueueNestedImportEntry(ctx, nestedEntry, item, baseDir, cache, workflowFilePath, yamlContent, state); err != nil {
 			return err
 		}
 	}
@@ -397,7 +398,7 @@ func nestedEntriesFromSpecs(specs []ImportSpec) []nestedImportEntry {
 	return nestedImports
 }
 
-func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
+func enqueueNestedImportEntry(ctx context.Context, entry nestedImportEntry, item importQueueItem, baseDir string, cache *ImportCache, workflowFilePath string, yamlContent string, state *importBFSState) error {
 	nestedImportPath := entry.path
 	nestedFilePath, nestedSectionName := splitImportPathAndSection(nestedImportPath)
 	resolvedPath, nestedRemoteOrigin, err := resolveNestedImportPathAndOrigin(item, nestedFilePath)
@@ -405,7 +406,7 @@ func enqueueNestedImportEntry(entry nestedImportEntry, item importQueueItem, bas
 		return err
 	}
 	nestedBaseDir := determineNestedBaseDir(item, resolvedPath, baseDir)
-	nestedFullPath, err := ResolveIncludePath(resolvedPath, nestedBaseDir, cache)
+	nestedFullPath, err := ResolveIncludePathWithContext(ctx, resolvedPath, nestedBaseDir, cache)
 	if err != nil {
 		return formatNestedResolveError(nestedImportPath, nestedFilePath, item, workflowFilePath, yamlContent, err)
 	}

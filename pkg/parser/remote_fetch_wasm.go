@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"context"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -56,6 +57,11 @@ func isRepositoryImport(importPath string) bool {
 }
 
 func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
+	return ResolveIncludePathWithContext(context.Background(), filePath, baseDir, cache)
+}
+
+func ResolveIncludePathWithContext(ctx context.Context, filePath, baseDir string, cache *ImportCache) (string, error) {
+	_ = ctx
 	// Handle builtin paths - these are embedded files that bypass filesystem resolution.
 	if strings.HasPrefix(filePath, BuiltinPathPrefix) {
 		if !BuiltinVirtualFileExists(filePath) {

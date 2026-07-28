@@ -3,6 +3,7 @@ package parser
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"fmt"
 	"path/filepath"
 	"regexp"
@@ -214,22 +215,36 @@ func ExtractBodyLevelImportPaths(content, baseDir string) []BodyLevelImport {
 }
 
 func ExpandIncludesForEngines(content, baseDir string) ([]string, error) {
+	return ExpandIncludesForEnginesWithContext(context.Background(), content, baseDir)
+}
+
+func ExpandIncludesForEnginesWithContext(ctx context.Context, content, baseDir string) ([]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	includeExpanderLog.Printf("Expanding includes for engines: baseDir=%s", baseDir)
-	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
+	return expandIncludesForField(ctx, content, baseDir, func(c string) (string, error) {
 		return extractFrontmatterField(c, "engine", "")
 	}, "")
 }
 
 // ExpandIncludesForSafeOutputs recursively expands @include and @import directives to extract safe-outputs configurations
 func ExpandIncludesForSafeOutputs(content, baseDir string) ([]string, error) {
+	return ExpandIncludesForSafeOutputsWithContext(context.Background(), content, baseDir)
+}
+
+func ExpandIncludesForSafeOutputsWithContext(ctx context.Context, content, baseDir string) ([]string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	includeExpanderLog.Printf("Expanding includes for safe-outputs: baseDir=%s", baseDir)
-	return expandIncludesForField(content, baseDir, func(c string) (string, error) {
+	return expandIncludesForField(ctx, content, baseDir, func(c string) (string, error) {
 		return extractFrontmatterField(c, "safe-outputs", "{}")
 	}, "{}")
 }
 
 // expandIncludesForField recursively expands includes to extract a specific frontmatter field
-func expandIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, error) {
+func expandIncludesForField(ctx context.Context, content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, error) {
 	// Fast path: skip expansion entirely when no include/import directives are present.
 	if !hasIncludeDirectives(content) {
 		return nil, nil
@@ -241,7 +256,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 
 	for range maxDepth {
 		// Process includes in current content to extract the field
-		processedResults, processedContent, err := processIncludesForField(currentContent, baseDir, extractFunc, emptyValue)
+		processedResults, processedContent, err := processIncludesForField(ctx, currentContent, baseDir, extractFunc, emptyValue)
 		if err != nil {
 			return nil, err
 		}
@@ -263,7 +278,7 @@ func expandIncludesForField(content, baseDir string, extractFunc func(string) (s
 }
 
 // processIncludesForField processes import directives to extract a specific frontmatter field
-func processIncludesForField(content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
+func processIncludesForField(ctx context.Context, content, baseDir string, extractFunc func(string) (string, error), emptyValue string) ([]string, string, error) {
 	// Fast path: skip scanner allocation when no include/import directives are present.
 	if !hasIncludeDirectives(content) {
 		return nil, content, nil
@@ -279,7 +294,7 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 		// Parse import directive
 		directive := ParseImportDirective(line)
 		if directive != nil {
-			fieldJSON, shouldSkip, err := extractFieldFromDirectiveForField(directive, baseDir, extractFunc)
+			fieldJSON, shouldSkip, err := extractFieldFromDirectiveForField(ctx, directive, baseDir, extractFunc)
 			if err != nil {
 				return nil, "", err
 			}
@@ -299,12 +314,13 @@ func processIncludesForField(content, baseDir string, extractFunc func(string) (
 }
 
 func extractFieldFromDirectiveForField(
+	ctx context.Context,
 	directive *ImportDirectiveMatch,
 	baseDir string,
 	extractFunc func(string) (string, error),
 ) (string, bool, error) {
 	filePath := includeDirectiveFilePath(directive.Path)
-	fullPath, err := ResolveIncludePath(filePath, baseDir, nil)
+	fullPath, err := ResolveIncludePathWithContext(ctx, filePath, baseDir, nil)
 	if err != nil {
 		if directive.IsOptional {
 			return "", true, nil

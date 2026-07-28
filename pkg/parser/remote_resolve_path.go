@@ -3,6 +3,7 @@
 package parser
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -100,6 +101,14 @@ func isRepositoryImport(importPath string) bool {
 
 // ResolveIncludePath resolves include path based on workflowspec format or relative path
 func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, error) {
+	return ResolveIncludePathWithContext(context.Background(), filePath, baseDir, cache)
+}
+
+// ResolveIncludePathWithContext resolves include paths while honoring cancellation for remote workflowspec fetches.
+func ResolveIncludePathWithContext(ctx context.Context, filePath, baseDir string, cache *ImportCache) (string, error) {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	remoteLog.Printf("Resolving include path: file_path=%s, base_dir=%s", filePath, baseDir)
 
 	if builtinPath, handled, err := resolveBuiltinIncludePath(filePath); handled {
@@ -108,7 +117,7 @@ func ResolveIncludePath(filePath, baseDir string, cache *ImportCache) (string, e
 
 	if IsWorkflowSpec(filePath) {
 		remoteLog.Printf("Detected workflowspec format: %s", filePath)
-		return downloadIncludeFromWorkflowSpec(filePath, cache)
+		return downloadIncludeFromWorkflowSpec(ctx, filePath, cache)
 	}
 
 	remoteLog.Printf("Using local file resolution for: %s", filePath)

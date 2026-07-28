@@ -4,6 +4,7 @@
 package parser
 
 import (
+	"context"
 	"errors"
 	"slices"
 	"sort"
@@ -19,10 +20,10 @@ import (
 // workflowFile is the path to the top-level workflow file, used for error context
 // when a circular import is detected.
 // Returns an error if a circular import is detected.
-func topologicalSortImports(imports []string, baseDir string, cache *ImportCache, workflowFile string) ([]string, error) {
+func topologicalSortImports(ctx context.Context, imports []string, baseDir string, cache *ImportCache, workflowFile string) ([]string, error) {
 	importLog.Printf("Starting topological sort of %d imports", len(imports))
 	allImportsSet := toImportSet(imports)
-	dependencies := buildImportDependencies(imports, baseDir, cache)
+	dependencies := buildImportDependencies(ctx, imports, baseDir, cache)
 	inDegree := calculateInDegree(imports, dependencies, allImportsSet)
 	importLog.Printf("Calculated in-degrees: %v", inDegree)
 	queue := collectRootImports(imports, inDegree)
@@ -58,10 +59,10 @@ func toImportSet(imports []string) map[string]struct {
 	return allImportsSet
 }
 
-func buildImportDependencies(imports []string, baseDir string, cache *ImportCache) map[string][]string {
+func buildImportDependencies(ctx context.Context, imports []string, baseDir string, cache *ImportCache) map[string][]string {
 	dependencies := make(map[string][]string, len(imports))
 	for _, importPath := range imports {
-		nestedImports, err := resolveNestedImportPaths(importPath, baseDir, cache)
+		nestedImports, err := resolveNestedImportPaths(ctx, importPath, baseDir, cache)
 		if err != nil {
 			importLog.Printf("Failed to resolve dependencies for %s during topological sort: %v", importPath, err)
 			dependencies[importPath] = []string{}
@@ -73,9 +74,9 @@ func buildImportDependencies(imports []string, baseDir string, cache *ImportCach
 	return dependencies
 }
 
-func resolveNestedImportPaths(importPath, baseDir string, cache *ImportCache) ([]string, error) {
+func resolveNestedImportPaths(ctx context.Context, importPath, baseDir string, cache *ImportCache) ([]string, error) {
 	filePath := stripImportSection(importPath)
-	fullPath, err := ResolveIncludePath(filePath, baseDir, cache)
+	fullPath, err := ResolveIncludePathWithContext(ctx, filePath, baseDir, cache)
 	if err != nil {
 		return nil, err
 	}
