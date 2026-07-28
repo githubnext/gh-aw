@@ -9,7 +9,7 @@ interface ConstantDeclaration {
 function getStaticValueKey(node: TSESTree.Expression): string | null {
   if (node.type === AST_NODE_TYPES.Literal) {
     if ("regex" in node && node.regex) {
-      return `regexp:${node.regex.pattern}/${node.regex.flags}`;
+      return `regexp:${node.regex.pattern}/${[...node.regex.flags].sort().join("")}`;
     }
     return `${typeof node.value}:${String(node.value)}`;
   }

@@ -48,6 +48,10 @@ describe("no-duplicate-constant-values", () => {
           code: `const FIRST = /value/gi; const SECOND = /value/gi;`,
           errors: [{ messageId: "duplicateConstantValue", data: { name: "SECOND", originalName: "FIRST", value: "/value/gi" } }],
         },
+        {
+          code: `const FIRST = /value/gi; const SECOND = /value/ig;`,
+          errors: [{ messageId: "duplicateConstantValue", data: { name: "SECOND", originalName: "FIRST", value: "/value/ig" } }],
+        },
       ],
     });
   });
