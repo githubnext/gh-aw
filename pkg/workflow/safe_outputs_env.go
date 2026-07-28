@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strconv"
 	"strings"
 
@@ -71,6 +72,16 @@ func applySafeOutputEnvToMap(env map[string]string, data *WorkflowData) {
 		env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
 		env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
 	}
+
+	// Forward GH_AW_INPUT_* vars extracted from the safe-outputs config so that
+	// TOML-based MCP clients (Codex, Copilot) can pass them through to the
+	// containerised safe-outputs MCP server via the TOML env_vars allowlist.
+	// Without this, ${GH_AW_INPUT_…} placeholders written into config.json at
+	// compile time cannot be resolved inside the container, causing a dynamic
+	// target-repo value (e.g. "${{ inputs.owner }}/${{ inputs.repo }}") to survive
+	// unexpanded as the patch filename. The consumer's lookup then fails to match,
+	// silently dropping the pull-request creation.
+	maps.Copy(env, data.SafeOutputsInputEnvVars)
 }
 
 // buildWorkflowMetadataEnvVars builds workflow name and source environment variables

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
+import { applyOTLPIgnoreIfMissing, detectEngineType, getJSONParseErrorContext, getOTLPIfMissingMode, hasNonEmptyOTLPHeaders, normalizeSinkVisibilityEncoding, resolveCopilotConfigPaths } from "./start_mcp_gateway.cjs";
 
 describe("start_mcp_gateway OTLP if-missing helpers", () => {
   let originalWarning;
@@ -219,5 +219,29 @@ describe("start_mcp_gateway getJSONParseErrorContext", () => {
     expect(context).toBeTruthy();
     expect(context?.key).toBe("GITHUB_HOST");
     expect(context?.lineText).toContain(`"GITHUB_HOST"`);
+  });
+});
+
+describe("start_mcp_gateway normalizeSinkVisibilityEncoding", () => {
+  it("normalizes double-encoded sink visibility values", () => {
+    const invalidConfig = `{
+  "guard-policies": {
+    "write-sink": {
+      "sink-visibility": ""public""
+    }
+  }
+}`;
+    expect(normalizeSinkVisibilityEncoding(invalidConfig)).toContain(`"sink-visibility": "public"`);
+  });
+
+  it("leaves correctly encoded sink visibility values unchanged", () => {
+    const validConfig = `{
+  "guard-policies": {
+    "write-sink": {
+      "sink-visibility": "public"
+    }
+  }
+}`;
+    expect(normalizeSinkVisibilityEncoding(validConfig)).toBe(validConfig);
   });
 });

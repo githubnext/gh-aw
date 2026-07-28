@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { createRequire } from "module";
 const _require = createRequire(import.meta.url);
@@ -164,6 +165,32 @@ describe("collect_ndjson_output.cjs", () => {
         expect(mockCore.setOutput).toHaveBeenCalledWith("has_patch", "false"),
         expect(mockCore.info).toHaveBeenCalledWith(`Output file does not exist: ${missingFile} — no safe-output items were emitted; treating as empty collection (graceful no-op)`),
         expect(mockCore.exportVariable).toHaveBeenCalledWith("GH_AW_AGENT_OUTPUT", path.join(TMP_GH_AW_PATH, AGENT_OUTPUT_FILENAME)));
+    }),
+    it("should fail with infra error when safeoutputs gateway-empty flag exists and outputs file is missing", async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "collect-gateway-empty-"));
+      const missingFile = path.join(tempDir, "nonexistent-outputs.jsonl");
+      const flagDir = path.join(tempDir, "gh-aw", "safeoutputs");
+      fs.mkdirSync(flagDir, { recursive: true });
+      fs.writeFileSync(path.join(flagDir, "gateway_empty.flag"), "");
+      const originalRunnerTemp = process.env.RUNNER_TEMP;
+      process.env.RUNNER_TEMP = tempDir;
+      process.env.GH_AW_SAFE_OUTPUTS = missingFile;
+      try {
+        await eval(`(async () => { ${collectScript}; await main(); })()`);
+        const failedCalls = mockCore.setFailed.mock.calls;
+        expect(failedCalls.length).toBeGreaterThan(0);
+        const failedMessage = failedCalls[0][0];
+        expect(failedMessage).toContain("safeoutputs MCP gateway registered 0 tools");
+        expect(failedMessage).toContain("gateway infrastructure failure");
+        expect(mockCore.setOutput).not.toHaveBeenCalledWith("output", expect.anything());
+      } finally {
+        if (originalRunnerTemp === undefined) {
+          delete process.env.RUNNER_TEMP;
+        } else {
+          process.env.RUNNER_TEMP = originalRunnerTemp;
+        }
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      }
     }),
     it("should error and still set output when artifact write fails", async () => {
       const writeError = new Error("disk full");

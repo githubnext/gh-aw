@@ -1294,3 +1294,38 @@ func TestCodexEngineExecutionCustomHarness(t *testing.T) {
 		t.Errorf("Expected default harness path to be overridden, got:\n%s", stepContent)
 	}
 }
+
+// TestCodexEngineForwardsSafeOutputsInputEnvVars verifies that GH_AW_INPUT_* variables
+// from the safe-outputs config are included in the Codex execution step env.
+// Codex uses the TOML-based MCP setup; the TOML env_vars list references these vars
+// so the safe-outputs container can resolve ${GH_AW_INPUT_…} placeholders in config.json.
+// AWF passes them into the sandbox via --env-all, enabling the forwarding chain.
+func TestCodexEngineForwardsSafeOutputsInputEnvVars(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CreatePullRequests: &CreatePullRequestsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				TargetRepoSlug:       "${{ inputs.owner }}/${{ inputs.repo }}",
+			},
+		},
+		SafeOutputsInputEnvVars: map[string]string{
+			"GH_AW_INPUT_OWNER": "${{ inputs.owner }}",
+			"GH_AW_INPUT_REPO":  "${{ inputs.repo }}",
+		},
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(stepContent, "GH_AW_INPUT_OWNER: ${{ inputs.owner }}") {
+		t.Errorf("Expected GH_AW_INPUT_OWNER in step env for TOML env_vars forwarding, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "GH_AW_INPUT_REPO: ${{ inputs.repo }}") {
+		t.Errorf("Expected GH_AW_INPUT_REPO in step env for TOML env_vars forwarding, got:\n%s", stepContent)
+	}
+}

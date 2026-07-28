@@ -99,6 +99,31 @@ func TestCustomAWFConfiguration(t *testing.T) {
 			t.Error("Should not contain --rootless flag when sudo is true (normal mode)")
 		}
 	})
+
+	t.Run("legacy-security: enable with NetworkIsolation does not pass --rootless", func(t *testing.T) {
+		// NetworkIsolation defaults to true, but legacy-security mode uses `sudo -E awf`
+		// which requires awf to be in /usr/local/bin (non-rootless install path).
+		agentConfig := &AgentSandboxConfig{
+			ID:               "awf",
+			NetworkIsolation: true,
+			LegacySecurity:   true,
+		}
+
+		step := generateAWFInstallationStep("", agentConfig)
+		stepStr := strings.Join(step, "\n")
+
+		if len(step) == 0 {
+			t.Error("Expected installation step to be generated for legacy-security mode")
+		}
+
+		if !strings.Contains(stepStr, "install_awf_binary.sh") {
+			t.Error("Should contain reference to install_awf_binary.sh script")
+		}
+
+		if strings.Contains(stepStr, "--rootless") {
+			t.Error("Should not contain --rootless flag when legacy-security: enable is set (awf must be in /usr/local/bin for sudo)")
+		}
+	})
 }
 
 func TestGetAgentType(t *testing.T) {
