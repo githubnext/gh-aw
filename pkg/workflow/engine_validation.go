@@ -2,14 +2,17 @@
 //
 // # Engine Validation
 //
-// This file validates engine configurations used in agentic workflows.
-// Validation ensures that engine IDs are supported and that only one engine
-// specification exists across the main workflow and all included files.
+// This file validates top-level engine configuration fields used in agentic workflows,
+// including the engine version, MCP timeout settings, and multi-file engine specification
+// consistency.
 //
 // # Validation Functions
 //
-//   - validateEngine() - Validates that a given engine ID is supported
+//   - validateEngineVersion() - Warns when engine.version is set to "latest"
+//   - validateEngineMCPSessionTimeout() - Validates engine.mcp.session-timeout duration
+//   - validateEngineMCPToolTimeout() - Validates engine.mcp.tool-timeout duration
 //   - validateSingleEngineSpecification() - Validates that only one engine field exists across all files
+//   - EngineHasValidateSecretStep() - Reports whether an engine provides a validate-secret step
 //
 // # Validation Pattern: Engine Registry
 //
@@ -22,11 +25,13 @@
 // # When to Add Validation Here
 //
 // Add validation to this file when:
-//   - It validates engine IDs or engine configurations
-//   - It checks engine registry entries
-//   - It validates engine-specific settings
-//   - It validates engine field consistency across imports
+//   - It validates engine version or CLI pinning settings
+//   - It validates engine.mcp timeout values
+//   - It checks engine specification consistency across main and included files
+//   - It validates engine field presence or absence at the top level
 //
+// For engine driver and script validation, see engine_driver_validation.go.
+// For inline engine definition and auth validation, see engine_inline_definition_validation.go.
 // For engine configuration extraction, see engine.go.
 // For general validation, see validation.go.
 // For detailed documentation, see scratchpad/validation-architecture.md
@@ -35,49 +40,17 @@ package workflow
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
-	"github.com/github/gh-aw/pkg/parser"
 )
 
 var engineValidationLog = logger.New("workflow:engine_validation")
-var safeHarnessScriptPattern = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9._-]*$`)
-
-// safeSDKDriverSegmentPattern allows path segments that may start with a dot followed by an
-// alphanumeric/underscore (e.g. ".github"), but still rejects ".." traversals, leading hyphens,
-// and shell metacharacters.
-var safeSDKDriverSegmentPattern = regexp.MustCompile(`^(?:\.[A-Za-z0-9_]|[A-Za-z0-9_])[A-Za-z0-9._-]*$`)
-
-func validateEngineScriptFilename(fieldName, scriptName string) error {
-	if strings.TrimSpace(scriptName) != scriptName {
-		return fmt.Errorf("%s must be a safe basename without leading/trailing whitespace (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
-	}
-
-	if filepath.IsAbs(scriptName) ||
-		strings.Contains(scriptName, "/") ||
-		strings.Contains(scriptName, `\`) ||
-		strings.Contains(scriptName, "..") ||
-		!safeHarnessScriptPattern.MatchString(scriptName) {
-		return fmt.Errorf("%s must be a safe basename (no path separators, '..', or shell metacharacters) ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
-	}
-
-	ext := strings.ToLower(filepath.Ext(scriptName))
-	switch ext {
-	case ".js", ".cjs", ".mjs":
-		return nil
-	default:
-		return fmt.Errorf("%s must be a Node.js script ending with .js, .cjs, or .mjs (found: %s).\n\nSee: %s", fieldName, scriptName, constants.DocsEnginesURL)
-	}
-}
 
 // validateEngineVersion warns when the workflow explicitly pins the engine CLI
 // to "latest". Unpinned "latest" versions change unpredictably and undermine
@@ -102,108 +75,6 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
 	c.IncrementWarningCount()
 	return nil
-}
-
-// validateEngineHarnessScript validates optional engine.harness configuration.
-// engine.harness must point to a Node.js script.
-func (c *Compiler) validateEngineHarnessScript(workflowData *WorkflowData) error {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.HarnessScript == "" {
-		return nil
-	}
-
-	return validateEngineScriptFilename("engine.harness", workflowData.EngineConfig.HarnessScript)
-}
-
-// validateEngineDriver validates the shared engine.driver field.
-// engine.driver must be either:
-//   - a relative path (with safe segments separated by '/') ending with a supported
-//     extension for the engine in use, or
-//   - a bare command name without any extension (treated as an arbitrary executable in
-//     PATH for the copilot engine, or as a built-in driver for the pi engine).
-//
-// The allowed extensions depend on the engine:
-//   - copilot: .js, .cjs, .mjs (Node.js), .py (Python), .ts/.mts (TypeScript), .rb (Ruby)
-//   - all other engines (e.g. pi): .js, .cjs, .mjs only
-//
-// Absolute paths, backslashes, '..' components, and shell metacharacters are rejected.
-func (c *Compiler) validateEngineDriver(workflowData *WorkflowData) error {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.Driver == "" {
-		return nil
-	}
-
-	if workflowData.EngineConfig.InlineDriver != nil {
-		return c.validateInlineEngineDriver(workflowData)
-	}
-
-	name := workflowData.EngineConfig.Driver
-	isCopilotEngine := workflowData.EngineConfig.ID == "copilot"
-
-	if strings.TrimSpace(name) != name {
-		return fmt.Errorf("engine.driver must be a safe path without leading/trailing whitespace (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
-	}
-
-	if filepath.IsAbs(name) ||
-		strings.Contains(name, `\`) ||
-		strings.Contains(name, "..") {
-		return fmt.Errorf("engine.driver must be a relative path (no absolute paths, '..', or backslashes) with a supported extension (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
-	}
-
-	// Each path segment must be safe (alphanumeric, underscore, dot, hyphen; may start with dot).
-	// Empty segments (consecutive slashes, leading/trailing slashes) are rejected.
-	for segment := range strings.SplitSeq(name, "/") {
-		if segment == "" {
-			return fmt.Errorf("engine.driver must not contain empty path segments (e.g. consecutive '/' or leading/trailing '/') (found: %s).\n\nSee: %s", name, constants.DocsEnginesURL)
-		}
-		if !safeSDKDriverSegmentPattern.MatchString(segment) {
-			return fmt.Errorf("engine.driver must not contain shell metacharacters (found unsafe segment %q in: %s).\n\nSee: %s", segment, name, constants.DocsEnginesURL)
-		}
-	}
-
-	ext := strings.ToLower(filepath.Ext(name))
-	switch ext {
-	case ".js", ".cjs", ".mjs":
-		return nil
-	case ".py", ".ts", ".mts", ".rb":
-		if isCopilotEngine {
-			return nil
-		}
-		return fmt.Errorf("engine.driver has unsupported extension %q for this engine (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
-	case "":
-		// No extension — valid as a bare built-in driver name or arbitrary command in PATH.
-		return nil
-	default:
-		if isCopilotEngine {
-			return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a script ending with .js, .cjs, .mjs, .py, .ts, .mts, or .rb, or a bare command name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
-		}
-		return fmt.Errorf("engine.driver has unsupported extension %q (found: %s). Must be a JavaScript file ending with .js, .cjs, or .mjs, or a bare name without an extension.\n\nSee: %s", ext, name, constants.DocsEnginesURL)
-	}
-}
-
-func (c *Compiler) validateInlineEngineDriver(workflowData *WorkflowData) error {
-	if workflowData == nil || workflowData.EngineConfig == nil || workflowData.EngineConfig.InlineDriver == nil {
-		return nil
-	}
-
-	inlineDriver := workflowData.EngineConfig.InlineDriver
-
-	if inlineDriver.MultipleRuntime {
-		return fmt.Errorf("engine.driver: exactly one runtime key is allowed (node, python, go, java); found multiple.\n\nSee: %s", constants.DocsEnginesURL)
-	}
-
-	if workflowData.EngineConfig.ID != "copilot" {
-		return fmt.Errorf("inline engine.driver sources are only supported for the copilot engine.\n\nSee: %s", constants.DocsEnginesURL)
-	}
-
-	if strings.TrimSpace(inlineDriver.Source) == "" {
-		return fmt.Errorf("engine.driver.%s must not be empty.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
-	}
-
-	switch inlineDriver.Runtime {
-	case "node", "python", "go", "java":
-		return nil
-	default:
-		return fmt.Errorf("engine.driver inline runtime %q is not supported. Use one of: node, python, go, java.\n\nSee: %s", inlineDriver.Runtime, constants.DocsEnginesURL)
-	}
 }
 
 // validateEngineMCPSessionTimeout validates optional engine.mcp.session-timeout configuration.
@@ -251,143 +122,6 @@ func (c *Compiler) validateEngineMCPToolTimeout(workflowData *WorkflowData) erro
 	}
 
 	engineValidationLog.Printf("engine.mcp.tool-timeout validated: %s (%s)", raw, d)
-	return nil
-}
-
-// validateEngineInlineDefinition validates an inline engine definition parsed from
-// engine.runtime + optional engine.provider in the workflow frontmatter.
-// Returns an error if:
-//   - The required runtime.id field is missing
-//   - The runtime.id does not match a known runtime adapter
-func (c *Compiler) validateEngineInlineDefinition(config *EngineConfig) error {
-	if !config.IsInlineDefinition {
-		return nil
-	}
-
-	engineValidationLog.Printf("Validating inline engine definition: runtimeID=%s", config.ID)
-
-	if config.ID == "" {
-		return fmt.Errorf("inline engine definition is missing required 'runtime.id' field.\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s", constants.DocsEnginesURL)
-	}
-
-	// Validate that runtime.id maps to a known runtime adapter.
-	if !c.engineRegistry.IsValidEngine(config.ID) {
-		// Try prefix match for backward compatibility (e.g. "codex-experimental")
-		if matched, err := c.engineRegistry.GetEngineByPrefix(config.ID); err == nil {
-			engineValidationLog.Printf("Inline engine runtime.id %q matched via prefix to runtime %q", config.ID, matched.GetID())
-		} else {
-			validEngines := c.engineRegistry.GetSupportedEngines()
-			suggestions := parser.FindClosestMatches(config.ID, validEngines, 1)
-			enginesStr := strings.Join(validEngines, ", ")
-
-			errMsg := fmt.Sprintf("inline engine definition references unknown runtime.id: %s. Known runtime IDs are: %s.\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s",
-				config.ID, enginesStr, constants.DocsEnginesURL)
-			if len(suggestions) > 0 {
-				errMsg = fmt.Sprintf("inline engine definition references unknown runtime.id: %s. Known runtime IDs are: %s.\n\nDid you mean: %s?\n\nExample:\nengine:\n  runtime:\n    id: codex\n\nSee: %s",
-					config.ID, enginesStr, suggestions[0], constants.DocsEnginesURL)
-			}
-			return errors.New(errMsg)
-		}
-	}
-
-	return nil
-}
-
-// registerInlineEngineDefinition registers an inline engine definition in the session
-// catalog. If the runtime ID already exists in the catalog (e.g. a built-in), the
-// existing display name and description are preserved while provider overrides are applied.
-func (c *Compiler) registerInlineEngineDefinition(config *EngineConfig) {
-	def := &EngineDefinition{
-		ID:          config.ID,
-		RuntimeID:   config.ID,
-		DisplayName: config.ID,
-		Description: "Inline engine definition from workflow frontmatter",
-	}
-
-	// Preserve display name and description from existing built-in entry if available.
-	if existing := c.engineCatalog.Get(config.ID); existing != nil {
-		def.DisplayName = existing.DisplayName
-		def.Description = existing.Description
-		def.Models = existing.Models
-		// Copy existing provider/auth as defaults; inline values below fully replace them
-		// when present (replacement, not merge).
-		def.Provider = existing.Provider
-	}
-
-	// Apply inline provider overrides.
-	if config.InlineProviderID != "" {
-		def.Provider = ProviderSelection{Name: config.InlineProviderID}
-	}
-
-	// Prefer the full AuthDefinition over the legacy simple-secret path.
-	if config.InlineProviderAuth != nil {
-		// Normalise strategy: treat empty strategy as api-key when a secret is set.
-		auth := config.InlineProviderAuth
-		if auth.Strategy == "" && auth.Secret != "" {
-			auth.Strategy = AuthStrategyAPIKey
-		}
-		def.Provider.Auth = auth
-	}
-
-	if config.InlineProviderRequest != nil {
-		def.Provider.Request = config.InlineProviderRequest
-	}
-
-	engineValidationLog.Printf("Registering inline engine definition in session catalog: id=%s, runtimeID=%s, providerID=%s",
-		def.ID, def.RuntimeID, def.Provider.Name)
-	c.engineCatalog.Register(def)
-}
-
-// validateEngineAuthDefinition validates AuthDefinition fields for an inline engine definition.
-// Returns an error describing the first (or all, in non-fail-fast mode) validation problems found.
-func (c *Compiler) validateEngineAuthDefinition(config *EngineConfig) error {
-	auth := config.InlineProviderAuth
-	if auth == nil {
-		return nil
-	}
-
-	engineValidationLog.Printf("Validating engine auth definition: strategy=%s", auth.Strategy)
-
-	switch auth.Strategy {
-	case AuthStrategyOAuthClientCreds:
-		// oauth-client-credentials requires tokenUrl, clientId, clientSecret.
-		if auth.TokenURL == "" {
-			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.token-url' to be set.\n\nExample:\nengine:\n  runtime:\n    id: codex\n  provider:\n    auth:\n      strategy: oauth-client-credentials\n      token-url: https://auth.example.com/oauth/token\n      client-id: MY_CLIENT_ID_SECRET\n      client-secret: MY_CLIENT_SECRET_SECRET\n\nSee: %s", constants.DocsEnginesURL)
-		}
-		if auth.ClientIDRef == "" {
-			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.client-id' to be set.\n\nSee: %s", constants.DocsEnginesURL)
-		}
-		if auth.ClientSecretRef == "" {
-			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.client-secret' to be set.\n\nSee: %s", constants.DocsEnginesURL)
-		}
-		// For oauth, header-name is required (the token must go somewhere).
-		if auth.HeaderName == "" {
-			return fmt.Errorf("engine auth: strategy 'oauth-client-credentials' requires 'auth.header-name' to be set (e.g. 'api-key' or 'Authorization').\n\nSee: %s", constants.DocsEnginesURL)
-		}
-	case AuthStrategyAPIKey:
-		// api-key requires a secret value and a header-name so the caller knows where to inject the key.
-		if auth.Secret == "" {
-			return fmt.Errorf("engine auth: strategy 'api-key' requires 'auth.secret' to be set.\n\nSee: %s", constants.DocsEnginesURL)
-		}
-		if auth.HeaderName == "" {
-			return fmt.Errorf("engine auth: strategy 'api-key' requires 'auth.header-name' to be set (e.g. 'api-key' or 'x-api-key').\n\nSee: %s", constants.DocsEnginesURL)
-		}
-	case AuthStrategyBearer, "":
-		// bearer strategy and unset strategy (simple backwards-compat secret) require a secret value.
-		if auth.Secret == "" {
-			return fmt.Errorf("engine auth: strategy 'bearer' (or unset) requires 'auth.secret' to be set.\n\nSee: %s", constants.DocsEnginesURL)
-		}
-	default:
-		validStrategies := []string{
-			string(AuthStrategyAPIKey),
-			string(AuthStrategyOAuthClientCreds),
-			string(AuthStrategyBearer),
-		}
-		return fmt.Errorf("engine auth: unknown strategy %q. Valid strategies are: %s.\n\nSee: %s",
-			auth.Strategy, strings.Join(validStrategies, ", "), constants.DocsEnginesURL)
-	}
-
-	engineValidationLog.Printf("Engine auth definition is valid: strategy=%s", auth.Strategy)
 	return nil
 }
 
