@@ -1855,7 +1855,7 @@ models:
   providers:
     ${provider}:
       models:
-          ${quotedModelName}:
+        ${quotedModelName}:
           cost:
 ${costBlock.trimEnd()}
 \`\`\``;
