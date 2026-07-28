@@ -270,6 +270,55 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
+  collect_copilot_sdk_models:
+    runs-on: ubuntu-latest
+    needs: [activation]
+    permissions:
+      contents: read
+    steps:
+      - name: Install Copilot SDK with bundled Copilot CLI
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_DIR="$RUNNER_TEMP/copilot-sdk"
+          mkdir -p "$SDK_DIR"
+          npm install --prefix "$SDK_DIR" --no-save @github/copilot-sdk@1.0.8
+
+      - name: Fetch Copilot SDK model billing information
+        shell: bash
+        env:
+          COPILOT_GITHUB_TOKEN: ${{ secrets.COPILOT_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          OUT="/tmp/gh-aw/agent/model-inventory/copilot-sdk"
+          mkdir -p "$OUT"
+          cd "$RUNNER_TEMP/copilot-sdk"
+          node --input-type=module > "$OUT/models.json" <<'EOF'
+          import { CopilotClient } from "@github/copilot-sdk";
+
+          const client = new CopilotClient({
+            gitHubToken: process.env.COPILOT_GITHUB_TOKEN,
+            logLevel: "error",
+          });
+
+          await client.start();
+          try {
+            const models = await client.listModels();
+            process.stdout.write(`${JSON.stringify({ provider: "copilot-sdk", models }, null, 2)}\n`);
+          } finally {
+            await client.stop();
+          }
+          EOF
+
+      - name: Upload Copilot SDK models artifact
+        if: always()
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: copilot-sdk-models
+          path: /tmp/gh-aw/agent/model-inventory/copilot-sdk/models.json
+          if-no-files-found: error
+          retention-days: 7
+
 steps:
   - name: Download all model artifacts
     uses: actions/download-artifact@v8.0.1
