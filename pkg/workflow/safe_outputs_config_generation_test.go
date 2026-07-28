@@ -220,6 +220,43 @@ func TestPopulateDispatchWorkflowFilesNoSafeOutputs(t *testing.T) {
 	populateDispatchWorkflowFiles(data, "/some/path")
 }
 
+func TestGenerateSafeOutputsConfigAddsDataFlagsForBodyHandlers(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		DataEnabled: true,
+		AddComments: &AddCommentsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+		},
+	}
+	data := &WorkflowData{SafeOutputs: cfg}
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	addComment, ok := parsed["add_comment"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, true, addComment["data_enabled"])
+}
+
+func TestGenerateSafeOutputsConfigAddsRuntimeDataSchemaExpression(t *testing.T) {
+	cfg := &SafeOutputsConfig{
+		DataEnabled:          true,
+		DataSchemaExpression: "${{ fromJSON(needs.schema.outputs.data_schema) }}",
+		AddComments: &AddCommentsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+		},
+	}
+	data := &WorkflowData{SafeOutputs: cfg}
+	result, err := generateSafeOutputsConfig(data)
+	require.NoError(t, err)
+
+	var parsed map[string]any
+	require.NoError(t, json.Unmarshal([]byte(result), &parsed))
+	addComment, ok := parsed["add_comment"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "${{ fromJSON(needs.schema.outputs.data_schema) }}", addComment["data_schema"])
+}
+
 // TestPopulateDispatchWorkflowFilesNoWorkflows tests that the function handles empty Workflows list gracefully.
 func TestPopulateDispatchWorkflowFilesNoWorkflows(t *testing.T) {
 	data := &WorkflowData{

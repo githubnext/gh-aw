@@ -1716,6 +1716,34 @@ Validation rules:
 
 The text output by AI agents is automatically sanitized to prevent injection of malicious content and ensure safe rendering on GitHub. The auto-sanitization applied is: XML escaped, HTTPS only, domain allowlist (GitHub by default), 0.5MB/65k line limits, control char stripping.
 
+HTML/XML comments (`<!-- ... -->`) are removed from sanitized body fields.
+If you need a machine-readable channel that survives sanitization, configure `safe-outputs.data` in frontmatter:
+
+```yaml wrap
+safe-outputs:
+  data: false   # default; reject output `data`
+  # data: true  # allow any object in output `data`
+  # data:       # enforce inline schema for output `data`
+  #   verdict: string
+  #   score: number
+  # data: ${{ fromJSON(needs.schema.outputs.data_schema) }} # runtime schema expression
+```
+
+Inline object schemas are validated at compile-time (Go) and runtime (JavaScript). Expression-based schemas are resolved and validated at runtime in JavaScript.
+
+For safe outputs that support `body`, the validator preserves output `data` and appends it to the body as fenced JSON:
+
+```json
+{
+  "type": "add_comment",
+  "body": "Review complete. All criteria pass.",
+  "data": {
+    "verdict": "APPROVE",
+    "criteria_passed": 5
+  }
+}
+```
+
 You can configure sanitization options:
 
 ```yaml wrap

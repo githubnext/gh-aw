@@ -28,6 +28,11 @@ tools:
   edit:
   web-fetch:
 safe-outputs:
+  data:
+    finding_type: string
+    severity: string
+    confidence: string
+    file: string
   messages:
     footer: "> 🔒 *Security review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔍 [{workflow_name}]({run_url}) is analyzing this {event_type} for security implications..."

@@ -343,6 +343,8 @@ async function main() {
             allowedAliases: allowedMentions,
             maxBotMentions,
             normalizeIssueClosingKeywords,
+            dataEnabled: typeConfig !== null && typeof typeConfig === "object" && typeConfig.data_enabled === true,
+            dataSchema: typeConfig !== null && typeof typeConfig === "object" ? typeConfig.data_schema : undefined,
           });
           if (!validationResult.isValid) {
             if (validationResult.error) {

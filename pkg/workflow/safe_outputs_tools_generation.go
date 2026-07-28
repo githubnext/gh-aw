@@ -295,49 +295,64 @@ var closeIssueStateReasonValues = []string{"completed", "not_planned", "duplicat
 //   - Scalar config (state-reason: "..."): no injection (fixed reason, agent cannot choose).
 func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[string]any {
 	injections := make(map[string]map[string]any)
-	if safeOutputs == nil || safeOutputs.CloseIssues == nil {
+	if safeOutputs == nil {
 		return injections
 	}
-	c := safeOutputs.CloseIssues
-	// Scalar config: agent cannot change state_reason; do not expose the field.
-	if c.StateReason != "" {
-		return injections
-	}
-	// List or omitted: expose state_reason with the permitted enum.
-	enumValues := c.AllowedStateReason
-	if len(enumValues) == 0 {
-		enumValues = closeIssueStateReasonValues
-	} else {
-		// Validate each configured value against the supported API values so that
-		// invalid strings (e.g. "done", "wontfix") are caught at compile time rather
-		// than producing a GitHub API 422 at runtime.
-		supported := make(map[string]struct{}, len(closeIssueStateReasonValues))
-		for _, v := range closeIssueStateReasonValues {
-			supported[v] = struct{}{}
-		}
-		valid := make([]string, 0, len(enumValues))
-		for _, v := range enumValues {
-			if _, ok := supported[v]; ok {
-				valid = append(valid, v)
+	if safeOutputs.CloseIssues != nil {
+		c := safeOutputs.CloseIssues
+		// Scalar config: agent cannot change state_reason; do not expose the field.
+		if c.StateReason == "" {
+			// List or omitted: expose state_reason with the permitted enum.
+			enumValues := c.AllowedStateReason
+			if len(enumValues) == 0 {
+				enumValues = closeIssueStateReasonValues
 			} else {
-				safeOutputsConfigLog.Printf("Warning: allowed-state-reason value %q is not a supported GitHub API value; valid values: %v", v, closeIssueStateReasonValues)
+				// Validate each configured value against the supported API values so that
+				// invalid strings (e.g. "done", "wontfix") are caught at compile time rather
+				// than producing a GitHub API 422 at runtime.
+				supported := make(map[string]struct{}, len(closeIssueStateReasonValues))
+				for _, v := range closeIssueStateReasonValues {
+					supported[v] = struct{}{}
+				}
+				valid := make([]string, 0, len(enumValues))
+				for _, v := range enumValues {
+					if _, ok := supported[v]; ok {
+						valid = append(valid, v)
+					} else {
+						safeOutputsConfigLog.Printf("Warning: allowed-state-reason value %q is not a supported GitHub API value; valid values: %v", v, closeIssueStateReasonValues)
+					}
+				}
+				if len(valid) == 0 {
+					// All values were invalid; fall back to the full set so that compilation
+					// succeeds, relying on schema validation to have already warned the author.
+					safeOutputsConfigLog.Printf("Warning: all allowed-state-reason values were invalid; falling back to full supported set")
+					valid = closeIssueStateReasonValues
+				}
+				enumValues = valid
+			}
+			injections["close_issue"] = map[string]any{
+				"state_reason": map[string]any{
+					"type":        "string",
+					"enum":        enumValues,
+					"description": "Optional closing state reason. Omit to use the configured default. Select 'duplicate' together with 'duplicate_of' to mark a native duplicate relationship.",
+				},
 			}
 		}
-		if len(valid) == 0 {
-			// All values were invalid; fall back to the full set so that compilation
-			// succeeds, relying on schema validation to have already warned the author.
-			safeOutputsConfigLog.Printf("Warning: all allowed-state-reason values were invalid; falling back to full supported set")
-			valid = closeIssueStateReasonValues
+	}
+
+	if safeOutputs.DataEnabled {
+		dataProperty := map[string]any{"$ref": "#/0/inputSchema/$defs/structured_data"}
+		if safeOutputs.NormalizedDataSchema != nil {
+			dataProperty = safeOutputs.NormalizedDataSchema
 		}
-		enumValues = valid
+		for _, typeName := range dataSchemaBodyTypes {
+			if injections[typeName] == nil {
+				injections[typeName] = make(map[string]any)
+			}
+			injections[typeName]["data"] = dataProperty
+		}
 	}
-	injections["close_issue"] = map[string]any{
-		"state_reason": map[string]any{
-			"type":        "string",
-			"enum":        enumValues,
-			"description": "Optional closing state reason. Omit to use the configured default. Select 'duplicate' together with 'duplicate_of' to mark a native duplicate relationship.",
-		},
-	}
+
 	return injections
 }
 

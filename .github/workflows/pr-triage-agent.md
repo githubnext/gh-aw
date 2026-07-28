@@ -34,6 +34,11 @@ tools:
     file-glob: ["*.json", "*.md"]
     max-file-size: 102400  # 100KB
 safe-outputs:
+  data:
+    pr_number: integer
+    category: string
+    risk: string
+    action: string
   add-labels:
     max: 100
     # Omitting 'allowed' to permit dynamic label creation (pr-type:*, pr-risk:*, etc.)
