@@ -1445,14 +1445,14 @@ func TestScanRunContentExpressionsHeredoc(t *testing.T) {
 		wantHasDisallowed bool
 	}{
 		{
-			name: "disallowed expression inside unquoted heredoc is not flagged",
+			name: "shell env var in unquoted heredoc is not flagged",
 			yaml: `jobs:
   test:
     steps:
       - run: |
           cat << GH_AW_MCP_CONFIG_EOF | node start_mcp.cjs
           {
-            "sink-visibility": ${{ toJSON(steps.determine-automatic-lockdown.outputs.visibility) }}
+            "sink-visibility": "${GH_AW_SINK_VISIBILITY}"
           }
           GH_AW_MCP_CONFIG_EOF`,
 			wantHasUnsafe:     false,

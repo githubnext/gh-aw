@@ -65,6 +65,10 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 
 	// Check for GitHub MCP server token
 	hasGitHub := slices.Contains(mcpTools, "github")
+	// Also check tools["github"] directly so that mode:gh-proxy workflows — where GitHub
+	// is excluded from mcpTools but determine-automatic-lockdown still runs — also get
+	// the GH_AW_SINK_VISIBILITY env var.
+	_, hasGitHubInTools := tools["github"]
 	if hasGitHub {
 		toolConfig, _ := tools["github"].(map[string]any)
 
@@ -101,6 +105,16 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 			envVars["GITHUB_MCP_GUARD_MIN_INTEGRITY"] = "${{ steps.determine-automatic-lockdown.outputs.min_integrity }}"
 			envVars["GITHUB_MCP_GUARD_REPOS"] = "${{ steps.determine-automatic-lockdown.outputs.repos }}"
 		}
+	}
+
+	// Emit GH_AW_SINK_VISIBILITY for all workflows where the determine-automatic-lockdown step
+	// runs (i.e., any workflow with a GitHub tool, including mode:gh-proxy). This avoids
+	// embedding a ${{ }} expression directly in the run: heredoc, which zizmor flags as
+	// template injection. The value is the raw step output (no toJSON), and the surrounding
+	// JSON double-quotes in the heredoc produce a valid JSON string at runtime:
+	//   "sink-visibility": "${GH_AW_SINK_VISIBILITY}"  →  "sink-visibility": "public"
+	if hasGitHubInTools {
+		envVars[sinkVisibilityEnvVar] = "${{ steps.determine-automatic-lockdown.outputs.visibility }}"
 	}
 
 	// Check for safe-outputs env vars
