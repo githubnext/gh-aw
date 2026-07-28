@@ -26,7 +26,7 @@
     "@astrojs/rss": "^4.0.19",
     "@astrojs/sitemap": "^3.7.3",
     "@astrojs/starlight": "^0.41.5",
-    "@primer/octicons": "^19.29.2",
+    "@primer/octicons": "^19.31.0",
     "astro": "^7.1.4",
     "astro-mermaid": "^2.1.0",
     "mermaid": "^11.16.0",
