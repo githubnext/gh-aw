@@ -25,6 +25,7 @@ steps:
     continue-on-error: true
     env:
       REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
     run: |
       # Download usage artifacts for the last 30 days in parallel so the main
       # forecast step reads from the local cache and produces output quickly.
@@ -41,6 +42,7 @@ steps:
     continue-on-error: true
     env:
       REPOSITORY: ${{ github.repository }}
+      GH_TOKEN: ${{ github.token }}
     run: |
       set -uo pipefail
       output_dir="/tmp/gh-aw/agent/spending-forecast"
@@ -120,11 +122,12 @@ The complete initial command output is in
    samples, outliers, inconsistent date windows, implausible run frequencies, missing
    workflows, and confidence intervals that are too broad to support a reliable budget.
    Do not invent missing values.
-3. If the prepared output is incomplete or suspicious, either:
-   - rerun `$GITHUB_WORKSPACE/gh-aw forecast` with targeted arguments, including
-     `--eval` when backtesting would clarify accuracy; or
-   - use the `agentic-workflows` MCP server to inspect relevant recent runs and usage
-     artifacts.
+3. If the prepared output is incomplete or suspicious, rerun
+   `$GITHUB_WORKSPACE/gh-aw forecast` with targeted arguments (including `--eval` when
+   backtesting would clarify accuracy). If sample collection still fails — especially
+   when `sampled_runs` is zero for all workflows or artifact downloads fail — you MUST
+   use the `agentic-workflows` MCP server to inspect recent runs and usage artifacts
+   and derive observed/projected AIC directly from that evidence.
    Preserve any additional command output in the spending forecast directory so it is
    included in the artifact. Limit follow-up to the evidence needed to resolve or
    document the discrepancy.
