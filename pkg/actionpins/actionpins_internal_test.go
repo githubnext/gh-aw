@@ -168,13 +168,15 @@ func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 	})
 
 	t.Run("preserves existing warnings map", func(t *testing.T) {
-		existing := map[string]bool{"actions/checkout@v5": true}
-		ctx := &PinContext{Warnings: existing}
+		// Build expected independently so a mutation to ctx.Warnings cannot silently
+		// satisfy the assertion (both sides would change if they shared a pointer).
+		expected := map[string]bool{"actions/checkout@v5": true}
+		ctx := &PinContext{Warnings: map[string]bool{"actions/checkout@v5": true}}
 
 		initWarnings(ctx)
 
 		require.NotNil(t, ctx.Warnings, "Expected warnings map to remain initialized")
-		assert.Equal(t, existing, ctx.Warnings, "Expected existing warnings to be preserved unchanged")
+		assert.Equal(t, expected, ctx.Warnings, "Expected existing warnings to be preserved unchanged")
 	})
 }
 
@@ -552,17 +554,20 @@ func TestResolveExactHardcodedPin(t *testing.T) {
 			wantOK:  false,
 		},
 		{
-			// When isAlreadySHA=false, only the version-match path runs; the SHA-match loop is
-			// skipped entirely. This case uses a pin whose Version and SHA fields are identical
-			// to make the path selection explicit: the version loop matches and returns before
-			// the SHA loop would ever execute.
-			name:         "version-match path takes precedence over SHA path when isAlreadySHA=false",
-			pins:         []ActionPin{{Repo: "actions/checkout", Version: "sha-v5", SHA: "sha-v5"}},
+			// Verify that the version-match loop runs before the SHA-match loop:
+			// both pin[0] (Version=="sha-token") and pin[1] (SHA=="sha-token") would
+			// satisfy a match, but their outputs differ. With isSHA=true the SHA loop
+			// is eligible, yet the version loop must win and return pin[0]'s SHA.
+			name: "version-match path takes precedence over SHA path when isAlreadySHA=true",
+			pins: []ActionPin{
+				{Repo: "actions/checkout", Version: "sha-token", SHA: "real-sha-version-match"},
+				{Repo: "actions/checkout", Version: "v4.0.0", SHA: "sha-token"},
+			},
 			repo:         "actions/checkout",
-			version:      "sha-v5",
-			isSHA:        false,
+			version:      "sha-token",
+			isSHA:        true,
 			wantOK:       true,
-			wantContains: []string{"sha-v5"},
+			wantContains: []string{"real-sha-version-match"},
 		},
 	}
 
