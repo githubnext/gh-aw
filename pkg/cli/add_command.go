@@ -128,9 +128,7 @@ func runAddCommand(cmd *cobra.Command, args []string, validateEngine func(string
 	workflowDir, _ := cmd.Flags().GetString("dir")
 	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
 	stopAfter, _ := cmd.Flags().GetString("stop-after")
-	disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
-	disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
-	disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
+	disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
 
 	if nameFlag != "" && len(args) > 1 {
 		return errors.New("--name flag cannot be used when adding multiple workflows at once")
@@ -219,9 +217,7 @@ func registerAddCommandFlags(cmd *cobra.Command) {
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
 
 	// Add no-security-scanner flag to add command (--disable-security-scanner is kept as a deprecated alias)
-	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
-	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
+	addSecurityScannerFlag(cmd)
 
 	// Register completions for add command
 	RegisterEngineFlagCompletion(cmd)

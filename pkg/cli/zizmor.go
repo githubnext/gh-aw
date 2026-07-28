@@ -78,13 +78,14 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	}
 
 	// Build the Docker command with JSON output for easier parsing
-	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json <file1> <file2> ...
+	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/zizmorcore/zizmor:latest --persona auditor --format json <file1> <file2> ...
 	dockerArgs := []string{
 		"run",
 		"--rm",
 		"-v", gitRoot + ":/workdir",
 		"-w", "/workdir",
 		"ghcr.io/zizmorcore/zizmor:latest",
+		"--persona", "auditor",
 		"--format", "json",
 	}
 	dockerArgs = append(dockerArgs, relPaths...)
@@ -103,7 +104,7 @@ func runZizmorOnFiles(lockFiles []string, verbose bool, strict bool) error {
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/zizmorcore/zizmor:latest --format json %s",
+		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/zizmorcore/zizmor:latest --persona auditor --format json %s",
 			gitRoot, strings.Join(relPaths, " "))
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run zizmor directly: "+dockerCmd))
 	}

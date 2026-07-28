@@ -300,3 +300,68 @@ func TestEngineFlagUsageText(t *testing.T) {
 		t.Errorf("Unexpected --engine filter usage text: %s", filterFlag.Usage)
 	}
 }
+
+func TestAddSecurityScannerFlag(t *testing.T) {
+	t.Parallel()
+
+	cmd := &cobra.Command{Use: "test"}
+	addSecurityScannerFlag(cmd)
+
+	primary := cmd.Flags().Lookup("no-security-scanner")
+	if primary == nil {
+		t.Fatal("addSecurityScannerFlag should register --no-security-scanner")
+	}
+	if primary.Usage != "Skip security scanning of workflow markdown content" {
+		t.Errorf("Unexpected --no-security-scanner usage: %s", primary.Usage)
+	}
+
+	deprecated := cmd.Flags().Lookup("disable-security-scanner")
+	if deprecated == nil {
+		t.Fatal("addSecurityScannerFlag should register --disable-security-scanner as a deprecated alias")
+	}
+	if deprecated.Deprecated != "use --no-security-scanner instead" {
+		t.Errorf("Expected deprecation message 'use --no-security-scanner instead', got %q", deprecated.Deprecated)
+	}
+}
+
+func TestResolveDeprecatedBoolFlag(t *testing.T) {
+	t.Parallel()
+
+	setup := func() *cobra.Command {
+		cmd := &cobra.Command{Use: "test"}
+		cmd.Flags().Bool("new-flag", false, "new flag")
+		cmd.Flags().Bool("old-flag", false, "old flag")
+		_ = cmd.Flags().MarkDeprecated("old-flag", "use --new-flag instead")
+		return cmd
+	}
+
+	t.Run("both false returns false", func(t *testing.T) {
+		t.Parallel()
+		cmd := setup()
+		if resolveDeprecatedBoolFlag(cmd, "new-flag", "old-flag") {
+			t.Error("expected false when both flags are unset")
+		}
+	})
+
+	t.Run("new flag true returns true", func(t *testing.T) {
+		t.Parallel()
+		cmd := setup()
+		if err := cmd.Flags().Set("new-flag", "true"); err != nil {
+			t.Fatalf("failed to set new-flag: %v", err)
+		}
+		if !resolveDeprecatedBoolFlag(cmd, "new-flag", "old-flag") {
+			t.Error("expected true when new flag is set")
+		}
+	})
+
+	t.Run("old flag true returns true", func(t *testing.T) {
+		t.Parallel()
+		cmd := setup()
+		if err := cmd.Flags().Set("old-flag", "true"); err != nil {
+			t.Fatalf("failed to set old-flag: %v", err)
+		}
+		if !resolveDeprecatedBoolFlag(cmd, "new-flag", "old-flag") {
+			t.Error("expected true when deprecated old flag is set")
+		}
+	})
+}
