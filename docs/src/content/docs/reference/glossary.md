@@ -548,6 +548,18 @@ engine:
 
 The AI system that powers the agentic workflow - essentially "which AI to use" to execute workflow instructions. GitHub Agentic Workflows supports six engines: **Copilot** (default), **Claude**, **Codex**, **Gemini**, **OpenCode** (experimental), and **Pi** (experimental). Set `engine:` in frontmatter to choose; omit it to use Copilot. See [AI Engines Reference](/gh-aw/reference/engines/).
 
+### Engine Version (`engine.version`)
+
+An `engine:` field that pins the installed CLI version for the selected engine. Defaults to `latest` when omitted. Accepts a literal version string or a GitHub Actions expression (e.g., `${{ inputs.engine-version }}`) so `workflow_call` reusable workflows can parameterize the version via caller inputs. Supported consistently across Copilot, Claude, Codex, and Gemini. Pin a version for reproducible builds or to avoid breakage from new CLI releases.
+
+```yaml wrap
+engine:
+  id: copilot
+  version: "0.0.422"
+```
+
+See [AI Engines Reference](/gh-aw/reference/engines/#pinning-a-specific-engine-version).
+
 ### Anthropic Workload Identity Federation (WIF)
 
 A keyless authentication method for the Claude engine that uses short-lived GitHub OIDC tokens instead of a long-lived `ANTHROPIC_API_KEY` secret. Configured via [`engine.auth`](#engine-auth-engineauth) with `type: github-oidc` and `provider: anthropic`, along with Anthropic-specific IDs (`federation-rule-id`, `organization-id`, `service-account-id`, `workspace-id`) obtained from the Anthropic Console. Requires `permissions: id-token: write`. Available since v0.79.6. See [Authentication Reference](/gh-aw/reference/auth/#anthropic-workload-identity-federation-wif).
@@ -794,6 +806,10 @@ models:
     input: 0    # $/1M input tokens
     output: 0   # $/1M output tokens
 ```
+
+### Missing Model AI Credits Pricing
+
+A specialized failure category reported when a model has no entry in the AWF built-in pricing table and no `default-ai-credits-pricing` fallback is configured, causing the API proxy to reject every inference request with HTTP 400. Detected by the conclusion job, which surfaces a dedicated warning distinguishing this configuration issue from a transient or retryable failure. Resolve by adding pricing via `models.default-ai-credits-pricing`, mapping the model name to a known model with the `models` field, or switching to a model already in the pricing table. See [Default AI Credits Pricing](#default-ai-credits-pricing-modelsdefault-ai-credits-pricing).
 
 ### Max AI Credits (`max-ai-credits`)
 
