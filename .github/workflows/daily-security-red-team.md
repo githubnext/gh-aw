@@ -28,7 +28,7 @@ tools:
 safe-outputs:
   create-issue:
     title-prefix: "🚨 [SECURITY]"
-    labels: ["security", "red-team"]
+    labels: ["security", "red-team", "cookie"]
     max: 5
 experiments:
   reasoning_depth:

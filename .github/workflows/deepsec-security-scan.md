@@ -46,7 +46,7 @@ tools:
 safe-outputs:
   create-issue:
     max: 1
-    labels: [security, deepsec]
+    labels: [security, deepsec, cookie]
     close-older-issues: true
     title-prefix: "[deepsec] "
   noop:
