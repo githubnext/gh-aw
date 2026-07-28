@@ -121,6 +121,9 @@ func ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter map[string
 	if err := validateCommandTriggerConflicts(filtered); err != nil {
 		return err
 	}
+	if err := validateUnsupportedJobInputs(filtered); err != nil {
+		return err
+	}
 
 	// Then run the standard schema validation with location
 	if err := validateWithSchemaAndLocation(filtered, mainWorkflowSchema, "main workflow file", filePath); err != nil {

@@ -187,6 +187,37 @@ bogus-field: true
 	assert.Contains(t, errorStr, "virtual/workflow.md:3:1: error:")
 }
 
+func TestParseWorkflowString_JobsInputsValidationReportedBeforeSchemaErrors(t *testing.T) {
+	markdown := `---
+name: jobs-inputs-test
+on: push
+engine: copilot
+jobs:
+  my-job:
+    runs-on: ubuntu-latest
+    inputs:
+      greeting:
+        description: Greeting
+    steps:
+      - run: echo hi
+---
+
+# Test
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "virtual/workflow.md")
+	require.Error(t, err)
+
+	errorStr := err.Error()
+	assert.Contains(t, errorStr, "jobs.my-job.inputs: inputs are not supported on jobs")
+	assert.NotContains(t, errorStr, "Unknown property: inputs")
+}
+
 func TestCompileToYAML_BasicCompilation(t *testing.T) {
 	markdown := `---
 name: compile-test
