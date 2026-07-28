@@ -57,6 +57,11 @@ safe-outputs:
 timeout-minutes: 20
 features:
   gh-aw-detection: true
+evals:
+  - id: output-produced
+    question: Did the agent create a pull request or post a comment?
+  - id: summary-comment-added
+    question: Does the agent output confirm that a summary comment was added to the original conversation thread?
 ---
 
 # /cloclo

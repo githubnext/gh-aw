@@ -977,6 +977,13 @@ tools:
     - awk
     - sed
 
+evals:
+  - id: release-updated
+    question: Did the agent update the release with generated highlights?
+  - id: highlights-included
+    question: Does the agent output confirm that release highlights were generated and prepended to the release notes?
+  - id: community-attribution
+    question: Does the agent output include attribution to community contributors in the release highlights?
 
 ---
 
