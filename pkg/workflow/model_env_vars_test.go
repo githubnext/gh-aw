@@ -174,6 +174,69 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 	}
 }
 
+func TestClaudeEvalsModelEnvVarInjectionForEvalsPhase(t *testing.T) {
+	engine, err := GetGlobalEngineRegistry().GetEngine("claude")
+	if err != nil {
+		t.Fatalf("Failed to get engine: %v", err)
+	}
+
+	t.Run("unset model uses GH_AW_MODEL_EVALS_CLAUDE fallback", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:       "test-evals-claude",
+			AI:         "claude",
+			IsEvalsRun: true,
+			Tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/evals.log")
+		var stepsStr strings.Builder
+		for _, step := range steps {
+			for _, line := range step {
+				stepsStr.WriteString(line)
+				stepsStr.WriteString("\n")
+			}
+		}
+		stepsContent := stepsStr.String()
+
+		expectedEnvLine := constants.EnvVarModelEvalsClaude + ": ${{ vars." + constants.EnvVarModelEvalsClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.SonnetDefaultModel + "' }}"
+		if !strings.Contains(stepsContent, expectedEnvLine) {
+			t.Errorf("Expected evals env var line '%s' not found in steps:\n%s", expectedEnvLine, stepsContent)
+		}
+		if strings.Contains(stepsContent, constants.EnvVarModelAgentClaude+":") {
+			t.Errorf("Agent model env var %s should not be present in evals phase:\n%s", constants.EnvVarModelAgentClaude, stepsContent)
+		}
+	})
+
+	t.Run("expression model uses evals fallback env", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name:       "test-evals-expression-claude",
+			AI:         "claude",
+			IsEvalsRun: true,
+			Model:      "${{ inputs.model }}",
+			Tools: map[string]any{
+				"bash": []any{"echo"},
+			},
+		}
+
+		steps := engine.GetExecutionSteps(workflowData, "/tmp/evals-expression.log")
+		var stepsStr strings.Builder
+		for _, step := range steps {
+			for _, line := range step {
+				stepsStr.WriteString(line)
+				stepsStr.WriteString("\n")
+			}
+		}
+		stepsContent := stepsStr.String()
+
+		expectedFallbackLine := constants.EnvVarModelFallback + ": ${{ vars." + constants.EnvVarModelEvalsClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.SonnetDefaultModel + "' }}"
+		if !strings.Contains(stepsContent, expectedFallbackLine) {
+			t.Errorf("Expected evals fallback env line '%s' not found in steps:\n%s", expectedFallbackLine, stepsContent)
+		}
+	})
+}
+
 // TestExplicitModelConfigOverridesEnvVar tests that explicit model configuration takes precedence
 func TestExplicitModelConfigOverridesEnvVar(t *testing.T) {
 	workflowData := &WorkflowData{

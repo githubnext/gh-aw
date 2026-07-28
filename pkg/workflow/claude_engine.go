@@ -511,11 +511,11 @@ func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) 
 	phase := workflowRunPhase(workflowData)
 	if workflowData.Model == "" {
 		if phase == runPhaseEvals {
-			env[constants.EnvVarModelEvalsClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude, constants.CopilotBYOKDefaultModel)
+			env[constants.EnvVarModelEvalsClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelEvalsClaude, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 		} else if phase == runPhaseDetection || isDetectionRun(workflowData) {
-			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude, constants.CopilotBYOKDefaultModel)
+			env[constants.EnvVarModelDetectionClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelDetectionClaude, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 		} else {
-			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude, constants.CopilotBYOKDefaultModel)
+			env[constants.EnvVarModelAgentClaude] = compilerenv.BuildModelOverrideExpression(constants.EnvVarModelAgentClaude, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 		}
 		return
 	}
@@ -528,7 +528,7 @@ func applyClaudeModelEnvVars(env map[string]string, workflowData *WorkflowData) 
 		claudeModelVar = constants.EnvVarModelAgentClaude
 	}
 	if containsExpression(workflowData.Model) {
-		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(claudeModelVar, compilerenv.DefaultModelClaude, constants.CopilotBYOKDefaultModel)
+		env[constants.EnvVarModelFallback] = compilerenv.BuildModelOverrideExpression(claudeModelVar, compilerenv.DefaultModelClaude, constants.SonnetDefaultModel)
 	}
 	claudeLog.Printf("Setting %s env var for model: %s", constants.ClaudeCLIModelEnvVar, workflowData.Model)
 	env[constants.ClaudeCLIModelEnvVar] = workflowData.Model
