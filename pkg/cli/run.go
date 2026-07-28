@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -12,7 +13,7 @@ import (
 
 var cancelLog = logger.New("cli:cancel")
 
-func cancelWorkflowRuns(workflowID int64) error {
+func cancelWorkflowRuns(ctx context.Context, workflowID int64) error {
 	cancelLog.Printf("Cancelling workflow runs for workflow ID: %d", workflowID)
 
 	// Start spinner for network operation
@@ -20,7 +21,7 @@ func cancelWorkflowRuns(workflowID int64) error {
 	spinner.Start()
 
 	// Get running workflow runs
-	cmd := workflow.ExecGH("run", "list", "--workflow", strconv.FormatInt(workflowID, 10), "--status", "in_progress", "--json", "databaseId")
+	cmd := workflow.ExecGHContext(ctx, "run", "list", "--workflow", strconv.FormatInt(workflowID, 10), "--status", "in_progress", "--json", "databaseId")
 	output, err := cmd.Output()
 	if err != nil {
 		cancelLog.Printf("Failed to list workflow runs: %v", err)
@@ -43,7 +44,7 @@ func cancelWorkflowRuns(workflowID int64) error {
 	totalRuns := len(runs)
 	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
-		cancelCmd := workflow.ExecGH("run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
+		cancelCmd := workflow.ExecGHContext(ctx, "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
 		// Update spinner with progress after cancellation completes
 		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))
@@ -59,7 +60,7 @@ func cancelWorkflowRuns(workflowID int64) error {
 }
 
 // cancelWorkflowRunsByLockFile cancels in-progress runs for a workflow identified by its lock file name
-func cancelWorkflowRunsByLockFile(lockFileName string) error {
+func cancelWorkflowRunsByLockFile(ctx context.Context, lockFileName string) error {
 	cancelLog.Printf("Cancelling workflow runs for lock file: %s", lockFileName)
 
 	// Start spinner for network operation
@@ -67,7 +68,7 @@ func cancelWorkflowRunsByLockFile(lockFileName string) error {
 	spinner.Start()
 
 	// Get running workflow runs by lock file name
-	cmd := workflow.ExecGH("run", "list", "--workflow", lockFileName, "--status", "in_progress", "--json", "databaseId")
+	cmd := workflow.ExecGHContext(ctx, "run", "list", "--workflow", lockFileName, "--status", "in_progress", "--json", "databaseId")
 	output, err := cmd.Output()
 	if err != nil {
 		cancelLog.Printf("Failed to list workflow runs by lock file: %v", err)
@@ -90,7 +91,7 @@ func cancelWorkflowRunsByLockFile(lockFileName string) error {
 	totalRuns := len(runs)
 	for i, run := range runs {
 		cancelLog.Printf("Cancelling workflow run: %d", run.DatabaseID)
-		cancelCmd := workflow.ExecGH("run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
+		cancelCmd := workflow.ExecGHContext(ctx, "run", "cancel", strconv.FormatInt(run.DatabaseID, 10))
 		_ = cancelCmd.Run() // Ignore errors for individual cancellations
 		// Update spinner with progress after cancellation completes
 		spinner.UpdateMessage(fmt.Sprintf("Cancelling workflow runs... (%d/%d completed)", i+1, totalRuns))

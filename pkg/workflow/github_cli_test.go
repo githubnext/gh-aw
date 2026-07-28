@@ -85,7 +85,7 @@ func TestExecGH(t *testing.T) {
 			}
 
 			// Execute the helper
-			cmd := ExecGH("api", "/user")
+			cmd := ExecGH(context.Background(), "api", "/user")
 
 			// Verify the command
 			require.NotNil(t, cmd, "Command should not be nil")
@@ -126,7 +126,7 @@ func TestExecGHWithMultipleArgs(t *testing.T) {
 	os.Setenv("GITHUB_TOKEN", "test-token")
 
 	// Test with multiple arguments
-	cmd := ExecGH("api", "repos/owner/repo/git/ref/tags/v1.0", "--jq", ".object.sha")
+	cmd := ExecGH(context.Background(), "api", "repos/owner/repo/git/ref/tags/v1.0", "--jq", ".object.sha")
 
 	// Verify command
 	require.NotNil(t, cmd, "Command should not be nil")
@@ -357,7 +357,7 @@ func TestRunGHFunctions(t *testing.T) {
 	os.Unsetenv("GITHUB_TOKEN")
 
 	t.Run("RunGH matches RunGHContext", func(t *testing.T) {
-		gotOut, gotErr := RunGH("Test spinner...", "auth", "status")
+		gotOut, gotErr := RunGH(context.Background(), "Test spinner...", "auth", "status")
 		wantOut, wantErr := RunGHContext(context.Background(), "Test spinner...", "auth", "status")
 
 		assert.Equal(t, wantOut, gotOut, "RunGH should return the same output as RunGHContext")
@@ -370,7 +370,7 @@ func TestRunGHFunctions(t *testing.T) {
 	})
 
 	t.Run("RunGHCombined matches RunGHCombinedContext", func(t *testing.T) {
-		gotOut, gotErr := RunGHCombined("Test spinner...", "auth", "status")
+		gotOut, gotErr := RunGHCombined(context.Background(), "Test spinner...", "auth", "status")
 		wantOut, wantErr := RunGHCombinedContext(context.Background(), "Test spinner...", "auth", "status")
 
 		assert.Equal(t, wantOut, gotOut, "RunGHCombined should return the same output as RunGHCombinedContext")

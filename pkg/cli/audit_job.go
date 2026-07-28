@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -28,13 +29,13 @@ type auditJobRunOptions struct {
 
 // auditJobRun performs a targeted audit of a specific job within a workflow run
 // If stepNumber > 0, focuses on extracting output for that specific step
-func auditJobRun(opts auditJobRunOptions) error {
+func auditJobRun(ctx context.Context, opts auditJobRunOptions) error {
 	opts.hostname = resolveAuditHostname(opts.hostname)
 	auditLog.Printf("Starting job-specific audit: runID=%d, jobID=%d, stepNumber=%d, hostname=%s", opts.runID, opts.jobID, opts.stepNumber, opts.hostname)
 	if err := os.MkdirAll(opts.outputDir, constants.DirPermSensitive); err != nil {
 		return fmt.Errorf("failed to create output directory: %w", err)
 	}
-	jobLogContent, jobLogPath, err := fetchAuditJobLog(opts)
+	jobLogContent, jobLogPath, err := fetchAuditJobLog(ctx, opts)
 	if err != nil {
 		return err
 	}
@@ -45,7 +46,7 @@ func auditJobRun(opts auditJobRunOptions) error {
 	return nil
 }
 
-func fetchAuditJobLog(opts auditJobRunOptions) (string, string, error) {
+func fetchAuditJobLog(ctx context.Context, opts auditJobRunOptions) (string, string, error) {
 	args := []string{"run", "view"}
 	if opts.owner != "" && opts.repo != "" {
 		args = append(args, "-R", fmt.Sprintf("%s/%s", opts.owner, opts.repo))
@@ -55,7 +56,7 @@ func fetchAuditJobLog(opts auditJobRunOptions) (string, string, error) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching logs for job %d...", opts.jobID)))
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Executing: gh "+strings.Join(args, " ")))
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 	workflow.SetGHHostEnv(cmd, opts.hostname)
 	output, err := cmd.CombinedOutput()
 	if err != nil {

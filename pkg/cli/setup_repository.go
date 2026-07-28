@@ -76,7 +76,7 @@ type setupRepositoryRuntime struct {
 func defaultSetupRepositoryRuntime() setupRepositoryRuntime {
 	return setupRepositoryRuntime{
 		checkAuth: func(context.Context) error {
-			return checkGHAuthStatusShared(false)
+			return checkGHAuthStatusShared(context.Background(), false)
 		},
 		repoExists: checkSetupRepositoryExists,
 		ownerType:  checkSetupRepositoryOwnerType,

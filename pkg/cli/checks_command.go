@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -114,7 +115,7 @@ deployment integrations posting commit statuses alongside required CI checks.`,
 				HeadSHA:    headSHA,
 			}
 
-			return RunChecks(config)
+			return RunChecks(cmd.Context(), config)
 		},
 	}
 
@@ -126,10 +127,10 @@ deployment integrations posting commit statuses alongside required CI checks.`,
 }
 
 // RunChecks executes the checks command with the given configuration.
-func RunChecks(config ChecksConfig) error {
+func RunChecks(ctx context.Context, config ChecksConfig) error {
 	checksLog.Printf("Running checks: pr=%s, repo=%s", config.PRNumber, config.Repo)
 
-	result, err := fetchChecksResultInternal(config.Repo, config.PRNumber, config.HeadSHA)
+	result, err := fetchChecksResultInternal(ctx, config.Repo, config.PRNumber, config.HeadSHA)
 	if err != nil {
 		return err
 	}
@@ -143,20 +144,20 @@ func RunChecks(config ChecksConfig) error {
 
 // FetchChecksResult fetches check runs and statuses for a PR and returns a classified result.
 // This function is exported for use in tests and other packages.
-func FetchChecksResult(repoOverride string, prNumber string) (*ChecksResult, error) {
-	return fetchChecksResultInternal(repoOverride, prNumber, "")
+func FetchChecksResult(ctx context.Context, repoOverride string, prNumber string) (*ChecksResult, error) {
+	return fetchChecksResultInternal(ctx, repoOverride, prNumber, "")
 }
 
 // fetchChecksResultInternal is the shared implementation used by both RunChecks and
 // FetchChecksResult. When headSHA is non-empty it is used directly, skipping the
 // REST call that would otherwise resolve the SHA from the PR number.
-func fetchChecksResultInternal(repoOverride string, prNumber string, headSHA string) (*ChecksResult, error) {
+func fetchChecksResultInternal(ctx context.Context, repoOverride string, prNumber string, headSHA string) (*ChecksResult, error) {
 	checksLog.Printf("Fetching checks result: repo=%s, pr=%s", repoOverride, prNumber)
 
 	if headSHA == "" {
 		// Step 1: Resolve head SHA from PR (skipped when caller provides it).
 		var err error
-		headSHA, err = fetchPRHeadSHA(repoOverride, prNumber)
+		headSHA, err = fetchPRHeadSHA(ctx, repoOverride, prNumber)
 		if err != nil {
 			return nil, fmt.Errorf("failed to fetch PR head SHA: %w", err)
 		}
@@ -164,7 +165,7 @@ func fetchChecksResultInternal(repoOverride string, prNumber string, headSHA str
 	checksLog.Printf("Using head SHA: %s", headSHA)
 
 	// Step 2: Fetch check runs
-	checkRuns, err := fetchCheckRuns(repoOverride, headSHA)
+	checkRuns, err := fetchCheckRuns(ctx, repoOverride, headSHA)
 	if err != nil {
 		// Non-fatal: continue with empty check runs
 		checksLog.Printf("Failed to fetch check runs: %v", err)
@@ -172,7 +173,7 @@ func fetchChecksResultInternal(repoOverride string, prNumber string, headSHA str
 	}
 
 	// Step 3: Fetch commit statuses
-	statuses, err := fetchCommitStatuses(repoOverride, headSHA)
+	statuses, err := fetchCommitStatuses(ctx, repoOverride, headSHA)
 	if err != nil {
 		// Non-fatal: continue with empty statuses
 		checksLog.Printf("Failed to fetch commit statuses: %v", err)
@@ -195,11 +196,11 @@ func fetchChecksResultInternal(repoOverride string, prNumber string, headSHA str
 
 // execGHAPI runs a gh api subcommand and returns raw output.
 // repoOverride is appended as --repo if non-empty; context labels error messages.
-func execGHAPI(repoOverride string, context string, args ...string) ([]byte, error) {
+func execGHAPI(ctx context.Context, repoOverride string, context string, args ...string) ([]byte, error) {
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError
@@ -213,8 +214,8 @@ func execGHAPI(repoOverride string, context string, args ...string) ([]byte, err
 }
 
 // fetchPRHeadSHA fetches the head commit SHA for a given PR.
-func fetchPRHeadSHA(repoOverride string, prNumber string) (string, error) {
-	output, err := execGHAPI(repoOverride, prNumber,
+func fetchPRHeadSHA(ctx context.Context, repoOverride string, prNumber string) (string, error) {
+	output, err := execGHAPI(ctx, repoOverride, prNumber,
 		"api", "repos/{owner}/{repo}/pulls/"+prNumber, "--jq", ".head.sha")
 	if err != nil {
 		return "", err
@@ -276,8 +277,8 @@ type checkRunsAPIResponse struct {
 }
 
 // fetchCheckRuns fetches check runs for a commit SHA.
-func fetchCheckRuns(repoOverride string, sha string) ([]PRCheckRun, error) {
-	output, err := execGHAPI(repoOverride, sha,
+func fetchCheckRuns(ctx context.Context, repoOverride string, sha string) ([]PRCheckRun, error) {
+	output, err := execGHAPI(ctx, repoOverride, sha,
 		"api", "repos/{owner}/{repo}/commits/"+sha+"/check-runs", "--paginate")
 	if err != nil {
 		return nil, err
@@ -298,8 +299,8 @@ type commitStatusAPIResponse struct {
 }
 
 // fetchCommitStatuses fetches commit statuses (legacy Status API) for a commit SHA.
-func fetchCommitStatuses(repoOverride string, sha string) ([]PRCommitStatus, error) {
-	output, err := execGHAPI(repoOverride, sha,
+func fetchCommitStatuses(ctx context.Context, repoOverride string, sha string) ([]PRCommitStatus, error) {
+	output, err := execGHAPI(ctx, repoOverride, sha,
 		"api", "repos/{owner}/{repo}/commits/"+sha+"/status")
 	if err != nil {
 		return nil, err

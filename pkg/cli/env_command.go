@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/url"
@@ -107,7 +108,7 @@ var defaultsBindings = []defaultsBinding{
 	{envName: compilerenv.DefaultModelCodex, fieldName: "default_model_codex", get: func(f *defaultsFile) **string { return &f.DefaultModelCodex }},
 }
 
-var defaultsExecGH = workflow.ExecGH
+var defaultsGHExec = workflow.ExecGHContext
 var defaultsGetCurrentRepoSlug = GetCurrentRepoSlug
 
 func NewEnvCommand() *cobra.Command {
@@ -503,7 +504,7 @@ func (t defaultsTarget) displayName() string {
 
 func runDefaultsGH(args ...string) ([]byte, error) {
 	envCmdLog.Printf("Running gh command: %v", args)
-	cmd := defaultsExecGH(args...)
+	cmd := defaultsGHExec(context.Background(), args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		command := "gh " + strings.Join(args, " ")

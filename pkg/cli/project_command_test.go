@@ -558,8 +558,8 @@ func TestGraphQLRequestBodyStructure(t *testing.T) {
 }
 
 func TestValidateOwnerUsesStringLoginField(t *testing.T) {
-	oldRunGH := projectCommandRunGH
-	defer func() { projectCommandRunGH = oldRunGH }()
+	oldRunGH := projectCommandGHRunner
+	defer func() { projectCommandGHRunner = oldRunGH }()
 
 	tests := []struct {
 		name      string
@@ -573,7 +573,7 @@ func TestValidateOwnerUsesStringLoginField(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var captured []string
-			projectCommandRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+			projectCommandGHRunner = func(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
 				captured = append([]string(nil), args...)
 				return []byte(`{}`), nil
 			}
@@ -590,8 +590,8 @@ func TestValidateOwnerUsesStringLoginField(t *testing.T) {
 }
 
 func TestGetOwnerNodeIdUsesStringLoginField(t *testing.T) {
-	oldRunGH := projectCommandRunGH
-	defer func() { projectCommandRunGH = oldRunGH }()
+	oldRunGH := projectCommandGHRunner
+	defer func() { projectCommandGHRunner = oldRunGH }()
 
 	tests := []struct {
 		name      string
@@ -626,7 +626,7 @@ func TestGetOwnerNodeIdUsesStringLoginField(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var captured []string
-			projectCommandRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+			projectCommandGHRunner = func(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
 				captured = append([]string(nil), args...)
 				return []byte("NODE_ID_123"), nil
 			}
@@ -655,8 +655,8 @@ func TestGetOwnerNodeIdUsesStringLoginField(t *testing.T) {
 }
 
 func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
-	oldRunGH := projectCommandRunGH
-	defer func() { projectCommandRunGH = oldRunGH }()
+	oldRunGH := projectCommandGHRunner
+	defer func() { projectCommandGHRunner = oldRunGH }()
 
 	tests := []struct {
 		name         string
@@ -684,7 +684,7 @@ func TestGetStatusFieldUsesStringLoginAndIntNumberFields(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var calls [][]string
-			projectCommandRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+			projectCommandGHRunner = func(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
 				call := append([]string(nil), args...)
 				calls = append(calls, call)
 				switch jqPathArg(t, call) {

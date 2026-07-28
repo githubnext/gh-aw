@@ -91,7 +91,7 @@ func RunWorkflowOnGitHub(ctx context.Context, workflowIdOrName string, opts RunO
 	if err != nil {
 		return err
 	}
-	defer restoreEnabledWorkflow(workflowIdOrName, opts, prep.enableState)
+	defer restoreEnabledWorkflow(ctx, workflowIdOrName, opts, prep.enableState)
 	args, ref := buildWorkflowRunArgs(prep.lockFileName, opts)
 	workflowStartTime := time.Now()
 	if opts.DryRun {
@@ -131,10 +131,10 @@ func validateRunInputs(inputs []string) error {
 }
 
 func prepareWorkflowRun(ctx context.Context, workflowIdOrName string, opts RunOptions) (*workflowRunPreparation, error) {
-	if err := validateWorkflowForRun(workflowIdOrName, opts); err != nil {
+	if err := validateWorkflowForRun(ctx, workflowIdOrName, opts); err != nil {
 		return nil, err
 	}
-	enableState, err := handleWorkflowEnablement(workflowIdOrName, opts)
+	enableState, err := handleWorkflowEnablement(ctx, workflowIdOrName, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -153,10 +153,10 @@ func prepareWorkflowRun(ctx context.Context, workflowIdOrName string, opts RunOp
 	return prep, nil
 }
 
-func validateWorkflowForRun(workflowIdOrName string, opts RunOptions) error {
+func validateWorkflowForRun(ctx context.Context, workflowIdOrName string, opts RunOptions) error {
 	if opts.RepoOverride != "" {
 		executionLog.Printf("Validating remote workflow: %s in repo %s", workflowIdOrName, opts.RepoOverride)
-		if err := validateRemoteWorkflow(workflowIdOrName, opts.RepoOverride, opts.Verbose); err != nil {
+		if err := validateRemoteWorkflow(ctx, workflowIdOrName, opts.RepoOverride, opts.Verbose); err != nil {
 			return fmt.Errorf("failed to validate remote workflow: %w", err)
 		}
 		return nil
@@ -215,7 +215,7 @@ func warnLocalWorkflowStatus(workflowFile string) {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Consider pushing your changes before running the workflow"))
 }
 
-func handleWorkflowEnablement(workflowIdOrName string, opts RunOptions) (workflowEnableState, error) {
+func handleWorkflowEnablement(ctx context.Context, workflowIdOrName string, opts RunOptions) (workflowEnableState, error) {
 	if !opts.Enable {
 		return workflowEnableState{}, nil
 	}
@@ -236,19 +236,19 @@ func handleWorkflowEnablement(workflowIdOrName string, opts RunOptions) (workflo
 	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Workflow '%s' is disabled, enabling it temporarily...", workflowIdOrName)))
 	}
-	if err := enableWorkflowForRun(wf.ID, opts.RepoOverride); err != nil {
+	if err := enableWorkflowForRun(ctx, wf.ID, opts.RepoOverride); err != nil {
 		return workflowEnableState{}, fmt.Errorf("failed to enable workflow '%s': %w", workflowIdOrName, err)
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Enabled workflow: "+workflowIdOrName))
 	return state, nil
 }
 
-func enableWorkflowForRun(workflowID int64, repoOverride string) error {
+func enableWorkflowForRun(ctx context.Context, workflowID int64, repoOverride string) error {
 	args := []string{"workflow", "enable", strconv.FormatInt(workflowID, 10)}
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	return workflow.ExecGH(args...).Run()
+	return workflow.ExecGHContext(ctx, args...).Run()
 }
 
 func resolveWorkflowLockFile(normalizedID, lockFileName, repoOverride string) (string, error) {
@@ -411,7 +411,7 @@ func executeWorkflowRun(ctx context.Context, lockFileName string, args []string,
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Successfully triggered workflow: "+lockFileName))
 	executionLog.Printf("Workflow triggered successfully: %s", lockFileName)
-	runInfo, runErr := resolveWorkflowRunInfo(lockFileName, output, opts)
+	runInfo, runErr := resolveWorkflowRunInfo(ctx, lockFileName, output, opts)
 	return &workflowRunExecutionResult{
 		runInfo:    runInfo,
 		runInfoErr: runErr,
@@ -433,12 +433,12 @@ func formatWorkflowRunError(err error) error {
 	return fmt.Errorf("failed to run workflow on GitHub Actions: %w", err)
 }
 
-func resolveWorkflowRunInfo(lockFileName, output string, opts RunOptions) (*WorkflowRunInfo, error) {
+func resolveWorkflowRunInfo(ctx context.Context, lockFileName, output string, opts RunOptions) (*WorkflowRunInfo, error) {
 	if parsedRunInfo := parseRunInfoFromOutput(output); parsedRunInfo != nil {
 		executionLog.Printf("Parsed run info from gh output: id=%d, url=%s", parsedRunInfo.DatabaseID, parsedRunInfo.URL)
 		return parsedRunInfo, nil
 	}
-	return getLatestWorkflowRunWithRetry(lockFileName, opts.RepoOverride, opts.Verbose)
+	return getLatestWorkflowRunWithRetry(ctx, lockFileName, opts.RepoOverride, opts.Verbose)
 }
 
 func handleWorkflowRunInfo(runInfo *WorkflowRunInfo, runErr error, opts RunOptions) {
@@ -520,20 +520,20 @@ func printWorkflowCompletionWarning(autoMerge bool, err error) {
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(message))
 }
 
-func restoreEnabledWorkflow(workflowIdOrName string, opts RunOptions, state workflowEnableState) {
+func restoreEnabledWorkflow(ctx context.Context, workflowIdOrName string, opts RunOptions, state workflowEnableState) {
 	if opts.Enable && state.wasDisabled && state.workflowID != 0 {
-		restoreWorkflowState(workflowIdOrName, state.workflowID, opts.RepoOverride, opts.Verbose)
+		restoreWorkflowState(ctx, workflowIdOrName, state.workflowID, opts.RepoOverride, opts.Verbose)
 	}
 }
 
 // validateWorkflowsForRun validates all workflow names before running.
-func validateWorkflowsForRun(workflowNames []string, opts RunOptions) error {
+func validateWorkflowsForRun(ctx context.Context, workflowNames []string, opts RunOptions) error {
 	for _, workflowName := range workflowNames {
 		if workflowName == "" {
 			return errors.New("workflow name cannot be empty")
 		}
 		if opts.RepoOverride != "" {
-			if err := validateRemoteWorkflow(workflowName, opts.RepoOverride, opts.Verbose); err != nil {
+			if err := validateRemoteWorkflow(ctx, workflowName, opts.RepoOverride, opts.Verbose); err != nil {
 				return fmt.Errorf("failed to validate remote workflow '%s': %w", workflowName, err)
 			}
 		} else {
@@ -627,7 +627,7 @@ func RunWorkflowsOnGitHub(ctx context.Context, workflowNames []string, opts RunO
 		return ctx.Err()
 	default:
 	}
-	if err := validateWorkflowsForRun(workflowNames, opts); err != nil {
+	if err := validateWorkflowsForRun(ctx, workflowNames, opts); err != nil {
 		return err
 	}
 	runAllWorkflows := func() error {

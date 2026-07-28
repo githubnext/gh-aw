@@ -3,6 +3,7 @@ package cli
 import (
 	"bufio"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -68,7 +69,7 @@ type GitHubWorkflow struct {
 }
 
 // fetchGitHubWorkflows fetches workflow information from GitHub
-func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
+func fetchGitHubWorkflows(ctx context.Context, repoOverride string, verbose bool) (map[string]*GitHubWorkflow, error) {
 	workflowsLog.Printf("Fetching GitHub workflows: repoOverride=%s", repoOverride)
 
 	// Start spinner for network operation (only if not in verbose mode)
@@ -81,7 +82,7 @@ func fetchGitHubWorkflows(repoOverride string, verbose bool) (map[string]*GitHub
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 	output, err := cmd.Output()
 
 	if err != nil {
@@ -183,7 +184,7 @@ func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose boo
 	filename := normalizeWorkflowID(workflowIdOrName)
 
 	// Get all GitHub workflows
-	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, verbose)
+	githubWorkflows, err := fetchGitHubWorkflows(context.Background(), repoOverride, verbose)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch GitHub workflows: %w", err)
 	}
@@ -205,7 +206,7 @@ func getWorkflowStatus(workflowIdOrName string, repoOverride string, verbose boo
 }
 
 // restoreWorkflowState restores a workflow to disabled state if it was previously disabled
-func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverride string, verbose bool) {
+func restoreWorkflowState(ctx context.Context, workflowIdOrName string, workflowID int64, repoOverride string, verbose bool) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Restoring workflow '%s' to disabled state...", workflowIdOrName)))
 	}
@@ -214,7 +215,7 @@ func restoreWorkflowState(workflowIdOrName string, workflowID int64, repoOverrid
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(ctx, args...)
 	if err := cmd.Run(); err != nil {
 		// Extract detailed error information including exit code and stderr
 		var exitCode int

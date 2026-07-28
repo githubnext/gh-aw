@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -72,7 +73,7 @@ func runTokensBootstrap(engine, repo string, nonInteractive bool) error {
 	tokensBootstrapLog.Printf("Collected %d required secrets from workflows", len(requirements))
 
 	// Check existing secrets in repository
-	existingSecrets, err := getExistingSecretsInRepo(repoSlug)
+	existingSecrets, err := getExistingSecretsInRepo(context.Background(), repoSlug)
 	if err != nil {
 		// If we can't check existing secrets (e.g., no gh auth), continue with empty map
 		tokensBootstrapLog.Printf("Could not check existing secrets: %v", err)

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -24,7 +25,7 @@ type TrialArtifacts struct {
 }
 
 // downloadAllArtifacts downloads and parses all available artifacts from a workflow run
-func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtifacts, error) {
+func downloadAllArtifacts(ctx context.Context, hostRepoSlug, runID string, verbose bool) (*TrialArtifacts, error) {
 	trialSupportLog.Printf("Downloading artifacts: repo=%s, runID=%s", hostRepoSlug, runID)
 	// Use the repository slug directly (should already be in user/repo format)
 	repoSlug := hostRepoSlug
@@ -37,7 +38,7 @@ func downloadAllArtifacts(hostRepoSlug, runID string, verbose bool) (*TrialArtif
 	defer os.RemoveAll(tempDir)
 
 	// Download all artifacts for this run
-	output, err := workflow.RunGHCombined("Downloading artifacts...", "run", "download", runID, "--repo", repoSlug, "--dir", tempDir)
+	output, err := workflow.RunGHCombinedContext(ctx, "Downloading artifacts...", "run", "download", runID, "--repo", repoSlug, "--dir", tempDir)
 	if err != nil {
 		// If no artifacts exist, that's okay - some workflows don't generate artifacts
 		if verbose {

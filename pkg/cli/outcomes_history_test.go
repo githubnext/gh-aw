@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -81,8 +82,8 @@ func TestBuildHistoricalObjectiveReport(t *testing.T) {
 }
 
 func TestRunOutcomesHistory_JSON(t *testing.T) {
-	oldRunGH := outcomesHistoryRunGH
-	defer func() { outcomesHistoryRunGH = oldRunGH }()
+	oldRunGH := outcomesHistoryGHRunner
+	defer func() { outcomesHistoryGHRunner = oldRunGH }()
 
 	oldStdout := os.Stdout
 	r, w, err := os.Pipe()
@@ -90,7 +91,7 @@ func TestRunOutcomesHistory_JSON(t *testing.T) {
 	os.Stdout = w
 	defer func() { os.Stdout = oldStdout }()
 
-	outcomesHistoryRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+	outcomesHistoryGHRunner = func(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
 		if len(args) >= 2 && args[0] == "issue" && args[1] == "list" {
 			return []byte(`[
 				{"number":101,"title":"Issue one","url":"https://example.com/issues/101","closedAt":"2026-06-08T00:00:00Z","labels":[{"name":"automation"}]}
@@ -107,7 +108,7 @@ func TestRunOutcomesHistory_JSON(t *testing.T) {
 	require.NoError(t, os.Setenv("OBJECTIVE_MAPPING_JSON", `{"label_to_value":{"automation":40,"testing":65},"multi_label_logic":"max"}`))
 	defer os.Unsetenv("OBJECTIVE_MAPPING_JSON")
 
-	err = RunOutcomesHistory(OutcomesHistoryConfig{RepoOverride: "owner/repo", JSONOutput: true, Limit: 10, Source: historySourceAll})
+	err = RunOutcomesHistory(context.Background(), OutcomesHistoryConfig{RepoOverride: "owner/repo", JSONOutput: true, Limit: 10, Source: historySourceAll})
 	require.NoError(t, err)
 	require.NoError(t, w.Close())
 
@@ -123,10 +124,10 @@ func TestRunOutcomesHistory_JSON(t *testing.T) {
 }
 
 func TestRunOutcomesHistory_PrettyOutput(t *testing.T) {
-	oldRunGH := outcomesHistoryRunGH
-	defer func() { outcomesHistoryRunGH = oldRunGH }()
+	oldRunGH := outcomesHistoryGHRunner
+	defer func() { outcomesHistoryGHRunner = oldRunGH }()
 
-	outcomesHistoryRunGH = func(spinnerMessage string, args ...string) ([]byte, error) {
+	outcomesHistoryGHRunner = func(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
 		if len(args) >= 2 && args[0] == "issue" && args[1] == "list" {
 			return []byte(`[
 				{"number":101,"title":"Automation issue","url":"https://example.com/issues/101","closedAt":"2026-06-08T00:00:00Z","labels":[{"name":"automation"}]}
@@ -144,7 +145,7 @@ func TestRunOutcomesHistory_PrettyOutput(t *testing.T) {
 	t.Cleanup(func() { os.Unsetenv("OBJECTIVE_MAPPING_JSON") })
 
 	stderr := testutil.CaptureStderr(t, func() {
-		err := RunOutcomesHistory(OutcomesHistoryConfig{RepoOverride: "owner/repo", JSONOutput: false, Limit: 10, Source: historySourceAll})
+		err := RunOutcomesHistory(context.Background(), OutcomesHistoryConfig{RepoOverride: "owner/repo", JSONOutput: false, Limit: 10, Source: historySourceAll})
 		require.NoError(t, err)
 	})
 

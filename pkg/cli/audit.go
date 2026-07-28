@@ -369,7 +369,7 @@ func AuditWorkflowRun(ctx context.Context, runID int64, opts AuditOptions) error
 	}
 	announceAuditRun(cfg)
 	if cfg.jobID > 0 {
-		return auditJobRun(cfg.jobOptions())
+		return auditJobRun(ctx, cfg.jobOptions())
 	}
 	if done, err := renderCachedAuditIfAvailable(ctx, cfg); done {
 		return err

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -45,7 +46,7 @@ func GetWorkflowStatuses(pattern string, ref string, labelFilter string, repoOve
 
 	// Get GitHub workflows data
 	statusLog.Print("Fetching GitHub workflow status")
-	githubWorkflows, err := fetchGitHubWorkflows(repoOverride, false)
+	githubWorkflows, err := fetchGitHubWorkflows(context.Background(), repoOverride, false)
 	if err != nil {
 		statusLog.Printf("Failed to fetch GitHub workflows: %v", err)
 		githubWorkflows = make(map[string]*GitHubWorkflow)
@@ -496,7 +497,7 @@ func fetchLatestRunsByRef(ref string, repoOverride string, verbose bool) (map[st
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(context.Background(), args...)
 	output, err := cmd.Output()
 
 	if err != nil {

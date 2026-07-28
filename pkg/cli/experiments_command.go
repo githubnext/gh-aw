@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -389,7 +390,7 @@ func loadRemoteExperimentConfigs(repoOverride, experimentName string) experiment
 			"--jq", ".content",
 			"--repo", repoOverride,
 		}
-		cmd := workflow.ExecGH(args...)
+		cmd := workflow.ExecGHContext(context.Background(), args...)
 		out, err := cmd.Output()
 		if err != nil {
 			continue
@@ -441,7 +442,7 @@ func findRemoteWorkflowFilenameForExperiment(repoOverride, experimentName string
 		"--jq", `[.[] | select(.name | endswith(".md")) | .name]`,
 		"--repo", repoOverride,
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(context.Background(), args...)
 	out, err := cmd.Output()
 	if err != nil {
 		experimentsLog.Printf("Failed to list remote workflow files from %s: %v", repoOverride, err)
@@ -565,7 +566,7 @@ func fetchRemoteExperiments(repoOverride string) ([]ExperimentInfo, error) {
 		"--jq", `[.[] | select(.name | startswith("` + experimentsBranchPrefix + `")) | .name]`,
 		"--repo", repoOverride,
 	}
-	cmd := workflow.ExecGH(args...)
+	cmd := workflow.ExecGHContext(context.Background(), args...)
 	output, err := cmd.Output()
 	if err != nil {
 		var exitErr *exec.ExitError
@@ -618,7 +619,7 @@ func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (
 		"--jq", ".name",
 		"--repo", repoOverride,
 	}
-	checkCmd := workflow.ExecGH(checkArgs...)
+	checkCmd := workflow.ExecGHContext(context.Background(), checkArgs...)
 	if _, err := checkCmd.Output(); err != nil {
 		var exitErr *exec.ExitError
 		if errors.As(err, &exitErr) {

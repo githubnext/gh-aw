@@ -110,7 +110,7 @@ func fetchWorkflowsWithBackoff(ctx context.Context, ids []string, repoOverride s
 	var lastErr error
 
 	for attempt := 1; attempt <= forecastRateLimitMaxAttempts; attempt++ {
-		githubWorkflows, err := forecastFetchGitHubWorkflows(repoOverride, verbose)
+		githubWorkflows, err := forecastFetchGitHubWorkflows(ctx, repoOverride, verbose)
 		if err == nil {
 			return githubWorkflows, nil
 		}

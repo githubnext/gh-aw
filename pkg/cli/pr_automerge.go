@@ -37,7 +37,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 	}
 
 	// List open PRs with creation time information
-	output, err := workflow.RunGH("Listing pull requests...", "pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable,createdAt,updatedAt")
+	output, err := workflow.RunGHContext(context.Background(), "Listing pull requests...", "pr", "list", "--repo", repoSlug, "--json", "number,title,isDraft,mergeable,createdAt,updatedAt")
 	if err != nil {
 		prAutomergeLog.Printf("Failed to list pull requests: %v", err)
 		return fmt.Errorf("failed to list pull requests: %w", err)
@@ -85,7 +85,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 		// Convert from draft to non-draft if necessary
 		if pr.IsDraft {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Converting PR #%d from draft to ready for review", pr.Number)))
-			if output, err := workflow.RunGHCombined("Converting draft to ready...", "pr", "ready", strconv.Itoa(pr.Number), "--repo", repoSlug); err != nil {
+			if output, err := workflow.RunGHCombinedContext(context.Background(), "Converting draft to ready...", "pr", "ready", strconv.Itoa(pr.Number), "--repo", repoSlug); err != nil {
 				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to convert PR #%d from draft: %v (output: %s)", pr.Number, err, string(output))))
 				continue
 			}
@@ -99,7 +99,7 @@ func AutoMergePullRequestsCreatedAfter(repoSlug string, createdAfter time.Time, 
 
 		// Auto-merge the PR
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Auto-merging PR #%d", pr.Number)))
-		if output, err := workflow.RunGHCombined("Auto-merging pull request...", "pr", "merge", strconv.Itoa(pr.Number), "--repo", repoSlug, "--auto", "--squash"); err != nil {
+		if output, err := workflow.RunGHCombinedContext(context.Background(), "Auto-merging pull request...", "pr", "merge", strconv.Itoa(pr.Number), "--repo", repoSlug, "--auto", "--squash"); err != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to auto-merge PR #%d: %v (output: %s)", pr.Number, err, string(output))))
 			continue
 		}

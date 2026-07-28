@@ -96,7 +96,7 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		}
 		if ref == "" {
 			ref = "main"
-			if defaultBranch, err := getRepositoryPackageDefaultBranch(repoSpec.RepoSlug, host); err == nil {
+			if defaultBranch, err := getRepositoryPackageDefaultBranch(ctx, repoSpec.RepoSlug, host); err == nil {
 				ref = defaultBranch
 			} else {
 				addPackageManifestLog.Printf("failed to resolve default branch for %s (host=%q), falling back to %q: %v", repoSpec.RepoSlug, host, ref, err)
@@ -930,7 +930,7 @@ func isRepositoryPackageRemoteNotFound(err error) bool {
 	return strings.Contains(errText, "404") || strings.Contains(errText, "not found")
 }
 
-func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error) {
+func resolveRepositoryPackageDefaultBranch(ctx context.Context, repoSlug, host string) (string, error) {
 	args := []string{"api", "/repos/" + repoSlug, "--jq", ".default_branch"}
 	var output []byte
 	var err error
@@ -940,7 +940,7 @@ func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error
 			return "", err
 		}
 	} else {
-		output, err = workflow.RunGH("Fetching repo info...", args...)
+		output, err = workflow.RunGHContext(ctx, "Fetching repo info...", args...)
 		if err != nil {
 			return "", err
 		}

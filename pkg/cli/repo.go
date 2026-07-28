@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -17,12 +18,12 @@ var currentRepoSlugCache syncutil.OnceLoader[string]
 
 // getCurrentRepoSlugUncached gets the current repository slug (owner/repo) using gh CLI (uncached)
 // Falls back to git remote parsing if gh CLI is not available
-func getCurrentRepoSlugUncached() (string, error) {
+func getCurrentRepoSlugUncached(ctx context.Context) (string, error) {
 	repoLog.Print("Fetching current repository slug")
 
 	// Try gh CLI first (most reliable)
 	repoLog.Print("Attempting to get repository slug via gh CLI")
-	output, err := workflow.RunGH("Fetching repository info...", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
+	output, err := workflow.RunGHContext(ctx, "Fetching repository info...", "repo", "view", "--json", "owner,name", "--jq", ".owner.login + \"/\" + .name")
 	if err == nil {
 		repoSlug := strings.TrimSpace(string(output))
 		if repoSlug != "" {
@@ -68,7 +69,7 @@ func getCurrentRepoSlugUncached() (string, error) {
 // GetCurrentRepoSlug gets the current repository slug with caching.
 // This is the recommended function to use for repository access across the codebase.
 func GetCurrentRepoSlug() (string, error) {
-	result, err := currentRepoSlugCache.Get(getCurrentRepoSlugUncached)
+	result, err := currentRepoSlugCache.Get(func() (string, error) { return getCurrentRepoSlugUncached(context.Background()) })
 
 	if err != nil {
 		return "", err

@@ -18,7 +18,7 @@ import (
 )
 
 var projectLog = logger.New("cli:project")
-var projectCommandRunGH = workflow.RunGH
+var projectCommandGHRunner = workflow.RunGHContext
 
 // ProjectConfig holds configuration for creating a GitHub Project
 type ProjectConfig struct {
@@ -213,7 +213,7 @@ func RunProjectNew(ctx context.Context, config ProjectConfig) error {
 func getCurrentUser(ctx context.Context) (string, error) {
 	projectLog.Print("Getting current user")
 
-	output, err := workflow.RunGH("Fetching user info...", "api", "user", "--jq", ".login")
+	output, err := workflow.RunGHContext(ctx, "Fetching user info...", "api", "user", "--jq", ".login")
 	if err != nil {
 		return "", fmt.Errorf("failed to get current user: %w", err)
 	}
@@ -238,7 +238,7 @@ func validateOwner(ctx context.Context, ownerType, owner string, verbose bool) e
 		query = `query($login: String!) { user(login: $login) { id login } }`
 	}
 
-	_, err := projectCommandRunGH("Validating owner...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner)
+	_, err := projectCommandGHRunner(ctx, "Validating owner...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner)
 	if err != nil {
 		if ownerType == "org" {
 			return fmt.Errorf("organization '%s' not found or not accessible", owner)
@@ -273,7 +273,7 @@ func getOwnerNodeId(ctx context.Context, ownerType, owner string, verbose bool) 
 		jqPath = ".data.user.id"
 	}
 
-	output, err := projectCommandRunGH("Getting owner ID...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner, "--jq", jqPath)
+	output, err := projectCommandGHRunner(ctx, "Getting owner ID...", "api", "graphql", "-f", "query="+query, "-f", "login="+owner, "--jq", jqPath)
 	if err != nil {
 		return "", fmt.Errorf("failed to get owner node ID: %w", err)
 	}
@@ -511,7 +511,8 @@ func createView(ctx context.Context, info projectURLInfo, name, layout string, v
 		path = fmt.Sprintf("/users/%s/projectsV2/%d/views", info.ownerLogin, info.projectNumber)
 	}
 
-	_, err := workflow.RunGH(
+	_, err := workflow.RunGHContext(
+		ctx,
 		fmt.Sprintf("Creating view %s...", name),
 		"api",
 		"--method", "POST",
@@ -579,7 +580,7 @@ func createField(ctx context.Context, projectNumber int, owner, name, dataType s
 		}
 	}
 
-	_, err := workflow.RunGH(fmt.Sprintf("Creating field %s...", name), args...)
+	_, err := workflow.RunGHContext(ctx, fmt.Sprintf("Creating field %s...", name), args...)
 	if err != nil {
 		return fmt.Errorf("failed to create field: %w", err)
 	}
@@ -685,14 +686,14 @@ func getStatusField(ctx context.Context, info projectURLInfo, verbose bool) (sta
 	}
 
 	// Get project ID
-	projectIDOutput, err := projectCommandRunGH("Getting project info...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqProjectID)
+	projectIDOutput, err := projectCommandGHRunner(ctx, "Getting project info...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqProjectID)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project ID: %w", err)
 	}
 	projectID := strings.TrimSpace(string(projectIDOutput))
 
 	// Get fields
-	fieldsOutput, err := projectCommandRunGH("Getting project fields...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqFields)
+	fieldsOutput, err := projectCommandGHRunner(ctx, "Getting project fields...", "api", "graphql", "-f", "query="+query, "-f", "login="+info.ownerLogin, "-F", projectNumberArg, "--jq", jqFields)
 	if err != nil {
 		return statusFieldInfo{}, fmt.Errorf("failed to get project fields: %w", err)
 	}
@@ -839,7 +840,7 @@ func updateSingleSelectFieldOptions(ctx context.Context, fieldID string, options
 	}
 
 	// Use ExecGH to create command and pipe input
-	cmd := workflow.ExecGH("api", "graphql", "--input", "-")
+	cmd := workflow.ExecGHContext(ctx, "api", "graphql", "--input", "-")
 	cmd.Stdin = bytes.NewReader(requestJSON)
 
 	output, err := cmd.CombinedOutput()

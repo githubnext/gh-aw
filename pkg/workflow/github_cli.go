@@ -100,10 +100,10 @@ func filteredGHCLIEnv(ghToken, githubToken, ghHost string) []string {
 //
 // Usage:
 //
-//	cmd := ExecGH("api", "/user")
+//	cmd := ExecGH(ctx, "api", "/user")
 //	output, err := cmd.Output()
-func ExecGH(args ...string) *exec.Cmd {
-	return setupGHCommand(context.Background(), args...)
+func ExecGH(ctx context.Context, args ...string) *exec.Cmd {
+	return ExecGHContext(ctx, args...)
 }
 
 // ExecGHContext wraps gh CLI calls with context support and ensures proper token configuration.
@@ -186,9 +186,9 @@ func RunGHInputContext(ctx context.Context, spinnerMessage string, input io.Read
 //
 // Usage:
 //
-//	output, err := RunGH("Fetching user info...", "api", "/user")
-func RunGH(spinnerMessage string, args ...string) ([]byte, error) {
-	return RunGHContext(context.Background(), spinnerMessage, args...)
+//	output, err := RunGH(ctx, "Fetching user info...", "api", "/user")
+func RunGH(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
+	return RunGHContext(ctx, spinnerMessage, args...)
 }
 
 // RunGHContext executes a gh CLI command with context support (for cancellation/timeout), a
@@ -208,9 +208,9 @@ func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([
 //
 // Usage:
 //
-//	output, err := RunGHCombined("Creating repository...", "repo", "create", "myrepo")
-func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
-	return RunGHCombinedContext(context.Background(), spinnerMessage, args...)
+//	output, err := RunGHCombined(ctx, "Creating repository...", "repo", "create", "myrepo")
+func RunGHCombined(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
+	return RunGHCombinedContext(ctx, spinnerMessage, args...)
 }
 
 // RunGHCombinedContext executes a gh CLI command with context support (for cancellation/timeout),
@@ -233,7 +233,7 @@ func RunGHCombinedContext(ctx context.Context, spinnerMessage string, args ...st
 //
 //	output, err := RunGHWithHost("Fetching repo info...", "myorg.ghe.com", "repo", "view", "--json", "owner,name")
 func RunGHWithHost(spinnerMessage string, host string, args ...string) ([]byte, error) {
-	cmd := ExecGH(args...)
+	cmd := ExecGH(context.Background(), args...)
 	SetGHHostEnv(cmd, host)
 
 	if tty.IsStderrTerminal() {

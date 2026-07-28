@@ -407,7 +407,7 @@ Also returns pr_number, head_sha, check_runs, statuses, and total_count.`,
 
 		mcpLog.Printf("Executing checks tool: pr_number=%s, repo=%s", args.PRNumber, args.Repo)
 
-		result, err := FetchChecksResult(args.Repo, args.PRNumber)
+		result, err := FetchChecksResult(ctx, args.Repo, args.PRNumber)
 		if err != nil {
 			return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to fetch checks", map[string]any{"error": err.Error()})
 		}

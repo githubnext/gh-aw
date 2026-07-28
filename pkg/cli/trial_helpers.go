@@ -84,7 +84,7 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 		}
 
 		// Run the workflow and wait for completion (with trigger context if provided)
-		runID, err := triggerWorkflowRun(hostRepoSlug, parsedSpec.WorkflowName, opts.TriggerContext, opts.Verbose)
+		runID, err := triggerWorkflowRun(ctx, hostRepoSlug, parsedSpec.WorkflowName, opts.TriggerContext, opts.Verbose)
 		if err != nil {
 			return fmt.Errorf("failed to trigger workflow run for '%s': %w", parsedSpec.WorkflowName, err)
 		}
@@ -114,7 +114,7 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 		}
 
 		// Download and process all artifacts
-		artifacts, err := downloadAllArtifacts(hostRepoSlug, runID, opts.Verbose)
+		artifacts, err := downloadAllArtifacts(ctx, hostRepoSlug, runID, opts.Verbose)
 		if err != nil {
 			return fmt.Errorf("failed to download artifacts for '%s': %w", parsedSpec.WorkflowName, err)
 		}
@@ -189,7 +189,7 @@ func executeTrialRun(ctx context.Context, parsedSpecs []*WorkflowSpec, hostRepoS
 	return nil
 }
 
-func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
+func triggerWorkflowRun(ctx context.Context, repoSlug, workflowName string, triggerContext string, verbose bool) (string, error) {
 	trialLog.Printf("Triggering workflow run: workflow=%s, repo=%s, hasTriggerContext=%v", workflowName, repoSlug, triggerContext != "")
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Triggering workflow run for: "+workflowName))
@@ -214,14 +214,14 @@ func triggerWorkflowRun(repoSlug, workflowName string, triggerContext string, ve
 		}
 	}
 
-	output, err := workflow.RunGHCombined("Triggering workflow...", args...)
+	output, err := workflow.RunGHCombinedContext(ctx, "Triggering workflow...", args...)
 
 	if err != nil {
 		return "", fmt.Errorf("failed to trigger workflow run: %w (output: %s)", err, string(output))
 	}
 
 	// Get the most recent run ID for this workflow using shared retry logic
-	runInfo, err := getLatestWorkflowRunWithRetry(lockFileName, repoSlug, verbose)
+	runInfo, err := getLatestWorkflowRunWithRetry(ctx, lockFileName, repoSlug, verbose)
 	if err != nil {
 		return "", fmt.Errorf("failed to get workflow run ID: %w", err)
 	}

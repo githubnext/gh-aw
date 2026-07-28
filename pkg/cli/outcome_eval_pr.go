@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -25,7 +26,7 @@ func findPRByTimestamp(repo string, timestamp string) int {
 	until := ts.Add(5 * time.Minute).Format("2006-01-02T15:04:05Z")
 
 	// Use gh CLI to search for PRs
-	output, err := workflow.RunGH("Searching for PR...",
+	output, err := workflow.RunGHContext(context.Background(), "Searching for PR...",
 		"pr", "list",
 		"--repo", repo,
 		"--state", "all",

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -27,11 +28,11 @@ type SecretInfo struct {
 }
 
 // checkSecretExists checks if a secret exists in the repository using GitHub CLI
-func checkSecretExists(secretName string) (bool, error) {
+func checkSecretExists(ctx context.Context, secretName string) (bool, error) {
 	secretsLog.Printf("Checking if secret exists: %s", secretName)
 
 	// Use gh CLI to list repository secrets
-	output, err := workflow.RunGH("Listing secrets...", "secret", "list", "--json", "name")
+	output, err := workflow.RunGHContext(ctx, "Listing secrets...", "secret", "list", "--json", "name")
 	if err != nil {
 		// Check if it's a 403 error by examining the error
 		var exitError *exec.ExitError
@@ -112,7 +113,7 @@ func checkSecretsAvailability(secrets []SecretInfo, useActionsSecrets bool) []Se
 
 		// If --check-secrets flag is enabled, try to fetch from GitHub Actions
 		if useActionsSecrets {
-			exists, err := checkSecretExists(secrets[i].Name)
+			exists, err := checkSecretExists(context.Background(), secrets[i].Name)
 			if err != nil {
 				// If we get a 403 error, skip silently (no permission to check)
 				if errorutil.IsForbiddenError(err) {

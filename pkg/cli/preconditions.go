@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -15,10 +16,10 @@ import (
 var preconditionsLog = logger.New("cli:preconditions")
 
 // checkGHAuthStatusShared verifies the user is logged in to GitHub CLI
-func checkGHAuthStatusShared(verbose bool) error {
+func checkGHAuthStatusShared(ctx context.Context, verbose bool) error {
 	preconditionsLog.Print("Checking GitHub CLI authentication status")
 
-	output, err := workflow.RunGHCombined("Checking GitHub authentication...", "auth", "status")
+	output, err := workflow.RunGHCombinedContext(ctx, "Checking GitHub authentication...", "auth", "status")
 
 	if err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatErrorMessage("You are not logged in to GitHub CLI."))
@@ -40,11 +41,11 @@ func checkGHAuthStatusShared(verbose bool) error {
 
 // checkActionsEnabledShared verifies that GitHub Actions is enabled for the repository
 // and that the allowed actions settings permit running agentic workflows
-func checkActionsEnabledShared(repoSlug string, verbose bool) error {
+func checkActionsEnabledShared(ctx context.Context, repoSlug string, verbose bool) error {
 	preconditionsLog.Print("Checking if GitHub Actions is enabled")
 
 	// Use gh api to check Actions permissions - get the full JSON response
-	output, err := workflow.RunGH("Checking GitHub Actions status...", "api", fmt.Sprintf("/repos/%s/actions/permissions", repoSlug))
+	output, err := workflow.RunGHContext(ctx, "Checking GitHub Actions status...", "api", fmt.Sprintf("/repos/%s/actions/permissions", repoSlug))
 	if err != nil {
 		preconditionsLog.Printf("Failed to check Actions status: %v", err)
 		// If we can't check, warn but continue - actual operations will fail if Actions is disabled
@@ -95,7 +96,7 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 		return errors.New("repository action permissions prevent agentic workflows from running")
 	case "selected":
 		// Selected actions - need to check if GitHub-owned actions are allowed
-		if err := checkSelectedActionsPermissions(permissions.SelectedActionsURL, verbose); err != nil {
+		if err := checkSelectedActionsPermissions(ctx, permissions.SelectedActionsURL, verbose); err != nil {
 			return err
 		}
 	default:
@@ -108,7 +109,7 @@ func checkActionsEnabledShared(repoSlug string, verbose bool) error {
 }
 
 // checkSelectedActionsPermissions checks if GitHub-owned actions are allowed when using selected actions
-func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool) error {
+func checkSelectedActionsPermissions(ctx context.Context, selectedActionsURL string, verbose bool) error {
 	if selectedActionsURL == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify selected actions settings. Proceeding anyway..."))
 		return nil
@@ -116,7 +117,7 @@ func checkSelectedActionsPermissions(selectedActionsURL string, verbose bool) er
 
 	preconditionsLog.Printf("Checking selected actions permissions at: %s", selectedActionsURL)
 
-	output, err := workflow.RunGH("Checking selected actions...", "api", selectedActionsURL)
+	output, err := workflow.RunGHContext(ctx, "Checking selected actions...", "api", selectedActionsURL)
 	if err != nil {
 		preconditionsLog.Printf("Failed to check selected actions: %v", err)
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not verify selected actions settings. Proceeding anyway..."))
@@ -193,11 +194,11 @@ func checkUserPermissionsShared(repoSlug string, verbose bool) (bool, error) {
 }
 
 // checkRepoVisibilityShared checks if the repository is public or private
-func checkRepoVisibilityShared(repoSlug string) bool {
+func checkRepoVisibilityShared(ctx context.Context, repoSlug string) bool {
 	preconditionsLog.Print("Checking repository visibility")
 
 	// Use gh api to check repository visibility
-	output, err := workflow.RunGH("Checking repository visibility...", "api", "/repos/"+repoSlug, "--jq", ".visibility")
+	output, err := workflow.RunGHContext(ctx, "Checking repository visibility...", "api", "/repos/"+repoSlug, "--jq", ".visibility")
 	if err != nil {
 		preconditionsLog.Printf("Could not check repository visibility: %v", err)
 		// Default to public if we can't determine

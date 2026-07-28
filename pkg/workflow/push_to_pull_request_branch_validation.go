@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -39,7 +40,7 @@ func (c *Compiler) computeRepositoryVisibility() string {
 	}
 
 	pushToPullRequestBranchValidationLog.Printf("Checking repository visibility for: %s", slug)
-	visibility, err := fetchRepositoryVisibility(slug)
+	visibility, err := fetchRepositoryVisibility(c.ctx, slug)
 	if err != nil {
 		pushToPullRequestBranchValidationLog.Printf("Could not determine repository visibility: %v", err)
 		return ""
@@ -55,8 +56,8 @@ func (c *Compiler) computeIsPublicRepo() bool {
 	return isPublic
 }
 
-func getRepositoryVisibilityForSlug(slug string) (string, error) {
-	output, err := RunGH("Checking repository visibility...", "api", "/repos/"+slug)
+func getRepositoryVisibilityForSlug(ctx context.Context, slug string) (string, error) {
+	output, err := RunGHContext(ctx, "Checking repository visibility...", "api", "/repos/"+slug)
 	if err != nil {
 		return "", err
 	}

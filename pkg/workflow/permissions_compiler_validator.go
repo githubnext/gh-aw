@@ -196,7 +196,7 @@ func (c *Compiler) repositoryOwnerIsIndividualUser() bool {
 	ownerType, cached := c.ownerTypeCache[owner]
 	if !cached {
 		workflowLog.Printf("Checking owner type for: %s", owner)
-		output, err := RunGH("Checking repository owner type...", "api", "/users/"+owner, "--jq", ".type")
+		output, err := RunGHContext(c.ctx, "Checking repository owner type...", "api", "/users/"+owner, "--jq", ".type")
 		if err != nil {
 			workflowLog.Printf("Could not determine owner type for %q: %v", owner, err)
 			// Cache the empty string so subsequent calls for the same owner also return false

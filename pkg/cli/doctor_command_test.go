@@ -239,7 +239,7 @@ func TestRunSetupAuthAutoDetectsDefaultGHHost(t *testing.T) {
 
 	runtime := setupRepositoryRuntime{
 		checkAuth: func(context.Context) error {
-			assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+			assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGHContext(context.Background(), "auth", "status")))
 			return nil
 		},
 	}
@@ -267,7 +267,7 @@ func TestRunSetupRepositoryCheckAutoDetectsDefaultGHHost(t *testing.T) {
 
 	runtime := setupRepositoryRuntime{
 		checkAuth: func(context.Context) error {
-			assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+			assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGHContext(context.Background(), "auth", "status")))
 			return nil
 		},
 		repoExists: func(context.Context, string) (bool, error) { return true, nil },
@@ -285,5 +285,5 @@ func TestRunSetupRepositoryCheckAutoDetectsDefaultGHHost(t *testing.T) {
 	}, runtime)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "git checkout")
-	assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+	assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGHContext(context.Background(), "auth", "status")))
 }

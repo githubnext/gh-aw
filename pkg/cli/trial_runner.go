@@ -151,7 +151,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 	// When no override is specified, the workflow will use its frontmatter engine and handle secrets during compilation
 	if opts.EngineOverride != "" {
 		// Check what secrets already exist in the repository
-		existingSecrets, err := getExistingSecretsInRepo(hostRepoSlug)
+		existingSecrets, err := getExistingSecretsInRepo(ctx, hostRepoSlug)
 		if err != nil {
 			trialLog.Printf("Warning: could not check existing secrets: %v", err)
 			existingSecrets = make(map[string]struct {
@@ -229,7 +229,7 @@ func RunWorkflowTrials(ctx context.Context, workflowSpecs []string, opts TrialOp
 		}()
 
 		// Disable workflows (pass empty string for repoSlug since we're working locally)
-		disableErr := DisableAllWorkflowsExcept("", workflowsToKeep, opts.Verbose)
+		disableErr := DisableAllWorkflowsExcept(ctx, "", workflowsToKeep, opts.Verbose)
 		// Check for disable errors after changing back
 		if disableErr != nil {
 			// Log warning but don't fail the trial - workflow disabling is not critical

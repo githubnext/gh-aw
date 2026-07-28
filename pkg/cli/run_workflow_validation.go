@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -297,7 +298,7 @@ func validateWorkflowInputs(markdownPath string, providedInputs []string) error 
 //   - The workflow can be triggered via GitHub Actions API
 //
 // This follows the principle that domain-specific validation belongs in domain files.
-func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bool) error {
+func validateRemoteWorkflow(ctx context.Context, workflowName string, repoOverride string, verbose bool) error {
 	if repoOverride == "" {
 		return errors.New("repository must be specified for remote workflow validation")
 	}
@@ -313,7 +314,7 @@ func validateRemoteWorkflow(workflowName string, repoOverride string, verbose bo
 	}
 
 	// Use gh CLI to list workflows in the target repository
-	output, err := workflow.RunGH("Listing workflows...", "workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
+	output, err := workflow.RunGHContext(ctx, "Listing workflows...", "workflow", "list", "--repo", repoOverride, "--json", "name,path,state")
 	if err != nil {
 		var exitError *exec.ExitError
 		if errors.As(err, &exitError) {

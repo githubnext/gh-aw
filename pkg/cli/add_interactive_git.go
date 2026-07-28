@@ -145,7 +145,7 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 				newTitle = strings.TrimSpace(newTitle)
 				if newTitle == "" {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("PR title cannot be empty, keeping current title"))
-				} else if editErr := editPRTitle(result.PRNumber, newTitle, c.RepoOverride); editErr != nil {
+				} else if editErr := editPRTitle(c.Ctx, result.PRNumber, newTitle, c.RepoOverride); editErr != nil {
 					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update PR title: %v", editErr)))
 				} else {
 					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR title updated to: "+newTitle))
@@ -204,7 +204,7 @@ func (c *AddInteractiveConfig) updateLocalBranch() error {
 	addInteractiveLog.Print("Updating local branch with merged changes")
 
 	// Get the default branch name using gh
-	output, err := workflow.RunGHCombined("Getting default branch...", "repo", "view", "--repo", c.RepoOverride, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name")
+	output, err := workflow.RunGHCombinedContext(c.Ctx, "Getting default branch...", "repo", "view", "--repo", c.RepoOverride, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name")
 	defaultBranch := ""
 	if err == nil {
 		defaultBranch = strings.TrimSpace(string(output))
@@ -296,7 +296,7 @@ const squashMergeNotAllowedErr = "squash merges are not allowed"
 // falling back to a merge commit if squash merges are not allowed on the repository.
 func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
 	prArg := strconv.Itoa(prNumber)
-	squashOutput, squashErr := workflow.RunGHCombined("Merging pull request (squash)...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--squash")
+	squashOutput, squashErr := workflow.RunGHCombinedContext(c.Ctx, "Merging pull request (squash)...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--squash")
 	if squashErr == nil {
 		return nil
 	}
@@ -307,7 +307,7 @@ func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
 	combinedText := strings.ToLower(string(squashOutput) + squashErr.Error())
 	if strings.Contains(combinedText, squashMergeNotAllowedErr) {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Squash merges are not allowed on this repository, retrying with merge commit"))
-		mergeOutput, mergeErr := workflow.RunGHCombined("Merging pull request...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--merge")
+		mergeOutput, mergeErr := workflow.RunGHCombinedContext(c.Ctx, "Merging pull request...", "pr", "merge", prArg, "--repo", c.RepoOverride, "--merge")
 		if mergeErr != nil {
 			return fmt.Errorf("merge failed: %w (output: %s)", mergeErr, string(mergeOutput))
 		}
@@ -318,12 +318,12 @@ func (c *AddInteractiveConfig) mergePullRequest(prNumber int) error {
 }
 
 // editPRTitle updates the title of the specified PR via the gh CLI.
-func editPRTitle(prNumber int, newTitle, repoOverride string) error {
+func editPRTitle(ctx context.Context, prNumber int, newTitle, repoOverride string) error {
 	args := []string{"pr", "edit", strconv.Itoa(prNumber), "--title", newTitle}
 	if repoOverride != "" {
 		args = append(args, "--repo", repoOverride)
 	}
-	output, err := workflow.RunGHCombined("Updating PR title...", args...)
+	output, err := workflow.RunGHCombinedContext(ctx, "Updating PR title...", args...)
 	if err != nil {
 		return fmt.Errorf("failed to update PR title: %w (output: %s)", err, string(output))
 	}

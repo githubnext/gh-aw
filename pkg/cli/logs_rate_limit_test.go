@@ -146,7 +146,7 @@ func TestSleepWithContextAlreadyCanceled(t *testing.T) {
 
 func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
 	oldFetchRateLimitFunc := fetchRateLimitFunc
-	fetchRateLimitFunc = func() (rateLimitResource, error) {
+	fetchRateLimitFunc = func(_ context.Context) (rateLimitResource, error) {
 		return rateLimitResource{
 			Limit:     5000,
 			Remaining: 0,
@@ -169,7 +169,7 @@ func TestCheckAndWaitForRateLimitContextCancelled(t *testing.T) {
 func TestCheckAndWaitForRateLimitFetchErrorAndContextDone(t *testing.T) {
 	oldFetchRateLimitFunc := fetchRateLimitFunc
 	expectedFetchErr := stderrors.New("fetch failure")
-	fetchRateLimitFunc = func() (rateLimitResource, error) {
+	fetchRateLimitFunc = func(_ context.Context) (rateLimitResource, error) {
 		return rateLimitResource{}, expectedFetchErr
 	}
 	t.Cleanup(func() { fetchRateLimitFunc = oldFetchRateLimitFunc })

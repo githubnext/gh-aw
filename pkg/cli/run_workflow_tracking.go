@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -26,7 +27,7 @@ type WorkflowRunInfo struct {
 
 // getLatestWorkflowRunWithRetry gets information about the most recent run of the specified workflow
 // with retry logic to handle timing issues when a workflow has just been triggered
-func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose bool) (*WorkflowRunInfo, error) {
+func getLatestWorkflowRunWithRetry(ctx context.Context, lockFileName string, repo string, verbose bool) (*WorkflowRunInfo, error) {
 	runWorkflowTrackingLog.Printf("Getting latest workflow run: workflow=%s, repo=%s, max_retries=6", lockFileName, repo)
 	const maxRetries = 6
 	const initialDelay = 2 * time.Second
@@ -76,9 +77,9 @@ func getLatestWorkflowRunWithRetry(lockFileName string, repo string, verbose boo
 		// Build command with optional repo parameter
 		var cmd *exec.Cmd
 		if repo != "" {
-			cmd = workflow.ExecGH("run", "list", "--repo", repo, "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
+			cmd = workflow.ExecGHContext(ctx, "run", "list", "--repo", repo, "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
 		} else {
-			cmd = workflow.ExecGH("run", "list", "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
+			cmd = workflow.ExecGHContext(ctx, "run", "list", "--workflow", lockFileName, "--limit", "1", "--json", "url,databaseId,status,conclusion,createdAt")
 		}
 
 		output, err := cmd.Output()

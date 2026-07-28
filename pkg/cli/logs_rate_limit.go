@@ -57,10 +57,10 @@ type rateLimitResource struct {
 // fetchRateLimit queries the GitHub API and returns the current core rate-limit
 // state.  It is a thin wrapper around `gh api rate_limit` so that callers do
 // not need to know about the CLI invocation details.
-func fetchRateLimit() (rateLimitResource, error) {
+func fetchRateLimit(ctx context.Context) (rateLimitResource, error) {
 	logsRateLimitLog.Print("Querying GitHub API rate limit")
 
-	output, err := workflow.RunGHCombined("Verifying API quota...", "api", "rate_limit")
+	output, err := workflow.RunGHCombinedContext(ctx, "Verifying API quota...", "api", "rate_limit")
 	if err != nil {
 		return rateLimitResource{}, fmt.Errorf("failed to query rate limit: %w", err)
 	}
@@ -120,7 +120,7 @@ func sleepWithContext(ctx context.Context, d time.Duration) error {
 // back to the static APICallCooldown sleep and returns the error so callers
 // can decide whether to surface it.
 func checkAndWaitForRateLimit(ctx context.Context, verbose bool) error {
-	rl, err := fetchRateLimitFunc()
+	rl, err := fetchRateLimitFunc(ctx)
 	if err != nil {
 		// Best-effort: fall back to static cooldown so the caller can continue.
 		logsRateLimitLog.Printf("Could not fetch rate limit, using static cooldown: %v", err)

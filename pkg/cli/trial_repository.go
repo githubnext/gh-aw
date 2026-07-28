@@ -50,7 +50,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 	}
 
 	// Check if repository already exists
-	cmd := workflow.ExecGH("repo", "view", repoSlug)
+	cmd := workflow.ExecGHContext(context.Background(), "repo", "view", repoSlug)
 	output, err := cmd.CombinedOutput()
 	repoExists := err == nil
 
@@ -74,7 +74,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 			if dryRun {
 				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("[DRY RUN] Would delete repository: "+repoSlug))
 			} else {
-				if deleteOutput, deleteErr := workflow.RunGHCombined("Deleting repository...", "repo", "delete", repoSlug, "--yes"); deleteErr != nil {
+				if deleteOutput, deleteErr := workflow.RunGHCombinedContext(context.Background(), "Deleting repository...", "repo", "delete", repoSlug, "--yes"); deleteErr != nil {
 					return fmt.Errorf("failed to force delete existing host repository %s: %w (output: %s)", repoSlug, deleteErr, string(deleteOutput))
 				}
 
@@ -119,7 +119,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 	}
 
 	// Use gh CLI to create private repo with initial README using full OWNER/REPO format
-	output, err = workflow.RunGHCombined("Creating repository...", "repo", "create", repoSlug, "--private", "--add-readme", "--description", "GitHub Agentic Workflows host repository")
+	output, err = workflow.RunGHCombinedContext(context.Background(), "Creating repository...", "repo", "create", repoSlug, "--private", "--add-readme", "--description", "GitHub Agentic Workflows host repository")
 
 	if err != nil {
 		// Check if the error is because the repository already exists
@@ -157,7 +157,7 @@ func ensureTrialRepository(repoSlug string, cloneRepoSlug string, forceDeleteHos
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Enabling discussions in repository: "+repoSlug))
 	}
 
-	if discussionsOutput, discussionsErr := workflow.RunGHCombined("Enabling discussions...", "repo", "edit", repoSlug, "--enable-discussions"); discussionsErr != nil {
+	if discussionsOutput, discussionsErr := workflow.RunGHCombinedContext(context.Background(), "Enabling discussions...", "repo", "edit", repoSlug, "--enable-discussions"); discussionsErr != nil {
 		// Non-fatal error, just warn
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to enable discussions: %v (output: %s)", discussionsErr, string(discussionsOutput))))
 	} else if verbose {
@@ -177,7 +177,7 @@ func cleanupTrialRepository(repoSlug string, verbose bool) error {
 	}
 
 	// Use gh CLI to delete the repository with proper username/repo format
-	output, err := workflow.RunGHCombined("Deleting repository...", "repo", "delete", repoSlug, "--yes")
+	output, err := workflow.RunGHCombinedContext(context.Background(), "Deleting repository...", "repo", "delete", repoSlug, "--yes")
 
 	if err != nil {
 		trialRepoLog.Printf("Failed to delete trial repository %s: %v", repoSlug, err)

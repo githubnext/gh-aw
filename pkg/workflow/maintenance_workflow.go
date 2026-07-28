@@ -91,14 +91,14 @@ func getCLICmdPrefix(actionMode ActionMode) string {
 // FetchDefaultBranch queries the GitHub API to determine the default branch of the
 // given repository slug (owner/repo). Returns "main" as a fallback when the slug is
 // empty, not in owner/repo format, or when the API call fails.
-func FetchDefaultBranch(slug string) string {
+func FetchDefaultBranch(ctx context.Context, slug string) string {
 	const fallback = "main"
 	if slug == "" || strings.Count(slug, "/") != 1 {
 		maintenanceLog.Printf("No valid repository slug, using default branch fallback: %s", fallback)
 		return fallback
 	}
 	maintenanceLog.Printf("Fetching default branch for repository: %s", slug)
-	output, err := RunGH("Fetching default branch...", "api", "/repos/"+slug, "--jq", ".default_branch")
+	output, err := RunGHContext(ctx, "Fetching default branch...", "api", "/repos/"+slug, "--jq", ".default_branch")
 	if err != nil {
 		maintenanceLog.Printf("Failed to fetch default branch for %s: %v, falling back to %s", slug, err, fallback)
 		return fallback
@@ -257,7 +257,7 @@ func GenerateMaintenanceWorkflow(ctx context.Context, opts GenerateMaintenanceWo
 
 	// Fetch the default branch for the push trigger (dev mode only)
 	// Resolved here to avoid passing it through multiple layers; empty slug falls back to "main"
-	defaultBranch := FetchDefaultBranch(repoSlug)
+	defaultBranch := FetchDefaultBranch(ctx, repoSlug)
 
 	// Generate the YAML content for the maintenance workflow
 	maintenanceLog.Printf(

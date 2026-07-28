@@ -35,7 +35,7 @@ func TestResolveRepositoryPackage(t *testing.T) {
 		getRepositoryPackageLatestRelease = originalLatestRelease
 	})
 	SetVersionInfo("v1.2.3")
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 
@@ -97,7 +97,7 @@ files:
 			assert.Equal(t, "github.com", host)
 			return "", errors.New("no releases found")
 		}
-		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 			assert.Equal(t, "owner/repo", repoSlug)
 			assert.Equal(t, "github.com", host)
 			return "master", nil
@@ -142,7 +142,7 @@ files:
 			assert.Equal(t, "github.com", host)
 			return "v1.2.3", nil
 		}
-		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 			t.Fatalf("default branch lookup should not be called when latest release is available")
 			return "", nil
 		}
@@ -187,7 +187,7 @@ files:
 			assert.Equal(t, "github.com", host)
 			return "", errors.New("release lookup failed")
 		}
-		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 			assert.Equal(t, "github/gh-aw", repoSlug)
 			assert.Equal(t, "github.com", host)
 			return "main", nil
@@ -226,7 +226,7 @@ files:
 		t.Cleanup(func() {
 			getRepositoryPackageDefaultBranch = previousDefaultBranch
 		})
-		getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+		getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 			t.Fatalf("default branch lookup should not be called when version is provided")
 			return "", nil
 		}
@@ -751,7 +751,7 @@ func TestResolveWorkflows_RepositoryPackage(t *testing.T) {
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
@@ -809,7 +809,7 @@ func TestResolveWorkflows_RepositoryPackageRejectsPrivateTrue(t *testing.T) {
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
@@ -863,7 +863,7 @@ func TestResolveWorkflows_NestedRepositoryPackage(t *testing.T) {
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
@@ -923,7 +923,7 @@ func TestResolveWorkflows_NestedRepositoryPackage_GithubWorkflowsPathIsRepoRoot(
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
@@ -982,7 +982,7 @@ func TestResolveWorkflows_NestedRepositoryPackage_AutoScan(t *testing.T) {
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
@@ -1035,7 +1035,7 @@ func TestResolveWorkflows_FallsBackToWorkflowWhenNestedManifestMissing(t *testin
 		downloadPackageFileFromGitHubForHost = originalDownload
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 
@@ -1246,7 +1246,7 @@ func TestResolveRepositoryPackage_ActionWorkflowYML(t *testing.T) {
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
 	SetVersionInfo("v1.2.3")
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
@@ -1351,7 +1351,7 @@ func TestResolveWorkflows_ActionWorkflowYML(t *testing.T) {
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {
@@ -1552,7 +1552,7 @@ func TestResolveRepositoryPackage_SkillsAndAgents(t *testing.T) {
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
 	SetVersionInfo("v1.2.3")
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 
@@ -1975,7 +1975,7 @@ func TestResolveWorkflows_SkillsAndAgents(t *testing.T) {
 		listPackageDirSubdirsForHost = originalDirSubdirs
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 
@@ -2094,7 +2094,7 @@ func bootstrapTestHelpers(t *testing.T) {
 		getRepositoryPackageDefaultBranch = originalDefaultBranch
 	})
 
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	listPackageDirFilesForHost = func(_ context.Context, owner, repo, ref, dirPath, host string) ([]string, error) {

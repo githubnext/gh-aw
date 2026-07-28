@@ -18,7 +18,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 	c.existingSecrets = make(map[string]struct{})
 
 	// Use gh api to list repository secrets
-	output, err := workflow.RunGH("Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
+	output, err := workflow.RunGHContext(c.Ctx, "Checking repository secrets...", "api", fmt.Sprintf("/repos/%s/actions/secrets", c.RepoOverride), "--jq", ".secrets[].name")
 	if err != nil {
 		addInteractiveLog.Printf("Could not fetch existing secrets: %v", err)
 		// Continue without error - we'll just assume no secrets exist
@@ -31,7 +31,7 @@ func (c *AddInteractiveConfig) checkExistingSecrets() error {
 
 	// Also check org-level secrets if the repo belongs to an organization
 	if org, _, found := strings.Cut(c.RepoOverride, "/"); found && org != "" {
-		orgOutput, orgErr := workflow.RunGH("Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--jq", ".secrets[].name")
+		orgOutput, orgErr := workflow.RunGHContext(c.Ctx, "Checking organization secrets...", "api", fmt.Sprintf("/orgs/%s/actions/secrets", org), "--jq", ".secrets[].name")
 		if orgErr != nil {
 			addInteractiveLog.Printf("Could not fetch org secrets (this is expected for personal repos or if org access is restricted): %v", orgErr)
 		} else {

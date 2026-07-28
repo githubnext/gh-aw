@@ -20,8 +20,8 @@ func setupGHCommand(ctx context.Context, args ...string) *exec.Cmd {
 	return ghUnavailableCommand(ctx)
 }
 
-func ExecGH(args ...string) *exec.Cmd {
-	return ghUnavailableCommand(context.Background())
+func ExecGH(ctx context.Context, args ...string) *exec.Cmd {
+	return ExecGHContext(ctx, args...)
 }
 
 func ExecGHContext(ctx context.Context, args ...string) *exec.Cmd {
@@ -32,16 +32,16 @@ func ExecGHWithOutput(args ...string) (stdout, stderr bytes.Buffer, err error) {
 	return stdout, stderr, errors.New("gh CLI not available in Wasm")
 }
 
-func RunGH(spinnerMessage string, args ...string) ([]byte, error) {
-	return nil, errors.New("gh CLI not available in Wasm")
+func RunGH(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
+	return RunGHContext(ctx, spinnerMessage, args...)
 }
 
 func RunGHContext(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
 	return nil, errors.New("gh CLI not available in Wasm")
 }
 
-func RunGHCombined(spinnerMessage string, args ...string) ([]byte, error) {
-	return nil, errors.New("gh CLI not available in Wasm")
+func RunGHCombined(ctx context.Context, spinnerMessage string, args ...string) ([]byte, error) {
+	return RunGHCombinedContext(ctx, spinnerMessage, args...)
 }
 
 // RunGHInputContext is a no-op stub for Wasm builds.

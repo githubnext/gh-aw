@@ -2,6 +2,7 @@ package cli
 
 import (
 	"cmp"
+	"context"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -25,7 +26,7 @@ const (
 	historySourceAll    = "all"
 )
 
-var outcomesHistoryRunGH = workflow.RunGH
+var outcomesHistoryGHRunner = workflow.RunGHContext
 
 type OutcomesHistoryConfig struct {
 	RepoOverride string
@@ -97,7 +98,7 @@ has been closing or merging under the current objective mapping.`,
 			limit, _ := cmd.Flags().GetInt("limit")
 			source, _ := cmd.Flags().GetString("source")
 
-			return RunOutcomesHistory(OutcomesHistoryConfig{
+			return RunOutcomesHistory(cmd.Context(), OutcomesHistoryConfig{
 				RepoOverride: repoOverride,
 				JSONOutput:   jsonOutput,
 				Limit:        limit,
@@ -114,7 +115,7 @@ has been closing or merging under the current objective mapping.`,
 	return cmd
 }
 
-func RunOutcomesHistory(config OutcomesHistoryConfig) error {
+func RunOutcomesHistory(ctx context.Context, config OutcomesHistoryConfig) error {
 	repo := config.RepoOverride
 	if repo == "" {
 		slug, err := GetCurrentRepoSlug()
@@ -142,7 +143,7 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 	data := historicalObjectivesData{Repo: repo, Limit: config.Limit}
 
 	if source == historySourceAll || source == historySourceIssues {
-		issues, err := fetchHistoricalGitHubItems(repo, config.Limit, historySourceIssues)
+		issues, err := fetchHistoricalGitHubItems(ctx, repo, config.Limit, historySourceIssues)
 		if err != nil {
 			return err
 		}
@@ -151,7 +152,7 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 	}
 
 	if source == historySourceAll || source == historySourcePRs {
-		prs, err := fetchHistoricalGitHubItems(repo, config.Limit, historySourcePRs)
+		prs, err := fetchHistoricalGitHubItems(ctx, repo, config.Limit, historySourcePRs)
 		if err != nil {
 			return err
 		}
@@ -179,7 +180,7 @@ func RunOutcomesHistory(config OutcomesHistoryConfig) error {
 	return nil
 }
 
-func fetchHistoricalGitHubItems(repo string, limit int, source string) ([]historicalGitHubItem, error) {
+func fetchHistoricalGitHubItems(ctx context.Context, repo string, limit int, source string) ([]historicalGitHubItem, error) {
 	args := []string{"--repo", repo, "--limit", strconv.Itoa(limit), "--json", "number,title,labels,url"}
 	spinner := "Listing closed issues..."
 	command := []string{"issue", "list", "--state", "closed"}
@@ -192,7 +193,7 @@ func fetchHistoricalGitHubItems(repo string, limit int, source string) ([]histor
 		args[len(args)-1] = "number,title,labels,url,closedAt"
 	}
 
-	output, err := outcomesHistoryRunGH(spinner, append(command, args...)...)
+	output, err := outcomesHistoryGHRunner(ctx, spinner, append(command, args...)...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to list %s for %s: %w", source, repo, err)
 	}

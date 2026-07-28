@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -44,7 +45,7 @@ func checkAndSuggestSecrets(toolConfig map[string]any, verbose bool) error {
 	// Check each secret using GitHub CLI
 	var missingSecrets []string
 	for _, secretName := range requiredSecrets {
-		exists, err := checkSecretExists(secretName)
+		exists, err := checkSecretExists(context.Background(), secretName)
 		if err != nil {
 			// If we get a 403 error, ignore it as requested
 			if errorutil.IsForbiddenError(err) {

@@ -28,7 +28,7 @@ func TestCompileWorkflowsAutoDetectsDefaultGHHost(t *testing.T) {
 
 		runCompileWorkflowsHostDetectionCheck(t, "https://ghes.example.com/owner/repo.git")
 
-		assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+		assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGHContext(context.Background(), "auth", "status")))
 	})
 
 	t.Run("does not overwrite default host when GH_HOST is already set", func(t *testing.T) {
@@ -41,7 +41,7 @@ func TestCompileWorkflowsAutoDetectsDefaultGHHost(t *testing.T) {
 		// Unset GH_HOST so that ExecGH reads defaultGHHost via getDefaultGHHost rather than
 		// the env var, which would shadow the in-process default in the command Environ().
 		require.NoError(t, os.Unsetenv("GH_HOST"))
-		assert.Equal(t, "existing.default.test", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+		assert.Equal(t, "existing.default.test", getGHHostFromCommandEnv(workflow.ExecGHContext(context.Background(), "auth", "status")))
 	})
 
 	t.Run("resets default host to empty for github.com remotes", func(t *testing.T) {
@@ -58,7 +58,7 @@ func TestCompileWorkflowsAutoDetectsDefaultGHHost(t *testing.T) {
 
 		// For github.com remotes, compile resets defaultGHHost to "" so that repeated
 		// calls in watch mode do not inherit a stale GHES host from a previous invocation.
-		assert.Empty(t, getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+		assert.Empty(t, getGHHostFromCommandEnv(workflow.ExecGHContext(context.Background(), "auth", "status")))
 	})
 
 	t.Run("sets default host from GHE origin (SSH remote) when GH_HOST is unset", func(t *testing.T) {
@@ -73,7 +73,7 @@ func TestCompileWorkflowsAutoDetectsDefaultGHHost(t *testing.T) {
 
 		runCompileWorkflowsHostDetectionCheck(t, "git@ghes.example.com:owner/repo.git")
 
-		assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGH("auth", "status")))
+		assert.Equal(t, "ghes.example.com", getGHHostFromCommandEnv(workflow.ExecGHContext(context.Background(), "auth", "status")))
 	})
 }
 

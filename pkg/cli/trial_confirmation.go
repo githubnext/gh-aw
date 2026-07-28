@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -129,7 +130,7 @@ func showTrialConfirmation(opts trialConfirmationOptions) error {
 
 	// Check if host repository already exists to update messaging
 	hostRepoExists := false
-	checkCmd := workflow.ExecGH("repo", "view", opts.hostRepoSlug)
+	checkCmd := workflow.ExecGHContext(context.Background(), "repo", "view", opts.hostRepoSlug)
 	if err := checkCmd.Run(); err == nil {
 		hostRepoExists = true
 	}

@@ -554,7 +554,7 @@ func uploadSecretToRepo(ctx context.Context, secretName, secretValue, repoSlug s
 	engineSecretsLog.Printf("Uploading secret %s to %s", secretName, repoSlug)
 
 	// Check if secret already exists
-	output, err := workflow.RunGHCombined("Checking secrets...", "secret", "list", "--repo", repoSlug)
+	output, err := workflow.RunGHCombinedContext(ctx, "Checking secrets...", "secret", "list", "--repo", repoSlug)
 	if err == nil && stringContainsSecretName(string(output), secretName) {
 		if !overwriteExisting {
 			if verbose {
@@ -600,7 +600,7 @@ func stringContainsSecretName(output, secretName string) bool {
 }
 
 // getExistingSecretsInRepo checks which secrets exist in the repository
-func getExistingSecretsInRepo(repoSlug string) (map[string]struct {
+func getExistingSecretsInRepo(ctx context.Context, repoSlug string) (map[string]struct {
 }, error) {
 	engineSecretsLog.Printf("Checking existing secrets for repo: %s", repoSlug)
 
@@ -608,7 +608,7 @@ func getExistingSecretsInRepo(repoSlug string) (map[string]struct {
 	})
 
 	// List secrets from repository
-	output, err := workflow.RunGHCombined("Checking secrets...", "secret", "list", "--repo", repoSlug)
+	output, err := workflow.RunGHCombinedContext(ctx, "Checking secrets...", "secret", "list", "--repo", repoSlug)
 	if err != nil {
 		engineSecretsLog.Printf("Could not list secrets for %s: %v", repoSlug, err)
 		return existingSecrets, err
