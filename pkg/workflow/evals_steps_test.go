@@ -202,33 +202,59 @@ func TestBuildParseEvalsResultsStepUsesResolvedExecutionModel(t *testing.T) {
 
 func TestBuildParseEvalsResultsStepUsesExpressionModelAndFallbackEnv(t *testing.T) {
 	compiler := NewCompiler()
-
-	data := &WorkflowData{
-		AI:    "copilot",
-		Model: "${{ inputs.model }}",
-		EngineConfig: &EngineConfig{
-			ID: "copilot",
+	tests := []struct {
+		name          string
+		engineID      string
+		modelEnvVar   string
+		defaultEnvVar string
+		defaultModel  string
+	}{
+		{
+			name:          "copilot evals expression model fallback",
+			engineID:      "copilot",
+			modelEnvVar:   constants.EnvVarModelEvalsCopilot,
+			defaultEnvVar: compilerenv.DefaultModelCopilot,
+			defaultModel:  constants.CopilotBYOKDefaultModel,
 		},
-		Evals: &EvalsConfig{
-			Questions: []EvalDefinition{
-				{ID: "builds", Question: "Does it build?"},
-			},
+		{
+			name:          "claude evals expression model fallback",
+			engineID:      "claude",
+			modelEnvVar:   constants.EnvVarModelEvalsClaude,
+			defaultEnvVar: compilerenv.DefaultModelClaude,
+			defaultModel:  constants.SonnetDefaultModel,
 		},
 	}
 
-	steps := strings.Join(compiler.buildParseEvalsResultsStep(data), "")
-	if !strings.Contains(steps, `GH_AW_EVALS_MODEL: ${{ inputs.model }}`) {
-		t.Errorf("expected parse step to preserve expression-backed evals model; got:\n%s", steps)
-	}
-	expectedFallbackEnvLine := fmt.Sprintf(
-		"%s: ${{ vars.%s || vars.%s || '%s' }}",
-		constants.EnvVarModelFallback,
-		constants.EnvVarModelEvalsCopilot,
-		compilerenv.DefaultModelCopilot,
-		constants.CopilotBYOKDefaultModel,
-	)
-	if !strings.Contains(steps, expectedFallbackEnvLine) {
-		t.Errorf("expected parse step to expose evals model fallback env %q; got:\n%s", expectedFallbackEnvLine, steps)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := &WorkflowData{
+				AI:    tt.engineID,
+				Model: "${{ inputs.model }}",
+				EngineConfig: &EngineConfig{
+					ID: tt.engineID,
+				},
+				Evals: &EvalsConfig{
+					Questions: []EvalDefinition{
+						{ID: "builds", Question: "Does it build?"},
+					},
+				},
+			}
+
+			steps := strings.Join(compiler.buildParseEvalsResultsStep(data), "")
+			if !strings.Contains(steps, `GH_AW_EVALS_MODEL: ${{ inputs.model }}`) {
+				t.Errorf("expected parse step to preserve expression-backed evals model; got:\n%s", steps)
+			}
+			expectedFallbackEnvLine := fmt.Sprintf(
+				"%s: ${{ vars.%s || vars.%s || '%s' }}",
+				constants.EnvVarModelFallback,
+				tt.modelEnvVar,
+				tt.defaultEnvVar,
+				tt.defaultModel,
+			)
+			if !strings.Contains(steps, expectedFallbackEnvLine) {
+				t.Errorf("expected parse step to expose evals model fallback env %q; got:\n%s", expectedFallbackEnvLine, steps)
+			}
+		})
 	}
 }
 
