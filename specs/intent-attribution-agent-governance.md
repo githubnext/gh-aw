@@ -71,6 +71,15 @@ An implementation MUST NOT grant elevated authority based on absent or unresolve
 
 A policy decision MUST be deterministic: given identical attribution inputs, the same policy MUST always be produced.
 
+#### Compliance Fixtures
+
+The minimum conformance fixture set for these RFC 2119 norms is tracked in
+`specs/intent-attribution-compliance/`:
+
+- `explicit-intent-wins.yaml`
+- `ambiguous-root-closing-issues.yaml`
+- `unlinked-pr-fail-closed.yaml`
+
 
 ## Current implementation
 

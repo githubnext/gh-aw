@@ -601,22 +601,20 @@ This section audits the compliance test matrix defined in `security-architecture
 | Output Isolation | T-OI-001 to T-OI-007 | ✅ EVIDENCED | OI-01/OI-06 remain verified, and §8a now adds dedicated evidence for T-OI-003 through T-OI-007 (type coverage, validation rules, token precedence, secret-expression handling, and write-job isolation) |
 | Network Isolation | T-NI-001 to T-NI-009 | ✅ EVIDENCED | §8 and §8b now cover AWF installation, ecosystem/domain validation, protocol filtering, blocked-domain precedence, MCP sandbox routing, and allowlist-driven content sanitization |
 | Permission Management | T-PM-001 to T-PM-007 | ⚠️ PARTIALLY EVIDENCED | PM-01/PM-02 (permission defaults), PM-08 (fork protection), PM-10/PM-11 (RBAC) verified; T-PM-003 (strict mode), T-PM-005 (repository validation for `workflow_run`), T-PM-007 (token validation) lack dedicated evidence entries |
-| Sandbox Isolation | T-SI-001 to T-SI-007 | ⚠️ PARTIALLY EVIDENCED | §8c adds compiled-workflow and runtime-script evidence for AWF chrooting, docker-host indirection, environment filtering, MCP/tool mounts, and composed sandbox/firewall operation; direct runtime host-visibility proof remains outstanding |
+| Sandbox Isolation | T-SI-001 to T-SI-007 | ⚠️ PARTIALLY EVIDENCED | §8c adds compiled-workflow and runtime-script evidence for AWF chrooting, docker-host indirection, environment filtering, MCP/tool mounts, and composed sandbox/firewall operation; direct runtime host-visibility proof remains outstanding (tracked in [#48686](https://github.com/github/gh-aw/issues/48686)) |
 | Threat Detection | T-TD-001 to T-TD-007 | ⚠️ PARTIALLY EVIDENCED | TD-01 (automatic threat detection) verified via `detection:` job; T-TD-002 (prompt injection), T-TD-003 (secret leaks), T-TD-004 (malicious patches), T-TD-005 (custom prompt), T-TD-006 (engine override), T-TD-007 (workflow failure on detection) lack dedicated evidence entries |
-| Compilation-Time Security | T-CS-001 to T-CS-006, T-SG07-001, T-SG07-002 | ⚠️ PARTIALLY EVIDENCED | CS-10 (action pinning, T-CS-005) verified; T-CS-001 (schema validation), T-CS-002 (expression safety), T-CS-003 (permission validation), T-CS-004 (network config validation), T-CS-006 (deprecated feature rejection), T-SG07-001 and T-SG07-002 (fail-secure behaviors) lack dedicated evidence entries |
-| Runtime Security | T-RS-001 to T-RS-011 | ⚠️ PARTIALLY EVIDENCED | RS-01/RS-02 (timestamp validation) and RS-16 to RS-22 (concurrency control) verified; T-RS-003 through T-RS-008 (repository validation for `workflow_run`, role validation, token validation, AWF/MCP network enforcement, output validation) lack dedicated evidence entries |
+| Compilation-Time Security | T-CS-001 to T-CS-006, T-SG07-001, T-SG07-002 | ✅ EVIDENCED | T-CS-001 via `TestFormalCS001_SchemaValidationRejectsUnknownField`; T-CS-002 via `TestFormalCS002_ExpressionSafetyRejectsUnauthorizedExpression`; T-CS-003 via `TestFormalSG02_AgentJobHasNoWritePermissions`; T-CS-004 via `TestFormal_P9_CompilationValidatesBeforeEmit`; T-CS-005 via CS-10 evidence in §10; T-CS-006 via `TestStrictModeDeprecatedFields`; T-SG07-001/T-SG07-002 via `TestFormalSG07_FailSecureOnSecurityError` and `TestFormal_P9_CompilationValidatesBeforeEmit`. |
+| Runtime Security | T-RS-001 to T-RS-011 | ✅ EVIDENCED | RS-01/RS-02 (timestamp validation) and RS-16 to RS-22 (concurrency control) remain evidenced; T-RS-003 via `TestFormalRS003_WorkflowRunRepositoryValidation`; T-RS-004 via `TestFormalRS004_RuntimeRoleValidation`; T-RS-005 via `TestFormalRS005_RuntimeTokenValidation`; T-RS-006 via `TestFormalRS006_AWFNetworkPolicyValidation`; T-RS-007 via `TestFormalRS007_MCPNetworkPolicyValidation`; T-RS-008 via `TestFormalRS008_OutputTargetValidation`. |
 | Companion MCP Access-Control | T-GH-047 to T-GH-060 | ⚠️ PARTIALLY EVIDENCED | Deferred to companion specifications (`scratchpad/github-mcp-access-control-specification.md`, `scratchpad/guard-policies-specification.md`); not directly evidenced in this document |
 
 ### Gap Summary
 
 The following test categories require dedicated evidence entries to achieve full coverage in this validation document:
 
-1. **Sandbox Isolation (T-SI-001 to T-SI-007)** — Reduced from full gap to partial evidence in §8c. Remaining work is a direct runtime probe for host/socket visibility from inside the AWF sandbox.
+1. **Sandbox Isolation (T-SI-001 to T-SI-007)** — Reduced from full gap to partial evidence in §8c. Remaining work is a direct runtime probe for host/socket visibility from inside the AWF sandbox (tracked in [#48686](https://github.com/github/gh-aw/issues/48686)).
 2. **Threat Detection (T-TD-002 to T-TD-007)** — Partial evidence. Only TD-01 (job presence) verified; detection capability assertions remain unverified in this report.
-3. **Compilation-Time Security (T-CS-001 to T-CS-004, T-CS-006, T-SG07)** — Partial evidence. Only action pinning (T-CS-005) verified.
-4. **Runtime Security (T-RS-003 to T-RS-008)** — Partial evidence. Only timestamp and concurrency verified.
 
-Maintainers SHOULD address remaining gaps in order of risk: the residual sandbox-runtime probe, then threat-detection capability evidence, then the remaining compilation-time and runtime security categories.
+Maintainers SHOULD address remaining gaps in order of risk: the residual sandbox-runtime probe, then threat-detection capability evidence.
 
 ---
 
