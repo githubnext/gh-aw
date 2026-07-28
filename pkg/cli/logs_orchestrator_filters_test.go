@@ -225,7 +225,7 @@ func TestBuildProcessedRun(t *testing.T) {
 			AwContext: awCtx,
 		}
 
-		pr := buildProcessedRun(result, false, false)
+		pr := buildProcessedRun(context.Background(), result, false, false)
 
 		assert.Equal(t, int64(1234), pr.Run.DatabaseID)
 		assert.Equal(t, tmpDir, pr.Run.LogsPath)
@@ -246,7 +246,7 @@ func TestBuildProcessedRun(t *testing.T) {
 			LogsPath: t.TempDir(),
 		}
 
-		pr := buildProcessedRun(result, false, false)
+		pr := buildProcessedRun(context.Background(), result, false, false)
 
 		assert.Equal(t, 90*time.Second, pr.Run.Duration)
 		assert.InDelta(t, 2.0, pr.Run.ActionMinutes, 0.001) // ceil(1.5) = 2
@@ -258,7 +258,7 @@ func TestBuildProcessedRun(t *testing.T) {
 			Run:      WorkflowRun{DatabaseID: 7},
 			LogsPath: t.TempDir(),
 		}
-		pr := buildProcessedRun(result, false, false)
+		pr := buildProcessedRun(context.Background(), result, false, false)
 		assert.Equal(t, time.Duration(0), pr.Run.Duration)
 		assert.InDelta(t, 0.0, pr.Run.ActionMinutes, 0.001)
 	})
@@ -271,7 +271,7 @@ func TestBuildProcessedRun(t *testing.T) {
 			LogsPath:   t.TempDir(),
 			TokenUsage: usage,
 		}
-		pr := buildProcessedRun(result, false, false)
+		pr := buildProcessedRun(context.Background(), result, false, false)
 		assert.Equal(t, 5000, pr.Run.EffectiveTokens)
 	})
 
@@ -283,14 +283,19 @@ func TestBuildProcessedRun(t *testing.T) {
 			LogsPath:   t.TempDir(),
 			TokenUsage: usage,
 		}
-		pr := buildProcessedRun(result, false, false)
+		pr := buildProcessedRun(context.Background(), result, false, false)
 		assert.Equal(t, 0, pr.Run.EffectiveTokens)
 	})
 
 	t.Run("failed job count is added via test seam", func(t *testing.T) {
-		stubFetchJobStatusesForProcessedRun(t, func(_ context.Context, runID int64, verbose bool) (int, error) {
+		type ctxKey string
+		const key ctxKey = "request-id"
+		ctx := context.WithValue(context.Background(), key, "abc123")
+
+		stubFetchJobStatusesForProcessedRun(t, func(fetchCtx context.Context, runID int64, verbose bool) (int, error) {
 			assert.Equal(t, int64(88), runID)
 			assert.False(t, verbose)
+			assert.Equal(t, "abc123", fetchCtx.Value(key))
 			return 2, nil
 		})
 		result := DownloadResult{
@@ -298,7 +303,7 @@ func TestBuildProcessedRun(t *testing.T) {
 			LogsPath: t.TempDir(),
 		}
 
-		pr := buildProcessedRun(result, false, false)
+		pr := buildProcessedRun(ctx, result, false, false)
 
 		assert.Equal(t, 2, pr.Run.ErrorCount)
 	})
