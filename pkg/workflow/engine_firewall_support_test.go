@@ -330,3 +330,30 @@ func TestGenerateFirewallLogParsingStepWithNetworkIsolationFalse(t *testing.T) {
 		t.Error("Expected no --rootless flag when NetworkIsolation is explicitly false")
 	}
 }
+
+func TestGenerateFirewallLogParsingStepLegacySecurityOmitsRootless(t *testing.T) {
+	// When legacy-security: enable is set, AWF ran with full sudo access, so the
+	// log parsing script must use plain sudo (no --rootless), even though
+	// NetworkIsolation defaults to true.
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		SandboxConfig: &SandboxConfig{
+			Agent: &AgentSandboxConfig{
+				ID:               "awf",
+				NetworkIsolation: true,
+				LegacySecurity:   true,
+			},
+		},
+	}
+	step := generateFirewallLogParsingStep("test-workflow", workflowData)
+	stepContent := strings.Join(step, "\n")
+
+	// Legacy-security mode must NOT pass --rootless to the log parsing script.
+	if strings.Contains(stepContent, "--rootless") {
+		t.Error("Expected no --rootless flag when legacy-security: enable is set (AWF has full sudo access)")
+	}
+
+	if !strings.Contains(stepContent, `bash "${RUNNER_TEMP}/gh-aw/actions/print_firewall_logs.sh"`) {
+		t.Error("Expected firewall log parsing step to invoke print_firewall_logs.sh")
+	}
+}
