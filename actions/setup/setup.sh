@@ -365,6 +365,7 @@ SAFE_OUTPUTS_FILES=(
   "temporary_id.cjs"
   "invocation_context_helpers.cjs"
   "repo_memory_patch_size.cjs"
+  "data_schema_normalizer.cjs"
 )
 
 SAFE_OUTPUTS_COUNT=0
