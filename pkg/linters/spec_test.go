@@ -15,6 +15,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/appendoneelement"
 	"github.com/github/gh-aw/pkg/linters/bytesbufferstring"
 	"github.com/github/gh-aw/pkg/linters/bytescomparestring"
+	"github.com/github/gh-aw/pkg/linters/bytescomparezero"
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/deferinloop"
@@ -91,7 +92,7 @@ type docAnalyzer struct {
 //
 // Spec (README "Public API > Subpackages"):
 //
-//	appendbytestring, appendoneelement, bytesbufferstring, bytescomparestring, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
+//	appendbytestring, appendoneelement, bytesbufferstring, bytescomparestring, bytescomparezero, contextcancelnotdeferred, ctxbackground, deferinloop, errorfwrapv, excessivefuncparams, errormessage,
 //	errortypeassertion, errstringmatch, execcommandwithoutcontext, fileclosenotdeferred, fmterrorfnoverbs, fprintlnsprintf,
 //	hardcodedfilepath, httpnoctx, httprespbodyclose, httpstatuscode, ioutildeprecated, jsonmarshalignoredeerror, largefunc, lenstringsplit, lenstringzero,
 //	logfatallibrary, manualmutexunlock, mapclearloop, mapdeletecheck, nilctxpassed, osexitinlibrary, osgetenvlibrary, ossetenvlibrary, panic-in-library-code, rawloginlib,
@@ -104,6 +105,7 @@ func documentedAnalyzers() []docAnalyzer {
 		{"appendoneelement", appendoneelement.Analyzer},
 		{"bytesbufferstring", bytesbufferstring.Analyzer},
 		{"bytescomparestring", bytescomparestring.Analyzer},
+		{"bytescomparezero", bytescomparezero.Analyzer},
 		{"contextcancelnotdeferred", contextcancelnotdeferred.Analyzer},
 		{"ctxbackground", ctxbackground.Analyzer},
 		{"deferinloop", deferinloop.Analyzer},

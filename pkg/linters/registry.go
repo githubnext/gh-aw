@@ -7,6 +7,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/appendoneelement"
 	"github.com/github/gh-aw/pkg/linters/bytesbufferstring"
 	"github.com/github/gh-aw/pkg/linters/bytescomparestring"
+	"github.com/github/gh-aw/pkg/linters/bytescomparezero"
 	"github.com/github/gh-aw/pkg/linters/contextcancelnotdeferred"
 	"github.com/github/gh-aw/pkg/linters/ctxbackground"
 	"github.com/github/gh-aw/pkg/linters/deferinloop"
@@ -75,6 +76,7 @@ func All() []*analysis.Analyzer {
 		appendoneelement.Analyzer,
 		bytesbufferstring.Analyzer,
 		bytescomparestring.Analyzer,
+		bytescomparezero.Analyzer,
 		contextcancelnotdeferred.Analyzer,
 		ctxbackground.Analyzer,
 		deferinloop.Analyzer,
