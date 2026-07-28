@@ -422,7 +422,7 @@ func appendProcessedWorkflowRuns(
 		if shouldSkipProcessedWorkflowRun(result, opts.verbose) || applyRunFilters(activeCtx, result, opts.filters, opts.verbose) {
 			continue
 		}
-		processedRun := buildProcessedRun(result, opts.verbose, true)
+		processedRun := buildProcessedRun(activeCtx, result, opts.verbose, true)
 		parseWorkflowRunArtifacts(result, processedRun, opts.parse, opts.verbose)
 		processedRuns = append(processedRuns, processedRun)
 		batchProcessed++
