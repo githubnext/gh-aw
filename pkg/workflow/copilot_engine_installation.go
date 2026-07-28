@@ -142,21 +142,22 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		return appendCopilotLSPInstallSteps(steps, workflowData)
 	}
 
-	// Copilot CLI is pinned to the default version constant.
+	// Use engine.version if provided, otherwise fall back to the default pinned version.
+	// When no explicit version is set, normalize the engine config so downstream
+	// consumers observe the effective installed value.
 	copilotVersion := string(constants.DefaultCopilotVersion)
 	if workflowData.EngineConfig != nil {
 		if workflowData.EngineConfig.Version != "" {
-			copilotInstallLog.Printf("Ignoring pinned engine.version (%s): Copilot CLI install version is pinned to %s", workflowData.EngineConfig.Version, copilotVersion)
+			copilotVersion = workflowData.EngineConfig.Version
+			copilotInstallLog.Printf("Using engine.version for Copilot CLI installation: %s", copilotVersion)
+		} else {
+			// Normalize engine config version to the effective installed version so
+			// downstream checks that consult EngineConfig.Version stay consistent.
+			// This mutates workflowData by design because subsequent generation steps
+			// in the same compile flow should observe the effective installed version.
+			workflowData.EngineConfig.Version = copilotVersion
+			copilotInstallLog.Printf("No engine.version specified, using default Copilot CLI version: %s", copilotVersion)
 		}
-		// Normalize engine config version to effective installed version so
-		// downstream checks that consult EngineConfig.Version stay consistent.
-		// This applies even when the original version was empty (unset), so all
-		// downstream consumers observe the effective installed value.
-		// This mutates workflowData by design because subsequent generation steps
-		// in the same compile flow should observe the effective installed version.
-		// Callers that reuse the same WorkflowData instance should expect this
-		// field to be rewritten after installation-step generation.
-		workflowData.EngineConfig.Version = copilotVersion
 	}
 
 	// Use the installer script for global installation
