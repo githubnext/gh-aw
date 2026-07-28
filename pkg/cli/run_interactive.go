@@ -28,7 +28,7 @@ type WorkflowOption struct {
 }
 
 // RunWorkflowInteractively runs a workflow in interactive mode
-func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride string, refOverride string, autoMergePRs bool, push bool, engineOverride string, dryRun bool, approve bool) error {
+func RunWorkflowInteractively(ctx context.Context, opts RunWorkflowOptions) error {
 	runInteractiveLog.Print("Starting interactive workflow run")
 
 	// Check if running in CI environment
@@ -36,12 +36,12 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 		return errors.New("interactive mode cannot be used in CI environments")
 	}
 
-	if verbose {
+	if opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Starting interactive workflow run..."))
 	}
 
 	// Step 1: Find workflows with workflow_dispatch trigger
-	workflows, err := findRunnableWorkflows(verbose)
+	workflows, err := findRunnableWorkflows(opts.Verbose)
 	if err != nil {
 		return fmt.Errorf("failed to find runnable workflows: %w", err)
 	}
@@ -74,7 +74,7 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	}
 
 	// Step 6: Build command string for display
-	cmdStr := buildCommandString(selectedWorkflow.Name, inputValues, repoOverride, refOverride, autoMergePRs, push, engineOverride, approve)
+	cmdStr := buildCommandString(selectedWorkflow.Name, inputValues, opts.RepoOverride, opts.RefOverride, opts.AutoMergePRs, opts.Push, opts.EngineOverride, opts.Approve)
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\nRunning workflow..."))
 	fmt.Fprintln(os.Stderr, console.FormatCommandMessage("Equivalent command: "+cmdStr))
 	fmt.Fprintln(os.Stderr, "")
@@ -82,15 +82,15 @@ func RunWorkflowInteractively(ctx context.Context, verbose bool, repoOverride st
 	// Step 7: Execute the workflow
 	err = RunWorkflowOnGitHub(ctx, selectedWorkflow.Name, RunOptions{
 		Enable:         false,
-		EngineOverride: engineOverride,
-		RepoOverride:   repoOverride,
-		RefOverride:    refOverride,
-		AutoMergePRs:   autoMergePRs,
-		Push:           push,
+		EngineOverride: opts.EngineOverride,
+		RepoOverride:   opts.RepoOverride,
+		RefOverride:    opts.RefOverride,
+		AutoMergePRs:   opts.AutoMergePRs,
+		Push:           opts.Push,
 		Inputs:         inputValues,
-		Verbose:        verbose,
-		DryRun:         dryRun,
-		Approve:        approve,
+		Verbose:        opts.Verbose,
+		DryRun:         opts.DryRun,
+		Approve:        opts.Approve,
 	})
 	if err != nil {
 		return fmt.Errorf("failed to run workflow: %w", err)

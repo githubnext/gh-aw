@@ -140,7 +140,7 @@ steps:
 safe-outputs:
   create-issue:
     max: 1
-    labels: [security, sighthound]
+    labels: [security, sighthound, cookie]
     close-older-issues: true
     title-prefix: "[sighthound] "
   noop:
