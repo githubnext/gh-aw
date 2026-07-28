@@ -144,7 +144,13 @@ steps:
           file_count: $file_count,
           diff_available: $diff_available
         }' > /tmp/gh-aw/agent/adr-prefetch-summary.json
-
+evals:
+  - id: adr-check-performed
+    question: Does the agent output confirm that it checked for existing ADRs before deciding on an action?
+  - id: action-taken
+    question: Did the agent add a PR comment, push a draft ADR, or call noop?
+  - id: decision-justified
+    question: Does the agent output explain why an ADR is required or why no ADR gate was triggered for this PR?
 ---
 
 # Design Decision Gate 🏗️

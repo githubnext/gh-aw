@@ -70,6 +70,13 @@ tools:
     max-file-size: 204800
 features:
   gh-aw-detection: true
+evals:
+  - id: issue-created
+    question: Did the agent create a research issue with Copilot CLI findings?
+  - id: optimization-opportunities
+    question: Does the agent output identify specific missed optimization opportunities for Copilot CLI usage in this repository?
+  - id: evidence-based
+    question: Does the agent output cite specific repository evidence (workflow files, usage patterns) to support its findings?
 ---
 
 # Copilot CLI Deep Research Agent

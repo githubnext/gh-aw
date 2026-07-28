@@ -34,6 +34,13 @@ timeout-minutes: 10
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: incident-or-noop
+    question: Did the agent either create an incident issue or call noop?
+  - id: root-cause-included
+    question: Does the agent output include a root cause analysis or a reason for the noop decision?
+  - id: dedup-respected
+    question: Does the agent output show that it checked for an existing open incident issue before creating a new one?
 ---
 
 ### Deployment Incident Monitor

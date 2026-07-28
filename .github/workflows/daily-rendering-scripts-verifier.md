@@ -95,6 +95,12 @@ Verify the agentic-workflows MCP server is operational:
 Use the agentic-workflows MCP "status" tool to verify configuration.
 ```
 
+## Known Environment Constraints
+
+- `bash` cannot access `/tmp/` in this environment — use the Read/Write tools for `/tmp/gh-aw/...` paths.
+- Bare `node` execution is permission-gated and denied in this sandbox. Do not run `node -e`, `which node`, `node --version`, or full-path `node` probes. Use `npm run test:js -- --run <spec>` as the only supported JavaScript test harness command.
+- The `logs` MCP tool may appear to hang or hit a 60s timeout while still finishing server-side. Wait once with `sleep 60`, then read the returned `file_path` directly. Do not loop with repeated `sleep` + `tail` polling.
+
 ## Phase 1: Find the Most Recent Run
 
 Download the single most recent agentic workflow run including the agent output artifact:
@@ -108,6 +114,7 @@ Use the agentic-workflows MCP "logs" tool with:
 
 The tool returns a JSON response with a `file_path` field pointing to a summary JSON in `/tmp/gh-aw/logs-cache/`.
 Record this `file_path` for use in Phase 2.
+If the MCP call appears to hang or times out, run a single `sleep 60`, then read the `file_path` result directly (no repeated polling loops).
 
 If no logs are found, retry with `count: 5` and use the most recent run.
 
@@ -224,6 +231,9 @@ Run the parser harness against the real agent output:
 # Use the ENGINE and AGENT_OUTPUT_FILE values determined in Phase 2.
 # Do NOT re-discover them here — bash cannot access /tmp/ in this environment.
 # ENGINE and AGENT_OUTPUT_FILE must be set from Phase 2 before running this block.
+# Do NOT run node availability probes (node -e, node --version, which node, full-path node).
+# Run the expected parser check directly via vitest:
+# npm run test:js -- --run parse_${ENGINE}_log.test.cjs
 
 cd ${{ github.workspace }}/actions/setup/js
 echo "Engine: $ENGINE"
@@ -359,11 +369,17 @@ If you found parser or rendering issues:
 4. **Run the existing test suite** to ensure no regressions:
    ```bash
    cd ${{ github.workspace }}/actions/setup/js
-   npm test -- --run parse_<engine>_log 2>&1 | tail -40
-   npm test -- --run render_template 2>&1 | tail -20
+   npm run test:js -- --run parse_<engine>_log.test.cjs 2>&1 | tail -40
+   npm run test:js -- --run render_template.test.cjs 2>&1 | tail -20
    ```
 
-5. If tests pass, create a pull request using the `create_pull_request` safe output tool.
+5. Verify working tree cleanliness exactly once before creating the PR:
+   ```bash
+   git -C ${{ github.workspace }} status --porcelain
+   ```
+   Run this command once only; do not repeat equivalent status checks.
+
+6. If tests pass, create a pull request using the `create_pull_request` safe output tool.
 
 ## PR Body Format
 
