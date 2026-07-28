@@ -139,7 +139,7 @@ tools:
     mode: cli
     version: "v1.41.0"
   cache-memory:
-    key: pr-${{ github.run_id }}
+    key: pr-${{ env.GH_AW_WORKFLOW_ID_SANITIZED }}
   edit:
   bash: ["git status", "git diff"]
 timeout-minutes: 15

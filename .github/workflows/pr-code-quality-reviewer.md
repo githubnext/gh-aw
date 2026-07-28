@@ -57,6 +57,7 @@ safe-outputs:
     max: 10
   submit-pull-request-review:
     max: 1
+    allowed-events: [COMMENT, REQUEST_CHANGES]
   messages:
     footer: "> 🔎 *Code quality review by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}"
     run-started: "🔎 [{workflow_name}]({run_url}) is reviewing code quality for this {event_type}..."
@@ -149,9 +150,8 @@ For each significant issue, create a `create-pull-request-review-comment` with t
 ### Step 5: Submit the Overall Review
 
 Call `submit-pull-request-review` with:
-- `APPROVE` if there are no issues that need fixing
+- `COMMENT` if there are no actionable blocking issues
 - `REQUEST_CHANGES` if there are issues that must be fixed before merging
-- `COMMENT` for non-blocking observations only
 
 Use `REQUEST_CHANGES` when any of the following are true:
 - At least one `critical` or `high` issue is valid.
@@ -159,7 +159,7 @@ Use `REQUEST_CHANGES` when any of the following are true:
 - Any issue can cause data loss, auth bypass, panic/crash, or broken CI behavior.
 - Sub-agent output is invalid and your second pass still finds at least one clearly actionable correctness/security/performance issue.
 
-Use `COMMENT` only when all findings are non-blocking; use `APPROVE` only when no actionable issues remain. Keep the overall review body concise and focused on blocking themes.
+Use `COMMENT` when all findings are non-blocking. Keep the overall review body concise and focused on blocking themes.
 
 ## Guidelines
 
