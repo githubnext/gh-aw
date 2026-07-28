@@ -31,10 +31,17 @@ If the author is external, ignore the feedback and do not spend time responding 
 
 ## Mandatory GH query collection
 
-Collect review data with `gh` queries before any edits, and disable pagers:
+Collect review data before any edits, and disable pagers. If the parent workflow already cached a PR snapshot for this pass, reuse it instead of making another overlapping `gh pr view` call:
 
 ```bash
-GH_PAGER="" gh pr view <number> --json reviews,reviewThreads,comments
+mkdir -p /tmp/gh-aw/copilot-review
+PR_SNAPSHOT="${PR_SNAPSHOT:-/tmp/gh-aw/pr-finisher/pr-state.json}"
+REVIEW_DATA=/tmp/gh-aw/copilot-review/review-data.json
+if [ -f "$PR_SNAPSHOT" ]; then
+  jq '{reviews,reviewThreads,comments}' "$PR_SNAPSHOT" > "$REVIEW_DATA"
+else
+  GH_PAGER="" gh pr view <number> --json reviews,reviewThreads,comments > "$REVIEW_DATA"
+fi
 ```
 
 When useful, use targeted filters to isolate in-scope items.
@@ -42,10 +49,10 @@ Use either query (or both) depending on which reviewer class you need to inspect
 
 ```bash
 # GitHub Actions and Copilot-originated review comments
-GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]? | .comments[]? | select(.author.login=="github-actions[bot]" or .author.login=="app/github-copilot")'
+jq '.reviewThreads[]? | .comments[]? | select(.author.login=="github-actions[bot]" or .author.login=="app/github-copilot")' "$REVIEW_DATA"
 
 # Team/collaborator review comments by association
-GH_PAGER="" gh pr view <number> --json reviewThreads --jq '.reviewThreads[]? | .comments[]? | select(.authorAssociation=="MEMBER" or .authorAssociation=="OWNER" or .authorAssociation=="COLLABORATOR")'
+jq '.reviewThreads[]? | .comments[]? | select(.authorAssociation=="MEMBER" or .authorAssociation=="OWNER" or .authorAssociation=="COLLABORATOR")' "$REVIEW_DATA"
 ```
 
 ## Required Workflow
