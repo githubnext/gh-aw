@@ -146,9 +146,11 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// When no explicit version is set, normalize the engine config so downstream
 	// consumers observe the effective installed value.
 	copilotVersion := string(constants.DefaultCopilotVersion)
+	useCompatRange := IsRelease()
 	if workflowData.EngineConfig != nil {
 		if workflowData.EngineConfig.Version != "" {
 			copilotVersion = workflowData.EngineConfig.Version
+			useCompatRange = useCompatRange && workflowData.EngineConfig.VersionDefaulted
 			copilotInstallLog.Printf("Using engine.version for Copilot CLI installation: %s", copilotVersion)
 		} else {
 			// Normalize engine config version to the effective installed version so
@@ -156,6 +158,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 			// This mutates workflowData by design because subsequent generation steps
 			// in the same compile flow should observe the effective installed version.
 			workflowData.EngineConfig.Version = copilotVersion
+			workflowData.EngineConfig.VersionDefaulted = true
 			copilotInstallLog.Printf("No engine.version specified, using default Copilot CLI version: %s", copilotVersion)
 		}
 	}
@@ -167,7 +170,7 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// The "Copy Copilot CLI to daemon-visible path" step in nodejs.go then copies from
 	// the rootless location to ${RUNNER_TEMP}/gh-aw/bin/copilot where AWF expects it.
 	rootless := isArcDindTopology(workflowData)
-	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless)
+	npmSteps := generateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless, useCompatRange)
 	if len(inlineDriverWriteStep) > 0 {
 		npmSteps = append(npmSteps, inlineDriverWriteStep)
 	}

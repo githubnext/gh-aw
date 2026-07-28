@@ -62,14 +62,15 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 		detectionEngineConfig = &EngineConfig{ID: engineSetting}
 	} else {
 		detectionEngineConfig = &EngineConfig{
-			ID:            detectionEngineConfig.ID,
-			Version:       detectionEngineConfig.Version,
-			Env:           detectionEngineConfig.Env,
-			Config:        detectionEngineConfig.Config,
-			Args:          detectionEngineConfig.Args,
-			APITarget:     detectionEngineConfig.APITarget,
-			HarnessScript: detectionEngineConfig.HarnessScript,
-			Driver:        detectionEngineConfig.Driver,
+			ID:               detectionEngineConfig.ID,
+			Version:          detectionEngineConfig.Version,
+			VersionDefaulted: detectionEngineConfig.VersionDefaulted,
+			Env:              detectionEngineConfig.Env,
+			Config:           detectionEngineConfig.Config,
+			Args:             detectionEngineConfig.Args,
+			APITarget:        detectionEngineConfig.APITarget,
+			HarnessScript:    detectionEngineConfig.HarnessScript,
+			Driver:           detectionEngineConfig.Driver,
 		}
 	}
 	if detectionEngineConfig.ID == "" {

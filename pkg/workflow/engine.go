@@ -46,6 +46,7 @@ func toEngineEnvValueString(value any) (string, bool) {
 type EngineConfig struct {
 	ID                 string
 	Version            string
+	VersionDefaulted   bool        // Internal provenance: Version was populated from the compiler default.
 	LLMProvider        LLMProvider // Inference provider override for this engine (engine.provider / engine.model-provider)
 	PermissionMode     string
 	MaxTurns           string

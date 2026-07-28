@@ -10,6 +10,10 @@ var copilotInstallerLog = logger.New("workflow:copilot_installer")
 // GenerateCopilotInstallerSteps creates GitHub Actions steps to install the Copilot CLI using the official installer.
 // When rootless is true, the script installs into $HOME/.local/bin without sudo.
 func GenerateCopilotInstallerSteps(version, stepName string, rootless bool) []GitHubActionStep {
+	return generateCopilotInstallerSteps(version, stepName, rootless, false)
+}
+
+func generateCopilotInstallerSteps(version, stepName string, rootless, useCompatRange bool) []GitHubActionStep {
 	// If no version is specified, use the pinned default version from constants.
 	if version == "" {
 		version = string(constants.DefaultCopilotVersion)
@@ -21,6 +25,10 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool) []Gi
 	rootlessFlag := ""
 	if rootless {
 		rootlessFlag = " --rootless"
+	}
+	compatRangeFlag := ""
+	if useCompatRange {
+		compatRangeFlag = " --compat-range"
 	}
 
 	// Use the install_copilot_cli.sh script from actions/setup/sh
@@ -36,7 +44,7 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool) []Gi
 		copilotInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		stepLines := []string{
 			"      - name: " + stepName,
-			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"` + rootlessFlag,
+			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"` + rootlessFlag + compatRangeFlag,
 			"        env:",
 			"          GH_HOST: github.com",
 			"          ENGINE_VERSION: " + version,
@@ -46,7 +54,7 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool) []Gi
 
 	stepLines := []string{
 		"      - name: " + stepName,
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version + rootlessFlag,
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version + rootlessFlag + compatRangeFlag,
 		"        env:",
 		"          GH_HOST: github.com",
 	}

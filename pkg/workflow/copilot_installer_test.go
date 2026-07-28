@@ -157,9 +157,39 @@ func TestCopilotEngineWithVersion(t *testing.T) {
 	}
 }
 
+func TestCopilotEngineExplicitDefaultVersionRequiresExactMatch(t *testing.T) {
+	originalIsRelease := isReleaseBuild
+	isReleaseBuild = true
+	t.Cleanup(func() { isReleaseBuild = originalIsRelease })
+
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Version: string(constants.DefaultCopilotVersion),
+		},
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+	for _, step := range steps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "install_copilot_cli.sh") {
+			if strings.Contains(stepContent, "--compat-range") {
+				t.Fatalf("explicit engine.version equal to the default must require an exact match:\n%s", stepContent)
+			}
+			return
+		}
+	}
+	t.Fatal("Could not find install step with install_copilot_cli.sh")
+}
+
 func TestCopilotEngineWithoutVersion(t *testing.T) {
 	// When engine.version is not set, the default pinned version must be used and
 	// EngineConfig.Version must be normalized to the effective installed value.
+	originalIsRelease := isReleaseBuild
+	isReleaseBuild = true
+	t.Cleanup(func() { isReleaseBuild = originalIsRelease })
+
 	engine := NewCopilotEngine()
 
 	workflowData := &WorkflowData{
@@ -192,6 +222,44 @@ func TestCopilotEngineWithoutVersion(t *testing.T) {
 	if !strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
 		t.Errorf("Expected default Copilot version in install step, got:\n%s", installStep)
 	}
+	if !strings.Contains(installStep, "--compat-range") {
+		t.Errorf("Expected compiler default version to enable compat-range matching, got:\n%s", installStep)
+	}
+
+	// A later detection job sees the normalized version and must retain its default provenance.
+	secondSteps := engine.GetInstallationSteps(workflowData)
+	for _, step := range secondSteps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "install_copilot_cli.sh") {
+			if !strings.Contains(stepContent, "--compat-range") {
+				t.Fatalf("normalized compiler default must retain compat-range matching:\n%s", stepContent)
+			}
+			return
+		}
+	}
+	t.Fatal("Could not find second install step with install_copilot_cli.sh")
+}
+
+func TestCopilotEngineDevelopmentBuildRequiresExactMatch(t *testing.T) {
+	originalIsRelease := isReleaseBuild
+	isReleaseBuild = false
+	t.Cleanup(func() { isReleaseBuild = originalIsRelease })
+
+	engine := NewCopilotEngine()
+	steps := engine.GetInstallationSteps(&WorkflowData{
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{},
+	})
+	for _, step := range steps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "install_copilot_cli.sh") {
+			if strings.Contains(stepContent, "--compat-range") {
+				t.Fatalf("development builds must require an exact match:\n%s", stepContent)
+			}
+			return
+		}
+	}
+	t.Fatal("Could not find install step with install_copilot_cli.sh")
 }
 
 func TestGenerateCopilotInstallerSteps_ExpressionVersion(t *testing.T) {

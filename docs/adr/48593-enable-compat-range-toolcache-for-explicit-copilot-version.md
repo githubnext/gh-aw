@@ -1,4 +1,4 @@
-# ADR-48593: Enable Compat-Range Toolcache Matching for Explicit Copilot CLI Version Requests
+# ADR-48593: Enable Compat-Range Toolcache Matching for the Default Copilot CLI Version
 
 **Date**: 2026-07-28
 **Status**: Draft
@@ -14,9 +14,10 @@ Because `pkg/workflow/copilot_installer.go` always passes an explicit version (d
 
 ### Decision
 
-We will run compat-matrix resolution unconditionally—including when an explicit version is provided—so that `find_cached_copilot_bin` receives a populated compat range and can fall through to range-based matching when the exact version is not cached. Specifically:
+We will opt the compiler-generated default version into compat-matrix resolution so that `find_cached_copilot_bin` receives a populated compat range. User-supplied `engine.version` pins continue to require an exact match, even when their value equals `DefaultCopilotVersion`. Specifically:
 
-- `install_copilot_cli.sh`: call `resolve_version_from_compat` in the explicit-version branch and populate `COMPAT_MATCHED_MIN_AGENT`/`COMPAT_MATCHED_MAX_AGENT`; in `find_cached_copilot_bin`, fall through to the range check when no exact match is found and a compat range is available, rather than unconditionally `continue`-ing.
+- `copilot_installer.go`: pass `--compat-range` only for a compiler-generated default in release builds.
+- `install_copilot_cli.sh`: resolve and use the compat range only when `--compat-range` is present.
 - `compiler_main_job_helpers.go` / `threat_detection_job.go`: emit `GH_AW_COMPILED_VERSION` in job-level env for release builds so the script can resolve the compat window.
 - `.github/aw/compat.json`: update `max-agent` from 1.0.56 to 1.0.75 to include the current `DefaultCopilotVersion`.
 - `pkg/constants/version_constants_test.go`: add `TestDefaultCopilotVersionWithinCompatWindow` as a CI gate to assert `min-agent ≤ DefaultCopilotVersion ≤ max-agent`, preventing this class of drift from recurring.
@@ -34,17 +35,17 @@ Updating `max-agent` to 1.0.75 would fix the immediate drift and allow the range
 ### Consequences
 
 #### Positive
-- Runner toolcache satisfies Copilot CLI installs for any version within the compat window, eliminating unnecessary network downloads on every agentic job.
+- Runner toolcache satisfies default Copilot CLI installs with any version within the compat window, eliminating unnecessary network downloads on every agentic job.
 - CDN failures during Copilot CLI download no longer cause hard job failures when a compatible cached binary exists.
 - `TestDefaultCopilotVersionWithinCompatWindow` creates a CI gate that blocks future `DefaultCopilotVersion`/`compat.json` drift before it reaches production.
 
 #### Negative
-- Range-based toolcache matching may serve a cached binary version that differs from the exact requested version; behavioral equivalence relies on the compat window being accurately defined. An overly broad window could accept an incompatible binary.
+- Default-version range matching may serve a cached binary version that differs from `DefaultCopilotVersion`; behavioral equivalence relies on the compat window being accurately defined. An overly broad window could accept an incompatible binary.
 - `GH_AW_COMPILED_VERSION` is now present in compiled job-level environments for release builds, exposing compiler version metadata in workflow logs and to any downstream tool that reads job env vars.
 
 #### Neutral
 - The compat window is now a load-bearing correctness invariant: `compat.json` must be updated alongside `DefaultCopilotVersion` on every bump, enforced by the new test.
-- The change in `find_cached_copilot_bin` is a fall-through rather than a new code path; the existing range comparison logic below the exact-match block is unchanged.
+- User-supplied `engine.version` values retain exact-match semantics.
 
 ---
 
