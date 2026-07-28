@@ -21,6 +21,21 @@ steps:
       set -euo pipefail
       make build
       "$GITHUB_WORKSPACE/gh-aw" --version
+  - name: Prefetch forecast usage artifacts
+    continue-on-error: true
+    env:
+      REPOSITORY: ${{ github.repository }}
+    run: |
+      # Download usage artifacts for the last 30 days in parallel so the main
+      # forecast step reads from the local cache and produces output quickly.
+      DEBUG='*' "$GITHUB_WORKSPACE/gh-aw" forecast \
+        --repo "$REPOSITORY" \
+        --days 30 \
+        --sample 100 \
+        --concurrency 8 \
+        --timeout 25 \
+        --verbose \
+        > /dev/null 2>&1 || true
   - name: Run spending forecast
     id: spending_forecast
     continue-on-error: true
@@ -37,7 +52,8 @@ steps:
         --days 30 \
         --period month \
         --sample 100 \
-        --timeout 30 \
+        --concurrency 8 \
+        --timeout 10 \
         --verbose \
         --json \
         > >(tee "$output_dir/forecast.json") \

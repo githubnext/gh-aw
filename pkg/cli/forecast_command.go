@@ -29,6 +29,9 @@ type ForecastConfig struct {
 	// TimeoutMinutes gracefully cancels forecast computation after the configured
 	// number of minutes. Zero disables timeout.
 	TimeoutMinutes int
+	// DownloadConcurrency is the maximum number of usage-artifact downloads to run in
+	// parallel. Zero or negative uses the default (defaultForecastDownloadConcurrency).
+	DownloadConcurrency int
 }
 
 // NewForecastCommand creates the forecast command.
@@ -84,20 +87,22 @@ Backtesting (--eval):
 			sampleSize, _ := cmd.Flags().GetInt("sample")
 			evalMode, _ := cmd.Flags().GetBool("eval")
 			timeoutMinutes, _ := cmd.Flags().GetInt("timeout")
+			downloadConcurrency, _ := cmd.Flags().GetInt("concurrency")
 
 			forecastRunLog.Printf("Forecast command invoked: workflow_count=%d, days=%d, period=%s, sample_size=%d, eval=%v, timeout_minutes=%d, json=%v, repo=%q",
 				len(args), days, period, sampleSize, evalMode, timeoutMinutes, jsonOutput, repoOverride)
 
 			config := ForecastConfig{
-				WorkflowIDs:    args,
-				Days:           days,
-				Period:         period,
-				JSONOutput:     jsonOutput,
-				Verbose:        verbose,
-				RepoOverride:   repoOverride,
-				SampleSize:     sampleSize,
-				EvalMode:       evalMode,
-				TimeoutMinutes: timeoutMinutes,
+				WorkflowIDs:         args,
+				Days:                days,
+				Period:              period,
+				JSONOutput:          jsonOutput,
+				Verbose:             verbose,
+				RepoOverride:        repoOverride,
+				SampleSize:          sampleSize,
+				EvalMode:            evalMode,
+				TimeoutMinutes:      timeoutMinutes,
+				DownloadConcurrency: downloadConcurrency,
 			}
 
 			return RunForecast(config)
@@ -109,6 +114,7 @@ Backtesting (--eval):
 	cmd.Flags().Int("sample", 100, "Maximum number of completed runs to sample per workflow")
 	cmd.Flags().Bool("eval", false, "Evaluate forecast quality against past data (backtesting mode)")
 	cmd.Flags().Int("timeout", 0, "Gracefully stop forecast computation after this many minutes (0 = no timeout)")
+	cmd.Flags().Int("concurrency", 0, "Maximum number of concurrent usage-artifact downloads (0 = use default)")
 	addRepoFlag(cmd)
 	addJSONFlag(cmd)
 

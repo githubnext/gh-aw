@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"slices"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -18,6 +19,13 @@ import (
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+// defaultForecastDownloadConcurrency is the number of usage-artifact downloads that
+// run in parallel when DownloadConcurrency is not set (or is <= 0).
+// Increasing this value reduces wall-clock time for the download phase at the cost of
+// more simultaneous GitHub API requests; 8 is chosen as a balance between throughput
+// and rate-limit headroom.
+const defaultForecastDownloadConcurrency = 8
 
 var (
 	forecastLoadCachedRunAIC = loadCachedRunAIC
@@ -93,8 +101,11 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	aicObservations := make([]int, 0, len(completed))
 	samples := make([]ForecastRunSample, 0, len(completed))
 
+	// Download usage artifacts in parallel, then process results in run order.
+	aicMap := parallelLoadRunAICs(ctx, completed, config)
+
 	for _, r := range completed {
-		runAIC := forecastLoadCachedRunAIC(ctx, r.DatabaseID, config.Verbose)
+		runAIC := aicMap[r.DatabaseID]
 		if runAIC <= 0 {
 			forecastRunLog.Printf("Skipping run %d for %s: AIC=%.3f treated as missing data", r.DatabaseID, workflowName, runAIC)
 			continue
@@ -176,6 +187,65 @@ func forecastWorkflow(ctx context.Context, workflowName, startDate string, confi
 	result.ExperimentVariants = computeVariantFractions(result.ExperimentVariants, completed)
 
 	return result, nil
+}
+
+// parallelLoadRunAICs fetches AIC data for all completed runs concurrently and returns
+// a map from DatabaseID to AIC value. Downloads run at most concurrency goroutines at a
+// time; when config.DownloadConcurrency is <= 0, defaultForecastDownloadConcurrency is
+// used. Runs whose AIC cannot be determined (download failure, no artifact, context
+// cancelled) are omitted from the map so the caller's existing zero-AIC guard takes effect.
+func parallelLoadRunAICs(ctx context.Context, runs []WorkflowRun, config ForecastConfig) map[int64]float64 {
+	n := len(runs)
+	if n == 0 {
+		return make(map[int64]float64)
+	}
+	concurrency := config.DownloadConcurrency
+	if concurrency <= 0 {
+		concurrency = defaultForecastDownloadConcurrency
+	}
+	if concurrency > n {
+		concurrency = n
+	}
+
+	type aicResult struct {
+		runID int64
+		aic   float64
+	}
+
+	sem := make(chan struct{}, concurrency)
+	resultsCh := make(chan aicResult, n)
+	var wg sync.WaitGroup
+
+	for _, r := range runs {
+		if ctx.Err() != nil {
+			break
+		}
+		wg.Add(1)
+		runID := r.DatabaseID
+		go func() {
+			defer wg.Done()
+			// Acquire semaphore slot; abort if context is cancelled while waiting.
+			select {
+			case sem <- struct{}{}:
+			case <-ctx.Done():
+				return
+			}
+			defer func() { <-sem }()
+			aic := forecastLoadCachedRunAIC(ctx, runID, config.Verbose)
+			resultsCh <- aicResult{runID: runID, aic: aic}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(resultsCh)
+	}()
+
+	aicMap := make(map[int64]float64, n)
+	for r := range resultsCh {
+		aicMap[r.runID] = r.aic
+	}
+	return aicMap
 }
 
 // loadCachedRunAIC looks up a locally-cached RunSummary for the given
