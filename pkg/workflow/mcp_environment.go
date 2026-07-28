@@ -103,18 +103,15 @@ func collectMCPEnvironmentVariables(tools map[string]any, mcpTools []string, wor
 		}
 	}
 
-	// GH_AW_SINK_VISIBILITY passes repository visibility to the MCP gateway config heredoc via
-	// a shell variable reference (${GH_AW_SINK_VISIBILITY}), avoiding a ${{ }} expression
-	// directly in the run: block which zizmor --persona=auditor flags as template injection.
-	// The raw visibility value (e.g. "private") is passed without toJSON() because the heredoc
-	// already provides the surrounding JSON quotes: "sink-visibility": "${GH_AW_SINK_VISIBILITY}".
-	// Using toJSON() would produce double-quoting (e.g. ""private""), which is invalid JSON.
-	// This must be set whenever the determine-automatic-lockdown step will run, which is when
-	// the GitHub tool is present in tools (regardless of mode — gh-proxy workflows also get this
-	// step even though github is excluded from mcpTools).
-	rawGitHubValue, hasGitHubInTools := tools["github"]
-	if hasGitHubInTools && rawGitHubValue != false {
-		envVars["GH_AW_SINK_VISIBILITY"] = "${{ steps.determine-automatic-lockdown.outputs.visibility }}"
+	// Emit GH_AW_SINK_VISIBILITY for all workflows where the determine-automatic-lockdown step
+	// runs (i.e., any workflow with a GitHub tool, including mode:gh-proxy). This avoids
+	// embedding a ${{ }} expression directly in the run: heredoc, which zizmor flags as
+	// template injection. The value is the raw step output (no toJSON), and the surrounding
+	// JSON double-quotes in the heredoc produce a valid JSON string at runtime:
+	//   "sink-visibility": "${GH_AW_SINK_VISIBILITY}"  →  "sink-visibility": "public"
+	_, hasGitHubInTools := tools["github"]
+	if hasGitHubInTools {
+		envVars[sinkVisibilityEnvVar] = "${{ steps.determine-automatic-lockdown.outputs.visibility }}"
 	}
 
 	// Check for safe-outputs env vars

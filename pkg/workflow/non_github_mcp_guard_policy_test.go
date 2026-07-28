@@ -481,10 +481,10 @@ func TestAllNonGitHubMCPServersGetWriteSinkWhenGitHubHasAllowOnly(t *testing.T) 
 						"%s should have accept field: %s", check.serverName, tt.description)
 					assert.Contains(t, result, "\"sink-visibility\"",
 						"%s should have sink-visibility field: %s", check.serverName, tt.description)
-					// The sink-visibility value is a shell variable reference (${GH_AW_SINK_VISIBILITY}),
-					// not a ${{ }} expression, to avoid zizmor --persona=auditor template-injection findings.
-					assert.Contains(t, result, "GH_AW_SINK_VISIBILITY",
-						"%s should render sink-visibility as shell variable reference: %s", check.serverName, tt.description)
+					// The sink-visibility value is a shell env var reference (not a raw GHA expression)
+					// so that no ${{ }} expression appears in the run: heredoc.
+					assert.Contains(t, result, "${"+sinkVisibilityEnvVar+"}",
+						"%s should render sink-visibility as shell env var reference: %s", check.serverName, tt.description)
 				})
 			}
 

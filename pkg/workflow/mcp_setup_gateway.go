@@ -314,7 +314,7 @@ func appendMCPGatewayBaseEnvFlags(containerCmd *strings.Builder, payloadPathPref
 	containerCmd.WriteString(" -e GITHUB_MCP_SERVER_TOKEN")
 	containerCmd.WriteString(" -e GITHUB_MCP_GUARD_MIN_INTEGRITY")
 	containerCmd.WriteString(" -e GITHUB_MCP_GUARD_REPOS")
-	containerCmd.WriteString(" -e GH_AW_SINK_VISIBILITY")
+	containerCmd.WriteString(" -e " + sinkVisibilityEnvVar)
 	containerCmd.WriteString(" -e GITHUB_REPOSITORY")
 	containerCmd.WriteString(" -e GITHUB_SERVER_URL")
 	containerCmd.WriteString(" -e GITHUB_SHA")
@@ -412,7 +412,7 @@ func buildAddedGatewayEnvVarSet(workflowData *WorkflowData, gatewayConfig *MCPGa
 		"GH_AW_SAFE_OUTPUTS_CONFIG_PATH", "GH_AW_SAFE_OUTPUTS_TOOLS_PATH", compilerenv.PolicyAllowCreatePullRequest,
 		"GH_AW_ASSETS_BRANCH", "GH_AW_ASSETS_MAX_SIZE_KB", "GH_AW_ASSETS_ALLOWED_EXTS",
 		"DEFAULT_BRANCH", "GITHUB_MCP_SERVER_TOKEN", "GITHUB_MCP_GUARD_MIN_INTEGRITY", "GITHUB_MCP_GUARD_REPOS",
-		"GH_AW_SINK_VISIBILITY",
+		sinkVisibilityEnvVar,
 		"GITHUB_REPOSITORY", "GITHUB_SERVER_URL", "GITHUB_SHA", "GITHUB_WORKSPACE",
 		"RUNNER_TEMP",
 		"GITHUB_TOKEN", "GITHUB_RUN_ID", "GITHUB_RUN_NUMBER", "GITHUB_RUN_ATTEMPT",
