@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strconv"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/logger"
@@ -171,12 +172,13 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 					continue
 				}
 
-				header := fmt.Sprintf("%s (%d error(s)", filepath.Base(failure.Path), report.TotalCount)
+				var header strings.Builder
+				fmt.Fprintf(&header, "%s (%d error(s)", filepath.Base(failure.Path), report.TotalCount)
 				if !showAllErrors && report.HiddenCount > 0 {
-					header += fmt.Sprintf(", showing top %d", len(report.DisplayedErrors))
+					fmt.Fprintf(&header, ", showing top %d", len(report.DisplayedErrors))
 				}
-				header += "):"
-				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(header))
+				header.WriteString("):")
+				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(header.String()))
 
 				lastHeading := ""
 				for i, prioritized := range report.DisplayedErrors {

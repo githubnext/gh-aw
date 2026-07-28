@@ -155,12 +155,15 @@ func renderMarkdownDrain3InsightsToWriter(w io.Writer, insights []ObservabilityI
 	fmt.Fprintf(w, "| Severity | Category | Title | Summary |\n")
 	fmt.Fprintf(w, "|----------|----------|-------|--------|\n")
 	for _, insight := range insights {
-		summary := insight.Summary
+		var summaryStr strings.Builder
+		summaryStr.WriteString(insight.Summary)
 		if insight.Evidence != "" {
-			summary += " (" + insight.Evidence + ")"
+			summaryStr.WriteString(" (")
+			summaryStr.WriteString(insight.Evidence)
+			summaryStr.WriteByte(')')
 		}
 		fmt.Fprintf(w, "| %s %s | %s | %s | %s |\n",
-			renderSeverityIcon(insight.Severity), insight.Severity, insight.Category, insight.Title, summary)
+			renderSeverityIcon(insight.Severity), insight.Severity, insight.Category, insight.Title, summaryStr.String())
 	}
 	fmt.Fprintln(w)
 }

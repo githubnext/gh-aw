@@ -293,7 +293,7 @@ func buildScheduleOptions(rawExpr, currentFreq string) []huh.Option[string] {
 	for _, f := range standardScheduleFrequencies {
 		label := f.Label
 		if f.Value == currentFreq {
-			label += " (current)"
+			label = label + " (current)"
 		}
 		options = append(options, huh.NewOption(label, f.Value))
 	}

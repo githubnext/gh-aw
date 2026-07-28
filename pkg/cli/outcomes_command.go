@@ -210,10 +210,13 @@ func RunOutcomes(config OutcomesConfig) error {
 	// Render the items
 	fmt.Fprintln(os.Stderr)
 	for _, r := range reports {
-		resultStr := string(r.Result)
+		var resultStr strings.Builder
+		resultStr.WriteString(string(r.Result))
 		detail := r.Detail
 		if detail != "" {
-			resultStr += " (" + detail + ")"
+			resultStr.WriteString(" (")
+			resultStr.WriteString(detail)
+			resultStr.WriteByte(')')
 		}
 		numStr := ""
 		if r.ObjectNumber > 0 {
@@ -227,7 +230,7 @@ func RunOutcomes(config OutcomesConfig) error {
 				timeStr = fmt.Sprintf("%.1fh", r.TimeToOutcomeHours)
 			}
 		}
-		fmt.Fprintf(os.Stderr, "  %-28s %-12s %-40s %s\n", r.Type, numStr, resultStr, timeStr)
+		fmt.Fprintf(os.Stderr, "  %-28s %-12s %-40s %s\n", r.Type, numStr, resultStr.String(), timeStr)
 	}
 	fmt.Fprintln(os.Stderr)
 

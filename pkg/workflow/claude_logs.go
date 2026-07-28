@@ -167,13 +167,14 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 
 			// If a line looks like a JSON array (starts with '['), try to parse it as an array
 			if strings.HasPrefix(trimmedLine, "[") {
-				buf := trimmedLine
+				var bufSB strings.Builder
+				bufSB.WriteString(trimmedLine)
 				// If the closing bracket is not on the same line, accumulate subsequent lines
 				if !strings.Contains(trimmedLine, "]") {
 					j := i + 1
-					var sb strings.Builder
 					for j < len(lines) {
-						sb.WriteString("\n" + lines[j])
+						bufSB.WriteByte('\n')
+						bufSB.WriteString(lines[j])
 						if strings.Contains(lines[j], "]") {
 							// Advance outer loop to the line we consumed
 							i = j
@@ -181,8 +182,8 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 						}
 						j++
 					}
-					buf += sb.String()
 				}
+				buf := bufSB.String()
 
 				var arr []map[string]any
 				if err := json.Unmarshal([]byte(buf), &arr); err == nil {

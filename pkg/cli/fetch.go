@@ -126,7 +126,7 @@ func fetchRemoteWorkflow(ctx context.Context, spec *WorkflowSpec, verbose bool) 
 			for _, prefix := range []string{"workflows/", constants.WorkflowsDirSlash} {
 				altPath := prefix + spec.WorkflowPath
 				if !strings.HasSuffix(altPath, ".md") {
-					altPath += ".md"
+					altPath = altPath + ".md"
 				}
 				remoteWorkflowLog.Printf("Direct path failed, trying: %s", altPath)
 				if altContent, altErr := downloadFileFromGitHubForHost(ctx, owner, repo, altPath, ref, spec.Host); altErr == nil {

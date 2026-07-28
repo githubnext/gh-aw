@@ -326,12 +326,13 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 	fmt.Fprintf(os.Stderr, "\n  %-20s %6s  %7s  %7s  %s\n", "Variant", "Count", "Obs%", "Exp%", "Progress")
 	fmt.Fprintf(os.Stderr, "  %s\n", strings.Repeat("─", 62))
 	for _, v := range a.Variants {
-		progressStr := fmt.Sprintf("%d/%d", v.Count, v.MinSamples)
+		var progressStr strings.Builder
+		fmt.Fprintf(&progressStr, "%d/%d", v.Count, v.MinSamples)
 		if v.BelowMinSamples {
-			progressStr += " ⚠"
+			progressStr.WriteString(" ⚠")
 		}
 		fmt.Fprintf(os.Stderr, "  %-20s %6d  %6.1f%%  %6.1f%%  %s\n",
-			v.Name, v.Count, v.ObservedPct, v.ExpectedPct, progressStr)
+			v.Name, v.Count, v.ObservedPct, v.ExpectedPct, progressStr.String())
 	}
 
 	// Balance test.

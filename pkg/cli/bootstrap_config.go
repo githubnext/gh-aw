@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/gitutil"
@@ -28,23 +29,29 @@ func printBootstrapConfigTODO(w io.Writer, profile *resolvedBootstrapProfile) {
 		case "require-owner-type":
 			fmt.Fprintf(w, "  ☐ Verify repository owner type: %s\n", action.Value)
 		case "repo-variable":
-			line := "  ☐ Set repository variable: " + action.Name
+			var line strings.Builder
+			line.WriteString("  ☐ Set repository variable: ")
+			line.WriteString(action.Name)
 			if action.Prompt != "" {
-				line += " — " + action.Prompt
+				line.WriteString(" — ")
+				line.WriteString(action.Prompt)
 			}
 			if action.Optional {
-				line += " (optional)"
+				line.WriteString(" (optional)")
 			}
-			fmt.Fprintln(w, line)
+			fmt.Fprintln(w, line.String())
 		case "repo-secret":
-			line := "  ☐ Set repository secret: " + action.Name
+			var line strings.Builder
+			line.WriteString("  ☐ Set repository secret: ")
+			line.WriteString(action.Name)
 			if action.Prompt != "" {
-				line += " — " + action.Prompt
+				line.WriteString(" — ")
+				line.WriteString(action.Prompt)
 			}
 			if action.Optional {
-				line += " (optional)"
+				line.WriteString(" (optional)")
 			}
-			fmt.Fprintln(w, line)
+			fmt.Fprintln(w, line.String())
 		case "github-app":
 			appLabel := action.AppName
 			if appLabel == "" {

@@ -676,17 +676,23 @@ func normalizeDependabotIgnoreEntries(content []byte, managedPatterns []string) 
 			continue
 		}
 
-		line = prefix + quote + dependencyName + quote
+		var lineSB strings.Builder
+		lineSB.WriteString(prefix)
+		lineSB.WriteString(quote)
+		lineSB.WriteString(dependencyName)
+		lineSB.WriteString(quote)
 
 		managed := slices.Contains(managedPatterns, dependencyName)
 
 		if managed {
-			line += " # " + managedDependabotIgnoreComment
+			lineSB.WriteString(" # ")
+			lineSB.WriteString(managedDependabotIgnoreComment)
 		} else if hasComment {
-			line += " #" + strings.TrimSpace(comment)
+			lineSB.WriteString(" #")
+			lineSB.WriteString(strings.TrimSpace(comment))
 		}
 
-		lines[i] = line
+		lines[i] = lineSB.String()
 	}
 	return []byte(strings.Join(lines, "\n"))
 }

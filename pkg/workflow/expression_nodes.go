@@ -133,21 +133,22 @@ func (d *DisjunctionNode) RenderMultiline() string {
 
 	var lines []string
 	for i, term := range d.Terms {
-		var line string
+		var lineSB strings.Builder
 
 		// Add comment if this is an ExpressionNode with a description
 		if expr, ok := term.(*ExpressionNode); ok && expr.Description != "" {
-			line = "# " + expr.Description + "\n"
+			lineSB.WriteString("# ")
+			lineSB.WriteString(expr.Description)
+			lineSB.WriteByte('\n')
 		}
 
 		// Add the expression with OR operator (except for the last term)
+		lineSB.WriteString(term.Render())
 		if i < len(d.Terms)-1 {
-			line += term.Render() + " ||"
-		} else {
-			line += term.Render()
+			lineSB.WriteString(" ||")
 		}
 
-		lines = append(lines, line)
+		lines = append(lines, lineSB.String())
 	}
 
 	return strings.Join(lines, "\n")

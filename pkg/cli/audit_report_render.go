@@ -244,11 +244,13 @@ func renderConsoleAssessments(assessments []AgenticAssessment) {
 	}
 	fmt.Fprintln(os.Stderr, "  assessments:")
 	for _, assessment := range assessments {
-		line := fmt.Sprintf("    [%s] %s", strings.ToUpper(assessment.Severity), assessment.Summary)
+		var line strings.Builder
+		fmt.Fprintf(&line, "    [%s] %s", strings.ToUpper(assessment.Severity), assessment.Summary)
 		if assessment.Evidence != "" {
-			line += " | " + assessment.Evidence
+			line.WriteString(" | ")
+			line.WriteString(assessment.Evidence)
 		}
-		fmt.Fprintln(os.Stderr, line)
+		fmt.Fprintln(os.Stderr, line.String())
 	}
 }
 
@@ -268,11 +270,13 @@ func renderConsoleInsights(insights []ObservabilityInsight) {
 	}
 	fmt.Fprintln(os.Stderr, "  insights:")
 	for _, insight := range insights {
-		line := fmt.Sprintf("    [%s] %s", strings.ToUpper(insight.Severity), insight.Title)
+		var line strings.Builder
+		fmt.Fprintf(&line, "    [%s] %s", strings.ToUpper(insight.Severity), insight.Title)
 		if insight.Evidence != "" {
-			line += " | " + insight.Evidence
+			line.WriteString(" | ")
+			line.WriteString(insight.Evidence)
 		}
-		fmt.Fprintln(os.Stderr, line)
+		fmt.Fprintln(os.Stderr, line.String())
 	}
 }
 
@@ -319,11 +323,17 @@ func renderConsoleMissingTools(missingTools []MissingToolReport) {
 	}
 	fmt.Fprintln(os.Stderr, "  missing_tools:")
 	for _, tool := range missingTools {
-		line := "    " + tool.Tool + ": " + tool.Reason
+		var line strings.Builder
+		line.WriteString("    ")
+		line.WriteString(tool.Tool)
+		line.WriteString(": ")
+		line.WriteString(tool.Reason)
 		if tool.Alternatives != "" {
-			line += " (alt: " + tool.Alternatives + ")"
+			line.WriteString(" (alt: ")
+			line.WriteString(tool.Alternatives)
+			line.WriteByte(')')
 		}
-		fmt.Fprintln(os.Stderr, line)
+		fmt.Fprintln(os.Stderr, line.String())
 	}
 }
 
@@ -350,13 +360,16 @@ func renderConsoleCreatedItems(items []CreatedItemReport) {
 	}
 	fmt.Fprintln(os.Stderr, "  created:")
 	for _, item := range items {
-		line := "    " + item.Type
+		var line strings.Builder
+		line.WriteString("    ")
+		line.WriteString(item.Type)
 		if item.URL != "" {
-			line += " " + item.URL
+			line.WriteByte(' ')
+			line.WriteString(item.URL)
 		} else if item.Repo != "" && item.Number > 0 {
-			line += fmt.Sprintf(" %s#%d", item.Repo, item.Number)
+			fmt.Fprintf(&line, " %s#%d", item.Repo, item.Number)
 		}
-		fmt.Fprintln(os.Stderr, line)
+		fmt.Fprintln(os.Stderr, line.String())
 	}
 }
 
@@ -366,11 +379,13 @@ func renderConsoleToolUsage(toolUsage []ToolUsageInfo) {
 	}
 	fmt.Fprintln(os.Stderr, "  tools:")
 	for _, tool := range toolUsage {
-		line := fmt.Sprintf("    %s ×%d", tool.Name, tool.CallCount)
+		var line strings.Builder
+		fmt.Fprintf(&line, "    %s ×%d", tool.Name, tool.CallCount)
 		if tool.MaxDuration != "" {
-			line += " max=" + tool.MaxDuration
+			line.WriteString(" max=")
+			line.WriteString(tool.MaxDuration)
 		}
-		fmt.Fprintln(os.Stderr, line)
+		fmt.Fprintln(os.Stderr, line.String())
 	}
 }
 
@@ -380,14 +395,16 @@ func renderConsoleMCPToolUsage(mcpToolUsage *MCPToolUsageData) {
 	}
 	fmt.Fprintln(os.Stderr, "  mcp_tools:")
 	for _, summary := range mcpToolUsage.Summary {
-		line := fmt.Sprintf("    %s/%s ×%d", summary.ServerName, summary.ToolName, summary.CallCount)
+		var line strings.Builder
+		fmt.Fprintf(&line, "    %s/%s ×%d", summary.ServerName, summary.ToolName, summary.CallCount)
 		if summary.ErrorCount > 0 {
-			line += fmt.Sprintf(" errors=%d", summary.ErrorCount)
+			fmt.Fprintf(&line, " errors=%d", summary.ErrorCount)
 		}
 		if summary.MaxDuration != "" {
-			line += " max=" + summary.MaxDuration
+			line.WriteString(" max=")
+			line.WriteString(summary.MaxDuration)
 		}
-		fmt.Fprintln(os.Stderr, line)
+		fmt.Fprintln(os.Stderr, line.String())
 	}
 	if mcpToolUsage.GuardPolicySummary != nil && mcpToolUsage.GuardPolicySummary.TotalBlocked > 0 {
 		fmt.Fprintf(os.Stderr, "    guard_blocked: %d\n", mcpToolUsage.GuardPolicySummary.TotalBlocked)

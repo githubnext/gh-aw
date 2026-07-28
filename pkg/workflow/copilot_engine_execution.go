@@ -738,10 +738,12 @@ func buildEngineCommandScriptSetup(command string) string {
 	// engine.command intentionally accepts shell-form commands from trusted workflow
 	// configuration authored in-repo; preserve shell semantics and forward driver args.
 	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset +o histexpand\nset -eo pipefail\n%s \"$@\"\n", command)
-	heredocDelimiter := "GH_AW_ENGINE_COMMAND_EOF"
-	for strings.Contains(scriptContent, heredocDelimiter) {
-		heredocDelimiter += "_X"
+	var delimSB strings.Builder
+	delimSB.WriteString("GH_AW_ENGINE_COMMAND_EOF")
+	for strings.Contains(scriptContent, delimSB.String()) {
+		delimSB.WriteString("_X")
 	}
+	heredocDelimiter := delimSB.String()
 
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw
 GH_AW_PREV_UMASK="$(umask)"

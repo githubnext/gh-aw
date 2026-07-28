@@ -205,12 +205,15 @@ func renderViewSafeOutputs(runDir string) {
 	fmt.Fprintln(os.Stdout)
 	fmt.Fprintln(os.Stdout, console.FormatSectionHeader("Safe Outputs"))
 	for _, item := range items {
-		line := "  " + item.Type
+		var line strings.Builder
+		line.WriteString("  ")
+		line.WriteString(item.Type)
 		if item.URL != "" {
-			line += "  " + item.URL
+			line.WriteString("  ")
+			line.WriteString(item.URL)
 		} else if item.Repo != "" && item.Number > 0 {
-			line += fmt.Sprintf("  %s#%d", item.Repo, item.Number)
+			fmt.Fprintf(&line, "  %s#%d", item.Repo, item.Number)
 		}
-		fmt.Fprintln(os.Stdout, line)
+		fmt.Fprintln(os.Stdout, line.String())
 	}
 }

@@ -335,11 +335,13 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		if line == "" {
 			continue
 		}
-		prefixed := "          " + line
-		if !strings.HasSuffix(prefixed, "\n") {
-			prefixed += "\n"
+		var prefixedSB strings.Builder
+		prefixedSB.WriteString("          ")
+		prefixedSB.WriteString(line)
+		if !strings.HasSuffix(line, "\n") {
+			prefixedSB.WriteByte('\n')
 		}
-		steps = append(steps, prefixed)
+		steps = append(steps, prefixedSB.String())
 	}
 
 	// Reuse the engine's own execution env block so the external detector path
