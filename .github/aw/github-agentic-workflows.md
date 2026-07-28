@@ -16,6 +16,14 @@ applyTo: ".github/workflows/*.md,.github/workflows/**/*.md"
 | Designer | `pull_request` with `paths:` scoped to UI, design-token, copy, and asset files | `github` (`gh-proxy`); optional `playwright` for visual checks | `add-comment` on the PR | `noop` when scoped paths are unchanged or no actionable design/token issue is found |
 | Legal / Compliance | `pull_request` with `paths:` scoped to dependency manifests or policy docs for PR reviews; `schedule` for recurring audits | `github` (`gh-proxy`) | `add-comment` for findings; `create-issue` only for violations requiring team-wide follow-up | `noop` when no in-scope files changed or all findings are in the allowed tier; always search for an existing open issue before escalating |
 
+## Persona-to-Toolset Matrix
+
+| Persona | Default toolset is enough when... | Name optional tools when... |
+|---|---|---|
+| Program Manager | Digest/report uses GitHub data only (`tools.github.toolsets: [default]`) | Add `cache-memory` only when trend baselines/deltas must persist across runs |
+| Designer | PR review is metadata/content-aware via GitHub reads only | Add `playwright` for screenshot/visual checks; add `cache-memory` when baselines or snapshot history are required |
+| Legal / Compliance | Policy/dependency review is repo-state and metadata driven | Add `cache-memory` when recurring audits need prior-run evidence/comparison state |
+
 ## File Format
 
 Agentic workflows are markdown files with YAML frontmatter.
