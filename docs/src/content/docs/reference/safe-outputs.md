@@ -1408,7 +1408,7 @@ Programmatically assigns GitHub Copilot coding agent to **existing** issues or p
 safe-outputs:
   assign-to-agent:
     name: "copilot"            # default agent (default: "copilot")
-    model: "claude-opus-4.6"   # default AI model (default: "auto")
+    model: "claude-sonnet-5"   # default AI model (default: "auto")
     custom-agent: "agent-id"   # default custom agent ID (optional)
     custom-instructions: "..."  # default custom instructions (optional)
     allowed: [copilot]         # restrict to specific agents (optional)

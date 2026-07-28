@@ -14,7 +14,7 @@ on:
         description: 'AI model to use'
         required: false
         type: string
-        default: 'claude-opus-4.6'
+        default: 'claude-sonnet-5'
 
 permissions:
   actions: read
@@ -41,7 +41,7 @@ safe-outputs:
   assign-to-agent:
     max: 5
     name: copilot
-    model: claude-opus-4.6  # Default model to use when not specified per-item
+    model: claude-sonnet-5  # Default model to use when not specified per-item
     target: "triggering"     # Auto-resolves from workflow context (default)
     allowed: [copilot]       # Only allow copilot agent
 strict: false
@@ -58,7 +58,7 @@ Assign the Copilot agent to the issue with the specified AI model. The workflow 
 1. **Default model configuration**: Set via `safe-outputs.assign-to-agent.model` in frontmatter (applies to all assignments in the workflow)
 
 **For issues event:**
-Assign the Copilot agent using the default model (Claude Opus 4.6) to the triggering issue.
+Assign the Copilot agent using the default model (Claude Sonnet 5) to the triggering issue.
 
 **For workflow_dispatch:**
 Assign the Copilot agent to issue #${{ github.event.inputs.issue_number }} using the default model configured in the frontmatter.
