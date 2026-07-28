@@ -20,6 +20,7 @@ Apply these in order, measuring cost and quality after each change:
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
 - [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
 - [ ] **Pull context on demand**: query logs/data only after a hypothesis forms; avoid preloading large raw dumps into the initial prompt
+- [ ] **Bound file reads**: for files > 20 KB, use `bash`/`grep`/`glob`/`view_range` instead of full-file MCP reads — late-session token spikes most often trace to unguarded `get_file_contents` calls on large workflow or skill markdown
 - [ ] **Prompt caching**: Put stable instructions before dynamic content to maximize cache hits
 - [ ] **Context hygiene**: keep the orchestrator context compact; prefer short worker summaries over raw output
 - [ ] **Harness-wide diagnosis**: classify failures across context, tools, generation, orchestration, memory, and output processing before changing configuration
@@ -382,6 +383,29 @@ max-daily-ai-credits: 500M  # per-user 24h cap; -1 disables
 For custom or private models, the top-level **`models:`** frontmatter field supplies pricing in the same structure as `models.json` (keyed `providers.<provider>.models.<model>.cost` with `input`/`output`/`cache_read`/`cache_write` per-token costs). Entries are merged with the built-in `models.json` at runtime — they override matching models and fill gaps for unknown ones — so AI Credit accounting stays accurate for models gh-aw does not price by default.
 
 For self-hosted or BYOK models absent from the built-in table (e.g. Ollama, vLLM), set **`models.default-ai-credits-pricing`** (`input`/`output` in $/1M tokens, both `0` for free/local models); without it the AWF proxy rejects unrecognized models with HTTP 400 `unknown_model_ai_credits`.
+
+---
+
+## Technique 11 — Cap Session Context Growth from Large File Reads
+
+> **Files larger than 20 KB must not be read in full.** Use targeted reads instead.
+
+Before calling `get_file_contents`, check size with `wc -c <path>`. If > 20 KB, use `grep`, `glob`, `bash head`, or `view` with `view_range` to read only the section you need. The same rule applies after `glob **/*.md` — read each matched file with `grep` or `view_range`, not full-file reads.
+
+For GitHub-hosted files, prefer `mode: gh-proxy` and access via `gh`/`bash` so output can be piped through `jq`, `grep`, or `head` before it enters context — the agent never receives the full file:
+
+```bash
+# gh-proxy: fetch only the lines you need, no full-file injection
+gh api repos/{owner}/{repo}/contents/.github/aw/syntax-agentic.md \
+  --jq '.content' | base64 -d | grep -n "## Sub-agents"
+```
+
+```bash
+# Without gh-proxy: targeted local read
+bash: grep -n "## Sub-agents" .github/aw/syntax-agentic.md
+# or
+view: .github/aw/syntax-agentic.md view_range=[45, 90]
+```
 
 ---
 

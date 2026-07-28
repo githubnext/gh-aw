@@ -204,6 +204,7 @@ func TestBuildCommandString(t *testing.T) {
 		autoMergePRs   bool
 		push           bool
 		engineOverride string
+		approve        bool
 		expected       string
 	}{
 		{
@@ -259,11 +260,29 @@ func TestBuildCommandString(t *testing.T) {
 			engineOverride: "copilot",
 			expected:       "gh aw run test-workflow -F name=value --repo owner/repo --ref main --auto-merge-prs --push --engine copilot",
 		},
+		{
+			name:         "with approve",
+			workflowName: "test-workflow",
+			approve:      true,
+			expected:     "gh aw run test-workflow --approve",
+		},
+		{
+			name:           "all flags with approve",
+			workflowName:   "test-workflow",
+			inputs:         []string{"name=value"},
+			repoOverride:   "owner/repo",
+			refOverride:    "main",
+			autoMergePRs:   true,
+			push:           true,
+			engineOverride: "copilot",
+			approve:        true,
+			expected:       "gh aw run test-workflow -F name=value --repo owner/repo --ref main --auto-merge-prs --push --engine copilot --approve",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := buildCommandString(tt.workflowName, tt.inputs, tt.repoOverride, tt.refOverride, tt.autoMergePRs, tt.push, tt.engineOverride)
+			result := buildCommandString(tt.workflowName, tt.inputs, tt.repoOverride, tt.refOverride, tt.autoMergePRs, tt.push, tt.engineOverride, tt.approve)
 			assert.Equal(t, tt.expected, result)
 		})
 	}

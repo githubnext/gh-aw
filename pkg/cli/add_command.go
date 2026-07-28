@@ -20,7 +20,7 @@ import (
 var addLog = logger.New("cli:add_command")
 
 var (
-	addCommandLong = `Add one or more agentic workflows from repositories to .github/workflows.
+	addCommandLong = `Add one or more agentic workflows from repositories, local files, or URLs to .github/workflows.
 
 This command adds workflows directly without interactive prompts. Use 'add-wizard'
 for a guided setup that configures secrets, creates a pull request, and more.

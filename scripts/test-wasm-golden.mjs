@@ -196,7 +196,7 @@ function normalizeProjectUTC(content) {
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
 function normalizeCopilotDefaultModel(content) {
   return content.replace(
-    /\|\| 'claude-sonnet-\d+\.\d+'/g,
+    /\|\| 'claude-sonnet-[\d.]+'/g,
     "|| 'default'"
   );
 }
