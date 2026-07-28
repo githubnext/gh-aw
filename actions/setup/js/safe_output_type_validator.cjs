@@ -215,6 +215,8 @@ function validateIssueIntentLabels(value, lineNum, itemType, fieldName, options)
  * @property {number} defaultMax - Default max count for this type
  * @property {Object.<string, FieldValidation>} fields - Field validation rules
  * @property {string} [customValidation] - Custom validation rule identifier
+ * @property {boolean} [dataEnabled] - Whether structured data is enabled for this type
+ * @property {any} [dataSchema] - Optional schema to validate structured data payloads
  */
 
 /** @type {Object.<string, TypeValidationConfig>|null} */
