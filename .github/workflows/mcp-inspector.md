@@ -34,7 +34,7 @@ imports:
   - shared/mcp/arxiv.md
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs
-  - shared/mcp/brave.md
+  # Note: brave.md excluded — docker.io/mcp/brave-search has Critical/High CVEs with no upstream fix available
   - shared/mcp/context7.md
   - shared/mcp/datadog.md
   - shared/mcp/deepwiki.md

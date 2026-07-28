@@ -19,7 +19,7 @@ engine:
 max-tool-denials: 3
 strict: true
 imports:
-  - shared/mcp/brave.md
+  # shared/mcp/brave.md temporarily removed — docker.io/mcp/brave-search has Critical/High CVEs with no upstream fix available
   - shared/otlp.md
 safe-outputs:
   add-comment:

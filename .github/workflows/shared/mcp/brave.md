@@ -1,24 +1,17 @@
 ---
-# Brave Search MCP Server  
-# Container-based MCP server for web search using Brave Search API
+# Brave Search MCP Server
+# SECURITY: docker.io/mcp/brave-search has Critical/High CVEs with no upstream fix available (issue #48546).
+# The container definition has been removed until a patched image is published upstream.
+# To re-enable, restore the mcp-servers block and update the pinned digest in actions-lock.json.
 #
 # Requires BRAVE_API_KEY secret
 # Get API key from: https://brave.com/search/api/
 #
-# Available tools:
+# Available tools (when enabled):
 #   - brave_web_search: Search the web using Brave Search
 #   - brave_local_search: Search for local businesses and places
 #
 # Usage:
 #   imports:
 #     - shared/mcp/brave.md
-
-mcp-servers:
-  brave-search:
-    container: "docker.io/mcp/brave-search"
-    env:
-      BRAVE_API_KEY: "${{ secrets.BRAVE_API_KEY }}"
-    # Security decision (2026-05-19): keep wildcard for this read-only public search server.
-    # The server surface is intentionally small and used as a general-purpose search primitive.
-    allowed: ["*"]
 ---
