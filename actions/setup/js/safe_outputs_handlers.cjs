@@ -381,7 +381,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       if (!dataEnabled) {
         return buildIntentErrorResponse(`${type} data is not enabled (set safe-outputs.data in workflow frontmatter)`);
       }
-      let dataSchema = null;
+      let dataSchema;
       try {
         if (toolConfig?.data_schema !== undefined) {
           dataSchema = resolveDataSchema(toolConfig.data_schema, `safe-outputs.${type}.data`);

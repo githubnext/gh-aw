@@ -1626,10 +1626,11 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
  * @param {string} agentConclusion
  * @param {boolean} hasToolDenialsExceeded
  * @param {boolean} isTimedOut
+ * @param {boolean} hasMissingModelPricingError
  * @returns {boolean}
  */
-function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) {
-  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut;
+function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, hasMissingModelPricingError = false) {
+  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut && !hasMissingModelPricingError;
 }
 
 /**
@@ -1836,13 +1837,17 @@ function quoteYAMLKey(value) {
  * @param {{input: number, output: number, cacheRead?: number, cacheWrite?: number}|null} pricing Per-million-token values from models.dev
  * @returns {string|null}
  */
-function buildModelPricingFrontmatterSnippet(modelName, engineId, pricing) {
+function buildModelPricingFrontmatterSnippet(modelName, engineId, pricing, isPlaceholderPricing = false) {
   if (!modelName || !pricing) return null;
   const provider = inferProviderKeyFromEngineId(engineId);
   const inputStr = formatPerTokenPrice(pricing.input);
   const outputStr = formatPerTokenPrice(pricing.output);
   const quotedModelName = quoteYAMLKey(modelName);
-  let costBlock = `            input: "${inputStr}"      # $${pricing.input.toFixed(2)} per million input tokens\n`;
+  let costBlock = "";
+  if (isPlaceholderPricing) {
+    costBlock += "            # Placeholder values — replace with actual pricing for this model\n";
+  }
+  costBlock += `            input: "${inputStr}"      # $${pricing.input.toFixed(2)} per million input tokens\n`;
   costBlock += `            output: "${outputStr}"     # $${pricing.output.toFixed(2)} per million output tokens\n`;
   if (pricing.cacheRead !== undefined) {
     costBlock += `            cache_read: "${formatPerTokenPrice(pricing.cacheRead)}"  # $${pricing.cacheRead.toFixed(2)} per million cache-read tokens\n`;
@@ -1855,7 +1860,7 @@ models:
   providers:
     ${provider}:
       models:
-          ${quotedModelName}:
+        ${quotedModelName}:
           cost:
 ${costBlock.trimEnd()}
 \`\`\``;
@@ -1868,7 +1873,7 @@ ${costBlock.trimEnd()}
  * @returns {string|null}
  */
 function buildManualModelPricingFrontmatterSnippet(modelName, engineId) {
-  return buildModelPricingFrontmatterSnippet(modelName, engineId, { input: 0, output: 0 });
+  return buildModelPricingFrontmatterSnippet(modelName, engineId, { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 }, true);
 }
 
 /**
@@ -3657,7 +3662,9 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        // Also suppress when missing-model-pricing is detected: the pricing error is the
+        // root cause and the engine error block would be redundant noise.
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
@@ -3876,7 +3883,9 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        // Also suppress when missing-model-pricing is detected: the pricing error is the
+        // root cause and the engine error block would be redundant noise.
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
