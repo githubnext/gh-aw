@@ -18,6 +18,11 @@ tools:
     min-integrity: approved
     toolsets: [issues, labels]
 safe-outputs:
+  data:
+    issue_number: integer
+    label: string
+    confidence: string
+    reasoning: string
   add-labels:
     allowed: [bug, feature, enhancement, documentation, question, help-wanted, good-first-issue]
   add-comment: {}

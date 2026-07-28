@@ -5115,6 +5115,23 @@
             "type": "string"
           }
         },
+        "data": {
+          "description": "Structured data configuration for body-based safe outputs. Set false (or omit) to disable data, true to allow any object data, provide an inline schema object to enforce shape, or provide a GitHub Actions expression string that resolves to one of those forms at runtime.",
+          "oneOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "object",
+              "additionalProperties": true
+            },
+            {
+              "type": "string",
+              "pattern": "^\\$\\{\\{.*\\}\\}$",
+              "description": "GitHub Actions expression resolving to false, true, or a JSON object schema at runtime"
+            }
+          ]
+        },
         "allowed-github-references": {
           "type": "array",
           "description": "List of allowed repositories for GitHub references (e.g., #123 or owner/repo#456). Use 'repo' to allow current repository. References to other repositories will be escaped with backticks. If not specified, all references are allowed.",

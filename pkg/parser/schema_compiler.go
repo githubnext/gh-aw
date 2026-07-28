@@ -153,6 +153,7 @@ func compileSchema(schemaJSON, schemaURL string) (*jsonschema.Schema, error) {
 // These are used for configuration, not for defining safe output operations.
 var safeOutputMetaFields = map[string]bool{
 	"allowed-domains": true,
+	"data":            true,
 	"staged":          true,
 	"env":             true,
 	"github-token":    true,
