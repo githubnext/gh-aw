@@ -189,12 +189,10 @@ func (c *Compiler) generatePostAgentCollectionAndUpload(yaml *strings.Builder, d
 	// Emit all GITHUB_STEP_SUMMARY log-parsing steps.
 	c.generateSummarySteps(yaml, data, engine)
 
-	// Upload MCP telemetry as a dedicated artifact immediately after the summary steps
-	// (which include Stop MCP Gateway and Parse MCP Gateway logs).  This dedicated upload
-	// provides a reliable, per-run capture of gateway.jsonl and rpc-messages.jsonl that is
-	// independent of the unified agent artifact, closing the observability gap reported in
-	// gh-aw#48674.  A chmod step runs first to handle edge-case permission differences
-	// (e.g. tool sub-containers writing files with a different UID in AWF isolation mode).
+	// Upload MCP telemetry as a dedicated artifact immediately after the summary steps.
+	// This dedicated upload provides a reliable, per-run capture of gateway.jsonl and
+	// rpc-messages.jsonl that is independent of the unified agent artifact, closing the
+	// observability gap reported in gh-aw#48674.
 	c.generateMCPLogsArtifactUpload(yaml, data.Name, data, artifactPrefixExprForDownstreamJob(data))
 
 	// Write a minimal agent_output.json placeholder when the engine fails before

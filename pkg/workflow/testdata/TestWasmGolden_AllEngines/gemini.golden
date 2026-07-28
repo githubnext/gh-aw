@@ -574,6 +574,12 @@ jobs:
           GATEWAY_PID: ${{ steps.start-mcp-gateway.outputs.gateway-pid }}
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/stop_mcp_gateway.sh" "$GATEWAY_PID"
+      - name: Fix MCP logs permissions
+        if: always()
+        continue-on-error: true
+        run: |
+          sudo -n chown -R "$(id -u):$(id -g)" /tmp/gh-aw/mcp-logs/ 2>/dev/null || true
+          sudo -n chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || true
       - name: Redact secrets in logs
         if: always()
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -639,6 +645,14 @@ jobs:
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/awf_reflect_summary.cjs');
             await main();
+      - name: Upload MCP logs
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: mcp-logs-engine-gemini-test
+          path: /tmp/gh-aw/mcp-logs/
+          if-no-files-found: ignore
       - name: Upload agent artifacts
         if: always()
         continue-on-error: true

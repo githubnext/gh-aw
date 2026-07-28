@@ -128,9 +128,9 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"agent"},
 		},
 		{
-			name:     "mcp resolves to agent artifact",
+			name:     "mcp resolves to agent and mcp logs artifacts",
 			sets:     []string{"mcp"},
-			expected: []string{"agent"},
+			expected: []string{"agent", "mcp-logs"},
 		},
 		{
 			name:     "firewall resolves to agent artifact",
@@ -138,9 +138,9 @@ func TestResolveArtifactFilter(t *testing.T) {
 			expected: []string{"agent"},
 		},
 		{
-			name:     "mcp and firewall both deduplicate to single agent",
+			name:     "mcp and firewall merge and deduplicate agent",
 			sets:     []string{"mcp", "firewall"},
-			expected: []string{"agent"},
+			expected: []string{"agent", "mcp-logs"},
 		},
 		{
 			name:     "detection resolves to detection artifact",
@@ -235,6 +235,18 @@ func TestArtifactMatchesFilter(t *testing.T) {
 			name:     "multi-filter any match succeeds",
 			artifact: "firewall-audit-logs",
 			filter:   []string{"agent", "firewall-audit-logs"},
+			expected: true,
+		},
+		{
+			name:     "mcp logs prefix match",
+			artifact: "mcp-logs-my-workflow",
+			filter:   []string{"mcp-logs"},
+			expected: true,
+		},
+		{
+			name:     "workflow-call prefixed mcp logs match",
+			artifact: "abc123-mcp-logs-my-workflow",
+			filter:   []string{"mcp-logs"},
 			expected: true,
 		},
 		{
@@ -395,6 +407,18 @@ func TestFindMissingFilterEntries(t *testing.T) {
 			name:         "firewall-audit-logs exact match found",
 			filter:       []string{"firewall-audit-logs"},
 			existingDirs: []string{"firewall-audit-logs"},
+			expected:     nil,
+		},
+		{
+			name:         "mcp logs directory with workflow suffix counts as present",
+			filter:       []string{"mcp-logs"},
+			existingDirs: []string{"mcp-logs-my-workflow"},
+			expected:     nil,
+		},
+		{
+			name:         "workflow-call prefixed mcp logs directory counts as present",
+			filter:       []string{"mcp-logs"},
+			existingDirs: []string{"abc123-mcp-logs-my-workflow"},
 			expected:     nil,
 		},
 	}

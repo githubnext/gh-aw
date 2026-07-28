@@ -227,9 +227,23 @@ func artifactMatchesFilter(name string, filter []string) bool {
 		return true
 	}
 	for _, f := range filter {
-		if name == f || strings.HasSuffix(name, "-"+f) {
+		if artifactNameMatchesFilterEntry(name, f) {
 			return true
 		}
+	}
+	return false
+}
+
+func artifactNameMatchesFilterEntry(name, entry string) bool {
+	if name == entry || strings.HasSuffix(name, "-"+entry) {
+		return true
+	}
+	// Some artifacts include an extra dynamic suffix after the base name
+	// (e.g. "mcp-logs-{workflow}" and "{hash}-mcp-logs-{workflow}" in workflow_call).
+	// Treat those as matches for the base entry.
+	if strings.Contains(entry, "-") &&
+		(strings.HasPrefix(name, entry+"-") || strings.Contains(name, "-"+entry+"-")) {
+		return true
 	}
 	return false
 }
@@ -262,13 +276,7 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 	for _, f := range filter {
 		found := false
 		for _, d := range dirs {
-			// Mirror the artifactMatchesFilter logic: accept exact match or any directory
-			// ending in "-{f}", which covers the workflow_call prefix pattern where GitHub
-			// Actions prepends a short hash (e.g. "abc123-agent"). Note that this means a
-			// hypothetical directory named "super-agent" would satisfy filter entry "agent",
-			// but in practice artifact directories in a run folder only come from GitHub
-			// Actions downloads and follow the "{hash}-{base}" or exact-base patterns.
-			if d == f || strings.HasSuffix(d, "-"+f) {
+			if artifactNameMatchesFilterEntry(d, f) {
 				found = true
 				break
 			}

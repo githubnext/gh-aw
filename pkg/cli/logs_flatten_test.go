@@ -569,6 +569,36 @@ func TestFlattenArtifactTreeNestedDirs(t *testing.T) {
 	assert.True(t, os.IsNotExist(err), "artifactDir should be removed")
 }
 
+func TestFlattenMCPLogsArtifacts(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	mcpArtifactDir := filepath.Join(tmpDir, "mcp-logs-my-workflow")
+	require.NoError(t, os.MkdirAll(mcpArtifactDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(mcpArtifactDir, "gateway.jsonl"), []byte(`{"event":"request"}`), 0644))
+	require.NoError(t, os.WriteFile(filepath.Join(mcpArtifactDir, "rpc-messages.jsonl"), []byte(`{"direction":"outgoing"}`), 0644))
+
+	require.NoError(t, flattenMCPLogsArtifacts(tmpDir, true))
+
+	require.FileExists(t, filepath.Join(tmpDir, "gateway.jsonl"))
+	require.FileExists(t, filepath.Join(tmpDir, "rpc-messages.jsonl"))
+	_, err := os.Stat(mcpArtifactDir)
+	require.True(t, os.IsNotExist(err), "expected MCP artifact directory to be removed")
+}
+
+func TestFlattenMCPLogsArtifactsWorkflowCallPrefix(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	mcpArtifactDir := filepath.Join(tmpDir, "abc123-mcp-logs-my-workflow")
+	require.NoError(t, os.MkdirAll(mcpArtifactDir, 0755))
+	require.NoError(t, os.WriteFile(filepath.Join(mcpArtifactDir, "gateway.jsonl"), []byte(`{"event":"request"}`), 0644))
+
+	require.NoError(t, flattenMCPLogsArtifacts(tmpDir, false))
+
+	require.FileExists(t, filepath.Join(tmpDir, "gateway.jsonl"))
+	_, err := os.Stat(mcpArtifactDir)
+	require.True(t, os.IsNotExist(err), "expected MCP artifact directory to be removed")
+}
+
 func TestFlattenArtifactTreeDifferentSourceAndArtifactDir(t *testing.T) {
 	// Covers the old-structure unified artifact case where sourceDir is a subdirectory of artifactDir.
 	outputDir := t.TempDir()

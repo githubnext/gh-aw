@@ -58,40 +58,45 @@ func (c *Compiler) generateUnifiedArtifactUpload(yaml *strings.Builder, paths []
 	compilerYamlArtifactsLog.Printf("Generated unified artifact upload step with %d paths", len(paths))
 }
 
-// generateMCPLogsArtifactUpload emits two steps that reliably capture MCP telemetry:
-//  1. A best-effort chmod to make log files readable regardless of how the gateway
-//     container wrote them (e.g. different UID in AWF isolation mode).
-//  2. A dedicated actions/upload-artifact step for the mcp-logs directory, independent
-//     of the unified agent artifact so telemetry is preserved even when the main upload
-//     has issues.
+// generateMCPLogsPermissionsFixStep emits a best-effort ownership/permission repair
+// for MCP logs before secret redaction runs. This ensures the redactor can read and
+// scrub gateway/rpc logs even when files were written by a different UID.
+func (c *Compiler) generateMCPLogsPermissionsFixStep(yaml *strings.Builder) {
+	yaml.WriteString("      - name: Fix MCP logs permissions\n")
+	yaml.WriteString("        if: always()\n")
+	yaml.WriteString("        continue-on-error: true\n")
+	yaml.WriteString("        run: |\n")
+	yaml.WriteString("          sudo -n chown -R \"$(id -u):$(id -g)\" /tmp/gh-aw/mcp-logs/ 2>/dev/null || true\n")
+	yaml.WriteString("          sudo -n chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || true\n")
+}
+
+// generateMCPLogsArtifactUpload emits a dedicated actions/upload-artifact step for the
+// mcp-logs directory, independent of the unified agent artifact so telemetry is
+// preserved even when the main upload has issues.
 //
 // The artifact is named "mcp-logs-{sanitized-workflow-name}" (or
 // "{prefix}mcp-logs-{name}" in workflow_call context).
-// On ARC/DinD topologies the path is rewritten to ${{ runner.temp }}/gh-aw/mcp-logs/.
 func (c *Compiler) generateMCPLogsArtifactUpload(yaml *strings.Builder, workflowName string, data *WorkflowData, prefix string) {
 	sanitizedName := strings.ToLower(SanitizeWorkflowName(workflowName))
 	artifactName := prefix + constants.MCPLogsArtifactBaseName + "-" + sanitizedName
 
-	// Resolve the MCP logs path: on ARC/DinD, /tmp is not daemon-visible so logs
-	// land under ${{ runner.temp }}/gh-aw (the same rewrite used for firewall logs).
 	mcpLogsPath := constants.TmpMcpLogsDir
+
+	compilerYamlArtifactsLog.Printf("Generating dedicated MCP artifact upload: artifact=%s path=%s", artifactName, mcpLogsPath)
+
+	// On ARC/DinD the dedicated upload runs before the later general artifact
+	// consolidation step, so copy MCP logs into the runner.temp mirror first.
 	if isArcDindTopology(data) {
+		yaml.WriteString("      - name: Mirror MCP logs to runner temp (ARC/DinD)\n")
+		yaml.WriteString("        if: always()\n")
+		yaml.WriteString("        continue-on-error: true\n")
+		yaml.WriteString("        run: |\n")
+		yaml.WriteString("          mkdir -p \"${{ runner.temp }}/gh-aw/mcp-logs\"\n")
+		yaml.WriteString("          cp -a /tmp/gh-aw/mcp-logs/. \"${{ runner.temp }}/gh-aw/mcp-logs/\" 2>/dev/null || true\n")
 		mcpLogsPath = constants.TmpMcpLogsDirExpr
 	}
 
-	compilerYamlArtifactsLog.Printf("Generating MCP logs chmod + dedicated artifact upload: artifact=%s path=%s", artifactName, mcpLogsPath)
-
-	// Step 1: chmod – best-effort, non-fatal.
-	// The MCP gateway runs with --user $(id -u):$(id -g) so files are normally
-	// runner-owned, but AWF isolation or tool sub-containers may produce files
-	// owned by a different user.  chmod -R a+rX restores read access without
-	// requiring sudo, matching the non-rootless branch of print_firewall_logs.sh.
-	yaml.WriteString("      - name: Fix MCP logs permissions\n")
-	yaml.WriteString("        if: always()\n")
-	yaml.WriteString("        continue-on-error: true\n")
-	yaml.WriteString("        run: chmod -R a+rX /tmp/gh-aw/mcp-logs/ 2>/dev/null || true\n")
-
-	// Step 2: dedicated artifact upload – always runs, ignores missing files so it
+	// Dedicated artifact upload – always runs, ignores missing files so it
 	// is a no-op on workflows where the gateway did not start.
 	// Record the upload for step-order validation before writing YAML.
 	c.stepOrderTracker.RecordArtifactUpload("Upload MCP logs", []string{mcpLogsPath})

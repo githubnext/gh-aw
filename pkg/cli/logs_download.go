@@ -321,6 +321,33 @@ func flattenSafeOutputsItemsArtifact(outputDir string, verbose bool) error {
 	return flattenArtifactTree(safeOutputsItemsDir, safeOutputsItemsDir, outputDir, "safe-outputs-items artifact", verbose)
 }
 
+// flattenMCPLogsArtifacts flattens dedicated mcp-logs artifacts
+// (mcp-logs-{workflow} and workflow_call-prefixed variants) so gateway.jsonl and
+// rpc-messages.jsonl are visible to parsers that read the run root and mcp-logs/.
+func flattenMCPLogsArtifacts(outputDir string, verbose bool) error {
+	entries, err := os.ReadDir(outputDir)
+	if err != nil {
+		return err
+	}
+
+	for _, entry := range entries {
+		if !entry.IsDir() {
+			continue
+		}
+		name := entry.Name()
+		if !strings.HasPrefix(name, constants.MCPLogsArtifactBaseName+"-") &&
+			!strings.Contains(name, "-"+constants.MCPLogsArtifactBaseName+"-") {
+			continue
+		}
+		artifactDir := filepath.Join(outputDir, name)
+		logsDownloadLog.Printf("Flattening MCP logs artifact directory: %s", artifactDir)
+		if err := flattenArtifactTree(artifactDir, artifactDir, outputDir, "mcp-logs artifact", verbose); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // downloadWorkflowRunLogs downloads and unzips workflow run logs using GitHub API
 func downloadWorkflowRunLogs(ctx context.Context, runID int64, outputDir string, verbose bool, owner, repo, hostname string) error {
 	logsDownloadLog.Printf("Downloading workflow run logs: run_id=%d, output_dir=%s, owner=%s, repo=%s", runID, outputDir, owner, repo)
@@ -953,6 +980,12 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	// and loadResolvedTemporaryIDTargets can find them at their expected paths.
 	if err := flattenSafeOutputsItemsArtifact(opts.outputDir, opts.verbose); err != nil {
 		return fmt.Errorf("failed to flatten safe-outputs-items artifact: %w", err)
+	}
+
+	// Flatten dedicated mcp-logs-* artifacts so gateway/rpc logs are discoverable
+	// in broad downloads (e.g. --artifacts all) without explicit MCP filtering.
+	if err := flattenMCPLogsArtifacts(opts.outputDir, opts.verbose); err != nil {
+		return fmt.Errorf("failed to flatten mcp-logs artifacts: %w", err)
 	}
 
 	// Download and unzip workflow run logs unless caller requested usage-only mode.
