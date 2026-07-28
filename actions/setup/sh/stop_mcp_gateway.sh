@@ -10,6 +10,8 @@ set -e
 
 # Get PID from command line argument (passed from step output)
 GATEWAY_PID="$1"
+MCP_LOGS_DIR="/tmp/gh-aw/mcp-logs"
+MCP_GATEWAY_CONTAINER_NAME="awmg-mcpg"
 
 # Register an EXIT trap to ensure the named gateway container is always removed,
 # regardless of the exit path (missing PID, process already gone, successful /close,
@@ -18,10 +20,22 @@ GATEWAY_PID="$1"
 # guaranteeing that the host port is freed on every exit — including the case
 # where the start step never captured a PID.
 cleanup_container() {
-  echo "Cleaning up awmg-mcpg container..."
-  docker stop awmg-mcpg 2>/dev/null || docker rm -f awmg-mcpg 2>/dev/null || true
+  echo "Cleaning up ${MCP_GATEWAY_CONTAINER_NAME} container..."
+  docker stop "${MCP_GATEWAY_CONTAINER_NAME}" 2>/dev/null || docker rm -f "${MCP_GATEWAY_CONTAINER_NAME}" 2>/dev/null || true
 }
 trap cleanup_container EXIT
+
+# Ensure MCP logs are readable before downstream redaction and upload steps.
+# Handles both direct-host writes and root-owned files in containerized runners.
+fix_mcp_logs_permissions() {
+  if [ ! -d "$MCP_LOGS_DIR" ]; then
+    return 0
+  fi
+  sudo -n chown -R "$(id -u):$(id -g)" "$MCP_LOGS_DIR" 2>/dev/null || true
+  sudo -n chmod -R a+rX "$MCP_LOGS_DIR" 2>/dev/null || chmod -R a+rX "$MCP_LOGS_DIR" 2>/dev/null || true
+}
+
+fix_mcp_logs_permissions
 
 if [ -z "$GATEWAY_PID" ]; then
   echo "Gateway PID not provided"
