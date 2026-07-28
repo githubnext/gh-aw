@@ -320,11 +320,18 @@ func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 	// Expose the compiler version so the Copilot install script can resolve a
 	// compatible toolcache entry via compat-matrix range matching rather than
 	// requiring an exact version download on every job.
+	// GH_AW_COMPILED_VERSION and GH_AW_DEFAULT_COPILOT_VERSION are emitted only
+	// for release builds so that dev/CI builds do not accidentally enable toolcache
+	// range matching against a stale compat window.
 	if IsRelease() {
 		if env == nil {
 			env = make(map[string]string)
 		}
 		env["GH_AW_COMPILED_VERSION"] = c.version
+		// GH_AW_DEFAULT_COPILOT_VERSION signals to the install script that the
+		// requested version is the compiler-generated default pin (not a user-supplied
+		// explicit pin), allowing compat-range toolcache matching as a fallback.
+		env["GH_AW_DEFAULT_COPILOT_VERSION"] = string(constants.DefaultCopilotVersion)
 	}
 
 	return env

@@ -29,6 +29,11 @@ COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
 COMPAT_URL="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
 COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
+# GH_AW_DEFAULT_COPILOT_VERSION is emitted by the compiler only for release builds.
+# When set and VERSION equals this value, the requested version is the compiler-generated
+# default pin (not a user-supplied explicit pin), so range-based toolcache matching is
+# allowed as a fallback instead of requiring an exact version match.
+DEFAULT_COPILOT_VERSION="${GH_AW_DEFAULT_COPILOT_VERSION:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 COMPAT_BUNDLED_PATH="${COPILOT_COMPAT_BUNDLED_PATH:-${REPO_ROOT}/.github/aw/compat.json}"
@@ -422,13 +427,8 @@ find_cached_copilot_bin() {
           printf '%s\n' "$candidate"
           return 0
         fi
-        # If no compat range is available, an exact match is required
-        if [ -z "$min_version" ] && [ -z "$max_version" ]; then
-          echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
-          continue
-        fi
-        echo "  No exact match (want ${requested_version_normalized}); checking compat range ${min_version}..${max_version}" >&2
-        # Fall through to range check below
+        echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
+        continue
       fi
 
       if [ -n "$min_version" ] && version_is_greater "$min_version" "$candidate_version_normalized"; then
@@ -525,12 +525,28 @@ if [ -z "$VERSION" ]; then
     exit 1
   fi
 else
-  echo "Explicit Copilot CLI version argument provided (${VERSION}); resolving compat window for toolcache range matching..."
-  if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
-    IFS='|' read -r _UNUSED COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
-    echo "Compat window resolved: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT} (toolcache range matching enabled)"
+  # VERSION was provided explicitly. Allow compat-range toolcache matching only when the
+  # requested version is the compiler-generated default pin (GH_AW_DEFAULT_COPILOT_VERSION),
+  # not a user-supplied explicit pin. User-pinned versions use exact-match-only to preserve
+  # the engine.version contract.
+  version_normalized="$(normalize_version "$VERSION")"
+  default_normalized=""
+  if [ -n "$DEFAULT_COPILOT_VERSION" ]; then
+    default_normalized="$(normalize_version "$DEFAULT_COPILOT_VERSION")"
+  fi
+  if [ -n "$default_normalized" ] && [ "$version_normalized" = "$default_normalized" ]; then
+    echo "Explicit Copilot CLI version argument provided (${VERSION}); this is the compiler-generated default pin, resolving compat window for toolcache range matching..."
+    if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
+      IFS='|' read -r _UNUSED COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
+      # Treat as "latest" so find_cached_copilot_bin uses range matching and applies TTL
+      # (same path as when VERSION is not set). VERSION is still used for the download URL.
+      REQUESTED_VERSION="latest"
+      echo "Compat window resolved: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT} (toolcache range matching enabled)"
+    else
+      echo "Compat window unavailable; exact toolcache match required for version ${VERSION}." >&2
+    fi
   else
-    echo "Compat window unavailable; exact toolcache match required for version ${VERSION}." >&2
+    echo "Explicit Copilot CLI version argument provided (${VERSION}); exact toolcache match required."
   fi
 fi
 

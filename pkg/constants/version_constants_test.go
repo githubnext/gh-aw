@@ -62,7 +62,9 @@ func TestDefaultCopilotVersionWithinCompatWindow(t *testing.T) {
 				MaxGhAw  string `json:"max-gh-aw"`
 				MinAgent string `json:"min-agent"`
 				MaxAgent string `json:"max-agent"`
-				Open     bool   `json:"open"`
+				// Open is optional; per compat.schema.json it defaults to true when absent.
+				// Use *bool so we can distinguish an explicit false from an omitted field.
+				Open *bool `json:"open"`
 			} `json:"copilot"`
 		} `json:"agent-compat-v1"`
 	}
@@ -72,9 +74,10 @@ func TestDefaultCopilotVersionWithinCompatWindow(t *testing.T) {
 
 	version := string(DefaultCopilotVersion)
 
-	// Find the first open row (open: true means it covers the current gh-aw release).
+	// Find the first open row (open: true, or absent which defaults to true per schema).
 	for _, row := range compat.AgentCompatV1.Copilot {
-		if !row.Open {
+		// Skip rows that are explicitly closed (open: false).
+		if row.Open != nil && !*row.Open {
 			continue
 		}
 		if row.MinAgent == "" || row.MaxAgent == "" {
@@ -85,10 +88,13 @@ func TestDefaultCopilotVersionWithinCompatWindow(t *testing.T) {
 		} else if cmp < 0 {
 			t.Fatalf("DefaultCopilotVersion %q is below compat min-agent %q; bump min-agent or lower DefaultCopilotVersion", version, row.MinAgent)
 		}
-		if cmp, err := semverCmp(version, row.MaxAgent); err != nil {
-			t.Fatalf("semverCmp(%q, %q): %v", version, row.MaxAgent, err)
-		} else if cmp > 0 {
-			t.Fatalf("DefaultCopilotVersion %q exceeds compat max-agent %q; update .github/aw/compat.json max-agent or lower DefaultCopilotVersion to prevent toolcache bypass", version, row.MaxAgent)
+		// max-agent may be "*" (wildcard) for catch-all rows; skip the upper-bound check in that case.
+		if row.MaxAgent != "*" {
+			if cmp, err := semverCmp(version, row.MaxAgent); err != nil {
+				t.Fatalf("semverCmp(%q, %q): %v", version, row.MaxAgent, err)
+			} else if cmp > 0 {
+				t.Fatalf("DefaultCopilotVersion %q exceeds compat max-agent %q; update .github/aw/compat.json max-agent or lower DefaultCopilotVersion to prevent toolcache bypass", version, row.MaxAgent)
+			}
 		}
 		return // found and validated
 	}
