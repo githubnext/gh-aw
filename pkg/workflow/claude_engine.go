@@ -50,7 +50,7 @@ func (e *ClaudeEngine) GetModelEnvVarName() string {
 
 // ResolveLLMProvider returns the effective provider for Claude inference.
 // Default is anthropic, overridable via engine.provider (or engine.model-provider).
-func (e *ClaudeEngine) ResolveLLMProvider(workflowData *WorkflowData) string {
+func (e *ClaudeEngine) ResolveLLMProvider(workflowData *WorkflowData) LLMProvider {
 	return resolveEngineLLMProvider(workflowData, LLMProviderAnthropic)
 }
 
@@ -423,7 +423,7 @@ func (e *ClaudeEngine) buildClaudeFullCommand(workflowData *WorkflowData, claude
 func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[string]string {
 	provider := e.ResolveLLMProvider(workflowData)
 	env := buildClaudeBaseEnvMap(provider, workflowData)
-	env["GH_AW_LLM_PROVIDER"] = provider
+	env["GH_AW_LLM_PROVIDER"] = string(provider)
 	if isFirewallEnabled(workflowData) && provider != LLMProviderAnthropic {
 		env["ANTHROPIC_BASE_URL"] = llmProviderGatewayBaseURL(provider)
 	}
@@ -465,7 +465,7 @@ func (e *ClaudeEngine) buildClaudeCommandEnv(workflowData *WorkflowData) map[str
 
 // buildClaudeBaseEnvMap returns the initial Claude execution environment with static flags
 // and well-known GitHub Actions context values.
-func buildClaudeBaseEnvMap(provider string, workflowData *WorkflowData) map[string]string {
+func buildClaudeBaseEnvMap(provider LLMProvider, workflowData *WorkflowData) map[string]string {
 	return map[string]string{
 		"ANTHROPIC_API_KEY": llmProviderSecretExpression(provider, workflowData),
 		"DISABLE_TELEMETRY": "1",

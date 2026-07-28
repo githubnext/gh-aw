@@ -141,8 +141,8 @@ func TestResolveEngineProviderForPricing(t *testing.T) {
 		config *EngineConfig
 		want   string
 	}{
-		{"LLMProvider wins", &EngineConfig{LLMProvider: "openai", InlineProviderID: "other", ID: "claude"}, "openai"},
-		{"LLMProvider alias normalized", &EngineConfig{LLMProvider: "github_models", ID: "claude"}, "github-copilot"},
+		{"LLMProvider wins", &EngineConfig{LLMProvider: LLMProviderOpenAI, InlineProviderID: "other", ID: "claude"}, "openai"},
+		{"LLMProvider alias normalized", &EngineConfig{LLMProvider: LLMProvider("github_models"), ID: "claude"}, "github-copilot"},
 		{"InlineProviderID second", &EngineConfig{InlineProviderID: "openai", ID: "claude"}, "openai"},
 		{"claude engine → anthropic", &EngineConfig{ID: "claude"}, "anthropic"},
 		{"codex engine → openai", &EngineConfig{ID: "codex"}, "openai"},

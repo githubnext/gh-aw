@@ -63,7 +63,7 @@ func resolveEngineProviderForPricing(engineConfig *EngineConfig) string {
 		return "github-copilot" // default provider when no engine is specified
 	}
 	if engineConfig.LLMProvider != "" {
-		return normalizeProviderForPricing(engineConfig.LLMProvider)
+		return normalizeProviderForPricing(string(engineConfig.LLMProvider))
 	}
 	if engineConfig.InlineProviderID != "" {
 		return normalizeProviderForPricing(engineConfig.InlineProviderID)
