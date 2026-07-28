@@ -39,6 +39,8 @@ func getVersionForSetup(data *WorkflowData) string {
 		return string(constants.DefaultClaudeCodeVersion)
 	case string(constants.CodexEngine):
 		return string(constants.DefaultCodexVersion)
+	case string(constants.GeminiEngine):
+		return string(constants.DefaultGeminiVersion)
 	case string(constants.OpenCodeEngine):
 		return string(constants.DefaultOpenCodeVersion)
 	case string(constants.PiEngine):

@@ -383,61 +383,83 @@ func downloadFileViaRawURL(ctx context.Context, owner, repo, filePath, ref strin
 func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error) {
 	remoteLog.Printf("Attempting git clone fallback for %s/%s/%s@%s", owner, repo, path, ref)
 
-	if err := gitutil.ValidateGitRef(ref); err != nil {
-		return nil, fmt.Errorf("refusing git clone fallback: %w", err)
+	if err := validateGitCloneFallbackInputs(ref, path); err != nil {
+		return nil, err
 	}
-	if err := gitutil.ValidateGitPath(path); err != nil {
-		return nil, fmt.Errorf("refusing git clone fallback: %w", err)
-	}
-
-	// Create a temporary directory for the shallow clone
-	tmpDir, err := os.MkdirTemp("", "gh-aw-git-clone-*")
+	tmpDir, err := createGitCloneTempDir()
 	if err != nil {
-		return nil, fmt.Errorf("failed to create temp directory: %w", err)
+		return nil, err
 	}
 	defer os.RemoveAll(tmpDir)
 
-	var githubHost string
+	repoURL := getRepoGitURL(owner, repo, host)
+	if len(ref) == 40 && gitutil.IsHexString(ref) {
+		if err := cloneAndCheckoutSHA(ctx, repoURL, tmpDir, ref); err != nil {
+			return nil, err
+		}
+	} else if err := cloneBranchOrTag(ctx, repoURL, tmpDir, ref); err != nil {
+		return nil, err
+	}
+
+	content, err := readFileFromClone(tmpDir, path)
+	if err != nil {
+		return nil, err
+	}
+
+	remoteLog.Printf("Successfully downloaded file via git clone: %s/%s/%s@%s", owner, repo, path, ref)
+	return content, nil
+}
+
+func validateGitCloneFallbackInputs(ref, path string) error {
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return fmt.Errorf("refusing git clone fallback: %w", err)
+	}
+	if err := gitutil.ValidateGitPath(path); err != nil {
+		return fmt.Errorf("refusing git clone fallback: %w", err)
+	}
+	return nil
+}
+
+func createGitCloneTempDir() (string, error) {
+	tmpDir, err := os.MkdirTemp("", "gh-aw-git-clone-*")
+	if err != nil {
+		return "", fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	return tmpDir, nil
+}
+
+func getRepoGitURL(owner, repo, host string) string {
+	githubHost := GetGitHubHostForRepo(owner, repo)
 	if host != "" {
 		githubHost = "https://" + host
-	} else {
-		githubHost = GetGitHubHostForRepo(owner, repo)
 	}
-	repoURL := fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
+	return fmt.Sprintf("%s/%s/%s.git", githubHost, owner, repo)
+}
 
-	// Check if ref is a SHA (40 hex characters)
-	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)
-
-	var cloneCmd *exec.Cmd
-	if isSHA {
-		// For SHA refs, we need to clone without --branch and then checkout the specific commit
-		// Clone with minimal depth and no branch specified
-		cloneCmd = exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--no-single-branch", repoURL, tmpDir)
-		if output, err := cloneCmd.CombinedOutput(); err != nil {
-			// Try without --no-single-branch if the first attempt fails
-			remoteLog.Printf("Clone with --no-single-branch failed, trying full clone: %s", string(output))
-			cloneCmd = exec.CommandContext(ctx, "git", "clone", repoURL, tmpDir)
-			if output, err := cloneCmd.CombinedOutput(); err != nil {
-				return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
-			}
-		}
-
-		// Now checkout the specific commit in detached HEAD mode. ValidateGitRef above
-		// guarantees ref does not start with '-', so it remains a revision argument.
-		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "--detach", ref)
-		if output, err := checkoutCmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
-		}
-	} else {
-		// For branch/tag refs, use --branch flag; the value is passed via a separate
-		// argument slot and cannot be confused with a flag because it follows --branch.
-		cloneCmd = exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, repoURL, tmpDir)
-		if output, err := cloneCmd.CombinedOutput(); err != nil {
-			return nil, fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
+func cloneAndCheckoutSHA(ctx context.Context, repoURL, tmpDir, ref string) error {
+	if output, err := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--no-single-branch", repoURL, tmpDir).CombinedOutput(); err != nil {
+		remoteLog.Printf("Clone with --no-single-branch failed, trying full clone: %s", string(output))
+		if output, err := exec.CommandContext(ctx, "git", "clone", repoURL, tmpDir).CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
 		}
 	}
+	// ValidateGitRef above guarantees ref does not start with '-', so it remains a revision argument.
+	if output, err := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "--detach", ref).CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(output))
+	}
+	return nil
+}
 
-	// Read the file from the cloned repository
+func cloneBranchOrTag(ctx context.Context, repoURL, tmpDir, ref string) error {
+	// For branch/tag refs, use --branch flag; the value is passed via a separate
+	// argument slot and cannot be confused with a flag because it follows --branch.
+	if output, err := exec.CommandContext(ctx, "git", "clone", "--depth", "1", "--branch", ref, repoURL, tmpDir).CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to clone repository: %w\nOutput: %s", err, string(output))
+	}
+	return nil
+}
+
+func readFileFromClone(tmpDir, path string) ([]byte, error) {
 	filePath := filepath.Join(tmpDir, path)
 	if err := fileutil.ValidatePathWithinBase(tmpDir, filePath); err != nil {
 		return nil, fmt.Errorf("refusing to read file outside clone directory: %w", err)
@@ -446,7 +468,5 @@ func downloadFileViaGitClone(ctx context.Context, owner, repo, path, ref, host s
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file from cloned repository: %w", err)
 	}
-
-	remoteLog.Printf("Successfully downloaded file via git clone: %s/%s/%s@%s", owner, repo, path, ref)
 	return content, nil
 }

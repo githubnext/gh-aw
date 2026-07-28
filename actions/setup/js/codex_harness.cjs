@@ -35,7 +35,7 @@
 
 const { getErrorMessage } = require("./error_helpers.cjs");
 const fs = require("fs");
-const { runProcess, formatDuration, sleep } = require("./process_runner.cjs");
+const { runProcess, formatDuration, sleep, MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS, MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS, resolvePostResultWatchdogIdleTimeoutMs } = require("./process_runner.cjs");
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
@@ -83,6 +83,86 @@ const MISSING_API_KEY_PATTERN = /Missing environment variable:\s*`?(?:CODEX_API_
 // Pattern to detect OpenAI server-side errors (HTTP 500, 503).
 // These are transient infrastructure failures that may resolve on retry.
 const SERVER_ERROR_PATTERN = /InternalServerError|ServiceUnavailableError|500 Internal Server Error|503 Service Unavailable/i;
+
+// Post-result watchdog: once the agent writes a terminal safe-output the harness
+// arms a watchdog timer and kills the Codex process if it is still running after
+// POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS of inactivity.  This prevents the step from
+// hitting its hard timeout when Codex hangs on exit after completing its work.
+// Constants and resolvePostResultWatchdogIdleTimeoutMs are imported from process_runner.cjs.
+const POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS = resolvePostResultWatchdogIdleTimeoutMs();
+
+// Types that are NOT terminal safe-outputs (infrastructure/diagnostic signals).
+// A terminal safe-output is any entry whose type is NOT in this set, plus "noop".
+const SAFE_OUTPUT_NON_TERMINAL_TYPES = new Set(["missing_tool", "report_incomplete"]);
+
+/**
+ * Return the current byte size of the safe-outputs file, or 0 if the file does not
+ * yet exist.  Used as a per-attempt baseline so the watchdog only arms on output
+ * appended by the current attempt, not a record left by an earlier retry.
+ * @param {string} safeOutputsPath
+ * @returns {number}
+ */
+function getSafeOutputsByteOffset(safeOutputsPath) {
+  try {
+    return fs.statSync(safeOutputsPath).size;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Read only the content of the safe-outputs JSONL file appended after byteOffset and
+ * return true if at least one terminal safe-output entry is present in that new content.
+ * A terminal safe-output is either a "noop" (nothing to do) or a non-diagnostic task
+ * result (e.g. add-labels, hide-comment).
+ *
+ * Using a per-attempt byte offset prevents the watchdog from arming on output produced
+ * by an earlier retry: if attempt N wrote a terminal record and exited non-zero before
+ * the watchdog polled, attempt N+1 would otherwise arm immediately and be killed even
+ * though it produced nothing useful.
+ *
+ * @param {string} safeOutputsPath
+ * @param {number} byteOffset - byte position in the file at the start of the current attempt
+ * @param {{ logger?: (msg: string) => void }=} options
+ * @returns {boolean}
+ */
+function hasTerminalSafeOutput(safeOutputsPath, byteOffset, options) {
+  const logger = options && options.logger ? options.logger : () => {};
+  if (!safeOutputsPath) return false;
+  let content = "";
+  try {
+    const fd = fs.openSync(safeOutputsPath, "r");
+    try {
+      const stats = fs.fstatSync(fd);
+      const fileSize = stats.size;
+      if (fileSize <= byteOffset) return false;
+      const length = fileSize - byteOffset;
+      const buf = Buffer.allocUnsafe(length);
+      fs.readSync(fd, buf, 0, length, byteOffset);
+      content = buf.toString("utf8");
+    } finally {
+      fs.closeSync(fd);
+    }
+  } catch {
+    return false;
+  }
+  for (const line of content.split("\n")) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (!parsed || typeof parsed.type !== "string") continue;
+      const type = parsed.type;
+      if (type === "noop" || !SAFE_OUTPUT_NON_TERMINAL_TYPES.has(type)) {
+        logger(`hasTerminalSafeOutput: terminal entry found in ${safeOutputsPath}: type=${type}`);
+        return true;
+      }
+    } catch {
+      // Ignore malformed lines.
+    }
+  }
+  return false;
+}
 
 /**
  * Emit a timestamped diagnostic log line to stderr.
@@ -509,12 +589,40 @@ async function main() {
       }
     }
 
-    const result = await runProcess({ command, args: resolvedArgs, attempt, log, logArgs: safeArgs, env: codexEnv });
+    // Track the file size before this attempt so the watchdog only arms on output
+    // written by this attempt, not by a previous retry.
+    const safeOutputsByteOffset = safeOutputsPath ? getSafeOutputsByteOffset(safeOutputsPath) : 0;
+
+    const result = await runProcess({
+      command,
+      args: resolvedArgs,
+      attempt,
+      log,
+      logArgs: safeArgs,
+      env: codexEnv,
+      postResultWatchdog: safeOutputsPath
+        ? {
+            shouldArm: () => hasTerminalSafeOutput(safeOutputsPath, safeOutputsByteOffset, { logger: log }),
+            inactivityTimeoutMs: POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+          }
+        : undefined,
+    });
     lastExitCode = result.exitCode;
 
     // Success — stop retrying
     if (result.exitCode === 0) {
       log(`success on attempt ${attempt + 1}: totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
+      lastExitCode = 0;
+      break;
+    }
+
+    // When the post-result watchdog fired (SIGTERM sent to a hanging Codex process) and the
+    // safe-outputs file contains a terminal result written during this attempt, treat the run
+    // as a success.  The agent completed its work and wrote its output — the hang on exit is
+    // a cosmetic failure, not a task failure.  Check this before logging "attempt failed" so
+    // the log stream does not contradict itself for what is ultimately a successful run.
+    if (result.watchdogFired && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath, safeOutputsByteOffset, { logger: log })) {
+      log(`attempt ${attempt + 1}: post-result watchdog fired after terminal safe-output was emitted — treating as success (late-activity exit suppressed)`);
       lastExitCode = 0;
       break;
     }
@@ -530,6 +638,7 @@ async function main() {
     log(
       `attempt ${attempt + 1} failed:` +
         ` exitCode=${result.exitCode}` +
+        ` watchdogFired=${result.watchdogFired}` +
         ` isRateLimitError=${isRateLimit}` +
         ` isTokenPerMinuteRateLimitError=${isTokenPerMinuteRateLimit}` +
         ` isAuthenticationFailedError=${isAuthenticationFailed}` +
@@ -662,6 +771,11 @@ if (typeof module !== "undefined" && module.exports) {
     applyModelFallback,
     injectModelFlagAfterExec,
     getCodexModelEnvVar,
+    resolvePostResultWatchdogIdleTimeoutMs,
+    POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+    DEFAULT_POST_RESULT_WATCHDOG_IDLE_TIMEOUT_MS,
+    MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS,
+    MAX_POST_RESULT_WATCHDOG_TIMEOUT_MS,
   };
 }
 

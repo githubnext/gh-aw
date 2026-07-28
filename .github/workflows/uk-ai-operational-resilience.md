@@ -43,7 +43,7 @@ tools:
 safe-outputs:
   create-issue:
     max: 2
-    labels: [security, high-priority, ai-generated]
+    labels: [security, high-priority, ai-generated, cookie]
     title-prefix: "[uk-ai-resilience] "
 pre-agent-steps:
   - name: Pre-compute recent changes governance context
