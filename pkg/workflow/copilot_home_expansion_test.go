@@ -1,3 +1,5 @@
+//go:build !integration
+
 // Tests guarding the $HOME-based shell expansion logic that resolves the
 // Copilot CLI config directory at runtime (instead of the hard-coded
 // /home/runner that broke self-hosted and containerized runners).
@@ -7,12 +9,19 @@
 //  1. String-level assertions on the helpers in copilot_mcp.go and
 //     copilot_engine_execution.go to lock the generated snippets so any future
 //     regression flips a focused test rather than only the broader goldens.
+//
 //  2. Bash integration tests that actually execute the generated snippets
 //     under a few HOME values to confirm:
 //     - $HOME expands as expected
 //     - quoting survives a HOME containing spaces and other special chars
 //     - the EXIT trap fires and uses the runtime HOME, not the definition-time HOME
 //     - the rubber-duck settings file is written to the resolved path
+//
+//  3. ARC/DinD producer-consumer path alignment: the "Start MCP Gateway" step
+//     (producer) and the Copilot execution step (consumer) must both override
+//     HOME to the same daemon-visible writable path before any $HOME-derived
+//     config paths are evaluated, since GitHub Actions step-local exports do
+//     not persist between steps.
 package workflow
 
 import (
@@ -353,4 +362,91 @@ func TestBashIntegration_RenderMCPConfig_MkdirPath(t *testing.T) {
 				"RenderMCPConfig mkdir line must create $HOME/.copilot")
 		})
 	}
+}
+
+// TestArcDind_ProducerConsumerHomeParity is a regression guard for the ARC/DinD
+// producer-consumer HOME path mismatch.
+//
+// In arc-dind topology, the "Start MCP Gateway" step (producer) writes the Copilot
+// MCP config to $HOME/.copilot/mcp-config.json, and the Copilot execution step
+// (consumer) reads it via GH_AW_MCP_CONFIG=$HOME/.copilot/mcp-config.json.
+// GitHub Actions step-local exports do not persist between steps, so each step must
+// independently override HOME to the daemon-visible writable path
+// (${RUNNER_TEMP}/gh-aw/home) before any $HOME-derived paths are evaluated.
+// Without this, the producer writes to /home/runner/.copilot/mcp-config.json while
+// the consumer looks for the file at ${RUNNER_TEMP}/gh-aw/home/.copilot/mcp-config.json.
+func TestArcDind_ProducerConsumerHomeParity(t *testing.T) {
+	arcDindHome := "export HOME=${RUNNER_TEMP}/gh-aw/home"
+	arcDindMkdir := `mkdir -p "$HOME/.copilot"`
+
+	workflowData := &WorkflowData{
+		Name: "arc-dind-home-parity",
+		EngineConfig: &EngineConfig{
+			ID: "copilot",
+		},
+		RunnerConfig: &RunnerConfig{
+			Topology: RunnerTopologyArcDind,
+		},
+		Tools: map[string]any{"github": map[string]any{}},
+		NetworkPermissions: &NetworkPermissions{
+			Firewall: &FirewallConfig{
+				Enabled: true,
+			},
+		},
+	}
+
+	// --- Producer: "Start MCP Gateway" step ---
+	// generateMCPGatewaySetup emits the step that calls RenderMCPConfig,
+	// which writes $HOME/.copilot/mcp-config.json.
+	ensureDefaultMCPGatewayConfig(workflowData)
+	var gatewayYAML strings.Builder
+	err := generateMCPGatewaySetup(
+		&gatewayYAML,
+		workflowData.Tools,
+		[]string{"github"},
+		NewCopilotEngine(),
+		workflowData,
+		false,
+		nil,
+	)
+	require.NoError(t, err)
+	gatewayStep := gatewayYAML.String()
+
+	// The producer step must override HOME before creating the .copilot directory.
+	gatewayHomeIdx := strings.Index(gatewayStep, arcDindHome)
+	if gatewayHomeIdx < 0 {
+		t.Fatalf("Start MCP Gateway step must export arc-dind HOME before mkdir:\n%s", gatewayStep)
+	}
+	gatewayMkdirIdx := strings.Index(gatewayStep, arcDindMkdir)
+	if gatewayMkdirIdx < 0 {
+		t.Fatalf("Start MCP Gateway step must contain mkdir -p \"$HOME/.copilot\":\n%s", gatewayStep)
+	}
+	if gatewayHomeIdx > gatewayMkdirIdx {
+		t.Fatalf("Start MCP Gateway: HOME export must come before mkdir -p $HOME/.copilot:\n%s", gatewayStep)
+	}
+
+	// --- Consumer: Copilot execution step ---
+	engine := NewCopilotEngine()
+	steps := engine.GetExecutionSteps(workflowData, "test.log")
+	stepContent := requireCopilotExecutionStep(t, steps)
+
+	// The consumer step must also override HOME before GH_AW_MCP_CONFIG is exported.
+	execHomeIdx := strings.Index(stepContent, arcDindHome)
+	if execHomeIdx < 0 {
+		t.Fatalf("Copilot execution step must export arc-dind HOME:\n%s", stepContent)
+	}
+	mcpConfigExport := `export GH_AW_MCP_CONFIG="$HOME/.copilot/mcp-config.json"`
+	execMCPConfigIdx := strings.Index(stepContent, mcpConfigExport)
+	if execMCPConfigIdx < 0 {
+		t.Fatalf("Copilot execution step must contain GH_AW_MCP_CONFIG export:\n%s", stepContent)
+	}
+	if execHomeIdx > execMCPConfigIdx {
+		t.Fatalf("Copilot execution step: HOME export must come before GH_AW_MCP_CONFIG export:\n%s", stepContent)
+	}
+
+	// Both steps must use $HOME-based paths (no literal /home/runner).
+	assert.NotContains(t, gatewayStep, "/home/runner/.copilot",
+		"Start MCP Gateway step must not embed a literal /home/runner/.copilot")
+	assert.NotContains(t, stepContent, "/home/runner/.copilot",
+		"Copilot execution step must not embed a literal /home/runner/.copilot")
 }

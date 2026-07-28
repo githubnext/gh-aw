@@ -293,6 +293,7 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 			RunnerConfig: &RunnerConfig{
 				Topology: RunnerTopologyArcDind,
 			},
+			Tools: map[string]any{"github": map[string]any{}},
 			NetworkPermissions: &NetworkPermissions{
 				Firewall: &FirewallConfig{
 					Enabled: true,
@@ -344,6 +345,38 @@ func TestFirewallArgsInCopilotEngine(t *testing.T) {
 		}
 		if strings.Contains(stepContent, "/usr/local/bin/copilot") {
 			t.Error("Expected arc-dind command not to reference /usr/local/bin/copilot")
+		}
+
+		homeExport := "export HOME=${RUNNER_TEMP}/gh-aw/home"
+		firstHomeExportIdx := strings.Index(stepContent, homeExport)
+		if firstHomeExportIdx < 0 {
+			t.Fatalf("Expected path setup to export HOME for arc-dind:\n%s", stepContent)
+		}
+		if strings.Count(stepContent, homeExport) < 2 {
+			t.Fatalf("Expected both path-setup and engine-command HOME exports for arc-dind:\n%s", stepContent)
+		}
+
+		settingsSetupIdx := strings.Index(stepContent, `mkdir -p "$HOME/.copilot"`)
+		if settingsSetupIdx < 0 {
+			t.Fatalf("Expected Copilot settings setup to be present:\n%s", stepContent)
+		}
+		xdgExportIdx := strings.Index(stepContent, `export XDG_CONFIG_HOME="$HOME"`)
+		if xdgExportIdx < 0 {
+			t.Fatalf("Expected XDG_CONFIG_HOME export to be present:\n%s", stepContent)
+		}
+		mcpConfigExportIdx := strings.Index(stepContent, `export GH_AW_MCP_CONFIG="$HOME/.copilot/mcp-config.json"`)
+		if mcpConfigExportIdx < 0 {
+			t.Fatalf("Expected GH_AW_MCP_CONFIG export when MCP is enabled:\n%s", stepContent)
+		}
+
+		if firstHomeExportIdx > settingsSetupIdx {
+			t.Fatalf("Expected arc-dind HOME export to run before Copilot settings setup:\n%s", stepContent)
+		}
+		if firstHomeExportIdx > xdgExportIdx {
+			t.Fatalf("Expected arc-dind HOME export to run before XDG_CONFIG_HOME export:\n%s", stepContent)
+		}
+		if firstHomeExportIdx > mcpConfigExportIdx {
+			t.Fatalf("Expected arc-dind HOME export to run before GH_AW_MCP_CONFIG export:\n%s", stepContent)
 		}
 	})
 
