@@ -21,14 +21,6 @@ func TestCompileCommandShortFlags(t *testing.T) {
 		t.Fatalf("expected --logical-repo shorthand to be -l, got -%s", logicalRepoFlag.Shorthand)
 	}
 
-	noModelsDevLookupFlag := compileCmd.Flags().Lookup("no-models-dev-lookup")
-	if noModelsDevLookupFlag == nil {
-		t.Fatal("expected --no-models-dev-lookup flag on compile command")
-	}
-	if noModelsDevLookupFlag.DefValue != "false" {
-		t.Fatalf("expected --no-models-dev-lookup default to be false, got %s", noModelsDevLookupFlag.DefValue)
-	}
-
 	grantFlag := compileCmd.Flags().Lookup("grant")
 	if grantFlag == nil {
 		t.Fatal("expected --grant flag on compile command")
