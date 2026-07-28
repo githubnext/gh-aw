@@ -21,6 +21,6 @@ Each future fixture in this directory SHOULD record:
 
 The minimum fixture set for conformance claims is:
 
-1. `explicit-intent-wins`
-2. `ambiguous-root-closing-issues`
-3. `unlinked-pr-fail-closed`
+1. `explicit-intent-wins.yaml`
+2. `ambiguous-root-closing-issues.yaml`
+3. `unlinked-pr-fail-closed.yaml`

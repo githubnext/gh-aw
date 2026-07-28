@@ -16,6 +16,8 @@
 //	SG05_SandboxIsolation           → TestFormalSG05_SandboxIsolationPresence
 //	SG06_Auditability               → TestFormalSG06_ThreatDetectionAuditArtifact
 //	SG07_FailSecure                 → TestFormalSG07_FailSecureOnSecurityError
+//	T-CS-001 SchemaValidation       → TestFormalCS001_SchemaValidationRejectsUnknownField
+//	T-CS-002 ExpressionSafety       → TestFormalCS002_ExpressionSafetyRejectsUnauthorizedExpression
 //	BasicConformance                → TestFormalBasicConformance_AllFourControls
 //	ThreatDetectionOrDefault        → TestFormalThreatDetection_EnabledByDefault
 //	ThreatDetectionOrDefault        → TestFormalThreatDetection_ExplicitDisable
@@ -23,6 +25,12 @@
 //	PM11_PreActivationMembership    → TestFormalPM11_PreActivationContainsMembershipStep
 //	StagedHandlerNoWritePerms       → TestFormalStaged_HandlerRequiresNoWritePerms
 //	IDTokenRequirement              → TestFormalIDToken_OIDCVaultActionsRequireWriteScope
+//	T-RS-003 WorkflowRunRepoCheck   → TestFormalRS003_WorkflowRunRepositoryValidation
+//	T-RS-004 RuntimeRoleValidation  → TestFormalRS004_RuntimeRoleValidation
+//	T-RS-005 RuntimeTokenValidation → TestFormalRS005_RuntimeTokenValidation
+//	T-RS-006 AWFNetworkEnforcement  → TestFormalRS006_AWFNetworkPolicyValidation
+//	T-RS-007 MCPNetworkEnforcement  → TestFormalRS007_MCPNetworkPolicyValidation
+//	T-RS-008 OutputValidation       → TestFormalRS008_OutputTargetValidation
 //	getPushFallbackAsPullRequest     → TestFormalPushFallback_DefaultsToTrue
 //	JobTopologyOrder                → TestFormalJobTopology_PipelineOrderEnforced
 //
@@ -297,6 +305,58 @@ SG-07: verify that a write-permission violation blocks lock-file emission.
 		"SG-07: error must identify the write-permission violation")
 }
 
+// TestFormalCS001_SchemaValidationRejectsUnknownField (T-CS-001)
+//
+// T-CS-001: Verify schema validation enforcement.
+func TestFormalCS001_SchemaValidationRejectsUnknownField(t *testing.T) {
+	md := `---
+name: cs001-schema-validation
+on: push
+engine: copilot
+permissions:
+  contents: read
+unknown-top-level-field: true
+---
+
+# Mission
+
+T-CS-001 schema validation enforcement.
+`
+	compiler := NewCompiler(WithNoEmit(true))
+	_, err := compiler.ParseWorkflowString(md, "workflow.md")
+	require.Error(t, err, "T-CS-001: unknown frontmatter fields must fail schema validation")
+	require.ErrorContains(t, err, "Unknown property",
+		"T-CS-001: error message must identify schema-level unknown property validation")
+}
+
+// TestFormalCS002_ExpressionSafetyRejectsUnauthorizedExpression (T-CS-002)
+//
+// T-CS-002: Verify expression safety checks.
+func TestFormalCS002_ExpressionSafetyRejectsUnauthorizedExpression(t *testing.T) {
+	md := `---
+name: cs002-expression-safety
+on: push
+engine: copilot
+permissions:
+  contents: read
+---
+
+# Mission
+
+This markdown intentionally uses an unauthorized expression:
+${{ github.event.issue.body }}
+`
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowString(md, "workflow.md")
+	require.NoError(t, err, "T-CS-002: schema parsing should succeed before expression safety validation")
+
+	yamlOut, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.Error(t, err, "T-CS-002: unauthorized expressions must fail compilation")
+	assert.Empty(t, yamlOut, "T-CS-002: expression safety failure must block lock-file emission")
+	require.ErrorContains(t, err, "unauthorized expressions found",
+		"T-CS-002: error must report unauthorized expression detection")
+}
+
 // TestFormalBasicConformance_AllFourControls (BasicConformance)
 //
 // Basic Conformance (Level 1) requires all four core security controls to be
@@ -542,6 +602,7 @@ func TestFormalIDToken_OIDCVaultActionsRequireWriteScope(t *testing.T) {
 		"hashicorp/vault-action",
 		"cyberark/conjur-action",
 	}
+
 	for _, action := range oidcActions {
 		t.Run(action, func(t *testing.T) {
 			steps := []any{
@@ -562,6 +623,153 @@ func TestFormalIDToken_OIDCVaultActionsRequireWriteScope(t *testing.T) {
 	// An empty steps list must return false.
 	assert.False(t, stepsRequireIDToken(nil),
 		"IDTokenRequirement: nil steps must return false")
+}
+
+// TestFormalRS003_WorkflowRunRepositoryValidation (T-RS-003)
+//
+// T-RS-003: Verify repository validation for workflow_run.
+func TestFormalRS003_WorkflowRunRepositoryValidation(t *testing.T) {
+	md := `---
+name: rs003-workflow-run-repo-validation
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+    branches: [main]
+engine: copilot
+permissions:
+  contents: read
+---
+
+# Mission
+
+T-RS-003 repository validation for workflow_run.
+`
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowString(md, "workflow.md")
+	require.NoError(t, err)
+
+	yamlOut, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+	assert.Contains(t, yamlOut, "github.event.workflow_run.repository.id == github.repository_id",
+		"T-RS-003: compiled workflow_run trigger must include repository ID safety check")
+}
+
+// TestFormalRS004_RuntimeRoleValidation (T-RS-004)
+//
+// T-RS-004: Verify role validation.
+func TestFormalRS004_RuntimeRoleValidation(t *testing.T) {
+	md := `---
+name: rs004-role-validation
+on:
+  pull_request:
+    types: [opened]
+  roles:
+    - maintainer
+engine: copilot
+permissions:
+  contents: read
+---
+
+# Mission
+
+T-RS-004 runtime role validation.
+`
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowString(md, "workflow.md")
+	require.NoError(t, err)
+
+	yamlOut, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+	assert.Contains(t, yamlOut, "id: check_membership",
+		"T-RS-004: role-gated workflows must include runtime membership validation")
+	assert.Contains(t, yamlOut, "GH_AW_REQUIRED_ROLES:",
+		"T-RS-004: runtime membership validation must include the required roles environment input")
+}
+
+// TestFormalRS005_RuntimeTokenValidation (T-RS-005)
+//
+// T-RS-005: Verify token validation.
+func TestFormalRS005_RuntimeTokenValidation(t *testing.T) {
+	md := `---
+name: rs005-token-validation
+on:
+  pull_request:
+    types: [opened]
+  roles:
+    - write
+engine: copilot
+permissions:
+  contents: read
+tools:
+  github:
+    github-token: ${{ secrets.CUSTOM_PAT }}
+---
+
+# Mission
+
+T-RS-005 runtime token validation.
+`
+	compiler := NewCompiler(WithNoEmit(true))
+	wd, err := compiler.ParseWorkflowString(md, "workflow.md")
+	require.NoError(t, err)
+
+	yamlOut, err := compiler.CompileToYAML(wd, "workflow.md")
+	require.NoError(t, err)
+
+	preActivation := extractJobSection(yamlOut, string(constants.PreActivationJobName))
+	require.NotEmpty(t, preActivation)
+	assert.Contains(t, preActivation, "github-token: ${{ secrets.GITHUB_TOKEN }}",
+		"T-RS-005: runtime membership/token validation must use the repository GITHUB_TOKEN")
+	assert.NotContains(t, preActivation, "CUSTOM_PAT",
+		"T-RS-005: runtime role/token checks must not use custom GitHub tool tokens")
+}
+
+// TestFormalRS006_AWFNetworkPolicyValidation (T-RS-006)
+//
+// T-RS-006: Verify AWF network enforcement.
+func TestFormalRS006_AWFNetworkPolicyValidation(t *testing.T) {
+	compiler := NewCompiler()
+	err := compiler.validateStrictNetwork(&NetworkPermissions{Allowed: []string{"*"}})
+	require.Error(t, err, "T-RS-006: wildcard network access must be rejected by strict network enforcement")
+	require.ErrorContains(t, err, "wildcard",
+		"T-RS-006: strict network enforcement must identify unrestricted wildcard access")
+}
+
+// TestFormalRS007_MCPNetworkPolicyValidation (T-RS-007)
+//
+// T-RS-007: Verify MCP network enforcement.
+func TestFormalRS007_MCPNetworkPolicyValidation(t *testing.T) {
+	compiler := NewCompiler()
+	frontmatter := map[string]any{
+		"mcp-servers": map[string]any{
+			"custom": map[string]any{
+				"type":      "stdio",
+				"container": "ghcr.io/example/mcp-server:latest",
+			},
+		},
+	}
+	err := compiler.validateStrictMCPNetwork(frontmatter, nil)
+	require.Error(t, err, "T-RS-007: strict mode must require top-level network rules for containerized MCP servers")
+	require.ErrorContains(t, err, "top-level network configuration",
+		"T-RS-007: MCP network enforcement error must explain the missing top-level network requirement")
+}
+
+// TestFormalRS008_OutputTargetValidation (T-RS-008)
+//
+// T-RS-008: Verify output validation.
+func TestFormalRS008_OutputTargetValidation(t *testing.T) {
+	config := &SafeOutputsConfig{
+		CloseIssues: &CloseIssuesConfig{
+			SafeOutputTargetConfig: SafeOutputTargetConfig{
+				Target: "invalid-target",
+			},
+		},
+	}
+	err := validateSafeOutputsTarget(config)
+	require.Error(t, err, "T-RS-008: invalid safe-output targets must fail validation")
+	require.ErrorContains(t, err, "invalid target value",
+		"T-RS-008: output validation must report invalid target values")
 }
 
 // TestFormalPushFallback_DefaultsToTrue (getPushFallbackAsPullRequest)

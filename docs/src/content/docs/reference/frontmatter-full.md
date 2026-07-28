@@ -3297,6 +3297,8 @@ tools:
     # agent can access. Use 'all' to allow all repos, 'public' for public repositories
     # only, '${{ github.repository }}' for the current repository, or an array of
     # repository patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*').
+    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
+    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
@@ -3312,6 +3314,9 @@ tools:
 
     # Guard policy: minimum required integrity level for repository access. Restricts
     # the agent to users with at least the specified permission level.
+    # Required when any guard-policy list field is configured.
+    # Reference: /gh-aw/reference/integrity/ and
+    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     min-integrity: "none"
 
@@ -3321,6 +3326,8 @@ tools:
     # 'approval-labels'. Requires 'min-integrity' to be set. Accepts an array of
     # usernames, a comma-separated string, a newline-separated string, or a GitHub
     # Actions expression (e.g. '${{ vars.BLOCKED_USERS }}').
+    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
+    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
@@ -3339,6 +3346,8 @@ tools:
     # 'min-integrity' to be set. Accepts an array of usernames, a comma-separated
     # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
     # vars.TRUSTED_USERS }}').
+    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
+    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
@@ -3357,6 +3366,8 @@ tools:
     # 'min-integrity' to be set. Accepts an array of label names, a comma-separated
     # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
     # vars.APPROVAL_LABELS }}').
+    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
+    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
