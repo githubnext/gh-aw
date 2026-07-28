@@ -365,9 +365,9 @@ tools:
 
 ### Documentation Tasks
 
-- [ ] `docs/src/content/docs/reference/mcp-gateway.md` — document how GitHub guard policies map into gateway `guard-policies` and how `lockdown: true` overrides them. **Done when** the page shows the compiled gateway shape and warns that guard-policy fields are ignored under lockdown.
-- [ ] `docs/src/content/docs/reference/github-tools.md` — add frontmatter examples for `allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, and `approval-labels`. **Done when** the page includes at least one valid multi-field example and notes the deprecated `repos` alias.
-- [ ] `docs/src/content/docs/reference/frontmatter-full.md` — add schema-level reference entries for the GitHub guard-policy fields. **Done when** each field has a documented type, default/requirement note, and at least one cross-reference to the GitHub/MCP gateway docs.
+- [x] `docs/src/content/docs/reference/mcp-gateway.md` — document how GitHub guard policies map into gateway `guard-policies` and how `lockdown: true` overrides them. **Done when** the page shows the compiled gateway shape and warns that guard-policy fields are ignored under lockdown. (PR: [#48686](https://github.com/github/gh-aw/issues/48686))
+- [x] `docs/src/content/docs/reference/github-tools.md` — add frontmatter examples for `allowed-repos`, `min-integrity`, `blocked-users`, `trusted-users`, and `approval-labels`. **Done when** the page includes at least one valid multi-field example and notes the deprecated `repos` alias. (PR: [#48686](https://github.com/github/gh-aw/issues/48686))
+- [x] `docs/src/content/docs/reference/frontmatter-full.md` — add schema-level reference entries for the GitHub guard-policy fields. **Done when** each field has a documented type, default/requirement note, and at least one cross-reference to the GitHub/MCP gateway docs. (PR: [#48686](https://github.com/github/gh-aw/issues/48686))
 
 3. **Runtime Implementation** (Separate from this PR):
    - MCP Gateway enforcement of guard policies

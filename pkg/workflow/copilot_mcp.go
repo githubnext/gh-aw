@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -17,6 +18,23 @@ func copilotMCPToolFilter(toolName string) bool {
 // RenderMCPConfig generates MCP server configuration for Copilot CLI
 func (e *CopilotEngine) RenderMCPConfig(yaml *strings.Builder, tools map[string]any, mcpTools []string, workflowData *WorkflowData) error {
 	copilotMCPLog.Printf("Rendering MCP config for Copilot engine: mcpTools=%d", len(mcpTools))
+
+	// For ARC/DinD topology with firewall enabled, override HOME to the daemon-visible
+	// writable path before creating the .copilot config directory. GitHub Actions steps
+	// do not inherit step-local exports from preceding steps, so each step that uses
+	// $HOME-based paths must set HOME independently.
+	//
+	// The condition mirrors buildCopilotAWFPathSetup in copilot_engine_execution.go, which
+	// sets HOME only for arc-dind and is only called when the firewall is enabled. This
+	// ensures the producer (MCP gateway step) and the consumer (Copilot execution step)
+	// both resolve $HOME to ${RUNNER_TEMP}/gh-aw/home, so they write and read the MCP
+	// config from the same path: ${RUNNER_TEMP}/gh-aw/home/.copilot/mcp-config.json.
+	//
+	// When the firewall is disabled, both steps use the runner's default HOME (/home/runner),
+	// and no override is needed because they already agree on the path.
+	if isArcDindTopology(workflowData) && isFirewallEnabled(workflowData) {
+		fmt.Fprintf(yaml, "          export HOME=%s\n", awfArcDindHomePathExpr)
+	}
 
 	// Create the Copilot CLI config directory under the runtime $HOME. The Copilot CLI
 	// resolves its config dir as ~/.copilot, which is /home/runner/.copilot on standard

@@ -55,9 +55,7 @@ Trial results are saved both locally (in the trials/ directory) and in the host 
 			cloneRepoSpec, _ := cmd.Flags().GetString("clone-repo")
 			hostRepoSpec, _ := cmd.Flags().GetString("host-repo")
 			deleteHostRepo, _ := cmd.Flags().GetBool("delete-host-repo-after")
-			legacyForceDelete, _ := cmd.Flags().GetBool("force-delete-host-repo-before")
-			deleteHostRepoBefore, _ := cmd.Flags().GetBool("delete-host-repo-before")
-			forceDeleteHostRepo := legacyForceDelete || deleteHostRepoBefore
+			forceDeleteHostRepo := resolveDeprecatedBoolFlag(cmd, "delete-host-repo-before", "force-delete-host-repo-before")
 			yes, _ := cmd.Flags().GetBool("yes")
 			dryRun, _ := cmd.Flags().GetBool("dry-run")
 			jsonOutput, _ := cmd.Flags().GetBool("json")
@@ -68,9 +66,7 @@ Trial results are saved both locally (in the trials/ directory) and in the host 
 			engineOverride, _ := cmd.Flags().GetString("engine")
 			appendText, _ := cmd.Flags().GetString("append")
 			verbose, _ := cmd.Root().PersistentFlags().GetBool("verbose")
-			disableSecurityScanner, _ := cmd.Flags().GetBool("no-security-scanner")
-			disableSecurityScannerLegacy, _ := cmd.Flags().GetBool("disable-security-scanner")
-			disableSecurityScanner = disableSecurityScanner || disableSecurityScannerLegacy
+			disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
 
 			if err := validateEngine(engineOverride); err != nil {
 				trialLog.Printf("Engine validation failed: engine=%s, err=%v", engineOverride, err)
@@ -126,9 +122,7 @@ Trial results are saved both locally (in the trials/ directory) and in the host 
 	addEngineFlag(cmd)
 	addJSONFlag(cmd)
 	cmd.Flags().String("append", "", "Append extra content to the end of the agentic workflow on installation")
-	cmd.Flags().Bool("no-security-scanner", false, "Skip security scanning of workflow markdown content")
-	cmd.Flags().Bool("disable-security-scanner", false, "Skip security scanning of workflow markdown content")
-	_ = cmd.Flags().MarkDeprecated("disable-security-scanner", "use --no-security-scanner instead")
+	addSecurityScannerFlag(cmd)
 	cmd.MarkFlagsMutuallyExclusive("logical-repo", "clone-repo")
 
 	return cmd

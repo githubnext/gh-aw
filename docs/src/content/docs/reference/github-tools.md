@@ -70,6 +70,30 @@ This complements toolset selection: `toolsets` decides which API groups are load
 
 Sets the minimum integrity level required for content the agent can access. For public repositories, `min-integrity: approved` is applied automatically. See [Integrity Filtering](/gh-aw/reference/integrity/) for levels, examples, user blocking, and approval labels.
 
+## Guard Policy Frontmatter Examples
+
+The GitHub tool supports guard-policy fields directly under `tools.github`:
+
+```yaml wrap
+tools:
+  github:
+    allowed-repos:
+      - "github/gh-aw"
+      - "github/*"
+    min-integrity: approved
+    blocked-users:
+      - "malicious-user"
+    trusted-users:
+      - "trusted-contributor"
+    approval-labels:
+      - "safe-for-agent"
+      - "human-reviewed"
+```
+
+:::note
+`tools.github.repos` is a deprecated alias of `tools.github.allowed-repos`. Use `allowed-repos` for new workflows.
+:::
+
 ## GitHub Cross-Repository Reading
 
 By default, the GitHub Tools can read from the current repository and all public repositories (if permitted by the network firewall). To read from other private repositories, you must configure additional authentication. You can also configure the GitHub Tools to be restricted in which repositories can be accessed via the GitHub tools during AI engine execution by using the `tools.github.allowed-repos` setting. See [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for details and examples.

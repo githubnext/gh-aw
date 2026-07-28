@@ -255,7 +255,7 @@ gh aw secrets set MY_SECRET --value-from-env MY_TOKEN          # From env var
 
 ##### `secrets bootstrap`
 
-Analyze workflows to determine required secrets and interactively prompt for missing ones. Auto-detects engines in use and validates tokens before uploading to the repository.
+Analyze workflows to determine required secrets and interactively prompt for missing ones. Auto-detects engines in use and checks which required secrets are already configured.
 
 ```bash wrap
 gh aw secrets bootstrap                                  # Analyze all workflows and prompt for missing secrets

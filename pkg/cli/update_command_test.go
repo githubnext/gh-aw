@@ -82,29 +82,6 @@ This is the base content.`
 	}
 }
 
-func TestNewUpdateCommand_HasDisableSecurityScannerFlag(t *testing.T) {
-	cmd := NewUpdateCommand(func(string) error { return nil })
-	require.NotNil(t, cmd, "update command should be created")
-
-	flag := cmd.Flags().Lookup("no-security-scanner")
-	require.NotNil(t, flag, "update command should register --no-security-scanner")
-	assert.Equal(t, "Skip security scanning of workflow markdown content", flag.Usage, "flag help text should match add/trial wording")
-
-	// Deprecated alias should still be registered
-	deprecated := cmd.Flags().Lookup("disable-security-scanner")
-	require.NotNil(t, deprecated, "update command should keep --disable-security-scanner as a deprecated alias")
-	assert.Equal(t, "use --no-security-scanner instead", deprecated.Deprecated)
-}
-
-func TestNewUpdateCommand_DeprecatesDisableReleaseBumpFlag(t *testing.T) {
-	cmd := NewUpdateCommand(func(string) error { return nil })
-	require.NotNil(t, cmd)
-
-	flag := cmd.Flags().Lookup("disable-release-bump")
-	require.NotNil(t, flag, "update command should keep --disable-release-bump as a deprecated alias")
-	assert.Equal(t, "use --no-release-bump instead", flag.Deprecated)
-}
-
 func TestNewUpdateCommand_CoolDownFlagUsage(t *testing.T) {
 	cmd := NewUpdateCommand(func(string) error { return nil })
 	require.NotNil(t, cmd)

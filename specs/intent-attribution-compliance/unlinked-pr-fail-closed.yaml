@@ -1,0 +1,23 @@
+fixture_id: unlinked-pr-fail-closed
+description: Pull request with no explicit intent and no linked issues must fail closed.
+spec_refs:
+  - "Attribution-Resolution Order"
+  - "Fail-Closed Behavior"
+input:
+  artifact:
+    kind: pull_request
+    number: 93
+    explicit_intent: null
+    linked_closing_issues: []
+    labels: []
+expected:
+  attribution:
+    source: none
+    status: unlinked
+    intent_key: null
+  policy:
+    autonomy: propose_only
+    write_scope: none
+    human_approval_required: true
+    auto_merge_allowed: false
+    max_attempts: 1
