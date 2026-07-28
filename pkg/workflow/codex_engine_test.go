@@ -16,7 +16,7 @@ func TestCodexEngine_ResolveLLMProvider_DefaultOpenAI(t *testing.T) {
 	engine := NewCodexEngine()
 
 	asserted := engine.ResolveLLMProvider(&WorkflowData{EngineConfig: &EngineConfig{ID: "codex"}})
-	if asserted != "openai" {
+	if asserted != LLMProviderOpenAI {
 		t.Fatalf("expected default model-provider to be openai, got %q", asserted)
 	}
 }

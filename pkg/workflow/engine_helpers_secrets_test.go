@@ -192,7 +192,7 @@ func TestGetRequiredSecretNames_Copilot(t *testing.T) {
 			Tools:       map[string]any{},
 			ParsedTools: &ToolsConfig{},
 			EngineConfig: &EngineConfig{
-				LLMProvider: "openai",
+				LLMProvider: LLMProviderOpenAI,
 			},
 		}
 
@@ -281,7 +281,7 @@ func TestGetRequiredSecretNames_Claude(t *testing.T) {
 			Tools:       map[string]any{},
 			ParsedTools: &ToolsConfig{},
 			EngineConfig: &EngineConfig{
-				LLMProvider: "github",
+				LLMProvider: LLMProviderGitHub,
 			},
 		}
 

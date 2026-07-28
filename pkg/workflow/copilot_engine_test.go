@@ -3059,7 +3059,7 @@ func TestCopilotEngineLLMProviderAnthropicAutoBYOK(t *testing.T) {
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
 		EngineConfig: &EngineConfig{
-			LLMProvider: "anthropic",
+			LLMProvider: LLMProviderAnthropic,
 		},
 		NetworkPermissions: &NetworkPermissions{
 			Firewall: &FirewallConfig{Enabled: true},
