@@ -1628,8 +1628,8 @@ function buildTimeoutContext(isTimedOut, timeoutMinutes) {
  * @param {boolean} isTimedOut
  * @returns {boolean}
  */
-function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) {
-  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut;
+function shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, hasMissingModelPricingError) {
+  return agentConclusion === "failure" && !hasToolDenialsExceeded && !isTimedOut && !hasMissingModelPricingError;
 }
 
 /**
@@ -1868,7 +1868,7 @@ ${costBlock.trimEnd()}
  * @returns {string|null}
  */
 function buildManualModelPricingFrontmatterSnippet(modelName, engineId) {
-  return buildModelPricingFrontmatterSnippet(modelName, engineId, { input: 0, output: 0 });
+  return buildModelPricingFrontmatterSnippet(modelName, engineId, { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 });
 }
 
 /**
@@ -3657,7 +3657,9 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        // Also suppress when missing-model-pricing is detected: the pricing error is the
+        // root cause and the engine error block would be redundant noise.
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
@@ -3876,7 +3878,9 @@ async function main() {
         // Suppress when tool-denials-exceeded is present: the engine termination is a
         // direct consequence of the SDK hitting the denial threshold, so the tool-denials
         // context is the more actionable signal.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        // Also suppress when missing-model-pricing is detected: the pricing error is the
+        // root cause and the engine error block would be redundant noise.
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
 
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);

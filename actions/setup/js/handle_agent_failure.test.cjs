@@ -2229,6 +2229,10 @@ describe("handle_agent_failure", () => {
       expect(shouldBuildEngineFailureContext("failure", true, false)).toBe(false);
     });
 
+    it("returns false when missing model pricing error is present", () => {
+      expect(shouldBuildEngineFailureContext("failure", false, false, true)).toBe(false);
+    });
+
     it("returns false for non-failure conclusions", () => {
       expect(shouldBuildEngineFailureContext("timed_out", false, true)).toBe(false);
       expect(shouldBuildEngineFailureContext("success", false, false)).toBe(false);
@@ -3211,6 +3215,8 @@ describe("handle_agent_failure", () => {
       expect(result).toContain("anthropic:");
       expect(result).toContain("'model: alias':");
       expect(result).toContain('input: "0e0"');
+      expect(result).toContain('cache_read: "0e0"');
+      expect(result).toContain('cache_write: "0e0"');
     });
 
     it("throws when template is missing and error is true", async () => {
