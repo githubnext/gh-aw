@@ -102,6 +102,19 @@ function getJSONParseErrorContext(jsonText, parseErrorMessage) {
 }
 
 /**
+ * Repairs a known double-encoding regression where sink-visibility can be rendered as:
+ *   "sink-visibility": ""public""
+ * instead of:
+ *   "sink-visibility": "public"
+ *
+ * @param {string} jsonText
+ * @returns {string}
+ */
+function normalizeSinkVisibilityEncoding(jsonText) {
+  return jsonText.replace(/("sink-visibility"\s*:\s*)""(public|private|internal)""/g, '$1"$2"');
+}
+
+/**
  * Normalizes GH_AW_OTLP_IF_MISSING to a supported mode.
  * @param {string | undefined} value
  * @returns {"error" | "warn" | "ignore"}
@@ -420,6 +433,11 @@ async function main() {
     mcpConfig = fs.readFileSync(0, "utf8"); // fd 0 = stdin
   } catch (err) {
     throw new Error(`Failed to read MCP configuration from stdin: ${String(err)}`, { cause: err });
+  }
+  const normalizedConfig = normalizeSinkVisibilityEncoding(mcpConfig);
+  if (normalizedConfig !== mcpConfig) {
+    core.warning("Detected double-encoded sink-visibility value in MCP config; applying compatibility normalization.");
+    mcpConfig = normalizedConfig;
   }
   printTiming(configReadStart, "Configuration read from stdin");
   core.info("");
@@ -1042,5 +1060,6 @@ module.exports = {
   hasNonEmptyOTLPHeaders,
   isOTLPIfMissingIgnore,
   getJSONParseErrorContext,
+  normalizeSinkVisibilityEncoding,
   resolveCopilotConfigPaths,
 };
