@@ -788,6 +788,93 @@ describe("handle_agent_failure", () => {
       expect(createIssueMock).not.toHaveBeenCalled();
     });
 
+    it("reuses an existing open workflow failure issue when categories differ", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1001 } }));
+      const createIssueMock = vi.fn();
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 52,
+                      html_url: "https://github.com/owner/repo/issues/52",
+                      state: "open",
+                      body: buildExistingIssueBody({ branch: "feature/current", categories: ["agent_failure"] }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+            update: vi.fn(),
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+      expect(global.github.rest.issues.update).not.toHaveBeenCalled();
+    });
+
+    it("reopens and comments on an existing recent workflow failure issue when it is closed", async () => {
+      const createCommentMock = vi.fn(async () => ({ data: { id: 1002 } }));
+      const createIssueMock = vi.fn();
+      const reopenIssueMock = vi.fn(async () => ({ data: { number: 53 } }));
+
+      global.github = {
+        rest: {
+          search: {
+            issuesAndPullRequests: vi.fn(async ({ q }) => {
+              if (q.includes("is:pr")) {
+                return { data: { total_count: 0, items: [] } };
+              }
+              return {
+                data: {
+                  total_count: 1,
+                  items: [
+                    {
+                      number: 53,
+                      html_url: "https://github.com/owner/repo/issues/53",
+                      state: "closed",
+                      body: buildExistingIssueBody({ branch: "feature/current", categories: ["agent_failure"] }),
+                    },
+                  ],
+                },
+              };
+            }),
+          },
+          issues: {
+            create: createIssueMock,
+            createComment: createCommentMock,
+            update: reopenIssueMock,
+          },
+          pulls: { get: vi.fn() },
+        },
+        graphql: vi.fn(),
+      };
+
+      await main();
+
+      expect(reopenIssueMock).toHaveBeenCalledWith(expect.objectContaining({ issue_number: 53, state: "open" }));
+      expect(createCommentMock).toHaveBeenCalledOnce();
+      expect(createIssueMock).not.toHaveBeenCalled();
+    });
+
     it("creates a new issue instead of commenting on an expired issue", async () => {
       const createCommentMock = vi.fn();
       const createIssueMock = vi.fn(async () => ({

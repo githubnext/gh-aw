@@ -379,6 +379,37 @@ function isReusableFailureIssue(body, options) {
 }
 
 /**
+ * Determine whether an existing issue belongs to the same workflow failure stream,
+ * even when failure categories differ between runs.
+ * @param {string} body - Existing issue body
+ * @param {Object} options - Match criteria
+ * @param {string} options.workflowId - Workflow identifier
+ * @returns {boolean} True when the issue can be reused as a repeat-offender thread
+ */
+function isWorkflowRepeatFailureIssue(body, options) {
+  if (!body) {
+    return false;
+  }
+
+  const expirationDate = extractExpirationDate(body);
+  if (expirationDate && expirationDate.getTime() <= Date.now()) {
+    return false;
+  }
+
+  const workflowMarker = parseHTMLCommentMetadata(body, "gh-aw-agentic-workflow");
+  if (!workflowMarker || workflowMarker.workflow_id !== options.workflowId) {
+    return false;
+  }
+
+  const failureMarker = parseHTMLCommentMetadata(body, "gh-aw-failure-issue");
+  if (!failureMarker) {
+    return false;
+  }
+
+  return (failureMarker.workflow_id || "") === options.workflowId;
+}
+
+/**
  * Determine whether an issue timestamp falls within the active dedup/throttle window.
  * @param {string|undefined} createdAt - Issue created_at timestamp
  * @param {number} windowStartMs - Inclusive lower bound as Unix ms
@@ -414,15 +445,32 @@ function escapeGitHubSearchPhrase(value) {
  * @param {string} options.repo - Repository name
  * @param {string} options.workflowId - Workflow identifier
  * @param {string[]} options.failureCategories - Sorted failure categories
- * @returns {Promise<{number: number, html_url: string} | null>} Matching issue or null
+ * @returns {Promise<{number: number, html_url: string, state: string, matchType: "exact" | "workflow"} | null>} Matching issue or null
  */
 async function findExistingFailureIssue(options) {
   const { owner, repo, workflowId, failureCategories } = options;
   const windowStartMs = Date.now() - FAILURE_ISSUE_WINDOW_MS;
   const since = new Date(windowStartMs).toISOString().slice(0, 19) + "Z";
   const escapedWorkflowId = escapeGitHubSearchPhrase(workflowId);
-  const searchQuery = `repo:${owner}/${repo} is:issue is:open label:agentic-workflows created:>=${since} ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
+  const searchQuery = `repo:${owner}/${repo} is:issue label:agentic-workflows created:>=${since} ` + `"gh-aw-agentic-workflow:" "workflow_id: ${escapedWorkflowId}" in:body`;
   const perPage = 100;
+  let bestMatch = null;
+
+  const updateBestMatch = (item, state, createdAt, matchType, matchPriority) => {
+    const createdMs = Date.parse(createdAt || "");
+    const normalizedCreatedMs = Number.isFinite(createdMs) ? createdMs : 0;
+    if (!bestMatch || matchPriority > bestMatch.matchPriority || (matchPriority === bestMatch.matchPriority && normalizedCreatedMs > bestMatch.createdMs)) {
+      bestMatch = {
+        number: item.number,
+        html_url: item.html_url,
+        state,
+        matchType,
+        matchPriority,
+        createdMs: normalizedCreatedMs,
+      };
+    }
+  };
+
   for (let page = 1; ; page += 1) {
     const searchResult = await github.rest.search.issuesAndPullRequests({
       q: searchQuery,
@@ -450,10 +498,16 @@ async function findExistingFailureIssue(options) {
           failureCategories,
         })
       ) {
-        return {
-          number: item.number,
-          html_url: item.html_url,
-        };
+        updateBestMatch(item, item.state || "open", item.created_at, "exact", (item.state || "open") === "open" ? 4 : 3);
+        continue;
+      }
+
+      if (
+        isWorkflowRepeatFailureIssue(body, {
+          workflowId,
+        })
+      ) {
+        updateBestMatch(item, item.state || "open", item.created_at, "workflow", (item.state || "open") === "open" ? 2 : 1);
       }
     }
 
@@ -462,7 +516,16 @@ async function findExistingFailureIssue(options) {
     }
   }
 
-  return null;
+  if (!bestMatch) {
+    return null;
+  }
+
+  return {
+    number: bestMatch.number,
+    html_url: bestMatch.html_url,
+    state: bestMatch.state,
+    matchType: bestMatch.matchType,
+  };
 }
 
 /**
@@ -3592,7 +3655,17 @@ async function main() {
 
       if (existingIssue) {
         // Issue exists, add a comment
-        core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url}`);
+        core.info(`Found existing issue #${existingIssue.number}: ${existingIssue.html_url} (match: ${existingIssue.matchType || "exact"})`);
+
+        if ((existingIssue.state || "open") !== "open") {
+          await github.rest.issues.update({
+            owner,
+            repo,
+            issue_number: existingIssue.number,
+            state: "open",
+          });
+          core.info(`✓ Reopened existing issue #${existingIssue.number}`);
+        }
 
         // Read comment template
         const commentTemplatePath = getPromptPath("agent_failure_comment.md");
