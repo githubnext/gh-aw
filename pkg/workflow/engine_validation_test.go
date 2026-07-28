@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -282,7 +283,7 @@ func TestValidateEngineVersion(t *testing.T) {
 		},
 		{
 			name:        "pinned version",
-			engineCfg:   &EngineConfig{Version: "2.1.92"},
+			engineCfg:   &EngineConfig{ID: "claude", Version: "2.1.92"},
 			expectWarn:  false,
 			expectError: false,
 		},
@@ -304,6 +305,12 @@ func TestValidateEngineVersion(t *testing.T) {
 			name:        "latest version strict mode",
 			engineCfg:   &EngineConfig{Version: "latest"},
 			strictMode:  true,
+			expectWarn:  true,
+			expectError: false,
+		},
+		{
+			name:        "copilot pinned version warns",
+			engineCfg:   &EngineConfig{ID: "copilot", Version: "1.2.3"},
 			expectWarn:  true,
 			expectError: false,
 		},
@@ -335,6 +342,32 @@ func TestValidateEngineVersion(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestValidateEngineVersion_CopilotPinWarning(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			ID:      "copilot",
+			Version: "1.2.3",
+		},
+	}
+
+	stderr := captureStderr(func() {
+		if err := compiler.validateEngineVersion(workflowData); err != nil {
+			t.Fatalf("Expected no error but got: %v", err)
+		}
+	})
+
+	if compiler.warningCount != 1 {
+		t.Fatalf("Expected 1 warning, got %d", compiler.warningCount)
+	}
+	if !strings.Contains(stderr, "engine.version is ignored for the Copilot engine") {
+		t.Fatalf("Expected Copilot pin warning in stderr, got: %s", stderr)
+	}
+	if !strings.Contains(stderr, string(constants.DefaultCopilotVersion)) {
+		t.Fatalf("Expected default Copilot version in warning, got: %s", stderr)
 	}
 }
 

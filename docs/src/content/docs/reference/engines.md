@@ -62,11 +62,11 @@ engine:
 
 ### Pinning a Specific Engine Version
 
-By default, workflows install the latest available version of each engine CLI. To pin to a specific version, set `version` to the desired release:
+Built-in engines install compiler-pinned default CLI versions. For engines that support version pinning, set `version` to the desired release:
 
 | Engine | `id` | Example `version` |
 |--------|------|-------------------|
-| GitHub Copilot CLI | `copilot` | `"0.0.422"` |
+| GitHub Copilot CLI | `copilot` | Not supported |
 | Claude Code | `claude` | `"2.1.70"` |
 | Codex | `codex` | `"0.111.0"` |
 | Gemini CLI | `gemini` | `"0.31.0"` |
@@ -75,13 +75,16 @@ By default, workflows install the latest available version of each engine CLI. T
 
 ```yaml wrap
 engine:
-  id: copilot
-  version: "0.0.422"
+  id: claude
+  version: "2.1.70"
 ```
 
 Pinning is useful when you need reproducible builds or want to avoid breakage from a new CLI release while testing. Remember to update the pinned version periodically to pick up bug fixes and new features.
 
-`version` also accepts a GitHub Actions expression string, enabling `workflow_call` reusable workflows to parameterize the engine version via caller inputs. Expressions are passed injection-safely through an environment variable rather than direct shell interpolation:
+> [!IMPORTANT]
+> `engine.version` is ignored for the Copilot engine. The compiler emits a warning and installs its pinned default Copilot CLI version instead.
+
+For engines that honor `version`, the field also accepts a GitHub Actions expression string, enabling `workflow_call` reusable workflows to parameterize the engine version via caller inputs. Expressions are passed injection-safely through an environment variable rather than direct shell interpolation:
 
 ```yaml wrap
 on:
@@ -94,7 +97,7 @@ on:
 ---
 
 engine:
-  id: copilot
+  id: claude
   version: ${{ inputs.engine-version }}
 ```
 

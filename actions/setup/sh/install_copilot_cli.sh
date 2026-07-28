@@ -199,7 +199,7 @@ download_compat_json() {
   local source_file="$2"
 
   echo "Attempting to download compatibility matrix from ${COMPAT_URL}..." >&2
-  if curl -fsSL --retry 3 --retry-delay 5 -o "$compat_file" "$COMPAT_URL"; then
+  if curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors -o "$compat_file" "$COMPAT_URL"; then
     echo "$COMPAT_URL" > "$source_file"
     echo "Successfully downloaded compatibility matrix from ${COMPAT_URL}" >&2
     return 0
@@ -368,6 +368,7 @@ find_cached_copilot_bin() {
   local candidate_version_normalized=""
   local best_candidate=""
   local best_version=""
+  local used_requested_fallback=false
 
   echo "Searching toolcache for GitHub Copilot CLI (requested: ${requested_version}, arch: ${ARCH_NAME}, range: ${min_version:-none}..${max_version:-none})..." >&2
   if [ -n "$cache_ttl_days" ]; then
@@ -422,8 +423,12 @@ find_cached_copilot_bin() {
           printf '%s\n' "$candidate"
           return 0
         fi
-        echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
-        continue
+        if [ -z "$min_version" ] && [ -z "$max_version" ]; then
+          echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
+          continue
+        fi
+        echo "  Exact version mismatch (want ${requested_version_normalized}, got ${candidate_version_normalized}); checking compat window fallback" >&2
+        used_requested_fallback=true
       fi
 
       if [ -n "$min_version" ] && version_is_greater "$min_version" "$candidate_version_normalized"; then
@@ -461,6 +466,9 @@ find_cached_copilot_bin() {
   done
 
   if [ -n "$best_candidate" ]; then
+    if [ "$used_requested_fallback" = "true" ] && [ -n "$requested_version_normalized" ]; then
+      echo "  Falling back to compat-range cached version: ${best_version} (requested ${requested_version_normalized})" >&2
+    fi
     echo "  Selected best cached version: ${best_version} at ${best_candidate}" >&2
     printf '%s\n' "$best_candidate"
     return 0
@@ -503,22 +511,36 @@ EOF
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Resolve a compatible Copilot version from compat matrix unless the caller passed an explicit version.
-if [ -z "$VERSION" ]; then
-  echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
+# Resolve compat metadata before toolcache lookup so explicit version requests can
+# still prefer a cached CLI inside the published compatibility window.
+if [ -n "$COMPILED_GH_AW_VERSION" ]; then
   if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
     IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
-    VERSION="$RESOLVED_COMPAT_VERSION"
-    REQUESTED_VERSION="latest"
-    echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
-    echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
-  else
+    if [ -z "$VERSION" ]; then
+      echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
+      VERSION="$RESOLVED_COMPAT_VERSION"
+      REQUESTED_VERSION="latest"
+      echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
+      echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
+    else
+      echo "Explicit Copilot CLI version argument provided (${VERSION}); using compatibility window ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT} for toolcache lookup."
+    fi
+  elif [ -z "$VERSION" ]; then
     echo "ERROR: Failed to resolve Copilot CLI version from compatibility matrix." >&2
     echo "ERROR: Cannot install without a compatible version." >&2
     echo "To fix: Pass an explicit version as an argument (e.g., 'install_copilot_cli.sh 1.0.56')" >&2
     echo "   or ensure GH_AW_COMPILED_VERSION matches a row in .github/aw/compat.json" >&2
     exit 1
+  else
+    echo "Explicit Copilot CLI version argument provided (${VERSION}); compatibility matrix unavailable; exact-match toolcache lookup only."
   fi
+elif [ -z "$VERSION" ]; then
+  echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
+  echo "ERROR: Failed to resolve Copilot CLI version from compatibility matrix." >&2
+  echo "ERROR: Cannot install without a compatible version." >&2
+  echo "To fix: Pass an explicit version as an argument (e.g., 'install_copilot_cli.sh 1.0.56')" >&2
+  echo "   or ensure GH_AW_COMPILED_VERSION matches a row in .github/aw/compat.json" >&2
+  exit 1
 else
   echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
 fi
@@ -558,11 +580,11 @@ CHECKSUMS_URL="${BASE_URL}/SHA256SUMS.txt"
 
 # Download checksums
 echo "Downloading checksums from ${CHECKSUMS_URL}..."
-curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
+curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors -o "${TEMP_DIR}/SHA256SUMS.txt" "${CHECKSUMS_URL}"
 
 # Download binary tarball
 echo "Downloading binary from ${TARBALL_URL}..."
-curl -fsSL --retry 3 --retry-delay 5 -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
+curl -fsSL --retry 6 --retry-delay 5 --retry-all-errors -o "${TEMP_DIR}/${TARBALL_NAME}" "${TARBALL_URL}"
 
 # Verify checksum
 echo "Verifying SHA256 checksum for ${TARBALL_NAME}..."

@@ -88,6 +88,16 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 		return nil
 	}
 
+	if workflowData.EngineConfig.ID == string(constants.CopilotEngine) {
+		warningMsg := fmt.Sprintf(
+			"engine.version is ignored for the Copilot engine. The compiler installs the pinned Copilot CLI version %s instead.",
+			constants.DefaultCopilotVersion,
+		)
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+		c.IncrementWarningCount()
+		return nil
+	}
+
 	if !strings.EqualFold(workflowData.EngineConfig.Version, "latest") {
 		return nil
 	}
