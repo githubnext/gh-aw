@@ -217,15 +217,19 @@ function analyzeFirewallLogLines(lines) {
       }
     }
 
-    // Track request count per domain
-    if (!requestsByDomain.has(domainKey)) {
-      requestsByDomain.set(domainKey, { allowed: 0, blocked: 0 });
-    }
-    const domainStats = requestsByDomain.get(domainKey);
-    if (isAllowed) {
-      domainStats.allowed++;
-    } else {
-      domainStats.blocked++;
+    // Track request count per domain.
+    // Skip internal sidecar hostnames for blocked entries — they are already excluded from
+    // blockedRequests/blockedDomains above and must not appear in the summary domain table.
+    if (isAllowed || !isInternalSidecarHost(domainKey)) {
+      if (!requestsByDomain.has(domainKey)) {
+        requestsByDomain.set(domainKey, { allowed: 0, blocked: 0 });
+      }
+      const domainStats = requestsByDomain.get(domainKey);
+      if (isAllowed) {
+        domainStats.allowed++;
+      } else {
+        domainStats.blocked++;
+      }
     }
   }
 

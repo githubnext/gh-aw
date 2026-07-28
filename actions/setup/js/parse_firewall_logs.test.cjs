@@ -270,7 +270,10 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
             '1761332530.476 172.30.0.20:35290 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
           ];
           const result = analyzeFirewallLogLines(lines);
-          (expect(result.blockedRequests).toBe(1), expect(result.blockedDomains.has("awmg-mcpg:8080")).toBe(false), expect(result.blockedDomains.has("blocked.example.com:443")).toBe(true));
+          (expect(result.blockedRequests).toBe(1),
+            expect(result.blockedDomains.has("awmg-mcpg:8080")).toBe(false),
+            expect(result.blockedDomains.has("blocked.example.com:443")).toBe(true),
+            expect(result.requestsByDomain.has("awmg-mcpg:8080")).toBe(false));
         }),
           test("should not count awmg-cli-proxy blocked entries in blockedRequests", () => {
             const lines = [
@@ -278,7 +281,10 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
               '1761332530.475 172.30.0.20:35289 blocked.example.com:443 1.2.3.4:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
             ];
             const result = analyzeFirewallLogLines(lines);
-            (expect(result.blockedRequests).toBe(1), expect(result.blockedDomains.has("awmg-cli-proxy:3128")).toBe(false), expect(result.blockedDomains.has("blocked.example.com:443")).toBe(true));
+            (expect(result.blockedRequests).toBe(1),
+              expect(result.blockedDomains.has("awmg-cli-proxy:3128")).toBe(false),
+              expect(result.blockedDomains.has("blocked.example.com:443")).toBe(true),
+              expect(result.requestsByDomain.has("awmg-cli-proxy:3128")).toBe(false));
           }),
           test("should report zero blocked requests when only sidecar entries were blocked", () => {
             const lines = [
@@ -286,7 +292,11 @@ const mockCore = { info: vi.fn(), setFailed: vi.fn(), summary: { addRaw: vi.fn()
               '1761332530.475 172.30.0.20:35289 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
             ];
             const result = analyzeFirewallLogLines(lines);
-            (expect(result.totalRequests).toBe(2), expect(result.blockedRequests).toBe(0), expect(result.allowedRequests).toBe(1), expect(result.blockedDomains.size).toBe(0));
+            (expect(result.totalRequests).toBe(2),
+              expect(result.blockedRequests).toBe(0),
+              expect(result.allowedRequests).toBe(1),
+              expect(result.blockedDomains.size).toBe(0),
+              expect(result.requestsByDomain.has("awmg-mcpg:8080")).toBe(false));
           }));
       }));
   }));
