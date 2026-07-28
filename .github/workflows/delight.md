@@ -87,6 +87,13 @@ tools:
     - default
     - discussions
 tracker-id: delight-daily
+evals:
+  - id: output-produced
+    question: Did the agent create an issue or post a message with UX findings?
+  - id: ux-issues-identified
+    question: Does the agent output identify at least one specific UX improvement opportunity?
+  - id: actionable-findings
+    question: Does the agent output include actionable recommendations rather than only generic observations?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

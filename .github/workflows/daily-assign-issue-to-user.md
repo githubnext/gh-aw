@@ -33,6 +33,13 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: assignment-made
+    question: Did the agent assign an issue to a user?
+  - id: contributor-selected
+    question: Does the agent output show that a relevant contributor was selected from recent merged PRs?
+  - id: comment-posted
+    question: Did the agent post a comment explaining the assignment decision?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
