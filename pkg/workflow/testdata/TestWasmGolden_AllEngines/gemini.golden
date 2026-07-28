@@ -62,6 +62,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-gemini-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "0.39.1"
           GH_AW_INFO_ENGINE_ID: "gemini"
       - name: Generate agentic run info
         id: generate_aw_info
@@ -356,6 +357,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-gemini-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "0.39.1"
           GH_AW_INFO_ENGINE_ID: "gemini"
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -688,6 +690,7 @@ jobs:
         env:
           GH_AW_SETUP_WORKFLOW_NAME: "engine-gemini-test"
           GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/workflow.lock.yml@${{ github.ref }}
+          GH_AW_INFO_VERSION: "0.39.1"
           GH_AW_INFO_ENGINE_ID: "gemini"
       - name: Check team membership for workflow
         id: check_membership

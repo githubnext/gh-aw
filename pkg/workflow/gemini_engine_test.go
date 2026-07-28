@@ -820,10 +820,16 @@ func TestGeminiEngineWithoutVersion(t *testing.T) {
 	engine := NewGeminiEngine()
 
 	workflowData := &WorkflowData{
-		Name: "test-workflow",
+		Name:         "test-workflow",
+		EngineConfig: &EngineConfig{},
 	}
 
 	installSteps := engine.GetInstallationSteps(workflowData)
+
+	// EngineConfig.Version must be normalized to the default version.
+	if workflowData.EngineConfig.Version != string(constants.DefaultGeminiVersion) {
+		t.Fatalf("Expected engine config version to be normalized to default Gemini version %q, got: %q", constants.DefaultGeminiVersion, workflowData.EngineConfig.Version)
+	}
 
 	var installStep string
 	for _, step := range installSteps {
