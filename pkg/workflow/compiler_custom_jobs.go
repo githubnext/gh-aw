@@ -175,6 +175,10 @@ func (c *Compiler) extractCustomJobProperties(job *Job, jobName string, configMa
 }
 
 func (c *Compiler) extractCustomJobCoreProperties(job *Job, jobName string, configMap map[string]any) error {
+	if _, hasInputs := configMap["inputs"]; hasInputs {
+		return fmt.Errorf("jobs.%s.inputs: inputs are not supported on jobs; use 'env' to pass values to job steps", jobName)
+	}
+
 	if err := c.extractCustomJobRunsOn(job, jobName, configMap); err != nil {
 		return err
 	}
