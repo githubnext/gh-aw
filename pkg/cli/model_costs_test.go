@@ -18,6 +18,13 @@ func TestFindModelPricing(t *testing.T) {
 	assert.InDelta(t, 0.000003, pricing["input"], 1e-12)
 }
 
+func TestFindModelPricing_AutoBuiltinAlias(t *testing.T) {
+	pricing, ok := findModelPricing("github-copilot", "auto")
+	require.True(t, ok)
+	assert.Zero(t, pricing["input"])
+	assert.Zero(t, pricing["output"])
+}
+
 func TestComputeModelInferenceAIC(t *testing.T) {
 	aic := computeModelInferenceAIC("anthropic", "claude-sonnet-4.6", 1000, 200, 400, 50, 25)
 	assert.InDelta(t, 0.54825, aic, 1e-9)
@@ -104,6 +111,12 @@ func TestFindOrFetchModelPricing_EmbeddedModelReturnsNil(t *testing.T) {
 	// claude-sonnet-4.6 is in the embedded catalog; FindOrFetchModelPricing should return
 	// (nil, false) so the lock.yml overlay does not duplicate what models.json already has.
 	pricing, ok := FindOrFetchModelPricing(context.Background(), "anthropic", "claude-sonnet-4.6")
+	assert.False(t, ok)
+	assert.Nil(t, pricing)
+}
+
+func TestFindOrFetchModelPricing_AutoBuiltinAliasReturnsNil(t *testing.T) {
+	pricing, ok := FindOrFetchModelPricing(context.Background(), "github-copilot", "auto")
 	assert.False(t, ok)
 	assert.Nil(t, pricing)
 }

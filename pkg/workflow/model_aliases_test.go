@@ -75,6 +75,7 @@ func TestBuiltinModelAliases(t *testing.T) {
 
 	// Meta-aliases reference other alias names (resolved recursively by AWF).
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gpt-5-nano", "gemini-flash-lite"}, aliases["mini"], "mini should reference haiku, gpt-5-mini, gpt-5-nano, and gemini-flash-lite")
+	assert.NotContains(t, aliases, "auto", "auto should remain a server-side builtin alias and must not be rewritten locally")
 	assert.Equal(t, []string{"haiku", "gpt-5-mini", "gemini-flash-lite", "mini"}, aliases["summarization"], "summarization should reference fast/lightweight models")
 	assert.Equal(t, []string{"fable", "sonnet", "gpt-5-pro", "gpt-5", "gemini-pro"}, aliases["large"], "large should list fable first, then sonnet, gpt-5-pro, gpt-5, and gemini-pro")
 	assert.Equal(t, []string{"copilot/*fable*", "anthropic/*fable*"}, aliases["fable"], "fable should map to provider-specific fable patterns")

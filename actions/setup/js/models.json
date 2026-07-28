@@ -249,6 +249,13 @@
     },
     "github-copilot": {
       "models": {
+        "auto": {
+          "cost": {
+            "input": "0",
+            "output": "0"
+          },
+          "provider_type": "openai"
+        },
         "claude-fable-5": {
           "cost": {
             "input": "1e-05",

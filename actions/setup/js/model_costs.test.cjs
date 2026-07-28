@@ -63,6 +63,19 @@ describe("model_costs.cjs", () => {
     expect(formatAIC(12.5)).toBe("12.5");
   });
 
+  it("treats the built-in auto alias as zero-cost for github-copilot", async () => {
+    const { computeInferenceAIC } = await import("./model_costs.cjs");
+    const aic = computeInferenceAIC({
+      provider: "github-copilot",
+      model: "auto",
+      inputTokens: 1000,
+      outputTokens: 100,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    });
+    expect(aic).toBe(0);
+  });
+
   it("resolves 'copilot' provider alias to 'github-copilot' for AIC lookup", async () => {
     writeModelsFixture({
       "github-copilot": {

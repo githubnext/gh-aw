@@ -140,6 +140,10 @@ func isBuiltinOnlyAliasMap(m map[string][]string) bool {
 //   - "any"   → copilot/*, anthropic/*, openai/*, google/*, gemini/*
 //   - "agent" → sonnet-6x, gpt-5.4, gpt-5.3, gemini-pro, any
 //
+// The special "auto" model name is a server-side builtin alias handled by the
+// provider/AWF runtime. It is intentionally not included in the local alias map
+// so gh-aw passes it through without attempting to expand or rewrite it.
+//
 // Per-engine default aliases:
 //   - "copilot" → agent, gpt-5.4, sonnet, gpt-5, any
 //   - "claude"  → agent, sonnet-6x, haiku, any
