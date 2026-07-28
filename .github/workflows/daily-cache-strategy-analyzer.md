@@ -337,30 +337,30 @@ Create a discussion summarizing today's analysis. Use the `create-discussion` sa
 
 ### Findings
 
+Use the table format below for each severity group:
+
+| Severity | Workflow | Miss Streak | Miss Rate (14d) | Root Cause | Issue |
+|----------|----------|------------:|----------------:|------------|-------|
+| 🔴/🟠/🟡 | ... | N days | X% | ... | #N or n/a |
+
 <details>
 <summary>🔴 Critical Issues</summary>
 
-| Workflow | Miss Streak | Miss Rate (14d) | Root Cause | Issue |
-|----------|------------|-----------------|------------|-------|
-| ... | N days | X% | ... | #N |
+<List critical rows only>
 
 </details>
 
 <details>
 <summary>🟠 High Priority</summary>
 
-| Workflow | Miss Streak | Miss Rate (14d) | Root Cause | Issue |
-|----------|------------|-----------------|------------|-------|
-| ... | N days | X% | ... | #N |
+<List high-priority rows only>
 
 </details>
 
 <details>
 <summary>🟡 Medium Priority</summary>
 
-| Workflow | Miss Streak | Miss Rate (14d) | Root Cause |
-|----------|------------|-----------------|------------|
-| ... | N days | X% | ... |
+<List medium-priority rows only>
 
 </details>
 
