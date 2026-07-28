@@ -251,6 +251,11 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func() e
 	}
 }
 
+// DockerImagesOptions specifies which Docker-based static analysis tools are requested.
+type DockerImagesOptions struct {
+	Zizmor, Poutine, Actionlint, RunnerGuard, Syft, Grype, Grant, Yamllint bool
+}
+
 // CheckAndPrepareDockerImages checks if required Docker images are available
 // for the requested static analysis tools. If any are not available, it starts
 // downloading them and returns a message indicating the LLM should retry.
@@ -258,9 +263,9 @@ func StartDockerImageDownload(ctx context.Context, image string) (bool, func() e
 // Returns:
 //   - nil if all required images are available
 //   - error if Docker is unavailable or images are downloading/need to be downloaded
-func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, useActionlint, useRunnerGuard, useSyft, useGrype, useGrant, useYamllint bool) error {
+func CheckAndPrepareDockerImages(ctx context.Context, opts DockerImagesOptions) error {
 	// If no tools requested, nothing to do
-	if !useZizmor && !usePoutine && !useActionlint && !useRunnerGuard && !useSyft && !useGrype && !useGrant && !useYamllint {
+	if !opts.Zizmor && !opts.Poutine && !opts.Actionlint && !opts.RunnerGuard && !opts.Syft && !opts.Grype && !opts.Grant && !opts.Yamllint {
 		return nil
 	}
 
@@ -268,42 +273,42 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 	if !IsDockerAvailable(ctx) {
 		var requestedTools []string
 		var paramsList []string
-		if useZizmor {
+		if opts.Zizmor {
 			tool := "zizmor"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if usePoutine {
+		if opts.Poutine {
 			tool := "poutine"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useActionlint {
+		if opts.Actionlint {
 			tool := "actionlint"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useRunnerGuard {
+		if opts.RunnerGuard {
 			tool := "runner-guard"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useSyft {
+		if opts.Syft {
 			tool := "syft"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useGrype {
+		if opts.Grype {
 			tool := "grype"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useGrant {
+		if opts.Grant {
 			tool := "grant"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
 		}
-		if useYamllint {
+		if opts.Yamllint {
 			tool := "yamllint"
 			requestedTools = append(requestedTools, tool)
 			paramsList = append(paramsList, tool+": false")
@@ -326,14 +331,14 @@ func CheckAndPrepareDockerImages(ctx context.Context, useZizmor, usePoutine, use
 		image string
 		name  string
 	}{
-		{useZizmor, ZizmorImage, "zizmor"},
-		{usePoutine, PoutineImage, "poutine"},
-		{useActionlint, ActionlintImage, "actionlint"},
-		{useRunnerGuard, RunnerGuardImage, "runner-guard"},
-		{useSyft, SyftImage, "syft"},
-		{useGrype, GrypeImage, "grype"},
-		{useGrant, GrantImage, "grant"},
-		{useYamllint, YamllintImage, "yamllint"},
+		{opts.Zizmor, ZizmorImage, "zizmor"},
+		{opts.Poutine, PoutineImage, "poutine"},
+		{opts.Actionlint, ActionlintImage, "actionlint"},
+		{opts.RunnerGuard, RunnerGuardImage, "runner-guard"},
+		{opts.Syft, SyftImage, "syft"},
+		{opts.Grype, GrypeImage, "grype"},
+		{opts.Grant, GrantImage, "grant"},
+		{opts.Yamllint, YamllintImage, "yamllint"},
 	}
 
 	for _, img := range imagesToCheck {
