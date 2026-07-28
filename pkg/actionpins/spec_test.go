@@ -116,6 +116,24 @@ func TestSpec_PublicAPI_FormatCacheKey(t *testing.T) {
 			version:  "v3.0.0",
 			expected: "actions/setup-node@v3.0.0",
 		},
+		{
+			name:     "formats cache key with empty repo",
+			repo:     "",
+			version:  "v4",
+			expected: "@v4",
+		},
+		{
+			name:     "formats cache key with empty version",
+			repo:     "actions/checkout",
+			version:  "",
+			expected: "actions/checkout@",
+		},
+		{
+			name:     "formats cache key with empty repo and version",
+			repo:     "",
+			version:  "",
+			expected: "@",
+		},
 	}
 
 	for _, tt := range tests {
@@ -361,7 +379,8 @@ func TestSpec_PublicAPI_ResolveActionPin_EnforcePinned(t *testing.T) {
 
 			require.Len(t, failures, tt.wantFailureCount, "resolution failures should be audited consistently")
 			if tt.wantFailureCount > 0 {
-				assert.Equal(t, tt.wantFailureType, failures[0].ErrorType)
+				assert.Equal(t, tt.wantFailureType, failures[0].ErrorType,
+					"resolution failure type should match the expected classification")
 			}
 			if tt.wantWarningKey {
 				assert.True(t, ctx.Warnings[actionpins.FormatCacheKey("does-not-exist/x", "v1")],
@@ -468,10 +487,18 @@ func TestSpec_PublicAPI_ResolveLatestActionPin_FallbackOnEnforceError(t *testing
 	})
 
 	t.Run("unknown repo returns empty when no embedded fallback exists", func(t *testing.T) {
-		ctx := &actionpins.PinContext{EnforcePinned: true, Warnings: make(map[string]bool)}
+		var failures []actionpins.ResolutionFailure
+		ctx := &actionpins.PinContext{
+			EnforcePinned: true,
+			Warnings:      make(map[string]bool),
+			RecordResolutionFailure: func(f actionpins.ResolutionFailure) {
+				failures = append(failures, f)
+			},
+		}
 
 		result := actionpins.ResolveLatestActionPin("does-not-exist/x", ctx)
 		assert.Empty(t, result, "unknown repo should return empty when no embedded fallback exists")
+		assert.Empty(t, failures, "unknown repo without embedded pins should not invoke resolution failure callback")
 	})
 }
 
@@ -984,5 +1011,17 @@ func TestSpec_PublicAPI_ApplyContainerPinMapping(t *testing.T) {
 		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
 		assert.Equal(t, "ghcr.io/owner/image:latest", result,
 			"mapping without valid @sha256: digest should be rejected and image returned unchanged")
+	})
+
+	t.Run("invalid mapping - mapped value with malformed digest returns image unchanged", func(t *testing.T) {
+		ctx := &actionpins.PinContext{
+			Warnings: make(map[string]bool),
+			ContainerMappings: map[string]string{
+				"ghcr.io/owner/image:latest": "registry.acme.com/image:latest@sha256:not-a-valid-digest",
+			},
+		}
+		result := actionpins.ApplyContainerPinMapping("ghcr.io/owner/image:latest", ctx)
+		assert.Equal(t, "ghcr.io/owner/image:latest", result,
+			"mapping with malformed @sha256 digest should be rejected and image returned unchanged")
 	})
 }
