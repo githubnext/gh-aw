@@ -822,6 +822,11 @@ lint-lock: build
 # without their .lock.yml being regenerated.  Uses git to identify modified files
 # and does not require the gh-aw binary.  Complements check-workflow-drift (which
 # does a full recompile) by catching the obvious staleness case early.
+#
+# Supported env vars (checked in order):
+#   CHECK_STALE_LOCK_BASE_REF - explicit base ref override (any git ref)
+#   GITHUB_BASE_REF           - PR base branch name (set by GitHub Actions on pull_request events)
+#   GITHUB_BEFORE_SHA         - pre-push commit SHA (set in CI for push events via github.event.before)
 .PHONY: check-stale-lock-files
 check-stale-lock-files:
 	@base_ref="$${CHECK_STALE_LOCK_BASE_REF:-}"; \
@@ -830,6 +835,11 @@ check-stale-lock-files:
 			base_ref="origin/$${GITHUB_BASE_REF}"; \
 		elif git rev-parse --verify "$${GITHUB_BASE_REF}^{commit}" >/dev/null 2>&1; then \
 			base_ref="$${GITHUB_BASE_REF}"; \
+		fi; \
+	fi; \
+	if [ -z "$$base_ref" ] && [ -n "$${GITHUB_BEFORE_SHA:-}" ]; then \
+		if git rev-parse --verify "$${GITHUB_BEFORE_SHA}^{commit}" >/dev/null 2>&1; then \
+			base_ref="$${GITHUB_BEFORE_SHA}"; \
 		fi; \
 	fi; \
 	if [ -n "$$base_ref" ]; then \

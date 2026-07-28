@@ -134,6 +134,23 @@ jobs:
         fi
 
         echo "validated $checked_images container pins across $checked_files workflow lock files"
+  check-stale-lock-files:
+    name: Check for stale workflow lock files
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+      with:
+        fetch-depth: 0
+
+    - name: Check for stale lock files
+      env:
+        GITHUB_BEFORE_SHA: ${{ github.event.before }}
+      run: make check-stale-lock-files
+
   integration:
     name: "Integration: ${{ matrix.test-group.name }}"
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
