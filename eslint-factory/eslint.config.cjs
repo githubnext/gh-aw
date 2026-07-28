@@ -45,6 +45,7 @@ module.exports = [
       "gh-aw-custom/no-caught-error-interpolation": "warn",
       "gh-aw-custom/require-fetch-try-catch": "warn",
       "gh-aw-custom/no-core-error-then-setfailed": "warn",
+      "gh-aw-custom/no-duplicate-constant-values": "warn",
     },
   },
   {
