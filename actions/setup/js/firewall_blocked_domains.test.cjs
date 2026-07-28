@@ -303,6 +303,70 @@ describe("firewall_blocked_domains.cjs", () => {
 
       expect(result).toEqual(["blocked.example.com"]);
     });
+
+    it("should filter out internal AWF sidecar hostname awmg-mcpg", () => {
+      const logsDir = path.join(testDir, "logs-sidecar-mcpg");
+      fs.mkdirSync(logsDir, { recursive: true });
+
+      // The MCP gateway sidecar (awmg-mcpg) appears in firewall logs as a
+      // blocked domain because it is in topologyAttach but not in allowDomains.
+      // It should be suppressed from the blocked-domains warning.
+      const logContent = [
+        '1761332530.474 172.30.0.20:35288 awmg-mcpg:8080 10.0.0.1:8080 1.1 CONNECT 403 NONE_NONE:HIER_NONE awmg-mcpg:8080 "-"',
+        '1761332530.475 172.30.0.20:35289 blocked.example.com:443 140.82.112.22:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
+        '1761332530.476 172.30.0.20:35290 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
+      ].join("\n");
+
+      fs.writeFileSync(path.join(logsDir, "access.log"), logContent);
+
+      const result = getBlockedDomains(logsDir);
+
+      // Real blocked domain should appear
+      expect(result).toContain("blocked.example.com");
+      // Internal sidecar awmg-mcpg (sanitized: awmgmcpg) must be suppressed
+      expect(result).not.toContain("awmgmcpg");
+      expect(result).not.toContain("awmg-mcpg");
+      // Allowed domain must not appear
+      expect(result).not.toContain("api.github.com");
+    });
+
+    it("should filter out internal AWF sidecar hostname awmg-cli-proxy", () => {
+      const logsDir = path.join(testDir, "logs-sidecar-cli-proxy");
+      fs.mkdirSync(logsDir, { recursive: true });
+
+      const logContent = [
+        '1761332530.474 172.30.0.20:35288 awmg-cli-proxy:3128 10.0.0.2:3128 1.1 CONNECT 403 NONE_NONE:HIER_NONE awmg-cli-proxy:3128 "-"',
+        '1761332530.475 172.30.0.20:35289 blocked.example.com:443 140.82.112.22:443 1.1 CONNECT 403 NONE_NONE:HIER_NONE blocked.example.com:443 "-"',
+      ].join("\n");
+
+      fs.writeFileSync(path.join(logsDir, "access.log"), logContent);
+
+      const result = getBlockedDomains(logsDir);
+
+      // Real blocked domain should appear
+      expect(result).toContain("blocked.example.com");
+      // Internal sidecar awmg-cli-proxy (sanitized: awmgcliproxy) must be suppressed
+      expect(result).not.toContain("awmgcliproxy");
+      expect(result).not.toContain("awmg-cli-proxy");
+    });
+
+    it("should return empty array when only internal sidecar domains were blocked", () => {
+      const logsDir = path.join(testDir, "logs-sidecar-only");
+      fs.mkdirSync(logsDir, { recursive: true });
+
+      const logContent = [
+        '1761332530.474 172.30.0.20:35288 awmg-mcpg:8080 10.0.0.1:8080 1.1 CONNECT 403 NONE_NONE:HIER_NONE awmg-mcpg:8080 "-"',
+        '1761332530.475 172.30.0.20:35289 awmg-cli-proxy:3128 10.0.0.2:3128 1.1 CONNECT 403 NONE_NONE:HIER_NONE awmg-cli-proxy:3128 "-"',
+        '1761332530.476 172.30.0.20:35290 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"',
+      ].join("\n");
+
+      fs.writeFileSync(path.join(logsDir, "access.log"), logContent);
+
+      const result = getBlockedDomains(logsDir);
+
+      // All sidecar entries suppressed, no real blocked domains → empty result
+      expect(result).toEqual([]);
+    });
   });
 
   describe("generateBlockedDomainsSection", () => {
