@@ -74,6 +74,16 @@ async function main(config = {}) {
     logStagedPreviewInfo("PR review comments will be previewed without being submitted");
   }
 
+  const pinnedCommitId = typeof config.commit_id === "string" ? config.commit_id.trim() : "";
+  if (pinnedCommitId) {
+    core.info(`create_pull_request_review_comment: commit-id pinned to ${pinnedCommitId}`);
+    if (registry && typeof registry.setDefaultPinnedCommitId === "function") {
+      registry.setDefaultPinnedCommitId(pinnedCommitId);
+    } else if (legacyBuffer && typeof legacyBuffer.setPinnedCommitId === "function") {
+      legacyBuffer.setPinnedCommitId(pinnedCommitId);
+    }
+  }
+
   // Extract triggering context for footer generation
   const triggeringIssueNumber = context.payload?.issue?.number && !context.payload?.issue?.pull_request ? context.payload.issue.number : undefined;
   const triggeringPRNumber = context.payload?.pull_request?.number || (context.payload?.issue?.pull_request ? context.payload.issue.number : undefined);
