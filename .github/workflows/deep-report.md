@@ -86,6 +86,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/default-ai-credits-pricing.md
 ---
 
 ### DeepReport - Intelligence Gathering Agent
