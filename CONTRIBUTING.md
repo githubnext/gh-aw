@@ -641,3 +641,14 @@ Community members contribute by crafting detailed agentic plans that the core te
 The [Development Guide](DEVGUIDE.md) is the reference guide used by core team members and their agents.
 
 Thank you for contributing to GitHub Agentic Workflows! 🤖🎉
+
+
+## Repository Topics (Maintainer Note)
+
+To improve discoverability in GitHub search and AI assistant recommendations, the repository should have these topics set (via repository Settings → Topics — must be done by a maintainer with admin access):
+
+```
+github-actions  ai-agents  claude  copilot  automation  openai  gemini  agentic-workflows  continuous-ai  safe-outputs
+```
+
+These map to the most common search queries the project serves: "claude code github actions", "ai agents github", "copilot automation", "automated pr review ai", etc.

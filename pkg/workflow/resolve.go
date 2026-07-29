@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"os"
@@ -245,34 +246,65 @@ func GetAllWorkflows() ([]WorkflowNameMatch, error) {
 		base := filepath.Base(lockFile)
 		workflowID := strings.TrimSuffix(base, ".lock.yml")
 
-		// Read and parse the lock file to get display name
-		content, err := os.ReadFile(lockFile)
+		// Extract only the top-level `name:` field. Lock files are large generated
+		// GitHub Actions YAML (hundreds of KB each); fully parsing every file just to
+		// read one field is very slow (seconds across a repo with many workflows), so
+		// we scan for the first column-0 `name:` line and parse only that.
+		name, err := extractLockFileWorkflowName(lockFile)
 		if err != nil {
-			resolveLog.Printf("Failed to read lock file %s: %v", lockFile, err)
+			resolveLog.Printf("Failed to read workflow name from lock file %s: %v", lockFile, err)
 			continue
 		}
 
-		var wf struct {
-			Name string `yaml:"name"`
-		}
-
-		if err := yaml.Unmarshal(content, &wf); err != nil {
-			resolveLog.Printf("Failed to parse YAML from lock file %s: %v", lockFile, err)
-			continue
-		}
-
-		if wf.Name == "" {
+		if name == "" {
 			resolveLog.Printf("Workflow name field missing in lock file: %s", lockFile)
 			continue
 		}
 
 		workflows = append(workflows, WorkflowNameMatch{
 			WorkflowID:  workflowID,
-			DisplayName: wf.Name,
+			DisplayName: name,
 		})
 	}
 
 	return workflows, nil
+}
+
+// extractLockFileWorkflowName returns the top-level workflow `name:` value from a
+// generated lock file without parsing the entire (potentially very large) YAML
+// document. It scans line-by-line for the first column-0 `name:` key — which in
+// generated lock files is always the workflow name — and unmarshals just that single
+// line so YAML scalar semantics (quoting, escapes) are preserved. Scanning stops as
+// soon as the name is found.
+func extractLockFileWorkflowName(lockFile string) (string, error) {
+	f, err := os.Open(lockFile)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+
+	scanner := bufio.NewScanner(f)
+	// Lock file `name:` lines are short, but allow generous headroom for long names.
+	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
+	for scanner.Scan() {
+		line := scanner.Text()
+		// Only a column-0 (unindented, non-comment) `name:` key is the workflow name;
+		// nested `name:` keys under jobs/steps are always indented.
+		if !strings.HasPrefix(line, "name:") {
+			continue
+		}
+		var wf struct {
+			Name string `yaml:"name"`
+		}
+		if err := yaml.Unmarshal([]byte(line), &wf); err != nil {
+			return "", err
+		}
+		return wf.Name, nil
+	}
+	if err := scanner.Err(); err != nil {
+		return "", err
+	}
+	return "", nil
 }
 
 // IsIntentionalFailure reports whether the workflow identified by workflowPath is tagged

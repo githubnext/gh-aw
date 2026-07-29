@@ -1,12 +1,53 @@
 ---
 title: Quick Start
-description: Get your first agentic workflow running in minutes. Install the extension, add a sample workflow, set up secrets, and run your first AI-powered automation.
+description: Get your first agentic workflow running in minutes. Install the gh-aw CLI extension, pick an AI engine (Copilot, Claude, Codex, or Gemini), add a workflow, and watch it run automatically in GitHub Actions.
 sidebar:
   order: 1
+head:
+  - tag: script
+    attrs:
+      type: application/ld+json
+    content: |
+      {
+        "@context": "https://schema.org",
+        "@type": "HowTo",
+        "name": "Set up GitHub Agentic Workflows in 10 minutes",
+        "description": "Install the gh-aw CLI extension, pick an AI engine, add a workflow, and watch it run automatically in GitHub Actions.",
+        "estimatedCost": { "@type": "MonetaryAmount", "currency": "USD", "value": "0" },
+        "totalTime": "PT10M",
+        "step": [
+          {
+            "@type": "HowToStep",
+            "name": "Install the gh-aw extension",
+            "text": "Run: gh extension install github/gh-aw",
+            "position": 1
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Add a sample workflow and select an AI engine",
+            "text": "Run: gh aw add-wizard githubnext/agentics/daily-repo-status — then follow the interactive prompts to choose Copilot, Claude, Codex, or Gemini and set up the required secret.",
+            "position": 2
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Wait for the workflow to complete",
+            "text": "After the workflow runs (2-3 minutes), a Daily Repo Report issue appears in your repository Issues tab.",
+            "position": 3
+          },
+          {
+            "@type": "HowToStep",
+            "name": "Customize your workflow (optional)",
+            "text": "Open .github/workflows/daily-repo-status.md, edit the instructions, run gh aw compile to regenerate the lock file, then commit and push both files.",
+            "position": 4
+          }
+        ]
+      }
 ---
 
 import Video from '../../../components/Video.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
+
+By the end of this guide you will have a live, recurring AI workflow running in GitHub Actions on your repository — using whichever AI engine you already have access to (GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini). The whole setup takes about 10 minutes and requires only the GitHub CLI.
 
 ## Adding an Automated Daily Status Workflow to Your Repo
 
@@ -197,3 +238,12 @@ Continue learning with these resources:
 - [Creating Agentic Workflows](/gh-aw/setup/creating-workflows/)
 - [How Agentic Workflows Work](/gh-aw/introduction/how-they-work/)
 - [Frequently Asked Questions](/gh-aw/reference/faq/)
+
+## Related guides
+
+These use-case guides show specific workflow patterns built on the same foundation you just set up:
+
+- [AI Issue Triage on GitHub](/gh-aw/guides/ai-issue-triage/) — label, deduplicate, and ask clarifying questions on new issues automatically
+- [Automated AI Pull Request Review](/gh-aw/guides/automated-pr-review/) — review diffs and post feedback comments when PRs are opened
+- [AI-Generated Release Notes and Reports](/gh-aw/guides/ai-release-notes/) — generate release summaries and repo reports on a schedule
+- [Keeping Documentation Up to Date Automatically](/gh-aw/guides/docs-automation/) — propose documentation updates as pull requests when code changes
