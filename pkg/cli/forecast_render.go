@@ -32,7 +32,7 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("Workflow Forecast — weekly & monthly projections (based on last %d days of history)", config.Days)))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		"All numeric figures are AI Credits (AIC) — the gh-aw cost metric."))
+		"Cost/projection figures are AI Credits (AIC) — the gh-aw cost metric."))
 	fmt.Fprintln(os.Stderr, "")
 
 	anyUnreliable := false
