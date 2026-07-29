@@ -73,7 +73,11 @@ function renderMarkdownTemplate(markdown) {
     } else {
       removedBlocks++;
       core.info(`[renderMarkdownTemplate]   Action: Removing entire block`);
-      return "";
+      // Keep the leading newline so the line before the block stays separated
+      // from the line after it (the closing tag's trailing newline is already
+      // consumed by the match). Dropping it merges unrelated lines together,
+      // e.g. "Before\n{{#if false}}...{{/if}}\nAfter" -> "BeforeAfter".
+      return leadNL;
     }
   });
 

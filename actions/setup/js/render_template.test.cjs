@@ -52,6 +52,10 @@ describe("renderMarkdownTemplate", () => {
       const output = renderMarkdownTemplate("Start\n\n{{#if false}}\nBlock 1\n{{/if}}\n\n{{#if false}}\nBlock 2\n{{/if}}\n\n{{#if false}}\nBlock 3\n{{/if}}\n\nEnd");
       (expect(output).not.toMatch(/\n{3,}/), expect(output).toContain("Start"), expect(output).toContain("End"));
     }),
+    it("should not merge the surrounding lines when a single-newline-separated falsy block is removed", () => {
+      const output = renderMarkdownTemplate("Line1\n{{#if false}}\nRemoved\n{{/if}}\nLine2\n");
+      expect(output).toBe("Line1\nLine2\n");
+    }),
     it("should preserve leading spaces with truthy block", () => {
       const output = renderMarkdownTemplate("  {{#if true}}\n  Content with leading spaces\n  {{/if}}");
       expect(output).toBe("  Content with leading spaces\n");
