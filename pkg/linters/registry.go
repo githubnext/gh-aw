@@ -19,6 +19,7 @@ import (
 	"github.com/github/gh-aw/pkg/linters/fileclosenotdeferred"
 	"github.com/github/gh-aw/pkg/linters/fmterrorfnoverbs"
 	"github.com/github/gh-aw/pkg/linters/fprintlnsprintf"
+	"github.com/github/gh-aw/pkg/linters/goroutinemissingrecover"
 	"github.com/github/gh-aw/pkg/linters/hardcodedfilepath"
 	"github.com/github/gh-aw/pkg/linters/httpnoctx"
 	"github.com/github/gh-aw/pkg/linters/httprespbodyclose"
@@ -91,6 +92,7 @@ var allAnalyzers = []*analysis.Analyzer{
 	fileclosenotdeferred.Analyzer,
 	fmterrorfnoverbs.Analyzer,
 	hardcodedfilepath.Analyzer,
+	goroutinemissingrecover.Analyzer,
 	httpnoctx.Analyzer,
 	httprespbodyclose.Analyzer,
 	ioutildeprecated.Analyzer,
