@@ -25,7 +25,7 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 			engine:                  "claude",
 			expectedEnvVar:          constants.EnvVarModelAgentClaude,
 			expectedCommand:         "${" + constants.EnvVarModelAgentClaude + ":+ --model",
-			expectedDefault:         constants.CopilotBYOKDefaultModel,
+			expectedDefault:         constants.SonnetDefaultModel,
 			expectedDefaultOverride: compilerenv.DefaultModelClaude,
 		},
 		{
@@ -109,7 +109,7 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 			name:                    "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",
 			engine:                  "claude",
 			expectedEnvVar:          constants.EnvVarModelDetectionClaude,
-			expectedDefault:         constants.CopilotBYOKDefaultModel,
+			expectedDefault:         constants.SonnetDefaultModel,
 			expectedDefaultOverride: compilerenv.DefaultModelClaude,
 		},
 		{
