@@ -65,6 +65,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw outcomes` | `NewOutcomesCommand` | Check what happened to a workflow run's safe outputs |
 | `gh aw outcomes history` | `NewOutcomesHistorySubcommand` | Score recent closed issues and merged PRs against the objective mapping |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
+| `gh aw doctor` | `NewDoctorCommand` | Run diagnostics to verify CLI authentication and repository setup |
 | `gh aw version` | `versionCmd` (main.go) | Show version information |
 | `gh aw completion` | `NewCompletionCommand` | Generate shell completion scripts |
 
@@ -137,6 +138,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `RunWorkflowInteractively` | `func(ctx, ...) error` | Interactive workflow selection and dispatch |
 | `RunSpecificWorkflowInteractively` | `func(ctx, string, ...) error` | Interactive dispatch for a named workflow |
 | `RunAddInteractive` | `func(ctx, []string, ...) error` | Interactive wizard for adding workflows |
+| `RunSetupAuth` | `func(SetupAuthOptions) error` | Checks GitHub CLI authentication as part of `gh aw doctor` |
+| `RunSetupRepositoryCheck` | `func(SetupRepositoryCheckOptions) error` | Verifies repository existence, owner type, and checkout state for `gh aw doctor` |
 | `RunWorkflowTrials` | `func(ctx, []string, TrialOptions) error` | Runs trial workflow executions |
 | `RunUpdateWorkflows` | `func(ctx, []string, ...) error` | Updates workflows from upstream sources |
 | `RunChecks` | `func(ChecksConfig) error` | Fetches and renders CI check results for a PR |
