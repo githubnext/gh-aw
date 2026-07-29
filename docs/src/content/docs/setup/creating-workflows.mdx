@@ -9,6 +9,8 @@ import CopyEntireFileButton from '../../../components/CopyEntireFileButton.astro
 import Video from '../../../components/Video.astro';
 import { Tabs, TabItem } from '@astrojs/starlight/components';
 
+An agentic workflow is a Markdown file in `.github/workflows/` that describes automation in natural language. The `gh aw compile` command turns it into a hardened GitHub Actions workflow that runs your chosen AI engine — Copilot, Claude, Codex, or Gemini — on a schedule or in response to repository events, with sandboxed execution and safe outputs controlling any writes back to GitHub.
+
 **⏱️ Estimated time: 5-15 minutes** depending on complexity
 
 You can author new agentic workflows using a coding agent or other AI chat system, under your guidance. For interactive coding agents, this can be a conversation about what you want the workflow to do, with the agent asking clarifying questions and generating the workflow for you.
@@ -165,6 +167,11 @@ You can now trigger runs of the workflow either from the Actions tab in GitHub.c
 ## Adding an Existing Workflow
 
 To add a workflow from another repository, see [Reusing Workflows](/gh-aw/guides/reusing-workflows/#adding-existing-workflows).
+
+## Workshop
+
+> [!TIP]
+> **Want a hands-on exercise to practice creating workflows?** The [**gh-aw-workshop**](https://github.com/githubnext/gh-aw-workshop) walks you through building, running, and customizing agentic workflows step by step. Fork it and follow along at your own pace.
 
 ## Learn More About Agentic Authoring
 

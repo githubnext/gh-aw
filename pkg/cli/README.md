@@ -59,12 +59,13 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `gh aw experiments` | `NewExperimentsCommand` | Explore ongoing A/B experiments in the repository (hidden) |
 | `gh aw experiments list` | `NewExperimentsListSubcommand` | List all experiment workflow branches |
 | `gh aw experiments analyze` | `NewExperimentsAnalyzeSubcommand` | Analyze a specific experiment workflow in detail |
-| `gh aw forecast` | `NewForecastCommand` | Forecast token usage and costs for agentic workflows (experimental) |
+| `gh aw forecast` | `NewForecastCommand` | Forecast token usage and costs for agentic workflows |
 | `gh aw trial` | `NewTrialCommand` | Run trial workflow executions |
 | `gh aw deploy` | `NewDeployCommand` | Deploy agentic workflows to a target repository using a pull request |
 | `gh aw outcomes` | `NewOutcomesCommand` | Check what happened to a workflow run's safe outputs |
 | `gh aw outcomes history` | `NewOutcomesHistorySubcommand` | Score recent closed issues and merged PRs against the objective mapping |
 | _No `gh aw deps` command_ | `deps_*.go` (internal utilities) | Dependency reporting/advisory helpers used by other commands |
+| `gh aw doctor` | `NewDoctorCommand` | Run diagnostics to verify CLI authentication and repository setup |
 | `gh aw version` | `versionCmd` (main.go) | Show version information |
 | `gh aw completion` | `NewCompletionCommand` | Generate shell completion scripts |
 
@@ -99,7 +100,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `RepeatOptions` | `retry.go` | Options for `ExecuteWithRepeat` polling loop |
 | `PollOptions` | `signal_aware_poll.go` | Options for `PollWithSignalHandling` |
 | `FixConfig` | `fix_command.go` | Configuration for `RunFix` codemods |
-| `ForecastConfig` | `forecast_command.go` | Configuration for `NewForecastCommand` (experimental token usage forecasting) |
+| `ForecastConfig` | `forecast_command.go` | Configuration for `NewForecastCommand` (token usage forecasting) |
 | `ExperimentsListConfig` | `experiments_command.go` | Configuration for `RunExperimentsList` |
 | `ExperimentsAnalyzeConfig` | `experiments_command.go` | Configuration for `RunExperimentsAnalyze` |
 | `TrialOptions` | `trial_types.go` | Options for `RunWorkflowTrials` |
@@ -137,6 +138,8 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `RunWorkflowInteractively` | `func(ctx, ...) error` | Interactive workflow selection and dispatch |
 | `RunSpecificWorkflowInteractively` | `func(ctx, string, ...) error` | Interactive dispatch for a named workflow |
 | `RunAddInteractive` | `func(ctx, []string, ...) error` | Interactive wizard for adding workflows |
+| `RunSetupAuth` | `func(SetupAuthOptions) error` | Checks GitHub CLI authentication as part of `gh aw doctor` |
+| `RunSetupRepositoryCheck` | `func(SetupRepositoryCheckOptions) error` | Verifies repository existence, owner type, and checkout state for `gh aw doctor` |
 | `RunWorkflowTrials` | `func(ctx, []string, TrialOptions) error` | Runs trial workflow executions |
 | `RunUpdateWorkflows` | `func(ctx, []string, ...) error` | Updates workflows from upstream sources |
 | `RunChecks` | `func(ChecksConfig) error` | Fetches and renders CI check results for a PR |

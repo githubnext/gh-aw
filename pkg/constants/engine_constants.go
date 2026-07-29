@@ -334,12 +334,11 @@ const (
 	// need an explicit default and no engine-specific override is configured.
 	SonnetDefaultModel = "claude-sonnet-5"
 
-	// CopilotBYOKDefaultModel is the explicit fallback model for Copilot BYOK mode.
-	// BYOK providers require a non-empty model, so this value is used when the
-	// corresponding GH_AW_MODEL_*_COPILOT variable is unset.
+	// CopilotBYOKDefaultModel is the explicit fallback model used when no Copilot model
+	// is configured and the corresponding GH_AW_MODEL_*_COPILOT variable is unset.
 	//
-	// Use Claude Sonnet 5 as the explicit default model for Copilot BYOK mode.
-	CopilotBYOKDefaultModel = SonnetDefaultModel
+	// "auto" lets the Copilot API select the best available model automatically.
+	CopilotBYOKDefaultModel = "auto"
 
 	// CodexDefaultModel is the default model for the Codex agentic engine.
 	// Used as the fallback when no explicit model is configured and the

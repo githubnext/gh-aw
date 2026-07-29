@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -31,12 +30,11 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("Workflow Forecast — weekly & monthly projections (based on last %d days of history)", config.Days)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		"Cost/projection figures are AI Credits (AIC) — the gh-aw cost metric."))
 	fmt.Fprintln(os.Stderr, "")
 
 	anyUnreliable := false
 	var totalWeeklyP50, totalMonthlyP50 float64
+	var totalRuns int
 	rows := make([]forecastTableRow, 0, len(output.Workflows)+1)
 	for _, wf := range output.Workflows {
 		unreliableMark := ""
@@ -53,19 +51,23 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		if mc := wf.MonthlyMonteCarlo; mc != nil {
 			monthlyP50 = mc.P50ProjectedAIC
 		}
-		totalWeeklyP50 += weeklyP50
-		totalMonthlyP50 += monthlyP50
+		// Skip NaN/Inf so a single unreliable projection can't poison the totals.
+		if !math.IsNaN(weeklyP50) && !math.IsInf(weeklyP50, 0) {
+			totalWeeklyP50 += weeklyP50
+		}
+		if !math.IsNaN(monthlyP50) && !math.IsInf(monthlyP50, 0) {
+			totalMonthlyP50 += monthlyP50
+		}
+		totalRuns += wf.SampledRuns
 
 		row := forecastTableRow{
 			Workflow:    wf.WorkflowID + unreliableMark,
-			Engines:     formatEngineList(wf.Engines),
 			Runs:        wf.SampledRuns,
 			P50PerRun:   formatForecastAIC(wf.P50AIC),
 			P95PerRun:   formatForecastAIC(wf.P95AIC),
 			WeeklyP50:   formatForecastAIC(weeklyP50),
 			MonthlyP50:  formatForecastAIC(monthlyP50),
 			SuccessRate: formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
-			Triggers:    formatTriggerList(wf.ActiveTriggers),
 		}
 		rows = append(rows, row)
 	}
@@ -76,6 +78,7 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	if len(output.Workflows) > 1 {
 		rows = append(rows, forecastTableRow{
 			Workflow:   "TOTAL",
+			Runs:       totalRuns,
 			WeeklyP50:  formatForecastAIC(totalWeeklyP50),
 			MonthlyP50: formatForecastAIC(totalMonthlyP50),
 		})
@@ -84,8 +87,10 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	fmt.Fprint(os.Stderr, console.RenderStruct(rows))
 	fmt.Fprintln(os.Stderr, "")
 
-	// Show detailed per-run samples section.
-	printRunSamplesSection(output.Workflows)
+	// Show detailed per-run samples section only when specific workflows were requested.
+	if len(config.WorkflowIDs) > 0 {
+		printRunSamplesSection(output.Workflows)
+	}
 
 	// Show experiment variant details when present.
 	for _, wf := range output.Workflows {
@@ -100,13 +105,17 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("AIC = AI Credits. P50 AIC/Run = per-run median AIC; P95 AIC/Run = 95th-percentile per-run AIC; Weekly/Monthly AIC = projected P50 from %d-trial Monte Carlo simulation.", monteCarloIterations)))
+		"Cost/projection figures are AI Credits (AIC) — the gh-aw cost metric."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		"AIC = AI Credits. P50 AIC/Run = per-run median AIC; P95 AIC/Run = 95th-percentile per-run AIC; Weekly/Monthly AIC = projected P50 usage."))
 	if anyUnreliable {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			fmt.Sprintf("* Fewer than %d sampled runs — confidence intervals may be unreliable.", minObservationsForReliableForecast)))
+			fmt.Sprintf("* Fewer than %d sampled runs — projections may be unreliable.", minObservationsForReliableForecast)))
 	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		"All forecasts are estimates derived from historical samples and may be inaccurate."))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("Run '%s forecast --json' for full Monte Carlo output including P10/P90 confidence intervals.", string(constants.CLIExtensionPrefix))))
+		fmt.Sprintf("Run '%s forecast --json' for full output including P10/P90 confidence intervals.", string(constants.CLIExtensionPrefix))))
 	return nil
 }
 
@@ -245,13 +254,6 @@ func formatForecastAIC(value float64) string {
 	return fmt.Sprintf("%.2fM", value/1_000_000)
 }
 
-func formatEngineList(engines []string) string {
-	if len(engines) == 0 {
-		return "-"
-	}
-	return strings.Join(engines, ", ")
-}
-
 // formatForecastSignedAIC formats a signed AIC value, preserving
 // the sign so callers can display positive/negative deltas (e.g., error abs).
 func formatForecastSignedAIC(value float64) string {
@@ -269,14 +271,4 @@ func formatForecastSignedAIC(value float64) string {
 
 func roundForecastAIC(value float64) float64 {
 	return math.Round(value*1000) / 1000
-}
-
-func formatTriggerList(triggers []string) string {
-	if len(triggers) == 0 {
-		return "-"
-	}
-	if len(triggers) <= 3 {
-		return strings.Join(triggers, ", ")
-	}
-	return strings.Join(triggers[:3], ", ") + fmt.Sprintf(" +%d", len(triggers)-3)
 }

@@ -46,6 +46,9 @@ func workflowIDFromRun(path, name string) string {
 // consumption to w. Designed for LLM context windows: minimal formatting, no decoration,
 // structured but flat.
 //
+// NOTE: w is always a plain-text writer (os.Stdout or a bytes.Buffer in tests).
+// This function is never wired to an HTTP response, so HTML escaping is not applicable.
+//
 // Format sections:
 //
 //	[summary] key=value pairs on one line

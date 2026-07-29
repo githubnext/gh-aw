@@ -335,10 +335,52 @@ steps:
     uses: actions/checkout@v5
     with:
       repository: preserve/repo
+      fetch-depth: 0
+---`,
+			description: "Should merge repository parameter into existing with clause without duplication",
+		},
+		{
+			name:            "preserve existing with clause with keys before with",
+			logicalRepoSlug: "preserve/repo",
+			inputContent: `---
+steps:
+  - name: Checkout with delayed with
+    uses: actions/checkout@v5
+    id: checkout-step
     with:
       fetch-depth: 0
 ---`,
-			description: "Should add repository parameter even if with clause already exists (will create duplicate with blocks)",
+			expectedContent: `---
+steps:
+  - name: Checkout with delayed with
+    uses: actions/checkout@v5
+    id: checkout-step
+    with:
+      repository: preserve/repo
+      fetch-depth: 0
+---`,
+			description: "Should update existing with clause even when it appears after other step keys",
+		},
+		{
+			name:            "replace existing with repository and support quoted checkout uses",
+			logicalRepoSlug: "owner/new-repo",
+			inputContent: `---
+steps:
+  - name: Checkout quoted
+    uses: "actions/checkout@v5"
+    with:
+      repository: owner/old-repo
+      ref: main
+---`,
+			expectedContent: `---
+steps:
+  - name: Checkout quoted
+    uses: "actions/checkout@v5"
+    with:
+      repository: owner/new-repo
+      ref: main
+---`,
+			description: "Should update existing repository field and match quoted checkout uses values",
 		},
 		{
 			name:            "combined replacements",
@@ -407,6 +449,154 @@ steps:
 # Simple Workflow
 No modifications needed.`,
 			description: "Should leave workflow unchanged if no replacements needed",
+		},
+		{
+			name:            "inline list-item form without with block",
+			logicalRepoSlug: "owner/trial-repo",
+			inputContent: `---
+steps:
+  - uses: actions/checkout@v4
+  - name: Build
+    run: make build
+---`,
+			expectedContent: `---
+steps:
+  - uses: actions/checkout@v4
+    with:
+      repository: owner/trial-repo
+  - name: Build
+    run: make build
+---`,
+			description: "Should add with.repository when checkout uses the inline list-item form",
+		},
+		{
+			name:            "inline list-item form with existing with block",
+			logicalRepoSlug: "owner/trial-repo",
+			inputContent: `---
+steps:
+  - uses: actions/checkout@v4
+    with:
+      fetch-depth: 0
+  - name: Build
+    run: make build
+---`,
+			expectedContent: `---
+steps:
+  - uses: actions/checkout@v4
+    with:
+      repository: owner/trial-repo
+      fetch-depth: 0
+  - name: Build
+    run: make build
+---`,
+			description: "Should merge repository into existing with block for inline list-item form",
+		},
+		{
+			name:            "inline list-item form with existing repository in with block",
+			logicalRepoSlug: "owner/new-repo",
+			inputContent: `---
+steps:
+  - uses: actions/checkout@v4
+    with:
+      repository: owner/old-repo
+      ref: main
+  - name: Build
+    run: make build
+---`,
+			expectedContent: `---
+steps:
+  - uses: actions/checkout@v4
+    with:
+      repository: owner/new-repo
+      ref: main
+  - name: Build
+    run: make build
+---`,
+			description: "Should replace existing repository in with block for inline list-item form",
+		},
+		{
+			name:            "inline list-item form with inline comment",
+			logicalRepoSlug: "owner/trial-repo",
+			inputContent: `---
+steps:
+  - uses: actions/checkout@v4 # checkout the source
+  - name: Build
+    run: make build
+---`,
+			expectedContent: `---
+steps:
+  - uses: actions/checkout@v4 # checkout the source
+    with:
+      repository: owner/trial-repo
+  - name: Build
+    run: make build
+---`,
+			description: "Should handle inline list-item form with a trailing comment",
+		},
+		{
+			name:            "inline list-item form with single-quoted uses value",
+			logicalRepoSlug: "owner/trial-repo",
+			inputContent: `---
+steps:
+  - uses: 'actions/checkout@v4'
+    with:
+      fetch-depth: 1
+  - name: Build
+    run: make build
+---`,
+			expectedContent: `---
+steps:
+  - uses: 'actions/checkout@v4'
+    with:
+      repository: owner/trial-repo
+      fetch-depth: 1
+  - name: Build
+    run: make build
+---`,
+			description: "Should handle inline list-item form with single-quoted uses value",
+		},
+		{
+			name:            "inline list-item form at zero base indentation",
+			logicalRepoSlug: "owner/trial-repo",
+			inputContent: `---
+steps:
+- uses: actions/checkout@v4
+- name: Build
+  run: make build
+---`,
+			expectedContent: `---
+steps:
+- uses: actions/checkout@v4
+  with:
+    repository: owner/trial-repo
+- name: Build
+  run: make build
+---`,
+			description: "Should handle inline list-item form when step items start at column 0",
+		},
+		{
+			name:            "mixed inline and block checkout steps",
+			logicalRepoSlug: "owner/trial-repo",
+			inputContent: `---
+steps:
+  - uses: actions/checkout@v4
+  - name: Checkout again
+    uses: actions/checkout@v4
+    with:
+      ref: develop
+---`,
+			expectedContent: `---
+steps:
+  - uses: actions/checkout@v4
+    with:
+      repository: owner/trial-repo
+  - name: Checkout again
+    uses: actions/checkout@v4
+    with:
+      repository: owner/trial-repo
+      ref: develop
+---`,
+			description: "Should handle both inline list-item and block-mapping checkout steps in the same workflow",
 		},
 	}
 
