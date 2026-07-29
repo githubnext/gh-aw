@@ -930,11 +930,11 @@ func TestAuditDiffToolNoProgressWithoutToken(t *testing.T) {
 
 // TestLogsToolSubprocessContextIgnoresGatewayDeadline verifies that the logs
 // tool creates a subprocess context rooted at context.Background() so the
-// subprocess is not killed when the MCP gateway's per-request deadline fires.
-// The subprocess should live for the full user-requested timeout, not the
-// (shorter) gateway deadline.
+// subprocess deadline is independent of the MCP gateway's per-request deadline.
+// This is the regression test for the original bug where a 60 s gateway deadline
+// silently overrode the caller-requested --timeout value.
 func TestLogsToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
-	// Track the deadline of the context the mock subprocess receives.
+	// Track the deadline of the subprocess context captured when mockExecCmd is called.
 	var capturedDeadline time.Time
 	var capturedHasDeadline bool
 
@@ -950,28 +950,36 @@ func TestLogsToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
 
 	session := connectInMemory(t, server)
 
-	// Call the logs tool with an explicit 5-minute timeout.
+	// Call the logs tool with an explicit 5-minute subprocess timeout, but use a
+	// gateway context that expires in 2 seconds — simulating the MCP gateway's
+	// hardcoded per-tool RPC deadline.  The subprocess context deadline must still
+	// be ~5 minutes out, proving it is rooted at context.Background() rather than
+	// the (short-lived) gateway context.
 	const requestedTimeoutMinutes = 5
 	before := time.Now()
-	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+
+	gatewayCtx, gatewayCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer gatewayCancel()
+
+	// The call may return an error because the gateway context expires before the
+	// tool completes (the mock command exits quickly, but the error path is
+	// acceptable here — we only care about the subprocess context deadline).
+	_, _ = session.CallTool(gatewayCtx, &mcp.CallToolParams{
 		Name: "logs",
 		Arguments: map[string]any{
 			"timeout": requestedTimeoutMinutes,
 		},
 	})
-	require.NoError(t, err, "logs tool should succeed")
 
 	// The subprocess context must have a deadline.
 	require.True(t, capturedHasDeadline, "subprocess context should have a deadline")
 
-	// The subprocess deadline must be at least requestedTimeoutMinutes in the
-	// future from the time the tool call started (minus a small tolerance for
-	// test execution overhead).  If the subprocess context were bounded by the
-	// MCP gateway's per-request deadline (which would be very short in this in-
-	// memory test), the deadline would be only milliseconds away rather than
-	// minutes.
+	// The subprocess deadline must be ~requestedTimeoutMinutes in the future,
+	// not bounded by the 2-second gateway context.  This assertion catches the
+	// regression where someone re-introduces the bug by rooting subCtx at ctx
+	// instead of context.Background().
 	expectedMinDeadline := before.Add(time.Duration(requestedTimeoutMinutes)*time.Minute - 5*time.Second)
 	assert.True(t, capturedDeadline.After(expectedMinDeadline),
-		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v); got %v",
+		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v) regardless of the 2s gateway deadline; got %v from start",
 		capturedDeadline, requestedTimeoutMinutes, before, capturedDeadline.Sub(before))
 }

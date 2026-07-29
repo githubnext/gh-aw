@@ -26,6 +26,12 @@ const (
 	// large repositories the unfiltered endpoint can be significantly slower.  A higher
 	// floor gives the tool enough headroom in those cases.
 	defaultMCPLogsMinTimeoutMinutesAllWorkflows = 5
+	// maxMCPLogsSubprocessTimeoutMinutes caps the user-supplied timeout to prevent
+	// a runaway subprocess from holding a guardrail slot for an unbounded duration.
+	// With up to 4 concurrent subprocess slots (maxActiveMCPChildProcesses), a
+	// single long-running request could otherwise block all callers for an arbitrarily
+	// long time.
+	maxMCPLogsSubprocessTimeoutMinutes = 60
 )
 
 // appendRepoFlagFromEnv appends "--repo <owner/repo>" to args when GITHUB_REPOSITORY
@@ -76,7 +82,7 @@ func effectiveMCPLogsToolCount(count int) int {
 
 func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int, workflowName string) int {
 	if requestedTimeout > 0 {
-		return requestedTimeout
+		return min(requestedTimeout, maxMCPLogsSubprocessTimeoutMinutes)
 	}
 
 	base := defaultMCPLogsToolTimeoutMinutesForCount(count)
@@ -251,10 +257,11 @@ from where the previous request stopped due to timeout.`,
 		)
 		defer subCancel()
 		go func() {
+			// Goroutine exits cleanly in both cases: client disconnect or subprocess timeout.
 			select {
 			case <-ctx.Done():
-				subCancel()
-			case <-subCtx.Done():
+				subCancel() // propagate client disconnect to subprocess
+			case <-subCtx.Done(): // subprocess timed out or subCancel() already called
 			}
 		}()
 
