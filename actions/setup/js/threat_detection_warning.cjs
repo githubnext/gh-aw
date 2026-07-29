@@ -55,9 +55,24 @@ function getDetectionReasonText(reason) {
   return reasonDescriptions[normalizedReason] || "The threat detection analysis could not be completed.";
 }
 
+/**
+ * Returns true when the reason indicates a tooling failure rather than an actual
+ * security finding. Tooling failures (agent_failure, parse_error) mean the
+ * detection engine itself crashed or could not produce a verdict — they should be
+ * surfaced as a distinct infrastructure error, not as a security threat.
+ *
+ * @param {string | undefined | null} reason
+ * @returns {boolean}
+ */
+function isToolingFailureReason(reason) {
+  const normalized = String(reason || "").trim();
+  return normalized === "agent_failure" || normalized === "parse_error";
+}
+
 module.exports = {
   normalizeThreatKinds,
   getThreatDetectedMarker,
   getThreatDetectedMarkerTemplate,
   getDetectionReasonText,
+  isToolingFailureReason,
 };
