@@ -146,5 +146,6 @@ describe("install_frontmatter_skills", () => {
     const failures = JSON.parse(fs.readFileSync("/tmp/gh-aw/skill_install_failures.json", "utf8"));
     expect(failures).toEqual([{ skill: "bad/repo@abc123", error: "exit code 1 HTTP 404" }]);
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to install skill 'bad/repo@abc123'"));
+    expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("<details open>"));
   });
 });
