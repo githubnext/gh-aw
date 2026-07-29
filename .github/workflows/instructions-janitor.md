@@ -27,7 +27,9 @@ safe-outputs:
     title-prefix: "[instructions] "
 description: Reviews and cleans up instruction files to ensure clarity, low duplication, and sub-400-line files for agentic consumption
 emoji: 🧹
-engine: claude
+engine:
+  id: claude
+model: claude-sonnet-5
 name: Instructions Janitor
 strict: true
 timeout-minutes: 20
@@ -36,6 +38,9 @@ tools:
   - cat .github/aw/*.md
   - wc -l .github/aw/*.md
   - "git log --since=\"*\" --pretty=format:\"%h %s\" -- docs/ .github/aw/"
+  - "git log --since=\"*\" --name-only --pretty=format:\"%h %s\" -- docs/ .github/aw/"
+  - "git diff *..HEAD -- docs/ .github/aw/"
+  - "git show --stat *"
   - ls .github/aw/
   cache-memory: true
   cli-proxy: true
@@ -81,8 +86,16 @@ Use small, topic-focused files.
 
 ### 1. Release and change audit
 
-- find the latest release
-- review docs and `.github/aw/` commits since that release
+- find the latest release tag
+- run a single bounded history pass:
+  ```bash
+  git log --since=<release-date> --name-only --pretty=format:"%h %s" -- docs/ .github/aw/
+  ```
+- if there are relevant changes, run one batched diff to review all affected content at once:
+  ```bash
+  git diff <release-tag>..HEAD -- docs/ .github/aw/
+  ```
+- inspect individual commits only when the diff alone is insufficient; cap detail inspection at **5 commits maximum**
 - inspect changed code when instruction accuracy depends on implementation details
 
 ### 2. Size audit
@@ -152,6 +165,7 @@ Include:
 
 ## Edge Cases
 
+- if the Release/Change audit finds no relevant docs or `.github/aw/` changes **and** the Size audit confirms all files are under their limits, exit immediately without running the Duplication or Accuracy audits
 - if no documentation changed, still run the size, duplication, and safe-output accuracy audits
 - if instructions are already current, exit without edits
 - if a file needs more than one new topic section to stay compact, create more than one focused sub-file instead of keeping one large catch-all file

@@ -61,6 +61,10 @@ pre-agent-steps:
     # Load historical memory (eliminates agent memory-read turns)
     cat memory/delight/previous-findings.json 2>/dev/null > /tmp/gh-aw/agent/previous-findings.json || echo "[]" > /tmp/gh-aw/agent/previous-findings.json
     cat memory/delight/improvement-themes.json 2>/dev/null > /tmp/gh-aw/agent/improvement-themes.json || echo "[]" > /tmp/gh-aw/agent/improvement-themes.json
+    # Pre-read file contents (eliminates view/read tool denials)
+    xargs -a /tmp/gh-aw/agent/doc-samples.txt cat > /tmp/gh-aw/agent/doc-samples-content.txt 2>/dev/null || echo "(no doc samples found)" > /tmp/gh-aw/agent/doc-samples-content.txt
+    xargs -a /tmp/gh-aw/agent/workflow-samples.txt cat > /tmp/gh-aw/agent/workflow-samples-content.txt 2>/dev/null || echo "(no workflow samples found)" > /tmp/gh-aw/agent/workflow-samples-content.txt
+    xargs -a /tmp/gh-aw/agent/validation-sample.txt cat > /tmp/gh-aw/agent/validation-sample-content.txt 2>/dev/null || echo "(no validation sample found)" > /tmp/gh-aw/agent/validation-sample-content.txt
 strict: true
 timeout-minutes: 30
 tools:
@@ -70,9 +74,6 @@ tools:
   - ./gh-aw --help
   - ./gh-aw * --help
   - cat /tmp/gh-aw/agent/*
-  - xargs -a /tmp/gh-aw/agent/doc-samples.txt cat
-  - xargs -a /tmp/gh-aw/agent/workflow-samples.txt cat
-  - xargs -a /tmp/gh-aw/agent/validation-sample.txt cat
   - cat docs/src/content/docs/*.md
   - cat docs/src/content/docs/*.mdx
   - cat .github/workflows/*.md
@@ -164,11 +165,11 @@ Apply these principles when evaluating user experience in an enterprise context:
 
 **Select 1-2 high-impact documentation files:**
 
-The following files have been pre-sampled for this run:
+The following files have been pre-sampled and pre-loaded for this run:
 
 ```bash
 cat /tmp/gh-aw/agent/doc-samples.txt
-xargs -a /tmp/gh-aw/agent/doc-samples.txt cat
+cat /tmp/gh-aw/agent/doc-samples-content.txt
 ```
 
 **Evaluate each file for:**
@@ -220,11 +221,11 @@ For each selected command, run `./gh-aw [command] --help` and evaluate:
 
 **Select 1-2 workflows with custom messages:**
 
-The following workflows have been pre-sampled for this run:
+The following workflows have been pre-sampled and pre-loaded for this run:
 
 ```bash
 cat /tmp/gh-aw/agent/workflow-samples.txt
-xargs -a /tmp/gh-aw/agent/workflow-samples.txt cat
+cat /tmp/gh-aw/agent/workflow-samples-content.txt
 ```
 
 For each selected workflow, review the messages section:
@@ -248,11 +249,11 @@ For each selected workflow, review the messages section:
 
 **Select 1 validation file for review:**
 
-The following file has been pre-sampled for this run:
+The following file has been pre-sampled and pre-loaded for this run:
 
 ```bash
 cat /tmp/gh-aw/agent/validation-sample.txt
-xargs -a /tmp/gh-aw/agent/validation-sample.txt cat
+cat /tmp/gh-aw/agent/validation-sample-content.txt
 ```
 
 Review error messages in the selected file:
