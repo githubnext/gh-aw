@@ -2281,33 +2281,29 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should return intent error when target is triggering (default) and not in issue/PR/discussion context", () => {
+    it("should record entry when target is triggering (default) and not in issue/PR/discussion context", () => {
       const savedContext = global.context;
       global.context = { ...global.context, eventName: "push", payload: {} };
       try {
         const result = handlers.addCommentHandler({ body: "A real comment body that is substantive" });
-        expect(result.isError).toBe(true);
+        expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.result).toBe("error");
-        expect(responseData.error).toContain("add_comment");
-        expect(responseData.error).toContain('"push"');
-        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
       }
     });
 
-    it("should return intent error on schedule event with default target", () => {
+    it("should record entry on schedule event with default target", () => {
       const savedContext = global.context;
       global.context = { ...global.context, eventName: "schedule", payload: {} };
       try {
         const result = handlers.addCommentHandler({ body: "A real comment body that is substantive" });
-        expect(result.isError).toBe(true);
+        expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.result).toBe("error");
-        expect(responseData.error).toContain('"schedule"');
-        expect(responseData.error).toContain("create_discussion");
-        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
       }
@@ -2389,7 +2385,7 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should return intent error on workflow_dispatch with no event_name override", () => {
+    it("should record entry on workflow_dispatch with no event_name override", () => {
       const savedContext = global.context;
       global.context = {
         ...global.context,
@@ -2398,11 +2394,10 @@ describe("safe_outputs_handlers", () => {
       };
       try {
         const result = handlers.addCommentHandler({ body: "A real comment body that is substantive" });
-        expect(result.isError).toBe(true);
+        expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.result).toBe("error");
-        expect(responseData.error).toContain('"workflow_dispatch"');
-        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
       }
@@ -3063,33 +3058,29 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should return intent error when target is triggering (default) and not in PR context", () => {
+    it("should record entry when target is triggering (default) and not in PR context", () => {
       const savedContext = global.context;
       global.context = { ...global.context, eventName: "push", payload: {} };
       try {
         const result = handlers.updatePullRequestHandler({ title: "Update title" });
-        expect(result.isError).toBe(true);
+        expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.result).toBe("error");
-        expect(responseData.error).toContain("update_pull_request");
-        expect(responseData.error).toContain('"push"');
-        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "Update title" }));
       } finally {
         global.context = savedContext;
       }
     });
 
-    it("should return intent error on schedule event with default target", () => {
+    it("should record entry on schedule event with default target", () => {
       const savedContext = global.context;
       global.context = { ...global.context, eventName: "schedule", payload: {} };
       try {
         const result = handlers.updatePullRequestHandler({ body: "Report" });
-        expect(result.isError).toBe(true);
+        expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.result).toBe("error");
-        expect(responseData.error).toContain('"schedule"');
-        expect(responseData.error).toContain("create_discussion");
-        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", body: "Report" }));
       } finally {
         global.context = savedContext;
       }
@@ -3134,7 +3125,7 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should return intent error on workflow_dispatch with no event_name override", () => {
+    it("should record entry on workflow_dispatch with no event_name override", () => {
       const savedContext = global.context;
       global.context = {
         ...global.context,
@@ -3143,11 +3134,10 @@ describe("safe_outputs_handlers", () => {
       };
       try {
         const result = handlers.updatePullRequestHandler({ title: "No context title" });
-        expect(result.isError).toBe(true);
+        expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
-        expect(responseData.result).toBe("error");
-        expect(responseData.error).toContain('"workflow_dispatch"');
-        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "No context title" }));
       } finally {
         global.context = savedContext;
       }
