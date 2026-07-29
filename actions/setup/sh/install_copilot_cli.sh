@@ -29,7 +29,7 @@ COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
 COMPAT_URL="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
 COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
-USE_COPILOT_COMPAT_RANGE=false
+DEFAULT_COPILOT_VERSION="${GH_AW_DEFAULT_COPILOT_VERSION:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"
 COMPAT_BUNDLED_PATH="${COPILOT_COMPAT_BUNDLED_PATH:-${REPO_ROOT}/.github/aw/compat.json}"
@@ -43,7 +43,6 @@ ROOTLESS=false
 for arg in "$@"; do
   case "$arg" in
     --rootless) ROOTLESS=true ;;
-    --compat-range) USE_COPILOT_COMPAT_RANGE=true ;;
     --*) echo "WARNING: Unknown flag: $arg" >&2 ;;
     *)
       if [ -z "$VERSION" ]; then
@@ -508,41 +507,41 @@ EOF
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Resolve a compatible Copilot version from compat matrix unless the caller passed an explicit version.
-if [ -z "$VERSION" ]; then
-  echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
-  if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
-    IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
-    VERSION="$RESOLVED_COMPAT_VERSION"
-    REQUESTED_VERSION="latest"
-    echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
-    echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
-  else
-    echo "ERROR: Failed to resolve Copilot CLI version from compatibility matrix." >&2
-    echo "ERROR: Cannot install without a compatible version." >&2
-    echo "To fix: Pass an explicit version as an argument (e.g., 'install_copilot_cli.sh 1.0.56')" >&2
-    echo "   or ensure GH_AW_COMPILED_VERSION matches a row in .github/aw/compat.json" >&2
-    exit 1
-  fi
-else
-  # The compiler opts its generated default pin into range matching explicitly.
-  # User-supplied engine.version pins require an exact toolcache match, including
-  # when their value happens to equal the compiler default.
-  if [ "$USE_COPILOT_COMPAT_RANGE" = "true" ]; then
-    echo "Explicit Copilot CLI version argument provided (${VERSION}); this is the compiler-generated default pin, resolving compat window for toolcache range matching..."
-    if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
-      IFS='|' read -r _UNUSED COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
-      # Treat as "latest" so find_cached_copilot_bin uses range matching and applies TTL
-      # (same path as when VERSION is not set). VERSION is still used for the download URL.
-      REQUESTED_VERSION="latest"
-      echo "Compat window resolved: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT} (toolcache range matching enabled)"
-    else
-      echo "Compat window unavailable; exact toolcache match required for version ${VERSION}." >&2
-    fi
-  else
+select_copilot_version() {
+  local compat_file="$1"
+  local compat_resolved=false
+  local resolved_compat_info=""
+
+  # Prefer an explicit engine.version. Without one, try a compatible cached version
+  # before downloading the compiler's pinned default.
+  if [ -n "$VERSION" ]; then
     echo "Explicit Copilot CLI version argument provided (${VERSION}); exact toolcache match required."
+    return 0
   fi
-fi
+
+  echo "No explicit Copilot CLI version requested. Attempting compat-driven toolcache resolution..."
+  if resolved_compat_info="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "$compat_file")"; then
+    IFS='|' read -r _UNUSED COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$resolved_compat_info"
+    REQUESTED_VERSION="latest"
+    compat_resolved=true
+    echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
+  else
+    echo "Compatibility window unavailable; falling back to the default Copilot CLI version." >&2
+  fi
+
+  VERSION="$DEFAULT_COPILOT_VERSION"
+  if [ -z "$VERSION" ]; then
+    echo "ERROR: Cannot install without an explicit, compatible, or default Copilot CLI version." >&2
+    echo "To fix: Pass a version argument or set GH_AW_DEFAULT_COPILOT_VERSION." >&2
+    return 1
+  fi
+  if [ "$compat_resolved" = "false" ]; then
+    REQUESTED_VERSION="$VERSION"
+  fi
+  echo "Will install default Copilot CLI version ${VERSION} if no cached version satisfies the compatibility window."
+}
+
+select_copilot_version "${TEMP_DIR}/compat.json"
 
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.
 if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_MATCHED_MIN_AGENT}" "${COMPAT_MATCHED_MAX_AGENT}" "${COMPAT_CACHE_TTL_DAYS}")"; then

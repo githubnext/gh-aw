@@ -10,27 +10,12 @@ var copilotInstallerLog = logger.New("workflow:copilot_installer")
 // GenerateCopilotInstallerSteps creates GitHub Actions steps to install the Copilot CLI using the official installer.
 // When rootless is true, the script installs into $HOME/.local/bin without sudo.
 func GenerateCopilotInstallerSteps(version, stepName string, rootless bool) []GitHubActionStep {
-	return generateCopilotInstallerSteps(version, stepName, rootless, false)
-}
-
-func generateCopilotInstallerSteps(version, stepName string, rootless, useCompatRange bool) []GitHubActionStep {
-	// If no version is specified, use the pinned default version from constants.
-	if version == "" {
-		version = string(constants.DefaultCopilotVersion)
-		copilotInstallerLog.Printf("No version specified, using default: %s", version)
-	}
-
 	copilotInstallerLog.Printf("Generating Copilot installer steps using install_copilot_cli.sh: version=%s, rootless=%v", version, rootless)
 
 	rootlessFlag := ""
 	if rootless {
 		rootlessFlag = " --rootless"
 	}
-	compatRangeFlag := ""
-	if useCompatRange {
-		compatRangeFlag = " --compat-range"
-	}
-
 	// Use the install_copilot_cli.sh script from actions/setup/sh
 	// This script includes retry logic for robustness against transient network failures.
 	// The script downloads the Copilot CLI using curl with hardcoded github.com URLs.
@@ -44,19 +29,25 @@ func generateCopilotInstallerSteps(version, stepName string, rootless, useCompat
 		copilotInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		stepLines := []string{
 			"      - name: " + stepName,
-			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"` + rootlessFlag + compatRangeFlag,
+			`        run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" "${ENGINE_VERSION}"` + rootlessFlag,
 			"        env:",
 			"          GH_HOST: github.com",
+			"          GH_AW_DEFAULT_COPILOT_VERSION: " + string(constants.DefaultCopilotVersion),
 			"          ENGINE_VERSION: " + version,
 		}
 		return []GitHubActionStep{GitHubActionStep(stepLines)}
 	}
 
+	versionArgument := ""
+	if version != "" {
+		versionArgument = " " + version
+	}
 	stepLines := []string{
 		"      - name: " + stepName,
-		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version + rootlessFlag + compatRangeFlag,
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\"" + versionArgument + rootlessFlag,
 		"        env:",
 		"          GH_HOST: github.com",
+		"          GH_AW_DEFAULT_COPILOT_VERSION: " + string(constants.DefaultCopilotVersion),
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}

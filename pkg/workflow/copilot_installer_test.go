@@ -60,16 +60,18 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			},
 		},
 		{
-			name:            "empty version uses default",
+			name:            "empty version uses compat then default",
 			version:         "",
 			stepName:        "Install GitHub Copilot CLI",
-			expectedVersion: string(constants.DefaultCopilotVersion), // Should use DefaultCopilotVersion
+			expectedVersion: "",
 			shouldContain: []string{
-				"bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + string(constants.DefaultCopilotVersion),
+				"run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\"\n",
 				"GH_HOST: github.com", // Must pin GH_HOST to prevent GHES workflow-level overrides
+				"GH_AW_DEFAULT_COPILOT_VERSION: " + string(constants.DefaultCopilotVersion),
 			},
 			shouldNotContain: []string{
 				"gh.io/copilot-install | sudo bash",
+				"install_copilot_cli.sh\" " + string(constants.DefaultCopilotVersion),
 			},
 		},
 	}
@@ -100,9 +102,11 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 			}
 
 			// Verify the version is correctly passed to the install script
-			expectedVersionLine := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + tt.expectedVersion
-			if !strings.Contains(stepContent, expectedVersionLine) {
-				t.Errorf("Expected version to be set to '%s', but step content was:\n%s", tt.expectedVersion, stepContent)
+			if tt.expectedVersion != "" {
+				expectedVersionLine := "bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + tt.expectedVersion
+				if !strings.Contains(stepContent, expectedVersionLine) {
+					t.Errorf("Expected version to be set to '%s', but step content was:\n%s", tt.expectedVersion, stepContent)
+				}
 			}
 		})
 	}
@@ -110,7 +114,7 @@ func TestGenerateCopilotInstallerSteps(t *testing.T) {
 
 func TestCopilotEngineWithVersion(t *testing.T) {
 	// engine.version must be honored: when an explicit version is set it should be
-	// passed to the installer and compat.json resolution must be skipped.
+	// passed to the installer before compat.json or the default are considered.
 	engine := NewCopilotEngine()
 
 	customVersion := "1.0.0"
@@ -142,7 +146,7 @@ func TestCopilotEngineWithVersion(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should pass the user-specified version to the installer (compat.json skipped).
+	// Should pass the user-specified version to the installer.
 	if !strings.Contains(installStep, `install_copilot_cli.sh" `+customVersion) {
 		t.Errorf("Expected user-specified version %q in install step, got:\n%s", customVersion, installStep)
 	}
@@ -158,10 +162,6 @@ func TestCopilotEngineWithVersion(t *testing.T) {
 }
 
 func TestCopilotEngineExplicitDefaultVersionRequiresExactMatch(t *testing.T) {
-	originalIsRelease := isReleaseBuild
-	isReleaseBuild = true
-	t.Cleanup(func() { isReleaseBuild = originalIsRelease })
-
 	engine := NewCopilotEngine()
 	workflowData := &WorkflowData{
 		Name: "test-workflow",
@@ -174,8 +174,8 @@ func TestCopilotEngineExplicitDefaultVersionRequiresExactMatch(t *testing.T) {
 	for _, step := range steps {
 		stepContent := strings.Join(step, "\n")
 		if strings.Contains(stepContent, "install_copilot_cli.sh") {
-			if strings.Contains(stepContent, "--compat-range") {
-				t.Fatalf("explicit engine.version equal to the default must require an exact match:\n%s", stepContent)
+			if !strings.Contains(stepContent, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
+				t.Fatalf("explicit engine.version equal to the default must be passed as an exact pin:\n%s", stepContent)
 			}
 			return
 		}
@@ -184,12 +184,9 @@ func TestCopilotEngineExplicitDefaultVersionRequiresExactMatch(t *testing.T) {
 }
 
 func TestCopilotEngineWithoutVersion(t *testing.T) {
-	// When engine.version is not set, the default pinned version must be used and
+	// When engine.version is not set, the installer must try the compat range before
+	// falling back to the default pinned version, and
 	// EngineConfig.Version must be normalized to the effective installed value.
-	originalIsRelease := isReleaseBuild
-	isReleaseBuild = true
-	t.Cleanup(func() { isReleaseBuild = originalIsRelease })
-
 	engine := NewCopilotEngine()
 
 	workflowData := &WorkflowData{
@@ -218,12 +215,12 @@ func TestCopilotEngineWithoutVersion(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should use the default pinned version.
-	if !strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
-		t.Errorf("Expected default Copilot version in install step, got:\n%s", installStep)
+	// Should omit a positional version so the script can try the compat range.
+	if strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
+		t.Errorf("Expected no positional default Copilot version in install step, got:\n%s", installStep)
 	}
-	if !strings.Contains(installStep, "--compat-range") {
-		t.Errorf("Expected compiler default version to enable compat-range matching, got:\n%s", installStep)
+	if !strings.Contains(installStep, "GH_AW_DEFAULT_COPILOT_VERSION: "+string(constants.DefaultCopilotVersion)) {
+		t.Errorf("Expected pinned default Copilot version as fallback env, got:\n%s", installStep)
 	}
 
 	// A later detection job sees the normalized version and must retain its default provenance.
@@ -231,35 +228,13 @@ func TestCopilotEngineWithoutVersion(t *testing.T) {
 	for _, step := range secondSteps {
 		stepContent := strings.Join(step, "\n")
 		if strings.Contains(stepContent, "install_copilot_cli.sh") {
-			if !strings.Contains(stepContent, "--compat-range") {
-				t.Fatalf("normalized compiler default must retain compat-range matching:\n%s", stepContent)
+			if strings.Contains(stepContent, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
+				t.Fatalf("normalized compiler default must still omit the positional version:\n%s", stepContent)
 			}
 			return
 		}
 	}
 	t.Fatal("Could not find second install step with install_copilot_cli.sh")
-}
-
-func TestCopilotEngineDevelopmentBuildRequiresExactMatch(t *testing.T) {
-	originalIsRelease := isReleaseBuild
-	isReleaseBuild = false
-	t.Cleanup(func() { isReleaseBuild = originalIsRelease })
-
-	engine := NewCopilotEngine()
-	steps := engine.GetInstallationSteps(&WorkflowData{
-		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{},
-	})
-	for _, step := range steps {
-		stepContent := strings.Join(step, "\n")
-		if strings.Contains(stepContent, "install_copilot_cli.sh") {
-			if strings.Contains(stepContent, "--compat-range") {
-				t.Fatalf("development builds must require an exact match:\n%s", stepContent)
-			}
-			return
-		}
-	}
-	t.Fatal("Could not find install step with install_copilot_cli.sh")
 }
 
 func TestGenerateCopilotInstallerSteps_ExpressionVersion(t *testing.T) {
