@@ -259,7 +259,7 @@ safe-outputs:
   add-comment:
     max: 4
     target: "*"
-    github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN }}
+    github-token: ${{ secrets.AWI_MAINTENANCE_TOKEN || secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
   resolve-pull-request-review-thread:
     max: 40
   dismiss-pull-request-review:
