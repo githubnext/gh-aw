@@ -2402,6 +2402,29 @@ describe("safe_outputs_handlers", () => {
         global.context = savedContext;
       }
     });
+
+    it("should return intent error when workflow_dispatch has disallowed target_repo (SEC-005)", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "workflow_dispatch",
+        payload: {
+          inputs: {
+            target_repo: "other-owner/other-repo",
+          },
+        },
+      };
+      try {
+        const result = handlers.addCommentHandler({ body: "A real comment body that is substantive" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("other-owner/other-repo");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
   });
 
   describe("createIssueHandler", () => {
@@ -3138,6 +3161,29 @@ describe("safe_outputs_handlers", () => {
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "No context title" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return intent error when workflow_dispatch has disallowed target_repo (SEC-005)", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "workflow_dispatch",
+        payload: {
+          inputs: {
+            target_repo: "other-owner/other-repo",
+          },
+        },
+      };
+      try {
+        const result = handlers.updatePullRequestHandler({ title: "PR update with disallowed repo" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("other-owner/other-repo");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
       } finally {
         global.context = savedContext;
       }

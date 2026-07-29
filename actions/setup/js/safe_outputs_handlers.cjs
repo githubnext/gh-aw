@@ -1866,8 +1866,13 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Handler for add_comment tool
    * Spec cross-reference: Safe Output Outcome Evaluation §3 (`add_comment`).
    * Per Safe Outputs Specification MCE1: Enforces constraints during tool invocation
-   * to provide immediate feedback to the LLM before recording to NDJSON
-   * Also auto-generates a temporary_id if not provided and returns it to the agent
+   * to provide immediate feedback to the LLM before recording to NDJSON.
+   * Also auto-generates a temporary_id if not provided and returns it to the agent.
+   *
+   * Context resolution is delegated to runtime: when `target: triggering` resolves
+   * to a context with no issue, PR, or discussion (e.g. push, schedule), the runtime
+   * handler soft-skips the entry instead of failing the safe-outputs pass.
+   * SEC-005 (`target_repo` allowlist) is still enforced here at MCP-phase.
    */
   const addCommentHandler = args => {
     // Validate comment constraints before appending to safe outputs
@@ -1897,6 +1902,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         "add_comment with reply_to_id targets a GitHub Discussion, but discussion comments are not enabled for this workflow. " +
           "Set 'discussions: true' in the workflow's safe-outputs.add-comment configuration to enable discussion comments and request discussions:write permission."
       );
+    }
+
+    // Enforce SEC-005: reject disallowed cross-repository target_repo overrides on workflow_dispatch.
+    // No-context events (push, schedule, etc.) are soft-skipped at runtime; only validation errors are surfaced here.
+    try {
+      resolveInvocationContext(context);
+    } catch (err) {
+      const errMsg = getErrorMessage(err);
+      if (errMsg.startsWith(ERR_VALIDATION)) {
+        return buildIntentErrorResponse(errMsg);
+      }
+      // Unexpected structural error: let downstream handle gracefully.
     }
 
     // Build the entry with a temporary_id
@@ -2219,6 +2236,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * For `target: triggering` in non-PR contexts (e.g. schedule/workflow_dispatch without
    * aw_context), this MCP-phase handler still records the output. The downstream runtime
    * handler resolves context and soft-skips those entries instead of hard-failing the run.
+   * SEC-005 (`target_repo` allowlist) is still enforced here at MCP-phase.
    */
   const updatePullRequestHandler = args => {
     if (!hasUpdatePullRequestFields(args)) {
@@ -2226,6 +2244,18 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         code: -32602,
         message: `${ERR_VALIDATION}: update_pull_request requires at least one of: 'title', 'body', 'update_branch' fields`,
       };
+    }
+
+    // Enforce SEC-005: reject disallowed cross-repository target_repo overrides on workflow_dispatch.
+    // No-context events (push, schedule, etc.) are soft-skipped at runtime; only validation errors are surfaced here.
+    try {
+      resolveInvocationContext(context);
+    } catch (err) {
+      const errMsg = getErrorMessage(err);
+      if (errMsg.startsWith(ERR_VALIDATION)) {
+        return buildIntentErrorResponse(errMsg);
+      }
+      // Unexpected structural error: let downstream handle gracefully.
     }
 
     return defaultHandler("update_pull_request")(args || {});
