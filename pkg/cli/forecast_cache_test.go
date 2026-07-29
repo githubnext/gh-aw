@@ -74,7 +74,7 @@ func TestForecastAICCache_NegativeCacheRoundTrip(t *testing.T) {
 	saveForecastNoDataCache(dir, runID)
 	got, ok := loadForecastAICCache(dir, runID)
 	require.True(t, ok, "expected negative-cache hit after saving no-data marker")
-	assert.Equal(t, 0.0, got)
+	assert.InDelta(t, 0.0, got, 1e-9)
 
 	// The marker records NoData=true and the current CLI version.
 	data, err := os.ReadFile(filepath.Join(dir, forecastAICCacheFileName))

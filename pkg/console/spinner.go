@@ -193,11 +193,12 @@ func (s *SpinnerWrapper) Start() {
 			defer s.wg.Done()
 			defer func() {
 				s.mu.Lock()
+				// Release the terminal slot before exposing the stopped state so a
+				// concurrent Start() cannot observe running=false while this wrapper
+				// still owns the global slot and become permanently suppressed.
+				releaseActiveSpinner(s)
 				s.running = false
 				s.mu.Unlock()
-				// Release the terminal when the program exits on its own (e.g. panic or
-				// self-quit) so a subsequent spinner can claim and render.
-				releaseActiveSpinner(s)
 			}()
 			defer func() {
 				if r := recover(); r != nil {
@@ -259,8 +260,10 @@ func (s *SpinnerWrapper) StopWithMessage(msg string) {
 				fmt.Fprintf(s.out, "%s%s%s\n", ansiCarriageReturn, ansiClearLine, msg)
 			} else {
 				// Suppressed spinner never rendered; release the slot and print the message.
+				// Still emit CR+ClearLine so the message is not appended to any active
+				// spinner frame that may currently occupy the terminal line.
 				releaseActiveSpinner(s)
-				fmt.Fprintf(s.out, "%s\n", msg)
+				fmt.Fprintf(s.out, "%s%s%s\n", ansiCarriageReturn, ansiClearLine, msg)
 			}
 		} else {
 			// Still print the message even if spinner wasn't running
