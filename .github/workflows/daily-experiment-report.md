@@ -18,6 +18,10 @@ permissions:
 engine:
   id: copilot
   copilot-sdk: true
+network:
+  allowed:
+    - defaults
+    - go
 max-tool-denials: 3
 sandbox:
   agent:
