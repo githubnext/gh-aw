@@ -91,3 +91,15 @@ pull-requests: read`,
 		})
 	}
 }
+
+func TestGetAllPermissionScopeNamesReturnsCopy(t *testing.T) {
+	scopes := getAllPermissionScopeNames()
+	require.NotEmpty(t, scopes)
+
+	original := scopes[0]
+	scopes[0] = "mutated-scope"
+
+	fresh := getAllPermissionScopeNames()
+	require.NotEmpty(t, fresh)
+	require.Equal(t, original, fresh[0])
+}

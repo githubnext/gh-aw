@@ -22,6 +22,7 @@ This package currently provides custom Go analyzers in the following subpackages
 - `execcommandwithoutcontext` — reports `exec.Command(...)` calls inside functions that already receive `context.Context` and should use `exec.CommandContext(...)`.
 - `fmterrorfnoverbs` — reports `fmt.Errorf` calls whose format string contains no verbs, recommending `errors.New` instead.
 - `fprintlnsprintf` — reports `fmt.Fprintln(..., fmt.Sprintf(...))` patterns and recommends direct formatting calls.
+- `goroutinemissingrecover` — reports goroutines started via a function literal whose body does not install a top-level `defer func() { recover() }()` guard.
 - `hardcodedfilepath` — reports hard-coded file path string literals that match known path constants or should be extracted into named constants; also annotates paths that appear in log/print calls.
 - `httpnoctx` — reports HTTP client and package-level HTTP calls that do not accept a `context.Context`.
 - `httprespbodyclose` — reports HTTP responses whose `Body.Close()` call is missing or not deferred.
@@ -89,6 +90,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `fileclosenotdeferred` | Custom `go/analysis` analyzer that flags file `Close()` calls that are not deferred immediately |
 | `fmterrorfnoverbs` | Custom `go/analysis` analyzer that flags `fmt.Errorf` calls with no format verbs, recommending `errors.New` |
 | `fprintlnsprintf` | Custom `go/analysis` analyzer that flags `fmt.Fprintln(..., fmt.Sprintf(...))` patterns |
+| `goroutinemissingrecover` | Custom `go/analysis` analyzer that flags goroutines started via a function literal that do not install a top-level defer/recover guard |
 | `hardcodedfilepath` | Custom `go/analysis` analyzer that flags hard-coded file path string literals that match known path constants or should be extracted as named constants; annotates paths in log/print calls |
 | `httpnoctx` | Custom `go/analysis` analyzer that flags HTTP calls that do not accept a `context.Context` |
 | `httprespbodyclose` | Custom `go/analysis` analyzer that flags HTTP response bodies that are not closed (or not deferred) |
