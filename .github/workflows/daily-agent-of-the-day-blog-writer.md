@@ -31,25 +31,7 @@ tools:
   cli-proxy: true
   agentic-workflows:
   edit:
-  bash:
-    - "date *"
-    - "ls *"
-    - "test *"
-    - "cp *"
-    - "mkdir *"
-    - "cat *"
-    - "grep *"
-    - "sed *"
-    - "find *"
-    - "echo *"
-    - "wc *"
-    - "expr *"
-    - "git status"
-    - "cd * && git status"
-    - "git add *"
-    - "git add * && git commit *"
-    - "cd * && git checkout -b * && git add * && git commit *"
-    - "git diff -- docs/src/content/docs/**"
+  bash: ["*"]
   github:
     mode: gh-proxy
     lockdown: false
@@ -102,7 +84,7 @@ You write one short blog entry per weekday for the `gh-aw` docs blog spotlightin
 **Allowed tools:** `bash`, `edit`, `agentic-workflows`, and safe-outputs only.
 
 - **There is no `shell` tool.** The command execution tool is named `bash`. Do not call `shell(...)` — it will be denied immediately.
-- **There is no `read` tool.** To inspect a file, use `bash` with `cat`: `cat path/to/file`. Do not call `read(...)` — it will be denied immediately.
+- **There is no `read` or `view` tool.** To inspect a file, use `bash` with `cat`: `cat path/to/file`. Do not call `read(...)` or `view(...)` — they will be denied immediately.
 - Use git in `bash` for read-only inspection only:
   - `git status`
   - `git diff -- docs/src/content/docs/**`

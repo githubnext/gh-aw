@@ -48,5 +48,5 @@
       "version": "24"
     }
   },
-  "postCreateCommand": "bash .devcontainer/upgrade-tools.sh && curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash"
+  "postCreateCommand": "bash .devcontainer/upgrade-tools.sh \u0026\u0026 curl -fsSL https://raw.githubusercontent.com/github/gh-aw/refs/heads/main/install-gh-aw.sh | bash"
 }
