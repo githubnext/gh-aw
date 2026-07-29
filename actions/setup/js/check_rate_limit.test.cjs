@@ -196,21 +196,22 @@ describe("check_rate_limit", () => {
     const twoHoursAgo = new Date(Date.now() - 120 * 60 * 1000);
     const recentTime = new Date(Date.now() - 10 * 60 * 1000);
 
-    mockGithub.rest.actions.listWorkflowRuns.mockResolvedValue({
+    // API returns newest-first: recent run is listed before the old run
+    mockGithub.rest.actions.listWorkflowRuns.mockResolvedValueOnce({
       data: {
         workflow_runs: [
           {
-            id: 111111,
-            run_number: 1,
-            created_at: twoHoursAgo.toISOString(),
+            id: 222222,
+            run_number: 2,
+            created_at: recentTime.toISOString(),
             actor: { login: "test-user" },
             event: "workflow_dispatch",
             status: "completed",
           },
           {
-            id: 222222,
-            run_number: 2,
-            created_at: recentTime.toISOString(),
+            id: 111111,
+            run_number: 1,
+            created_at: twoHoursAgo.toISOString(),
             actor: { login: "test-user" },
             event: "workflow_dispatch",
             status: "completed",
@@ -223,6 +224,8 @@ describe("check_rate_limit", () => {
 
     expect(mockCore.setOutput).toHaveBeenCalledWith("rate_limit_ok", "true");
     expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("Total recent runs in last 60 minutes: 1"));
+    // Once the old run is found, no further pages should be fetched
+    expect(mockGithub.rest.actions.listWorkflowRuns).toHaveBeenCalledTimes(1);
   });
 
   it("should exclude the current run from the count", async () => {
