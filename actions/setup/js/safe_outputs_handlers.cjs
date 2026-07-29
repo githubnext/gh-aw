@@ -1086,7 +1086,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
 
     const envTargetSlug = (process.env.GH_AW_TARGET_REPO_SLUG || "").trim();
     const currentRepo = (process.env.GITHUB_REPOSITORY || "").toLowerCase();
-    const hasExplicitTargetRepoHint = (entry.repo && entry.repo.trim()) || pushConfig["target-repo"] || (envTargetSlug && envTargetSlug.toLowerCase() !== currentRepo);
+    const envSlugIsSideRepo = envTargetSlug && envTargetSlug.toLowerCase() !== currentRepo;
+    if (envTargetSlug && !envSlugIsSideRepo) {
+      server.debug(`GH_AW_TARGET_REPO_SLUG (${envTargetSlug}) matches current repo; not using as side-repo checkout hint for push_to_pull_request_branch`);
+    }
+    const hasExplicitTargetRepoHint = (entry.repo && entry.repo.trim()) || pushConfig["target-repo"] || envSlugIsSideRepo;
     if (hasExplicitTargetRepoHint && !repoCwd) {
       server.debug(`Looking for checkout of target repo: ${itemRepo}`);
       const checkoutResult = findRepoCheckout(itemRepo);
