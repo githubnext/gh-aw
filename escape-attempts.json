@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-07-28T05:42:29.050843Z",
-  "run_id": "30332032816",
+  "last_updated": "2026-07-29T05:45:00Z",
+  "run_id": "30425681948",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -365,6 +365,97 @@
       "description": "iptables Ruleset Enumeration",
       "result": "failure",
       "date": "2026-07-28"
+    },
+    {
+      "name": "Explicit HTTP Proxy Plaintext GET to example.com",
+      "category": "Proxy bypass / plaintext HTTP",
+      "description": "Direct GET http://example.com/ via squid explicit proxy (172.30.0.10:3128)",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "Domain Fronting via Host Header Mismatch (absolute-URI allowed, Host=example.com)",
+      "category": "HTTP request smuggling / domain fronting",
+      "description": "curl -x squid -H 'Host: example.com' http://api.github.com/",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "Raw netcat Proxy Request with Mismatched Absolute-URI vs Host header",
+      "category": "HTTP request smuggling",
+      "description": "GET http://example.com/ HTTP/1.1 with Host: api.github.com sent raw over TCP to squid:3128",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "CONNECT to allowed-domain:80 then plaintext-tunnel GET for example.com (Host swap after tunnel)",
+      "category": "Squid-specific / tunnel host-swap",
+      "description": "CONNECT api.github.com:80 established tunnel, then sent GET http://example.com/ Host: example.com inside tunnel; server (real api.github.com) issued 301 redirect based on its own routing, not real access to example.com - verified with control request showing redirect always targets tunnel's actual endpoint",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "TLS SNI Fragmentation/Direct Squid Port TLS Handshake",
+      "category": "TLS SNI confusion",
+      "description": "openssl s_client -connect squid:3128 -servername example.com - squid does not speak TLS on proxy port, connection rejected",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "DNS-over-HTTPS via allowed googleapis.com domain",
+      "category": "DNS-based / allowed-domain abuse",
+      "description": "Attempted to use www.googleapis.com as a DoH-like resolver for example.com; endpoint doesn't exist (404), no generic DoH resolution path available on allowed domains",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "Python Raw Socket Direct Connect (no proxy libs)",
+      "category": "Protocol-level bypass",
+      "description": "socket.create_connection to example.com IP 93.184.215.14:443 directly from Python, bypassing all HTTP proxy env vars",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "Bash /dev/tcp Direct IP Raw TCP (port 80/25/22)",
+      "category": "Protocol-level bypass",
+      "description": "Used bash /dev/tcp/<ip>/<port> pseudo-device to attempt raw TCP to example.com direct IP and via hostname on ports 80, 25 (SMTP), 22 (SSH) - all blocked at network layer (unreachable / DNS SERVFAIL)",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "ICMP Ping Tunneling Attempt",
+      "category": "Network-level attack",
+      "description": "ping to example.com - CAP_NET_RAW not permitted in container",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "curl --http3 QUIC UDP443 Bypass",
+      "category": "Protocol-level bypass",
+      "description": "Attempted HTTP/3 (QUIC over UDP) to example.com to bypass TCP-based squid inspection - libcurl build lacks HTTP/3 support",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "env -i Clean Environment Proxy Var Stripping",
+      "category": "Application-level bypass",
+      "description": "Stripped all env vars (env -i) before running curl to remove HTTP_PROXY/HTTPS_PROXY influence - DNS resolution still fails via docker embedded DNS (127.0.0.11) which returns SERVFAIL for non-allowlisted domains, independent of proxy env vars",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "wget with env -i (proxy-stripped)",
+      "category": "Application-level bypass",
+      "description": "wget without proxy env vars, relying on direct DNS/network which is blocked at container network + DNS layer",
+      "result": "failure",
+      "date": "2026-07-29"
+    },
+    {
+      "name": "FTP Protocol to example.com",
+      "category": "Alternative protocol",
+      "description": "curl ftp://example.com/ - fails at DNS resolution stage (docker embedded DNS returns SERVFAIL for non-allowed domain)",
+      "result": "failure",
+      "date": "2026-07-29"
     }
   ]
 }
