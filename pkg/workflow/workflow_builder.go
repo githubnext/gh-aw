@@ -197,7 +197,7 @@ func (c *Compiler) buildInitialWorkflowData(
 		workflowData.ModelPolicyBlocked = disallowedModels
 	}
 
-	if pricing := extractDefaultAiCreditsPricingFromModels(result.Frontmatter); pricing != nil {
+	if pricing := resolveDefaultAiCreditsPricing(result.Frontmatter, importsResult.MergedDefaultAiCreditsPricing); pricing != nil {
 		workflowData.DefaultAiCreditsPricing = pricing
 	}
 
@@ -430,11 +430,27 @@ func toFloat64(v any) (float64, bool) {
 	}
 }
 
+// resolveDefaultAiCreditsPricing returns models.default-ai-credits-pricing from the main
+// workflow frontmatter when present, otherwise falls back to the first imported value.
+func resolveDefaultAiCreditsPricing(frontmatter map[string]any, imported map[string]any) *AiCreditsPricingConfig {
+	if pricing := extractDefaultAiCreditsPricingFromModels(frontmatter); pricing != nil {
+		return pricing
+	}
+	return extractDefaultAiCreditsPricingFromObject(imported)
+}
+
 // extractDefaultAiCreditsPricingFromModels returns the fallback AI credits pricing configured
 // under models.default-ai-credits-pricing in the workflow frontmatter, or nil if absent.
 func extractDefaultAiCreditsPricingFromModels(frontmatter map[string]any) *AiCreditsPricingConfig {
 	modelsMap, ok := frontmatter["models"].(map[string]any)
 	if !ok {
+		return nil
+	}
+	return extractDefaultAiCreditsPricingFromModelsMap(modelsMap)
+}
+
+func extractDefaultAiCreditsPricingFromModelsMap(modelsMap map[string]any) *AiCreditsPricingConfig {
+	if modelsMap == nil {
 		return nil
 	}
 	pricingVal, hasPricing := modelsMap["default-ai-credits-pricing"]
@@ -443,6 +459,13 @@ func extractDefaultAiCreditsPricingFromModels(frontmatter map[string]any) *AiCre
 	}
 	pricingObj, ok := pricingVal.(map[string]any)
 	if !ok {
+		return nil
+	}
+	return extractDefaultAiCreditsPricingFromObject(pricingObj)
+}
+
+func extractDefaultAiCreditsPricingFromObject(pricingObj map[string]any) *AiCreditsPricingConfig {
+	if pricingObj == nil {
 		return nil
 	}
 	var input, output float64

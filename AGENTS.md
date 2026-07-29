@@ -63,6 +63,57 @@ When the relevant skill is not obvious, first discover candidates and then load 
 - Reviewing or writing `git`/`gh`/remote operations against checkouts (per-checkout credentials, sparse/shallow monorepos, safe-outputs MCP runs without credentials) → `.github/skills/checkout-credential-review/SKILL.md`
 - Authoring, validating, or debugging canvas extensions (loopback servers, actions, iframe rendering, state model, theme tokens) → `.github/skills/create-canvas/SKILL.md`
 
+## Debugging & Logging
+
+The Go codebase uses a namespace-based debug logger (`pkg/logger`) modelled after the [debug npm package](https://www.npmjs.com/package/debug). All debug output goes to **stderr** and is gated by the `DEBUG` environment variable.
+
+### Enable logging for a `gh aw` run
+
+```bash
+# All namespaces (most verbose)
+DEBUG=* gh aw compile workflow.md
+
+# Only CLI-layer namespaces
+DEBUG=cli:* gh aw compile workflow.md
+
+# Specific namespaces
+DEBUG=cli:run_workflow_execution,cli:retry gh aw run workflow.md
+
+# All except one namespace
+DEBUG=*,-cli:ci gh aw compile workflow.md
+
+# Disable colors (useful when capturing logs to a file)
+DEBUG_COLORS=0 DEBUG=* gh aw compile workflow.md 2>debug.log
+```
+
+### Key namespaces
+
+| Pattern | What it covers |
+|---|---|
+| `cli:*` | All CLI command implementations (`pkg/cli/`) |
+| `workflow:*` | Workflow compiler and related logic |
+| `parser:*` | Frontmatter / markdown parsing |
+| `mcp:*` | MCP gateway and server interactions |
+| `agentdrain:*` | Agent drain / log mining pipeline |
+| `repoutil:*` | Git/repo utility helpers |
+| `*` | Everything |
+
+To discover the exact namespace for a package, look for `logger.New(...)` at the top of the relevant `.go` file (e.g. `var log = logger.New("cli:run_workflow_execution")`).
+
+### GitHub Actions debug runs
+
+When `ACTIONS_RUNNER_DEBUG=true` is set (enabled automatically on re-run with debug logging in the GitHub UI), all loggers are activated — equivalent to `DEBUG=*`. No extra configuration is needed.
+
+### Output format
+
+Each line shows: **namespace** (coloured in the terminal), **message**, and **+elapsed** time since the previous log in that namespace.
+
+```
+cli:run_workflow_execution Starting run +0ms
+cli:retry Retrying request attempt=2 +125ms
+cli:run_workflow_execution Run complete +2.5s
+```
+
 ## Why this file is intentionally short
 
 This file is loaded at first invocation and affects every task. Keep it concise and move detailed or domain-specific guidance into skills so that context is fetched only when relevant.

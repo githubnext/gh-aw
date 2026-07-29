@@ -36,6 +36,7 @@ max-ai-credits: 1500
 imports:
   - shared/reporting.md
   - shared/otlp.md
+  - shared/default-ai-credits-pricing.md
 steps:
   - name: Build Inventory
     env:

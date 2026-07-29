@@ -54,6 +54,7 @@ imports:
 
 
   - shared/otlp.md
+  - shared/default-ai-credits-pricing.md
 features:
   gh-aw-detection: true
 sandbox:
