@@ -46,7 +46,7 @@ Hey agent! If this repository hasn't been configured with agentic workflows yet,
 
 # GitHub Agentic Workflows
 
-Write agentic workflows in natural language markdown, and run them in GitHub Actions.
+GitHub Agentic Workflows (gh-aw) lets you write repository automation in plain Markdown and run AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions, with sandboxed execution, read-only defaults, and safe outputs for writes.
 
 > [!NOTE]
 > **Releases 0.68.4 through 0.71.3 are being retired** due to a bug that impacts billing. If you are running one of these versions, please upgrade to the latest release as soon as possible.
@@ -408,4 +408,4 @@ GitHub Agentic Workflows is supported by companion projects that provide additio
 ## Workshop
 
 > [!TIP]
-> **Ready to learn GitHub Agentic Workflows hands-on?** The [**Factory Tour Workshop**](https://githubnext.github.io/gh-aw-workshop/) is a self-contained, step-by-step workshop repository designed to teach you how to build, run, and customize agentic workflows from scratch.
+> **Ready to learn GitHub Agentic Workflows hands-on?** The [**Factory Tour Workshop**](https://github.com/githubnext/gh-aw-workshop) is a self-contained, step-by-step workshop repository designed to teach you how to build, run, and customize agentic workflows from scratch.

@@ -314,6 +314,24 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'AI Engines',
+					items: [
+						{ label: 'GitHub Copilot', link: '/engines/copilot/' },
+						{ label: 'Claude Code', link: '/engines/claude/' },
+						{ label: 'OpenAI Codex', link: '/engines/codex/' },
+						{ label: 'Google Gemini', link: '/engines/gemini/' },
+					],
+				},
+				{
+					label: 'Use Cases',
+					items: [
+						{ label: 'AI Issue Triage', link: '/use-cases/ai-issue-triage/' },
+						{ label: 'Automated PR Review', link: '/use-cases/automated-pr-review/' },
+						{ label: 'AI Release Notes', link: '/use-cases/ai-release-notes/' },
+						{ label: 'Docs Automation', link: '/use-cases/docs-automation/' },
+					],
+				},
+				{
 					label: 'Guides',
 					items: [
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
@@ -374,6 +392,7 @@ export default defineConfig({
 					label: 'Reference',
 					items: [
 						{ label: 'AI Engines', link: '/reference/engines/' },
+						{ label: 'Choosing an Approach (Comparison)', link: '/reference/comparison/' },
 						{ label: 'Artifacts', link: '/reference/artifacts/' },
 						{ label: 'Auditing Workflows', link: '/reference/audit/' },
 						{ label: 'Authentication', link: '/reference/auth/' },

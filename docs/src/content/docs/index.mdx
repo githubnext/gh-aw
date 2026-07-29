@@ -1,6 +1,6 @@
 ---
 title: Home
-description: Write repository automation workflows in natural language using markdown files and run them as GitHub Actions. Use AI agents with strong guardrails to automate your development workflow.
+description: GitHub Agentic Workflows (gh-aw) lets you write repository automation in plain Markdown and run AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions, with sandboxed execution, read-only defaults, and safe outputs for writes.
 template: splash
 tableOfContents: true
 hero:
@@ -25,6 +25,8 @@ import BlogLinkSection from '../../components/BlogLinkSection.astro';
 import WorkflowHero from '../../components/WorkflowHero.astro';
 
 <WorkflowHero />
+
+GitHub Agentic Workflows (gh-aw) lets you write repository automation in plain Markdown and run AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — inside GitHub Actions, with sandboxed execution, read-only defaults, and safe outputs for writes.
 
 Wake up to ready-to-review repository improvements — automated triage, CI insights, docs updates, and test enhancements from simple markdown workflows.
 
@@ -174,6 +176,42 @@ The `gh aw` cli hardens this to a traditional GitHub Actions Workflow (.lock.yml
   </FeatureCard>
   <FeatureCard icon="repo" title="Multi-Repository" href="/gh-aw/examples/multi-repo/">
     Feature sync and cross-repo tracking workflows
+  </FeatureCard>
+</FeatureGrid>
+
+## AI Engines
+
+gh-aw supports four AI engines. Switch between them by changing one line of frontmatter.
+
+<FeatureGrid columns={4}>
+  <FeatureCard title="GitHub Copilot" href="/gh-aw/engines/copilot/">
+    Default engine. Works with your existing Copilot subscription — no extra account.
+  </FeatureCard>
+  <FeatureCard title="Claude Code" href="/gh-aw/engines/claude/">
+    Anthropic's Claude. Set engine: claude and add ANTHROPIC_API_KEY.
+  </FeatureCard>
+  <FeatureCard title="OpenAI Codex" href="/gh-aw/engines/codex/">
+    OpenAI Codex. Set engine: codex and add OPENAI_API_KEY.
+  </FeatureCard>
+  <FeatureCard title="Google Gemini" href="/gh-aw/engines/gemini/">
+    Google Gemini CLI. Set engine: gemini and add GEMINI_API_KEY.
+  </FeatureCard>
+</FeatureGrid>
+
+## Common Use Cases
+
+<FeatureGrid columns={2}>
+  <FeatureCard icon="issue-opened" title="AI Issue Triage" href="/gh-aw/use-cases/ai-issue-triage/">
+    Label, deduplicate, and ask clarifying questions when new issues arrive
+  </FeatureCard>
+  <FeatureCard icon="code-review" title="Automated PR Review" href="/gh-aw/use-cases/automated-pr-review/">
+    Review diffs and post feedback comments when pull requests are opened
+  </FeatureCard>
+  <FeatureCard icon="tag" title="AI Release Notes" href="/gh-aw/use-cases/ai-release-notes/">
+    Generate release summaries and changelog drafts automatically
+  </FeatureCard>
+  <FeatureCard icon="book" title="Docs Automation" href="/gh-aw/use-cases/docs-automation/">
+    Keep documentation in sync with code changes via automated PRs
   </FeatureCard>
 </FeatureGrid>
 
