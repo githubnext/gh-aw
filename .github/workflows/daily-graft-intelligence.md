@@ -11,7 +11,10 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
-engine: claude
+  copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 strict: true
 tracker-id: daily-graft-intelligence
 timeout-minutes: 20

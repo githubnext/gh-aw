@@ -14,10 +14,10 @@ mcp-servers:
     args:
       - "-y"
       - "@nanonets/graft@0.8.0"
-      - "--dir"
-      - "/tmp/gh-aw/graft"
       - "mcp"
       - "${GITHUB_WORKSPACE}"
+    env:
+      GRAFT_DIR: "/tmp/gh-aw/graft"
     allowed:
       - graft_ask
       - graft_skeleton
