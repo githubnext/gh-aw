@@ -1402,7 +1402,7 @@ describe("messages.cjs", () => {
       expect(result).toContain("Potential security threats were detected");
     });
 
-    it("should return caution alert with agent_failure reason", async () => {
+    it("should return warning alert with agent_failure reason (tooling failure, not security finding)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
       process.env.GH_AW_DETECTION_REASON = "agent_failure";
 
@@ -1410,11 +1410,14 @@ describe("messages.cjs", () => {
 
       const result = getDetectionCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
-      expect(result).toContain("> [!CAUTION]");
+      expect(result).toContain("> [!WARNING]");
+      expect(result).toContain("threat detection engine error");
+      expect(result).not.toContain("> [!CAUTION]");
+      expect(result).not.toContain("agentic threat detected");
       expect(result).toContain("threat detection engine failed");
     });
 
-    it("should return caution alert with default reason when reason is empty", async () => {
+    it("should return caution alert with default reason when reason is empty (unknown, not tooling failure)", async () => {
       process.env.GH_AW_DETECTION_CONCLUSION = "warning";
 
       const { getDetectionCautionAlert } = await import("./messages.cjs");
