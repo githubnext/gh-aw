@@ -1,35 +1,14 @@
 {
-  "last_run": "2026-07-29T07:38:00Z",
+  "last_run": "2026-07-29T13:18:00Z",
   "tasks": [
-    {
-      "source_discussion": 48781,
-      "title": "Add antigravity engine to docs/src/content/docs/reference/engines.md",
-      "created_at": "2026-07-29T07:38:00Z",
-      "status": "created"
-    },
-    {
-      "source_discussion": 48781,
-      "title": "Demote deprecated safe-outputs.dispatch_repository alias in generated frontmatter-full.md",
-      "created_at": "2026-07-29T07:38:00Z",
-      "status": "created"
-    },
-    {
-      "source_discussion": 48759,
-      "title": "Add missing tests for compiler_yaml_runtime_setup.go (no _test.go file)",
-      "created_at": "2026-07-29T07:38:00Z",
-      "status": "created"
-    },
-    {
-      "source_discussion": 48784,
-      "title": "ESLint rules README documentation debt (8 undocumented rules) - deferred by source agent to future run",
-      "created_at": "2026-07-29T07:38:00Z",
-      "status": "skipped_not_yet_actionable"
-    },
-    {
-      "source_discussion": 48784,
-      "title": "no-duplicate-constant-values false positives",
-      "created_at": "2026-07-29T07:38:00Z",
-      "status": "skipped_duplicate_existing_issue_48783"
-    }
+    {"source_discussion": 48872, "title": "refactor: collapse EngineCapabilities/EngineCapabilitiesDefinition duplicate struct", "created_at": "2026-07-29T13:18:00Z", "status": "created"},
+    {"source_discussion": 48872, "title": "refactor: collapse AuditOptions/auditCommandOptions/auditRunConfig cascade in pkg/cli/audit.go", "created_at": "2026-07-29T13:18:00Z", "status": "created"},
+    {"source_discussion": 48872, "title": "refactor: introduce shared FlexibleID type for JSON-RPC/log id fields duplicated across pkg/cli", "created_at": "2026-07-29T13:18:00Z", "status": "created"},
+    {"source_discussion": 48872, "title": "refactor: extract shared LineColumn type for pkg/console and pkg/parser position tracking", "created_at": "2026-07-29T13:18:00Z", "status": "created"},
+    {"source_discussion": 48872, "title": "refactor: narrow safe_output_handlers.go and actions.go 'any' fields to concrete types", "created_at": "2026-07-29T13:18:00Z", "status": "created"},
+    {"source_discussion": 48768, "title": "jsonmarshalignoredeerror filecheck wiring - already filed as #48767/#48776 by Sergo agent", "created_at": "2026-07-29T13:18:00Z", "status": "skipped_already_filed_upstream"},
+    {"source_discussion": 48832, "title": "Terminal Stylist findings - no defects found, informational only", "created_at": "2026-07-29T13:18:00Z", "status": "skipped_no_actionable_findings"},
+    {"source_discussion": 48747, "title": "Observability report - no gaps found, informational only", "created_at": "2026-07-29T13:18:00Z", "status": "skipped_no_actionable_findings"},
+    {"source_discussion": 48878, "title": "list_workflows per_page ignored - already tracked/resolved in #33793/#33819", "created_at": "2026-07-29T13:18:00Z", "status": "skipped_duplicate_existing_issue"}
   ]
 }

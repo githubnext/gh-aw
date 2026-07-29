@@ -1,20 +1,18 @@
 # Task Mining Run - 2026-07-29
 
 ## Summary
-- Discussions scanned: 30 (last 7 days window, most recent 30 discussions)
-- Tasks identified: 5
-- Issues created: 3
-- Duplicates/deferred avoided: 2
+- Discussions scanned: 7 (from ~30 recent)
+- Tasks identified: 9
+- Issues created: 5
+- Duplicates/non-actionable avoided: 4
 
-## Created Issues
-- Add antigravity engine to docs/src/content/docs/reference/engines.md (from #48781)
-- Demote deprecated safe-outputs.dispatch_repository alias in generated frontmatter-full.md (from #48781)
-- Add missing tests for compiler_yaml_runtime_setup.go (from #48759)
+## Created Issues (all from Typist #48872)
+- refactor: collapse EngineCapabilities/EngineCapabilitiesDefinition duplicate struct
+- refactor: collapse AuditOptions/auditCommandOptions/auditRunConfig cascade in pkg/cli/audit.go
+- refactor: introduce shared FlexibleID type for JSON-RPC/log id fields
+- refactor: extract shared LineColumn type for pkg/console/pkg/parser
+- refactor: narrow safe_output_handlers.go and actions.go 'any' fields to concrete types
 
-## Skipped (already tracked or not yet actionable)
-- eslint-factory no-duplicate-constant-values false positives -> already issue #48783
-- ESLint README rule documentation debt -> source agent explicitly deferred to a future run
-
-## Top Quality Themes
-- Docs/schema drift (engine catalog, deprecated alias visibility): 2 mentions
-- Missing test coverage in compiler package: 1 mention (compiler_yaml_runtime_setup.go, 0% coverage)
+## Top Patterns Observed
+- Struct duplication across pkg/workflow and pkg/cli (5 clusters found in single Typist scan)
+- Sergo/eslint-refiner/observability/mcp-analysis discussions mostly self-resolved (issues already filed by source agent) or purely informational

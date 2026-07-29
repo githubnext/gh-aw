@@ -1,10 +1,12 @@
 {
-  "last_run": "2026-07-29T07:38:00Z",
+  "last_run": "2026-07-29T13:18:00Z",
   "discussions_processed": [
-    {"id": 48781, "title": "[Schema Consistency] Schema Consistency Check - 2026-07-29", "processed_at": "2026-07-29T07:38:00Z"},
-    {"id": 48759, "title": "[daily-compiler-quality] Daily Compiler Code Quality Report - 2026-07-29", "processed_at": "2026-07-29T07:38:00Z"},
-    {"id": 48713, "title": "[daily-code-metrics] Daily Code Metrics Report - 2026-07-28", "processed_at": "2026-07-29T07:38:00Z"},
-    {"id": 48784, "title": "[eslint-refiner] ESLint Refiner daily report - 2026-07-29", "processed_at": "2026-07-29T07:38:00Z"},
-    {"id": 48783, "title": "eslint-factory: no-duplicate-constant-values false positives (already issue #48783)", "processed_at": "2026-07-29T07:38:00Z"}
+    {"id": 48886, "title": "[claude-code-user-docs-review] Claude Code User Documentation Review - 2026-07-29", "processed_at": "2026-07-29T13:18:00Z"},
+    {"id": 48878, "title": "[mcp-analysis] MCP Structural Analysis - 2026-07-29", "processed_at": "2026-07-29T13:18:00Z"},
+    {"id": 48872, "title": "[typist] Typist - Go Type Consistency Analysis", "processed_at": "2026-07-29T13:18:00Z"},
+    {"id": 48832, "title": "[terminal-stylist] Terminal Stylist: Console Output & Charmbracelet Audit", "processed_at": "2026-07-29T13:18:00Z"},
+    {"id": 48768, "title": "[sergo] Sergo Report R61 - 2026-07-29", "processed_at": "2026-07-29T13:18:00Z"},
+    {"id": 48747, "title": "[observability] Observability Coverage Report - 2026-07-29", "processed_at": "2026-07-29T13:18:00Z"},
+    {"id": 48784, "title": "[eslint-refiner] ESLint Refiner daily report - 2026-07-29 (already processed prior run)", "processed_at": "2026-07-29T13:18:00Z"}
   ]
 }
