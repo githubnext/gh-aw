@@ -18,6 +18,10 @@ permissions:
   issues: read
   pull-requests: read
 engine: copilot
+network:
+  allowed:
+    - defaults
+    - go
 imports:
   - uses: shared/daily-audit-base.md
     with:
