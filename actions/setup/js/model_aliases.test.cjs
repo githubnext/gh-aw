@@ -11,12 +11,19 @@ describe("reduceModelNameToIdentifier", () => {
     expect(reduceModelNameToIdentifier("auto")).toBe("auto");
   });
 
-  it("returns short model names (< 6 chars) unchanged", () => {
+  it("returns safe short model names (< 6 alphanumeric chars) unchanged", () => {
     expect(reduceModelNameToIdentifier("o1")).toBe("o1");
     expect(reduceModelNameToIdentifier("o3")).toBe("o3");
     expect(reduceModelNameToIdentifier("gpt")).toBe("gpt");
     expect(reduceModelNameToIdentifier("mini")).toBe("mini");
     expect(reduceModelNameToIdentifier("haiku")).toBe("haiku");
+  });
+
+  it("sanitizes short model names that contain non-alphanumeric characters", () => {
+    // "a|b" has a pipe character that would split a Markdown table row — must be compacted
+    expect(reduceModelNameToIdentifier("a|b")).toBe("abx00");
+    // "gpt-5" has a hyphen, so it falls through to the GPT family shortcut
+    expect(reduceModelNameToIdentifier("gpt-5")).toBe("gpt50");
   });
 
   it("returns empty string for empty/null/undefined input", () => {
@@ -32,8 +39,7 @@ describe("reduceModelNameToIdentifier", () => {
   });
 
   it("handles GPT model families", () => {
-    // "gpt-5" is 5 chars (< 6) so it is returned as-is
-    expect(reduceModelNameToIdentifier("gpt-5")).toBe("gpt-5");
+    expect(reduceModelNameToIdentifier("gpt-5")).toBe("gpt50");
     expect(reduceModelNameToIdentifier("gpt-4o")).toBe("gpt40");
   });
 

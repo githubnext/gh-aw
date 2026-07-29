@@ -16,7 +16,7 @@ function reduceModelNameToIdentifier(modelName) {
     return normalized;
   }
 
-  if (normalized.length < 6) {
+  if (normalized.length < 6 && /^[a-z0-9]+$/.test(normalized)) {
     return normalized;
   }
 
