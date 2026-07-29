@@ -1668,6 +1668,7 @@ jobs:
           rm -rf /tmp/gh-aw/sandbox/firewall/logs
           rm -rf /tmp/gh-aw/sandbox/firewall/audit
       - name: Download container images
+        # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:0.27.42@sha256:26a8af4e5566485b02f52af59ee03803ae798271a9619d4767e94d07806deb9b ghcr.io/github/gh-aw-firewall/api-proxy:0.27.42@sha256:944f2686c9ab9bec338fd14b662461662f77cd12cd0ea8a3e7cb8c0987cd1607 ghcr.io/github/gh-aw-firewall/squid:0.27.42@sha256:42dfeb649c680a8558cd5423dbc530b653a69413e35ffbe5e71da5d48c94bdf0
       - name: Prepare evals files
         run: |
@@ -1698,10 +1699,12 @@ jobs:
           node-version: '24'
           package-manager-cache: false
       - name: Install GitHub Copilot CLI
+        # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh" 1.0.75
         env:
           GH_HOST: github.com
       - name: Install AWF binary
+        # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.42
       - name: Install GitHub Copilot SDK (Node.js)
         run: cd "${GITHUB_WORKSPACE}" && npm install --ignore-scripts --no-save @github/copilot-sdk@1.0.8
@@ -1872,6 +1875,7 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_TOKEN: ${{ github.token }}
+        # poutine:ignore untrusted_checkout_exec
         run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
       - name: Download evals artifact
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
