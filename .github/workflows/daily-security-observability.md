@@ -114,6 +114,31 @@ steps:
           }
         }' > "$CACHE_FILE"
 
+  - name: Download firewall-enabled workflow runs
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      mkdir -p /tmp/gh-aw/agent/firewall
+      FIREWALL_RUNS=/tmp/gh-aw/agent/firewall/firewall-enabled-runs.json
+      EMPTY_DATA='{"runs":[],"summary":{"total_runs":0}}'
+
+      # Download logs filtered to only runs with the firewall feature enabled.
+      # --artifacts activation: only download the activation artifact (aw_info.json)
+      # needed for firewall detection, avoiding large agent artifact downloads.
+      # --timeout 8: cap execution at 8 minutes to prevent runaway downloads.
+      gh aw logs --firewall --start-date -7d --json -c 100 \
+        --artifacts activation --timeout 8 \
+        > "$FIREWALL_RUNS" || true
+
+      # Validate JSON output and fall back to an empty dataset on failure
+      if ! jq -e '.runs' "$FIREWALL_RUNS" > /dev/null 2>&1; then
+        echo "No valid firewall logs produced; continuing with empty dataset"
+        echo "$EMPTY_DATA" > "$FIREWALL_RUNS"
+      fi
+
+      count=$(jq '.runs | length' "$FIREWALL_RUNS" 2>/dev/null || echo 0)
+      echo "Downloaded $count firewall-enabled workflow runs"
+
 tools:
   bash:
     - "*"
@@ -174,16 +199,7 @@ Both datasets cover the **last 7 days** and share the cache-memory path `/tmp/gh
 
 **ALWAYS PERFORM FRESH ANALYSIS**: This report must always use fresh data from the audit tool. Do NOT skip analysis based on cached results or reuse aggregated statistics from previous runs.
 
-Use the `logs` tool from the agentic-workflows MCP server to collect workflow runs that have firewall enabled:
-
-**Tool call:**
-```json
-{
-  "firewall": true,
-  "start_date": "-7d",
-  "count": 100
-}
-```
+Read the pre-downloaded list of firewall-enabled workflow runs from `/tmp/gh-aw/agent/firewall/firewall-enabled-runs.json`. This file was populated by the startup step and contains runs from the last 7 days with the firewall feature enabled. Extract the `run_id` from each entry in the `runs` array.
 
 ### Step 1.2: Early Exit if No Firewall Data
 

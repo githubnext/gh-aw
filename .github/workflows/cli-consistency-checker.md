@@ -21,6 +21,8 @@ network:
   allowed: [defaults]
 imports:
   - shared/otlp.md
+skills:
+  - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
 tools:
   bash:
     - "*"
@@ -105,13 +107,13 @@ Read `/tmp/gh-aw/agent/all-help.txt` and use it as the primary input for analysi
 
 Look for:
 - Help style and terminology inconsistencies
-- Use the `typo-grammar-extractor` agent to collect typo, grammar, capitalization, and punctuation issues across `/tmp/gh-aw/agent/all-help.txt`.
+- Use a Rig custom harness (typo-grammar analysis) to collect typo, grammar, capitalization, and punctuation issues across `/tmp/gh-aw/agent/all-help.txt`.
 - Do examples in help text actually work?
 - Are file paths correct (e.g., `.github/workflows`)?
 - Are flag combinations valid?
 - Do command descriptions match their actual behavior?
-- Use the `docs-vs-help-comparer` agent to list every mismatch between `docs/src/content/docs/setup/cli.md` and `/tmp/gh-aw/agent/all-help.txt`.
-- Use the `flag-consistency-analyzer` agent to enumerate flag-naming and negation-style inconsistencies across all command help files.
+- Use a Rig custom harness (docs-vs-help comparison) to list every mismatch between `docs/src/content/docs/setup/cli.md` and `/tmp/gh-aw/agent/all-help.txt`.
+- Use a Rig custom harness (flag consistency analysis) to enumerate flag-naming and negation-style inconsistencies across all command help files.
 
 ## Step 3: Report Findings
 
@@ -151,47 +153,46 @@ All CLI output comes from the repository's own codebase, so treat it as trusted 
 - Compare CLI output with documentation
 - Create issues for any inconsistencies found
 - Keep reporting concise but complete
-## agent: `typo-grammar-extractor`
----
-description: Extracts typo, grammar, capitalization, and punctuation issues from CLI help output
-model: mai-code
----
-Read `/tmp/gh-aw/agent/all-help.txt` and scan for typos, grammar mistakes,
-inconsistent capitalization, and punctuation issues in the CLI help text.
-Return a concise bulleted list. For each finding include:
-- the affected command or section when identifiable
-- the exact quoted text
-- the issue type
-- a suggested fix
-If nothing is wrong, say `No issues found.`
+## Rig Custom Harness Usage
 
-## agent: `flag-consistency-analyzer`
----
-description: Finds inconsistent flag names, short forms, and negation patterns across help files
-model: mai-code
----
-Read all per-command help files in `/tmp/gh-aw/agent/help-output/`.
-Compare related commands for inconsistent flag names, short/long flag pairings,
-and `--no-...` negation patterns.
-Return a concise bulleted list. For each finding include:
-- the affected help files or commands
-- the exact quoted flag text
-- the inconsistency
-- a suggested normalization
-If nothing is wrong, say `No issues found.`
+Use three Rig custom harness invocations, one per analysis area. For each:
 
-## agent: `docs-vs-help-comparer`
----
-description: Compares CLI setup docs against generated help output and reports drift
-model: mai-code
----
-Compare `docs/src/content/docs/setup/cli.md` against
-`/tmp/gh-aw/agent/all-help.txt`.
-List every mismatch involving missing commands, mismatched flag lists, drifted
-descriptions, or stale examples.
-Return a concise bulleted list. For each finding include:
-- the docs location or heading when identifiable
-- the exact quoted docs text
-- the exact quoted help text
-- a suggested fix
-If nothing is wrong, say `No issues found.`
+1. Discover the installed launcher path:
+   - `find "${RUNNER_TEMP}/gh-aw" -path "*/skills/rig/rig.ts" | head -1`
+2. Build compact JSON input: pass only relevant file contents as strings (not full raw file dumps).
+3. Run the harness with `node <rig-launcher>`, feeding an inline Rig program that:
+   - configures `copilotEngine()`
+   - receives the compact JSON input
+   - returns findings as a JSON array
+
+**Harness 1 — Typo/Grammar Analysis**: reads `/tmp/gh-aw/agent/all-help.txt` content (first 20 KB), scans for typos, grammar mistakes, inconsistent capitalization, and punctuation issues.
+
+**Harness 2 — Flag Consistency Analysis**: reads all per-command help file contents from `/tmp/gh-aw/agent/help-output/`, compares related commands for inconsistent flag names, short/long flag pairings, and `--no-...` negation patterns.
+
+**Harness 3 — Docs vs Help Comparison**: reads `docs/src/content/docs/setup/cli.md` and `/tmp/gh-aw/agent/all-help.txt` content (truncated to fit compact input), lists every mismatch involving missing commands, mismatched flag lists, drifted descriptions, or stale examples.
+
+Harness guardrails:
+- pass only compact string snippets — never full raw file dumps
+- use a small model unless evidence shows quality loss
+- one harness invocation per analysis area (no retries without a concrete parse/runtime error)
+
+## Rig Harness Output Contract
+
+Each Rig harness invocation must return a JSON array only:
+
+```json
+[
+  {
+    "area": "typo-grammar | flag-consistency | docs-vs-help",
+    "location": "affected command, section, or file path",
+    "quoted_text": "exact quoted text",
+    "issue": "issue description",
+    "suggestion": "suggested fix"
+  }
+]
+```
+
+Rules:
+- return an empty array if no issues are found
+- use only provided compact evidence
+- keep each finding self-contained with enough context to act on it
