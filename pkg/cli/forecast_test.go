@@ -412,9 +412,18 @@ func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
 	out, readErr := io.ReadAll(reader)
 	require.NoError(t, readErr)
 	assert.NotContains(t, string(out), "-–-")
+	assert.Contains(t, string(out), "Cost/projection figures are AI Credits (AIC)")
 }
 
 func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() {
+		_ = os.Chdir(originalDir)
+	})
+
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
@@ -440,6 +449,14 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 }
 
 func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() {
+		_ = os.Chdir(originalDir)
+	})
+
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
@@ -462,4 +479,76 @@ func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
 	require.Zero(t, aic)
 	require.False(t, analyzeCalled)
 	require.Equal(t, []string{"usage"}, downloaded)
+}
+
+// ── parallelLoadRunAICs ───────────────────────────────────────────────────────
+
+// TestParallelLoadRunAICs_ReturnsAllAICValues verifies that parallelLoadRunAICs collects
+// AIC values for every run, regardless of concurrency level.
+func TestParallelLoadRunAICs_ReturnsAllAICValues(t *testing.T) {
+	originalLoadAIC := forecastLoadCachedRunAIC
+	t.Cleanup(func() { forecastLoadCachedRunAIC = originalLoadAIC })
+
+	wantAIC := map[int64]float64{
+		1: 1.0,
+		2: 2.0,
+		3: 3.0,
+		4: 4.0,
+		5: 5.0,
+	}
+	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
+		return wantAIC[runID]
+	}
+
+	runs := []WorkflowRun{
+		{DatabaseID: 1, Status: "completed", Conclusion: "success"},
+		{DatabaseID: 2, Status: "completed", Conclusion: "success"},
+		{DatabaseID: 3, Status: "completed", Conclusion: "failure"},
+		{DatabaseID: 4, Status: "completed", Conclusion: "success"},
+		{DatabaseID: 5, Status: "completed", Conclusion: "success"},
+	}
+
+	got := parallelLoadRunAICs(context.Background(), runs, ForecastConfig{DownloadConcurrency: 3})
+	assert.Equal(t, wantAIC, got)
+}
+
+// TestParallelLoadRunAICs_RespectsContextCancellation verifies that parallelLoadRunAICs
+// stops issuing new downloads and returns promptly when the context is cancelled.
+func TestParallelLoadRunAICs_RespectsContextCancellation(t *testing.T) {
+	originalLoadAIC := forecastLoadCachedRunAIC
+	t.Cleanup(func() { forecastLoadCachedRunAIC = originalLoadAIC })
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	forecastLoadCachedRunAIC = func(_ context.Context, runID int64, _ bool) float64 {
+		return float64(runID)
+	}
+
+	runs := []WorkflowRun{
+		{DatabaseID: 10, Status: "completed", Conclusion: "success"},
+		{DatabaseID: 11, Status: "completed", Conclusion: "success"},
+	}
+
+	// Should return quickly without panicking, regardless of which goroutines completed.
+	got := parallelLoadRunAICs(ctx, runs, ForecastConfig{DownloadConcurrency: 1})
+	assert.NotNil(t, got)
+}
+
+// TestParallelLoadRunAICs_EmptyRunsReturnsEmptyMap verifies the empty-input edge case.
+func TestParallelLoadRunAICs_EmptyRunsReturnsEmptyMap(t *testing.T) {
+	got := parallelLoadRunAICs(context.Background(), nil, ForecastConfig{})
+	assert.Empty(t, got)
+}
+
+// TestNewForecastCommand_ConcurrencyFlag verifies that the --concurrency flag is
+// registered with the expected default and usage text.
+func TestNewForecastCommand_ConcurrencyFlag(t *testing.T) {
+	cmd := NewForecastCommand()
+	require.NotNil(t, cmd)
+
+	flag := cmd.Flags().Lookup("concurrency")
+	require.NotNil(t, flag, "forecast command should register --concurrency")
+	assert.Equal(t, "0", flag.DefValue)
+	assert.Contains(t, flag.Usage, "concurrent")
 }

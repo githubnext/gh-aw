@@ -63,6 +63,7 @@ imports:
   - shared/reporting.md
 
   - shared/otlp.md
+  - shared/default-ai-credits-pricing.md
 steps:
   - name: Deterministic pre-fetch for failure analysis
     env:

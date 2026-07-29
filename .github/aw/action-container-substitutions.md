@@ -26,11 +26,7 @@ These are repository-level settings in `aw.json`, not workflow frontmatter, so o
 - Map each source version individually — no wildcard or prefix matching.
 - The replacement target must itself be resolvable by the pin machinery (dynamic lookup, embedded pins, or local cache); otherwise resolution fails.
 
-One console message per mapped key at compile time:
-
-```
-ℹ Action pin mapping applied: actions/checkout@v4 → acme-corp/checkout-mirror@v4
-```
+One console message per mapped key is logged at compile time.
 
 ## Container substitutions (`container_pins`)
 
@@ -58,11 +54,7 @@ Each value is an object with separate `image` (ref name) and `digest` (SHA-256) 
 - `image` must be a valid reference without a digest component (e.g. `registry.acme.com/image:tag`).
 - `digest` must be a full SHA-256 digest in `sha256:<64 lowercase hex chars>` form.
 
-One console message per mapped key at compile time:
-
-```
-ℹ Container pin mapping applied: ghcr.io/actions/runner:latest → registry.acme.com/runner:latest@sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
-```
+One console message per mapped key is logged at compile time.
 
 ## Combined example
 
@@ -89,5 +81,5 @@ One console message per mapped key at compile time:
 
 - Substitutions apply at compile time and are baked into the generated `.lock.yml` files.
 - Neither `action_pins` nor `container_pins` works in workflow frontmatter; both are `aw.json` repository-level settings.
-- Re-run `gh aw compile` after modifying `aw.json` to regenerate affected lock files.
+- Re-run `gh aw compile` after modifying `aw.json`.
 - See [Self-Hosted Runners](/gh-aw/reference/self-hosted-runners/#action-and-container-substitutions-awjson) for full docs.

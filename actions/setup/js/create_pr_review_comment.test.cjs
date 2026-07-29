@@ -523,6 +523,55 @@ describe("create_pr_review_comment.cjs", () => {
     // Footer context is set on the buffer for review-level footer generation
     expect(buffer.getBufferedCount()).toBe(1);
   });
+
+  it("should use GH_AW_HEAD_SHA env var as commit_id when submitting review", async () => {
+    const previousHeadSHA = process.env.GH_AW_HEAD_SHA;
+    process.env.GH_AW_HEAD_SHA = "trigger-time-sha-xyz789";
+    try {
+      // The buffer's submitReview uses GH_AW_HEAD_SHA automatically — verify the
+      // review context is set correctly (no commitId field needed on context)
+      const handler = await createHandler();
+      const message = {
+        type: "create_pull_request_review_comment",
+        path: "src/main.js",
+        line: 10,
+        body: "Review comment body",
+      };
+      const result = await handler(message, {});
+
+      expect(result.success).toBe(true);
+      expect(result.buffered).toBe(true);
+
+      const ctx = buffer.getReviewContext();
+      expect(ctx).not.toBeNull();
+      // No commitId on the context; the env var is used at submit time instead
+      expect(ctx.commitId).toBeUndefined();
+      // The live PR head SHA should still be in pullRequest.head.sha
+      expect(ctx.pullRequest.head.sha).toBe("abc123def456");
+    } finally {
+      if (previousHeadSHA !== undefined) {
+        process.env.GH_AW_HEAD_SHA = previousHeadSHA;
+      } else {
+        delete process.env.GH_AW_HEAD_SHA;
+      }
+    }
+  });
+
+  it("review context has no commitId field regardless of handler config", async () => {
+    const handler = await createHandler();
+    const message = {
+      type: "create_pull_request_review_comment",
+      path: "src/main.js",
+      line: 10,
+      body: "Review comment without pinning",
+    };
+    const result = await handler(message, {});
+
+    expect(result.success).toBe(true);
+    const ctx = buffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    expect(ctx.commitId).toBeUndefined();
+  });
 });
 
 describe("create_pr_review_comment.cjs — registry mode (multiple reviews)", () => {

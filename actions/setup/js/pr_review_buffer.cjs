@@ -112,6 +112,9 @@ function createReviewBuffer() {
   /** @type {boolean} When true, dismiss older same-workflow REQUEST_CHANGES reviews after posting a replacement review. */
   let supersedeOlderReviews = false;
 
+  /** @type {string} When non-empty, pins the review to this commit SHA instead of the live PR head or GH_AW_HEAD_SHA. */
+  let pinnedCommitId = "";
+
   /**
    * Best-effort execution-state capture.
    * When the installation token is out of quota, metadata collection should not
@@ -246,6 +249,17 @@ function createReviewBuffer() {
   }
 
   /**
+   * Pin the review to a specific commit SHA, overriding GH_AW_HEAD_SHA and the live PR head.
+   * @param {string} commitId - The commit SHA to pin the review to
+   */
+  function setPinnedCommitId(commitId) {
+    if (commitId && typeof commitId === "string") {
+      pinnedCommitId = commitId;
+      core.info(`PR review pinned to commit: ${commitId}`);
+    }
+  }
+
+  /**
    * Check if there are buffered comments to submit.
    * @returns {boolean}
    */
@@ -296,6 +310,20 @@ function createReviewBuffer() {
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       core.warning("Pull request head SHA not available - cannot submit review");
       return { success: false, error: "Pull request head SHA not available" };
+    }
+
+    // Use the head SHA captured at trigger time (GH_AW_HEAD_SHA, injected by the compiler)
+    // when available, falling back to the live PR head SHA. This pins the review to the
+    // commit the agent actually reviewed, preventing attribution drift when new commits are
+    // pushed during the run (most common under workflow_run triggers where the safe_outputs
+    // job runs after the agent job and pulls.get() may return a newer HEAD sha).
+    // A user-specified pinnedCommitId (from the commit-id config option) takes highest priority.
+    const awHeadSHA = process.env.GH_AW_HEAD_SHA || "";
+    const resolvedCommitId = pinnedCommitId || awHeadSHA || pullRequest.head.sha;
+    if (pinnedCommitId && pinnedCommitId !== pullRequest.head.sha) {
+      core.info(`Using config-pinned commit SHA: ${pinnedCommitId} (PR head is now ${pullRequest.head.sha})`);
+    } else if (awHeadSHA && awHeadSHA !== pullRequest.head.sha) {
+      core.info(`Using trigger-time head SHA: ${awHeadSHA} (PR head is now ${pullRequest.head.sha})`);
     }
 
     // Determine review event and body
@@ -465,7 +493,7 @@ function createReviewBuffer() {
       owner: repoParts.owner,
       repo: repoParts.repo,
       pull_number: pullRequestNumber,
-      commit_id: pullRequest.head.sha,
+      commit_id: resolvedCommitId,
       event: event,
     };
 
@@ -774,6 +802,7 @@ function createReviewBuffer() {
     setIncludeFooter: setFooterMode, // Backward compatibility alias
     setStaged,
     setSupersedeOlderReviews,
+    setPinnedCommitId,
     hasBufferedComments,
     hasReviewMetadata,
     getBufferedCount,
@@ -806,6 +835,8 @@ function createPrReviewBufferRegistry() {
   let defaultFooterContext = null;
   let defaultStaged = false;
   let defaultSupersedeOlderReviews = false;
+  /** @type {string} */
+  let defaultPinnedCommitId = "";
 
   /**
    * Get or create the buffer for the given (repo, prNumber) pair.
@@ -830,6 +861,9 @@ function createPrReviewBufferRegistry() {
       }
       if (defaultSupersedeOlderReviews) {
         buffer.setSupersedeOlderReviews(true);
+      }
+      if (defaultPinnedCommitId) {
+        buffer.setPinnedCommitId(defaultPinnedCommitId);
       }
       bufferMap.set(k, buffer);
       insertionOrder.push({ repo, prNumber, buffer });
@@ -874,6 +908,13 @@ function createPrReviewBufferRegistry() {
     defaultSupersedeOlderReviews = value === true;
   }
 
+  /** @param {string} value */
+  function setDefaultPinnedCommitId(value) {
+    if (value && typeof value === "string") {
+      defaultPinnedCommitId = value;
+    }
+  }
+
   return {
     getOrCreate,
     getAllEntries,
@@ -882,6 +923,7 @@ function createPrReviewBufferRegistry() {
     setDefaultFooterContext,
     setDefaultStaged,
     setDefaultSupersedeOlderReviews,
+    setDefaultPinnedCommitId,
   };
 }
 

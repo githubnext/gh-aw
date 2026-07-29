@@ -877,3 +877,79 @@ describe("submit_pr_review multi-buffer (registry mode)", () => {
     expect(setSuperSpy).toHaveBeenCalledWith(true);
   });
 });
+
+describe("submit_pr_review: GH_AW_HEAD_SHA automatic commit pinning", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    delete global.context;
+    delete global.github;
+  });
+
+  it("review context has no commitId field (GH_AW_HEAD_SHA is used at submit time instead)", async () => {
+    global.context = {
+      eventName: "pull_request",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {
+        pull_request: { number: 42, head: { sha: "live-head-sha" } },
+      },
+    };
+    global.github = {
+      rest: { pulls: { get: vi.fn() } },
+      graphql: vi.fn(),
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({
+      max: 1,
+      _prReviewBuffer: localBuffer,
+    });
+
+    const result = await localHandler({ type: "submit_pull_request_review", body: "Review", event: "COMMENT" }, {});
+
+    expect(result.success).toBe(true);
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    // No commitId on the context; GH_AW_HEAD_SHA is read at submitReview() time
+    expect(ctx.commitId).toBeUndefined();
+    expect(ctx.pullRequest.head.sha).toBe("live-head-sha");
+    expect(global.github.rest.pulls.get).not.toHaveBeenCalled();
+  });
+
+  it("review context has no commitId in workflow_run scenario (GH_AW_HEAD_SHA used automatically)", async () => {
+    const fetchedPR = { number: 55, head: { sha: "live-head-after-push" } };
+    global.context = {
+      eventName: "workflow_run",
+      repo: { owner: "org", repo: "repo" },
+      payload: {},
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          get: vi.fn().mockResolvedValue({ data: fetchedPR }),
+        },
+      },
+      graphql: vi.fn(),
+    };
+
+    const localBuffer = createReviewBuffer();
+    const { main } = require("./submit_pr_review.cjs");
+    const localHandler = await main({
+      max: 1,
+      target: "55",
+      _prReviewBuffer: localBuffer,
+    });
+
+    const result = await localHandler({ type: "submit_pull_request_review", body: "Review", event: "COMMENT" }, {});
+
+    expect(result.success).toBe(true);
+    const ctx = localBuffer.getReviewContext();
+    expect(ctx).not.toBeNull();
+    // No commitId on context; GH_AW_HEAD_SHA env var is used at submit time
+    expect(ctx.commitId).toBeUndefined();
+    expect(ctx.pullRequest.head.sha).toBe("live-head-after-push");
+  });
+});

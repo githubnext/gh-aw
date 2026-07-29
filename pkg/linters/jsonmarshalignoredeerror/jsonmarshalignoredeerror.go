@@ -10,19 +10,24 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:jsonmarshalignoredeerror")
 
 // Analyzer is the json-marshal-ignored-error analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "jsonmarshalignoredeerror",
 	Doc:      "reports json.Marshal and json.Unmarshal calls where the error return is discarded",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/jsonmarshalignoredeerror",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -31,12 +36,24 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 	nodeFilter := []ast.Node{(*ast.AssignStmt)(nil), (*ast.ExprStmt)(nil)}
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		switch stmt := n.(type) {
 		case *ast.AssignStmt:
+			position := pass.Fset.PositionFor(stmt.Pos(), false)
+			if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+				return
+			}
 			checkDiscardedJSONAssign(pass, stmt, noLintIndex)
 		case *ast.ExprStmt:
+			position := pass.Fset.PositionFor(stmt.Pos(), false)
+			if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+				return
+			}
 			checkDiscardedJSONExpr(pass, stmt, noLintIndex)
 		}
 	})
@@ -86,6 +103,7 @@ func reportDiscardedJSONCall(pass *analysis.Pass, call *ast.CallExpr, noLintInde
 	if nolint.HasDirectiveForLinter(position, noLintIndex, "jsonmarshalignoredeerror") {
 		return
 	}
+	pkgLog.Printf("flagging discarded json error at %s:%d", position.Filename, position.Line)
 	pass.ReportRangef(call, "%s", message)
 }
 

@@ -46,6 +46,11 @@ imports:
       toolsets: [pull_requests, actions, repos]
   - shared/reporting.md
   - shared/otlp.md
+evals:
+  - id: comment-posted
+    question: Did the agent post a comment with PR or CI analysis?
+  - id: insights-provided
+    question: Does the agent output include specific insights about pull request status or CI results?
 ---
 
 # Dev Hawk - Development Workflow Monitor

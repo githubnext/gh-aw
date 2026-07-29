@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -32,7 +33,11 @@ func regular() {}
 		t.Fatalf("ParseFile(regular) error = %v", err)
 	}
 
-	idx := BuildGeneratedIndex(&analysis.Pass{Fset: fset, Files: []*ast.File{generatedFile, regularFile}})
+	idx := BuildGeneratedIndex(&analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{generatedFile, regularFile},
+		Pkg:   types.NewPackage("github.com/github/gh-aw/pkg/linters/internal/filecheck/testdata", "p"),
+	})
 	if !IsGeneratedFile(generatedFilename, idx) {
 		t.Fatalf("expected %q to be marked generated", generatedFilename)
 	}
@@ -74,7 +79,11 @@ func regular() {}
 		t.Fatalf("ParseFile(regular) error = %v", err)
 	}
 
-	idx := BuildGeneratedIndex(&analysis.Pass{Fset: fset, Files: []*ast.File{regularFile}})
+	idx := BuildGeneratedIndex(&analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{regularFile},
+		Pkg:   types.NewPackage("github.com/github/gh-aw/pkg/linters/internal/filecheck/testdata", "p"),
+	})
 	if IsGeneratedFile(regularFilename, idx) {
 		t.Fatalf("did not expect %q to be marked generated", regularFilename)
 	}

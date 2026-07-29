@@ -57,6 +57,7 @@ type importAccumulator struct {
 	models                   []map[string][]string // model alias maps from each imported file (appended in import order)
 	modelPolicies            []map[string][]string // model policy sets from each imported file (appended in import order)
 	modelCosts               []map[string]any      // model pricing overlays from each imported file (appended in import order)
+	defaultAiCreditsPricing  map[string]any        // first models.default-ai-credits-pricing object found in imports (first-wins)
 	runInstallScripts        bool                  // true if any imported workflow sets runtimes.node.run-install-scripts: true
 	agentFile                string
 	agentImportSpec          string
@@ -704,12 +705,22 @@ func (acc *importAccumulator) appendModelsField(fm map[string]any, importPath st
 			parserLog.Printf("Extracted model costs from import: providers=%d", len(providerMap))
 		}
 	}
+	if acc.defaultAiCreditsPricing == nil {
+		if defaultPricing, hasDefaultPricing := rawModels["default-ai-credits-pricing"]; hasDefaultPricing {
+			if pricingMap, ok := defaultPricing.(map[string]any); ok {
+				acc.defaultAiCreditsPricing = maps.Clone(pricingMap)
+				parserLog.Printf("Extracted default-ai-credits-pricing from import: %s", importPath)
+			} else {
+				acc.warnings = append(acc.warnings, fmt.Sprintf("import %q: models.default-ai-credits-pricing must be an object; skipping invalid value", importPath))
+			}
+		}
+	}
 
 	aliasModels := make(map[string]any, len(rawModels))
 	for key, value := range rawModels {
 		// providers is reserved for model-cost overlays and should not be treated
 		// as an alias key, even when aliases and providers coexist.
-		if key == "providers" || isModelPolicyKey(key) {
+		if key == "providers" || key == "default-ai-credits-pricing" || isModelPolicyKey(key) {
 			continue
 		}
 		aliasModels[key] = value
@@ -913,6 +924,7 @@ func (acc *importAccumulator) toImportsResult(topologicalOrder []string) *Import
 		MergedModels:                  acc.models,
 		MergedModelPolicies:           acc.modelPolicies,
 		MergedModelCosts:              acc.modelCosts,
+		MergedDefaultAiCreditsPricing: acc.defaultAiCreditsPricing,
 		MergedObservability:           mergeObservabilityConfigs(acc.observabilityConfigs),
 		ImportedFiles:                 topologicalOrder,
 		AgentFile:                     acc.agentFile,

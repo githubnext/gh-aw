@@ -29,14 +29,14 @@ func (e *DockerUnavailableError) Error() string {
 
 // DockerImages defines the Docker images used by the compile tool's static analysis scanners
 const (
-	ZizmorImage      = "ghcr.io/zizmorcore/zizmor:latest"
-	PoutineImage     = "ghcr.io/boostsecurityio/poutine:latest"
-	ActionlintImage  = "rhysd/actionlint:1.7.12"
-	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:latest"
+	ZizmorImage      = "ghcr.io/zizmorcore/zizmor:1.28.0@sha256:8e6b3e4fb74d1aa5d23e83ea369f386c66eced0d1fb944d32cd8b2aac100b00d"
+	PoutineImage     = "ghcr.io/boostsecurityio/poutine:1.1.6@sha256:722a8e0999b583c1540fe2974e691032b2d9d21b9256a17965132b6bfd0081b0"
+	ActionlintImage  = "rhysd/actionlint:1.7.12@sha256:b1934ee5f1c509618f2508e6eb47ee0d3520686341fec936f3b79331f9315667"
+	RunnerGuardImage = "ghcr.io/vigilant-llc/runner-guard:3.1.5@sha256:2df426ef96d21f1622e05b21329f26bd263fc46110609cefb6afe43457613ac0"
 	SyftImage        = "anchore/syft:v1.48.0@sha256:b4f1df79f97b817682d8b5ff941eb6bfe74f6172553a5e312c75bbc2eabc405c"
 	GrypeImage       = "anchore/grype:v0.116.0@sha256:fd4ab4d1042b522c896e73bdf09ab8bf384fa417df99d6dd0d6e1008c7e7c821"
 	GrantImage       = "anchore/grant:v0.6.8@sha256:172463611795f43b77302cdfbd7b3f81295492a7330e0820cfe41c3674920237"
-	YamllintImage    = "pipelinecomponents/yamllint:latest"
+	YamllintImage    = "pipelinecomponents/yamllint:latest@sha256:5ab5eb7da0ed5e606b07c1723fc8b275e925189f70ac259b26b7329cb5f8f44d"
 )
 
 // inflightDownload holds the join channel and result for an in-progress pull.

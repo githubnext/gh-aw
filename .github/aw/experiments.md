@@ -135,7 +135,7 @@ Use `${{ experiments.tone }}` tone when writing the issue body.
 
 1. **One dimension** per experiment.
 2. **Falsifiable hypothesis**.
-3. **Primary metric** measurable from workflow run data (artifacts, outputs, duration, tokens).
+3. **Primary metric** measurable from workflow run data (artifacts, outputs, duration, tokens). Prefer `eval:<id>` / `evals.<id>` when success is best measured as a YES/NO question.
 4. **Guardrail metrics** — things that must not degrade. Use `direction: min` + bare number for lower-is-better rates, or `">=0.95"` for higher-is-better.
 5. **Sample size estimate** per variant.
 
@@ -160,6 +160,8 @@ Use `{{#if experiments.prompt_style == "concise" }}` blocks to swap prompt instr
 > ⚠️ **Never write** the internal env-var form `__GH_AW_EXPERIMENTS__PROMPT_STYLE___detailed`. The compiler expands `experiments.<name>` references automatically.
 
 **Typical metrics**: output quality, AI credits, success rate, output length.
+
+When `metric` references `eval:<id>` or `evals.<id>`, declare that eval question under `evals:`. `gh aw experiments analyze` will then show both the metric question text and observed eval YES/NO/UNKNOWN results.
 
 ### Engine & Model
 
@@ -281,7 +283,7 @@ experiments:
 2. **Instrument** — add `experiments:` and `{{#if experiments.<name> == "<variant>" }}` blocks. Never use `__GH_AW_EXPERIMENTS__*`.
 3. **Compile** — `gh aw compile <workflow-name>`.
 4. **Run** — check activation job step summary for variant assignment.
-5. **Analyse** — once min sample size reached, compare distributions.
+5. **Analyse** — once min sample size reached, compare distributions; for eval-backed metrics, use `gh aw experiments analyze <workflow>` to inspect the resolved question and current eval outcomes.
 6. **Conclude** — rewrite baseline to winning variant, remove `experiments:`, recompile.
 
 ---

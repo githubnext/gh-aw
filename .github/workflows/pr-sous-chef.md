@@ -293,6 +293,13 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) finished PR sous-chef nudges."
     run-failure: "⚠️ [{workflow_name}]({run_url}) {status} while preparing PRs."
 timeout-minutes: 25
+evals:
+  - id: comment-added
+    question: Did the agent add a comment to at least one pull request?
+  - id: nudge-targeted
+    question: Does the agent output show a specific reason why the selected PR needs a nudge toward maintainer investigation?
+  - id: pr-evaluated
+    question: Does the agent output confirm that it evaluated at least one open PR for nudge eligibility?
 ---
 
 # PR Sous Chef 🍳

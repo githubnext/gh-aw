@@ -59,6 +59,13 @@ timeout-minutes: 30
 max-ai-credits: 1500
 
 
+evals:
+  - id: labels-applied
+    question: Did the agent apply triage labels to at least one pull request?
+  - id: triage-data-set
+    question: Does the agent output confirm that category, risk, and action data were determined for each processed PR?
+  - id: report-produced
+    question: Does the agent output include a triage report summarizing the PRs processed?
 ---
 
 # PR Triage Agent

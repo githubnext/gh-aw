@@ -858,6 +858,79 @@ imports:
 		"transitive dep must not be written at the root level")
 }
 
+func TestFetchAndSaveRemoteRuntimeImports_EmptyRepoSlug(t *testing.T) {
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+
+	err := fetchAndSaveRemoteRuntimeImports(
+		t.Context(),
+		"{{#runtime-import .github/skills/example/SKILL.md}}\n",
+		&WorkflowSpec{},
+		workflowsDir,
+		false,
+		false,
+		nil,
+	)
+	require.NoError(t, err)
+	assert.NoFileExists(t, filepath.Join(tmpDir, ".github", "skills", "example", "SKILL.md"))
+}
+
+func TestFetchAndSaveRemoteRuntimeImports_FetchesPinnedRecursiveClosure(t *testing.T) {
+	original := downloadRemoteRuntimeImportFile
+	defer func() { downloadRemoteRuntimeImportFile = original }()
+
+	tmpDir := t.TempDir()
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+
+	type request struct {
+		path string
+		ref  string
+		host string
+	}
+	var requests []request
+	downloadRemoteRuntimeImportFile = func(_ context.Context, owner, repo, remotePath, ref, host string) ([]byte, error) {
+		assert.Equal(t, "github", owner)
+		assert.Equal(t, "gh-aw", repo)
+		requests = append(requests, request{path: remotePath, ref: ref, host: host})
+		switch remotePath {
+		case ".github/skills/example/SKILL.md":
+			return []byte("---\nname: Example\n---\n{{#runtime-import ./nested.md}}\n"), nil
+		case ".github/skills/example/nested.md":
+			return []byte("nested\n"), nil
+		default:
+			return nil, fmt.Errorf("unexpected path %s", remotePath)
+		}
+	}
+
+	spec := &WorkflowSpec{
+		RepoSpec: RepoSpec{
+			RepoSlug: "github/gh-aw",
+			Version:  "0123456789abcdef0123456789abcdef01234567",
+		},
+		WorkflowPath: ".github/workflows/example.md",
+		Host:         "github.com",
+	}
+
+	err := fetchAndSaveRemoteRuntimeImports(
+		t.Context(),
+		"{{#runtime-import .github/skills/example/SKILL.md}}\n",
+		spec,
+		workflowsDir,
+		false,
+		true,
+		nil,
+	)
+	require.NoError(t, err)
+	assert.Equal(t, []request{
+		{path: ".github/skills/example/SKILL.md", ref: "0123456789abcdef0123456789abcdef01234567", host: "github.com"},
+		{path: ".github/skills/example/nested.md", ref: "0123456789abcdef0123456789abcdef01234567", host: "github.com"},
+	}, requests)
+	assert.FileExists(t, filepath.Join(tmpDir, ".github", "skills", "example", "SKILL.md"))
+	assert.FileExists(t, filepath.Join(tmpDir, ".github", "skills", "example", "nested.md"))
+}
+
 // TestFetchFrontmatterImportsRecursive_RepoRootSlashPath verifies that when
 // originalBaseDir is empty (workflow lives at the repo root) and an import
 // path contains a "/" (e.g. "shared/helper.md"), the path is used as-is

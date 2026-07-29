@@ -556,6 +556,71 @@ describe("pr_review_buffer (factory pattern)", () => {
       expect(callArgs.comments).toBeUndefined();
     });
 
+    it("should use GH_AW_HEAD_SHA from env instead of live PR head SHA", async () => {
+      const previousHeadSHA = process.env.GH_AW_HEAD_SHA;
+      process.env.GH_AW_HEAD_SHA = "original-reviewed-sha";
+      try {
+        buffer.setReviewMetadata("Review with pinned commit", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "live-head-sha-pushed-later" } },
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: {
+            id: 700,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-700",
+          },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        // The env var sha must be passed as commit_id, not the live head sha
+        const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
+        expect(callArgs.commit_id).toBe("original-reviewed-sha");
+      } finally {
+        if (previousHeadSHA !== undefined) {
+          process.env.GH_AW_HEAD_SHA = previousHeadSHA;
+        } else {
+          delete process.env.GH_AW_HEAD_SHA;
+        }
+      }
+    });
+
+    it("should fall back to pullRequest.head.sha when GH_AW_HEAD_SHA is not set", async () => {
+      const previousHeadSHA = process.env.GH_AW_HEAD_SHA;
+      delete process.env.GH_AW_HEAD_SHA;
+      try {
+        buffer.setReviewMetadata("Regular review", "COMMENT");
+        buffer.setReviewContext({
+          repo: "owner/repo",
+          repoParts: { owner: "owner", repo: "repo" },
+          pullRequestNumber: 42,
+          pullRequest: { head: { sha: "current-head-sha" } },
+        });
+
+        mockGithub.rest.pulls.createReview.mockResolvedValue({
+          data: {
+            id: 800,
+            html_url: "https://github.com/owner/repo/pull/42#pullrequestreview-800",
+          },
+        });
+
+        const result = await buffer.submitReview();
+
+        expect(result.success).toBe(true);
+        const callArgs = mockGithub.rest.pulls.createReview.mock.calls[0][0];
+        expect(callArgs.commit_id).toBe("current-head-sha");
+      } finally {
+        if (previousHeadSHA !== undefined) {
+          process.env.GH_AW_HEAD_SHA = previousHeadSHA;
+        }
+      }
+    });
+
     it("should include multi-line comment fields with side fallback for start_side", async () => {
       buffer.addComment({
         path: "src/index.js",

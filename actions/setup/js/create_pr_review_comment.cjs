@@ -42,6 +42,7 @@ async function main(config = {}) {
   const requiredTitlePrefix = config.required_title_prefix || "";
   if (requiredLabels.length > 0) core.info(`Required labels (all): ${requiredLabels.join(", ")}`);
   if (requiredTitlePrefix) core.info(`Required title prefix: ${requiredTitlePrefix}`);
+
   let allowedMentionAliases = [];
   if (Array.isArray(config.allowedMentionAliases)) {
     allowedMentionAliases = config.allowedMentionAliases;
@@ -71,6 +72,16 @@ async function main(config = {}) {
   }
   if (isStagedMode(config)) {
     logStagedPreviewInfo("PR review comments will be previewed without being submitted");
+  }
+
+  const pinnedCommitId = typeof config.commit_id === "string" ? config.commit_id.trim() : "";
+  if (pinnedCommitId) {
+    core.info(`create_pull_request_review_comment: commit-id pinned to ${pinnedCommitId}`);
+    if (registry && typeof registry.setDefaultPinnedCommitId === "function") {
+      registry.setDefaultPinnedCommitId(pinnedCommitId);
+    } else if (legacyBuffer && typeof legacyBuffer.setPinnedCommitId === "function") {
+      legacyBuffer.setPinnedCommitId(pinnedCommitId);
+    }
   }
 
   // Extract triggering context for footer generation

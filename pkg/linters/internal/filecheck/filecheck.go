@@ -8,7 +8,11 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:filecheck")
 
 // GeneratedIndex records generated Go source files by filename.
 type GeneratedIndex map[string]struct{}
@@ -36,6 +40,11 @@ func Index(pass *analysis.Pass) (GeneratedIndex, error) {
 
 // BuildGeneratedIndex returns the set of generated Go source files in pass.
 func BuildGeneratedIndex(pass *analysis.Pass) GeneratedIndex {
+	pkgPath := "<unknown>"
+	if pass.Pkg != nil {
+		pkgPath = pass.Pkg.Path()
+	}
+	pkgLog.Printf("building generated-file index for %s (%d files)", pkgPath, len(pass.Files))
 	generated := make(GeneratedIndex)
 	for _, file := range pass.Files {
 		if !ast.IsGenerated(file) {
@@ -55,6 +64,7 @@ func BuildGeneratedIndex(pass *analysis.Pass) GeneratedIndex {
 			generated[adjustedFilename] = struct{}{}
 		}
 	}
+	pkgLog.Printf("indexed %d generated files", len(generated))
 	return generated
 }
 
