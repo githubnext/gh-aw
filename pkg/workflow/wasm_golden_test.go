@@ -27,6 +27,12 @@ var testDefaultAWFSchemaURLRE = regexp.MustCompile(`(releases/download/)` + rege
 var testDefaultAWFImageTagRE = regexp.MustCompile(`("imageTag"\s*:\s*")(?:v)?` + regexp.QuoteMeta(strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")) + `"`)
 var testDefaultMCPGImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-mcpg:)` + regexp.QuoteMeta(string(constants.DefaultMCPGatewayVersion)) + `\b`)
 var testDefaultGitHubMCPServerImageRE = regexp.MustCompile(`(ghcr\.io/github/github-mcp-server:)` + regexp.QuoteMeta(string(constants.DefaultGitHubMCPServerVersion)) + `\b`)
+var testDefaultCodexInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultCodexVersion)) + `"`)
+var testDefaultCodexAgentInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AGENT_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultCodexVersion)) + `"`)
+var testDefaultCodexInstallVersionRE = regexp.MustCompile(`(@openai/codex@)` + regexp.QuoteMeta(string(constants.DefaultCodexVersion)) + `\b`)
+var testDefaultPiInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultPiVersion)) + `"`)
+var testDefaultPiAgentInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AGENT_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultPiVersion)) + `"`)
+var testDefaultPiInstallVersionRE = regexp.MustCompile(`(@earendil-works/pi-coding-agent@)` + regexp.QuoteMeta(string(constants.DefaultPiVersion)) + `\b`)
 var testCheckoutPinRE = regexp.MustCompile(`actions/checkout@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+`)
 
 func normalizeDefaultRuntimeVersions(content string) string {
@@ -36,6 +42,12 @@ func normalizeDefaultRuntimeVersions(content string) string {
 	normalized = testDefaultAWFImageRE.ReplaceAllString(normalized, `${1}AWF_VERSION`)
 	normalized = testDefaultAWFSchemaURLRE.ReplaceAllString(normalized, `${1}vAWF_VERSION$2`)
 	normalized = testDefaultAWFImageTagRE.ReplaceAllString(normalized, `${1}AWF_VERSION"`)
+	normalized = testDefaultCodexInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_VERSION: "CODEX_VERSION"`)
+	normalized = testDefaultCodexAgentInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_AGENT_VERSION: "CODEX_VERSION"`)
+	normalized = testDefaultCodexInstallVersionRE.ReplaceAllString(normalized, `${1}CODEX_VERSION`)
+	normalized = testDefaultPiInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_VERSION: "PI_VERSION"`)
+	normalized = testDefaultPiAgentInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_AGENT_VERSION: "PI_VERSION"`)
+	normalized = testDefaultPiInstallVersionRE.ReplaceAllString(normalized, `${1}PI_VERSION`)
 	return testDefaultMCPGImageRE.ReplaceAllString(normalized, `${1}MCPG_VERSION`)
 }
 
@@ -67,6 +79,12 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 		`run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" ` + string(constants.DefaultFirewallVersion) + ` --rootless`,
 		`run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-firewall/api-proxy:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-mcpg:` + string(constants.DefaultMCPGatewayVersion),
 		`{"schema":"https://github.com/github/gh-aw-firewall/releases/download/` + string(constants.DefaultFirewallVersion) + `/awf-config.schema.json","imageTag":"` + string(constants.DefaultFirewallVersion) + `"}`,
+		`GH_AW_INFO_VERSION: "` + string(constants.DefaultCodexVersion) + `"`,
+		`GH_AW_INFO_AGENT_VERSION: "` + string(constants.DefaultCodexVersion) + `"`,
+		`GH_AW_INFO_VERSION: "` + string(constants.DefaultPiVersion) + `"`,
+		`GH_AW_INFO_AGENT_VERSION: "` + string(constants.DefaultPiVersion) + `"`,
+		`run: npm install --ignore-scripts -g @openai/codex@` + string(constants.DefaultCodexVersion),
+		`run: npm install --ignore-scripts -g @earendil-works/pi-coding-agent@` + string(constants.DefaultPiVersion),
 		`{"pinnedAwf":"v0.5.0","pinnedAwfImage":"ghcr.io/github/gh-aw-firewall/agent:0.5.0","pinnedMcpgImage":"ghcr.io/github/gh-aw-mcpg:v0.0.12"}`,
 	}, "\n")
 
@@ -80,11 +98,19 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 	require.Contains(t, normalized, `ghcr.io/github/gh-aw-mcpg:MCPG_VERSION`)
 	require.Contains(t, normalized, `releases/download/vAWF_VERSION/awf-config.schema.json`)
 	require.Contains(t, normalized, `"imageTag":"AWF_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "CODEX_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "CODEX_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "PI_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "PI_VERSION"`)
+	require.Contains(t, normalized, `@openai/codex@CODEX_VERSION`)
+	require.Contains(t, normalized, `@earendil-works/pi-coding-agent@PI_VERSION`)
 	require.Contains(t, normalized, `"pinnedAwf":"v0.5.0"`)
 	require.Contains(t, normalized, `"pinnedAwfImage":"ghcr.io/github/gh-aw-firewall/agent:0.5.0"`)
 	require.Contains(t, normalized, `"pinnedMcpgImage":"ghcr.io/github/gh-aw-mcpg:v0.0.12"`)
 	require.NotContains(t, normalized, string(constants.DefaultFirewallVersion))
 	require.NotContains(t, normalized, string(constants.DefaultMCPGatewayVersion))
+	require.NotContains(t, normalized, string(constants.DefaultCodexVersion))
+	require.NotContains(t, normalized, string(constants.DefaultPiVersion))
 }
 
 // TestWasmGolden_CompileFixtures compiles each workflow fixture using the string API
