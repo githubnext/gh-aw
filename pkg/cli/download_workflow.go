@@ -66,7 +66,10 @@ func downloadWorkflowContentViaGitClone(ctx context.Context, repo, path, ref str
 	if filepath.IsAbs(cleanedPath) || strings.HasPrefix(cleanedPath, ".."+string(filepath.Separator)) || cleanedPath == ".." {
 		return nil, fmt.Errorf("unsafe path in workflow reference: %q", path)
 	}
-	path = cleanedPath
+	// Use forward slashes so the sparse-checkout pattern is valid for Git on all
+	// platforms (Git patterns use "/" as separator; backslashes are escapes).
+	// filepath.Join handles forward slashes correctly when building the local path.
+	path = filepath.ToSlash(cleanedPath)
 
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s via git clone", repo, path, ref)))
