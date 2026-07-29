@@ -33,3 +33,12 @@ These features have been at 0 usage for multiple consecutive runs:
 | Harness retry tuning | Pending | Created 2026-07-17 issue |
 | LSP servers for code analysis workflows | Pending | Created 2026-07-17 issue |
 | Document engine.driver pattern | Pending | Created 2026-07-17 issue |
+| 2026-07-29 | 30423121135 | 265 | 129 | mcp-scripts 3→13, block-domains 0→2, model overrides 79→86, share flag still 0 (3rd run) |
+
+## Update 2026-07-29
+
+- `mcp-scripts` adoption accelerated (3→13) — recommendation may be gaining traction.
+- `block-domains` moved off zero for the first time (0→2), still marginal.
+- `--share` flag remains at 0 usage across 3 consecutive runs — consider deprioritizing or providing a concrete worked example to unblock adoption.
+- New finding: 6 of 11 custom agent files in `.github/agents/` are orphaned (never referenced by any workflow's `agent:` field).
+- `harness` retry tuning still flat (0→1).
