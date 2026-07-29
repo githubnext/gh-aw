@@ -30,8 +30,6 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 		fmt.Sprintf("Workflow Forecast — weekly & monthly projections (based on last %d days of history)", config.Days)))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		"Cost/projection figures are AI Credits (AIC) — the gh-aw cost metric."))
 	fmt.Fprintln(os.Stderr, "")
 
 	anyUnreliable := false
@@ -107,13 +105,17 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	}
 
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("AIC = AI Credits. P50 AIC/Run = per-run median AIC; P95 AIC/Run = 95th-percentile per-run AIC; Weekly/Monthly AIC = projected P50 from %d-trial Monte Carlo simulation.", monteCarloIterations)))
+		"Cost/projection figures are AI Credits (AIC) — the gh-aw cost metric."))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		"AIC = AI Credits. P50 AIC/Run = per-run median AIC; P95 AIC/Run = 95th-percentile per-run AIC; Weekly/Monthly AIC = projected P50 usage."))
 	if anyUnreliable {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-			fmt.Sprintf("* Fewer than %d sampled runs — confidence intervals may be unreliable.", minObservationsForReliableForecast)))
+			fmt.Sprintf("* Fewer than %d sampled runs — projections may be unreliable.", minObservationsForReliableForecast)))
 	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		"All forecasts are estimates derived from historical samples and may be inaccurate."))
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
-		fmt.Sprintf("Run '%s forecast --json' for full Monte Carlo output including P10/P90 confidence intervals.", string(constants.CLIExtensionPrefix))))
+		fmt.Sprintf("Run '%s forecast --json' for full output including P10/P90 confidence intervals.", string(constants.CLIExtensionPrefix))))
 	return nil
 }
 
