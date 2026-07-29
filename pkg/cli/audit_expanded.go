@@ -34,8 +34,11 @@ type AuditEngineConfig struct {
 
 // PromptAnalysis represents analysis of the input prompt
 type PromptAnalysis struct {
-	PromptSize int    `json:"prompt_size" console:"header:Prompt Size (chars)"`
-	PromptFile string `json:"prompt_file,omitempty" console:"header:Prompt File,omitempty"`
+	PromptSize          int            `json:"prompt_size" console:"header:Prompt Size (chars)"`
+	PromptFile          string         `json:"prompt_file,omitempty" console:"header:Prompt File,omitempty"`
+	CodeBlocksByLang    map[string]int `json:"code_blocks_by_language,omitempty"`
+	JavaScriptPrograms  int            `json:"javascript_programs,omitempty" console:"header:JavaScript Programs,omitempty"`
+	JavaScriptTotalSize int            `json:"javascript_total_size,omitempty" console:"header:JavaScript Total Size (chars),omitempty"`
 }
 
 // SessionAnalysis represents session and agent performance metrics
@@ -281,13 +284,88 @@ func extractPromptAnalysis(logsPath string) *PromptAnalysis {
 			PromptSize: len(data),
 			PromptFile: relPromptPath,
 		}
+		populatePromptCodeBlockAnalysis(string(data), analysis)
 
-		auditExpandedLog.Printf("Extracted prompt analysis: size=%d chars from %s", analysis.PromptSize, relPromptPath)
+		auditExpandedLog.Printf("Extracted prompt analysis: size=%d chars, javascript_programs=%d from %s", analysis.PromptSize, analysis.JavaScriptPrograms, relPromptPath)
 		return analysis
 	}
 
 	auditExpandedLog.Printf("No prompt.txt found in %s", logsPath)
 	return nil
+}
+
+func populatePromptCodeBlockAnalysis(content string, analysis *PromptAnalysis) {
+	lines := strings.Split(content, "\n")
+	analysis.CodeBlocksByLang = make(map[string]int)
+
+	inCodeBlock := false
+	fenceChar := byte(0)
+	fenceLen := 0
+	currentLang := ""
+	currentSize := 0
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		char, length, lang, isFence := parseMarkdownFence(trimmed)
+
+		if !inCodeBlock {
+			if !isFence {
+				continue
+			}
+			inCodeBlock = true
+			fenceChar = char
+			fenceLen = length
+			currentLang = lang
+			currentSize = 0
+			continue
+		}
+
+		if isFence && char == fenceChar && length >= fenceLen {
+			if currentLang != "" {
+				analysis.CodeBlocksByLang[currentLang]++
+				if currentLang == "js" || currentLang == "javascript" {
+					analysis.JavaScriptPrograms++
+					analysis.JavaScriptTotalSize += currentSize
+				}
+			}
+			inCodeBlock = false
+			fenceChar = 0
+			fenceLen = 0
+			currentLang = ""
+			currentSize = 0
+			continue
+		}
+
+		currentSize += len(line)
+	}
+
+	if len(analysis.CodeBlocksByLang) == 0 {
+		analysis.CodeBlocksByLang = nil
+	}
+}
+
+func parseMarkdownFence(line string) (char byte, length int, lang string, ok bool) {
+	if len(line) < 3 {
+		return 0, 0, "", false
+	}
+	first := line[0]
+	if first != '`' && first != '~' {
+		return 0, 0, "", false
+	}
+
+	i := 0
+	for i < len(line) && line[i] == first {
+		i++
+	}
+	if i < 3 {
+		return 0, 0, "", false
+	}
+
+	lang = strings.TrimSpace(line[i:])
+	if lang != "" {
+		lang = strings.ToLower(strings.Fields(lang)[0])
+	}
+	return first, i, lang, true
 }
 
 // buildSessionAnalysis creates session performance metrics from available data

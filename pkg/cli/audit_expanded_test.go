@@ -142,6 +142,8 @@ func TestExtractPromptAnalysis(t *testing.T) {
 		expectNil       bool
 		expectedSize    int
 		expectedRelPath string // expected relative path in PromptFile
+		expectedJSCount int
+		expectedJSSize  int
 	}{
 		{
 			name:            "prompt in root directory",
@@ -149,6 +151,17 @@ func TestExtractPromptAnalysis(t *testing.T) {
 			promptDir:       "",
 			expectedSize:    38,
 			expectedRelPath: "prompt.txt",
+		},
+		{
+			name: "prompt with javascript fenced blocks",
+			promptContent: "Intro\n```javascript\nconst a = 1;\nconst b = 2;\n```\n" +
+				"Middle\n```js\nconsole.log('ok')\n```\n" +
+				"```python\nprint('x')\n```",
+			promptDir:       "",
+			expectedSize:    109,
+			expectedRelPath: "prompt.txt",
+			expectedJSCount: 2,
+			expectedJSSize:  41,
 		},
 		{
 			name:            "prompt in aw-prompts subdirectory",
@@ -211,6 +224,8 @@ func TestExtractPromptAnalysis(t *testing.T) {
 			require.NotNil(t, result, "Prompt analysis should not be nil")
 			assert.Equal(t, tt.expectedSize, result.PromptSize, "Prompt size should match")
 			assert.Equal(t, tt.expectedRelPath, result.PromptFile, "Prompt file should be a relative path")
+			assert.Equal(t, tt.expectedJSCount, result.JavaScriptPrograms, "JavaScript fenced block count should match")
+			assert.Equal(t, tt.expectedJSSize, result.JavaScriptTotalSize, "JavaScript fenced block size should match")
 		})
 	}
 }
@@ -614,6 +629,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 		require.NotNil(t, auditData.PromptAnalysis, "Prompt analysis should be populated")
 		assert.Len(t, promptContent, auditData.PromptAnalysis.PromptSize, "Prompt size should match")
 		assert.Equal(t, filepath.Join("activation", "aw-prompts", "prompt.txt"), auditData.PromptAnalysis.PromptFile, "Prompt file should be a relative path")
+		assert.Equal(t, 0, auditData.PromptAnalysis.JavaScriptPrograms, "JavaScript program count should default to 0 when none exist")
 	})
 
 	t.Run("SessionAnalysis", func(t *testing.T) {
