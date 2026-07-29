@@ -248,14 +248,18 @@ func parallelLoadRunAICs(ctx context.Context, runs []WorkflowRun, config Forecas
 	return aicMap
 }
 
-// loadCachedRunAIC looks up a locally-cached RunSummary for the given
-// run ID and returns the TotalAIC from its TokenUsage summary.
-// Returns 0 when no cache exists or the cache does not contain AIC data.
-// This avoids re-downloading aw_info.json artifacts for runs already processed by
-// `gh aw logs` while still providing accurate AIC observations for the simulation.
+// loadCachedRunAIC looks up a locally-cached AIC value for the given run ID.
+// It checks, in order: (1) a fully-processed run_summary.json written by `gh aw logs`,
+// (2) a forecast-specific forecast_aic.json written by a previous forecast run, and
+// only on a miss (3) downloads the usage artifact, computes the AIC, and persists it to
+// the forecast cache for next time.
+// Returns 0 when no cache exists or the run has no AIC data.
+// This avoids re-downloading and re-parsing aw_info.json/usage artifacts for runs already
+// seen while still providing accurate AIC observations for the simulation.
 //
-// Cache location: <defaultLogsOutputDir>/run-<runID>/run_summary.json
-// (defaultLogsOutputDir is ".github/aw/logs" — defined in logs_models.go)
+// Cache locations (under <defaultLogsOutputDir>/run-<runID>/, i.e. ".github/aw/logs"):
+//   - run_summary.json   (shared cache produced by `gh aw logs`)
+//   - forecast_aic.json  (forecast-only cache produced by this function)
 func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	dir := filepath.Join(defaultLogsOutputDir, fmt.Sprintf("run-%d", runID))
 	summary, ok := loadRunSummary(dir, verbose)
@@ -265,6 +269,14 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	}
 	if ok && summary != nil && summary.TokenUsage != nil && summary.TokenUsage.TotalAIC <= 0 {
 		forecastRunLog.Printf("AIC cache stale/empty for run %d: cached_total_aic=%.3f, token_file_recompute_required=true", runID, summary.TokenUsage.TotalAIC)
+	}
+
+	// Second fast path: a forecast-specific AIC cache written by a previous forecast run.
+	// This lets repeated forecast runs reuse the computed AIC without re-scanning the run
+	// directory or re-parsing the usage artifact.
+	if aic, ok := loadForecastAICCache(dir, runID); ok {
+		forecastRunLog.Printf("AIC forecast-cache hit for run %d: aic=%.3f (from %s)", runID, aic, forecastAICCacheFileName)
+		return aic
 	}
 
 	forecastRunLog.Printf("AIC cache miss for run %d; downloading usage artifact to %s", runID, dir)
@@ -301,6 +313,9 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 		return 0
 	}
 	forecastRunLog.Printf("AIC from usage artifact for run %d: aic=%.3f", runID, tokenUsage.TotalAIC)
+	// Persist the computed AIC so subsequent forecast runs hit the fast forecast cache
+	// instead of re-scanning the directory and re-parsing the usage artifact.
+	saveForecastAICCache(dir, runID, tokenUsage.TotalAIC)
 	return tokenUsage.TotalAIC
 }
 
