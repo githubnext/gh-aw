@@ -334,15 +334,19 @@ Pre-computed data is available in `/tmp/gh-aw/agent/` and is the authoritative s
       - Close if issue is resolved
 
 13. **Generate health report:**
-    - Create/update pinned issue with workflow health dashboard
-    - Include summary metrics and trends
-    - List top issues and recommendations
+    - Only create/update the workflow health dashboard issue when this run has a **material delta** to report, such as:
+      - a newly created, updated, reprioritized, or closed workflow-health issue
+      - a newly observed untracked critical/systemic issue
+      - a meaningful change in compilation status, health trends, or approval-gate volume
+    - If all findings are already tracked, no issue state changed, and no meaningful health status changed, call `noop` with a brief explanation instead of creating the dashboard issue
+    - When you do create/update the dashboard issue, include summary metrics and trends
+    - When you do create/update the dashboard issue, list top issues and recommendations
 
 ## Output Format
 
 ### Workflow Health Dashboard Issue
 
-Create or update a pinned issue with this structure:
+When a material delta exists, create or update a pinned issue with this structure. Otherwise call `noop`.
 
 ```markdown
 # Workflow Health Dashboard - [DATE]
