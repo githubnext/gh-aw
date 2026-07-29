@@ -72,6 +72,10 @@ safe-outputs:
 timeout-minutes: 10
 features:
   gh-aw-detection: false
+evals:
+  - id: sub_agent_strategy_goal_met
+    question: Does the agent output show that the objective for experiment sub_agent_strategy was successfully completed?
+
 ---
 
 # Smoke Test: Antigravity Engine Validation

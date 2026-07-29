@@ -92,6 +92,10 @@ imports:
   - shared/token-telemetry-check.md
 features:
   gh-aw-detection: false
+evals:
+  - id: prompt_style_test_goal_met
+    question: Does the agent output show that the objective for experiment prompt_style_test was successfully completed?
+
 ---
 
 # Smoke Test: Project Operations Validation
