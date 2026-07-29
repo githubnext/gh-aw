@@ -941,4 +941,29 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     });
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
+
+  it("should continue title/body updates when updateBranch gets workflows-scope-required 403", async () => {
+    const scopeError = new Error("Unable to determine if workflow can be created or updated due to timeout; `workflows` scope may be required. - https://docs.github.com/rest/pulls/pulls#update-a-pull-request-branch");
+    scopeError.status = 403;
+    // The message contains "timeout" which makes isTransientError return true, so withRetry
+    // retries once (maxRetries: 1). Both attempts must fail to reach the non-fatal catch path.
+    mockGithub.rest.pulls.updateBranch.mockRejectedValue(scopeError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    // Called twice: initial attempt + 1 retry (maxRetries: 1 in executePRUpdate)
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
 });
