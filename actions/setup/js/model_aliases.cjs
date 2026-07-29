@@ -16,6 +16,10 @@ function reduceModelNameToIdentifier(modelName) {
     return normalized;
   }
 
+  if (normalized.length < 6) {
+    return normalized;
+  }
+
   const VERSION_SUFFIX_PATTERN = "[-_\\s]*([0-9]+)(?:[._-]+([0-9]+))?";
   const FALLBACK_LETTER_LENGTH = 3;
   const FALLBACK_DIGIT_LENGTH = 2;
