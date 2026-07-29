@@ -2175,6 +2175,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "claude"
       GH_AW_ENGINE_MODEL: "claude-sonnet-4-6"
+      GH_AW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🏗️ *ADR gate enforced by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🔍 [{workflow_name}]({run_url}) is checking for design decision records on this {event_type}...\",\"runSuccess\":\"✅ [{workflow_name}]({run_url}) completed the design decision gate check.\",\"runFailure\":\"❌ [{workflow_name}]({run_url}) {status} during design decision gate check.\"}"
