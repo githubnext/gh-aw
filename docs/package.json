@@ -45,8 +45,5 @@
   },
   "overrides": {
     "@astrojs/markdown-remark": "7.2.1"
-  },
-  "allowScripts": {
-    "esbuild@0.28.1": true
   }
 }

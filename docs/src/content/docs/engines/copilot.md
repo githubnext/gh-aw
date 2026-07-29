@@ -45,7 +45,7 @@ Choose gh-aw for scheduled or event-driven automation, Markdown-defined workflow
 
 - [Quick start](/gh-aw/setup/quick-start/)
 - [Engine reference](/gh-aw/reference/engines/)
-- [AI issue triage](/gh-aw/use-cases/ai-issue-triage/)
-- [Automated AI pull request review](/gh-aw/use-cases/automated-pr-review/)
-- [AI-generated release notes and reports](/gh-aw/use-cases/ai-release-notes/)
-- [Keeping documentation up to date automatically](/gh-aw/use-cases/docs-automation/)
+- [AI issue triage](/gh-aw/guides/ai-issue-triage/)
+- [Automated AI pull request review](/gh-aw/guides/automated-pr-review/)
+- [AI-generated release notes and reports](/gh-aw/guides/ai-release-notes/)
+- [Keeping documentation up to date automatically](/gh-aw/guides/docs-automation/)

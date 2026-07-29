@@ -749,9 +749,8 @@ See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) fo
 ## Related guides
 
 - [Quick Start](/gh-aw/setup/quick-start/) — get your first workflow running in 10 minutes
-- [AI Issue Triage on GitHub](/gh-aw/use-cases/ai-issue-triage/) — labeling, deduplication, and clarifying questions
-- [Automated AI Pull Request Review](/gh-aw/use-cases/automated-pr-review/) — review diffs and post feedback on new PRs
-- [AI Release Notes and Reports](/gh-aw/use-cases/ai-release-notes/) — generate release summaries automatically
-- [Keeping Documentation Up to Date Automatically](/gh-aw/use-cases/docs-automation/) — propose docs updates as pull requests
+- [AI Issue Triage on GitHub](/gh-aw/guides/ai-issue-triage/) — labeling, deduplication, and clarifying questions
+- [Automated AI Pull Request Review](/gh-aw/guides/automated-pr-review/) — review diffs and post feedback on new PRs
+- [AI Release Notes and Reports](/gh-aw/guides/ai-release-notes/) — generate release summaries automatically
+- [Keeping Documentation Up to Date Automatically](/gh-aw/guides/docs-automation/) — propose docs updates as pull requests
 - [AI Engines](/gh-aw/reference/engines/) — Copilot, Claude, Codex, and Gemini comparison
-- [gh-aw vs. alternatives](/gh-aw/reference/comparison/) — decide between gh-aw, engine-specific actions, and hand-rolled workflows

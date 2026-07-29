@@ -204,6 +204,12 @@ export default defineConfig({
 		'/patterns/correction-ops/': '/gh-aw/experimental/correction-ops/',
 		'/patterns/trial-ops/': '/gh-aw/experimental/trial-ops/',
 		'/patterns/monitoring/': '/gh-aw/experimental/monitoring-with-projects/',
+
+		// Use Cases → Guides (moved)
+		'/use-cases/ai-issue-triage/': '/gh-aw/guides/ai-issue-triage/',
+		'/use-cases/automated-pr-review/': '/gh-aw/guides/automated-pr-review/',
+		'/use-cases/ai-release-notes/': '/gh-aw/guides/ai-release-notes/',
+		'/use-cases/docs-automation/': '/gh-aw/guides/docs-automation/',
 	},
 	integrations: [
 		sitemap(),
@@ -323,17 +329,12 @@ export default defineConfig({
 					],
 				},
 				{
-					label: 'Use Cases',
-					items: [
-						{ label: 'AI Issue Triage', link: '/use-cases/ai-issue-triage/' },
-						{ label: 'Automated PR Review', link: '/use-cases/automated-pr-review/' },
-						{ label: 'AI Release Notes', link: '/use-cases/ai-release-notes/' },
-						{ label: 'Docs Automation', link: '/use-cases/docs-automation/' },
-					],
-				},
-				{
 					label: 'Guides',
 					items: [
+						{ label: 'AI Issue Triage', link: '/guides/ai-issue-triage/' },
+						{ label: 'Automated PR Review', link: '/guides/automated-pr-review/' },
+						{ label: 'AI Release Notes', link: '/guides/ai-release-notes/' },
+						{ label: 'Docs Automation', link: '/guides/docs-automation/' },
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Editing Workflows', link: '/guides/editing-workflows/' },
 						{ label: 'Governance', link: '/guides/governance/' },
@@ -392,7 +393,6 @@ export default defineConfig({
 					label: 'Reference',
 					items: [
 						{ label: 'AI Engines', link: '/reference/engines/' },
-						{ label: 'Choosing an Approach (Comparison)', link: '/reference/comparison/' },
 						{ label: 'Artifacts', link: '/reference/artifacts/' },
 						{ label: 'Auditing Workflows', link: '/reference/audit/' },
 						{ label: 'Authentication', link: '/reference/auth/' },
