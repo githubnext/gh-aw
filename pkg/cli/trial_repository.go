@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
@@ -308,6 +310,16 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 
 	// Fetch and save all remote dependencies (includes, imports, dispatch workflows, resources)
 	if !fetched.IsLocal {
+		// Copy the entire .github/ folder from the source repo so that runtime-import
+		// files (e.g. .github/skills/*/SKILL.md) and other local dependencies are
+		// present in the trial host before compilation. Files already written to tempDir
+		// (such as the trial-modified workflow) are preserved.
+		if err := copySourceRepoGitHubFolder(ctx, parsedSpec, tempDir, opts.Verbose); err != nil {
+			if opts.Verbose {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to copy .github folder from source: %v", err)))
+			}
+			// Non-fatal: fall through to individual dependency fetching below
+		}
 		if err := fetchAllRemoteDependencies(ctx, string(content), parsedSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
 			return fmt.Errorf("failed to fetch remote dependencies: %w", err)
 		}
@@ -605,4 +617,143 @@ func cloneRepoContentsIntoHost(cloneRepoSlug string, cloneRepoVersion string, ho
 	}
 
 	return nil
+}
+
+// copySourceRepoGitHubFolder performs a sparse checkout of the .github/ directory
+// from the source repository at the workflow's ref and merges it into destDir.
+// Files that already exist in destDir are not overwritten, so the trial-modified
+// workflow file is preserved.
+// This ensures runtime-import files (e.g. .github/skills/*/SKILL.md) and any other
+// .github/ resources are present in the trial host before compilation.
+func copySourceRepoGitHubFolder(ctx context.Context, spec *WorkflowSpec, destDir string, verbose bool) error {
+	if spec.RepoSlug == "" {
+		return nil
+	}
+
+	ref := spec.Version
+	if ref == "" {
+		defaultBranch, err := getRepoDefaultBranch(ctx, spec.RepoSlug)
+		if err != nil {
+			trialRepoLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
+			ref = "main"
+		} else {
+			ref = defaultBranch
+		}
+	}
+
+	trialRepoLog.Printf("Copying .github folder from source: repo=%s, ref=%s, destDir=%s", spec.RepoSlug, ref, destDir)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Fetching .github folder from %s@%s", spec.RepoSlug, ref)))
+	}
+
+	tmpDir, err := os.MkdirTemp("", "gh-aw-github-folder-*")
+	if err != nil {
+		return fmt.Errorf("failed to create temp directory: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	githubHost := getGitHubHostForRepo(spec.RepoSlug)
+	// #nosec G204 -- repoURL and ref are parsed from a developer-authored workflow spec URL;
+	// exec.CommandContext with separate args (not shell execution) prevents shell injection.
+	repoURL := fmt.Sprintf("%s/%s.git", githubHost, spec.RepoSlug)
+
+	// Initialize a bare git repository
+	if out, err := exec.CommandContext(ctx, "git", "-C", tmpDir, "init").CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to initialize git repository: %w\nOutput: %s", err, string(out))
+	}
+
+	// Add remote
+	if out, err := exec.CommandContext(ctx, "git", "-C", tmpDir, "remote", "add", "origin", repoURL).CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to add remote: %w\nOutput: %s", err, string(out))
+	}
+
+	// Enable sparse checkout so only .github/ is checked out (saves bandwidth)
+	if out, err := exec.CommandContext(ctx, "git", "-C", tmpDir, "config", "core.sparseCheckout", "true").CombinedOutput(); err != nil {
+		return fmt.Errorf("failed to enable sparse checkout: %w\nOutput: %s", err, string(out))
+	}
+	sparseInfoDir := filepath.Join(tmpDir, ".git", "info")
+	if err := os.MkdirAll(sparseInfoDir, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create sparse-checkout info directory: %w", err)
+	}
+	// Use owner-only read/write permissions (0600) for the sparse-checkout config file
+	if err := os.WriteFile(filepath.Join(sparseInfoDir, "sparse-checkout"), []byte(".github/\n"), constants.FilePermSensitive); err != nil {
+		return fmt.Errorf("failed to write sparse-checkout file: %w", err)
+	}
+
+	// Fetch and checkout at the exact ref used by the workflow
+	isSHA := len(ref) == 40 && gitutil.IsHexString(ref)
+	if isSHA {
+		// For commit SHAs: attempt direct SHA fetch; fall back to full shallow fetch
+		fetchCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
+		if _, err := fetchCmd.CombinedOutput(); err != nil {
+			fetchCmd = exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--depth", "1", "origin")
+			if out, err := fetchCmd.CombinedOutput(); err != nil {
+				return fmt.Errorf("failed to fetch repository: %w\nOutput: %s", err, string(out))
+			}
+		}
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", ref)
+		if out, err := checkoutCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to checkout commit %s: %w\nOutput: %s", ref, err, string(out))
+		}
+	} else {
+		fetchCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "fetch", "--depth", "1", "origin", ref)
+		if out, err := fetchCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to fetch ref %s: %w\nOutput: %s", ref, err, string(out))
+		}
+		checkoutCmd := exec.CommandContext(ctx, "git", "-C", tmpDir, "checkout", "FETCH_HEAD")
+		if out, err := checkoutCmd.CombinedOutput(); err != nil {
+			return fmt.Errorf("failed to checkout FETCH_HEAD: %w\nOutput: %s", err, string(out))
+		}
+	}
+
+	// Merge the .github/ directory from the clone into destDir, skipping existing files
+	srcGitHubDir := filepath.Join(tmpDir, ".github")
+	if _, err := os.Stat(srcGitHubDir); os.IsNotExist(err) {
+		trialRepoLog.Printf("No .github directory found in source repo %s@%s", spec.RepoSlug, ref)
+		return nil
+	}
+
+	dstGitHubDir := filepath.Join(destDir, ".github")
+	if err := mergeDirectory(srcGitHubDir, dstGitHubDir); err != nil {
+		return fmt.Errorf("failed to merge .github folder into trial host: %w", err)
+	}
+
+	trialRepoLog.Printf("Successfully copied .github folder from %s@%s to %s", spec.RepoSlug, ref, destDir)
+	if verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Fetched .github folder from "+spec.RepoSlug))
+	}
+	return nil
+}
+
+// mergeDirectory copies all files from src to dst recursively, creating directories
+// as needed. Files that already exist in dst are not overwritten.
+func mergeDirectory(src, dst string) error {
+	return filepath.WalkDir(src, func(srcPath string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		relPath, err := filepath.Rel(src, srcPath)
+		if err != nil {
+			return fmt.Errorf("failed to compute relative path for %s: %w", srcPath, err)
+		}
+
+		dstPath := filepath.Join(dst, relPath)
+
+		// Security: ensure the destination path does not escape the destination directory
+		if validateErr := fileutil.ValidatePathWithinBase(dst, dstPath); validateErr != nil {
+			return fmt.Errorf("refusing to copy file outside destination directory: %w", validateErr)
+		}
+
+		if d.IsDir() {
+			return os.MkdirAll(dstPath, constants.DirPermPublic)
+		}
+
+		// Skip files that already exist in the destination (preserve trial-modified versions)
+		if _, statErr := os.Stat(dstPath); statErr == nil {
+			return nil
+		}
+
+		return fileutil.CopyFile(srcPath, dstPath)
+	})
 }

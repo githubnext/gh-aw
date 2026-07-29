@@ -3,7 +3,9 @@
 package cli
 
 import (
+	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -148,6 +150,142 @@ func TestGetCurrentBranchIn(t *testing.T) {
 		_, err = getCurrentBranchIn(dir)
 		if err == nil {
 			t.Fatal("getCurrentBranchIn() expected an error in detached HEAD state, got nil")
+		}
+	})
+}
+
+// TestMergeDirectory verifies the mergeDirectory helper that copies the source .github/
+// folder into the trial host directory.
+func TestMergeDirectory(t *testing.T) {
+	t.Run("copies new files from src to dst", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+
+		if err := os.WriteFile(filepath.Join(src, "file.md"), []byte("hello"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := mergeDirectory(src, dst); err != nil {
+			t.Fatalf("mergeDirectory() unexpected error: %v", err)
+		}
+
+		content, err := os.ReadFile(filepath.Join(dst, "file.md"))
+		if err != nil {
+			t.Fatalf("expected file.md to exist in dst: %v", err)
+		}
+		if string(content) != "hello" {
+			t.Fatalf("expected 'hello', got %q", string(content))
+		}
+	})
+
+	t.Run("does not overwrite existing files in dst", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+
+		if err := os.WriteFile(filepath.Join(src, "workflow.md"), []byte("source version"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dst, "workflow.md"), []byte("trial version"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := mergeDirectory(src, dst); err != nil {
+			t.Fatalf("mergeDirectory() unexpected error: %v", err)
+		}
+
+		content, err := os.ReadFile(filepath.Join(dst, "workflow.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(content) != "trial version" {
+			t.Fatalf("expected dst file to be preserved, got %q", string(content))
+		}
+	})
+
+	t.Run("creates nested directories and copies files", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+
+		skillDir := filepath.Join(src, "skills", "my-skill")
+		if err := os.MkdirAll(skillDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("skill content"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := mergeDirectory(src, dst); err != nil {
+			t.Fatalf("mergeDirectory() unexpected error: %v", err)
+		}
+
+		dstSkillFile := filepath.Join(dst, "skills", "my-skill", "SKILL.md")
+		content, err := os.ReadFile(dstSkillFile)
+		if err != nil {
+			t.Fatalf("expected SKILL.md to exist in dst: %v", err)
+		}
+		if string(content) != "skill content" {
+			t.Fatalf("expected 'skill content', got %q", string(content))
+		}
+	})
+
+	t.Run("preserves existing workflow while copying new skill files", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+
+		// Source has both a workflow file and a skill file
+		workflowDir := filepath.Join(src, "workflows")
+		if err := os.MkdirAll(workflowDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(workflowDir, "example.md"), []byte("source workflow"), 0644); err != nil {
+			t.Fatal(err)
+		}
+		skillDir := filepath.Join(src, "skills", "example")
+		if err := os.MkdirAll(skillDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(skillDir, "SKILL.md"), []byte("skill content"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		// Destination already has a trial-modified version of the workflow
+		dstWorkflowDir := filepath.Join(dst, "workflows")
+		if err := os.MkdirAll(dstWorkflowDir, 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(dstWorkflowDir, "example.md"), []byte("trial workflow with source field"), 0644); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := mergeDirectory(src, dst); err != nil {
+			t.Fatalf("mergeDirectory() unexpected error: %v", err)
+		}
+
+		// Workflow must not be overwritten
+		wfContent, err := os.ReadFile(filepath.Join(dst, "workflows", "example.md"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		if string(wfContent) != "trial workflow with source field" {
+			t.Fatalf("trial workflow was overwritten; got %q", string(wfContent))
+		}
+
+		// Skill file must be copied
+		skillContent, err := os.ReadFile(filepath.Join(dst, "skills", "example", "SKILL.md"))
+		if err != nil {
+			t.Fatalf("expected SKILL.md to be copied: %v", err)
+		}
+		if string(skillContent) != "skill content" {
+			t.Fatalf("expected 'skill content', got %q", string(skillContent))
+		}
+	})
+
+	t.Run("returns nil for empty src directory", func(t *testing.T) {
+		src := t.TempDir()
+		dst := t.TempDir()
+
+		if err := mergeDirectory(src, dst); err != nil {
+			t.Fatalf("mergeDirectory() unexpected error for empty src: %v", err)
 		}
 	})
 }
