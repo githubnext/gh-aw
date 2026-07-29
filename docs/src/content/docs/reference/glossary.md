@@ -1112,7 +1112,7 @@ The predecessor cost metric to [AI Credits (AIC)](#ai-credits-aic), computed as 
 
 ### Forecast (`gh aw forecast`)
 
-An experimental CLI command that projects future AI Credits (AIC) consumption using a Monte Carlo simulation. It samples historical workflow runs, applies a Poisson-bootstrap algorithm to model run frequency, and returns P10/P50/P90 percentile estimates over a configurable time horizon. Supports both local (`.github/workflows/`) and remote (`--repo`) discovery modes. Output is available as a console table or machine-readable JSON (`--json`). Useful for capacity planning, budget governance, and detecting cost regressions before they occur. See [Forecast Specification](/gh-aw/specs/forecast-specification/).
+A CLI command that projects future AI Credits (AIC) consumption using a statistical simulation. It samples historical workflow runs, applies a Poisson-bootstrap algorithm to model run frequency, and returns P10/P50/P90 percentile estimates over a configurable time horizon. Supports both local (`.github/workflows/`) and remote (`--repo`) discovery modes. Output is available as a console table or machine-readable JSON (`--json`). Forecasts are estimates and may be inaccurate. Useful for capacity planning, budget governance, and detecting cost regressions before they occur. See [Forecast Specification](/gh-aw/specs/forecast-specification/).
 
 ### Time Between Turns (TBT)
 
