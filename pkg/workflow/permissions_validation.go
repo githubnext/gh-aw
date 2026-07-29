@@ -17,9 +17,7 @@ import (
 	"github.com/goccy/go-yaml"
 )
 
-// getAllPermissionScopeNames returns all valid permission scope names for fuzzy matching.
-// The result is computed once and cached across calls; the returned slice must not be modified.
-var getAllPermissionScopeNames = sync.OnceValue(func() []string {
+var allPermissionScopeNames = sync.OnceValue(func() []string {
 	ghTokenScopes := GetAllPermissionScopes()
 	appOnlyScopes := GetAllGitHubAppOnlyScopes()
 	// +1 for copilot-requests which is not in GetAllPermissionScopes
@@ -34,6 +32,12 @@ var getAllPermissionScopeNames = sync.OnceValue(func() []string {
 	all = append(all, string(PermissionCopilotRequests))
 	return all
 })
+
+// getAllPermissionScopeNames returns all valid permission scope names for fuzzy matching.
+// The values are computed once and cached across calls.
+func getAllPermissionScopeNames() []string {
+	return slices.Clone(allPermissionScopeNames())
+}
 
 // validPermissionMetaKeys is the set of meta-keys accepted in permissions shorthand contexts.
 // Defined once at package level to avoid per-call map allocation.

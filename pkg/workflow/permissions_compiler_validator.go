@@ -143,10 +143,10 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 						message += "\n\n" + missingPermissionsDefaultToolsetWarning
 					}
 
-					// Emit the warning once per markdown path + warning fingerprint.
+					// Emit to stderr once per markdown path + warning fingerprint.
 					// Prefer frontmatter hash when available; otherwise use the formatted
 					// message as a fallback fingerprint for code paths/tests where the hash
-					// is not set. This keeps watch-mode warning counts accurate across edits.
+					// is not set.
 					warningFingerprint := workflowData.FrontmatterHash
 					if warningFingerprint == "" {
 						warningFingerprint = message
@@ -155,9 +155,9 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 						// In non-strict mode, missing permissions are warnings.
 						// In strict mode with default-only toolsets, this is intentionally downgraded to warning.
 						fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-						c.IncrementWarningCount()
 						c.permissionWarningShown[markdownPath] = warningFingerprint
 					}
+					c.IncrementWarningCount()
 				}
 			}
 		}

@@ -45,7 +45,7 @@ func TestComputeAllowedDomainsForSanitizationCacheReplacesByPath(t *testing.T) {
 	require.Len(t, compiler.allowedDomainsCache, 2)
 }
 
-func TestPermissionWarningsReEmitWhenFrontmatterChanges(t *testing.T) {
+func TestPermissionWarningsCountAcrossCompilations(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "permission-warning-hash")
 	testFile := filepath.Join(tmpDir, "workflow.md")
 
@@ -77,14 +77,14 @@ tools:
 
 	compiler := NewCompiler()
 	require.NoError(t, compiler.CompileWorkflow(testFile))
-	require.Greater(t, compiler.GetWarningCount(), 0)
+	require.Positive(t, compiler.GetWarningCount())
 
 	compiler.ResetWarningCount()
 	require.NoError(t, compiler.CompileWorkflow(testFile))
-	require.Equal(t, 0, compiler.GetWarningCount())
+	require.Positive(t, compiler.GetWarningCount())
 
 	require.NoError(t, os.WriteFile(testFile, []byte(content2), 0o644))
 	compiler.ResetWarningCount()
 	require.NoError(t, compiler.CompileWorkflow(testFile))
-	require.Greater(t, compiler.GetWarningCount(), 0)
+	require.Positive(t, compiler.GetWarningCount())
 }
