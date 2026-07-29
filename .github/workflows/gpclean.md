@@ -95,6 +95,8 @@ evals:
     question: Does the agent output confirm that go.mod was analyzed for GPL-licensed transitive dependencies?
   - id: decision-explained
     question: Does the agent output include an explanation of why a GPL issue was created or why noop was called?
+  - id: tool_verbosity_goal_met
+    question: Does the agent output show that the objective for experiment tool_verbosity was successfully completed?
 
 ---
 

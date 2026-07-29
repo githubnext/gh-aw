@@ -236,6 +236,35 @@ func TestParsePagedJSONArray(t *testing.T) {
 	}
 }
 
+func TestSummarizeMetricEvalResults(t *testing.T) {
+	data := []byte(`{"id":"quality","answer":"YES","runid":"100"}
+{"id":"quality","answer":"NO","runid":"101"}
+{"id":"quality","answer":"UNKNOWN","runid":"102"}
+{"id":"quality","answer":"MAYBE","runid":"103"}
+{"id":"coverage","answer":"YES","runid":"200"}
+`)
+	result := summarizeMetricEvalResults(data)
+	require.NotNil(t, result)
+
+	quality, ok := result["quality"]
+	require.True(t, ok)
+	assert.Equal(t, 1, quality.Yes)
+	assert.Equal(t, 1, quality.No)
+	assert.Equal(t, 2, quality.Unknown)
+	assert.Equal(t, 4, quality.Total)
+	assert.Equal(t, "MAYBE", quality.LatestAnswer)
+	assert.Equal(t, "103", quality.LatestRunID)
+
+	coverage, ok := result["coverage"]
+	require.True(t, ok)
+	assert.Equal(t, 1, coverage.Yes)
+	assert.Equal(t, 0, coverage.No)
+	assert.Equal(t, 0, coverage.Unknown)
+	assert.Equal(t, 1, coverage.Total)
+	assert.Equal(t, "YES", coverage.LatestAnswer)
+	assert.Equal(t, "200", coverage.LatestRunID)
+}
+
 func TestExperimentInfoJSONOutput(t *testing.T) {
 	experiments := []ExperimentInfo{
 		{
