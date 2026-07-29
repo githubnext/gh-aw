@@ -86,13 +86,13 @@ func run(pass *analysis.Pass) (any, error) {
 }
 
 func shouldSkipPanic(pass *analysis.Pass, call *ast.CallExpr, cur inspector.Cursor) bool {
-	return isInSyncOnceDoFuncLit(pass, cur) ||
+	return isInSyncOnceFuncLit(pass, cur) ||
 		panicMessageStartsWithBUG(pass, call) ||
 		isInInitFunction(cur) ||
 		hasDocumentedPanicContract(cur)
 }
 
-func isInSyncOnceDoFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
+func isInSyncOnceFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
 	for encl := range cur.Enclosing((*ast.FuncLit)(nil)) {
 		funcLit, ok := encl.Node().(*ast.FuncLit)
 		if !ok {
@@ -103,15 +103,52 @@ func isInSyncOnceDoFuncLit(pass *analysis.Pass, cur inspector.Cursor) bool {
 		if !ok || !containsExpr(call.Args, funcLit) {
 			continue
 		}
-		sel, ok := call.Fun.(*ast.SelectorExpr)
-		if !ok || sel.Sel.Name != "Do" {
+		sel, ok := selectorExprFromCallFun(call.Fun)
+		if !ok {
 			continue
 		}
-		if isSyncOnceType(pass.TypesInfo.TypeOf(sel.X)) {
+		if isSyncOnceDoCall(pass, sel) || isSyncOnceConstructorCall(pass, sel) {
 			return true
 		}
 	}
 	return false
+}
+
+func selectorExprFromCallFun(fun ast.Expr) (*ast.SelectorExpr, bool) {
+	switch f := fun.(type) {
+	case *ast.SelectorExpr:
+		return f, true
+	case *ast.IndexExpr:
+		sel, ok := f.X.(*ast.SelectorExpr)
+		return sel, ok
+	case *ast.IndexListExpr:
+		sel, ok := f.X.(*ast.SelectorExpr)
+		return sel, ok
+	default:
+		return nil, false
+	}
+}
+
+func isSyncPackageFunc(pass *analysis.Pass, sel *ast.SelectorExpr, names ...string) bool {
+	if !slices.Contains(names, sel.Sel.Name) {
+		return false
+	}
+	obj := pass.TypesInfo.Uses[sel.Sel]
+	if obj == nil || obj.Pkg() == nil {
+		return false
+	}
+	return obj.Pkg().Path() == "sync" && slices.Contains(names, obj.Name())
+}
+
+func isSyncOnceDoCall(pass *analysis.Pass, sel *ast.SelectorExpr) bool {
+	if sel.Sel.Name != "Do" {
+		return false
+	}
+	return isSyncOnceType(pass.TypesInfo.TypeOf(sel.X))
+}
+
+func isSyncOnceConstructorCall(pass *analysis.Pass, sel *ast.SelectorExpr) bool {
+	return isSyncPackageFunc(pass, sel, "OnceValue", "OnceFunc")
 }
 
 func containsExpr(args []ast.Expr, target ast.Expr) bool {
