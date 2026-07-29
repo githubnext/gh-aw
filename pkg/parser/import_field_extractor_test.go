@@ -833,6 +833,52 @@ func TestAppendModelsField_ProvidersAndAliasesBothExtracted(t *testing.T) {
 	assert.Equal(t, []string{"gpt-5"}, acc.models[0]["agent"])
 }
 
+func TestAppendModelsField_ExtractsDefaultAICreditsPricingFirstWins(t *testing.T) {
+	acc := newImportAccumulator()
+	first := map[string]any{
+		"models": map[string]any{
+			"default-ai-credits-pricing": map[string]any{
+				"input":  5.0,
+				"output": 25.0,
+			},
+		},
+	}
+	second := map[string]any{
+		"models": map[string]any{
+			"default-ai-credits-pricing": map[string]any{
+				"input":  1.0,
+				"output": 2.0,
+			},
+		},
+	}
+
+	acc.appendModelsField(first, "import-first.md")
+	acc.appendModelsField(second, "import-second.md")
+
+	require.NotNil(t, acc.defaultAiCreditsPricing)
+	input, ok := acc.defaultAiCreditsPricing["input"].(float64)
+	require.True(t, ok)
+	output, ok := acc.defaultAiCreditsPricing["output"].(float64)
+	require.True(t, ok)
+	assert.InDelta(t, 5.0, input, 1e-9)
+	assert.InDelta(t, 25.0, output, 1e-9)
+}
+
+func TestAppendModelsField_InvalidDefaultAICreditsPricingWarns(t *testing.T) {
+	acc := newImportAccumulator()
+	fm := map[string]any{
+		"models": map[string]any{
+			"default-ai-credits-pricing": "not-an-object",
+		},
+	}
+
+	acc.appendModelsField(fm, "import-invalid.md")
+
+	assert.Nil(t, acc.defaultAiCreditsPricing)
+	require.NotEmpty(t, acc.warnings)
+	assert.Contains(t, strings.Join(acc.warnings, "\n"), "models.default-ai-credits-pricing must be an object")
+}
+
 func TestMergeExcludedEnv_SingleImport(t *testing.T) {
 	acc := newImportAccumulator()
 	fm := map[string]any{

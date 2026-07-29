@@ -270,6 +270,41 @@ func TestExtractDefaultAiCreditsPricingFromModels(t *testing.T) {
 	})
 }
 
+func TestResolveDefaultAiCreditsPricing(t *testing.T) {
+	t.Run("falls back to imported default pricing when main is absent", func(t *testing.T) {
+		frontmatter := map[string]any{}
+		imported := map[string]any{
+			"input":  5.0,
+			"output": 25.0,
+		}
+
+		pricing := resolveDefaultAiCreditsPricing(frontmatter, imported)
+		require.NotNil(t, pricing)
+		assert.InDelta(t, 5.0, pricing.Input, 1e-9)
+		assert.InDelta(t, 25.0, pricing.Output, 1e-9)
+	})
+
+	t.Run("main workflow pricing overrides imported default pricing", func(t *testing.T) {
+		frontmatter := map[string]any{
+			"models": map[string]any{
+				"default-ai-credits-pricing": map[string]any{
+					"input":  1.0,
+					"output": 2.0,
+				},
+			},
+		}
+		imported := map[string]any{
+			"input":  5.0,
+			"output": 25.0,
+		}
+
+		pricing := resolveDefaultAiCreditsPricing(frontmatter, imported)
+		require.NotNil(t, pricing)
+		assert.InDelta(t, 1.0, pricing.Input, 1e-9)
+		assert.InDelta(t, 2.0, pricing.Output, 1e-9)
+	})
+}
+
 // TestExtractMCPGatewayConfigPayloadFields tests extraction of payload-related fields
 // from MCP gateway frontmatter configuration
 func TestExtractMCPGatewayConfigPayloadFields(t *testing.T) {

@@ -62,6 +62,7 @@ type ImportsResult struct {
 	MergedModels                  []map[string][]string // Merged model alias definitions from all imports (first import to define a key wins among imports)
 	MergedModelPolicies           []map[string][]string // Merged model policy sets from all imports (models.allowed/blocked)
 	MergedModelCosts              []map[string]any      // Merged model pricing overlays (models.json provider structure) from all imports
+	MergedDefaultAiCreditsPricing map[string]any        // First models.default-ai-credits-pricing object found across all imports (first-wins)
 	MergedObservability           string                // Merged observability config (JSON) from all imports as an endpoint array (deduped by URL)
 	MergedEngineMCPToolTimeout    string                // First engine.mcp.tool-timeout found across all imports (Go duration string, e.g. "10m")
 	MergedEngineMCPSessionTimeout string                // First engine.mcp.session-timeout found across all imports (Go duration string, e.g. "4h")
