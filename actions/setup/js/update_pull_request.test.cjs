@@ -942,11 +942,13 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 
-  it("should continue title/body updates when updateBranch gets workflows-scope-required 403", async () => {
-    const scopeError = new Error("Unable to determine if workflow can be created or updated due to timeout; `workflows` scope may be required. - https://docs.github.com/rest/pulls/pulls#update-a-pull-request-branch");
+  it("should continue title/body updates when updateBranch gets workflows-scope-required 403 (scope phrase variant)", async () => {
+    // Message matches only the "`workflows` scope may be required" branch of hasWorkflowsScopeRequired.
+    const scopeError = new Error("Validation failed; `workflows` scope may be required due to timeout in check.");
     scopeError.status = 403;
     // The message contains "timeout" which makes isTransientError return true, so withRetry
-    // retries once (maxRetries: 1). Both attempts must fail to reach the non-fatal catch path.
+    // retries once (maxRetries: 1, see executePRUpdate). Both attempts must fail to reach the
+    // non-fatal catch path. Update this assertion if maxRetries changes.
     mockGithub.rest.pulls.updateBranch.mockRejectedValue(scopeError);
 
     const handler = await updatePRModule.main({ update_branch: true });
@@ -958,6 +960,31 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(result.success).toBe(true);
     // Called twice: initial attempt + 1 retry (maxRetries: 1 in executePRUpdate)
     expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(2);
+    expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
+      owner: "testowner",
+      repo: "testrepo",
+      pull_number: 100,
+      title: "Updated PR",
+    });
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
+  });
+
+  it("should continue title/body updates when updateBranch gets unable-to-determine-workflow 403 (unable-to-determine variant)", async () => {
+    // Message matches only the "unable to determine if workflow can be created or updated" branch
+    // of hasWorkflowsScopeRequired, independently of the scope-phrase variant above.
+    const unableToDetermineError = new Error("Unable to determine if workflow can be created or updated; contact support.");
+    unableToDetermineError.status = 403;
+    // No "timeout" in the message, so isTransientError returns false — no retry, called once.
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(unableToDetermineError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({
+      pull_request_number: 100,
+      title: "Updated PR",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
     expect(mockGithub.rest.pulls.update).toHaveBeenCalledWith({
       owner: "testowner",
       repo: "testrepo",

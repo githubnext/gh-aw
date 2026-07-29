@@ -55,7 +55,11 @@ function isNonFatalUpdateBranchError(error) {
   // - already up to date ("There are no new commits on the base branch")
   // - cannot auto-update due to conflict ("merge conflict between base and head")
   // These should not fail safe output processing.
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || hasWorkflowsPermissionError || hasWorkflowsScopeRequired;
+  // hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked here for errors
+  // with no numeric status (status === undefined). The explicit 403 case is already handled
+  // by the if-block above, and other numeric statuses (e.g. 422 with these phrases) should
+  // not be silently swallowed.
+  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined);
 }
 
 /**
