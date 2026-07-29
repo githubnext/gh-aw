@@ -623,176 +623,113 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 	})
 }
 
-func TestParseCommitIdConfig(t *testing.T) {
-	t.Run("parses commit-id for submit-pull-request-review", func(t *testing.T) {
-		compiler := NewCompiler()
-		outputMap := map[string]any{
-			"submit-pull-request-review": map[string]any{
-				"max":       1,
-				"commit-id": "abc123def456",
-			},
+func TestHeadSHAExpressionForTrigger(t *testing.T) {
+	t.Run("workflow_run map trigger returns workflow_run head_sha expression", func(t *testing.T) {
+		onField := map[string]any{
+			"workflow_run": map[string]any{"workflows": []any{"CI"}},
 		}
-
-		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
-		require.NotNil(t, config, "Config should be parsed")
-		assert.Equal(t, "abc123def456", config.CommitId, "CommitId should be parsed")
+		result := headSHAExpressionForTrigger(onField)
+		assert.Equal(t, "${{ github.event.workflow_run.head_sha }}", result)
 	})
 
-	t.Run("commit-id empty when not provided for submit-pull-request-review", func(t *testing.T) {
-		compiler := NewCompiler()
-		outputMap := map[string]any{
-			"submit-pull-request-review": map[string]any{
-				"max": 1,
-			},
+	t.Run("pull_request map trigger returns pull_request head sha expression", func(t *testing.T) {
+		onField := map[string]any{
+			"pull_request": map[string]any{"types": []any{"opened"}},
 		}
-
-		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
-		require.NotNil(t, config, "Config should be parsed")
-		assert.Empty(t, config.CommitId, "CommitId should be empty when not configured")
+		result := headSHAExpressionForTrigger(onField)
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", result)
 	})
 
-	t.Run("parses commit-id for create-pull-request-review-comment", func(t *testing.T) {
-		compiler := NewCompiler()
-		outputMap := map[string]any{
-			"create-pull-request-review-comment": map[string]any{
-				"commit-id": "deadbeef1234",
-			},
+	t.Run("pull_request_target map trigger returns pull_request head sha expression", func(t *testing.T) {
+		onField := map[string]any{
+			"pull_request_target": nil,
 		}
-
-		config := compiler.parsePullRequestReviewCommentsConfig(outputMap)
-		require.NotNil(t, config, "Config should be parsed")
-		assert.Equal(t, "deadbeef1234", config.CommitId, "CommitId should be parsed")
+		result := headSHAExpressionForTrigger(onField)
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", result)
 	})
 
-	t.Run("commit-id empty when not provided for create-pull-request-review-comment", func(t *testing.T) {
-		compiler := NewCompiler()
-		outputMap := map[string]any{
-			"create-pull-request-review-comment": map[string]any{
-				"side": "RIGHT",
-			},
-		}
-
-		config := compiler.parsePullRequestReviewCommentsConfig(outputMap)
-		require.NotNil(t, config, "Config should be parsed")
-		assert.Empty(t, config.CommitId, "CommitId should be empty when not configured")
+	t.Run("workflow_run string trigger returns workflow_run head_sha expression", func(t *testing.T) {
+		result := headSHAExpressionForTrigger("workflow_run")
+		assert.Equal(t, "${{ github.event.workflow_run.head_sha }}", result)
 	})
 
-	t.Run("commit-id emitted in submit_pull_request_review handler config", func(t *testing.T) {
+	t.Run("pull_request string trigger returns pull_request head sha expression", func(t *testing.T) {
+		result := headSHAExpressionForTrigger("pull_request")
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", result)
+	})
+
+	t.Run("issues trigger returns empty string", func(t *testing.T) {
+		onField := map[string]any{
+			"issues": map[string]any{"types": []any{"opened"}},
+		}
+		result := headSHAExpressionForTrigger(onField)
+		assert.Empty(t, result)
+	})
+
+	t.Run("push trigger returns empty string", func(t *testing.T) {
+		onField := map[string]any{"push": nil}
+		result := headSHAExpressionForTrigger(onField)
+		assert.Empty(t, result)
+	})
+
+	t.Run("nil trigger returns empty string", func(t *testing.T) {
+		result := headSHAExpressionForTrigger(nil)
+		assert.Empty(t, result)
+	})
+}
+
+func TestBuildJobLevelSafeOutputEnvVarsHeadSHA(t *testing.T) {
+	t.Run("GH_AW_HEAD_SHA set for workflow_run trigger", func(t *testing.T) {
 		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			Name: "Test",
-			SafeOutputs: &SafeOutputsConfig{
-				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
-					CommitId:             "pinned-sha-abc123",
+			RawFrontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_run": map[string]any{"workflows": []any{"CI"}},
 				},
 			},
 		}
-
-		var steps []string
-		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
-		require.NotEmpty(t, steps, "Steps should not be empty")
-
-		for _, step := range steps {
-			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
-				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
-				if len(parts) == 2 {
-					jsonStr := strings.TrimSpace(parts[1])
-					jsonStr = strings.Trim(jsonStr, "\"")
-					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
-					var handlerConfig map[string]any
-					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
-					require.NoError(t, err, "Should unmarshal handler config")
-
-					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
-					require.True(t, ok, "submit_pull_request_review config should exist")
-					assert.Equal(t, "pinned-sha-abc123", submitConfig["commit_id"], "commit_id should be emitted in handler config")
-				}
-			}
-		}
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		assert.Equal(t, "${{ github.event.workflow_run.head_sha }}", envVars["GH_AW_HEAD_SHA"])
 	})
 
-	t.Run("commit-id not emitted in submit_pull_request_review handler config when empty", func(t *testing.T) {
+	t.Run("GH_AW_HEAD_SHA set for pull_request trigger", func(t *testing.T) {
 		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			Name: "Test",
-			SafeOutputs: &SafeOutputsConfig{
-				SubmitPullRequestReview: &SubmitPullRequestReviewConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+			RawFrontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{"types": []any{"opened"}},
 				},
 			},
 		}
-
-		var steps []string
-		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
-		require.NotEmpty(t, steps, "Steps should not be empty")
-
-		for _, step := range steps {
-			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
-				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
-				if len(parts) == 2 {
-					jsonStr := strings.TrimSpace(parts[1])
-					jsonStr = strings.Trim(jsonStr, "\"")
-					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
-					var handlerConfig map[string]any
-					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
-					require.NoError(t, err, "Should unmarshal handler config")
-
-					submitConfig, ok := handlerConfig["submit_pull_request_review"].(map[string]any)
-					require.True(t, ok, "submit_pull_request_review config should exist")
-					_, hasCommitId := submitConfig["commit_id"]
-					assert.False(t, hasCommitId, "commit_id should not be in handler config when not set")
-				}
-			}
-		}
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", envVars["GH_AW_HEAD_SHA"])
 	})
 
-	t.Run("commit-id emitted in create_pull_request_review_comment handler config", func(t *testing.T) {
+	t.Run("GH_AW_HEAD_SHA not set for issues trigger", func(t *testing.T) {
 		compiler := NewCompiler()
 		workflowData := &WorkflowData{
 			Name: "Test",
-			SafeOutputs: &SafeOutputsConfig{
-				CreatePullRequestReviewComments: &CreatePullRequestReviewCommentsConfig{
-					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("10")},
-					CommitId:             "pinned-sha-for-comments",
+			RawFrontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{"types": []any{"opened"}},
 				},
 			},
 		}
-
-		var steps []string
-		compiler.addHandlerManagerConfigEnvVar(&steps, workflowData)
-		require.NotEmpty(t, steps, "Steps should not be empty")
-
-		for _, step := range steps {
-			if strings.Contains(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG") {
-				parts := strings.Split(step, "GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: ")
-				if len(parts) == 2 {
-					jsonStr := strings.TrimSpace(parts[1])
-					jsonStr = strings.Trim(jsonStr, "\"")
-					jsonStr = strings.ReplaceAll(jsonStr, "\\\"", "\"")
-					var handlerConfig map[string]any
-					err := json.Unmarshal([]byte(jsonStr), &handlerConfig)
-					require.NoError(t, err, "Should unmarshal handler config")
-
-					reviewCommentConfig, ok := handlerConfig["create_pull_request_review_comment"].(map[string]any)
-					require.True(t, ok, "create_pull_request_review_comment config should exist")
-					assert.Equal(t, "pinned-sha-for-comments", reviewCommentConfig["commit_id"], "commit_id should be emitted in review comment handler config")
-				}
-			}
-		}
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		_, hasHeadSHA := envVars["GH_AW_HEAD_SHA"]
+		assert.False(t, hasHeadSHA, "GH_AW_HEAD_SHA should not be set for issues trigger")
 	})
 
-	t.Run("accepts GitHub expression as commit-id value for submit-pull-request-review", func(t *testing.T) {
+	t.Run("GH_AW_HEAD_SHA not set when no frontmatter on field", func(t *testing.T) {
 		compiler := NewCompiler()
-		outputMap := map[string]any{
-			"submit-pull-request-review": map[string]any{
-				"max":       1,
-				"commit-id": "${{ needs.eligibility.outputs.head_sha }}",
-			},
+		workflowData := &WorkflowData{
+			Name:           "Test",
+			RawFrontmatter: map[string]any{},
 		}
-
-		config := compiler.parseSubmitPullRequestReviewConfig(outputMap)
-		require.NotNil(t, config, "Config should be parsed")
-		assert.Equal(t, "${{ needs.eligibility.outputs.head_sha }}", config.CommitId, "CommitId should accept GitHub expression")
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		_, hasHeadSHA := envVars["GH_AW_HEAD_SHA"]
+		assert.False(t, hasHeadSHA, "GH_AW_HEAD_SHA should not be set when no on: field")
 	})
 }

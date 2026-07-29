@@ -20,7 +20,6 @@ type SubmitPullRequestReviewConfig struct {
 	Footer                 *string  `yaml:"footer,omitempty"`                  // Controls when to show footer in PR review body: "always" (default), "none", or "if-body" (only when review has body text)
 	AllowedEvents          []string `yaml:"allowed-events,omitempty"`          // Optional list of allowed review event types: APPROVE, COMMENT, REQUEST_CHANGES. If omitted, all event types are allowed.
 	SupersedeOlderReviews  bool     `yaml:"supersede-older-reviews,omitempty"` // When true, dismisses older same-workflow REQUEST_CHANGES reviews after a replacement review is posted.
-	CommitId               string   `yaml:"commit-id,omitempty"`               // Optional commit SHA to use as the reviewed commit. Pins the review to the commit the agent actually reviewed, preventing attribution drift when new commits are pushed during the run.
 }
 
 // parseSubmitPullRequestReviewConfig handles submit-pull-request-review configuration
@@ -110,14 +109,6 @@ func (c *Compiler) parseSubmitPullRequestReviewConfig(outputMap map[string]any) 
 				config.SupersedeOlderReviews = supersedeEnabled
 			} else {
 				submitPRReviewLog.Printf("Invalid supersede-older-reviews value: must be a boolean")
-			}
-		}
-
-		// Parse optional commit-id override
-		if commitId, exists := configMap["commit-id"]; exists {
-			if commitIdStr, ok := commitId.(string); ok && commitIdStr != "" {
-				config.CommitId = commitIdStr
-				submitPRReviewLog.Printf("Commit ID override: %s", commitIdStr)
 			}
 		}
 

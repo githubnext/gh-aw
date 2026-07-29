@@ -82,7 +82,6 @@ const REVIEW_RATE_LIMIT_RETRY_CONFIG = {
  * @property {{owner: string, repo: string}} repoParts - Parsed owner and repo
  * @property {number} pullRequestNumber - PR number
  * @property {Object} pullRequest - Full PR object with head.sha
- * @property {string} [commitId] - Optional commit SHA override. When present, used instead of pullRequest.head.sha as the commit_id for pulls.createReview(). Pins the review to the commit the agent actually reviewed, preventing attribution drift when new commits are pushed during the run.
  */
 
 /**
@@ -292,19 +291,22 @@ function createReviewBuffer() {
       };
     }
 
-    const { repo, repoParts, pullRequestNumber, pullRequest, commitId } = reviewContext;
+    const { repo, repoParts, pullRequestNumber, pullRequest } = reviewContext;
 
     if (!pullRequest || !pullRequest.head || !pullRequest.head.sha) {
       core.warning("Pull request head SHA not available - cannot submit review");
       return { success: false, error: "Pull request head SHA not available" };
     }
 
-    // Use the pinned commit ID when configured, falling back to the live PR head SHA.
-    // A pinned commitId ensures the review is attributed to the commit the agent actually
-    // reviewed, preventing attribution drift when new commits are pushed during the run.
-    const resolvedCommitId = commitId || pullRequest.head.sha;
-    if (commitId) {
-      core.info(`Using pinned commit ID for review: ${commitId} (PR head is ${pullRequest.head.sha})`);
+    // Use the head SHA captured at trigger time (GH_AW_HEAD_SHA, injected by the compiler)
+    // when available, falling back to the live PR head SHA. This pins the review to the
+    // commit the agent actually reviewed, preventing attribution drift when new commits are
+    // pushed during the run (most common under workflow_run triggers where the safe_outputs
+    // job runs after the agent job and pulls.get() may return a newer HEAD sha).
+    const awHeadSHA = process.env.GH_AW_HEAD_SHA || "";
+    const resolvedCommitId = awHeadSHA || pullRequest.head.sha;
+    if (awHeadSHA && awHeadSHA !== pullRequest.head.sha) {
+      core.info(`Using trigger-time head SHA: ${awHeadSHA} (PR head is now ${pullRequest.head.sha})`);
     }
 
     // Determine review event and body

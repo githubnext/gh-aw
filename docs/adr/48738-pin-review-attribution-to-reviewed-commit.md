@@ -1,48 +1,55 @@
-# ADR-48738: Pin PR Review Attribution to the Reviewed Commit via Optional `commit-id` Config
+# ADR-48738: Automatic PR Review Attribution via Compiler-Injected Head SHA
 
-**Date**: 2026-07-28
-**Status**: Draft
+**Date**: 2026-07-29
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
 
 ### Context
 
-Under `workflow_run` triggers, the safe-outputs runtime submits a PR review after a parent workflow completes. A new commit can land on the PR branch while the agent is running. When that happens, `pulls.get()` returns the new HEAD SHA, and the review is attributed to a commit the agent never actually reviewed — making inline comments appear fabricated, outdated, or misaligned. There was no mechanism for callers to pass the specific SHA the agent reviewed to the review submission step. This race condition is most acute in `workflow_run` contexts where an eligibility job captures the PR HEAD at trigger time and passes it to downstream jobs.
+Under `workflow_run` triggers, the safe-outputs runtime submits a PR review after a parent workflow completes. A new commit can land on the PR branch while the agent is running. When that happens, `pulls.get()` returns the new HEAD SHA, and the review is attributed to a commit the agent never actually reviewed — making inline comments appear fabricated, outdated, or misaligned.
 
 ### Decision
 
-We will add an optional `commit-id` configuration field to both `submit-pull-request-review` and `create-pull-request-review-comment` safe-output handlers. When set, this SHA is used as the `commit_id` argument to `pulls.createReview()` instead of the live PR head SHA. The field is optional and backward-compatible: when omitted, behavior is unchanged (the live PR head SHA is used). Callers explicitly pass the reviewed SHA — typically captured by an upstream eligibility job — via `commit-id: ${{ needs.eligibility.outputs.head_sha }}` in their workflow YAML.
+The compiler automatically captures the PR head SHA at trigger time and injects it into the compiled workflow as the `GH_AW_HEAD_SHA` environment variable, without requiring any user YAML configuration. The JS safe-outputs runtime reads `process.env.GH_AW_HEAD_SHA` in `submitReview()` and uses it as the `commit_id` argument to `pulls.createReview()` when present, falling back to the live PR head SHA otherwise.
+
+The compiler emits the correct expression based on the workflow trigger:
+
+| Trigger | `GH_AW_HEAD_SHA` value |
+|---|---|
+| `workflow_run` | `${{ github.event.workflow_run.head_sha }}` |
+| `pull_request` | `${{ github.event.pull_request.head.sha }}` |
+| `pull_request_target` | `${{ github.event.pull_request.head.sha }}` |
+| Other triggers (push, schedule, issues, …) | Not injected; live PR head SHA is used |
+
+No user YAML configuration is needed. The feature is transparent and automatic for all affected trigger types.
 
 ### Alternatives Considered
 
-#### Alternative 1: Automatically capture and freeze the PR HEAD SHA at agent startup
+#### Alternative 1: Optional user-configurable `commit-id` YAML field
 
-Freeze the SHA once when the safe-outputs handler initialises, before the review accumulation phase begins, and always use that frozen value. This would require no caller-side configuration.
+Add a `commit-id` field to `submit-pull-request-review` and `create-pull-request-review-comment` so callers can explicitly pass the reviewed SHA.
 
-Why not chosen: The agent may run for an extended period before submitting the review. A commit pushed after handler initialisation but during the agent run would still cause attribution drift. More importantly, in `workflow_run` scenarios the correct SHA to attribute is the one the *triggering* workflow saw — which may already be older than what the safe-outputs job sees at startup. That SHA is only knowable by the caller via an upstream job output, not by the handler itself.
+Why not chosen: Requires users to explicitly wire the SHA through their workflow YAML (e.g., from an eligibility job output). Forgetting to set `commit-id` leaves the race condition unaddressed. Also introduces multi-target ambiguity when `target: "*"` is configured, since a single handler-level SHA cannot be correct for multiple distinct PRs. The compiler knows the trigger type at compile time and can inject the right expression automatically.
 
-#### Alternative 2: Always use the triggering `workflow_run` payload SHA
+#### Alternative 2: Freeze the PR HEAD SHA at handler initialization
 
-For `workflow_run` events, automatically extract the SHA from the triggering workflow's context payload instead of calling `pulls.get()`.
+Capture and freeze the SHA once when the handler initializes, before the review accumulation phase begins.
 
-Why not chosen: The triggering payload does not always carry the SHA of the PR commit the agent reviewed (it may contain the SHA of the triggering workflow's default branch commit). Callers need explicit control over which commit to attribute, particularly when the reviewed SHA is computed by a separate eligibility job and stored as a job output. This approach also does not address non-`workflow_run` triggers that may have similar drift in edge cases.
+Why not chosen: A commit pushed after handler initialization but during the agent run would still cause attribution drift. The correct SHA is the one that was in place when the triggering workflow ran, not when the safe-outputs job starts.
 
 ### Consequences
 
 #### Positive
 - Reviews are attributed to the commit the agent actually reviewed, eliminating false "outdated" or misaligned inline comments.
 - GitHub correctly marks the review as outdated when HEAD moves, rather than incorrectly attaching stale comments to the new commit.
-- The feature is fully opt-in and backward-compatible — existing callers are unaffected.
+- Zero user configuration required — all existing workflows benefit automatically after recompile.
+- Multi-target (`target: "*"`) scenarios are unaffected because the SHA is read from an environment variable at runtime, not passed as a single handler-level config value.
 
 #### Negative
-- Callers must explicitly wire the reviewed SHA through their workflow YAML (e.g., from an eligibility job output); forgetting to set `commit-id` leaves the race condition unaddressed in `workflow_run` contexts.
-- The `commit-id` field is threaded through three layers (Go config struct → handler registry JSON → JS runtime), increasing the surface area of the config pipeline.
+- For workflows with triggers other than `workflow_run`, `pull_request`, and `pull_request_target`, the env var is not injected and the live PR head SHA is used (existing behavior). If drift is a concern for those triggers, a separate mechanism would be needed.
 
 #### Neutral
-- The Go config structs (`SubmitPullRequestReviewConfig`, `CreatePullRequestReviewCommentsConfig`) gain a new `CommitId string` field, which is zero-valued (empty) when not configured — no breaking change to existing parsed configs.
-- The JS runtime falls back to `pullRequest.head.sha` when `commitId` is absent, preserving existing runtime behaviour.
-
----
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+- The `GH_AW_HEAD_SHA` env var follows the existing pattern of compiler-injected context variables (e.g., `GH_AW_WORKFLOW_ID`, `GH_AW_CALLER_WORKFLOW_ID`, `GH_AW_AMBIENT_CONTEXT`).
+- When `GH_AW_HEAD_SHA` is absent or empty, `submitReview()` falls back to `pullRequest.head.sha`, preserving existing runtime behavior for unsupported trigger types.

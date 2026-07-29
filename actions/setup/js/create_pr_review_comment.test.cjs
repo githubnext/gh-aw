@@ -524,28 +524,40 @@ describe("create_pr_review_comment.cjs", () => {
     expect(buffer.getBufferedCount()).toBe(1);
   });
 
-  it("should store pinned commitId in review context when commit_id is configured", async () => {
-    const handler = await createHandler({ commit_id: "pinned-sha-xyz789" });
-    const message = {
-      type: "create_pull_request_review_comment",
-      path: "src/main.js",
-      line: 10,
-      body: "Review comment body",
-    };
-    const result = await handler(message, {});
+  it("should use GH_AW_HEAD_SHA env var as commit_id when submitting review", async () => {
+    const previousHeadSHA = process.env.GH_AW_HEAD_SHA;
+    process.env.GH_AW_HEAD_SHA = "trigger-time-sha-xyz789";
+    try {
+      // The buffer's submitReview uses GH_AW_HEAD_SHA automatically — verify the
+      // review context is set correctly (no commitId field needed on context)
+      const handler = await createHandler();
+      const message = {
+        type: "create_pull_request_review_comment",
+        path: "src/main.js",
+        line: 10,
+        body: "Review comment body",
+      };
+      const result = await handler(message, {});
 
-    expect(result.success).toBe(true);
-    expect(result.buffered).toBe(true);
+      expect(result.success).toBe(true);
+      expect(result.buffered).toBe(true);
 
-    const ctx = buffer.getReviewContext();
-    expect(ctx).not.toBeNull();
-    // The pinned commitId must be stored in the review context
-    expect(ctx.commitId).toBe("pinned-sha-xyz789");
-    // The live PR head SHA should still be in pullRequest.head.sha
-    expect(ctx.pullRequest.head.sha).toBe("abc123def456");
+      const ctx = buffer.getReviewContext();
+      expect(ctx).not.toBeNull();
+      // No commitId on the context; the env var is used at submit time instead
+      expect(ctx.commitId).toBeUndefined();
+      // The live PR head SHA should still be in pullRequest.head.sha
+      expect(ctx.pullRequest.head.sha).toBe("abc123def456");
+    } finally {
+      if (previousHeadSHA !== undefined) {
+        process.env.GH_AW_HEAD_SHA = previousHeadSHA;
+      } else {
+        delete process.env.GH_AW_HEAD_SHA;
+      }
+    }
   });
 
-  it("should not set commitId when commit_id config is not provided", async () => {
+  it("review context has no commitId field regardless of handler config", async () => {
     const handler = await createHandler();
     const message = {
       type: "create_pull_request_review_comment",
