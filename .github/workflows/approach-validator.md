@@ -12,6 +12,10 @@ on:
     strategy: centralized
     name: approach-validator
     events: [issue_comment, pull_request_comment]
+if: github.event_name != 'push'
+concurrency:
+  group: "approach-validator-${{ github.event.issue.number || github.event.pull_request.number || fromJSON(github.event.inputs.aw_context || '{}').item_number || fromJSON(github.event.inputs.aw_context || '{}').event_type || github.ref }}"
+  cancel-in-progress: true
 max-daily-ai-credits: 10000
 permissions:
   contents: read
