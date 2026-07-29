@@ -4,7 +4,10 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 
 interface ConstantDeclaration {
   name: string;
+  declaration: TSESTree.VariableDeclarator;
 }
+
+const MIN_NUMERIC_DUPLICATE_GROUP_SIZE = 3;
 
 function getStaticValueKey(node: TSESTree.Expression): string | null {
   if (node.type === AST_NODE_TYPES.Literal) {
@@ -39,7 +42,7 @@ export const noDuplicateConstantValuesRule = createRule({
   },
   defaultOptions: [],
   create(context) {
-    const constantsByValue = new Map<string, ConstantDeclaration>();
+    const constantsByValue = new Map<string, ConstantDeclaration[]>();
 
     return {
       VariableDeclaration(node) {
@@ -57,23 +60,40 @@ export const noDuplicateConstantValuesRule = createRule({
             continue;
           }
 
-          const original = constantsByValue.get(valueKey);
-          if (!original) {
-            constantsByValue.set(valueKey, {
-              name: declaration.id.name,
-            });
+          const declarationsForValue = constantsByValue.get(valueKey);
+          if (!declarationsForValue) {
+            constantsByValue.set(valueKey, [
+              {
+                name: declaration.id.name,
+                declaration,
+              },
+            ]);
             continue;
           }
 
-          context.report({
-            node: declaration,
-            messageId: "duplicateConstantValue",
-            data: {
-              name: declaration.id.name,
-              originalName: original.name,
-              value: context.sourceCode.getText(declaration.init),
-            },
+          declarationsForValue.push({
+            name: declaration.id.name,
+            declaration,
           });
+        }
+      },
+      "Program:exit"() {
+        for (const [valueKey, declarations] of constantsByValue) {
+          const shouldReportDuplicates = declarations.length > 1 && (!valueKey.startsWith("number:") || declarations.length >= MIN_NUMERIC_DUPLICATE_GROUP_SIZE);
+          if (!shouldReportDuplicates) continue;
+
+          const original = declarations[0];
+          for (const duplicate of declarations.slice(1)) {
+            context.report({
+              node: duplicate.declaration,
+              messageId: "duplicateConstantValue",
+              data: {
+                name: duplicate.name,
+                originalName: original.name,
+                value: context.sourceCode.getText(duplicate.declaration.init!),
+              },
+            });
+          }
         }
       },
     };
