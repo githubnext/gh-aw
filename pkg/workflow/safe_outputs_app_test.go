@@ -543,3 +543,74 @@ func TestSafeOutputsAppTokenPermissionsOverride(t *testing.T) {
 	assert.Contains(t, stepsStr, "permission-members: read",
 		"App token must include members:read from github-app.permissions override")
 }
+
+// TestSafeOutputsCreateCheckRunAppTokenMinimalPermissions tests that the per-handler
+// GitHub App token for create-check-run uses minimal permissions (no contents: read).
+// When target is not configured, only checks: write is required.
+// When target is configured, pull-requests: read is added for PR head SHA resolution.
+func TestSafeOutputsCreateCheckRunAppTokenMinimalPermissions(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	t.Run("no target - only checks: write", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubApp: &GitHubAppConfig{
+							AppID:      "${{ vars.APP_ID }}",
+							PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+						},
+					},
+				},
+			},
+		}
+
+		job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+		require.NoError(t, err, "Failed to build safe_outputs job")
+		require.NotNil(t, job, "Job should not be nil")
+
+		stepsStr := strings.Join(job.Steps, "")
+
+		assert.Contains(t, stepsStr, "id: create-check-run-app-token",
+			"Per-handler app token step must be present")
+		assert.Contains(t, stepsStr, "permission-checks: write",
+			"App token must include checks:write")
+		assert.NotContains(t, stepsStr, "permission-pull-requests:",
+			"App token must not include pull-requests permission when no target is configured")
+		assert.NotContains(t, stepsStr, "permission-contents: read",
+			"App token must not include contents:read for create-check-run")
+	})
+
+	t.Run("with target - checks: write and pull-requests: read", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					Target: "triggering",
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubApp: &GitHubAppConfig{
+							AppID:      "${{ vars.APP_ID }}",
+							PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+						},
+					},
+				},
+			},
+		}
+
+		job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+		require.NoError(t, err, "Failed to build safe_outputs job")
+		require.NotNil(t, job, "Job should not be nil")
+
+		stepsStr := strings.Join(job.Steps, "")
+
+		assert.Contains(t, stepsStr, "id: create-check-run-app-token",
+			"Per-handler app token step must be present")
+		assert.Contains(t, stepsStr, "permission-checks: write",
+			"App token must include checks:write")
+		assert.Contains(t, stepsStr, "permission-pull-requests: read",
+			"App token must include pull-requests:read when target is configured")
+		assert.NotContains(t, stepsStr, "permission-contents: read",
+			"App token must not include contents:read for create-check-run")
+	})
+}

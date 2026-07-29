@@ -3609,10 +3609,12 @@ safe-outputs:
 *GitHub Actions Token*:
 
 - `organization-projects: write` - Project creation operations (note: only valid for GitHub Apps)
+- `issues: read` - Required to resolve issue/PR references when adding items to the project
 
 *GitHub App*:
 
 - `organization-projects: write` - Project creation operations
+- `issues: read` - Required to resolve issue/PR references when adding items to the project
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
@@ -3636,10 +3638,12 @@ safe-outputs:
 *GitHub Actions Token*:
 
 - `organization-projects: write` - Project management operations (note: only valid for GitHub Apps)
+- `issues: read` - Required to resolve issue/PR references when adding items to the project
 
 *GitHub App*:
 
 - `organization-projects: write` - Project management operations
+- `issues: read` - Required to resolve issue/PR references when adding items to the project
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
@@ -3810,15 +3814,12 @@ safe-outputs:
 *GitHub App*:
 
 - `security-events: write` - Alert metadata access
-- `contents: write` - Pull request branch creation
-- `pull-requests: write` - Pull request creation
 - `actions: read` - Workflow run metadata for alert correlation
 - `metadata: read` - Repository metadata (automatically granted)
 
 **Notes**:
 
-- Most complex permission set — GitHub Actions Token requires security-events and actions scopes; GitHub App additionally requires contents and pull-requests scopes for branch/PR creation
-- Creates pull request with proposed fix referencing the alert
+- The handler calls the GitHub code-scanning autofix API (`POST /repos/{owner}/{repo}/code-scanning/alerts/{alert_number}/fixes`) directly; it does not create a branch or pull request, so `contents: write` and `pull-requests: write` are not required
 - Alert must exist and be fixable
 
 ---

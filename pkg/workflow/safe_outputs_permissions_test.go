@@ -650,6 +650,67 @@ func TestComputePermissionsForSafeOutputs_IDToken(t *testing.T) {
 	}
 }
 
+func TestComputePermissionsForSafeOutputs_Checkout(t *testing.T) {
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		expectContents bool
+	}{
+		{
+			name: "no steps - no contents permission",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expectContents: false,
+		},
+		{
+			name: "step with actions/checkout - auto-detects contents: read",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Steps: []any{
+					map[string]any{"uses": "actions/checkout@v4"},
+				},
+			},
+			expectContents: true,
+		},
+		{
+			name: "step with actions/checkout versioned pin - auto-detects contents: read",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Steps: []any{
+					map[string]any{"uses": "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"},
+				},
+			},
+			expectContents: true,
+		},
+		{
+			name: "step without checkout - no contents permission",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Steps: []any{
+					map[string]any{"run": "echo hello"},
+				},
+			},
+			expectContents: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			permissions := ComputePermissionsForSafeOutputs(tt.safeOutputs)
+			require.NotNil(t, permissions, "Permissions should not be nil")
+
+			level, exists := permissions.Get(PermissionContents)
+			if tt.expectContents {
+				assert.True(t, exists, "Expected contents permission to be set")
+				assert.Equal(t, PermissionRead, level, "Expected contents: read")
+			} else {
+				assert.False(t, exists, "Expected contents permission NOT to be set")
+			}
+		})
+	}
+}
+
 func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 	tests := []struct {
 		name        string
