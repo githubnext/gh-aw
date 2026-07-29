@@ -185,11 +185,18 @@ JobTopologyOrder ≜
 | `T-RS-008 OutputValidation` | `TestFormalRS008_OutputTargetValidation` | Invalid safe-output targets fail validation |
 | `getPushFallbackAsPullRequest` | `TestFormalPushFallback_DefaultsToTrue` | Push fallback-as-pull-request defaults to true when config is nil |
 | `JobTopologyOrder` | `TestFormalJobTopology_PipelineOrderEnforced` | Compiled job pipeline preserves pre_activation→activation→agent→detection→safe_outputs order |
+| `T-TD-002 PromptInjectionDetection` | `TestFormalTD002_PromptInjectionDetection` | Detection response schema includes `prompt_injection` as a required boolean field |
+| `T-TD-003 SecretLeakDetection` | `TestFormalTD003_SecretLeakDetection` | Detection response schema includes `secret_leak` as a required boolean field |
+| `T-TD-004 MaliciousPatchDetection` | `TestFormalTD004_MaliciousPatchDetection` | Detection response schema includes `malicious_patch` as a required boolean field |
+| `T-TD-005 CustomPromptSupport` | `TestFormalTD005_CustomPromptSupport` | Custom prompts are stored and emitted as `CUSTOM_PROMPT` env var in the compiled detection job |
+| `T-TD-006 EngineConfigOverride` | `TestFormalTD006_EngineConfigOverride` | Engine override is parsed from string, object, and disabled (`false`) formats |
+| `T-TD-007 WorkflowFailureOnDetection` | `TestFormalTD007_WorkflowFailureOnDetection` | `safe_outputs` job condition requires `needs.detection.result == 'success'` blocking execution on threat |
 
 ### Generated Test Suite
 
-The 24 test functions above are implemented in
-`pkg/workflow/security_architecture_sg_formal_test.go` using the Go
+The 30 test functions above are implemented in
+`pkg/workflow/security_architecture_sg_formal_test.go` (24 functions) and
+`pkg/workflow/security_architecture_td_formal_test.go` (6 T-TD functions) using the Go
 `testify` library. All tests carry the `//go:build !integration` tag so they
 run in the default unit-test suite without any special flags.
 
@@ -204,7 +211,7 @@ Each test function:
 Run the full suite:
 
 ```sh
-go test ./pkg/workflow/ -run 'TestFormalSG|TestFormalCS|TestFormalRS|TestFormalBasicConformance|TestFormalThreatDetection|TestFormalPM11|TestFormalStaged|TestFormalIDToken|TestFormalPushFallback|TestFormalJobTopology' -v
+go test ./pkg/workflow/ -run 'TestFormalSG|TestFormalCS|TestFormalRS|TestFormalBasicConformance|TestFormalThreatDetection|TestFormalPM11|TestFormalStaged|TestFormalIDToken|TestFormalPushFallback|TestFormalJobTopology|TestFormalTD' -v
 ```
 
 ### Formal Requirements
@@ -359,6 +366,7 @@ Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compi
 | Add formal model and test suite for SG-01 through SG-07 | ✅ Done (2026-07-09) | Added "Formal Model" (TLA+/F*/Z3 invariants), "Behavioral Coverage Map" (15 predicates), and "Generated Test Suite" sections; 15 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
 | Sync PM-11 formal coverage into behavioral coverage map | ✅ Done (2026-07-15) | Added `TestFormalPM11_PreActivationContainsMembershipStep` to the behavioral coverage map and generated suite notes; formal suite now tracks 16 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
 | Sync §12 CS/RS coverage update from daily SPDD queue | ✅ Done (2026-07-28) | Added formal coverage map/test-suite entries for T-CS-001/002 and T-RS-003..008; synced to `specs/security-architecture-spec-validation.md` §12 matrix |
+| Close T-TD-002..007 evidence gaps and sync T-PM-003/005/007 from daily SPDD queue | ✅ Done (2026-07-29) | Added 6 T-TD formal test functions in `pkg/workflow/security_architecture_td_formal_test.go`; updated §12 matrix Threat Detection row from PARTIALLY EVIDENCED to EVIDENCED; updated Permission Management row with existing test citations for T-PM-003/005/007; updated §12 Gap Summary to note #48686 follow-up checkpoint; behavioral coverage map expanded from 24 to 30 predicates |
 
 ## Versioning
 

@@ -49,6 +49,19 @@ Every evaluation produces one of these outcomes:
 | `lifecycle` | Closed/removed by the workflow itself (e.g., `close-older-issues`) — not a rejection |
 | `lifecycle_close` | Closed by lifecycle/noop bot policy and not reopened by a visible non-bot actor |
 
+### Outcome Category Cross-Reference
+
+The table below maps each outcome category to the primary functions that produce it in `actions/setup/js/evaluate_outcomes.cjs` and `pkg/cli/outcome_eval*.go`. Every category MUST have at least one named production path in both runtimes.
+
+| Outcome | `evaluate_outcomes.cjs` primary path | `pkg/cli/outcome_eval*.go` primary path |
+|---------|--------------------------------------|----------------------------------------|
+| `accepted` | `evaluateCreatePullRequestOutcome` (merged), `evaluateCreateIssue` (completed/closed), `evaluateAddComment` (reacted-to or replied), `evaluateAddLabels` (label retained), `evaluateCloseIssue` (still closed), `evaluateCloseDiscussion` (still closed), `evaluateCreateDiscussion` (has engagement) | `evalCreatePullRequest`, `evalCreateIssue`, `evalAddComment`, `evalAddLabels`, `evalCloseSticky`, `evalCloseDiscussion`, `evalCreateDiscussion` |
+| `rejected` | `evaluateCreatePullRequestOutcome` (closed without merge), `evaluateCreateIssue` (closed-as-not-planned by visible non-bot), `evaluateAddLabels` (label removed), `evaluateCloseIssue` (reopened by non-bot), `evaluateClosePullRequest` (merged — close_pull_request intent undone) | `evalCreatePullRequest`, `evalCreateIssue`, `evalAddLabels`, `evalCloseSticky`, `evalCloseDiscussion` |
+| `ignored` | `evaluateCreateIssue` (open, no non-bot comments), `evaluateCreateDiscussion` (no engagement), `evaluatePushToPullRequestBranchOutcome` (PR open with no activity) | `evalCreateIssue`, `evalCreateDiscussion`, `evalPushToPRBranch` |
+| `pending` | All evaluator functions when the object is still open/active and the evaluation window has not elapsed (e.g., `evaluateCreateIssue` open with activity, `evaluateAddLabels` within retention window, `evaluateAddComment` with no follow-up yet) | All `eval*` functions via the `OutcomePending` constant; default fallback in `evalGenericSticky` when existence check passes but no terminal signal |
+| `lifecycle` | Not directly emitted in JS; populated during Go-side normalization from `OutcomeLifecycle` when the close actor is a bot identity — see `normalizeOutcome` resolution path | `evalCreateIssue` → `OutcomeLifecycle` (issue closed by bot); `evalCloseSticky` (closed by bot/lifecycle policy) in `pkg/cli/outcome_eval_issue.go` |
+| `lifecycle_close` | Not directly emitted in JS; populated during Go-side normalization from `OutcomeLifecycleClose` when closed by bot and not reopened — see `normalizeOutcome` resolution path | `evalGenericSticky` → `evalCloseGeneric` → `OutcomeLifecycleClose` in `pkg/cli/outcome_eval_generic.go`; see `OutcomeStatusLifecycleClose` in `pkg/cli/outcome_evaluation.go` |
+
 ## Common OTel Attributes
 
 Every outcome span carries these attributes:
