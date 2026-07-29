@@ -1,0 +1,2 @@
+{"id":"subissues-planned","question":"Did the workflow analyze the triggering issue or discussion and break the work into actionable sub-issues?","answer":"YES","model":"small","timestamp":"2026-07-29T22:14:00.077Z","runid":"30494975724"}
+{"id":"issue-actions-completed","question":"Were the planned sub-issues created successfully, with discussion closure handled correctly when required?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-29T22:14:00.077Z","runid":"30494975724"}
