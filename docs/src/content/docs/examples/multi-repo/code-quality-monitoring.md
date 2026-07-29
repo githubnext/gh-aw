@@ -19,10 +19,7 @@ flowchart LR
     lint -->|create-issue| main[main-repo]
 ```
 
-The agent:
-1. Checks out `main-repo` into the workflow runner
-2. Runs linters, counts complexity, and scans for security patterns
-3. Creates focused, actionable issues in the main repo for significant findings
+The agent checks out `main-repo` into the workflow runner, runs linters and lightweight complexity/security checks, then creates focused issues in the main repo for significant findings.
 
 ## Setup
 
@@ -106,14 +103,11 @@ cd ${{ github.workspace }}/repo
 npx eslint . --format json --max-warnings 0 2>/dev/null | head -200
 ```
 
-Look for:
-- Files with >5 ESLint errors (flag for immediate fix)
-- Patterns that indicate missing error handling (`catch(e) {}`, empty catch blocks)
-- Unused imports and variables accumulating across many files
+Prioritize files with more than 5 ESLint errors, missing error-handling patterns such as empty `catch` blocks, and repeated unused imports or variables.
 
 ### 2. Complexity (any language)
 
-Count lines per file and flag files over 500 lines — they are candidates for splitting. Use `wc -l` on source files:
+Count lines per file and flag files over 500 lines as candidates for splitting:
 
 ```bash
 find . -name "*.ts" -o -name "*.js" -o -name "*.py" | xargs wc -l | sort -rn | head -20
@@ -125,38 +119,26 @@ find . -name "*.ts" -o -name "*.js" -o -name "*.py" | xargs wc -l | sort -rn | h
 pip install flake8 --quiet && flake8 . --count --statistics 2>/dev/null | tail -20
 ```
 
-Flag modules with >10 flake8 errors.
+Flag modules with more than 10 flake8 errors.
 
-### 4. Dependency staleness
+### 4. Repository signals
 
-Check for packages with known security advisories using GitHub tools — look at open Dependabot alerts on `my-org/main-repo`.
-
-### 5. Recent PR patterns
-
-Use GitHub tools to look at the last 10 merged PRs. Note recurring themes: are tests consistently skipped? Are the same files always modified together (coupling indicator)?
+Check open Dependabot alerts on `my-org/main-repo`, then review the last 10 merged PRs for recurring patterns such as skipped tests or files that are repeatedly changed together.
 
 ## What to Create
 
-Create **one issue per distinct finding category** (not one issue per file). Each issue should:
-
-- Name the specific files or modules involved (link to them via GitHub URL)
-- Explain why it matters (performance, maintainability, security)
-- Suggest a concrete first step to address it
-- Include a severity: High (security/crashes), Medium (maintainability), Low (style)
-
-Skip findings with fewer than 3 instances — they are not worth the noise.
+Create **one issue per distinct finding category** rather than one per file. Each issue should name the affected files or modules with GitHub links, explain why the finding matters, suggest a concrete first step, and assign a severity: High for security or crash risks, Medium for maintainability, and Low for style. Skip findings with fewer than 3 instances to avoid noise.
 
 ## What to Skip
 
-Do not create issues for:
-- Style preferences without an established linter rule
-- Files with a `// quality-exempt` comment
-- Test files (`*.test.*`, `*.spec.*`, `__tests__/`)
+Do not create issues for style preferences without an established linter rule, files with a `// quality-exempt` comment, or test files such as `*.test.*`, `*.spec.*`, and `__tests__/`.
 ````
 
 Compile: `gh aw compile`.
 
 ## Customizing the Analysis
+
+Use these variations when you need a narrower or broader review.
 
 ### Running Type Checkers
 
@@ -220,8 +202,4 @@ Without it, the agent starts in `$GITHUB_WORKSPACE` (the side repo) and may anal
 
 ## Related Documentation
 
-- [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) — Side repository pattern and other topologies
-- [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) — Issue triage from a side repo
-- [Cross-Repository Operations](/gh-aw/reference/cross-repository/) — Checkout configuration and `current: true`
-- [Authentication](/gh-aw/reference/auth/) — PAT and GitHub App setup
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) — Issue creation with `max` and labels
+See [MultiRepoOps](/gh-aw/patterns/multi-repo-ops/) for side-repository topologies, [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) for a related issue-triage workflow, [Cross-Repository Operations](/gh-aw/reference/cross-repository/) for checkout configuration and `current: true`, [Authentication](/gh-aw/reference/auth/) for PAT and GitHub App setup, and [Safe Outputs](/gh-aw/reference/safe-outputs/) for issue creation with `max` and labels.
