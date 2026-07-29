@@ -13,6 +13,15 @@ printf '{"item_number":42,"body":"### Title\n\nBody."}' | safeoutputs add_commen
 # or write to a file: safeoutputs create_pull_request . < /tmp/payload.json
 ```
 
+To inject an entire local file as the `body` field without re-embedding its content in the model context, use `jq -Rs`:
+```bash
+jq -Rs --arg discussion_number "$DISCUSSION_NUMBER" \
+  '{discussion_number: ($discussion_number|tonumber), body: .}' \
+  discussion-body.md \
+  | safeoutputs update_discussion .
+```
+`jq -Rs` reads the file as a raw string (`-R`) and slurps it into a single JSON string value (`-s`), so `body` is always a valid JSON field. Piping `cat file | safeoutputs ...` does not populate `body` and will be rejected.
+
 The generated command syntax above is schema-derived from each enabled tool's final `inputSchema` and is the source of truth for required/optional parameters.
 Use `<server> --help` and `<server> <tool> --help` for the same schema-derived signatures and examples before calling any command.
 </mcp-clis>
