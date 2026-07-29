@@ -9,6 +9,14 @@ GitHub Copilot is the default gh-aw engine and runs GitHub Copilot agents inside
 
 Set `engine: copilot` or omit `engine:` because Copilot is the default. For organization-billed usage, grant `copilot-requests: write`; otherwise provide a `COPILOT_GITHUB_TOKEN` secret. See [Copilot authentication](/gh-aw/reference/auth/#copilot_github_token) for both paths.
 
+### Initialize the repository
+
+Run `gh aw init` to configure the repository. Copilot is the default engine, so no `--engine` flag is required. This sets up the full Copilot integration: dispatcher skill, MCP server configuration, `.gitattributes`, VS Code settings, and the custom agent file.
+
+```bash
+gh aw init
+```
+
 ```aw wrap title=".github/workflows/daily-status.md"
 ---
 on:

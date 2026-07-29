@@ -148,9 +148,14 @@ func NormalizeGitDescribeSemver(v string) string {
 }
 
 // IsPreciseVersion returns true if the version has explicit minor and patch components
-// (i.e., at least two dots in the version string, e.g. "v6.0.0" is precise, "v6" is not).
+// (i.e., at least two dots in the core version, e.g. "v6.0.0" is precise, "v6" is not).
+// Only core-version dots are counted; pre-release and build-metadata suffixes are excluded.
 func (v *SemanticVersion) IsPreciseVersion() bool {
 	versionPart := strings.TrimPrefix(v.Raw, "v")
+	// Strip pre-release and build-metadata so their dots are not counted.
+	if idx := strings.IndexAny(versionPart, "-+"); idx >= 0 {
+		versionPart = versionPart[:idx]
+	}
 	dotCount := strings.Count(versionPart, ".")
 	return dotCount >= 2
 }
