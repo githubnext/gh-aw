@@ -26,11 +26,10 @@ jobs:
 
       - name: Run Gosec
         run: |
-          go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
           # Keep only globally noisy rules here.
           # G602 (slice bounds check) is excluded globally due persistent false positives.
           # Use inline '#nosec Gxxx -- justification' suppressions for specific findings.
-          gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions \
+          go tool gosec -fmt sarif -out gosec-results.sarif -stdout -exclude-generated -track-suppressions \
             -nosec-require-rules -nosec-require-justification \
             -exclude=G602 \
             ./...
@@ -56,7 +55,7 @@ jobs:
           cache: true
 
       - name: Run govulncheck
-        run: go run -mod=readonly golang.org/x/vuln/cmd/govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$?; [ $ret -eq 0 ] || [ $ret -eq 3 ]
+        run: go tool govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$?; [ $ret -eq 0 ] || [ $ret -eq 3 ]
 
       - name: Upload govulncheck SARIF
         uses: github/codeql-action/upload-sarif@4248455a6f2335bc3b7a8a62932f000050ec8f13 # v3
