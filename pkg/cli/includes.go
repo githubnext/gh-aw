@@ -22,11 +22,127 @@ import (
 // includeDirectivePattern matches @include or @include? directives with their path argument
 var includeDirectivePattern = regexp.MustCompile(`^@include(\?)?\s+(.+)$`)
 var downloadRemoteImportFile = parser.DownloadFileFromGitHub
+var downloadRemoteRuntimeImportFile = parser.DownloadFileFromGitHubForHost
 
 // includesFetcher is the function type used by fetchAndSaveRemoteIncludes to retrieve
 // a single include file. Passing a non-nil value overrides the default FetchIncludeFromSource
 // implementation; this is used in tests to avoid real network calls.
 type includesFetcher func(ctx context.Context, includePath string, baseSpec *WorkflowSpec, verbose bool) ([]byte, string, error)
+
+type runtimeImportFetcher func(ctx context.Context, owner, repo, path, ref, host string) ([]byte, error)
+
+type runtimeImportOpts struct {
+	owner      string
+	repo       string
+	ref        string
+	host       string
+	repoRoot   string
+	verbose    bool
+	force      bool
+	tracker    *FileTracker
+	seen       map[string]struct{}
+	downloadFn runtimeImportFetcher
+}
+
+func fetchAndSaveRemoteRuntimeImports(ctx context.Context, content string, spec *WorkflowSpec, targetDir string, verbose bool, force bool, tracker *FileTracker) error {
+	if spec.RepoSlug == "" {
+		return nil
+	}
+
+	parts := strings.SplitN(spec.RepoSlug, "/", 2)
+	if len(parts) != 2 {
+		return nil
+	}
+
+	ref := spec.Version
+	if ref == "" {
+		defaultBranch, err := getRepoDefaultBranch(ctx, spec.RepoSlug)
+		if err != nil {
+			remoteWorkflowLog.Printf("Failed to resolve default branch for %s, falling back to 'main': %v", spec.RepoSlug, err)
+			ref = "main"
+		} else {
+			ref = defaultBranch
+		}
+		spec.Version = ref
+	}
+
+	opts := runtimeImportOpts{
+		owner:      parts[0],
+		repo:       parts[1],
+		ref:        ref,
+		host:       spec.Host,
+		repoRoot:   filepath.Dir(filepath.Dir(targetDir)),
+		verbose:    verbose,
+		force:      force,
+		tracker:    tracker,
+		seen:       make(map[string]struct{}),
+		downloadFn: downloadRemoteRuntimeImportFile,
+	}
+
+	return fetchRemoteRuntimeImportsRecursive(ctx, content, getParentDir(spec.WorkflowPath), opts)
+}
+
+func fetchRemoteRuntimeImportsRecursive(ctx context.Context, content, currentBaseDir string, opts runtimeImportOpts) error {
+	body := content
+	if parsed, err := parser.ExtractFrontmatterFromContent(content); err == nil {
+		body = parsed.Markdown
+	}
+
+	for _, imp := range parser.ExtractBodyLevelImportPaths(body, currentBaseDir) {
+		remoteFilePath := strings.TrimSpace(imp.Path)
+		if remoteFilePath == "" {
+			continue
+		}
+		if rest, ok := strings.CutPrefix(remoteFilePath, "/"); ok {
+			remoteFilePath = rest
+		}
+		remoteFilePath = path.Clean(remoteFilePath)
+		if remoteFilePath == "." || remoteFilePath == ".." || strings.HasPrefix(remoteFilePath, "../") {
+			return fmt.Errorf("runtime-import path %q escapes repository root", imp.Path)
+		}
+		if setutil.Contains(opts.seen, remoteFilePath) {
+			continue
+		}
+		opts.seen[remoteFilePath] = struct{}{}
+
+		targetPath := filepath.Join(opts.repoRoot, filepath.FromSlash(remoteFilePath))
+		if err := fileutil.ValidatePathWithinBase(opts.repoRoot, targetPath); err != nil {
+			return fmt.Errorf("refusing to write runtime import outside repository root: %w", err)
+		}
+
+		fileExists := false
+		if fileutil.FileExists(targetPath) {
+			fileExists = true
+			if !opts.force {
+				continue
+			}
+		}
+
+		importContent, err := opts.downloadFn(ctx, opts.owner, opts.repo, remoteFilePath, opts.ref, opts.host)
+		if err != nil {
+			return fmt.Errorf("failed to fetch runtime import %s: %w", remoteFilePath, err)
+		}
+		if err := os.MkdirAll(filepath.Dir(targetPath), constants.DirPermPublic); err != nil {
+			return fmt.Errorf("failed to create directory for runtime import %s: %w", remoteFilePath, err)
+		}
+		if err := os.WriteFile(targetPath, importContent, constants.FilePermSensitive); err != nil {
+			return fmt.Errorf("failed to write runtime import %s: %w", remoteFilePath, err)
+		}
+		if opts.tracker != nil {
+			if fileExists {
+				opts.tracker.TrackModified(targetPath)
+			} else {
+				opts.tracker.TrackCreated(targetPath)
+			}
+		}
+
+		if err := fetchRemoteRuntimeImportsRecursive(ctx, string(importContent), path.Dir(remoteFilePath), opts); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
 
 // FetchIncludeFromSource fetches an include file from GitHub directly using a workflowspec format path.
 // The includePath should be in the format: owner/repo/path/to/file.md[@ref]
@@ -584,6 +700,14 @@ func fetchAllRemoteDependencies(ctx context.Context, content string, spec *Workf
 	if err := fetchAndSaveRemoteFrontmatterImports(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to fetch frontmatter import dependencies: %v", err)))
+		}
+	}
+	// Fetch and save required runtime-import dependencies so installs include the
+	// explicit runtime-import closure without copying unrelated .github contents.
+	if err := fetchAndSaveRemoteRuntimeImports(ctx, content, spec, targetDir, verbose, force, tracker); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Failed to fetch runtime-import dependencies; activation may fail"))
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(err.Error()))
 		}
 	}
 	// Fetch and save workflows referenced in safe-outputs.dispatch-workflow so they are
