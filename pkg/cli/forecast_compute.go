@@ -291,18 +291,23 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	if err := tryDownload(usageFilter); err != nil {
 		if errors.Is(err, ErrNoArtifacts) {
 			forecastRunLog.Printf("No usage artifact for run %d; AIC will be 0", runID)
+			// Negative-cache this completed run so future forecasts don't re-list its
+			// (nonexistent) artifacts over the network on every invocation.
+			saveForecastNoDataCache(dir, runID)
 			return 0
 		} else if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			forecastRunLog.Printf("Usage artifact download for run %d interrupted: %v", runID, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Usage artifact download for run %d interrupted: %v", runID, err)))
 			}
+			// Transient interruption — do NOT negative-cache; retry next run.
 			return 0
 		} else {
 			forecastRunLog.Printf("Failed to download usage artifact for run %d: %v", runID, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to download usage artifact for run %d: %v", runID, err)))
 			}
+			// Transient/download failure — do NOT negative-cache; retry next run.
 			return 0
 		}
 	}
@@ -310,6 +315,9 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
 	if err != nil || tokenUsage == nil || tokenUsage.TotalAIC <= 0 {
 		forecastRunLog.Printf("No AIC data in usage artifact for run %d (err=%v, tokenUsage=%v)", runID, err, tokenUsage)
+		// The usage artifact was fetched but carries no AIC data; this is permanent for a
+		// completed run, so negative-cache it to skip the download next time.
+		saveForecastNoDataCache(dir, runID)
 		return 0
 	}
 	forecastRunLog.Printf("AIC from usage artifact for run %d: aic=%.3f", runID, tokenUsage.TotalAIC)

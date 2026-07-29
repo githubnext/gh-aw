@@ -90,12 +90,51 @@ func (m spinnerModel) render() {
 
 // SpinnerWrapper wraps the spinner functionality with TTY detection and Bubble Tea program
 type SpinnerWrapper struct {
-	program *tea.Program
-	out     io.Writer
-	enabled bool
-	running bool
-	mu      sync.Mutex
-	wg      sync.WaitGroup
+	program    *tea.Program
+	out        io.Writer
+	enabled    bool
+	running    bool
+	suppressed bool
+	mu         sync.Mutex
+	wg         sync.WaitGroup
+}
+
+// Global spinner coordination.
+//
+// Only a single spinner may render to the terminal at a time. Multiple concurrent
+// spinners (e.g. an outer "Sampling…" spinner plus several parallel per-run
+// "Downloading…" spinners) would otherwise each write carriage-return/clear-line
+// escape sequences to the same stderr line, producing visible flicker.
+//
+// The first spinner to Start() claims the terminal and animates; any spinner that
+// Start()s while another is already active is "suppressed" — it tracks its running
+// lifecycle so Stop()/UpdateMessage() stay well-behaved, but it does not render.
+var (
+	globalSpinnerMu     sync.Mutex
+	globalSpinnerActive *SpinnerWrapper
+)
+
+// claimActiveSpinner attempts to make s the single actively-rendering spinner.
+// It returns true when s becomes active, or false when another spinner already owns
+// the terminal (in which case s should suppress its rendering).
+func claimActiveSpinner(s *SpinnerWrapper) bool {
+	globalSpinnerMu.Lock()
+	defer globalSpinnerMu.Unlock()
+	if globalSpinnerActive != nil {
+		return false
+	}
+	globalSpinnerActive = s
+	return true
+}
+
+// releaseActiveSpinner clears s as the active spinner. It is a no-op when s never
+// claimed the terminal (i.e. it was suppressed), so it is always safe to call.
+func releaseActiveSpinner(s *SpinnerWrapper) {
+	globalSpinnerMu.Lock()
+	defer globalSpinnerMu.Unlock()
+	if globalSpinnerActive == s {
+		globalSpinnerActive = nil
+	}
 }
 
 // NewSpinner creates a new spinner with the given message using MiniDot style.
@@ -132,12 +171,21 @@ func (s *SpinnerWrapper) Start() {
 			if s.running {
 				return false
 			}
+			// Only one spinner renders at a time. If another spinner already owns the
+			// terminal, mark this one suppressed: it stays "running" for lifecycle
+			// bookkeeping but does not animate, avoiding concurrent-spinner flicker.
+			if !claimActiveSpinner(s) {
+				s.suppressed = true
+				s.running = true
+				return false
+			}
+			s.suppressed = false
 			s.running = true
 			s.wg.Add(1)
 			return true
 		}()
 		if !shouldStart {
-			spinnerLog.Print("Spinner already running, skipping Start")
+			spinnerLog.Print("Spinner already running or suppressed by an active spinner, skipping render")
 			return
 		}
 		spinnerLog.Print("Starting spinner")
@@ -145,8 +193,11 @@ func (s *SpinnerWrapper) Start() {
 			defer s.wg.Done()
 			defer func() {
 				s.mu.Lock()
-				defer s.mu.Unlock()
 				s.running = false
+				s.mu.Unlock()
+				// Release the terminal when the program exits on its own (e.g. panic or
+				// self-quit) so a subsequent spinner can claim and render.
+				releaseActiveSpinner(s)
 			}()
 			defer func() {
 				if r := recover(); r != nil {
@@ -160,6 +211,7 @@ func (s *SpinnerWrapper) Start() {
 
 func (s *SpinnerWrapper) Stop() {
 	if s.enabled && s.program != nil {
+		var wasRendering bool
 		wasRunning := func() bool {
 			s.mu.Lock()
 			defer s.mu.Unlock()
@@ -167,19 +219,28 @@ func (s *SpinnerWrapper) Stop() {
 				return false
 			}
 			s.running = false
+			wasRendering = !s.suppressed
+			s.suppressed = false
 			return true
 		}()
-		if wasRunning {
+		if !wasRunning {
+			return
+		}
+		if wasRendering {
 			spinnerLog.Print("Stopping spinner")
 			s.program.Quit()
-			s.wg.Wait() // Wait for the goroutine to complete
+			s.wg.Wait() // Wait for the goroutine to complete (goroutine releases the slot)
 			fmt.Fprintf(s.out, "%s%s", ansiCarriageReturn, ansiClearLine)
+		} else {
+			// Suppressed spinner has no goroutine; release the slot directly (no-op).
+			releaseActiveSpinner(s)
 		}
 	}
 }
 
 func (s *SpinnerWrapper) StopWithMessage(msg string) {
 	if s.enabled && s.program != nil {
+		var wasRendering bool
 		wasRunning := func() bool {
 			s.mu.Lock()
 			defer s.mu.Unlock()
@@ -187,12 +248,20 @@ func (s *SpinnerWrapper) StopWithMessage(msg string) {
 				return false
 			}
 			s.running = false
+			wasRendering = !s.suppressed
+			s.suppressed = false
 			return true
 		}()
 		if wasRunning {
-			s.program.Quit()
-			s.wg.Wait() // Wait for the goroutine to complete
-			fmt.Fprintf(s.out, "%s%s%s\n", ansiCarriageReturn, ansiClearLine, msg)
+			if wasRendering {
+				s.program.Quit()
+				s.wg.Wait() // Wait for the goroutine to complete (goroutine releases the slot)
+				fmt.Fprintf(s.out, "%s%s%s\n", ansiCarriageReturn, ansiClearLine, msg)
+			} else {
+				// Suppressed spinner never rendered; release the slot and print the message.
+				releaseActiveSpinner(s)
+				fmt.Fprintf(s.out, "%s\n", msg)
+			}
 		} else {
 			// Still print the message even if spinner wasn't running
 			fmt.Fprintf(s.out, "%s\n", msg)
@@ -208,7 +277,8 @@ func (s *SpinnerWrapper) UpdateMessage(message string) {
 		running := func() bool {
 			s.mu.Lock()
 			defer s.mu.Unlock()
-			return s.running
+			// Suppressed spinners have no live program to receive the update.
+			return s.running && !s.suppressed
 		}()
 		if running {
 			s.program.Send(updateMessageMsg(message))

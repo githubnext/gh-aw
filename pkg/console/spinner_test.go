@@ -286,3 +286,51 @@ func TestSpinnerStopBeforeStartRaceCondition(t *testing.T) {
 		spinner.StopWithMessage("Done")
 	}
 }
+
+// TestSpinnerGlobalCoordinationSuppressesConcurrent verifies that only one spinner
+// renders at a time: when a second spinner Start()s while another is active, it is
+// suppressed (does not claim the terminal) to avoid concurrent-spinner flicker.
+func TestSpinnerGlobalCoordinationSuppressesConcurrent(t *testing.T) {
+	first := &SpinnerWrapper{enabled: true, out: io.Discard, program: newNoopSpinnerProgram()}
+	second := &SpinnerWrapper{enabled: true, out: io.Discard, program: newNoopSpinnerProgram()}
+
+	first.Start()
+	defer first.Stop()
+	second.Start()
+	defer second.Stop()
+
+	first.mu.Lock()
+	firstSuppressed := first.suppressed
+	first.mu.Unlock()
+	second.mu.Lock()
+	secondSuppressed := second.suppressed
+	second.mu.Unlock()
+
+	if firstSuppressed {
+		t.Error("first spinner should own the terminal, not be suppressed")
+	}
+	if !secondSuppressed {
+		t.Error("second concurrent spinner should be suppressed while the first is active")
+	}
+
+	// After the first stops, a newly started spinner should be able to claim the terminal.
+	first.Stop()
+	third := &SpinnerWrapper{enabled: true, out: io.Discard, program: newNoopSpinnerProgram()}
+	third.Start()
+	defer third.Stop()
+	third.mu.Lock()
+	thirdSuppressed := third.suppressed
+	third.mu.Unlock()
+	if thirdSuppressed {
+		t.Error("third spinner should claim the terminal once the first has released it")
+	}
+}
+
+func newNoopSpinnerProgram() *tea.Program {
+	return tea.NewProgram(
+		spinnerModel{message: "test", output: io.Discard},
+		tea.WithOutput(io.Discard),
+		tea.WithoutRenderer(),
+		tea.WithInput(nil),
+	)
+}
