@@ -214,7 +214,7 @@ console.log("Generating agent factory documentation...");
 const lockFiles = fs
   .readdirSync(WORKFLOWS_DIR)
   .filter(file => file.endsWith(".lock.yml"))
-  .map(file => path.join(WORKFLOWS_DIR, file));
+  .map(file => path.join(WORKFLOWS_DIR, path.basename(file)));
 
 console.log(`Found ${lockFiles.length} lock files`);
 
@@ -229,7 +229,7 @@ const workflows = lockFiles
     // Try to find corresponding .md file
     // Convert "workflow-name.lock.yml" to "workflow-name.md"
     const mdFilename = workflowInfo.filename.replace(".lock.yml", ".md");
-    const mdFilePath = path.join(WORKFLOWS_DIR, mdFilename);
+    const mdFilePath = path.join(WORKFLOWS_DIR, path.basename(mdFilename));
 
     // Extract all workflow metadata from markdown file
     const engine = extractEngineFromMarkdown(mdFilePath);
