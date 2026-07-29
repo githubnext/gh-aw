@@ -144,12 +144,10 @@ type workflowMeta struct {
 // forecastTableRow is a flattened struct used for console table rendering.
 type forecastTableRow struct {
 	Workflow    string `json:"workflow"     console:"header:Workflow"`
-	Engines     string `json:"engines"      console:"header:Engines"`
 	Runs        int    `json:"runs"         console:"header:Runs"`
 	P50PerRun   string `json:"p50_per_run"  console:"header:P50 AIC/Run"`
 	P95PerRun   string `json:"p95_per_run"  console:"header:P95 AIC/Run"`
 	WeeklyP50   string `json:"weekly_p50"   console:"header:Weekly AIC (P50)"`
 	MonthlyP50  string `json:"monthly_p50"  console:"header:Monthly AIC (P50)"`
 	SuccessRate string `json:"success_rate" console:"header:Success Rate"`
-	Triggers    string `json:"triggers"     console:"header:Triggers"`
 }
