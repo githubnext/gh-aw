@@ -1,7 +1,7 @@
 #!/bin/bash
 set +o histexpand
 
-# Query GitHub Actions workflows with per_page pagination support.
+# Query GitHub Actions workflows with perPage pagination support.
 #
 # Usage: ./query-workflows.sh [OPTIONS]
 #
@@ -12,8 +12,9 @@ set +o histexpand
 #   --page N           Page number (default: 1)
 #
 # Alternatively, inputs can be provided as environment variables using the
-# mcp-scripts INPUT_* convention (INPUT_OWNER, INPUT_REPO, INPUT_PER_PAGE,
-# INPUT_PAGE). CLI arguments take precedence over environment variables.
+# mcp-scripts INPUT_* convention (INPUT_OWNER, INPUT_REPO, INPUT_PERPAGE,
+# INPUT_PAGE). INPUT_PER_PAGE is also accepted for backward compatibility.
+# CLI arguments take precedence over environment variables.
 #
 # Calls the GitHub REST API:
 #   GET /repos/{owner}/{repo}/actions/workflows?per_page={n}&page={n}
@@ -25,9 +26,11 @@ set -e
 
 # Defaults: pick up INPUT_* env vars (mcp-scripts convention) or fall back to
 # hardcoded defaults; CLI flags below will override.
+# INPUT_PERPAGE (camelCase perPage) is preferred; INPUT_PER_PAGE accepted for
+# backward compatibility with callers using the old snake_case convention.
 OWNER="${INPUT_OWNER:-}"
 REPO="${INPUT_REPO:-}"
-PER_PAGE="${INPUT_PER_PAGE:-10}"
+PER_PAGE="${INPUT_PERPAGE:-${INPUT_PER_PAGE:-10}}"
 PAGE="${INPUT_PAGE:-1}"
 
 while [[ $# -gt 0 ]]; do

@@ -28,8 +28,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-				PermissionIssues:   PermissionWrite,
+				PermissionIssues: PermissionWrite,
 			},
 		},
 		{
@@ -40,7 +39,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:    PermissionRead,
 				PermissionIssues:      PermissionWrite,
 				PermissionDiscussions: PermissionWrite,
 			},
@@ -53,7 +51,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:    PermissionRead,
 				PermissionDiscussions: PermissionWrite,
 			},
 		},
@@ -67,7 +64,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:    PermissionRead,
 				PermissionDiscussions: PermissionWrite,
 			},
 		},
@@ -79,7 +75,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 			},
@@ -93,7 +88,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 				PermissionDiscussions:  PermissionWrite,
@@ -108,7 +102,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 			},
@@ -122,8 +115,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-				PermissionIssues:   PermissionWrite,
+				PermissionIssues: PermissionWrite,
 			},
 		},
 		{
@@ -135,7 +127,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionPullRequests: PermissionWrite,
 			},
 		},
@@ -147,7 +138,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:    PermissionRead,
 				PermissionIssues:      PermissionWrite,
 				PermissionDiscussions: PermissionWrite,
 			},
@@ -161,8 +151,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-				PermissionIssues:   PermissionWrite,
+				PermissionIssues: PermissionWrite,
 			},
 		},
 		{
@@ -173,7 +162,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 			},
@@ -186,7 +174,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 			},
@@ -199,8 +186,7 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-				PermissionIssues:   PermissionWrite,
+				PermissionIssues: PermissionWrite,
 			},
 		},
 		{
@@ -211,12 +197,11 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionPullRequests: PermissionWrite,
 			},
 		},
 		{
-			name: "update-pull-request without update-branch requires contents read",
+			name: "update-pull-request without update-branch only requires pull-requests write",
 			safeOutputs: &SafeOutputsConfig{
 				UpdatePullRequests: &UpdatePullRequestsConfig{
 					UpdateEntityConfig: UpdateEntityConfig{
@@ -225,7 +210,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionPullRequests: PermissionWrite,
 			},
 		},
@@ -337,7 +321,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 			},
@@ -356,22 +339,19 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 				PermissionDiscussions:  PermissionWrite,
 			},
 		},
 		{
-			name: "upload-asset requires contents read",
+			name: "upload-asset requires no permissions in safe_outputs job",
 			safeOutputs: &SafeOutputsConfig{
 				UploadAssets: &UploadAssetsConfig{
 					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
 				},
 			},
-			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-			},
+			expected: map[PermissionScope]PermissionLevel{},
 		},
 		{
 			name: "create-code-scanning-alert requires security-events write",
@@ -381,7 +361,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:       PermissionRead,
 				PermissionSecurityEvents: PermissionWrite,
 			},
 		},
@@ -393,7 +372,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:       PermissionRead,
 				PermissionSecurityEvents: PermissionWrite,
 				PermissionActions:        PermissionRead,
 			},
@@ -417,7 +395,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:         PermissionRead,
 				PermissionOrganizationProj: PermissionWrite,
 				PermissionIssues:           PermissionRead,
 			},
@@ -430,7 +407,6 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:         PermissionRead,
 				PermissionOrganizationProj: PermissionWrite,
 				PermissionIssues:           PermissionRead,
 			},
@@ -452,10 +428,80 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				},
 			},
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:         PermissionRead,
 				PermissionIssues:           PermissionWrite,
 				PermissionPullRequests:     PermissionWrite,
 				PermissionOrganizationProj: PermissionWrite,
+			},
+		},
+		{
+			name: "create-project-status-update requires only organization-projects write",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionOrganizationProj: PermissionWrite,
+			},
+		},
+		{
+			name: "create-check-run without target requires only checks write",
+			safeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionChecks: PermissionWrite,
+			},
+		},
+		{
+			name: "create-check-run with target requires checks write and pull-requests read",
+			safeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Target:               "triggering",
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionChecks:       PermissionWrite,
+				PermissionPullRequests: PermissionRead,
+			},
+		},
+		{
+			name: "merge-pull-request requires contents write and pull-requests write",
+			safeOutputs: &SafeOutputsConfig{
+				MergePullRequest: &MergePullRequestConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "update-release requires only contents write",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateRelease: &UpdateReleaseConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents: PermissionWrite,
+			},
+		},
+		{
+			name: "create-agent-session requires only issues write",
+			safeOutputs: &SafeOutputsConfig{
+				CreateAgentSessions: &CreateAgentSessionConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
 			},
 		},
 	}
@@ -675,6 +721,67 @@ func TestComputePermissionsForSafeOutputs_IDToken(t *testing.T) {
 	}
 }
 
+func TestComputePermissionsForSafeOutputs_Checkout(t *testing.T) {
+	tests := []struct {
+		name           string
+		safeOutputs    *SafeOutputsConfig
+		expectContents bool
+	}{
+		{
+			name: "no steps - no contents permission",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			expectContents: false,
+		},
+		{
+			name: "step with actions/checkout - auto-detects contents: read",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Steps: []any{
+					map[string]any{"uses": "actions/checkout@v4"},
+				},
+			},
+			expectContents: true,
+		},
+		{
+			name: "step with actions/checkout versioned pin - auto-detects contents: read",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Steps: []any{
+					map[string]any{"uses": "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"},
+				},
+			},
+			expectContents: true,
+		},
+		{
+			name: "step without checkout - no contents permission",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+				Steps: []any{
+					map[string]any{"run": "echo hello"},
+				},
+			},
+			expectContents: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			permissions := ComputePermissionsForSafeOutputs(tt.safeOutputs)
+			require.NotNil(t, permissions, "Permissions should not be nil")
+
+			level, exists := permissions.Get(PermissionContents)
+			if tt.expectContents {
+				assert.True(t, exists, "Expected contents permission to be set")
+				assert.Equal(t, PermissionRead, level, "Expected contents: read")
+			} else {
+				assert.False(t, exists, "Expected contents permission NOT to be set")
+			}
+		})
+	}
+}
+
 func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -701,7 +808,6 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 			},
 			// create-issue is staged so it contributes nothing; add-labels is not staged
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionIssues:       PermissionWrite,
 				PermissionPullRequests: PermissionWrite,
 			},
@@ -740,8 +846,7 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 			},
 			// create-pull-request is staged; close-issue is not
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents: PermissionRead,
-				PermissionIssues:   PermissionWrite,
+				PermissionIssues: PermissionWrite,
 			},
 		},
 		{
@@ -771,7 +876,6 @@ func TestComputePermissionsForSafeOutputs_Staged(t *testing.T) {
 			},
 			// submit-pull-request-review is not staged, so PR write permissions are added
 			expected: map[PermissionScope]PermissionLevel{
-				PermissionContents:     PermissionRead,
 				PermissionPullRequests: PermissionWrite,
 			},
 		},

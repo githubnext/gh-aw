@@ -432,15 +432,10 @@ func TestDailyAgentOfTheDayBlogWriterHasGitDenialMitigationAllowlist(t *testing.
 	}
 
 	workflow := string(content)
-	for _, expected := range []string{
-		`  - "cd * && git status"`,
-		`  - "git add *"`,
-		`  - "git add * && git commit *"`,
-		`  - "cd * && git checkout -b * && git add * && git commit *"`,
-	} {
-		if !strings.Contains(workflow, expected) {
-			t.Fatalf("Expected Daily Agent of the Day Blog Writer workflow to contain %q", expected)
-		}
+	// The workflow uses bash: ["*"] to allow all bash commands (including git),
+	// which covers the git denial mitigation pattern without needing an explicit allowlist.
+	if !strings.Contains(workflow, `bash: ["*"]`) {
+		t.Fatalf("Expected Daily Agent of the Day Blog Writer workflow to allow all bash commands via bash: [\"*\"]")
 	}
 }
 

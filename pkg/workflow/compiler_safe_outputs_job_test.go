@@ -44,7 +44,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			},
 			expectedJobName:  "safe_outputs",
 			checkPermissions: true,
-			expectedPerms:    []string{"contents: read", "issues: write"},
+			expectedPerms:    []string{"issues: write"},
 		},
 		{
 			name: "add comments only",
@@ -57,7 +57,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			},
 			expectedJobName:  "safe_outputs",
 			checkPermissions: true,
-			expectedPerms:    []string{"contents: read", "issues: write", "pull-requests: write"},
+			expectedPerms:    []string{"issues: write", "pull-requests: write"},
 		},
 		{
 			name: "set issue field only",
@@ -66,7 +66,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			},
 			expectedJobName:  "safe_outputs",
 			checkPermissions: true,
-			expectedPerms:    []string{"contents: read", "issues: write"},
+			expectedPerms:    []string{"issues: write"},
 		},
 		{
 			name: "create pull requests with patch",
@@ -99,7 +99,7 @@ func TestBuildConsolidatedSafeOutputsJob(t *testing.T) {
 			},
 			expectedJobName:  "safe_outputs",
 			checkPermissions: true,
-			expectedPerms:    []string{"contents: read", "issues: write", "pull-requests: write"},
+			expectedPerms:    []string{"issues: write", "pull-requests: write"},
 		},
 		{
 			name: "with threat detection enabled",
