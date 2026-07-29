@@ -65,3 +65,36 @@ func TestForecastAICCache_MismatchedRunID(t *testing.T) {
 		t.Fatalf("expected cache miss when run ID differs")
 	}
 }
+
+func TestForecastAICCache_NegativeCacheRoundTrip(t *testing.T) {
+	dir := t.TempDir()
+	const runID int64 = 555
+
+	// A no-data marker is a cache hit that reports AIC 0, letting the caller skip the network.
+	saveForecastNoDataCache(dir, runID)
+	got, ok := loadForecastAICCache(dir, runID)
+	require.True(t, ok, "expected negative-cache hit after saving no-data marker")
+	assert.InDelta(t, 0.0, got, 1e-9)
+
+	// The marker records NoData=true and the current CLI version.
+	data, err := os.ReadFile(filepath.Join(dir, forecastAICCacheFileName))
+	require.NoError(t, err)
+	var c forecastAICCache
+	require.NoError(t, json.Unmarshal(data, &c))
+	assert.True(t, c.NoData)
+	assert.Equal(t, GetVersion(), c.CLIVersion)
+	assert.Equal(t, runID, c.RunID)
+}
+
+func TestForecastAICCache_NegativeCacheInvalidatedOnVersionMismatch(t *testing.T) {
+	dir := t.TempDir()
+	const runID int64 = 777
+	c := forecastAICCache{CLIVersion: "old", RunID: runID, NoData: true}
+	data, err := json.MarshalIndent(&c, "", "  ")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, forecastAICCacheFileName), data, 0o644))
+
+	if _, ok := loadForecastAICCache(dir, runID); ok {
+		t.Fatalf("expected miss for stale-version no-data marker so the run is re-checked")
+	}
+}

@@ -468,7 +468,7 @@ func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
 	analyzeCalled := false
 	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
 		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
-		return ErrNoArtifacts
+		return errNoMatchingArtifact
 	}
 	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
 		analyzeCalled = true

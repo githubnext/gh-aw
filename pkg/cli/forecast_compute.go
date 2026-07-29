@@ -27,6 +27,13 @@ import (
 // and rate-limit headroom.
 const defaultForecastDownloadConcurrency = 8
 
+// errNoMatchingArtifact is returned by forecastDownloadUsageArtifact when
+// the artifact listing succeeds but no artifact name matches the requested
+// filter.  It is distinct from ErrNoArtifacts, which is used when a download
+// is attempted but the output directory ends up empty (a transient failure
+// that should not be negatively cached).
+var errNoMatchingArtifact = errors.New("no matching artifact found for filter")
+
 var (
 	forecastLoadCachedRunAIC = loadCachedRunAIC
 	// forecastDownloadRunArtifacts uses a forecast-specific implementation that downloads
@@ -289,20 +296,25 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	}
 	usageFilter := []string{"usage"}
 	if err := tryDownload(usageFilter); err != nil {
-		if errors.Is(err, ErrNoArtifacts) {
+		if errors.Is(err, errNoMatchingArtifact) {
 			forecastRunLog.Printf("No usage artifact for run %d; AIC will be 0", runID)
+			// Negative-cache this completed run so future forecasts don't re-list its
+			// (nonexistent) artifacts over the network on every invocation.
+			saveForecastNoDataCache(dir, runID)
 			return 0
 		} else if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			forecastRunLog.Printf("Usage artifact download for run %d interrupted: %v", runID, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Usage artifact download for run %d interrupted: %v", runID, err)))
 			}
+			// Transient interruption — do NOT negative-cache; retry next run.
 			return 0
 		} else {
 			forecastRunLog.Printf("Failed to download usage artifact for run %d: %v", runID, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to download usage artifact for run %d: %v", runID, err)))
 			}
+			// Transient/download failure — do NOT negative-cache; retry next run.
 			return 0
 		}
 	}
@@ -310,6 +322,9 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
 	if err != nil || tokenUsage == nil || tokenUsage.TotalAIC <= 0 {
 		forecastRunLog.Printf("No AIC data in usage artifact for run %d (err=%v, tokenUsage=%v)", runID, err, tokenUsage)
+		// The usage artifact was fetched but carries no AIC data; this is permanent for a
+		// completed run, so negative-cache it to skip the download next time.
+		saveForecastNoDataCache(dir, runID)
 		return 0
 	}
 	forecastRunLog.Printf("AIC from usage artifact for run %d: aic=%.3f", runID, tokenUsage.TotalAIC)
@@ -325,8 +340,10 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 //   - Skips workflow run log downloads entirely — logs are not needed for
 //     AIC computation and downloading them wastes time when forecasting
 //     many runs.
-//   - Returns ErrNoArtifacts immediately when no matching artifact is found
-//     rather than falling back to log diagnostics.
+//   - Returns errNoMatchingArtifact when the listing succeeds but no artifact
+//     name matches the filter (safe to negatively cache — the run has no usage
+//     data). Returns ErrNoArtifacts when a listed artifact was attempted but the
+//     output directory is empty after download (transient; must not be cached).
 //
 // It is referenced by forecastDownloadRunArtifacts so that tests can substitute
 // a mock implementation without modifying the general artifact download path.
@@ -373,11 +390,12 @@ func forecastDownloadUsageArtifact(ctx context.Context, runID int64, outputDir s
 	forecastRunLog.Printf("Run %d: listed artifacts=%v, filter=%v, downloadable=%v", runID, artifactNames, artifactFilter, downloadableNames)
 
 	if len(downloadableNames) == 0 {
-		// No usage artifact — clean up empty directory and report.
+		// Listing succeeded but no artifact matches the filter; clean up the empty
+		// directory and return the distinct sentinel so the caller can negatively cache.
 		if fileutil.IsDirEmpty(outputDir) {
 			_ = os.RemoveAll(outputDir)
 		}
-		return ErrNoArtifacts
+		return errNoMatchingArtifact
 	}
 
 	if shouldLogProgress {
