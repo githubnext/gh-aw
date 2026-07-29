@@ -26,7 +26,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:hardcodedfilepath")
 
 // Analyzer is the hardcoded-file-path analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -210,6 +213,7 @@ func collectKnownPathConsts(pass *analysis.Pass) map[string]constRef {
 		}
 	}
 
+	pkgLog.Printf("collected %d known path constants", len(out))
 	return out
 }
 
@@ -246,6 +250,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 	knownConsts := collectKnownPathConsts(pass)
+	pkgLog.Printf("analyzing package %s (%d known path constants)", pass.Pkg.Path(), len(knownConsts))
 
 	for cur := range insp.Root().Preorder((*ast.BasicLit)(nil)) {
 		checkHardcodedFilePath(pass, cur, generatedFiles, noLintIndex, knownConsts)
@@ -278,6 +283,7 @@ func checkHardcodedFilePath(pass *analysis.Pass, cur inspector.Cursor, generated
 		return
 	}
 	inLog := enclosingCallIsLogPrint(pass, cur)
+	pkgLog.Printf("flagging hardcoded path %q (in log/print call=%v)", raw, inLog)
 	if ref, found := knownConsts[raw]; found {
 		msg := fmt.Sprintf(
 			"hard-coded file path %q: use constant %s instead of inline string literal",
