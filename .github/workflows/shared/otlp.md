@@ -12,6 +12,10 @@ observability:
       - url: ${{ secrets.GH_AW_OTEL_GRAFANA_ENDPOINT }}
         headers:
           Authorization: ${{ secrets.GH_AW_OTEL_GRAFANA_AUTHORIZATION }}
+models:
+  default-ai-credits-pricing:
+    input: 5.0
+    output: 25.0
 ---
 
 <!--
