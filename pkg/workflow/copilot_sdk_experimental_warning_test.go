@@ -13,11 +13,13 @@ import (
 	"github.com/github/gh-aw/pkg/testutil"
 )
 
-func TestCopilotSDKExperimentalWarning(t *testing.T) {
+// TestCopilotSDKNoExperimentalWarning tests that the copilot-sdk feature
+// does not emit an experimental warning, as the feature is no longer
+// considered experimental.
+func TestCopilotSDKNoExperimentalWarning(t *testing.T) {
 	tests := []struct {
-		name          string
-		content       string
-		expectWarning bool
+		name    string
+		content string
 	}{
 		{
 			name: "copilot-sdk enabled does not produce experimental warning",
@@ -32,7 +34,6 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
 		},
 		{
 			name: "copilot-sdk disabled does not produce experimental warning",
@@ -47,7 +48,6 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
 		},
 		{
 			name: "no copilot-sdk does not produce experimental warning",
@@ -60,7 +60,6 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: false,
 		},
 	}
 
@@ -73,6 +72,7 @@ permissions:
 				t.Fatal(err)
 			}
 
+			// Capture stderr to check for warnings
 			oldStderr := os.Stderr
 			r, w, _ := os.Pipe()
 			os.Stderr = w
@@ -81,6 +81,7 @@ permissions:
 			compiler.SetStrictMode(false)
 			err := compiler.CompileWorkflow(testFile)
 
+			// Restore stderr
 			w.Close()
 			os.Stderr = oldStderr
 			var buf bytes.Buffer
@@ -92,20 +93,9 @@ permissions:
 				return
 			}
 
-			expectedMessage := "Using experimental feature: engine.copilot-sdk"
-
-			if tt.expectWarning {
-				if !strings.Contains(stderrOutput, expectedMessage) {
-					t.Errorf("Expected warning containing '%s', got stderr:\n%s", expectedMessage, stderrOutput)
-				}
-				if compiler.GetWarningCount() == 0 {
-					t.Error("Expected warning count > 0 but got 0")
-				}
-				return
-			}
-
-			if strings.Contains(stderrOutput, expectedMessage) {
-				t.Errorf("Did not expect warning '%s', but got stderr:\n%s", expectedMessage, stderrOutput)
+			unexpectedMessage := "Using experimental feature: engine.copilot-sdk"
+			if strings.Contains(stderrOutput, unexpectedMessage) {
+				t.Errorf("Did not expect experimental warning '%s', but got stderr:\n%s", unexpectedMessage, stderrOutput)
 			}
 		})
 	}
