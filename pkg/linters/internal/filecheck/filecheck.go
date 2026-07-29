@@ -40,7 +40,7 @@ func Index(pass *analysis.Pass) (GeneratedIndex, error) {
 
 // BuildGeneratedIndex returns the set of generated Go source files in pass.
 func BuildGeneratedIndex(pass *analysis.Pass) GeneratedIndex {
-	pkgPath := "(unknown)"
+	pkgPath := "<unknown>"
 	if pass.Pkg != nil {
 		pkgPath = pass.Pkg.Path()
 	}

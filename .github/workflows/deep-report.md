@@ -87,6 +87,10 @@ imports:
 
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+evals:
+  - id: output_format_goal_met
+    question: Does the agent output show that the objective for experiment output_format was successfully completed?
+
 ---
 
 ### DeepReport - Intelligence Gathering Agent

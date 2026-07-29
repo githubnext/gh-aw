@@ -158,6 +158,12 @@ experiments:
   subagent_model: [small, large]
 features:
   gh-aw-detection: false
+evals:
+  - id: caveman_goal_met
+    question: Does the agent output show that the objective for experiment caveman was successfully completed?
+  - id: subagent_model_goal_met
+    question: Does the agent output show that the objective for experiment subagent_model was successfully completed?
+
 ---
 
 # Smoke Test: Copilot Engine Validation (AOAI Entra BYOK)

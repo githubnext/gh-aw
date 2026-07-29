@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bufio"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -264,8 +265,20 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 		return nil
 	}
 
+	var metricEvalResults map[string]MetricEvalResults
+	if config.RepoOverride != "" {
+		metricEvalResults = loadRemoteMetricEvalResults(config.RepoOverride, details.WorkflowID)
+	} else {
+		metricEvalResults = loadLocalMetricEvalResults(details.WorkflowID)
+	}
+
 	// Compute statistical analyses for each named experiment.
-	details.Analyses = computeExperimentAnalyses(details.Experiments, frontmatterResult.ExperimentConfigs, frontmatterResult.Evals)
+	details.Analyses = computeExperimentAnalyses(
+		details.Experiments,
+		frontmatterResult.ExperimentConfigs,
+		frontmatterResult.Evals,
+		metricEvalResults,
+	)
 
 	if config.JSONOutput {
 		jsonBytes, err := json.MarshalIndent(details, "", "  ")
@@ -283,7 +296,12 @@ func RunExperimentsAnalyze(config ExperimentsAnalyzeConfig) error {
 // computeExperimentAnalyses computes statistical analyses for all named experiments.
 // configs maps experiment names to their configuration; values may be nil.
 // evals provides the eval definitions for resolving eval-backed metric references; may be nil.
-func computeExperimentAnalyses(experiments []ExperimentVariantStats, configs map[string]*workflow.ExperimentConfig, evals *workflow.EvalsConfig) []ExperimentAnalysis {
+func computeExperimentAnalyses(
+	experiments []ExperimentVariantStats,
+	configs map[string]*workflow.ExperimentConfig,
+	evals *workflow.EvalsConfig,
+	metricEvalResults map[string]MetricEvalResults,
+) []ExperimentAnalysis {
 	if len(experiments) == 0 {
 		return nil
 	}
@@ -293,9 +311,77 @@ func computeExperimentAnalyses(experiments []ExperimentVariantStats, configs map
 		if configs != nil {
 			cfg = configs[exp.Name]
 		}
-		analyses = append(analyses, computeExperimentAnalysis(exp, cfg, evals))
+		analyses = append(analyses, computeExperimentAnalysis(exp, cfg, evals, metricEvalResults))
 	}
 	return analyses
+}
+
+type evalResultRecord struct {
+	ID        string `json:"id"`
+	Answer    string `json:"answer"`
+	RunID     string `json:"runid"`
+	Timestamp string `json:"timestamp"`
+}
+
+func loadLocalMetricEvalResults(workflowID string) map[string]MetricEvalResults {
+	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
+	ref := "origin/" + branchName
+	if !gitRefExists(ref) {
+		if !gitRefExists(branchName) {
+			return nil
+		}
+		ref = branchName
+	}
+	cmd := exec.Command("git", "show", ref+":"+constants.EvalsResultFilename)
+	out, err := cmd.Output()
+	if err != nil {
+		return nil
+	}
+	return summarizeMetricEvalResults(out)
+}
+
+func loadRemoteMetricEvalResults(repoOverride, workflowID string) map[string]MetricEvalResults {
+	branchName := workflow.WorkflowStateBranchName(constants.EvalsBranchPrefix, workflowID)
+	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, constants.EvalsResultFilename, "")
+	if err != nil {
+		return nil
+	}
+	return summarizeMetricEvalResults(decoded)
+}
+
+func summarizeMetricEvalResults(data []byte) map[string]MetricEvalResults {
+	scanner := bufio.NewScanner(strings.NewReader(string(data)))
+	results := map[string]MetricEvalResults{}
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		var record evalResultRecord
+		if err := json.Unmarshal([]byte(line), &record); err != nil {
+			continue
+		}
+		if record.ID == "" {
+			continue
+		}
+		summary := results[record.ID]
+		summary.Total++
+		switch strings.ToUpper(strings.TrimSpace(record.Answer)) {
+		case "YES":
+			summary.Yes++
+		case "NO":
+			summary.No++
+		default:
+			summary.Unknown++
+		}
+		summary.LatestAnswer = strings.ToUpper(strings.TrimSpace(record.Answer))
+		summary.LatestRunID = record.RunID
+		results[record.ID] = summary
+	}
+	if len(results) == 0 {
+		return nil
+	}
+	return results
 }
 
 // experimentFrontmatterResult holds both the experiment configs and evals config parsed
