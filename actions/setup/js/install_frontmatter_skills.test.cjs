@@ -123,6 +123,7 @@ describe("install_frontmatter_skills", () => {
     expect(global.exec.exec).toHaveBeenNthCalledWith(2, "gh", ["skill", "install", "githubnext/skills", "review/security", "--pin", "def456", "--agent", "claude-code", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
     expect(global.exec.exec).toHaveBeenNthCalledWith(3, "gh", ["skill", "install", "${{ inputs.skill_ref }}", "--agent", "claude-code", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("### Frontmatter skills installed"));
+    expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("<details>"));
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining('["githubnext/skills@abc123","githubnext/skills/review/security@def456","${{ inputs.skill_ref }}"]'));
   });
 
