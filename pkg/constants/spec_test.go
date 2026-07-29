@@ -454,8 +454,8 @@ func TestSpec_CopilotBYOK(t *testing.T) {
 	assert.Equal(t, "dummy-byok-key-for-offline-mode", constants.CopilotBYOKDummyAPIKey,
 		"CopilotBYOKDummyAPIKey should match the documented value")
 
-	// From spec: CopilotBYOKDefaultModel // "claude-sonnet-5"
-	assert.Equal(t, "claude-sonnet-5", constants.CopilotBYOKDefaultModel,
+	// From spec: CopilotBYOKDefaultModel // "auto"
+	assert.Equal(t, "auto", constants.CopilotBYOKDefaultModel,
 		"CopilotBYOKDefaultModel should match the documented fallback model")
 }
 
