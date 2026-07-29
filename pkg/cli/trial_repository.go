@@ -306,9 +306,14 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 		}
 	}
 
-	// Fetch and save all remote dependencies (includes, imports, dispatch workflows, resources)
+	// Fetch and save all remote dependencies (includes, imports, runtime imports,
+	// dispatch workflows, resources) using the exact commit resolved for this install.
 	if !fetched.IsLocal {
-		if err := fetchAllRemoteDependencies(ctx, string(content), parsedSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
+		depSpec := *parsedSpec
+		if fetched.CommitSHA != "" {
+			depSpec.Version = fetched.CommitSHA
+		}
+		if err := fetchAllRemoteDependencies(ctx, string(content), &depSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
 			return fmt.Errorf("failed to fetch remote dependencies: %w", err)
 		}
 	}
