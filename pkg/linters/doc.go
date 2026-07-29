@@ -1,6 +1,6 @@
 // Package linters is a namespace for gh-aw's custom Go analysis linters.
 //
-// All 59 active analyzers:
+// All 60 active analyzers:
 //
 //   - appendbytestring — flags append(b, []byte(s)...) calls where s is a string that can be simplified to append(b, s...)
 //   - appendoneelement — flags append(s, []T{x}...) calls where a single-element slice literal is spread and can be simplified to append(s, x)
@@ -18,6 +18,7 @@
 //   - fileclosenotdeferred — flags file Close() calls that are not deferred
 //   - fmterrorfnoverbs — flags fmt.Errorf calls with no format verbs, recommending errors.New
 //   - fprintlnsprintf — flags fmt.Fprintln(..., fmt.Sprintf(...)) patterns
+//   - goroutinemissingrecover — flags goroutines started via a function literal whose body does not install a top-level defer/recover guard
 //   - hardcodedfilepath — flags hard-coded file path string literals that match known path constants or should be extracted as named constants
 //   - httpnoctx — flags HTTP calls that do not accept a context.Context
 //   - httprespbodyclose — flags HTTP response bodies that are not closed

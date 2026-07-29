@@ -9,6 +9,14 @@ Google Gemini is Google's model family for coding and repository analysis. gh-aw
 
 Set `engine: gemini` and provide `GEMINI_API_KEY`, or configure keyless authentication with Google Workload Identity Federation. See [Gemini authentication](/gh-aw/reference/auth/#gemini_api_key) for the available setup paths.
 
+### Initialize the repository
+
+Run `gh aw init --engine gemini` to configure the repository. The `--engine gemini` flag skips Copilot-specific files (MCP server configuration, Copilot dispatcher skill) and writes only the files useful for any engine: `.gitattributes`, VS Code settings, and the custom agent file.
+
+```bash
+gh aw init --engine gemini
+```
+
 ```aw wrap title=".github/workflows/daily-status.md"
 ---
 on:

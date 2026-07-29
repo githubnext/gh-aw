@@ -8,6 +8,7 @@ import (
 	"slices"
 	"sort"
 	"strings"
+	"sync"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/setutil"
@@ -15,6 +16,37 @@ import (
 	"github.com/github/gh-aw/pkg/stringutil"
 	"github.com/goccy/go-yaml"
 )
+
+var allPermissionScopeNames = sync.OnceValue(func() []string {
+	ghTokenScopes := GetAllPermissionScopes()
+	appOnlyScopes := GetAllGitHubAppOnlyScopes()
+	// +1 for copilot-requests which is not in GetAllPermissionScopes
+	all := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
+	for _, scope := range ghTokenScopes {
+		all = append(all, string(scope))
+	}
+	for _, scope := range appOnlyScopes {
+		all = append(all, string(scope))
+	}
+	// copilot-requests is valid even though not in GetAllPermissionScopes
+	all = append(all, string(PermissionCopilotRequests))
+	return all
+})
+
+// getAllPermissionScopeNames returns all valid permission scope names for fuzzy matching.
+// The values are computed once and cached across calls.
+func getAllPermissionScopeNames() []string {
+	return slices.Clone(allPermissionScopeNames())
+}
+
+// validPermissionMetaKeys is the set of meta-keys accepted in permissions shorthand contexts.
+// Defined once at package level to avoid per-call map allocation.
+var validPermissionMetaKeys = map[string]struct{}{
+	"all":       {},
+	"read-all":  {},
+	"write-all": {},
+	"none":      {},
+}
 
 // PermissionsValidationResult contains the result of permissions validation
 type PermissionsValidationResult struct {
@@ -408,28 +440,6 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 
 	permissionsValidationLog.Print("Validating permission scope names")
 
-	// Collect all valid scope names for fuzzy matching
-	ghTokenScopes := GetAllPermissionScopes()
-	appOnlyScopes := GetAllGitHubAppOnlyScopes()
-	// +1 for copilot-requests which is not in GetAllPermissionScopes
-	allScopes := make([]string, 0, safeAllocationCapacity(len(ghTokenScopes), len(appOnlyScopes), 1))
-	for _, scope := range ghTokenScopes {
-		allScopes = append(allScopes, string(scope))
-	}
-	for _, scope := range appOnlyScopes {
-		allScopes = append(allScopes, string(scope))
-	}
-	// copilot-requests is valid even though not in GetAllPermissionScopes
-	allScopes = append(allScopes, string(PermissionCopilotRequests))
-	// "all" is a meta-key that is always valid in shorthand contexts
-	validMeta := map[string]struct {
-	}{
-		"all":       {},
-		"read-all":  {},
-		"write-all": {},
-		"none":      {},
-	}
-
 	// Strip optional "permissions:" prefix so we can parse just the map content
 	content := strings.TrimSpace(permissionsYAML)
 	if strings.HasPrefix(content, "permissions:") {
@@ -450,14 +460,17 @@ func ValidatePermissionScopeNames(permissionsYAML string) error {
 	}
 
 	for scopeKey := range permsMap {
-		if setutil.Contains(validMeta, scopeKey) {
+		if setutil.Contains(validPermissionMetaKeys, scopeKey) {
 			continue
 		}
 		if _, ok := validPermissionScopes[scopeKey]; ok {
 			continue
 		}
 
-		// Unknown scope key — check for a case-only difference first (e.g. "Contents" → "contents")
+		// Unknown scope key — retrieve all valid scopes lazily (only on the error path)
+		allScopes := getAllPermissionScopeNames()
+
+		// Check for a case-only difference first (e.g. "Contents" → "contents")
 		lowerScopeKey := strings.ToLower(scopeKey)
 		if lowerScopeKey != scopeKey {
 			if _, ok := validPermissionScopes[lowerScopeKey]; ok {
