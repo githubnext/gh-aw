@@ -15,5 +15,5 @@ Safe-output calls are write-once declarations for real downstream side effects. 
 
 temporary_id: optional cross-reference field for future resources created by safe outputs. Canonical form: '#aw_' followed by 3–12 alphanumeric or underscore characters — e.g., '#aw_abc1', '#aw_pr_fix'. Pattern: /^#?aw_[A-Za-z0-9_]{3,12}$/i (the '#' prefix is optional; bare 'aw_abc1' is accepted and normalised to '#aw_abc1' automatically). Use this form for all field values (temporary_id, item_number, issue_number, parent, etc.). In body/markdown text, '#aw_abc1' references are replaced with the real issue/PR number after creation. Omit entirely when not needed.
 
-**Note**: safeoutputs tools do NOT support `@filename` file name expansion. Always provide content inline — do not use `@filename` references in tool arguments.
+**Note**: safeoutputs tools do NOT support `@filename` file name expansion. Always provide content inline — do not use `@filename` references in tool arguments. To inject an entire file as the `body` field, use `jq -Rs` to read it as a JSON string and pipe the resulting payload: `jq -Rs '{body: .}' file.md | safeoutputs update_discussion .`
 </safe-outputs>

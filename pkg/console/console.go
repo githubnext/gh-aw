@@ -331,29 +331,14 @@ func FormatProgressMessage(message string) string {
 	return applyStyle(styles.Progress, "▸ ") + message
 }
 
-// FormatProgressMessageStderr formats a progress/activity message for stderr output.
-func FormatProgressMessageStderr(message string) string {
-	return applyStyleWithTTY(styles.Progress, "▸ ", isStderrTTY) + message
-}
-
 // FormatPromptMessage formats a user prompt message
 func FormatPromptMessage(message string) string {
 	return applyStyle(styles.Prompt, "? ") + message
 }
 
-// FormatPromptMessageStderr formats a user prompt message for stderr output.
-func FormatPromptMessageStderr(message string) string {
-	return applyStyleWithTTY(styles.Prompt, "? ", isStderrTTY) + message
-}
-
 // FormatVerboseMessage formats verbose debugging output
 func FormatVerboseMessage(message string) string {
 	return applyStyle(styles.Verbose, "» ") + message
-}
-
-// FormatVerboseMessageStderr formats verbose debugging output for stderr output.
-func FormatVerboseMessageStderr(message string) string {
-	return applyStyleWithTTY(styles.Verbose, "» ", isStderrTTY) + message
 }
 
 // FormatListItem formats an item in a list

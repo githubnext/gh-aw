@@ -38,9 +38,12 @@ function isNonFatalUpdateBranchError(error) {
   // Require both permission wording and update-branch context to avoid treating unrelated
   // "workflows permission" errors as non-fatal for pull request branch updates.
   const hasWorkflowsPermissionError = hasWorkflowsPermissionPhrase && (hasWorkflowMutationRefusal || message.includes("update pull request"));
+  // GitHub update-branch API also returns 403 with this message when a PR contains workflow
+  // file changes and the check times out, rather than the usual "refusing to allow" phrase.
+  const hasWorkflowsScopeRequired = message.includes("`workflows` scope may be required") || message.includes("unable to determine if workflow can be created or updated");
 
   if (status !== undefined) {
-    if (status === 403 && hasWorkflowsPermissionError) {
+    if (status === 403 && (hasWorkflowsPermissionError || hasWorkflowsScopeRequired)) {
       return true;
     }
     if (status !== 422) {
@@ -52,7 +55,11 @@ function isNonFatalUpdateBranchError(error) {
   // - already up to date ("There are no new commits on the base branch")
   // - cannot auto-update due to conflict ("merge conflict between base and head")
   // These should not fail safe output processing.
-  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || hasWorkflowsPermissionError;
+  // hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked here for errors
+  // with no numeric status (status === undefined). The explicit 403 case is already handled
+  // by the if-block above, and other numeric statuses (e.g. 422 with these phrases) should
+  // not be silently swallowed.
+  return message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined);
 }
 
 /**

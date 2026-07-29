@@ -132,17 +132,18 @@ function appendSkillInstallFailure(skillSpec, errorMessage) {
  * @returns {Promise<void>}
  */
 async function writeSkillSummary(skillDir, skills, installedSkillCount, failures) {
-  core.summary
-    .addRaw("### Frontmatter skills installed\n\n")
-    .addRaw(`- Engine skill directory: \`${skillDir}\`\n`)
-    .addRaw(`- Requested references: \`${JSON.stringify(skills)}\`\n`)
-    .addRaw(`- Installed SKILL.md files: ${installedSkillCount}\n`);
+  let body = "";
+  body += `- Engine skill directory: \`${skillDir}\`\n`;
+  body += `- Requested references: \`${JSON.stringify(skills)}\`\n`;
+  body += `- Installed SKILL.md files: ${installedSkillCount}\n`;
   if (failures.length > 0) {
-    core.summary.addRaw("\n#### ⚠️ Skill install failures\n\n");
+    body += "\n#### Skill install failures\n\n";
     for (const f of failures) {
-      core.summary.addRaw(`- \`${f.skill}\`: ${f.error}\n`);
+      body += `- \`${f.skill}\`: ${f.error}\n`;
     }
   }
+  const openAttr = failures.length > 0 ? " open" : "";
+  core.summary.addRaw(`### Frontmatter skills installed\n\n<details${openAttr}>\n<summary>Skill install details</summary>\n\n${body}\n</details>\n\n`);
   await core.summary.write();
 }
 

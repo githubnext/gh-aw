@@ -545,7 +545,7 @@ The `--repo` flag accepts `owner/repo` format and is required when passing a bar
 
 The `--artifacts` flag selects which artifact sets to download (default: `all`). Valid sets include `activation`, `agent`, `all`, `detection`, `experiment`, `firewall`, `github-api`, `mcp`, and `usage`. Use `all` to download the full artifact set. Unlike `gh aw logs`, which defaults to `usage`, `audit` defaults to `all` for comprehensive analysis. The `--experiment` flag filters to runs that include the named experiment; `--variant` further restricts to a specific variant value and requires `--experiment` to be set. The `--output/-o` flag overrides the output directory.
 
-Logs are saved to `logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
+Logs are saved to `.github/aw/logs/run-{id}/` with filenames indicating the extraction level. Pre-agent failures (integrity filtering, missing secrets, binary install) surface the actual error in `failure_analysis.error_summary`. Invalid run IDs return a human-readable error.
 
 **Report sections:**
 
@@ -640,9 +640,9 @@ Maps PR check rollups to one of the following normalized states: `success`, `fai
 
 `--head-sha` accepts a pre-resolved commit SHA (e.g. from `gh pr list --json headRefOid`) and skips the REST call that would otherwise fetch it from the PR. Use this flag when the SHA is already available to reduce API consumption.
 
-#### `forecast` `[EXPERIMENTAL]`
+#### `forecast`
 
-Forecast AI Credit (AIC) usage for agentic workflows using recent run history and Monte Carlo simulation.
+Forecast AI Credit (AIC) usage for agentic workflows using recent run history and statistical simulation. All forecasts are estimates derived from historical samples and may be inaccurate.
 
 ```bash wrap
 gh aw forecast                              # Forecast all workflows (monthly)
