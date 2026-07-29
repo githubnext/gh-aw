@@ -7,15 +7,13 @@ sidebar:
 
 # Forecast Command Specification
 
-**Version**: 0.1.0  
-**Status**: Experimental Draft  
+**Version**: 1.0.0  
+**Status**: Draft  
 **Latest Version**: [forecast-specification](/gh-aw/specs/forecast-specification/)  
 **Editor**: GitHub Agentic Workflows Team
 
-> ⚠️ **Experimental**: This specification describes a feature that is under active development. The command interface, output schema, and algorithmic parameters are subject to change without notice. Do not depend on this interface in production workflows.
-
 > [!IMPORTANT]
-> AI Credits (AIC) is the primary cost metric in gh-aw. This draft still references legacy Effective Tokens (ET) field names where command output and schema compatibility require them.
+> AI Credits (AIC) is the primary cost metric in gh-aw. This document still references legacy Effective Tokens (ET) field names where command output and schema compatibility require them.
 
 ---
 
@@ -27,27 +25,7 @@ This specification defines the `gh aw forecast` command for the GitHub Agentic W
 
 ## Status of This Document
 
-This section describes the status of this document at the time of publication. This is an **Experimental Draft** specification and may be updated, replaced, or made obsolete by other documents at any time. The feature it describes is experimental and not yet subject to the stability guarantees that apply to other gh-aw commands.
-
-Promotion from **Experimental Draft** to **Draft** requires all of the following criteria:
-
-1. At least **3 successful production uses** of `gh aw forecast` documented in repository issue or PR history.
-2. A **stable command/API surface** for one full release cycle with no breaking flag or JSON-schema changes.
-3. Sustained conformance evidence that all required tests in §12.1 pass in CI for both local and remote discovery paths.
-
-### Promotion Tracking
-
-The table below tracks documented production uses toward the 3-use requirement (criterion 1 above).
-When a use is documented in a GitHub issue or PR, add a row with the run identifier, repository,
-date, and outcome. Criteria 2 and 3 are evaluated at promotion-review time and are not tracked here.
-
-| `run_id` | `repo` | `date` | `outcome` |
-|---|---|---|---|
-| [26836211632](https://github.com/github/gh-aw/actions/runs/26836211632) | `github/gh-aw` | 2026-06-02 | Confirmed — daily SPDD spec planner run; forecast engine executed, episode analysis output captured. Referenced in [daily spec work plan issue #2026-06-02](https://github.com/github/gh-aw/issues). |
-
-Update this table when a production use is confirmed. Each entry MUST reference a GitHub issue or
-PR that documents the use. Once three **Confirmed** entries are present and criteria 2–3 are
-satisfied, initiate the promotion review by opening a specification-update PR.
+This section describes the status of this document at the time of publication. This is a **Draft** specification. The `gh aw forecast` command is a stable, generally available command; forecasts it produces are probabilistic estimates and may be inaccurate.
 
 This document is governed by the GitHub Agentic Workflows project specifications process.
 
@@ -914,11 +892,11 @@ visibility and access-governance controls.
 - **R-IMPL-031**: JSON serialization of numeric fields MUST NOT produce non-finite values (`NaN`, `+Inf`, `-Inf`). If a computation produces a non-finite value, it MUST be replaced with `0` and a warning MUST be emitted.
 - **R-IMPL-032**: Implementations MUST NOT round projected ET values in intermediate computations; rounding for display purposes MUST occur only at serialization time.
 
-### 11.5 Experimental Status Behavior
+### 11.5 Accuracy Disclosure Behavior
 
-Because the forecast command is marked **Experimental**:
+Because forecasts are probabilistic estimates:
 
-- **R-IMPL-040**: The implementation MUST emit a warning to stderr on every invocation indicating the experimental status of the command unless `--json` is specified (JSON callers are assumed to be automated pipelines that handle warnings separately).
+- **R-IMPL-040**: The implementation MUST emit a note to stderr on every non-JSON invocation indicating that all forecasts are estimates derived from historical samples and may be inaccurate (JSON callers are assumed to be automated pipelines that handle notices separately).
 - **R-IMPL-041**: The JSON output schema MAY have new fields added in minor versions without notice. Callers MUST treat unknown fields as ignorable.
 
 ---
@@ -981,7 +959,7 @@ and adding new fixtures.
 - **T-FC-052**: JSON `as_of` field is a valid RFC 3339 UTC timestamp.
 - **T-FC-053**: JSON `workflows` array is sorted by `projected_effective_tokens` descending.
 - **T-FC-054**: No stdout output (other than JSON) when `--json` is specified.
-- **T-FC-055**: Experimental warning emitted to stderr unless `--json` is specified.
+- **T-FC-055**: Accuracy note emitted to stderr unless `--json` is specified.
 
 ### 12.2 Compliance Checklist
 
@@ -1007,7 +985,7 @@ and adding new fixtures.
 | Episode table display logic | T-FC-043–044 | 2 | Required |
 | Console output columns | T-FC-050 | 1 | Required |
 | JSON schema conformance | T-FC-051–054 | 2 | Required |
-| Experimental status warning | T-FC-055 | 1 | Required |
+| Accuracy disclosure note | T-FC-055 | 1 | Required |
 
 ---
 
@@ -1069,11 +1047,11 @@ Sync follow-up tasks:
   comment on `poissonNormalApproximationThreshold` in `pkg/cli/forecast_montecarlo.go` directing
   maintainers to Appendix B and R-FC-060. Closes
   [#31985](https://github.com/github/gh-aw/issues/31985).
-- **[Resolved 2026-05-28]** R-IMPL-040 experimental-warning sync: Confirmed that
-  `pkg/cli/forecast.go` (`RunForecast`) emits the experimental-status warning via
-  `console.FormatWarningMessage` on every non-JSON invocation. The warning is now correctly
-  suppressed when `config.JSONOutput` is true (per R-IMPL-040 requirement). Verified by
-  `TestRunForecast_R_IMPL_040_ExperimentalWarning` in `pkg/cli/forecast_test.go`.
+- **[Resolved 2026-07-29]** R-IMPL-040 accuracy-note sync: The forecast command no longer
+  emits an experimental-status warning. `pkg/cli/forecast_render.go` (`renderForecastTable`)
+  emits an accuracy note — "All forecasts are estimates derived from historical samples and
+  may be inaccurate." — via `console.FormatWarningMessage` on every non-JSON invocation. The
+  note is suppressed for `--json` output (per R-IMPL-040).
 
 ---
 
@@ -1172,6 +1150,13 @@ Safeguard requirements for this specification are now defined in §10.7.
 ---
 
 ## 17. Change Log
+
+### Version 1.0.0 (Draft)
+
+- Promoted the `gh aw forecast` command out of experimental status
+- Removed the experimental-status stderr warning and `[EXPERIMENTAL]` command labels
+- Replaced the experimental warning (R-IMPL-040) with an accuracy-disclosure note: "All forecasts are estimates derived from historical samples and may be inaccurate."
+- Centralized console output explanations in the footer and removed user-facing "Monte Carlo" wording
 
 ### Version 0.1.0 (Experimental Draft)
 
