@@ -36,7 +36,7 @@ const { isStagedMode } = require("./safe_output_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { withRetry, RATE_LIMIT_RETRY_CONFIG } = require("./error_recovery.cjs");
 const { findAgent, getIssueDetails, assignAgentToIssue } = require("./assign_agent_helpers.cjs");
-const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
+const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, getBundlePrerequisites, isShallowOrSparseCheckout, linearizeRangeAsCommit } = require("./git_helpers.cjs");
 const { parseDiffGitHeader: parseDiffGitHeaderPaths, extractDiffGitHeaderEntries } = require("./patch_path_helpers.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 const { resolveAllowedMentionsFromPayload } = require("./resolve_mentions_from_payload.cjs");
@@ -322,15 +322,39 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
 }
 
 /**
- * Rewrites the current branch to a single non-merge commit relative to origin/<baseBranch>.
- * This is used as a recovery path when signed commit replay rejects merge commit topology.
+ * Rewrites the current branch to a single non-merge commit relative to the bundle's
+ * actual base commit (the prerequisite SHA recorded in the bundle). Falls back to
+ * origin/<baseBranch> when the bundle prerequisite cannot be determined.
+ *
+ * Using the bundle's prerequisite SHA instead of the current origin/<baseBranch> tip
+ * ensures the linearized commit only contains the agent's actual changes and does not
+ * revert or absorb commits that were added to the base branch after the agent's checkout.
  *
  * @param {string} baseBranch
  * @param {{ exec: Function, getExecOutput: Function }} execApi
+ * @param {string} [bundleFilePath] - Optional path to the bundle file; used to extract the
+ *   precise base commit the agent worked from.
  * @returns {Promise<void>}
  */
-async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi) {
-  const baseRef = `origin/${baseBranch}`;
+async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFilePath) {
+  const fallbackBaseRef = `origin/${baseBranch}`;
+  let baseRef = fallbackBaseRef;
+
+  if (bundleFilePath) {
+    try {
+      const prereqs = await getBundlePrerequisites(execApi, bundleFilePath);
+      if (prereqs.length === 1) {
+        baseRef = prereqs[0];
+        core.info(`Using bundle prerequisite commit ${baseRef} as linearization base (avoids including base-branch drift)`);
+      } else if (prereqs.length > 1) {
+        core.info(`Bundle has ${prereqs.length} prerequisite commits; falling back to ${fallbackBaseRef} as linearization base`);
+      } else {
+        core.info(`Bundle declares no prerequisites; falling back to ${fallbackBaseRef} as linearization base`);
+      }
+    } catch (prereqError) {
+      core.warning(`Could not extract bundle prerequisites: ${getErrorMessage(prereqError)}; falling back to ${fallbackBaseRef}`);
+    }
+  }
 
   let commitHeadline = "Apply bundled create_pull_request changes";
   try {
@@ -1678,7 +1702,7 @@ async function main(config = {}) {
             if (isSignedMergeReplayRefusal) {
               core.warning("Signed push rejected merge commit topology from bundle; rewriting branch and retrying signed push");
               try {
-                await rewriteBundleBranchAsSingleCommit(baseBranch, exec);
+                await rewriteBundleBranchAsSingleCommit(baseBranch, exec, bundleFilePath);
                 const runRetryPush = async () =>
                   pushSignedCommits({
                     githubClient: pushGithubClient,
@@ -2744,4 +2768,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch, rewriteBundleBranchAsSingleCommit };

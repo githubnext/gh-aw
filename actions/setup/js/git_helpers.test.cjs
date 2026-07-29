@@ -735,6 +735,112 @@ describe("git_helpers.cjs", () => {
     });
   });
 
+  describe("getBundlePrerequisites", () => {
+    const PREREQ_SHA = "172f87a830f57a29470efe7646d141069434a893";
+    const ANOTHER_SHA = "aabbccddee1122334455667788990011aabbccdd";
+
+    it("should be exported from git_helpers.cjs", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      expect(typeof getBundlePrerequisites).toBe("function");
+    });
+
+    it("should return single prerequisite SHA from bundle verify output", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: `The bundle requires this ref:\n        ${PREREQ_SHA} \nThe bundle contains this ref:\n`,
+          stderr: "",
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([PREREQ_SHA]);
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], { ignoreReturnCode: true, silent: true });
+    });
+
+    it("should return multiple prerequisite SHAs when bundle has several", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: `The bundle requires these refs:\n        ${PREREQ_SHA} \n        ${ANOTHER_SHA} \nThe bundle contains these refs:\n`,
+          stderr: "",
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toContain(PREREQ_SHA);
+      expect(result).toContain(ANOTHER_SHA);
+      expect(result).toHaveLength(2);
+    });
+
+    it("should return empty array when bundle has no prerequisites (self-contained)", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: "The bundle contains this ref:\n        abcdef1234567890abcdef1234567890abcdef12 refs/heads/main\n",
+          stderr: "",
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should return empty array and not throw when git bundle verify fails", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockRejectedValue(new Error("not a bundle file")),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/not-a-bundle");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should pick up prerequisites from 'Repository lacks these prerequisite commits' block in stderr", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: "",
+          stderr: `error: Repository lacks these prerequisite commits:\nerror: ${PREREQ_SHA}`,
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([PREREQ_SHA]);
+    });
+
+    it("should deduplicate SHAs that appear in both verify output sections", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: `The bundle requires this ref:\n        ${PREREQ_SHA} \n`,
+          stderr: `error: Repository lacks these prerequisite commits:\nerror: ${PREREQ_SHA}`,
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([PREREQ_SHA]);
+    });
+
+    it("should pass additional options to getExecOutput", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
+      };
+      const options = { cwd: "/repo" };
+
+      await getBundlePrerequisites(execApi, "/tmp/test.bundle", options);
+
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], { cwd: "/repo", ignoreReturnCode: true, silent: true });
+    });
+  });
+
   describe("linearizeRangeAsCommit", () => {
     const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";

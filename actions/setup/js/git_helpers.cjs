@@ -657,6 +657,7 @@ module.exports = {
   ensureFullHistoryForBundle,
   ensureOriginRemoteTrackingRef,
   extractBundlePrerequisiteCommits,
+  getBundlePrerequisites,
   getGitAuthEnv,
   hasMergeCommitsInRange,
   isShallowOrSparseCheckout,
