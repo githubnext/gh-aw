@@ -640,9 +640,9 @@ Maps PR check rollups to one of the following normalized states: `success`, `fai
 
 `--head-sha` accepts a pre-resolved commit SHA (e.g. from `gh pr list --json headRefOid`) and skips the REST call that would otherwise fetch it from the PR. Use this flag when the SHA is already available to reduce API consumption.
 
-#### `forecast` `[EXPERIMENTAL]`
+#### `forecast`
 
-Forecast AI Credit (AIC) usage for agentic workflows using recent run history and Monte Carlo simulation.
+Forecast AI Credit (AIC) usage for agentic workflows using recent run history and statistical simulation. All forecasts are estimates derived from historical samples and may be inaccurate.
 
 ```bash wrap
 gh aw forecast                              # Forecast all workflows (monthly)
