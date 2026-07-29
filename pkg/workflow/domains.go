@@ -880,8 +880,9 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 // The result is cached in data.CachedAllowedDomainsStr after the first call so that
 // repeated calls (e.g. from the activation job, safe-outputs steps, and agent run step)
 // do not recompute the same domain list.
-// Additionally, results are cached on the Compiler keyed by FrontmatterHash so that
-// repeated compilations of the same unchanged workflow skip the full domain computation.
+// Additionally, results are cached on the Compiler keyed by markdown path with the
+// current FrontmatterHash so repeated compilations of an unchanged workflow skip the
+// full domain computation without unbounded hash-key growth in watch mode.
 // Returns an error if the engine's model is malformed (e.g. a leading slash).
 func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (string, error) {
 	// Return cached result if available (engine/network/tools/runtimes do not change during compilation).
@@ -891,15 +892,13 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 		return data.CachedAllowedDomainsStr, nil
 	}
 
-	// Check the Compiler-level cache keyed by FrontmatterHash.
-	// FrontmatterHash is a SHA-256 of the workflow's frontmatter + body, so it changes
-	// whenever the file changes, making this cache safe across watch-mode recompilations.
-	// Only use the Compiler cache when FrontmatterHash is set (it is set before buildJobsAndValidate).
-	if data.FrontmatterHash != "" {
-		if cached, ok := c.allowedDomainsCache[data.FrontmatterHash]; ok {
-			data.CachedAllowedDomainsStr = cached
+	// Check the Compiler-level cache keyed by markdown path.
+	// A cached entry is reusable only when the current frontmatter hash matches.
+	if c.markdownPath != "" && data.FrontmatterHash != "" {
+		if cached, ok := c.allowedDomainsCache[c.markdownPath]; ok && cached.frontmatterHash == data.FrontmatterHash {
+			data.CachedAllowedDomainsStr = cached.domains
 			data.CachedAllowedDomainsComputed = true
-			return cached, nil
+			return cached.domains, nil
 		}
 	}
 
@@ -957,9 +956,12 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	data.CachedAllowedDomainsStr = base
 
 	// Populate the Compiler-level cache so subsequent compilations of the same
-	// (unchanged) workflow skip this computation entirely.
-	if data.FrontmatterHash != "" {
-		c.allowedDomainsCache[data.FrontmatterHash] = base
+	// workflow path and unchanged frontmatter skip this computation entirely.
+	if c.markdownPath != "" && data.FrontmatterHash != "" {
+		c.allowedDomainsCache[c.markdownPath] = allowedDomain{
+			frontmatterHash: data.FrontmatterHash,
+			domains:         base,
+		}
 	}
 
 	return base, nil
