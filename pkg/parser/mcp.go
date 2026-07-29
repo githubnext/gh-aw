@@ -57,7 +57,13 @@ type MCPServerInfo struct {
 	Error     error
 	Tools     []*mcp.Tool
 	Resources []*mcp.Resource
-	Roots     []*mcp.Root
+	Roots     []*MCPRootInfo
+}
+
+// MCPRootInfo contains inspection-only root display data inferred from resources.
+type MCPRootInfo struct {
+	URI  string
+	Name string
 }
 
 // ExtractMCPConfigurations extracts MCP server configurations from workflow frontmatter
