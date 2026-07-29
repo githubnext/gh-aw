@@ -307,8 +307,8 @@ Test workflow with discussions permission.
 	// actions/create-github-app-token scopes the token to only those permissions.
 	assert.Contains(t, stepsStr, "permission-discussions: write", "GitHub App token should include discussions write permission")
 	// Other explicitly supported permission inputs should still be present
-	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
 	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission (create-discussion falls back to issue)")
+	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
 // TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission tests that issues read permission
@@ -349,7 +349,7 @@ Test workflow with update-project permissions.
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
 	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
-	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
+	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
 // TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesReadPermission tests that issues read permission
@@ -390,7 +390,7 @@ Test workflow with create-project item_url permissions.
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
 	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
-	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
+	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
 // TestSafeOutputsAppTokenAddCommentAddLabelsIssuesWrite is a regression test for the issue
@@ -449,8 +449,8 @@ Test workflow
 		"App token must use handler-computed issues:write, not workflow-level issues:read")
 	assert.Contains(t, stepsStr, "permission-pull-requests: write",
 		"App token must include pull-requests:write from add-labels handler")
-	assert.Contains(t, stepsStr, "permission-contents: read",
-		"App token must include contents:read")
+	assert.NotContains(t, stepsStr, "permission-contents: read",
+		"App token must not include contents:read for output-only handlers")
 
 	// The job-level permissions YAML must also reflect the handler-computed scope.
 	assert.Contains(t, job.Permissions, "issues: write",

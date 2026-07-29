@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.26.0  
+**Version**: 1.27.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-07-16  
+**Publication Date**: 2026-07-29  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -368,7 +368,6 @@ Each safe output job MUST request minimal permissions. Jobs SHOULD specialize by
 jobs:
   safe-output-create-issue:
     permissions:
-      contents: read
       issues: write  # Minimal for issue creation
 ```
 
@@ -2192,7 +2191,6 @@ The following table defines the exact `createHandlers()` function used for each 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and file access
 - `issues: write` - Issue creation and modification
 
 *GitHub App* (if using `safe-outputs.app` configuration):
@@ -2204,7 +2202,6 @@ The following table defines the exact `createHandlers()` function used for each 
 
 - Both permission modes require the same write scopes
 - GitHub App permissions enable cross-repository operations beyond `allowed-repos` when properly configured
-- The `contents: read` permission is always included for repository context access
 
 ---
 
@@ -2280,7 +2277,6 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and file access
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
 - `discussions: write` - Comment creation on discussions (only when `discussions: true`)
@@ -2320,7 +2316,6 @@ safe-outputs:
 - Set `discussions: true` to add `discussions:write` and enable commenting on discussions
 - Discussion-related safe outputs (`create-discussion`, `close-discussion`, `update-discussion`) independently add `discussions:write` permission when configured
 - Cross-repository commenting requires appropriate permissions in target repository
-- The `contents: read` permission is always included for repository context access
 - When `safe-outputs.add-comment.target` is `"*"`, requests MUST include at least one of `item_number`, `pr_number`, or `pr`; `item_number` is the canonical field.
 
 ---
@@ -2570,7 +2565,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Managed comment create/update operations on issues and pull requests
 
 *GitHub App*:
@@ -2641,7 +2635,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Issue modification operations
 
 *GitHub App*:
@@ -2722,7 +2715,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Issue state modification and comment creation
 
 *GitHub App*:
@@ -2788,7 +2780,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Issue body modification for task list entries
 
 *GitHub App*:
@@ -2863,7 +2854,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Fallback issue creation when discussion creation fails
 - `discussions: write` - Discussion creation operations
 
@@ -2935,7 +2925,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `discussions: write` - Discussion modification operations
 
 *GitHub App*:
@@ -3010,7 +2999,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `discussions: write` - Discussion state modification and comment creation
 
 *GitHub App*:
@@ -3032,7 +3020,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `pull-requests: write` - Pull request modification operations
 
 *GitHub App*:
@@ -3060,7 +3047,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `pull-requests: write` - Pull request state modification and comment creation
 
 *GitHub App*:
@@ -3168,7 +3154,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `pull-requests: write` - Pull request draft status modification
 
 *GitHub App*:
@@ -3242,7 +3227,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and diff access
 - `pull-requests: write` - Review comment creation
 
 *GitHub App*:
@@ -3270,7 +3254,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `pull-requests: write` - Review submission operations
 
 *GitHub App*:
@@ -3300,7 +3283,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `pull-requests: write` - Review thread resolution operations
 
 *GitHub App*:
@@ -3328,7 +3310,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `pull-requests: write` - Review comment reply creation
 
 *GitHub App*:
@@ -3356,7 +3337,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Label addition to issues
 - `pull-requests: write` - Label addition to pull requests
 
@@ -3385,7 +3365,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Label removal from issues
 - `pull-requests: write` - Label removal from pull requests
 
@@ -3414,7 +3393,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `pull-requests: write` - Reviewer assignment operations
 
 *GitHub App*:
@@ -3441,7 +3419,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Milestone assignment operations
 
 *GitHub App*:
@@ -3490,7 +3467,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Agent assignment operations
 
 *GitHub App*:
@@ -3521,7 +3497,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - User assignment operations (for issues)
 - `pull-requests: write` - User assignment operations (for pull requests)
 
@@ -3550,7 +3525,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - User unassignment operations
 
 *GitHub App*:
@@ -3580,7 +3554,6 @@ This section provides complete definitions for all remaining safe output types. 
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Comment hiding on issues
 - `pull-requests: write` - Comment hiding on pull requests
 - `discussions: write` - Comment hiding on discussions (when `discussions: true` or omitted)
@@ -3635,7 +3608,6 @@ safe-outputs:
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `organization-projects: write` - Project creation operations (note: only valid for GitHub Apps)
 
 *GitHub App*:
@@ -3663,7 +3635,6 @@ safe-outputs:
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `organization-projects: write` - Project management operations (note: only valid for GitHub Apps)
 
 *GitHub App*:
@@ -3691,7 +3662,6 @@ safe-outputs:
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `organization-projects: write` - Project status update operations (note: only valid for GitHub Apps)
 
 *GitHub App*:
@@ -3787,7 +3757,7 @@ safe-outputs:
 
 **Notes**:
 
-- Requires ONLY `actions: write` permission (no `contents: read` needed)
+- Requires ONLY `actions: write` permission
 - Target workflow must support `workflow_dispatch` trigger
 - Workflow inputs are validated against target workflow's input schema
 - Cross-repository dispatch requires appropriate `actions: write` permissions in the target repository
@@ -3807,7 +3777,6 @@ safe-outputs:
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `security-events: write` - SARIF report upload and alert creation
 
 *GitHub App*:
@@ -3835,7 +3804,6 @@ safe-outputs:
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `security-events: write` - Alert metadata access
 - `actions: read` - Workflow run metadata for alert correlation
 
@@ -3849,7 +3817,7 @@ safe-outputs:
 
 **Notes**:
 
-- Most complex permission set - requires security-events, contents, pull-requests, and actions scopes
+- Most complex permission set — GitHub Actions Token requires security-events and actions scopes; GitHub App additionally requires contents and pull-requests scopes for branch/PR creation
 - Creates pull request with proposed fix referencing the alert
 - Alert must exist and be fixable
 
@@ -3924,12 +3892,10 @@ safe-outputs:
 
 *GitHub Actions Token* (when `target` is NOT configured):
 
-- `contents: read` - Repository metadata and context
 - `checks: write` - Check run creation
 
 *GitHub Actions Token* (when `target` IS configured):
 
-- `contents: read` - Repository metadata and context
 - `checks: write` - Check run creation
 - `pull-requests: read` - PR head SHA resolution via `GET /repos/{owner}/{repo}/pulls/{pull_number}`
 
@@ -3983,7 +3949,6 @@ safe-outputs:
 
 *GitHub Actions Token*:
 
-- `contents: read` - Repository metadata and context
 - `issues: write` - Issue creation and agent assignment
 
 *GitHub App*:
@@ -5346,6 +5311,13 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
 
+**Version 1.27.0** (2026-07-29):
+
+- **Removed**: `contents: read` from the required permissions of all output-only safe-output handlers. The permission was an unconditional baseline with no functional purpose in the `safe_outputs` job for handlers that only call issue, pull-request, discussion, checks, or security-events APIs. Operators who use tightly scoped GitHub Apps no longer need to justify a repository-contents read grant for pure output workloads.
+- **Updated**: Permission tables for `create_issue`, `add_comment`, `close_issue`, `update_issue`, `assign_milestone`, `assign_to_user`, `unassign_from_user`, `assign_to_agent`, `link_sub_issue`, `set_issue_type`, `set_issue_field`, `comment_memory`, `create_discussion`, `update_discussion`, `close_discussion`, `hide_comment`, `add_labels`, `remove_labels`, `replace_label`, `add_reviewer`, `close_pull_request`, `mark_pull_request_as_ready_for_review`, `dismiss_pull_request_review`, `create_pull_request_review_comment`, `submit_pull_request_review`, `reply_to_pull_request_review_comment`, `resolve_pull_request_review_thread`, `update_pull_request` (without `update-branch`), `create_code_scanning_alert`, `autofix_code_scanning_alert`, `create_check_run`, `update_project`, `create_project`, and `create_project_status_update`.
+- **Removed**: `upload_asset` PermissionBuilder — the `safe_outputs` job does not process `upload_asset` items (handled by the dedicated `publish_assets` job with `contents: write`); no permissions are contributed to `safe_outputs` for this handler.
+- **Updated**: Publication metadata to 1.27.0.
+
 **Version 1.26.0** (2026-07-16):
 
 - **Added**: First-class fork-backed pull request semantics for `create_pull_request`, including distinct `target-repo` (upstream) and `head-repo` (automation-owned fork) roles.
@@ -5375,7 +5347,7 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 **Version 1.23.0** (2026-06-10):
 
 - **Added**: `create_check_run` safe output type definition in Section 7.3, including full MCP tool schema, operational semantics, configuration parameters, and permission requirements.
-- **Specified**: Dual-permission profile for `create_check_run`: `contents: read` + `checks: write` when no `target` is configured; adds `pull-requests: read` when `target` is set (required for PR head SHA resolution via `GET /repos/{owner}/{repo}/pulls/{pull_number}`).
+- **Specified**: Dual-permission profile for `create_check_run`: `checks: write` when no `target` is configured; adds `pull-requests: read` when `target` is set (required for PR head SHA resolution via `GET /repos/{owner}/{repo}/pulls/{pull_number}`).
 - **Specified**: SHA resolution order: API-fetched PR head SHA (when `target` configured) → event-payload `pull_request.head.sha` → `GITHUB_SHA` → `context.sha`.
 - **Specified**: Staged-mode behavior: Pulls API call is skipped; preview message includes the resolved PR number when `target` is set.
 - **Updated**: Publication metadata to 1.23.0.

@@ -211,3 +211,112 @@ func NewPermissionsContentsReadProjectsWrite() *Permissions {
 		PermissionOrganizationProj: PermissionWrite,
 	})
 }
+
+// NewPermissionsIssuesWrite creates permissions with issues: write only.
+// Used for output-only handlers (create-issue, close-issue, etc.) that call the
+// issues API without accessing repository file contents.
+func NewPermissionsIssuesWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionIssues: PermissionWrite,
+	})
+}
+
+// NewPermissionsIssuesWritePRWrite creates permissions with issues: write and pull-requests: write.
+// Used for handlers such as add-labels that operate on both issues and pull requests.
+func NewPermissionsIssuesWritePRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionIssues:       PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
+// NewPermissionsDiscussionsWrite creates permissions with discussions: write only.
+// Used for discussion-only output handlers (update-discussion, close-discussion).
+func NewPermissionsDiscussionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionDiscussions: PermissionWrite,
+	})
+}
+
+// NewPermissionsIssuesWriteDiscussionsWrite creates permissions with issues: write and discussions: write.
+// Used for create-discussion which falls back to issue creation when discussion creation fails.
+func NewPermissionsIssuesWriteDiscussionsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionIssues:      PermissionWrite,
+		PermissionDiscussions: PermissionWrite,
+	})
+}
+
+// NewPermissionsPRWrite creates permissions with pull-requests: write only.
+// Used for pull-request output handlers (add-reviewer, close-pull-request, etc.)
+// that call the pull-requests API without accessing repository file contents.
+func NewPermissionsPRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
+// NewPermissionsSecurityEventsWrite creates permissions with security-events: write only.
+// Used for the create-code-scanning-alert handler in the safe_outputs job, which writes
+// a SARIF file to disk without accessing repository file contents directly.
+func NewPermissionsSecurityEventsWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionSecurityEvents: PermissionWrite,
+	})
+}
+
+// NewPermissionsSecurityEventsWriteActionsRead creates permissions with security-events: write and actions: read.
+// Used for the autofix-code-scanning-alert handler which triggers the GitHub code-scanning fixes API.
+func NewPermissionsSecurityEventsWriteActionsRead() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionSecurityEvents: PermissionWrite,
+		PermissionActions:        PermissionRead,
+	})
+}
+
+// NewPermissionsChecksWrite creates permissions with checks: write only.
+// Used for the create-check-run handler which creates check runs via the checks API.
+func NewPermissionsChecksWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionChecks: PermissionWrite,
+	})
+}
+
+// NewPermissionsChecksWritePRRead creates permissions with checks: write and pull-requests: read.
+// Used when create-check-run has a target configured and must resolve the PR head SHA via the REST API.
+func NewPermissionsChecksWritePRRead() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionChecks:       PermissionWrite,
+		PermissionPullRequests: PermissionRead,
+	})
+}
+
+// NewPermissionsIssuesWriteDiscussionsWritePRWrite creates permissions with issues: write, discussions: write,
+// and pull-requests: write.
+func NewPermissionsIssuesWriteDiscussionsWritePRWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionIssues:       PermissionWrite,
+		PermissionDiscussions:  PermissionWrite,
+		PermissionPullRequests: PermissionWrite,
+	})
+}
+
+// NewPermissionsOrganizationProjWriteIssuesRead creates permissions with organization-projects: write
+// and issues: read. Used for project-management handlers (update-project, create-project) that read
+// issue metadata when adding items to projects.
+// Note: organization-projects is only valid for GitHub App tokens, not workflow permissions.
+func NewPermissionsOrganizationProjWriteIssuesRead() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionOrganizationProj: PermissionWrite,
+		PermissionIssues:           PermissionRead,
+	})
+}
+
+// NewPermissionsOrganizationProjWrite creates permissions with organization-projects: write only.
+// Used for create-project-status-update which only needs to write a project status update.
+// Note: organization-projects is only valid for GitHub App tokens, not workflow permissions.
+func NewPermissionsOrganizationProjWrite() *Permissions {
+	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+		PermissionOrganizationProj: PermissionWrite,
+	})
+}
