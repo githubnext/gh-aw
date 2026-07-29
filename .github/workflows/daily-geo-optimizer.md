@@ -66,7 +66,7 @@ jobs:
 
       - name: Audit README via GitHub repository page
         run: |
-          geo audit --url https://github.com/${{ github.repository }} --format json \
+          geo audit --url "https://github.com/${{ github.repository }}" --format json \
             > /tmp/gh-aw/agent/geo-optimizer/readme-audit.json 2>&1 || true
 
       - name: Write audit metadata
