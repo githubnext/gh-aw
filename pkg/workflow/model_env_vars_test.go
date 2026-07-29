@@ -495,7 +495,7 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			model:                "${{ inputs.model }}",
 			expectedModelEnvVar:  constants.ClaudeCLIModelEnvVar,
 			expectedModelEnvVal:  "${{ inputs.model }}",
-			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.SonnetDefaultModel + "' }}",
 			expectShellExpansion: false, // Claude reads ANTHROPIC_MODEL natively, no shell expansion needed
 		},
 		{
@@ -504,7 +504,7 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			model:                "${{ inputs.provider }}/${{ inputs.model }}",
 			expectedModelEnvVar:  constants.ClaudeCLIModelEnvVar,
 			expectedModelEnvVal:  "${{ inputs.provider }}/${{ inputs.model }}",
-			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.SonnetDefaultModel + "' }}",
 			expectShellExpansion: false,
 		},
 		{
