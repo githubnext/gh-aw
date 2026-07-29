@@ -479,6 +479,33 @@ describe("generate_footer.cjs", () => {
         expect(result).toContain("Potential security threats were detected");
       });
 
+      it("should return warning alert for agent_failure (tooling failure, not security finding)", () => {
+        process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+        process.env.GH_AW_DETECTION_REASON = "agent_failure";
+
+        const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+        expect(result).toContain("> [!WARNING]");
+        expect(result).toContain("threat detection engine error");
+        expect(result).toContain("<!-- gh-aw-threat-detected -->");
+        expect(result).not.toContain("> [!CAUTION]");
+        expect(result).not.toContain("agentic threat detected");
+        expect(result).toContain("failed to produce results");
+      });
+
+      it("should return warning alert for parse_error (tooling failure, not security finding)", () => {
+        process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+        process.env.GH_AW_DETECTION_REASON = "parse_error";
+
+        const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
+
+        expect(result).toContain("> [!WARNING]");
+        expect(result).toContain("threat detection engine error");
+        expect(result).not.toContain("> [!CAUTION]");
+        expect(result).not.toContain("agentic threat detected");
+        expect(result).toContain("could not be parsed");
+      });
+
       it("should return empty string when detection conclusion is not warning", () => {
         process.env.GH_AW_DETECTION_CONCLUSION = "success";
 
