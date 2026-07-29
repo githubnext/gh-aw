@@ -7,7 +7,7 @@ sidebar:
 
 # Checkout Behavior Specification
 
-**Version**: 1.0.0  
+**Version**: 1.1.0  
 **Status**: Working Draft  
 **Publication Date**: 2026-07-08  
 **Editor**: GitHub Agentic Workflows Team  
@@ -230,6 +230,22 @@ Effective side-repo token precedence MUST be:
 2. side-repo target checkout `github-app` minted token reference
 3. `${{ secrets.GH_AW_GITHUB_TOKEN }}`
 
+### 6.3 `push_to_pull_request_branch` Side-Repo Checkout Resolution
+
+The `push_to_pull_request_branch` safe-output handler MUST resolve the target checkout directory from one of three sources, evaluated in priority order:
+
+1. `patch_workspace_path` configuration (explicit path; resolved via `resolvePatchWorkspacePath`).
+2. `entry.repo` field or `target-repo` workflow config entry — triggers `findRepoCheckout` lookup.
+3. `GH_AW_TARGET_REPO_SLUG` environment variable — used as a side-repo checkout hint **only when** its value (case-insensitively) differs from `GITHUB_REPOSITORY`. When the env var is set but matches `GITHUB_REPOSITORY`, it MUST be ignored and the handler MUST log a debug message explaining the passthrough.
+
+When source 2 or 3 triggers a `findRepoCheckout` lookup, all subsequent git operations for that handler invocation (branch detection, patch generation, bundle generation) MUST operate under the resolved checkout directory (`repo_cwd`) rather than the workspace root.
+
+When `GH_AW_TARGET_REPO_SLUG` is used as a side-repo hint (source 3), the implementation SHOULD emit an informational debug log identifying the resolved `owner/repo`.
+
+When `GH_AW_TARGET_REPO_SLUG` is set but equals `GITHUB_REPOSITORY`, the implementation MUST emit a debug log stating that the variable is not being used as a side-repo hint and explaining why.
+
+**Rationale**: `GH_AW_TARGET_REPO_SLUG` may be globally set in side-repo maintenance workflows for cross-repo operations other than `push_to_pull_request_branch`. Using it unconditionally as a checkout hint would misdirect branch and patch detection when the push target is the current (workflow-host) repository.
+
 ---
 
 ## 7. Compliance Testing
@@ -250,6 +266,7 @@ Effective side-repo token precedence MUST be:
 - **T-CHK-012**: safe_outputs checkout token MUST NOT use `safe-outputs.github-app` or `safe-outputs.github-token`; only `safe-outputs-github-app` (per entry) or `GITHUB_TOKEN` are permitted
 - **T-CHK-013**: Checkout-manifest generation includes safe_outputs auth metadata without persisting resolved tokens
 - **T-CHK-014**: Checkout-manifest path resolution MUST reject paths that are absolute (e.g., `/etc/passwd`) or escape the workspace root (e.g., `../../sensitive`); rejected paths MUST produce an error and MUST NOT be used for checkout or file lookup
+- **T-CHK-015**: `push_to_pull_request_branch` uses side-repo checkout from `GH_AW_TARGET_REPO_SLUG` only when it differs from `GITHUB_REPOSITORY`; emits debug log and ignores it when they match
 
 ### 7.2 Compliance Checklist
 
@@ -264,6 +281,7 @@ Effective side-repo token precedence MUST be:
 | Checkout-level safe_outputs auth field | T-CHK-011, T-CHK-012 | C1/C2 | Required |
 | Checkout-manifest generation requirements | T-CHK-013 | C1/C2 | Required |
 | Checkout-manifest path-escape rejection | T-CHK-014 | C2 | Required |
+| `push_to_pull_request_branch` side-repo cwd resolution | T-CHK-015 | C2 | Required |
 
 ### 7.3 Safeguards
 
@@ -304,6 +322,11 @@ The following MUST-level norms govern credential and token safety during checkou
 ---
 
 ## 9. Change Log
+
+### Version 1.1.0 (Working Draft)
+
+- Added §6.3: `push_to_pull_request_branch` side-repo checkout resolution requirements, covering `GH_AW_TARGET_REPO_SLUG` passthrough guard, debug-logging obligation, and `repo_cwd` scoping of all git operations.
+- Added T-CHK-015 to §7.1 and §7.2 compliance checklist.
 
 ### Version 1.0.0 (Working Draft)
 
