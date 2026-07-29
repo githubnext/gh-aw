@@ -124,9 +124,7 @@ func preprocessHideOlderCommentsConfig(configData map[string]any, debugLog *logg
 // PullRequests: nil or true → pull-requests:write (default: true)
 // Discussions: true → discussions:write (default: false)
 func buildAddCommentPermissions(config *AddCommentsConfig) *Permissions {
-	permMap := map[PermissionScope]PermissionLevel{
-		PermissionContents: PermissionRead,
-	}
+	permMap := map[PermissionScope]PermissionLevel{}
 	if config == nil || config.Issues == nil || *config.Issues {
 		permMap[PermissionIssues] = PermissionWrite
 	}

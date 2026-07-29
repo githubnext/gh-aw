@@ -28,7 +28,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateIssues") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -41,7 +41,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateAgentSessions") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -53,7 +53,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateDiscussions") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWriteDiscussionsWrite()
+			return NewPermissionsIssuesWriteDiscussionsWrite()
 		},
 	},
 	{
@@ -65,7 +65,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "UpdateDiscussions") {
 				return nil
 			}
-			return NewPermissionsContentsReadDiscussionsWrite()
+			return NewPermissionsDiscussionsWrite()
 		},
 	},
 	{
@@ -77,7 +77,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CloseDiscussions") {
 				return nil
 			}
-			return NewPermissionsContentsReadDiscussionsWrite()
+			return NewPermissionsDiscussionsWrite()
 		},
 	},
 	{
@@ -89,7 +89,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CloseIssues") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -101,7 +101,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ClosePullRequests") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -113,7 +113,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "MarkPullRequestAsReadyForReview") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -126,7 +126,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "DismissPullRequestReview") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -149,7 +149,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CommentMemory") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -188,7 +188,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreatePullRequestReviewComments") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -200,7 +200,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "SubmitPullRequestReview") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -212,7 +212,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ReplyToPullRequestReviewComment") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -224,7 +224,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ResolvePullRequestReviewThread") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -236,7 +236,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateCodeScanningAlerts") {
 				return nil
 			}
-			return NewPermissionsContentsReadSecurityEventsWrite()
+			return NewPermissionsSecurityEventsWrite()
 		},
 	},
 	{
@@ -248,7 +248,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "AutofixCodeScanningAlert") {
 				return nil
 			}
-			return NewPermissionsContentsReadSecurityEventsWriteActionsRead()
+			return NewPermissionsSecurityEventsWriteActionsRead()
 		},
 	},
 	{
@@ -261,9 +261,9 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 				return nil
 			}
 			if safeOutputs.CreateCheckRun != nil && safeOutputs.CreateCheckRun.Target != "" {
-				return NewPermissionsContentsReadChecksWritePRRead()
+				return NewPermissionsChecksWritePRRead()
 			}
-			return NewPermissionsContentsReadChecksWrite()
+			return NewPermissionsChecksWrite()
 		},
 	},
 	{
@@ -275,7 +275,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "AddLabels") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWritePRWrite()
+			return NewPermissionsIssuesWritePRWrite()
 		},
 	},
 	{
@@ -287,7 +287,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "RemoveLabels") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWritePRWrite()
+			return NewPermissionsIssuesWritePRWrite()
 		},
 	},
 	{
@@ -299,7 +299,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ReplaceLabel") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWritePRWrite()
+			return NewPermissionsIssuesWritePRWrite()
 		},
 	},
 	{
@@ -311,7 +311,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "AddReviewer") {
 				return nil
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -323,7 +323,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "AssignMilestone") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -335,7 +335,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "AssignToAgent") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -347,7 +347,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "AssignToUser") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -359,7 +359,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "UnassignFromUser") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -371,7 +371,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "UpdateIssues") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -386,7 +386,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if safeOutputs.UpdatePullRequests.UpdateBranch != nil && *safeOutputs.UpdatePullRequests.UpdateBranch {
 				return NewPermissionsContentsWritePRWrite()
 			}
-			return NewPermissionsContentsReadPRWrite()
+			return NewPermissionsPRWrite()
 		},
 	},
 	{
@@ -430,12 +430,6 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 		StructField: "UploadAssets",
 		ToolName:    "upload_asset",
 		NewConfig:   func() any { return &UploadAssetsConfig{} },
-		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
-			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "UploadAssets") {
-				return nil
-			}
-			return NewPermissionsContentsRead()
-		},
 	},
 	{
 		Key:         "upload-artifact",
@@ -463,9 +457,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "UpdateProjects") {
 				return nil
 			}
-			permissions := NewPermissionsContentsReadProjectsWrite()
-			permissions.Set(PermissionIssues, PermissionRead)
-			return permissions
+			return NewPermissionsOrganizationProjWriteIssuesRead()
 		},
 	},
 	{
@@ -477,9 +469,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateProjects") {
 				return nil
 			}
-			permissions := NewPermissionsContentsReadProjectsWrite()
-			permissions.Set(PermissionIssues, PermissionRead)
-			return permissions
+			return NewPermissionsOrganizationProjWriteIssuesRead()
 		},
 	},
 	{
@@ -491,7 +481,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "CreateProjectStatusUpdates") {
 				return nil
 			}
-			return NewPermissionsContentsReadProjectsWrite()
+			return NewPermissionsOrganizationProjWrite()
 		},
 	},
 	{
@@ -503,7 +493,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "LinkSubIssue") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -516,9 +506,9 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 				return nil
 			}
 			if safeOutputs.HideComment.Discussions != nil && !*safeOutputs.HideComment.Discussions {
-				return NewPermissionsContentsReadIssuesWrite()
+				return NewPermissionsIssuesWrite()
 			}
-			return NewPermissionsContentsReadIssuesWriteDiscussionsWrite()
+			return NewPermissionsIssuesWriteDiscussionsWrite()
 		},
 	},
 	{
@@ -566,7 +556,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "SetIssueType") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{
@@ -578,7 +568,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "SetIssueField") {
 				return nil
 			}
-			return NewPermissionsContentsReadIssuesWrite()
+			return NewPermissionsIssuesWrite()
 		},
 	},
 	{

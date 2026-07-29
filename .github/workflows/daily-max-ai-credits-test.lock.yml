@@ -935,7 +935,6 @@ jobs:
       needs.activation.outputs.oauth_token_check_failed == 'true' || needs.activation.outputs.stale_lock_file_failed == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
     concurrency:
       group: "gh-aw-conclusion-daily-max-ai-credits-test"
@@ -1383,7 +1382,6 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
     timeout-minutes: 45
     env:

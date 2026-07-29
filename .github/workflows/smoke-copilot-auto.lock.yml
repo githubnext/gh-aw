@@ -1028,7 +1028,6 @@ jobs:
       needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
       pull-requests: write
     concurrency:
@@ -1616,7 +1615,6 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
       pull-requests: write
     timeout-minutes: 45

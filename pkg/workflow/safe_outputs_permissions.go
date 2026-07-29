@@ -22,6 +22,35 @@ var oidcVaultActions = []string{
 	"cyberark/conjur-action",                // CyberArk Conjur
 }
 
+// checkoutActions is the list of GitHub Actions that require contents: read to
+// clone or fetch repository contents. When a user-provided safe-output step uses
+// one of these actions, the compiled safe_outputs job must include contents: read
+// so the checkout succeeds in private repositories.
+var checkoutActions = []string{
+	"actions/checkout",
+}
+
+// stepsRequireContentsRead returns true if any of the provided steps use an action
+// that needs to read repository contents (e.g. actions/checkout).
+func stepsRequireContentsRead(steps []any) bool {
+	for _, step := range steps {
+		stepMap, ok := step.(map[string]any)
+		if !ok {
+			continue
+		}
+		uses, ok := stepMap["uses"].(string)
+		if !ok || uses == "" {
+			continue
+		}
+		// Strip the @version suffix before matching
+		actionRef, _, _ := strings.Cut(uses, "@")
+		if slices.Contains(checkoutActions, actionRef) {
+			return true
+		}
+	}
+	return false
+}
+
 // stepsRequireIDToken returns true if any of the provided steps use a known
 // OIDC/secret-vault action that requires the id-token: write permission.
 func stepsRequireIDToken(steps []any) bool {
@@ -112,6 +141,14 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	} else if stepsRequireIDToken(safeOutputs.Steps) {
 		safeOutputsPermissionsLog.Print("Auto-detected OIDC/vault action in steps; adding id-token: write")
 		permissions.Set(PermissionIdToken, PermissionWrite)
+	}
+
+	// Auto-detect checkout actions in user-provided steps and add contents: read.
+	// Without this, private-repository checkouts in safe-output steps would fail
+	// because the safe_outputs job would not include a contents permission.
+	if stepsRequireContentsRead(safeOutputs.Steps) {
+		safeOutputsPermissionsLog.Print("Auto-detected checkout action in steps; adding contents: read")
+		permissions.Set(PermissionContents, PermissionRead)
 	}
 
 	// If safeOutputs is configured but no permissions were accumulated (all handlers staged),
