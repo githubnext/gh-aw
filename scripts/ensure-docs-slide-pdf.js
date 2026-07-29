@@ -102,6 +102,20 @@ async function readPdfBytes() {
 
   const ref = getGitRef();
   const repositoryPath = getRepositoryPath();
+
+  // Validate each URL component before interpolating into the request URL.
+  // A SHA is 40 hex characters; branch/tag names may contain alphanumerics,
+  // hyphens, underscores, dots, and forward-slashes (for namespaced refs).
+  const safeRefPattern = /^[a-zA-Z0-9_.\-/]+$/;
+  if (!safeRefPattern.test(ref)) {
+    throw new Error(`Unsafe git ref value: ${ref}`);
+  }
+  // Repository path must be "owner/repo" with no additional path components.
+  const safeRepoPattern = /^[a-zA-Z0-9._-]+\/[a-zA-Z0-9._-]+$/;
+  if (!safeRepoPattern.test(repositoryPath)) {
+    throw new Error(`Unsafe repository path value: ${repositoryPath}`);
+  }
+
   const url = `https://media.githubusercontent.com/media/${repositoryPath}/${ref}/docs/slides/github-agentic-workflows.pdf`;
 
   console.warn(`Detected Git LFS pointer at ${SOURCE_PATH}; downloading ${url}`);
