@@ -1551,6 +1551,37 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
+    it("should detect branch from GH_AW_TARGET_REPO_SLUG checkout when target-repo is not configured", async () => {
+      const { targetRepoDir } = createSideRepoWithTrackedAndLocalCommits();
+      process.env.GH_AW_TARGET_REPO_SLUG = "test-owner/test-repo";
+      process.env.GITHUB_BASE_REF = "main";
+      execSync("git init -b main", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git config user.email 'test@example.com'", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git config user.name 'Test User'", { cwd: testWorkspaceDir, stdio: "pipe" });
+      fs.writeFileSync(path.join(testWorkspaceDir, "HOST.md"), "host\n");
+      execSync("git add HOST.md", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git commit -m 'host base commit'", { cwd: testWorkspaceDir, stdio: "pipe" });
+      execSync("git remote add origin https://github.com/owner/repo.git", { cwd: testWorkspaceDir, stdio: "pipe" });
+
+      try {
+        const result = await handlers.pushToPullRequestBranchHandler({});
+
+        expect(result.isError).toBeFalsy();
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining(`Selected checkout folder for test-owner/test-repo: ${targetRepoDir}`));
+        expect(mockServer.debug).toHaveBeenCalledWith(expect.stringContaining("Using current branch for push_to_pull_request_branch: feature/test-change"));
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(
+          expect.objectContaining({
+            type: "push_to_pull_request_branch",
+            branch: "feature/test-change",
+            repo_cwd: targetRepoDir,
+          })
+        );
+      } finally {
+        delete process.env.GH_AW_TARGET_REPO_SLUG;
+        delete process.env.GITHUB_BASE_REF;
+      }
+    });
+
     it("should reject push_to_pull_request_branch when branch still equals base_branch after detection", async () => {
       // Simulates the scenario where getBaseBranch() incorrectly resolves to the
       // feature branch itself. Detection cannot recover when getCurrentBranch()
