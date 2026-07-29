@@ -632,6 +632,7 @@ func describeFile(filename string) string {
 		"log.md":                        "Human-readable agent session summary",
 		"firewall.md":                   "Firewall log analysis report",
 		"run_summary.json":              "Cached summary of workflow run analysis",
+		forecastAICCacheFileName:        "Cached AI Credits (AIC) value for forecasting",
 		"prompt.txt":                    "Input prompt for AI agent",
 	}
 
