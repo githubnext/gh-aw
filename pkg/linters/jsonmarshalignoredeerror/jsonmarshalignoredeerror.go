@@ -10,6 +10,7 @@ import (
 	"golang.org/x/tools/go/analysis/passes/inspect"
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
+	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -21,7 +22,7 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "jsonmarshalignoredeerror",
 	Doc:      "reports json.Marshal and json.Unmarshal calls where the error return is discarded",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/jsonmarshalignoredeerror",
-	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer},
+	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
 }
 
@@ -35,12 +36,24 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	generatedFiles, err := filecheck.Index(pass)
+	if err != nil {
+		return nil, err
+	}
 	nodeFilter := []ast.Node{(*ast.AssignStmt)(nil), (*ast.ExprStmt)(nil)}
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		switch stmt := n.(type) {
 		case *ast.AssignStmt:
+			position := pass.Fset.PositionFor(stmt.Pos(), false)
+			if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+				return
+			}
 			checkDiscardedJSONAssign(pass, stmt, noLintIndex)
 		case *ast.ExprStmt:
+			position := pass.Fset.PositionFor(stmt.Pos(), false)
+			if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+				return
+			}
 			checkDiscardedJSONExpr(pass, stmt, noLintIndex)
 		}
 	})
