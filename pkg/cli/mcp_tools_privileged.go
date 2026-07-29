@@ -258,9 +258,14 @@ from where the previous request stopped due to timeout.`,
 		defer subCancel()
 		go func() {
 			// Goroutine exits cleanly in both cases: client disconnect or subprocess timeout.
+			// Only forward explicit cancellations (context.Canceled); do NOT propagate
+			// context.DeadlineExceeded from the MCP gateway — that would kill the subprocess
+			// at the gateway's 60 s RPC deadline and defeat the purpose of this fix.
 			select {
 			case <-ctx.Done():
-				subCancel() // propagate client disconnect to subprocess
+				if ctx.Err() == context.Canceled {
+					subCancel() // propagate client disconnect to subprocess
+				}
 			case <-subCtx.Done(): // subprocess timed out or subCancel() already called
 			}
 		}()
