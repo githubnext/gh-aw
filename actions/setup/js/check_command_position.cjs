@@ -136,7 +136,7 @@ async function main() {
       core.setOutput("matched_command", "");
       await writeDenialSummary(
         `The trigger comment did not start with a required command. Expected one of: ${expectedCommands}. Found: \`${firstWord}\`.`,
-        "Make sure the trigger comment starts with the required command defined in `on.command:` in the workflow frontmatter."
+        "Make sure the trigger comment starts with the required command defined in `on.slash-command:` in the workflow frontmatter."
       );
     }
   } catch (error) {
