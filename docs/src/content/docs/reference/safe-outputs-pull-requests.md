@@ -120,6 +120,19 @@ If the base branch advances between agent start and `safe_outputs` apply, the PR
 
 An older **patch transport** (`git format-patch` / `git am --3way`) is used when bundle data is unavailable. `--3way` resolves cleanly against an updated base when there are no conflicts; if it cannot, the patch is applied at the agent's original base commit and the PR UI shows the conflicts for manual resolution.
 
+:::caution[Shallow checkout and large monorepos]
+The merge-commit detection that auto-selects bundle transport inspects the commit range `origin/<branch>..<branch>` in the **agent's** workspace. With the default shallow checkout (`fetch-depth: 1`) `origin/<branch>` has no traversable ancestry, so `git rev-list` cannot exclude any commits and will report the entire local history as the range. On large monorepos this produces a count of tens of thousands of commits, which falsely appears to contain merge commits and can trigger an incorrect rewrite.
+
+The safe_outputs push job guards against this: if the commit range contains more than 100 commits **and** the repository is shallow, the push is refused with a clear error that includes the commit count. To resolve this, increase `fetch-depth` in your workflow checkout step:
+
+```yaml wrap
+checkout:
+  fetch-depth: 0   # fetch full history so merge-commit detection sees the correct range
+```
+
+Alternatively, set an explicit `fetch-depth` large enough to cover the branch history. The threshold is a best-effort guard — for very active branches on a full clone the depth-0 option is the most reliable workaround.
+:::
+
 :::note[Cross-repo targets]
 The `safe_outputs` job always mirrors the agent job's checkout layout. When a `checkout:` entry places a repository in a subdirectory (a `path:` is set), `safe_outputs` checks out **every** repository to the same location the agent used — the workflow repository at the workspace root plus each cross-repo checkout at its `path:` — regardless of whether `target-repo` names a specific repository or the wildcard `"*"`. This lets a specific `target-repo` (and the two-or-more cross-repo case) operate against an identical layout. When the target repository is checked out at the workspace root (no `path:`), it is checked out there in both jobs.
 :::

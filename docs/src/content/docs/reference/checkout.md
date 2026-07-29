@@ -110,6 +110,10 @@ The generated checkout step uses `persist-credentials: false`, so the git creden
 
 Fetch everything the workflow needs at checkout time using `fetch-depth` and [`fetch:`](#fetching-additional-refs), and write changes through safe-output tools such as [`push-to-pull-request-branch`](/gh-aw/reference/safe-outputs-pull-requests/) rather than a direct `git push`. The agent is instructed not to configure credential helpers or run `git credential fill`, because authentication cannot succeed; credential errors are reported as a limitation instead of worked around.
 
+:::note[Shallow checkout and push-to-pull-request-branch]
+`push-to-pull-request-branch` and `create-pull-request` inspect the commit range `origin/<branch>..<branch>` in the agent's workspace to detect merge commits. With the default shallow clone (`fetch-depth: 1`), `origin/<branch>` has no traversable ancestry, so `git rev-list` reports the entire local history as the range. On large monorepos (thousands of commits) this can falsely trigger bundle or rewrite paths and will be refused with a clear error. Set `fetch-depth: 0` to ensure the correct range is visible.
+:::
+
 ## Disabling Checkout (`checkout: false`)
 
 Set `checkout: false` to suppress both the default `actions/checkout` step and the PR-specific "Checkout PR branch" step entirely. Use this for workflows that access repositories through MCP servers or other mechanisms that do not require a local clone:

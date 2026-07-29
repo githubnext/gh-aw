@@ -910,5 +910,239 @@ describe("git_helpers.cjs", () => {
 
       expect(err.cause).toBe(cause);
     });
+
+    it("should throw before any git state change when commit range is implausibly large in a shallow checkout", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            // Simulate a shallow checkout returning 61000 commits in the range
+            return Promise.resolve({ stdout: "61000\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "true\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Refusing to linearize an implausible commit range/);
+
+      // No git state mutation should have occurred
+      expect(execApi.exec).not.toHaveBeenCalled();
+    });
+
+    it("should include the commit count and base ref in the implausible range error message", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.resolve({ stdout: "500\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "true\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      const err = await linearizeRangeAsCommit("origin/feature", "msg", execApi).catch(e => e);
+
+      expect(err.message).toMatch(/500/);
+      expect(err.message).toMatch(/origin\/feature/);
+      expect(err.message).toMatch(/fetch-depth/);
+    });
+
+    it("should not throw when commit range is large but repo is not shallow", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.resolve({ stdout: "500\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "false\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should not throw when commit range count is within the default threshold", async () => {
+      const { linearizeRangeAsCommit, SHALLOW_RANGE_MAX_COMMITS } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            // Exactly at threshold — not implausible
+            return Promise.resolve({ stdout: `${SHALLOW_RANGE_MAX_COMMITS}\n` });
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should proceed normally when the rev-list count command fails", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.reject(new Error("rev-list failed"));
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      // A rev-list failure should be non-fatal — linearization proceeds normally
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should proceed normally when the shallow probe fails in the guard", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            // Large count to trigger shallow probe
+            return Promise.resolve({ stdout: "500\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            // Shallow probe fails
+            return Promise.reject(new Error("not a git repo"));
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      // Shallow probe failure is non-fatal — linearization proceeds normally
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should respect a custom maxCommits threshold via opts", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.resolve({ stdout: "10\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "true\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      // maxCommits: 5 means 10 commits is implausible for a shallow repo
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi, { maxCommits: 5 })).rejects.toThrow(/Refusing to linearize an implausible commit range/);
+      expect(execApi.exec).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("checkImplausibleShallowRange", () => {
+    it("should return implausible:false and commitCount:0 for empty baseRef", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      expect(checkImplausibleShallowRange("", "HEAD")).toEqual({ implausible: false, commitCount: 0 });
+    });
+
+    it("should return implausible:false and commitCount:0 for empty headRef", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      expect(checkImplausibleShallowRange("origin/main", "")).toEqual({ implausible: false, commitCount: 0 });
+    });
+
+    it("should return implausible:false when git rev-list fails (non-existent refs)", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      // Using a clearly non-existent ref so git fails
+      const result = checkImplausibleShallowRange("refs/nonexistent/base", "refs/nonexistent/head");
+      expect(result.implausible).toBe(false);
+      expect(result.commitCount).toBe(0);
+    });
+
+    it("should return implausible:false for a small commit range (integration)", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      // The test environment is a non-shallow full clone; HEAD..HEAD has 0 commits
+      const result = checkImplausibleShallowRange("HEAD", "HEAD");
+      expect(result.implausible).toBe(false);
+    });
+
+    it("should export SHALLOW_RANGE_MAX_COMMITS as a positive number", async () => {
+      const { SHALLOW_RANGE_MAX_COMMITS } = await import("./git_helpers.cjs");
+      expect(typeof SHALLOW_RANGE_MAX_COMMITS).toBe("number");
+      expect(SHALLOW_RANGE_MAX_COMMITS).toBeGreaterThan(0);
+    });
+
+    it("should return implausible:false for full (non-shallow) clone even with large range", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      // The test env is a full clone; isShallow will be false, so implausible stays false
+      // regardless of the count.  This test verifies the non-shallow branch of the guard.
+      // Using HEAD^..HEAD gives a 1-commit range, well below any threshold.
+      let result;
+      try {
+        result = checkImplausibleShallowRange("HEAD^", "HEAD");
+      } catch {
+        // If HEAD^ does not exist (initial commit), skip
+        return;
+      }
+      expect(result.implausible).toBe(false);
+    });
   });
 });

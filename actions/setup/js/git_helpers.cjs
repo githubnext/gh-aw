@@ -245,6 +245,87 @@ function ensureOriginRemoteTrackingRef(branch, options) {
 }
 
 /**
+ * Maximum number of commits in a `base..head` range before it is considered
+ * implausible for a shallow checkout.  A shallow clone with `fetch-depth: 1`
+ * will report the entire local history as the range when the base ref is not
+ * reachable from the shallow grafts, producing a count in the tens-of-thousands
+ * even for a single-commit branch.  This threshold guards against that case.
+ *
+ * Callers can override the threshold via the `maxCommits` option on the
+ * functions that accept it.
+ */
+const SHALLOW_RANGE_MAX_COMMITS = 100;
+
+/**
+ * Detect whether a commit range is implausibly large for a shallow checkout.
+ *
+ * In a shallow clone (`fetch-depth: 1`) the base ref (e.g. `origin/main`) has
+ * no traversable ancestry, so `git rev-list base..HEAD` cannot exclude anything
+ * and returns essentially the entire repository history.  A count far above what
+ * a typical PR branch would contain almost certainly means the base ref is not
+ * reachable from the shallow grafts rather than representing real branch work.
+ *
+ * When the range size exceeds `options.maxCommits` (default
+ * `SHALLOW_RANGE_MAX_COMMITS`) **and** the repository is shallow, this function
+ * emits a `core.warning` with an actionable message and returns
+ * `{ implausible: true, commitCount }`.  Otherwise it returns
+ * `{ implausible: false, commitCount }`.
+ *
+ * All git failures are treated as non-fatal: errors cause the function to
+ * return `{ implausible: false, commitCount: 0 }` so callers are never blocked.
+ *
+ * @param {string} baseRef - The base ref (exclusive). Example: "origin/main".
+ * @param {string} headRef - The head ref (inclusive). Example: "HEAD" or a branch name.
+ * @param {Object} [options]
+ * @param {string} [options.cwd] - Working directory for git commands.
+ * @param {number} [options.maxCommits] - Override the implausibility threshold.
+ * @returns {{ implausible: boolean, commitCount: number }}
+ */
+function checkImplausibleShallowRange(baseRef, headRef, options = {}) {
+  const { maxCommits = SHALLOW_RANGE_MAX_COMMITS, cwd } = options;
+  if (!baseRef || !headRef) return { implausible: false, commitCount: 0 };
+
+  let commitCount = 0;
+  try {
+    const countOut = execGitSync(["rev-list", "--count", `${baseRef}..${headRef}`], {
+      cwd,
+      suppressLogs: true,
+    });
+    commitCount = parseInt(countOut.trim(), 10) || 0;
+  } catch {
+    return { implausible: false, commitCount: 0 };
+  }
+
+  if (!Number.isFinite(commitCount) || commitCount <= maxCommits) {
+    return { implausible: false, commitCount };
+  }
+
+  // Count is suspiciously large; only flag it as implausible when the repo is
+  // actually shallow — a large honest branch in a full clone is fine.
+  let isShallow = false;
+  try {
+    const shallowOut = execGitSync(["rev-parse", "--is-shallow-repository"], {
+      cwd,
+      suppressLogs: true,
+    });
+    isShallow = shallowOut.trim() === "true";
+  } catch {
+    return { implausible: false, commitCount };
+  }
+
+  if (isShallow) {
+    core.warning(
+      `Shallow checkout produced an implausible commit range of ${commitCount} commits for ${baseRef}..${headRef}. ` +
+        `This usually means ${baseRef} is not reachable from the shallow grafts. ` +
+        `Increase fetch-depth in your workflow checkout step (e.g. fetch-depth: 0) to resolve this.`
+    );
+    return { implausible: true, commitCount };
+  }
+
+  return { implausible: false, commitCount };
+}
+
+/**
  * Check whether a commit range contains any merge commits.
  *
  * `git am` (the default patch transport) cannot apply merge commits — it only
@@ -257,14 +338,26 @@ function ensureOriginRemoteTrackingRef(branch, options) {
  * "unknown" as "no merge commits detected" so that a detection failure never
  * blocks the normal patch path.
  *
+ * Also returns `false` when the range is implausibly large for a shallow
+ * checkout (see `checkImplausibleShallowRange`).  In that case a warning is
+ * already emitted by the range check, so forcing bundle transport based on
+ * phantom merge-commit detections in a huge, unreliable range is avoided.
+ *
  * @param {string} baseRef - The base ref (exclusive). Example: "origin/feature".
  * @param {string} headRef - The head ref (inclusive). Example: "feature".
  * @param {Object} [options]
  * @param {string} [options.cwd] - Working directory for the git command.
+ * @param {number} [options.maxCommits] - Override the implausibility threshold.
  * @returns {boolean} True if at least one merge commit exists in baseRef..headRef.
  */
 function hasMergeCommitsInRange(baseRef, headRef, options = {}) {
   if (!baseRef || !headRef) return false;
+
+  // Guard: if the range is implausibly large for a shallow checkout, treat as
+  // no merge commits so a false-positive does not force bundle transport.
+  const { implausible } = checkImplausibleShallowRange(baseRef, headRef, options);
+  if (implausible) return false;
+
   try {
     const out = execGitSync(["rev-list", "--merges", "--count", `${baseRef}..${headRef}`], {
       cwd: options.cwd,
@@ -615,14 +708,49 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   When omitted, exec calls are made without additional options.
  * @param {string[]} [opts.commitFlags] - Extra flags prepended before `-m` in the `git commit`
  *   invocation (e.g. `["--allow-empty", "--no-verify"]`).
+ * @param {number} [opts.maxCommits] - Override the implausibility threshold (default
+ *   `SHALLOW_RANGE_MAX_COMMITS`).  Set to `Infinity` to disable the shallow guard.
  * @returns {Promise<string>} The new HEAD SHA after the rewrite.
- * @throws {Error} If the soft reset, staged-changes validation, or recommit fails.
+ * @throws {Error} If the soft reset, staged-changes validation, or recommit fails, or if a
+ *   shallow checkout produces an implausible commit range.
  */
 async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}) {
-  const { gitOpts, commitFlags = [] } = opts;
+  const { gitOpts, commitFlags = [], maxCommits = SHALLOW_RANGE_MAX_COMMITS } = opts;
   // Spread gitOpts into exec calls only when it is explicitly provided — passing
   // `undefined` as a third argument changes the arity seen by mocks in tests.
   const execArgs = gitOpts !== undefined ? [gitOpts] : [];
+
+  // Guard against implausibly large commit ranges in shallow checkouts.
+  // In a shallow clone with fetch-depth:1 the base ref has no traversable
+  // ancestry, so git rev-list cannot exclude anything and returns the entire
+  // local history.  Synthesizing a rewrite commit from tens-of-thousands of
+  // commits is almost certainly wrong and could produce an oversized payload.
+  {
+    let rangeCommitCount = 0;
+    try {
+      const { stdout: countOut } = await execApi.getExecOutput("git", ["rev-list", "--count", `${baseRef}..HEAD`], ...execArgs);
+      rangeCommitCount = parseInt(countOut.trim(), 10) || 0;
+    } catch {
+      rangeCommitCount = 0;
+    }
+    if (Number.isFinite(rangeCommitCount) && rangeCommitCount > maxCommits) {
+      let isShallow = false;
+      try {
+        const shallowOpts = gitOpts !== undefined ? { ...gitOpts, ignoreReturnCode: true } : { ignoreReturnCode: true };
+        const { stdout: shallowOut } = await execApi.getExecOutput("git", ["rev-parse", "--is-shallow-repository"], shallowOpts);
+        isShallow = shallowOut.trim() === "true";
+      } catch {
+        // Non-fatal: if the shallow probe fails, do not block the rewrite.
+      }
+      if (isShallow) {
+        throw new Error(
+          `Refusing to linearize an implausible commit range: ${rangeCommitCount} commits in ${baseRef}..HEAD in a shallow checkout. ` +
+            `This likely means ${baseRef} is not reachable from the shallow grafts. ` +
+            `Increase fetch-depth in your workflow checkout step (e.g. fetch-depth: 0) to resolve this.`
+        );
+      }
+    }
+  }
 
   const { stdout: originalHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
   const originalHead = originalHeadOut.trim();
@@ -654,6 +782,7 @@ module.exports = {
   ensureSafeDirectoryTrust,
   execGitSync,
   backfillCommitObjects,
+  checkImplausibleShallowRange,
   ensureFullHistoryForBundle,
   ensureOriginRemoteTrackingRef,
   extractBundlePrerequisiteCommits,
@@ -661,4 +790,5 @@ module.exports = {
   hasMergeCommitsInRange,
   isShallowOrSparseCheckout,
   linearizeRangeAsCommit,
+  SHALLOW_RANGE_MAX_COMMITS,
 };
