@@ -1084,7 +1084,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       server.debug(`Using configured patch_workspace_path for push_to_pull_request_branch: ${pushPatchWorkspacePath} -> ${repoCwd}`);
     }
 
-    if (((entry.repo && entry.repo.trim()) || pushConfig["target-repo"]) && !repoCwd) {
+    const hasExplicitTargetRepoHint = (entry.repo && entry.repo.trim()) || pushConfig["target-repo"] || process.env.GH_AW_TARGET_REPO_SLUG;
+    if (hasExplicitTargetRepoHint && !repoCwd) {
       server.debug(`Looking for checkout of target repo: ${itemRepo}`);
       const checkoutResult = findRepoCheckout(itemRepo);
       if (!checkoutResult.success) {

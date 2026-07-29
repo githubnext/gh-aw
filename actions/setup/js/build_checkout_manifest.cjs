@@ -78,6 +78,24 @@ function resolveDefaultBranch(repository, checkoutPath, options = {}) {
     }
   }
 
+  if (defaultBranch === "" && repoPath && fs.existsSync(path.join(repoPath, ".git"))) {
+    try {
+      const output = runGit(["-C", repoPath, "remote", "show", "origin"], {
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+      const match = output.match(/^\s*HEAD branch:\s*(.+)\s*$/m);
+      const remoteHeadBranch = match && match[1] ? match[1].trim() : "";
+      if (remoteHeadBranch && remoteHeadBranch !== "(unknown)") {
+        defaultBranch = remoteHeadBranch;
+        core.debug(`build_checkout_manifest: git remote show resolved default branch for ${repository}: ${defaultBranch}`);
+      } else {
+        core.debug(`build_checkout_manifest: git remote show did not expose HEAD branch for ${repository}`);
+      }
+    } catch (error) {
+      core.debug(`build_checkout_manifest: git remote show lookup failed for ${repository}: ${getErrorMessage(error)}`);
+    }
+  }
+
   if (defaultBranch === "") {
     try {
       const checkoutToken = options.checkoutToken || "";

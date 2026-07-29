@@ -105,6 +105,33 @@ describe("build_checkout_manifest.cjs", () => {
     expect(ghOptions?.env?.GH_TOKEN).toBe("${{ secrets.CROSS_REPO_PAT }}");
   });
 
+  it("falls back to git remote show origin when origin/HEAD is unavailable", () => {
+    const workspace = createTempDir("checkout-manifest-workspace-");
+    tempDirs.push(workspace);
+    const checkoutPath = "target";
+    const repoDir = path.join(workspace, checkoutPath);
+    fs.mkdirSync(repoDir, { recursive: true });
+    execGit(["init", "-q"], { cwd: repoDir });
+
+    const defaultBranch = resolveDefaultBranch("owner/repo", checkoutPath, {
+      workspace,
+      runGit: args => {
+        if (args.includes("symbolic-ref")) {
+          throw new Error("origin/HEAD not set");
+        }
+        if (args.includes("remote") && args.includes("show") && args.includes("origin")) {
+          return "  HEAD branch: release/v2\n";
+        }
+        throw new Error(`Unexpected git args: ${args.join(" ")}`);
+      },
+      runGH: () => {
+        throw new Error("gh api should not be called");
+      },
+    });
+
+    expect(defaultBranch).toBe("release/v2");
+  });
+
   it("writes manifest with lowercase keys", () => {
     const workspace = createTempDir("checkout-manifest-workspace-");
     const runnerTemp = createTempDir("checkout-manifest-runner-temp-");
