@@ -43,7 +43,7 @@ pre-agent-steps:
         COMMENT_COUNT=$(jq 'length' /tmp/gh-aw/agent/pr-review-comments.json)
         echo "Cache hit: using pre-fetched PR data for head ${CURRENT_HEAD_SHA} (${LINES} diff lines, ${COMMENT_COUNT} review comments)"
       else
-        { gh pr diff "$PR_NUMBER" --repo $EXPR_GITHUB_REPOSITORY \
+        { gh pr diff "$PR_NUMBER" --repo "$EXPR_GITHUB_REPOSITORY" \
             --exclude '**/*.lock.yml' \
             --exclude '**/generated/**' \
             --exclude '**/dist/**' \
@@ -51,7 +51,7 @@ pre-agent-steps:
             || true; } | head -n "${PR_DIFF_MAX_LINES}" > /tmp/gh-aw/agent/pr-diff.patch
         LINES=$(wc -l < /tmp/gh-aw/agent/pr-diff.patch)
         gh pr view "$PR_NUMBER" \
-          --repo $EXPR_GITHUB_REPOSITORY \
+          --repo "$EXPR_GITHUB_REPOSITORY" \
           --json number,title,body,headRefName,headRefOid,additions,deletions,changedFiles,files \
           > /tmp/gh-aw/agent/pr-meta.json
         if [ -z "$CURRENT_HEAD_SHA" ]; then
