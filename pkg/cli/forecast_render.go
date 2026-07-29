@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"math"
 	"os"
-	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -37,6 +36,7 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 
 	anyUnreliable := false
 	var totalWeeklyP50, totalMonthlyP50 float64
+	var totalRuns int
 	rows := make([]forecastTableRow, 0, len(output.Workflows)+1)
 	for _, wf := range output.Workflows {
 		unreliableMark := ""
@@ -53,19 +53,23 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 		if mc := wf.MonthlyMonteCarlo; mc != nil {
 			monthlyP50 = mc.P50ProjectedAIC
 		}
-		totalWeeklyP50 += weeklyP50
-		totalMonthlyP50 += monthlyP50
+		// Skip NaN/Inf so a single unreliable projection can't poison the totals.
+		if !math.IsNaN(weeklyP50) && !math.IsInf(weeklyP50, 0) {
+			totalWeeklyP50 += weeklyP50
+		}
+		if !math.IsNaN(monthlyP50) && !math.IsInf(monthlyP50, 0) {
+			totalMonthlyP50 += monthlyP50
+		}
+		totalRuns += wf.SampledRuns
 
 		row := forecastTableRow{
 			Workflow:    wf.WorkflowID + unreliableMark,
-			Engines:     formatEngineList(wf.Engines),
 			Runs:        wf.SampledRuns,
 			P50PerRun:   formatForecastAIC(wf.P50AIC),
 			P95PerRun:   formatForecastAIC(wf.P95AIC),
 			WeeklyP50:   formatForecastAIC(weeklyP50),
 			MonthlyP50:  formatForecastAIC(monthlyP50),
 			SuccessRate: formatForecastPercent(wf.SuccessRate, wf.SampledRuns > 0),
-			Triggers:    formatTriggerList(wf.ActiveTriggers),
 		}
 		rows = append(rows, row)
 	}
@@ -76,6 +80,7 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	if len(output.Workflows) > 1 {
 		rows = append(rows, forecastTableRow{
 			Workflow:   "TOTAL",
+			Runs:       totalRuns,
 			WeeklyP50:  formatForecastAIC(totalWeeklyP50),
 			MonthlyP50: formatForecastAIC(totalMonthlyP50),
 		})
@@ -84,8 +89,10 @@ func renderForecastTable(output ForecastResult, config ForecastConfig) error {
 	fmt.Fprint(os.Stderr, console.RenderStruct(rows))
 	fmt.Fprintln(os.Stderr, "")
 
-	// Show detailed per-run samples section.
-	printRunSamplesSection(output.Workflows)
+	// Show detailed per-run samples section only when specific workflows were requested.
+	if len(config.WorkflowIDs) > 0 {
+		printRunSamplesSection(output.Workflows)
+	}
 
 	// Show experiment variant details when present.
 	for _, wf := range output.Workflows {
@@ -245,13 +252,6 @@ func formatForecastAIC(value float64) string {
 	return fmt.Sprintf("%.2fM", value/1_000_000)
 }
 
-func formatEngineList(engines []string) string {
-	if len(engines) == 0 {
-		return "-"
-	}
-	return strings.Join(engines, ", ")
-}
-
 // formatForecastSignedAIC formats a signed AIC value, preserving
 // the sign so callers can display positive/negative deltas (e.g., error abs).
 func formatForecastSignedAIC(value float64) string {
@@ -269,14 +269,4 @@ func formatForecastSignedAIC(value float64) string {
 
 func roundForecastAIC(value float64) float64 {
 	return math.Round(value*1000) / 1000
-}
-
-func formatTriggerList(triggers []string) string {
-	if len(triggers) == 0 {
-		return "-"
-	}
-	if len(triggers) <= 3 {
-		return strings.Join(triggers, ", ")
-	}
-	return strings.Join(triggers[:3], ", ") + fmt.Sprintf(" +%d", len(triggers)-3)
 }
