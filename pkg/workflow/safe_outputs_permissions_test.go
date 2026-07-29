@@ -433,6 +433,77 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 				PermissionOrganizationProj: PermissionWrite,
 			},
 		},
+		{
+			name: "create-project-status-update requires only organization-projects write",
+			safeOutputs: &SafeOutputsConfig{
+				CreateProjectStatusUpdates: &CreateProjectStatusUpdateConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionOrganizationProj: PermissionWrite,
+			},
+		},
+		{
+			name: "create-check-run without target requires only checks write",
+			safeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionChecks: PermissionWrite,
+			},
+		},
+		{
+			name: "create-check-run with target requires checks write and pull-requests read",
+			safeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					Target:               "triggering",
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionChecks:       PermissionWrite,
+				PermissionPullRequests: PermissionRead,
+			},
+		},
+		{
+			name: "merge-pull-request requires contents write and pull-requests write",
+			safeOutputs: &SafeOutputsConfig{
+				MergePullRequest: &MergePullRequestConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents:     PermissionWrite,
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
+			name: "update-release requires only contents write",
+			safeOutputs: &SafeOutputsConfig{
+				UpdateRelease: &UpdateReleaseConfig{
+					UpdateEntityConfig: UpdateEntityConfig{
+						BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+					},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionContents: PermissionWrite,
+			},
+		},
+		{
+			name: "create-agent-session requires only issues write",
+			safeOutputs: &SafeOutputsConfig{
+				CreateAgentSessions: &CreateAgentSessionConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("1")},
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
+			},
+		},
 	}
 
 	for _, tt := range tests {

@@ -3675,7 +3675,7 @@ safe-outputs:
 
 **Notes**:
 
-- Same permission requirements as `create_project` and `update_project`
+- Does not require `issues: read` — status updates operate on the project board itself, not on issue/PR items
 
 ---
 
