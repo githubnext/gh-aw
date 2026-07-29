@@ -11,6 +11,10 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+  copilot-requests: write
+engine:
+  id: copilot
+  copilot-sdk: true
 tracker-id: daily-ambient-context-optimizer
 strict: true
 max-daily-ai-credits: 10000
@@ -25,6 +29,8 @@ tools:
     mode: gh-proxy
   agentic-workflows:
   bash: true
+skills:
+  - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
 safe-outputs:
   mentions: false
   allowed-github-references: []
@@ -324,11 +330,23 @@ Also review proxy/CLI feature readiness for each sampled workflow:
 
 When one or more are missing, include a recommendation to enable them and rewrite raw `gh aw` shell instructions into explicit `agentic-workflows` MCP-tool usage.
 
-## Sub-Agent Usage
+## Rig Custom Harness Usage
 
-After the deterministic Python script finishes, invoke `request-optimizer` for **at most 2 sampled runs** using compact JSON summaries (never raw full prompts), and only when at least 2 sampled runs exist.
+After the deterministic Python script finishes, use a Rig custom harness for **at most 2 sampled runs** (only when at least 2 sampled runs exist):
 
-Each sub-agent invocation may return at most 3 opportunities for its run. Aggregate and deduplicate those opportunities, then do the final prioritization yourself.
+1. Discover the installed launcher path:
+   - `find "${RUNNER_TEMP}/gh-aw" -path "*/skills/rig/rig.ts" | head -1`
+2. For each selected run, build a compact JSON input from `run-<id>.json` plus deterministic analysis metrics.
+3. Run the harness with `node <rig-launcher>`, feeding an inline Rig program that:
+   - configures `copilotEngine()`
+   - takes only compact JSON input (never raw full prompt text)
+   - returns JSON with at most 3 opportunities using `category`, `finding`, `evidence`, and `impact`
+4. Aggregate and deduplicate harness outputs, then do final prioritization yourself.
+
+Harness guardrails:
+- no raw request bodies in harness input
+- use a small model unless deterministic evidence shows quality loss
+- one harness run per sampled run (no retries without a concrete parse/runtime error)
 
 ## Execution Budget Guardrails
 
@@ -476,18 +494,9 @@ Do not use `noop` merely because the sample is small or imperfect. Create exactl
 
 If `create_issue` returns a body-size validation error, shorten the details and retry with a compact body that preserves Executive Summary, Highest-Leverage Changes, Key Metrics, and References.
 
-## agent: `request-optimizer`
----
-description: Ranks prompt-shrinking opportunities for one sampled run from compact deterministic metrics
-model: small
----
-You are a compact optimization classifier.
+## Rig Harness Output Contract
 
-Input:
-- one JSON object for a sampled run
-- optional workflow source excerpt
-
-Return JSON only:
+Each Rig harness invocation must return JSON only:
 
 ```json
 {
@@ -505,6 +514,6 @@ Return JSON only:
 ```
 
 Rules:
-- return at most 3 opportunities
-- use only provided evidence
+- return at most 3 opportunities per run
+- use only provided compact evidence
 - prefer opportunities that reduce first-request size without reducing safety
