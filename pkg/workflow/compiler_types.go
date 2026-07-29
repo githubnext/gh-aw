@@ -108,6 +108,8 @@ type Compiler struct {
 	ghesArtifactCompat      bool                     // If true, GHES compatibility mode is enabled; artifact actions still use latest non-v3 pins
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
+	permissionWarningShown  map[string]bool          // Tracks markdown paths that already emitted a missing-permission warning in this compiler instance
+	allowedDomainsCache     map[string]string        // Cached allowed-domains string keyed by FrontmatterHash; valid as long as frontmatter content is unchanged
 	// modelPricingResolver is an optional callback for resolving per-token pricing of models that
 	// are absent from the embedded models.json catalog. When non-nil it is called during
 	// buildInitialWorkflowData for the workflow's configured model; any returned pricing is merged
@@ -144,6 +146,8 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		priorManifests:          make(map[string]*GHAWManifest),
 		ownerTypeCache:          make(map[string]string), // Initialize owner-type cache (keyed by owner login)
 		copilotRequestsTipShown: make(map[string]bool),   // Initialize one-time tip tracking (keyed by markdown path)
+		permissionWarningShown:  make(map[string]bool),   // Initialize one-time permission warning tracking (keyed by markdown path)
+		allowedDomainsCache:     make(map[string]string), // Initialize allowed-domains cache (keyed by FrontmatterHash)
 		gitRoot:                 gitRoot,                 // Auto-detected git root
 	}
 

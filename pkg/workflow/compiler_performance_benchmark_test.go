@@ -130,6 +130,7 @@ permissions:
   pull-requests: read
   actions: read
   issues: read
+  discussions: read
 engine: copilot
 tools:
   github:

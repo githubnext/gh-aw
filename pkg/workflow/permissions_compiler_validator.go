@@ -143,10 +143,16 @@ func (c *Compiler) validatePermissions(workflowData *WorkflowData, markdownPath 
 						message += "\n\n" + missingPermissionsDefaultToolsetWarning
 					}
 
-					// In non-strict mode, missing permissions are warnings.
-					// In strict mode with default-only toolsets, this is intentionally downgraded to warning.
-					fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
-					c.IncrementWarningCount()
+					// Emit the warning once per markdown path per compiler instance.
+					// Repeated compilations of the same file (e.g. --watch mode) would
+					// otherwise re-format and re-emit the same message on every iteration.
+					if !c.permissionWarningShown[markdownPath] {
+						// In non-strict mode, missing permissions are warnings.
+						// In strict mode with default-only toolsets, this is intentionally downgraded to warning.
+						fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning", message))
+						c.IncrementWarningCount()
+						c.permissionWarningShown[markdownPath] = true
+					}
 				}
 			}
 		}
