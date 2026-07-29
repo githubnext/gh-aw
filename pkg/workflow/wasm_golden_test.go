@@ -60,6 +60,8 @@ func normalizeOutput(content string) string {
 	normalized = testProjectUTCEnvLineRE.ReplaceAllString(normalized, "")
 	// Keep golden fixtures stable across copilot default model fallback updates.
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
+	// Keep golden fixtures stable across claude default model fallback updates.
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.SonnetDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across codex default model fallback updates.
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CodexDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.

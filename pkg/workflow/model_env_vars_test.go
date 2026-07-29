@@ -25,7 +25,7 @@ func TestModelEnvVarInjectionForAgentJob(t *testing.T) {
 			engine:                  "claude",
 			expectedEnvVar:          constants.EnvVarModelAgentClaude,
 			expectedCommand:         "${" + constants.EnvVarModelAgentClaude + ":+ --model",
-			expectedDefault:         constants.CopilotBYOKDefaultModel,
+			expectedDefault:         constants.SonnetDefaultModel,
 			expectedDefaultOverride: compilerenv.DefaultModelClaude,
 		},
 		{
@@ -109,7 +109,7 @@ func TestModelEnvVarInjectionForDetectionJob(t *testing.T) {
 			name:                    "Claude detection uses GH_AW_MODEL_DETECTION_CLAUDE",
 			engine:                  "claude",
 			expectedEnvVar:          constants.EnvVarModelDetectionClaude,
-			expectedDefault:         constants.CopilotBYOKDefaultModel,
+			expectedDefault:         constants.SonnetDefaultModel,
 			expectedDefaultOverride: compilerenv.DefaultModelClaude,
 		},
 		{
@@ -495,7 +495,7 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			model:                "${{ inputs.model }}",
 			expectedModelEnvVar:  constants.ClaudeCLIModelEnvVar,
 			expectedModelEnvVal:  "${{ inputs.model }}",
-			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.SonnetDefaultModel + "' }}",
 			expectShellExpansion: false, // Claude reads ANTHROPIC_MODEL natively, no shell expansion needed
 		},
 		{
@@ -504,7 +504,7 @@ func TestExpressionModelUsesEnvVar(t *testing.T) {
 			model:                "${{ inputs.provider }}/${{ inputs.model }}",
 			expectedModelEnvVar:  constants.ClaudeCLIModelEnvVar,
 			expectedModelEnvVal:  "${{ inputs.provider }}/${{ inputs.model }}",
-			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedFallbackVal:  "${{ vars." + constants.EnvVarModelAgentClaude + " || vars." + compilerenv.DefaultModelClaude + " || '" + constants.SonnetDefaultModel + "' }}",
 			expectShellExpansion: false,
 		},
 		{
