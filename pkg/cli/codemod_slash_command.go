@@ -8,12 +8,12 @@ import (
 
 var slashCommandCodemodLog = logger.New("cli:codemod_slash_command")
 
-// getCommandToSlashCommandCodemod creates a codemod for migrating on.command to on.slash_command
+// getCommandToSlashCommandCodemod creates a codemod for migrating on.command to on.slash-command
 func getCommandToSlashCommandCodemod() Codemod {
 	return Codemod{
 		ID:           "command-to-slash-command-migration",
-		Name:         "Migrate on.command to on.slash_command",
-		Description:  "Replaces deprecated 'on.command' field with 'on.slash_command'",
+		Name:         "Migrate on.command to on.slash-command",
+		Description:  "Replaces deprecated 'on.command' field with 'on.slash-command'",
 		IntroducedIn: "0.2.0",
 		Apply: func(content string, frontmatter map[string]any) (string, bool, error) {
 			// Check if on.command exists
@@ -62,7 +62,7 @@ func getCommandToSlashCommandCodemod() Codemod {
 						if didReplace {
 							result[i] = replacedLine
 							modified = true
-							slashCommandCodemodLog.Printf("Replaced on.command with on.slash_command on line %d", i+1)
+							slashCommandCodemodLog.Printf("Replaced on.command with on.slash-command on line %d", i+1)
 						} else {
 							result[i] = line
 						}
@@ -73,7 +73,7 @@ func getCommandToSlashCommandCodemod() Codemod {
 				return result, modified
 			})
 			if applied {
-				slashCommandCodemodLog.Print("Applied on.command to on.slash_command migration")
+				slashCommandCodemodLog.Print("Applied on.command to on.slash-command migration")
 			}
 			return newContent, applied, err
 		},

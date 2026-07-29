@@ -222,7 +222,7 @@ func (c *Compiler) extractExpressionFromIfString(ifString string) string {
 func (c *Compiler) extractCommandConfig(frontmatter map[string]any) (commandNames []string, commandEvents []string, commandCentralized bool, commandPlaceholder string) {
 	frontmatterLog.Print("Extracting command configuration from frontmatter")
 	// Check new format: on.slash_command or on.slash_command.name (preferred)
-	// Also check legacy format: on.command or on.command.name (deprecated)
+	// Also check legacy format: on.slash-command or on.slash-command.name (deprecated)
 	commandValue, hasCommand := extractOnTriggerValue(frontmatter, "slash_command")
 	isDeprecated := false
 	if !hasCommand {

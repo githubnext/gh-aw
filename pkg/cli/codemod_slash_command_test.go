@@ -13,7 +13,7 @@ func TestGetCommandToSlashCommandCodemod(t *testing.T) {
 	codemod := getCommandToSlashCommandCodemod()
 
 	assert.Equal(t, "command-to-slash-command-migration", codemod.ID)
-	assert.Equal(t, "Migrate on.command to on.slash_command", codemod.Name)
+	assert.Equal(t, "Migrate on.command to on.slash-command", codemod.Name)
 	assert.NotEmpty(t, codemod.Description)
 	assert.Equal(t, "0.2.0", codemod.IntroducedIn)
 	require.NotNil(t, codemod.Apply)
