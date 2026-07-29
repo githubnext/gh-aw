@@ -22,8 +22,11 @@ var trialRepoLog = logger.New("cli:trial_repository")
 // trialRepoInitDelay gives GitHub time to finish initializing a newly created repository.
 const trialRepoInitDelay = 2 * time.Second
 
-// checkoutActionPattern matches actions/checkout step lines with leading indentation
-var checkoutActionPattern = regexp.MustCompile(`^(\s*)uses:\s*["']?actions/checkout@[^\s"']+["']?\s*(?:#.*)?$`)
+// checkoutActionPattern matches actions/checkout step lines with leading indentation,
+// supporting both the block-mapping form ("  uses: actions/checkout@…") and the
+// inline list-item form ("  - uses: actions/checkout@…").  Group 1 is the physical
+// leading whitespace; group 2 is the optional "- " list marker.
+var checkoutActionPattern = regexp.MustCompile(`^(\s*)(- )?uses:\s*["']?actions/checkout@[^\s"']+["']?\s*(?:#.*)?$`)
 
 func leadingIndentWidth(line string) int {
 	return len(line) - len(strings.TrimLeft(line, " \t"))
@@ -480,11 +483,18 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 		lines := strings.Split(modifiedContent, "\n")
 
 		for i := 0; i < len(lines); i++ {
-			if !checkoutActionPattern.MatchString(lines[i]) {
+			m := checkoutActionPattern.FindStringSubmatch(lines[i])
+			if m == nil {
 				continue
 			}
 
 			keyIndent := leadingIndentWidth(lines[i])
+			// For the inline list-item form ("- uses: actions/checkout@…") the
+			// effective indentation for child keys (with:, id:, …) is two columns
+			// deeper than the physical dash position.
+			if len(m) > 2 && m[2] == "- " {
+				keyIndent += 2
+			}
 
 			withIndex := -1
 			for j := i + 1; j < len(lines); j++ {
