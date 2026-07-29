@@ -1,7 +1,7 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const { getDetectionReasonText, getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
+const { getDetectionReasonText, getThreatDetectedMarker, isToolingFailureReason } = require("./threat_detection_warning.cjs");
 
 /**
  * Generates a standalone workflow-id XML comment marker for searchability.
@@ -105,9 +105,13 @@ function generateXMLMarker(workflowName, runUrl) {
 }
 
 /**
- * Get the detection caution alert for expired entity closing comments.
+ * Get the detection alert for expired entity closing comments.
  * Reads GH_AW_DETECTION_CONCLUSION and GH_AW_DETECTION_REASON from environment variables.
- * Returns the caution alert markdown when conclusion is "warning", or empty string otherwise.
+ * Returns alert markdown when conclusion is "warning", or empty string otherwise.
+ *
+ * When the reason indicates a tooling failure (agent_failure or parse_error) a [!WARNING]
+ * admonition is used so reviewers can distinguish "detection engine crashed" from "detection
+ * engine found something". Actual threat findings (threat_detected) keep [!CAUTION].
  *
  * Note: This function is intentionally kept inline (not imported from messages_footer.cjs)
  * because importing messages_footer.cjs here would cause the bundler to inline
@@ -119,7 +123,7 @@ function generateXMLMarker(workflowName, runUrl) {
  *
  * @param {string} workflowName - Name of the workflow
  * @param {string} runUrl - URL of the workflow run
- * @returns {string} Caution alert markdown or empty string
+ * @returns {string} Alert markdown or empty string
  */
 function getExpiredEntityCautionAlert(workflowName, runUrl) {
   const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION;
@@ -128,6 +132,9 @@ function getExpiredEntityCautionAlert(workflowName, runUrl) {
   }
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const reasonText = getDetectionReasonText(detectionReason);
+  if (isToolingFailureReason(detectionReason)) {
+    return `> [!WARNING]\n> threat detection engine error\n> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.\n> ${getThreatDetectedMarker(detectionReason)}\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText}\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
+  }
   return `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> ${getThreatDetectedMarker(detectionReason)}\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText}\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
 }
 

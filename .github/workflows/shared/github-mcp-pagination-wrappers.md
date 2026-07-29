@@ -1,7 +1,7 @@
 ---
 mcp-scripts:
   list_workflows:
-    description: "List GitHub Actions workflows with per_page pagination support. Returns total_count, per_page, page, and a workflows array. Defaults to per_page=10 to avoid large responses."
+    description: "List GitHub Actions workflows with perPage pagination support. Returns total_count, per_page, page, and a workflows array. Defaults to perPage=10 to avoid large responses."
     inputs:
       owner:
         type: string
@@ -11,7 +11,7 @@ mcp-scripts:
         type: string
         description: "Repository name"
         required: true
-      per_page:
+      perPage:
         type: number
         description: "Results per page (1–100, default: 10)"
         required: false
@@ -26,7 +26,7 @@ mcp-scripts:
 
       OWNER="${INPUT_OWNER:-}"
       REPO="${INPUT_REPO:-}"
-      PER_PAGE="${INPUT_PER_PAGE:-10}"
+      PER_PAGE="${INPUT_PERPAGE:-10}"
       PAGE="${INPUT_PAGE:-1}"
 
       if [[ -z "$OWNER" ]]; then
@@ -40,7 +40,7 @@ mcp-scripts:
       fi
 
       if ! [[ "$PER_PAGE" =~ ^[0-9]+$ ]] || [[ "$PER_PAGE" -lt 1 ]] || [[ "$PER_PAGE" -gt 100 ]]; then
-        echo '{"error": "per_page must be between 1 and 100"}' >&2
+        echo '{"error": "perPage must be between 1 and 100"}' >&2
         exit 1
       fi
 
@@ -62,7 +62,7 @@ mcp-scripts:
         }'
 
   list_label:
-    description: "List labels in a GitHub repository with per_page pagination support. Returns labels array, item_count, per_page, and page. Defaults to per_page=10 to avoid large responses."
+    description: "List labels in a GitHub repository with perPage pagination support. Returns labels array, item_count, per_page, and page. Defaults to perPage=10 to avoid large responses."
     inputs:
       owner:
         type: string
@@ -72,7 +72,7 @@ mcp-scripts:
         type: string
         description: "Repository name"
         required: true
-      per_page:
+      perPage:
         type: number
         description: "Results per page (1–100, default: 10)"
         required: false
@@ -87,7 +87,7 @@ mcp-scripts:
 
       OWNER="${INPUT_OWNER:-}"
       REPO="${INPUT_REPO:-}"
-      PER_PAGE="${INPUT_PER_PAGE:-10}"
+      PER_PAGE="${INPUT_PERPAGE:-10}"
       PAGE="${INPUT_PAGE:-1}"
 
       if [[ -z "$OWNER" ]]; then
@@ -101,7 +101,7 @@ mcp-scripts:
       fi
 
       if ! [[ "$PER_PAGE" =~ ^[0-9]+$ ]] || [[ "$PER_PAGE" -lt 1 ]] || [[ "$PER_PAGE" -gt 100 ]]; then
-        echo '{"error": "per_page must be between 1 and 100"}' >&2
+        echo '{"error": "perPage must be between 1 and 100"}' >&2
         exit 1
       fi
 
@@ -126,13 +126,14 @@ mcp-scripts:
 ## GitHub MCP Pagination Wrappers
 
 This shared workflow provides mcp-script wrappers for `list_workflows` and `list_label`
-that add proper `per_page` and `page` pagination support.
+that add proper `perPage` and `page` pagination support.
 
 The built-in `list_label` GitHub MCP tool returns up to 100 labels regardless of any
-`per_page` argument (it uses a hardcoded GraphQL `labels(first: 100)` query). The
-`list_workflows` deprecated alias for `actions_list` may not surface `per_page` in its
-schema to callers. These wrappers call the GitHub REST API directly so `per_page` is
-respected on every call.
+`perPage` argument (it uses a hardcoded GraphQL `labels(first: 100)` query). The
+`list_workflows` built-in GitHub MCP tool uses a non-standard `per_page` parameter
+(snake_case), inconsistent with every other list-style MCP tool which uses camelCase
+`perPage`, and the limit was silently ignored. These wrappers call the GitHub REST API
+directly so `perPage` is respected on every call, using the camelCase convention.
 
 ### Available Tools
 
@@ -156,7 +157,7 @@ imports:
 |-----------|------|----------|---------|-------------|
 | owner | string | Yes | - | Repository owner |
 | repo | string | Yes | - | Repository name |
-| per_page | number | No | 10 | Results per page (1–100) |
+| perPage | number | No | 10 | Results per page (1–100) |
 | page | number | No | 1 | Page number |
 
 #### list_label
@@ -165,7 +166,7 @@ imports:
 |-----------|------|----------|---------|-------------|
 | owner | string | Yes | - | Repository owner |
 | repo | string | Yes | - | Repository name |
-| per_page | number | No | 10 | Results per page (1–100) |
+| perPage | number | No | 10 | Results per page (1–100) |
 | page | number | No | 1 | Page number |
 
 ### list_workflows Response

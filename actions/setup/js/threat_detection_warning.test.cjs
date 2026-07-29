@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeThreatKinds, getThreatDetectedMarker, getThreatDetectedMarkerTemplate, getDetectionReasonText } from "./threat_detection_warning.cjs";
+import { normalizeThreatKinds, getThreatDetectedMarker, getThreatDetectedMarkerTemplate, getDetectionReasonText, isToolingFailureReason } from "./threat_detection_warning.cjs";
 
 describe("threat_detection_warning", () => {
   describe("normalizeThreatKinds", () => {
@@ -28,6 +28,30 @@ describe("threat_detection_warning", () => {
 
     it("returns fallback description for unknown reason", () => {
       expect(getDetectionReasonText("new_reason")).toBe("The threat detection analysis could not be completed.");
+    });
+  });
+
+  describe("isToolingFailureReason", () => {
+    it("returns true for agent_failure", () => {
+      expect(isToolingFailureReason("agent_failure")).toBe(true);
+    });
+
+    it("returns true for parse_error", () => {
+      expect(isToolingFailureReason("parse_error")).toBe(true);
+    });
+
+    it("returns false for threat_detected", () => {
+      expect(isToolingFailureReason("threat_detected")).toBe(false);
+    });
+
+    it("returns false for empty/null/undefined", () => {
+      expect(isToolingFailureReason("")).toBe(false);
+      expect(isToolingFailureReason(null)).toBe(false);
+      expect(isToolingFailureReason(undefined)).toBe(false);
+    });
+
+    it("returns false for unknown reason", () => {
+      expect(isToolingFailureReason("some_new_reason")).toBe(false);
     });
   });
 });
