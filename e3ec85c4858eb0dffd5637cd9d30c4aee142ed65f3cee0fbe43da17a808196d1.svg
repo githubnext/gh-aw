@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <rect width="1200" height="700" fill="white"/>
+  <text x="600" y="40" text-anchor="middle" font-family="Arial" font-size="28" font-weight="bold">Issues &amp; PR Activity — Last 30 Days</text>
+  <text x="600" y="68" text-anchor="middle" font-family="Arial" font-size="16" fill="#555">Data window: 2026-06-30 to 2026-07-29</text>
+  <rect x="90" y="100" width="1030" height="500" fill="none" stroke="#333" stroke-width="1"/>
+  <line x1="90" y1="600" x2="1120" y2="600" stroke="#333"/>
+  <line x1="90" y1="500" x2="1120" y2="500" stroke="#ddd"/>
+  <line x1="90" y1="400" x2="1120" y2="400" stroke="#ddd"/>
+  <line x1="90" y1="300" x2="1120" y2="300" stroke="#ddd"/>
+  <line x1="90" y1="200" x2="1120" y2="200" stroke="#ddd"/>
+  <text x="55" y="605" font-family="Arial" font-size="14">0</text>
+  <text x="45" y="505" font-family="Arial" font-size="14">30</text>
+  <text x="45" y="405" font-family="Arial" font-size="14">60</text>
+  <text x="45" y="305" font-family="Arial" font-size="14">90</text>
+  <text x="35" y="205" font-family="Arial" font-size="14">120</text>
+  <text x="605" y="645" text-anchor="middle" font-family="Arial" font-size="16">Date</text>
+  <text x="25" y="350" transform="rotate(-90 25 350)" text-anchor="middle" font-family="Arial" font-size="16">Count</text>
+  <text x="110" y="625" font-family="Arial" font-size="12">07-20</text>
+  <text x="420" y="625" font-family="Arial" font-size="12">07-25</text>
+  <text x="735" y="625" font-family="Arial" font-size="12">07-28</text>
+  <text x="1040" y="625" font-family="Arial" font-size="12">07-29</text>
+  <polyline fill="none" stroke="#4C78A8" stroke-width="4" points="780,592 815,588 851,596 886,596 922,596 957,600 993,575 1028,563 1064,113 1100,392"/>
+  <polyline fill="none" stroke="#F58518" stroke-width="4" points="780,600 815,600 851,600 886,600 922,600 957,600 993,600 1028,600 1064,453 1100,413"/>
+  <polyline fill="none" stroke="#54A24B" stroke-width="4" points="780,596 815,588 851,592 886,600 922,600 957,600 993,596 1028,600 1064,407 1100,517"/>
+  <polyline fill="none" stroke="#E45756" stroke-width="4" points="780,600 815,600 851,600 886,600 922,600 957,600 993,600 1028,600 1064,493 1100,540"/>
+  <circle cx="1064" cy="113" r="6" fill="#4C78A8"/>
+  <text x="930" y="135" font-family="Arial" font-size="14">Peak activity: 251 on 07-28</text>
+  <line x1="1015" y1="140" x2="1060" y2="118" stroke="#333"/>
+  <rect x="790" y="120" width="270" height="110" fill="white" stroke="#ccc"/>
+  <line x1="810" y1="145" x2="850" y2="145" stroke="#4C78A8" stroke-width="4"/><text x="860" y="150" font-family="Arial" font-size="14">Issues opened</text>
+  <line x1="810" y1="170" x2="850" y2="170" stroke="#F58518" stroke-width="4"/><text x="860" y="175" font-family="Arial" font-size="14">Issues closed</text>
+  <line x1="810" y1="195" x2="850" y2="195" stroke="#54A24B" stroke-width="4"/><text x="860" y="200" font-family="Arial" font-size="14">PRs opened</text>
+  <line x1="810" y1="220" x2="850" y2="220" stroke="#E45756" stroke-width="4"/><text x="860" y="225" font-family="Arial" font-size="14">PRs merged</text>
+</svg>

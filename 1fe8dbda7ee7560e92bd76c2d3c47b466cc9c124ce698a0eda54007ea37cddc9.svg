@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="700" viewBox="0 0 1200 700">
+  <rect width="1200" height="700" fill="white"/>
+  <text x="600" y="40" text-anchor="middle" font-family="Arial" font-size="28" font-weight="bold">Commit Activity &amp; Contributors — Last 30 Days</text>
+  <text x="600" y="68" text-anchor="middle" font-family="Arial" font-size="16" fill="#555">Data window: 2026-06-30 to 2026-07-29</text>
+  <rect x="90" y="100" width="1030" height="500" fill="none" stroke="#333" stroke-width="1"/>
+  <line x1="90" y1="600" x2="1120" y2="600" stroke="#333"/>
+  <line x1="90" y1="475" x2="1120" y2="475" stroke="#ddd"/>
+  <line x1="90" y1="350" x2="1120" y2="350" stroke="#ddd"/>
+  <line x1="90" y1="225" x2="1120" y2="225" stroke="#ddd"/>
+  <text x="55" y="605" font-family="Arial" font-size="14">0</text>
+  <text x="45" y="480" font-family="Arial" font-size="14">20</text>
+  <text x="45" y="355" font-family="Arial" font-size="14">40</text>
+  <text x="45" y="230" font-family="Arial" font-size="14">60</text>
+  <text x="45" y="105" font-family="Arial" font-size="14">80</text>
+  <text x="605" y="645" text-anchor="middle" font-family="Arial" font-size="16">Date</text>
+  <text x="25" y="350" transform="rotate(-90 25 350)" text-anchor="middle" font-family="Arial" font-size="16">Commits</text>
+  <text x="1170" y="350" transform="rotate(-90 1170 350)" text-anchor="middle" font-family="Arial" font-size="16">Contributors</text>
+  <text x="110" y="625" font-family="Arial" font-size="12">07-20</text>
+  <text x="420" y="625" font-family="Arial" font-size="12">07-25</text>
+  <text x="735" y="625" font-family="Arial" font-size="12">07-28</text>
+  <text x="1040" y="625" font-family="Arial" font-size="12">07-29</text>
+  <rect x="1010" y="594" width="22" height="6" fill="#4C78A8"/>
+  <rect x="1045" y="100" width="22" height="500" fill="#4C78A8"/>
+  <rect x="1080" y="481" width="22" height="119" fill="#4C78A8"/>
+  <polyline fill="none" stroke="#1F4E79" stroke-width="4" points="1010,599 1045,528 1080,491"/>
+  <polyline fill="none" stroke="#F58518" stroke-width="4" points="1010,600 1045,225 1080,225"/>
+  <circle cx="1045" cy="225" r="6" fill="#F58518"/>
+  <circle cx="1080" cy="225" r="6" fill="#F58518"/>
+  <text x="900" y="150" font-family="Arial" font-size="14">Peak commits: 80 on 07-28</text>
+  <line x1="1000" y1="155" x2="1045" y2="110" stroke="#333"/>
+  <rect x="790" y="120" width="270" height="90" fill="white" stroke="#ccc"/>
+  <rect x="810" y="138" width="36" height="14" fill="#4C78A8"/><text x="860" y="150" font-family="Arial" font-size="14">Commits</text>
+  <line x1="810" y1="172" x2="850" y2="172" stroke="#1F4E79" stroke-width="4"/><text x="860" y="177" font-family="Arial" font-size="14">Commits 7d avg</text>
+  <line x1="810" y1="197" x2="850" y2="197" stroke="#F58518" stroke-width="4"/><text x="860" y="202" font-family="Arial" font-size="14">Contributors</text>
+</svg>
