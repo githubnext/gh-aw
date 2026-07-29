@@ -440,7 +440,7 @@ func TestFormal_FC_P3_ZeroETFixture(t *testing.T) {
 	require.True(t, hasET, "FC-P3: total_effective_tokens must be present")
 	etVal, ok := et.(float64)
 	require.True(t, ok, "FC-P3: total_effective_tokens must be a number")
-	assert.Equal(t, 0.0, etVal,
+	assert.InDelta(t, 0.0, etVal, 0.0,
 		"FC-P3 (T-FC-022): run_summary_zero_et.json must have total_effective_tokens == 0 "+
 			"to model a missing-artifact / no-ET scenario")
 }
