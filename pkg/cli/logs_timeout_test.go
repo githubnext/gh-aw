@@ -198,6 +198,28 @@ func TestEffectiveMCPLogsToolTimeoutMinutes(t *testing.T) {
 			workflowName:     "",
 			want:             (250 + mcpLogsRunsPerDefaultTimeoutMinute - 1) / mcpLogsRunsPerDefaultTimeoutMinute, // ceil(250/mcpLogsRunsPerDefaultTimeoutMinute) > defaultMCPLogsMinTimeoutMinutesAllWorkflows
 		},
+		// Timeout cap cases: user-supplied value must not exceed maxMCPLogsSubprocessTimeoutMinutes
+		{
+			name:             "explicit timeout exactly at max is preserved",
+			requestedTimeout: maxMCPLogsSubprocessTimeoutMinutes,
+			count:            100,
+			workflowName:     "my-workflow",
+			want:             maxMCPLogsSubprocessTimeoutMinutes,
+		},
+		{
+			name:             "explicit timeout above max is capped",
+			requestedTimeout: maxMCPLogsSubprocessTimeoutMinutes + 1,
+			count:            100,
+			workflowName:     "my-workflow",
+			want:             maxMCPLogsSubprocessTimeoutMinutes,
+		},
+		{
+			name:             "very large explicit timeout is capped",
+			requestedTimeout: 100000,
+			count:            100,
+			workflowName:     "",
+			want:             maxMCPLogsSubprocessTimeoutMinutes,
+		},
 	}
 
 	for _, tt := range tests {

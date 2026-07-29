@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -25,6 +26,12 @@ const (
 	// large repositories the unfiltered endpoint can be significantly slower.  A higher
 	// floor gives the tool enough headroom in those cases.
 	defaultMCPLogsMinTimeoutMinutesAllWorkflows = 5
+	// maxMCPLogsSubprocessTimeoutMinutes caps the user-supplied timeout to prevent
+	// a runaway subprocess from holding a guardrail slot for an unbounded duration.
+	// With up to 4 concurrent subprocess slots (maxActiveMCPChildProcesses), a
+	// single long-running request could otherwise block all callers for an arbitrarily
+	// long time.
+	maxMCPLogsSubprocessTimeoutMinutes = 60
 )
 
 // appendRepoFlagFromEnv appends "--repo <owner/repo>" to args when GITHUB_REPOSITORY
@@ -75,7 +82,7 @@ func effectiveMCPLogsToolCount(count int) int {
 
 func effectiveMCPLogsToolTimeoutMinutes(requestedTimeout, count int, workflowName string) int {
 	if requestedTimeout > 0 {
-		return requestedTimeout
+		return min(requestedTimeout, maxMCPLogsSubprocessTimeoutMinutes)
 	}
 
 	base := defaultMCPLogsToolTimeoutMinutesForCount(count)
@@ -234,11 +241,40 @@ from where the previous request stopped due to timeout.`,
 
 		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
 
+		// The MCP gateway imposes a per-tool RPC deadline (typically 60 s) on the
+		// request context. exec.CommandContext ties the subprocess lifetime to that
+		// context, so the subprocess is killed after 60 s even when the caller
+		// explicitly requests a longer timeout via args.Timeout.
+		//
+		// Fix: detach from the gateway deadline by rooting the subprocess context
+		// at context.Background(), using the user-requested timeout as the only
+		// deadline.  We still forward any explicit cancellations from the MCP
+		// request context (e.g. client disconnect) so the subprocess is cleaned up
+		// promptly when the caller goes away.
+		subCtx, subCancel := context.WithTimeout(
+			context.Background(),
+			time.Duration(timeoutValue)*time.Minute,
+		)
+		defer subCancel()
+		go func() {
+			// Goroutine exits cleanly in both cases: client disconnect or subprocess timeout.
+			// Only forward explicit cancellations (context.Canceled); do NOT propagate
+			// context.DeadlineExceeded from the MCP gateway — that would kill the subprocess
+			// at the gateway's 60 s RPC deadline and defeat the purpose of this fix.
+			select {
+			case <-ctx.Done():
+				if ctx.Err() == context.Canceled {
+					subCancel() // propagate client disconnect to subprocess
+				}
+			case <-subCtx.Done(): // subprocess timed out or subCancel() already called
+			}
+		}()
+
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and error details
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+		stdout, err := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
 
 		// The logs command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.
