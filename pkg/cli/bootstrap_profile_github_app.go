@@ -215,6 +215,11 @@ func createBootstrapGitHubApp(ctx context.Context, repo, owner, repoName, ownerT
 		Handler: buildBootstrapGitHubAppMux(ctx, state, appOwner, appOwnerType, appName, description, registrationPage, flowCh),
 	}
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				githubAppBootstrapLog.Printf("Panic in GitHub App registration server (recovered): %v", r)
+			}
+		}()
 		_ = server.Serve(listener)
 	}()
 	defer func() {
