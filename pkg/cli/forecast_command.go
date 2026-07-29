@@ -38,16 +38,18 @@ type ForecastConfig struct {
 func NewForecastCommand() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "forecast [workflow]...",
-		Short: "[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows",
-		Long: `[EXPERIMENTAL] Forecast AI Credit (AIC) usage for agentic workflows by sampling
+		Short: "Forecast AI Credit (AIC) usage for agentic workflows",
+		Long: `Forecast AI Credit (AIC) usage for agentic workflows by sampling
 recent run history and projecting forward on a per-week or per-month basis.
 
 The forecaster downloads a sample of recent completed workflow runs and derives
 per-run metrics (AIC, duration, success rate). When runs have been
 previously processed by 'gh aw logs', cached token-usage data is used. The
-observed run frequency is then projected to the target period using a Monte Carlo
+observed run frequency is then projected to the target period using a statistical
 simulation that models three sources of uncertainty: run count (Poisson), per-run
 AIC usage (bootstrap resampling), and per-run success (Bernoulli).
+
+All forecasts are estimates derived from historical samples and may be inaccurate.
 
 Accounts for:
   - A/B experiment variants (results are split per variant when present)

@@ -200,6 +200,24 @@ function normalizeCopilotDefaultModel(content) {
   return content.replace(
     /\|\| 'claude-sonnet-[\d.]+'/g,
     "|| 'default'"
+  ).replace(
+    /\|\| 'auto'/g,
+    "|| 'default'"
+  ).replace(
+    /\|\| 'gpt-[\d.][\w.-]*'/g,
+    "|| 'default'"
+  );
+}
+
+// ── Normalize AWF config payload ─────────────────────────────────────────
+// Keep golden fixtures stable across AWF config payload changes (model aliases,
+// domain allowlists, container image tags). The entire JSON body is replaced with
+// a stable placeholder so that model/domain additions don't break golden comparisons.
+// Mirrors testAWFConfigPayloadRE / normalizeOutput() in pkg/workflow/wasm_golden_test.go.
+function normalizeAWFConfigPayload(content) {
+  return content.replace(
+    /(printf '%s\\n' ")(\{.*\})(" > "\$\{RUNNER_TEMP\}\/gh-aw\/awf-config\.json")/g,
+    "$1AWF_CONFIG_PAYLOAD$3"
   );
 }
 
@@ -290,13 +308,13 @@ function normalizeDefaultRuntimeVersions(content) {
 // new normalization steps only need to be added in one place.
 // Mirrors normalizeOutput() in pkg/workflow/wasm_golden_test.go.
 function normalize(content) {
-  return normalizeCheckoutPin(normalizeDefaultRuntimeVersions(normalizeCopilotDefaultModel(
+  return normalizeAWFConfigPayload(normalizeCheckoutPin(normalizeDefaultRuntimeVersions(normalizeCopilotDefaultModel(
     normalizeProjectUTC(
       normalizeAWFImageTagDigests(
         normalizeContainerPins(normalizeHeredocDelimiters(content))
       )
     )
-  )));
+  ))));
 }
 
 // ── Load golden file ─────────────────────────────────────────────────

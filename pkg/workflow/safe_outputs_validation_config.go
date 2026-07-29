@@ -483,24 +483,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 }
 
-// validationConfigJSONCache caches GetValidationConfigJSON results keyed by the sorted,
-// comma-joined enabledTypes string. ValidationConfig is a package-level constant so
+// validationConfigJSONCache caches GetValidationConfigJSONWithDataSchema results keyed by the
+// sorted, comma-joined enabledTypes string. ValidationConfig is a package-level constant so
 // the output is deterministic for a given set of types; caching avoids repeated
 // json.MarshalIndent calls on every workflow compilation.
 var validationConfigJSONCache sync.Map // key: string → value: string
 
-// GetValidationConfigJSON returns the validation configuration as indented JSON.
-// If enabledTypes is empty or nil, returns all validation configs.
-// If enabledTypes is provided, returns only configs for the specified types.
-// If mentions is non-empty, a top-level "mentions" key is included in the JSON
-// so that collect_ndjson_output.cjs honours the configured @mention allowlist
-// during the initial sanitization pass (mirroring what the publish-side handlers
-// receive via GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG).
-func GetValidationConfigJSON(enabledTypes []string, mentions map[string]any) (string, error) {
-	return GetValidationConfigJSONWithDataSchema(enabledTypes, mentions, false, nil)
-}
-
-// GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSON and additionally
+// GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSONWithDataSchema and additionally
 // injects a normalized data schema into body-bearing safe-output types.
 func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
