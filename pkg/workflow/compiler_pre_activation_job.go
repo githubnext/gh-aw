@@ -123,6 +123,13 @@ func (c *Compiler) buildPreActivationPermissions(data *WorkflowData, setupAction
 }
 
 func (c *Compiler) buildPreActivationCheckSteps(data *WorkflowData, steps []string, needsPermissionCheck bool) []string {
+	// For command workflows, run command position check before the membership check.
+	// check_membership uses an if: condition that requires command_position_ok == 'true',
+	// so the command check must execute first. This prevents a confusing "access denied"
+	// warning from appearing when an issue is opened without the slash command.
+	if len(data.Command) > 0 {
+		steps = c.appendPreActivationCommandPositionStep(data, steps)
+	}
 	if needsPermissionCheck {
 		steps = c.generateMembershipCheck(data, steps)
 	}
@@ -235,9 +242,8 @@ func (c *Compiler) buildPreActivationRolesBotsCmdSteps(data *WorkflowData, steps
 	if len(data.SkipBots) > 0 {
 		steps = c.appendPreActivationSkipBotsStep(data, steps)
 	}
-	if len(data.Command) > 0 {
-		steps = c.appendPreActivationCommandPositionStep(data, steps)
-	}
+	// Command position step is added in buildPreActivationCheckSteps (before check_membership)
+	// for command workflows so that check_membership can be made conditional on it.
 	return steps
 }
 
