@@ -118,3 +118,9 @@ require (
 	google.golang.org/grpc v1.82.1 // indirect
 	google.golang.org/protobuf v1.36.11 // indirect
 )
+
+tool (
+	github.com/rhysd/actionlint/cmd/actionlint
+	github.com/securego/gosec/v2/cmd/gosec
+	golang.org/x/vuln/cmd/govulncheck
+)
