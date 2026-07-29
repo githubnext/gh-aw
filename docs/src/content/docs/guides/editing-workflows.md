@@ -153,3 +153,4 @@ Use a fixed seed whenever deterministic schedule output matters, especially for 
 - [Markdown Reference](/gh-aw/reference/markdown/) - Writing effective instructions
 - [Compilation Process](/gh-aw/reference/compilation-process/) - How compilation works
 - [Templating](/gh-aw/reference/templating/) - Expression syntax and substitution
+- [Workshop](https://github.com/githubnext/gh-aw-workshop) - Hands-on exercises for building and editing workflows
