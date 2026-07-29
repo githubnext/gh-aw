@@ -284,6 +284,9 @@ func updateDiscussionConstraints(config *UpdateDiscussionsConfig) []string {
 	if config.Body != nil && *config.Body {
 		constraints = append(constraints, "Body updates are allowed.")
 	}
+	if config.BodyFile != nil && *config.BodyFile {
+		constraints = append(constraints, "File-backed body updates are allowed via body_file + body_sha256 under RUNNER_TEMP/gh-aw-safe/.")
+	}
 	if config.Labels != nil {
 		if len(config.AllowedLabels) > 0 {
 			constraints = append(constraints, fmt.Sprintf("Only these labels are allowed: %s.", formatStringList(config.AllowedLabels)))
@@ -583,6 +586,9 @@ func updateIssueConstraints(config *UpdateIssuesConfig) []string {
 	if config.Body != nil && *config.Body {
 		constraints = append(constraints, "Body updates are allowed.")
 	}
+	if config.BodyFile != nil && *config.BodyFile {
+		constraints = append(constraints, "File-backed body updates are allowed via body_file + body_sha256 under RUNNER_TEMP/gh-aw-safe/.")
+	}
 	if config.Status != nil && *config.Status {
 		constraints = append(constraints, "Status updates (open/closed) are allowed.")
 	}
@@ -604,6 +610,9 @@ func updatePullRequestConstraints(config *UpdatePullRequestsConfig) []string {
 	}
 	if config.RequiredTitlePrefix != "" {
 		constraints = append(constraints, fmt.Sprintf("Only PRs with title prefix %q can be updated.", config.RequiredTitlePrefix))
+	}
+	if config.BodyFile != nil && *config.BodyFile {
+		constraints = append(constraints, "File-backed body updates are allowed via body_file + body_sha256 under RUNNER_TEMP/gh-aw-safe/.")
 	}
 	return constraints
 }

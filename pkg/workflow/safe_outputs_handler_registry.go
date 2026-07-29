@@ -347,6 +347,7 @@ var handlerRegistry = map[string]handlerBuilder{
 		// Body uses boolean value mode - add the actual boolean value
 		builder.AddBoolPtrOrDefault("allow_body", c.Body, true)
 		return builder.
+			AddBoolPtr("allow_body_file", c.BodyFile).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddIfNotEmpty("github-token", c.GitHubToken).
@@ -373,6 +374,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			builder.AddDefault("allow_labels", true)
 		}
 		return builder.
+			AddBoolPtr("allow_body_file", c.BodyFile).
 			AddStringSlice("allowed_labels", c.AllowedLabels).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
@@ -611,6 +613,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target", c.Target).
 			AddBoolPtrOrDefault("allow_title", c.Title, true).
 			AddBoolPtrOrDefault("allow_body", c.Body, true).
+			AddBoolPtr("allow_body_file", c.BodyFile).
 			AddBoolPtrOrDefault("update_branch", c.UpdateBranch, false).
 			AddStringPtr("default_operation", c.Operation).
 			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).AddStringSlice("required_labels", c.RequiredLabels).

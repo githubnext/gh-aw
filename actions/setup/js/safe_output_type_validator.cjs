@@ -632,39 +632,66 @@ function executeCustomValidation(item, customValidation, lineNum, itemType) {
     return null;
   }
 
-  // Parse custom validation rule
-  if (customValidation.startsWith("requiresOneOf:")) {
-    const fields = customValidation.slice("requiresOneOf:".length).split(",");
-    const hasValidField = fields.some(field => item[field] !== undefined && item[field] !== false);
-    if (!hasValidField) {
-      return {
-        isValid: false,
-        error: `Line ${lineNum}: ${itemType} requires at least one of: ${fields.map(f => `'${f}'`).join(", ")} fields`,
-      };
-    }
-  }
-
-  if (customValidation === "startLineLessOrEqualLine") {
-    if (item.start_line !== undefined && item.line !== undefined) {
-      const startLine = typeof item.start_line === "string" ? parseInt(item.start_line, 10) : item.start_line;
-      const endLine = typeof item.line === "string" ? parseInt(item.line, 10) : item.line;
-      if (startLine > endLine) {
+  const rules = customValidation
+    .split(";")
+    .map(rule => rule.trim())
+    .filter(Boolean);
+  for (const rule of rules) {
+    if (rule.startsWith("requiresOneOf:")) {
+      const fields = rule.slice("requiresOneOf:".length).split(",");
+      const hasValidField = fields.some(field => item[field] !== undefined && item[field] !== false);
+      if (!hasValidField) {
         return {
           isValid: false,
-          error: `Line ${lineNum}: ${itemType} 'start_line' must be less than or equal to 'line'`,
+          error: `Line ${lineNum}: ${itemType} requires at least one of: ${fields.map(f => `'${f}'`).join(", ")} fields`,
         };
       }
     }
-  }
 
-  if (customValidation === "parentAndSubDifferent") {
-    // Normalize values for comparison
-    const normalizeValue = v => (typeof v === "string" ? v.toLowerCase() : v);
-    if (normalizeValue(item.parent_issue_number) === normalizeValue(item.sub_issue_number)) {
-      return {
-        isValid: false,
-        error: `Line ${lineNum}: ${itemType} 'parent_issue_number' and 'sub_issue_number' must be different`,
-      };
+    if (rule.startsWith("pairedFields:")) {
+      const [leftField, rightField] = rule.slice("pairedFields:".length).split(",");
+      const leftPresent = item[leftField] !== undefined;
+      const rightPresent = item[rightField] !== undefined;
+      if (leftPresent !== rightPresent) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} requires '${leftField}' and '${rightField}' to be provided together`,
+        };
+      }
+    }
+
+    if (rule.startsWith("mutuallyExclusive:")) {
+      const [leftField, rightField] = rule.slice("mutuallyExclusive:".length).split(",");
+      if (item[leftField] !== undefined && item[rightField] !== undefined) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} '${leftField}' and '${rightField}' cannot be used together`,
+        };
+      }
+    }
+
+    if (rule === "startLineLessOrEqualLine") {
+      if (item.start_line !== undefined && item.line !== undefined) {
+        const startLine = typeof item.start_line === "string" ? parseInt(item.start_line, 10) : item.start_line;
+        const endLine = typeof item.line === "string" ? parseInt(item.line, 10) : item.line;
+        if (startLine > endLine) {
+          return {
+            isValid: false,
+            error: `Line ${lineNum}: ${itemType} 'start_line' must be less than or equal to 'line'`,
+          };
+        }
+      }
+    }
+
+    if (rule === "parentAndSubDifferent") {
+      // Normalize values for comparison
+      const normalizeValue = v => (typeof v === "string" ? v.toLowerCase() : v);
+      if (normalizeValue(item.parent_issue_number) === normalizeValue(item.sub_issue_number)) {
+        return {
+          isValid: false,
+          error: `Line ${lineNum}: ${itemType} 'parent_issue_number' and 'sub_issue_number' must be different`,
+        };
+      }
     }
   }
 

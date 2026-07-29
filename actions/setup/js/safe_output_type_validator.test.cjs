@@ -54,11 +54,13 @@ const SAMPLE_VALIDATION_CONFIG = {
   },
   update_issue: {
     defaultMax: 1,
-    customValidation: "requiresOneOf:status,title,body,labels,assignees,milestone",
+    customValidation: "requiresOneOf:status,title,body,body_file,labels,assignees,milestone;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file",
     fields: {
       status: { type: "string", enum: ["open", "closed"] },
       title: { type: "string", sanitize: true, maxLength: 128 },
       body: { type: "string", sanitize: true, maxLength: 65000 },
+      body_file: { type: "string", maxLength: 512 },
+      body_sha256: { type: "string", pattern: "^[a-f0-9]{64}$", patternError: "must be a lowercase SHA-256 hex digest" },
       labels: { type: "array" },
       assignees: { type: "array", itemType: "string", itemSanitize: true, itemMaxLength: 39 },
       milestone: { optionalPositiveInteger: true },
@@ -67,10 +69,12 @@ const SAMPLE_VALIDATION_CONFIG = {
   },
   update_pull_request: {
     defaultMax: 1,
-    customValidation: "requiresOneOf:title,body,update_branch",
+    customValidation: "requiresOneOf:title,body,body_file,update_branch;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file",
     fields: {
       title: { type: "string", sanitize: true, maxLength: 256 },
       body: { type: "string", sanitize: true, maxLength: 65000 },
+      body_file: { type: "string", maxLength: 512 },
+      body_sha256: { type: "string", pattern: "^[a-f0-9]{64}$", patternError: "must be a lowercase SHA-256 hex digest" },
       update_branch: { type: "boolean" },
       pull_request_number: { issueOrPRNumber: true },
     },
@@ -944,6 +948,32 @@ describe("safe_output_type_validator", () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain("requires at least one of");
+    });
+
+    it("should pass when update_issue only includes a file-backed body", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_issue", body_file: "gh-aw-safe/body.md", body_sha256: "a".repeat(64) }, "update_issue", 1);
+
+      expect(result.isValid).toBe(true);
+    });
+
+    it("should fail when body_file is provided without body_sha256", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_issue", body_file: "gh-aw-safe/body.md" }, "update_issue", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("provided together");
+    });
+
+    it("should fail when body and body_file are both provided", async () => {
+      const { validateItem } = await import("./safe_output_type_validator.cjs");
+
+      const result = validateItem({ type: "update_pull_request", body: "inline", body_file: "gh-aw-safe/body.md", body_sha256: "a".repeat(64) }, "update_pull_request", 1);
+
+      expect(result.isValid).toBe(false);
+      expect(result.error).toContain("cannot be used together");
     });
 
     it("should pass for assign_to_agent with issue_number", async () => {

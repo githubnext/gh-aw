@@ -11,12 +11,15 @@ description: Safe-output reference for workflow dispatch, code scanning, checks,
     update-discussion:
       title: true                     # Optional: enable title updates
       body: true                      # Optional: enable body updates
+      body-file: true                 # Optional: opt in to body_file + body_sha256 under RUNNER_TEMP/gh-aw-safe/
       labels: true                    # Optional: enable label updates
       allowed-labels: [status, type]  # Optional: restrict to specific labels
       max: 1                          # Optional: max updates (default: 1)
       target: "*"                     # Optional: "triggering" (default), "*", or number
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
+
+  When `body-file: true` is enabled, the agent may send `body_file` plus `body_sha256` instead of inline `body`. The file must stay under `$RUNNER_TEMP/gh-aw-safe/`, must be UTF-8 text, cannot be a symlink, is read exactly once at execution time, and must match the supplied SHA-256 digest. Inline `body` and `body_file` are mutually exclusive.
 
 - `update-release:` - Update GitHub release descriptions
 

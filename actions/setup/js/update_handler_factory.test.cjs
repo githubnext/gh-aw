@@ -1,4 +1,8 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
+import crypto from "crypto";
+import fs from "fs";
+import os from "os";
+import path from "path";
 
 // Import the factory function
 let factoryModule;
@@ -50,6 +54,7 @@ describe("update_handler_factory.cjs", () => {
 
     // Import the module fresh for each test
     factoryModule = await import("./update_handler_factory.cjs");
+    delete process.env.RUNNER_TEMP;
   });
 
   describe("createUpdateHandlerFactory", () => {
@@ -292,6 +297,73 @@ describe("update_handler_factory.cjs", () => {
       const passedUpdateData = mockExecuteUpdate.mock.calls[0][3];
       // ensure the body content was changed by the sanitizer
       expect(passedUpdateData._rawBody).not.toBe(unsafeBody);
+    });
+
+    it("should load, sanitize, and audit a file-backed body snapshot", async () => {
+      const runnerTemp = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-body-file-handler-"));
+      process.env.RUNNER_TEMP = runnerTemp;
+      const safeDir = path.join(runnerTemp, "gh-aw-safe");
+      fs.mkdirSync(safeDir, { recursive: true });
+      const bodyPath = path.join(safeDir, "body.md");
+      fs.writeFileSync(bodyPath, "/run-command from file @bot-trigger");
+      const digest = crypto.createHash("sha256").update(fs.readFileSync(bodyPath)).digest("hex");
+
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const mockBuildUpdateData = vi.fn().mockImplementation(item => ({
+        success: true,
+        data: { _rawBody: item.body, _operation: "replace" },
+      }));
+      const mockExecuteUpdate = vi.fn().mockResolvedValue({ html_url: "https://example.com/issues/42", title: "Updated" });
+      const mockFormatSuccessResult = vi.fn().mockReturnValue({ success: true, number: 42, url: "https://example.com/issues/42" });
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+      });
+
+      const handler = await handlerFactory({ allow_body_file: true });
+      const result = await handler({ body_file: "gh-aw-safe/body.md", body_sha256: digest });
+
+      expect(result.success).toBe(true);
+      expect(mockBuildUpdateData).toHaveBeenCalledWith(expect.objectContaining({ body: "/run-command from file @bot-trigger" }), expect.anything());
+      const passedUpdateData = mockExecuteUpdate.mock.calls[0][3];
+      expect(passedUpdateData._rawBody).not.toBe("/run-command from file @bot-trigger");
+      expect(result.metadata).toEqual({
+        body_file: {
+          path: "gh-aw-safe/body.md",
+          sha256: digest,
+          bytes: fs.readFileSync(bodyPath).length,
+        },
+      });
+    });
+
+    it("should reject body_file when the workflow has not opted in", async () => {
+      const mockResolveItemNumber = vi.fn().mockReturnValue({ success: true, number: 42 });
+      const mockBuildUpdateData = vi.fn();
+      const mockExecuteUpdate = vi.fn();
+      const mockFormatSuccessResult = vi.fn();
+
+      const handlerFactory = factoryModule.createUpdateHandlerFactory({
+        itemType: "update_issue",
+        itemTypeName: "issue",
+        supportsPR: false,
+        resolveItemNumber: mockResolveItemNumber,
+        buildUpdateData: mockBuildUpdateData,
+        executeUpdate: mockExecuteUpdate,
+        formatSuccessResult: mockFormatSuccessResult,
+      });
+
+      const handler = await handlerFactory({});
+      const result = await handler({ body_file: "gh-aw-safe/body.md", body_sha256: "a".repeat(64) });
+
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("body_file is not enabled");
+      expect(mockBuildUpdateData).not.toHaveBeenCalled();
     });
 
     it("should handle execution errors gracefully", async () => {

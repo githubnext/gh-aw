@@ -1324,6 +1324,13 @@ func TestHandlerConfigUpdateFields(t *testing.T) {
 			},
 			expectedKeys: []string{"allow_title", "allow_body"},
 		},
+		{
+			name: "body file opt-in",
+			config: &UpdateIssuesConfig{
+				BodyFile: testBoolPtr(true),
+			},
+			expectedKeys: []string{"allow_body_file"},
+		},
 	}
 
 	for _, tt := range tests {

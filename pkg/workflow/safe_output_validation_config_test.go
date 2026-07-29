@@ -280,13 +280,19 @@ func TestUpdateDiscussionValidationConfig(t *testing.T) {
 	}
 
 	// customValidation must include labels so label-only messages pass
-	if config.CustomValidation != "requiresOneOf:title,body,labels" {
-		t.Errorf("update_discussion customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:title,body,labels")
+	if config.CustomValidation != "requiresOneOf:title,body,body_file,labels;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file" {
+		t.Errorf("update_discussion customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:title,body,body_file,labels;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file")
 	}
 
 	// labels field must be defined so label values are validated
 	if _, ok := config.Fields["labels"]; !ok {
 		t.Error("update_discussion Fields is missing the 'labels' field")
+	}
+	if _, ok := config.Fields["body_file"]; !ok {
+		t.Error("update_discussion Fields is missing the 'body_file' field")
+	}
+	if _, ok := config.Fields["body_sha256"]; !ok {
+		t.Error("update_discussion Fields is missing the 'body_sha256' field")
 	}
 }
 
@@ -296,12 +302,18 @@ func TestUpdatePullRequestValidationConfig(t *testing.T) {
 		t.Fatal("update_pull_request not found in ValidationConfig")
 	}
 
-	if config.CustomValidation != "requiresOneOf:title,body,update_branch" {
-		t.Errorf("update_pull_request customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:title,body,update_branch")
+	if config.CustomValidation != "requiresOneOf:title,body,body_file,update_branch;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file" {
+		t.Errorf("update_pull_request customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:title,body,body_file,update_branch;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file")
 	}
 
 	if _, ok := config.Fields["update_branch"]; !ok {
 		t.Error("update_pull_request Fields is missing the 'update_branch' field")
+	}
+	if _, ok := config.Fields["body_file"]; !ok {
+		t.Error("update_pull_request Fields is missing the 'body_file' field")
+	}
+	if _, ok := config.Fields["body_sha256"]; !ok {
+		t.Error("update_pull_request Fields is missing the 'body_sha256' field")
 	}
 }
 
@@ -311,12 +323,18 @@ func TestUpdateIssueValidationConfig(t *testing.T) {
 		t.Fatal("update_issue not found in ValidationConfig")
 	}
 
-	if config.CustomValidation != "requiresOneOf:status,title,body,labels,assignees,milestone" {
-		t.Errorf("update_issue customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:status,title,body,labels,assignees,milestone")
+	if config.CustomValidation != "requiresOneOf:status,title,body,body_file,labels,assignees,milestone;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file" {
+		t.Errorf("update_issue customValidation = %q, want %q", config.CustomValidation, "requiresOneOf:status,title,body,body_file,labels,assignees,milestone;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file")
 	}
 
 	if _, ok := config.Fields["labels"]; !ok {
 		t.Error("update_issue Fields is missing the 'labels' field")
+	}
+	if _, ok := config.Fields["body_file"]; !ok {
+		t.Error("update_issue Fields is missing the 'body_file' field")
+	}
+	if _, ok := config.Fields["body_sha256"]; !ok {
+		t.Error("update_issue Fields is missing the 'body_sha256' field")
 	}
 }
 

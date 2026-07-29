@@ -189,11 +189,13 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_issue": {
 		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:status,title,body,labels,assignees,milestone",
+		CustomValidation: "requiresOneOf:status,title,body,body_file,labels,assignees,milestone;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file",
 		Fields: map[string]FieldValidation{
 			"status":       {Type: "string", Enum: []string{"open", "closed"}},
 			"title":        {Type: "string", Sanitize: true, MaxLength: 128},
 			"body":         {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body_file":    {Type: "string", MaxLength: 512},
+			"body_sha256":  {Type: "string", Pattern: "^[a-f0-9]{64}$", PatternError: "must be a lowercase SHA-256 hex digest"},
 			"operation":    {Type: "string", Enum: []string{"replace", "append", "prepend", "replace-island"}},
 			"labels":       {Type: "array"},
 			"assignees":    {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: MaxGitHubUsernameLength},
@@ -204,10 +206,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_pull_request": {
 		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:title,body,update_branch",
+		CustomValidation: "requiresOneOf:title,body,body_file,update_branch;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file",
 		Fields: map[string]FieldValidation{
 			"title":               {Type: "string", Sanitize: true, MaxLength: 256},
 			"body":                {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body_file":           {Type: "string", MaxLength: 512},
+			"body_sha256":         {Type: "string", Pattern: "^[a-f0-9]{64}$", PatternError: "must be a lowercase SHA-256 hex digest"},
 			"operation":           {Type: "string", Enum: []string{"replace", "append", "prepend"}},
 			"update_branch":       {Type: "boolean"},
 			"draft":               {Type: "boolean"},
@@ -396,10 +400,12 @@ var ValidationConfig = map[string]TypeValidationConfig{
 	},
 	"update_discussion": {
 		DefaultMax:       1,
-		CustomValidation: "requiresOneOf:title,body,labels",
+		CustomValidation: "requiresOneOf:title,body,body_file,labels;pairedFields:body_file,body_sha256;mutuallyExclusive:body,body_file",
 		Fields: map[string]FieldValidation{
 			"title":             {Type: "string", Sanitize: true, MaxLength: 128},
 			"body":              {Type: "string", Sanitize: true, MaxLength: MaxBodyLength},
+			"body_file":         {Type: "string", MaxLength: 512},
+			"body_sha256":       {Type: "string", Pattern: "^[a-f0-9]{64}$", PatternError: "must be a lowercase SHA-256 hex digest"},
 			"labels":            {Type: "array", ItemType: "string", ItemSanitize: true, ItemMaxLength: 128},
 			"discussion_number": {IssueOrPRNumber: true},
 			"repo":              {Type: "string", MaxLength: 256}, // Optional: target repository in format "owner/repo"

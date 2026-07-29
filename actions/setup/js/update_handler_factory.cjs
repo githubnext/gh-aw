@@ -14,6 +14,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { loadTemporaryIdMapFromResolved, resolveRepoIssueTarget } = require("./temporary_id.cjs");
+const { readBodyFileSnapshot } = require("./body_file_helpers.cjs");
 
 /**
  * @typedef {Object} UpdateHandlerConfig
@@ -170,6 +171,8 @@ function createUpdateHandlerFactory(handlerConfig) {
       processedCount++;
 
       const item = message;
+      /** @type {{ path: string, sha256: string, bytes: number } | null} */
+      let bodyFileMetadata = null;
 
       // Resolve cross-repo target: always validate the target repository against the
       // allowed repos and use it as the effective context. When item.repo is set it
@@ -216,6 +219,30 @@ function createUpdateHandlerFactory(handlerConfig) {
 
       const itemNumber = itemNumberResult.number;
       core.info(`Resolved target ${itemTypeName} #${itemNumber} (target config: ${updateTarget})`);
+
+      // Resolve file-backed body content into an immutable in-memory snapshot before
+      // any staged/unstaged branching so both modes observe identical validation.
+      if (item.body_file !== undefined) {
+        if (config.allow_body_file !== true) {
+          core.warning("body_file is not enabled for this workflow");
+          return {
+            success: false,
+            error: "body_file is not enabled for this workflow; set safe-outputs.<handler>.body-file: true to opt in",
+          };
+        }
+        try {
+          const snapshot = readBodyFileSnapshot(item.body_file, item.body_sha256);
+          item.body = snapshot.content;
+          bodyFileMetadata = snapshot.metadata;
+        } catch (error) {
+          const errorMessage = getErrorMessage(error);
+          core.warning(errorMessage);
+          return {
+            success: false,
+            error: errorMessage,
+          };
+        }
+      }
 
       // Apply required-labels/required-title-prefix filter if configured
       if (itemFilter) {
@@ -304,6 +331,7 @@ function createUpdateHandlerFactory(handlerConfig) {
         const result = {
           ...formatSuccessResult(itemNumber, updatedItem),
           repo: `${effectiveContext.repo.owner}/${effectiveContext.repo.repo}`,
+          ...(bodyFileMetadata ? { metadata: { body_file: bodyFileMetadata } } : {}),
         };
         const afterState = captureExecutionMetadata?.captureAfter ? await captureExecutionMetadata.captureAfter(updatedItem, beforeState, updateData) : null;
         return attachExecutionState(result, beforeState, afterState);

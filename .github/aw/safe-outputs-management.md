@@ -13,6 +13,7 @@ description: Safe-output reference for update, label, milestone, project, releas
       target: "*"                     # Optional: target for updates (default: "triggering")
       title: true                     # Optional: allow updating issue title
       body: true                      # Optional: allow updating issue body
+      body-file: true                 # Optional: opt in to body_file + body_sha256 under RUNNER_TEMP/gh-aw-safe/
       max: 3                          # Optional: maximum number of issues to update (default: 1)
       target-repo: "owner/repo"       # Optional: cross-repository
   ```
@@ -25,6 +26,7 @@ description: Safe-output reference for update, label, milestone, project, releas
     update-pull-request:
       title: true                     # Optional: enable title updates (default: true)
       body: true                      # Optional: enable body updates (default: true)
+      body-file: true                 # Optional: opt in to body_file + body_sha256 under RUNNER_TEMP/gh-aw-safe/
       operation: "replace"            # Optional: "replace" (default), "append", "prepend"
       update-branch: false            # Optional: update PR branch with latest base before updates (default: false)
       max: 1                          # Optional: max updates (default: 1)
@@ -33,6 +35,7 @@ description: Safe-output reference for update, label, milestone, project, releas
   ```
 
   Operation types: `replace` (default), `append`, `prepend`.
+  When `body-file: true` is enabled, the agent may send `body_file` plus `body_sha256` instead of inline `body`. The file must stay under `$RUNNER_TEMP/gh-aw-safe/`, must be UTF-8 text, cannot be a symlink, is read exactly once at execution time, and must match the supplied SHA-256 digest. Inline `body` and `body_file` are mutually exclusive.
 - `merge-pull-request:` - Merge pull requests under configured policy gates (experimental)
 
   ```yaml

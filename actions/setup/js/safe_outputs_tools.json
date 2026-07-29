@@ -140,8 +140,18 @@
         },
         "body": {
           "type": "string",
-          "description": "New discussion body to replace the existing content. Use Markdown formatting.",
+          "description": "New discussion body to replace the existing content. Use Markdown formatting. Cannot be combined with body_file.",
           "maxLength": 65536
+        },
+        "body_file": {
+          "type": "string",
+          "description": "Optional UTF-8 body file path under RUNNER_TEMP/gh-aw-safe/ (for example 'gh-aw-safe/body.md'). Only available when safe-outputs.update-discussion.body-file is enabled. Use together with body_sha256 instead of inline body. The file is read exactly once at execution time, verified against body_sha256, then sanitized with the same policy as inline body content.",
+          "maxLength": 512
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Required when body_file is used. Lowercase SHA-256 hex digest of the exact body file bytes. The runtime rejects the update if the file content does not match this digest."
         },
         "labels": {
           "type": "array",
@@ -1014,8 +1024,18 @@
         },
         "body": {
           "type": "string",
-          "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated.",
+          "description": "Issue body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this content is added with a separator and an attribution footer. For 'replace-island', only the run-specific section is updated. Cannot be combined with body_file.",
           "maxLength": 65536
+        },
+        "body_file": {
+          "type": "string",
+          "description": "Optional UTF-8 body file path under RUNNER_TEMP/gh-aw-safe/ (for example 'gh-aw-safe/body.md'). Only available when safe-outputs.update-issue.body-file is enabled. Use together with body_sha256 instead of inline body. The file is read exactly once at execution time, verified against body_sha256, then sanitized with the same policy as inline body content.",
+          "maxLength": 512
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Required when body_file is used. Lowercase SHA-256 hex digest of the exact body file bytes. The runtime rejects the update if the file content does not match this digest."
         },
         "operation": {
           "type": "string",
@@ -1098,8 +1118,18 @@
         },
         "body": {
           "type": "string",
-          "description": "Pull request body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this is added with a separator.",
+          "description": "Pull request body content in Markdown. For 'replace', this becomes the entire body. For 'append'/'prepend', this is added with a separator. Cannot be combined with body_file.",
           "maxLength": 65536
+        },
+        "body_file": {
+          "type": "string",
+          "description": "Optional UTF-8 body file path under RUNNER_TEMP/gh-aw-safe/ (for example 'gh-aw-safe/body.md'). Only available when safe-outputs.update-pull-request.body-file is enabled. Use together with body_sha256 instead of inline body. The file is read exactly once at execution time, verified against body_sha256, then sanitized with the same policy as inline body content.",
+          "maxLength": 512
+        },
+        "body_sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$",
+          "description": "Required when body_file is used. Lowercase SHA-256 hex digest of the exact body file bytes. The runtime rejects the update if the file content does not match this digest."
         },
         "operation": {
           "type": "string",

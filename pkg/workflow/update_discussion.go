@@ -14,6 +14,7 @@ type UpdateDiscussionsConfig struct {
 	UpdateEntityConfig `yaml:",inline"`
 	Title              *bool    `yaml:"title,omitempty"`          // Allow updating discussion title - presence indicates field can be updated
 	Body               *bool    `yaml:"body,omitempty"`           // Allow updating discussion body - presence indicates field can be updated
+	BodyFile           *bool    `yaml:"body-file,omitempty"`      // When true, allow body_file/body_sha256 references under RUNNER_TEMP/gh-aw-safe/
 	Labels             *bool    `yaml:"labels,omitempty"`         // Allow updating discussion labels - presence indicates field can be updated
 	AllowedLabels      []string `yaml:"allowed-labels,omitempty"` // Optional list of allowed labels. If omitted, any labels are allowed (including creating new ones).
 	Footer             *string  `yaml:"footer,omitempty"`         // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
@@ -27,6 +28,7 @@ func (c *Compiler) parseUpdateDiscussionsConfig(outputMap map[string]any) *Updat
 			return []UpdateEntityFieldSpec{
 				{Name: "title", Mode: FieldParsingKeyExistence, Dest: &cfg.Title},
 				{Name: "body", Mode: FieldParsingKeyExistence, Dest: &cfg.Body},
+				{Name: "body-file", Mode: FieldParsingBoolValue, Dest: &cfg.BodyFile},
 				{Name: "labels", Mode: FieldParsingKeyExistence, Dest: &cfg.Labels},
 				{Name: "footer", Mode: FieldParsingTemplatableBool, StringDest: &cfg.Footer},
 			}
