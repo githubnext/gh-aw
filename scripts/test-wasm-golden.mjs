@@ -64,6 +64,8 @@ function loadDefaultRuntimeVersions() {
     awfImageTag: awfVersion.replace(/^v/, ""),
     mcpgVersion: getVersion("DefaultMCPGatewayVersion"),
     ghMcpVersion: getVersion("DefaultGitHubMCPServerVersion"),
+    codexVersion: getVersion("DefaultCodexVersion"),
+    piVersion: getVersion("DefaultPiVersion"),
   };
 }
 
@@ -215,7 +217,14 @@ function normalizeCheckoutPin(content) {
 // Keep tracked wasm snapshots stable across default AWF/MCPG version bumps
 // without masking explicitly pinned non-default versions in fixtures.
 function normalizeDefaultRuntimeVersions(content) {
-  const { awfVersion, awfImageTag, mcpgVersion, ghMcpVersion } = DEFAULT_RUNTIME_VERSIONS;
+  const {
+    awfVersion,
+    awfImageTag,
+    mcpgVersion,
+    ghMcpVersion,
+    codexVersion,
+    piVersion,
+  } = DEFAULT_RUNTIME_VERSIONS;
   return content
     .replace(
       new RegExp(`GH_AW_INFO_AWF_VERSION: "${escapeRegex(awfVersion)}"`, "g"),
@@ -248,6 +257,30 @@ function normalizeDefaultRuntimeVersions(content) {
     .replace(
       new RegExp(`(ghcr\\.io/github/github-mcp-server:)${escapeRegex(ghMcpVersion)}\\b`, "g"),
       "$1GH_MCP_VERSION"
+    )
+    .replace(
+      new RegExp(`GH_AW_INFO_VERSION: "${escapeRegex(codexVersion)}"`, "g"),
+      'GH_AW_INFO_VERSION: "CODEX_VERSION"'
+    )
+    .replace(
+      new RegExp(`GH_AW_INFO_AGENT_VERSION: "${escapeRegex(codexVersion)}"`, "g"),
+      'GH_AW_INFO_AGENT_VERSION: "CODEX_VERSION"'
+    )
+    .replace(
+      new RegExp(`(@openai/codex@)${escapeRegex(codexVersion)}\\b`, "g"),
+      "$1CODEX_VERSION"
+    )
+    .replace(
+      new RegExp(`GH_AW_INFO_VERSION: "${escapeRegex(piVersion)}"`, "g"),
+      'GH_AW_INFO_VERSION: "PI_VERSION"'
+    )
+    .replace(
+      new RegExp(`GH_AW_INFO_AGENT_VERSION: "${escapeRegex(piVersion)}"`, "g"),
+      'GH_AW_INFO_AGENT_VERSION: "PI_VERSION"'
+    )
+    .replace(
+      new RegExp(`(@earendil-works/pi-coding-agent@)${escapeRegex(piVersion)}\\b`, "g"),
+      "$1PI_VERSION"
     );
 }
 
