@@ -1,0 +1,3 @@
+{"id":"assignment-made","question":"Did the agent assign an issue to a user?","answer":"YES","model":"small","timestamp":"2026-07-29T06:47:44.745Z","runid":"30428977075"}
+{"id":"contributor-selected","question":"Does the agent output show that a relevant contributor was selected from recent merged PRs?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-29T06:47:44.745Z","runid":"30428977075"}
+{"id":"comment-posted","question":"Did the agent post a comment explaining the assignment decision?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-29T06:47:44.745Z","runid":"30428977075"}
