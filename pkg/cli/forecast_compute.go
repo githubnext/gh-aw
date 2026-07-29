@@ -231,6 +231,11 @@ func parallelLoadRunAICs(ctx context.Context, runs []WorkflowRun, config Forecas
 		runID := r.DatabaseID
 		go func() {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					forecastRunLog.Printf("Panic in AIC worker for run %d (recovered): %v", runID, r)
+				}
+			}()
 			// Acquire semaphore slot; abort if context is cancelled while waiting.
 			select {
 			case sem <- struct{}{}:
@@ -244,6 +249,11 @@ func parallelLoadRunAICs(ctx context.Context, runs []WorkflowRun, config Forecas
 	}
 
 	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				forecastRunLog.Printf("Panic in AIC results collector (recovered): %v", r)
+			}
+		}()
 		wg.Wait()
 		close(resultsCh)
 	}()

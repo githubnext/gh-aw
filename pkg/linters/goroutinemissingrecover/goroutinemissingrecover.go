@@ -13,6 +13,7 @@ package goroutinemissingrecover
 
 import (
 	"go/ast"
+	"go/types"
 
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -58,7 +59,8 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// Only flag goroutines started with a function literal, not named functions.
-		call, ok := goStmt.Call.Fun.(*ast.FuncLit)
+		// Unwrap parentheses: go (func() { ... })() is equivalent to go func() { ... }()
+		call, ok := unwrapParens(goStmt.Call.Fun).(*ast.FuncLit)
 		if !ok {
 			return
 		}
@@ -72,7 +74,7 @@ func run(pass *analysis.Pass) (any, error) {
 			return
 		}
 
-		if hasTopLevelRecoverDefer(call.Body) {
+		if hasTopLevelRecoverDefer(call.Body, pass.TypesInfo) {
 			return
 		}
 
@@ -83,11 +85,24 @@ func run(pass *analysis.Pass) (any, error) {
 	return nil, nil
 }
 
+// unwrapParens removes any surrounding *ast.ParenExpr nodes, returning the
+// innermost non-parenthesised expression. This handles the rare but valid
+// syntax `go (func() { ... })()`.
+func unwrapParens(expr ast.Expr) ast.Expr {
+	for {
+		p, ok := expr.(*ast.ParenExpr)
+		if !ok {
+			return expr
+		}
+		expr = p.X
+	}
+}
+
 // hasTopLevelRecoverDefer reports whether body contains a top-level defer
 // statement whose call is a function literal that itself calls recover().
 // Only the direct statements of body are examined; nested function bodies are
 // not descended into.
-func hasTopLevelRecoverDefer(body *ast.BlockStmt) bool {
+func hasTopLevelRecoverDefer(body *ast.BlockStmt, typesInfo *types.Info) bool {
 	if body == nil {
 		return false
 	}
@@ -96,23 +111,31 @@ func hasTopLevelRecoverDefer(body *ast.BlockStmt) bool {
 		if !ok {
 			continue
 		}
-		fn, ok := deferStmt.Call.Fun.(*ast.FuncLit)
+		// Unwrap parentheses: defer (func() { ... })() is valid Go.
+		fn, ok := unwrapParens(deferStmt.Call.Fun).(*ast.FuncLit)
 		if !ok {
 			continue
 		}
-		if containsRecoverCall(fn.Body) {
+		if containsRecoverCall(fn.Body, typesInfo) {
 			return true
 		}
 	}
 	return false
 }
 
-// containsRecoverCall reports whether body contains a call to the built-in
-// recover() function at any depth.
-func containsRecoverCall(body *ast.BlockStmt) bool {
+// containsRecoverCall reports whether body contains a direct call to the
+// built-in recover() function. Nested function literals are not descended
+// into: recover() inside a nested closure only guards that closure's stack
+// frame, not the enclosing defer, so it does not count as a panic guard.
+func containsRecoverCall(body *ast.BlockStmt, typesInfo *types.Info) bool {
 	found := false
 	ast.Inspect(body, func(n ast.Node) bool {
 		if found {
+			return false
+		}
+		// Do not descend into nested function literals — their recover() only
+		// protects the nested function's own stack frame, not the outer defer.
+		if _, ok := n.(*ast.FuncLit); ok {
 			return false
 		}
 		call, ok := n.(*ast.CallExpr)
@@ -120,7 +143,12 @@ func containsRecoverCall(body *ast.BlockStmt) bool {
 			return true
 		}
 		ident, ok := call.Fun.(*ast.Ident)
-		if ok && ident.Name == "recover" {
+		if !ok {
+			return true
+		}
+		// Verify it is the built-in recover, not a user-defined function with
+		// the same name (matching the pattern used by mapclearloop for delete).
+		if obj, isBuiltin := typesInfo.Uses[ident].(*types.Builtin); isBuiltin && obj.Name() == "recover" {
 			found = true
 			return false
 		}

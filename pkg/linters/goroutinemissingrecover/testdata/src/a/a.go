@@ -44,3 +44,41 @@ func suppressedGoroutine() {
 		panic("oops")
 	}()
 }
+
+// parenthesizedGoroutine uses the parenthesised literal syntax — should be flagged.
+func parenthesizedGoroutine() {
+	go (func() { // want `goroutine launched via a function literal without a top-level defer/recover`
+		panic("oops")
+	})()
+}
+
+// nestedClosureRecoverGoroutine has recover() buried in a nested closure inside the
+// defer literal. recover() only stops a panic in the same stack frame, so the
+// nested recover does NOT protect the goroutine — should be flagged.
+func nestedClosureRecoverGoroutine() {
+	go func() { // want `goroutine launched via a function literal without a top-level defer/recover`
+		defer func() {
+			// recover() is inside a nested closure — it only guards the nested call,
+			// not the outer goroutine.
+			func() { recover() }()
+		}()
+		panic("oops")
+	}()
+}
+
+// nestedRecoverOnlyGoroutine — outer goroutine has no recover; inner func does.
+// The outer goroutine is unprotected — should be flagged.
+func nestedRecoverOnlyGoroutine() {
+	go func() { // want `goroutine launched via a function literal without a top-level defer/recover`
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					_ = r
+				}
+			}()
+			panic("inner")
+		}()
+		panic("outer") // this panic is unrecovered
+	}()
+}
+
