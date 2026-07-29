@@ -97,7 +97,12 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	// ${{ steps.create-check-run-app-token.outputs.token }}) are resolved at runtime.
 	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
 		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token minting step for create-check-run")
-		permissions := NewPermissionsContentsReadChecksWrite()
+		var permissions *Permissions
+		if data.SafeOutputs.CreateCheckRun.Target != "" {
+			permissions = NewPermissionsChecksWritePRRead()
+		} else {
+			permissions = NewPermissionsChecksWrite()
+		}
 		for _, step := range c.buildGitHubAppTokenMintStep(data.SafeOutputs.CreateCheckRun.GitHubApp, permissions, "") {
 			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
 		}

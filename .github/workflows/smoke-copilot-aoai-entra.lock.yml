@@ -2274,7 +2274,6 @@ jobs:
     permissions:
       actions: write
       checks: write
-      contents: read
       discussions: write
       issues: write
       pull-requests: write
@@ -3286,7 +3285,6 @@ jobs:
     permissions:
       actions: write
       checks: write
-      contents: read
       discussions: write
       issues: write
       pull-requests: write

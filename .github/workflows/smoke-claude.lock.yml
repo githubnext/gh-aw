@@ -2035,7 +2035,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       checks: write
-      contents: read
       issues: write
       pull-requests: write
       security-events: write
@@ -2649,7 +2648,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       checks: write
-      contents: read
       issues: write
       pull-requests: write
       security-events: write

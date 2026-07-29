@@ -307,8 +307,8 @@ Test workflow with discussions permission.
 	// actions/create-github-app-token scopes the token to only those permissions.
 	assert.Contains(t, stepsStr, "permission-discussions: write", "GitHub App token should include discussions write permission")
 	// Other explicitly supported permission inputs should still be present
-	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
 	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission (create-discussion falls back to issue)")
+	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
 // TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission tests that issues read permission
@@ -349,7 +349,7 @@ Test workflow with update-project permissions.
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
 	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
-	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
+	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
 // TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesReadPermission tests that issues read permission
@@ -390,7 +390,7 @@ Test workflow with create-project item_url permissions.
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
 	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
-	assert.Contains(t, stepsStr, "permission-contents: read", "GitHub App token should include contents read permission")
+	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
 // TestSafeOutputsAppTokenAddCommentAddLabelsIssuesWrite is a regression test for the issue
@@ -449,8 +449,8 @@ Test workflow
 		"App token must use handler-computed issues:write, not workflow-level issues:read")
 	assert.Contains(t, stepsStr, "permission-pull-requests: write",
 		"App token must include pull-requests:write from add-labels handler")
-	assert.Contains(t, stepsStr, "permission-contents: read",
-		"App token must include contents:read")
+	assert.NotContains(t, stepsStr, "permission-contents: read",
+		"App token must not include contents:read for output-only handlers")
 
 	// The job-level permissions YAML must also reflect the handler-computed scope.
 	assert.Contains(t, job.Permissions, "issues: write",
@@ -542,4 +542,75 @@ func TestSafeOutputsAppTokenPermissionsOverride(t *testing.T) {
 	// The override must add permission-members: read to the minted token.
 	assert.Contains(t, stepsStr, "permission-members: read",
 		"App token must include members:read from github-app.permissions override")
+}
+
+// TestSafeOutputsCreateCheckRunAppTokenMinimalPermissions tests that the per-handler
+// GitHub App token for create-check-run uses minimal permissions (no contents: read).
+// When target is not configured, only checks: write is required.
+// When target is configured, pull-requests: read is added for PR head SHA resolution.
+func TestSafeOutputsCreateCheckRunAppTokenMinimalPermissions(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	t.Run("no target - only checks: write", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubApp: &GitHubAppConfig{
+							AppID:      "${{ vars.APP_ID }}",
+							PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+						},
+					},
+				},
+			},
+		}
+
+		job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+		require.NoError(t, err, "Failed to build safe_outputs job")
+		require.NotNil(t, job, "Job should not be nil")
+
+		stepsStr := strings.Join(job.Steps, "")
+
+		assert.Contains(t, stepsStr, "id: create-check-run-app-token",
+			"Per-handler app token step must be present")
+		assert.Contains(t, stepsStr, "permission-checks: write",
+			"App token must include checks:write")
+		assert.NotContains(t, stepsStr, "permission-pull-requests:",
+			"App token must not include pull-requests permission when no target is configured")
+		assert.NotContains(t, stepsStr, "permission-contents: read",
+			"App token must not include contents:read for create-check-run")
+	})
+
+	t.Run("with target - checks: write and pull-requests: read", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Name: "Test Workflow",
+			SafeOutputs: &SafeOutputsConfig{
+				CreateCheckRun: &CreateCheckRunConfig{
+					Target: "triggering",
+					BaseSafeOutputConfig: BaseSafeOutputConfig{
+						GitHubApp: &GitHubAppConfig{
+							AppID:      "${{ vars.APP_ID }}",
+							PrivateKey: "${{ secrets.APP_PRIVATE_KEY }}",
+						},
+					},
+				},
+			},
+		}
+
+		job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+		require.NoError(t, err, "Failed to build safe_outputs job")
+		require.NotNil(t, job, "Job should not be nil")
+
+		stepsStr := strings.Join(job.Steps, "")
+
+		assert.Contains(t, stepsStr, "id: create-check-run-app-token",
+			"Per-handler app token step must be present")
+		assert.Contains(t, stepsStr, "permission-checks: write",
+			"App token must include checks:write")
+		assert.Contains(t, stepsStr, "permission-pull-requests: read",
+			"App token must include pull-requests:read when target is configured")
+		assert.NotContains(t, stepsStr, "permission-contents: read",
+			"App token must not include contents:read for create-check-run")
+	})
 }

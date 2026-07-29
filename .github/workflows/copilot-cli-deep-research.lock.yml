@@ -1085,7 +1085,6 @@ jobs:
       needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
     concurrency:
       group: "gh-aw-conclusion-copilot-cli-deep-research"
@@ -1979,7 +1978,6 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
     timeout-minutes: 45
     env:

@@ -132,7 +132,7 @@ This workflow tests the safe_outputs job generation.
 		t.Error("Expected 45-minute timeout in safe_outputs job")
 	}
 
-	if !strings.Contains(lockContent, "permissions:\n      contents: read\n      issues: write\n      pull-requests: write") {
+	if !strings.Contains(lockContent, "permissions:\n      issues: write\n      pull-requests: write") {
 		t.Error("Expected correct permissions in safe_outputs job")
 	}
 
