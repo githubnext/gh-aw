@@ -1,3 +1,3 @@
-{"id":"comment-added","question":"Did the agent add a comment to at least one pull request?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-29T01:01:01.206Z","runid":"30412538100"}
-{"id":"nudge-targeted","question":"Does the agent output show a specific reason why the selected PR needs a nudge toward maintainer investigation?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-29T01:01:01.206Z","runid":"30412538100"}
-{"id":"pr-evaluated","question":"Does the agent output confirm that it evaluated at least one open PR for nudge eligibility?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-29T01:01:01.206Z","runid":"30412538100"}
+{"id":"comment-added","question":"Did the agent add a comment to at least one pull request?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-29T01:52:20.159Z","runid":"30414972265"}
+{"id":"nudge-targeted","question":"Does the agent output show a specific reason why the selected PR needs a nudge toward maintainer investigation?","answer":"NO","model":"copilot/gpt-5.4","timestamp":"2026-07-29T01:52:20.159Z","runid":"30414972265"}
+{"id":"pr-evaluated","question":"Does the agent output confirm that it evaluated at least one open PR for nudge eligibility?","answer":"UNKNOWN","model":"copilot/gpt-5.4","timestamp":"2026-07-29T01:52:20.159Z","runid":"30414972265"}
