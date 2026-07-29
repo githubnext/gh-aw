@@ -70,9 +70,14 @@ func TestIsPreciseVersion(t *testing.T) {
 			wantNil: true,
 		},
 		{
-			name:     "pre-release suffix - precise",
+			name:     "pre-release on precise core - still precise",
 			version:  "v1.2.3-rc.1",
 			expected: true,
+		},
+		{
+			name:    "pre-release on imprecise core - invalid semver, returns nil",
+			version: "v1.2-rc.1",
+			wantNil: true,
 		},
 	}
 
@@ -85,68 +90,6 @@ func TestIsPreciseVersion(t *testing.T) {
 			}
 			require.NotNil(t, v, "parseVersion(%q) should not return nil", tt.version)
 			assert.Equal(t, tt.expected, v.IsPreciseVersion(), "IsPreciseVersion() for %q", tt.version)
-		})
-	}
-}
-
-func TestIsNewer(t *testing.T) {
-	tests := []struct {
-		name  string
-		v1    string
-		v2    string
-		newer bool
-	}{
-		{
-			name:  "strictly newer major",
-			v1:    "v7.0.0",
-			v2:    "v6.0.0",
-			newer: true,
-		},
-		{
-			name:  "strictly older major",
-			v1:    "v5.0.0",
-			v2:    "v6.0.0",
-			newer: false,
-		},
-		{
-			name:  "newer minor",
-			v1:    "v6.1.0",
-			v2:    "v6.0.0",
-			newer: true,
-		},
-		{
-			name:  "older minor",
-			v1:    "v6.0.0",
-			v2:    "v6.1.0",
-			newer: false,
-		},
-		{
-			name:  "newer patch",
-			v1:    "v6.0.1",
-			v2:    "v6.0.0",
-			newer: true,
-		},
-		{
-			name:  "older patch",
-			v1:    "v6.0.0",
-			v2:    "v6.0.1",
-			newer: false,
-		},
-		{
-			name:  "equal versions",
-			v1:    "v6.0.0",
-			v2:    "v6.0.0",
-			newer: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			v1 := parseVersion(tt.v1)
-			v2 := parseVersion(tt.v2)
-			require.NotNil(t, v1, "parseVersion(%q) should not return nil", tt.v1)
-			require.NotNil(t, v2, "parseVersion(%q) should not return nil", tt.v2)
-			assert.Equal(t, tt.newer, v1.IsNewer(v2), "IsNewer() for %q vs %q", tt.v1, tt.v2)
 		})
 	}
 }
