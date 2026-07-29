@@ -586,7 +586,18 @@ One workflow is simpler to maintain; multiple workflows give better separation o
 
 ### Should I create agentic workflows by hand editing or using AI?
 
-Both work. AI-assisted authoring via `agentic-workflows create` in Copilot Chat gives interactive guidance and best practices; manual editing gives full control for advanced customization. See [Creating Workflows](/gh-aw/setup/creating-workflows/) or [Frontmatter Reference](/gh-aw/reference/frontmatter/).
+Both work. AI-assisted authoring gives interactive guidance and best practices; manual editing gives full control for advanced customization.
+
+- **GitHub Copilot users**: after running `gh aw init`, use `agentic-workflows create` in Copilot Chat on github.com or the GitHub mobile app.
+- **Claude Code and other CLI agent users**: run `gh aw init --engine claude` to initialize (skips Copilot-specific files), then use the `create.md` prompt directly — no Copilot subscription required:
+
+  ```text wrap
+  Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
+
+  The purpose of the workflow is <your goal here>.
+  ```
+
+See [Creating Workflows](/gh-aw/setup/creating-workflows/) or [Frontmatter Reference](/gh-aw/reference/frontmatter/).
 
 ### Can the agent use an existing branch specified at runtime (e.g., from a Jira issue)?
 
