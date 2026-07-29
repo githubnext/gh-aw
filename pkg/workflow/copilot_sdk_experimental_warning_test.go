@@ -20,7 +20,7 @@ func TestCopilotSDKExperimentalWarning(t *testing.T) {
 		expectWarning bool
 	}{
 		{
-			name: "copilot-sdk enabled produces experimental warning",
+			name: "copilot-sdk enabled does not produce experimental warning",
 			content: `---
 on: workflow_dispatch
 engine:
@@ -32,7 +32,7 @@ permissions:
 
 # Test Workflow
 `,
-			expectWarning: true,
+			expectWarning: false,
 		},
 		{
 			name: "copilot-sdk disabled does not produce experimental warning",

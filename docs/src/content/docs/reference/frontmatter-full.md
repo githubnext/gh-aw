@@ -2528,7 +2528,7 @@ engine:
     # (optional)
     tool-timeout: "example-value"
 
-  # Enables the experimental GitHub Copilot SDK integration (copilot engine only).
+  # Enables the GitHub Copilot SDK integration (copilot engine only).
   # When true, the harness starts a separate headless Copilot CLI sidecar on the
   # configured localhost port and sets COPILOT_SDK_URI on child processes.
   # (optional)
