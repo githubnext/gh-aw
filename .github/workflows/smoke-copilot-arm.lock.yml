@@ -2067,7 +2067,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: write
-      contents: read
       discussions: write
       issues: write
       pull-requests: write
@@ -2678,7 +2677,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: write
-      contents: read
       discussions: write
       issues: write
       pull-requests: write

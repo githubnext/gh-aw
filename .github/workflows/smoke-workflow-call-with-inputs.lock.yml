@@ -1136,7 +1136,6 @@ jobs:
       needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
     concurrency:
       group: "gh-aw-conclusion-smoke-workflow-call-with-inputs"
@@ -1705,7 +1704,6 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
-      contents: read
       issues: write
     timeout-minutes: 45
     env:

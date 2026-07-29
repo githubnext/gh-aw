@@ -1119,7 +1119,6 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       actions: write
-      contents: read
     concurrency:
       group: "gh-aw-conclusion-daily-firewall-report"
       cancel-in-progress: false
@@ -1941,8 +1940,7 @@ jobs:
       - detection
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
-    permissions:
-      contents: read
+    permissions: {}
     timeout-minutes: 45
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}
