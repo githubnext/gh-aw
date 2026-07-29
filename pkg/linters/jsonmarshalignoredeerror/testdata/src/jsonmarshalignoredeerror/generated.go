@@ -8,4 +8,5 @@ func generatedBad() {
 	f := Foo{X: 1}
 	val, _ := json.Marshal(f)
 	_ = val
+	json.Marshal(f)
 }
