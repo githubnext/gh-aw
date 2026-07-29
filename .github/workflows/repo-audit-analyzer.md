@@ -42,6 +42,13 @@ imports:
       expires: 1d
 
   - shared/otlp.md
+evals:
+  - id: audit-findings-produced
+    question: Did the agent produce audit findings or identify productivity improvement opportunities?
+  - id: actionable-recommendations
+    question: Does the agent output include at least one actionable recommendation for improving repository productivity using agentic workflows?
+  - id: evidence-cited
+    question: Does the agent output cite specific repository characteristics or existing workflows as evidence supporting its recommendations?
 ---
 # Repository Audit & Agentic Workflow Opportunity Analyzer
 

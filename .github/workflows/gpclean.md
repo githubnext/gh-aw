@@ -88,6 +88,13 @@ steps:
         PACKAGE_COUNT=$(jq '.sbom.packages | length' /tmp/gh-aw/agent/sbom.json 2>/dev/null || echo "unknown")
         echo "📊 SBOM contains ${PACKAGE_COUNT} packages"
       fi
+evals:
+  - id: issue-or-noop
+    question: Did the agent either create a GPL dependency issue or call noop?
+  - id: go-mod-analyzed
+    question: Does the agent output confirm that go.mod was analyzed for GPL-licensed transitive dependencies?
+  - id: decision-explained
+    question: Does the agent output include an explanation of why a GPL issue was created or why noop was called?
 
 ---
 
