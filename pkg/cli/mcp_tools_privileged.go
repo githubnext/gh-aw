@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
@@ -234,11 +235,34 @@ from where the previous request stopped due to timeout.`,
 
 		notifyProgress(ctx, req, 0, 100, "Downloading workflow logs...")
 
+		// The MCP gateway imposes a per-tool RPC deadline (typically 60 s) on the
+		// request context. exec.CommandContext ties the subprocess lifetime to that
+		// context, so the subprocess is killed after 60 s even when the caller
+		// explicitly requests a longer timeout via args.Timeout.
+		//
+		// Fix: detach from the gateway deadline by rooting the subprocess context
+		// at context.Background(), using the user-requested timeout as the only
+		// deadline.  We still forward any explicit cancellations from the MCP
+		// request context (e.g. client disconnect) so the subprocess is cleaned up
+		// promptly when the caller goes away.
+		subCtx, subCancel := context.WithTimeout(
+			context.Background(),
+			time.Duration(timeoutValue)*time.Minute,
+		)
+		defer subCancel()
+		go func() {
+			select {
+			case <-ctx.Done():
+				subCancel()
+			case <-subCtx.Done():
+			}
+		}()
+
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and error details
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+		stdout, err := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
 
 		// The logs command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.

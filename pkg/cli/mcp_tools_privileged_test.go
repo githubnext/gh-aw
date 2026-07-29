@@ -927,3 +927,51 @@ func TestAuditDiffToolNoProgressWithoutToken(t *testing.T) {
 
 	assert.Empty(t, getNotifications(), "audit-diff tool should not emit progress notifications without a token")
 }
+
+// TestLogsToolSubprocessContextIgnoresGatewayDeadline verifies that the logs
+// tool creates a subprocess context rooted at context.Background() so the
+// subprocess is not killed when the MCP gateway's per-request deadline fires.
+// The subprocess should live for the full user-requested timeout, not the
+// (shorter) gateway deadline.
+func TestLogsToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
+	// Track the deadline of the context the mock subprocess receives.
+	var capturedDeadline time.Time
+	var capturedHasDeadline bool
+
+	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
+		capturedDeadline, capturedHasDeadline = ctx.Deadline()
+		// Return a command that succeeds immediately with minimal JSON.
+		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", `{"file_path":"/tmp/gh-aw/aw-mcp/logs/runs.json"}`)
+	}
+
+	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
+	err := registerLogsTool(server, mockExecCmd, "", false)
+	require.NoError(t, err, "registerLogsTool should succeed")
+
+	session := connectInMemory(t, server)
+
+	// Call the logs tool with an explicit 5-minute timeout.
+	const requestedTimeoutMinutes = 5
+	before := time.Now()
+	_, err = session.CallTool(context.Background(), &mcp.CallToolParams{
+		Name: "logs",
+		Arguments: map[string]any{
+			"timeout": requestedTimeoutMinutes,
+		},
+	})
+	require.NoError(t, err, "logs tool should succeed")
+
+	// The subprocess context must have a deadline.
+	require.True(t, capturedHasDeadline, "subprocess context should have a deadline")
+
+	// The subprocess deadline must be at least requestedTimeoutMinutes in the
+	// future from the time the tool call started (minus a small tolerance for
+	// test execution overhead).  If the subprocess context were bounded by the
+	// MCP gateway's per-request deadline (which would be very short in this in-
+	// memory test), the deadline would be only milliseconds away rather than
+	// minutes.
+	expectedMinDeadline := before.Add(time.Duration(requestedTimeoutMinutes)*time.Minute - 5*time.Second)
+	assert.True(t, capturedDeadline.After(expectedMinDeadline),
+		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v); got %v",
+		capturedDeadline, requestedTimeoutMinutes, before, capturedDeadline.Sub(before))
+}
