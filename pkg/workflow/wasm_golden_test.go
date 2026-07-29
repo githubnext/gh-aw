@@ -35,6 +35,12 @@ var testDefaultPiAgentInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AGENT_VERSI
 var testDefaultPiInstallVersionRE = regexp.MustCompile(`(@earendil-works/pi-coding-agent@)` + regexp.QuoteMeta(string(constants.DefaultPiVersion)) + `\b`)
 var testCheckoutPinRE = regexp.MustCompile(`actions/checkout@[0-9a-f]{40}\s+#\s+v\d+\.\d+\.\d+`)
 
+// testModelsBlockRE matches the \"models\":{...} section inside an AWF config JSON blob
+// embedded in a shell printf argument (where inner " are escaped as \").
+// The models object contains only string-to-array-of-strings entries (no nested objects),
+// so [^{}]+ safely matches all content between the outer braces.
+var testModelsBlockRE = regexp.MustCompile(`\\"models\\":\{[^{}]+\}`)
+
 func normalizeDefaultRuntimeVersions(content string) string {
 	normalized := testDefaultAWFInfoVersionRE.ReplaceAllString(content, `GH_AW_INFO_AWF_VERSION: "vAWF_VERSION"`)
 	normalized = testDefaultAWFGatewayInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_AWMG_VERSION: "vMCPG_VERSION"`)
@@ -69,6 +75,8 @@ func normalizeOutput(content string) string {
 	normalized = normalizeDefaultRuntimeVersions(normalized)
 	normalized = testDefaultGitHubMCPServerImageRE.ReplaceAllString(normalized, `${1}GH_MCP_VERSION`)
 	normalized = testCheckoutPinRE.ReplaceAllString(normalized, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1")
+	// Keep golden fixtures stable across model alias changes (e.g. new models, alias membership).
+	normalized = testModelsBlockRE.ReplaceAllString(normalized, `\\"models\\":{\\"MODEL_ALIASES\\":\\"normalized\\"}`)
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
 
