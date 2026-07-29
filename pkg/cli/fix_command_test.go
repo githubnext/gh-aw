@@ -557,7 +557,7 @@ func TestFixCommand_CommandToSlashCommandMigration(t *testing.T) {
 	tmpDir := t.TempDir()
 	workflowFile := filepath.Join(tmpDir, "test-workflow.md")
 
-	// Create a workflow with deprecated on.slash-command field
+	// Create a workflow with deprecated on.command field
 	content := `---
 on:
   command: my-bot
