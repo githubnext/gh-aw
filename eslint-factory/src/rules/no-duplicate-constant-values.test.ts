@@ -23,6 +23,10 @@ describe("no-duplicate-constant-values", () => {
         `let first = "same"; let second = "same";`,
         `const { first, second } = value;`,
         `function first() { const VALUE = "same"; } function second() { const VALUE = "same"; }`,
+        `const DEFAULT_HTTP_TIMEOUT_MS = 15000; const TOOL_CALL_TIMEOUT_BUFFER_MS = 15000;`,
+        `const NOTIFY_TIMEOUT_MS = 10000; const KEEPALIVE_PING_INTERVAL_MS = 10000;`,
+        `const A_PREFIX_LENGTH = 2; const B_PREFIX_LENGTH = 2;`,
+        `const DEFAULT_HTTP_TIMEOUT_MS = 15000; const TOOL_CALL_TIMEOUT_BUFFER_MS = 15000; const NOTIFY_TIMEOUT_MS = 10000; const KEEPALIVE_PING_INTERVAL_MS = 10000;`,
       ],
       invalid: [],
     });
@@ -41,8 +45,11 @@ describe("no-duplicate-constant-values", () => {
           errors: [{ messageId: "duplicateConstantValue", data: { name: "SECOND", originalName: "FIRST", value: `"same"` } }],
         },
         {
-          code: `const FIRST = -42; const SECOND = -42; const THIRD = 42;`,
-          errors: [{ messageId: "duplicateConstantValue", data: { name: "SECOND", originalName: "FIRST", value: "-42" } }],
+          code: `const FIRST = -42; const SECOND = -42; const THIRD = -42;`,
+          errors: [
+            { messageId: "duplicateConstantValue", data: { name: "SECOND", originalName: "FIRST", value: "-42" } },
+            { messageId: "duplicateConstantValue", data: { name: "THIRD", originalName: "FIRST", value: "-42" } },
+          ],
         },
         {
           code: `const FIRST = /value/gi; const SECOND = /value/gi;`,
@@ -53,6 +60,13 @@ describe("no-duplicate-constant-values", () => {
           errors: [{ messageId: "duplicateConstantValue", data: { name: "SECOND", originalName: "FIRST", value: "/value/ig" } }],
         },
       ],
+    });
+  });
+
+  it("requires at least three matching numeric constants before reporting duplicates", () => {
+    ruleTester.run("no-duplicate-constant-values", noDuplicateConstantValuesRule, {
+      valid: [`const FIRST = -42; const SECOND = -42;`],
+      invalid: [],
     });
   });
 
