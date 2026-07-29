@@ -530,15 +530,12 @@ select_copilot_version() {
   fi
 
   VERSION="$DEFAULT_COPILOT_VERSION"
-  if [ -z "$VERSION" ]; then
-    echo "ERROR: Cannot install without an explicit, compatible, or default Copilot CLI version." >&2
-    echo "To fix: Pass a version argument or set GH_AW_DEFAULT_COPILOT_VERSION." >&2
-    return 1
-  fi
   if [ "$compat_resolved" = "false" ]; then
     REQUESTED_VERSION="$VERSION"
   fi
-  echo "Will install default Copilot CLI version ${VERSION} if no cached version satisfies the compatibility window."
+  if [ -n "$VERSION" ]; then
+    echo "Will install default Copilot CLI version ${VERSION} if no cached version satisfies the compatibility window."
+  fi
 }
 
 select_copilot_version "${TEMP_DIR}/compat.json"
@@ -558,6 +555,12 @@ if CACHED_COPILOT_BIN="$(find_cached_copilot_bin "$REQUESTED_VERSION" "${COMPAT_
   fi
 
   echo "ERROR: Cached Copilot CLI activation failed - command not found"
+  exit 1
+fi
+
+if [ -z "$VERSION" ]; then
+  echo "ERROR: Cannot install without an explicit, compatible, or default Copilot CLI version." >&2
+  echo "To fix: Pass a version argument or set GH_AW_DEFAULT_COPILOT_VERSION." >&2
   exit 1
 fi
 
