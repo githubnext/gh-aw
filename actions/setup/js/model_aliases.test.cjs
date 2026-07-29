@@ -26,6 +26,11 @@ describe("reduceModelNameToIdentifier", () => {
     expect(reduceModelNameToIdentifier("gpt-5")).toBe("gpt50");
   });
 
+  it("processes names of exactly 6 characters through normalization (boundary)", () => {
+    // 6 chars is not < 6, so the short-name guard does not apply; normalization runs
+    expect(reduceModelNameToIdentifier("gpt-4o")).toBe("gpt40");
+  });
+
   it("returns empty string for empty/null/undefined input", () => {
     expect(reduceModelNameToIdentifier("")).toBe("");
     expect(reduceModelNameToIdentifier(null)).toBe("");

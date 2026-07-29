@@ -16,6 +16,11 @@ function reduceModelNameToIdentifier(modelName) {
     return normalized;
   }
 
+  // Exact-name shortcuts for opus/sonnet/haiku are handled above. This guard
+  // returns any remaining short (< 6 chars) pure-alphanumeric name verbatim so
+  // that tokens like "o1", "auto", or "gpt" are not padded with spurious zeros.
+  // Names containing non-alphanumeric characters (hyphens, pipes, etc.) fall
+  // through to the family shortcuts or the fallback sanitizer below.
   if (normalized.length < 6 && /^[a-z0-9]+$/.test(normalized)) {
     return normalized;
   }
