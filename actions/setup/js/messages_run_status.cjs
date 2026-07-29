@@ -8,7 +8,7 @@
  */
 
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
-const { getDetectionReasonText, getThreatDetectedMarkerTemplate, normalizeThreatKinds } = require("./threat_detection_warning.cjs");
+const { getDetectionReasonText, getThreatDetectedMarkerTemplate, normalizeThreatKinds, isToolingFailureReason } = require("./threat_detection_warning.cjs");
 
 /**
  * Renders a message using a custom template from config or a default template.
@@ -141,11 +141,22 @@ function getCommitPushedMessage(ctx) {
 /**
  * Get the detection-warning message with progressive disclosure via details/summary.
  * Used when continue-on-error is true (default) instead of false.
+ *
+ * When the reason indicates a tooling failure (agent_failure or parse_error) the
+ * message uses a [!WARNING] admonition so reviewers can distinguish "detection
+ * engine crashed" from "detection engine found something". Actual threat findings
+ * (threat_detected) keep the [!CAUTION] admonition.
+ *
  * @param {DetectionWarningContext} ctx - Context for detection-warning message generation
- * @returns {string} Detection-warning message with caution admonition
+ * @returns {string} Detection-warning message with admonition
  */
 function getDetectionWarningMessage(ctx) {
   const reasonText = getDetectionReasonText(ctx.reason);
+  const isEngineError = isToolingFailureReason(ctx.reason);
+  if (isEngineError) {
+    const defaultTemplate = `> [!WARNING]\n> threat detection engine error\n> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.\n> ${getThreatDetectedMarkerTemplate()}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
+    return renderConfiguredMessage("detectionEngineError", defaultTemplate, { ...ctx, reasonText, threatKinds: normalizeThreatKinds(ctx.reason) });
+  }
   const defaultTemplate = `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> ${getThreatDetectedMarkerTemplate()}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
   return renderConfiguredMessage("detectionWarning", defaultTemplate, { ...ctx, reasonText, threatKinds: normalizeThreatKinds(ctx.reason) });
 }
