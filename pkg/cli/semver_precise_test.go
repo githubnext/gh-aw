@@ -1,15 +1,22 @@
 //go:build !integration
 
+// This file tests the parseVersion wrapper in pkg/cli and the IsPreciseVersion/IsNewer
+// methods it exposes from pkg/semverutil. For full semverutil parsing-logic coverage
+// see pkg/semverutil/semverutil_test.go.
 package cli
 
 import (
 	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestIsPreciseVersion(t *testing.T) {
 	tests := []struct {
 		name     string
 		version  string
+		wantNil  bool
 		expected bool
 	}{
 		{
@@ -52,53 +59,131 @@ func TestIsPreciseVersion(t *testing.T) {
 			version:  "v1.2.3",
 			expected: true,
 		},
+		{
+			name:    "invalid version string - returns nil",
+			version: "not-a-version",
+			wantNil: true,
+		},
+		{
+			name:    "empty string - returns nil",
+			version: "",
+			wantNil: true,
+		},
+		{
+			name:     "pre-release suffix - precise",
+			version:  "v1.2.3-rc.1",
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			v := parseVersion(tt.version)
-			if v == nil {
-				t.Fatalf("Failed to parse version: %s", tt.version)
+			if tt.wantNil {
+				require.Nil(t, v, "parseVersion(%q) should return nil", tt.version)
+				return
 			}
+			require.NotNil(t, v, "parseVersion(%q) should not return nil", tt.version)
+			assert.Equal(t, tt.expected, v.IsPreciseVersion(), "IsPreciseVersion() for %q", tt.version)
+		})
+	}
+}
 
-			result := v.IsPreciseVersion()
-			if result != tt.expected {
-				t.Errorf("isPreciseVersion() for %q = %v, want %v", tt.version, result, tt.expected)
-			}
+func TestIsNewer(t *testing.T) {
+	tests := []struct {
+		name  string
+		v1    string
+		v2    string
+		newer bool
+	}{
+		{
+			name:  "strictly newer major",
+			v1:    "v7.0.0",
+			v2:    "v6.0.0",
+			newer: true,
+		},
+		{
+			name:  "strictly older major",
+			v1:    "v5.0.0",
+			v2:    "v6.0.0",
+			newer: false,
+		},
+		{
+			name:  "newer minor",
+			v1:    "v6.1.0",
+			v2:    "v6.0.0",
+			newer: true,
+		},
+		{
+			name:  "older minor",
+			v1:    "v6.0.0",
+			v2:    "v6.1.0",
+			newer: false,
+		},
+		{
+			name:  "newer patch",
+			v1:    "v6.0.1",
+			v2:    "v6.0.0",
+			newer: true,
+		},
+		{
+			name:  "older patch",
+			v1:    "v6.0.0",
+			v2:    "v6.0.1",
+			newer: false,
+		},
+		{
+			name:  "equal versions",
+			v1:    "v6.0.0",
+			v2:    "v6.0.0",
+			newer: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			v1 := parseVersion(tt.v1)
+			v2 := parseVersion(tt.v2)
+			require.NotNil(t, v1, "parseVersion(%q) should not return nil", tt.v1)
+			require.NotNil(t, v2, "parseVersion(%q) should not return nil", tt.v2)
+			assert.Equal(t, tt.newer, v1.IsNewer(v2), "IsNewer() for %q vs %q", tt.v1, tt.v2)
 		})
 	}
 }
 
 func TestPreciseVersionPreference(t *testing.T) {
-	// Test that when comparing equal versions, major-only versions are preferred
-	// This follows GitHub Actions convention of using major version tags (e.g., v8 instead of v8.0.0)
-	v6 := parseVersion("v6")
-	v600 := parseVersion("v6.0.0")
-
-	if v6 == nil || v600 == nil {
-		t.Fatal("Failed to parse versions")
+	// Tests that when comparing equivalent versions, imprecise tags (major-only or
+	// major.minor) are not considered precise, while full three-component versions are.
+	// This follows GitHub Actions convention of distinguishing major version pins
+	// (e.g. v8) from precise pins (e.g. v8.0.0).
+	tests := []struct {
+		name      string
+		imprecise string
+		precise   string
+	}{
+		{name: "major vs major.minor.patch", imprecise: "v6", precise: "v6.0.0"},
+		{name: "major.minor vs major.minor.patch", imprecise: "v6.0", precise: "v6.0.0"},
+		{name: "no-prefix major.minor vs major.minor.patch", imprecise: "6.1", precise: "v6.1.0"},
 	}
 
-	// They should parse to the same major.minor.patch
-	if v6.Major != v600.Major || v6.Minor != v600.Minor || v6.Patch != v600.Patch {
-		t.Errorf("v6 and v6.0.0 should parse to same major.minor.patch, got v6=%+v, v600=%+v", v6, v600)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			vImprecise := parseVersion(tt.imprecise)
+			vPrecise := parseVersion(tt.precise)
+			require.NotNil(t, vImprecise, "parseVersion(%q) should not return nil", tt.imprecise)
+			require.NotNil(t, vPrecise, "parseVersion(%q) should not return nil", tt.precise)
 
-	// v6.0.0 should be precise, v6 should not
-	if !v600.IsPreciseVersion() {
-		t.Error("v6.0.0 should be precise")
-	}
+			// Both versions should share the same major.minor.patch
+			assert.Equal(t, vPrecise.Major, vImprecise.Major, "Major should match for %q and %q", tt.imprecise, tt.precise)
+			assert.Equal(t, vPrecise.Minor, vImprecise.Minor, "Minor should match for %q and %q", tt.imprecise, tt.precise)
+			assert.Equal(t, vPrecise.Patch, vImprecise.Patch, "Patch should match for %q and %q", tt.imprecise, tt.precise)
 
-	if v6.IsPreciseVersion() {
-		t.Error("v6 should not be precise")
-	}
+			assert.True(t, vPrecise.IsPreciseVersion(), "%q should be precise", tt.precise)
+			assert.False(t, vImprecise.IsPreciseVersion(), "%q should not be precise", tt.imprecise)
 
-	// Neither should be considered "newer" than the other
-	if v6.IsNewer(v600) {
-		t.Error("v6 should not be newer than v6.0.0")
-	}
-
-	if v600.IsNewer(v6) {
-		t.Error("v6.0.0 should not be newer than v6")
+			// Neither should be considered newer than the other
+			assert.False(t, vImprecise.IsNewer(vPrecise), "%q should not be newer than %q", tt.imprecise, tt.precise)
+			assert.False(t, vPrecise.IsNewer(vImprecise), "%q should not be newer than %q", tt.precise, tt.imprecise)
+		})
 	}
 }
