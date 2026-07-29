@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**136/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**152/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -121,11 +121,13 @@ first max-patch-FILES `rejected` needs batch under a default-100 config.
 
 ## Next
 
-Next index: **148** = batch-SMALL ahead-multi. batch = idx135-179 (files=(i//45)%4==3);
-batch-small/medium/large/xlarge = idx144-179 finish FILES=batch. HISTORY=deep(500) &
-SIZE>tiny (idx720+) far ahead. **BATCH boundary confirmed (idx135):** 100 files ==
-default max-patch-files 100 → workflow sets 200 so safe; measure file-count from PATCH
-SET not tree diff.
+Next index: **152** = batch-MEDIUM (200 KB payload) clean-single. batch-small tier is
+now DONE (144-151, 9/9 pass). batch-medium/large/xlarge = idx152-179 remain to finish
+FILES=batch under tiny-none. HISTORY=deep(500) & SIZE>tiny (idx720+) far ahead.
+**BATCH boundary confirmed (idx135):** 100 files == default max-patch-files 100 →
+workflow sets 200 so safe; measure file-count from PATCH SET not tree diff. **Reminder
+for idx152+:** use the base64-text truncation convention (not raw /dev/urandom binary)
+for baseline comparability — see METHODOLOGY GOTCHA note above.
 
 FILES=many COMPLETE (90-134), all PASS. **batch-micro COMPLETE (idx135-143), all PASS:**
 100 files/cell, ~1 KB payload → framing DOMINATES ~256 B/file → ~22-26 KB patch (~24×;
@@ -147,3 +149,31 @@ max-patch-files live). clean-single(144) 71.97/1c, clean-multi(145) 72.51/3 disj
 clean-merge_msg(146) 71.96/1c filename leak+parent=1, ahead-single(147) 71.96 push delta
 +1.01 KB FF is-ancestor rc0 (2c). batch-100 framing % tracks file-count: micro ~24× →
 small ~1.44× → converges ~1.0× as payload grows (large/xlarge remain the cap watch).
+
+**batch-SMALL tier now FULLY COMPLETE (idx144-151), all 9/9 PASS** (ahead×3, diverged×3,
+clean×3 all covered). ahead-multi(148) 93.96 KB/101f/4c, ahead-merge_msg(149) 93.36 KB/101f/2c
+(filename leak `0001-Merge-branch-topic-into-feature.patch` reconfirmed, parent=1,
+`rev-list --merges` empty), diverged-single(150) two-dot 93.79 KB vs three-dot 94.28 KB
+(+509 B phantom, format-patch polarity confirmed), diverged-multi(151) two-dot 93.23 KB
+(4 patches) vs three-dot 93.73 KB/5 patches (+509 B, +1 phantom file) — disjoint-multi
+still ~1× (no same-file re-touch). All: feature-tip-vs-feature-tip FF check (not
+main-vs-feature) is the correct ancestor check for push_to_pull_request_branch under
+divergence — confirmed passes even when `git merge-base --is-ancestor main feature` fails.
+
+**⚠ METHODOLOGY GOTCHA — RAW BINARY vs BASE64-TEXT PAYLOAD CHANGES PATCH SIZE ~1.3×:**
+idx148-151 sub-agents built file payloads from raw `/dev/urandom` bytes (genuinely
+binary), NOT base64-text-encoded per the "Conventions" section below. Result: git
+detects these as binary files and uses "GIT binary patch" base85 encoding + binary-diff
+headers, inflating measured patch size to ~1.83-1.87× the raw payload (vs the ~1.44×
+measured at idx144-147 using base64-text content for the SAME nominal 50 KB/100-file
+cell). Root cause: base85 binary-patch encoding + zlib-then-encode framing costs more
+per file than a plain text unified diff of equivalent byte count. **This is not a
+regression** — both are valid, non-cheating fills — but it means prior "framing %"
+laws (~1.3-1.4% at large/xlarge, "drops as payload grows") were derived under the
+base64-text convention and may UNDERSTATE real-world cost for repos with genuinely
+binary content (images, compiled artifacts). **Action for future runs:** keep using
+the base64-text convention for apples-to-apples comparison across the sweep, but flag
+that a true binary-payload variant of large/xlarge cells could plausibly breach caps
+~1.3× sooner than the text-based baseline suggests — worth a dedicated one-off check
+near idx126-127 territory (xlarge, only ~38 KB headroom under text convention; binary
+content there could realistically breach 4096 KB).
