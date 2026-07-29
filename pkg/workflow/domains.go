@@ -880,6 +880,9 @@ func mergeAPITargetDomains(domainsStr string, apiTarget string) string {
 // The result is cached in data.CachedAllowedDomainsStr after the first call so that
 // repeated calls (e.g. from the activation job, safe-outputs steps, and agent run step)
 // do not recompute the same domain list.
+// Additionally, results are cached on the Compiler keyed by markdown path with the
+// current FrontmatterHash so repeated compilations of an unchanged workflow skip the
+// full domain computation without unbounded hash-key growth in watch mode.
 // Returns an error if the engine's model is malformed (e.g. a leading slash).
 func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (string, error) {
 	// Return cached result if available (engine/network/tools/runtimes do not change during compilation).
@@ -887,6 +890,16 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	// list is not confused with "not yet computed".
 	if data.CachedAllowedDomainsComputed {
 		return data.CachedAllowedDomainsStr, nil
+	}
+
+	// Check the Compiler-level cache keyed by markdown path.
+	// A cached entry is reusable only when the current frontmatter hash matches.
+	if c.markdownPath != "" && data.FrontmatterHash != "" {
+		if cached, ok := c.allowedDomainsCache[c.markdownPath]; ok && cached.frontmatterHash == data.FrontmatterHash {
+			data.CachedAllowedDomainsStr = cached.domains
+			data.CachedAllowedDomainsComputed = true
+			return cached.domains, nil
+		}
 	}
 
 	// Determine which engine is being used
@@ -941,6 +954,16 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	// Set the boolean sentinel first so that an empty result is also treated as cached.
 	data.CachedAllowedDomainsComputed = true
 	data.CachedAllowedDomainsStr = base
+
+	// Populate the Compiler-level cache so subsequent compilations of the same
+	// workflow path and unchanged frontmatter skip this computation entirely.
+	if c.markdownPath != "" && data.FrontmatterHash != "" {
+		c.allowedDomainsCache[c.markdownPath] = allowedDomain{
+			frontmatterHash: data.FrontmatterHash,
+			domains:         base,
+		}
+	}
+
 	return base, nil
 }
 

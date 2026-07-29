@@ -156,11 +156,12 @@ async function main() {
           break;
         }
 
-        // Skip if run is older than the time window
+        // Stop if run is older than the time window (runs are newest-first)
         const runCreatedAt = new Date(run.created_at);
         if (runCreatedAt < thresholdTime) {
-          core.info(`   Skipping run ${run.id} - created before threshold (${run.created_at})`);
-          continue;
+          core.info(`   Stopping pagination - run ${run.id} created before threshold (${run.created_at})`);
+          hasMore = false;
+          break;
         }
 
         // Check if run is by the same actor

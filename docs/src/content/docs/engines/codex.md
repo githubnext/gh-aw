@@ -9,6 +9,14 @@ OpenAI Codex is OpenAI's coding-focused agent runtime for repository work. gh-aw
 
 Set `engine: codex` and provide `OPENAI_API_KEY`. `CODEX_API_KEY` is also accepted and takes precedence when both are present. See [OpenAI authentication](/gh-aw/reference/auth/#openai_api_key) for the supported configuration.
 
+### Initialize the repository
+
+Run `gh aw init --engine codex` to configure the repository. The `--engine codex` flag skips Copilot-specific files (MCP server configuration, Copilot dispatcher skill) and writes only the files useful for any engine: `.gitattributes`, VS Code settings, and the custom agent file.
+
+```bash
+gh aw init --engine codex
+```
+
 ```aw wrap title=".github/workflows/daily-status.md"
 ---
 on:

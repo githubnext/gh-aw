@@ -108,12 +108,19 @@ type Compiler struct {
 	ghesArtifactCompat      bool                     // If true, GHES compatibility mode is enabled; artifact actions still use latest non-v3 pins
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
+	permissionWarningShown  map[string]string        // Tracks markdown paths and last warning fingerprint (frontmatter hash when available, otherwise formatted warning text)
+	allowedDomainsCache     map[string]allowedDomain // Cached allowed-domains per markdown path with the frontmatter hash that produced it
 	// modelPricingResolver is an optional callback for resolving per-token pricing of models that
 	// are absent from the embedded models.json catalog. When non-nil it is called during
 	// buildInitialWorkflowData for the workflow's configured model; any returned pricing is merged
 	// into WorkflowData.ModelCosts so it is embedded in GH_AW_INFO_MODEL_COSTS in the lock.yml.
 	// Injected by the cli package (which has access to the embedded catalog and models.dev download).
 	modelPricingResolver func(ctx context.Context, provider, model string) (map[string]float64, bool)
+}
+
+type allowedDomain struct {
+	frontmatterHash string
+	domains         string
 }
 
 // NewCompiler creates a new workflow compiler with functional options.
@@ -142,9 +149,11 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		artifactManager:         NewArtifactManager(),
 		actionPinWarnings:       make(map[string]bool), // Initialize warning cache
 		priorManifests:          make(map[string]*GHAWManifest),
-		ownerTypeCache:          make(map[string]string), // Initialize owner-type cache (keyed by owner login)
-		copilotRequestsTipShown: make(map[string]bool),   // Initialize one-time tip tracking (keyed by markdown path)
-		gitRoot:                 gitRoot,                 // Auto-detected git root
+		ownerTypeCache:          make(map[string]string),        // Initialize owner-type cache (keyed by owner login)
+		copilotRequestsTipShown: make(map[string]bool),          // Initialize one-time tip tracking (keyed by markdown path)
+		permissionWarningShown:  make(map[string]string),        // Initialize one-time permission warning tracking (keyed by markdown path)
+		allowedDomainsCache:     make(map[string]allowedDomain), // Initialize allowed-domains cache (keyed by markdown path)
+		gitRoot:                 gitRoot,                        // Auto-detected git root
 	}
 
 	// Apply functional options

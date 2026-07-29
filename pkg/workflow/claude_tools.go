@@ -138,6 +138,9 @@ func (e *ClaudeEngine) computeAllowedClaudeToolsString(tools map[string]any, saf
 	return strings.Join(allowedTools, ",")
 }
 
+// prepareClaudeToolsForAllowedList expands neutral tool definitions into Claude-specific
+// format. Panics if tools already contains a "claude" section key, since callers must only
+// ever pass neutral tool definitions at this stage (an internal invariant violation).
 func (e *ClaudeEngine) prepareClaudeToolsForAllowedList(tools map[string]any) map[string]any {
 	if tools == nil {
 		tools = make(map[string]any)
