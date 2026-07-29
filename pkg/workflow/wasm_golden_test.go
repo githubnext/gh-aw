@@ -19,6 +19,12 @@ import (
 var testContainerPinRE = regexp.MustCompile(`@sha256:[0-9a-f]{64}`)
 var testAWFImageTagDigestRE = regexp.MustCompile(`,[a-z-]+=sha256:[0-9a-f]{64}`)
 var testProjectUTCEnvLineRE = regexp.MustCompile(`(?m)^\s*GH_AW_PROJECT_UTC:.*(?:\r?\n|$)`)
+
+// testAWFConfigPayloadRE matches the entire AWF config JSON payload written to awf-config.json.
+// The JSON contains model aliases, domain allowlists, and a container image tag that all change
+// frequently as new models and domains are added. Normalizing the entire payload keeps golden
+// fixtures stable without masking structural changes to the surrounding shell command.
+var testAWFConfigPayloadRE = regexp.MustCompile(`(printf '%s\\n' ")(\{.*\})(" > "\$\{RUNNER_TEMP\}/gh-aw/awf-config\.json")`)
 var testDefaultAWFInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AWF_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultFirewallVersion)) + `"`)
 var testDefaultAWFGatewayInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AWMG_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultMCPGatewayVersion)) + `"`)
 var testDefaultAWFInstallVersionRE = regexp.MustCompile(`(install_awf_binary\.sh"\s+)` + regexp.QuoteMeta(string(constants.DefaultFirewallVersion)) + `\b`)
@@ -60,6 +66,8 @@ func normalizeOutput(content string) string {
 	normalized = testProjectUTCEnvLineRE.ReplaceAllString(normalized, "")
 	// Keep golden fixtures stable across copilot default model fallback updates.
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
+	// Keep golden fixtures stable across claude default model fallback updates.
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.SonnetDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across codex default model fallback updates.
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CodexDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across temporary workspace-path allowlist shape changes.
@@ -69,6 +77,10 @@ func normalizeOutput(content string) string {
 	normalized = normalizeDefaultRuntimeVersions(normalized)
 	normalized = testDefaultGitHubMCPServerImageRE.ReplaceAllString(normalized, `${1}GH_MCP_VERSION`)
 	normalized = testCheckoutPinRE.ReplaceAllString(normalized, "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1")
+	// Keep golden fixtures stable across AWF config payload changes (model aliases, domain
+	// allowlists, container image tags). The entire JSON body is replaced with a stable
+	// placeholder so that model/domain additions don't break golden comparisons.
+	normalized = testAWFConfigPayloadRE.ReplaceAllString(normalized, `${1}AWF_CONFIG_PAYLOAD${3}`)
 	return testAWFImageTagDigestRE.ReplaceAllString(normalized, "")
 }
 

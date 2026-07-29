@@ -9,7 +9,7 @@ import (
 
 func TestGetValidationConfigJSON(t *testing.T) {
 	// Test with nil (all types)
-	jsonStr, err := GetValidationConfigJSON(nil, nil)
+	jsonStr, err := GetValidationConfigJSONWithDataSchema(nil, nil, false, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -73,7 +73,7 @@ func TestGetValidationConfigJSON(t *testing.T) {
 func TestGetValidationConfigJSONFiltered(t *testing.T) {
 	// Test with filtered types
 	enabledTypes := []string{"create_issue", "add_comment"}
-	jsonStr, err := GetValidationConfigJSON(enabledTypes, nil)
+	jsonStr, err := GetValidationConfigJSONWithDataSchema(enabledTypes, nil, false, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -105,7 +105,7 @@ func TestGetValidationConfigJSONFiltered(t *testing.T) {
 
 func TestGetValidationConfigJSONEmpty(t *testing.T) {
 	// Test with empty slice (should return all types, same as nil)
-	jsonStr, err := GetValidationConfigJSON([]string{}, nil)
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{}, nil, false, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -131,7 +131,7 @@ func TestGetValidationConfigJSONWithMentions(t *testing.T) {
 		"max":                  5,
 	}
 
-	jsonStr, err := GetValidationConfigJSON([]string{"add_comment"}, mentions)
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"add_comment"}, mentions, false, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -169,7 +169,7 @@ func TestGetValidationConfigJSONWithMentions(t *testing.T) {
 	}
 
 	// A second call without mentions must not include the key (cache safety).
-	plainJSON, err := GetValidationConfigJSON([]string{"add_comment"}, nil)
+	plainJSON, err := GetValidationConfigJSONWithDataSchema([]string{"add_comment"}, nil, false, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
@@ -505,7 +505,7 @@ func TestAssignMilestoneValidationConfig(t *testing.T) {
 }
 
 func TestAssignMilestoneValidationConfigJSON(t *testing.T) {
-	jsonStr, err := GetValidationConfigJSON([]string{"assign_milestone"}, nil)
+	jsonStr, err := GetValidationConfigJSONWithDataSchema([]string{"assign_milestone"}, nil, false, nil)
 	if err != nil {
 		t.Fatalf("GetValidationConfigJSON() error = %v", err)
 	}
