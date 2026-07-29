@@ -65,6 +65,13 @@ tracker-id: discussion-task-miner
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: output-produced
+    question: Did the agent create at least one code quality issue or add a comment?
+  - id: tasks-extracted
+    question: Does the agent output show that actionable tasks were identified from the analyzed discussions?
+  - id: labels-applied
+    question: Does the agent output confirm that the created issues include the expected labels (code-quality, automation, task-mining)?
 ---
 
 # Discussion Task Miner - Code Quality Improvement Agent

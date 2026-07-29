@@ -155,6 +155,13 @@ imports:
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: issue-created
+    question: Did the agent create an issue with skill improvement suggestions?
+  - id: three-improvements
+    question: Does the agent output include at least three specific skill improvement recommendations?
+  - id: improvements-actionable
+    question: Does the agent output describe each improvement in enough detail to be actionable rather than only describing the general area?
 ---
 
 # Daily Skill Optimizer Improvements
