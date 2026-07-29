@@ -224,12 +224,10 @@ security-scan: security-gosec security-govulncheck
 .PHONY: security-gosec
 security-gosec:
 	@echo "Running gosec security scanner..."
-	@go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
 	@# Keep only globally noisy rules here.
 	@# G602 (slice bounds check) is excluded globally due persistent false positives.
 	@# Use inline '#nosec Gxxx -- justification' suppressions for specific findings.
-	@GOPATH=$$(go env GOPATH); \
-	PATH="$$GOPATH/bin:$$PATH" gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
+	@go tool gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
 		-nosec-require-rules -nosec-require-justification \
 		-exclude=G602 \
 		./...
@@ -238,13 +236,13 @@ security-gosec:
 .PHONY: security-govulncheck
 security-govulncheck:
 	@echo "Running govulncheck..."
-	go run golang.org/x/vuln/cmd/govulncheck ./...
+	@go tool govulncheck ./...
 	@echo "✓ Govulncheck complete"
 
 .PHONY: security-govulncheck-sarif
 security-govulncheck-sarif:
 	@echo "Running govulncheck (SARIF output)..."
-	go run -mod=readonly golang.org/x/vuln/cmd/govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 3 ]
+	@go tool govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 3 ]
 	@echo "✓ Govulncheck complete (results in govulncheck-results.sarif)"
 
 # Test JavaScript files
@@ -634,10 +632,11 @@ check-node-version:
 	echo "✓ Node.js version check passed ($$NODE_VERSION)"
 
 .PHONY: tools
-tools: ## Install build-time tools from tools.go
+tools: ## Install build-time tools declared in go.mod tool directives
 	@echo "Installing build tools..."
-	@go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
-	@go install github.com/securego/gosec/v2/cmd/gosec@v2.28.0
+	@go install github.com/rhysd/actionlint/cmd/actionlint
+	@go install github.com/securego/gosec/v2/cmd/gosec
+	@go install golang.org/x/vuln/cmd/govulncheck
 	@go install golang.org/x/tools/gopls@v0.21.1
 	@echo "✓ Tools installed successfully"
 
@@ -1266,7 +1265,7 @@ help:
 	@echo "  actions-validate - Validate action.yml files"
 	@echo "  actions-clean    - Clean action build artifacts"
 	@echo "  generate-action-metadata - Generate action.yml and README.md from JavaScript modules"
-	@echo "  tools            - Install build-time tools from tools.go"
+	@echo "  tools            - Install build-time tools declared in go.mod tool directives"
 	@echo "  license-check    - Check dependency licenses for compliance"
 	@echo "  license-report   - Generate CSV license report"
 	@echo "  deps             - Install dependencies"

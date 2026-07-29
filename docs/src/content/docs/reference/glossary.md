@@ -457,6 +457,10 @@ A safe output capability for dismissing existing pull request reviews authored b
 
 A mandatory safe output signal that agents emit when a task cannot be completed due to an infrastructure or tool failure — for example, an MCP server crash, missing authentication, or an inaccessible repository. Unlike `noop` (which signals no action was needed), `report_incomplete` indicates an active failure that prevented the task from running. The safe-outputs handler activates failure handling regardless of agent exit code. Accepts a required `reason` field (max 1024 characters) and an optional `details` field for extended diagnostic context.
 
+### Review Attribution Pinning (`GH_AW_HEAD_SHA`)
+
+A compiler-injected environment variable that anchors PR review safe outputs to the commit the agent actually evaluated. For `workflow_run` triggers, it is set to `${{ github.event.workflow_run.head_sha }}`; for `pull_request` and `pull_request_target` triggers, to `${{ github.event.pull_request.head.sha }}`. The safe-outputs runtime passes this value as `commit_id` when submitting a review, preventing attribution drift if a newer commit lands on the pull request while the workflow is still running. Requires no user configuration. See [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/).
+
 ### Set Issue Type (`set-issue-type:`)
 
 A safe output capability for setting or clearing the GitHub issue type on existing issues. The agent calls `set_issue_type` to assign a named type (e.g., `Bug`, `Feature`) to an issue. An `allowed` list restricts which types the agent may set; omitting it permits any type. Passing an empty string clears the current type. Supports cross-repository targeting via `target-repo` and `allowed-repos`. Configured via `set-issue-type:` in `safe-outputs`.
@@ -1062,6 +1066,10 @@ The `gh aw` extension for GitHub CLI providing commands for managing agentic wor
 
 An automated transformation script applied by `gh aw fix` that updates workflow markdown files from deprecated syntax to the current format. Codemods rename frontmatter keys, restructure values, or remove obsolete settings without changing workflow behavior. They run in dry-run mode by default; pass `--write` to apply changes. `gh aw upgrade` applies all relevant codemods automatically as part of the upgrade process. List available codemods with `gh aw fix --list-codemods`. See [Upgrading](/gh-aw/guides/upgrading/).
 
+### Doctor (`gh aw doctor`)
+
+A CLI diagnostic command that verifies `gh` CLI authentication, repository ownership and access, and local checkout state before setup or troubleshooting work. Inside a GitHub Enterprise checkout, it auto-detects the host from the git remote when `GH_HOST` is unset; outside a checkout, authenticate with `gh auth login --hostname <host>` and set `GH_HOST` so diagnostics target the correct host. Supports `--json`, `--repo`, and `--require-owner-type` options. See [CLI Reference](/gh-aw/setup/cli/#doctor).
+
 ### Playground
 
 An interactive web-based editor for authoring, compiling, and previewing agentic workflows without local installation. The Playground runs the gh-aw compiler in the browser using [WebAssembly](#webassembly-wasm) and auto-saves editor content to `localStorage` so work is preserved across sessions. Available at `/gh-aw/editor/`.
@@ -1473,6 +1481,10 @@ Scaffolded AI-powered code improvement strategy with four phases: research agent
 ### TrialOps
 
 Testing and validation pattern executing workflows in isolated trial repositories before production deployment. Creates temporary private repositories where workflows run safely, capturing safe outputs without modifying your actual codebase. See [TrialOps](/gh-aw/experimental/trial-ops/).
+
+### Logical Repository Mode (`--logical-repo`)
+
+A `gh aw trial` flag that simulates running a workflow as if it targeted a different repository, while workflow outputs and safe-output side effects remain contained in the trial repository. Lets you validate repository-specific behavior — such as `target-repo` routing or repo-scoped permissions — without touching the real target repository. See [TrialOps](/gh-aw/experimental/trial-ops/).
 
 ### WorkQueueOps
 
