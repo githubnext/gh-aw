@@ -14,6 +14,7 @@ import (
 // - Use lowercase "agentic workflows" when referring generically to workflow files/functionality
 // - Use capitalized "Agentic Workflows" only when explicitly referring to the product as a whole
 func TestCapitalizationConsistency(t *testing.T) {
+	t.Parallel()
 
 	// Test root command uses product name with capital
 	if !strings.Contains(rootCmd.Short, "GitHub Agentic Workflows") {
@@ -50,6 +51,7 @@ func TestCapitalizationConsistency(t *testing.T) {
 
 // TestMCPCommandCapitalization specifically tests MCP subcommands
 func TestMCPCommandCapitalization(t *testing.T) {
+	t.Parallel()
 	mcpCmd := cli.NewMCPCommand()
 
 	// MCP command Long description should use lowercase "agentic workflows"
@@ -70,6 +72,7 @@ func TestMCPCommandCapitalization(t *testing.T) {
 
 // TestTechnicalTermsCapitalization verifies that technical terms remain capitalized
 func TestTechnicalTermsCapitalization(t *testing.T) {
+	t.Parallel()
 	// Technical terms that should remain capitalized
 	technicalTerms := []string{"Markdown", "YAML", "MCP"}
 
