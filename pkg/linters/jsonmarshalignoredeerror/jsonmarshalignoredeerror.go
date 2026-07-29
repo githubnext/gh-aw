@@ -11,7 +11,10 @@ import (
 
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:jsonmarshalignoredeerror")
 
 // Analyzer is the json-marshal-ignored-error analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -23,6 +26,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -86,6 +90,7 @@ func reportDiscardedJSONCall(pass *analysis.Pass, call *ast.CallExpr, noLintInde
 	if nolint.HasDirectiveForLinter(position, noLintIndex, "jsonmarshalignoredeerror") {
 		return
 	}
+	pkgLog.Printf("flagging discarded json error at %s:%d", position.Filename, position.Line)
 	pass.ReportRangef(call, "%s", message)
 }
 
