@@ -1,0 +1,3 @@
+{"id":"findings-reported","question":"Did the agent report documentation testing findings (via asset upload or report)?","answer":"YES","model":"small","timestamp":"2026-07-29T04:53:22.803Z","runid":"30423147748"}
+{"id":"confusing-steps-identified","question":"Does the agent output identify at least one confusing, broken, or unclear step in the documentation?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-29T04:53:22.803Z","runid":"30423147748"}
+{"id":"user-perspective-maintained","question":"Does the agent output reflect the perspective of a new user rather than an expert reviewer?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-29T04:53:22.803Z","runid":"30423147748"}
