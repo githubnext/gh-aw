@@ -2289,6 +2289,9 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeDefined();
+        expect(responseData.hint).toContain("push");
+        expect(responseData.hint).toContain("create_issue");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
@@ -2303,6 +2306,9 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeDefined();
+        expect(responseData.hint).toContain("schedule");
+        expect(responseData.hint).toContain("create_issue");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
@@ -2317,6 +2323,7 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
@@ -2335,6 +2342,7 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
@@ -2352,6 +2360,7 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment", item_number: 42 }));
       } finally {
         global.context = savedContext;
@@ -2379,6 +2388,7 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
@@ -2397,6 +2407,9 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeDefined();
+        expect(responseData.hint).toContain("workflow_dispatch");
+        expect(responseData.hint).toContain("create_issue");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_comment" }));
       } finally {
         global.context = savedContext;
@@ -3089,6 +3102,9 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeDefined();
+        expect(responseData.hint).toContain("push");
+        expect(responseData.hint).toContain("create_issue");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "Update title" }));
       } finally {
         global.context = savedContext;
@@ -3103,6 +3119,9 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeDefined();
+        expect(responseData.hint).toContain("schedule");
+        expect(responseData.hint).toContain("create_issue");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", body: "Report" }));
       } finally {
         global.context = savedContext;
@@ -3142,6 +3161,7 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request" }));
       } finally {
         global.context = savedContext;
@@ -3160,6 +3180,9 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeDefined();
+        expect(responseData.hint).toContain("workflow_dispatch");
+        expect(responseData.hint).toContain("create_issue");
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request", title: "No context title" }));
       } finally {
         global.context = savedContext;
@@ -3201,6 +3224,7 @@ describe("safe_outputs_handlers", () => {
         expect(result.isError).toBeUndefined();
         const responseData = JSON.parse(result.content[0].text);
         expect(responseData.result).toBe("success");
+        expect(responseData.hint).toBeUndefined();
         expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_pull_request" }));
       } finally {
         global.context = savedContext;

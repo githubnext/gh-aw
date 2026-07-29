@@ -31,6 +31,9 @@ const { lstatGuard } = require("./symlink_guard.cjs");
 const { validateValueAgainstSchema } = require("./mcp_scripts_validation.cjs");
 const { resolveDataSchema } = require("./data_schema_normalizer.cjs");
 
+/** PR event names used for target:triggering context detection across add_comment and update_pull_request handlers. */
+const PR_EVENT_NAMES = new Set(["pull_request", "pull_request_target", "pull_request_review", "pull_request_review_comment"]);
+
 /**
  * Resolve effective event name and payload from an invocation context,
  * falling back to the raw GitHub Actions context.
@@ -1872,6 +1875,8 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Context resolution is delegated to runtime: when `target: triggering` resolves
    * to a context with no issue, PR, or discussion (e.g. push, schedule), the runtime
    * handler soft-skips the entry instead of failing the safe-outputs pass.
+   * When no triggering context is detected, a hint is included in the success response
+   * so the agent can recover (e.g. switch to create_issue or create_discussion).
    * SEC-005 (`target_repo` allowlist) is still enforced here at MCP-phase.
    */
   const addCommentHandler = args => {
@@ -1904,16 +1909,41 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       );
     }
 
-    // Enforce SEC-005: reject disallowed cross-repository target_repo overrides on workflow_dispatch.
-    // No-context events (push, schedule, etc.) are soft-skipped at runtime; only validation errors are surfaced here.
+    // Enforce SEC-005 and detect no-context events for hint generation.
+    // A validation error (e.g. disallowed target_repo) is surfaced immediately.
+    // No-context events (push, schedule, etc.) are soft-skipped at runtime; a hint is
+    // included in the success response so the agent can recover.
+    /** @type {ReturnType<typeof resolveInvocationContext> | null} */
+    let addCommentInvocationContext = null;
     try {
-      resolveInvocationContext(context);
+      addCommentInvocationContext = resolveInvocationContext(context);
     } catch (err) {
       const errMsg = getErrorMessage(err);
       if (errMsg.startsWith(ERR_VALIDATION)) {
         return buildIntentErrorResponse(errMsg);
       }
       // Unexpected structural error: let downstream handle gracefully.
+    }
+
+    // Detect whether the current event has no issue/PR/discussion context so a hint
+    // can be included in the success response (agent feedback, not a hard failure).
+    const effectiveAddCommentTarget = addCommentConfig.target || "triggering";
+    const hasExplicitItemNumber = args?.item_number != null || args?.issue_number != null || args?.["pr-number"] != null;
+    /** @type {string | null} */
+    let addCommentContextHint = null;
+    if (effectiveAddCommentTarget === "triggering" && !hasExplicitItemNumber && addCommentInvocationContext != null) {
+      const { effectiveEventName, effectivePayload } = resolveEffectiveContext(addCommentInvocationContext, context);
+      const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+      const isIssueContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+      const isPRContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
+      const isDiscussionContext = effectiveEventName === "discussion" || effectiveEventName === "discussion_comment";
+      if (!isIssueContext && !isPRContext && !isDiscussionContext) {
+        addCommentContextHint =
+          `add_comment targets 'triggering' context but the workflow is running on a '${effectiveEventName}' event. ` +
+          `This entry will be skipped at runtime if no issue, pull request, or discussion triggered the workflow. ` +
+          `To ensure output is always recorded, use create_issue or create_discussion instead. ` +
+          `To comment on a specific item, provide an explicit item_number.`;
+      }
     }
 
     // Build the entry with a temporary_id
@@ -1941,7 +1971,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     // Append to safe outputs
     appendSafeOutputCounted(entry);
 
-    // Return the temporary_id to the agent so it can reference this comment
+    // Return the temporary_id to the agent so it can reference this comment.
+    // Include a hint when the entry targets 'triggering' context in a no-context event so
+    // the agent can recover (e.g. add create_issue as a fallback) before the run ends.
     return {
       content: [
         {
@@ -1950,6 +1982,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             result: "success",
             temporary_id: entry.temporary_id,
             comment: `#${entry.temporary_id}`,
+            ...(addCommentContextHint ? { hint: addCommentContextHint } : {}),
           }),
         },
       ],
@@ -2234,8 +2267,10 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Uses hasUpdatePullRequestFields to validate that at least one of 'title', 'body',
    * or 'update_branch' is provided before recording to NDJSON.
    * For `target: triggering` in non-PR contexts (e.g. schedule/workflow_dispatch without
-   * aw_context), this MCP-phase handler still records the output. The downstream runtime
-   * handler resolves context and soft-skips those entries instead of hard-failing the run.
+   * aw_context), this MCP-phase handler still records the output. A hint is included in
+   * the success response so the agent can recover (e.g. switch to create_issue) before
+   * the run ends. The downstream runtime handler resolves context and soft-skips those
+   * entries instead of hard-failing the run.
    * SEC-005 (`target_repo` allowlist) is still enforced here at MCP-phase.
    */
   const updatePullRequestHandler = args => {
@@ -2246,10 +2281,14 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       };
     }
 
-    // Enforce SEC-005: reject disallowed cross-repository target_repo overrides on workflow_dispatch.
-    // No-context events (push, schedule, etc.) are soft-skipped at runtime; only validation errors are surfaced here.
+    // Enforce SEC-005 and detect no-PR-context events for hint generation.
+    // A validation error (e.g. disallowed target_repo) is surfaced immediately.
+    // No-context events (push, schedule, etc.) are soft-skipped at runtime; a hint is
+    // included in the success response so the agent can recover.
+    /** @type {ReturnType<typeof resolveInvocationContext> | null} */
+    let updatePRInvocationContext = null;
     try {
-      resolveInvocationContext(context);
+      updatePRInvocationContext = resolveInvocationContext(context);
     } catch (err) {
       const errMsg = getErrorMessage(err);
       if (errMsg.startsWith(ERR_VALIDATION)) {
@@ -2258,7 +2297,32 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       // Unexpected structural error: let downstream handle gracefully.
     }
 
-    return defaultHandler("update_pull_request")(args || {});
+    // Detect whether the current event has no PR context so a hint can be included in
+    // the success response (agent feedback, not a hard failure).
+    const updatePRConfig = getSafeOutputsToolConfig(config, "update_pull_request");
+    const effectivePRTarget = updatePRConfig.target || "triggering";
+    /** @type {string | null} */
+    let updatePRContextHint = null;
+    if (effectivePRTarget === "triggering" && updatePRInvocationContext != null) {
+      const { effectiveEventName, effectivePayload } = resolveEffectiveContext(updatePRInvocationContext, context);
+      const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+      const isPRContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
+      if (!isPRContext) {
+        updatePRContextHint =
+          `update_pull_request targets 'triggering' context but the workflow is running on a '${effectiveEventName}' event. ` +
+          `This entry will be skipped at runtime if no pull request triggered the workflow. ` +
+          `To report results from this workflow, use create_issue or create_discussion instead. ` +
+          `To update a specific pull request, configure 'update-pull-request: target: \"*\"' in the workflow and provide 'pull_request_number'.`;
+      }
+    }
+
+    const updatePRResponse = defaultHandler("update_pull_request")(args || {});
+    if (updatePRContextHint && !updatePRResponse.isError) {
+      const responseData = JSON.parse(updatePRResponse.content[0].text);
+      responseData.hint = updatePRContextHint;
+      updatePRResponse.content[0].text = JSON.stringify(responseData);
+    }
+    return updatePRResponse;
   };
 
   return {
