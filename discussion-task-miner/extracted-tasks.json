@@ -1,59 +1,35 @@
 {
-  "last_run": "2026-07-28T19:08:00Z",
+  "last_run": "2026-07-29T07:38:00Z",
   "tasks": [
     {
-      "source_discussion": 48389,
-      "title": "Propagate caller context through remote workflow spec fetchers (remote_workflow_spec.go)",
-      "created_at": "2026-07-28T13:17:00Z",
+      "source_discussion": 48781,
+      "title": "Add antigravity engine to docs/src/content/docs/reference/engines.md",
+      "created_at": "2026-07-29T07:38:00Z",
       "status": "created"
     },
     {
-      "source_discussion": 48389,
-      "title": "Thread context.Context through upgradeExtensionIfOutdated for cancellable release checks",
-      "created_at": "2026-07-28T13:17:00Z",
+      "source_discussion": 48781,
+      "title": "Demote deprecated safe-outputs.dispatch_repository alias in generated frontmatter-full.md",
+      "created_at": "2026-07-29T07:38:00Z",
       "status": "created"
     },
     {
-      "source_discussion": 48389,
-      "title": "Propagate live context into buildRunsModel / fetchJobStatusesForProcessedRun (logs_orchestrator_filters.go)",
-      "created_at": "2026-07-28T13:17:00Z",
+      "source_discussion": 48759,
+      "title": "Add missing tests for compiler_yaml_runtime_setup.go (no _test.go file)",
+      "created_at": "2026-07-29T07:38:00Z",
       "status": "created"
     },
     {
-      "source_discussion": 48508,
-      "title": "Split 117-line generateSetupStepWithArtifactClientCondition into per-mode helpers",
-      "created_at": "2026-07-28T13:17:00Z",
-      "status": "created"
+      "source_discussion": 48784,
+      "title": "ESLint rules README documentation debt (8 undocumented rules) - deferred by source agent to future run",
+      "created_at": "2026-07-29T07:38:00Z",
+      "status": "skipped_not_yet_actionable"
     },
     {
-      "source_discussion": 48389,
-      "title": "Deprecate non-context gh wrappers ExecGH/RunGH/RunGHCombined (already tracked)",
-      "created_at": "2026-07-28T13:17:00Z",
-      "status": "skipped_duplicate_existing_issue"
-    },
-    {
-      "source_discussion": 48389,
-      "title": "Extend ctxbackground linter for wrapper-function pattern (already tracked)",
-      "created_at": "2026-07-28T13:17:00Z",
-      "status": "skipped_duplicate_existing_issue"
-    },
-    {
-      "source_discussion": 48389,
-      "title": "Propagate context into syft image-scan loop (already tracked)",
-      "created_at": "2026-07-28T13:17:00Z",
-      "status": "skipped_duplicate_existing_issue"
-    },
-    {
-      "source_discussion": 48629,
-      "title": "CLI flag boilerplate consolidation (already fully tracked/closed as issues #48680, #48673)",
-      "created_at": "2026-07-28T19:08:00Z",
-      "status": "skipped_duplicate_existing_issue"
-    },
-    {
-      "source_discussion": 48665,
-      "title": "Document why WASM builds skip repository feature validation",
-      "created_at": "2026-07-28T19:08:00Z",
-      "status": "created"
+      "source_discussion": 48784,
+      "title": "no-duplicate-constant-values false positives",
+      "created_at": "2026-07-29T07:38:00Z",
+      "status": "skipped_duplicate_existing_issue_48783"
     }
   ]
 }
