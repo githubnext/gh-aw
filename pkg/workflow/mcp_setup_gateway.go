@@ -153,9 +153,16 @@ func writeMCPGatewayExports(yaml *strings.Builder, opts writeMCPGatewayExportsOp
 	// published 127.0.0.1 port), use localhost instead; otherwise inherit the domain.
 	// Exception: for docker-sbx, the CLI wrappers run INSIDE the microVM, so they must
 	// also use host.docker.internal (not localhost) to reach the published gateway port.
+	// Exception: for Gemini under network isolation, use the topology hostname (awmg-mcpg)
+	// instead of localhost. The Gemini CLI honors HTTP_PROXY but ignores NO_PROXY, so
+	// localhost:8080 would be tunneled through the squid egress proxy and denied. The
+	// awmg-mcpg topology hostname is already in the firewall allowlist.
 	hostDomain := domain
 	if isDockerSbxRuntime(workflowData) {
 		hostDomain = "host.docker.internal"
+	} else if engine.GetID() == "gemini" && isAWFNetworkIsolationEnabled(workflowData) {
+		// domain is "awmg-mcpg" when network isolation is active; preserve it.
+		hostDomain = domain
 	} else if domain == "host.docker.internal" || isAWFNetworkIsolationEnabled(workflowData) {
 		hostDomain = "localhost"
 	}
