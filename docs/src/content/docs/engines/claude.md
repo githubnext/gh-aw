@@ -38,9 +38,19 @@ Analyze the repository and create a concise daily status report covering:
 
 ## Guided workflow authoring with Claude Code
 
-Claude Code users can use `create.md` to author agentic workflows with interactive guidance — no Copilot subscription required.
+Claude Code users can initialize the repository and author agentic workflows with interactive guidance — no Copilot subscription required.
 
-In your terminal, start Claude Code in your repository and run:
+### Initialize for Claude
+
+Run `gh aw init --engine claude` to configure the repository. The `--engine claude` flag skips Copilot-specific files (MCP server configuration, Copilot dispatcher skill) and only writes the files useful for any engine: `.gitattributes`, VS Code settings, and the custom agent file.
+
+```bash
+gh aw init --engine claude
+```
+
+### Create a workflow
+
+Start Claude Code in your repository and run:
 
 ```text wrap
 Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
@@ -53,7 +63,7 @@ The agent fetches `create.md`, installs the `gh aw` CLI if needed, guides you th
 After the files are committed, set `engine: claude` in your workflow's frontmatter (if not already set) and add your `ANTHROPIC_API_KEY` as a repository secret.
 
 > [!NOTE]
-> The `agentic-workflows create` Copilot Chat skill (enabled by `gh aw init`) requires a GitHub Copilot subscription. For Claude Code-only setups, the `create.md` prompt above is the equivalent guided flow.
+> The `agentic-workflows create` Copilot Chat skill (enabled by `gh aw init` without `--engine`) requires a GitHub Copilot subscription. For Claude Code-only setups, `gh aw init --engine claude` plus the `create.md` prompt above is the equivalent guided flow.
 
 ## When to choose gh-aw vs. anthropics/claude-code-action
 

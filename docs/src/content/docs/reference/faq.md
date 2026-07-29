@@ -589,7 +589,7 @@ One workflow is simpler to maintain; multiple workflows give better separation o
 Both work. AI-assisted authoring gives interactive guidance and best practices; manual editing gives full control for advanced customization.
 
 - **GitHub Copilot users**: after running `gh aw init`, use `agentic-workflows create` in Copilot Chat on github.com or the GitHub mobile app.
-- **Claude Code and other CLI agent users**: use the `create.md` prompt directly — no Copilot subscription required:
+- **Claude Code and other CLI agent users**: run `gh aw init --engine claude` to initialize (skips Copilot-specific files), then use the `create.md` prompt directly — no Copilot subscription required:
 
   ```text wrap
   Create a workflow for GitHub Agentic Workflows using https://raw.githubusercontent.com/github/gh-aw/main/create.md
