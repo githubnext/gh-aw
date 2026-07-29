@@ -1650,6 +1650,8 @@ submit-pull-request-review:
   footer: "always" | "none" | "if-body"     # Footer on review body
 ```
 
+> **Review attribution pinning**: Under `workflow_run` triggers, the compiler automatically injects `GH_AW_HEAD_SHA` (set to `${{ github.event.workflow_run.head_sha }}`) into the safe-outputs job environment. For `pull_request` and `pull_request_target` triggers, it is set to `${{ github.event.pull_request.head.sha }}`. The runtime uses this value as `commit_id` when posting the review, so the review is always attributed to the commit the agent actually saw — not a newer HEAD that may have landed while the agent was running. No user configuration is needed.
+
 **Pull Request Extensions**:
 
 ```yaml

@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"go/types"
 	"testing"
 
 	"golang.org/x/tools/go/analysis"
@@ -35,7 +36,11 @@ var _ = 5
 		t.Fatalf("ParseFile() error = %v", err)
 	}
 
-	shared := BuildDirectiveIndex(&analysis.Pass{Fset: fset, Files: []*ast.File{file}})
+	shared := BuildDirectiveIndex(&analysis.Pass{
+		Fset:  fset,
+		Files: []*ast.File{file},
+		Pkg:   types.NewPackage("github.com/github/gh-aw/pkg/linters/internal/nolint/testdata", "p"),
+	})
 	if !HasDirectiveForLinter(token.Position{Filename: filename, Line: 4}, shared, "tolowerequalfold") {
 		t.Fatalf("expected previous-line shared directive match")
 	}

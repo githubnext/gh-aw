@@ -6,6 +6,12 @@ description: Tests compiler error message quality by introducing syntax errors i
 on:
   schedule: daily
   workflow_dispatch:
+if: >
+  github.event_name != 'push' &&
+  fromJSON(github.event.inputs.aw_context || '{}').event_type != 'push'
+concurrency:
+  group: "daily-syntax-error-quality-${{ github.ref }}"
+  cancel-in-progress: true
 permissions:
   contents: read
   issues: read

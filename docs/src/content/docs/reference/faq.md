@@ -3,7 +3,76 @@ title: Frequently Asked Questions
 description: Answers to common questions about GitHub Agentic Workflows, including security, costs, privacy, and configuration.
 sidebar:
   order: 50
+head:
+  - tag: script
+    attrs:
+      type: application/ld+json
+    content: |
+      {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is GitHub Agentic Workflows?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "GitHub Agentic Workflows (gh-aw) is a GitHub CLI extension that compiles Markdown workflow files into hardened GitHub Actions workflows, running AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — with sandboxed execution, read-only defaults, and validated safe outputs."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Which AI engine should I use with gh-aw?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Start with GitHub Copilot if you already have a Copilot subscription — it is the default and requires no extra account. Use Claude for fine-grained turn control. Use Codex or Gemini if those models are part of your existing tooling. You can switch engines at any time by changing the engine: field in your workflow frontmatter."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I run Claude Code on a schedule in GitHub Actions using gh-aw?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Set engine: claude in your workflow frontmatter, add ANTHROPIC_API_KEY as a repository secret, and configure a schedule trigger. The workflow compiles to a standard GitHub Actions job that runs Claude Code in a sandboxed container."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Is gh-aw a replacement for GitHub Actions?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. gh-aw runs on top of GitHub Actions — it compiles your Markdown workflow file into a standard .lock.yml GitHub Actions workflow. Every run is a normal Actions run; gh-aw adds the AI layer, sandboxing, and safe-outputs validation on top."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can agentic workflows write code and create pull requests?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes — use the create-pull-request safe output to propose code changes for human review. The agent cannot push directly; all writes go through a validated safe-outputs gate."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Does gh-aw add any cost beyond what the AI engine charges?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "No. gh-aw itself is free and open source. You pay only your AI provider's standard inference rates (or consume Copilot quota) plus GitHub Actions compute minutes."
+            }
+          },
+          {
+            "@type": "Question",
+            "name": "Can I use MCP servers with agentic workflows?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "Yes. Model Context Protocol servers can be configured in workflow frontmatter to extend workflows with custom tools, integrations, and data sources."
+            }
+          }
+        ]
+      }
 ---
+
+GitHub Agentic Workflows (gh-aw) is a GitHub CLI extension that compiles Markdown workflow files into hardened GitHub Actions workflows, running AI coding agents — GitHub Copilot, Claude Code, OpenAI Codex, or Google Gemini — with sandboxed execution, read-only defaults, and validated safe outputs for any writes back to GitHub.
 
 > [!NOTE]
 > GitHub Agentic Workflows is in Public Preview.
@@ -23,6 +92,18 @@ Agentic workflows use AI to interpret natural language instructions in markdown 
 ### What's the difference between agentic workflows and just running a coding agent in GitHub Actions?
 
 While you could install and run a coding agent directly in a standard GitHub Actions workflow, agentic workflows provide a structured framework with simpler markdown format, built-in security controls, pre-defined tools for GitHub operations, and easy switching between AI engines.
+
+### Is gh-aw a replacement for GitHub Actions, or does it run on top of it?
+
+gh-aw runs on top of GitHub Actions — it compiles your Markdown workflow file into a standard `.lock.yml` GitHub Actions workflow. Every run is a normal Actions run; you keep all the native triggers, runner options, job logs, and spending limits you already use. gh-aw adds the AI layer, sandboxing, and safe-outputs validation on top. See [How Agentic Workflows Work](/gh-aw/introduction/how-they-work/) for the full architecture.
+
+### Which AI engine should I use?
+
+Start with GitHub Copilot if you already have a Copilot subscription — it requires no extra account and is the default engine. Use Claude if you want fine-grained turn control (`max-turns`) for long reasoning sessions or prefer Anthropic models. Use Codex or Gemini if those models are already part of your existing tooling or budget decisions. You can switch engines at any time by changing `engine:` in frontmatter and updating the corresponding secret. See [AI Engines](/gh-aw/reference/engines/) for a full comparison.
+
+### Can I run Claude Code on a schedule in GitHub Actions using gh-aw?
+
+Yes. Set `engine: claude` in your workflow frontmatter, add your `ANTHROPIC_API_KEY` as a repository secret, and configure any schedule trigger (e.g., `on: schedule: daily`). The workflow compiles to a standard GitHub Actions schedule job that runs Claude Code in a sandboxed container. See the [Quick Start](/gh-aw/setup/quick-start/) and [AI Engines — Claude](/gh-aw/reference/engines/#available-coding-agents).
 
 ### Can agentic workflows write code and create pull requests?
 
@@ -578,6 +659,11 @@ Depends on the engine:
 - **GitHub Copilot CLI** (default): the account supplying [`COPILOT_GITHUB_TOKEN`](/gh-aw/reference/auth/#copilot_github_token) — drawn from its inference quota. See [Copilot billing](https://docs.github.com/en/copilot/about-github-copilot/subscription-plans-for-github-copilot).
 - **Claude**: the Anthropic account tied to the [`ANTHROPIC_API_KEY`](/gh-aw/reference/auth/#anthropic_api_key) secret.
 - **Codex**: the OpenAI account tied to the [`OPENAI_API_KEY`](/gh-aw/reference/auth/#openai_api_key) secret.
+- **Gemini**: the Google account tied to the [`GEMINI_API_KEY`](/gh-aw/reference/auth/#gemini_api_key) secret.
+
+### Does gh-aw add any cost beyond what the AI engine charges?
+
+No. gh-aw itself is free and open source. You pay only your AI provider's standard inference rates (or consume Copilot quota) plus the GitHub Actions compute minutes for the run. See [Billing](/gh-aw/reference/billing/) for a detailed breakdown.
 
 ### What's the approximate cost per workflow run?
 
@@ -659,3 +745,12 @@ Use the provider key that matches your engine:
 These entries are **merged** with the built-in catalog at runtime — they override matching models and fill in gaps for unknown ones, so AIC accounting stays accurate. In shared workflows imported by others, `models.providers` entries merge as unions across all imports.
 
 See [Token Optimization — Capping Spend](/gh-aw/reference/cost-management/) for budgeting options alongside custom pricing.
+
+## Related guides
+
+- [Quick Start](/gh-aw/setup/quick-start/) — get your first workflow running in 10 minutes
+- [AI Issue Triage on GitHub](/gh-aw/guides/ai-issue-triage/) — labeling, deduplication, and clarifying questions
+- [Automated AI Pull Request Review](/gh-aw/guides/automated-pr-review/) — review diffs and post feedback on new PRs
+- [AI Release Notes and Reports](/gh-aw/guides/ai-release-notes/) — generate release summaries automatically
+- [Keeping Documentation Up to Date Automatically](/gh-aw/guides/docs-automation/) — propose docs updates as pull requests
+- [AI Engines](/gh-aw/reference/engines/) — Copilot, Claude, Codex, and Gemini comparison

@@ -743,6 +743,36 @@ func (c *Compiler) buildSafeOutputsJobNeeds(data *WorkflowData, mainJobName stri
 	return needs
 }
 
+// headSHAExpressionForTrigger returns the GitHub Actions expression for the PR head SHA
+// based on the workflow's `on:` field. Returns an empty string if the trigger type does
+// not carry a directly accessible PR head SHA (e.g. push, schedule, issues).
+//
+// The returned expression is injected as GH_AW_HEAD_SHA in the safe_outputs job so that
+// PR-review handlers automatically pin their reviews to the commit that was in place when
+// the workflow triggered, preventing attribution drift if new commits land during the run.
+func headSHAExpressionForTrigger(onField any) string {
+	switch v := onField.(type) {
+	case map[string]any:
+		if _, ok := v["workflow_run"]; ok {
+			return "${{ github.event.workflow_run.head_sha }}"
+		}
+		if _, ok := v["pull_request"]; ok {
+			return "${{ github.event.pull_request.head.sha }}"
+		}
+		if _, ok := v["pull_request_target"]; ok {
+			return "${{ github.event.pull_request.head.sha }}"
+		}
+	case string:
+		switch v {
+		case "workflow_run":
+			return "${{ github.event.workflow_run.head_sha }}"
+		case "pull_request", "pull_request_target":
+			return "${{ github.event.pull_request.head.sha }}"
+		}
+	}
+	return ""
+}
+
 // buildJobLevelSafeOutputEnvVars builds environment variables that should be set at the job level
 // for the consolidated safe_outputs job. These are variables that are common to all safe output steps.
 func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID string) map[string]string {
@@ -870,6 +900,16 @@ func (c *Compiler) buildJobLevelSafeOutputEnvVars(data *WorkflowData, workflowID
 		envVars["GH_AW_DETECTION_CONCLUSION"] = fmt.Sprintf("${{ needs.%s.outputs.detection_conclusion }}", constants.DetectionJobName)
 		envVars["GH_AW_DETECTION_REASON"] = fmt.Sprintf("${{ needs.%s.outputs.detection_reason }}", constants.DetectionJobName)
 		envVars["GH_AW_THREAT_DETECTION_AIC"] = fmt.Sprintf("${{ needs.%s.outputs.aic }}", constants.DetectionJobName)
+	}
+
+	// Automatically inject the PR head SHA captured at trigger time so that PR-review
+	// handlers (submit_pull_request_review, create_pull_request_review_comment) pin their
+	// reviews to the reviewed commit without requiring any user YAML configuration.
+	// For workflow_run triggers this prevents attribution drift when a new commit lands
+	// on the PR while the agent is running (the safe_outputs job runs after the agent job
+	// and pulls.get() would otherwise return the new HEAD sha).
+	if headSHAExpr := headSHAExpressionForTrigger(data.RawFrontmatter["on"]); headSHAExpr != "" {
+		envVars["GH_AW_HEAD_SHA"] = headSHAExpr
 	}
 
 	return envVars

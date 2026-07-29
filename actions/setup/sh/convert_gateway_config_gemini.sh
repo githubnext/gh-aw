@@ -86,12 +86,18 @@ echo "Target domain: $MCP_GATEWAY_HOST_DOMAIN:$MCP_GATEWAY_PORT"
 # 1. Remove "type" field (Gemini uses transport auto-detection from url/httpUrl)
 # 2. The "tools" field is preserved from the gateway config to enforce the tool allowlist
 #    at the gateway layer (not removed, unlike older versions that treated it as Copilot-specific)
-# 3. URLs must use localhost (MCP_GATEWAY_HOST_DOMAIN) since Gemini runs on the host runner
+# 3. URLs must use MCP_GATEWAY_HOST_DOMAIN since Gemini runs on the host runner.
+#    Under normal conditions this is "localhost". Under network isolation it is the
+#    topology hostname (e.g. "awmg-mcpg") because Gemini honors HTTP_PROXY but ignores
+#    NO_PROXY, so a localhost URL would be tunneled through the egress proxy and denied.
+#    The topology hostname is already in the firewall allowlist via auto-allow-topology-hostnames.
 
 # Build the correct URL prefix using the host-side domain and port.
 # Gemini CLI runs directly on the host runner (not inside a Docker container), so use
-# MCP_GATEWAY_HOST_DOMAIN (localhost) instead of MCP_GATEWAY_DOMAIN (host.docker.internal).
+# MCP_GATEWAY_HOST_DOMAIN instead of MCP_GATEWAY_DOMAIN (host.docker.internal).
 # host.docker.internal does not resolve on the host runner on Linux.
+# Under network isolation, MCP_GATEWAY_HOST_DOMAIN is set to the topology hostname
+# (awmg-mcpg) rather than localhost — see writeMCPGatewayExports in mcp_setup_gateway.go.
 URL_PREFIX="http://${MCP_GATEWAY_HOST_DOMAIN}:${MCP_GATEWAY_PORT}"
 
 # Create .gemini directory in the workspace (project-level settings)

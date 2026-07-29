@@ -60,6 +60,17 @@ func downloadWorkflowContentViaGit(ctx context.Context, repo, path, ref string, 
 
 // downloadWorkflowContentViaGitClone downloads a workflow file by shallow cloning with sparse checkout
 func downloadWorkflowContentViaGitClone(ctx context.Context, repo, path, ref string, verbose bool) ([]byte, error) {
+	// Validate and clean the path early to prevent path traversal before it is
+	// used as a sparse-checkout pattern or joined with a filesystem base directory.
+	cleanedPath := filepath.Clean(path)
+	if filepath.IsAbs(cleanedPath) || strings.HasPrefix(cleanedPath, ".."+string(filepath.Separator)) || cleanedPath == ".." {
+		return nil, fmt.Errorf("unsafe path in workflow reference: %q", path)
+	}
+	// Use forward slashes so the sparse-checkout pattern is valid for Git on all
+	// platforms (Git patterns use "/" as separator; backslashes are escapes).
+	// filepath.Join handles forward slashes correctly when building the local path.
+	path = filepath.ToSlash(cleanedPath)
+
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Fetching %s/%s@%s via git clone", repo, path, ref)))
 	}

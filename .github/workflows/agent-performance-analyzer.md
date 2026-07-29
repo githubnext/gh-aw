@@ -31,6 +31,7 @@ imports:
       toolsets: [default, actions, repos]
   - shared/reporting.md
   - shared/otlp.md
+  - shared/default-ai-credits-pricing.md
 safe-outputs:
   create-issue:
     expires: 2d

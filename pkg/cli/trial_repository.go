@@ -22,8 +22,38 @@ var trialRepoLog = logger.New("cli:trial_repository")
 // trialRepoInitDelay gives GitHub time to finish initializing a newly created repository.
 const trialRepoInitDelay = 2 * time.Second
 
-// checkoutActionPattern matches actions/checkout step lines with leading indentation
-var checkoutActionPattern = regexp.MustCompile(`^(\s*)(uses: actions/checkout@[^\s]*)(.*)$`)
+// checkoutActionPattern matches actions/checkout step lines with leading indentation,
+// supporting both the block-mapping form ("  uses: actions/checkout@…") and the
+// inline list-item form ("  - uses: actions/checkout@…").  Group 1 is the physical
+// leading whitespace; group 2 is the optional "- " list marker.
+var checkoutActionPattern = regexp.MustCompile(`^(\s*)(- )?uses:\s*["']?actions/checkout@[^\s"']+["']?\s*(?:#.*)?$`)
+
+func leadingIndentWidth(line string) int {
+	return len(line) - len(strings.TrimLeft(line, " \t"))
+}
+
+func isCheckoutStepBoundary(line string, keyIndent int) bool {
+	trimmed := strings.TrimSpace(line)
+	if trimmed == "" {
+		return false
+	}
+
+	indent := leadingIndentWidth(line)
+	if indent < keyIndent {
+		return true
+	}
+
+	return indent == keyIndent && strings.HasPrefix(strings.TrimLeft(line, " \t"), "- ")
+}
+
+func isIndentedKeyLine(line string, key string, indent int) bool {
+	if leadingIndentWidth(line) != indent {
+		return false
+	}
+
+	trimmed := strings.TrimSpace(line)
+	return strings.HasPrefix(trimmed, key+":")
+}
 
 func trialRepositoryURL(repoSlug string) string {
 	return fmt.Sprintf("%s/%s", getGitHubHost(), repoSlug)
@@ -306,9 +336,14 @@ func installWorkflowInTrialMode(ctx context.Context, tempDir string, parsedSpec 
 		}
 	}
 
-	// Fetch and save all remote dependencies (includes, imports, dispatch workflows, resources)
+	// Fetch and save all remote dependencies (includes, imports, runtime imports,
+	// dispatch workflows, resources) using the exact commit resolved for this install.
 	if !fetched.IsLocal {
-		if err := fetchAllRemoteDependencies(ctx, string(content), parsedSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
+		depSpec := *parsedSpec
+		if fetched.CommitSHA != "" {
+			depSpec.Version = fetched.CommitSHA
+		}
+		if err := fetchAllRemoteDependencies(ctx, string(content), &depSpec, result.WorkflowsDir, opts.Verbose, true, nil); err != nil {
 			return fmt.Errorf("failed to fetch remote dependencies: %w", err)
 		}
 	}
@@ -448,28 +483,95 @@ func modifyWorkflowForTrialMode(tempDir, workflowName, logicalRepoSlug string, v
 		// Replace github.repository references to point to simulated host repo
 		modifiedContent = strings.ReplaceAll(modifiedContent, "${{ github.repository }}", logicalRepoSlug)
 
-		// Also replace any hardcoded checkout actions to use the simulated host repo
+		// Also replace checkout actions to use the simulated host repo
 		// Split content into lines to preserve indentation
 		lines := strings.Split(modifiedContent, "\n")
 
-		var newLines []string
-		for _, line := range lines {
-			if matches := checkoutActionPattern.FindStringSubmatch(line); len(matches) >= 3 {
-				indentation := matches[1]
-				usesLine := matches[2]
-				remainder := matches[3]
-
-				// Add the original uses line
-				newLines = append(newLines, fmt.Sprintf("%s%s%s", indentation, usesLine, remainder))
-				// Add the with clause at the same indentation level as uses
-				newLines = append(newLines, indentation+"with:")
-				newLines = append(newLines, fmt.Sprintf("%s  repository: %s", indentation, logicalRepoSlug))
-			} else {
-				newLines = append(newLines, line)
+		for i := 0; i < len(lines); i++ {
+			m := checkoutActionPattern.FindStringSubmatch(lines[i])
+			if m == nil {
+				continue
 			}
+
+			keyIndent := leadingIndentWidth(lines[i])
+			// For the inline list-item form ("- uses: actions/checkout@…") the
+			// effective indentation for child keys (with:, id:, …) is two columns
+			// deeper than the physical dash position.
+			if len(m) > 2 && m[2] == "- " {
+				keyIndent += 2
+			}
+
+			withIndex := -1
+			for j := i + 1; j < len(lines); j++ {
+				if isCheckoutStepBoundary(lines[j], keyIndent) {
+					break
+				}
+				if isIndentedKeyLine(lines[j], "with", keyIndent) {
+					withIndex = j
+					break
+				}
+			}
+
+			if withIndex == -1 {
+				indent := strings.Repeat(" ", keyIndent)
+				lines = append(lines[:i+1], append([]string{
+					indent + "with:",
+					fmt.Sprintf("%s  repository: %s", indent, logicalRepoSlug),
+				}, lines[i+1:]...)...)
+				i += 2
+				continue
+			}
+
+			withChildIndent := keyIndent + 2
+			withBlockEnd := withIndex + 1
+			for withBlockEnd < len(lines) {
+				if isCheckoutStepBoundary(lines[withBlockEnd], keyIndent) {
+					break
+				}
+
+				indent := leadingIndentWidth(lines[withBlockEnd])
+				if strings.TrimSpace(lines[withBlockEnd]) != "" && indent <= keyIndent {
+					break
+				}
+
+				if strings.TrimSpace(lines[withBlockEnd]) != "" && indent > keyIndent {
+					withChildIndent = indent
+					break
+				}
+
+				withBlockEnd++
+			}
+
+			for withBlockEnd = withIndex + 1; withBlockEnd < len(lines); withBlockEnd++ {
+				if isCheckoutStepBoundary(lines[withBlockEnd], keyIndent) {
+					break
+				}
+				if strings.TrimSpace(lines[withBlockEnd]) != "" && leadingIndentWidth(lines[withBlockEnd]) <= keyIndent {
+					break
+				}
+			}
+
+			repositoryIndex := -1
+			for j := withIndex + 1; j < withBlockEnd; j++ {
+				if strings.HasPrefix(strings.TrimSpace(lines[j]), "repository:") {
+					repositoryIndex = j
+					break
+				}
+			}
+
+			indent := strings.Repeat(" ", withChildIndent)
+			repositoryLine := fmt.Sprintf("%srepository: %s", indent, logicalRepoSlug)
+
+			if repositoryIndex >= 0 {
+				lines[repositoryIndex] = repositoryLine
+				continue
+			}
+
+			lines = append(lines[:withIndex+1], append([]string{repositoryLine}, lines[withIndex+1:]...)...)
+			i++
 		}
 
-		modifiedContent = strings.Join(newLines, "\n")
+		modifiedContent = strings.Join(lines, "\n")
 	} else if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Skipping repository simulation modifications (using clone-repo mode)"))
 	}

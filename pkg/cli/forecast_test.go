@@ -412,9 +412,18 @@ func TestRenderForecastTable_ZeroMonteCarloRangeRendersDash(t *testing.T) {
 	out, readErr := io.ReadAll(reader)
 	require.NoError(t, readErr)
 	assert.NotContains(t, string(out), "-–-")
+	assert.Contains(t, string(out), "Cost/projection figures are AI Credits (AIC)")
 }
 
 func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() {
+		_ = os.Chdir(originalDir)
+	})
+
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
@@ -440,6 +449,14 @@ func TestLoadCachedRunAIC_UsageArtifactFirst(t *testing.T) {
 }
 
 func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
+	originalDir, err := os.Getwd()
+	require.NoError(t, err)
+	tmpDir := t.TempDir()
+	require.NoError(t, os.Chdir(tmpDir))
+	t.Cleanup(func() {
+		_ = os.Chdir(originalDir)
+	})
+
 	originalDownload := forecastDownloadRunArtifacts
 	originalAnalyze := forecastAnalyzeTokenUsage
 	t.Cleanup(func() {
@@ -451,7 +468,7 @@ func TestLoadCachedRunAIC_MissingUsageReturnsZero(t *testing.T) {
 	analyzeCalled := false
 	forecastDownloadRunArtifacts = func(_ context.Context, _ int64, _ string, _ bool, _, _, _ string, artifactFilter []string) error {
 		downloaded = append(downloaded, strings.Join(artifactFilter, ","))
-		return ErrNoArtifacts
+		return errNoMatchingArtifact
 	}
 	forecastAnalyzeTokenUsage = func(_ string, _ bool) (*TokenUsageSummary, error) {
 		analyzeCalled = true

@@ -27,6 +27,13 @@ import (
 // and rate-limit headroom.
 const defaultForecastDownloadConcurrency = 8
 
+// errNoMatchingArtifact is returned by forecastDownloadUsageArtifact when
+// the artifact listing succeeds but no artifact name matches the requested
+// filter.  It is distinct from ErrNoArtifacts, which is used when a download
+// is attempted but the output directory ends up empty (a transient failure
+// that should not be negatively cached).
+var errNoMatchingArtifact = errors.New("no matching artifact found for filter")
+
 var (
 	forecastLoadCachedRunAIC = loadCachedRunAIC
 	// forecastDownloadRunArtifacts uses a forecast-specific implementation that downloads
@@ -248,14 +255,18 @@ func parallelLoadRunAICs(ctx context.Context, runs []WorkflowRun, config Forecas
 	return aicMap
 }
 
-// loadCachedRunAIC looks up a locally-cached RunSummary for the given
-// run ID and returns the TotalAIC from its TokenUsage summary.
-// Returns 0 when no cache exists or the cache does not contain AIC data.
-// This avoids re-downloading aw_info.json artifacts for runs already processed by
-// `gh aw logs` while still providing accurate AIC observations for the simulation.
+// loadCachedRunAIC looks up a locally-cached AIC value for the given run ID.
+// It checks, in order: (1) a fully-processed run_summary.json written by `gh aw logs`,
+// (2) a forecast-specific forecast_aic.json written by a previous forecast run, and
+// only on a miss (3) downloads the usage artifact, computes the AIC, and persists it to
+// the forecast cache for next time.
+// Returns 0 when no cache exists or the run has no AIC data.
+// This avoids re-downloading and re-parsing aw_info.json/usage artifacts for runs already
+// seen while still providing accurate AIC observations for the simulation.
 //
-// Cache location: <defaultLogsOutputDir>/run-<runID>/run_summary.json
-// (defaultLogsOutputDir is ".github/aw/logs" — defined in logs_models.go)
+// Cache locations (under <defaultLogsOutputDir>/run-<runID>/, i.e. ".github/aw/logs"):
+//   - run_summary.json   (shared cache produced by `gh aw logs`)
+//   - forecast_aic.json  (forecast-only cache produced by this function)
 func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	dir := filepath.Join(defaultLogsOutputDir, fmt.Sprintf("run-%d", runID))
 	summary, ok := loadRunSummary(dir, verbose)
@@ -265,6 +276,14 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	}
 	if ok && summary != nil && summary.TokenUsage != nil && summary.TokenUsage.TotalAIC <= 0 {
 		forecastRunLog.Printf("AIC cache stale/empty for run %d: cached_total_aic=%.3f, token_file_recompute_required=true", runID, summary.TokenUsage.TotalAIC)
+	}
+
+	// Second fast path: a forecast-specific AIC cache written by a previous forecast run.
+	// This lets repeated forecast runs reuse the computed AIC without re-scanning the run
+	// directory or re-parsing the usage artifact.
+	if aic, ok := loadForecastAICCache(dir, runID); ok {
+		forecastRunLog.Printf("AIC forecast-cache hit for run %d: aic=%.3f (from %s)", runID, aic, forecastAICCacheFileName)
+		return aic
 	}
 
 	forecastRunLog.Printf("AIC cache miss for run %d; downloading usage artifact to %s", runID, dir)
@@ -277,20 +296,25 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	}
 	usageFilter := []string{"usage"}
 	if err := tryDownload(usageFilter); err != nil {
-		if errors.Is(err, ErrNoArtifacts) {
+		if errors.Is(err, errNoMatchingArtifact) {
 			forecastRunLog.Printf("No usage artifact for run %d; AIC will be 0", runID)
+			// Negative-cache this completed run so future forecasts don't re-list its
+			// (nonexistent) artifacts over the network on every invocation.
+			saveForecastNoDataCache(dir, runID)
 			return 0
 		} else if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
 			forecastRunLog.Printf("Usage artifact download for run %d interrupted: %v", runID, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Usage artifact download for run %d interrupted: %v", runID, err)))
 			}
+			// Transient interruption — do NOT negative-cache; retry next run.
 			return 0
 		} else {
 			forecastRunLog.Printf("Failed to download usage artifact for run %d: %v", runID, err)
 			if verbose {
 				fmt.Fprintln(os.Stderr, console.FormatVerboseMessage(fmt.Sprintf("Failed to download usage artifact for run %d: %v", runID, err)))
 			}
+			// Transient/download failure — do NOT negative-cache; retry next run.
 			return 0
 		}
 	}
@@ -298,9 +322,15 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 	tokenUsage, err := forecastAnalyzeTokenUsage(dir, verbose)
 	if err != nil || tokenUsage == nil || tokenUsage.TotalAIC <= 0 {
 		forecastRunLog.Printf("No AIC data in usage artifact for run %d (err=%v, tokenUsage=%v)", runID, err, tokenUsage)
+		// The usage artifact was fetched but carries no AIC data; this is permanent for a
+		// completed run, so negative-cache it to skip the download next time.
+		saveForecastNoDataCache(dir, runID)
 		return 0
 	}
 	forecastRunLog.Printf("AIC from usage artifact for run %d: aic=%.3f", runID, tokenUsage.TotalAIC)
+	// Persist the computed AIC so subsequent forecast runs hit the fast forecast cache
+	// instead of re-scanning the directory and re-parsing the usage artifact.
+	saveForecastAICCache(dir, runID, tokenUsage.TotalAIC)
 	return tokenUsage.TotalAIC
 }
 
@@ -310,8 +340,10 @@ func loadCachedRunAIC(ctx context.Context, runID int64, verbose bool) float64 {
 //   - Skips workflow run log downloads entirely — logs are not needed for
 //     AIC computation and downloading them wastes time when forecasting
 //     many runs.
-//   - Returns ErrNoArtifacts immediately when no matching artifact is found
-//     rather than falling back to log diagnostics.
+//   - Returns errNoMatchingArtifact when the listing succeeds but no artifact
+//     name matches the filter (safe to negatively cache — the run has no usage
+//     data). Returns ErrNoArtifacts when a listed artifact was attempted but the
+//     output directory is empty after download (transient; must not be cached).
 //
 // It is referenced by forecastDownloadRunArtifacts so that tests can substitute
 // a mock implementation without modifying the general artifact download path.
@@ -358,11 +390,12 @@ func forecastDownloadUsageArtifact(ctx context.Context, runID int64, outputDir s
 	forecastRunLog.Printf("Run %d: listed artifacts=%v, filter=%v, downloadable=%v", runID, artifactNames, artifactFilter, downloadableNames)
 
 	if len(downloadableNames) == 0 {
-		// No usage artifact — clean up empty directory and report.
+		// Listing succeeded but no artifact matches the filter; clean up the empty
+		// directory and return the distinct sentinel so the caller can negatively cache.
 		if fileutil.IsDirEmpty(outputDir) {
 			_ = os.RemoveAll(outputDir)
 		}
-		return ErrNoArtifacts
+		return errNoMatchingArtifact
 	}
 
 	if shouldLogProgress {

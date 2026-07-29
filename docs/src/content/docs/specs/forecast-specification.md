@@ -386,6 +386,7 @@ Effective token counts are obtained from locally-cached run summaries when avail
 - **R-SAMP-010**: MUST attempt to load the cached `run_summary.json` for each sampled run using the default logs output directory (`.github/aw/logs`).
 - **R-SAMP-011**: MUST extract the `TotalEffectiveTokens` field from the cached `TokenUsage` summary when present.
 - **R-SAMP-012**: If no cached summary exists or the ET field is zero, the run's ET contribution MUST be treated as zero and the run MUST still be counted in `sampled_runs`.  The implementation SHOULD log a debug-level warning.
+- **R-SAMP-013**: When no `run_summary.json` is available, the implementation SHOULD consult a forecast-specific `forecast_aic.json` cache in the run directory before downloading the usage artifact, and after computing a positive AIC from a freshly downloaded artifact it SHOULD persist that value to `forecast_aic.json` (version-gated by CLI version) so repeated forecast runs reuse the cached AIC without re-scanning or re-parsing artifacts. A dedicated file is used because `run_summary.json` is a "fully processed" marker for `gh aw logs`/`audit`.
 
 This lightweight approach avoids re-downloading artifacts while still providing accurate ET observations for runs that have already been processed locally by `gh aw logs`.
 

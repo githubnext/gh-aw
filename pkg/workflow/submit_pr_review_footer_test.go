@@ -622,3 +622,114 @@ func TestSubmitPRReviewFooterInHandlerConfig(t *testing.T) {
 		}
 	})
 }
+
+func TestHeadSHAExpressionForTrigger(t *testing.T) {
+	t.Run("workflow_run map trigger returns workflow_run head_sha expression", func(t *testing.T) {
+		onField := map[string]any{
+			"workflow_run": map[string]any{"workflows": []any{"CI"}},
+		}
+		result := headSHAExpressionForTrigger(onField)
+		assert.Equal(t, "${{ github.event.workflow_run.head_sha }}", result)
+	})
+
+	t.Run("pull_request map trigger returns pull_request head sha expression", func(t *testing.T) {
+		onField := map[string]any{
+			"pull_request": map[string]any{"types": []any{"opened"}},
+		}
+		result := headSHAExpressionForTrigger(onField)
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", result)
+	})
+
+	t.Run("pull_request_target map trigger returns pull_request head sha expression", func(t *testing.T) {
+		onField := map[string]any{
+			"pull_request_target": nil,
+		}
+		result := headSHAExpressionForTrigger(onField)
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", result)
+	})
+
+	t.Run("workflow_run string trigger returns workflow_run head_sha expression", func(t *testing.T) {
+		result := headSHAExpressionForTrigger("workflow_run")
+		assert.Equal(t, "${{ github.event.workflow_run.head_sha }}", result)
+	})
+
+	t.Run("pull_request string trigger returns pull_request head sha expression", func(t *testing.T) {
+		result := headSHAExpressionForTrigger("pull_request")
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", result)
+	})
+
+	t.Run("issues trigger returns empty string", func(t *testing.T) {
+		onField := map[string]any{
+			"issues": map[string]any{"types": []any{"opened"}},
+		}
+		result := headSHAExpressionForTrigger(onField)
+		assert.Empty(t, result)
+	})
+
+	t.Run("push trigger returns empty string", func(t *testing.T) {
+		onField := map[string]any{"push": nil}
+		result := headSHAExpressionForTrigger(onField)
+		assert.Empty(t, result)
+	})
+
+	t.Run("nil trigger returns empty string", func(t *testing.T) {
+		result := headSHAExpressionForTrigger(nil)
+		assert.Empty(t, result)
+	})
+}
+
+func TestBuildJobLevelSafeOutputEnvVarsHeadSHA(t *testing.T) {
+	t.Run("GH_AW_HEAD_SHA set for workflow_run trigger", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			RawFrontmatter: map[string]any{
+				"on": map[string]any{
+					"workflow_run": map[string]any{"workflows": []any{"CI"}},
+				},
+			},
+		}
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		assert.Equal(t, "${{ github.event.workflow_run.head_sha }}", envVars["GH_AW_HEAD_SHA"])
+	})
+
+	t.Run("GH_AW_HEAD_SHA set for pull_request trigger", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			RawFrontmatter: map[string]any{
+				"on": map[string]any{
+					"pull_request": map[string]any{"types": []any{"opened"}},
+				},
+			},
+		}
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		assert.Equal(t, "${{ github.event.pull_request.head.sha }}", envVars["GH_AW_HEAD_SHA"])
+	})
+
+	t.Run("GH_AW_HEAD_SHA not set for issues trigger", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name: "Test",
+			RawFrontmatter: map[string]any{
+				"on": map[string]any{
+					"issues": map[string]any{"types": []any{"opened"}},
+				},
+			},
+		}
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		_, hasHeadSHA := envVars["GH_AW_HEAD_SHA"]
+		assert.False(t, hasHeadSHA, "GH_AW_HEAD_SHA should not be set for issues trigger")
+	})
+
+	t.Run("GH_AW_HEAD_SHA not set when no frontmatter on field", func(t *testing.T) {
+		compiler := NewCompiler()
+		workflowData := &WorkflowData{
+			Name:           "Test",
+			RawFrontmatter: map[string]any{},
+		}
+		envVars := compiler.buildJobLevelSafeOutputEnvVars(workflowData, "test-workflow")
+		_, hasHeadSHA := envVars["GH_AW_HEAD_SHA"]
+		assert.False(t, hasHeadSHA, "GH_AW_HEAD_SHA should not be set when no on: field")
+	})
+}

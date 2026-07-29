@@ -204,6 +204,12 @@ export default defineConfig({
 		'/patterns/correction-ops/': '/gh-aw/experimental/correction-ops/',
 		'/patterns/trial-ops/': '/gh-aw/experimental/trial-ops/',
 		'/patterns/monitoring/': '/gh-aw/experimental/monitoring-with-projects/',
+
+		// Use Cases → Guides (moved)
+		'/use-cases/ai-issue-triage/': '/gh-aw/guides/ai-issue-triage/',
+		'/use-cases/automated-pr-review/': '/gh-aw/guides/automated-pr-review/',
+		'/use-cases/ai-release-notes/': '/gh-aw/guides/ai-release-notes/',
+		'/use-cases/docs-automation/': '/gh-aw/guides/docs-automation/',
 	},
 	integrations: [
 		sitemap(),
@@ -314,8 +320,21 @@ export default defineConfig({
 					],
 				},
 				{
+					label: 'AI Engines',
+					items: [
+						{ label: 'GitHub Copilot', link: '/engines/copilot/' },
+						{ label: 'Claude Code', link: '/engines/claude/' },
+						{ label: 'OpenAI Codex', link: '/engines/codex/' },
+						{ label: 'Google Gemini', link: '/engines/gemini/' },
+					],
+				},
+				{
 					label: 'Guides',
 					items: [
+						{ label: 'AI Issue Triage', link: '/guides/ai-issue-triage/' },
+						{ label: 'Automated PR Review', link: '/guides/automated-pr-review/' },
+						{ label: 'AI Release Notes', link: '/guides/ai-release-notes/' },
+						{ label: 'Docs Automation', link: '/guides/docs-automation/' },
 						{ label: 'Agentic Authoring', link: '/guides/agentic-authoring/' },
 						{ label: 'Editing Workflows', link: '/guides/editing-workflows/' },
 						{ label: 'Governance', link: '/guides/governance/' },

@@ -38,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    env:
+      REPOSITORY_URL: https://github.com/${{ github.repository }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7.0.1
@@ -66,20 +68,22 @@ jobs:
 
       - name: Audit README via GitHub repository page
         run: |
-          geo audit --url https://github.com/${{ github.repository }} --format json \
+          geo audit --url "$REPOSITORY_URL" --format json \
             > /tmp/gh-aw/agent/geo-optimizer/readme-audit.json 2>&1 || true
 
       - name: Write audit metadata
         run: |
           python3 - <<'EOF'
-          import json, datetime
+          import datetime
+          import json
+          import os
 
           metadata = {
             "run_id": "${{ github.run_id }}",
             "timestamp": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H-%M-%S"),
             "docs_url": "https://github.github.com/gh-aw/",
-            "readme_url": "https://github.com/${{ github.repository }}",
-            "repository": "${{ github.repository }}",
+            "readme_url": os.environ["REPOSITORY_URL"],
+            "repository": os.environ["GITHUB_REPOSITORY"],
           }
           path = "/tmp/gh-aw/agent/geo-optimizer/metadata.json"
           with open(path, "w") as f:

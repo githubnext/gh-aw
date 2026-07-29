@@ -43,7 +43,11 @@ func Index(pass *analysis.Pass) (DirectiveIndex, error) {
 // BuildDirectiveIndex scans all comments in the analysis pass and returns a map
 // from filename → line → set of linter names that carry a nolint directive.
 func BuildDirectiveIndex(pass *analysis.Pass) DirectiveIndex {
-	pkgLog.Printf("building nolint directive index for %s (%d files)", pass.Pkg.Path(), len(pass.Files))
+	pkgPath := "<unknown>"
+	if pass.Pkg != nil {
+		pkgPath = pass.Pkg.Path()
+	}
+	pkgLog.Printf("building nolint directive index for %s (%d files)", pkgPath, len(pass.Files))
 	noLintLinesByFile := make(DirectiveIndex, len(pass.Files))
 	for _, file := range pass.Files {
 		filename := pass.Fset.PositionFor(file.Pos(), false).Filename
