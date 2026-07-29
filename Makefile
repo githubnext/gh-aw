@@ -227,7 +227,7 @@ security-gosec:
 	@# Keep only globally noisy rules here.
 	@# G602 (slice bounds check) is excluded globally due persistent false positives.
 	@# Use inline '#nosec Gxxx -- justification' suppressions for specific findings.
-	go tool gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
+	@go tool gosec -fmt=json -out=gosec-report.json -stdout -exclude-generated -track-suppressions \
 		-nosec-require-rules -nosec-require-justification \
 		-exclude=G602 \
 		./...
@@ -236,13 +236,13 @@ security-gosec:
 .PHONY: security-govulncheck
 security-govulncheck:
 	@echo "Running govulncheck..."
-	go tool govulncheck ./...
+	@go tool govulncheck ./...
 	@echo "✓ Govulncheck complete"
 
 .PHONY: security-govulncheck-sarif
 security-govulncheck-sarif:
 	@echo "Running govulncheck (SARIF output)..."
-	go tool govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 3 ]
+	@go tool govulncheck -format sarif ./... > govulncheck-results.sarif; ret=$$?; [ $$ret -eq 0 ] || [ $$ret -eq 3 ]
 	@echo "✓ Govulncheck complete (results in govulncheck-results.sarif)"
 
 # Test JavaScript files
