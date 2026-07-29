@@ -192,7 +192,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 		Connected: true,
 		Tools:     []*mcp.Tool{},
 		Resources: []*mcp.Resource{},
-		Roots:     []*mcp.Root{},
+		Roots:     []*parser.MCPRootInfo{},
 	}
 
 	// List tools
@@ -283,7 +283,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 		Connected: true,
 		Tools:     []*mcp.Tool{},
 		Resources: []*mcp.Resource{},
-		Roots:     []*mcp.Root{},
+		Roots:     []*parser.MCPRootInfo{},
 	}
 
 	// List tools
@@ -320,8 +320,8 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 
 // extractRootsFromResources infers root URIs from a list of resources by extracting
 // the scheme portion (e.g. "file://") of each resource URI.
-func extractRootsFromResources(resources []*mcp.Resource) []*mcp.Root {
-	var roots []*mcp.Root
+func extractRootsFromResources(resources []*mcp.Resource) []*parser.MCPRootInfo {
+	var roots []*parser.MCPRootInfo
 	for _, resource := range resources {
 		if strings.Contains(resource.URI, "://") {
 			parts := strings.SplitN(resource.URI, "://", 2)
@@ -336,7 +336,7 @@ func extractRootsFromResources(resources []*mcp.Resource) []*mcp.Root {
 					}
 				}
 				if !found {
-					roots = append(roots, &mcp.Root{
+					roots = append(roots, &parser.MCPRootInfo{
 						URI:  rootURI,
 						Name: parts[0],
 					})

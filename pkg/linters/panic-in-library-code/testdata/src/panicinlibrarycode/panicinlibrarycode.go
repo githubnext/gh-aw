@@ -59,6 +59,15 @@ func allowedSyncOncePanic() {
 	})
 }
 
+var onceValue = sync.OnceValue(func() int {
+	panic("lazy init failure in sync.OnceValue") // should not be flagged
+	return 0
+})
+
+var onceFunc = sync.OnceFunc(func() {
+	panic("lazy init failure in sync.OnceFunc") // should not be flagged
+})
+
 // ok: panic whose message starts with "BUG:" — invariant violation.
 func allowedBUGPanic() {
 	panic(fmt.Sprintf("BUG: unreachable: %v", errors.New("boom"))) // should not be flagged

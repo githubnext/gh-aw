@@ -64,6 +64,8 @@ func normalizeOutput(content string) string {
 	normalized := testContainerPinRE.ReplaceAllString(normalizeHeredocDelimiters(content), "")
 	// Keep golden fixtures stable across native-vs-wasm GH_AW_PROJECT_UTC emission differences.
 	normalized = testProjectUTCEnvLineRE.ReplaceAllString(normalized, "")
+	// Keep golden fixtures stable across claude default model fallback updates.
+	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.SonnetDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across copilot default model fallback updates.
 	normalized = strings.ReplaceAll(normalized, fmt.Sprintf("|| '%s'", constants.CopilotBYOKDefaultModel), "|| 'default'")
 	// Keep golden fixtures stable across claude default model fallback updates.
@@ -91,6 +93,7 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 		`run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" ` + string(constants.DefaultFirewallVersion) + ` --rootless`,
 		`run: bash "${RUNNER_TEMP}/gh-aw/actions/download_docker_images.sh" ghcr.io/github/gh-aw-firewall/agent:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-firewall/api-proxy:` + strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v") + ` ghcr.io/github/gh-aw-mcpg:` + string(constants.DefaultMCPGatewayVersion),
 		`{"schema":"https://github.com/github/gh-aw-firewall/releases/download/` + string(constants.DefaultFirewallVersion) + `/awf-config.schema.json","imageTag":"` + string(constants.DefaultFirewallVersion) + `"}`,
+		`GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || '` + constants.SonnetDefaultModel + `' }}`,
 		`GH_AW_INFO_VERSION: "` + string(constants.DefaultCodexVersion) + `"`,
 		`GH_AW_INFO_AGENT_VERSION: "` + string(constants.DefaultCodexVersion) + `"`,
 		`GH_AW_INFO_VERSION: "` + string(constants.DefaultPiVersion) + `"`,
@@ -110,6 +113,7 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 	require.Contains(t, normalized, `ghcr.io/github/gh-aw-mcpg:MCPG_VERSION`)
 	require.Contains(t, normalized, `releases/download/vAWF_VERSION/awf-config.schema.json`)
 	require.Contains(t, normalized, `"imageTag":"AWF_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_MODEL_DETECTION_CLAUDE: ${{ vars.GH_AW_MODEL_DETECTION_CLAUDE || vars.GH_AW_DEFAULT_MODEL_CLAUDE || 'default' }}`)
 	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "CODEX_VERSION"`)
 	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "CODEX_VERSION"`)
 	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "PI_VERSION"`)
@@ -121,6 +125,7 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 	require.Contains(t, normalized, `"pinnedMcpgImage":"ghcr.io/github/gh-aw-mcpg:v0.0.12"`)
 	require.NotContains(t, normalized, string(constants.DefaultFirewallVersion))
 	require.NotContains(t, normalized, string(constants.DefaultMCPGatewayVersion))
+	require.NotContains(t, normalized, constants.SonnetDefaultModel)
 	require.NotContains(t, normalized, string(constants.DefaultCodexVersion))
 	require.NotContains(t, normalized, string(constants.DefaultPiVersion))
 }

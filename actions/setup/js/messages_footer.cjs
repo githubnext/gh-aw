@@ -97,6 +97,8 @@ function buildAICEntry(label, value, modelAlias) {
  *   aiCredits: number|undefined,
  *   aiCreditsFormatted: string|undefined,
  *   aiCreditsSuffix: string,
+ *   aiModel: string|undefined,
+ *   aiModelShort: string|undefined,
  *   compressedModelName: string|undefined,
  *   agentAiCredits: number|undefined,
  *   agentAiCreditsFormatted: string|undefined,
@@ -110,7 +112,8 @@ function buildAICEntry(label, value, modelAlias) {
  * }}
  */
 function getAICFromEnv() {
-  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
+  const aiModel = process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL || undefined;
+  const compressedModelName = reduceModelNameToIdentifier(aiModel);
   const totalAIC = parsePositiveAIC(process.env.GH_AW_AIC);
   const explicitAgentAIC = parsePositiveAIC(process.env.GH_AW_AGENT_AIC);
   const evalsAIC = parsePositiveAIC(process.env.GH_AW_EVALS_AIC);
@@ -128,6 +131,8 @@ function getAICFromEnv() {
     aiCredits,
     aiCreditsFormatted,
     aiCreditsSuffix,
+    aiModel,
+    aiModelShort: compressedModelName,
     compressedModelName,
     agentAiCredits: agentEntry.value,
     agentAiCreditsFormatted: agentEntry.formatted,
@@ -171,6 +176,8 @@ function getFooterMessage(ctx) {
     aiCredits: envAIC,
     aiCreditsFormatted: envAICFormatted,
     aiCreditsSuffix: envAICSuffix,
+    aiModel,
+    aiModelShort,
     compressedModelName,
     agentAiCredits,
     agentAiCreditsFormatted,
@@ -185,6 +192,8 @@ function getFooterMessage(ctx) {
   const { ambientContext: envAmbientContext, ambientContextFormatted: envAmbientContextFormatted, ambientContextSuffix: envAmbientContextSuffix } = getAmbientContextFromEnv();
   const aiCredits = ctx.aiCredits ?? envAIC;
   const ambientContext = envAmbientContext;
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || undefined;
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || undefined;
 
   // Pre-compute history_link as a ready-to-use markdown suffix (empty string when unavailable)
   const historyLink = ctx.historyUrl ? ` · [◷](${ctx.historyUrl})` : "";
@@ -210,6 +219,11 @@ function getFooterMessage(ctx) {
     agenticWorkflowUrl,
     aiCreditsFormatted,
     aiCreditsSuffix: aiCreditsSuffixForTemplate,
+    aiModel,
+    aiModelShort,
+    aiCreditsUnit: "AIC",
+    detectionConclusion,
+    detectionReason,
     ambientContext,
     ambientContextFormatted: envAmbientContextFormatted,
     ambientContextSuffix: envAmbientContextSuffix,
@@ -397,6 +411,8 @@ function getFooterAgentFailureIssueMessage(ctx) {
     aiCredits: envAIC,
     aiCreditsFormatted: envAICFormatted,
     aiCreditsSuffix: envAICSuffix,
+    aiModel,
+    aiModelShort,
     compressedModelName,
     agentAiCredits,
     agentAiCreditsFormatted,
@@ -415,6 +431,8 @@ function getFooterAgentFailureIssueMessage(ctx) {
   const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? buildAICEntry("", explicitContextAIC, compressedModelName).suffix : envAICSuffix;
   const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${ambientContextSuffix}`;
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || undefined;
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || undefined;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
@@ -424,6 +442,11 @@ function getFooterAgentFailureIssueMessage(ctx) {
     aiCredits,
     aiCreditsFormatted,
     aiCreditsSuffix: aiCreditsSuffixForTemplate,
+    aiModel,
+    aiModelShort,
+    aiCreditsUnit: "AIC",
+    detectionConclusion,
+    detectionReason,
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
@@ -479,6 +502,8 @@ function getFooterAgentFailureCommentMessage(ctx) {
     aiCredits: envAIC,
     aiCreditsFormatted: envAICFormatted,
     aiCreditsSuffix: envAICSuffix,
+    aiModel,
+    aiModelShort,
     compressedModelName,
     agentAiCredits,
     agentAiCreditsFormatted,
@@ -497,6 +522,8 @@ function getFooterAgentFailureCommentMessage(ctx) {
   const aiCreditsFormatted = hasExplicitContextAIC ? (explicitContextAIC ? formatAIC(explicitContextAIC) : undefined) : envAICFormatted;
   const aiCreditsSuffix = hasExplicitContextAIC ? buildAICEntry("", explicitContextAIC, compressedModelName).suffix : envAICSuffix;
   const aiCreditsSuffixForTemplate = `${aiCreditsSuffix}${ambientContextSuffix}`;
+  const detectionConclusion = process.env.GH_AW_DETECTION_CONCLUSION || undefined;
+  const detectionReason = process.env.GH_AW_DETECTION_REASON || undefined;
 
   // Create context with both camelCase and snake_case keys, including computed history_link and agentic_workflow_url
   const templateContext = toSnakeCase({
@@ -506,6 +533,11 @@ function getFooterAgentFailureCommentMessage(ctx) {
     aiCredits,
     aiCreditsFormatted,
     aiCreditsSuffix: aiCreditsSuffixForTemplate,
+    aiModel,
+    aiModelShort,
+    aiCreditsUnit: "AIC",
+    detectionConclusion,
+    detectionReason,
     agentAiCredits,
     agentAiCreditsFormatted,
     agentAiCreditsSuffix,
