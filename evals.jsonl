@@ -1,2 +1,2 @@
-{"id":"review_posted","question":"Did the agent post a code review comment on the pull request?","answer":"YES","model":"small","timestamp":"2026-07-29T15:37:30.646Z","runid":"30466136748"}
-{"id":"findings_scoped","question":"Does the agent output show that the review findings are limited to changes in the pull request diff rather than unrelated code?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-29T15:37:30.646Z","runid":"30466136748"}
+{"id":"review_posted","question":"Did the agent post a code review comment on the pull request?","answer":"YES","model":"small","timestamp":"2026-07-29T15:46:03.405Z","runid":"30466099729"}
+{"id":"findings_scoped","question":"Does the agent output show that the review findings are limited to changes in the pull request diff rather than unrelated code?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-29T15:46:03.405Z","runid":"30466099729"}
