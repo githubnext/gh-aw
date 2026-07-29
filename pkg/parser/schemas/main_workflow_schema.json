@@ -7171,6 +7171,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "commit-id": {
+                  "type": "string",
+                  "description": "Pin the review to this specific commit SHA. When set, the review is attributed to this commit instead of the current PR head. GitHub will mark the review as outdated if the PR head has since moved."
                 }
               },
               "additionalProperties": false
@@ -7280,6 +7284,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "commit-id": {
+                  "type": "string",
+                  "description": "Pin the review to this specific commit SHA. When set, the review is attributed to this commit instead of the current PR head. GitHub will mark the review as outdated if the PR head has since moved."
                 }
               },
               "additionalProperties": false

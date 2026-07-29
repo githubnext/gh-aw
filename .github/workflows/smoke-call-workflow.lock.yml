@@ -1813,6 +1813,7 @@ jobs:
       GH_AW_EFFECTIVE_TOKENS: ${{ needs.agent.outputs.effective_tokens }}
       GH_AW_ENGINE_ID: "codex"
       GH_AW_ENGINE_MODEL: "gpt-5.4-mini"
+      GH_AW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}

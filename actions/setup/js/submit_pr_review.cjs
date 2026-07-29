@@ -84,6 +84,16 @@ async function main(config = {}) {
     }
   }
 
+  const pinnedCommitId = typeof config.commit_id === "string" ? config.commit_id.trim() : "";
+  if (pinnedCommitId) {
+    core.info(`submit_pull_request_review: commit-id pinned to ${pinnedCommitId}`);
+    if (registry) {
+      registry.setDefaultPinnedCommitId(pinnedCommitId);
+    } else if (legacyBuffer && typeof legacyBuffer.setPinnedCommitId === "function") {
+      legacyBuffer.setPinnedCommitId(pinnedCommitId);
+    }
+  }
+
   let processedCount = 0;
 
   /**

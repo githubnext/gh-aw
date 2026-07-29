@@ -1745,6 +1745,7 @@ jobs:
       GH_AW_ENGINE_ID: "copilot"
       GH_AW_ENGINE_MODEL: "claude-sonnet-4.6"
       GH_AW_ENGINE_VERSION: "1.0.75"
+      GH_AW_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
       GH_AW_PROJECT_UTC: "-08:00"
       GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
       GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🧵 *Reviewed using Impeccable skills by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🧵 [{workflow_name}]({run_url}) is reviewing this {event_type} using Impeccable skills...\",\"runSuccess\":\"🧵 [{workflow_name}]({run_url}) has completed the skills-based review. ✅\",\"runFailure\":\"🧵 [{workflow_name}]({run_url}) {status} during the skills-based review.\"}"
