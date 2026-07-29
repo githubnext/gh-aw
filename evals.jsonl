@@ -1,2 +1,2 @@
-{"id":"issues_checked","question":"Did the agent check parent issues for the completion status of all their sub-issues?","answer":"YES","model":"small","timestamp":"2026-07-28T07:14:58.725Z","runid":"30337156147"}
-{"id":"issues_closed_or_noop","question":"Were completed parent issues closed with a comment, or does the agent output confirm no issues were ready to close?","answer":"YES","model":"small","timestamp":"2026-07-28T07:14:58.725Z","runid":"30337156147"}
+{"id":"issues_checked","question":"Did the agent check parent issues for the completion status of all their sub-issues?","answer":"NO","model":"small","timestamp":"2026-07-29T07:12:55.884Z","runid":"30430543905"}
+{"id":"issues_closed_or_noop","question":"Were completed parent issues closed with a comment, or does the agent output confirm no issues were ready to close?","answer":"YES","model":"small","timestamp":"2026-07-29T07:12:55.884Z","runid":"30430543905"}
