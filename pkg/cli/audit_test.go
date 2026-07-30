@@ -527,6 +527,9 @@ func TestAuditCachingBehavior(t *testing.T) {
 	if _, err := os.Stat(summaryPath); os.IsNotExist(err) {
 		t.Fatalf("Run summary file should exist after saveRunSummary")
 	}
+	if err := markArtifactDownloaded(runOutputDir, string(ArtifactSetAll)); err != nil {
+		t.Fatalf("markArtifactDownloaded: %v", err)
+	}
 
 	// Load the summary back
 	loadedSummary, ok := loadRunSummary(runOutputDir, false)

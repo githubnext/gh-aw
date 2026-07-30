@@ -136,7 +136,7 @@ func TestResolveRedirectedUpdateLocation(t *testing.T) {
 	t.Run("resolves default branch via API when source omits ref", func(t *testing.T) {
 		// Seed the default-branch cache so resolution uses the repo's actual
 		// default branch ("trunk") instead of assuming "main".
-		defaultBranchCache.Store("owner/repo", "trunk")
+		defaultBranchCache.Store("owner/repo", cachedDefaultBranch{branch: "trunk"})
 		t.Cleanup(func() { defaultBranchCache.Delete("owner/repo") })
 
 		var seenRef string

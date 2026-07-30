@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -143,4 +144,14 @@ func TestRelaunchWithSameArgsRejectsRelativeExecutableOverride(t *testing.T) {
 	err := relaunchWithSameArgs("--post-upgrade", "relative/gh-aw")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid executable path")
+}
+
+func TestRelaunchWithSameArgsRejectsNullByteArgument(t *testing.T) {
+	origArgs := os.Args
+	t.Cleanup(func() { os.Args = origArgs })
+	os.Args = []string{"gh-aw", "compile", "bad\x00arg"}
+
+	err := relaunchWithSameArgs("--post-upgrade", "/bin/echo")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "argument contains NUL byte")
 }

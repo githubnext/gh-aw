@@ -25,6 +25,7 @@ import (
 
 var defaultBranchCache sync.Map
 var branchCommitCache sync.Map
+var updateNoticeCache sync.Map
 
 // updatePublicAPIClient is a shared HTTP client used for unauthenticated GitHub
 // API fallback calls in the update workflow path. It carries a timeout to
@@ -42,6 +43,16 @@ type latestBranchCommitInfo struct {
 	CommittedAt time.Time
 }
 
+type cachedDefaultBranch struct {
+	branch string
+	err    error
+}
+
+type cachedBranchCommit struct {
+	info latestBranchCommitInfo
+	err  error
+}
+
 // clearUpdateResolutionCaches clears per-run ref-resolution caches so update
 // operations always start from fresh repository state.
 func clearUpdateResolutionCaches() {
@@ -53,7 +64,18 @@ func clearUpdateResolutionCaches() {
 		branchCommitCache.Delete(key)
 		return true
 	})
+	updateNoticeCache.Range(func(key, value any) bool {
+		updateNoticeCache.Delete(key)
+		return true
+	})
 	clearVersionLabelCache()
+}
+
+func printUpdateInfoOnce(message string) {
+	if _, loaded := updateNoticeCache.LoadOrStore(message, struct{}{}); loaded {
+		return
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(message))
 }
 
 // UpdateWorkflowsOptions configures workflow update behavior.
@@ -146,13 +168,12 @@ func UpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error {
 	}
 
 	// Show summary
-	showUpdateSummary(successfulUpdates, failedUpdates)
+	showUpdateSummary(successfulUpdates, failedUpdates, opts.NoCompile)
 
 	if len(successfulUpdates) == 0 {
 		// If all failures were due to GitHub API rate limiting, treat as non-fatal.
 		// Rate limiting is a transient infrastructure condition, not a code error.
 		if len(failedUpdates) > 0 && allFailuresAreRateLimited(failedUpdates) {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("All workflow updates skipped due to GitHub API rate limiting"))
 			return nil
 		}
 		return errors.New("no workflows were successfully updated")
@@ -316,7 +337,7 @@ func resolveLatestRefWithDeps(ctx context.Context, deps workflowUpdateDeps, repo
 	if !isExemptFromCoolDown(repo) && commitCoolDown > 0 {
 		if result := checkCommitCoolDownWithDate(repo, currentRef, latestCommit.CommittedAt, commitCoolDown); result.InCoolDown {
 			cooldownLog.Printf("Workflow source %s branch %s: %s", repo, currentRef, result.Message)
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping commit candidate %s@%s: %s", repo, currentRef, result.Message)))
+			printUpdateInfoOnce(fmt.Sprintf("Skipping commit candidate %s@%s: %s", repo, currentRef, result.Message))
 			return latestRefResolution{Ref: currentRef, CoolDownBlocked: true}, nil
 		}
 	}
@@ -353,7 +374,7 @@ func resolveLatestCommitFromDefaultBranchWithDeps(ctx context.Context, deps work
 	if !isExemptFromCoolDown(repo) && coolDown > 0 {
 		if result := checkCommitCoolDownWithDate(repo, defaultBranch, latestCommit.CommittedAt, coolDown); result.InCoolDown {
 			cooldownLog.Printf("Workflow source %s default branch %s: %s", repo, defaultBranch, result.Message)
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Skipping commit candidate %s@%s: %s", repo, defaultBranch, result.Message)))
+			printUpdateInfoOnce(fmt.Sprintf("Skipping commit candidate %s@%s: %s", repo, defaultBranch, result.Message))
 			return latestRefResolution{Ref: currentSHA, CoolDownBlocked: true}, nil
 		}
 	}
@@ -365,17 +386,14 @@ func resolveLatestCommitFromDefaultBranchWithDeps(ctx context.Context, deps work
 // repeating identical GitHub API calls during batched update runs.
 func getRepoDefaultBranchCached(ctx context.Context, repo string) (string, error) {
 	if cached, ok := defaultBranchCache.Load(repo); ok {
-		if branch, isString := cached.(string); isString {
-			return branch, nil
+		if result, ok := cached.(cachedDefaultBranch); ok {
+			return result.branch, result.err
 		}
 	}
 
 	branch, err := getRepoDefaultBranch(ctx, repo)
-	if err != nil {
-		return "", err
-	}
-	defaultBranchCache.Store(repo, branch)
-	return branch, nil
+	defaultBranchCache.Store(repo, cachedDefaultBranch{branch: branch, err: err})
+	return branch, err
 }
 
 // getLatestBranchCommitInfoCached wraps getLatestBranchCommitInfo with a cache
@@ -383,17 +401,14 @@ func getRepoDefaultBranchCached(ctx context.Context, repo string) (string, error
 func getLatestBranchCommitInfoCached(ctx context.Context, repo, branch string) (latestBranchCommitInfo, error) {
 	key := repoBranchKey{repo: repo, branch: branch}
 	if cached, ok := branchCommitCache.Load(key); ok {
-		if info, ok := cached.(latestBranchCommitInfo); ok {
-			return info, nil
+		if result, ok := cached.(cachedBranchCommit); ok {
+			return result.info, result.err
 		}
 	}
 
 	info, err := getLatestBranchCommitInfo(ctx, repo, branch)
-	if err != nil {
-		return latestBranchCommitInfo{}, err
-	}
-	branchCommitCache.Store(key, info)
-	return info, nil
+	branchCommitCache.Store(key, cachedBranchCommit{info: info, err: err})
+	return info, err
 }
 
 // fetchPublicGitHubAPI makes an unauthenticated GET request to the GitHub public

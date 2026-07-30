@@ -235,6 +235,59 @@ func TestExtractBaseRepo(t *testing.T) {
 	}
 }
 
+func TestCachedActionUpdateDepsCachesResultsAndErrors(t *testing.T) {
+	t.Parallel()
+	latestCalls := 0
+	releaseCalls := 0
+	shaCalls := 0
+	coolDownCalls := 0
+	expectedErr := errors.New("rate limited")
+
+	base := actionUpdateDeps{
+		getLatestRelease: func(context.Context, string, string, bool, bool) (string, string, error) {
+			latestCalls++
+			return "", "", expectedErr
+		},
+		runGHReleasesAPI: func(context.Context, string) ([]byte, error) {
+			releaseCalls++
+			return nil, expectedErr
+		},
+		getActionSHAForTag: func(context.Context, string, string) (string, error) {
+			shaCalls++
+			return "", expectedErr
+		},
+		checkCoolDown: func(context.Context, string, string, time.Duration) coolDownCheckResult {
+			coolDownCalls++
+			return coolDownCheckResult{InCoolDown: true}
+		},
+	}
+	deps := newCachedActionUpdateDeps(base)
+	ctx := context.Background()
+
+	for range 2 {
+		_, _, err := deps.getLatestRelease(ctx, "actions/cache", "v4", true, false)
+		if !errors.Is(err, expectedErr) {
+			t.Fatalf("getLatestRelease() error = %v, want %v", err, expectedErr)
+		}
+		_, err = deps.runGHReleasesAPI(ctx, "actions/cache")
+		if !errors.Is(err, expectedErr) {
+			t.Fatalf("runGHReleasesAPI() error = %v, want %v", err, expectedErr)
+		}
+		_, err = deps.getActionSHAForTag(ctx, "actions/cache", "v4")
+		if !errors.Is(err, expectedErr) {
+			t.Fatalf("getActionSHAForTag() error = %v, want %v", err, expectedErr)
+		}
+		if !deps.checkCoolDown(ctx, "actions/cache", "v4", 7*24*time.Hour).InCoolDown {
+			t.Fatal("checkCoolDown() should return cached cooldown result")
+		}
+	}
+
+	if latestCalls != 1 || releaseCalls != 1 || shaCalls != 1 || coolDownCalls != 1 {
+		t.Fatalf("call counts = latest:%d releases:%d sha:%d cooldown:%d, want all 1",
+			latestCalls, releaseCalls, shaCalls, coolDownCalls)
+	}
+}
+
 func TestMajorVersionPreference(t *testing.T) {
 	// Test that the version selection logic prefers major-only versions (v8)
 	// over full semantic versions (v8.0.0) when they are semantically equal.

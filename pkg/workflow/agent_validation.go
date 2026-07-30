@@ -246,7 +246,7 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 
 	if !engine.GetCapabilities().BareMode {
 		agentValidationLog.Printf("Engine %s does not support bare mode, emitting warning", engine.GetID())
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot', 'claude', and 'pi' engines. The setting will be ignored.", engine.GetID())))
 		c.IncrementWarningCount()
 	}
 }
