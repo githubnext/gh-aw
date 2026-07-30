@@ -1,20 +1,21 @@
 #!/bin/bash
 
-# sync-compat.sh - Keep .github/aw/compat.json in sync with DefaultCopilotVersion
+# sync-compat.sh - Keep .github/aw/compat.json and install_copilot_cli.sh in sync with DefaultCopilotVersion
 #
-# Reads DefaultCopilotVersion from pkg/constants/version_constants.go and updates
-# the max-agent field of the latest interval (the entry with "open": true) in
-# .github/aw/compat.json.
+# Reads DefaultCopilotVersion from pkg/constants/version_constants.go and updates:
+#   - the max-agent field of the latest interval (the entry with "open": true) in
+#     .github/aw/compat.json
+#   - the DEFAULT_COPILOT_VERSION constant baked into actions/setup/sh/install_copilot_cli.sh
 #
 # Usage:
 #   sync-compat.sh [--check]
 #
 # Options:
-#   --check   Exit with code 1 if compat.json is out of sync instead of updating it.
+#   --check   Exit with code 1 if either file is out of sync instead of updating it.
 #
 # Exit codes:
-#   0 - compat.json is already in sync, or was updated successfully
-#   1 - compat.json is out of sync (only when --check is passed), or an error occurred
+#   0 - both files are already in sync, or were updated successfully
+#   1 - a file is out of sync (only when --check is passed), or an error occurred
 
 set -euo pipefail
 
@@ -24,6 +25,7 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 CONSTANTS_FILE="$REPO_ROOT/pkg/constants/version_constants.go"
 COMPAT_FILE="$REPO_ROOT/.github/aw/compat.json"
+INSTALL_SCRIPT="$REPO_ROOT/actions/setup/sh/install_copilot_cli.sh"
 
 CHECK_ONLY=0
 for arg in "$@"; do
@@ -46,21 +48,51 @@ if [ -z "$CURRENT_MAX_AGENT" ] || [ "$CURRENT_MAX_AGENT" = "null" ]; then
   exit 1
 fi
 
-if [ "$CURRENT_MAX_AGENT" = "$COPILOT_VERSION" ]; then
-  echo "compat.json is already in sync (max-agent=$COPILOT_VERSION)"
+# Read the current DEFAULT_COPILOT_VERSION baked into the install script
+SCRIPT_DEFAULT_VERSION=$(grep -E '^DEFAULT_COPILOT_VERSION=' "$INSTALL_SCRIPT" | sed -E 's/DEFAULT_COPILOT_VERSION="([^"]+)"/\1/')
+if [ -z "$SCRIPT_DEFAULT_VERSION" ]; then
+  echo "Error: could not extract DEFAULT_COPILOT_VERSION from $INSTALL_SCRIPT" >&2
+  exit 1
+fi
+
+COMPAT_IN_SYNC=1
+SCRIPT_IN_SYNC=1
+
+if [ "$CURRENT_MAX_AGENT" != "$COPILOT_VERSION" ]; then
+  COMPAT_IN_SYNC=0
+fi
+if [ "$SCRIPT_DEFAULT_VERSION" != "$COPILOT_VERSION" ]; then
+  SCRIPT_IN_SYNC=0
+fi
+
+if [ "$COMPAT_IN_SYNC" = "1" ] && [ "$SCRIPT_IN_SYNC" = "1" ]; then
+  echo "compat.json and install_copilot_cli.sh are already in sync (version=$COPILOT_VERSION)"
   exit 0
 fi
 
 if [ "$CHECK_ONLY" = "1" ]; then
-  echo "Error: compat.json is out of sync: max-agent=$CURRENT_MAX_AGENT, DefaultCopilotVersion=$COPILOT_VERSION" >&2
+  if [ "$COMPAT_IN_SYNC" = "0" ]; then
+    echo "Error: compat.json is out of sync: max-agent=$CURRENT_MAX_AGENT, DefaultCopilotVersion=$COPILOT_VERSION" >&2
+  fi
+  if [ "$SCRIPT_IN_SYNC" = "0" ]; then
+    echo "Error: install_copilot_cli.sh is out of sync: DEFAULT_COPILOT_VERSION=$SCRIPT_DEFAULT_VERSION, DefaultCopilotVersion=$COPILOT_VERSION" >&2
+  fi
   echo "Run 'make sync-compat' to update." >&2
   exit 1
 fi
 
-# Update max-agent in the latest interval
-UPDATED=$(jq --arg version "$COPILOT_VERSION" \
-  '."agent-compat-v1".copilot = [."agent-compat-v1".copilot[] | if .open == true then ."max-agent" = $version else . end]' \
-  "$COMPAT_FILE")
+if [ "$COMPAT_IN_SYNC" = "0" ]; then
+  # Update max-agent in the latest interval
+  UPDATED=$(jq --arg version "$COPILOT_VERSION" \
+    '."agent-compat-v1".copilot = [."agent-compat-v1".copilot[] | if .open == true then ."max-agent" = $version else . end]' \
+    "$COMPAT_FILE")
 
-echo "$UPDATED" > "$COMPAT_FILE"
-echo "Updated compat.json: max-agent $CURRENT_MAX_AGENT -> $COPILOT_VERSION"
+  echo "$UPDATED" > "$COMPAT_FILE"
+  echo "Updated compat.json: max-agent $CURRENT_MAX_AGENT -> $COPILOT_VERSION"
+fi
+
+if [ "$SCRIPT_IN_SYNC" = "0" ]; then
+  # Update DEFAULT_COPILOT_VERSION in the install script
+  sed -i "s/^DEFAULT_COPILOT_VERSION=\"[^\"]*\"/DEFAULT_COPILOT_VERSION=\"$COPILOT_VERSION\"/" "$INSTALL_SCRIPT"
+  echo "Updated install_copilot_cli.sh: DEFAULT_COPILOT_VERSION $SCRIPT_DEFAULT_VERSION -> $COPILOT_VERSION"
+fi

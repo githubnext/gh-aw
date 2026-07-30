@@ -149,21 +149,17 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	//      select the right compat window and pick the best cached binary.
 	//   3. Baked-in DEFAULT_COPILOT_VERSION in the script — final fallback.
 	//
-	// Regardless of which priority wins at install time, EngineConfig.Version is normalized to
-	// DefaultCopilotVersion so downstream compile-time lookups (OTel, GH_AW_INFO_VERSION, etc.)
-	// have a consistent value to reference.
+	// EngineConfig.Version is intentionally left unset when no explicit engine.version is given.
+	// Downstream compile-time lookups (OTel, GH_AW_INFO_VERSION, copilotSupportsNoAskUser, …)
+	// already fall back to DefaultCopilotVersion via getVersionForSetup / getInstallationVersion,
+	// so no normalization mutation is needed here.
 	copilotVersion := "" // empty means "let the script decide via compat/default" (priorities 2 & 3)
 	if workflowData.EngineConfig != nil {
 		if workflowData.EngineConfig.Version != "" {
 			copilotVersion = workflowData.EngineConfig.Version
 			copilotInstallLog.Printf("Using engine.version for Copilot CLI installation: %s", copilotVersion)
 		} else {
-			// Normalize EngineConfig.Version to the compile-time default so downstream
-			// consumers (OTel, GH_AW_INFO_VERSION, copilotSupportsNoAskUser, …) have a
-			// consistent effective value. The install script may install a different
-			// version within the compat window, but that is intentional.
-			workflowData.EngineConfig.Version = string(constants.DefaultCopilotVersion)
-			copilotInstallLog.Printf("No engine.version specified; script will resolve via compat.json or baked-in default (normalized to %s for downstream uses)", constants.DefaultCopilotVersion)
+			copilotInstallLog.Printf("No engine.version specified; script will resolve via compat.json or baked-in default")
 		}
 	}
 

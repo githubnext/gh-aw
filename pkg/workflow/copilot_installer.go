@@ -36,6 +36,8 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 	if ExpressionPattern.MatchString(version) {
 		// Version is a GitHub Actions expression (e.g. ${{ inputs.engine-version }}).
 		// Pass it via an env var instead of direct shell interpolation to prevent injection.
+		// GH_AW_COMPILED_VERSION is also injected so the script can fall back to compat.json
+		// resolution when the expression evaluates to an empty string at runtime.
 		copilotInstallerLog.Printf("Version contains GitHub Actions expression, using env var for injection safety: %s", version)
 		stepLines := []string{
 			"      - name: " + stepName,
@@ -43,6 +45,9 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 			"        env:",
 			"          GH_HOST: github.com",
 			"          ENGINE_VERSION: " + version,
+		}
+		if compiledVersion != "" {
+			stepLines = append(stepLines, "          GH_AW_COMPILED_VERSION: "+compiledVersion)
 		}
 		return []GitHubActionStep{GitHubActionStep(stepLines)}
 	}

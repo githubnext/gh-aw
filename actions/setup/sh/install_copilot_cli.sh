@@ -9,7 +9,9 @@ set +o histexpand
 # install_awf_binary.sh to avoid executing unverified downloaded scripts.
 #
 # Arguments:
-#   VERSION    - Optional Copilot CLI version to install (default: latest release)
+#   VERSION    - Optional Copilot CLI version to install. When omitted, the script
+#                resolves the version via compat.json (using GH_AW_COMPILED_VERSION) and
+#                falls back to DEFAULT_COPILOT_VERSION baked into this script.
 #   --rootless - Install to ~/.local/bin without sudo; appends that directory to
 #                $GITHUB_PATH so subsequent steps find the binary.  Use this on
 #                ARC/DinD runners that enforce allowPrivilegeEscalation: false.

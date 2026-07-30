@@ -211,9 +211,10 @@ func (c *Compiler) buildEvalsEngineSteps(data *WorkflowData) []string {
 		CachedPermissions: data.CachedPermissions,
 		IsDetectionRun:    false,
 		IsEvalsRun:        true,
-		RunnerConfig:      data.RunnerConfig,  // propagate runner.topology (e.g. arc-dind) to the evals job
-		ModelMappings:     data.ModelMappings, // propagate alias map so evals awf-config.json can resolve model aliases
-		ModelCosts:        data.ModelCosts,    // propagate pricing providers so evals awf-config.json can resolve AI-credit costs
+		RunnerConfig:      data.RunnerConfig,    // propagate runner.topology (e.g. arc-dind) to the evals job
+		ModelMappings:     data.ModelMappings,   // propagate alias map so evals awf-config.json can resolve model aliases
+		ModelCosts:        data.ModelCosts,      // propagate pricing providers so evals awf-config.json can resolve AI-credit costs
+		CompiledVersion:   data.CompiledVersion, // propagate compiler version so install steps can inject GH_AW_COMPILED_VERSION
 		NetworkPermissions: &NetworkPermissions{
 			Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 		},

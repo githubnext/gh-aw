@@ -197,22 +197,24 @@ func TestCopilotEngineWithVersion(t *testing.T) {
 
 func TestCopilotEngineWithoutVersion(t *testing.T) {
 	// When engine.version is not set:
-	// - EngineConfig.Version must be normalized to DefaultCopilotVersion for downstream uses
-	//   (OTel, GH_AW_INFO_VERSION, copilotSupportsNoAskUser, etc.)
+	// - EngineConfig.Version must remain unset (no normalization mutation) so that
+	//   threat-detection/evals config clones do not receive an explicit version arg.
 	// - The install step must NOT embed a hardcoded version arg — the script resolves the
 	//   version at runtime via compat.json (priority 2) or its baked-in default (priority 3).
+	// - GH_AW_COMPILED_VERSION must be injected when CompiledVersion is set on WorkflowData.
 	engine := NewCopilotEngine()
 
 	workflowData := &WorkflowData{
-		Name:         "test-workflow",
-		EngineConfig: &EngineConfig{},
+		Name:            "test-workflow",
+		EngineConfig:    &EngineConfig{},
+		CompiledVersion: "v0.99.0",
 	}
 
 	steps := engine.GetInstallationSteps(workflowData)
 
-	// EngineConfig.Version must be normalized to the default version for downstream compile-time uses.
-	if workflowData.EngineConfig.Version != string(constants.DefaultCopilotVersion) {
-		t.Fatalf("Expected engine config version to be normalized to default Copilot version %q, got: %q", constants.DefaultCopilotVersion, workflowData.EngineConfig.Version)
+	// EngineConfig.Version must remain empty — no normalization mutation.
+	if workflowData.EngineConfig.Version != "" {
+		t.Fatalf("Expected engine config version to remain empty (no mutation), got: %q", workflowData.EngineConfig.Version)
 	}
 
 	// Find the install step
@@ -232,6 +234,11 @@ func TestCopilotEngineWithoutVersion(t *testing.T) {
 	// Must NOT hardcode a version arg — that would bypass compat.json resolution.
 	if strings.Contains(installStep, `install_copilot_cli.sh" `+string(constants.DefaultCopilotVersion)) {
 		t.Errorf("Install step must not embed an explicit version arg when engine.version is unset; got:\n%s", installStep)
+	}
+
+	// Must inject GH_AW_COMPILED_VERSION so the script can do compat.json resolution.
+	if !strings.Contains(installStep, "GH_AW_COMPILED_VERSION: v0.99.0") {
+		t.Errorf("Install step must inject GH_AW_COMPILED_VERSION when CompiledVersion is set; got:\n%s", installStep)
 	}
 
 	// Must still pin GH_HOST to github.com.
@@ -371,6 +378,44 @@ func TestCopilotEngineWithExpressionVersion(t *testing.T) {
 	}
 	if strings.Contains(installStep, "install_copilot_cli.sh "+expressionVersion) {
 		t.Errorf("Expression version should NOT be embedded directly in shell command, got:\n%s", installStep)
+	}
+}
+
+func TestCopilotEngineWithExpressionVersionAndCompiledVersion(t *testing.T) {
+	// When engine.version is an expression AND CompiledVersion is set, both ENGINE_VERSION
+	// and GH_AW_COMPILED_VERSION must appear in the install step so the script can fall back
+	// to compat.json resolution when the expression evaluates to an empty string at runtime.
+	engine := NewCopilotEngine()
+
+	expressionVersion := "${{ inputs.engine-version }}"
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+		EngineConfig: &EngineConfig{
+			Version: expressionVersion,
+		},
+		CompiledVersion: "v0.99.0",
+	}
+
+	steps := engine.GetInstallationSteps(workflowData)
+
+	var installStep string
+	for _, step := range steps {
+		stepContent := strings.Join(step, "\n")
+		if strings.Contains(stepContent, "install_copilot_cli.sh") {
+			installStep = stepContent
+			break
+		}
+	}
+
+	if installStep == "" {
+		t.Fatal("Could not find install step with install_copilot_cli.sh")
+	}
+
+	if !strings.Contains(installStep, "ENGINE_VERSION: "+expressionVersion) {
+		t.Errorf("Expected ENGINE_VERSION env var with expression, got:\n%s", installStep)
+	}
+	if !strings.Contains(installStep, "GH_AW_COMPILED_VERSION: v0.99.0") {
+		t.Errorf("Expected GH_AW_COMPILED_VERSION env var when CompiledVersion is set, got:\n%s", installStep)
 	}
 }
 

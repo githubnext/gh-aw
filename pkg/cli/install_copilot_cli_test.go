@@ -252,9 +252,9 @@ func TestInstallCopilotCLIScriptFallsBackToBakedInDefaultWhenCompatUnavailable(t
 	raw, readErr := os.ReadFile(installScript)
 	require.NoError(t, readErr, "cannot read install script")
 	defaultVersion := ""
-	for _, line := range strings.Split(string(raw), "\n") {
-		if strings.HasPrefix(line, "DEFAULT_COPILOT_VERSION=") {
-			defaultVersion = strings.Trim(strings.TrimPrefix(line, "DEFAULT_COPILOT_VERSION="), `"`)
+	for line := range strings.SplitSeq(string(raw), "\n") {
+		if val, ok := strings.CutPrefix(line, "DEFAULT_COPILOT_VERSION="); ok {
+			defaultVersion = strings.Trim(val, `"`)
 			break
 		}
 	}
