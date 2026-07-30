@@ -1101,4 +1101,249 @@ describe("git_helpers.cjs", () => {
       expect(err.cause).toBe(cause);
     });
   });
+
+  describe("getBundlePrerequisites (integration with real git)", () => {
+    let tmpRepo;
+
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+
+      tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "git-helpers-bundle-prereqs-"));
+      const g = args => spawnSync("git", args, { cwd: tmpRepo, encoding: "utf8" });
+      g(["init", "-b", "main"]);
+      g(["config", "user.name", "Test"]);
+      g(["config", "user.email", "test@test.com"]);
+      fs.writeFileSync(path.join(tmpRepo, "a.txt"), "a\n");
+      g(["add", "a.txt"]);
+      g(["commit", "-m", "initial"]);
+    });
+
+    afterEach(() => {
+      const fs = require("fs");
+      if (tmpRepo) {
+        fs.rmSync(tmpRepo, { recursive: true, force: true });
+        tmpRepo = null;
+      }
+    });
+
+    function makeExecApi() {
+      const { spawnSync } = require("child_process");
+      return {
+        async getExecOutput(command, args, options = {}) {
+          const result = spawnSync(command, args, { encoding: "utf8" });
+          if (result.status !== 0 && !options.ignoreReturnCode) {
+            throw new Error(result.stderr || result.stdout);
+          }
+          return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+        },
+      };
+    }
+
+    it("extracts the prerequisite SHA from a real incremental bundle", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+      const os = require("os");
+
+      // baseSha will become the bundle's prerequisite
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      spawnSync("git", ["checkout", "-b", "feature"], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "feature commit"], { cwd: tmpRepo });
+
+      // Incremental bundle: baseSha..HEAD — git records baseSha as a prerequisite
+      const bundlePath = path.join(os.tmpdir(), `git-helpers-prereqs-incr-${Date.now()}.bundle`);
+      try {
+        spawnSync("git", ["bundle", "create", bundlePath, `${baseSha}..HEAD`], { cwd: tmpRepo });
+
+        const prereqs = await getBundlePrerequisites(makeExecApi(), bundlePath);
+
+        expect(prereqs).toHaveLength(1);
+        expect(prereqs[0]).toBe(baseSha);
+      } finally {
+        if (fs.existsSync(bundlePath)) fs.unlinkSync(bundlePath);
+      }
+    });
+
+    it("extracts prerequisites from a bundle created with a named range", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+      const os = require("os");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      // Two commits on top of baseSha
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit b"], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "c.txt"), "c\n");
+      spawnSync("git", ["add", "c.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit c"], { cwd: tmpRepo });
+
+      const bundlePath = path.join(os.tmpdir(), `git-helpers-prereqs-range-${Date.now()}.bundle`);
+      try {
+        spawnSync("git", ["bundle", "create", bundlePath, `${baseSha}..HEAD`], { cwd: tmpRepo });
+
+        const prereqs = await getBundlePrerequisites(makeExecApi(), bundlePath);
+
+        // The bundle must declare baseSha as its single prerequisite regardless
+        // of how many commits the bundle contains.
+        expect(prereqs).toHaveLength(1);
+        expect(prereqs[0]).toBe(baseSha);
+      } finally {
+        if (fs.existsSync(bundlePath)) fs.unlinkSync(bundlePath);
+      }
+    });
+
+    it("returns empty array for a self-contained bundle with no prerequisites", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+      const os = require("os");
+
+      // Bundle the full history from the root — no prerequisites needed
+      const bundlePath = path.join(os.tmpdir(), `git-helpers-prereqs-full-${Date.now()}.bundle`);
+      try {
+        spawnSync("git", ["bundle", "create", bundlePath, "--all"], { cwd: tmpRepo });
+
+        const prereqs = await getBundlePrerequisites(makeExecApi(), bundlePath);
+
+        expect(prereqs).toEqual([]);
+      } finally {
+        if (fs.existsSync(bundlePath)) fs.unlinkSync(bundlePath);
+      }
+    });
+  });
+
+  describe("linearizeRangeAsCommit (integration with real git)", () => {
+    let tmpRepo;
+
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+
+      tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "git-helpers-linearize-"));
+      const g = args => spawnSync("git", args, { cwd: tmpRepo, encoding: "utf8" });
+      g(["init", "-b", "main"]);
+      g(["config", "user.name", "Test"]);
+      g(["config", "user.email", "test@test.com"]);
+      fs.writeFileSync(path.join(tmpRepo, "a.txt"), "a\n");
+      g(["add", "a.txt"]);
+      g(["commit", "-m", "initial"]);
+    });
+
+    afterEach(() => {
+      const fs = require("fs");
+      if (tmpRepo) {
+        fs.rmSync(tmpRepo, { recursive: true, force: true });
+        tmpRepo = null;
+      }
+    });
+
+    function makeRealExecApi(cwd) {
+      const { spawnSync } = require("child_process");
+      return {
+        async exec(command, args = []) {
+          const result = spawnSync(command, args, { cwd, encoding: "utf8" });
+          if (result.status !== 0) throw new Error(result.stderr || result.stdout);
+          return result.status;
+        },
+        async getExecOutput(command, args = [], opts = {}) {
+          const result = spawnSync(command, args, { cwd, encoding: "utf8" });
+          if (result.status !== 0 && !opts.ignoreReturnCode) {
+            throw new Error(result.stderr || result.stdout);
+          }
+          return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+        },
+      };
+    }
+
+    it("collapses multiple commits into a single commit on top of baseSha", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit b"], { cwd: tmpRepo });
+
+      fs.writeFileSync(path.join(tmpRepo, "c.txt"), "c\n");
+      spawnSync("git", ["add", "c.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit c"], { cwd: tmpRepo });
+
+      const newSha = await linearizeRangeAsCommit(baseSha, "Squash: b and c", makeRealExecApi(tmpRepo));
+
+      const actualHead = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      expect(newSha).toBe(actualHead);
+
+      // Exactly one commit above baseSha
+      const commitCount = Number(spawnSync("git", ["rev-list", "--count", `${baseSha}..HEAD`], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim());
+      expect(commitCount).toBe(1);
+
+      // Parent of new HEAD is the original baseSha
+      const parentSha = spawnSync("git", ["rev-parse", "HEAD^"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      expect(parentSha).toBe(baseSha);
+
+      // Both files are present in the working tree
+      expect(fs.existsSync(path.join(tmpRepo, "b.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(tmpRepo, "c.txt"))).toBe(true);
+    });
+
+    it("preserves the working tree contents of the agent's last commit after linearization", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      // Simulate agent creating a file, then modifying it in a second commit
+      fs.writeFileSync(path.join(tmpRepo, "work.txt"), "v1\n");
+      spawnSync("git", ["add", "work.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "create work.txt v1"], { cwd: tmpRepo });
+
+      fs.writeFileSync(path.join(tmpRepo, "work.txt"), "v2\n");
+      spawnSync("git", ["add", "work.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "update work.txt to v2"], { cwd: tmpRepo });
+
+      await linearizeRangeAsCommit(baseSha, "Squash agent work", makeRealExecApi(tmpRepo));
+
+      // The squashed commit must contain the final file content, not an intermediate state
+      expect(fs.readFileSync(path.join(tmpRepo, "work.txt"), "utf8")).toBe("v2\n");
+    });
+
+    it("restores original HEAD when the baseRef does not exist", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      // Add a commit so there is work to preserve
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit b"], { cwd: tmpRepo });
+
+      const headBeforeLinearize = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      await expect(linearizeRangeAsCommit("nonexistent-ref-that-does-not-exist", "msg", makeRealExecApi(tmpRepo))).rejects.toThrow(/Failed to linearize/);
+
+      // HEAD must be restored to the SHA it held before the failed call
+      const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      expect(headAfter).toBe(headBeforeLinearize);
+    });
+  });
 });
