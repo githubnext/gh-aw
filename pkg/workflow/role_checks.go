@@ -23,6 +23,12 @@ func (c *Compiler) generateMembershipCheck(data *WorkflowData, steps []string) [
 		steps = append(steps, "      - name: Check team membership for workflow\n")
 	}
 	steps = append(steps, fmt.Sprintf("        id: %s\n", constants.CheckMembershipStepID))
+	// For command workflows the command position check runs first (before this step).
+	// Only run the membership check when the command was actually triggered to avoid
+	// a confusing "access denied" warning on every non-slash-command activation.
+	if len(data.Command) > 0 {
+		steps = append(steps, fmt.Sprintf("        if: steps.%s.outputs.%s == 'true'\n", constants.CheckCommandPositionStepID, constants.CommandPositionOkOutput))
+	}
 	steps = append(steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)))
 
 	// Add environment variables for permission check

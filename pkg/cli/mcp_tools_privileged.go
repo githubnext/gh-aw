@@ -32,6 +32,16 @@ const (
 	// single long-running request could otherwise block all callers for an arbitrarily
 	// long time.
 	maxMCPLogsSubprocessTimeoutMinutes = 60
+
+	// defaultMCPAuditTimeoutMinutes is the default subprocess timeout for the audit
+	// tool.  Auditing a single run typically takes 5–30 s, but large runs with many
+	// artifact sets can take longer.  5 minutes gives ample headroom while still
+	// bounding the subprocess lifetime.
+	defaultMCPAuditTimeoutMinutes = 5
+	// defaultMCPAuditDiffTimeoutMinutes is the default subprocess timeout for the
+	// audit-diff tool.  5 minutes gives ample headroom for the artifact-download
+	// and diff steps while still bounding the subprocess lifetime.
+	defaultMCPAuditDiffTimeoutMinutes = 5
 )
 
 // appendRepoFlagFromEnv appends "--repo <owner/repo>" to args when GITHUB_REPOSITORY
@@ -45,6 +55,43 @@ func appendRepoFlagFromEnv(args []string) []string {
 		return append(args, "--repo", repo)
 	}
 	return args
+}
+
+// newMCPSubprocessContext creates a subprocess context that is detached from the
+// MCP gateway's per-request deadline.  The gateway imposes a short RPC deadline
+// (typically 60 s) on the request context; passing that context directly to
+// exec.CommandContext would kill long-running subprocesses prematurely.
+//
+// The returned context is rooted at context.Background() (values preserved,
+// gateway deadline stripped) and carries only the caller-specified timeout.
+// A goroutine is started to forward explicit client cancellations
+// (context.Canceled) to the subprocess while ignoring DeadlineExceeded from
+// the gateway.
+//
+// toolName is used solely in the panic-recovery log message.
+func newMCPSubprocessContext(ctx context.Context, timeout time.Duration, toolName string) (context.Context, context.CancelFunc) {
+	subCtx, subCancel := context.WithTimeout(
+		context.WithoutCancel(ctx),
+		timeout,
+	)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				mcpLog.Printf("Panic in MCP %s context-watcher goroutine (recovered): %v", toolName, r)
+			}
+		}()
+		// Only forward explicit cancellations (context.Canceled); do NOT propagate
+		// context.DeadlineExceeded from the MCP gateway — that would kill the subprocess
+		// at the gateway's 60 s RPC deadline and defeat the purpose of this fix.
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.Canceled {
+				subCancel() // propagate client disconnect to subprocess
+			}
+		case <-subCtx.Done(): // subprocess timed out or caller already cancelled
+		}
+	}()
+	return subCtx, subCancel
 }
 
 // logsArgs holds the input parameters for the logs tool.
@@ -486,11 +533,15 @@ Multi-run diff returns JSON describing changes between the base and each compari
 
 		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
 
+		// Detach from the gateway's per-tool RPC deadline; see newMCPSubprocessContext.
+		subCtx, subCancel := newMCPSubprocessContext(ctx, time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute, "audit")
+		defer subCancel()
+
 		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+		stdout, err := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
 
 		// The audit command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.
@@ -619,7 +670,11 @@ Returns JSON describing the differences between the base run and each comparison
 
 		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
 
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+		// Detach from the gateway's per-tool RPC deadline; see newMCPSubprocessContext.
+		subCtx, subCancel := newMCPSubprocessContext(ctx, time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute, "audit-diff")
+		defer subCancel()
+
+		stdout, err := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
 		outputStr := string(stdout)
 
 		if err != nil {

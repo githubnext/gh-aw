@@ -54,6 +54,8 @@ safe-outputs:
     run-success: 🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅
   submit-pull-request-review:
     max: 1
+features:
+  gh-aw-detection: true
 sandbox:
   agent:
     sudo: false

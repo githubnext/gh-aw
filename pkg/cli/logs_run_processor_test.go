@@ -148,6 +148,7 @@ func TestTryLoadCachedRunResultBypassesForExplicitEvalsArtifactRequest(t *testin
 		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, string(ArtifactSetAll)))
 
 	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 123}, runOutputDir, concurrentRunDownloadParams{
 		evalsOnly:              false,
@@ -168,13 +169,78 @@ func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
 			DatabaseID: 124,
 		},
 	}
+
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, string(ArtifactSetAll)))
 
 	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 124}, runOutputDir, concurrentRunDownloadParams{
 		evalsOnly:              false,
 		evalsArtifactRequested: false,
 		verbose:                false,
 	})
+	require.True(t, ok)
+	require.NotNil(t, result)
+	assert.True(t, result.Cached)
+}
+
+func TestTryLoadCachedRunResultBypassesCacheWhenRequestedArtifactIsMissing(t *testing.T) {
+	runOutputDir := t.TempDir()
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       125,
+		ProcessedAt: time.Now(),
+		Run:         WorkflowRun{DatabaseID: 125},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 125}, runOutputDir, concurrentRunDownloadParams{
+		artifactFilter: []string{"agent"},
+	})
+
+	assert.False(t, ok)
+	assert.Nil(t, result)
+}
+
+func TestTryLoadCachedRunResultUsesCacheWhenRequestedArtifactsArePresent(t *testing.T) {
+	runOutputDir := t.TempDir()
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       126,
+		ProcessedAt: time.Now(),
+		Run:         WorkflowRun{DatabaseID: 126},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "usage"))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 126}, runOutputDir, concurrentRunDownloadParams{
+		artifactFilter: []string{"activation", "usage"},
+	})
+
+	require.True(t, ok)
+	require.NotNil(t, result)
+	assert.True(t, result.Cached)
+}
+
+func TestTryLoadCachedRunResultRequiresCompleteMarkerForAllArtifacts(t *testing.T) {
+	runOutputDir := t.TempDir()
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       127,
+		ProcessedAt: time.Now(),
+		Run:         WorkflowRun{DatabaseID: 127},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "usage"))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 127}, runOutputDir, concurrentRunDownloadParams{})
+	assert.False(t, ok)
+	assert.Nil(t, result)
+
+	require.NoError(t, markArtifactDownloaded(runOutputDir, string(ArtifactSetAll)))
+	result, ok = tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 127}, runOutputDir, concurrentRunDownloadParams{})
 	require.True(t, ok)
 	require.NotNil(t, result)
 	assert.True(t, result.Cached)
@@ -199,6 +265,7 @@ func TestTryLoadCachedRunResultPersistsSafeItemsCountAfterBackfill(t *testing.T)
 		},
 	}
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, string(ArtifactSetAll)))
 
 	// Write a usage/activity/summary.json so backfill has something to pull from.
 	activityPath := filepath.Join(runOutputDir, "usage", "activity", "summary.json")

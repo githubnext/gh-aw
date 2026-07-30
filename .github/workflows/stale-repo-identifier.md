@@ -26,6 +26,7 @@ strict: true
 timeout-minutes: 45
 
 imports:
+  - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - uses: shared/daily-audit-charts.md
     with:

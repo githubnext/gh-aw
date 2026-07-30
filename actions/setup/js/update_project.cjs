@@ -426,7 +426,7 @@ async function findExistingItemByContentId(github, projectId, contentId) {
  * @param {string} fieldName - Field name from YAML
  * @param {unknown} fieldValue - Field value from YAML
  * @param {RegExp} datePattern - Pattern to validate date values (YYYY-MM-DD)
- * @returns {"DATE" | "TEXT" | "SINGLE_SELECT"}
+ * @returns {"DATE" | "TEXT" | "NUMBER" | "SINGLE_SELECT"}
  */
 function inferFieldDataType(fieldName, fieldValue, datePattern) {
   const isDateField = fieldName.toLowerCase().includes("date");
@@ -438,6 +438,9 @@ function inferFieldDataType(fieldName, fieldValue, datePattern) {
   }
   if (isTextField) {
     return "TEXT";
+  }
+  if (typeof fieldValue === "number" && Number.isFinite(fieldValue)) {
+    return "NUMBER";
   }
   return "SINGLE_SELECT";
 }
@@ -498,13 +501,40 @@ async function applyFieldUpdates(github, projectId, itemId, fields) {
     const expectedDataType = inferFieldDataType(fieldName, fieldValue, datePattern);
     const isDateField = fieldName.toLowerCase().includes("date");
     const isTextField = expectedDataType === "TEXT";
+    const isNumberField = expectedDataType === "NUMBER";
 
     if (checkFieldTypeMismatch(fieldName, field, expectedDataType)) {
       continue;
     }
 
     if (!field) {
-      if (isDateField) {
+      if (isNumberField) {
+        try {
+          field = (
+            await github.graphql(
+              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+                createProjectV2Field(input: {
+                  projectId: $projectId,
+                  name: $name,
+                  dataType: $dataType
+                }) {
+                  projectV2Field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                      dataType
+                    }
+                  }
+                }
+              }`,
+              { projectId, name: normalizedFieldName, dataType: "NUMBER" }
+            )
+          ).createProjectV2Field.projectV2Field;
+        } catch (createError) {
+          core.warning(`Failed to create number field "${fieldName}": ${getErrorMessage(createError)}`);
+          continue;
+        }
+      } else if (isDateField) {
         if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
           try {
             field = (

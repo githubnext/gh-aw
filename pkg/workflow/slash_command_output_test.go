@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -13,6 +14,56 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// TestSlashCommandMembershipCheckConditional verifies that for slash_command workflows the
+// check_command_position step runs before check_membership and that check_membership carries
+// an if: condition so it is skipped when the slash command was not present in the trigger text.
+// This prevents a confusing "access denied" warning on every issue-opened event.
+func TestSlashCommandMembershipCheckConditional(t *testing.T) {
+	tempDir := t.TempDir()
+
+	workflowContent := `---
+name: Test Slash Command Roles
+on:
+  slash_command:
+    name: fix
+permissions:
+  contents: read
+engine: copilot
+---
+
+Test workflow content
+`
+
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	err := os.WriteFile(workflowPath, []byte(workflowContent), 0644)
+	require.NoError(t, err)
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err, "Failed to compile workflow")
+
+	lockFilePath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockFilePath)
+	require.NoError(t, err)
+	compiled := string(lockContent)
+
+	// check_command_position must appear before check_membership in the pre_activation steps.
+	cmdIdx := strings.Index(compiled, "id: check_command_position")
+	membershipIdx := strings.Index(compiled, "id: check_membership")
+	require.NotEqual(t, -1, cmdIdx, "Expected check_command_position step in compiled workflow")
+	require.NotEqual(t, -1, membershipIdx, "Expected check_membership step in compiled workflow")
+	assert.Less(t, cmdIdx, membershipIdx, "check_command_position must appear before check_membership")
+
+	// check_membership must carry an if: condition referencing check_command_position.
+	membershipSection := compiled[membershipIdx:]
+	nextStepIdx := strings.Index(membershipSection[1:], "\n      - ")
+	if nextStepIdx != -1 {
+		membershipSection = membershipSection[:nextStepIdx+1]
+	}
+	assert.Contains(t, membershipSection, "check_command_position.outputs.command_position_ok",
+		"check_membership step must be conditional on command_position_ok for slash_command workflows")
+}
 
 // TestSlashCommandOutputReferencesPreActivation ensures that the slash_command output
 // in the activation job references needs.pre_activation.outputs.matched_command
