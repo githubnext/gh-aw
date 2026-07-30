@@ -177,3 +177,23 @@ that a true binary-payload variant of large/xlarge cells could plausibly breach 
 ~1.3× sooner than the text-based baseline suggests — worth a dedicated one-off check
 near idx126-127 territory (xlarge, only ~38 KB headroom under text convention; binary
 content there could realistically breach 4096 KB).
+
+## Run 2026-07-30: idx152-155 (batch-small tier closed + batch-medium clean tier)
+
+- **idx152 batch-small-diverged-merge_msg: PASS.** 76.74 KB/100f/2c (two-dot authoritative).
+  Three-dot phantom +447B/+1 file reconfirmed. **batch-small tier now TRULY 9/9 complete**
+  (prior run's "9/9" claim was off-by-one; this was the missing cell). ff-on-feature-tip
+  holds under main/feature divergence; merge_msg filename leak + single-parent/no-merges
+  reconfirmed again.
+- **idx153/154/155 batch-medium clean (single/multi/merge_msg): ALL PASS.** 200 KB payload,
+  100 files → 221.95 / 230.72 / 230.17 KB (~11-15% framing, ~223 B/file header cost).
+  Confirms law: framing % keeps dropping as per-file payload grows (batch-small ~44% →
+  batch-medium ~11-15% → large/xlarge tiers ~1-2%). disjoint-multi(154) vs single-baseline
+  in-same-run ratio ~1.002x (per-commit overhead only ~285 B, lower than earlier ~0.87-0.97 KB
+  estimate — likely author/date line length variance, not a contradiction). merge_msg(155)
+  filename leak + single-parent reconfirmed at this payload size too. All far under caps
+  (~5.6% of 4096 KB, 100/200 files).
+- **Next index: 156** = tiny-none-batch-medium-ahead-single. Remaining to close batch-medium
+  tier: ahead×3 + diverged×3 (idx156-161). Still zero real fail/error/rejected across 156
+  cells — first realistic rejection candidate remains SIZE>tiny (idx720+) or a same-file
+  re-append multi-commit shape, per earlier analysis.
