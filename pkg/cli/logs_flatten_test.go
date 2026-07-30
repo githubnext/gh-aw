@@ -93,6 +93,14 @@ func TestFlattenSingleFileArtifacts(t *testing.T) {
 			expectedDirs: []string{"empty-artifact"},
 		},
 		{
+			name: "downloaded artifact markers are not flattened",
+			setup: func(dir string) error {
+				return markArtifactDownloaded(dir, string(ArtifactSetAll))
+			},
+			expectedDirs:  []string{downloadedArtifactsMarkerDir},
+			expectedFiles: []string{downloadedArtifactsMarkerDir + "/all"},
+		},
+		{
 			name: "regular files in output dir not affected",
 			setup: func(dir string) error {
 				// Create a regular file in output dir
