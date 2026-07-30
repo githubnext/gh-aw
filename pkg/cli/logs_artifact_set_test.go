@@ -345,6 +345,26 @@ func TestIsUsageOnlyArtifactFilter(t *testing.T) {
 	}
 }
 
+func TestShouldDownloadWorkflowRunLogs(t *testing.T) {
+	tests := []struct {
+		name     string
+		filter   []string
+		expected bool
+	}{
+		{name: "all artifacts", filter: nil, expected: true},
+		{name: "usage only", filter: []string{"usage"}, expected: false},
+		{name: "activation and usage", filter: []string{"activation", "usage"}, expected: false},
+		{name: "agent", filter: []string{"agent"}, expected: true},
+		{name: "agent and usage", filter: []string{"agent", "usage"}, expected: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, shouldDownloadWorkflowRunLogs(tt.filter))
+		})
+	}
+}
+
 func TestFindMissingFilterEntries(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -409,4 +429,65 @@ func TestFindMissingFilterEntries(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "findMissingFilterEntries(%v, dir)", tt.filter)
 		})
 	}
+}
+
+func TestFindMissingFilterEntriesUsesDownloadedMarkers(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, markArtifactDownloaded(dir, "activation"))
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-usage"))
+
+	assert.Nil(t, findMissingFilterEntries([]string{"activation", "usage"}, dir))
+	assert.Equal(t, []string{"agent"}, findMissingFilterEntries([]string{"activation", "agent"}, dir))
+}
+
+func TestFindMissingFilterEntriesAllMarkerSatisfiesFiltered(t *testing.T) {
+	// A complete-download marker (ArtifactSetAll) should satisfy every filtered
+	// request even when individual artifact directories no longer exist (e.g. after
+	// flattenSingleFileArtifacts removes them).
+	dir := t.TempDir()
+	require.NoError(t, markArtifactDownloaded(dir, string(ArtifactSetAll)))
+
+	assert.Nil(t, findMissingFilterEntries([]string{"activation"}, dir))
+	assert.Nil(t, findMissingFilterEntries([]string{"activation", "usage"}, dir))
+	assert.Nil(t, findMissingFilterEntries([]string{string(ArtifactSetAll)}, dir))
+}
+
+func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
+	err := markArtifactDownloaded(t.TempDir(), "../activation")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid artifact name")
+}
+
+// TestFindMissingFilterEntriesIncrementalScenario validates the key scenario used by
+// the incremental unfiltered download: a previous filtered pass wrote per-artifact
+// markers with the full API artifact name (e.g. "abc123-activation"), and the
+// subsequent unfiltered pass supplies the same full names to findMissingFilterEntries
+// to determine which are still missing.
+func TestFindMissingFilterEntriesIncrementalScenario(t *testing.T) {
+	dir := t.TempDir()
+
+	// Simulate a previous filtered download that wrote markers with full API artifact names.
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-activation"))
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-usage"))
+
+	// The unfiltered incremental check passes full API names as the filter.
+	// activation and usage are found via their exact-match markers; agent is missing.
+	result := findMissingFilterEntries([]string{"abc123-activation", "abc123-usage", "abc123-agent"}, dir)
+	assert.Equal(t, []string{"abc123-agent"}, result)
+
+	// After downloading agent (marker written), nothing is missing.
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-agent"))
+	assert.Nil(t, findMissingFilterEntries([]string{"abc123-activation", "abc123-usage", "abc123-agent"}, dir))
+}
+
+// TestFindMissingFilterEntriesAllMarkerSatisfiesFullNames verifies that the
+// complete-download marker satisfies a filter containing full API artifact names
+// (as used by the incremental unfiltered download check).
+func TestFindMissingFilterEntriesAllMarkerSatisfiesFullNames(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, markArtifactDownloaded(dir, string(ArtifactSetAll)))
+
+	// Full API artifact names — all satisfied by the 'all' marker.
+	assert.Nil(t, findMissingFilterEntries([]string{"abc123-activation", "abc123-usage", "abc123-agent"}, dir))
+	assert.Nil(t, findMissingFilterEntries([]string{"activation", "usage", "agent"}, dir))
 }

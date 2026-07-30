@@ -364,6 +364,60 @@ describe("ai_credits_context parseUnknownModelAICreditsAndModelFromAuditLog", ()
   });
 });
 
+describe("ai_credits_context parseMaxCacheMissesExceededFromEventLog", () => {
+  let tmpDir;
+  let parseMaxCacheMissesExceededFromEventLog;
+
+  beforeEach(async () => {
+    vi.resetModules();
+    tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aic-cache-misses-test-"));
+    delete process.env.GH_AW_AGENT_OUTPUT;
+    const mod = await import("./ai_credits_context.cjs");
+    const exports = mod.default || mod;
+    parseMaxCacheMissesExceededFromEventLog = exports.parseMaxCacheMissesExceededFromEventLog;
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    delete process.env.GH_AW_AGENT_OUTPUT;
+  });
+
+  function writeEventLog(lines, filename = "event-logs.jsonl") {
+    const logDir = path.join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs");
+    fs.mkdirSync(logDir, { recursive: true });
+    const logPath = path.join(logDir, filename);
+    fs.writeFileSync(logPath, lines.map(l => JSON.stringify(l)).join("\n") + "\n", "utf8");
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    return logPath;
+  }
+
+  it("detects max_cache_misses_exceeded in event-logs.jsonl", () => {
+    writeEventLog([{ type: "max_cache_misses_exceeded", consecutive_cache_misses: 6, max_cache_misses: 5 }]);
+    expect(parseMaxCacheMissesExceededFromEventLog()).toBe(true);
+  });
+
+  it("detects max_cache_misses_exceeded in events.jsonl fallback", () => {
+    writeEventLog([{ type: "max_cache_misses_exceeded", consecutive_cache_misses: 7, max_cache_misses: 5 }], "events.jsonl");
+    expect(parseMaxCacheMissesExceededFromEventLog()).toBe(true);
+  });
+
+  it("returns false when no matching event is present", () => {
+    writeEventLog([{ type: "response", status: 200 }]);
+    expect(parseMaxCacheMissesExceededFromEventLog()).toBe(false);
+  });
+
+  it("returns false for missing event log", () => {
+    process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "output.json");
+    expect(parseMaxCacheMissesExceededFromEventLog("/nonexistent/path/event-logs.jsonl")).toBe(false);
+  });
+
+  it("does not detect other error types", () => {
+    writeEventLog([{ type: "unknown_model_ai_credits" }]);
+    expect(parseMaxCacheMissesExceededFromEventLog()).toBe(false);
+  });
+});
+
 describe("ai_credits_context parseMaxAICreditsFromAuditLog", () => {
   let tmpDir;
   /** @type {(path?: string) => string} */

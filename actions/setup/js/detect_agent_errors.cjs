@@ -45,7 +45,7 @@
 
 const fs = require("fs");
 const { MAX_RUNS_EXCEEDED_PATTERNS, isMaxRunsExceededError } = require("./harness_retry_guard.cjs");
-const { parseUnknownModelAICreditsAndModelFromAuditLog } = require("./ai_credits_context.cjs");
+const { parseUnknownModelAICreditsAndModelFromAuditLog, parseMaxCacheMissesExceededFromEventLog } = require("./ai_credits_context.cjs");
 
 const LOG_FILE = "/tmp/gh-aw/agent-stdio.log";
 
@@ -121,6 +121,17 @@ function buildCombinedPattern(patterns) {
 // The pooled per-run invocation budget is saturated — retries cannot make progress.
 const INVOCATION_CAP_EXCEEDED_PATTERN = buildCombinedPattern(MAX_RUNS_EXCEEDED_PATTERNS);
 
+// Pattern: AWF API proxy consecutive cache miss limit exceeded.
+// The AWF API proxy (engine-agnostic) enforces a configurable limit on back-to-back
+// requests that miss the prompt cache (apiProxy.maxCacheMisses, default 5). When the
+// limit is reached it rejects further requests with HTTP 403 and error type
+// "max_cache_misses_exceeded". Two observable forms:
+//   1) JSON error type in provider API response:  "max_cache_misses_exceeded"
+//   2) Human-readable message from SDK wrapper:   "Maximum consecutive cache misses exceeded"
+// Structured events from the AWF API proxy event log are checked separately via
+// parseMaxCacheMissesExceededFromEventLog().
+const MAX_CACHE_MISSES_EXCEEDED_PATTERN = /(?:\bmax_cache_misses_exceeded\b|\bmaximum\s+consecutive\s+cache\s+misses\s+exceeded\b)/i;
+
 /**
  * Determines if the collected output contains the observed Copilot/CAPI quota exhaustion error.
  * @param {string} output - Collected stdout+stderr from the process
@@ -140,6 +151,17 @@ function isCAPIQuotaExceededError(output) {
  */
 function isInvocationCapExceededError(output) {
   return isMaxRunsExceededError(output);
+}
+
+/**
+ * Determines if the collected output indicates the AWF API proxy cache miss limit is exceeded.
+ * Checks the agent stdio log for the text-form signal. The structured AWF API proxy event log
+ * is checked separately in detectErrors() via parseMaxCacheMissesExceededFromEventLog().
+ * @param {string} output - Collected stdout+stderr from the process
+ * @returns {boolean}
+ */
+function isMaxCacheMissesExceededError(output) {
+  return MAX_CACHE_MISSES_EXCEEDED_PATTERN.test(output);
 }
 
 /**
@@ -164,7 +186,7 @@ function extractMissingModelPricingModelName(logContent) {
 /**
  * Detect known error patterns in a log string and return detection results.
  * @param {string} logContent - Contents of the agent stdio log
- * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }}
+ * @returns {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }}
  */
 function detectErrors(logContent) {
   const missingModelPricingModelName = extractMissingModelPricingModelName(logContent);
@@ -176,6 +198,7 @@ function detectErrors(logContent) {
     http400ResponseError: HTTP_400_RESPONSE_ERROR_PATTERN.test(logContent),
     capiQuotaExceededError: isCAPIQuotaExceededError(logContent),
     invocationCapExceeded: isInvocationCapExceededError(logContent),
+    maxCacheMissesExceeded: isMaxCacheMissesExceededError(logContent),
     missingModelPricingError: missingModelPricingModelName !== "",
     missingModelPricingModelName,
   };
@@ -183,7 +206,7 @@ function detectErrors(logContent) {
 
 /**
  * Build GitHub Actions output lines from detection results.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
  * @returns {string[]}
  */
 function buildOutputLines(results) {
@@ -196,6 +219,7 @@ function buildOutputLines(results) {
     `http_400_response_error=${results.http400ResponseError}`,
     `capi_quota_exceeded_error=${effectiveCAPIQuotaExceeded}`,
     `invocation_cap_exceeded=${results.invocationCapExceeded}`,
+    `max_cache_misses_exceeded=${results.maxCacheMissesExceeded}`,
     `missing_model_pricing_error=${results.missingModelPricingError}`,
     `missing_model_pricing_model_name=${results.missingModelPricingModelName}`,
   ];
@@ -203,7 +227,7 @@ function buildOutputLines(results) {
 
 /**
  * Write GitHub Actions outputs to $GITHUB_OUTPUT.
- * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
+ * @param {{ inferenceAccessError: boolean, mcpPolicyError: boolean, agenticEngineTimeout: boolean, modelNotSupportedError: boolean, http400ResponseError: boolean, capiQuotaExceededError: boolean, invocationCapExceeded: boolean, maxCacheMissesExceeded: boolean, missingModelPricingError: boolean, missingModelPricingModelName: string }} results
  */
 function writeOutputs(results) {
   const outputFile = process.env.GITHUB_OUTPUT;
@@ -244,8 +268,17 @@ function main() {
     process.stderr.write(`[detect-agent-errors] Detected missing model pricing from firewall structured log: model "${auditModelName}" has no AI credits pricing configured\n`);
   }
 
+  // Also check the AWF API proxy event logs for the `max_cache_misses_exceeded` structured
+  // event. This covers all engines since the proxy guardrail fires independently of the
+  // underlying AI engine.
+  const eventLogCacheMissesExceeded = parseMaxCacheMissesExceededFromEventLog();
+  if (eventLogCacheMissesExceeded && !stdioResults.maxCacheMissesExceeded) {
+    process.stderr.write("[detect-agent-errors] Detected max cache misses exceeded from AWF API proxy event log\n");
+  }
+
   const results = {
     ...stdioResults,
+    maxCacheMissesExceeded: stdioResults.maxCacheMissesExceeded || eventLogCacheMissesExceeded,
     missingModelPricingError: stdioResults.missingModelPricingError || auditMissingPricing,
     missingModelPricingModelName: stdioResults.missingModelPricingModelName || sanitizeModelName(auditModelName),
   };
@@ -271,6 +304,9 @@ function main() {
   if (results.invocationCapExceeded) {
     process.stderr.write("[detect-agent-errors] Detected invocation cap exhaustion: the pooled per-run LLM invocation budget is fully saturated\n");
   }
+  if (results.maxCacheMissesExceeded) {
+    process.stderr.write("[detect-agent-errors] Detected max cache misses exceeded: the AWF API proxy consecutive cache miss limit was reached\n");
+  }
   if (results.missingModelPricingError && !auditMissingPricing) {
     process.stderr.write(`[detect-agent-errors] Detected missing model pricing: model "${results.missingModelPricingModelName}" has no AI credits pricing configured\n`);
   }
@@ -287,6 +323,7 @@ module.exports = {
   extractMissingModelPricingModelName,
   isCAPIQuotaExceededError,
   isInvocationCapExceededError,
+  isMaxCacheMissesExceededError,
   INFERENCE_ACCESS_ERROR_PATTERN,
   MCP_POLICY_BLOCKED_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
@@ -294,6 +331,7 @@ module.exports = {
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
   INVOCATION_CAP_EXCEEDED_PATTERN,
+  MAX_CACHE_MISSES_EXCEEDED_PATTERN,
   MISSING_MODEL_PRICING_PATTERN,
   buildOutputLines,
 };

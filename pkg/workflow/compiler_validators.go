@@ -193,6 +193,7 @@ func (c *Compiler) validateCoreToolConfiguration(workflowData *WorkflowData, mar
 		{logMessage: "Validating private-to-public-flows string value", validateFn: func() error { return validatePrivateToPublicFlowsStringValue(workflowData) }},
 		{logMessage: "Validating private-to-public-flows server IDs", validateFn: func() error { return validatePrivateToPublicFlowsServerIDs(workflowData) }},
 		{logMessage: "Validating GCP WIF engine auth required fields", validateFn: func() error { return validateGCPWIFEngineAuth(workflowData) }},
+		{logMessage: "Validating default AI credits pricing values", validateFn: func() error { return validateDefaultAiCreditsPricing(workflowData) }},
 	}
 	// This validation is intentionally outside the table below because strict mode
 	// turns the same validation result into either an error or a warning.
@@ -329,7 +330,6 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.DispatchRepository != nil, message: "Using experimental feature: dispatch-repository"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.MergePullRequest != nil, message: "Using experimental feature: merge-pull-request"},
 		{enabled: workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ReplaceLabel != nil, message: "Using experimental feature: replace-label"},
-		{enabled: workflowData.EngineConfig != nil && workflowData.EngineConfig.CopilotSDK, message: "Using experimental feature: engine.copilot-sdk"},
 		{enabled: isFeatureEnabled(constants.GHAWDetectionFeatureFlag, workflowData), message: "Using experimental feature: gh-aw-detection"},
 		{enabled: len(workflowData.LSP) > 0, message: "Using experimental feature: lsp"},
 	}

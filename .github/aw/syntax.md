@@ -9,7 +9,8 @@ Use the smallest relevant reference instead of loading one large schema file.
 | Topic | File |
 |---|---|
 | Core GitHub Actions fields (`on`, `permissions`, `runs-on`, `steps`, `env`, `secrets`) | [syntax-core.md](syntax-core.md) |
-| Agentic workflow specific fields (`strict`, `bots`, `labels`, metadata, engine-specific fields) | [syntax-agentic.md](syntax-agentic.md) |
+| Agentic workflow specific fields (`strict`, `bots`, `labels`, metadata) | [syntax-agentic.md](syntax-agentic.md) |
+| `engine:` field detail (per-engine support, inline drivers, auth) | [syntax-engine.md](syntax-engine.md) |
 | Cache configuration, tools, imports, and permission patterns | [syntax-tools-imports.md](syntax-tools-imports.md) |
 | `skills` field | [skills.md](skills.md) |
 | `lsp` field | [lsp.md](lsp.md) |

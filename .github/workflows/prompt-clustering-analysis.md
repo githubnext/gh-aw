@@ -94,17 +94,17 @@ steps:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     run: |
       # Create logs directory
-      mkdir -p /tmp/gh-aw/agent/workflow-logs
+      mkdir -p .github/aw/logs
       
       echo "Downloading workflow logs to extract turn counts..."
       
       # Download logs for the last 30 days of copilot workflows
       # This will give us the aw_info.json which contains turn counts
-      ./gh-aw logs --engine copilot --start-date -30d -o /tmp/gh-aw/agent/workflow-logs
+      ./gh-aw logs --engine copilot --start-date -30d -o .github/aw/logs
       
       # Verify logs were downloaded
       echo "Downloaded workflow logs:"
-      find /tmp/gh-aw/agent/workflow-logs -maxdepth 1 -ls
+      find .github/aw/logs -maxdepth 1 -ls
 
 timeout-minutes: 20
 features:

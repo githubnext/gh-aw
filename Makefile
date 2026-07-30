@@ -38,7 +38,7 @@ all: build
 
 # Build the binary, run make deps before this
 .PHONY: build
-build: sync-action-pins sync-action-scripts
+build: sync-action-pins sync-action-scripts sync-compat
 	go build $(LDFLAGS) -o $(BINARY_NAME) ./cmd/gh-aw
 
 # Build for all platforms
@@ -1105,6 +1105,16 @@ sync-action-scripts:
 	@cp install-gh-aw.ps1 actions/setup-cli/install.ps1
 	@echo "✓ Action scripts synced successfully"
 
+# Sync max-agent in the latest compat.json interval with DefaultCopilotVersion
+.PHONY: sync-compat
+sync-compat:
+	@bash scripts/sync-compat.sh
+
+# Check that compat.json is in sync with DefaultCopilotVersion (CI gate)
+.PHONY: check-stale-compat
+check-stale-compat:
+	@bash scripts/sync-compat.sh --check
+
 # Sync install-gh-aw.sh SHA/hash constants in pkg/cli/copilot_setup.go
 .PHONY: sync-install-script-hashes
 sync-install-script-hashes:
@@ -1301,6 +1311,8 @@ help:
 	@echo "  install          - Install binary locally"
 	@echo "  sync-action-pins - Sync actions-lock.json from .github/aw to pkg/actionpins/data and pkg/workflow/data (runs automatically during build)"
 	@echo "  sync-action-scripts - Sync install-gh-aw.sh and install-gh-aw.ps1 to actions/setup-cli/ (runs automatically during build)"
+	@echo "  sync-compat      - Sync max-agent in .github/aw/compat.json latest interval with DefaultCopilotVersion (runs automatically during build)"
+	@echo "  check-stale-compat - Guard: detect when compat.json max-agent is out of sync with DefaultCopilotVersion"
 	@echo "  sync-install-script-hashes - Update install-gh-aw.sh SHA and SHA256 constants in pkg/cli/copilot_setup.go (runs automatically during update)"
 	@echo "  update           - Update GitHub Actions and workflows, sync action pins, and rebuild binary"
 	@echo "  fix              - Apply automatic codemod-style fixes to workflow files (depends on build)"

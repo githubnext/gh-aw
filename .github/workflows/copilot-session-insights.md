@@ -44,6 +44,7 @@ tools:
   timeout: 300
 
 imports:
+  - shared/mcp-pagination.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[copilot-session-insights] "

@@ -22,6 +22,8 @@ All functions emit debug output only when `DEBUG=fileutil:*` is active, and neve
 | `CopyFile` | `func(src, dst string) error` | Copies the file at `src` to `dst` using buffered I/O; calls `Sync` on the destination before closing; removes the partial destination file on write error |
 | `EnsureParentDir` | `func(path string, perm os.FileMode) error` | Ensures the parent directory of `path` exists, creating it recursively with the given permissions; returns an error for empty paths |
 | `ExtractFileFromTar` | `func(data []byte, path string) ([]byte, error)` | Extracts a single file by `path` from a tar archive; rejects unsafe entry names (absolute or `..`-containing paths) using `filepath.IsLocal` |
+| `ValidateExecutablePath` | `func(path string) (string, error)` | Validates that `path` is absolute, resolves symlinks, points to a regular file, and (on non-Windows platforms) is executable; returns the resolved, cleaned path |
+| `ResolveExecutablePath` | `func(name string) (string, error)` | Resolves `name` from `PATH` via `exec.LookPath`, makes the result absolute if necessary, and validates it with `ValidateExecutablePath` |
 
 **Behavioral contracts**:
 
@@ -30,6 +32,8 @@ All functions emit debug output only when `DEBUG=fileutil:*` is active, and neve
 - `IsDirEmpty` MUST return `true` when the directory cannot be read (treats unreadable as empty).
 - `CopyFile` MUST call `Sync` on the destination before closing, and MUST remove the partial destination file if a write error occurs mid-copy.
 - `ExtractFileFromTar` MUST reject the caller-supplied `path` and each tar entry name that does not satisfy `filepath.IsLocal`; returns an error when the requested file is not present in the archive.
+- `ValidateExecutablePath` MUST return an error if `path` does not resolve to an existing regular file, or (on non-Windows platforms) if the file lacks any executable bit (`mode&0o111 == 0`).
+- `ResolveExecutablePath` MUST return an error for an empty `name`, and MUST return the underlying `exec.LookPath` error unchanged when `name` is not found on `PATH`.
 
 ## Usage Examples
 
@@ -57,11 +61,23 @@ content, err := fileutil.ExtractFileFromTar(tarBytes, "dist/binary")
 if err != nil {
     return fmt.Errorf("extraction failed: %w", err)
 }
+
+// Validate a fully-qualified executable path
+resolvedExe, err := fileutil.ValidateExecutablePath("/usr/local/bin/git")
+if err != nil {
+    return fmt.Errorf("invalid executable: %w", err)
+}
+
+// Resolve and validate an executable by name from PATH
+gitPath, err := fileutil.ResolveExecutablePath("git")
+if err != nil {
+    return fmt.Errorf("git not found: %w", err)
+}
 ```
 
 ## Thread Safety
 
-All exported functions are safe for concurrent use. None of them share mutable package-level state; the package-level logger variables (`fileutilLog`, `tarLog`) are read-only after package initialization.
+All exported functions are safe for concurrent use. None of them share mutable package-level state; the package-level logger variables (`fileutilLog`, `tarLog`, `executableLog`) are read-only after package initialization.
 
 ## Dependencies
 
@@ -73,6 +89,8 @@ All exported functions are safe for concurrent use. None of them share mutable p
 - `ValidatePathWithinBase` resolves symlinks before comparison, providing defence-in-depth against symlink attacks in addition to the `..` checking that `ValidateAbsolutePath` provides.
 - `ExtractFileFromTar` uses Go's standard `archive/tar` instead of an external `tar` process, ensuring cross-platform compatibility in environments where `tar` may not be on `PATH`.
 - `CopyFile` removes the partial destination file on write error to prevent leaving corrupt files behind.
+- `ValidateExecutablePath` resolves symlinks and checks the executable bit (skipped on Windows, which has no POSIX permission bits) to defend against invoking non-executable or unexpected files.
+- `ResolveExecutablePath` layers `ValidateExecutablePath` on top of `exec.LookPath` so callers get the same security guarantees whether they already have a full path or only a command name.
 - All debug output uses the `logger` package and is only emitted when `DEBUG=fileutil:*`.
 
 ---

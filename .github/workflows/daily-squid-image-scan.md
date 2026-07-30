@@ -61,6 +61,11 @@ sandbox:
   agent:
     sudo: false
 timeout-minutes: 90
+evals:
+  - id: container_images_scanned
+    question: Did the agent analyze container images for vulnerabilities, updates, and rejected licenses?
+  - id: findings_reported_or_noop
+    question: Did the agent report actionable image findings, or use noop when no findings required action?
 ---
 
 # Daily Container Image Security Scan

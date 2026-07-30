@@ -11,7 +11,15 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
-const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog, parseUnknownModelAICreditsFromAuditLog } = require("./ai_credits_context.cjs");
+const {
+  resolveFirewallAuditLogPath,
+  resolveAICreditsFailureState,
+  parseMaxAICreditsFromAuditLog,
+  parseAICreditsErrorInfoFromAuditLog,
+  parseUnknownModelAICreditsFromAuditLog,
+  parseMaxCacheMissesExceededFromEventLog,
+} = require("./ai_credits_context.cjs");
+const { MAX_CACHE_MISSES_EXCEEDED_PATTERN } = require("./detect_agent_errors.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
@@ -1982,6 +1990,33 @@ function buildEngineMaxRunsExceededContext(engineLabel) {
 }
 
 /**
+ * Detect max consecutive cache misses failures in text payloads.
+ * Returns true when content includes either the `max_cache_misses_exceeded` error type
+ * or the "Maximum consecutive cache misses exceeded" message fragment.
+ * Uses the shared MAX_CACHE_MISSES_EXCEEDED_PATTERN from detect_agent_errors for
+ * consistency with the unified detection mechanism.
+ * @param {string|null|undefined} content
+ * @returns {boolean}
+ */
+function hasEngineMaxCacheMissesExceededSignal(content) {
+  if (!content) {
+    return false;
+  }
+  return MAX_CACHE_MISSES_EXCEEDED_PATTERN.test(content);
+}
+
+/**
+ * Build dedicated context for max consecutive cache misses failures.
+ * Renders the max-cache-misses-exceeded prompt template with the active engine label.
+ * @param {string} [engineLabel]
+ * @returns {string}
+ */
+function buildEngineMaxCacheMissesExceededContext(engineLabel) {
+  const normalizedEngineLabel = (typeof engineLabel === "string" ? engineLabel : "").trim() || "AI";
+  return "\n" + renderPromptTemplate("max_cache_misses_exceeded.md", { engine_label: normalizedEngineLabel });
+}
+
+/**
  * Read and render token usage from token-usage.jsonl for inclusion in the ET computation table.
  * Returns null gracefully when files are absent, empty, or unparseable.
  * @returns {{ markdown: string, modelNames: string[] } | null} Pre-rendered per-model markdown table data, or null
@@ -2583,6 +2618,7 @@ function detectAWFFirewallStartupFailureFromLog() {
  */
 function buildEngineFailureContext(options = {}) {
   const suppressEngineRateLimit429 = options.suppressEngineRateLimit429 === true;
+  const maxCacheMissesExceededFromDetection = options.maxCacheMissesExceeded === true;
   // Derive agent-stdio.log path from the agent output file path (same directory)
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
@@ -2590,15 +2626,24 @@ function buildEngineFailureContext(options = {}) {
   // Include engine ID in failure messages when available (e.g. "copilot", "claude", "codex")
   const engineId = process.env.GH_AW_ENGINE_ID || "";
   const engineLabel = engineId ? ` \`${engineId}\`` : " AI";
+  const hasStructuredMaxCacheMissesSignal = maxCacheMissesExceededFromDetection || parseMaxCacheMissesExceededFromEventLog();
 
   try {
     if (!fs.existsSync(stdioLogPath)) {
+      if (hasStructuredMaxCacheMissesSignal) {
+        core.info("agent-stdio.log not found, but structured max cache misses signal was detected — using dedicated context message");
+        return buildEngineMaxCacheMissesExceededContext(engineLabel);
+      }
       core.info(`agent-stdio.log not found at ${stdioLogPath}, skipping engine failure context`);
       return "";
     }
 
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
     if (!logContent.trim()) {
+      if (hasStructuredMaxCacheMissesSignal) {
+        core.info("agent-stdio.log is empty, but structured max cache misses signal was detected — using dedicated context message");
+        return buildEngineMaxCacheMissesExceededContext(engineLabel);
+      }
       return "";
     }
 
@@ -2621,6 +2666,11 @@ function buildEngineFailureContext(options = {}) {
     if (hasEngineMaxRunsExceededSignal(logContent)) {
       core.info("Detected engine max-runs guardrail signal — using dedicated context message");
       return buildEngineMaxRunsExceededContext(engineLabel);
+    }
+
+    if (hasEngineMaxCacheMissesExceededSignal(logContent) || hasStructuredMaxCacheMissesSignal) {
+      core.info("Detected engine max cache misses signal — using dedicated context message");
+      return buildEngineMaxCacheMissesExceededContext(engineLabel);
     }
 
     const errorMessages = new Set();
@@ -3069,6 +3119,7 @@ async function main() {
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
     const http400ResponseError = process.env.GH_AW_HTTP_400_RESPONSE_ERROR === "true";
+    const maxCacheMissesExceeded = process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED === "true" && agentConclusion === "failure";
     const unknownModelAICreditsFromOutput = process.env.GH_AW_UNKNOWN_MODEL_AI_CREDITS === "true";
     const unknownModelAICreditsFromAudit = parseUnknownModelAICreditsFromAuditLog();
     const unknownModelAICredits = unknownModelAICreditsFromAudit || (unknownModelAICreditsFromOutput && agentConclusion === "failure");
@@ -3664,7 +3715,12 @@ async function main() {
         // context is the more actionable signal.
         // Also suppress when missing-model-pricing is detected: the pricing error is the
         // root cause and the engine error block would be redundant noise.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError)
+          ? buildEngineFailureContext({
+              suppressEngineRateLimit429: maxAICreditsExceeded,
+              maxCacheMissesExceeded,
+            })
+          : "";
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
@@ -4081,6 +4137,8 @@ module.exports = {
   hasEngineRateLimit429InOTELMirror,
   buildEngineMaxRunsExceededContext,
   buildEngineRateLimit429Context,
+  hasEngineMaxCacheMissesExceededSignal,
+  buildEngineMaxCacheMissesExceededContext,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,
   parseMaxAICreditsFromAuditLog,

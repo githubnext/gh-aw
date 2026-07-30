@@ -18,6 +18,8 @@ permissions:
   actions: read
   copilot-requests: write
 
+features:
+  gh-aw-detection: true
 sandbox:
   agent:
     sudo: false
@@ -32,6 +34,7 @@ engine:
   id: pi
 strict: true
 imports:
+  - shared/mcp-pagination.md
   - shared/otlp.md
 tools:
   cli-proxy: true

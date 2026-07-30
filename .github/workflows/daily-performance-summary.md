@@ -33,7 +33,7 @@ safe-outputs:
     allowed-exts: [.png, .jpg, .jpeg, .svg]
   close-discussion:
     required-title-prefix: "[daily performance] "
-timeout-minutes: 30
+timeout-minutes: 40
 imports:
   - uses: shared/daily-audit-charts.md
     with:
