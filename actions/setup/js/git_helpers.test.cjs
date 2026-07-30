@@ -1204,3 +1204,282 @@ describe("git_helpers.cjs", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Integration tests — real temporary git repositories
+// ---------------------------------------------------------------------------
+
+import { execSync, spawnSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+import { createRequire } from "module";
+
+const requireLocal = createRequire(import.meta.url);
+
+/**
+ * Build a minimal execApi shim backed by real child_process calls so that
+ * `linearizeRangeAsCommit` can be exercised end-to-end against a real repo.
+ */
+function makeRealExecApi(defaultCwd) {
+  return {
+    async exec(cmd, args, opts = {}) {
+      const cwd = opts.cwd || defaultCwd;
+      const result = spawnSync(cmd, args, { cwd, stdio: "pipe", encoding: "utf8" });
+      if (result.status !== 0) {
+        throw new Error(`${cmd} ${args.join(" ")} exited ${result.status}: ${result.stderr || result.stdout}`);
+      }
+      return { exitCode: 0 };
+    },
+    async getExecOutput(cmd, args, opts = {}) {
+      const cwd = opts.cwd || defaultCwd;
+      const result = spawnSync(cmd, args, { cwd, stdio: "pipe", encoding: "utf8" });
+      if (result.status !== 0 && !opts.ignoreReturnCode) {
+        throw new Error(`${cmd} ${args.join(" ")} exited ${result.status}: ${result.stderr || result.stdout}`);
+      }
+      return {
+        stdout: result.stdout || "",
+        stderr: result.stderr || "",
+        exitCode: result.status || 0,
+      };
+    },
+  };
+}
+
+/**
+ * Write a file and commit it in a given repo directory.
+ */
+function addCommit(repoDir, filename, content, message) {
+  fs.writeFileSync(path.join(repoDir, filename), content);
+  execSync(`git add ${filename}`, { cwd: repoDir, stdio: "pipe" });
+  execSync(`git commit -m "${message}"`, { cwd: repoDir, stdio: "pipe" });
+}
+
+describe("git_helpers.cjs - integration (real git repo)", () => {
+  let repoDir;
+  let remoteDir;
+
+  beforeEach(() => {
+    // Provide a no-op core stub (warning spy is added per-test as needed).
+    global.core = {
+      debug: () => {},
+      info: () => {},
+      warning: vi.fn(),
+      error: () => {},
+      setFailed: () => {},
+    };
+
+    // Bare remote.
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-remote-"));
+    execSync("git init --bare -b main", { cwd: remoteDir, stdio: "pipe" });
+
+    // Working repo wired to the bare remote.
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-repo-"));
+    execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir, stdio: "pipe" });
+    execSync('git config user.name "Test User"', { cwd: repoDir, stdio: "pipe" });
+    execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir, stdio: "pipe" });
+
+    // Initial commit on main then push so origin/main exists.
+    addCommit(repoDir, "README.md", "# Init\n", "init");
+    execSync("git push origin main", { cwd: repoDir, stdio: "pipe" });
+  });
+
+  afterEach(() => {
+    delete global.core;
+    if (repoDir && fs.existsSync(repoDir)) fs.rmSync(repoDir, { recursive: true, force: true });
+    if (remoteDir && fs.existsSync(remoteDir)) fs.rmSync(remoteDir, { recursive: true, force: true });
+    // Clear module cache so each test group gets a fresh import.
+    delete requireLocal.cache[requireLocal.resolve("./git_helpers.cjs")];
+  });
+
+  // -------------------------------------------------------------------------
+  describe("checkImplausibleShallowRange - real repos", () => {
+    it("returns implausible:false and the correct count for a small range in a full clone", async () => {
+      const { checkImplausibleShallowRange } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "a.txt", "A\n", "add a");
+      addCommit(repoDir, "b.txt", "B\n", "add b");
+      addCommit(repoDir, "c.txt", "C\n", "add c");
+
+      const result = checkImplausibleShallowRange("origin/main", "HEAD", { cwd: repoDir });
+      expect(result.implausible).toBe(false);
+      expect(result.commitCount).toBe(3);
+    });
+
+    it("returns implausible:false for a large range in a non-shallow clone", async () => {
+      const { checkImplausibleShallowRange } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature", { cwd: repoDir, stdio: "pipe" });
+      // Add 150 commits — above the default SHALLOW_RANGE_MAX_COMMITS (100).
+      for (let i = 1; i <= 150; i++) {
+        addCommit(repoDir, `f${i}.txt`, `${i}\n`, `commit ${i}`);
+      }
+
+      const result = checkImplausibleShallowRange("origin/main", "HEAD", { cwd: repoDir });
+      // Full clone → never implausible regardless of range size.
+      expect(result.implausible).toBe(false);
+      expect(result.commitCount).toBeGreaterThan(100);
+    });
+
+    it("returns implausible:true for a shallow clone when range exceeds threshold", async () => {
+      const shallowDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-shallow-"));
+      try {
+        // Use file:// so that --depth is honoured even for local repositories.
+        execSync(`git clone --depth=1 --branch main "file://${remoteDir}" ${shallowDir}`, { stdio: "pipe" });
+        execSync('git config user.email "test@example.com"', { cwd: shallowDir, stdio: "pipe" });
+        execSync('git config user.name "Test User"', { cwd: shallowDir, stdio: "pipe" });
+
+        // Add one commit on top so the range origin/main..HEAD is non-empty.
+        addCommit(shallowDir, "extra.txt", "extra\n", "local change");
+
+        const { checkImplausibleShallowRange } = requireLocal("./git_helpers.cjs");
+        // maxCommits:0 means any non-empty range is implausible — ensures the
+        // shallow probe runs even with a single-commit range.
+        const result = checkImplausibleShallowRange("origin/main", "HEAD", { cwd: shallowDir, maxCommits: 0 });
+        expect(result.implausible).toBe(true);
+        expect(result.commitCount).toBeGreaterThan(0);
+        expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Shallow checkout produced an implausible commit range"));
+      } finally {
+        fs.rmSync(shallowDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("hasMergeCommitsInRange - real repos", () => {
+    it("returns false for a linear range with no merge commits", async () => {
+      const { hasMergeCommitsInRange } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b linear-feature", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "x.txt", "x\n", "add x");
+      addCommit(repoDir, "y.txt", "y\n", "add y");
+
+      expect(hasMergeCommitsInRange("origin/main", "HEAD", { cwd: repoDir })).toBe(false);
+    });
+
+    it("returns true when the range contains a merge commit", async () => {
+      const { hasMergeCommitsInRange } = requireLocal("./git_helpers.cjs");
+
+      // Create a side branch diverging from main.
+      execSync("git checkout -b side", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "side.txt", "side\n", "side commit");
+
+      // Add a commit on main to ensure divergence, then merge side with --no-ff.
+      execSync("git checkout main", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "main-extra.txt", "extra\n", "main commit");
+      execSync("git push origin main", { cwd: repoDir, stdio: "pipe" });
+      execSync('git merge side --no-ff -m "merge side"', { cwd: repoDir, stdio: "pipe" });
+
+      expect(hasMergeCommitsInRange("origin/main", "HEAD", { cwd: repoDir })).toBe(true);
+    });
+
+    it("returns false for a shallow clone with a range that exceeds the threshold", async () => {
+      const shallowDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-shallow-merge-"));
+      try {
+        // Use file:// so that --depth is honoured even for local repositories.
+        execSync(`git clone --depth=1 --branch main "file://${remoteDir}" ${shallowDir}`, { stdio: "pipe" });
+        execSync('git config user.email "test@example.com"', { cwd: shallowDir, stdio: "pipe" });
+        execSync('git config user.name "Test User"', { cwd: shallowDir, stdio: "pipe" });
+        addCommit(shallowDir, "local.txt", "local\n", "local change");
+
+        const { hasMergeCommitsInRange } = requireLocal("./git_helpers.cjs");
+        // maxCommits:0 forces the implausible-range guard to fire for any non-empty range.
+        const result = hasMergeCommitsInRange("origin/main", "HEAD", { cwd: shallowDir, maxCommits: 0 });
+        // Guard fires → returns false rather than a phantom merge-commit detection.
+        expect(result).toBe(false);
+      } finally {
+        fs.rmSync(shallowDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("linearizeRangeAsCommit - real repos", () => {
+    it("collapses multiple feature commits into a single commit on top of origin/main", async () => {
+      const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "p.txt", "P\n", "add p");
+      addCommit(repoDir, "q.txt", "Q\n", "add q");
+      addCommit(repoDir, "r.txt", "R\n", "add r");
+
+      const execApi = makeRealExecApi(repoDir);
+      const gitOpts = { cwd: repoDir };
+
+      const newSha = await linearizeRangeAsCommit("origin/main", "Squash: p q r", execApi, { gitOpts });
+
+      // Must return a 40-hex SHA.
+      expect(newSha).toMatch(/^[0-9a-f]{40}$/);
+
+      // Exactly one commit on top of origin/main after linearization.
+      const countOut = spawnSync("git", ["rev-list", "--count", "origin/main..HEAD"], { cwd: repoDir, encoding: "utf8" });
+      expect(countOut.stdout.trim()).toBe("1");
+
+      // The commit message must match what was supplied.
+      const msgOut = spawnSync("git", ["log", "-1", "--format=%s"], { cwd: repoDir, encoding: "utf8" });
+      expect(msgOut.stdout.trim()).toBe("Squash: p q r");
+
+      // All three files from the feature branch must be present.
+      expect(fs.existsSync(path.join(repoDir, "p.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(repoDir, "q.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(repoDir, "r.txt"))).toBe(true);
+    });
+
+    it("throws before any git state mutation for a shallow+implausible range", async () => {
+      const shallowDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-shallow-lin-"));
+      try {
+        // Use file:// so that --depth is honoured even for local repositories.
+        execSync(`git clone --depth=1 --branch main "file://${remoteDir}" ${shallowDir}`, { stdio: "pipe" });
+        execSync('git config user.email "test@example.com"', { cwd: shallowDir, stdio: "pipe" });
+        execSync('git config user.name "Test User"', { cwd: shallowDir, stdio: "pipe" });
+        addCommit(shallowDir, "local.txt", "local\n", "local change");
+
+        const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+        const execApi = makeRealExecApi(shallowDir);
+        const gitOpts = { cwd: shallowDir };
+
+        const headBefore = spawnSync("git", ["rev-parse", "HEAD"], { cwd: shallowDir, encoding: "utf8" }).stdout.trim();
+
+        // maxCommits:0 ensures the guard triggers for any non-empty range.
+        await expect(linearizeRangeAsCommit("origin/main", "Should not commit", execApi, { gitOpts, maxCommits: 0 })).rejects.toThrow(/Refusing to linearize an implausible commit range/);
+
+        // HEAD must be unchanged — the guard fires before any reset.
+        const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: shallowDir, encoding: "utf8" }).stdout.trim();
+        expect(headAfter).toBe(headBefore);
+      } finally {
+        fs.rmSync(shallowDir, { recursive: true, force: true });
+      }
+    });
+
+    it("restores original HEAD when the commit step fails", async () => {
+      const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature-fail", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "s.txt", "S\n", "add s");
+
+      const headBefore = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+
+      // A broken execApi whose commit call always fails.
+      const brokenApi = {
+        async exec(cmd, args, opts) {
+          if (args[0] === "reset") {
+            // Allow the soft reset so the index changes.
+            return makeRealExecApi(repoDir).exec(cmd, args, opts);
+          }
+          throw new Error("commit failed intentionally");
+        },
+        async getExecOutput(cmd, args, opts) {
+          return makeRealExecApi(repoDir).getExecOutput(cmd, args, opts);
+        },
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "Should fail", brokenApi, { gitOpts: { cwd: repoDir } })).rejects.toThrow(/Failed to linearize/);
+
+      // HEAD must be rolled back to what it was before the attempt.
+      const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+      expect(headAfter).toBe(headBefore);
+    });
+  });
+});
