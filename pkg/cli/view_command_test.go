@@ -121,9 +121,10 @@ func buildViewRunDir(t *testing.T) string {
 		t.Fatalf("WriteFile events.jsonl: %v", err)
 	}
 
-	// Mark the directory as already downloaded so downloadRunArtifacts skips
-	// network calls (it returns early when the dir is non-empty and has no cached
-	// summary — it just skips the download and lets the caller process what's there).
+	// Mark all artifacts as downloaded so downloadRunArtifacts skips network calls.
+	if err := markArtifactDownloaded(runDir, string(ArtifactSetAll)); err != nil {
+		t.Fatalf("markArtifactDownloaded: %v", err)
+	}
 	return dir
 }
 
@@ -272,17 +273,15 @@ func TestViewWorkflowRun_WithSafeOutputs_ShowsSection(t *testing.T) {
 }
 
 func TestViewWorkflowRun_EmptyDir_WarnsAndReturnsNil(t *testing.T) {
-	// A run dir that is non-empty (so downloadRunArtifacts skips the network call)
-	// but contains no JSONL files → no events → warning, no error.
+	// A run dir marked as downloaded, but containing no JSONL files
+	// -> no events -> warning, no error.
 	logsDir := t.TempDir()
 	runDir := filepath.Join(logsDir, "run-1111")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	// Place a dummy file so the directory is not empty; downloadRunArtifacts will
-	// skip the download when the dir is non-empty (no valid cached summary).
-	if err := os.WriteFile(filepath.Join(runDir, "placeholder.txt"), []byte("x"), 0600); err != nil {
-		t.Fatalf("WriteFile placeholder: %v", err)
+	if err := markArtifactDownloaded(runDir, string(ArtifactSetAll)); err != nil {
+		t.Fatalf("markArtifactDownloaded: %v", err)
 	}
 
 	opts := ViewOptions{
