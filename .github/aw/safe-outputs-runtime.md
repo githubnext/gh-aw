@@ -91,6 +91,21 @@ The `report-incomplete` safe-output is enabled by default and is distinct from `
 - `allowed-domains:` - Allowed domains for URLs in safe output content (array)
   - URLs from unlisted domains are replaced with `(redacted)`
   - GitHub domains are always included by default
+- `data:` - Structured data configuration for body-based safe outputs (boolean, object, or GitHub Actions expression)
+  - Applies to `create-issue`, `add-comment`, `create-pull-request`, `create-pull-request-review-comment`, `submit-pull-request-review`, and `reply-to-pull-request-review-comment`
+  - `false` or omitted (default) - no structured `data` field accepted
+  - `true` - accept any object as the `data` field alongside `body`
+  - Inline schema object - enforce shape; supports full JSON Schema keywords (`type`, `properties`, `required`, `items`, `enum`, etc.) or shorthand (`{ verdict: string, score: number }`)
+  - `${{ ... }}` expression - resolves to one of the above at runtime
+  - Example:
+
+    ```yaml
+    safe-outputs:
+      data:
+        verdict: string
+        score: number
+      add-comment:
+    ```
 - `allowed-github-references:` - Allowed repositories for GitHub-style references (array)
   - Controls which GitHub references (`#123`, `owner/repo#456`) are allowed in workflow output
   - References to unlisted repositories are escaped with backticks to prevent timeline items
