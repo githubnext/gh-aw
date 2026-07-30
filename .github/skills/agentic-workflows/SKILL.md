@@ -35,6 +35,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/evals.md`
 - `.github/aw/experiments.md`
 - `.github/aw/github-agentic-workflows.md`
+- `.github/aw/github-mcp-server-pagination.md`
 - `.github/aw/github-mcp-server.md`
 - `.github/aw/instructions.md`
 - `.github/aw/linter-workflows.md`
@@ -64,10 +65,12 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/subagents.md`
 - `.github/aw/syntax-agentic.md`
 - `.github/aw/syntax-core.md`
+- `.github/aw/syntax-engine.md`
 - `.github/aw/syntax-tools-imports.md`
 - `.github/aw/syntax.md`
 - `.github/aw/test-coverage.md`
 - `.github/aw/test-expression.md`
+- `.github/aw/token-optimization-caching-budgets.md`
 - `.github/aw/token-optimization.md`
 - `.github/aw/triggers.md`
 - `.github/aw/update-agentic-workflow.md`
