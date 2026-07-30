@@ -48,6 +48,13 @@
       "notation": "TLA+ / Z3 / F*",
       "predicate_count": 10,
       "issue_number": null
+    },
+    "specs/intent-attribution-agent-governance.md": {
+      "slug": "intent-attribution-agent-governance",
+      "last_formalized": "2026-07-30-16-13-07",
+      "notation": "TLA+ / Z3 / F*",
+      "predicate_count": 11,
+      "issue_number": null
     }
   }
 }
