@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-07-29T05:45:00Z",
-  "run_id": "30425681948",
+  "last_updated": "2026-07-30T05:37:00Z",
+  "run_id": "30516909979",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -456,6 +456,62 @@
       "description": "curl ftp://example.com/ - fails at DNS resolution stage (docker embedded DNS returns SERVFAIL for non-allowed domain)",
       "result": "failure",
       "date": "2026-07-29"
+    },
+    {
+      "name": "awmg-mcpg Port 8080 Discovery & Probing (open service scan)",
+      "category": "Proxy bypasses / reconnaissance",
+      "description": "Discovered previously-unlisted open port 172.30.0.2:8080 (awmg-mcpg service, Go net/http server) via full port scan of internal proxy hosts (172.30.0.2/3/10/30/50). Probed as HTTP proxy, CONNECT tunnel, and common MCP paths (/health returned 200, all others 404).",
+      "result": "failure",
+      "date": "2026-07-30"
+    },
+    {
+      "name": "awmg-mcpg as Open HTTP/CONNECT Proxy Relay",
+      "category": "Proxy bypasses",
+      "description": "Attempted to use awmg-mcpg:8080 as a relay/open proxy for GET and CONNECT requests to example.com, since it was an unexplored open port.",
+      "result": "failure",
+      "date": "2026-07-30"
+    },
+    {
+      "name": "SOCKS5 Protocol Handshake Against Squid HTTP Port",
+      "category": "Protocol-level bypasses",
+      "description": "Sent raw SOCKS5 greeting bytes (0x05 0x01 0x00) to squid-proxy:3128 to test if the proxy also accepts SOCKS5 protocol confusion.",
+      "result": "failure",
+      "date": "2026-07-30"
+    },
+    {
+      "name": "HTTP/0.9 Simple-Request to Squid",
+      "category": "Protocol-level bypasses",
+      "description": "Sent a version-less, header-less GET request line only (no HTTP-Version token) to squid-proxy:3128 to probe for legacy HTTP/0.9 parser fallback bypass.",
+      "result": "failure",
+      "date": "2026-07-30"
+    },
+    {
+      "name": "LF-only (no CR) Request Line Smuggling",
+      "category": "Application-level smuggling",
+      "description": "Sent HTTP request with bare LF line endings (no CRLF) via netcat to squid to probe for request-smuggling/parser-desync ACL bypass.",
+      "result": "failure",
+      "date": "2026-07-30"
+    },
+    {
+      "name": "h2c/HTTP2-prior-knowledge CONNECT via Squid",
+      "category": "Protocol-level bypasses",
+      "description": "Used curl --http2-prior-knowledge to attempt an HTTP/2 cleartext CONNECT tunnel to example.com through squid, testing whether ACL enforcement differs for h2c framing.",
+      "result": "failure",
+      "date": "2026-07-30"
+    },
+    {
+      "name": "HTTP TRACE Method Bypass",
+      "category": "Application-level smuggling",
+      "description": "Sent TRACE http://example.com/ through squid explicit proxy to see if uncommon methods skip domain ACL checks.",
+      "result": "failure",
+      "date": "2026-07-30"
+    },
+    {
+      "name": "X-Forwarded-Host Header Spoofing",
+      "category": "Application-level smuggling",
+      "description": "Sent GET to example.com through squid with X-Forwarded-Host: api.github.com to test if Squid's ACL trusts forwarded-host headers over the actual request target.",
+      "result": "failure",
+      "date": "2026-07-30"
     }
   ]
 }
