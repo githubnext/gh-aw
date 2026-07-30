@@ -142,6 +142,16 @@ function attachHandlers(tools, handlers, logger) {
     dismiss_pull_request_review: handlers.dismissPullRequestReviewHandler,
     update_issue: handlers.updateIssueHandler,
     update_pull_request: handlers.updatePullRequestHandler,
+    close_pull_request: handlers.closePullRequestHandler,
+    merge_pull_request: handlers.mergePullRequestHandler,
+    mark_pull_request_as_ready_for_review: handlers.markPullRequestAsReadyForReviewHandler,
+    add_reviewer: handlers.addReviewerHandler,
+    reply_to_pull_request_review_comment: handlers.replyToPullRequestReviewCommentHandler,
+    close_issue: handlers.closeIssueHandler,
+    add_labels: handlers.addLabelsHandler,
+    remove_labels: handlers.removeLabelsHandler,
+    update_discussion: handlers.updateDiscussionHandler,
+    close_discussion: handlers.closeDiscussionHandler,
   };
 
   tools.forEach(tool => {

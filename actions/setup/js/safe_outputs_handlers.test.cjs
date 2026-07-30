@@ -3291,6 +3291,399 @@ describe("safe_outputs_handlers", () => {
       }
     });
   });
+
+  // ============================================================
+  // Tests for egress context handlers (MCE1 validation)
+  // ============================================================
+
+  describe("closePullRequestHandler", () => {
+    it("should return intent error on schedule event when no explicit pull_request_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.closePullRequestHandler({});
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("close_pull_request");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return intent error on push event when no explicit pull_request_number", () => {
+      const result = handlers.closePullRequestHandler({ reason: "completed" });
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain('"push"');
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should write entry when explicit pull_request_number is provided regardless of event", () => {
+      const result = handlers.closePullRequestHandler({ pull_request_number: 5 });
+      expect(result.isError).toBeUndefined();
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("success");
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "close_pull_request", pull_request_number: 5 }));
+    });
+
+    it("should write entry when in PR context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 3 } } };
+      try {
+        const result = handlers.closePullRequestHandler({});
+        expect(result.isError).toBeUndefined();
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("success");
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
+
+  describe("mergePullRequestHandler", () => {
+    it("should return intent error on schedule event when no explicit pull_request_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.mergePullRequestHandler({});
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("merge_pull_request");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit pull_request_number is provided", () => {
+      const result = handlers.mergePullRequestHandler({ pull_request_number: 42, merge_method: "squash" });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "merge_pull_request", pull_request_number: 42 }));
+    });
+
+    it("should write entry when in PR context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 11 } } };
+      try {
+        const result = handlers.mergePullRequestHandler({});
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
+
+  describe("markPullRequestAsReadyForReviewHandler", () => {
+    it("should return intent error on schedule event when no explicit pull_request_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.markPullRequestAsReadyForReviewHandler({});
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("mark_pull_request_as_ready_for_review");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit pull_request_number is provided", () => {
+      const result = handlers.markPullRequestAsReadyForReviewHandler({ pull_request_number: 7 });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "mark_pull_request_as_ready_for_review", pull_request_number: 7 }));
+    });
+  });
+
+  describe("addReviewerHandler", () => {
+    it("should return intent error on schedule event when no explicit pull_request_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.addReviewerHandler({ reviewer: "octocat" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("add_reviewer");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit pull_request_number is provided", () => {
+      const result = handlers.addReviewerHandler({ pull_request_number: 3, reviewer: "octocat" });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_reviewer", pull_request_number: 3 }));
+    });
+
+    it("should write entry when in PR context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 9 } } };
+      try {
+        const result = handlers.addReviewerHandler({ reviewer: "octocat" });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
+
+  describe("replyToPullRequestReviewCommentHandler", () => {
+    it("should return intent error on schedule event when no explicit pull_request_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.replyToPullRequestReviewCommentHandler({ comment_id: 123, body: "Reply" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("reply_to_pull_request_review_comment");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit pull_request_number is provided", () => {
+      const result = handlers.replyToPullRequestReviewCommentHandler({ pull_request_number: 5, comment_id: 123, body: "Reply" });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "reply_to_pull_request_review_comment", pull_request_number: 5 }));
+    });
+  });
+
+  describe("closeIssueHandler", () => {
+    it("should return intent error on schedule event when no explicit issue_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.closeIssueHandler({});
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("close_issue");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return intent error on push event when no explicit issue_number", () => {
+      const result = handlers.closeIssueHandler({});
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain('"push"');
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should write entry when explicit issue_number is provided", () => {
+      const result = handlers.closeIssueHandler({ issue_number: 99 });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "close_issue", issue_number: 99 }));
+    });
+
+    it("should write entry when in issue context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "issues", payload: { issue: { number: 55 } } };
+      try {
+        const result = handlers.closeIssueHandler({});
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should return intent error for issue_comment on a PR (not issue context)", () => {
+      const savedContext = global.context;
+      global.context = {
+        ...global.context,
+        eventName: "issue_comment",
+        payload: { issue: { number: 7, pull_request: { url: "https://api.github.com/repos/test-owner/test-repo/pulls/7" } } },
+      };
+      try {
+        const result = handlers.closeIssueHandler({});
+        expect(result.isError).toBe(true);
+        const data = JSON.parse(result.content[0].text);
+        expect(data.result).toBe("error");
+        expect(data.error).toContain("close_issue");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
+
+  describe("addLabelsHandler", () => {
+    it("should return intent error on schedule event when no explicit item_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.addLabelsHandler({ labels: ["bug"] });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("add_labels");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit item_number is provided", () => {
+      const result = handlers.addLabelsHandler({ item_number: 10, labels: ["bug"] });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "add_labels", item_number: 10 }));
+    });
+
+    it("should write entry when in issue context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "issues", payload: { issue: { number: 20 } } };
+      try {
+        const result = handlers.addLabelsHandler({ labels: ["enhancement"] });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when in PR context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "pull_request", payload: { pull_request: { number: 4 } } };
+      try {
+        const result = handlers.addLabelsHandler({ labels: ["needs-review"] });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
+
+  describe("removeLabelsHandler", () => {
+    it("should return intent error on schedule event when no explicit item_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.removeLabelsHandler({ labels: ["bug"] });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("remove_labels");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit item_number is provided", () => {
+      const result = handlers.removeLabelsHandler({ item_number: 15, labels: ["wip"] });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "remove_labels", item_number: 15 }));
+    });
+  });
+
+  describe("updateDiscussionHandler", () => {
+    it("should return intent error on schedule event when no explicit discussion_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.updateDiscussionHandler({ body: "New body" });
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("update_discussion");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit discussion_number is provided", () => {
+      const result = handlers.updateDiscussionHandler({ discussion_number: 7, body: "Updated body" });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "update_discussion", discussion_number: 7 }));
+    });
+
+    it("should write entry when in discussion context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "discussion", payload: { discussion: { number: 3 } } };
+      try {
+        const result = handlers.updateDiscussionHandler({ body: "Updated" });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when in discussion_comment context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "discussion_comment", payload: { discussion: { number: 3 } } };
+      try {
+        const result = handlers.updateDiscussionHandler({ body: "Updated" });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
+
+  describe("closeDiscussionHandler", () => {
+    it("should return intent error on schedule event when no explicit discussion_number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const result = handlers.closeDiscussionHandler({});
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.result).toBe("error");
+        expect(responseData.error).toContain("close_discussion");
+        expect(responseData.error).toContain('"schedule"');
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("should write entry when explicit discussion_number is provided", () => {
+      const result = handlers.closeDiscussionHandler({ discussion_number: 2 });
+      expect(result.isError).toBeUndefined();
+      expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "close_discussion", discussion_number: 2 }));
+    });
+
+    it("should write entry when in discussion context with no explicit number", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "discussion", payload: { discussion: { number: 6 } } };
+      try {
+        const result = handlers.closeDiscussionHandler({});
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
 });
 
 describe("per-type max enforcement (MCE4 dual enforcement)", () => {
