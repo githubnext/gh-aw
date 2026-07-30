@@ -58,7 +58,6 @@ steps:
       sous_chef_nudge_marker='<!-- gh-aw-pr-sous-chef-nudge -->'
       cooldown_seconds=1800
       filtered_checks_pending=0
-      filtered_last_comment_from_sous_chef=0
       filtered_cooldown=0
 
       # statusCheckRollup is fetched here alongside other PR fields so that the
@@ -155,25 +154,6 @@ steps:
             2>/dev/null || echo "[]"
         )"
 
-        # Skip if the very last comment was posted by pr-sous-chef (never add two in a row).
-        # Only treat a sous-chef comment as actionable (and thus skip-worthy) if it also
-        # contains "@copilot"; comments without "@copilot" are purely informational.
-        last_comment_is_sous_chef="$(
-          jq -r --arg marker "$sous_chef_nudge_marker" '
-            if length == 0 then "false"
-            elif (.[0].body // "" | (contains($marker) and contains("@copilot"))) then "true"
-            else "false"
-            end
-          ' <<<"$recent_comments_json"
-        )"
-        # Exception: if the PR is in a CONFLICTING merge state, don't skip even when the last
-        # comment is from sous-chef — it should still ask Copilot to resolve the conflict.
-        merge_state_status="$(jq -r '.mergeStateStatus // ""' <<<"$pr")"
-        if [ "$last_comment_is_sous_chef" = "true" ] && [ "$merge_state_status" != "CONFLICTING" ]; then
-          filtered_last_comment_from_sous_chef=$((filtered_last_comment_from_sous_chef + 1))
-          continue
-        fi
-
         # Skip if pr-sous-chef commented within the last 30 minutes (cooldown period).
         # Only actionable sous-chef comments (those containing "@copilot") count toward cooldown;
         # informational comments without "@copilot" are ignored.
@@ -196,12 +176,10 @@ steps:
       done < <(jq -c '.[]' "$candidate_file")
 
       jq --argjson filtered_checks_pending "$filtered_checks_pending" \
-         --argjson filtered_last_comment_from_sous_chef "$filtered_last_comment_from_sous_chef" \
          --argjson filtered_cooldown "$filtered_cooldown" '{
         fetched: (length),
         generated_at: (now | todate),
         filtered_checks_pending: $filtered_checks_pending,
-        filtered_last_comment_from_sous_chef: $filtered_last_comment_from_sous_chef,
         filtered_cooldown: $filtered_cooldown,
         prs: map({
           number,
@@ -238,7 +216,6 @@ steps:
         echo "|---|---|"
         echo "| Candidates fetched | $fetched_count |"
         echo "| Filtered (checks pending) | $filtered_checks_pending |"
-        echo "| Filtered (last comment from sous-chef) | $filtered_last_comment_from_sous_chef |"
         echo "| Filtered (cooldown) | $filtered_cooldown |"
         echo "| **Eligible for nudge** | **$eligible_count** |"
       } >> "$GITHUB_STEP_SUMMARY"
@@ -349,14 +326,7 @@ Before any nudge for a PR:
    - If any check is `queued`, `in_progress`, or `pending` and started within the last hour, skip this PR.
    - When calling `gh aw checks` directly, pass `--head-sha <headRefOid>` to avoid a redundant PR-detail fetch (the `headRefOid` is available in the compact JSON).
 
-2. **Skip when the latest PR comment is from pr-sous-chef itself (unless the PR is in a merge-conflict state)**
-   - Candidate prefilter already removes PRs when the latest issue comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot`, **except** when `mergeStateStatus` is `CONFLICTING`.
-   - Inspect PR comments ordered by recency.
-   - Treat a comment as an actionable sous-chef comment only when the latest comment body contains both `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot`. Comments with the marker but without `@copilot` are purely informational and do **not** count as a sous-chef nudge for the purpose of this skip rule.
-   - If true **and** `mergeStateStatus` is **not** `CONFLICTING`, skip to avoid back-to-back nudges.
-   - If true **and** `mergeStateStatus` is `CONFLICTING`, do **not** skip — sous-chef must ask Copilot to resolve the merge conflicts even if the previous comment was its own.
-
-3. **Skip during the 30-minute cooldown after a pr-sous-chef comment**
+2. **Skip during the 30-minute cooldown after a pr-sous-chef comment**
    - Candidate prefilter already removes PRs where the most recent sous-chef comment (containing both the marker and `@copilot`) was posted within the last 30 minutes.
    - If any recent comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` and `@copilot` and was created less than 30 minutes ago, skip this PR. Comments with the marker but without `@copilot` are informational and do **not** trigger the cooldown.
 
@@ -427,7 +397,6 @@ Then include the run counts as a compact table:
 |---|---|
 | processed | N |
 | skipped_checks_running | N |
-| skipped_last_comment_from_sous_chef | N |
 | skipped_cooldown | N |
 | nudged | N |
 | branch_update_attempts | N |
@@ -438,7 +407,7 @@ Then include the run counts as a compact table:
 
 If any PRs were nudged, include a collapsible list of their numbers and titles.
 
-If `create_issue` is unavailable, fall back to `noop` with a condensed message, e.g. `"processed=4; skipped_checks_running=0; skipped_last_comment_from_sous_chef=1; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
+If `create_issue` is unavailable, fall back to `noop` with a condensed message, e.g. `"processed=4; skipped_checks_running=0; skipped_cooldown=1; nudged=2; branch_update_attempts=0; formatter_pushes=0; merge_main_scheduled=1; resolved_review_threads=3; dismissed_reviews=1"`.
 
 ## Formatting Requirements
 
@@ -462,7 +431,6 @@ Given one PR number and compact metadata:
 
 1. Check skip conditions in this order:
    - checks/actions running — note: the candidate prefilter already excluded PRs with short-running pending checks (running < 1 hour) via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran; long-running checks (> 1 hour) are intentionally ignored
-   - latest comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot`, **and** `mergeStateStatus` is **not** `CONFLICTING` (when the branch has merge conflicts, do NOT skip even if the last actionable comment is from sous-chef — it must nudge Copilot to resolve them; also, comments with the marker but without `@copilot` are purely informational and do NOT count as a sous-chef nudge for this check)
    - any recent comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` and `@copilot` and was posted within the last 30 minutes (informational comments without `@copilot` do not count toward cooldown)
 2. If skipped, return `skip_reason` only.
 3. If not skipped, return:
