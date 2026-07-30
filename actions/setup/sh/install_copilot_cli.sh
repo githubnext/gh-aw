@@ -9,7 +9,9 @@ set +o histexpand
 # install_awf_binary.sh to avoid executing unverified downloaded scripts.
 #
 # Arguments:
-#   VERSION    - Optional Copilot CLI version to install (default: latest release)
+#   VERSION    - Optional Copilot CLI version to install. When omitted, the script
+#                resolves the version via compat.json (using GH_AW_COMPILED_VERSION) and
+#                falls back to DEFAULT_COPILOT_VERSION baked into this script.
 #   --rootless - Install to ~/.local/bin without sudo; appends that directory to
 #                $GITHUB_PATH so subsequent steps find the binary.  Use this on
 #                ARC/DinD runners that enforce allowPrivilegeEscalation: false.
@@ -27,6 +29,11 @@ COPILOT_REPO="github/copilot-cli"
 INSTALL_DIR="/usr/local/bin"
 COPILOT_DIR="${HOME}/.copilot"
 COPILOT_TOOLCACHE_MAX_DEPTH=4
+# DEFAULT_COPILOT_VERSION is the baked-in fallback used when neither an explicit version
+# argument nor a GH_AW_COMPILED_VERSION-backed compat.json lookup is available.
+# It is the last resort (priority 3) after engine.version (priority 1) and
+# compat.json toolcache lookup (priority 2).
+DEFAULT_COPILOT_VERSION="1.0.75"
 COMPAT_URL="${COPILOT_COMPAT_URL:-https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json}"
 COMPILED_GH_AW_VERSION="${GH_AW_COMPILED_VERSION:-}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -503,7 +510,10 @@ EOF
 TEMP_DIR=$(mktemp -d)
 trap 'rm -rf "$TEMP_DIR"' EXIT
 
-# Resolve a compatible Copilot version from compat matrix unless the caller passed an explicit version.
+# Version resolution follows this priority order:
+# 1. Explicit VERSION argument (from engine.version in the workflow)
+# 2. Compat.json toolcache lookup (requires GH_AW_COMPILED_VERSION to select the right window)
+# 3. DEFAULT_COPILOT_VERSION baked into this script
 if [ -z "$VERSION" ]; then
   echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
   if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
@@ -513,11 +523,9 @@ if [ -z "$VERSION" ]; then
     echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
     echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
   else
-    echo "ERROR: Failed to resolve Copilot CLI version from compatibility matrix." >&2
-    echo "ERROR: Cannot install without a compatible version." >&2
-    echo "To fix: Pass an explicit version as an argument (e.g., 'install_copilot_cli.sh 1.0.56')" >&2
-    echo "   or ensure GH_AW_COMPILED_VERSION matches a row in .github/aw/compat.json" >&2
-    exit 1
+    echo "Compat resolution unavailable; falling back to baked-in default version: ${DEFAULT_COPILOT_VERSION}" >&2
+    VERSION="$DEFAULT_COPILOT_VERSION"
+    REQUESTED_VERSION="$DEFAULT_COPILOT_VERSION"
   fi
 else
   echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."

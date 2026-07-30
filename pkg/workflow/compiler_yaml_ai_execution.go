@@ -290,6 +290,12 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 		ensureDefaultMCPGatewayConfig(data)
 	}
 
+	// Propagate the compiler version so engine installation steps can embed it as
+	// GH_AW_COMPILED_VERSION, enabling compat.json-based toolcache resolution at runtime.
+	if data.CompiledVersion == "" {
+		data.CompiledVersion = c.version
+	}
+
 	// Add engine-specific installation steps (includes Node.js setup and secret validation for npm-based engines)
 	installSteps := engine.GetInstallationSteps(data)
 	compilerYamlLog.Printf("Adding %d engine installation steps for %s", len(installSteps), engine.GetID())
