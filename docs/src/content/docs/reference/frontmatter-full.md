@@ -59,11 +59,12 @@ tracker-id: "example-value"
 labels: []
   # Array of strings
 
-# Optional list of external skill references to install during activation.
-# Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs
-# (`owner/repo/skill/path@<sha>`). Static references must be pinned to a full
-# 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`) are
-# also accepted and are evaluated at runtime. Entries may also be objects to
+# Optional list of skill references to install during activation.
+# Supports local development paths (`skills/name`, `.github/skills/name`),
+# repository-wide installs (`owner/repo@<sha>`), and path-scoped installs
+# (`owner/repo/skill/path@<sha>`). Static external references must be pinned to
+# a full 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`)
+# are also accepted and are evaluated at runtime. Entries may also be objects to
 # configure per-skill authentication via github-token or github-app.
 # (optional)
 skills: []
