@@ -26,6 +26,20 @@ func bad() {
 		ms += myString(p) // want `string concatenation with \+= inside a loop`
 	}
 	_ = ms
+
+	// x = x + y form in a range loop – should be flagged.
+	accum := ""
+	for _, p := range parts {
+		accum = accum + p // want `string concatenation with \+= inside a loop`
+	}
+	_ = accum
+
+	// x = x + y form in a classic for loop – should be flagged.
+	s2 := ""
+	for i := 0; i < len(parts); i++ {
+		s2 = s2 + parts[i] // want `string concatenation with \+= inside a loop`
+	}
+	_ = s2
 }
 
 func good() {
@@ -59,6 +73,43 @@ func good() {
 		}()
 	}
 	_ = acc
+
+	// x = x + y outside any loop – not flagged.
+	outside := "prefix"
+	outside = outside + "suffix"
+	_ = outside
+
+	// x = y + x (left operand is not the LHS) – not flagged.
+	accum2 := ""
+	for _, p := range parts {
+		accum2 = p + accum2
+	}
+	_ = accum2
+
+	// Range value variable reassigned per iteration – not a cross-iteration
+	// accumulator, so not flagged.
+	for _, line := range parts {
+		line = line + " suffix"
+		_ = line
+	}
+
+	// Range key variable over a string-keyed map – not a cross-iteration
+	// accumulator, so not flagged.
+	m := map[string]int{"a": 1, "b": 2}
+	for k := range m {
+		k = k + "_x"
+		_ = k
+	}
+
+	// x = x + y inside a func literal inside a loop – not flagged. The linter
+	// intentionally stops at func literal boundaries.
+	accum3 := ""
+	for _, p := range parts {
+		func() {
+			accum3 = accum3 + p
+		}()
+	}
+	_ = accum3
 }
 
 func nolintDirective() {
