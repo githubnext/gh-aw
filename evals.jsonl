@@ -1,0 +1,2 @@
+{"id":"eslint_diagnostics_analyzed","question":"Did the agent analyze the ESLint factory diagnostics and group actionable findings?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-07-30T22:21:53.983Z","runid":"30586522698"}
+{"id":"remediation_dispatched_or_noop","question":"Did the agent dispatch remediation for actionable findings, or use noop when the scan was clean?","answer":"YES","model":"copilot/gpt-5.4","timestamp":"2026-07-30T22:21:53.983Z","runid":"30586522698"}
