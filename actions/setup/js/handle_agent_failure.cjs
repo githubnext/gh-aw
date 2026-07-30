@@ -12,6 +12,7 @@ const { formatMissingData, formatMissingTools } = require("./missing_info_format
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
 const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog, parseUnknownModelAICreditsFromAuditLog } = require("./ai_credits_context.cjs");
+const { MAX_CACHE_MISSES_EXCEEDED_PATTERN } = require("./detect_agent_errors.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
@@ -43,7 +44,6 @@ const ELLIPSIS_LENGTH = ELLIPSIS.length;
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|\bmaximum\s+llm\s+invocations\s+exceeded\b)/i;
-const ENGINE_MAX_CACHE_MISSES_EXCEEDED_RE = /(?:\bmax_cache_misses_exceeded\b|\bmaximum\s+consecutive\s+cache\s+misses\s+exceeded\b)/i;
 const ALLOWED_FILES_ERROR_RE = /^(?<summary>.*outside the allowed-files list) \((?<files>.+?)\)\. (?<remediation>Add the files to the allowed-files configuration field or remove them from the (?:patch|bundle)\.)$/;
 
 /**
@@ -1986,6 +1986,8 @@ function buildEngineMaxRunsExceededContext(engineLabel) {
  * Detect max consecutive cache misses failures in text payloads.
  * Returns true when content includes either the `max_cache_misses_exceeded` error type
  * or the "Maximum consecutive cache misses exceeded" message fragment.
+ * Uses the shared MAX_CACHE_MISSES_EXCEEDED_PATTERN from detect_agent_errors for
+ * consistency with the unified detection mechanism.
  * @param {string|null|undefined} content
  * @returns {boolean}
  */
@@ -1993,7 +1995,7 @@ function hasEngineMaxCacheMissesExceededSignal(content) {
   if (!content) {
     return false;
   }
-  return ENGINE_MAX_CACHE_MISSES_EXCEEDED_RE.test(content);
+  return MAX_CACHE_MISSES_EXCEEDED_PATTERN.test(content);
 }
 
 /**
