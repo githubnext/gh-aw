@@ -1,15 +1,14 @@
-# Task Mining Run - 2026-07-30
+# Task Mining Run - 2026-07-30 (07:36 UTC)
 
 ## Summary
-- Discussions scanned: 10 new (49015, 49013, 49012, 49009, 48985, 48983, 48980, 48977, 48976, 48968)
-- Tasks identified: 2 high-value, actionable, non-duplicate
-- Issues created: 2
-- Duplicates/out-of-scope avoided: 4 (sentrux complexity #46758/#48061/#48219, firewall access.log #42507/#35510/#40340/#48090, comment density saturated topic, logs MCP tooling outage out-of-scope)
+- Discussions scanned: 10 new (49091, 49068, 49062, 49055, 49050, 49049, 49047, 49044, 49032, 49027)
+- Tasks identified: 1 high-value, actionable, non-duplicate
+- Issues created: 1
+- Duplicates/out-of-scope avoided: 9
 
 ## Created Issues
-- Enable gh-aw-detection on 7 high-frequency workflows lacking anomaly/prompt-injection detection (from discussion #49009)
-- Refactor pass on files exceeding 500 LOC, up 44% over 30 days (from discussion #48968)
+- Split oversized CompileWorkflowData/generateAndValidateYAML in compiler.go and add %w error wrapping (from discussion #49027)
 
 ## Notes
-- Most other new discussions were either descriptive-stats-only reports (lockfile stats, prompt analysis, team evolution), meta-analyses of other reports (regulatory, DeepReport), or re-flagged findings already covered by recently closed/open issues (sentrux complexity, firewall observability).
-- Comment density remains the weakest Quality Score component but has been the subject of 8+ prior issues (closed) — treated as saturated and not re-filed this run.
+- Most new discussions were either: workflow-generated issue-creation reports whose issues were already created by the source workflow itself (LintMonster #49028-49030, Workflow Skill Extractor #49040 etc., eslint-refiner #49067/#49069), status/ops reports with no code-quality task (Auto-Triage labeling, Issue Arborist linking, Firewall Escape SECURE, safe-output-health LintMonster recurrence), or saturated topics with 20+ closed duplicate issues (antigravity engine.id schema gap, still unresolved but not worth re-filing again per policy).
+- compiler.go refactor was the one genuinely fresh, well-scoped, non-duplicate finding this run.
