@@ -247,7 +247,7 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 	// Pass engine error-detection outputs to the conclusion job when the selected engine
 	// provides a host-runner detect-agent-errors step.
 	// Contract: engines returning a non-empty GetErrorDetectionScriptId() must run
-	// actions/setup/js/detect_agent_errors.cjs, which emits all six outputs below.
+	// actions/setup/js/detect_agent_errors.cjs, which emits all outputs below.
 	// These outputs cover:
 	//   - inference_access_error: token lacks inference access
 	//   - mcp_policy_error: MCP servers blocked by enterprise/organization policy
@@ -255,6 +255,7 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 	//   - model_not_supported_error: configured model name is invalid or unavailable
 	//   - http_400_response_error: engine returned a generic HTTP 400 Bad Request response
 	//   - capi_quota_exceeded_error: Copilot/CAPI quota exhaustion/rate-limit response
+	//   - max_cache_misses_exceeded: AWF API proxy consecutive cache miss guardrail fired
 	var envVars []string
 	if engine.GetErrorDetectionScriptId() != "" {
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_INFERENCE_ACCESS_ERROR: ${{ needs.%s.outputs.inference_access_error }}\n", mainJobName))
@@ -262,6 +263,7 @@ func buildAgentFailureEngineDetectionVars(engine CodingAgentEngine, data *Workfl
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_AGENTIC_ENGINE_TIMEOUT: ${{ needs.%s.outputs.agentic_engine_timeout }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_MODEL_NOT_SUPPORTED_ERROR: ${{ needs.%s.outputs.model_not_supported_error }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_HTTP_400_RESPONSE_ERROR: ${{ needs.%s.outputs.http_400_response_error }}\n", mainJobName))
+		envVars = append(envVars, fmt.Sprintf("          GH_AW_MAX_CACHE_MISSES_EXCEEDED: ${{ needs.%s.outputs.max_cache_misses_exceeded }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_MISSING_MODEL_PRICING_ERROR: ${{ needs.%s.outputs.missing_model_pricing_error }}\n", mainJobName))
 		envVars = append(envVars, fmt.Sprintf("          GH_AW_MISSING_MODEL_PRICING_MODEL_NAME: ${{ needs.%s.outputs.missing_model_pricing_model_name }}\n", mainJobName))
 	}

@@ -38,6 +38,11 @@ safe-outputs:
     max-patch-files: 1
     max-patch-size: 2048
   noop:
+evals:
+  - id: tests_analyzed
+    question: Did the agent analyze Go tests to identify a safe candidate for t.Parallel?
+  - id: pr_created_or_noop
+    question: Did the agent create a pull request for a safe test change, or use noop when no safe change was available?
 ---
 
 # Daily Go Test Parallelizer

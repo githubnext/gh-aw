@@ -55,6 +55,18 @@ func isUsageOnlyArtifactFilter(artifactFilter []string) bool {
 	return len(artifactFilter) == 1 && artifactFilter[0] == constants.UsageArtifactName
 }
 
+func shouldDownloadWorkflowRunLogs(artifactFilter []string) bool {
+	if len(artifactFilter) == 0 {
+		return true
+	}
+	for _, artifact := range artifactFilter {
+		if artifact != constants.ActivationArtifactName && artifact != constants.UsageArtifactName {
+			return true
+		}
+	}
+	return false
+}
+
 // flattenSingleFileArtifacts checks artifact directories and flattens any that contain a single file
 // This handles the case where gh CLI creates a directory for each artifact, even if it's just one file
 func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
@@ -65,7 +77,7 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || entry.Name() == downloadedArtifactsMarkerDir {
 			continue
 		}
 
@@ -612,6 +624,9 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 			// Non-fatal: continue downloading other artifacts
 		} else {
 			logsDownloadLog.Printf("Downloaded artifact %q", name)
+			if err := markArtifactDownloaded(opts.outputDir, name); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -669,6 +684,12 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 			}
 		} else {
 			logsDownloadLog.Printf("Successfully downloaded artifact %q individually", name)
+			// Marker write failures are non-fatal in the retry path: retryCriticalArtifacts
+			// is a best-effort recovery after a partial bulk download, so a missing marker
+			// only causes a redundant re-download on the next run (not data loss).
+			if err := markArtifactDownloaded(opts.outputDir, name); err != nil {
+				logsDownloadLog.Printf("Failed to mark artifact %q as downloaded: %v", name, err)
+			}
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Downloaded missing artifact: "+name))
 			}
@@ -706,23 +727,19 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			opts.artifactFilter = missing
 			// Fall through to the download code below (MkdirAll is a no-op for existing dir).
 		} else {
-			// No filter — caller wants all artifacts. Keep the existing behaviour:
-			// if the directory is non-empty we assume the run was previously fully
-			// downloaded and skip the download.
-			if summary, ok := loadRunSummary(opts.outputDir, opts.verbose); ok {
-				// Valid cached summary exists, skip download
+			// No filter — caller wants all artifacts. The complete-download marker is
+			// sufficient to skip the download; no cached summary is required because
+			// the marker itself guarantees all artifact data is present on disk.
+			if len(findMissingFilterEntries([]string{string(ArtifactSetAll)}, opts.outputDir)) == 0 {
 				logsDownloadLog.Printf("Using cached artifacts for run %d", opts.runID)
-				if opts.verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", opts.runID, opts.outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
+				if shouldLogProgress {
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All artifacts already present for run %d, skipping download", opts.runID)))
 				}
 				return nil
 			}
-			// Summary doesn't exist or version mismatch - artifacts exist but need reprocessing
-			// Don't re-download, just reprocess what's there
 			if opts.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists with artifacts, will reprocess run %d without re-downloading", opts.runID)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder for %d is missing the complete artifact marker; downloading all artifacts", opts.runID)))
 			}
-			return nil
 		}
 	}
 
@@ -764,15 +781,51 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		}
 	}
 
+	// Incremental download: when the output directory already holds some artifacts but
+	// lacks the complete-download marker, check which artifacts are actually missing and
+	// restrict the download to those.  This avoids re-fetching data that was already
+	// transferred during a previous filtered pass (e.g. activation+usage) even when the
+	// caller now requests the full artifact set.
+	var incrementalUnfilteredDownload bool
+	if listErr == nil && len(downloadableNames) > 0 && len(opts.artifactFilter) == 0 &&
+		fileutil.DirExists(opts.outputDir) && !fileutil.IsDirEmpty(opts.outputDir) {
+		missingNames := findMissingFilterEntries(downloadableNames, opts.outputDir)
+		if len(missingNames) == 0 {
+			// All artifacts are already on disk.  Confirm with the complete-download marker
+			// so that future unfiltered requests benefit from the fast-path check above.
+			logsDownloadLog.Printf("All %d artifacts already present for run %d (incremental check)", len(downloadableNames), opts.runID)
+			if shouldLogProgress {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("All artifacts already present for run %d, skipping download", opts.runID)))
+			}
+			if markerErr := markArtifactDownloaded(opts.outputDir, string(ArtifactSetAll)); markerErr != nil {
+				return markerErr
+			}
+			return nil
+		}
+		if len(missingNames) < len(downloadableNames) {
+			// Some artifacts are already present; narrow the download to the remainder.
+			logsDownloadLog.Printf("Incremental download for run %d: %d/%d artifacts missing: %v",
+				opts.runID, len(missingNames), len(downloadableNames), missingNames)
+			if shouldLogProgress {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf(
+					"Incremental download for run %d: fetching %d missing artifact(s): %v",
+					opts.runID, len(missingNames), missingNames)))
+			}
+			downloadableNames = missingNames
+			incrementalUnfilteredDownload = true
+		}
+	}
+
 	// Start spinner for network operation
 	spinner := console.NewSpinner(fmt.Sprintf("Downloading artifacts for run %d...", opts.runID))
 	if !opts.verbose {
 		spinner.Start()
 	}
 
-	if len(dockerBuildArtifacts) > 0 || len(opts.artifactFilter) > 0 {
-		// When .dockerbuild artifacts are present or an artifact filter is active, download
-		// only the selected artifacts individually instead of using the bulk downloader.
+	if len(dockerBuildArtifacts) > 0 || len(opts.artifactFilter) > 0 || incrementalUnfilteredDownload {
+		// When .dockerbuild artifacts are present, an artifact filter is active, or an
+		// incremental top-up is needed, download only the selected artifacts individually
+		// instead of using the bulk downloader.
 		// The bulk downloader (gh run download without --name) cannot apply a name filter,
 		// and it aborts on non-zip artifacts.
 		if !opts.verbose {
@@ -781,7 +834,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		if len(downloadableNames) == 0 {
 			// Nothing to download (all artifacts are either .dockerbuild or excluded by filter).
 			// For usage-only mode, skip workflow logs entirely to keep downloads lightweight.
-			if !isUsageOnlyArtifactFilter(opts.artifactFilter) {
+			if shouldDownloadWorkflowRunLogs(opts.artifactFilter) {
 				// Attempt workflow run logs for diagnostics before returning.
 				if logErr := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); logErr != nil {
 					if opts.verbose {
@@ -802,6 +855,18 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		if fileutil.IsDirEmpty(opts.outputDir) {
 			// Downloads were attempted but none succeeded; treat as no artifacts.
 			return ErrNoArtifacts
+		}
+		// Write the complete-download marker when this was an unfiltered request routed
+		// through the individual download path (dockerbuild artifacts present, or an
+		// incremental top-up of an existing run directory).  Only mark as complete when
+		// all expected artifacts are actually present, so that partially-failed downloads
+		// are retried next time rather than treated as complete.
+		if len(opts.artifactFilter) == 0 && len(downloadableNames) > 0 {
+			if len(findMissingFilterEntries(downloadableNames, opts.outputDir)) == 0 {
+				if markerErr := markArtifactDownloaded(opts.outputDir, string(ArtifactSetAll)); markerErr != nil {
+					return markerErr
+				}
+			}
 		}
 	} else {
 		// No .dockerbuild artifacts detected (or listing failed) — use efficient bulk download.
@@ -918,6 +983,17 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			// workflow logs rather than artifact content.
 			return ErrNoArtifacts
 		}
+		// Write the complete-download marker when the bulk download succeeded with no
+		// errors, when some non-zip artifacts were skipped but critical artifacts were
+		// recovered via retryCriticalArtifacts, or when a case-collision caused the bulk
+		// download to abort but all artifacts were successfully retried individually.
+		// In all three cases the directory is non-empty (guarded above for non-zip),
+		// so marking prevents an unbounded re-download loop on subsequent runs.
+		if err == nil || skippedNonZipArtifacts || skippedCaseCollisionArtifacts {
+			if markerErr := markArtifactDownloaded(opts.outputDir, string(ArtifactSetAll)); markerErr != nil {
+				return markerErr
+			}
+		}
 	}
 
 	// Stop spinner with success message
@@ -956,7 +1032,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	}
 
 	// Download and unzip workflow run logs unless caller requested usage-only mode.
-	if !isUsageOnlyArtifactFilter(opts.artifactFilter) {
+	if shouldDownloadWorkflowRunLogs(opts.artifactFilter) {
 		if err := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); err != nil {
 			// Log the error but don't fail the entire download process
 			// Logs may not be available for all runs (e.g., expired or deleted)

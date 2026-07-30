@@ -17,6 +17,50 @@ func ContainsCheckout(customSteps string) bool {
 	return found
 }
 
+// findLastCheckoutStepIndex returns the zero-based index of the last
+// actions/checkout step in customSteps and true, or (0, false) if none is found.
+// It uses the same parsing strategy as findFirstCheckoutStepIndex.
+func findLastCheckoutStepIndex(customSteps string) (int, bool) {
+	if customSteps == "" {
+		return 0, false
+	}
+	lastIndex := -1
+	found := false
+
+	// Try the wrapped form first: "steps:\n  - ...\n"
+	var wrapper struct {
+		Steps []map[string]any `yaml:"steps"`
+	}
+	if err := yaml.Unmarshal([]byte(customSteps), &wrapper); err == nil {
+		if len(wrapper.Steps) > 0 {
+			for i, step := range wrapper.Steps {
+				uses, ok := step["uses"].(string)
+				if ok && isCheckoutActionReference(uses) {
+					lastIndex = i
+					found = true
+				}
+			}
+			return lastIndex, found
+		}
+	}
+
+	// Fall back to the bare sequence form: "- uses: ...\n"
+	var steps []map[string]any
+	if err := yaml.Unmarshal([]byte(customSteps), &steps); err != nil {
+		// Malformed YAML: we cannot safely determine a checkout step index.
+		return 0, false
+	}
+
+	for i, step := range steps {
+		uses, ok := step["uses"].(string)
+		if ok && isCheckoutActionReference(uses) {
+			lastIndex = i
+			found = true
+		}
+	}
+	return lastIndex, found
+}
+
 // findFirstCheckoutStepIndex returns the zero-based index of the first
 // actions/checkout step in customSteps and true, or (0, false) if none is found.
 //

@@ -435,4 +435,126 @@ describe("create_pull_request bundle integration", () => {
     expect(rawPushError).toContain("@org/team");
     core.info("[reconcile-spark] push error captured — ready for sanitization and fallback issue embedding");
   });
+
+  it("rewriteBundleBranchAsSingleCommit uses bundle prerequisite SHA to avoid including base-branch drift", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // Production race: the agent creates its bundle while main is at commit A.
+    // Between bundle creation and safe-outputs applying it, a collaborator
+    // advances main to commit B (adding "base-drift.txt"). The safe-outputs
+    // runner clones origin/main at B, applies the bundle, then calls
+    // rewriteBundleBranchAsSingleCommit.
+    //
+    // With the naive fix (soft-reset to origin/main = B), the staged diff is
+    // {agent-file.txt added, base-drift.txt deleted}, so the synthesized commit
+    // incorrectly deletes base-drift.txt.
+    //
+    // The correct fix: read the prerequisite SHA from the bundle (= commit A,
+    // the exact base the agent started from) and soft-reset to that SHA.
+    // Staged diff becomes {agent-file.txt added} only.
+    //
+    // This test models the production race faithfully:
+    //   1. Bare remote with initial commit A on main.
+    //   2. Agent clones at A, creates feature branch, adds "agent-file.txt".
+    //   3. Agent bundles while main is still at A  →  prereq = A.
+    //   4. Collaborator advances main to B ("base-drift.txt").
+    //   5. Safe-outputs clones updated origin (B on main), applies bundle.
+    //   6. rewriteBundleBranchAsSingleCommit is called.
+    //   7. Synthesized commit MUST contain only "agent-file.txt" (from agent).
+    //   8. "base-drift.txt" MUST NOT appear anywhere in the synthesized diff
+    //      (neither as added nor as deleted — it was never the agent's change).
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-moving-base-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-moving-base-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-moving-base-so-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
+
+    // 1. Initialize bare remote and seed with initial commit A.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    execGit(["add", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+
+    // Capture commit A — the exact base the agent starts from.
+    const agentBaseCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    // 2. Agent creates feature branch and adds a file (main is still at A here).
+    const branchName = "feature/moving-base-test";
+    execGit(["checkout", "-b", branchName], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "agent-file.txt"), "agent change\n");
+    execGit(["add", "agent-file.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: agent adds a file"], { cwd: agentRepo });
+
+    // 3. Agent bundles while main is STILL at A (before any drift).
+    //    The bundle prerequisite is therefore A — the agent's actual base.
+    const bundlePath = path.join(agentRepo, "feature.bundle");
+    execGit(["bundle", "create", bundlePath, `${agentBaseCommit}..refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // Confirm the bundle's prerequisite is recorded as agentBaseCommit (A).
+    const verifyOutput = execGit(["bundle", "verify", bundlePath], { cwd: agentRepo, allowFailure: true });
+    const combinedVerify = `${verifyOutput.stdout || ""}\n${verifyOutput.stderr || ""}`;
+    expect(combinedVerify).toMatch(new RegExp(agentBaseCommit.slice(0, 8), "i"));
+
+    // 4. AFTER bundling: collaborator advances main to B (base-branch drift).
+    execGit(["checkout", "main"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "base-drift.txt"), "base drift added after agent checkout\n");
+    execGit(["add", "base-drift.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "chore: add base-drift file"], { cwd: agentRepo });
+    execGit(["push", "origin", "main"], { cwd: agentRepo });
+
+    // 5. Safe-outputs runner clones the *updated* origin/main (B — includes base-drift.txt).
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+    const newOriginMainSha = execGit(["rev-parse", "origin/main"], { cwd: safeOutputsRepo }).stdout.trim();
+    expect(newOriginMainSha).not.toBe(agentBaseCommit); // Confirms base has moved.
+
+    // Confirm base-drift.txt is on origin/main (the drift file is present on the remote).
+    const driftOnOriginMain = execGit(["show", "origin/main:base-drift.txt"], { cwd: safeOutputsRepo, allowFailure: true });
+    expect(driftOnOriginMain.status).toBe(0);
+
+    // 6. Apply the bundle to the safe-outputs repo (bundle prereq = A, not B).
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 7. Call rewriteBundleBranchAsSingleCommit with the bundle path so it reads prereq A.
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), bundlePath);
+
+    // 8. Verify the synthesized commit.
+    //
+    //   a) "agent-file.txt" must be in the working tree (agent's actual change was preserved).
+    //   b) "base-drift.txt" must NOT be in the working tree — the rewrite was anchored at A
+    //      (which predates the drift), so the feature branch tree never included it.
+    //   c) The diff HEAD^..HEAD must show "agent-file.txt" as added.
+    //   d) "base-drift.txt" must NOT appear in the diff at all — not deleted, not added.
+    //      (With the naive soft-reset to origin/main=B, it would appear as "D base-drift.txt".)
+    //   e) HEAD must have exactly one parent (linear, not a merge commit).
+    const agentFilePresent = fs.existsSync(path.join(safeOutputsRepo, "agent-file.txt"));
+    const baseDriftInWorkingTree = fs.existsSync(path.join(safeOutputsRepo, "base-drift.txt"));
+
+    expect(agentFilePresent).toBe(true);
+    // base-drift.txt belongs to origin/main (B), not to the feature branch anchored at A.
+    expect(baseDriftInWorkingTree).toBe(false);
+
+    // The HEAD commit (linearized) should show "agent-file.txt" as added.
+    const headStat = execGit(["show", "--stat", "HEAD"], { cwd: safeOutputsRepo }).stdout;
+    expect(headStat).toContain("agent-file.txt");
+
+    // The diff introduced by HEAD must NOT reference base-drift.txt at all.
+    // If the prereq-SHA path were bypassed and origin/main (B) were used instead,
+    // the diff would contain "D base-drift.txt" and this assertion would fail.
+    const diffStat = execGit(["diff", "--name-status", "HEAD^", "HEAD"], { cwd: safeOutputsRepo }).stdout;
+    expect(diffStat).not.toMatch(/base-drift\.txt/);
+
+    // Verify the commit has exactly one parent (linearized, not a merge commit).
+    const parentLine = execGit(["log", "-1", "--format=%P", "HEAD"], { cwd: safeOutputsRepo }).stdout.trim();
+    const parentShas = parentLine.split(/\s+/).filter(Boolean);
+    expect(parentShas).toHaveLength(1);
+  });
 });

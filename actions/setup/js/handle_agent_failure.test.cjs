@@ -22,6 +22,7 @@ describe("handle_agent_failure", () => {
   let getActionFailureIssueExpiresHours;
   const ENGINE_RATE_LIMIT_TEMPLATE = "> [!WARNING]\n> **Engine Rate Limited (HTTP 429)**\n> OTLP telemetry\n> {engine_label}\n";
   const ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Max Runs Exceeded**\n> max-runs guardrail\n> {engine_label}\n";
+  const ENGINE_MAX_CACHE_MISSES_EXCEEDED_TEMPLATE = "> [!WARNING]\n> **Engine Cache Miss Limit Exceeded**\n> cache misses guardrail\n> {engine_label}\n";
 
   beforeEach(() => {
     // Provide minimal GitHub Actions globals expected by require-time code
@@ -2286,6 +2287,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(path.join(promptsDir, "engine_rate_limit_429.md"), ENGINE_RATE_LIMIT_TEMPLATE);
       fs.writeFileSync(path.join(promptsDir, "engine_max_runs_exceeded.md"), ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE);
+      fs.writeFileSync(path.join(promptsDir, "max_cache_misses_exceeded.md"), ENGINE_MAX_CACHE_MISSES_EXCEEDED_TEMPLATE);
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
@@ -2294,6 +2296,7 @@ describe("handle_agent_failure", () => {
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED;
       delete process.env.GH_AW_OTEL_JSONL_PATH;
       delete process.env.RUNNER_TEMP;
       // Clean up temp dir
@@ -2347,6 +2350,28 @@ describe("handle_agent_failure", () => {
       const result = buildEngineFailureContext();
       expect(result).toContain("Engine Max Runs Exceeded");
       expect(result).toContain("max-runs guardrail");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context for max-cache-misses failures in stdio logs", () => {
+      fs.writeFileSync(
+        stdioLogPath,
+        '2026-07-30T06:14:50.000Z [ERROR] Error in API request: 403 {"error":{"type":"max_cache_misses_exceeded","message":"Maximum consecutive cache misses exceeded (6 / 5).","consecutive_cache_misses":6,"max_cache_misses":5}}\n'
+      );
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Cache Miss Limit Exceeded");
+      expect(result).toContain("cache misses guardrail");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context when max-cache-misses is only present in structured logs", () => {
+      const logDir = path.join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs");
+      fs.mkdirSync(logDir, { recursive: true });
+      fs.writeFileSync(path.join(logDir, "event-logs.jsonl"), `${JSON.stringify({ type: "max_cache_misses_exceeded", consecutive_cache_misses: 6, max_cache_misses: 5 })}\n`);
+      fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
+      process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED = "true";
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Cache Miss Limit Exceeded");
       expect(result).not.toContain("Last agent output");
     });
 
@@ -2917,6 +2942,95 @@ describe("handle_agent_failure", () => {
 
     it("throws when engine rate-limit template is missing", () => {
       expect(() => buildEngineRateLimit429Context("Copilot")).toThrow(/ENOENT|no such file/i);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // hasEngineMaxCacheMissesExceededSignal
+  // ──────────────────────────────────────────────────────
+
+  describe("hasEngineMaxCacheMissesExceededSignal", () => {
+    let hasEngineMaxCacheMissesExceededSignal;
+
+    beforeEach(() => {
+      vi.resetModules();
+      ({ hasEngineMaxCacheMissesExceededSignal } = require("./handle_agent_failure.cjs"));
+    });
+
+    it("returns false for empty-like content", () => {
+      expect(hasEngineMaxCacheMissesExceededSignal("")).toBe(false);
+      expect(hasEngineMaxCacheMissesExceededSignal(null)).toBe(false);
+      expect(hasEngineMaxCacheMissesExceededSignal(undefined)).toBe(false);
+    });
+
+    it("returns true when max_cache_misses_exceeded marker is present", () => {
+      expect(hasEngineMaxCacheMissesExceededSignal('{"error":{"type":"max_cache_misses_exceeded"}}')).toBe(true);
+    });
+
+    it("returns true when Maximum consecutive cache misses exceeded text is present", () => {
+      expect(hasEngineMaxCacheMissesExceededSignal("Maximum consecutive cache misses exceeded (6 / 5).")).toBe(true);
+    });
+
+    it("returns true for the exact error seen in production logs", () => {
+      const logLine =
+        '2026-07-30T06:14:50.000Z [ERROR] Error in API request: 403 {"error":{"type":"max_cache_misses_exceeded","message":"Maximum consecutive cache misses exceeded (6 / 5).","consecutive_cache_misses":6,"max_cache_misses":5}}';
+      expect(hasEngineMaxCacheMissesExceededSignal(logLine)).toBe(true);
+    });
+
+    it("returns false for unrelated content", () => {
+      expect(hasEngineMaxCacheMissesExceededSignal("request failed for unrelated reason")).toBe(false);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
+  // buildEngineMaxCacheMissesExceededContext
+  // ──────────────────────────────────────────────────────
+
+  describe("buildEngineMaxCacheMissesExceededContext", () => {
+    let buildEngineMaxCacheMissesExceededContext;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+
+    /** @type {string} */
+    let promptsDir;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-cache-misses-"));
+      promptsDir = path.join(tmpDir, "gh-aw", "prompts");
+      fs.mkdirSync(promptsDir, { recursive: true });
+      process.env.RUNNER_TEMP = tmpDir;
+      ({ buildEngineMaxCacheMissesExceededContext } = require("./handle_agent_failure.cjs"));
+      fs.writeFileSync(path.join(promptsDir, "max_cache_misses_exceeded.md"), ENGINE_MAX_CACHE_MISSES_EXCEEDED_TEMPLATE);
+    });
+
+    afterEach(() => {
+      delete process.env.RUNNER_TEMP;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("renders template content for a provided engine label", () => {
+      const result = buildEngineMaxCacheMissesExceededContext("claude");
+      expect(result).toContain("Engine Cache Miss Limit Exceeded");
+      expect(result).toContain("cache misses guardrail");
+      expect(result).toContain("claude");
+    });
+
+    it("falls back to AI when engine label is empty or whitespace", () => {
+      expect(buildEngineMaxCacheMissesExceededContext("")).toContain("AI");
+      expect(buildEngineMaxCacheMissesExceededContext("   ")).toContain("AI");
+    });
+
+    it("trims leading/trailing whitespace from engine label", () => {
+      const result = buildEngineMaxCacheMissesExceededContext("  claude  ");
+      expect(result).toContain("claude");
+      expect(result).not.toContain("  claude  ");
     });
   });
 

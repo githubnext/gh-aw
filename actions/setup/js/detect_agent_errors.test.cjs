@@ -4,6 +4,7 @@ const {
   detectErrors,
   isCAPIQuotaExceededError,
   isInvocationCapExceededError,
+  isMaxCacheMissesExceededError,
   INFERENCE_ACCESS_ERROR_PATTERN,
   MCP_POLICY_BLOCKED_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
@@ -11,6 +12,7 @@ const {
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
   INVOCATION_CAP_EXCEEDED_PATTERN,
+  MAX_CACHE_MISSES_EXCEEDED_PATTERN,
   MISSING_MODEL_PRICING_PATTERN,
   extractMissingModelPricingModelName,
   buildOutputLines,
@@ -318,6 +320,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(false);
+      expect(result.maxCacheMissesExceeded).toBe(false);
       expect(result.missingModelPricingError).toBe(false);
       expect(result.missingModelPricingModelName).toBe("");
     });
@@ -484,6 +487,7 @@ describe("detect_agent_errors.cjs", () => {
       expect(result.http400ResponseError).toBe(false);
       expect(result.capiQuotaExceededError).toBe(false);
       expect(result.invocationCapExceeded).toBe(false);
+      expect(result.maxCacheMissesExceeded).toBe(false);
       expect(result.missingModelPricingError).toBe(false);
     });
 
@@ -515,6 +519,67 @@ commentary" has no AI credits pricing`;
       expect(result.missingModelPricingError).toBe(false);
       expect(result.missingModelPricingModelName).toBe("");
     });
+
+    it("detects max cache misses exceeded (JSON error type form)", () => {
+      const result = detectErrors('{"error":{"type":"max_cache_misses_exceeded","message":"Maximum consecutive cache misses exceeded (6 / 5).","consecutive_cache_misses":6,"max_cache_misses":5}}');
+      expect(result.maxCacheMissesExceeded).toBe(true);
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
+    });
+
+    it("detects max cache misses exceeded (human-readable message form)", () => {
+      const result = detectErrors("Maximum consecutive cache misses exceeded");
+      expect(result.maxCacheMissesExceeded).toBe(true);
+      expect(result.inferenceAccessError).toBe(false);
+      expect(result.invocationCapExceeded).toBe(false);
+    });
+
+    it("detects max cache misses exceeded in a production log line", () => {
+      const log = '2026-07-30T06:14:50.000Z [ERROR] Error in API request: 403 {"error":{"type":"max_cache_misses_exceeded","message":"Maximum consecutive cache misses exceeded (6 / 5).","consecutive_cache_misses":6,"max_cache_misses":5}}';
+      const result = detectErrors(log);
+      expect(result.maxCacheMissesExceeded).toBe(true);
+    });
+
+    it("does not false-positive on unrelated cache miss content", () => {
+      const result = detectErrors("Cache miss for key: model-output-xyz");
+      expect(result.maxCacheMissesExceeded).toBe(false);
+    });
+  });
+
+  describe("MAX_CACHE_MISSES_EXCEEDED_PATTERN", () => {
+    it("matches max_cache_misses_exceeded error type", () => {
+      expect(MAX_CACHE_MISSES_EXCEEDED_PATTERN.test('{"type":"max_cache_misses_exceeded"}')).toBe(true);
+    });
+
+    it("matches Maximum consecutive cache misses exceeded message", () => {
+      expect(MAX_CACHE_MISSES_EXCEEDED_PATTERN.test("Maximum consecutive cache misses exceeded")).toBe(true);
+    });
+
+    it("is case-insensitive", () => {
+      expect(MAX_CACHE_MISSES_EXCEEDED_PATTERN.test("MAXIMUM CONSECUTIVE CACHE MISSES EXCEEDED")).toBe(true);
+    });
+
+    it("does not match unrelated cache miss content", () => {
+      expect(MAX_CACHE_MISSES_EXCEEDED_PATTERN.test("Cache miss for key: output")).toBe(false);
+    });
+  });
+
+  describe("isMaxCacheMissesExceededError", () => {
+    it("returns false for empty input", () => {
+      expect(isMaxCacheMissesExceededError("")).toBe(false);
+    });
+
+    it("detects max_cache_misses_exceeded JSON error type", () => {
+      expect(isMaxCacheMissesExceededError('{"error":{"type":"max_cache_misses_exceeded"}}')).toBe(true);
+    });
+
+    it("detects human-readable message form", () => {
+      expect(isMaxCacheMissesExceededError("Maximum consecutive cache misses exceeded")).toBe(true);
+    });
+
+    it("returns false for unrelated content", () => {
+      expect(isMaxCacheMissesExceededError("Some unrelated error message")).toBe(false);
+    });
   });
 
   describe("buildOutputLines", () => {
@@ -542,6 +607,7 @@ commentary" has no AI credits pricing`;
         http400ResponseError: false,
         capiQuotaExceededError: false,
         invocationCapExceeded: false,
+        maxCacheMissesExceeded: false,
         missingModelPricingError: true,
         missingModelPricingModelName: "claude-opus-5",
       });
@@ -559,12 +625,47 @@ commentary" has no AI credits pricing`;
         http400ResponseError: false,
         capiQuotaExceededError: false,
         invocationCapExceeded: false,
+        maxCacheMissesExceeded: false,
         missingModelPricingError: false,
         missingModelPricingModelName: "",
       });
 
       expect(lines).toContain("missing_model_pricing_error=false");
       expect(lines).toContain("missing_model_pricing_model_name=");
+    });
+
+    it("emits max_cache_misses_exceeded=true when detected", () => {
+      const lines = buildOutputLines({
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+        http400ResponseError: false,
+        capiQuotaExceededError: false,
+        invocationCapExceeded: false,
+        maxCacheMissesExceeded: true,
+        missingModelPricingError: false,
+        missingModelPricingModelName: "",
+      });
+
+      expect(lines).toContain("max_cache_misses_exceeded=true");
+    });
+
+    it("emits max_cache_misses_exceeded=false when not detected", () => {
+      const lines = buildOutputLines({
+        inferenceAccessError: false,
+        mcpPolicyError: false,
+        agenticEngineTimeout: false,
+        modelNotSupportedError: false,
+        http400ResponseError: false,
+        capiQuotaExceededError: false,
+        invocationCapExceeded: false,
+        maxCacheMissesExceeded: false,
+        missingModelPricingError: false,
+        missingModelPricingModelName: "",
+      });
+
+      expect(lines).toContain("max_cache_misses_exceeded=false");
     });
   });
 });
