@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -154,13 +155,31 @@ func grantPolicyFile() (string, error) {
 func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, error) {
 	containerPolicyPath := grantContainerPolicyPath
 
+	imageRef = strings.TrimSpace(imageRef)
+	if imageRef == "" {
+		return nil, errors.New("grant image reference cannot be empty")
+	}
+	if strings.ContainsAny(imageRef, " \t\r\n\x00") {
+		return nil, fmt.Errorf("grant image reference contains invalid whitespace/control characters: %q", imageRef)
+	}
+
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return nil, fmt.Errorf("docker command not found: %w", err)
+	}
+
+	volumeMount, err := buildDockerReadonlyFileMount(policyFile, containerPolicyPath)
+	if err != nil {
+		return nil, fmt.Errorf("invalid grant policy mount: %w", err)
+	}
+
 	// #nosec G204 -- imageRef and policyFile are derived from compiled lock files and the
 	// current repository checkout. exec.Command passes arguments directly without a shell.
 	cmd := exec.Command(
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
-		"-v", policyFile+":"+containerPolicyPath+":ro",
+		"-v", volumeMount,
 		GrantImage,
 		"--config", containerPolicyPath,
 		"--output", "json",

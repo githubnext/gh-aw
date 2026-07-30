@@ -4,6 +4,7 @@ package cli
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -71,5 +72,15 @@ func TestGrantPolicyFile(t *testing.T) {
 	}
 	if filepath.Base(policyFile) != grantPolicyFilename {
 		t.Fatalf("Expected policy file basename %q, got %q", grantPolicyFilename, filepath.Base(policyFile))
+	}
+}
+
+func TestGrantRunOnImageRejectsInvalidImageRef(t *testing.T) {
+	_, err := grantRunOnImage("bad image", "/tmp/policy.yaml", false)
+	if err == nil {
+		t.Fatal("Expected grantRunOnImage to reject whitespace in image ref")
+	}
+	if err != nil && !strings.Contains(err.Error(), "invalid whitespace/control characters") {
+		t.Fatalf("Expected whitespace validation error, got: %v", err)
 	}
 }

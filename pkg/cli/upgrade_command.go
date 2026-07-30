@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -478,6 +479,11 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	// Explicitly copy os.Args[1:] so appending the extra flag does not modify
 	// the original slice backing array.
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
+	for _, arg := range newArgs {
+		if strings.ContainsRune(arg, '\x00') {
+			return errors.New("invalid relaunch arguments: argument contains NUL byte")
+		}
+	}
 	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
 
 	// Validate the executable path before re-launching it (defense-in-depth).

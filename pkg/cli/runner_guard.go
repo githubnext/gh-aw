@@ -84,7 +84,10 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	if err != nil {
 		return fmt.Errorf("docker command not found: %w", err)
 	}
-	volumeMount := gitRoot + ":/workdir"
+	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
+	if err != nil {
+		return fmt.Errorf("invalid docker mount path: %w", err)
+	}
 	// #nosec G204 -- gitRoot is validated as an absolute path above (from git rev-parse, a trusted
 	// source). containerScanPath is derived from filepath.Rel(gitRoot, workflowDir), cleaned with
 	// filepath.Clean, validated to not escape the repository root (no ".." prefix), and prefixed
