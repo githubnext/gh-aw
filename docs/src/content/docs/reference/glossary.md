@@ -247,7 +247,11 @@ Access controls defining workflow operations. Workflows follow least privilege, 
 
 ### Safe Output Messages
 
-Customizable messages workflows can display during execution. Configured in `safe-outputs.messages` with types `run-started`, `run-success`, `run-failure`, and `footer`. Supports GitHub context variables like `{workflow_name}` and `{run_url}`.
+Customizable messages workflows can display during execution. Configured in `safe-outputs.messages` with types `run-started`, `run-success`, `run-failure`, and `footer`. Supports GitHub context variables like `{workflow_name}` and `{run_url}`, plus individual AI cost and detection variables such as `{ai_model}`, `{ai_credits}`, `{ai_credits_formatted}`, `{agent_ai_credits_formatted}`, `{evals_ai_credits_formatted}`, `{threat_detection_ai_credits_formatted}`, `{detection_conclusion}`, and `{detection_reason}` for fine-grained cost and outcome attribution in custom footer templates. See [Footers Reference](/gh-aw/reference/footers/).
+
+### Egress Context Validation (MCE1)
+
+A safe-output handler safeguard, defined by Safe Outputs Specification requirement MCE1 ("Early Validation"), that checks for the required triggering context (a pull request, issue, or discussion number) *before* the handler writes its NDJSON entry. Tools that target the triggering entity implicitly — for example `close_pull_request` or `add_labels` called without an explicit `pull_request_number` or `issue_number` — need that context to resolve which item to act on. On `schedule` or `workflow_dispatch` runs, no triggering item exists, so without this check the tool call would pass validation but hard-fail later during output processing. Egress context validation surfaces an actionable error immediately, telling the agent to supply an explicit item number instead. Applied to `close_pull_request`, `merge_pull_request`, `mark_pull_request_as_ready_for_review`, `add_reviewer`, `reply_to_pull_request_review_comment`, `close_issue`, `add_labels`, `remove_labels`, `update_discussion`, and `close_discussion`. See [Safe Outputs Specification](/gh-aw/specs/safe-outputs-specification/).
 
 ### Failure Issue Reporting (`report-failure-as-issue:`)
 
@@ -432,6 +436,10 @@ A `create-pull-request` safe-output field that sets the maximum number of unique
 ### Max Patch Size (`max-patch-size:`)
 
 A `create-pull-request` and `push-to-pull-request-branch` safe output field that limits the total size of the git patch in kilobytes. Accepts an integer in the range 1–10,240 KB. Defaults to `4096` KB (4 MB). If the patch exceeds the limit, PR creation fails with an actionable error. Useful when workflows generate large diffs and the default limit is too restrictive or too permissive. See [Safe Outputs (Pull Requests)](/gh-aw/reference/safe-outputs-pull-requests/).
+
+### Implausible Shallow Range Guard
+
+A safety check in `push-to-pull-request-branch` that detects when a shallow clone (`fetch-depth: 1`) causes `git rev-list` to report the entire local history as the commit range instead of just the new commits — for example, tens of thousands of commits on a branch with a single new commit. This happens because a shallow checkout gives `origin/<branch>` no traversable ancestry. When the reported range exceeds a threshold (100 commits) in a shallow checkout, merge-commit detection returns `false` with a warning rather than risk selecting the wrong push transport; if the range still reaches the signed-push linearization step, that step throws and refuses to proceed. Set `fetch-depth: 0` in `checkout:` to give the transport-selection logic an accurate commit range. See [Checkout Reference](/gh-aw/reference/checkout/#git-credentials-after-checkout).
 
 ### Recreate Ref (`recreate-ref:`)
 
