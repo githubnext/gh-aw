@@ -891,6 +891,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (useBundle) {
       // Bundle transport: preserves merge commits and per-commit metadata
       server.debug(`Generating bundle for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
+      if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) {
+        transportOptions.excludedFiles = prConfig.excluded_files;
+      }
       const bundleResult = await generateGitBundle(entry.branch, baseBranch, transportOptions);
 
       if (!bundleResult.success) {
@@ -1415,6 +1418,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (useBundle) {
       // Bundle transport: preserves merge commits and per-commit metadata
       server.debug(`Generating incremental bundle for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
+      if (Array.isArray(pushConfig.excluded_files) && pushConfig.excluded_files.length > 0) {
+        pushTransportOptions.excludedFiles = pushConfig.excluded_files;
+      }
       const bundleResult = await generateGitBundle(entry.branch, baseBranch, pushTransportOptions);
 
       if (!bundleResult.success) {
