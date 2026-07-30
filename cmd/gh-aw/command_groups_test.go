@@ -67,17 +67,21 @@ func TestCommandGroupAssignments(t *testing.T) {
 		// Note: help command is special in Cobra and managed separately, so we don't test it here
 	}
 
+	// Build a command lookup map once before running parallel subtests.
+	// Cobra's Commands() triggers a lazy sort that is not thread-safe: calling it
+	// concurrently from multiple goroutines can corrupt the internal commands slice,
+	// causing intermittent "command not found" failures. Fetching commands here
+	// (serially, before any subtest calls t.Parallel()) ensures the sort runs
+	// exactly once and the resulting map is read-only in the subtests.
+	commandMap := make(map[string]*cobra.Command, len(rootCmd.Commands()))
+	for _, cmd := range rootCmd.Commands() {
+		commandMap[cmd.Name()] = cmd
+	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			// Find the command
-			var foundCmd *cobra.Command
-			for _, cmd := range rootCmd.Commands() {
-				if cmd.Name() == tt.commandName {
-					foundCmd = cmd
-					break
-				}
-			}
+			foundCmd := commandMap[tt.commandName]
 
 			if foundCmd == nil {
 				t.Fatalf("Command %q not found", tt.commandName)
@@ -139,16 +143,17 @@ func TestNoCommandsInAdditionalCommandsWithGroups(t *testing.T) {
 	// Commands that should NOT be in Additional Commands (should have groups)
 	commandsShouldHaveGroups := []string{"remove", "update", "deploy", "trial", "mcp-server", "pr"}
 
+	// Build a command lookup map once before running parallel subtests.
+	// See TestCommandGroupAssignments for the rationale.
+	commandMap := make(map[string]*cobra.Command, len(rootCmd.Commands()))
+	for _, cmd := range rootCmd.Commands() {
+		commandMap[cmd.Name()] = cmd
+	}
+
 	for _, cmdName := range commandsShouldHaveGroups {
 		t.Run("command "+cmdName+" has group", func(t *testing.T) {
 			t.Parallel()
-			var foundCmd *cobra.Command
-			for _, cmd := range rootCmd.Commands() {
-				if cmd.Name() == cmdName {
-					foundCmd = cmd
-					break
-				}
-			}
+			foundCmd := commandMap[cmdName]
 
 			if foundCmd == nil {
 				t.Fatalf("Command %q not found", cmdName)
