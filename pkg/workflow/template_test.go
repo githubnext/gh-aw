@@ -27,7 +27,7 @@ func TestGenerateInterpolationAndTemplateStep_DeduplicatesEnvVars(t *testing.T) 
 	}
 
 	var yaml strings.Builder
-	compiler.generateInterpolationAndTemplateStep(&yaml, expressionMappings, data)
+	compiler.generateInterpolationAndTemplateStep(&yaml, expressionMappings, data, false)
 
 	result := yaml.String()
 
@@ -40,7 +40,8 @@ func TestGenerateInterpolationAndTemplateStep_DeduplicatesEnvVars(t *testing.T) 
 }
 
 // TestGenerateInterpolationAndTemplateStep_SkipPath tests that the step is not generated
-// when there are no expression mappings, no template patterns, and no GitHub context tool.
+// when there are no expression mappings, no template patterns, no GitHub context tool, and
+// no runtime-import macros (i.e. inline/Wasm compilation mode where no self-import is emitted).
 func TestGenerateInterpolationAndTemplateStep_SkipPath(t *testing.T) {
 	compiler := &Compiler{}
 	data := &WorkflowData{
@@ -49,7 +50,7 @@ func TestGenerateInterpolationAndTemplateStep_SkipPath(t *testing.T) {
 	}
 
 	var yaml strings.Builder
-	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data, false)
 
 	assert.Empty(t, yaml.String(), "step YAML should be empty when MarkdownContent has no expressions or template patterns")
 }
@@ -64,7 +65,7 @@ func TestGenerateInterpolationAndTemplateStep_GeneratePath(t *testing.T) {
 	}
 
 	var yaml strings.Builder
-	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data, false)
 
 	result := yaml.String()
 	assert.Contains(t, result, "Interpolate variables and render templates", "step name should be present when template patterns exist")
@@ -85,9 +86,33 @@ func TestGenerateInterpolationAndTemplateStep_WithInlineSubAgent(t *testing.T) {
 	}
 
 	var yaml strings.Builder
-	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data)
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data, false)
 
 	result := yaml.String()
 	assert.Contains(t, result, "Interpolate variables and render templates", "step should be present when inline sub-agents are defined")
 	assert.Contains(t, result, "interpolate_prompt.cjs", "interpolate_prompt script should run to extract inline sub-agents")
+}
+
+// TestGenerateInterpolationAndTemplateStep_WithRuntimeImport ensures the interpolation step
+// is emitted whenever the compiled prompt contains a {{#runtime-import}} macro, even when
+// the markdown body has no expressions, no {{#if}} patterns, and github is disabled.
+// This is the scenario from the bug report: github: false + no expressions = skipped step,
+// but the compiler always emits a self-import macro that requires interpolate_prompt.cjs.
+func TestGenerateInterpolationAndTemplateStep_WithRuntimeImport(t *testing.T) {
+	compiler := &Compiler{}
+	data := &WorkflowData{
+		// Plain body with no expressions, no {{#if}}, no github tool — previously caused the step
+		// to be skipped even though the compiled prompt always contains a runtime-import macro.
+		MarkdownContent: "Do some work.",
+		ParsedTools:     NewTools(map[string]any{}),
+	}
+
+	var yaml strings.Builder
+	compiler.generateInterpolationAndTemplateStep(&yaml, nil, data, true)
+
+	result := yaml.String()
+	assert.Contains(t, result, "Interpolate variables and render templates",
+		"step must be emitted when runtime-import macros are present so they are resolved at runtime")
+	assert.Contains(t, result, "interpolate_prompt.cjs",
+		"interpolate_prompt script must be referenced to resolve {{#runtime-import}} macros")
 }
