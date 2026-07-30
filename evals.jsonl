@@ -1,0 +1,2 @@
+{"id":"specifications_analyzed","question":"Did the agent analyze repository specifications using the SPDD planning process?","answer":"YES","model":"small","timestamp":"2026-07-30T16:25:08.572Z","runid":"30560853935"}
+{"id":"prioritized_plan_reported","question":"Did the agent report a prioritized plan with actionable specification work items?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-30T16:25:08.572Z","runid":"30560853935"}
