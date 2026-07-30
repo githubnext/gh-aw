@@ -188,8 +188,17 @@ func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, e
 	)
 
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v %s:%s:ro %s --config %s --output json check %s",
-			policyFile, containerPolicyPath, GrantImage, containerPolicyPath, imageRef)
+		dockerCmd := shellJoinArgs([]string{
+			"docker",
+			"run",
+			"--rm",
+			"-v", volumeMount,
+			GrantImage,
+			"--config", containerPolicyPath,
+			"--output", "json",
+			"check",
+			imageRef,
+		})
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run grant directly: "+dockerCmd))
 	}
 

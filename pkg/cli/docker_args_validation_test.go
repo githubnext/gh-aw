@@ -5,6 +5,7 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -24,6 +25,20 @@ func TestBuildDockerVolumeMount(t *testing.T) {
 	_, err = buildDockerVolumeMount(tmpDir, "workdir")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "container path must be absolute")
+
+	_, err = buildDockerVolumeMount(tmpDir, "/work:dir")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "reserved characters")
+
+	_, err = buildDockerVolumeMount(tmpDir, "/work\x00dir")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid control characters")
+
+	if runtime.GOOS != "windows" {
+		_, err = buildDockerVolumeMount("/tmp/repo:fixture", "/workdir")
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unsupported ':'")
+	}
 }
 
 func TestBuildDockerReadonlyFileMount(t *testing.T) {
@@ -38,4 +53,12 @@ func TestBuildDockerReadonlyFileMount(t *testing.T) {
 	_, err = buildDockerReadonlyFileMount(tmpDir, "/tmp/policy.yaml")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "not a regular file")
+
+	_, err = buildDockerReadonlyFileMount(policyFile, "/tmp/policy:yaml")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "reserved characters")
+
+	_, err = buildDockerReadonlyFileMount(policyFile, "/tmp/policy\x00yaml")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid control characters")
 }

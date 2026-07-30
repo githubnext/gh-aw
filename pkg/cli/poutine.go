@@ -102,8 +102,12 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	if err != nil {
 		return fmt.Errorf("invalid docker mount path: %w", err)
 	}
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return fmt.Errorf("docker command not found: %w", err)
+	}
 	cmd := exec.Command(
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
 		"-v", volumeMount,
@@ -120,8 +124,18 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json --quiet",
-			gitRoot)
+		dockerCmd := shellJoinArgs([]string{
+			"docker",
+			"run",
+			"--rm",
+			"-v", volumeMount,
+			"-w", "/workdir",
+			"ghcr.io/boostsecurityio/poutine:latest",
+			"analyze_local",
+			".",
+			"--format", "json",
+			"--quiet",
+		})
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run poutine directly: "+dockerCmd))
 	}
 
@@ -208,8 +222,12 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	if err != nil {
 		return fmt.Errorf("invalid docker mount path: %w", err)
 	}
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return fmt.Errorf("docker command not found: %w", err)
+	}
 	cmd := exec.Command(
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
 		"-v", volumeMount,
@@ -226,8 +244,18 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json --quiet",
-			gitRoot)
+		dockerCmd := shellJoinArgs([]string{
+			"docker",
+			"run",
+			"--rm",
+			"-v", volumeMount,
+			"-w", "/workdir",
+			"ghcr.io/boostsecurityio/poutine:latest",
+			"analyze_local",
+			".",
+			"--format", "json",
+			"--quiet",
+		})
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run poutine directly: "+dockerCmd))
 	}
 
