@@ -1130,19 +1130,77 @@ describe("git_helpers.cjs", () => {
       expect(SHALLOW_RANGE_MAX_COMMITS).toBeGreaterThan(0);
     });
 
-    it("should return implausible:false for full (non-shallow) clone even with large range", async () => {
-      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
-      // The test env is a full clone; isShallow will be false, so implausible stays false
-      // regardless of the count.  This test verifies the non-shallow branch of the guard.
-      // Using HEAD^..HEAD gives a 1-commit range, well below any threshold.
+    it("should respect the shallow status of the current repo when range exceeds threshold", async () => {
+      const { checkImplausibleShallowRange, execGitSync } = await import("./git_helpers.cjs");
+      // Use maxCommits:0 to force the shallow probe to run even on a 1-commit range —
+      // this exercises the --is-shallow-repository branch regardless of environment.
+      // The expected implausible flag depends on whether the current clone is shallow.
+      let isShallow = false;
+      try {
+        isShallow = execGitSync(["rev-parse", "--is-shallow-repository"], { suppressLogs: true }).trim() === "true";
+      } catch {
+        // If the shallow probe fails, treat as non-shallow for this test
+      }
       let result;
       try {
-        result = checkImplausibleShallowRange("HEAD^", "HEAD");
+        result = checkImplausibleShallowRange("HEAD^", "HEAD", { maxCommits: 0 });
       } catch {
         // If HEAD^ does not exist (initial commit), skip
         return;
       }
-      expect(result.implausible).toBe(false);
+      // Count is >0 (above threshold of 0); implausible iff the clone is shallow
+      expect(result.commitCount).toBeGreaterThan(0);
+      expect(result.implausible).toBe(isShallow);
+    });
+  });
+
+  describe("hasMergeCommitsInRange", () => {
+    it("should return false for empty baseRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("", "HEAD")).toBe(false);
+    });
+
+    it("should return false for empty headRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("origin/main", "")).toBe(false);
+    });
+
+    it("should return false when git rev-list fails (non-existent refs)", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      const result = hasMergeCommitsInRange("refs/nonexistent/base", "refs/nonexistent/head");
+      expect(result).toBe(false);
+    });
+
+    it("should return false for HEAD..HEAD (empty range, no merge commits)", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      // HEAD..HEAD is an empty range; merges --count returns 0
+      const result = hasMergeCommitsInRange("HEAD", "HEAD");
+      expect(result).toBe(false);
+    });
+
+    it("should respect the shallow status of the current repo when range exceeds threshold", async () => {
+      const { hasMergeCommitsInRange, execGitSync } = await import("./git_helpers.cjs");
+      // maxCommits:0 forces the shallow probe for a 1-commit range.
+      // In a shallow clone the range is implausible → returns false (no false-positive merges).
+      // In a full clone the range is not implausible → proceeds to check for merges
+      // (HEAD^..HEAD has no merge commits → still returns false).
+      let isShallow = false;
+      try {
+        isShallow = execGitSync(["rev-parse", "--is-shallow-repository"], { suppressLogs: true }).trim() === "true";
+      } catch {
+        // treat as non-shallow
+      }
+      let result;
+      try {
+        result = hasMergeCommitsInRange("HEAD^", "HEAD", { maxCommits: 0 });
+      } catch {
+        // If HEAD^ does not exist (initial commit), skip
+        return;
+      }
+      // Either path (shallow→early false, or non-shallow→no merge commits found→false)
+      // yields false for a linear single-commit range.
+      expect(result).toBe(false);
+      void isShallow; // used above to document expected behavior
     });
   });
 });

@@ -123,7 +123,7 @@ An older **patch transport** (`git format-patch` / `git am --3way`) is used when
 :::caution[Shallow checkout and large monorepos]
 The merge-commit detection that auto-selects bundle transport inspects the commit range `origin/<branch>..<branch>` in the **agent's** workspace. With the default shallow checkout (`fetch-depth: 1`) `origin/<branch>` has no traversable ancestry, so `git rev-list` cannot exclude any commits and will report the entire local history as the range. On large monorepos this produces a count of tens of thousands of commits, which falsely appears to contain merge commits and can trigger an incorrect rewrite.
 
-The safe_outputs push job guards against this: if the commit range contains more than 100 commits **and** the repository is shallow, the push is refused with a clear error that includes the commit count. To resolve this, increase `fetch-depth` in your workflow checkout step:
+The safe_outputs push job guards against this: if the commit range contains more than 100 commits **and** the repository is shallow, merge-commit detection emits a warning and returns false (preventing an incorrect bundle-transport selection). If the same implausible range then reaches the signed-push linearization step, that step throws with a clear error that includes the commit count. To resolve this, increase `fetch-depth` in your workflow checkout step:
 
 ```yaml wrap
 checkout:

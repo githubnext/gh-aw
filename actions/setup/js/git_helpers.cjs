@@ -271,8 +271,10 @@ const SHALLOW_RANGE_MAX_COMMITS = 100;
  * `{ implausible: true, commitCount }`.  Otherwise it returns
  * `{ implausible: false, commitCount }`.
  *
- * All git failures are treated as non-fatal: errors cause the function to
- * return `{ implausible: false, commitCount: 0 }` so callers are never blocked.
+ * All git failures are treated as non-fatal so callers are never blocked.
+ * If `git rev-list` fails, returns `{ implausible: false, commitCount: 0 }`.
+ * If `git rev-list` succeeds but `git rev-parse --is-shallow-repository` fails,
+ * returns `{ implausible: false, commitCount }` with the measured commit count.
  *
  * @param {string} baseRef - The base ref (exclusive). Example: "origin/main".
  * @param {string} headRef - The head ref (inclusive). Example: "HEAD" or a branch name.
