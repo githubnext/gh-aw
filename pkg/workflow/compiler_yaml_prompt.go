@@ -74,7 +74,7 @@ func (c *Compiler) generatePrompt(yaml *strings.Builder, data *WorkflowData, pre
 	}
 
 	hasRuntimeImports := sliceutil.Any(userPromptChunks, func(chunk string) bool {
-		return strings.HasPrefix(chunk, "{{#runtime-import ")
+		return strings.Contains(chunk, "{{#runtime-import ") || strings.Contains(chunk, "{{#runtime-import? ")
 	})
 	c.generateInterpolationAndTemplateStep(yaml, expressionMappings, data, hasRuntimeImports)
 
