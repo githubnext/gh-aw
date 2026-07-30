@@ -545,13 +545,13 @@ func TestAuditCachingBehavior(t *testing.T) {
 		t.Errorf("Expected workflow name %s, got %s", summary.Run.WorkflowName, loadedSummary.Run.WorkflowName)
 	}
 
-	// A complete artifact marker is required for unfiltered cache hits.
 	if err := markArtifactDownloaded(runOutputDir, string(ArtifactSetAll)); err != nil {
-		t.Fatalf("Failed to mark cached artifacts as complete: %v", err)
+		t.Fatalf("markArtifactDownloaded: %v", err)
 	}
 
-	// Verify that downloadRunArtifacts skips download when a valid summary exists
-	// and the run folder is marked as a complete artifact cache.
+	// Verify that downloadRunArtifacts skips download when valid summary exists
+	// This is tested by checking that the function returns without error
+	// and doesn't attempt to call `gh run download`
 	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir})
 	if err != nil {
 		t.Errorf("downloadRunArtifacts should skip download when cached artifacts are complete, but got error: %v", err)

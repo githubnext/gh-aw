@@ -19,6 +19,39 @@ func TestValidateFrontmatterSkills(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("accepts local path references", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				"skills/rig",
+				".github/skills/my-skill",
+				"./skills/my-skill",
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("accepts object form with local path skill", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				map[string]any{
+					"skill": "skills/rig",
+				},
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("rejects local path traversal segments", func(t *testing.T) {
+		err := validateFrontmatterSkills(map[string]any{
+			"skills": []any{
+				"skills/../rig",
+				"../skills/rig",
+			},
+		})
+		require.Error(t, err)
+		require.ErrorContains(t, err, "without '..' traversal segments")
+	})
+
 	t.Run("rejects non-sha refs", func(t *testing.T) {
 		err := validateFrontmatterSkills(map[string]any{
 			"skills": []any{

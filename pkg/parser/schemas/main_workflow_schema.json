@@ -58,7 +58,7 @@
     },
     "skills": {
       "type": "array",
-      "description": "Optional list of external skill references to install during activation. Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs (`owner/repo/skill/path@<sha>`). Static references must be pinned to a full 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`) are also accepted and are evaluated at runtime. Entries may also be objects to configure per-skill authentication via github-token or github-app.",
+      "description": "Optional list of skill references to install during activation. Supports remote repository-wide installs (`owner/repo@<sha>`), remote path-scoped installs (`owner/repo/skill/path@<sha>`), and local path references (e.g. `skills/rig` or `.github/skills/my-skill`). Remote static references must be pinned to a full 40-character lowercase commit SHA. Local paths are installed with --from-local at runtime and are rewritten to a remote repospec by `gh aw add`. GitHub Actions expressions (`${{ ... }}`) are also accepted and are evaluated at runtime. Entries may also be objects to configure per-skill authentication via github-token or github-app.",
       "items": {
         "oneOf": [
           {
@@ -74,6 +74,11 @@
             "type": "string",
             "pattern": "^\\$\\{\\{.+\\}\\}$",
             "description": "GitHub Actions expression that resolves to a full skill reference string at runtime."
+          },
+          {
+            "type": "string",
+            "pattern": "^(?:\\./)?(?:\\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*)(?:\\/(?:\\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*))*$",
+            "description": "Local path to a skill directory relative to the repository root. Installed with --from-local at runtime. Rewritten to a remote repospec by gh aw add."
           },
           {
             "type": "object",
@@ -94,6 +99,11 @@
                   {
                     "type": "string",
                     "pattern": "^\\$\\{\\{.+\\}\\}$"
+                  },
+                  {
+                    "type": "string",
+                    "pattern": "^(?:\\./)?(?:\\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*)(?:\\/(?:\\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*))*$",
+                    "description": "Local path to a skill directory relative to the repository root."
                   }
                 ],
                 "description": "Skill reference string in the same format accepted by string-form entries."
@@ -110,7 +120,7 @@
           }
         ]
       },
-      "examples": [["githubnext/awesome-skills@1f181b37d3fe5862ab590648f25a292e345b5de6"], ["githubnext/awesome-skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"]]
+      "examples": [["githubnext/awesome-skills@1f181b37d3fe5862ab590648f25a292e345b5de6"], ["githubnext/awesome-skills/review/security@1f181b37d3fe5862ab590648f25a292e345b5de6"], ["skills/rig"]]
     },
     "metadata": {
       "type": "object",

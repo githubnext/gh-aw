@@ -334,9 +334,10 @@ async function applyBundleToBranch(bundleFilePath, branchName, originalAgentBran
  * @param {{ exec: Function, getExecOutput: Function }} execApi
  * @param {string} [bundleFilePath] - Optional path to the bundle file; used to extract the
  *   precise base commit the agent worked from.
+ * @param {{ excludedFiles?: string[] }} [options]
  * @returns {Promise<void>}
  */
-async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFilePath) {
+async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFilePath, options = {}) {
   const fallbackBaseRef = `origin/${baseBranch}`;
   let baseRef = fallbackBaseRef;
 
@@ -382,7 +383,7 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
   }
 
   core.warning(`Rewriting bundled commits to a single linear commit for signed push compatibility (base: ${baseRef})`);
-  const newHead = await linearizeRangeAsCommit(baseRef, commitHeadline, execApi);
+  const newHead = await linearizeRangeAsCommit(baseRef, commitHeadline, execApi, { excludedFiles: options.excludedFiles });
   core.info(`Bundle rewrite completed (new HEAD: ${newHead})`);
 }
 
@@ -1717,7 +1718,9 @@ async function main(config = {}) {
             if (isSignedMergeReplayRefusal) {
               core.warning("Signed push rejected merge commit topology from bundle; rewriting branch and retrying signed push");
               try {
-                await rewriteBundleBranchAsSingleCommit(baseBranch, exec, bundleFilePath);
+                await rewriteBundleBranchAsSingleCommit(baseBranch, exec, bundleFilePath, {
+                  excludedFiles: Array.isArray(config.excluded_files) ? config.excluded_files : [],
+                });
                 const runRetryPush = async () =>
                   pushSignedCommits({
                     githubClient: pushGithubClient,
