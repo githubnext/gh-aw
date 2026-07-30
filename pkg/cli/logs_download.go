@@ -77,7 +77,7 @@ func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
 	}
 
 	for _, entry := range entries {
-		if !entry.IsDir() {
+		if !entry.IsDir() || entry.Name() == downloadedArtifactsMarkerDir {
 			continue
 		}
 
