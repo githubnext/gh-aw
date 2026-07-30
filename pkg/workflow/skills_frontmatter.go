@@ -12,6 +12,7 @@ import (
 var skillsFrontmatterLog = logger.New("workflow:skills_frontmatter")
 
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
+var localSkillPathRegexp = regexp.MustCompile(`^(?:\./)?(?:\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*)(?:/(?:\.[A-Za-z0-9_-][A-Za-z0-9_.-]*|[A-Za-z0-9_-][A-Za-z0-9_.-]*))*$`)
 var skillsGitHubTokenExpressionRegexp = regexp.MustCompile(`^\$\{\{\s*(secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*|needs\.[A-Za-z_][A-Za-z0-9_]*\.outputs\.[A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
 
 // isLocalSkillRef reports whether spec is a local skill reference — a
@@ -42,6 +43,14 @@ func validateSkillSpecValue(skillSpec string, idx int) error {
 	// are installed with --from-local at runtime and rewritten to a remote
 	// repospec by "gh aw add".
 	if isLocalSkillRef(skillSpec) {
+		if !localSkillPathRegexp.MatchString(strings.TrimSpace(skillSpec)) {
+			return fmt.Errorf(
+				"skills[%d] local paths must be repository-relative without '..' traversal segments (got %q). Example: skills[%d]: \"./skills/my-skill\"",
+				idx,
+				skillSpec,
+				idx,
+			)
+		}
 		return nil
 	}
 	if !skillSpecRegexp.MatchString(skillSpec) {
