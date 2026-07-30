@@ -32,6 +32,7 @@ import { noCaughtErrorInterpolationRule } from "./rules/no-caught-error-interpol
 import { requireFetchTryCatchRule } from "./rules/require-fetch-try-catch";
 import { noCoreErrorThenSetFailedRule } from "./rules/no-core-error-then-setfailed";
 import { noDuplicateConstantValuesRule } from "./rules/no-duplicate-constant-values";
+import { requireEscapedRegexpInterpolationRule } from "./rules/require-escaped-regexp-interpolation";
 
 const plugin = {
   meta: {
@@ -73,6 +74,7 @@ const plugin = {
     "require-fetch-try-catch": requireFetchTryCatchRule,
     "no-core-error-then-setfailed": noCoreErrorThenSetFailedRule,
     "no-duplicate-constant-values": noDuplicateConstantValuesRule,
+    "require-escaped-regexp-interpolation": requireEscapedRegexpInterpolationRule,
   },
 };
 

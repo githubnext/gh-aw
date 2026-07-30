@@ -813,6 +813,45 @@ func TestGenerateCheckoutGitHubFolderForActivation_ActionsModeSetupPath(t *testi
 	}
 }
 
+func TestGenerateCheckoutGitHubFolderForActivation_LocalSkillSparseCheckout(t *testing.T) {
+	c := NewCompiler(WithVersion("dev"))
+	c.SetActionMode(ActionModeRelease)
+	data := &WorkflowData{
+		On: `"on":
+  issues:
+    types: [opened]`,
+		SkillReferences: []SkillReference{
+			{Skill: "skills/rig"},
+			{Skill: "./skills/another"},
+			{Skill: ".github/skills/infra"},
+			{Skill: "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6"},
+		},
+	}
+
+	steps := c.generateCheckoutGitHubFolderForActivation(data)
+	combined := strings.Join(steps, "")
+
+	assert.Contains(t, combined, "\n            skills\n", "local skill dirs outside .github/.agents should be included in sparse checkout")
+	assert.Equal(t, 1, strings.Count(combined, "\n            skills\n"), "top-level local skill dir should not be duplicated")
+	assert.Contains(t, combined, "\n            .github\n", ".github remains in sparse checkout by default")
+}
+
+func TestLocalSkillSparseCheckoutTopLevelDirs(t *testing.T) {
+	data := &WorkflowData{
+		SkillReferences: []SkillReference{
+			{Skill: "skills/rig"},
+			{Skill: "./skills/another"},
+			{Skill: ".github/skills/infra"},
+			{Skill: "team-skills"},
+			{Skill: "skills/../bad"},
+			{Skill: "../outside"},
+			{Skill: "githubnext/skills@1f181b37d3fe5862ab590648f25a292e345b5de6"},
+		},
+	}
+
+	assert.Equal(t, []string{"skills", ".github", "team-skills"}, localSkillSparseCheckoutTopLevelDirs(data))
+}
+
 // TestGenerateGitHubFolderCheckoutStep_ExtraPaths verifies that extraPaths are
 // correctly appended to the sparse-checkout list.
 func TestGenerateGitHubFolderCheckoutStep_ExtraPaths(t *testing.T) {

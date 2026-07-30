@@ -891,6 +891,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (useBundle) {
       // Bundle transport: preserves merge commits and per-commit metadata
       server.debug(`Generating bundle for create_pull_request with branch: ${entry.branch}${repoCwd ? ` in ${repoCwd} baseBranch: ${baseBranch}` : ""}`);
+      if (Array.isArray(prConfig.excluded_files) && prConfig.excluded_files.length > 0) {
+        transportOptions.excludedFiles = prConfig.excluded_files;
+      }
       const bundleResult = await generateGitBundle(entry.branch, baseBranch, transportOptions);
 
       if (!bundleResult.success) {
@@ -1415,6 +1418,9 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     if (useBundle) {
       // Bundle transport: preserves merge commits and per-commit metadata
       server.debug(`Generating incremental bundle for push_to_pull_request_branch with branch: ${entry.branch}, baseBranch: ${baseBranch}`);
+      if (Array.isArray(pushConfig.excluded_files) && pushConfig.excluded_files.length > 0) {
+        pushTransportOptions.excludedFiles = pushConfig.excluded_files;
+      }
       const bundleResult = await generateGitBundle(entry.branch, baseBranch, pushTransportOptions);
 
       if (!bundleResult.success) {
@@ -2301,6 +2307,246 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     return defaultHandler("update_pull_request")(args || {});
   };
 
+  // ============================================================
+  // Egress context validators for tools that target existing items
+  // ============================================================
+  //
+  // Per Safe Outputs Specification MCE1: these handlers validate that the
+  // required triggering context (PR, issue, or discussion) is available
+  // BEFORE writing to NDJSON. When a tool targets a triggering entity
+  // (no explicit item number supplied) on a scheduled or workflow_dispatch
+  // run that has no such context, the agent receives an actionable error
+  // immediately rather than a downstream processing hard-failure.
+  //
+  // Pattern: if an explicit target number is provided, bypass the context
+  // check and let the downstream handler resolve it normally. Only when the
+  // number is absent do we gate on triggering-context availability.
+
+  /**
+   * Build a handler that validates triggering context before recording to NDJSON.
+   * Used for tools that fall back to triggering entity context when no explicit
+   * target number is supplied (e.g. close_pull_request, close_issue, add_labels).
+   *
+   * Context validation only runs when the tool's configured `target` is `"triggering"`
+   * (the default). When `target` is a fixed number (e.g. `"42"`) or `"*"` (wildcard),
+   * the check is skipped: the fixed number is resolved downstream, and wildcard
+   * enforcement is handled by `validateWildcardTargetRequirement`.
+   *
+   * @param {Object} opts
+   * @param {string} opts.toolName - Normalised tool name (e.g. "close_pull_request")
+   * @param {string[]} opts.explicitNumberFields - Args fields that constitute an explicit target
+   *   (if any is present the context check is skipped)
+   * @param {"pr"|"issue"|"issue_or_pr"|"discussion"} opts.contextType - Required triggering context
+   * @param {(eventName: string) => string} opts.buildErrorMessage - Returns the error string to
+   *   surface when the required context is missing
+   * @returns {(args: any) => any} Handler function
+   */
+  const createTriggeringContextHandler = ({ toolName, explicitNumberFields, contextType, buildErrorMessage }) => {
+    return args => {
+      const toolConfig = getSafeOutputsToolConfig(config, toolName);
+      const effectiveTarget = toolConfig.target || "triggering";
+
+      // Only validate triggering context when the tool is configured to target the
+      // triggering entity. With a fixed number target the downstream handler resolves
+      // it directly; with wildcard targeting the per-call number requirement is
+      // enforced by validateWildcardTargetRequirement in defaultHandler.
+      if (effectiveTarget === "triggering") {
+        // If the caller supplied an explicit target number, skip context validation.
+        // The downstream execution handler will resolve the number normally.
+        const hasExplicitNumber = explicitNumberFields.some(field => args?.[field] != null);
+        if (!hasExplicitNumber) {
+          /** @type {any} */
+          let invocationContext = null;
+          try {
+            invocationContext = resolveInvocationContext(context);
+          } catch (err) {
+            // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
+            const errMsg = getErrorMessage(err);
+            if (errMsg.startsWith(ERR_VALIDATION)) {
+              return buildIntentErrorResponse(errMsg);
+            }
+            // Unexpected structural error: skip validation and let downstream handle gracefully.
+          }
+          if (invocationContext != null) {
+            const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
+            const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+
+            let hasContext;
+            if (contextType === "pr") {
+              hasContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
+            } else if (contextType === "issue") {
+              hasContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+            } else if (contextType === "issue_or_pr") {
+              const isPR = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
+              const isIssue = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+              hasContext = isPR || isIssue;
+            } else if (contextType === "discussion") {
+              hasContext = effectiveEventName === "discussion" || effectiveEventName === "discussion_comment";
+            } else {
+              hasContext = false;
+            }
+
+            if (!hasContext) {
+              return buildIntentErrorResponse(buildErrorMessage(effectiveEventName));
+            }
+          }
+        }
+      }
+
+      return defaultHandler(toolName)(args || {});
+    };
+  };
+
+  /**
+   * Handler for close_pull_request tool.
+   * Per Safe Outputs Specification MCE1: validates PR context on egress when no
+   * explicit pull_request_number is supplied.
+   */
+  const closePullRequestHandler = createTriggeringContextHandler({
+    toolName: "close_pull_request",
+    explicitNumberFields: ["pull_request_number"],
+    contextType: "pr",
+    buildErrorMessage: eventName =>
+      `close_pull_request requires a pull request context but the workflow is running on a "${eventName}" event. ` +
+      `The close-pull-request handler auto-targets the pull request that triggered this workflow. ` +
+      `To close a specific pull request, supply pull_request_number explicitly.`,
+  });
+
+  /**
+   * Handler for merge_pull_request tool.
+   * Per Safe Outputs Specification MCE1: validates PR context on egress when no
+   * explicit pull_request_number is supplied.
+   */
+  const mergePullRequestHandler = createTriggeringContextHandler({
+    toolName: "merge_pull_request",
+    explicitNumberFields: ["pull_request_number"],
+    contextType: "pr",
+    buildErrorMessage: eventName =>
+      `merge_pull_request requires a pull request context but the workflow is running on a "${eventName}" event. ` +
+      `The merge-pull-request handler auto-targets the pull request that triggered this workflow. ` +
+      `To merge a specific pull request, supply pull_request_number explicitly.`,
+  });
+
+  /**
+   * Handler for mark_pull_request_as_ready_for_review tool.
+   * Per Safe Outputs Specification MCE1: validates PR context on egress when no
+   * explicit pull_request_number is supplied.
+   */
+  const markPullRequestAsReadyForReviewHandler = createTriggeringContextHandler({
+    toolName: "mark_pull_request_as_ready_for_review",
+    explicitNumberFields: ["pull_request_number"],
+    contextType: "pr",
+    buildErrorMessage: eventName =>
+      `mark_pull_request_as_ready_for_review requires a pull request context but the workflow is running on a "${eventName}" event. ` +
+      `This handler auto-targets the pull request that triggered this workflow. ` +
+      `To target a specific pull request, supply pull_request_number explicitly.`,
+  });
+
+  /**
+   * Handler for add_reviewer tool.
+   * Per Safe Outputs Specification MCE1: validates PR context on egress when no
+   * explicit pull_request_number is supplied.
+   */
+  const addReviewerHandler = createTriggeringContextHandler({
+    toolName: "add_reviewer",
+    explicitNumberFields: ["pull_request_number"],
+    contextType: "pr",
+    buildErrorMessage: eventName =>
+      `add_reviewer requires a pull request context but the workflow is running on a "${eventName}" event. ` +
+      `The add-reviewer handler auto-targets the pull request that triggered this workflow. ` +
+      `To add a reviewer to a specific pull request, supply pull_request_number explicitly.`,
+  });
+
+  /**
+   * Handler for reply_to_pull_request_review_comment tool.
+   * Per Safe Outputs Specification MCE1: validates PR context on egress when no
+   * explicit pull_request_number is supplied.
+   */
+  const replyToPullRequestReviewCommentHandler = createTriggeringContextHandler({
+    toolName: "reply_to_pull_request_review_comment",
+    explicitNumberFields: ["pull_request_number"],
+    contextType: "pr",
+    buildErrorMessage: eventName =>
+      `reply_to_pull_request_review_comment requires a pull request context but the workflow is running on a "${eventName}" event. ` +
+      `This handler auto-targets the pull request that triggered this workflow. ` +
+      `To reply to a review comment on a specific pull request, supply pull_request_number explicitly.`,
+  });
+
+  /**
+   * Handler for close_issue tool.
+   * Per Safe Outputs Specification MCE1: validates issue context on egress when no
+   * explicit issue_number is supplied.
+   */
+  const closeIssueHandler = createTriggeringContextHandler({
+    toolName: "close_issue",
+    explicitNumberFields: ["issue_number"],
+    contextType: "issue",
+    buildErrorMessage: eventName =>
+      `close_issue requires an issue context but the workflow is running on a "${eventName}" event. ` +
+      `The close-issue handler auto-targets the issue that triggered this workflow. ` +
+      `To close a specific issue, supply issue_number explicitly.`,
+  });
+
+  /**
+   * Handler for add_labels tool.
+   * Per Safe Outputs Specification MCE1: validates issue or PR context on egress when no
+   * explicit item_number is supplied.
+   */
+  const addLabelsHandler = createTriggeringContextHandler({
+    toolName: "add_labels",
+    explicitNumberFields: ["item_number", "issue_number", "pr_number", "pull_number"],
+    contextType: "issue_or_pr",
+    buildErrorMessage: eventName =>
+      `add_labels requires an issue or pull request context but the workflow is running on a "${eventName}" event. ` +
+      `The add-labels handler auto-targets the issue or pull request that triggered this workflow. ` +
+      `To label a specific item, supply item_number explicitly.`,
+  });
+
+  /**
+   * Handler for remove_labels tool.
+   * Per Safe Outputs Specification MCE1: validates issue or PR context on egress when no
+   * explicit item_number is supplied.
+   */
+  const removeLabelsHandler = createTriggeringContextHandler({
+    toolName: "remove_labels",
+    explicitNumberFields: ["item_number", "issue_number", "pr_number", "pull_number"],
+    contextType: "issue_or_pr",
+    buildErrorMessage: eventName =>
+      `remove_labels requires an issue or pull request context but the workflow is running on a "${eventName}" event. ` +
+      `The remove-labels handler auto-targets the issue or pull request that triggered this workflow. ` +
+      `To remove labels from a specific item, supply item_number explicitly.`,
+  });
+
+  /**
+   * Handler for update_discussion tool.
+   * Per Safe Outputs Specification MCE1: validates discussion context on egress when no
+   * explicit discussion_number is supplied.
+   */
+  const updateDiscussionHandler = createTriggeringContextHandler({
+    toolName: "update_discussion",
+    explicitNumberFields: ["discussion_number"],
+    contextType: "discussion",
+    buildErrorMessage: eventName =>
+      `update_discussion requires a discussion context but the workflow is running on a "${eventName}" event. ` +
+      `The update-discussion handler auto-targets the discussion that triggered this workflow. ` +
+      `To update a specific discussion, supply discussion_number explicitly.`,
+  });
+
+  /**
+   * Handler for close_discussion tool.
+   * Per Safe Outputs Specification MCE1: validates discussion context on egress when no
+   * explicit discussion_number is supplied.
+   */
+  const closeDiscussionHandler = createTriggeringContextHandler({
+    toolName: "close_discussion",
+    explicitNumberFields: ["discussion_number"],
+    contextType: "discussion",
+    buildErrorMessage: eventName =>
+      `close_discussion requires a discussion context but the workflow is running on a "${eventName}" event. ` +
+      `The close-discussion handler auto-targets the discussion that triggered this workflow. ` +
+      `To close a specific discussion, supply discussion_number explicitly.`,
+  });
+
   return {
     defaultHandler,
     uploadAssetHandler,
@@ -2316,6 +2562,16 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     dismissPullRequestReviewHandler,
     updateIssueHandler,
     updatePullRequestHandler,
+    closePullRequestHandler,
+    mergePullRequestHandler,
+    markPullRequestAsReadyForReviewHandler,
+    addReviewerHandler,
+    replyToPullRequestReviewCommentHandler,
+    closeIssueHandler,
+    addLabelsHandler,
+    removeLabelsHandler,
+    updateDiscussionHandler,
+    closeDiscussionHandler,
   };
 }
 
