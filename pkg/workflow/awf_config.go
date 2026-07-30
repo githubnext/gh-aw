@@ -170,6 +170,10 @@ type AWFConfigFile struct {
 	// APIProxy contains API proxy (LLM gateway) configuration.
 	APIProxy *AWFAPIProxyConfig `json:"apiProxy,omitempty"`
 
+	// BoundedQueries configures the AWF bounded-query subsystem for approved
+	// cross-repository private data access. Omitted when not configured.
+	BoundedQueries *AWFBoundedQueriesConfig `json:"boundedQueries,omitempty"`
+
 	// Container contains container execution configuration.
 	Container *AWFContainerConfig `json:"container,omitempty"`
 
@@ -179,6 +183,50 @@ type AWFConfigFile struct {
 	// Chroot contains chroot execution overrides for split-filesystem ARC/DinD runners.
 	// This field is not populated at compile time; it is injected at runtime when DinD topology is detected.
 	Chroot *AWFChrootConfig `json:"chroot,omitempty"`
+}
+
+// AWFBoundedQueriesConfig is the "boundedQueries" section of the AWF config file.
+// It controls the bounded-query subsystem that allows finite, pre-approved questions
+// about private repositories. All optional fields are omitted when unset so that
+// AWF remains the source of truth for default values.
+type AWFBoundedQueriesConfig struct {
+	// Enabled must be true when boundedQueries is present in the config.
+	// gh-aw always sets this to true when the section is generated.
+	Enabled bool `json:"enabled"`
+
+	// PrivateRepos is the list of private repositories approved for bounded-query access.
+	PrivateRepos []*AWFBoundedQueryPrivateRepo `json:"privateRepos,omitempty"`
+
+	// Runtime is the container runtime for bounded-query script execution (e.g. "docker").
+	// Optional; when omitted AWF uses its default.
+	Runtime string `json:"runtime,omitempty"`
+
+	// Timeout is the maximum execution time in seconds for a single invocation.
+	// Optional; when omitted AWF uses its default.
+	Timeout int `json:"timeout,omitempty"`
+
+	// MemoryLimit is the memory limit for bounded-query container execution (e.g. "512m").
+	// Optional; when omitted AWF uses its default.
+	MemoryLimit string `json:"memoryLimit,omitempty"`
+
+	// Interpreter is the script interpreter for bounded-query execution (e.g. "python3").
+	// Optional; when omitted AWF uses its default.
+	Interpreter string `json:"interpreter,omitempty"`
+
+	// MaxInvocations is the maximum number of bounded-query invocations per run.
+	// Optional; when omitted AWF uses its default.
+	MaxInvocations int `json:"maxInvocations,omitempty"`
+}
+
+// AWFBoundedQueryPrivateRepo describes a single private repository approved for
+// bounded-query access, with its confidentiality classification.
+type AWFBoundedQueryPrivateRepo struct {
+	// Repo is the "owner/repo" slug of the approved private repository.
+	Repo string `json:"repo"`
+
+	// Sensitivity is the confidentiality classification.
+	// Accepted values: "public", "internal", "confidential", "sealed".
+	Sensitivity string `json:"sensitivity"`
 }
 
 // AWFRunnerConfig is the "runner" section of the AWF config file.
@@ -689,6 +737,16 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
 
+	// ── Bounded queries section ──────────────────────────────────────────────
+	if bq := extractBoundedQueriesConfig(config.WorkflowData); bq != nil {
+		if awfSupportsBoundedQueries(firewallConfig) {
+			awfConfig.BoundedQueries = bq
+			awfConfigLog.Printf("Bounded queries section: %d private repo(s)", len(bq.PrivateRepos))
+		} else {
+			awfConfigLog.Printf("Skipping boundedQueries: AWF version %q requires at least %s", getAWFImageTag(firewallConfig), constants.AWFBoundedQueriesMinVersion)
+		}
+	}
+
 	jsonStr, err := jsonutil.MarshalCompactNoHTMLEscape(awfConfig)
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
@@ -897,6 +955,41 @@ func extractModelCostProviders(workflowData *WorkflowData) map[string]any {
 	clone := make(map[string]any, len(providers))
 	maps.Copy(clone, providers)
 	return clone
+}
+
+// extractBoundedQueriesConfig returns an AWFBoundedQueriesConfig populated from
+// sandbox.agent.bounded-queries, or nil when the field is absent.
+// Only fields explicitly set in frontmatter are included; optional fields that
+// were not specified are omitted so that AWF remains the source of truth for defaults.
+func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesConfig {
+	if workflowData == nil {
+		return nil
+	}
+	if workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
+		return nil
+	}
+	bq := workflowData.SandboxConfig.Agent.BoundedQueries
+	if bq == nil {
+		return nil
+	}
+
+	awfBQ := &AWFBoundedQueriesConfig{
+		Enabled:        true,
+		Runtime:        bq.Runtime,
+		Timeout:        bq.Timeout,
+		MemoryLimit:    bq.MemoryLimit,
+		Interpreter:    bq.Interpreter,
+		MaxInvocations: bq.MaxInvocations,
+	}
+
+	for _, r := range bq.PrivateRepos {
+		awfBQ.PrivateRepos = append(awfBQ.PrivateRepos, &AWFBoundedQueryPrivateRepo{
+			Repo:        r.Repo,
+			Sensitivity: r.Sensitivity,
+		})
+	}
+
+	return awfBQ
 }
 
 // getRunnerTopology extracts the runner topology string from WorkflowData.

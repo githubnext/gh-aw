@@ -1099,6 +1099,12 @@ func awfSupportsAPIProxyProviders(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFAPIProxyProvidersMinVersion)
 }
 
+// awfSupportsBoundedQueries returns true when the effective AWF version supports
+// the boundedQueries section in awf-config.json.
+func awfSupportsBoundedQueries(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFBoundedQueriesMinVersion)
+}
+
 // buildArcDindChrootConfigPatchBody returns the Node.js command that patches the AWF
 // config file with chroot.binariesSourcePath and chroot.identity.*. It is designed to be
 // embedded inside a bash if-block that already guards on DOCKER_HOST=tcp://...

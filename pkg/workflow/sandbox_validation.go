@@ -3,6 +3,7 @@
 // This file contains domain-specific validation functions for sandbox configuration:
 //   - validateMountsSyntax() - Validates container mount syntax
 //   - validateSandboxConfig() - Validates complete sandbox configuration
+//   - validateBoundedQueriesConfig() - Validates bounded-query configuration
 //
 // These validation functions are organized in a dedicated file following the validation
 // architecture pattern where domain-specific validation belongs in domain validation files.
@@ -14,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
@@ -208,6 +210,200 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		sandboxValidationLog.Print("Agent sandbox enabled with MCP gateway - validation passed")
 	}
 
+	// Validate bounded-queries configuration when present.
+	if sandboxConfig.Agent != nil && sandboxConfig.Agent.BoundedQueries != nil {
+		if err := validateBoundedQueriesConfig(sandboxConfig.Agent); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validBoundedQuerySensitivities is the set of accepted sensitivity classifications.
+var validBoundedQuerySensitivities = map[string]struct{}{
+	"public":       {},
+	"internal":     {},
+	"confidential": {},
+	"sealed":       {},
+}
+
+// validBoundedQueryRuntimes is the set of accepted container runtimes.
+var validBoundedQueryRuntimes = map[string]struct{}{
+	"docker": {},
+}
+
+// validBoundedQueryInterpreters is the set of accepted script interpreters.
+var validBoundedQueryInterpreters = map[string]struct{}{
+	"python3": {},
+}
+
+// validateBoundedQueriesConfig validates sandbox.agent.bounded-queries configuration.
+// Returns an error when the configuration is invalid.
+func validateBoundedQueriesConfig(agentConfig *AgentSandboxConfig) error {
+	if agentConfig == nil || agentConfig.BoundedQueries == nil {
+		return nil
+	}
+
+	// bounded-queries is only supported for the AWF sandbox.
+	agentType := getAgentType(agentConfig)
+	if !isSupportedSandboxType(agentType) {
+		return NewValidationError(
+			"sandbox.agent.bounded-queries",
+			string(agentType),
+			"bounded-queries requires the AWF sandbox (sandbox.agent.id: awf)",
+			"Set sandbox.agent.id: awf when using bounded-queries:\n\nsandbox:\n  agent:\n    id: awf\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
+		)
+	}
+
+	bq := agentConfig.BoundedQueries
+
+	// Validate that private-repos is non-empty.
+	if len(bq.PrivateRepos) == 0 {
+		return NewValidationError(
+			"sandbox.agent.bounded-queries.private-repos",
+			"[]",
+			"bounded-queries requires at least one private-repos entry",
+			"Add at least one repository to private-repos:\n\nsandbox:\n  agent:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
+		)
+	}
+
+	// Validate each private-repo entry.
+	seen := make(map[string]struct{}, len(bq.PrivateRepos))
+	for i, r := range bq.PrivateRepos {
+		field := fmt.Sprintf("sandbox.agent.bounded-queries.private-repos[%d]", i)
+
+		if r == nil {
+			return NewValidationError(field, "<nil>", "private-repos entry must not be null", "")
+		}
+
+		// Validate repo slug format.
+		if err := validateRepoSlug(field+".repo", r.Repo); err != nil {
+			return err
+		}
+
+		// Validate sensitivity.
+		if _, ok := validBoundedQuerySensitivities[r.Sensitivity]; !ok {
+			const validValues = "public, internal, confidential, sealed"
+			return NewValidationError(
+				field+".sensitivity",
+				r.Sensitivity,
+				"sensitivity must be one of: "+validValues,
+				"Use one of the accepted sensitivity values:\n\nsandbox:\n  agent:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal  # one of: "+validValues+"\n\nSee: "+string(constants.DocsSandboxURL),
+			)
+		}
+
+		// Validate no duplicates.
+		key := r.Repo
+		if _, dup := seen[key]; dup {
+			return NewValidationError(
+				field+".repo",
+				r.Repo,
+				"duplicate repository slug in bounded-queries.private-repos",
+				fmt.Sprintf("Each repository may appear at most once in bounded-queries.private-repos. Remove the duplicate entry for %q.\n\nSee: %s", r.Repo, constants.DocsSandboxURL),
+			)
+		}
+		seen[key] = struct{}{}
+	}
+
+	// Validate optional runtime.
+	if bq.Runtime != "" {
+		if _, ok := validBoundedQueryRuntimes[bq.Runtime]; !ok {
+			return NewValidationError(
+				"sandbox.agent.bounded-queries.runtime",
+				bq.Runtime,
+				"unsupported bounded-queries runtime: must be \"docker\"",
+				fmt.Sprintf("Set runtime to a supported value:\n\nsandbox:\n  agent:\n    bounded-queries:\n      runtime: docker\n\nSee: %s", constants.DocsSandboxURL),
+			)
+		}
+	}
+
+	// Validate optional timeout.
+	if bq.Timeout < 0 {
+		return NewValidationError(
+			"sandbox.agent.bounded-queries.timeout",
+			strconv.Itoa(bq.Timeout),
+			"bounded-queries timeout must be a positive integer",
+			fmt.Sprintf("Set timeout to a positive number of seconds.\n\nSee: %s", constants.DocsSandboxURL),
+		)
+	}
+
+	// Validate optional memory-limit format (e.g. "512m", "2g").
+	if bq.MemoryLimit != "" {
+		if err := validateBoundedQueryMemoryLimit(bq.MemoryLimit); err != nil {
+			return err
+		}
+	}
+
+	// Validate optional interpreter.
+	if bq.Interpreter != "" {
+		if _, ok := validBoundedQueryInterpreters[bq.Interpreter]; !ok {
+			return NewValidationError(
+				"sandbox.agent.bounded-queries.interpreter",
+				bq.Interpreter,
+				"unsupported bounded-queries interpreter: must be \"python3\"",
+				fmt.Sprintf("Set interpreter to a supported value:\n\nsandbox:\n  agent:\n    bounded-queries:\n      interpreter: python3\n\nSee: %s", constants.DocsSandboxURL),
+			)
+		}
+	}
+
+	// Validate optional max-invocations.
+	if bq.MaxInvocations < 0 {
+		return NewValidationError(
+			"sandbox.agent.bounded-queries.max-invocations",
+			strconv.Itoa(bq.MaxInvocations),
+			"bounded-queries max-invocations must be a positive integer",
+			fmt.Sprintf("Set max-invocations to a positive integer.\n\nSee: %s", constants.DocsSandboxURL),
+		)
+	}
+
+	sandboxValidationLog.Printf("bounded-queries validation passed: %d private repo(s)", len(bq.PrivateRepos))
+	return nil
+}
+
+// validateRepoSlug validates a repository slug in "owner/repo" format.
+// Returns a validation error for empty values, GitHub Actions expressions, or malformed slugs.
+func validateRepoSlug(field, slug string) error {
+	if slug == "" {
+		return NewValidationError(
+			field,
+			"",
+			"repository slug must not be empty",
+			fmt.Sprintf("Provide a valid 'owner/repo' slug.\n\nSee: %s", constants.DocsSandboxURL),
+		)
+	}
+	if githubActionsExpressionPattern.MatchString(slug) {
+		return NewValidationError(
+			field,
+			slug,
+			"repository slug must not contain GitHub Actions expressions",
+			fmt.Sprintf("Use a literal 'owner/repo' slug; dynamic values are not permitted in bounded-queries.\n\nSee: %s", constants.DocsSandboxURL),
+		)
+	}
+	if !repoSlugPattern.MatchString(slug) {
+		return NewValidationError(
+			field,
+			slug,
+			"repository slug must be in 'owner/repo' format",
+			fmt.Sprintf("Use a valid 'owner/repo' slug (owner: alphanumeric characters, hyphens, underscores; repo: alphanumeric characters, hyphens, underscores, and dots).\n\nSee: %s", constants.DocsSandboxURL),
+		)
+	}
+	return nil
+}
+
+// memoryLimitPattern matches valid memory limit strings (e.g. "512m", "2g", "1024k").
+var memoryLimitPattern = regexp.MustCompile(`^\d+[kmgKMG]$`)
+
+// validateBoundedQueryMemoryLimit checks that a memory-limit string has the correct format.
+func validateBoundedQueryMemoryLimit(memoryLimit string) error {
+	if !memoryLimitPattern.MatchString(memoryLimit) {
+		return NewValidationError(
+			"sandbox.agent.bounded-queries.memory-limit",
+			memoryLimit,
+			"memory-limit must be a number followed by a unit: k, m, or g (e.g. \"512m\", \"2g\")",
+			fmt.Sprintf("Use a valid memory limit format:\n\nsandbox:\n  agent:\n    bounded-queries:\n      memory-limit: 512m  # examples: 512m, 2g, 1024k\n\nSee: %s", constants.DocsSandboxURL),
+		)
+	}
 	return nil
 }
 
