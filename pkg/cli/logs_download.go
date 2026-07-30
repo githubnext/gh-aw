@@ -55,6 +55,18 @@ func isUsageOnlyArtifactFilter(artifactFilter []string) bool {
 	return len(artifactFilter) == 1 && artifactFilter[0] == constants.UsageArtifactName
 }
 
+func shouldDownloadWorkflowRunLogs(artifactFilter []string) bool {
+	if len(artifactFilter) == 0 {
+		return true
+	}
+	for _, artifact := range artifactFilter {
+		if artifact != constants.ActivationArtifactName && artifact != constants.UsageArtifactName {
+			return true
+		}
+	}
+	return false
+}
+
 // flattenSingleFileArtifacts checks artifact directories and flattens any that contain a single file
 // This handles the case where gh CLI creates a directory for each artifact, even if it's just one file
 func flattenSingleFileArtifacts(outputDir string, verbose bool) error {
@@ -612,6 +624,9 @@ func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions,
 			// Non-fatal: continue downloading other artifacts
 		} else {
 			logsDownloadLog.Printf("Downloaded artifact %q", name)
+			if err := markArtifactDownloaded(opts.outputDir, name); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -669,6 +684,9 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 			}
 		} else {
 			logsDownloadLog.Printf("Successfully downloaded artifact %q individually", name)
+			if err := markArtifactDownloaded(opts.outputDir, name); err != nil {
+				logsDownloadLog.Printf("Failed to mark artifact %q as downloaded: %v", name, err)
+			}
 			if opts.verbose {
 				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Downloaded missing artifact: "+name))
 			}
@@ -781,7 +799,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 		if len(downloadableNames) == 0 {
 			// Nothing to download (all artifacts are either .dockerbuild or excluded by filter).
 			// For usage-only mode, skip workflow logs entirely to keep downloads lightweight.
-			if !isUsageOnlyArtifactFilter(opts.artifactFilter) {
+			if shouldDownloadWorkflowRunLogs(opts.artifactFilter) {
 				// Attempt workflow run logs for diagnostics before returning.
 				if logErr := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); logErr != nil {
 					if opts.verbose {
@@ -956,7 +974,7 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 	}
 
 	// Download and unzip workflow run logs unless caller requested usage-only mode.
-	if !isUsageOnlyArtifactFilter(opts.artifactFilter) {
+	if shouldDownloadWorkflowRunLogs(opts.artifactFilter) {
 		if err := downloadWorkflowRunLogs(ctx, opts.runID, opts.outputDir, opts.verbose, opts.owner, opts.repo, opts.hostname); err != nil {
 			// Log the error but don't fail the entire download process
 			// Logs may not be available for all runs (e.g., expired or deleted)

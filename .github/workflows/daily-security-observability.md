@@ -68,7 +68,7 @@ steps:
       # --artifacts mcp: only download the MCP gateway log artifact (sufficient for DIFC checking).
       # --timeout 8: cap execution at 8 minutes to prevent runaway downloads.
       gh aw logs --filtered-integrity --start-date -7d --json -c 200 \
-        --artifacts mcp --timeout 8 \
+        --artifacts mcp --timeout 8 --output .github/aw/logs \
         > "$FRESH_LOGS" || true
 
       # Validate JSON output and fall back to an empty dataset on failure
@@ -127,7 +127,7 @@ steps:
       # needed for firewall detection, avoiding large agent artifact downloads.
       # --timeout 8: cap execution at 8 minutes to prevent runaway downloads.
       gh aw logs --firewall --start-date -7d --json -c 100 \
-        --artifacts activation --timeout 8 \
+        --artifacts activation --timeout 8 --output .github/aw/logs \
         > "$FIREWALL_RUNS" || true
 
       # Validate JSON output and fall back to an empty dataset on failure

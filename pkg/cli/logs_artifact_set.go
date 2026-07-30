@@ -14,6 +14,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strings"
@@ -96,6 +97,8 @@ var artifactSetArtifacts = map[ArtifactSet][]string{
 }
 
 const maxArtifactHintExamples = 2
+
+const downloadedArtifactsMarkerDir = ".downloaded-artifacts"
 
 // ValidArtifactSetNames returns a sorted list of valid artifact set names,
 // derived dynamically from the artifactSetArtifacts map to stay in sync automatically.
@@ -254,6 +257,13 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 		if e.IsDir() {
 			dirs = append(dirs, e.Name())
 		}
+		if markers, markerErr := os.ReadDir(filepath.Join(outputDir, downloadedArtifactsMarkerDir)); markerErr == nil {
+			for _, marker := range markers {
+				if !marker.IsDir() {
+					dirs = append(dirs, marker.Name())
+				}
+			}
+		}
 	}
 
 	var missing []string
@@ -281,6 +291,21 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 		artifactSetLog.Printf("All %d artifact filter entries present in %s", len(filter), outputDir)
 	}
 	return missing
+}
+
+func markArtifactDownloaded(outputDir, artifactName string) error {
+	if artifactName == "" || filepath.Base(artifactName) != artifactName {
+		return fmt.Errorf("invalid artifact name %q", artifactName)
+	}
+	markerDir := filepath.Join(outputDir, downloadedArtifactsMarkerDir)
+	if err := os.MkdirAll(markerDir, constants.DirPermPublic); err != nil {
+		return fmt.Errorf("failed to create downloaded artifact marker directory: %w", err)
+	}
+	markerPath := filepath.Join(markerDir, artifactName)
+	if err := os.WriteFile(markerPath, nil, constants.FilePermPublic); err != nil {
+		return fmt.Errorf("failed to write downloaded artifact marker: %w", err)
+	}
+	return nil
 }
 
 // applyEvalsArtifact appends the evals artifact set to artifacts when evalsOnly is true

@@ -1,0 +1,82 @@
+name: Agentic logs cache
+
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Go
+        uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Restore latest logs cache
+        id: restore-cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .github/aw/logs
+          key: agentic-logs-${{ github.run_id }}
+          restore-keys: |
+            agentic-logs-
+
+      - name: Enforce two-day cache TTL
+        run: |
+          marker=.github/aw/logs/.cache-refreshed-at
+          if [ -f "$marker" ]; then
+            refreshed_at=$(cat "$marker")
+            if ! refreshed_epoch=$(date -d "$refreshed_at" +%s 2>/dev/null) \
+              || [ "$refreshed_epoch" -lt "$(date -u -d '2 days ago' +%s)" ]; then
+              rm -rf .github/aw/logs
+            fi
+          fi
+
+      - name: Build gh-aw
+        run: make build
+
+      - name: Refresh 30 days of logs
+        id: refresh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p .github/aw/logs
+          ./gh-aw logs \
+            --start-date -30d \
+            --count 1000 \
+            --artifacts activation,usage \
+            --cache-before -30d \
+            --output .github/aw/logs \
+            --json > /tmp/agentic-logs-summary.json
+          date -u +%Y-%m-%dT%H:%M:%SZ > .github/aw/logs/.cache-refreshed-at
+
+      - name: Save refreshed logs cache
+        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .github/aw/logs
+          key: agentic-logs-${{ github.run_id }}
+
+      - name: Write summary
+        if: always()
+        run: |
+          {
+            echo "### Agentic logs cache"
+            if [ -s /tmp/agentic-logs-summary.json ]; then
+              echo "- Runs cached: $(jq -r '.runs | length' /tmp/agentic-logs-summary.json)"
+              echo "- Artifacts: activation, usage"
+              echo "- Window: 30 days"
+              echo "- Cache TTL: 2 days"
+            else
+              echo "- Cache refresh failed before producing a summary."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"

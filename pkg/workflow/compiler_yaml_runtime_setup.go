@@ -65,6 +65,8 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	compilerYamlLog.Printf("Generating repo-memory steps for workflow")
 	generateRepoMemorySteps(yaml, data)
 
+	generateSharedLogsCacheRestoreSteps(yaml, data)
+
 	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
 
 	// Add cache steps if cache configuration is present. Keep workspace caches after user

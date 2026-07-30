@@ -345,6 +345,26 @@ func TestIsUsageOnlyArtifactFilter(t *testing.T) {
 	}
 }
 
+func TestShouldDownloadWorkflowRunLogs(t *testing.T) {
+	tests := []struct {
+		name     string
+		filter   []string
+		expected bool
+	}{
+		{name: "all artifacts", filter: nil, expected: true},
+		{name: "usage only", filter: []string{"usage"}, expected: false},
+		{name: "activation and usage", filter: []string{"activation", "usage"}, expected: false},
+		{name: "agent", filter: []string{"agent"}, expected: true},
+		{name: "agent and usage", filter: []string{"agent", "usage"}, expected: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, shouldDownloadWorkflowRunLogs(tt.filter))
+		})
+	}
+}
+
 func TestFindMissingFilterEntries(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -409,4 +429,19 @@ func TestFindMissingFilterEntries(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "findMissingFilterEntries(%v, dir)", tt.filter)
 		})
 	}
+}
+
+func TestFindMissingFilterEntriesUsesDownloadedMarkers(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, markArtifactDownloaded(dir, "activation"))
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-usage"))
+
+	assert.Nil(t, findMissingFilterEntries([]string{"activation", "usage"}, dir))
+	assert.Equal(t, []string{"agent"}, findMissingFilterEntries([]string{"activation", "agent"}, dir))
+}
+
+func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
+	err := markArtifactDownloaded(t.TempDir(), "../activation")
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid artifact name")
 }
