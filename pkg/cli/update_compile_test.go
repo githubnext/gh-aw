@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -32,7 +31,7 @@ func TestCompileWorkflowsForUpdatePropagatesCompileErrors(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, context.Canceled)
 	var compilationErr *updateCompilationError
-	require.True(t, errors.As(err, &compilationErr))
+	require.ErrorAs(t, err, &compilationErr)
 }
 
 func TestRecompileAllWorkflowsPropagatesCompileErrors(t *testing.T) {
