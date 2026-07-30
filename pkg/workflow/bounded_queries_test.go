@@ -26,7 +26,11 @@ func TestBuildAWFConfigJSON_BoundedQueries(t *testing.T) {
 				},
 				SandboxConfig: &SandboxConfig{
 					Agent: &AgentSandboxConfig{
-						ID:             "awf",
+						ID: "awf",
+					},
+				},
+				ParsedTools: &ToolsConfig{
+					GitHub: &GitHubToolConfig{
 						BoundedQueries: bq,
 					},
 				},
@@ -156,29 +160,28 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 		assert.Nil(t, extractBoundedQueriesConfig(nil))
 	})
 
-	t.Run("returns nil for missing sandbox config", func(t *testing.T) {
+	t.Run("returns nil for missing ParsedTools", func(t *testing.T) {
 		assert.Nil(t, extractBoundedQueriesConfig(&WorkflowData{}))
 	})
 
-	t.Run("returns nil for missing agent config", func(t *testing.T) {
+	t.Run("returns nil for missing GitHub tool config", func(t *testing.T) {
 		assert.Nil(t, extractBoundedQueriesConfig(&WorkflowData{
-			SandboxConfig: &SandboxConfig{},
+			ParsedTools: &ToolsConfig{},
 		}))
 	})
 
 	t.Run("returns nil when bounded-queries is absent", func(t *testing.T) {
 		assert.Nil(t, extractBoundedQueriesConfig(&WorkflowData{
-			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{ID: "awf"},
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{},
 			},
 		}))
 	})
 
 	t.Run("maps all fields correctly", func(t *testing.T) {
 		data := &WorkflowData{
-			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{
-					ID: "awf",
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{
 					BoundedQueries: &BoundedQueriesConfig{
 						PrivateRepos: []*BoundedQueryPrivateRepo{
 							{Repo: "my-org/internal-service", Sensitivity: "internal"},
@@ -212,21 +215,31 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 
 // TestValidateBoundedQueriesConfig validates all validation rules for bounded queries.
 func TestValidateBoundedQueriesConfig(t *testing.T) {
-	validAWFAgent := func(bq *BoundedQueriesConfig) *AgentSandboxConfig {
-		return &AgentSandboxConfig{ID: "awf", BoundedQueries: bq}
+	// validAWFWorkflow returns a *WorkflowData with an AWF sandbox and the given bounded-queries config.
+	validAWFWorkflow := func(bq *BoundedQueriesConfig) *WorkflowData {
+		return &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{ID: "awf"},
+			},
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{
+					BoundedQueries: bq,
+				},
+			},
+		}
 	}
 
 	t.Run("valid minimal config passes", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "internal"},
 			},
 		})
-		assert.NoError(t, validateBoundedQueriesConfig(agent))
+		assert.NoError(t, validateBoundedQueriesConfig(wd))
 	})
 
 	t.Run("valid config with all optional fields passes", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "confidential"},
 			},
@@ -236,133 +249,143 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 			Interpreter:    "python3",
 			MaxInvocations: 32,
 		})
-		assert.NoError(t, validateBoundedQueriesConfig(agent))
+		assert.NoError(t, validateBoundedQueriesConfig(wd))
 	})
 
 	t.Run("all four sensitivity values are accepted", func(t *testing.T) {
 		for _, sensitivity := range []string{"public", "internal", "confidential", "sealed"} {
 			t.Run(sensitivity, func(t *testing.T) {
-				agent := validAWFAgent(&BoundedQueriesConfig{
+				wd := validAWFWorkflow(&BoundedQueriesConfig{
 					PrivateRepos: []*BoundedQueryPrivateRepo{
 						{Repo: "my-org/my-repo", Sensitivity: sensitivity},
 					},
 				})
-				assert.NoError(t, validateBoundedQueriesConfig(agent))
+				assert.NoError(t, validateBoundedQueriesConfig(wd))
 			})
 		}
 	})
 
-	t.Run("nil agent or nil bounded-queries returns nil", func(t *testing.T) {
+	t.Run("nil WorkflowData returns nil", func(t *testing.T) {
 		assert.NoError(t, validateBoundedQueriesConfig(nil))
-		assert.NoError(t, validateBoundedQueriesConfig(&AgentSandboxConfig{ID: "awf"}))
+	})
+
+	t.Run("nil bounded-queries returns nil", func(t *testing.T) {
+		assert.NoError(t, validateBoundedQueriesConfig(&WorkflowData{
+			SandboxConfig: &SandboxConfig{Agent: &AgentSandboxConfig{ID: "awf"}},
+			ParsedTools:   &ToolsConfig{GitHub: &GitHubToolConfig{}},
+		}))
 	})
 
 	t.Run("rejects non-AWF sandbox", func(t *testing.T) {
-		agent := &AgentSandboxConfig{
-			// No ID / type set — will be empty string.
-			BoundedQueries: &BoundedQueriesConfig{
-				PrivateRepos: []*BoundedQueryPrivateRepo{
-					{Repo: "my-org/my-repo", Sensitivity: "internal"},
+		wd := &WorkflowData{
+			// No sandbox config — agent type will be empty string.
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{
+					BoundedQueries: &BoundedQueriesConfig{
+						PrivateRepos: []*BoundedQueryPrivateRepo{
+							{Repo: "my-org/my-repo", Sensitivity: "internal"},
+						},
+					},
 				},
 			},
 		}
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "bounded-queries requires the AWF sandbox")
 	})
 
 	t.Run("rejects empty private-repos", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{},
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least one private-repos entry")
 	})
 
 	t.Run("rejects nil private-repos", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{})
-		err := validateBoundedQueriesConfig(agent)
+		wd := validAWFWorkflow(&BoundedQueriesConfig{})
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "at least one private-repos entry")
 	})
 
 	t.Run("rejects invalid sensitivity value", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "top-secret"},
 			},
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "sensitivity must be one of")
 	})
 
 	t.Run("rejects duplicate repo slugs", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "internal"},
 				{Repo: "my-org/my-repo", Sensitivity: "confidential"},
 			},
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "duplicate repository slug")
 	})
 
 	t.Run("rejects GitHub Actions expressions in repo slug", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "${{ inputs.repo }}", Sensitivity: "internal"},
 			},
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "must not contain GitHub Actions expressions")
 	})
 
 	t.Run("rejects malformed repo slug (missing slash)", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "myrepo", Sensitivity: "internal"},
 			},
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "'owner/repo' format")
 	})
 
 	t.Run("rejects empty repo slug", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "", Sensitivity: "internal"},
 			},
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "must not be empty")
 	})
 
 	t.Run("rejects unsupported runtime", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "internal"},
 			},
 			Runtime: "podman",
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported bounded-queries runtime")
 	})
 
 	t.Run("rejects negative timeout", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "internal"},
 			},
 			Timeout: -1,
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "timeout must be a positive integer")
 	})
@@ -370,13 +393,13 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 	t.Run("rejects invalid memory-limit format", func(t *testing.T) {
 		for _, invalid := range []string{"512", "512mb", "5.5g", "abc"} {
 			t.Run(invalid, func(t *testing.T) {
-				agent := validAWFAgent(&BoundedQueriesConfig{
+				wd := validAWFWorkflow(&BoundedQueriesConfig{
 					PrivateRepos: []*BoundedQueryPrivateRepo{
 						{Repo: "my-org/my-repo", Sensitivity: "internal"},
 					},
 					MemoryLimit: invalid,
 				})
-				err := validateBoundedQueriesConfig(agent)
+				err := validateBoundedQueriesConfig(wd)
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), "memory-limit")
 			})
@@ -386,37 +409,37 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 	t.Run("accepts valid memory-limit formats", func(t *testing.T) {
 		for _, valid := range []string{"512m", "2g", "1024k", "512M", "2G"} {
 			t.Run(valid, func(t *testing.T) {
-				agent := validAWFAgent(&BoundedQueriesConfig{
+				wd := validAWFWorkflow(&BoundedQueriesConfig{
 					PrivateRepos: []*BoundedQueryPrivateRepo{
 						{Repo: "my-org/my-repo", Sensitivity: "internal"},
 					},
 					MemoryLimit: valid,
 				})
-				assert.NoError(t, validateBoundedQueriesConfig(agent))
+				assert.NoError(t, validateBoundedQueriesConfig(wd))
 			})
 		}
 	})
 
 	t.Run("rejects unsupported interpreter", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "internal"},
 			},
 			Interpreter: "ruby",
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported bounded-queries interpreter")
 	})
 
 	t.Run("rejects negative max-invocations", func(t *testing.T) {
-		agent := validAWFAgent(&BoundedQueriesConfig{
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "internal"},
 			},
 			MaxInvocations: -1,
 		})
-		err := validateBoundedQueriesConfig(agent)
+		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "max-invocations must be a positive integer")
 	})

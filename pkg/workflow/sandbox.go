@@ -62,84 +62,24 @@ const (
 
 // AgentSandboxConfig represents the agent sandbox configuration
 type AgentSandboxConfig struct {
-	ID                    string                                `yaml:"id,omitempty"`              // Agent ID: "awf" or "srt" (replaces Type in new object format)
-	Type                  SandboxType                           `yaml:"type,omitempty"`            // Sandbox type: "awf" or "srt" (legacy, use ID instead)
-	Version               string                                `yaml:"version,omitempty"`         // AWF version override used to install and run the matching firewall version
-	Platform              string                                `yaml:"platform,omitempty"`        // AWF platform.type override (github.com, ghes, ghec, ghec-self-hosted)
-	Runtime               AgentRuntime                          `yaml:"runtime,omitempty"`         // Container runtime for the agent container (e.g., "gvisor")
-	NetworkIsolation      bool                                  `yaml:"sudo,omitempty"`            // Internal: true = isolation mode (AWF --network-isolation). Frontmatter sudo: false (or omitted) maps to NetworkIsolation=true; sudo: true maps to NetworkIsolation=false.
-	SudoExplicitlyEnabled bool                                  `yaml:"-"`                         // True when sudo: true was explicitly set in frontmatter. Used to emit an error (strict) or warning (non-strict) at compile time.
-	LegacySecurity        bool                                  `yaml:"-"`                         // True when legacy-security: enable was set in frontmatter. Enables sudo, host-access, and iptables-based mode.
-	Disabled              bool                                  `yaml:"-"`                         // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
-	DisableReason         string                                `yaml:"-"`                         // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
-	Config                *SandboxRuntimeConfig                 `yaml:"config,omitempty"`          // Custom SRT config (optional)
-	Command               string                                `yaml:"command,omitempty"`         // Custom command to replace AWF or SRT installation
-	Args                  []string                              `yaml:"args,omitempty"`            // Additional arguments to append to the command
-	Env                   map[string]string                     `yaml:"env,omitempty"`             // Environment variables to set on the step
-	Mounts                []string                              `yaml:"mounts,omitempty"`          // Container mounts to add for AWF (format: "source:dest:mode")
-	Memory                string                                `yaml:"memory,omitempty"`          // Memory limit for the AWF container (e.g., "4g", "8g")
-	ModelFallback         *TemplatableBool                      `yaml:"model-fallback,omitempty"`  // AWF API proxy model fallback enable/disable flag (optional)
-	Targets               map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`         // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
-	BoundedQueries        *BoundedQueriesConfig                 `yaml:"bounded-queries,omitempty"` // Bounded-query configuration for cross-repository private data access
-}
-
-// BoundedQueriesConfig configures the AWF bounded-query subsystem, which allows the agent
-// to answer finite, pre-approved questions about private repositories without receiving
-// raw source content. The presence of this block enables the feature.
-//
-// Example frontmatter:
-//
-//	sandbox:
-//	  agent:
-//	    id: awf
-//	    bounded-queries:
-//	      private-repos:
-//	        - repo: my-org/internal-service
-//	          sensitivity: internal
-//	      runtime: docker
-//	      timeout: 30
-//	      memory-limit: 512m
-//	      interpreter: python3
-//	      max-invocations: 32
-type BoundedQueriesConfig struct {
-	// PrivateRepos is the list of private repositories that the agent may query.
-	// At least one entry is required when bounded-queries is configured.
-	// Each entry must have a valid "owner/repo" slug and a sensitivity classification.
-	PrivateRepos []*BoundedQueryPrivateRepo `yaml:"private-repos,omitempty"`
-
-	// Runtime is the container runtime used to execute bounded-query scripts.
-	// Optional; when omitted AWF uses its default runtime.
-	// Supported values: "docker"
-	Runtime string `yaml:"runtime,omitempty"`
-
-	// Timeout is the maximum execution time in seconds for a single bounded-query invocation.
-	// Optional; when omitted AWF uses its default timeout.
-	// Must be a positive integer.
-	Timeout int `yaml:"timeout,omitempty"`
-
-	// MemoryLimit is the memory limit for bounded-query container execution (e.g. "512m", "1g").
-	// Optional; when omitted AWF uses its default memory limit.
-	MemoryLimit string `yaml:"memory-limit,omitempty"`
-
-	// Interpreter is the script interpreter for bounded-query execution (e.g. "python3").
-	// Optional; when omitted AWF uses its default interpreter.
-	Interpreter string `yaml:"interpreter,omitempty"`
-
-	// MaxInvocations is the maximum number of bounded-query invocations allowed per run.
-	// Optional; when omitted AWF uses its default.
-	// Must be a positive integer.
-	MaxInvocations int `yaml:"max-invocations,omitempty"`
-}
-
-// BoundedQueryPrivateRepo describes one private repository approved for bounded-query access.
-type BoundedQueryPrivateRepo struct {
-	// Repo is the "owner/repo" slug of the private repository.
-	// Must not contain GitHub Actions expressions.
-	Repo string `yaml:"repo"`
-
-	// Sensitivity is the confidentiality classification for this repository.
-	// Accepted values: "public", "internal", "confidential", "sealed".
-	Sensitivity string `yaml:"sensitivity"`
+	ID                    string                                `yaml:"id,omitempty"`             // Agent ID: "awf" or "srt" (replaces Type in new object format)
+	Type                  SandboxType                           `yaml:"type,omitempty"`           // Sandbox type: "awf" or "srt" (legacy, use ID instead)
+	Version               string                                `yaml:"version,omitempty"`        // AWF version override used to install and run the matching firewall version
+	Platform              string                                `yaml:"platform,omitempty"`       // AWF platform.type override (github.com, ghes, ghec, ghec-self-hosted)
+	Runtime               AgentRuntime                          `yaml:"runtime,omitempty"`        // Container runtime for the agent container (e.g., "gvisor")
+	NetworkIsolation      bool                                  `yaml:"sudo,omitempty"`           // Internal: true = isolation mode (AWF --network-isolation). Frontmatter sudo: false (or omitted) maps to NetworkIsolation=true; sudo: true maps to NetworkIsolation=false.
+	SudoExplicitlyEnabled bool                                  `yaml:"-"`                        // True when sudo: true was explicitly set in frontmatter. Used to emit an error (strict) or warning (non-strict) at compile time.
+	LegacySecurity        bool                                  `yaml:"-"`                        // True when legacy-security: enable was set in frontmatter. Enables sudo, host-access, and iptables-based mode.
+	Disabled              bool                                  `yaml:"-"`                        // True when agent is explicitly set to false (disables firewall). This is a runtime flag, not serialized to YAML.
+	DisableReason         string                                `yaml:"-"`                        // Operator-authored justification from dangerously-disable-sandbox-agent feature; available for diagnostics and audit logging.
+	Config                *SandboxRuntimeConfig                 `yaml:"config,omitempty"`         // Custom SRT config (optional)
+	Command               string                                `yaml:"command,omitempty"`        // Custom command to replace AWF or SRT installation
+	Args                  []string                              `yaml:"args,omitempty"`           // Additional arguments to append to the command
+	Env                   map[string]string                     `yaml:"env,omitempty"`            // Environment variables to set on the step
+	Mounts                []string                              `yaml:"mounts,omitempty"`         // Container mounts to add for AWF (format: "source:dest:mode")
+	Memory                string                                `yaml:"memory,omitempty"`         // Memory limit for the AWF container (e.g., "4g", "8g")
+	ModelFallback         *TemplatableBool                      `yaml:"model-fallback,omitempty"` // AWF API proxy model fallback enable/disable flag (optional)
+	Targets               map[string]*AgentAPIProxyTargetConfig `yaml:"targets,omitempty"`        // Per-provider API proxy target overrides keyed by provider name (e.g. "openai", "anthropic")
 }
 
 // AiCreditsPricingConfig holds per-token pricing rates ($/1M tokens) used as a fallback

@@ -412,6 +412,13 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 			}
 		}
 
+		// Parse bounded-queries configuration.
+		if rawBQ, ok := configMap["bounded-queries"]; ok {
+			if bqMap, ok := rawBQ.(map[string]any); ok {
+				config.BoundedQueries = parseBoundedQueriesConfig(bqMap)
+			}
+		}
+
 		return config
 	}
 
@@ -420,7 +427,44 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 	}
 }
 
-// parseBashTool converts raw bash tool configuration to BashToolConfig
+// parseBoundedQueriesConfig converts a raw map into a BoundedQueriesConfig.
+func parseBoundedQueriesConfig(bqMap map[string]any) *BoundedQueriesConfig {
+	config := &BoundedQueriesConfig{}
+
+	if rawRepos, ok := bqMap["private-repos"].([]any); ok {
+		config.PrivateRepos = make([]*BoundedQueryPrivateRepo, 0, len(rawRepos))
+		for _, item := range rawRepos {
+			if repoMap, ok := item.(map[string]any); ok {
+				entry := &BoundedQueryPrivateRepo{}
+				if repo, ok := repoMap["repo"].(string); ok {
+					entry.Repo = repo
+				}
+				if sensitivity, ok := repoMap["sensitivity"].(string); ok {
+					entry.Sensitivity = sensitivity
+				}
+				config.PrivateRepos = append(config.PrivateRepos, entry)
+			}
+		}
+	}
+
+	if runtime, ok := bqMap["runtime"].(string); ok {
+		config.Runtime = runtime
+	}
+	if timeout, ok := bqMap["timeout"].(int); ok {
+		config.Timeout = timeout
+	}
+	if memoryLimit, ok := bqMap["memory-limit"].(string); ok {
+		config.MemoryLimit = memoryLimit
+	}
+	if interpreter, ok := bqMap["interpreter"].(string); ok {
+		config.Interpreter = interpreter
+	}
+	if maxInvocations, ok := bqMap["max-invocations"].(int); ok {
+		config.MaxInvocations = maxInvocations
+	}
+
+	return config
+}
 func parseBashTool(val any) *BashToolConfig {
 	if val == nil {
 		// nil is no longer supported - return nil to indicate invalid configuration

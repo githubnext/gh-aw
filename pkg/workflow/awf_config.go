@@ -958,17 +958,17 @@ func extractModelCostProviders(workflowData *WorkflowData) map[string]any {
 }
 
 // extractBoundedQueriesConfig returns an AWFBoundedQueriesConfig populated from
-// sandbox.agent.bounded-queries, or nil when the field is absent.
+// tools.github.bounded-queries, or nil when the field is absent.
 // Only fields explicitly set in frontmatter are included; optional fields that
 // were not specified are omitted so that AWF remains the source of truth for defaults.
 func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesConfig {
 	if workflowData == nil {
 		return nil
 	}
-	if workflowData.SandboxConfig == nil || workflowData.SandboxConfig.Agent == nil {
+	if workflowData.ParsedTools == nil || workflowData.ParsedTools.GitHub == nil {
 		return nil
 	}
-	bq := workflowData.SandboxConfig.Agent.BoundedQueries
+	bq := workflowData.ParsedTools.GitHub.BoundedQueries
 	if bq == nil {
 		return nil
 	}

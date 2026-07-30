@@ -314,12 +314,14 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 
   - **`sandbox.agent.sudo`** (boolean) controls whether AWF runs in root mode. Default is `false`: AWF runs rootless in network-isolation egress mode (`--network-isolation`), with MCP sidecars attached as bridge containers on the internal `awf-net` network. Set `sudo: true` for the legacy root mode; in strict mode explicit `sudo: true` is an error (warning otherwise).
   - **`sandbox.agent.runtime`** (string) selects an extra-isolation container runtime for the agent: `gvisor` (runs under gVisor's `runsc` for kernel-level isolation) or `docker-sbx` (Docker sbx microVM with KVM hypervisor-level isolation; needs `DOCKER_PAT`/`DOCKER_USERNAME` secrets and a KVM-capable runner). Both require `sudo: true` and are incompatible with `runner.topology: arc-dind`.
-  - **`sandbox.agent.bounded-queries`** (object, AWF v0.28.0+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. All optional fields use AWF defaults when omitted.
+  - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
+
+- **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
+  - **`tools.github.bounded-queries`** (object, AWF v0.28.0+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. Requires the AWF sandbox (`sandbox.agent.id: awf`). All optional fields use AWF defaults when omitted.
 
     ```yaml
-    sandbox:
-      agent:
-        id: awf
+    tools:
+      github:
         bounded-queries:
           private-repos:
             - repo: my-org/public-docs
@@ -331,12 +333,12 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
           memory-limit: 512m      # optional; e.g. 512m, 2g; default: AWF default
           interpreter: python3    # optional; default: AWF default
           max-invocations: 32     # optional; default: AWF default
+    sandbox:
+      agent:
+        id: awf
     ```
 
     Sensitivity levels: `public` (no restrictions), `internal` (internal-only audiences), `confidential` (restricted within org), `sealed` (highest restriction). The staging credential used to access private repositories must remain host-side and is never written to the lock file or exposed to the agent. Use bounded queries when the question has a finite, bounded answer; prefer this over granting a cross-repository token or checking out the private repository into the primary workspace.
-  - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
-
-- **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
 
 - **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `replace-label`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, and more.
 
