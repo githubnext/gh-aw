@@ -529,6 +529,15 @@
           },
           "provider_type": "openai",
           "wire_api": "completions"
+        },
+        "grok-4.5": {
+          "cost": {
+            "input": "2e-07",
+            "output": "6e-07",
+            "cache_read": "5e-08"
+          },
+          "provider_type": "openai",
+          "wire_api": "completions"
         }
       }
     },
@@ -933,6 +942,15 @@
             "output": "0"
           },
           "provider_type": "openai"
+        },
+        "github/grok-4.5": {
+          "cost": {
+            "input": "2e-07",
+            "output": "6e-07",
+            "cache_read": "5e-08"
+          },
+          "provider_type": "openai",
+          "wire_api": "completions"
         }
       }
     }
