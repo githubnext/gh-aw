@@ -105,7 +105,7 @@ func (c *Compiler) validateAgentFile(workflowData *WorkflowData, markdownPath st
 	}
 
 	if c.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(
 			"✓ Agent file exists: "+agentPath))
 	}
 
@@ -227,7 +227,7 @@ func (c *Compiler) validateWebSearchSupport(tools map[string]any, engine CodingA
 	// web-search is specified, check if the engine supports it
 	if !engine.GetCapabilities().WebSearch {
 		agentValidationLog.Printf("Engine %s does not natively support web-search tool, emitting warning", engine.GetID())
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://github.github.com/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Engine '%s' does not support the web-search tool. See https://github.github.com/gh-aw/guides/web-search/ for alternatives.", engine.GetID())))
 		c.IncrementWarningCount()
 	}
 }
@@ -246,7 +246,7 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 
 	if !engine.GetCapabilities().BareMode {
 		agentValidationLog.Printf("Engine %s does not support bare mode, emitting warning", engine.GetID())
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
 		c.IncrementWarningCount()
 	}
 }
@@ -267,7 +267,7 @@ func (c *Compiler) validateWorkflowRunBranches(workflowData *WorkflowData, markd
 	}
 	if _, hasBranches := workflowRunMap["branches"]; hasBranches {
 		if c.verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("✓ workflow_run trigger has branch restrictions"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("✓ workflow_run trigger has branch restrictions"))
 		}
 		return nil
 	}

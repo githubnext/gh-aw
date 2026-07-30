@@ -77,7 +77,7 @@ func compileSpecificFiles(
 		// Respect context cancellation between files (e.g. Ctrl+C)
 		select {
 		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Operation cancelled"))
 			return workflowDataList, ctx.Err()
 		default:
 		}
@@ -342,7 +342,7 @@ func compileAllFilesInDirectory(
 
 	compileOrchestrationLog.Printf("Scanning for markdown files in %s", workflowsDir)
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Scanning for markdown files in "+workflowsDir))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Scanning for markdown files in "+workflowsDir))
 	}
 
 	// Find and filter markdown files (shared helper keeps logic in one place)
@@ -361,7 +361,7 @@ func compileAllFilesInDirectory(
 
 	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
 	}
 
 	batchMode := !config.Verbose && len(mdFiles) > 1
@@ -398,7 +398,7 @@ func compileAllFilesInDirectory(
 		// Respect context cancellation between files (e.g. Ctrl+C)
 		select {
 		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Operation cancelled"))
 			return workflowDataList, ctx.Err()
 		default:
 		}
@@ -588,7 +588,7 @@ func compileAllFilesInDirectory(
 	displaySafeUpdateWarnings(compiler, config.JSONOutput)
 
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
 	}
 
 	// Handle purge logic if requested
@@ -647,14 +647,14 @@ func displayBatchCompilationNotices(compiler *workflow.Compiler, config CompileC
 			return features[i].name < features[j].name
 		})
 
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Experimental features in use:"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Experimental features in use:"))
 		for _, feature := range features {
-			fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("%s: %s", feature.name, formatWorkflowCount(feature.count))))
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("%s: %s", feature.name, formatWorkflowCount(feature.count))))
 		}
 	}
 
 	if compiler.CopilotRequestsTipNeeded() {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(
 			"Copilot token-based inference may be available: add permissions.copilot-requests: write. "+
 				"See https://github.github.com/gh-aw/reference/billing/",
 		))
@@ -684,10 +684,10 @@ func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purg
 
 	if verbose {
 		if len(data.existingLockFiles) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(data.existingLockFiles))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d existing .lock.yml files", len(data.existingLockFiles))))
 		}
 		if len(data.existingInvalidFiles) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .invalid.yml files", len(data.existingInvalidFiles))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d existing .invalid.yml files", len(data.existingInvalidFiles))))
 		}
 	}
 
@@ -727,7 +727,7 @@ func runPostProcessing(
 				if config.Strict {
 					return err
 				}
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
 			}
 		}
 	}
@@ -781,7 +781,7 @@ func runPostProcessingForDirectory(
 			if config.Strict {
 				return err
 			}
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
 		}
 	}
 

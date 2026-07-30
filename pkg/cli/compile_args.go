@@ -62,7 +62,7 @@ func expandDirectoryArg(dirPath string, verbose bool) ([]string, error) {
 	compileArgsLog.Printf("Expanding directory argument: %s", dirPath)
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Compiling all workflows in directory: "+dirPath))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Compiling all workflows in directory: "+dirPath))
 	}
 
 	mdFiles, err := getMarkdownWorkflowFiles(dirPath)

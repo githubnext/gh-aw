@@ -22,7 +22,7 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 	// Check context cancellation at the start
 	select {
 	case <-ctx.Done():
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Operation cancelled"))
 		return nil, ctx.Err()
 	default:
 	}
@@ -108,7 +108,7 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 		var markdownFile string
 		if len(config.MarkdownFiles) > 0 {
 			if len(config.MarkdownFiles) > 1 {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Watch mode only supports a single file, using the first one"))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Watch mode only supports a single file, using the first one"))
 			}
 			// Resolve the workflow file to get the full path
 			resolvedFile, err := resolveWorkflowFile(config.MarkdownFiles[0], config.Verbose)

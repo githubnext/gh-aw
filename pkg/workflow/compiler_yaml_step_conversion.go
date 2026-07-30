@@ -110,7 +110,7 @@ func (c *Compiler) renderStepFromMap(out *strings.Builder, step map[string]any, 
 	if sanitized, warnings, changed := sanitizeRunStepExpressions(step); changed {
 		stepConversionLog.Printf("Sanitized run-step expressions: %d warning(s) emitted", len(warnings))
 		for _, w := range warnings {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(w))
 			c.IncrementWarningCount()
 		}
 		step = sanitized

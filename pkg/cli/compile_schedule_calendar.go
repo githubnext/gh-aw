@@ -245,7 +245,7 @@ func displayScheduleCalendar(statsList []*WorkflowStats) {
 
 	// Title
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Schedule Heatmap (UTC)"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Schedule Heatmap (UTC)"))
 	fmt.Fprintln(os.Stderr)
 
 	// Hour header row: each cell is 3 chars wide ("XX ").

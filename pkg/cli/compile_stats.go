@@ -190,28 +190,28 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 				for i, prioritized := range report.DisplayedErrors {
 					heading := prioritized.Severity.Heading()
 					if heading != lastHeading {
-						fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("%s %s:", prioritized.Severity.Icon(), heading)))
+						fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("%s %s:", prioritized.Severity.Icon(), heading)))
 						lastHeading = heading
 					}
-					fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("%d. %s", i+1, prioritized.Message)))
+					fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("%d. %s", i+1, prioritized.Message)))
 					if prioritized.Suggestion != "" {
-						fmt.Fprintln(os.Stderr, console.FormatInfoMessage("→ "+prioritized.Suggestion))
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("→ "+prioritized.Suggestion))
 					}
 				}
 
 				if report.RecoveryPlan != nil && len(report.RecoveryPlan.Steps) > 0 {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage("💡 Recovery plan:"))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("💡 Recovery plan:"))
 					for i, step := range report.RecoveryPlan.Steps {
-						fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("%d. %s", i+1, step)))
+						fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("%d. %s", i+1, step)))
 					}
 				}
 
 				if report.SuppressedCount > 0 {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Suppressed %d cascading error(s) until the root cause is fixed.", report.SuppressedCount)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Suppressed %d cascading error(s) until the root cause is fixed.", report.SuppressedCount)))
 				}
 
 				if !showAllErrors && report.HiddenCount > 0 {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run 'gh aw compile --show-all' to see all %d prioritized error(s).", report.TotalCount)))
+					fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Run 'gh aw compile --show-all' to see all %d prioritized error(s).", report.TotalCount)))
 				}
 			}
 		} else if len(stats.FailedWorkflows) > 0 {
@@ -224,9 +224,9 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 			fmt.Fprintln(os.Stderr)
 		}
 	} else if stats.Warnings > 0 {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(summary))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(summary))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(summary))
 	}
 }
 
@@ -347,13 +347,13 @@ func displayStatsTable(statsList []*WorkflowStats) {
 	fmt.Fprint(os.Stderr, console.RenderTable(tableConfig))
 
 	// Print summary
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Summary:"))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Summary:"))
 	if len(statsList) > maxDisplay {
-		fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("Showing top %d of %d workflows (sorted by size)", maxDisplay, len(statsList))))
+		fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("Showing top %d of %d workflows (sorted by size)", maxDisplay, len(statsList))))
 	}
-	fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("Total workflows: %d", len(statsList))))
-	fmt.Fprintln(os.Stderr, console.FormatListItem("Total size:      "+console.FormatFileSize(totalSize)))
-	fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("Total jobs:      %d", totalJobs)))
-	fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("Total steps:     %d", totalSteps)))
-	fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("Total scripts:   %d (%s)", totalScripts, console.FormatFileSize(int64(totalScriptSize)))))
+	fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("Total workflows: %d", len(statsList))))
+	fmt.Fprintln(os.Stderr, console.FormatListItemStderr("Total size:      "+console.FormatFileSize(totalSize)))
+	fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("Total jobs:      %d", totalJobs)))
+	fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("Total steps:     %d", totalSteps)))
+	fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("Total scripts:   %d (%s)", totalScripts, console.FormatFileSize(int64(totalScriptSize)))))
 }

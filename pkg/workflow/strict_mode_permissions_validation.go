@@ -178,7 +178,7 @@ func (c *Compiler) validateStrictFirewall(engineID string, networkPermissions *N
 
 			infoMsg := "recommend using ecosystem identifiers instead of individual domain names for better maintainability: " + strings.Join(suggestions, ", ")
 
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(infoMsg))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(infoMsg))
 		}
 	}
 

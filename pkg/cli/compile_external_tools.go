@@ -117,7 +117,7 @@ func handleBatchToolError(toolName string, err error, strict, verbose bool) erro
 	}
 	// In non-strict mode, errors are warnings
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("%s warnings: %v", toolName, err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("%s warnings: %v", toolName, err)))
 	}
 	return nil
 }

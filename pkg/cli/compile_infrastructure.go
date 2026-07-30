@@ -24,14 +24,14 @@ func updateGitAttributes(successCount int, actionCache *workflow.ActionCache, ve
 		if err != nil {
 			compileInfrastructureLog.Printf("Failed to update .gitattributes: %v", err)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 			return err
 		}
 		if updated {
 			compileInfrastructureLog.Printf("Successfully updated .gitattributes")
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated .gitattributes to mark .lock.yml files as generated"))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Updated .gitattributes to mark .lock.yml files as generated"))
 			}
 		} else {
 			compileInfrastructureLog.Print(".gitattributes already up to date")
@@ -54,14 +54,14 @@ func saveActionCache(actionCache *workflow.ActionCache, verbose bool) error {
 	if err := actionCache.Save(); err != nil {
 		compileInfrastructureLog.Printf("Failed to save action cache: %v", err)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to save action cache: %v", err)))
 		}
 		return err
 	}
 
 	compileInfrastructureLog.Print("Action cache saved successfully")
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Action cache saved to "+actionCache.GetCachePath()))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Action cache saved to "+actionCache.GetCachePath()))
 	}
 
 	return nil

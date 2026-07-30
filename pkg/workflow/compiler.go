@@ -143,7 +143,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return "", nil, nil, formattedErr
 	}
@@ -208,7 +208,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			// Write the invalid YAML to a .invalid.yml file for inspection
 			invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 			if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Invalid workflow YAML written to: "+console.ToRelativePath(invalidFile)))
 			}
 			return "", nil, nil, formattedErr
 		}
@@ -240,7 +240,7 @@ func (c *Compiler) generateAndValidateYAML(workflowData *WorkflowData, markdownP
 			return "", nil, nil, formatCompilerError(markdownPath, "error", fmt.Sprintf("repository feature validation failed: %v", err), err)
 		}
 	} else if c.verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Schema validation available but skipped (use SetSkipValidation(false) to enable)"))
 		c.IncrementWarningCount()
 	}
 
@@ -280,7 +280,7 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 				lockSize := console.FormatFileSize(lockFileInfo.Size())
 				maxSize := console.FormatFileSize(MaxLockFileSize)
 				warningMsg := fmt.Sprintf("Generated lock file size (%s) exceeds recommended maximum size (%s)", lockSize, maxSize)
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warningMsg))
 			}
 		}
 	}
@@ -288,15 +288,15 @@ func (c *Compiler) writeWorkflowOutput(lockFile, yamlContent string, markdownPat
 	// Display success message with file size if we generated a lock file (unless quiet mode)
 	if !c.quiet {
 		if c.noEmit {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(console.ToRelativePath(markdownPath)))
 		} else {
 			// Get the size of the generated lock file for display
 			if lockFileInfo, err := os.Stat(lockFile); err == nil {
 				lockSize := console.FormatFileSize(lockFileInfo.Size())
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("%s (%s)", console.ToRelativePath(markdownPath), lockSize)))
 			} else {
 				// Fallback to original display if we can't get file info
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(console.ToRelativePath(markdownPath)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(console.ToRelativePath(markdownPath)))
 			}
 		}
 	}
@@ -379,7 +379,7 @@ func (c *Compiler) validateTemplateInjection(yamlContent, lockFile, markdownPath
 		// Write the invalid YAML to a .invalid.yml file for inspection
 		invalidFile := strings.TrimSuffix(lockFile, ".lock.yml") + ".invalid.yml"
 		if writeErr := os.WriteFile(invalidFile, []byte(yamlContent), constants.FilePermPublic); writeErr == nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Workflow with template injection risks written to: "+console.ToRelativePath(invalidFile)))
 		}
 		return formattedErr
 	}

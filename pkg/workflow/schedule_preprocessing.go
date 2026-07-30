@@ -397,7 +397,7 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 		}
 
 		// Format and return the error
-		formattedErr := console.FormatError(compilerErr)
+		formattedErr := console.FormatErrorStderr(compilerErr)
 		return errors.New(formattedErr)
 	}
 

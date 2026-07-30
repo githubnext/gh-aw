@@ -64,7 +64,7 @@ func generateDependabotManifestsWrapper(
 			return fmt.Errorf("failed to generate Dependabot manifests: %w", err)
 		}
 		// Non-strict mode: just report as warning
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate Dependabot manifests: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to generate Dependabot manifests: %v", err)))
 	}
 
 	return nil
@@ -88,7 +88,7 @@ func generateMaintenanceWorkflowWrapper(
 		if strict {
 			return fmt.Errorf("failed to load repo config: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to load repo config: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to load repo config: %v", err)))
 		repoConfig = nil
 	}
 
@@ -105,7 +105,7 @@ func generateMaintenanceWorkflowWrapper(
 			return fmt.Errorf("failed to generate maintenance workflow: %w", err)
 		}
 		// Non-strict mode: just report as warning
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate maintenance workflow: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to generate maintenance workflow: %v", err)))
 	}
 
 	return nil
@@ -127,7 +127,7 @@ func generateCentralSlashCommandWorkflowWrapper(
 		if strict {
 			return fmt.Errorf("failed to load repo config: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf(
 			"Failed to load repo config; repo-config flags (e.g. help_command) will use defaults: %v", err)))
 		repoConfig = nil
 	}
@@ -136,7 +136,7 @@ func generateCentralSlashCommandWorkflowWrapper(
 		if strict {
 			return fmt.Errorf("failed to generate centralized slash-command workflow: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to generate centralized slash-command workflow: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to generate centralized slash-command workflow: %v", err)))
 	}
 
 	return nil
@@ -159,7 +159,7 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d existing .lock.yml files", len(existingLockFiles))))
 	}
 
 	// Build a set of expected lock files
@@ -186,13 +186,13 @@ func purgeOrphanedLockFiles(workflowsDir string, expectedLockFiles []string, ver
 	if len(orphanedFiles) > 0 {
 		for _, orphanedFile := range orphanedFiles {
 			if err := os.Remove(orphanedFile); err != nil {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove orphaned lock file %s: %v", filepath.Base(orphanedFile), err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to remove orphaned lock file %s: %v", filepath.Base(orphanedFile), err)))
 			} else {
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed orphaned lock file: "+filepath.Base(orphanedFile)))
+				fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Removed orphaned lock file: "+filepath.Base(orphanedFile)))
 			}
 		}
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d orphaned .lock.yml files", len(orphanedFiles))))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Purged %d orphaned .lock.yml files", len(orphanedFiles))))
 		}
 	}
 
@@ -217,20 +217,20 @@ func purgeInvalidFiles(workflowsDir string, verbose bool) error {
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .invalid.yml files", len(existingInvalidFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d existing .invalid.yml files", len(existingInvalidFiles))))
 	}
 
 	// Delete all .invalid.yml files
 	for _, invalidFile := range existingInvalidFiles {
 		if err := os.Remove(invalidFile); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove invalid file %s: %v", filepath.Base(invalidFile), err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to remove invalid file %s: %v", filepath.Base(invalidFile), err)))
 		} else {
-			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Removed invalid file: "+filepath.Base(invalidFile)))
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr("Removed invalid file: "+filepath.Base(invalidFile)))
 		}
 	}
 
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Purged %d .invalid.yml files", len(existingInvalidFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Purged %d .invalid.yml files", len(existingInvalidFiles))))
 	}
 
 	compilePostProcessingLog.Printf("Purged %d invalid files", len(existingInvalidFiles))
@@ -242,7 +242,7 @@ func displayScheduleWarnings(compiler *workflow.Compiler, jsonOutput bool) {
 	scheduleWarnings := compiler.GetScheduleWarnings()
 	if len(scheduleWarnings) > 0 && !jsonOutput {
 		for _, warning := range scheduleWarnings {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning))
 		}
 	}
 }
@@ -257,7 +257,7 @@ func displaySafeUpdateWarnings(compiler *workflow.Compiler, jsonOutput bool) {
 		return
 	}
 	for _, w := range warnings {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(w))
 	}
 }
 
@@ -294,7 +294,7 @@ func displayCentralizedSlashCommandRecommendation(compiler *workflow.Compiler, w
 		nonCentralizedSlashCommands,
 		verb,
 	)
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(msg))
 	compiler.IncrementWarningCount()
 }
 

@@ -122,7 +122,7 @@ func compileWorkflowFile(
 		if errors.As(err, &sharedErr) {
 			if !opts.jsonOutput {
 				// Print info message instead of error
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(sharedErr.Error()))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(sharedErr.Error()))
 			}
 			// Mark as valid but skipped
 			result.validationResult.Valid = true
@@ -139,7 +139,7 @@ func compileWorkflowFile(
 		if errors.As(err, &redirectErr) {
 			if !opts.jsonOutput {
 				// Print info message instead of error
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(redirectErr.Error()))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(redirectErr.Error()))
 			}
 			// Mark as valid but skipped
 			result.validationResult.Valid = true
