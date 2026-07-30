@@ -505,7 +505,7 @@ func TestAddCustomStepsWithRuntimeInsertion(t *testing.T) {
 			compiler := NewCompiler()
 			var yaml strings.Builder
 
-			compiler.addCustomStepsWithRuntimeInsertion(&yaml, tt.customSteps, tt.runtimeSetupSteps, tt.tools, tt.ensureArcNodePath)
+			compiler.addCustomStepsWithRuntimeInsertion(&yaml, tt.customSteps, tt.runtimeSetupSteps, nil, tt.tools, tt.ensureArcNodePath)
 			result := yaml.String()
 
 			for _, expected := range tt.expectInOutput {
