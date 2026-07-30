@@ -95,6 +95,23 @@ func TestBuildRunHTMLURL_GHES(t *testing.T) {
 
 // ─── ViewWorkflowRun (local dir with pre-populated JSONL) ────────────────────
 
+// setupFakeGHForViewing installs a no-op fake gh binary into a temporary bin
+// directory and prepends it to PATH via t.Setenv.  This prevents real GitHub
+// CLI calls from failing due to authentication errors in CI environments where
+// gh is configured but the synthetic run IDs used by view tests do not exist.
+// The fake binary exits 0 for every command and produces no output, so
+// downloadRunArtifacts completes without error whether it takes the early-return
+// (dir non-empty) path or falls through to a benign no-op download.
+func setupFakeGHForViewing(t *testing.T) {
+	t.Helper()
+	fakeBinDir := t.TempDir()
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	if err := os.WriteFile(fakeGH, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("setupFakeGHForViewing: WriteFile: %v", err)
+	}
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 // buildViewRunDir creates a temporary run directory populated with synthetic
 // JSONL files so that ViewWorkflowRun can read them without network access.
 func buildViewRunDir(t *testing.T) string {
@@ -129,6 +146,7 @@ func buildViewRunDir(t *testing.T) string {
 }
 
 func TestViewWorkflowRun_LocalCache_NoError(t *testing.T) {
+	setupFakeGHForViewing(t)
 	logsDir := buildViewRunDir(t)
 
 	opts := ViewOptions{
@@ -184,6 +202,7 @@ func TestViewWorkflowRun_LocalCache_NoError(t *testing.T) {
 }
 
 func TestViewWorkflowRun_WithOwnerRepo_ShowsRunURL(t *testing.T) {
+	setupFakeGHForViewing(t)
 	logsDir := buildViewRunDir(t)
 
 	opts := ViewOptions{
@@ -223,6 +242,7 @@ func TestViewWorkflowRun_WithOwnerRepo_ShowsRunURL(t *testing.T) {
 }
 
 func TestViewWorkflowRun_WithSafeOutputs_ShowsSection(t *testing.T) {
+	setupFakeGHForViewing(t)
 	logsDir := buildViewRunDir(t)
 	runDir := filepath.Join(logsDir, "run-9999")
 
