@@ -110,6 +110,7 @@ To build and test repository custom linters:
 [@abillingsley (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aabillingsley)
 [@adam-cobb (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aadam-cobb)
 [@adamhenson (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aadamhenson)
+[@adamtasteslikegood (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aadamtasteslikegood)
 [@adhikjoshi (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aadhikjoshi)
 [@ahmadabdalla (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aahmadabdalla)
 [@ajfeldman6 (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aajfeldman6)
@@ -144,7 +145,7 @@ To build and test repository custom linters:
 [@boydj (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aboydj)
 [@Bra1nFartz (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3ABra1nFartz)
 [@BrandonLewis (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3ABrandonLewis)
-[@bryanchen-d (16)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Abryanchen-d)
+[@bryanchen-d (18)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Abryanchen-d)
 [@bryanknox (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Abryanknox)
 [@bshore-bf (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Abshore-bf)
 [@Calidus (6)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3ACalidus)
@@ -185,6 +186,7 @@ To build and test repository custom linters:
 [@doughgle (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adoughgle)
 [@drehelis (4)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adrehelis)
 [@DrPye (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3ADrPye)
+[@dsfaccini (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsfaccini)
 [@dsibilio (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsibilio)
 [@dsolteszopyn (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsolteszopyn)
 [@dsyme (32)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Adsyme)
@@ -218,7 +220,7 @@ To build and test repository custom linters:
 [@haavamoa (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Ahaavamoa)
 [@harrisoncramer (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aharrisoncramer)
 [@heaversm (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aheaversm)
-[@heiskr (3)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aheiskr)
+[@heiskr (4)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aheiskr)
 [@hermanho (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Ahermanho)
 [@holwerda (3)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aholwerda)
 [@hpsin (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Ahpsin)
@@ -303,6 +305,7 @@ To build and test repository custom linters:
 [@NikolajBjorner (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3ANikolajBjorner)
 [@norrietaylor (8)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Anorrietaylor)
 [@octatone (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aoctatone)
+[@oscarvalenzuelab (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aoscarvalenzuelab)
 [@PaulAylward2 (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3APaulAylward2)
 [@petercort (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Apetercort)
 [@pethers (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Apethers)
@@ -336,6 +339,7 @@ To build and test repository custom linters:
 [@SanthoshNandha (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3ASanthoshNandha)
 [@sbodapati-gfm (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Asbodapati-gfm)
 [@seangibeault (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aseangibeault)
+[@seesharprun (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Aseesharprun)
 [@sg650 (13)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Asg650)
 [@shawnHartsell (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3AshawnHartsell)
 [@shiran-gutsy (1)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Ashiran-gutsy)
@@ -380,6 +384,18 @@ To build and test repository custom linters:
 [@zarenner (5)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azarenner)
 [@zkoppert (2)](https://github.com/github/gh-aw/issues?q=is%3Aissue+is%3Aclosed+label%3Acommunity+author%3Azkoppert)
 
+
+### ⚠️ Attribution Candidates Need Review
+
+The following community issues were closed during this period but could not
+be automatically linked to a specific merged PR.  Please verify whether they
+should be credited:
+
+- **@austenstone** for [#42874](https://github.com/github/gh-aw/issues/42874) — [bug] Intake Triage agent job: MODULE_NOT_FOUND for merge_awf_model_multipliers.cjs (5 failures in 8d, v0.77.5) — closed 2026-07-04
+- **@bryanchen-d** for [#47156](https://github.com/github/gh-aw/issues/47156) — safe-outputs: configured GH_AW_GITHUB_TOKEN shadows checkout token — closed 2026-07-22
+- **@G1Vh** for [#37808](https://github.com/github/gh-aw/issues/37808) — `opencode` engine rejects `deepseek` (and google/groq/mistral/xai) providers present in `openCodeProviderDomains` — closed 2026-07-09
+- **@martinbriley** for [#42842](https://github.com/github/gh-aw/issues/42842) — Request that the sentiment functionality emit events for sentiment analysis — closed 2026-07-05
+- **@Tarekchehahde** for [#44987](https://github.com/github/gh-aw/issues/44987) — Document self-hosted Kubernetes DinD prerequisites for gh-aw (#40107) — closed 2026-07-16
 
 ### ⚠️ Attribution Candidates Need Review
 

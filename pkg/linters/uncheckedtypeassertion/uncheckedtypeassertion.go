@@ -12,7 +12,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:uncheckedtypeassertion")
 
 // Analyzer is the unchecked-type-assertion analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -24,6 +27,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -92,6 +96,7 @@ func inspectTypeAssertExpr(pass *analysis.Pass, noLintIndex nolint.DirectiveInde
 		return
 	}
 
+	pkgLog.Printf("flagging unchecked type assertion to %s at %s", t, pos)
 	pass.ReportRangef(
 		typeAssert,
 		"type assertion x.(%s) is unchecked and may panic; use the two-value form v, ok := x.(%s) instead",

@@ -15,8 +15,11 @@ import (
 
 	"golang.org/x/tools/go/analysis"
 
+	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/setutil"
 )
+
+var pkgLog = logger.New("linters:ssljson")
 
 const anchorPkg = "github.com/github/gh-aw/pkg/linters/ssljson"
 
@@ -234,15 +237,21 @@ func run(pass *analysis.Pass) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	pkgLog.Printf("validating %d ssl.json file(s) under %s", len(sslFiles), repoRoot)
 
 	for _, f := range sslFiles {
 		doc, err := LoadDoc(f)
 		if err != nil {
+			pkgLog.Printf("failed to load %s: %v", f, err)
 			pass.Reportf(anchorPos, "ssljson: %v", err)
 			continue
 		}
 		rel, _ := filepath.Rel(repoRoot, filepath.Dir(f))
-		for _, msg := range ValidateDoc(doc) {
+		msgs := ValidateDoc(doc)
+		if len(msgs) > 0 {
+			pkgLog.Printf("scene %s: %d validation violation(s)", rel, len(msgs))
+		}
+		for _, msg := range msgs {
 			pass.Reportf(anchorPos, "ssljson %s: %s", rel, msg)
 		}
 	}

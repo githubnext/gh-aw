@@ -26,7 +26,7 @@ on: /my-bot  # Ultra-short: slash prefix automatically expands to slash_command 
 
 ## Multiple Command Identifiers
 
-A single workflow can respond to multiple slash command names by providing an array of command identifiers:
+A single workflow can respond to multiple slash command names by providing an array:
 
 ```yaml wrap
 on:
@@ -50,13 +50,11 @@ You invoked the workflow using: `/${{ needs.activation.outputs.slash_command }}`
 Now analyzing the content...
 ```
 
-This feature enables command aliases and grouped command handlers without workflow duplication.
+This enables aliases and grouped handlers without duplicating workflows.
 
-This automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution matching `/command-name` mentions.
+The compiler automatically creates issue/PR triggers (`opened`, `edited`, `reopened`), comment triggers (`created`, `edited`), and conditional execution for `/command-name` mentions. The command must be the **first word** of the comment or body text to avoid accidental triggers.
 
 **Code availability:** When a command is triggered from a pull request body, PR comment, or PR review comment, the coding agent has access to both the PR branch and the default branch.
-
-The command must be the **first word** of the comment or body text to trigger the workflow. This prevents accidental triggers when the command is mentioned elsewhere in the content.
 
 You can combine `slash_command:` with other events like `workflow_dispatch` or `schedule`:
 
@@ -70,12 +68,9 @@ on:
 
 ### Centralized trigger strategy
 
-Set `on.slash_command.strategy: centralized` to opt a workflow into centralized slash-command routing.
-When enabled, the workflow compiles as `workflow_dispatch`-centric, and the compiler generates one
-shared `agentic_commands.yml` workflow that listens to merged slash-command events and
-dispatches matching target workflows with `aw_context`.
+Set `on.slash_command.strategy: centralized` to route slash commands through a shared dispatcher. The workflow compiles as `workflow_dispatch`-centric, and the compiler generates one `agentic_commands.yml` workflow that listens to merged slash-command events and dispatches matching target workflows with `aw_context`.
 
-When centralized routing is active, a builtin `/help` command is also enabled. It posts a comment in the current issue, pull request, or discussion with the supported slash commands (both centralized and non-centralized) and their descriptions, plus a link to this documentation.
+Centralized routing also enables a builtin `/help` command that comments on the current issue, pull request, or discussion with the supported slash commands, their descriptions, and a link to this documentation.
 
 To disable the builtin handler, set the top-level `help_command` field in `.github/workflows/aw.json`:
 
@@ -92,9 +87,9 @@ on:
     strategy: centralized
 ```
 
-**Note**: With default inline strategy, you cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` as they would conflict. With `strategy: centralized`, non-slash events are preserved because slash matching is handled in the generated central trigger workflow.
+With the default inline strategy, you cannot combine `slash_command` with `issues`, `issue_comment`, or `pull_request` because those triggers conflict. With `strategy: centralized`, non-slash events are preserved because slash matching moves to the generated central trigger workflow.
 
-**Exception for Label-Only Events**: You CAN combine `slash_command` with `issues` or `pull_request` if those events are configured for label-only triggers (`labeled` or `unlabeled` types only). This allows workflows to respond to slash commands while also reacting to label changes.
+You can still combine `slash_command` with `issues` or `pull_request` when those events are label-only (`labeled` or `unlabeled`).
 
 ### Combining `slash_command` with `bots:`
 
@@ -125,7 +120,7 @@ This pattern is useful when you want a workflow that can be triggered both manua
 
 ## Filtering Command Events
 
-By default, command triggers listen to all comment-related events, which can create skipped runs in the Actions UI. Use the `events:` field to restrict where commands are active:
+By default, command triggers listen to all comment-related events, which can create skipped runs in the Actions UI. Use `events:` to restrict where commands are active:
 
 ```yaml wrap
 on:
@@ -140,7 +135,7 @@ on:
 Both `issue_comment` and `pull_request_comment` map to GitHub Actions' `issue_comment` event with automatic filtering to distinguish between issue and PR comments.
 :::
 
-### Example command workflow
+### Example command workflows
 
 Issue-only command (avoids skipped runs from PR events):
 
@@ -168,9 +163,8 @@ All workflows access `steps.sanitized.outputs.text`, which provides **sanitized*
 # Analyze this content: "${{ steps.sanitized.outputs.text }}"
 ```
 
-**Why sanitized context?** The sanitized text neutralizes @mentions and bot triggers (like `fixes #123`), protects against XML injection, filters URIs to trusted HTTPS domains, limits content size (0.5MB max, 65k lines), and strips ANSI escape sequences.
+Use sanitized context instead of raw event fields. It neutralizes @mentions and bot triggers (such as `fixes #123`), protects against XML injection, filters URIs to trusted HTTPS domains, limits content size (0.5MB max, 65k lines), and strips ANSI escape sequences.
 
-**Comparison:**
 ```aw wrap
 # RECOMMENDED: Secure sanitized context
 Analyze this issue: "${{ steps.sanitized.outputs.text }}"
@@ -182,7 +176,7 @@ Body: "${{ github.event.issue.body }}"
 
 ## Reactions and Status Comments
 
-Command workflows enable `reaction: eyes` (👀) and `status-comment: true` by default. The reaction adds a visual indicator to triggering comments; the status comment posts a started/completed notification with a workflow run link.
+Command workflows default to `reaction: eyes` (👀) and `status-comment: true`. The reaction marks the triggering comment, and the status comment posts started/completed updates with a workflow run link.
 
 Customize or disable either:
 
@@ -200,7 +194,7 @@ See [Reactions and Status Comments](/gh-aw/reference/triggers/#reactions-reactio
 
 ## Customizing the Run-Again Hint (`placeholder`)
 
-When a workflow has a `slash_command:` trigger, the default footer on generated issues and pull requests includes a hint showing how to invoke the workflow again:
+For workflows with a `slash_command:` trigger, the default footer on generated issues and pull requests includes a hint showing how to invoke the workflow again:
 
 > <sub>Comment <em>/my-bot</em> to run again</sub>
 
@@ -221,9 +215,9 @@ The hint is appended only by the default footer template. Custom footer template
 
 ## Slash Commands from a Side Repository
 
-GitHub Actions only delivers events to the repository where they occur. When workflows live in a separate side repository, events from the main repository are never delivered there. **Slash command triggers cannot be used directly in a workflow hosted in a side repository.**
+GitHub Actions only delivers events to the repository where they occur, so events from the main repository never reach workflows hosted in a side repository. **Slash command triggers cannot be used directly in a workflow hosted in a side repository.**
 
-The recommended solution is a **bridge pattern**: a thin relay workflow in the main repository receives the slash command and forwards it to the side repository via `workflow_dispatch`.
+Use a **bridge pattern** instead: a thin relay workflow in the main repository receives the slash command and forwards it to the side repository via `workflow_dispatch`.
 
 See [Triage from Side Repo](/gh-aw/examples/multi-repo/triage-from-side-repo/) for a full walkthrough with examples and trade-offs.
 
