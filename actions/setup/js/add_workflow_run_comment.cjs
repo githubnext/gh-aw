@@ -8,7 +8,7 @@ const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
-const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { buildWorkflowRunUrl, EVENT_TYPE_DESCRIPTIONS } = require("./workflow_metadata_helpers.cjs");
 const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 
@@ -25,20 +25,6 @@ function isRestEndpoint(endpoint) {
  * @typedef {{ id: string, url: string, repo: RepoRef }} CommentMetadata
  * @typedef {{ id: string, url: string, repo: RepoRef | null }} ReusableStatusComment
  */
-
-/**
- * Event type descriptions for comment messages
- */
-const EVENT_TYPE_DESCRIPTIONS = {
-  issues: "issue",
-  pull_request: "pull request",
-  pull_request_comment: "pull request comment",
-  pull_request_review: "pull request review",
-  issue_comment: "issue comment",
-  pull_request_review_comment: "pull request review comment",
-  discussion: "discussion",
-  discussion_comment: "discussion comment",
-};
 
 /**
  * Helper function to get discussion node ID via GraphQL
