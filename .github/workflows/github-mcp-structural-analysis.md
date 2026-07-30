@@ -25,6 +25,7 @@ tools:
   cache-memory:
     key: mcp-response-analysis-${{ github.workflow }}
 imports:
+  - shared/mcp-pagination.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[mcp-analysis] "
