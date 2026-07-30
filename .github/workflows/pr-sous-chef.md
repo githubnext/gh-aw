@@ -18,6 +18,8 @@ permissions:
   actions: read
   copilot-requests: write
 
+features:
+  gh-aw-detection: true
 sandbox:
   agent:
     sudo: false
