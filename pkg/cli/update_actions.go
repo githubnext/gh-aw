@@ -862,19 +862,16 @@ func updateActionsInWorkflowFiles(ctx context.Context, deps actionUpdateDeps, op
 
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Updated action/skill references in "+d.Name()))
 		updatedFiles = append(updatedFiles, path)
-
-		// Recompile the updated workflow (unless --no-compile is set)
-		if !opts.noCompile {
-			if err := compileWorkflowWithRefresh(ctx, path, opts.verbose, false, opts.engineOverride, false, opts.approve); err != nil {
-				if opts.verbose {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", path, err)))
-				}
-			}
-		}
 		return nil
 	})
 	if err != nil {
 		return fmt.Errorf("failed to walk workflows directory: %w", err)
+	}
+
+	if len(updatedFiles) > 0 && !opts.noCompile {
+		if err := compileWorkflowsForUpdate(ctx, updatedFiles, opts.workflowsDir, opts.engineOverride, opts.verbose, opts.approve); err != nil {
+			return fmt.Errorf("failed to compile workflows with updated action references: %w", err)
+		}
 	}
 
 	if len(updatedFiles) == 0 && opts.verbose {
