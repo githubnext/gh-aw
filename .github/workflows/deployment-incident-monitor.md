@@ -15,6 +15,7 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 imports:
+  - shared/mcp-pagination.md
   - shared/reporting.md
   - shared/otlp.md
 tools:

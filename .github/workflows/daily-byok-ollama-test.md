@@ -39,6 +39,8 @@ steps:
     env:
       OLLAMA_HOST: "0.0.0.0:11434"
     run: |
+      sudo systemctl stop ollama 2>/dev/null || true
+      sleep 2
       ollama serve &
       echo "Waiting for Ollama service..."
       for i in $(seq 1 30); do
@@ -95,8 +97,8 @@ sandbox:
     sudo: false
 models:
   default-ai-credits-pricing:
-    input: 0
-    output: 0
+    input: 0.000001
+    output: 0.000001
 ---
 
 ### Daily BYOK Endpoint Test
