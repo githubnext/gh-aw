@@ -2,7 +2,10 @@ package workflow
 
 import "strings"
 
-const sharedLogsCachePath = ".github/aw/logs"
+const (
+	sharedLogsCacheKey  = "agentic-logs"
+	sharedLogsCachePath = ".github/aw/logs"
+)
 
 func usesSharedLogsCache(data *WorkflowData) bool {
 	if !strings.Contains(data.On, "schedule") {
@@ -29,9 +32,7 @@ func sharedLogsCacheRestoreSteps(data *WorkflowData) []GitHubActionStep {
 			"        continue-on-error: true",
 			"        uses: " + getCachedActionPin("actions/cache/restore", data),
 			"        with:",
-			"          key: agentic-logs-${{ github.run_id }}",
-			"          restore-keys: |",
-			"            agentic-logs-",
+			"          key: " + sharedLogsCacheKey,
 			"          path: " + sharedLogsCachePath,
 		},
 	}

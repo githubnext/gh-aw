@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  actions: read
+  actions: write
   contents: read
 
 jobs:
@@ -28,9 +28,7 @@ jobs:
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .github/aw/logs
-          key: agentic-logs-${{ github.run_id }}
-          restore-keys: |
-            agentic-logs-
+          key: agentic-logs
 
       - name: Build gh-aw
         run: make build
@@ -49,11 +47,25 @@ jobs:
             --output .github/aw/logs \
             --json > /tmp/agentic-logs-summary.json
 
+      - name: Delete previous logs cache
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cache_id=$(gh cache list \
+            --key agentic-logs \
+            --ref "$GITHUB_REF" \
+            --limit 1 \
+            --json id,key \
+            --jq '.[] | select(.key == "agentic-logs") | .id')
+          if [ -n "$cache_id" ]; then
+            gh cache delete "$cache_id"
+          fi
+
       - name: Save refreshed logs cache
         uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .github/aw/logs
-          key: agentic-logs-${{ github.run_id }}
+          key: agentic-logs
 
       - name: Write summary
         if: always()
