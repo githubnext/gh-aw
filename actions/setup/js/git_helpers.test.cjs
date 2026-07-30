@@ -735,6 +735,90 @@ describe("git_helpers.cjs", () => {
     });
   });
 
+  describe("hasMergeCommitsInRange", () => {
+    let tmpRepo;
+
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+
+      tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "git-helpers-hasMerge-"));
+      const g = args => spawnSync("git", args, { cwd: tmpRepo, encoding: "utf8" });
+      g(["init", "-b", "main"]);
+      g(["config", "user.name", "Test"]);
+      g(["config", "user.email", "test@test.com"]);
+      fs.writeFileSync(path.join(tmpRepo, "a.txt"), "a\n");
+      g(["add", "a.txt"]);
+      g(["commit", "-m", "initial"]);
+    });
+
+    afterEach(() => {
+      const fs = require("fs");
+      if (tmpRepo) {
+        fs.rmSync(tmpRepo, { recursive: true, force: true });
+        tmpRepo = null;
+      }
+    });
+
+    it("should return false for empty or missing baseRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("", "HEAD")).toBe(false);
+      expect(hasMergeCommitsInRange(null, "HEAD")).toBe(false);
+      expect(hasMergeCommitsInRange(undefined, "HEAD")).toBe(false);
+    });
+
+    it("should return false for empty or missing headRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("origin/main", "")).toBe(false);
+      expect(hasMergeCommitsInRange("origin/main", null)).toBe(false);
+      expect(hasMergeCommitsInRange("origin/main", undefined)).toBe(false);
+    });
+
+    it("should return false when git command fails (unreachable refs or bad cwd)", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      // Non-existent cwd causes spawnSync to fail; the function should return false
+      // (detection failure → safe default = no merge commits).
+      const result = hasMergeCommitsInRange("origin/main", "HEAD", { cwd: "/nonexistent/path/that/does/not/exist" });
+      expect(result).toBe(false);
+    });
+
+    it("should return false when range has no merge commits", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      // Add a plain (non-merge) commit
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "plain commit"], { cwd: tmpRepo, encoding: "utf8" });
+
+      expect(hasMergeCommitsInRange(baseSha, "HEAD", { cwd: tmpRepo })).toBe(false);
+    });
+
+    it("should return true when range contains a merge commit", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      // Create a side branch and merge it back (creates merge commit on main)
+      spawnSync("git", ["checkout", "-b", "side", baseSha], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "c.txt"), "c\n");
+      spawnSync("git", ["add", "c.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "side commit"], { cwd: tmpRepo, encoding: "utf8" });
+      spawnSync("git", ["checkout", "main"], { cwd: tmpRepo });
+      spawnSync("git", ["merge", "--no-ff", "side", "-m", "Merge side"], { cwd: tmpRepo, encoding: "utf8" });
+
+      expect(hasMergeCommitsInRange(baseSha, "HEAD", { cwd: tmpRepo })).toBe(true);
+    });
+  });
+
   describe("getBundlePrerequisites", () => {
     const PREREQ_SHA = "172f87a830f57a29470efe7646d141069434a893";
     const ANOTHER_SHA = "aabbccddee1122334455667788990011aabbccdd";

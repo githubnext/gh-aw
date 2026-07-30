@@ -344,8 +344,23 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
     try {
       const prereqs = await getBundlePrerequisites(execApi, bundleFilePath);
       if (prereqs.length === 1) {
-        baseRef = prereqs[0];
-        core.info(`Using bundle prerequisite commit ${baseRef} as linearization base (avoids including base-branch drift)`);
+        // Guard: verify the prerequisite SHA is accessible in the local repository
+        // before using it as a linearization base. In a shallow clone the commit
+        // may not have been fetched, causing `git reset --soft <sha>` to fail.
+        // We check reachability here — before synthesizing any commit — so we can
+        // fall back cleanly rather than letting linearizeRangeAsCommit abort mid-run.
+        const prereqSha = prereqs[0];
+        try {
+          const { exitCode } = await execApi.getExecOutput("git", ["cat-file", "-e", `${prereqSha}^{commit}`], { ignoreReturnCode: true, silent: true });
+          if (exitCode === 0) {
+            baseRef = prereqSha;
+            core.info(`Using bundle prerequisite commit ${baseRef} as linearization base (avoids including base-branch drift)`);
+          } else {
+            core.info(`Bundle prerequisite ${prereqSha} not accessible locally; falling back to ${fallbackBaseRef} as linearization base`);
+          }
+        } catch {
+          core.info(`Could not verify bundle prerequisite accessibility; falling back to ${fallbackBaseRef} as linearization base`);
+        }
       } else if (prereqs.length > 1) {
         core.info(`Bundle has ${prereqs.length} prerequisite commits; falling back to ${fallbackBaseRef} as linearization base`);
       } else {
