@@ -47,13 +47,14 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		// Match both `x += y` (ADD_ASSIGN) and `x = x + y` (ASSIGN with a
-		// self-referential binary addition). For the latter, also capture the
-		// LHS identifier so the loop-scope guard can be applied.
+		// self-referential binary addition on a plain identifier).
 		var lhsExpr ast.Expr
-		var assignLhsName string // non-empty only for the token.ASSIGN form
 
 		switch assign.Tok {
 		case token.ADD_ASSIGN:
+			if len(assign.Lhs) != 1 {
+				continue
+			}
 			lhsExpr = assign.Lhs[0]
 		case token.ASSIGN:
 			if len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
@@ -68,13 +69,14 @@ func run(pass *analysis.Pass) (any, error) {
 				continue
 			}
 			// Only match the direct self-referential form: x = x + rhs,
-			// where x is the same identifier on both sides.
+			// where x is the same identifier on both sides (not chained
+			// forms like x = x + a + b which parse with a BinaryExpr on
+			// the left of the outer add, not an Ident).
 			rhsLeft, ok := binExpr.X.(*ast.Ident)
 			if !ok || rhsLeft.Name != lhsIdent.Name {
 				continue
 			}
 			lhsExpr = lhsIdent
-			assignLhsName = lhsIdent.Name
 		default:
 			continue
 		}
@@ -99,11 +101,17 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
-		// For the x = x + y form, skip variables declared by the enclosing
-		// loop itself (range key/value or for-init short-decl): those are
-		// per-iteration rebinds, not cross-iteration accumulators.
-		if assignLhsName != "" && isLoopScopedIdent(loopNode, assignLhsName) {
-			continue
+		// Skip variables that are per-iteration rather than cross-iteration
+		// accumulators. These checks apply only when the LHS is a plain
+		// identifier (the ADD_ASSIGN form also accepts field/index lvalues,
+		// but those can only be tested via the ASSIGN form which requires Ident).
+		if lhsIdent, ok := lhsExpr.(*ast.Ident); ok {
+			if isLoopScopedIdent(loopNode, lhsIdent.Name) {
+				continue
+			}
+			if isLoopBodyLocal(pass, loopNode, lhsIdent) {
+				continue
+			}
 		}
 
 		pass.ReportRangef(assign,
@@ -151,4 +159,26 @@ func isLoopScopedIdent(loopNode ast.Node, name string) bool {
 		return true
 	}
 	return false
+}
+
+// isLoopBodyLocal reports whether ident is declared inside the loop body
+// (rather than before the loop). Such variables are freshly created on every
+// iteration and are therefore not cross-iteration accumulators.
+func isLoopBodyLocal(pass *analysis.Pass, loopNode ast.Node, ident *ast.Ident) bool {
+	obj := pass.TypesInfo.ObjectOf(ident)
+	if obj == nil {
+		return false
+	}
+	var body *ast.BlockStmt
+	switch n := loopNode.(type) {
+	case *ast.ForStmt:
+		body = n.Body
+	case *ast.RangeStmt:
+		body = n.Body
+	}
+	if body == nil {
+		return false
+	}
+	pos := obj.Pos()
+	return pos >= body.Lbrace && pos < body.Rbrace
 }

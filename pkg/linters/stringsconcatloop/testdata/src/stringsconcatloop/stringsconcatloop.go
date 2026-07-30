@@ -117,6 +117,29 @@ func good() {
 		}()
 	}
 	_ = accum3
+
+	// x = x + a + b (chained addition) – binExpr.X is itself a BinaryExpr,
+	// not an Ident, so the self-referential check fails and it is not flagged.
+	accum4 := ""
+	for _, p := range parts {
+		accum4 = accum4 + p + " extra"
+	}
+	_ = accum4
+
+	// Variable declared inside the loop body is a per-iteration local, not a
+	// cross-iteration accumulator – not flagged.
+	for _, p := range parts {
+		var local string
+		local = local + p
+		_ = local
+	}
+
+	// Range value variable reassigned via += – not a cross-iteration
+	// accumulator, so not flagged.
+	for _, line := range parts {
+		line += " suffix"
+		_ = line
+	}
 }
 
 func nolintDirective() {
