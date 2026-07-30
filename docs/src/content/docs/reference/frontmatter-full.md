@@ -59,11 +59,12 @@ tracker-id: "example-value"
 labels: []
   # Array of strings
 
-# Optional list of external skill references to install during activation.
-# Supports repository-wide installs (`owner/repo@<sha>`) and path-scoped installs
-# (`owner/repo/skill/path@<sha>`). Static references must be pinned to a full
-# 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`) are
-# also accepted and are evaluated at runtime. Entries may also be objects to
+# Optional list of skill references to install during activation.
+# Supports local development paths (`skills/name`, `.github/skills/name`),
+# repository-wide installs (`owner/repo@<sha>`), and path-scoped installs
+# (`owner/repo/skill/path@<sha>`). Static external references must be pinned to
+# a full 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`)
+# are also accepted and are evaluated at runtime. Entries may also be objects to
 # configure per-skill authentication via github-token or github-app.
 # (optional)
 skills: []
@@ -2455,8 +2456,9 @@ engine:
     # (optional)
     azure-cloud: "example-value"
 
-    # Optional WIF provider discriminator. Recognized values are 'azure' and
-    # 'anthropic'.
+    # Optional WIF provider discriminator. Recognized values are 'azure',
+    # 'anthropic', and 'gcp'. Use 'gcp' for Gemini Vertex AI authentication via
+    # Google Cloud Workload Identity Federation.
     # (optional)
     provider: "example-value"
 
@@ -2475,6 +2477,22 @@ engine:
     # Anthropic WIF workspace ID (e.g., ws_...).
     # (optional)
     workspace-id: "example-value"
+
+    # Google Cloud Workload Identity Provider resource name for Vertex AI WIF.
+    # (optional)
+    workload-identity-provider: "example-value"
+
+    # Google Cloud service account email to impersonate for Vertex AI WIF.
+    # (optional)
+    service-account: "example-value"
+
+    # Google Cloud project ID for Vertex AI WIF.
+    # (optional)
+    project: "example-value"
+
+    # Google Cloud location for Vertex AI WIF (defaults to us-central1).
+    # (optional)
+    location: "example-value"
 
   # Additional TOML configuration text that will be appended to the generated
   # config.toml in the action (codex engine only)

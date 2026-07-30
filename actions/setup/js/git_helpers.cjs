@@ -710,6 +710,8 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   When omitted, exec calls are made without additional options.
  * @param {string[]} [opts.commitFlags] - Extra flags prepended before `-m` in the `git commit`
  *   invocation (e.g. `["--allow-empty", "--no-verify"]`).
+ * @param {string[]} [opts.excludedFiles] - Paths that should be removed from the staged rewrite
+ *   before creating the linearized commit.
  * @param {number} [opts.maxCommits] - Override the implausibility threshold (default
  *   `SHALLOW_RANGE_MAX_COMMITS`).  Set to `Infinity` to disable the shallow guard.
  * @returns {Promise<string>} The new HEAD SHA after the rewrite.
@@ -717,7 +719,7 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   shallow checkout produces an implausible commit range.
  */
 async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}) {
-  const { gitOpts, commitFlags = [], maxCommits = SHALLOW_RANGE_MAX_COMMITS } = opts;
+  const { gitOpts, commitFlags = [], excludedFiles = [], maxCommits = SHALLOW_RANGE_MAX_COMMITS } = opts;
   // Spread gitOpts into exec calls only when it is explicitly provided — passing
   // `undefined` as a third argument changes the arity seen by mocks in tests.
   const execArgs = gitOpts !== undefined ? [gitOpts] : [];
@@ -762,6 +764,12 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
 
   try {
     await execApi.exec("git", ["reset", "--soft", baseRef], ...execArgs);
+    if (Array.isArray(excludedFiles) && excludedFiles.length > 0) {
+      const { stdout: excludedStagedOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only", "--", ...excludedFiles], ...execArgs);
+      if (excludedStagedOut.trim()) {
+        await execApi.exec("git", ["checkout", "HEAD", "--", ...excludedFiles], ...execArgs);
+      }
+    }
     const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], ...execArgs);
     if (!stagedFilesOut.trim()) {
       throw new Error(`No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);

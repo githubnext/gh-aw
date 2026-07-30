@@ -440,6 +440,11 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			extraPaths = append(extraPaths, folder)
 		}
 	}
+	for _, folder := range localSkillSparseCheckoutTopLevelDirs(data) {
+		if !setutil.Contains(defaultSparseCheckoutDirs, folder) {
+			extraPaths = append(extraPaths, folder)
+		}
+	}
 	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
 
 	// Detect symlinks for well-known .github sub-paths and add their resolved targets
@@ -484,6 +489,62 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 	// during activation. sparse-checkout-cone-mode: true ensures subdirectories are recursively included.
 	compilerActivationJobLog.Print("Adding .github, .agents, and engine-specific dirs to sparse checkout for activation job")
 	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, c.getActionPin, extraPaths...)
+}
+
+func localSkillSparseCheckoutTopLevelDirs(data *WorkflowData) []string {
+	if data == nil {
+		return nil
+	}
+	refs := append([]SkillReference(nil), data.SkillReferences...)
+	if len(refs) == 0 && len(data.Skills) > 0 {
+		refs = make([]SkillReference, 0, len(data.Skills))
+		for _, skill := range data.Skills {
+			skill = strings.TrimSpace(skill)
+			if skill == "" {
+				continue
+			}
+			refs = append(refs, SkillReference{Skill: skill})
+		}
+	}
+	if len(refs) == 0 {
+		return nil
+	}
+
+	seen := map[string]struct{}{}
+	result := make([]string, 0, len(refs))
+	for _, ref := range refs {
+		spec := strings.TrimSpace(ref.Skill)
+		if !isLocalSkillRef(spec) {
+			continue
+		}
+		normalized := strings.TrimPrefix(strings.ReplaceAll(spec, "\\", "/"), "./")
+		if normalized == "" {
+			continue
+		}
+		parts := strings.Split(normalized, "/")
+		if len(parts) == 0 {
+			continue
+		}
+		invalid := false
+		for _, part := range parts {
+			if part == "" || part == "." || part == ".." {
+				invalid = true
+				break
+			}
+		}
+		if invalid {
+			continue
+		}
+
+		topLevel := parts[0]
+		if _, ok := seen[topLevel]; ok {
+			continue
+		}
+		seen[topLevel] = struct{}{}
+		result = append(result, topLevel)
+	}
+
+	return result
 }
 
 // addSameRepoIfConditionToSteps injects an if: condition into each step that restricts
