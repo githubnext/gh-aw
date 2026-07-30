@@ -33,8 +33,7 @@ for arg in "$@"; do
 done
 
 # Extract DefaultCopilotVersion from Go constants file
-# Use sed with a POSIX-compatible regex so this works on GNU and BSD/macOS.
-COPILOT_VERSION=$(sed -nE 's/^[[:space:]]*const[[:space:]]+DefaultCopilotVersion[[:space:]]+Version[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$CONSTANTS_FILE")
+COPILOT_VERSION=$(grep -E '^\s*const DefaultCopilotVersion' "$CONSTANTS_FILE" | sed -E 's/.*"([^"]+)".*/\1/')
 if [ -z "$COPILOT_VERSION" ]; then
   echo "Error: could not extract DefaultCopilotVersion from $CONSTANTS_FILE" >&2
   exit 1
