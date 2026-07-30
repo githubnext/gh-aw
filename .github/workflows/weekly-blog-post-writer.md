@@ -81,6 +81,7 @@ steps:
       echo "Wrote pre-fetched merged PRs to /tmp/gh-aw/agent/merged-prs.json"
 
 imports:
+  - shared/mcp-pagination.md
   - shared/github-guard-policy.md
 
   - shared/otlp.md

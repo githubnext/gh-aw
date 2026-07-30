@@ -40,6 +40,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: spec_updates_reviewed
+    question: Did the agent review AWF specification and compiler updates for features that should be surfaced in gh-aw?
+  - id: finding_reported_or_noop
+    question: Did the agent create an issue for an actionable surfacing gap, or report that no issue was needed?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

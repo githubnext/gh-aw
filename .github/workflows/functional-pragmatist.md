@@ -48,6 +48,11 @@ timeout-minutes: 45
 strict: true
 
 
+evals:
+  - id: functional_opportunities_analyzed
+    question: Did the agent analyze the codebase for pragmatic functional programming improvements?
+  - id: refactoring_pr_created_or_noop
+    question: Did the agent create a focused refactoring pull request, or report that no suitable change was found?
 ---
 
 # Functional and Immutability Enhancer 🔄

@@ -51,6 +51,11 @@ timeout-minutes: 15
 
 imports:
   - shared/otlp.md
+evals:
+  - id: action_versions_checked
+    question: Did the agent check GitHub Actions versions for available updates?
+  - id: update_pr_created_or_noop
+    question: Did the agent create a pull request for required updates, or report that no changes were needed?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

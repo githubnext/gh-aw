@@ -59,6 +59,7 @@ sandbox:
   mcp:
     keepalive-interval: 60
 imports:
+  - shared/mcp-pagination.md
   - ../agents/adr-writer.agent.md
   - shared/reporting.md
   - shared/otlp.md

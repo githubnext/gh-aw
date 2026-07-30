@@ -130,6 +130,11 @@ pre-agent-steps:
       npm run build
 features:
   gh-aw-detection: true
+evals:
+  - id: device_tests_completed
+    question: Did the agent test the documentation site across the requested device form factors?
+  - id: results_reported
+    question: Did the agent report the multi-device test results and any responsive design or functionality findings?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

@@ -64,6 +64,7 @@ safe-outputs:
 timeout-minutes: 20
 strict: true
 imports:
+  - shared/mcp-pagination.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[daily-cli-performance] "

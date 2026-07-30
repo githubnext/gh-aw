@@ -49,6 +49,7 @@ network:
     - defaults
     - python
 imports:
+  - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - shared/python-dataviz.md
   - ../skills/jqschema/SKILL.md

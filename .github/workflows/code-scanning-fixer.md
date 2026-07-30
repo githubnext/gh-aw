@@ -17,6 +17,7 @@ engine:
   copilot-sdk: true
 max-tool-denials: 3
 imports:
+  - shared/mcp-pagination.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[code-scanning-fix]"
