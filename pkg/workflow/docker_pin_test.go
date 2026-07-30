@@ -19,6 +19,9 @@ func TestApplyContainerPins(t *testing.T) {
 	defaultFirewallAgentPin, ok := getEmbeddedContainerPin(defaultFirewallAgentImage)
 	require.True(t, ok, "embedded pin must exist for %s", defaultFirewallAgentImage)
 
+	nodeLtsAlpinePin, ok := getEmbeddedContainerPin("node:lts-alpine")
+	require.True(t, ok, "embedded pin must exist for node:lts-alpine")
+
 	tests := []struct {
 		name            string
 		images          []string
@@ -37,8 +40,8 @@ func TestApplyContainerPins(t *testing.T) {
 			name:            "embedded pin used when cache is absent",
 			images:          []string{"node:lts-alpine"},
 			pins:            nil,
-			expectedRefs:    []string{"node:lts-alpine@sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"},
-			expectedDigests: []string{"sha256:2bdb65ed1dab192432bc31c95f94155ca5ad7fc1392fb7eb7526ab682fa5bf14"},
+			expectedRefs:    []string{nodeLtsAlpinePin.PinnedImage},
+			expectedDigests: []string{nodeLtsAlpinePin.Digest},
 		},
 		{
 			name:            "embedded firewall pin used when cache is absent",
