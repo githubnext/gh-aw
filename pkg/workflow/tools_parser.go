@@ -416,6 +416,11 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 		if rawBQ, ok := configMap["bounded-queries"]; ok {
 			if bqMap, ok := rawBQ.(map[string]any); ok {
 				config.BoundedQueries = parseBoundedQueriesConfig(bqMap)
+			} else {
+				// Wrong type — create a sentinel so the validator can emit a proper error.
+				config.BoundedQueries = &BoundedQueriesConfig{
+					ParseError: fmt.Sprintf("bounded-queries must be a mapping object, got %T", rawBQ),
+				}
 			}
 		}
 
@@ -431,27 +436,41 @@ func parseGitHubTool(val any) *GitHubToolConfig {
 func parseBoundedQueriesConfig(bqMap map[string]any) *BoundedQueriesConfig {
 	config := &BoundedQueriesConfig{}
 
-	if rawRepos, ok := bqMap["private-repos"].([]any); ok {
-		config.PrivateRepos = make([]*BoundedQueryPrivateRepo, 0, len(rawRepos))
-		for _, item := range rawRepos {
-			if repoMap, ok := item.(map[string]any); ok {
-				entry := &BoundedQueryPrivateRepo{}
-				if repo, ok := repoMap["repo"].(string); ok {
-					entry.Repo = repo
+	if rawRepos, ok := bqMap["private-repos"]; ok {
+		switch repos := rawRepos.(type) {
+		case []any:
+			config.PrivateRepos = make([]*BoundedQueryPrivateRepo, 0, len(repos))
+			for i, item := range repos {
+				if repoMap, ok := item.(map[string]any); ok {
+					entry := &BoundedQueryPrivateRepo{}
+					if repo, ok := repoMap["repo"].(string); ok {
+						entry.Repo = repo
+					}
+					if sensitivity, ok := repoMap["sensitivity"].(string); ok {
+						entry.Sensitivity = sensitivity
+					}
+					config.PrivateRepos = append(config.PrivateRepos, entry)
+				} else {
+					config.ParseError = fmt.Sprintf("private-repos[%d] must be a mapping object, got %T", i, item)
+					return config
 				}
-				if sensitivity, ok := repoMap["sensitivity"].(string); ok {
-					entry.Sensitivity = sensitivity
-				}
-				config.PrivateRepos = append(config.PrivateRepos, entry)
 			}
+		default:
+			config.ParseError = fmt.Sprintf("private-repos must be an array, got %T", rawRepos)
+			return config
 		}
 	}
 
 	if runtime, ok := bqMap["runtime"].(string); ok {
 		config.Runtime = runtime
 	}
-	if timeout, ok := bqMap["timeout"].(int); ok {
-		config.Timeout = timeout
+	if rawTimeout, hasTimeout := bqMap["timeout"]; hasTimeout {
+		if timeout, ok := rawTimeout.(int); ok {
+			config.Timeout = &timeout
+		} else {
+			config.ParseError = fmt.Sprintf("timeout must be an integer, got %T", rawTimeout)
+			return config
+		}
 	}
 	if memoryLimit, ok := bqMap["memory-limit"].(string); ok {
 		config.MemoryLimit = memoryLimit
@@ -459,8 +478,13 @@ func parseBoundedQueriesConfig(bqMap map[string]any) *BoundedQueriesConfig {
 	if interpreter, ok := bqMap["interpreter"].(string); ok {
 		config.Interpreter = interpreter
 	}
-	if maxInvocations, ok := bqMap["max-invocations"].(int); ok {
-		config.MaxInvocations = maxInvocations
+	if rawMax, hasMax := bqMap["max-invocations"]; hasMax {
+		if maxInvocations, ok := rawMax.(int); ok {
+			config.MaxInvocations = &maxInvocations
+		} else {
+			config.ParseError = fmt.Sprintf("max-invocations must be an integer, got %T", rawMax)
+			return config
+		}
 	}
 
 	return config

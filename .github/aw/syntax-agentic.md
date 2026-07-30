@@ -338,7 +338,13 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
         id: awf
     ```
 
-    Sensitivity levels: `public` (no restrictions), `internal` (internal-only audiences), `confidential` (restricted within org), `sealed` (highest restriction). The staging credential used to access private repositories must remain host-side and is never written to the lock file or exposed to the agent. Use bounded queries when the question has a finite, bounded answer; prefer this over granting a cross-repository token or checking out the private repository into the primary workspace.
+    Sensitivity levels control how much information the agent may extract from the repository per run:
+    - `public`: unmetered disclosure budget; still operationally and schema-bounded, but no per-run cap on extracted bits.
+    - `internal`: 64 bits/run disclosure budget; use for repos with internal-audience content.
+    - `confidential`: 8 bits/run disclosure budget; use for restricted-within-org content.
+    - `sealed`: 0 bits/run; the query executes but cannot fund any answer — effectively a dry-run assertion. Do not use `sealed` when you need the agent to return information from the repository.
+
+    The staging credential used to access private repositories must remain host-side and is never written to the lock file or exposed to the agent. Use bounded queries when the question has a finite, bounded answer; prefer this over granting a cross-repository token or checking out the private repository into the primary workspace.
 
 - **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `replace-label`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, and more.
 

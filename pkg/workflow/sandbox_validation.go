@@ -243,6 +243,16 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 		return nil
 	}
 
+	// Reject malformed frontmatter that the parser recorded as a type error.
+	if bq.ParseError != "" {
+		return NewValidationError(
+			"tools.github.bounded-queries",
+			"<malformed>",
+			bq.ParseError,
+			"Ensure bounded-queries is a valid mapping object:\n\ntools:\n  github:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
+		)
+	}
+
 	// bounded-queries is only supported for the AWF sandbox.
 	var agentType SandboxType
 	if workflowData.SandboxConfig != nil && workflowData.SandboxConfig.Agent != nil {
@@ -254,6 +264,27 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 			string(agentType),
 			"bounded-queries requires the AWF sandbox (sandbox.agent.id: awf)",
 			"Set sandbox.agent.id: awf when using bounded-queries:\n\nsandbox:\n  agent:\n    id: awf\ntools:\n  github:\n    bounded-queries:\n      private-repos:\n        - repo: my-org/my-repo\n          sensitivity: internal\n\nSee: "+string(constants.DocsSandboxURL),
+		)
+	}
+
+	// Verify that the effective AWF version supports bounded queries.
+	// Fail early with a clear message rather than silently generating a workflow
+	// that lacks the requested capability and may follow an invalid access model.
+	if !awfSupportsBoundedQueries(getFirewallConfig(workflowData)) {
+		firewallConfig := getFirewallConfig(workflowData)
+		var configuredVersion string
+		if firewallConfig != nil {
+			configuredVersion = firewallConfig.Version
+		}
+		effectiveVersion := configuredVersion
+		if effectiveVersion == "" {
+			effectiveVersion = string(constants.DefaultFirewallVersion)
+		}
+		return NewValidationError(
+			"tools.github.bounded-queries",
+			effectiveVersion,
+			fmt.Sprintf("bounded-queries requires AWF %s or newer", constants.AWFBoundedQueriesMinVersion),
+			fmt.Sprintf("bounded-queries is only supported in AWF %s+.\n\nThe effective AWF version is %s. Set firewall.version or sandbox.agent.version to %s or newer.", constants.AWFBoundedQueriesMinVersion, effectiveVersion, constants.AWFBoundedQueriesMinVersion),
 		)
 	}
 
@@ -317,14 +348,16 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 		}
 	}
 
-	// Validate optional timeout.
-	if bq.Timeout < 0 {
-		return NewValidationError(
-			"tools.github.bounded-queries.timeout",
-			strconv.Itoa(bq.Timeout),
-			"bounded-queries timeout must be a positive integer",
-			fmt.Sprintf("Set timeout to a positive number of seconds.\n\nSee: %s", constants.DocsSandboxURL),
-		)
+	// Validate optional timeout (1–540 seconds; explicit zero is also rejected).
+	if bq.Timeout != nil {
+		if err := validateIntRange(*bq.Timeout, 1, 540, "tools.github.bounded-queries.timeout"); err != nil {
+			return NewValidationError(
+				"tools.github.bounded-queries.timeout",
+				strconv.Itoa(*bq.Timeout),
+				"bounded-queries timeout must be between 1 and 540 seconds",
+				fmt.Sprintf("Set timeout to a value between 1 and 540 (seconds).\n\nSee: %s", constants.DocsSandboxURL),
+			)
+		}
 	}
 
 	// Validate optional memory-limit format (e.g. "512m", "2g").
@@ -346,14 +379,16 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 		}
 	}
 
-	// Validate optional max-invocations.
-	if bq.MaxInvocations < 0 {
-		return NewValidationError(
-			"tools.github.bounded-queries.max-invocations",
-			strconv.Itoa(bq.MaxInvocations),
-			"bounded-queries max-invocations must be a positive integer",
-			fmt.Sprintf("Set max-invocations to a positive integer.\n\nSee: %s", constants.DocsSandboxURL),
-		)
+	// Validate optional max-invocations (1–10000; explicit zero is also rejected).
+	if bq.MaxInvocations != nil {
+		if err := validateIntRange(*bq.MaxInvocations, 1, 10000, "tools.github.bounded-queries.max-invocations"); err != nil {
+			return NewValidationError(
+				"tools.github.bounded-queries.max-invocations",
+				strconv.Itoa(*bq.MaxInvocations),
+				"bounded-queries max-invocations must be between 1 and 10000",
+				fmt.Sprintf("Set max-invocations to a value between 1 and 10000.\n\nSee: %s", constants.DocsSandboxURL),
+			)
+		}
 	}
 
 	sandboxValidationLog.Printf("bounded-queries validation passed: %d private repo(s)", len(bq.PrivateRepos))
@@ -390,8 +425,12 @@ func validateRepoSlug(field, slug string) error {
 	return nil
 }
 
-// memoryLimitPattern matches valid memory limit strings (e.g. "512m", "2g", "1024k").
-var memoryLimitPattern = regexp.MustCompile(`^\d+[kmgKMG]$`)
+// memoryLimitPattern matches valid memory limit strings.
+// The value must start with a non-zero digit, optionally followed by more digits,
+// and end with one of: b, k, m, g (case-insensitive). Leading zeros and bare-zero
+// values (e.g. "0m") are rejected because AWF rejects them at startup.
+// Examples of valid values: "512m", "2g", "1024k", "1b", "128M".
+var memoryLimitPattern = regexp.MustCompile(`^[1-9][0-9]*[bkmgBKMG]$`)
 
 // validateBoundedQueryMemoryLimit checks that a memory-limit string has the correct format.
 func validateBoundedQueryMemoryLimit(memoryLimit string) error {
@@ -399,8 +438,8 @@ func validateBoundedQueryMemoryLimit(memoryLimit string) error {
 		return NewValidationError(
 			"tools.github.bounded-queries.memory-limit",
 			memoryLimit,
-			"memory-limit must be a number followed by a unit: k, m, or g (e.g. \"512m\", \"2g\")",
-			fmt.Sprintf("Use a valid memory limit format:\n\ntools:\n  github:\n    bounded-queries:\n      memory-limit: 512m  # examples: 512m, 2g, 1024k\n\nSee: %s", constants.DocsSandboxURL),
+			"memory-limit must be a positive number followed by a unit: b, k, m, or g (e.g. \"512m\", \"2g\")",
+			fmt.Sprintf("Use a valid memory limit format:\n\ntools:\n  github:\n    bounded-queries:\n      memory-limit: 512m  # examples: 512m, 2g, 1024k, 1b\n\nSee: %s", constants.DocsSandboxURL),
 		)
 	}
 	return nil

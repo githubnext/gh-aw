@@ -84,10 +84,10 @@ func TestBuildAWFConfigJSON_BoundedQueries(t *testing.T) {
 				{Repo: "my-org/internal-service", Sensitivity: "internal"},
 			},
 			Runtime:        "docker",
-			Timeout:        30,
+			Timeout:        new(30),
 			MemoryLimit:    "512m",
 			Interpreter:    "python3",
-			MaxInvocations: 32,
+			MaxInvocations: new(32),
 		}
 		config := makeBaseConfig(bq)
 		config.WorkflowData.SandboxConfig.Agent.Version = string(constants.AWFBoundedQueriesMinVersion)
@@ -188,10 +188,10 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 							{Repo: "my-org/confidential-service", Sensitivity: "confidential"},
 						},
 						Runtime:        "docker",
-						Timeout:        30,
+						Timeout:        new(30),
 						MemoryLimit:    "512m",
 						Interpreter:    "python3",
-						MaxInvocations: 32,
+						MaxInvocations: new(32),
 					},
 				},
 			},
@@ -211,15 +211,39 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 		assert.Equal(t, "my-org/confidential-service", got.PrivateRepos[1].Repo)
 		assert.Equal(t, "confidential", got.PrivateRepos[1].Sensitivity)
 	})
+
+	t.Run("omits timeout and max-invocations when not set (nil pointers)", func(t *testing.T) {
+		data := &WorkflowData{
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{
+					BoundedQueries: &BoundedQueriesConfig{
+						PrivateRepos: []*BoundedQueryPrivateRepo{
+							{Repo: "my-org/internal-service", Sensitivity: "internal"},
+						},
+						// Timeout and MaxInvocations are nil — not set.
+					},
+				},
+			},
+		}
+
+		got := extractBoundedQueriesConfig(data)
+		require.NotNil(t, got)
+		assert.Equal(t, 0, got.Timeout, "timeout must be zero (omitted) when not set")
+		assert.Equal(t, 0, got.MaxInvocations, "max-invocations must be zero (omitted) when not set")
+	})
 }
 
 // TestValidateBoundedQueriesConfig validates all validation rules for bounded queries.
 func TestValidateBoundedQueriesConfig(t *testing.T) {
-	// validAWFWorkflow returns a *WorkflowData with an AWF sandbox and the given bounded-queries config.
+	// validAWFWorkflow returns a *WorkflowData with an AWF sandbox pinned to the
+	// bounded-queries minimum version and the given bounded-queries config.
 	validAWFWorkflow := func(bq *BoundedQueriesConfig) *WorkflowData {
 		return &WorkflowData{
 			SandboxConfig: &SandboxConfig{
-				Agent: &AgentSandboxConfig{ID: "awf"},
+				Agent: &AgentSandboxConfig{
+					ID:      "awf",
+					Version: string(constants.AWFBoundedQueriesMinVersion),
+				},
 			},
 			ParsedTools: &ToolsConfig{
 				GitHub: &GitHubToolConfig{
@@ -244,10 +268,10 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 				{Repo: "my-org/my-repo", Sensitivity: "confidential"},
 			},
 			Runtime:        "docker",
-			Timeout:        30,
+			Timeout:        new(30),
 			MemoryLimit:    "512m",
 			Interpreter:    "python3",
-			MaxInvocations: 32,
+			MaxInvocations: new(32),
 		})
 		assert.NoError(t, validateBoundedQueriesConfig(wd))
 	})
@@ -292,6 +316,48 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "bounded-queries requires the AWF sandbox")
+	})
+
+	t.Run("rejects AWF version below minimum", func(t *testing.T) {
+		wd := &WorkflowData{
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					ID:      "awf",
+					Version: "v0.27.42", // below v0.28.0 minimum
+				},
+			},
+			ParsedTools: &ToolsConfig{
+				GitHub: &GitHubToolConfig{
+					BoundedQueries: &BoundedQueriesConfig{
+						PrivateRepos: []*BoundedQueryPrivateRepo{
+							{Repo: "my-org/my-repo", Sensitivity: "internal"},
+						},
+					},
+				},
+			},
+		}
+		err := validateBoundedQueriesConfig(wd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "bounded-queries requires AWF")
+		assert.Contains(t, err.Error(), string(constants.AWFBoundedQueriesMinVersion))
+	})
+
+	t.Run("rejects malformed bounded-queries type", func(t *testing.T) {
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
+			ParseError: "bounded-queries must be a mapping object, got bool",
+		})
+		err := validateBoundedQueriesConfig(wd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "bounded-queries must be a mapping object")
+	})
+
+	t.Run("rejects malformed private-repos type", func(t *testing.T) {
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
+			ParseError: "private-repos must be an array, got string",
+		})
+		err := validateBoundedQueriesConfig(wd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "private-repos must be an array")
 	})
 
 	t.Run("rejects empty private-repos", func(t *testing.T) {
@@ -400,20 +466,64 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 		assert.NoError(t, validateBoundedQueriesConfig(wd))
 	})
 
-	t.Run("rejects negative timeout", func(t *testing.T) {
-		wd := validAWFWorkflow(&BoundedQueriesConfig{
-			PrivateRepos: []*BoundedQueryPrivateRepo{
-				{Repo: "my-org/my-repo", Sensitivity: "internal"},
-			},
-			Timeout: -1,
-		})
-		err := validateBoundedQueriesConfig(wd)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "timeout must be a positive integer")
+	t.Run("accepts timeout at boundary values", func(t *testing.T) {
+		for _, v := range []int{1, 270, 540} {
+			wd := validAWFWorkflow(&BoundedQueriesConfig{
+				PrivateRepos: []*BoundedQueryPrivateRepo{
+					{Repo: "my-org/my-repo", Sensitivity: "internal"},
+				},
+				Timeout: new(v),
+			})
+			assert.NoError(t, validateBoundedQueriesConfig(wd))
+		}
+	})
+
+	t.Run("rejects timeout out of range", func(t *testing.T) {
+		for _, v := range []int{-1, 0, 541, 9999} {
+			t.Run("timeout "+string(rune('0'+v%10)), func(t *testing.T) {
+				wd := validAWFWorkflow(&BoundedQueriesConfig{
+					PrivateRepos: []*BoundedQueryPrivateRepo{
+						{Repo: "my-org/my-repo", Sensitivity: "internal"},
+					},
+					Timeout: new(v),
+				})
+				err := validateBoundedQueriesConfig(wd)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "timeout")
+			})
+		}
+	})
+
+	t.Run("accepts max-invocations at boundary values", func(t *testing.T) {
+		for _, v := range []int{1, 5000, 10000} {
+			wd := validAWFWorkflow(&BoundedQueriesConfig{
+				PrivateRepos: []*BoundedQueryPrivateRepo{
+					{Repo: "my-org/my-repo", Sensitivity: "internal"},
+				},
+				MaxInvocations: new(v),
+			})
+			assert.NoError(t, validateBoundedQueriesConfig(wd))
+		}
+	})
+
+	t.Run("rejects max-invocations out of range", func(t *testing.T) {
+		for _, v := range []int{-1, 0, 10001, 99999} {
+			t.Run("max-invocations "+string(rune('0'+v%10)), func(t *testing.T) {
+				wd := validAWFWorkflow(&BoundedQueriesConfig{
+					PrivateRepos: []*BoundedQueryPrivateRepo{
+						{Repo: "my-org/my-repo", Sensitivity: "internal"},
+					},
+					MaxInvocations: new(v),
+				})
+				err := validateBoundedQueriesConfig(wd)
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "max-invocations")
+			})
+		}
 	})
 
 	t.Run("rejects invalid memory-limit format", func(t *testing.T) {
-		for _, invalid := range []string{"512", "512mb", "5.5g", "abc"} {
+		for _, invalid := range []string{"512", "512mb", "5.5g", "abc", "0m", "0k", "00512m"} {
 			t.Run(invalid, func(t *testing.T) {
 				wd := validAWFWorkflow(&BoundedQueriesConfig{
 					PrivateRepos: []*BoundedQueryPrivateRepo{
@@ -429,7 +539,7 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 	})
 
 	t.Run("accepts valid memory-limit formats", func(t *testing.T) {
-		for _, valid := range []string{"512m", "2g", "1024k", "512M", "2G"} {
+		for _, valid := range []string{"1b", "512m", "2g", "1024k", "512M", "2G", "1B", "1K"} {
 			t.Run(valid, func(t *testing.T) {
 				wd := validAWFWorkflow(&BoundedQueriesConfig{
 					PrivateRepos: []*BoundedQueryPrivateRepo{
@@ -452,18 +562,6 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported bounded-queries interpreter")
-	})
-
-	t.Run("rejects negative max-invocations", func(t *testing.T) {
-		wd := validAWFWorkflow(&BoundedQueriesConfig{
-			PrivateRepos: []*BoundedQueryPrivateRepo{
-				{Repo: "my-org/my-repo", Sensitivity: "internal"},
-			},
-			MaxInvocations: -1,
-		})
-		err := validateBoundedQueriesConfig(wd)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "max-invocations must be a positive integer")
 	})
 }
 
@@ -537,4 +635,65 @@ func TestAWFBoundedQueriesJSONRoundtrip(t *testing.T) {
 	assert.Equal(t, "public", got.PrivateRepos[0].Sensitivity)
 	assert.Equal(t, "my-org/sealed-service", got.PrivateRepos[3].Repo)
 	assert.Equal(t, "sealed", got.PrivateRepos[3].Sensitivity)
+}
+
+// TestParseBoundedQueriesConfig_MalformedInput verifies that parse errors are surfaced
+// via ParseError rather than silently discarded.
+func TestParseBoundedQueriesConfig_MalformedInput(t *testing.T) {
+	t.Run("wrong type for bounded-queries (bool) sets ParseError", func(t *testing.T) {
+		result := parseBoundedQueriesConfig(map[string]any{
+			// parseBoundedQueriesConfig receives only the inner map; the type check
+			// for the bounded-queries block itself is in parseGitHubTool.
+		})
+		// Empty map: no ParseError, just an empty config.
+		assert.Empty(t, result.ParseError)
+	})
+
+	t.Run("wrong type for private-repos (string) sets ParseError", func(t *testing.T) {
+		result := parseBoundedQueriesConfig(map[string]any{
+			"private-repos": "not-an-array",
+		})
+		require.NotEmpty(t, result.ParseError)
+		assert.Contains(t, result.ParseError, "private-repos must be an array")
+	})
+
+	t.Run("non-map item in private-repos sets ParseError", func(t *testing.T) {
+		result := parseBoundedQueriesConfig(map[string]any{
+			"private-repos": []any{"string-not-a-map"},
+		})
+		require.NotEmpty(t, result.ParseError)
+		assert.Contains(t, result.ParseError, "private-repos[0] must be a mapping object")
+	})
+
+	t.Run("wrong type for timeout sets ParseError", func(t *testing.T) {
+		result := parseBoundedQueriesConfig(map[string]any{
+			"timeout": "thirty",
+		})
+		require.NotEmpty(t, result.ParseError)
+		assert.Contains(t, result.ParseError, "timeout must be an integer")
+	})
+
+	t.Run("wrong type for max-invocations sets ParseError", func(t *testing.T) {
+		result := parseBoundedQueriesConfig(map[string]any{
+			"max-invocations": true,
+		})
+		require.NotEmpty(t, result.ParseError)
+		assert.Contains(t, result.ParseError, "max-invocations must be an integer")
+	})
+
+	t.Run("valid map returns no ParseError", func(t *testing.T) {
+		result := parseBoundedQueriesConfig(map[string]any{
+			"private-repos": []any{
+				map[string]any{"repo": "my-org/my-repo", "sensitivity": "internal"},
+			},
+			"timeout":         30,
+			"max-invocations": 5,
+		})
+		assert.Empty(t, result.ParseError)
+		require.Len(t, result.PrivateRepos, 1)
+		require.NotNil(t, result.Timeout)
+		assert.Equal(t, 30, *result.Timeout)
+		require.NotNil(t, result.MaxInvocations)
+		assert.Equal(t, 5, *result.MaxInvocations)
+	})
 }

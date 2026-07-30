@@ -4281,12 +4281,13 @@
                     "timeout": {
                       "type": "integer",
                       "description": "Maximum execution time in seconds for a single bounded-query invocation. When omitted AWF uses its default.",
-                      "minimum": 1
+                      "minimum": 1,
+                      "maximum": 540
                     },
                     "memory-limit": {
                       "type": "string",
                       "description": "Memory limit for bounded-query container execution (e.g. \"512m\", \"2g\"). When omitted AWF uses its default.",
-                      "pattern": "^\\d+[kmgKMG]$"
+                      "pattern": "^[1-9][0-9]*[bkmgBKMG]$"
                     },
                     "interpreter": {
                       "type": "string",
@@ -4296,7 +4297,8 @@
                     "max-invocations": {
                       "type": "integer",
                       "description": "Maximum number of bounded-query invocations allowed per run. When omitted AWF uses its default.",
-                      "minimum": 1
+                      "minimum": 1,
+                      "maximum": 10000
                     }
                   }
                 }
@@ -13942,7 +13944,7 @@
         },
         "sessionId": {
           "type": "string",
-          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it — strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
+          "description": "Optional session identifier injected as the x-session-id request header and session_id body field on Copilot BYOK upstream requests. Maps to AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it \u2014 strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown session_id body field with HTTP 400. Example: \"${{ github.run_id }}\"."
         }
       },
       "additionalProperties": false

@@ -974,12 +974,16 @@ func extractBoundedQueriesConfig(workflowData *WorkflowData) *AWFBoundedQueriesC
 	}
 
 	awfBQ := &AWFBoundedQueriesConfig{
-		Enabled:        true,
-		Runtime:        bq.Runtime,
-		Timeout:        bq.Timeout,
-		MemoryLimit:    bq.MemoryLimit,
-		Interpreter:    bq.Interpreter,
-		MaxInvocations: bq.MaxInvocations,
+		Enabled:     true,
+		Runtime:     bq.Runtime,
+		MemoryLimit: bq.MemoryLimit,
+		Interpreter: bq.Interpreter,
+	}
+	if bq.Timeout != nil {
+		awfBQ.Timeout = *bq.Timeout
+	}
+	if bq.MaxInvocations != nil {
+		awfBQ.MaxInvocations = *bq.MaxInvocations
 	}
 
 	for _, r := range bq.PrivateRepos {

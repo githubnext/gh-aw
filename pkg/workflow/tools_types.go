@@ -406,13 +406,14 @@ type BoundedQueriesConfig struct {
 
 	// Runtime is the container runtime used to execute bounded-query scripts.
 	// Optional; when omitted AWF uses its default runtime.
-	// Supported values: "docker"
+	// Supported values: "docker", "gvisor"
 	Runtime string `yaml:"runtime,omitempty"`
 
 	// Timeout is the maximum execution time in seconds for a single bounded-query invocation.
 	// Optional; when omitted AWF uses its default timeout.
-	// Must be a positive integer.
-	Timeout int `yaml:"timeout,omitempty"`
+	// Must be a positive integer in the range 1–540.
+	// A pointer distinguishes "not set" (nil) from an explicitly set zero, which is rejected.
+	Timeout *int `yaml:"timeout,omitempty"`
 
 	// MemoryLimit is the memory limit for bounded-query container execution (e.g. "512m", "1g").
 	// Optional; when omitted AWF uses its default memory limit.
@@ -424,8 +425,14 @@ type BoundedQueriesConfig struct {
 
 	// MaxInvocations is the maximum number of bounded-query invocations allowed per run.
 	// Optional; when omitted AWF uses its default.
-	// Must be a positive integer.
-	MaxInvocations int `yaml:"max-invocations,omitempty"`
+	// Must be a positive integer in the range 1–10000.
+	// A pointer distinguishes "not set" (nil) from an explicitly set zero, which is rejected.
+	MaxInvocations *int `yaml:"max-invocations,omitempty"`
+
+	// ParseError records a type mismatch or structural error encountered during YAML parsing.
+	// Non-empty when bounded-queries or private-repos had an unexpected type in the frontmatter.
+	// The compiler treats a non-empty ParseError as a hard validation error.
+	ParseError string `yaml:"-"`
 }
 
 // BoundedQueryPrivateRepo describes one private repository approved for bounded-query access.
