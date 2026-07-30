@@ -1827,14 +1827,14 @@ func TestAWFSupportsAPIProxyProviders(t *testing.T) {
 		want           bool
 	}{
 		{
-			name:           "nil firewall config returns false (uses default version)",
+			name:           "nil firewall config returns true (default version v0.27.43 meets minimum)",
 			firewallConfig: nil,
-			want:           false,
+			want:           true,
 		},
 		{
-			name:           "empty version returns false (uses default version)",
+			name:           "empty version returns true (default version v0.27.43 meets minimum)",
 			firewallConfig: &FirewallConfig{},
-			want:           false,
+			want:           true,
 		},
 		{
 			name:           "latest returns true",
