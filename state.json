@@ -2,7 +2,7 @@
   "counts": {
     "sub_agent_strategy": {
       "delegated_sequential": 2,
-      "single_agent_control": 4,
+      "single_agent_control": 5,
       "inline_strict": 1
     }
   },
@@ -54,6 +54,13 @@
       "timestamp": "2026-07-29T19:40:02.039Z",
       "assignments": {
         "sub_agent_strategy": "delegated_sequential"
+      }
+    },
+    {
+      "run_id": "30576027335",
+      "timestamp": "2026-07-30T19:43:57.859Z",
+      "assignments": {
+        "sub_agent_strategy": "single_agent_control"
       }
     }
   ]
