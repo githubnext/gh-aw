@@ -16,12 +16,7 @@ describe("require-escaped-regexp-interpolation", () => {
 
   it("valid: non-interpolated RegExp patterns are accepted", () => {
     cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
-      valid: [
-        'new RegExp("^[a-z]+$");',
-        "new RegExp(`^[a-z]+$`);",
-        "new RegExp(somePattern);",
-        "new RegExp(somePattern, 'g');",
-      ],
+      valid: ['new RegExp("^[a-z]+$");', "new RegExp(`^[a-z]+$`);", "new RegExp(somePattern);", "new RegExp(somePattern, 'g');"],
       invalid: [],
     });
   });
@@ -35,6 +30,13 @@ describe("require-escaped-regexp-interpolation", () => {
         "new RegExp(`^${ESCAPED_NAME}$`);",
         "new RegExp(`^${escapedValue}$`);",
       ],
+      invalid: [],
+    });
+  });
+
+  it('valid: standard inline .replace(…, "\\\\$&") escape form is accepted', () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: ['new RegExp(`^${varName.replace(/[.*+?^${}()|[\\\\]\\\\\\\\]/g, "\\\\$&")}$`);', 'new RegExp(`^${qualifier.replace(/[.*+?^${}()|[\\\\]\\\\\\\\]/g, "\\\\$&")}($|[-_\\\\s])`);'],
       invalid: [],
     });
   });
@@ -88,6 +90,30 @@ describe("require-escaped-regexp-interpolation", () => {
       invalid: [
         {
           code: "new RegExp(`${escapeRegExp(prefix)}-${suffix}`);",
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: identifier named unescapedValue is not treated as safe", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "new RegExp(`^${unescapedValue}$`);",
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: escapeHtml call is not treated as a regex-escape helper", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "new RegExp(`^${escapeHtml(userInput)}$`);",
           errors: [{ messageId: "unescapedInterpolation" }],
         },
       ],
