@@ -42,6 +42,7 @@ This is an internal design specification for the GitHub gh-aw project. It is not
 12. [Compliance Tests](#12-compliance-tests)
 13. [Privacy Considerations](#13-privacy-considerations)
 14. [References](#14-references)
+15. [Entities](#entities)
 
 ---
 
@@ -516,6 +517,16 @@ A conforming implementation **MUST** execute the workflow as follows:
 3. The implementation **MUST** load all five gh-aw Pi extensions (see [Section 8](#8-extensions)) into the session. If `harness.extensions` is declared in the configuration, the implementation **MUST** also load each user-declared extension after the built-in extensions (see [Section 6.1.4](#614-harness-extensions)).
 4. After the session completes (success or failure), the implementation **MUST** call `session.dispose()`.
 5. If the budget gate has been triggered (via the cost-tracker extension), the implementation **MUST** exit with code `1`.
+
+### 7.1.1 Budget-Exceeded Failure Mode
+
+If `harness.budget` is exceeded while a turn is in progress, the harness **MUST** fail closed for that session:
+
+1. The cost-tracker extension **MUST** request termination (`ctx.agent.abort()`) as soon as the configured hard limit is crossed (see [Section 8.3](#83-extension-3-steering-resource-pressure)).
+2. The harness **MUST** allow the current turn lifecycle to unwind and then **MUST NOT** start another turn.
+3. The harness **MUST** emit a budget-exceeded signal in stderr/summary output and exit with code `1` (per [Section 5.3](#53-exit-codes)).
+
+This behavior ensures deterministic shutdown without permitting additional tool calls after budget exhaustion.
 
 ### 7.2 Execution Summary
 
@@ -1248,6 +1259,15 @@ GitHub Agentic Workflows — the gh-aw CLI extension that compiles Markdown work
 
 ---
 
+## Entities
+
+| Entity | Description | Defined in |
+|---|---|---|
+| `HarnessBudgetConfig` (`harness.budget`) | Budget controls for hard token/credit ceilings and budget-triggered termination behavior. | §6.1.1, §7.1.1, §8.2 |
+| `HarnessContextConfig` (`harness.context`) | Context loading and context-window management settings consumed before session execution. | §6.1.2, §6.4 |
+| `HarnessSteeringConfig` (`harness.steering`) | Time-pressure and budget-pressure steering thresholds used by runtime extensions. | §6.1.3, §8.2, §8.3 |
+| `HarnessExtensionRef` (`harness.extensions`) | Ordered user extension references that load after built-in extensions, with optional required/fail-open behavior. | §6.1.4, §8.6 |
+
 ## Sync Notes
 
 This section maps normative spec sections to their primary implementation files and directories in the `github/gh-aw` repository. Maintainers **SHOULD** keep this table updated whenever implementation files are added, renamed, or removed.
@@ -1259,4 +1279,5 @@ This section maps normative spec sections to their primary implementation files 
 | §10 Build and Deployment; §10.1 esbuild configuration | `actions/setup/js/` (directory); `package.json` build scripts in `github/gh-aw` | JavaScript build toolchain. The harness is compiled with esbuild; build configuration and bundle output paths are tracked here. |
 | §9 Model Resolution; §11.1 General Security Requirements (token/credential handling) | `pkg/workflow/` (Go compiler — `aw_engine.go` or equivalent) | The `engine: aw` compilation path in Go generates the `config.json` that specifies the model, provider credentials, and feature flags consumed by the harness at runtime. |
 | §11.2 Safeguards; §11.4 Degraded Mode & Safeguards | `actions/setup/js/aw_harness.cjs` | Budget-gating, observability-failure recovery, and fail-secure exit-code enforcement are all implemented inside the harness. |
+| §8.5 Extension 5: Observability | `actions/setup/js/aw_harness.cjs`; `pkg/logger/README.md` | Keep JSONL event field names and logging expectations synchronized; logger package docs SHOULD link back to this section when event schema semantics change. |
 | §12 Compliance Tests (T-AW-001 through T-AW-007) | `pkg/cli/workflows/` (integration test workflows); `actions/setup/js/*.test.cjs` (unit tests) | Harness lifecycle integration tests live in `pkg/cli/workflows/`. Unit-level tests for harness helpers reside alongside the JavaScript source. |

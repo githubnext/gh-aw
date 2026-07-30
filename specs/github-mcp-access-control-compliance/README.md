@@ -78,6 +78,7 @@ The denial code is selected by the first failing guard in the evaluation order a
 | `integrity-level-block.yaml` | `min-integrity: approved` blocks content below the threshold | T-GH-051, T-GH-052 |
 | `combined-filter-allow.yaml` | All access-control conditions must be jointly satisfied | T-GH-081, T-GH-082, T-GH-083 |
 | `combined-blocked-integrity.yaml` | `blocked-users` (P5) and `min-integrity` (P6) evaluated simultaneously; P5 fires first when both fail | T-GH-091, T-GH-092, T-GH-093 |
+| `blocked-users-min-integrity-extension-fields.yaml` | §4.4.4/§4.4.5 extension-field conformance for threshold and unconditional block behavior | T-GH-094, T-GH-095 |
 
 ## Fixture Schema
 

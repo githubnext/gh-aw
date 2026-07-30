@@ -29,9 +29,11 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 
 ## Spec Reference
 
-- **Specification**: `specs/awf-config-sources-spec.md`
-- **Defining section**: §6.5 — DriftRecord Entity Schema
-- **Related sections**: §6.2 (Drift Detection Procedure), §5 (Conformance Requirements CR-05, CR-06)
+- **Specification**: [`specs/awf-config-sources-spec.md`](../awf-config-sources-spec.md)
+- **DriftRecord entity schema**: [§7.5 — DriftRecord Entity Schema](../awf-config-sources-spec.md#75-driftrecord-entity-schema)
+- **Conformance requirements**: [§6 — Conformance Requirements](../awf-config-sources-spec.md#6-conformance-requirements) (CR-05, CR-06)
+- **Drift detection procedure**: [§7.2 — Step-by-Step Procedure](../awf-config-sources-spec.md#72-step-by-step-procedure)
+- **Canonical source set**: [§2 — Canonical sources (gh-aw-firewall)](../awf-config-sources-spec.md#2-canonical-sources-gh-aw-firewall)
 
 ---
 

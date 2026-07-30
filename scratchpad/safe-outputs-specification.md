@@ -48,9 +48,10 @@ This specification is governed by the GitHub Next team and follows semantic vers
 6. [GitHub Operations](#6-github-operations)
    - [6.4 update-discussion Operation](#64-update-discussion-operation)
 7. [Compliance Testing](#7-compliance-testing)
-8. [Appendices](#appendices)
-9. [References](#references)
-10. [Change Log](#change-log)
+8. [Entities](#entities)
+9. [Appendices](#appendices)
+10. [References](#references)
+11. [Change Log](#change-log)
 
 ---
 
@@ -664,6 +665,23 @@ The noop handler MUST:
 
 GitHub operations enable AI agents to interact with GitHub resources. These operations are separated from builtin tools because they are specific to GitHub's platform and require specialized permissions and handling.
 
+### 6.0 Files Modified (Implementation Checklist)
+
+When implementing or updating GitHub operations in this section, maintainers SHOULD verify the following implementation surfaces in the same change:
+
+1. **`pkg/workflow/safe_outputs_tools.go`**
+   - Operation-level tool definitions and schema wiring
+2. **`pkg/workflow/safe_outputs_validation.go`**
+   - Operation request validation and guardrail enforcement
+3. **`pkg/workflow/safe_outputs_handler_registry.go`**
+   - Operation-to-handler registration and dispatch routing
+4. **`pkg/workflow/safe_outputs_jobs.go`**
+   - Execution-job orchestration for write operations
+5. **`pkg/workflow/safe_outputs_permissions.go`**
+   - Per-operation GitHub permission declarations
+6. **`pkg/workflow/safe_outputs_steps.go`**
+   - Job step generation and execution flow mapping
+
 ### 6.1 Operation Categories
 
 #### 6.1.1 Issues & Discussions
@@ -1185,6 +1203,16 @@ The system does NOT protect against:
 - **Transitive Attacks**: Compromised dependencies in execution environment
 
 ---
+
+## Entities
+
+| Entity | Description | Defined in |
+|---|---|---|
+| `SafeOutputsConfig` | Top-level `safe-outputs` frontmatter object that enables builtin tools, GitHub operations, and optional custom jobs. | §3.2 |
+| `SafeOutputToolRegistration` | MCP tool registration record containing tool `name`, `description`, `inputSchema`, and runtime `handler`. | §3.3.2 |
+| `SafeOutputEnvelope` | NDJSON line record emitted by Layer 2 with at least `type` and operation payload fields. | §3.3.4 |
+| `ValidationGuardrailConfig` | Guardrail policy bundle for schema validation, max-count limits, sanitization, target validation, and cross-repo checks. | §3.4 |
+| `ExecutionHandlerJob` | Isolated GitHub Actions job definition that consumes validated output and executes write-side effects. | §3.5 |
 
 ## References
 

@@ -145,6 +145,10 @@ DEBUG=* gh aw compile workflow.md 2>&1 | tee output.log
 - `-pattern` - Excludes loggers matching the pattern (takes precedence)
 - `pattern1,pattern2` - Multiple patterns separated by commas
 
+## Sync Notes
+
+- When JSONL event field names, per-turn token reporting format, or stderr logging semantics used by AW harness observability change, update [`specs/aw-harness.md` §8.5](../../specs/aw-harness.md#85-extension-5-observability) and the harness sync table in the same pull request.
+
 ## Design Decisions
 
 ### Logger Enabled State

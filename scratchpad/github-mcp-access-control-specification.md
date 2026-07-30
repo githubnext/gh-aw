@@ -38,6 +38,8 @@ This document is governed by the GitHub Agentic Workflows project specifications
 9. [Security Model](#9-security-model)
 10. [Integration with MCP Gateway](#10-integration-with-mcp-gateway)
 11. [Compliance Testing](#11-compliance-testing)
+12. [Norms](#norms)
+13. [Entities](#entities)
 
 ---
 
@@ -817,6 +819,26 @@ approval-labels:
 ```text
 Warning: approval-labels is an empty array. Omit the field entirely to disable label-based approval.
 ```
+
+#### 4.4.8 Precedence and Conflict Resolution (Analysis)
+
+When `repos`, `roles`, and `blocked-users` are configured together, implementations MUST evaluate them as independent guards in the documented order and fail closed on the first guard that fails.
+
+- `repos` scope is evaluated first as part of repository authorization. A repository outside the allowlist MUST be denied before any author-based checks are considered.
+- `roles` filtering is evaluated after repository matching. A role mismatch MUST deny access even when the author is not blocked.
+- `blocked-users` is evaluated in integrity management after repository and role checks. A blocked author MUST still be denied even when repository and role checks pass.
+
+**Worked example**:
+
+```yaml
+repos: ["github/*"]
+roles: ["write", "admin"]
+blocked-users: ["external-bot"]
+```
+
+- Request A: `repository=octocat/demo`, `user_role=admin`, `user_login=external-bot` → deny at `repos` guard (`-32002`) because `octocat/demo` is outside `github/*`.
+- Request B: `repository=github/gh-aw`, `user_role=read`, `user_login=external-bot` → deny at `roles` guard (`-32003`) because role is insufficient.
+- Request C: `repository=github/gh-aw`, `user_role=write`, `user_login=external-bot` → deny at `blocked-users` guard (`-32005`) because repository and role checks pass first.
 
 ### 4.5 Relationship Between Tool Selection and Access Control
 
@@ -2158,6 +2180,7 @@ The following fixture files in [`specs/github-mcp-access-control-compliance/`](.
 | [`private-repo-block.yaml`](../../specs/github-mcp-access-control-compliance/private-repo-block.yaml) | `private-repos: false` blocks private repo; allows public repo | T-GH-024, T-GH-025, T-GH-026 |
 | [`integrity-level-block.yaml`](../../specs/github-mcp-access-control-compliance/integrity-level-block.yaml) | `min-integrity` allows content at/above threshold; blocks content below | T-GH-051, T-GH-052, T-GH-054 |
 | [`combined-blocked-integrity.yaml`](../../specs/github-mcp-access-control-compliance/combined-blocked-integrity.yaml) | Combined P5+P6: blocked user denied with `-32005` even when P6 would also fail; non-blocked user with sufficient integrity allowed | T-GH-091, T-GH-092, T-GH-093 |
+| [`blocked-users-min-integrity-extension-fields.yaml`](../../specs/github-mcp-access-control-compliance/blocked-users-min-integrity-extension-fields.yaml) | Direct §4.4 extension-field fixture: `min-integrity` threshold denial and `blocked-users` unconditional denial semantics | T-GH-094, T-GH-095 |
 
 See [`specs/github-mcp-access-control-compliance/README.md`](../../specs/github-mcp-access-control-compliance/README.md) for fixture schema documentation and instructions for adding new scenarios.
 
@@ -2672,6 +2695,22 @@ GitHub API rate limits apply to:
 **Recommendation**: Always compile workflows after configuration changes to catch errors early.
 
 ---
+
+## Norms
+
+- **Default-deny guard posture.** Implementations MUST treat each configured guard (`repos`, `roles`, `private-repos`, `blocked-users`, `min-integrity`) as independently denying access when it fails; access is allowed only when all enabled guards pass.
+- **Repository pattern matching is case-sensitive.** `owner/repo` comparisons in `repos` matching SHOULD be evaluated as exact string comparisons after canonical owner/repo extraction. Implementations MUST NOT silently normalize case in a way that broadens access beyond the configured patterns.
+- **Deprecated alias handling.** Workflow authors SHOULD use `allowed-repos` in frontmatter. The `repos` frontmatter alias remains deprecated and MUST NOT be preferred over `allowed-repos` when both are present.
+
+## Entities
+
+| Entity | Description | Defined in |
+|---|---|---|
+| `GitHubToolConfig` | Gateway-facing configuration object under `tools.github`, including repository, role, visibility, and integrity controls. | §4.1, §4.4 |
+| `GitHubReposScope` | Repository allowlist pattern set (`owner/repo`, `owner/*`, `*/repo`, `*/*`). | §4.4.1, §5.1 |
+| `GitHubRoles` | Explicit role allowlist over GitHub repository roles (`read`, `triage`, `write`, `maintain`, `admin`). | §4.4.2, §6 |
+| `GitHubIntegrityLevel` | Ordered integrity lattice (`none` < `unapproved` < `approved` < `merged`) used by threshold checks. | §4.4.4, §4.6 |
+| `AccessRequest` | Runtime authorization input tuple containing repository identity, actor, repository visibility, and content integrity. | §4.5, §8.5 |
 
 ## Sync Notes
 

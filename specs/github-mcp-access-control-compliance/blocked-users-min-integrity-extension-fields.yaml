@@ -1,0 +1,59 @@
+# blocked-users + min-integrity Extension Fields — Compliance Fixture
+# Tests: T-GH-094, T-GH-095
+# Spec: §4.4.4 min-integrity, §4.4.5 blocked-users
+
+fixture_id: "blocked-users-min-integrity-extension-fields"
+description: >
+  This fixture binds the §4.4 extension-field definitions to runtime behavior.
+  `min-integrity` MUST reject content below the configured threshold, and
+  `blocked-users` MUST deny listed users unconditionally before integrity checks.
+
+spec_refs:
+  - "§4.4.4 — min-integrity defines minimum accepted integrity"
+  - "§4.4.5 — blocked-users are unconditionally denied"
+  - "§4.4.8 — precedence: blocked-users evaluated after repo/role checks and before integrity threshold"
+
+scenarios:
+  - scenario_id: "blocked-users-min-integrity-extension-fields-A"
+    description: "Non-blocked user below min-integrity is denied with -32006"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        min-integrity: "approved"
+        blocked-users:
+          - "external-bot"
+      request:
+        repository: "github/gh-aw"
+        user_login: "trusted-contributor"
+        user_role: "write"
+        is_private: true
+        content_integrity: "unapproved"
+    expected:
+      decision: deny
+      error_code: -32006
+      reason: "content integrity below minimum required level"
+
+  - scenario_id: "blocked-users-min-integrity-extension-fields-B"
+    description: "Blocked user is denied with -32005 even when integrity would otherwise pass"
+    input:
+      tool_config:
+        repos:
+          - "github/gh-aw"
+        roles:
+          - "write"
+        min-integrity: "approved"
+        blocked-users:
+          - "external-bot"
+      request:
+        repository: "github/gh-aw"
+        user_login: "external-bot"
+        user_role: "write"
+        is_private: true
+        content_integrity: "merged"
+    expected:
+      decision: deny
+      error_code: -32005
+      reason: "user is blocked"
