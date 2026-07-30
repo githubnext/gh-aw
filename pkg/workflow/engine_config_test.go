@@ -1284,6 +1284,11 @@ func TestSupportsBareMode(t *testing.T) {
 			expected: true,
 		},
 		{
+			name:     "pi supports bare mode",
+			engine:   NewPiEngine(),
+			expected: true,
+		},
+		{
 			name:     "codex does not support bare mode",
 			engine:   NewCodexEngine(),
 			expected: false,

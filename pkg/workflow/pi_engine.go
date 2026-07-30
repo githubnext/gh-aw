@@ -47,6 +47,7 @@ func NewPiEngine() *PiEngine {
 				MaxContinuations: false,
 				WebSearch:        false,
 				NativeAgentFile:  false,
+				BareMode:         true, // Pi is bare by default; bare mode is a no-op
 			},
 		},
 	}
