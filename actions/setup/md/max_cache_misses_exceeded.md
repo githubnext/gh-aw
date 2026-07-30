@@ -1,12 +1,12 @@
 > [!WARNING]
-> **Engine Cache Miss Limit Exceeded**: The {engine_label} engine hit the provider's consecutive cache miss limit and could not complete this run.
+> **Engine Cache Miss Limit Exceeded**: The {engine_label} engine hit the gh-aw API proxy consecutive cache miss guardrail and could not complete this run.
 
-This signal was detected from engine runtime logs.
+This signal was detected from engine runtime or AWF API proxy logs.
 
 <details>
 <summary>What caused this</summary>
 
-The provider enforces a limit on consecutive cache misses. When too many back-to-back requests bypass the prompt cache, the API returns a 403 error and the engine terminates.
+The gh-aw API proxy enforces a per-run `apiProxy.maxCacheMisses` guardrail. When too many back-to-back requests bypass the prompt cache, the proxy returns a 403 `max_cache_misses_exceeded` error and the engine terminates.
 
 Common causes:
 

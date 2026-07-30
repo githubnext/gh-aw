@@ -2287,6 +2287,7 @@ describe("handle_agent_failure", () => {
       fs.mkdirSync(promptsDir, { recursive: true });
       fs.writeFileSync(path.join(promptsDir, "engine_rate_limit_429.md"), ENGINE_RATE_LIMIT_TEMPLATE);
       fs.writeFileSync(path.join(promptsDir, "engine_max_runs_exceeded.md"), ENGINE_MAX_RUNS_EXCEEDED_TEMPLATE);
+      fs.writeFileSync(path.join(promptsDir, "max_cache_misses_exceeded.md"), ENGINE_MAX_CACHE_MISSES_EXCEEDED_TEMPLATE);
       process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
       process.env.RUNNER_TEMP = tmpDir;
       ({ buildEngineFailureContext } = require("./handle_agent_failure.cjs"));
@@ -2295,6 +2296,7 @@ describe("handle_agent_failure", () => {
     afterEach(() => {
       delete process.env.GH_AW_AGENT_OUTPUT;
       delete process.env.GH_AW_ENGINE_ID;
+      delete process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED;
       delete process.env.GH_AW_OTEL_JSONL_PATH;
       delete process.env.RUNNER_TEMP;
       // Clean up temp dir
@@ -2348,6 +2350,28 @@ describe("handle_agent_failure", () => {
       const result = buildEngineFailureContext();
       expect(result).toContain("Engine Max Runs Exceeded");
       expect(result).toContain("max-runs guardrail");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context for max-cache-misses failures in stdio logs", () => {
+      fs.writeFileSync(
+        stdioLogPath,
+        '2026-07-30T06:14:50.000Z [ERROR] Error in API request: 403 {"error":{"type":"max_cache_misses_exceeded","message":"Maximum consecutive cache misses exceeded (6 / 5).","consecutive_cache_misses":6,"max_cache_misses":5}}\n'
+      );
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Cache Miss Limit Exceeded");
+      expect(result).toContain("cache misses guardrail");
+      expect(result).not.toContain("Last agent output");
+    });
+
+    it("returns dedicated context when max-cache-misses is only present in structured logs", () => {
+      const logDir = path.join(tmpDir, "sandbox", "firewall", "logs", "api-proxy-logs");
+      fs.mkdirSync(logDir, { recursive: true });
+      fs.writeFileSync(path.join(logDir, "event-logs.jsonl"), `${JSON.stringify({ type: "max_cache_misses_exceeded", consecutive_cache_misses: 6, max_cache_misses: 5 })}\n`);
+      fs.writeFileSync(stdioLogPath, "Agent terminated unexpectedly without clear error details\n");
+      process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED = "true";
+      const result = buildEngineFailureContext();
+      expect(result).toContain("Engine Cache Miss Limit Exceeded");
       expect(result).not.toContain("Last agent output");
     });
 

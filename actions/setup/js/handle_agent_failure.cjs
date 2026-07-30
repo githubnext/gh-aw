@@ -11,7 +11,14 @@ const { MAX_SUB_ISSUES, getSubIssueCount } = require("./sub_issue_helpers.cjs");
 const { formatMissingData, formatMissingTools } = require("./missing_info_formatter.cjs");
 const { generateHistoryUrl } = require("./generate_history_link.cjs");
 const { AWF_INFRA_LINE_RE } = require("./log_parser_shared.cjs");
-const { resolveFirewallAuditLogPath, resolveAICreditsFailureState, parseMaxAICreditsFromAuditLog, parseAICreditsErrorInfoFromAuditLog, parseUnknownModelAICreditsFromAuditLog } = require("./ai_credits_context.cjs");
+const {
+  resolveFirewallAuditLogPath,
+  resolveAICreditsFailureState,
+  parseMaxAICreditsFromAuditLog,
+  parseAICreditsErrorInfoFromAuditLog,
+  parseUnknownModelAICreditsFromAuditLog,
+  parseMaxCacheMissesExceededFromEventLog,
+} = require("./ai_credits_context.cjs");
 const { MAX_CACHE_MISSES_EXCEEDED_PATTERN } = require("./detect_agent_errors.cjs");
 const { formatAICCredits } = require("./daily_aic_workflow_helpers.cjs");
 const { formatAIC } = require("./model_costs.cjs");
@@ -2611,6 +2618,7 @@ function detectAWFFirewallStartupFailureFromLog() {
  */
 function buildEngineFailureContext(options = {}) {
   const suppressEngineRateLimit429 = options.suppressEngineRateLimit429 === true;
+  const maxCacheMissesExceededFromDetection = options.maxCacheMissesExceeded === true;
   // Derive agent-stdio.log path from the agent output file path (same directory)
   const agentOutputFile = process.env.GH_AW_AGENT_OUTPUT;
   const stdioLogPath = agentOutputFile ? path.join(path.dirname(agentOutputFile), "agent-stdio.log") : "/tmp/gh-aw/agent-stdio.log";
@@ -2618,15 +2626,24 @@ function buildEngineFailureContext(options = {}) {
   // Include engine ID in failure messages when available (e.g. "copilot", "claude", "codex")
   const engineId = process.env.GH_AW_ENGINE_ID || "";
   const engineLabel = engineId ? ` \`${engineId}\`` : " AI";
+  const hasStructuredMaxCacheMissesSignal = maxCacheMissesExceededFromDetection || parseMaxCacheMissesExceededFromEventLog();
 
   try {
     if (!fs.existsSync(stdioLogPath)) {
+      if (hasStructuredMaxCacheMissesSignal) {
+        core.info("agent-stdio.log not found, but structured max cache misses signal was detected — using dedicated context message");
+        return buildEngineMaxCacheMissesExceededContext(engineLabel);
+      }
       core.info(`agent-stdio.log not found at ${stdioLogPath}, skipping engine failure context`);
       return "";
     }
 
     const logContent = fs.readFileSync(stdioLogPath, "utf8");
     if (!logContent.trim()) {
+      if (hasStructuredMaxCacheMissesSignal) {
+        core.info("agent-stdio.log is empty, but structured max cache misses signal was detected — using dedicated context message");
+        return buildEngineMaxCacheMissesExceededContext(engineLabel);
+      }
       return "";
     }
 
@@ -2651,7 +2668,7 @@ function buildEngineFailureContext(options = {}) {
       return buildEngineMaxRunsExceededContext(engineLabel);
     }
 
-    if (hasEngineMaxCacheMissesExceededSignal(logContent)) {
+    if (hasEngineMaxCacheMissesExceededSignal(logContent) || hasStructuredMaxCacheMissesSignal) {
       core.info("Detected engine max cache misses signal — using dedicated context message");
       return buildEngineMaxCacheMissesExceededContext(engineLabel);
     }
@@ -3102,6 +3119,7 @@ async function main() {
     const agenticEngineTimeout = process.env.GH_AW_AGENTIC_ENGINE_TIMEOUT === "true";
     const modelNotSupportedError = process.env.GH_AW_MODEL_NOT_SUPPORTED_ERROR === "true";
     const http400ResponseError = process.env.GH_AW_HTTP_400_RESPONSE_ERROR === "true";
+    const maxCacheMissesExceeded = process.env.GH_AW_MAX_CACHE_MISSES_EXCEEDED === "true" && agentConclusion === "failure";
     const unknownModelAICreditsFromOutput = process.env.GH_AW_UNKNOWN_MODEL_AI_CREDITS === "true";
     const unknownModelAICreditsFromAudit = parseUnknownModelAICreditsFromAuditLog();
     const unknownModelAICredits = unknownModelAICreditsFromAudit || (unknownModelAICreditsFromOutput && agentConclusion === "failure");
@@ -3697,7 +3715,12 @@ async function main() {
         // context is the more actionable signal.
         // Also suppress when missing-model-pricing is detected: the pricing error is the
         // root cause and the engine error block would be redundant noise.
-        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError) ? buildEngineFailureContext({ suppressEngineRateLimit429: maxAICreditsExceeded }) : "";
+        const engineFailureContext = shouldBuildEngineFailureContext(agentConclusion, hasToolDenialsExceeded, isTimedOut, missingModelPricingError)
+          ? buildEngineFailureContext({
+              suppressEngineRateLimit429: maxAICreditsExceeded,
+              maxCacheMissesExceeded,
+            })
+          : "";
         // Build timeout context
         const timeoutContext = buildTimeoutContext(isTimedOut, timeoutMinutes);
 
