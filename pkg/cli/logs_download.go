@@ -725,22 +725,20 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			// Fall through to the download code below (MkdirAll is a no-op for existing dir).
 		} else {
 			// No filter — caller wants all artifacts. Keep the existing behaviour:
-			// if the directory is non-empty we assume the run was previously fully
-			// downloaded and skip the download.
-			if summary, ok := loadRunSummary(opts.outputDir, opts.verbose); ok {
-				// Valid cached summary exists, skip download
-				logsDownloadLog.Printf("Using cached artifacts for run %d", opts.runID)
-				if opts.verbose {
-					fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", opts.runID, opts.outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
+			// only a complete bulk download marker can satisfy an all-artifacts request.
+			if len(findMissingFilterEntries([]string{string(ArtifactSetAll)}, opts.outputDir)) == 0 {
+				if summary, ok := loadRunSummary(opts.outputDir, opts.verbose); ok {
+					// Valid cached summary exists, skip download
+					logsDownloadLog.Printf("Using cached artifacts for run %d", opts.runID)
+					if opts.verbose {
+						fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Using cached artifacts for run %d at %s (from %s)", opts.runID, opts.outputDir, summary.ProcessedAt.Format("2006-01-02 15:04:05"))))
+					}
+					return nil
 				}
-				return nil
 			}
-			// Summary doesn't exist or version mismatch - artifacts exist but need reprocessing
-			// Don't re-download, just reprocess what's there
 			if opts.verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder exists with artifacts, will reprocess run %d without re-downloading", opts.runID)))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Run folder for %d is missing the complete artifact marker; downloading all artifacts", opts.runID)))
 			}
-			return nil
 		}
 	}
 
@@ -935,6 +933,11 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			// Treat this the same as a run with no artifacts — the audit will rely solely on
 			// workflow logs rather than artifact content.
 			return ErrNoArtifacts
+		}
+		if err == nil {
+			if markerErr := markArtifactDownloaded(opts.outputDir, string(ArtifactSetAll)); markerErr != nil {
+				return markerErr
+			}
 		}
 	}
 

@@ -274,7 +274,12 @@ func tryLoadCachedRunResult(
 	if !ok {
 		return nil, false
 	}
-	if len(params.artifactFilter) > 0 {
+	if len(params.artifactFilter) == 0 {
+		if missing := findMissingFilterEntries([]string{string(ArtifactSetAll)}, runOutputDir); len(missing) > 0 {
+			logsOrchestratorLog.Printf("Cache bypass for run %d: complete artifact marker missing", run.DatabaseID)
+			return nil, false
+		}
+	} else {
 		if missing := findMissingFilterEntries(params.artifactFilter, runOutputDir); len(missing) > 0 {
 			logsOrchestratorLog.Printf("Cache bypass for run %d: requested artifacts missing locally: %v", run.DatabaseID, missing)
 			return nil, false
