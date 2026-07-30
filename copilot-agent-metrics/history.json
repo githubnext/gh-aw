@@ -247,7 +247,18 @@
       "avg_agent_duration_minutes": 113,
       "success_rate": 0.829,
       "note": "rolling 24h window from 07-28 18:34Z; author app/copilot-swe-agent only; 7 of 48 PRs still open (all <24h old, oldest 12.1h); success_rate over 41 completed; avg_duration created->merged; 5 human issue comments across 48 PRs (3 PRs had >=1); success_rate recovered sharply from 07-28's 58.9% to 82.9%; volume down 81->48"
+    },
+    {
+      "date": "2026-07-30",
+      "total_prs": 52,
+      "merged_prs": 43,
+      "closed_prs": 6,
+      "open_prs": 3,
+      "avg_comments": 0.77,
+      "avg_agent_duration_minutes": 194,
+      "success_rate": 0.878,
+      "note": "rolling 24h window from 07-29 18:45Z; author app/copilot-swe-agent only; 3 of 52 PRs still open (all <24h old, oldest 7.9h); success_rate over 49 completed; avg_duration created->merged; 40 human issue comments across 52 PRs (36 pelikhan, 4 lpcox; 22 PRs had >=1, gh-aw-bot machine-user comments excluded); success_rate up 82.9%->87.8%; avg_duration up sharply 113->194min (2 of 6 closures were WIP superseded placeholders #49134/#49133, other 4 closures had substantive bodies); no PRs open >24h"
     }
   ],
-  "last_updated": "2026-07-29"
+  "last_updated": "2026-07-30"
 }
