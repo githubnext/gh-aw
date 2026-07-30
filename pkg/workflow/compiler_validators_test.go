@@ -142,7 +142,9 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 	tests := []struct {
 		name          string
 		features      map[string]any
+		batchMode     bool
 		expectWarning bool
+		expectedUsage int
 	}{
 		{
 			name: "gh-aw-detection enabled produces experimental warning",
@@ -150,6 +152,15 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 				"gh-aw-detection": true,
 			},
 			expectWarning: true,
+		},
+		{
+			name: "batch mode aggregates gh-aw-detection usage",
+			features: map[string]any{
+				"gh-aw-detection": true,
+			},
+			batchMode:     true,
+			expectWarning: false,
+			expectedUsage: 1,
 		},
 		{
 			name: "gh-aw-detection disabled does not produce experimental warning",
@@ -169,6 +180,7 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			compiler := NewCompiler()
+			compiler.SetBatchMode(tt.batchMode)
 			workflowData := &WorkflowData{
 				Features: tt.features,
 			}
@@ -197,8 +209,11 @@ func TestEmitExperimentalFeatureWarningsGHAWDetection(t *testing.T) {
 				assert.Positive(t, compiler.GetWarningCount())
 			} else {
 				assert.NotContains(t, stderrOutput, expectedMessage)
-				assert.Zero(t, compiler.GetWarningCount())
+				if tt.expectedUsage == 0 {
+					assert.Zero(t, compiler.GetWarningCount())
+				}
 			}
+			assert.Equal(t, tt.expectedUsage, compiler.GetExperimentalFeatureUsage()[expectedMessage])
 		})
 	}
 }

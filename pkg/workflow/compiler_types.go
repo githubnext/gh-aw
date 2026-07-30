@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"context"
+	"maps"
 	"os"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -58,6 +59,7 @@ type Compiler struct {
 	ctx                     context.Context // Context for network operations (e.g. SHA resolution); defaults to context.Background()
 	verbose                 bool
 	quiet                   bool // If true, suppress success messages (for interactive mode)
+	batchMode               bool // If true, aggregate repetitive notices across workflows
 	engineOverride          string
 	customOutput            string                   // If set, output will be written to this path instead of default location
 	version                 string                   // Version of the extension
@@ -108,6 +110,8 @@ type Compiler struct {
 	ghesArtifactCompat      bool                     // If true, GHES compatibility mode is enabled; artifact actions still use latest non-v3 pins
 	ownerTypeCache          map[string]string        // Cached GitHub owner type ("User"/"Organization"/"") keyed by owner login; not goroutine-safe (Compiler is used sequentially)
 	copilotRequestsTipShown map[string]bool          // Tracks markdown paths that already emitted the copilot-requests enable tip in this compiler instance
+	copilotTipNeeded        bool                     // Tracks whether batch output should include the copilot-requests enable tip
+	featureUsage            map[string]int           // Counts experimental feature usage across workflows in batch mode
 	permissionWarningShown  map[string]string        // Tracks markdown paths and last warning fingerprint (frontmatter hash when available, otherwise formatted warning text)
 	allowedDomainsCache     map[string]allowedDomain // Cached allowed-domains per markdown path with the frontmatter hash that produced it
 	// modelPricingResolver is an optional callback for resolving per-token pricing of models that
@@ -151,6 +155,7 @@ func NewCompiler(opts ...CompilerOption) *Compiler {
 		priorManifests:          make(map[string]*GHAWManifest),
 		ownerTypeCache:          make(map[string]string),        // Initialize owner-type cache (keyed by owner login)
 		copilotRequestsTipShown: make(map[string]bool),          // Initialize one-time tip tracking (keyed by markdown path)
+		featureUsage:            make(map[string]int),           // Initialize batch feature usage counts
 		permissionWarningShown:  make(map[string]string),        // Initialize one-time permission warning tracking (keyed by markdown path)
 		allowedDomainsCache:     make(map[string]allowedDomain), // Initialize allowed-domains cache (keyed by markdown path)
 		gitRoot:                 gitRoot,                        // Auto-detected git root
@@ -197,6 +202,23 @@ func (c *Compiler) SetRequireDocker(require bool) {
 // SetQuiet configures whether to suppress success messages (for interactive mode)
 func (c *Compiler) SetQuiet(quiet bool) {
 	c.quiet = quiet
+}
+
+// SetBatchMode configures whether repetitive notices should be aggregated.
+func (c *Compiler) SetBatchMode(batchMode bool) {
+	c.batchMode = batchMode
+}
+
+// GetExperimentalFeatureUsage returns experimental feature usage counts collected in batch mode.
+func (c *Compiler) GetExperimentalFeatureUsage() map[string]int {
+	usage := make(map[string]int, len(c.featureUsage))
+	maps.Copy(usage, c.featureUsage)
+	return usage
+}
+
+// CopilotRequestsTipNeeded reports whether batch output should show the token-based inference tip.
+func (c *Compiler) CopilotRequestsTipNeeded() bool {
+	return c.copilotTipNeeded
 }
 
 // SetNoEmit configures whether to validate without generating lock files

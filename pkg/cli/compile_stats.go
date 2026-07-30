@@ -140,15 +140,23 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 		return
 	}
 
-	summary := fmt.Sprintf("Compiled %d workflow(s): %d error(s), %d warning(s)",
-		stats.Total, stats.Errors, stats.Warnings)
 	failedWorkflowCount := len(stats.FailureDetails)
 	if failedWorkflowCount == 0 {
 		failedWorkflowCount = len(stats.FailedWorkflows)
 	}
-	if stats.Errors > 0 && failedWorkflowCount > 0 {
-		summary = fmt.Sprintf("Compiled %d workflow(s): %d error(s) across %d failed workflow(s), %d warning(s)",
-			stats.Total, stats.Errors, failedWorkflowCount, stats.Warnings)
+	successCount := max(stats.Total-failedWorkflowCount, 0)
+
+	summary := fmt.Sprintf("Compiled %s: %s, %s",
+		formatWorkflowCount(stats.Total),
+		formatSucceededCount(successCount),
+		formatWarningCount(stats.Warnings))
+	if failedWorkflowCount > 0 {
+		summary = fmt.Sprintf("Compiled %s: %s, %s, %s, %s",
+			formatWorkflowCount(stats.Total),
+			formatSucceededCount(successCount),
+			formatFailedCount(failedWorkflowCount),
+			formatErrorCount(stats.Errors),
+			formatWarningCount(stats.Warnings))
 	}
 
 	// Use different formatting based on whether there were errors
@@ -220,6 +228,26 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 	} else {
 		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(summary))
 	}
+}
+
+func formatWorkflowCount(count int) string {
+	return fmt.Sprintf("%d %s", count, pluralize("workflow", count))
+}
+
+func formatSucceededCount(count int) string {
+	return fmt.Sprintf("%d succeeded", count)
+}
+
+func formatFailedCount(count int) string {
+	return fmt.Sprintf("%d failed", count)
+}
+
+func formatErrorCount(count int) string {
+	return fmt.Sprintf("%d %s", count, pluralize("error", count))
+}
+
+func formatWarningCount(count int) string {
+	return fmt.Sprintf("%d %s", count, pluralize("warning", count))
 }
 
 // collectWorkflowStatisticsWrapper collects and returns workflow statistics

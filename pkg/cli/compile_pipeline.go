@@ -27,6 +27,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -362,6 +364,10 @@ func compileAllFilesInDirectory(
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
 	}
 
+	batchMode := !config.Verbose && len(mdFiles) > 1
+	compiler.SetBatchMode(batchMode)
+	compiler.SetQuiet(batchMode)
+
 	// Handle purge logic: collect existing files before compilation
 	var purgeData *purgeTrackingData
 	if config.Purge {
@@ -573,6 +579,8 @@ func compileAllFilesInDirectory(
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 
+	displayBatchCompilationNotices(compiler, config)
+
 	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
 
@@ -612,6 +620,45 @@ func compileAllFilesInDirectory(
 	}
 
 	return workflowDataList, nil
+}
+
+func displayBatchCompilationNotices(compiler *workflow.Compiler, config CompileConfig) {
+	if config.JSONOutput || config.Verbose {
+		return
+	}
+
+	featureUsage := compiler.GetExperimentalFeatureUsage()
+	if len(featureUsage) > 0 {
+		type featureCount struct {
+			name  string
+			count int
+		}
+		features := make([]featureCount, 0, len(featureUsage))
+		for message, count := range featureUsage {
+			features = append(features, featureCount{
+				name:  strings.TrimPrefix(message, "Using experimental feature: "),
+				count: count,
+			})
+		}
+		sort.Slice(features, func(i, j int) bool {
+			if features[i].count != features[j].count {
+				return features[i].count > features[j].count
+			}
+			return features[i].name < features[j].name
+		})
+
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Experimental features in use:"))
+		for _, feature := range features {
+			fmt.Fprintln(os.Stderr, console.FormatListItem(fmt.Sprintf("%s: %s", feature.name, formatWorkflowCount(feature.count))))
+		}
+	}
+
+	if compiler.CopilotRequestsTipNeeded() {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			"Copilot token-based inference may be available: add permissions.copilot-requests: write. "+
+				"See https://github.github.com/gh-aw/reference/billing/",
+		))
+	}
 }
 
 // purgeTrackingData holds data needed for purge operations

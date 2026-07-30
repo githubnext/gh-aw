@@ -335,7 +335,11 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 	}
 	for _, warning := range warnings {
 		if warning.enabled {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning.message))
+			if c.batchMode {
+				c.featureUsage[warning.message]++
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning.message))
+			}
 			c.IncrementWarningCount()
 		}
 	}

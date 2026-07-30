@@ -284,10 +284,15 @@ func displayCentralizedSlashCommandRecommendation(compiler *workflow.Compiler, w
 		return
 	}
 
+	verb := "are"
+	if nonCentralizedSlashCommands == 1 {
+		verb = "is"
+	}
 	msg := fmt.Sprintf(
-		"Detected %d slash_command entries in this repository; %d are not using centralized routing. Consider setting `on.slash_command.strategy: centralized` to reduce duplicate triggers and route through `agentic_commands.yml`.",
+		"Detected %d slash_command entries in this repository; %d %s not using centralized routing. Consider setting `on.slash_command.strategy: centralized` to reduce duplicate triggers and route through `agentic_commands.yml`.",
 		totalSlashCommands,
 		nonCentralizedSlashCommands,
+		verb,
 	)
 	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
 	compiler.IncrementWarningCount()

@@ -48,7 +48,7 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 				},
 			},
 			expectedInOutput: []string{
-				"Compiled 5 workflow(s): 4 error(s) across 3 failed workflow(s), 1 warning(s)",
+				"Compiled 5 workflows: 2 succeeded, 3 failed, 4 errors, 1 warning",
 				"Failed workflows:",
 				"✗ test1.md",
 				"✗ test2.md",
@@ -77,7 +77,7 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 				},
 			},
 			expectedInOutput: []string{
-				"Compiled 1 workflow(s): 2 error(s) across 1 failed workflow(s), 0 warning(s)",
+				"Compiled 1 workflow: 0 succeeded, 1 failed, 2 errors, 0 warnings",
 				"Failed workflows:",
 				"✗ workflow-single.md",
 				"workflow-single.md (2 error(s)):",
@@ -124,7 +124,7 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 				FailedWorkflows: []string{"old-workflow1.md", "old-workflow2.md"},
 			},
 			expectedInOutput: []string{
-				"Compiled 3 workflow(s): 2 error(s) across 2 failed workflow(s), 0 warning(s)",
+				"Compiled 3 workflows: 1 succeeded, 2 failed, 2 errors, 0 warnings",
 				"Failed workflows:",
 				"✗ old-workflow1.md",
 				"✗ old-workflow2.md",
@@ -139,7 +139,7 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 				Warnings: 0,
 			},
 			expectedInOutput: []string{
-				"Compiled 5 workflow(s): 0 error(s), 0 warning(s)",
+				"Compiled 5 workflows: 5 succeeded, 0 warnings",
 			},
 			notExpectedInOutput: []string{
 				"Failed workflows:",

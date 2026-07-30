@@ -179,8 +179,12 @@ Ensure proper audience validation and trust policies are configured.`
 	}
 	if shouldEmitCopilotRequestsEnableTip(workflowData, workflowPermissions) && !c.repositoryOwnerIsIndividualUser() {
 		if !c.copilotRequestsTipShown[markdownPath] {
-			tipMsg := `Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference with the Copilot engine instead of a personal access token (COPILOT_GITHUB_TOKEN). This option requires that your organization has centralized Copilot billing enabled and may not be available in all organizations — see https://github.github.com/gh-aw/reference/billing/ for details.`
-			fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", tipMsg))
+			if c.batchMode {
+				c.copilotTipNeeded = true
+			} else {
+				tipMsg := `Tip: set permissions.copilot-requests: write to use GitHub Actions token-based inference with the Copilot engine instead of a personal access token (COPILOT_GITHUB_TOKEN). This option requires that your organization has centralized Copilot billing enabled and may not be available in all organizations — see https://github.github.com/gh-aw/reference/billing/ for details.`
+				fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", tipMsg))
+			}
 			c.copilotRequestsTipShown[markdownPath] = true
 		}
 	}
