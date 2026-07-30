@@ -53,6 +53,10 @@ func compileSpecificFiles(
 ) ([]*workflow.WorkflowData, error) {
 	compileOrchestrationLog.Printf("Compiling %d specific workflow files", len(config.MarkdownFiles))
 
+	batchMode := !config.Verbose && len(config.MarkdownFiles) > 1
+	compiler.SetBatchMode(batchMode)
+	compiler.SetQuiet(batchMode)
+
 	// Enable validation automatically when force-refresh-action-pins is used
 	// to verify all resolved action SHAs are valid
 	shouldValidate := config.Validate || config.ForceRefreshActionPins
@@ -140,6 +144,7 @@ func compileSpecificFiles(
 			trackWorkflowFailure(stats, resolvedFile, len(errMsgs), errMsgs)
 		} else {
 			compiledCount++
+			stats.Succeeded++
 			if fileResult.workflowData != nil {
 				workflowDataList = append(workflowDataList, fileResult.workflowData)
 			}
@@ -260,7 +265,8 @@ func compileSpecificFiles(
 			if config.Strict {
 				errorCount++
 				stats.Errors++
-				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				// Grant is a post-compilation tool, not a workflow; record it only in
+				// validationResults (for JSON output) without adding to FailureDetails.
 				*validationResults = append(*validationResults, ValidationResult{
 					Workflow: "grant",
 					Valid:    false,
@@ -288,6 +294,9 @@ func compileSpecificFiles(
 
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
+
+	// Aggregate and display batch-mode notices (experimental features, Copilot tip)
+	displayBatchCompilationNotices(compiler, config)
 
 	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
@@ -431,6 +440,7 @@ func compileAllFilesInDirectory(
 			trackWorkflowFailure(stats, file, len(errMsgs), errMsgs)
 		} else {
 			successCount++
+			stats.Succeeded++
 			if fileResult.workflowData != nil {
 				workflowDataList = append(workflowDataList, fileResult.workflowData)
 			}
@@ -547,7 +557,8 @@ func compileAllFilesInDirectory(
 			if config.Strict {
 				errorCount++
 				stats.Errors++
-				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				// Grant is a post-compilation tool, not a workflow; record it only in
+				// validationResults (for JSON output) without adding to FailureDetails.
 				*validationResults = append(*validationResults, ValidationResult{
 					Workflow: "grant",
 					Valid:    false,

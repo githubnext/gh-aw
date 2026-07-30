@@ -26,10 +26,11 @@ type WorkflowFailure struct {
 // CompilationStats tracks the results of workflow compilation
 type CompilationStats struct {
 	Total           int
+	Succeeded       int // Explicitly-tracked count of workflows that compiled successfully
 	Errors          int
 	Warnings        int
 	FailedWorkflows []string          // Names of workflows that failed compilation (deprecated, use FailedWorkflowDetails)
-	FailureDetails  []WorkflowFailure // Detailed information about failed workflows
+	FailureDetails  []WorkflowFailure // Detailed information about failed workflows (workflow-level failures only)
 }
 
 // WorkflowStats holds statistics about a compiled workflow
@@ -144,7 +145,7 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 	if failedWorkflowCount == 0 {
 		failedWorkflowCount = len(stats.FailedWorkflows)
 	}
-	successCount := max(stats.Total-failedWorkflowCount, 0)
+	successCount := stats.Succeeded
 
 	summary := fmt.Sprintf("Compiled %s: %s, %s",
 		formatWorkflowCount(stats.Total),
