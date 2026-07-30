@@ -2096,3 +2096,67 @@ func TestAddCustomStepsAsIsTrimsStructuralTrailingSpaces(t *testing.T) {
 		})
 	}
 }
+
+// TestInterpolationStepPresentWithGitHubFalse verifies the bug fix for the scenario where
+// a workflow has tools.github: false (no GitHub MCP server), no template expressions, and no
+// {{#if}} blocks. Before the fix the compiler skipped the "Interpolate variables and render
+// templates" step because it didn't account for the {{#runtime-import}} self-import macro that
+// is always emitted in normal (non-inline) compilation mode. This caused the agent to receive
+// an unresolved macro and no effective instructions.
+func TestInterpolationStepPresentWithGitHubFalse(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "interpolation-step-github-false")
+	workflowDir := filepath.Join(tmpDir, ".github", "workflows")
+	if err := os.MkdirAll(workflowDir, 0755); err != nil {
+		t.Fatalf("failed to create workflow directory: %v", err)
+	}
+
+	// Minimal workflow that previously triggered the bug:
+	// - engine.id set (no GitHub tool inferred)
+	// - tools.github: false (hasGitHubContext == false)
+	// - no {{#if}} or ${{ }} in body (hasTemplatePattern == false, hasExpressions == false)
+	workflowContent := `---
+on: repository_dispatch
+permissions:
+  contents: read
+engine:
+  id: claude
+tools:
+  edit:
+  github: false
+safe-outputs:
+  create-pull-request:
+---
+
+Do some important work.
+`
+	workflowPath := filepath.Join(workflowDir, "test-workflow.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0644); err != nil {
+		t.Fatalf("failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("compilation failed: %v", err)
+	}
+
+	lockPath := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockBytes, err := os.ReadFile(lockPath)
+	if err != nil {
+		t.Fatalf("failed to read lock file: %v", err)
+	}
+	lockContent := string(lockBytes)
+
+	// The compiled lock must contain a runtime-import macro (always emitted in normal mode).
+	if !strings.Contains(lockContent, "{{#runtime-import") {
+		t.Error("expected lock file to contain a {{#runtime-import}} macro")
+	}
+
+	// And it must contain the interpolation step to resolve that macro.
+	if !strings.Contains(lockContent, "Interpolate variables and render templates") {
+		t.Error("expected lock file to contain 'Interpolate variables and render templates' step, " +
+			"but it was absent; the {{#runtime-import}} macro will not be resolved at runtime")
+	}
+	if !strings.Contains(lockContent, "interpolate_prompt.cjs") {
+		t.Error("expected lock file to reference interpolate_prompt.cjs in the interpolation step")
+	}
+}
