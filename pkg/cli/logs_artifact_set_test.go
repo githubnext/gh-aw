@@ -457,3 +457,37 @@ func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid artifact name")
 }
+
+// TestFindMissingFilterEntriesIncrementalScenario validates the key scenario used by
+// the incremental unfiltered download: a previous filtered pass wrote per-artifact
+// markers with the full API artifact name (e.g. "abc123-activation"), and the
+// subsequent unfiltered pass supplies the same full names to findMissingFilterEntries
+// to determine which are still missing.
+func TestFindMissingFilterEntriesIncrementalScenario(t *testing.T) {
+	dir := t.TempDir()
+
+	// Simulate a previous filtered download that wrote markers with full API artifact names.
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-activation"))
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-usage"))
+
+	// The unfiltered incremental check passes full API names as the filter.
+	// activation and usage are found via their exact-match markers; agent is missing.
+	result := findMissingFilterEntries([]string{"abc123-activation", "abc123-usage", "abc123-agent"}, dir)
+	assert.Equal(t, []string{"abc123-agent"}, result)
+
+	// After downloading agent (marker written), nothing is missing.
+	require.NoError(t, markArtifactDownloaded(dir, "abc123-agent"))
+	assert.Nil(t, findMissingFilterEntries([]string{"abc123-activation", "abc123-usage", "abc123-agent"}, dir))
+}
+
+// TestFindMissingFilterEntriesAllMarkerSatisfiesFullNames verifies that the
+// complete-download marker satisfies a filter containing full API artifact names
+// (as used by the incremental unfiltered download check).
+func TestFindMissingFilterEntriesAllMarkerSatisfiesFullNames(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, markArtifactDownloaded(dir, string(ArtifactSetAll)))
+
+	// Full API artifact names — all satisfied by the 'all' marker.
+	assert.Nil(t, findMissingFilterEntries([]string{"abc123-activation", "abc123-usage", "abc123-agent"}, dir))
+	assert.Nil(t, findMissingFilterEntries([]string{"activation", "usage", "agent"}, dir))
+}
