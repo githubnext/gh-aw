@@ -32,6 +32,16 @@ const (
 	// single long-running request could otherwise block all callers for an arbitrarily
 	// long time.
 	maxMCPLogsSubprocessTimeoutMinutes = 60
+
+	// defaultMCPAuditTimeoutMinutes is the default subprocess timeout for the audit
+	// tool.  Auditing a single run typically takes 5–30 s, but large runs with many
+	// artifact sets can take longer.  5 minutes gives ample headroom while still
+	// bounding the subprocess lifetime.
+	defaultMCPAuditTimeoutMinutes = 5
+	// defaultMCPAuditDiffTimeoutMinutes is the default subprocess timeout for the
+	// audit-diff tool.  It downloads artifacts for all referenced runs before
+	// computing the diff, so it needs more headroom than a single-run audit.
+	defaultMCPAuditDiffTimeoutMinutes = 5
 )
 
 // appendRepoFlagFromEnv appends "--repo <owner/repo>" to args when GITHUB_REPOSITORY
@@ -486,11 +496,44 @@ Multi-run diff returns JSON describing changes between the base and each compari
 
 		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
 
+		// The MCP gateway imposes a per-tool RPC deadline (typically 60 s) on the
+		// request context. exec.CommandContext ties the subprocess lifetime to that
+		// context, so the subprocess would be killed after 60 s even for legitimate
+		// long-running audits (large runs with many artifact sets can take longer).
+		//
+		// Fix: detach from the gateway deadline by stripping cancellation/deadline
+		// from ctx via context.WithoutCancel, then applying only the subprocess
+		// timeout.  Context values (e.g. trace IDs) are preserved.  We still forward
+		// any explicit cancellations from the MCP request context (e.g. client
+		// disconnect) so the subprocess is cleaned up promptly when the caller goes away.
+		subCtx, subCancel := context.WithTimeout(
+			context.WithoutCancel(ctx),
+			time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute,
+		)
+		defer subCancel()
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					mcpLog.Printf("Panic in MCP audit context-watcher goroutine (recovered): %v", r)
+				}
+			}()
+			// Only forward explicit cancellations (context.Canceled); do NOT propagate
+			// context.DeadlineExceeded from the MCP gateway — that would kill the subprocess
+			// at the gateway's 60 s RPC deadline and defeat the purpose of this fix.
+			select {
+			case <-ctx.Done():
+				if ctx.Err() == context.Canceled {
+					subCancel() // propagate client disconnect to subprocess
+				}
+			case <-subCtx.Done():
+			}
+		}()
+
 		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages and debug logs that shouldn't be mixed with JSON
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+		stdout, err := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
 
 		// The audit command outputs JSON to stdout when --json flag is used.
 		// If the command fails, we need to provide detailed error information.
@@ -619,7 +662,32 @@ Returns JSON describing the differences between the base run and each comparison
 
 		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
 
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+		// The MCP gateway imposes a per-tool RPC deadline (typically 60 s) on the
+		// request context. Detach from that deadline so the subprocess can run for
+		// its full allotted time without being killed at the gateway boundary.
+		subCtx, subCancel := context.WithTimeout(
+			context.WithoutCancel(ctx),
+			time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute,
+		)
+		defer subCancel()
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					mcpLog.Printf("Panic in MCP audit-diff context-watcher goroutine (recovered): %v", r)
+				}
+			}()
+			// Only forward explicit cancellations (context.Canceled); do NOT propagate
+			// context.DeadlineExceeded from the MCP gateway.
+			select {
+			case <-ctx.Done():
+				if ctx.Err() == context.Canceled {
+					subCancel()
+				}
+			case <-subCtx.Done():
+			}
+		}()
+
+		stdout, err := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
 		outputStr := string(stdout)
 
 		if err != nil {
