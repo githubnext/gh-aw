@@ -181,7 +181,7 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 						}
 						j++
 					}
-					buf += sb.String()
+					buf = trimmedLine + sb.String()
 				}
 
 				var arr []map[string]any

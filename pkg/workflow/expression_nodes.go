@@ -142,9 +142,9 @@ func (d *DisjunctionNode) RenderMultiline() string {
 
 		// Add the expression with OR operator (except for the last term)
 		if i < len(d.Terms)-1 {
-			line += term.Render() + " ||"
+			line = line + term.Render() + " ||"
 		} else {
-			line += term.Render()
+			line = line + term.Render()
 		}
 
 		lines = append(lines, line)

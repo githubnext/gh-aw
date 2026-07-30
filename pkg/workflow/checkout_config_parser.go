@@ -311,9 +311,11 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 			relPath = ""
 		}
 		isRoot := relPath == ""
-		absPath := "$GITHUB_WORKSPACE"
-		if !isRoot {
-			absPath += "/" + relPath
+		var absPath string
+		if isRoot {
+			absPath = "$GITHUB_WORKSPACE"
+		} else {
+			absPath = "$GITHUB_WORKSPACE/" + relPath
 		}
 
 		// Determine repo: use configured value or fall back to the triggering repository expression.
@@ -322,41 +324,40 @@ func buildCheckoutsPromptContent(checkouts []*CheckoutConfig) string {
 		if repo == "" {
 			repo = "${{ github.repository }}"
 		}
-		if cfg.Wiki {
-			if !strings.HasSuffix(repo, ".wiki") {
-				repo += ".wiki"
-			}
+		if cfg.Wiki && !strings.HasSuffix(repo, ".wiki") {
+			repo = repo + ".wiki"
 		}
 
-		line := fmt.Sprintf("  - repo `%s` → `%s`", repo, absPath)
+		var lb strings.Builder
+		fmt.Fprintf(&lb, "  - repo `%s` → `%s`", repo, absPath)
 		if isRoot {
-			line += " (cwd)"
+			lb.WriteString(" (cwd)")
 		}
 		if cfg.Wiki {
-			line += " (wiki)"
+			lb.WriteString(" (wiki)")
 		}
 		if cfg.Current {
-			line += " (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)"
+			lb.WriteString(" (**current** - this is the repository you are working on; use this as the target for all GitHub operations unless otherwise specified)")
 		}
 
 		// Annotate fetch-depth so the agent knows how much history is available
 		if cfg.FetchDepth != nil && *cfg.FetchDepth == 0 {
-			line += " [full history, all branches available as remote-tracking refs]"
+			lb.WriteString(" [full history, all branches available as remote-tracking refs]")
 		} else if cfg.FetchDepth != nil {
-			line += fmt.Sprintf(" [shallow clone, fetch-depth=%d]", *cfg.FetchDepth)
+			fmt.Fprintf(&lb, " [shallow clone, fetch-depth=%d]", *cfg.FetchDepth)
 		} else {
-			line += " [shallow clone, fetch-depth=1 (default)]"
+			lb.WriteString(" [shallow clone, fetch-depth=1 (default)]")
 		}
 
 		// Annotate additionally fetched refs
 		if len(cfg.Fetch) > 0 {
-			line += fmt.Sprintf(" [additional refs fetched: %s]", strings.Join(cfg.Fetch, ", "))
+			fmt.Fprintf(&lb, " [additional refs fetched: %s]", strings.Join(cfg.Fetch, ", "))
 		}
 		if strings.TrimSpace(cfg.SparseCheckout) != "" {
-			line += " [sparse checkout enabled]"
+			lb.WriteString(" [sparse checkout enabled]")
 		}
 
-		sb.WriteString(line + "\n")
+		sb.WriteString(lb.String() + "\n")
 	}
 
 	// General guidance about unavailable branches

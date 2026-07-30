@@ -337,7 +337,7 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 		}
 		prefixed := "          " + line
 		if !strings.HasSuffix(prefixed, "\n") {
-			prefixed += "\n"
+			prefixed = prefixed + "\n"
 		}
 		steps = append(steps, prefixed)
 	}

@@ -173,9 +173,9 @@ func printCompilationSummary(stats *CompilationStats, showAllErrors bool) {
 
 				header := fmt.Sprintf("%s (%d error(s)", filepath.Base(failure.Path), report.TotalCount)
 				if !showAllErrors && report.HiddenCount > 0 {
-					header += fmt.Sprintf(", showing top %d", len(report.DisplayedErrors))
+					header = header + fmt.Sprintf(", showing top %d", len(report.DisplayedErrors))
 				}
-				header += "):"
+				header = header + "):"
 				fmt.Fprintln(os.Stderr, console.FormatErrorMessage(header))
 
 				lastHeading := ""

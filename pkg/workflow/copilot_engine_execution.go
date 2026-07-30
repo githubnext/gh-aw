@@ -753,7 +753,7 @@ func buildEngineCommandScriptSetup(command string) string {
 	scriptContent := fmt.Sprintf("#!/usr/bin/env bash\nset +o histexpand\nset -eo pipefail\n%s \"$@\"\n", command)
 	heredocDelimiter := "GH_AW_ENGINE_COMMAND_EOF"
 	for strings.Contains(scriptContent, heredocDelimiter) {
-		heredocDelimiter += "_X"
+		heredocDelimiter = heredocDelimiter + "_X"
 	}
 
 	return fmt.Sprintf(`mkdir -p /tmp/gh-aw

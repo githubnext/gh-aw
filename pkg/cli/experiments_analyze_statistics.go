@@ -373,7 +373,7 @@ func printOneExperimentAnalysis(a ExperimentAnalysis) {
 	for _, v := range a.Variants {
 		progressStr := fmt.Sprintf("%d/%d", v.Count, v.MinSamples)
 		if v.BelowMinSamples {
-			progressStr += " ⚠"
+			progressStr = progressStr + " ⚠"
 		}
 		fmt.Fprintf(os.Stderr, "  %-20s %6d  %6.1f%%  %6.1f%%  %s\n",
 			v.Name, v.Count, v.ObservedPct, v.ExpectedPct, progressStr)

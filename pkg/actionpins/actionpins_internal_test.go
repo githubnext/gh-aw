@@ -168,15 +168,13 @@ func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 	})
 
 	t.Run("preserves existing warnings map", func(t *testing.T) {
-		// Build expected independently so a mutation to ctx.Warnings cannot silently
-		// satisfy the assertion (both sides would change if they shared a pointer).
-		expected := map[string]bool{"actions/checkout@v5": true}
 		ctx := &PinContext{Warnings: map[string]bool{"actions/checkout@v5": true}}
 
 		initWarnings(ctx)
 
 		require.NotNil(t, ctx.Warnings, "Expected warnings map to remain initialized")
-		assert.Equal(t, expected, ctx.Warnings, "Expected existing warnings to be preserved unchanged")
+		assert.Len(t, ctx.Warnings, 1, "Expected warnings map to have exactly one entry")
+		assert.True(t, ctx.Warnings["actions/checkout@v5"], "Expected existing warning key to be preserved")
 	})
 }
 

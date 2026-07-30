@@ -61,7 +61,7 @@ func (c *Compiler) validateStrictDeprecatedFields(frontmatter map[string]any) er
 		for _, field := range foundDeprecated {
 			message := fmt.Sprintf("Field '%s' is deprecated", field.Name)
 			if field.Replacement != "" {
-				message += fmt.Sprintf(". Use '%s' instead", field.Replacement)
+				message = message + fmt.Sprintf(". Use '%s' instead", field.Replacement)
 			}
 			errorMessages = append(errorMessages, message)
 		}

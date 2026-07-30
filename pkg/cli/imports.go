@@ -217,7 +217,7 @@ func processIncludesWithWorkflowSpec(content string, workflow *WorkflowSpec, com
 
 			// Add section if present
 			if sectionName != "" {
-				workflowSpec += "#" + sectionName
+				workflowSpec = workflowSpec + "#" + sectionName
 			}
 
 			// Write the updated @include directive (even for duplicate occurrences)
@@ -361,7 +361,7 @@ func processIncludesInContent(content string, workflow *WorkflowSpec, commitSHA 
 
 			// Add section if present
 			if sectionName != "" {
-				workflowSpec += "#" + sectionName
+				workflowSpec = workflowSpec + "#" + sectionName
 			}
 
 			// Write the updated import directive

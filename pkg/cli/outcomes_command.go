@@ -213,7 +213,7 @@ func RunOutcomes(config OutcomesConfig) error {
 		resultStr := string(r.Result)
 		detail := r.Detail
 		if detail != "" {
-			resultStr += " (" + detail + ")"
+			resultStr = resultStr + " (" + detail + ")"
 		}
 		numStr := ""
 		if r.ObjectNumber > 0 {

@@ -207,9 +207,9 @@ func renderViewSafeOutputs(runDir string) {
 	for _, item := range items {
 		line := "  " + item.Type
 		if item.URL != "" {
-			line += "  " + item.URL
+			line = line + "  " + item.URL
 		} else if item.Repo != "" && item.Number > 0 {
-			line += fmt.Sprintf("  %s#%d", item.Repo, item.Number)
+			line = line + fmt.Sprintf("  %s#%d", item.Repo, item.Number)
 		}
 		fmt.Fprintln(os.Stdout, line)
 	}
