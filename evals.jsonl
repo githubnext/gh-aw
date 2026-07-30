@@ -1,0 +1,2 @@
+{"id":"token_consumption_analyzed","question":"Did the agent analyze AI Credit consumption across agentic workflows using available telemetry?","answer":"YES","model":"small","timestamp":"2026-07-30T12:33:31.710Z","runid":"30542044632"}
+{"id":"consumption_report_created","question":"Did the agent create a report with token consumption trends and actionable observations?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-30T12:33:31.710Z","runid":"30542044632"}
