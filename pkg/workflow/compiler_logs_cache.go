@@ -34,21 +34,6 @@ func sharedLogsCacheRestoreSteps(data *WorkflowData) []GitHubActionStep {
 			"            agentic-logs-",
 			"          path: " + sharedLogsCachePath,
 		},
-		{
-			"      - name: Enforce shared agentic logs cache TTL",
-			"        shell: bash",
-			"        run: |",
-			"          marker=" + sharedLogsCachePath + "/.cache-refreshed-at",
-			"          if [ -d " + sharedLogsCachePath + " ] && [ ! -f \"$marker\" ]; then",
-			"            rm -rf " + sharedLogsCachePath,
-			"          elif [ -f \"$marker\" ]; then",
-			"            refreshed_at=$(cat \"$marker\")",
-			"            if ! refreshed_epoch=$(date -d \"$refreshed_at\" +%s 2>/dev/null) \\",
-			"              || [ \"$refreshed_epoch\" -lt \"$(date -u -d '2 days ago' +%s)\" ]; then",
-			"              rm -rf " + sharedLogsCachePath,
-			"            fi",
-			"          fi",
-		},
 	}
 }
 

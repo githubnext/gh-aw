@@ -538,19 +538,6 @@ jobs:
           restore-keys: |
             agentic-logs-
           path: .github/aw/logs
-      - name: Enforce shared agentic logs cache TTL
-        shell: bash
-        run: |
-          marker=.github/aw/logs/.cache-refreshed-at
-          if [ -d .github/aw/logs ] && [ ! -f "$marker" ]; then
-            rm -rf .github/aw/logs
-          elif [ -f "$marker" ]; then
-            refreshed_at=$(cat "$marker")
-            if ! refreshed_epoch=$(date -d "$refreshed_at" +%s 2>/dev/null) \
-              || [ "$refreshed_epoch" -lt "$(date -u -d '2 days ago' +%s)" ]; then
-              rm -rf .github/aw/logs
-            fi
-          fi
       - name: Configure Git credentials
         env:
           GITHUB_REPOSITORY: ${{ github.repository }}

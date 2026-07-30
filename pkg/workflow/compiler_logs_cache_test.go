@@ -57,8 +57,6 @@ func TestGenerateSharedLogsCacheRestoreSteps(t *testing.T) {
 	output := yaml.String()
 	assert.Contains(t, output, "actions/cache/restore@")
 	assert.Contains(t, output, "path: "+sharedLogsCachePath)
-	assert.Contains(t, output, "2 days ago")
-	assert.Contains(t, output, "[ ! -f \"$marker\" ]")
 	assert.NotContains(t, output, "actions/cache/save@")
 }
 
