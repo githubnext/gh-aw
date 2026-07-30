@@ -18,7 +18,7 @@ find "${GITHUB_WORKSPACE}" -name "SKILL.md" -maxdepth 6
 
 ## Frontmatter `skills:` (Preferred for External Skills)
 
-Declare external skills to install at activation time with the top-level `skills:` array.
+Declare skills to install at activation time with the top-level `skills:` array.
 The compiler emits the activation steps, prepares the required `gh` support, installs each skill, and wires it into the engine.
 Do **not** add manual `gh` setup or `gh skill install` steps for this.
 
@@ -26,6 +26,9 @@ Do **not** add manual `gh` setup or `gh skill install` steps for this.
 skills:
   # Shared auth via the workflow activation token
   - mattpocock/skills/tdd@801dca688564c529fa84f247f64472520d9ebe28
+
+  # Local skill path for development (installed with --from-local)
+  - .github/skills/my-skill
 
   # Per-skill token for a private skill repository
   - skill: mattpocock/skills/diagnosing-bugs@801dca688564c529fa84f247f64472520d9ebe28
@@ -39,6 +42,7 @@ skills:
 ```
 
 - Static references must be pinned to a full 40-character lowercase commit SHA; `${{ ... }}` expressions are allowed in the ref position and resolved at runtime.
+- Local paths (for example, `skills/my-skill` or `.github/skills/my-skill`) are supported for local development and are installed via `--from-local`.
 - Object entries set per-skill auth via `github-token` or `github-app`.
 - Use `skills:` for external skill installs and `imports:` for prompt/context files you want merged into the workflow.
 

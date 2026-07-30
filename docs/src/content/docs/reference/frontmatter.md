@@ -203,12 +203,12 @@ See [Tools](/gh-aw/reference/tools/) for complete documentation on built-in tool
 
 ### Frontmatter Skills (`skills:`)
 
-Installs external Copilot skills in the activation job before the agent runs.
-Each entry must be pinned to a 40-character lowercase commit SHA.
+Installs Copilot skills in the activation job before the agent runs.
 
 Supported entry formats:
 
 - String form (shared authentication):
+  - `skills/name` or `.github/skills/name` (local development path; installed with `--from-local`)
   - `owner/repo@<40-char-sha>`
   - `owner/repo/skill/path@<40-char-sha>`
 - Object form (per-skill authentication):
@@ -219,6 +219,7 @@ Supported entry formats:
 `github-token` and `github-app` are mutually exclusive for each object entry.
 `github-token` must be an expression such as `${{ secrets.NAME }}` or
 `${{ needs.auth.outputs.token }}`.
+Static external references must be pinned to a 40-character lowercase commit SHA.
 
 ```yaml wrap
 skills:

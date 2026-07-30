@@ -21,19 +21,42 @@ function parseSkillSpecs(rawSkills) {
  */
 
 /**
+ * Reports whether a skill spec is a local path reference — one that has no
+ * "@" separator and is not a GitHub Actions expression.  Local refs are
+ * installed with --from-local instead of fetching from a remote repository.
+ *
+ * @param {string} skillSpec
+ * @returns {boolean}
+ */
+function isLocalSkillRef(skillSpec) {
+  return skillSpec !== "" && !skillSpec.startsWith("${{") && !skillSpec.includes("@");
+}
+
+/**
  * @param {string} skillSpec
  * @param {string} skillsDst
  * @param {string} skillInstallAgent
  * @returns {SkillInstallCommand}
  */
 function buildSkillInstallCommand(skillSpec, skillsDst, skillInstallAgent = "") {
+  const agentArgs = skillInstallAgent ? ["--agent", skillInstallAgent] : [];
+
+  // Local path reference: install from the filesystem using --from-local.
+  // The skill name is derived from the last path component.
+  if (isLocalSkillRef(skillSpec)) {
+    const skillName = skillSpec.replace(/\\/g, "/").split("/").filter(Boolean).pop() || skillSpec;
+    return {
+      displaySpec: skillSpec,
+      args: ["skill", "install", skillSpec, skillName, "--from-local", ...agentArgs, "--dir", skillsDst, "--force"],
+    };
+  }
+
   const atIndex = skillSpec.lastIndexOf("@");
   const hasPin = atIndex >= 0;
   const skillBase = hasPin ? skillSpec.slice(0, atIndex) : skillSpec;
   const skillRef = hasPin ? skillSpec.slice(atIndex + 1) : "";
   const parts = skillBase.split("/");
   const pinArgs = skillRef ? ["--pin", skillRef] : [];
-  const agentArgs = skillInstallAgent ? ["--agent", skillInstallAgent] : [];
 
   if (parts.length >= 3) {
     return {
@@ -189,4 +212,4 @@ async function main() {
   await writeSkillSummary(skillDir, skills, installedSkillCount, failures);
 }
 
-module.exports = { main, parseSkillSpecs, buildSkillInstallCommand, countInstalledSkillFiles, appendSkillInstallFailure };
+module.exports = { main, parseSkillSpecs, buildSkillInstallCommand, isLocalSkillRef, countInstalledSkillFiles, appendSkillInstallFailure };
