@@ -17,7 +17,10 @@ sandbox:
   agent:
     sudo: false
 
-engine: claude
+engine:
+  id: claude
+  mcp:
+    tool-timeout: 10m
 safe-outputs:
   create-issue:
     expires: 2d
