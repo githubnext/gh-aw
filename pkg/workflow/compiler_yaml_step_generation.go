@@ -81,6 +81,55 @@ func (c *Compiler) generateCheckoutActionsFolder(data *WorkflowData) []string {
 	return nil
 }
 
+// generateCheckoutActionsFolderWithRetry generates checkout steps with retry/backoff.
+// It is intended for failure-sensitive paths (for example conclusion jobs) where a
+// transient checkout error should not cascade into misleading downstream failures.
+func (c *Compiler) generateCheckoutActionsFolderWithRetry(data *WorkflowData) []string {
+	base := c.generateCheckoutActionsFolder(data)
+	if len(base) == 0 {
+		return nil
+	}
+	if len(base) < 2 {
+		return base
+	}
+
+	baseBody := base[1:] // uses + with + options
+	buildAttempt := func(name, id, ifExpr string) []string {
+		lines := []string{
+			fmt.Sprintf("      - name: %s\n", name),
+			fmt.Sprintf("        id: %s\n", id),
+		}
+		if ifExpr != "" {
+			lines = append(lines, fmt.Sprintf("        if: %s\n", ifExpr))
+		}
+		lines = append(lines, "        continue-on-error: true\n")
+		lines = append(lines, baseBody...)
+		return lines
+	}
+
+	lines := buildAttempt("Checkout actions folder", "checkout-actions-folder-attempt-1", "")
+	lines = append(lines,
+		"      - name: Backoff before retrying checkout actions folder (5s)\n",
+		"        if: steps.checkout-actions-folder-attempt-1.outcome == 'failure'\n",
+		"        run: sleep 5\n",
+	)
+	lines = append(lines, buildAttempt("Checkout actions folder (retry 1)", "checkout-actions-folder-attempt-2", "steps.checkout-actions-folder-attempt-1.outcome == 'failure'")...)
+	lines = append(lines,
+		"      - name: Backoff before retrying checkout actions folder (15s)\n",
+		"        if: steps.checkout-actions-folder-attempt-2.outcome == 'failure'\n",
+		"        run: sleep 15\n",
+	)
+	lines = append(lines, buildAttempt("Checkout actions folder (retry 2)", "checkout-actions-folder-attempt-3", "steps.checkout-actions-folder-attempt-2.outcome == 'failure'")...)
+	lines = append(lines,
+		"      - name: Fail with clear checkout error after retries\n",
+		"        if: steps.checkout-actions-folder-attempt-3.outcome == 'failure'\n",
+		"        run: |\n",
+		"          echo \"::error::Failed to checkout github/gh-aw actions folder after 3 attempts (5s/15s backoff). This is usually a transient GitHub DNS or network failure.\"\n",
+		"          exit 1\n",
+	)
+	return lines
+}
+
 // generateRestoreActionsSetupStep generates a single "Restore actions folder" step that
 // re-checks out only the actions/setup subfolder from github/gh-aw. This is used in dev mode
 // after a job step has checked out a different repository (or a different git branch) and

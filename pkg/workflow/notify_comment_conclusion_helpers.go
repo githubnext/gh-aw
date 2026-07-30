@@ -22,8 +22,14 @@ func (c *Compiler) buildConclusionSetupSteps(data *WorkflowData) []string {
 	// Add setup step to copy scripts
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
-		// For dev mode (local action path), checkout the actions folder first
-		steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+		// For dev mode (local action path), checkout the actions folder first.
+		// PR Sous Chef conclusion has regressed on transient checkout failures:
+		// use retries here so they do not cascade into MODULE_NOT_FOUND errors.
+		if data != nil && data.WorkflowID == "pr-sous-chef" {
+			steps = append(steps, c.generateCheckoutActionsFolderWithRetry(data)...)
+		} else {
+			steps = append(steps, c.generateCheckoutActionsFolder(data)...)
+		}
 
 		// Notify comment job doesn't need project support
 		// Conclusion/notify job depends on activation, reuse its trace ID

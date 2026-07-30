@@ -1491,6 +1491,8 @@ jobs:
       total_count: ${{ steps.missing_tool.outputs.total_count }}
     steps:
       - name: Checkout actions folder
+        id: checkout-actions-folder-attempt-1
+        continue-on-error: true
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: github/gh-aw
@@ -1498,6 +1500,39 @@ jobs:
             actions
           clean: false
           persist-credentials: false
+      - name: Backoff before retrying checkout actions folder (5s)
+        if: steps.checkout-actions-folder-attempt-1.outcome == 'failure'
+        run: sleep 5
+      - name: Checkout actions folder (retry 1)
+        id: checkout-actions-folder-attempt-2
+        if: steps.checkout-actions-folder-attempt-1.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          clean: false
+          persist-credentials: false
+      - name: Backoff before retrying checkout actions folder (15s)
+        if: steps.checkout-actions-folder-attempt-2.outcome == 'failure'
+        run: sleep 15
+      - name: Checkout actions folder (retry 2)
+        id: checkout-actions-folder-attempt-3
+        if: steps.checkout-actions-folder-attempt-2.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: github/gh-aw
+          sparse-checkout: |
+            actions
+          clean: false
+          persist-credentials: false
+      - name: Fail with clear checkout error after retries
+        if: steps.checkout-actions-folder-attempt-3.outcome == 'failure'
+        run: |
+          echo "::error::Failed to checkout github/gh-aw actions folder after 3 attempts (5s/15s backoff). This is usually a transient GitHub DNS or network failure."
+          exit 1
       - name: Setup Scripts
         id: setup
         uses: ./actions/setup

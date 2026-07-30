@@ -396,6 +396,62 @@ func TestCheckoutActionsFolderDevModeAlwaysEmitsCheckout(t *testing.T) {
 	}
 }
 
+func TestCheckoutActionsFolderWithRetryDevMode(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+
+	lines := compiler.generateCheckoutActionsFolderWithRetry(nil)
+	combined := strings.Join(lines, "")
+
+	if !strings.Contains(combined, "id: checkout-actions-folder-attempt-1") {
+		t.Error("Expected first checkout attempt id in retry checkout step")
+	}
+	if !strings.Contains(combined, "id: checkout-actions-folder-attempt-2") {
+		t.Error("Expected second checkout attempt id in retry checkout step")
+	}
+	if !strings.Contains(combined, "id: checkout-actions-folder-attempt-3") {
+		t.Error("Expected third checkout attempt id in retry checkout step")
+	}
+	if !strings.Contains(combined, "Backoff before retrying checkout actions folder (5s)") {
+		t.Error("Expected 5s backoff step in retry checkout flow")
+	}
+	if !strings.Contains(combined, "Backoff before retrying checkout actions folder (15s)") {
+		t.Error("Expected 15s backoff step in retry checkout flow")
+	}
+	if !strings.Contains(combined, "Fail with clear checkout error after retries") {
+		t.Error("Expected explicit final checkout failure step")
+	}
+	if !strings.Contains(combined, "continue-on-error: true") {
+		t.Error("Expected checkout attempts to use continue-on-error: true")
+	}
+	if !strings.Contains(combined, "Failed to checkout github/gh-aw actions folder after 3 attempts") {
+		t.Error("Expected clear checkout failure error message after retries")
+	}
+}
+
+func TestConclusionSetupUsesRetryingCheckoutOnlyForPrSousChef(t *testing.T) {
+	compiler := NewCompiler(WithVersion("dev"))
+	compiler.SetActionMode(ActionModeDev)
+
+	sousChefSteps := strings.Join(compiler.buildConclusionSetupSteps(&WorkflowData{
+		Name:        "PR Sous Chef",
+		WorkflowID:  "pr-sous-chef",
+		SafeOutputs: &SafeOutputsConfig{},
+	}), "")
+	if !strings.Contains(sousChefSteps, "checkout-actions-folder-attempt-1") {
+		t.Error("Expected PR Sous Chef conclusion setup to include checkout retry steps")
+	}
+
+	otherSteps := strings.Join(compiler.buildConclusionSetupSteps(&WorkflowData{
+		Name:        "Other Workflow",
+		WorkflowID:  "other-workflow",
+		SafeOutputs: &SafeOutputsConfig{},
+	}), "")
+	if strings.Contains(otherSteps, "checkout-actions-folder-attempt-1") {
+		t.Error("Did not expect non-PR-Sous-Chef conclusion setup to include checkout retry steps")
+	}
+}
+
 // TestResolveSetupActionReferenceActionMode tests that action mode resolves to the external gh-aw-actions repo
 func TestResolveSetupActionReferenceActionMode(t *testing.T) {
 	ref := ResolveSetupActionReference(context.Background(), ActionModeAction, "v1.2.3", "", nil)
