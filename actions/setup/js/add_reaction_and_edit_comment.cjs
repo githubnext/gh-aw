@@ -6,23 +6,10 @@ const { getErrorMessage, isLockedError } = require("./error_helpers.cjs");
 const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
-const { buildWorkflowRunUrl } = require("./workflow_metadata_helpers.cjs");
+const { buildWorkflowRunUrl, EVENT_TYPE_DESCRIPTIONS } = require("./workflow_metadata_helpers.cjs");
 const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { addReaction, addDiscussionReaction, getDiscussionNodeId, REACTION_MAP } = require("./add_reaction.cjs");
-
-/**
- * Event type descriptions for comment messages
- * @type {Record<string, string>}
- */
-const EVENT_TYPE_DESCRIPTIONS = {
-  issues: "issue",
-  pull_request: "pull request",
-  issue_comment: "issue comment",
-  pull_request_review_comment: "pull request review comment",
-  discussion: "discussion",
-  discussion_comment: "discussion comment",
-};
 
 /** Valid GitHub reaction types */
 const VALID_REACTIONS = Object.freeze(Object.keys(REACTION_MAP));
