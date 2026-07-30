@@ -735,6 +735,196 @@ describe("git_helpers.cjs", () => {
     });
   });
 
+  describe("hasMergeCommitsInRange", () => {
+    let tmpRepo;
+
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+
+      tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "git-helpers-hasMerge-"));
+      const g = args => spawnSync("git", args, { cwd: tmpRepo, encoding: "utf8" });
+      g(["init", "-b", "main"]);
+      g(["config", "user.name", "Test"]);
+      g(["config", "user.email", "test@test.com"]);
+      fs.writeFileSync(path.join(tmpRepo, "a.txt"), "a\n");
+      g(["add", "a.txt"]);
+      g(["commit", "-m", "initial"]);
+    });
+
+    afterEach(() => {
+      const fs = require("fs");
+      if (tmpRepo) {
+        fs.rmSync(tmpRepo, { recursive: true, force: true });
+        tmpRepo = null;
+      }
+    });
+
+    it("should return false for empty or missing baseRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("", "HEAD")).toBe(false);
+      expect(hasMergeCommitsInRange(null, "HEAD")).toBe(false);
+      expect(hasMergeCommitsInRange(undefined, "HEAD")).toBe(false);
+    });
+
+    it("should return false for empty or missing headRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("origin/main", "")).toBe(false);
+      expect(hasMergeCommitsInRange("origin/main", null)).toBe(false);
+      expect(hasMergeCommitsInRange("origin/main", undefined)).toBe(false);
+    });
+
+    it("should return false when git command fails (unreachable refs or bad cwd)", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      // Non-existent cwd causes spawnSync to fail; the function should return false
+      // (detection failure → safe default = no merge commits).
+      const result = hasMergeCommitsInRange("origin/main", "HEAD", { cwd: "/nonexistent/path/that/does/not/exist" });
+      expect(result).toBe(false);
+    });
+
+    it("should return false when range has no merge commits", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      // Add a plain (non-merge) commit
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "plain commit"], { cwd: tmpRepo, encoding: "utf8" });
+
+      expect(hasMergeCommitsInRange(baseSha, "HEAD", { cwd: tmpRepo })).toBe(false);
+    });
+
+    it("should return true when range contains a merge commit", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      // Create a side branch and merge it back (creates merge commit on main)
+      spawnSync("git", ["checkout", "-b", "side", baseSha], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "c.txt"), "c\n");
+      spawnSync("git", ["add", "c.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "side commit"], { cwd: tmpRepo, encoding: "utf8" });
+      spawnSync("git", ["checkout", "main"], { cwd: tmpRepo });
+      spawnSync("git", ["merge", "--no-ff", "side", "-m", "Merge side"], { cwd: tmpRepo, encoding: "utf8" });
+
+      expect(hasMergeCommitsInRange(baseSha, "HEAD", { cwd: tmpRepo })).toBe(true);
+    });
+  });
+
+  describe("getBundlePrerequisites", () => {
+    const PREREQ_SHA = "172f87a830f57a29470efe7646d141069434a893";
+    const ANOTHER_SHA = "aabbccddee1122334455667788990011aabbccdd";
+
+    it("should be exported from git_helpers.cjs", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      expect(typeof getBundlePrerequisites).toBe("function");
+    });
+
+    it("should return single prerequisite SHA from bundle verify output", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: `The bundle requires this ref:\n        ${PREREQ_SHA} \nThe bundle contains this ref:\n`,
+          stderr: "",
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([PREREQ_SHA]);
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], { ignoreReturnCode: true, silent: true });
+    });
+
+    it("should return multiple prerequisite SHAs when bundle has several", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: `The bundle requires these refs:\n        ${PREREQ_SHA} \n        ${ANOTHER_SHA} \nThe bundle contains these refs:\n`,
+          stderr: "",
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toContain(PREREQ_SHA);
+      expect(result).toContain(ANOTHER_SHA);
+      expect(result).toHaveLength(2);
+    });
+
+    it("should return empty array when bundle has no prerequisites (self-contained)", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: "The bundle contains this ref:\n        abcdef1234567890abcdef1234567890abcdef12 refs/heads/main\n",
+          stderr: "",
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should return empty array and not throw when git bundle verify fails", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockRejectedValue(new Error("not a bundle file")),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/not-a-bundle");
+
+      expect(result).toEqual([]);
+    });
+
+    it("should pick up prerequisites from 'Repository lacks these prerequisite commits' block in stderr", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: "",
+          stderr: `error: Repository lacks these prerequisite commits:\nerror: ${PREREQ_SHA}`,
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([PREREQ_SHA]);
+    });
+
+    it("should deduplicate SHAs that appear in both verify output sections", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({
+          stdout: `The bundle requires this ref:\n        ${PREREQ_SHA} \n`,
+          stderr: `error: Repository lacks these prerequisite commits:\nerror: ${PREREQ_SHA}`,
+        }),
+      };
+
+      const result = await getBundlePrerequisites(execApi, "/tmp/test.bundle");
+
+      expect(result).toEqual([PREREQ_SHA]);
+    });
+
+    it("should pass additional options to getExecOutput", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const execApi = {
+        getExecOutput: vi.fn().mockResolvedValue({ stdout: "", stderr: "" }),
+      };
+      const options = { cwd: "/repo" };
+
+      await getBundlePrerequisites(execApi, "/tmp/test.bundle", options);
+
+      expect(execApi.getExecOutput).toHaveBeenCalledWith("git", ["bundle", "verify", "/tmp/test.bundle"], { cwd: "/repo", ignoreReturnCode: true, silent: true });
+    });
+  });
+
   describe("linearizeRangeAsCommit", () => {
     const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
@@ -909,6 +1099,825 @@ describe("git_helpers.cjs", () => {
       const err = await linearizeRangeAsCommit("origin/main", "msg", execApi).catch(e => e);
 
       expect(err.cause).toBe(cause);
+    });
+
+    it("should throw before any git state change when commit range is implausibly large in a shallow checkout", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            // Simulate a shallow checkout returning 61000 commits in the range
+            return Promise.resolve({ stdout: "61000\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "true\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi)).rejects.toThrow(/Refusing to linearize an implausible commit range/);
+
+      // No git state mutation should have occurred
+      expect(execApi.exec).not.toHaveBeenCalled();
+    });
+
+    it("should include the commit count and base ref in the implausible range error message", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.resolve({ stdout: "500\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "true\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      const err = await linearizeRangeAsCommit("origin/feature", "msg", execApi).catch(e => e);
+
+      expect(err.message).toMatch(/500/);
+      expect(err.message).toMatch(/origin\/feature/);
+      expect(err.message).toMatch(/fetch-depth/);
+    });
+
+    it("should not throw when commit range is large but repo is not shallow", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.resolve({ stdout: "500\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "false\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should not throw when commit range count is within the default threshold", async () => {
+      const { linearizeRangeAsCommit, SHALLOW_RANGE_MAX_COMMITS } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            // Exactly at threshold — not implausible
+            return Promise.resolve({ stdout: `${SHALLOW_RANGE_MAX_COMMITS}\n` });
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should proceed normally when the rev-list count command fails", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.reject(new Error("rev-list failed"));
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      // A rev-list failure should be non-fatal — linearization proceeds normally
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should proceed normally when the shallow probe fails in the guard", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const ORIGINAL_HEAD = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+      const NEW_HEAD = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+      let headCallCount = 0;
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            // Large count to trigger shallow probe
+            return Promise.resolve({ stdout: "500\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            // Shallow probe fails
+            return Promise.reject(new Error("not a git repo"));
+          }
+          if (args[0] === "rev-parse" && args[1] === "HEAD") {
+            headCallCount += 1;
+            return Promise.resolve({ stdout: headCallCount === 1 ? `${ORIGINAL_HEAD}\n` : `${NEW_HEAD}\n` });
+          }
+          if (args[0] === "diff" && args[1] === "--cached") {
+            return Promise.resolve({ stdout: "README.md\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      // Shallow probe failure is non-fatal — linearization proceeds normally
+      const result = await linearizeRangeAsCommit("origin/main", "msg", execApi);
+      expect(result).toBe(NEW_HEAD);
+    });
+
+    it("should respect a custom maxCommits threshold via opts", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+
+      const execApi = {
+        getExecOutput: vi.fn().mockImplementation((_cmd, args) => {
+          if (args[0] === "rev-list" && args[1] === "--count") {
+            return Promise.resolve({ stdout: "10\n" });
+          }
+          if (args[0] === "rev-parse" && args[1] === "--is-shallow-repository") {
+            return Promise.resolve({ stdout: "true\n" });
+          }
+          return Promise.resolve({ stdout: "" });
+        }),
+        exec: vi.fn().mockResolvedValue(0),
+      };
+
+      // maxCommits: 5 means 10 commits is implausible for a shallow repo
+      await expect(linearizeRangeAsCommit("origin/main", "msg", execApi, { maxCommits: 5 })).rejects.toThrow(/Refusing to linearize an implausible commit range/);
+      expect(execApi.exec).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("checkImplausibleShallowRange", () => {
+    it("should return implausible:false and commitCount:0 for empty baseRef", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      expect(checkImplausibleShallowRange("", "HEAD")).toEqual({ implausible: false, commitCount: 0 });
+    });
+
+    it("should return implausible:false and commitCount:0 for empty headRef", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      expect(checkImplausibleShallowRange("origin/main", "")).toEqual({ implausible: false, commitCount: 0 });
+    });
+
+    it("should return implausible:false when git rev-list fails (non-existent refs)", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      // Using a clearly non-existent ref so git fails
+      const result = checkImplausibleShallowRange("refs/nonexistent/base", "refs/nonexistent/head");
+      expect(result.implausible).toBe(false);
+      expect(result.commitCount).toBe(0);
+    });
+
+    it("should return implausible:false for a small commit range (integration)", async () => {
+      const { checkImplausibleShallowRange } = await import("./git_helpers.cjs");
+      // The test environment is a non-shallow full clone; HEAD..HEAD has 0 commits
+      const result = checkImplausibleShallowRange("HEAD", "HEAD");
+      expect(result.implausible).toBe(false);
+    });
+
+    it("should export SHALLOW_RANGE_MAX_COMMITS as a positive number", async () => {
+      const { SHALLOW_RANGE_MAX_COMMITS } = await import("./git_helpers.cjs");
+      expect(typeof SHALLOW_RANGE_MAX_COMMITS).toBe("number");
+      expect(SHALLOW_RANGE_MAX_COMMITS).toBeGreaterThan(0);
+    });
+
+    it("should respect the shallow status of the current repo when range exceeds threshold", async () => {
+      const { checkImplausibleShallowRange, execGitSync } = await import("./git_helpers.cjs");
+      // Use maxCommits:0 to force the shallow probe to run even on a 1-commit range —
+      // this exercises the --is-shallow-repository branch regardless of environment.
+      // The expected implausible flag depends on whether the current clone is shallow.
+      let isShallow = false;
+      try {
+        isShallow = execGitSync(["rev-parse", "--is-shallow-repository"], { suppressLogs: true }).trim() === "true";
+      } catch {
+        // If the shallow probe fails, treat as non-shallow for this test
+      }
+      // HEAD^ may not be reachable in a depth-1 shallow clone (e.g. PR checkout with
+      // fetch-depth: 1).  checkImplausibleShallowRange swallows the git error and
+      // returns {commitCount: 0} rather than throwing, so we pre-validate here and
+      // skip instead of asserting on a zero count.
+      try {
+        execGitSync(["rev-parse", "--verify", "HEAD^"], { suppressLogs: true });
+      } catch {
+        return; // HEAD^ unreachable in this environment — skip
+      }
+      const result = checkImplausibleShallowRange("HEAD^", "HEAD", { maxCommits: 0 });
+      // Count is >0 (above threshold of 0); implausible iff the clone is shallow
+      expect(result.commitCount).toBeGreaterThan(0);
+      expect(result.implausible).toBe(isShallow);
+    });
+  });
+
+  describe("hasMergeCommitsInRange", () => {
+    it("should return false for empty baseRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("", "HEAD")).toBe(false);
+    });
+
+    it("should return false for empty headRef", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      expect(hasMergeCommitsInRange("origin/main", "")).toBe(false);
+    });
+
+    it("should return false when git rev-list fails (non-existent refs)", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      const result = hasMergeCommitsInRange("refs/nonexistent/base", "refs/nonexistent/head");
+      expect(result).toBe(false);
+    });
+
+    it("should return false for HEAD..HEAD (empty range, no merge commits)", async () => {
+      const { hasMergeCommitsInRange } = await import("./git_helpers.cjs");
+      // HEAD..HEAD is an empty range; merges --count returns 0
+      const result = hasMergeCommitsInRange("HEAD", "HEAD");
+      expect(result).toBe(false);
+    });
+
+    it("should respect the shallow status of the current repo when range exceeds threshold", async () => {
+      const { hasMergeCommitsInRange, execGitSync } = await import("./git_helpers.cjs");
+      // maxCommits:0 forces the shallow probe for a 1-commit range.
+      // In a shallow clone the range is implausible → returns false (no false-positive merges).
+      // In a full clone the range is not implausible → proceeds to check for merges
+      // (HEAD^..HEAD has no merge commits → still returns false).
+      let isShallow = false;
+      try {
+        isShallow = execGitSync(["rev-parse", "--is-shallow-repository"], { suppressLogs: true }).trim() === "true";
+      } catch {
+        // treat as non-shallow
+      }
+      let result;
+      try {
+        result = hasMergeCommitsInRange("HEAD^", "HEAD", { maxCommits: 0 });
+      } catch {
+        // If HEAD^ does not exist (initial commit), skip
+        return;
+      }
+      // Either path (shallow→early false, or non-shallow→no merge commits found→false)
+      // yields false for a linear single-commit range.
+      expect(result).toBe(false);
+      void isShallow; // used above to document expected behavior
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Integration tests — real temporary git repositories
+// ---------------------------------------------------------------------------
+
+import { execSync, spawnSync } from "child_process";
+import * as fs from "fs";
+import * as path from "path";
+import * as os from "os";
+import { createRequire } from "module";
+
+const requireLocal = createRequire(import.meta.url);
+
+/**
+ * Build a minimal execApi shim backed by real child_process calls so that
+ * `linearizeRangeAsCommit` can be exercised end-to-end against a real repo.
+ */
+function makeRealExecApi(defaultCwd) {
+  return {
+    async exec(cmd, args, opts = {}) {
+      const cwd = opts.cwd || defaultCwd;
+      const result = spawnSync(cmd, args, { cwd, stdio: "pipe", encoding: "utf8" });
+      if (result.status !== 0) {
+        throw new Error(`${cmd} ${args.join(" ")} exited ${result.status}: ${result.stderr || result.stdout}`);
+      }
+      return { exitCode: 0 };
+    },
+    async getExecOutput(cmd, args, opts = {}) {
+      const cwd = opts.cwd || defaultCwd;
+      const result = spawnSync(cmd, args, { cwd, stdio: "pipe", encoding: "utf8" });
+      if (result.status !== 0 && !opts.ignoreReturnCode) {
+        throw new Error(`${cmd} ${args.join(" ")} exited ${result.status}: ${result.stderr || result.stdout}`);
+      }
+      return {
+        stdout: result.stdout || "",
+        stderr: result.stderr || "",
+        exitCode: result.status || 0,
+      };
+    },
+  };
+}
+
+/**
+ * Write a file and commit it in a given repo directory.
+ */
+function addCommit(repoDir, filename, content, message) {
+  fs.writeFileSync(path.join(repoDir, filename), content);
+  execSync(`git add ${filename}`, { cwd: repoDir, stdio: "pipe" });
+  execSync(`git commit -m "${message}"`, { cwd: repoDir, stdio: "pipe" });
+}
+
+describe("git_helpers.cjs - integration (real git repo)", () => {
+  let repoDir;
+  let remoteDir;
+
+  beforeEach(() => {
+    // Provide a no-op core stub (warning spy is added per-test as needed).
+    global.core = {
+      debug: () => {},
+      info: () => {},
+      warning: vi.fn(),
+      error: () => {},
+      setFailed: () => {},
+    };
+
+    // Bare remote.
+    remoteDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-remote-"));
+    execSync("git init --bare -b main", { cwd: remoteDir, stdio: "pipe" });
+
+    // Working repo wired to the bare remote.
+    repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-repo-"));
+    execSync("git init -b main", { cwd: repoDir, stdio: "pipe" });
+    execSync('git config user.email "test@example.com"', { cwd: repoDir, stdio: "pipe" });
+    execSync('git config user.name "Test User"', { cwd: repoDir, stdio: "pipe" });
+    execSync(`git remote add origin ${remoteDir}`, { cwd: repoDir, stdio: "pipe" });
+
+    // Initial commit on main then push so origin/main exists.
+    addCommit(repoDir, "README.md", "# Init\n", "init");
+    execSync("git push origin main", { cwd: repoDir, stdio: "pipe" });
+  });
+
+  afterEach(() => {
+    delete global.core;
+    if (repoDir && fs.existsSync(repoDir)) fs.rmSync(repoDir, { recursive: true, force: true });
+    if (remoteDir && fs.existsSync(remoteDir)) fs.rmSync(remoteDir, { recursive: true, force: true });
+    // Clear module cache so each test group gets a fresh import.
+    delete requireLocal.cache[requireLocal.resolve("./git_helpers.cjs")];
+  });
+
+  // -------------------------------------------------------------------------
+  describe("checkImplausibleShallowRange - real repos", () => {
+    it("returns implausible:false and the correct count for a small range in a full clone", async () => {
+      const { checkImplausibleShallowRange } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "a.txt", "A\n", "add a");
+      addCommit(repoDir, "b.txt", "B\n", "add b");
+      addCommit(repoDir, "c.txt", "C\n", "add c");
+
+      const result = checkImplausibleShallowRange("origin/main", "HEAD", { cwd: repoDir });
+      expect(result.implausible).toBe(false);
+      expect(result.commitCount).toBe(3);
+    });
+
+    it("returns implausible:false for a large range in a non-shallow clone", async () => {
+      const { checkImplausibleShallowRange } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature", { cwd: repoDir, stdio: "pipe" });
+      // Add 150 commits — above the default SHALLOW_RANGE_MAX_COMMITS (100).
+      for (let i = 1; i <= 150; i++) {
+        addCommit(repoDir, `f${i}.txt`, `${i}\n`, `commit ${i}`);
+      }
+
+      const result = checkImplausibleShallowRange("origin/main", "HEAD", { cwd: repoDir });
+      // Full clone → never implausible regardless of range size.
+      expect(result.implausible).toBe(false);
+      expect(result.commitCount).toBeGreaterThan(100);
+    });
+
+    it("returns implausible:true for a shallow clone when range exceeds threshold", async () => {
+      const shallowDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-shallow-"));
+      try {
+        // Use file:// so that --depth is honoured even for local repositories.
+        execSync(`git clone --depth=1 --branch main "file://${remoteDir}" ${shallowDir}`, { stdio: "pipe" });
+        execSync('git config user.email "test@example.com"', { cwd: shallowDir, stdio: "pipe" });
+        execSync('git config user.name "Test User"', { cwd: shallowDir, stdio: "pipe" });
+
+        // Add one commit on top so the range origin/main..HEAD is non-empty.
+        addCommit(shallowDir, "extra.txt", "extra\n", "local change");
+
+        const { checkImplausibleShallowRange } = requireLocal("./git_helpers.cjs");
+        // maxCommits:0 means any non-empty range is implausible — ensures the
+        // shallow probe runs even with a single-commit range.
+        const result = checkImplausibleShallowRange("origin/main", "HEAD", { cwd: shallowDir, maxCommits: 0 });
+        expect(result.implausible).toBe(true);
+        expect(result.commitCount).toBeGreaterThan(0);
+        expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Shallow checkout produced an implausible commit range"));
+      } finally {
+        fs.rmSync(shallowDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("hasMergeCommitsInRange - real repos", () => {
+    it("returns false for a linear range with no merge commits", async () => {
+      const { hasMergeCommitsInRange } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b linear-feature", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "x.txt", "x\n", "add x");
+      addCommit(repoDir, "y.txt", "y\n", "add y");
+
+      expect(hasMergeCommitsInRange("origin/main", "HEAD", { cwd: repoDir })).toBe(false);
+    });
+
+    it("returns true when the range contains a merge commit", async () => {
+      const { hasMergeCommitsInRange } = requireLocal("./git_helpers.cjs");
+
+      // Create a side branch diverging from main.
+      execSync("git checkout -b side", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "side.txt", "side\n", "side commit");
+
+      // Add a commit on main to ensure divergence, then merge side with --no-ff.
+      execSync("git checkout main", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "main-extra.txt", "extra\n", "main commit");
+      execSync("git push origin main", { cwd: repoDir, stdio: "pipe" });
+      execSync('git merge side --no-ff -m "merge side"', { cwd: repoDir, stdio: "pipe" });
+
+      expect(hasMergeCommitsInRange("origin/main", "HEAD", { cwd: repoDir })).toBe(true);
+    });
+
+    it("returns false for a shallow clone with a range that exceeds the threshold", async () => {
+      const shallowDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-shallow-merge-"));
+      try {
+        // Use file:// so that --depth is honoured even for local repositories.
+        execSync(`git clone --depth=1 --branch main "file://${remoteDir}" ${shallowDir}`, { stdio: "pipe" });
+        execSync('git config user.email "test@example.com"', { cwd: shallowDir, stdio: "pipe" });
+        execSync('git config user.name "Test User"', { cwd: shallowDir, stdio: "pipe" });
+        addCommit(shallowDir, "local.txt", "local\n", "local change");
+
+        const { hasMergeCommitsInRange } = requireLocal("./git_helpers.cjs");
+        // maxCommits:0 forces the implausible-range guard to fire for any non-empty range.
+        const result = hasMergeCommitsInRange("origin/main", "HEAD", { cwd: shallowDir, maxCommits: 0 });
+        // Guard fires → returns false rather than a phantom merge-commit detection.
+        expect(result).toBe(false);
+      } finally {
+        fs.rmSync(shallowDir, { recursive: true, force: true });
+      }
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe("linearizeRangeAsCommit - real repos", () => {
+    it("collapses multiple feature commits into a single commit on top of origin/main", async () => {
+      const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "p.txt", "P\n", "add p");
+      addCommit(repoDir, "q.txt", "Q\n", "add q");
+      addCommit(repoDir, "r.txt", "R\n", "add r");
+
+      const execApi = makeRealExecApi(repoDir);
+      const gitOpts = { cwd: repoDir };
+
+      const newSha = await linearizeRangeAsCommit("origin/main", "Squash: p q r", execApi, { gitOpts });
+
+      // Must return a 40-hex SHA.
+      expect(newSha).toMatch(/^[0-9a-f]{40}$/);
+
+      // Exactly one commit on top of origin/main after linearization.
+      const countOut = spawnSync("git", ["rev-list", "--count", "origin/main..HEAD"], { cwd: repoDir, encoding: "utf8" });
+      expect(countOut.stdout.trim()).toBe("1");
+
+      // The commit message must match what was supplied.
+      const msgOut = spawnSync("git", ["log", "-1", "--format=%s"], { cwd: repoDir, encoding: "utf8" });
+      expect(msgOut.stdout.trim()).toBe("Squash: p q r");
+
+      // All three files from the feature branch must be present.
+      expect(fs.existsSync(path.join(repoDir, "p.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(repoDir, "q.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(repoDir, "r.txt"))).toBe(true);
+    });
+
+    it("throws before any git state mutation for a shallow+implausible range", async () => {
+      const shallowDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-shallow-lin-"));
+      try {
+        // Use file:// so that --depth is honoured even for local repositories.
+        execSync(`git clone --depth=1 --branch main "file://${remoteDir}" ${shallowDir}`, { stdio: "pipe" });
+        execSync('git config user.email "test@example.com"', { cwd: shallowDir, stdio: "pipe" });
+        execSync('git config user.name "Test User"', { cwd: shallowDir, stdio: "pipe" });
+        addCommit(shallowDir, "local.txt", "local\n", "local change");
+
+        const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+        const execApi = makeRealExecApi(shallowDir);
+        const gitOpts = { cwd: shallowDir };
+
+        const headBefore = spawnSync("git", ["rev-parse", "HEAD"], { cwd: shallowDir, encoding: "utf8" }).stdout.trim();
+
+        // maxCommits:0 ensures the guard triggers for any non-empty range.
+        await expect(linearizeRangeAsCommit("origin/main", "Should not commit", execApi, { gitOpts, maxCommits: 0 })).rejects.toThrow(/Refusing to linearize an implausible commit range/);
+
+        // HEAD must be unchanged — the guard fires before any reset.
+        const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: shallowDir, encoding: "utf8" }).stdout.trim();
+        expect(headAfter).toBe(headBefore);
+      } finally {
+        fs.rmSync(shallowDir, { recursive: true, force: true });
+      }
+    });
+
+    it("restores original HEAD when the commit step fails", async () => {
+      const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+
+      execSync("git checkout -b feature-fail", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "s.txt", "S\n", "add s");
+
+      const headBefore = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+
+      // A broken execApi whose commit call always fails.
+      const brokenApi = {
+        async exec(cmd, args, opts) {
+          if (args[0] === "reset") {
+            // Allow the soft reset so the index changes.
+            return makeRealExecApi(repoDir).exec(cmd, args, opts);
+          }
+          throw new Error("commit failed intentionally");
+        },
+        async getExecOutput(cmd, args, opts) {
+          return makeRealExecApi(repoDir).getExecOutput(cmd, args, opts);
+        },
+      };
+
+      await expect(linearizeRangeAsCommit("origin/main", "Should fail", brokenApi, { gitOpts: { cwd: repoDir } })).rejects.toThrow(/Failed to linearize/);
+
+      // HEAD must be rolled back to what it was before the attempt.
+      const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+      expect(headAfter).toBe(headBefore);
+    });
+  });
+
+  describe("getBundlePrerequisites (integration with real git)", () => {
+    let tmpRepo;
+
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+
+      tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "git-helpers-bundle-prereqs-"));
+      const g = args => spawnSync("git", args, { cwd: tmpRepo, encoding: "utf8" });
+      g(["init", "-b", "main"]);
+      g(["config", "user.name", "Test"]);
+      g(["config", "user.email", "test@test.com"]);
+      fs.writeFileSync(path.join(tmpRepo, "a.txt"), "a\n");
+      g(["add", "a.txt"]);
+      g(["commit", "-m", "initial"]);
+    });
+
+    afterEach(() => {
+      const fs = require("fs");
+      if (tmpRepo) {
+        fs.rmSync(tmpRepo, { recursive: true, force: true });
+        tmpRepo = null;
+      }
+    });
+
+    function makeExecApi() {
+      const { spawnSync } = require("child_process");
+      return {
+        async getExecOutput(command, args, options = {}) {
+          const result = spawnSync(command, args, { encoding: "utf8" });
+          if (result.status !== 0 && !options.ignoreReturnCode) {
+            throw new Error(result.stderr || result.stdout);
+          }
+          return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+        },
+      };
+    }
+
+    it("extracts the prerequisite SHA from a real incremental bundle", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+      const os = require("os");
+
+      // baseSha will become the bundle's prerequisite
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      spawnSync("git", ["checkout", "-b", "feature"], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "feature commit"], { cwd: tmpRepo });
+
+      // Incremental bundle: baseSha..HEAD — git records baseSha as a prerequisite
+      const bundlePath = path.join(os.tmpdir(), `git-helpers-prereqs-incr-${Date.now()}.bundle`);
+      try {
+        spawnSync("git", ["bundle", "create", bundlePath, `${baseSha}..HEAD`], { cwd: tmpRepo });
+
+        const prereqs = await getBundlePrerequisites(makeExecApi(), bundlePath);
+
+        expect(prereqs).toHaveLength(1);
+        expect(prereqs[0]).toBe(baseSha);
+      } finally {
+        if (fs.existsSync(bundlePath)) fs.unlinkSync(bundlePath);
+      }
+    });
+
+    it("extracts prerequisites from a bundle created with a named range", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+      const os = require("os");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      // Two commits on top of baseSha
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit b"], { cwd: tmpRepo });
+      fs.writeFileSync(path.join(tmpRepo, "c.txt"), "c\n");
+      spawnSync("git", ["add", "c.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit c"], { cwd: tmpRepo });
+
+      const bundlePath = path.join(os.tmpdir(), `git-helpers-prereqs-range-${Date.now()}.bundle`);
+      try {
+        spawnSync("git", ["bundle", "create", bundlePath, `${baseSha}..HEAD`], { cwd: tmpRepo });
+
+        const prereqs = await getBundlePrerequisites(makeExecApi(), bundlePath);
+
+        // The bundle must declare baseSha as its single prerequisite regardless
+        // of how many commits the bundle contains.
+        expect(prereqs).toHaveLength(1);
+        expect(prereqs[0]).toBe(baseSha);
+      } finally {
+        if (fs.existsSync(bundlePath)) fs.unlinkSync(bundlePath);
+      }
+    });
+
+    it("returns empty array for a self-contained bundle with no prerequisites", async () => {
+      const { getBundlePrerequisites } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+      const os = require("os");
+
+      // Bundle the full history from the root — no prerequisites needed
+      const bundlePath = path.join(os.tmpdir(), `git-helpers-prereqs-full-${Date.now()}.bundle`);
+      try {
+        spawnSync("git", ["bundle", "create", bundlePath, "--all"], { cwd: tmpRepo });
+
+        const prereqs = await getBundlePrerequisites(makeExecApi(), bundlePath);
+
+        expect(prereqs).toEqual([]);
+      } finally {
+        if (fs.existsSync(bundlePath)) fs.unlinkSync(bundlePath);
+      }
+    });
+  });
+
+  describe("linearizeRangeAsCommit (integration with real git)", () => {
+    let tmpRepo;
+
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      const os = require("os");
+      const path = require("path");
+      const fs = require("fs");
+
+      tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), "git-helpers-linearize-"));
+      const g = args => spawnSync("git", args, { cwd: tmpRepo, encoding: "utf8" });
+      g(["init", "-b", "main"]);
+      g(["config", "user.name", "Test"]);
+      g(["config", "user.email", "test@test.com"]);
+      fs.writeFileSync(path.join(tmpRepo, "a.txt"), "a\n");
+      g(["add", "a.txt"]);
+      g(["commit", "-m", "initial"]);
+    });
+
+    afterEach(() => {
+      const fs = require("fs");
+      if (tmpRepo) {
+        fs.rmSync(tmpRepo, { recursive: true, force: true });
+        tmpRepo = null;
+      }
+    });
+
+    function makeRealExecApi(cwd) {
+      const { spawnSync } = require("child_process");
+      return {
+        async exec(command, args = []) {
+          const result = spawnSync(command, args, { cwd, encoding: "utf8" });
+          if (result.status !== 0) throw new Error(result.stderr || result.stdout);
+          return result.status;
+        },
+        async getExecOutput(command, args = [], opts = {}) {
+          const result = spawnSync(command, args, { cwd, encoding: "utf8" });
+          if (result.status !== 0 && !opts.ignoreReturnCode) {
+            throw new Error(result.stderr || result.stdout);
+          }
+          return { exitCode: result.status, stdout: result.stdout, stderr: result.stderr };
+        },
+      };
+    }
+
+    it("collapses multiple commits into a single commit on top of baseSha", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit b"], { cwd: tmpRepo });
+
+      fs.writeFileSync(path.join(tmpRepo, "c.txt"), "c\n");
+      spawnSync("git", ["add", "c.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit c"], { cwd: tmpRepo });
+
+      const newSha = await linearizeRangeAsCommit(baseSha, "Squash: b and c", makeRealExecApi(tmpRepo));
+
+      const actualHead = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      expect(newSha).toBe(actualHead);
+
+      // Exactly one commit above baseSha
+      const commitCount = Number(spawnSync("git", ["rev-list", "--count", `${baseSha}..HEAD`], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim());
+      expect(commitCount).toBe(1);
+
+      // Parent of new HEAD is the original baseSha
+      const parentSha = spawnSync("git", ["rev-parse", "HEAD^"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      expect(parentSha).toBe(baseSha);
+
+      // Both files are present in the working tree
+      expect(fs.existsSync(path.join(tmpRepo, "b.txt"))).toBe(true);
+      expect(fs.existsSync(path.join(tmpRepo, "c.txt"))).toBe(true);
+    });
+
+    it("preserves the working tree contents of the agent's last commit after linearization", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      const baseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      // Simulate agent creating a file, then modifying it in a second commit
+      fs.writeFileSync(path.join(tmpRepo, "work.txt"), "v1\n");
+      spawnSync("git", ["add", "work.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "create work.txt v1"], { cwd: tmpRepo });
+
+      fs.writeFileSync(path.join(tmpRepo, "work.txt"), "v2\n");
+      spawnSync("git", ["add", "work.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "update work.txt to v2"], { cwd: tmpRepo });
+
+      await linearizeRangeAsCommit(baseSha, "Squash agent work", makeRealExecApi(tmpRepo));
+
+      // The squashed commit must contain the final file content, not an intermediate state
+      expect(fs.readFileSync(path.join(tmpRepo, "work.txt"), "utf8")).toBe("v2\n");
+    });
+
+    it("restores original HEAD when the baseRef does not exist", async () => {
+      const { linearizeRangeAsCommit } = await import("./git_helpers.cjs");
+      const { spawnSync } = require("child_process");
+      const path = require("path");
+      const fs = require("fs");
+
+      // Add a commit so there is work to preserve
+      fs.writeFileSync(path.join(tmpRepo, "b.txt"), "b\n");
+      spawnSync("git", ["add", "b.txt"], { cwd: tmpRepo });
+      spawnSync("git", ["commit", "-m", "commit b"], { cwd: tmpRepo });
+
+      const headBeforeLinearize = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+
+      await expect(linearizeRangeAsCommit("nonexistent-ref-that-does-not-exist", "msg", makeRealExecApi(tmpRepo))).rejects.toThrow(/Failed to linearize/);
+
+      // HEAD must be restored to the SHA it held before the failed call
+      const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: tmpRepo, encoding: "utf8" }).stdout.trim();
+      expect(headAfter).toBe(headBeforeLinearize);
     });
   });
 });
