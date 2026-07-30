@@ -1923,6 +1923,50 @@ describe("updateProject", () => {
     expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Field type mismatch"));
   });
 
+  it("creates a NUMBER field when field name contains 'date' but value is numeric", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 104,
+      fields: {
+        update_date_count: 30,
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-date-name-number-field"),
+      issueResponse("issue-id-104"),
+      existingItemResponse("issue-id-104", "item-date-name-number-field"),
+      fieldsResponse([]),
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-update-date-count",
+            name: "Update Date Count",
+            dataType: "NUMBER",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+    expect(createCalls[0][1].dataType).toBe("NUMBER");
+
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0][1].value).toEqual({ number: 30 });
+
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("looks like a date field"));
+  });
+
   it("should reject update_project message with missing project field", async () => {
     const messageHandler = await updateProjectHandlerFactory({});
 
@@ -2603,5 +2647,9 @@ describe("inferFieldDataType", () => {
 
   it("returns SINGLE_SELECT for date field name with invalid date format", () => {
     expect(inferFieldDataType("end_date", "2024/06/30", datePattern)).toBe("SINGLE_SELECT");
+  });
+
+  it("returns NUMBER for a field name containing 'date' with a numeric value", () => {
+    expect(inferFieldDataType("update_date_count", 30, datePattern)).toBe("NUMBER");
   });
 });

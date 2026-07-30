@@ -508,7 +508,33 @@ async function applyFieldUpdates(github, projectId, itemId, fields) {
     }
 
     if (!field) {
-      if (isDateField) {
+      if (isNumberField) {
+        try {
+          field = (
+            await github.graphql(
+              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
+                createProjectV2Field(input: {
+                  projectId: $projectId,
+                  name: $name,
+                  dataType: $dataType
+                }) {
+                  projectV2Field {
+                    ... on ProjectV2Field {
+                      id
+                      name
+                      dataType
+                    }
+                  }
+                }
+              }`,
+              { projectId, name: normalizedFieldName, dataType: "NUMBER" }
+            )
+          ).createProjectV2Field.projectV2Field;
+        } catch (createError) {
+          core.warning(`Failed to create number field "${fieldName}": ${getErrorMessage(createError)}`);
+          continue;
+        }
+      } else if (isDateField) {
         if (typeof fieldValue === "string" && datePattern.test(fieldValue)) {
           try {
             field = (
@@ -567,32 +593,6 @@ async function applyFieldUpdates(github, projectId, itemId, fields) {
           ).createProjectV2Field.projectV2Field;
         } catch (createError) {
           core.warning(`Failed to create field "${fieldName}": ${getErrorMessage(createError)}`);
-          continue;
-        }
-      } else if (isNumberField) {
-        try {
-          field = (
-            await github.graphql(
-              `mutation($projectId: ID!, $name: String!, $dataType: ProjectV2CustomFieldType!) {
-                createProjectV2Field(input: {
-                  projectId: $projectId,
-                  name: $name,
-                  dataType: $dataType
-                }) {
-                  projectV2Field {
-                    ... on ProjectV2Field {
-                      id
-                      name
-                      dataType
-                    }
-                  }
-                }
-              }`,
-              { projectId, name: normalizedFieldName, dataType: "NUMBER" }
-            )
-          ).createProjectV2Field.projectV2Field;
-        } catch (createError) {
-          core.warning(`Failed to create number field "${fieldName}": ${getErrorMessage(createError)}`);
           continue;
         }
       } else {
