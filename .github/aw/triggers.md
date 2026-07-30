@@ -114,14 +114,9 @@ These are "non-success outcomes requiring triage"; keep the list explicit so rea
 
 Escalation rules for this pattern (required):
 
-- Derive a stable failure key before any write (for example `<workflow>:<job>:<step>:<error-signature>`).
+- Derive a stable failure key before any write (for example `<workflow>:<job>:<step>:<error-signature>`). See [create-agentic-workflow-trigger-details.md](create-agentic-workflow-trigger-details.md#incident-dedup-key-templates-workflow_run-and-deployment_status) for concrete key-format templates.
 - Search for an existing open incident by that key **before** calling `create-issue`.
-- Call `noop` instead of creating a new issue when an open incident already exists for the same key.
-
-No-op expectations for this pattern:
-
-- `noop` when the monitored run concludes `success`.
-- `noop` when the same failure already has an open incident issue (duplicate suppression).
+- `noop` when the monitored run concludes `success`, or when an open incident already exists for the same key (duplicate suppression).
 
 #### Fuzzy Scheduling
 
