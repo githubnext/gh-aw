@@ -11,7 +11,7 @@ import (
 func TestConvertToGitHubActionsEnv(t *testing.T) {
 	tests := []struct {
 		name        string
-		input       any
+		input       map[string]any
 		envMetadata []EnvironmentVariable
 		expected    map[string]string
 	}{
@@ -110,14 +110,6 @@ func TestConvertToGitHubActionsEnv(t *testing.T) {
 			expected: map[string]string{
 				"STRING_VAR": "${{ secrets.TOKEN }}",
 			},
-		},
-		{
-			name: "non-map input returns empty map",
-			input: []string{
-				"${API_TOKEN}",
-			},
-			envMetadata: []EnvironmentVariable{},
-			expected:    map[string]string{},
 		},
 		{
 			name: "env variable not in metadata and key differs from token name",

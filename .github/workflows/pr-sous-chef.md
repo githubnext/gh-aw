@@ -32,6 +32,7 @@ engine:
   id: pi
 strict: true
 imports:
+  - shared/mcp-pagination.md
   - shared/otlp.md
 tools:
   cli-proxy: true

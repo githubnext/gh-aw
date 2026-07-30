@@ -49,6 +49,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 20
 imports:
+  - shared/mcp-pagination.md
   - uses: shared/daily-pr-base.md
     with:
       title-prefix: "[dependabot-burner] "

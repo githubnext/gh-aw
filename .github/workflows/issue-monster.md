@@ -404,6 +404,7 @@ model: copilot/gpt-5.4
 engine:
   id: pi
 imports:
+  - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - shared/activation-app.md
 

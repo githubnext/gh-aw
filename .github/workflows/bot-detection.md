@@ -13,6 +13,7 @@ permissions:
   issues: read
   actions: read
 imports:
+  - shared/mcp-pagination.md
   - shared/otlp.md
 sandbox:
   agent:
