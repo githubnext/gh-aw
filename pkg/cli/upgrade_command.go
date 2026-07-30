@@ -104,7 +104,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			}
 
 			if targetRepo != "" && targetOrg != "" {
-				return errors.New("cannot specify both --repo and --org flags; use --repo for a single repository or --org for organization-wide upgrades")
+				return errors.New("cannot specify both --repo and --org flags; use --repo for a single repository or --org for organization-wide upgrades. Example: gh aw upgrade --repo owner/repo")
 			}
 
 			if len(repoGlobs) > 0 && targetOrg == "" {
@@ -116,7 +116,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			}
 
 			if createPR && createIssue {
-				return errors.New("cannot specify both --create-pull-request and --create-issue")
+				return errors.New("cannot specify both --create-pull-request and --create-issue. Example: gh aw upgrade --org my-org --create-pull-request")
 			}
 
 			// Handle audit mode
@@ -481,7 +481,7 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
 	for _, arg := range newArgs {
 		if strings.ContainsRune(arg, '\x00') {
-			return errors.New("invalid relaunch arguments: argument contains NUL byte")
+			return errors.New("invalid relaunch arguments: argument contains NUL byte. Example: compile .github/workflows/example.md")
 		}
 	}
 	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)

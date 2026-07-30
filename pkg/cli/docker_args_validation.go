@@ -12,17 +12,17 @@ import (
 
 func validateContainerMountPath(containerPath string) (string, error) {
 	if containerPath == "" {
-		return "", errors.New("container path cannot be empty")
+		return "", errors.New("container path cannot be empty. Example: /workdir")
 	}
 	if strings.ContainsAny(containerPath, "\x00\r\n:") {
-		return "", errors.New("container path contains invalid control characters or reserved characters")
+		return "", errors.New("container path contains invalid control characters or reserved characters. Example: /workdir")
 	}
 	if !path.IsAbs(containerPath) {
-		return "", fmt.Errorf("container path must be absolute: %s", containerPath)
+		return "", fmt.Errorf("container path must be absolute. Example: /workdir. Got: %s", containerPath)
 	}
 	cleanPath := path.Clean(containerPath)
 	if cleanPath != containerPath {
-		return "", fmt.Errorf("container path must be normalized: %s", containerPath)
+		return "", fmt.Errorf("container path must be normalized. Example: /workdir/config. Got: %s", containerPath)
 	}
 	return cleanPath, nil
 }
@@ -33,7 +33,7 @@ func validateHostMountPath(hostPath string) (string, error) {
 		return "", fmt.Errorf("invalid host path %q: %w", hostPath, err)
 	}
 	if strings.Contains(cleanHostPath[2:], ":") || (!isWindowsDrivePath(cleanHostPath) && strings.Contains(cleanHostPath, ":")) {
-		return "", fmt.Errorf("host path contains unsupported ':' for docker -v mount syntax: %s", cleanHostPath)
+		return "", fmt.Errorf("host path contains unsupported ':' for docker -v mount syntax. Example: /tmp/repo or C:/repo. Got: %s", cleanHostPath)
 	}
 	return cleanHostPath, nil
 }

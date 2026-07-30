@@ -151,7 +151,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 						return fmt.Errorf("strict mode: runner-guard exited with code 1 (findings present) and output could not be parsed: %w", parseErr)
 					}
 					if totalFindings > 0 {
-						return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode", totalFindings)
+						return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode. Example: rerun after resolving all reported findings", totalFindings)
 					}
 					// Exit code 1 with no parseable findings is still a failure in strict mode
 					return errors.New("strict mode: runner-guard exited with code 1 indicating findings are present")
@@ -179,7 +179,7 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	trimmed := strings.TrimSpace(stdout)
 	if !strings.HasPrefix(trimmed, "{") && !strings.HasPrefix(trimmed, "[") {
 		if trimmed != "" {
-			return 0, fmt.Errorf("unexpected runner-guard output format: %s", trimmed)
+			return 0, fmt.Errorf("unexpected runner-guard output format (expected JSON object or array). Example: {\"findings\":[]}. Got: %s", trimmed)
 		}
 		return 0, nil
 	}

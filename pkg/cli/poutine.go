@@ -171,7 +171,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 			if exitCode == 1 {
 				// In strict mode, any findings in the scan are treated as errors
 				if strict && totalWarnings > 0 {
-					return fmt.Errorf("strict mode: poutine found %d security warnings/errors - workflows must have no poutine findings in strict mode", totalWarnings)
+					return fmt.Errorf("strict mode: poutine found %d security warnings/errors - workflows must have no poutine findings in strict mode. Example: rerun after resolving all reported findings", totalWarnings)
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
@@ -293,7 +293,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 			if exitCode == 1 {
 				// In strict mode, any findings in the scan are treated as errors
 				if strict && totalWarnings > 0 {
-					return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode", totalWarnings, filepath.Base(lockFile))
+					return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode. Example: rerun after resolving all reported findings in %s", totalWarnings, filepath.Base(lockFile), filepath.Base(lockFile))
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
@@ -321,7 +321,7 @@ func parseAndDisplayPoutineOutput(stdout, targetFile string, verbose bool) (int,
 	if !strings.HasPrefix(trimmed, "{") {
 		// Non-JSON output, likely an error
 		if trimmed != "" {
-			return 0, fmt.Errorf("unexpected poutine output format: %s", trimmed)
+			return 0, fmt.Errorf("unexpected poutine output format (expected JSON object). Example: {\"findings\":[]}. Got: %s", trimmed)
 		}
 		return 0, nil
 	}
@@ -431,7 +431,7 @@ func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool, gitRo
 	if !strings.HasPrefix(trimmed, "{") {
 		// Non-JSON output, likely an error
 		if trimmed != "" {
-			return 0, fmt.Errorf("unexpected poutine output format: %s", trimmed)
+			return 0, fmt.Errorf("unexpected poutine output format (expected JSON object). Example: {\"findings\":[]}. Got: %s", trimmed)
 		}
 		return 0, nil
 	}
