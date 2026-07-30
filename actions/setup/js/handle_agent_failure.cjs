@@ -43,6 +43,7 @@ const ELLIPSIS_LENGTH = ELLIPSIS.length;
 const ENGINE_RATE_LIMIT_429_RE =
   /(?:\b429\b[\s\S]{0,120}(?:too many requests|rate[\s-]*limit)|\brate_limit_(?:error|exceeded)\b|capierror:\s*429|failed to get response from the ai model[\s\S]{0,120}\b429\b|exceeded your rate limit for utility models)/i;
 const ENGINE_MAX_RUNS_EXCEEDED_RE = /(?:\bmax_runs_exceeded\b|\bmaximum\s+llm\s+invocations\s+exceeded\b)/i;
+const ENGINE_MAX_CACHE_MISSES_EXCEEDED_RE = /(?:\bmax_cache_misses_exceeded\b|\bmaximum\s+consecutive\s+cache\s+misses\s+exceeded\b)/i;
 const ALLOWED_FILES_ERROR_RE = /^(?<summary>.*outside the allowed-files list) \((?<files>.+?)\)\. (?<remediation>Add the files to the allowed-files configuration field or remove them from the (?:patch|bundle)\.)$/;
 
 /**
@@ -1982,6 +1983,31 @@ function buildEngineMaxRunsExceededContext(engineLabel) {
 }
 
 /**
+ * Detect max consecutive cache misses failures in text payloads.
+ * Returns true when content includes either the `max_cache_misses_exceeded` error type
+ * or the "Maximum consecutive cache misses exceeded" message fragment.
+ * @param {string|null|undefined} content
+ * @returns {boolean}
+ */
+function hasEngineMaxCacheMissesExceededSignal(content) {
+  if (!content) {
+    return false;
+  }
+  return ENGINE_MAX_CACHE_MISSES_EXCEEDED_RE.test(content);
+}
+
+/**
+ * Build dedicated context for max consecutive cache misses failures.
+ * Renders the max-cache-misses-exceeded prompt template with the active engine label.
+ * @param {string} [engineLabel]
+ * @returns {string}
+ */
+function buildEngineMaxCacheMissesExceededContext(engineLabel) {
+  const normalizedEngineLabel = (typeof engineLabel === "string" ? engineLabel : "").trim() || "AI";
+  return "\n" + renderPromptTemplate("max_cache_misses_exceeded.md", { engine_label: normalizedEngineLabel });
+}
+
+/**
  * Read and render token usage from token-usage.jsonl for inclusion in the ET computation table.
  * Returns null gracefully when files are absent, empty, or unparseable.
  * @returns {{ markdown: string, modelNames: string[] } | null} Pre-rendered per-model markdown table data, or null
@@ -2621,6 +2647,11 @@ function buildEngineFailureContext(options = {}) {
     if (hasEngineMaxRunsExceededSignal(logContent)) {
       core.info("Detected engine max-runs guardrail signal — using dedicated context message");
       return buildEngineMaxRunsExceededContext(engineLabel);
+    }
+
+    if (hasEngineMaxCacheMissesExceededSignal(logContent)) {
+      core.info("Detected engine max cache misses signal — using dedicated context message");
+      return buildEngineMaxCacheMissesExceededContext(engineLabel);
     }
 
     const errorMessages = new Set();
@@ -4081,6 +4112,8 @@ module.exports = {
   hasEngineRateLimit429InOTELMirror,
   buildEngineMaxRunsExceededContext,
   buildEngineRateLimit429Context,
+  hasEngineMaxCacheMissesExceededSignal,
+  buildEngineMaxCacheMissesExceededContext,
   readTokenUsageMarkdown,
   parseFirewallAuthErrors,
   parseMaxAICreditsFromAuditLog,
