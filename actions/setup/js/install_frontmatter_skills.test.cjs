@@ -105,8 +105,37 @@ describe("install_frontmatter_skills", () => {
     ]);
   });
 
-  it("omits --pin when the resolved skill spec is unpinned", () => {
-    expect(script.buildSkillInstallCommand("githubnext/skills/review/security", "/tmp/gh-aw/.claude/skills").args).toEqual(["skill", "install", "githubnext/skills", "review/security", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+  it("treats specs without @ as local path refs (installs with --from-local)", () => {
+    // Any spec without "@" and without "${{" is a local path reference.
+    // Remote refs must always be pinned (owner/repo@sha).
+    expect(script.buildSkillInstallCommand("skills/review/security", "/tmp/gh-aw/.claude/skills").args).toEqual(["skill", "install", "skills/review/security", "security", "--from-local", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+  });
+
+  it("installs local path reference using --from-local", () => {
+    expect(script.buildSkillInstallCommand("skills/rig", "/tmp/gh-aw/.claude/skills").args).toEqual(["skill", "install", "skills/rig", "rig", "--from-local", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+    expect(script.buildSkillInstallCommand(".github/skills/my-skill", "/tmp/gh-aw/.claude/skills", "claude-code").args).toEqual([
+      "skill",
+      "install",
+      ".github/skills/my-skill",
+      "my-skill",
+      "--from-local",
+      "--agent",
+      "claude-code",
+      "--dir",
+      "/tmp/gh-aw/.claude/skills",
+      "--force",
+    ]);
+    expect(script.buildSkillInstallCommand("./skills/my-skill", "/tmp/gh-aw/.claude/skills").args).toEqual(["skill", "install", "./skills/my-skill", "my-skill", "--from-local", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
+  });
+
+  it("isLocalSkillRef returns true for local paths and false for remote or expression specs", () => {
+    expect(script.isLocalSkillRef("skills/rig")).toBe(true);
+    expect(script.isLocalSkillRef(".github/skills/my-skill")).toBe(true);
+    expect(script.isLocalSkillRef("./skills/my-skill")).toBe(true);
+    expect(script.isLocalSkillRef("my-skill")).toBe(true);
+    expect(script.isLocalSkillRef("owner/repo@abc123")).toBe(false);
+    expect(script.isLocalSkillRef("${{ inputs.skill_ref }}")).toBe(false);
+    expect(script.isLocalSkillRef("")).toBe(false);
   });
 
   it("reads skill specs from the env var and installs them at runtime", async () => {
@@ -147,5 +176,15 @@ describe("install_frontmatter_skills", () => {
     expect(failures).toEqual([{ skill: "bad/repo@abc123", error: "exit code 1 HTTP 404" }]);
     expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to install skill 'bad/repo@abc123'"));
     expect(global.core.summary.addRaw).toHaveBeenCalledWith(expect.stringContaining("<details open>"));
+  });
+
+  it("installs local path references using --from-local at runtime", async () => {
+    process.env.GH_AW_SKILL_DIR = ".claude/skills";
+    process.env.GH_AW_GH_SKILL_AGENT_NAME = "claude-code";
+    process.env.GH_AW_FRONTMATTER_SKILLS = "skills/rig";
+
+    await script.main();
+
+    expect(global.exec.exec).toHaveBeenCalledWith("gh", ["skill", "install", "skills/rig", "rig", "--from-local", "--agent", "claude-code", "--dir", "/tmp/gh-aw/.claude/skills", "--force"]);
   });
 });

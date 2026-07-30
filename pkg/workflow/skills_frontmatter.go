@@ -14,6 +14,18 @@ var skillsFrontmatterLog = logger.New("workflow:skills_frontmatter")
 var skillSpecRegexp = regexp.MustCompile(`^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+(?:/[A-Za-z0-9_.-]+)*)?@[0-9a-f]{40}$`)
 var skillsGitHubTokenExpressionRegexp = regexp.MustCompile(`^\$\{\{\s*(secrets\.[A-Za-z_][A-Za-z0-9_]*(\s*\|\|\s*secrets\.[A-Za-z_][A-Za-z0-9_]*)*|needs\.[A-Za-z_][A-Za-z0-9_]*\.outputs\.[A-Za-z_][A-Za-z0-9_]*)\s*\}\}$`)
 
+// isLocalSkillRef reports whether spec is a local skill reference — a
+// repository-relative path that should be installed with --from-local at
+// runtime. A spec is treated as local when it:
+//   - is not empty,
+//   - does not begin with "${{" (not a GitHub Actions expression), and
+//   - contains no "@" separator (and therefore cannot be a fully-pinned
+//     remote reference such as "owner/repo/path@<40-char-sha>").
+func isLocalSkillRef(spec string) bool {
+	spec = strings.TrimSpace(spec)
+	return spec != "" && !strings.HasPrefix(spec, "${{") && !strings.Contains(spec, "@")
+}
+
 // SkillReference describes a single skills[] entry in workflow frontmatter.
 // It supports both legacy string-only entries and object entries with per-skill auth.
 type SkillReference struct {
@@ -25,6 +37,12 @@ type SkillReference struct {
 func validateSkillSpecValue(skillSpec string, idx int) error {
 	if strings.TrimSpace(skillSpec) == "" {
 		return fmt.Errorf("skills[%d] must be a non-empty string. Example: skills[%d]: \"owner/repo@abc1234...\"", idx, idx)
+	}
+	// Local path references (no "@" and not an expression) are allowed; they
+	// are installed with --from-local at runtime and rewritten to a remote
+	// repospec by "gh aw add".
+	if isLocalSkillRef(skillSpec) {
+		return nil
 	}
 	if !skillSpecRegexp.MatchString(skillSpec) {
 		return fmt.Errorf(
