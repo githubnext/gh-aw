@@ -684,6 +684,9 @@ func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) 
 			}
 		} else {
 			logsDownloadLog.Printf("Successfully downloaded artifact %q individually", name)
+			// Marker write failures are non-fatal in the retry path: retryCriticalArtifacts
+			// is a best-effort recovery after a partial bulk download, so a missing marker
+			// only causes a redundant re-download on the next run (not data loss).
 			if err := markArtifactDownloaded(opts.outputDir, name); err != nil {
 				logsDownloadLog.Printf("Failed to mark artifact %q as downloaded: %v", name, err)
 			}
@@ -934,7 +937,11 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			// workflow logs rather than artifact content.
 			return ErrNoArtifacts
 		}
-		if err == nil {
+		// Write the complete-download marker when the bulk download succeeded with no
+		// errors, or when some non-zip artifacts were skipped but critical artifacts were
+		// recovered via retryCriticalArtifacts. In the skipped-non-zip case the directory
+		// is non-empty (guarded above), so marking prevents redundant re-downloads.
+		if err == nil || skippedNonZipArtifacts {
 			if markerErr := markArtifactDownloaded(opts.outputDir, string(ArtifactSetAll)); markerErr != nil {
 				return markerErr
 			}

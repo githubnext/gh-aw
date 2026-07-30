@@ -13,8 +13,13 @@ func usesSharedLogsCache(data *WorkflowData) bool {
 	}
 	content := data.CustomSteps + "\n" + data.MarkdownContent
 	for _, command := range []string{"gh aw logs", "./gh-aw logs", "gh aw audit", "./gh-aw audit"} {
-		if strings.Contains(content, command) {
-			return true
+		for line := range strings.SplitSeq(content, "\n") {
+			if strings.HasPrefix(strings.TrimSpace(line), "#") {
+				continue
+			}
+			if strings.Contains(line, command) {
+				return true
+			}
 		}
 	}
 	return false

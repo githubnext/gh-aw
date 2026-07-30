@@ -440,6 +440,18 @@ func TestFindMissingFilterEntriesUsesDownloadedMarkers(t *testing.T) {
 	assert.Equal(t, []string{"agent"}, findMissingFilterEntries([]string{"activation", "agent"}, dir))
 }
 
+func TestFindMissingFilterEntriesAllMarkerSatisfiesFiltered(t *testing.T) {
+	// A complete-download marker (ArtifactSetAll) should satisfy every filtered
+	// request even when individual artifact directories no longer exist (e.g. after
+	// flattenSingleFileArtifacts removes them).
+	dir := t.TempDir()
+	require.NoError(t, markArtifactDownloaded(dir, string(ArtifactSetAll)))
+
+	assert.Nil(t, findMissingFilterEntries([]string{"activation"}, dir))
+	assert.Nil(t, findMissingFilterEntries([]string{"activation", "usage"}, dir))
+	assert.Nil(t, findMissingFilterEntries([]string{string(ArtifactSetAll)}, dir))
+}
+
 func TestMarkArtifactDownloadedRejectsInvalidNames(t *testing.T) {
 	err := markArtifactDownloaded(t.TempDir(), "../activation")
 	require.Error(t, err)

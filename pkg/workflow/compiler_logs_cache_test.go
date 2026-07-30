@@ -33,6 +33,16 @@ func TestUsesSharedLogsCache(t *testing.T) {
 			data: WorkflowData{On: "schedule: daily", MarkdownContent: "Review issues."},
 			want: false,
 		},
+		{
+			name: "command in YAML comment is ignored",
+			data: WorkflowData{On: "schedule: daily", CustomSteps: "# run: gh aw logs --json"},
+			want: false,
+		},
+		{
+			name: "command in shell comment is ignored",
+			data: WorkflowData{On: "schedule: daily", CustomSteps: "  # do not run: gh aw audit"},
+			want: false,
+		},
 	}
 
 	for _, tt := range tests {

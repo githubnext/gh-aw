@@ -257,13 +257,20 @@ func findMissingFilterEntries(filter []string, outputDir string) []string {
 		if e.IsDir() {
 			dirs = append(dirs, e.Name())
 		}
-		if markers, markerErr := os.ReadDir(filepath.Join(outputDir, downloadedArtifactsMarkerDir)); markerErr == nil {
-			for _, marker := range markers {
-				if !marker.IsDir() {
-					dirs = append(dirs, marker.Name())
-				}
+	}
+	if markers, markerErr := os.ReadDir(filepath.Join(outputDir, downloadedArtifactsMarkerDir)); markerErr == nil {
+		for _, marker := range markers {
+			if !marker.IsDir() {
+				dirs = append(dirs, marker.Name())
 			}
 		}
+	}
+
+	// A complete-download marker satisfies every filtered request: if it is
+	// present the caller already downloaded all artifacts for this run.
+	if slices.Contains(dirs, string(ArtifactSetAll)) {
+		artifactSetLog.Printf("Complete-download marker present in %s; all filter entries satisfied", outputDir)
+		return nil
 	}
 
 	var missing []string
