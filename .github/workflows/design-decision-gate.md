@@ -51,6 +51,8 @@ safe-outputs:
     run-success: "✅ [{workflow_name}]({run_url}) completed the design decision gate check."
     run-failure: "❌ [{workflow_name}]({run_url}) {status} during design decision gate check."
 timeout-minutes: 15
+features:
+  gh-aw-detection: true
 sandbox:
   agent:
     sudo: false

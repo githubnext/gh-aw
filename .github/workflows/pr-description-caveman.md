@@ -11,6 +11,8 @@ permissions:
   pull-requests: read
   issues: read
 
+features:
+  gh-aw-detection: true
 sandbox:
   agent:
     sudo: false

@@ -1800,6 +1800,173 @@ describe("updateProject", () => {
     expect(updateCalls[0][1].value).toEqual({ text: "high" });
   });
 
+  it("creates a new NUMBER field when field doesn't exist and value is a finite number", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 101,
+      fields: {
+        comment_count: 30,
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-create-number-field"),
+      issueResponse("issue-id-101"),
+      existingItemResponse("issue-id-101", "item-create-number-field"),
+      // No existing fields - will need to create as NUMBER
+      fieldsResponse([]),
+      // Response for creating the NUMBER field
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-comment-count",
+            name: "Comment Count",
+            dataType: "NUMBER",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    // Verify that the NUMBER field was created
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+    expect(createCalls[0][1].dataType).toBe("NUMBER");
+    expect(createCalls[0][1].name).toBe("Comment Count");
+    expect(createCalls[0][1].options).toBeUndefined();
+
+    // Verify the field value was set as a number
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0][1].value).toEqual({ number: 30 });
+
+    // Verify no type mismatch warning was emitted
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Field type mismatch"));
+  });
+
+  it("creates a NUMBER field for zero value and updates without warning", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 102,
+      fields: {
+        comment_count: 0,
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-create-number-field-zero"),
+      issueResponse("issue-id-102"),
+      existingItemResponse("issue-id-102", "item-create-number-field-zero"),
+      fieldsResponse([]),
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-comment-count-zero",
+            name: "Comment Count",
+            dataType: "NUMBER",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0][1].value).toEqual({ number: 0 });
+
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Field type mismatch"));
+  });
+
+  it("updates an existing NUMBER field with a numeric value without spurious type mismatch warning", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 103,
+      fields: {
+        "Comment Count": 30,
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-existing-number-field"),
+      issueResponse("issue-id-103"),
+      existingItemResponse("issue-id-103", "item-existing-number-field"),
+      fieldsResponse([{ id: "field-comment-count", name: "Comment Count", dataType: "NUMBER" }]),
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const updateCall = mockGithub.graphql.mock.calls.find(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1].value).toEqual({ number: 30 });
+
+    // No spurious type mismatch warning should be logged
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("Field type mismatch"));
+  });
+
+  it("creates a NUMBER field when field name contains 'date' but value is numeric", async () => {
+    const projectUrl = "https://github.com/orgs/testowner/projects/60";
+    const output = {
+      type: "update_project",
+      project: projectUrl,
+      content_type: "issue",
+      content_number: 104,
+      fields: {
+        update_date_count: 30,
+      },
+    };
+
+    queueResponses([
+      repoResponse(),
+      viewerResponse(),
+      orgProjectV2Response(projectUrl, 60, "project-date-name-number-field"),
+      issueResponse("issue-id-104"),
+      existingItemResponse("issue-id-104", "item-date-name-number-field"),
+      fieldsResponse([]),
+      {
+        createProjectV2Field: {
+          projectV2Field: {
+            id: "field-update-date-count",
+            name: "Update Date Count",
+            dataType: "NUMBER",
+          },
+        },
+      },
+      updateFieldValueResponse(),
+    ]);
+
+    await updateProject(output);
+
+    const createCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("createProjectV2Field"));
+    expect(createCalls.length).toBe(1);
+    expect(createCalls[0][1].dataType).toBe("NUMBER");
+
+    const updateCalls = mockGithub.graphql.mock.calls.filter(([query]) => query.includes("updateProjectV2ItemFieldValue"));
+    expect(updateCalls.length).toBe(1);
+    expect(updateCalls[0][1].value).toEqual({ number: 30 });
+
+    expect(mockCore.warning).not.toHaveBeenCalledWith(expect.stringContaining("looks like a date field"));
+  });
+
   it("should reject update_project message with missing project field", async () => {
     const messageHandler = await updateProjectHandlerFactory({});
 
@@ -2454,8 +2621,20 @@ describe("inferFieldDataType", () => {
     expect(inferFieldDataType("priority", "High", datePattern)).toBe("SINGLE_SELECT");
   });
 
-  it("returns SINGLE_SELECT for numeric field value", () => {
-    expect(inferFieldDataType("score", 42, datePattern)).toBe("SINGLE_SELECT");
+  it("returns NUMBER for finite numeric field value", () => {
+    expect(inferFieldDataType("score", 42, datePattern)).toBe("NUMBER");
+  });
+
+  it("returns NUMBER for zero value", () => {
+    expect(inferFieldDataType("count", 0, datePattern)).toBe("NUMBER");
+  });
+
+  it("returns NUMBER for negative numeric field value", () => {
+    expect(inferFieldDataType("delta", -5, datePattern)).toBe("NUMBER");
+  });
+
+  it("returns SINGLE_SELECT for non-finite numeric value (Infinity)", () => {
+    expect(inferFieldDataType("score", Infinity, datePattern)).toBe("SINGLE_SELECT");
   });
 
   it("returns SINGLE_SELECT for boolean field value", () => {
@@ -2468,5 +2647,9 @@ describe("inferFieldDataType", () => {
 
   it("returns SINGLE_SELECT for date field name with invalid date format", () => {
     expect(inferFieldDataType("end_date", "2024/06/30", datePattern)).toBe("SINGLE_SELECT");
+  });
+
+  it("returns NUMBER for a field name containing 'date' with a numeric value", () => {
+    expect(inferFieldDataType("update_date_count", 30, datePattern)).toBe("NUMBER");
   });
 });
