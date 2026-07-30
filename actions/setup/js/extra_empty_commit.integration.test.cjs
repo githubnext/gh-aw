@@ -105,6 +105,11 @@ describe("extra_empty_commit git integration", () => {
         if (args[0] === "config" && args[1] === "--get-all") {
           return { exitCode: 1, stdout: "", stderr: "" };
         }
+        // Handle git config --global/--local --unset-all calls from unsetExtraheaderAllScopes
+        // Return exit code 5 (key absent) since this test simulates no pre-existing extraheaders
+        if (args[0] === "config" && (args[1] === "--global" || args[1] === "--local") && args[2] === "--unset-all") {
+          return { exitCode: 5, stdout: "", stderr: "" };
+        }
         // Return the actual HEAD SHA for rev-parse (needed for GraphQL createCommitOnBranch)
         if (args[0] === "rev-parse" && args[1] === "HEAD") {
           const result = execGit(["rev-parse", "HEAD"], repoDir);

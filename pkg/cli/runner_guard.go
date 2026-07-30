@@ -84,7 +84,10 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	if err != nil {
 		return fmt.Errorf("docker command not found: %w", err)
 	}
-	volumeMount := gitRoot + ":/workdir"
+	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
+	if err != nil {
+		return fmt.Errorf("invalid docker mount path: %w", err)
+	}
 	// #nosec G204 -- gitRoot is validated as an absolute path above (from git rev-parse, a trusted
 	// source). containerScanPath is derived from filepath.Rel(gitRoot, workflowDir), cleaned with
 	// filepath.Clean, validated to not escape the repository root (no ".." prefix), and prefixed
@@ -148,7 +151,7 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 						return fmt.Errorf("strict mode: runner-guard exited with code 1 (findings present) and output could not be parsed: %w", parseErr)
 					}
 					if totalFindings > 0 {
-						return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode", totalFindings)
+						return fmt.Errorf("strict mode: runner-guard found %d security findings - workflows must have no runner-guard findings in strict mode. Example: rerun after resolving all reported findings", totalFindings)
 					}
 					// Exit code 1 with no parseable findings is still a failure in strict mode
 					return errors.New("strict mode: runner-guard exited with code 1 indicating findings are present")
@@ -176,7 +179,7 @@ func parseAndDisplayRunnerGuardOutput(stdout string, verbose bool, gitRoot strin
 	trimmed := strings.TrimSpace(stdout)
 	if !strings.HasPrefix(trimmed, "{") && !strings.HasPrefix(trimmed, "[") {
 		if trimmed != "" {
-			return 0, fmt.Errorf("unexpected runner-guard output format: %s", trimmed)
+			return 0, fmt.Errorf("unexpected runner-guard output format (expected JSON object or array). Example: {\"findings\":[]}. Got: %s", trimmed)
 		}
 		return 0, nil
 	}

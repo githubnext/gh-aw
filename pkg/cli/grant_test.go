@@ -3,8 +3,12 @@
 package cli
 
 import (
+	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestGrantDisplayFindings_NilOutput(t *testing.T) {
@@ -71,5 +75,54 @@ func TestGrantPolicyFile(t *testing.T) {
 	}
 	if filepath.Base(policyFile) != grantPolicyFilename {
 		t.Fatalf("Expected policy file basename %q, got %q", grantPolicyFilename, filepath.Base(policyFile))
+	}
+}
+
+func TestGrantRunOnImageRejectsInvalidImageRef(t *testing.T) {
+	tmpDir := t.TempDir()
+	policyFile := filepath.Join(tmpDir, "policy.yaml")
+	require.NoError(t, os.WriteFile(policyFile, []byte("policy: true\n"), 0o644))
+
+	testCases := []struct {
+		name     string
+		imageRef string
+		want     string
+	}{
+		{name: "whitespace", imageRef: "bad image", want: "invalid whitespace/control characters"},
+		{name: "empty", imageRef: "", want: "cannot be empty"},
+		{name: "null byte", imageRef: "img\x00ref", want: "invalid whitespace/control characters"},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := grantRunOnImage(tt.imageRef, policyFile, false)
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}
+
+func TestGrantRunOnImageVerboseCommandEscapesImageRef(t *testing.T) {
+	tmpDir := t.TempDir()
+	policyFile := filepath.Join(tmpDir, "policy file.yaml")
+	require.NoError(t, os.WriteFile(policyFile, []byte("policy: true\n"), 0o644))
+
+	volumeMount, err := buildDockerReadonlyFileMount(policyFile, grantContainerPolicyPath)
+	require.NoError(t, err)
+
+	command := shellJoinArgs([]string{
+		"docker",
+		"run",
+		"--rm",
+		"-v", volumeMount,
+		GrantImage,
+		"--config", grantContainerPolicyPath,
+		"--output", "json",
+		"check",
+		"alpine;id",
+	})
+
+	if !strings.Contains(command, "'alpine;id'") {
+		t.Fatalf("Expected image ref to be shell-escaped in verbose command, got: %s", command)
 	}
 }

@@ -95,6 +95,23 @@ func TestBuildRunHTMLURL_GHES(t *testing.T) {
 
 // ─── ViewWorkflowRun (local dir with pre-populated JSONL) ────────────────────
 
+// setupFakeGHForViewing installs a no-op fake gh binary into a temporary bin
+// directory and prepends it to PATH via t.Setenv.  This prevents real GitHub
+// CLI calls from failing due to authentication errors in CI environments where
+// gh is configured but the synthetic run IDs used by view tests do not exist.
+// The fake binary exits 0 for every command and produces no output, so
+// downloadRunArtifacts completes without error whether it takes the early-return
+// (dir non-empty) path or falls through to a benign no-op download.
+func setupFakeGHForViewing(t *testing.T) {
+	t.Helper()
+	fakeBinDir := t.TempDir()
+	fakeGH := filepath.Join(fakeBinDir, "gh")
+	if err := os.WriteFile(fakeGH, []byte("#!/bin/sh\nexit 0\n"), 0o755); err != nil {
+		t.Fatalf("setupFakeGHForViewing: WriteFile: %v", err)
+	}
+	t.Setenv("PATH", fakeBinDir+string(os.PathListSeparator)+os.Getenv("PATH"))
+}
+
 // buildViewRunDir creates a temporary run directory populated with synthetic
 // JSONL files so that ViewWorkflowRun can read them without network access.
 func buildViewRunDir(t *testing.T) string {
@@ -121,13 +138,15 @@ func buildViewRunDir(t *testing.T) string {
 		t.Fatalf("WriteFile events.jsonl: %v", err)
 	}
 
-	// Mark the directory as already downloaded so downloadRunArtifacts skips
-	// network calls (it returns early when the dir is non-empty and has no cached
-	// summary — it just skips the download and lets the caller process what's there).
+	// Mark all artifacts as downloaded so downloadRunArtifacts skips network calls.
+	if err := markArtifactDownloaded(runDir, string(ArtifactSetAll)); err != nil {
+		t.Fatalf("markArtifactDownloaded: %v", err)
+	}
 	return dir
 }
 
 func TestViewWorkflowRun_LocalCache_NoError(t *testing.T) {
+	setupFakeGHForViewing(t)
 	logsDir := buildViewRunDir(t)
 
 	opts := ViewOptions{
@@ -183,6 +202,7 @@ func TestViewWorkflowRun_LocalCache_NoError(t *testing.T) {
 }
 
 func TestViewWorkflowRun_WithOwnerRepo_ShowsRunURL(t *testing.T) {
+	setupFakeGHForViewing(t)
 	logsDir := buildViewRunDir(t)
 
 	opts := ViewOptions{
@@ -222,6 +242,7 @@ func TestViewWorkflowRun_WithOwnerRepo_ShowsRunURL(t *testing.T) {
 }
 
 func TestViewWorkflowRun_WithSafeOutputs_ShowsSection(t *testing.T) {
+	setupFakeGHForViewing(t)
 	logsDir := buildViewRunDir(t)
 	runDir := filepath.Join(logsDir, "run-9999")
 
@@ -272,17 +293,15 @@ func TestViewWorkflowRun_WithSafeOutputs_ShowsSection(t *testing.T) {
 }
 
 func TestViewWorkflowRun_EmptyDir_WarnsAndReturnsNil(t *testing.T) {
-	// A run dir that is non-empty (so downloadRunArtifacts skips the network call)
-	// but contains no JSONL files → no events → warning, no error.
+	// A run dir marked as downloaded, but containing no JSONL files
+	// -> no events -> warning, no error.
 	logsDir := t.TempDir()
 	runDir := filepath.Join(logsDir, "run-1111")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
 		t.Fatalf("MkdirAll: %v", err)
 	}
-	// Place a dummy file so the directory is not empty; downloadRunArtifacts will
-	// skip the download when the dir is non-empty (no valid cached summary).
-	if err := os.WriteFile(filepath.Join(runDir, "placeholder.txt"), []byte("x"), 0600); err != nil {
-		t.Fatalf("WriteFile placeholder: %v", err)
+	if err := markArtifactDownloaded(runDir, string(ArtifactSetAll)); err != nil {
+		t.Fatalf("markArtifactDownloaded: %v", err)
 	}
 
 	opts := ViewOptions{

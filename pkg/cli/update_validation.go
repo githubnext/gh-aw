@@ -102,6 +102,11 @@ func validateUpdateSHAEntriesWithResolvers(ctx context.Context, repoRoot string,
 	}
 
 	var issues []string
+	commitChecks := make(map[string]error)
+	versionResolutions := make(map[string]struct {
+		sha string
+		err error
+	})
 
 	entryKeys := make([]string, 0, len(cache.Entries))
 	for key := range cache.Entries {
@@ -127,11 +132,17 @@ func validateUpdateSHAEntriesWithResolvers(ctx context.Context, repoRoot string,
 			// GitHub commits API. Auth/network failures are non-fatal and logged;
 			// only a definitive not-found (e.g. HTTP 422/404) is an error.
 			if entry.Repo != "" {
-				if err := r.verifyActionCommitExists(ctx, entry.Repo, entry.SHA); err != nil {
-					if errors.Is(err, parser.ErrVerificationSkipped) {
-						updateValidationLog.Printf("action entry %q: skipping commit existence check (auth/network error): %v", key, err)
+				cacheKey := gitutil.ExtractBaseRepo(entry.Repo) + "|" + strings.ToLower(entry.SHA)
+				checkErr, ok := commitChecks[cacheKey]
+				if !ok {
+					checkErr = r.verifyActionCommitExists(ctx, entry.Repo, entry.SHA)
+					commitChecks[cacheKey] = checkErr
+				}
+				if checkErr != nil {
+					if errors.Is(checkErr, parser.ErrVerificationSkipped) {
+						updateValidationLog.Printf("action entry %q: skipping commit existence check (auth/network error): %v", key, checkErr)
 					} else {
-						issues = append(issues, fmt.Sprintf("action entry %q: commit SHA %q not found in %q: %v", key, entry.SHA, entry.Repo, err))
+						issues = append(issues, fmt.Sprintf("action entry %q: commit SHA %q not found in %q: %v", key, entry.SHA, entry.Repo, checkErr))
 					}
 				}
 			}
@@ -144,11 +155,16 @@ func validateUpdateSHAEntriesWithResolvers(ctx context.Context, repoRoot string,
 			if validSHA {
 				// Verify the stored version tag resolves to the stored SHA.
 				// Auth/network failures are non-fatal; only a confirmed mismatch is an error.
-				resolvedVersionSHA, err := r.resolveActionVersionToSHA(ctx, entry.Repo, entry.Version)
-				if err != nil {
-					updateValidationLog.Printf("action entry %q: skipping version/SHA check (resolution failed): %v", key, err)
-				} else if !strings.EqualFold(resolvedVersionSHA, entry.SHA) {
-					issues = append(issues, fmt.Sprintf("action entry %q SHA/version mismatch: version %q resolves to %q but stored SHA is %q", key, entry.Version, resolvedVersionSHA, entry.SHA))
+				cacheKey := gitutil.ExtractBaseRepo(entry.Repo) + "|" + entry.Version
+				resolution, ok := versionResolutions[cacheKey]
+				if !ok {
+					resolution.sha, resolution.err = r.resolveActionVersionToSHA(ctx, entry.Repo, entry.Version)
+					versionResolutions[cacheKey] = resolution
+				}
+				if resolution.err != nil {
+					updateValidationLog.Printf("action entry %q: skipping version/SHA check (resolution failed): %v", key, resolution.err)
+				} else if !strings.EqualFold(resolution.sha, entry.SHA) {
+					issues = append(issues, fmt.Sprintf("action entry %q SHA/version mismatch: version %q resolves to %q but stored SHA is %q", key, entry.Version, resolution.sha, entry.SHA))
 				}
 			}
 		}
