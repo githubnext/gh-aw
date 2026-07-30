@@ -3684,6 +3684,98 @@ describe("safe_outputs_handlers", () => {
       }
     });
   });
+
+  // ============================================================
+  // Tests for target config bypass in createTriggeringContextHandler
+  // ============================================================
+  // When a tool is configured with target != "triggering" (e.g. "*" or a fixed number),
+  // the context check is skipped and the call passes through to defaultHandler.
+
+  describe("target config bypass (non-triggering target skips context check)", () => {
+    it("closePullRequestHandler with target '*' skips context check on schedule; defaultHandler enforces wildcard requirement", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          "close-pull-request": { target: "*" },
+        });
+        const result = wildcardHandlers.closePullRequestHandler({});
+        // Context check is bypassed; defaultHandler returns wildcard requirement error, not a context error
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.error).not.toContain('"schedule"');
+        expect(responseData.error).toContain("pull_request_number");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("closePullRequestHandler with target '*' and explicit number writes entry on schedule", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          "close-pull-request": { target: "*" },
+        });
+        const result = wildcardHandlers.closePullRequestHandler({ pull_request_number: 42 });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "close_pull_request", pull_request_number: 42 }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("updateDiscussionHandler with target '*' skips context check on schedule; defaultHandler enforces wildcard requirement", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          "update-discussion": { target: "*" },
+        });
+        const result = wildcardHandlers.updateDiscussionHandler({ body: "Updated" });
+        // Context check is bypassed; defaultHandler returns wildcard requirement error, not a context error
+        expect(result.isError).toBe(true);
+        const responseData = JSON.parse(result.content[0].text);
+        expect(responseData.error).not.toContain('"schedule"');
+        expect(responseData.error).toContain("discussion_number");
+        expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("closeIssueHandler with fixed number target skips context check and writes entry on schedule", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        // target: "42" means the downstream will resolve using the configured number
+        const fixedHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          "close-issue": { target: "42" },
+        });
+        const result = fixedHandlers.closeIssueHandler({});
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "close_issue" }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+
+    it("replyToPullRequestReviewCommentHandler with target '*' and explicit number writes entry on schedule", () => {
+      const savedContext = global.context;
+      global.context = { ...global.context, eventName: "schedule", payload: {} };
+      try {
+        const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+          "reply-to-pull-request-review-comment": { target: "*" },
+        });
+        const result = wildcardHandlers.replyToPullRequestReviewCommentHandler({ pull_request_number: 5, comment_id: 1, body: "Reply" });
+        expect(result.isError).toBeUndefined();
+        expect(mockAppendSafeOutput).toHaveBeenCalledWith(expect.objectContaining({ type: "reply_to_pull_request_review_comment", pull_request_number: 5 }));
+      } finally {
+        global.context = savedContext;
+      }
+    });
+  });
 });
 
 describe("per-type max enforcement (MCE4 dual enforcement)", () => {

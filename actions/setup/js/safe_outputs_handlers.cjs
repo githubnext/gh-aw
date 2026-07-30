@@ -2321,6 +2321,11 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    * Used for tools that fall back to triggering entity context when no explicit
    * target number is supplied (e.g. close_pull_request, close_issue, add_labels).
    *
+   * Context validation only runs when the tool's configured `target` is `"triggering"`
+   * (the default). When `target` is a fixed number (e.g. `"42"`) or `"*"` (wildcard),
+   * the check is skipped: the fixed number is resolved downstream, and wildcard
+   * enforcement is handled by `validateWildcardTargetRequirement`.
+   *
    * @param {Object} opts
    * @param {string} opts.toolName - Normalised tool name (e.g. "close_pull_request")
    * @param {string[]} opts.explicitNumberFields - Args fields that constitute an explicit target
@@ -2332,43 +2337,52 @@ function createHandlers(server, appendSafeOutput, config = {}) {
    */
   const createTriggeringContextHandler = ({ toolName, explicitNumberFields, contextType, buildErrorMessage }) => {
     return args => {
-      // If the caller supplied an explicit target number, skip context validation.
-      // The downstream execution handler will resolve the number normally.
-      const hasExplicitNumber = explicitNumberFields.some(field => args?.[field] != null);
-      if (!hasExplicitNumber) {
-        /** @type {any} */
-        let invocationContext = null;
-        try {
-          invocationContext = resolveInvocationContext(context);
-        } catch (err) {
-          // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
-          const errMsg = getErrorMessage(err);
-          if (errMsg.startsWith(ERR_VALIDATION)) {
-            return buildIntentErrorResponse(errMsg);
-          }
-          // Unexpected structural error: skip validation and let downstream handle gracefully.
-        }
-        if (invocationContext != null) {
-          const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
-          const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
+      const toolConfig = getSafeOutputsToolConfig(config, toolName);
+      const effectiveTarget = toolConfig.target || "triggering";
 
-          let hasContext;
-          if (contextType === "pr") {
-            hasContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
-          } else if (contextType === "issue") {
-            hasContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
-          } else if (contextType === "issue_or_pr") {
-            const isPR = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
-            const isIssue = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
-            hasContext = isPR || isIssue;
-          } else if (contextType === "discussion") {
-            hasContext = effectiveEventName === "discussion" || effectiveEventName === "discussion_comment";
-          } else {
-            hasContext = false;
+      // Only validate triggering context when the tool is configured to target the
+      // triggering entity. With a fixed number target the downstream handler resolves
+      // it directly; with wildcard targeting the per-call number requirement is
+      // enforced by validateWildcardTargetRequirement in defaultHandler.
+      if (effectiveTarget === "triggering") {
+        // If the caller supplied an explicit target number, skip context validation.
+        // The downstream execution handler will resolve the number normally.
+        const hasExplicitNumber = explicitNumberFields.some(field => args?.[field] != null);
+        if (!hasExplicitNumber) {
+          /** @type {any} */
+          let invocationContext = null;
+          try {
+            invocationContext = resolveInvocationContext(context);
+          } catch (err) {
+            // A validation error (e.g. disallowed target_repo / SEC-005) is a real failure — surface it.
+            const errMsg = getErrorMessage(err);
+            if (errMsg.startsWith(ERR_VALIDATION)) {
+              return buildIntentErrorResponse(errMsg);
+            }
+            // Unexpected structural error: skip validation and let downstream handle gracefully.
           }
+          if (invocationContext != null) {
+            const { effectiveEventName, effectivePayload } = resolveEffectiveContext(invocationContext, context);
+            const isIssueCommentOnPR = effectiveEventName === "issue_comment" && Boolean(effectivePayload?.issue?.pull_request);
 
-          if (!hasContext) {
-            return buildIntentErrorResponse(buildErrorMessage(effectiveEventName));
+            let hasContext;
+            if (contextType === "pr") {
+              hasContext = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
+            } else if (contextType === "issue") {
+              hasContext = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+            } else if (contextType === "issue_or_pr") {
+              const isPR = PR_EVENT_NAMES.has(effectiveEventName) || isIssueCommentOnPR;
+              const isIssue = effectiveEventName === "issues" || (effectiveEventName === "issue_comment" && !isIssueCommentOnPR);
+              hasContext = isPR || isIssue;
+            } else if (contextType === "discussion") {
+              hasContext = effectiveEventName === "discussion" || effectiveEventName === "discussion_comment";
+            } else {
+              hasContext = false;
+            }
+
+            if (!hasContext) {
+              return buildIntentErrorResponse(buildErrorMessage(effectiveEventName));
+            }
           }
         }
       }
