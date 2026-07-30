@@ -578,9 +578,22 @@ func TestShowUpdateSummary(t *testing.T) {
 			// This test just verifies the function doesn't panic and can be called
 			// We don't check the exact output format since it uses console helpers
 			// and the exact formatting may change
-			showUpdateSummary(tt.successfulUpdates, tt.failedUpdates)
+			showUpdateSummary(tt.successfulUpdates, tt.failedUpdates, false)
 		})
 	}
+}
+
+func TestGroupUpdateFailuresCollapsesSAMLRateLimitErrors(t *testing.T) {
+	t.Parallel()
+	failures := []updateFailure{
+		{Name: "workflow-b", Error: "SAML enforcement: API rate limit exceeded"},
+		{Name: "workflow-a", Error: "forbidden by SAML enforcement; rate limit exceeded"},
+	}
+
+	groups := groupUpdateFailures(failures)
+	require.Len(t, groups, 1)
+	assert.Equal(t, "workflow-a, workflow-b", groups[0].Workflows)
+	assert.Equal(t, "SAML-restricted authenticated access; anonymous GitHub API fallback is rate-limited", groups[0].Reason)
 }
 
 // TestHasLocalModifications tests the local modifications detection

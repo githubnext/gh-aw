@@ -4,6 +4,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -399,13 +400,17 @@ func TestCheckedInAgenticWorkflowsSkillMatchesGeneratedContent(t *testing.T) {
 		t.Fatalf("buildAgenticWorkflowsSkillContent() returned error: %v", err)
 	}
 
-	actual, err := os.ReadFile(filepath.Join(gitRoot, ".github", "skills", "agentic-workflows", "SKILL.md"))
+	skillPath := filepath.Join(gitRoot, ".github", "skills", "agentic-workflows", "SKILL.md")
+	actual, err := os.ReadFile(skillPath)
 	if err != nil {
 		t.Fatalf("Failed to read checked-in skill file: %v", err)
 	}
 
 	if strings.TrimSpace(string(actual)) != strings.TrimSpace(expected) {
-		t.Fatalf("Checked-in skill file is out of sync with generated content\nexpected:\n%s\nactual:\n%s", expected, string(actual))
+		if writeErr := os.WriteFile(skillPath, []byte(expected+"\n"), 0644); writeErr != nil {
+			t.Fatalf("Checked-in skill file is out of sync and auto-update failed (%v)\nexpected:\n%s\nactual:\n%s", writeErr, expected, string(actual))
+		}
+		t.Fatalf("Checked-in skill file was out of sync and has been regenerated; commit %s and re-run", skillPath)
 	}
 }
 
@@ -450,8 +455,21 @@ func TestFallbackAWFilesMatchesLocalAWDirectory(t *testing.T) {
 	fallbackFiles := embeddedFallbackAWMarkdownFiles()
 	sort.Strings(fallbackFiles)
 
-	assert.Equal(t, localFiles, fallbackFiles,
-		"embedded fallback file list (pkg/cli/data/agentic_workflows_fallback_aw_files.json) is out of sync with .github/aw/*.md — update the JSON to match")
+	if !assert.Equal(t, localFiles, fallbackFiles,
+		"embedded fallback file list (pkg/cli/data/agentic_workflows_fallback_aw_files.json) is out of sync with .github/aw/*.md") {
+		// Auto-update the fallback JSON so the developer only needs to commit the change.
+		fallbackPath := filepath.Join(gitRoot, "pkg", "cli", "data", "agentic_workflows_fallback_aw_files.json")
+		updated, encErr := json.MarshalIndent(localFiles, "", "  ")
+		if encErr != nil {
+			t.Logf("Auto-update failed (could not encode JSON): %v", encErr)
+			return
+		}
+		if writeErr := os.WriteFile(fallbackPath, append(updated, '\n'), 0644); writeErr != nil {
+			t.Logf("Auto-update failed (could not write file): %v", writeErr)
+			return
+		}
+		t.Logf("Auto-updated %s; commit the file and re-run tests", fallbackPath)
+	}
 }
 
 func withMockAWMarkdownFileList(t *testing.T, files []string, err error) {
