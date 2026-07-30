@@ -37,12 +37,25 @@ linters:
     - errcheck       # Disabled due to exclude-functions not working properly in golangci-lint v2
     - gocritic       # Disabled due to disabled-checks not working properly in golangci-lint v2
     - revive         # Disabled due to exclude-rules not working properly in golangci-lint v2
+  settings:
+    gomoddirectives:
+      # Forbid replace directives except where necessary for tool-dependency compatibility.
+      replace-local: false       # Forbid local replace directives (e.g., replace foo => ../foo)
+      replace-allow-list:
+        # actionlint@v1.7.12 requires yaml/v4@rc.3, which exposes yaml.ParserError
+        # and related types that were removed in rc.6. gosec@v2.28.0 pulls in rc.6
+        # transitively, so we pin the whole module to rc.3 here.
+        - go.yaml.in/yaml/v4
 
 linters-settings:
   gomoddirectives:
-    # Forbid all replace directives in go.mod
+    # Forbid replace directives except where necessary for tool-dependency compatibility.
     replace-local: false       # Forbid local replace directives (e.g., replace foo => ../foo)
-    replace-allow-list: []     # No replace directives are allowed
+    replace-allow-list:
+      # actionlint@v1.7.12 requires yaml/v4@rc.3, which exposes yaml.ParserError
+      # and related types that were removed in rc.6. gosec@v2.28.0 pulls in rc.6
+      # transitively, so we pin the whole module to rc.3 here.
+      - go.yaml.in/yaml/v4
   errcheck:
     exclude-functions:
       - (*os.File).Close

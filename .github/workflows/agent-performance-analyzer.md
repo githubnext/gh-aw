@@ -32,6 +32,8 @@ imports:
   - shared/reporting.md
   - shared/otlp.md
   - shared/default-ai-credits-pricing.md
+skills:
+  - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
 safe-outputs:
   create-issue:
     expires: 2d
@@ -111,7 +113,7 @@ Treat `copilot-swe-agent` as a built-in team member in attribution/engagement fi
 **CI vs. agentic workflow distinction:** Workflows such as `CWI`, `CGO`, `CI`, `CJS`, and `CPI` are plain CI workflows — not agentic workflows. An `action_required` conclusion on a CI workflow means GitHub is waiting for a maintainer to approve a pull-request workflow run (a GitHub Actions permission gate), **not** an agentic activation-refused. Do not count CI-workflow `action_required` runs as agentic AR. Report them separately under "CI approval-pending" and note that the fix is to approve the Copilot-bot's workflow runs at the org level or in the PR, not an agent-side change.
 
 ### Phase 1: Data Collection (10m)
-1. Load shared metrics/memory files (use `metrics-extractor` with listed paths).
+1. Load shared metrics/memory files (use a Rig custom harness for metrics extraction with the listed paths).
 2. Gather recent agent outputs (issues/PRs/discussions/comments + metadata).
 3. Review workflow runs/logs for decisions, errors, and resource use.
 4. Build per-agent profiles.
@@ -122,7 +124,7 @@ Treat `copilot-swe-agent` as a built-in team member in attribution/engagement fi
 7. Compare resource efficiency across agents.
 
 ### Phase 3: Pattern Detection (5m)
-8. Use `pattern-detector` on profiles for behavior classification.
+8. Use a Rig custom harness for behavior classification on profiles.
 9. Analyze collaboration quality and conflicts.
 10. Assess ecosystem coverage gaps/redundancy.
 
@@ -755,39 +757,48 @@ Execute all phases systematically and maintain an objective, data-driven approac
 - Use `bash` with `gh` for GitHub reads and to inspect `/tmp/gh-aw/repo-memory/default/` contents.
 - If required data stays inaccessible after 1-2 materially different attempts, call `report_incomplete` with the blocker instead of ending with prose only.
 - If the analysis completes but there is nothing actionable to create or update, call `noop` with a short summary of what you checked.
-## agent: `metrics-extractor`
----
-model: mai-code
-description: Reads shared repo-memory metric files and returns structured JSON with all relevant performance data
----
-You are a metrics extraction assistant. When given a newline-separated list of file paths (one path per line), read each file using bash and return a single JSON object containing all data found.
+## Rig Custom Harness Usage
 
-For JSON files, parse and include the full content under a key matching the file's basename (without extension). For a directory path, list and read all files within it, using their basenames as keys. For markdown files, include the raw text under a key matching the filename.
+Use Rig custom harnesses for the two AI-intensive analysis steps:
 
-If a file does not exist or cannot be read, include `null` for that key.
+**Phase 1 — Metrics extraction**: Discover the launcher with `find "${RUNNER_TEMP}/gh-aw" -path "*/skills/rig/rig.ts" | head -1`, then run `node <rig-launcher>` with an inline Rig program that:
+- configures `copilotEngine()`
+- receives a compact JSON input listing the repo-memory file paths to read
+- reads each file and returns a single structured JSON object keyed by basename
 
-Return the result as a single valid JSON object with no additional commentary.
+**Phase 3 — Pattern detection**: Run a second Rig harness invocation with an inline program that:
+- configures `copilotEngine()`
+- receives compact per-agent profile JSON (output counts, success rates, resource usage)
+- classifies behavioral patterns and returns structured JSON
 
-## agent: `pattern-detector`
----
-model: mai-code
-description: Classifies agent behavioral patterns from profiles and returns a structured categorization of issues found
----
-You are an agent behavior classification assistant. When given a JSON object containing agent profiles (with fields such as output counts, types, success rates, and resource usage), classify each agent's behavioral patterns.
+Harness guardrails:
+- pass only compact structured inputs — never raw file content in full
+- use a small model unless evidence shows quality loss
+- one harness invocation per analysis phase (no retries without a concrete parse/runtime error)
 
-For each agent, identify which of the following patterns apply:
-- **over-creation**: Output count significantly above expected baseline
-- **under-creation**: Output count significantly below expected baseline or zero
-- **repetition**: Duplicate or near-duplicate outputs detected
-- **scope-creep**: Outputs outside the agent's defined responsibility area
-- **inconsistency**: High variance in output counts or quality across runs
+## Rig Harness Output Contract
 
-Return a JSON object where each key is the agent name and the value is an array of detected pattern strings (empty array if none detected). Example:
+**Metrics extraction harness** returns:
 
 ```json
 {
-  "agent-a": ["over-creation", "inconsistency"],
-  "agent-b": [],
-  "agent-c": ["under-creation"]
+  "<basename>": { /* parsed file content or null */ }
 }
+```
+
+**Pattern detection harness** returns:
+
+```json
+{
+  "<agent-name>": ["over-creation", "inconsistency"],
+  "<agent-name-b>": []
+}
+```
+
+Recognized pattern labels: `over-creation`, `under-creation`, `repetition`, `scope-creep`, `inconsistency`.
+
+Rules:
+- return `null` for any file that does not exist or cannot be read
+- return an empty array for agents with no detected patterns
+- use only provided compact evidence
 ```
