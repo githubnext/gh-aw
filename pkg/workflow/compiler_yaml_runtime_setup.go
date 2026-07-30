@@ -21,6 +21,9 @@ import (
 // themselves contain a checkout action (used by the caller to compute needsGitConfig).
 func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, data *WorkflowData, needsCheckout bool) bool {
 	runtimeSetupSteps, customStepsContainCheckout := c.prepareRuntimeSetupAndCheckoutInfo(data)
+	if customStepsContainCheckout {
+		runtimeSetupSteps = append(runtimeSetupSteps, sharedLogsCacheRestoreSteps(data)...)
+	}
 	compilerYamlLog.Printf("Custom steps contain checkout: %t (len(customSteps)=%d)", customStepsContainCheckout, len(data.CustomSteps))
 
 	c.emitRuntimeSetupPrelude(yaml, data, needsCheckout, customStepsContainCheckout, runtimeSetupSteps)
@@ -65,7 +68,9 @@ func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, 
 	compilerYamlLog.Printf("Generating repo-memory steps for workflow")
 	generateRepoMemorySteps(yaml, data)
 
-	generateSharedLogsCacheRestoreSteps(yaml, data)
+	if !customStepsContainCheckout {
+		generateSharedLogsCacheRestoreSteps(yaml, data)
+	}
 
 	c.emitCustomSteps(yaml, data, customStepsContainCheckout, runtimeSetupSteps)
 

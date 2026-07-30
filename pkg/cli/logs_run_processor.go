@@ -274,6 +274,12 @@ func tryLoadCachedRunResult(
 	if !ok {
 		return nil, false
 	}
+	if len(params.artifactFilter) > 0 {
+		if missing := findMissingFilterEntries(params.artifactFilter, runOutputDir); len(missing) > 0 {
+			logsOrchestratorLog.Printf("Cache bypass for run %d: requested artifacts missing locally: %v", run.DatabaseID, missing)
+			return nil, false
+		}
+	}
 
 	// When --evals is requested but evals are not present in the cached run directory
 	// (e.g., the run was cached before evals were included in the usage artifact),

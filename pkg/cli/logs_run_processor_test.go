@@ -168,6 +168,7 @@ func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
 			DatabaseID: 124,
 		},
 	}
+
 	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
 
 	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 124}, runOutputDir, concurrentRunDownloadParams{
@@ -175,6 +176,46 @@ func TestTryLoadCachedRunResultUsesCacheWhenEvalsNotRequested(t *testing.T) {
 		evalsArtifactRequested: false,
 		verbose:                false,
 	})
+	require.True(t, ok)
+	require.NotNil(t, result)
+	assert.True(t, result.Cached)
+}
+
+func TestTryLoadCachedRunResultBypassesCacheWhenRequestedArtifactIsMissing(t *testing.T) {
+	runOutputDir := t.TempDir()
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       125,
+		ProcessedAt: time.Now(),
+		Run:         WorkflowRun{DatabaseID: 125},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 125}, runOutputDir, concurrentRunDownloadParams{
+		artifactFilter: []string{"agent"},
+	})
+
+	assert.False(t, ok)
+	assert.Nil(t, result)
+}
+
+func TestTryLoadCachedRunResultUsesCacheWhenRequestedArtifactsArePresent(t *testing.T) {
+	runOutputDir := t.TempDir()
+	summary := &RunSummary{
+		CLIVersion:  GetVersion(),
+		RunID:       126,
+		ProcessedAt: time.Now(),
+		Run:         WorkflowRun{DatabaseID: 126},
+	}
+	require.NoError(t, saveRunSummary(runOutputDir, summary, false))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "activation"))
+	require.NoError(t, markArtifactDownloaded(runOutputDir, "usage"))
+
+	result, ok := tryLoadCachedRunResult(context.Background(), WorkflowRun{DatabaseID: 126}, runOutputDir, concurrentRunDownloadParams{
+		artifactFilter: []string{"activation", "usage"},
+	})
+
 	require.True(t, ok)
 	require.NotNil(t, result)
 	assert.True(t, result.Cached)

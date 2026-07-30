@@ -58,5 +58,27 @@ func TestGenerateSharedLogsCacheRestoreSteps(t *testing.T) {
 	assert.Contains(t, output, "actions/cache/restore@")
 	assert.Contains(t, output, "path: "+sharedLogsCachePath)
 	assert.Contains(t, output, "2 days ago")
+	assert.Contains(t, output, "[ ! -f \"$marker\" ]")
 	assert.NotContains(t, output, "actions/cache/save@")
+}
+
+func TestSharedLogsCacheRestoreFollowsCustomCheckout(t *testing.T) {
+	cache := NewActionCache(t.TempDir())
+	data := &WorkflowData{
+		On:             "schedule: daily",
+		CustomSteps:    "steps:\n  - uses: actions/checkout@v4\n  - name: Download logs\n    run: gh aw logs",
+		ActionCache:    cache,
+		ActionResolver: NewActionResolver(cache),
+	}
+	var yaml strings.Builder
+	compiler := &Compiler{}
+
+	compiler.addCustomStepsWithRuntimeInsertion(&yaml, data.CustomSteps, sharedLogsCacheRestoreSteps(data), nil, false)
+
+	output := yaml.String()
+	checkoutIndex := strings.Index(output, "uses: actions/checkout@v4")
+	restoreIndex := strings.Index(output, "Restore shared agentic logs cache")
+	logsIndex := strings.Index(output, "run: gh aw logs")
+	assert.Greater(t, restoreIndex, checkoutIndex)
+	assert.Greater(t, logsIndex, restoreIndex)
 }
