@@ -20,7 +20,9 @@ describe("git_auth_helpers.cjs", () => {
 
     mockExec = {
       exec: vi.fn().mockResolvedValue(0),
-      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 1, stdout: "", stderr: "" }),
+      // Exit code 5 = key absent (the most common default state).
+      // This is safe for both --get-all (returns []) and --unset-all (key not found, ignored).
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 5, stdout: "", stderr: "" }),
     };
 
     global.core = mockCore;
@@ -88,10 +90,17 @@ describe("git_auth_helpers.cjs", () => {
       }
     });
 
-    it("should not throw when any scope unset fails", async () => {
-      mockExec.getExecOutput.mockRejectedValue(new Error("scope not writable"));
+    it("should not throw when key is absent (exit code 5)", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 5, stdout: "", stderr: "" });
 
       await expect(unsetExtraheaderAllScopes(EXTRAHEADER_KEY)).resolves.toBeUndefined();
+    });
+
+    it("should throw when a scope unset fails with an unexpected non-zero exit code", async () => {
+      // Exit code 4 = file write error (permission denied, config lock, etc.)
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 4, stdout: "", stderr: "error: could not lock config file" });
+
+      await expect(unsetExtraheaderAllScopes(EXTRAHEADER_KEY)).rejects.toThrow(/--unset-all.*failed \(exit 4\)/);
     });
   });
 
@@ -191,7 +200,9 @@ describe("git_auth_helpers.cjs", () => {
     });
 
     it("should strip trailing slash from server URL when reading previous values", async () => {
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "" });
+      // Use exit code 5 (key absent) for all calls so --unset-all is treated as "not found",
+      // which is the expected state when testing URL normalization in isolation.
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 5, stdout: "", stderr: "" });
 
       await overridePersistedExtraheader("https://github.com/", "ghp_test_token");
 
@@ -218,8 +229,8 @@ describe("git_auth_helpers.cjs", () => {
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
-    it("should not throw when clearing scopes fails (key already absent)", async () => {
-      mockExec.getExecOutput.mockRejectedValue(new Error("key not found"));
+    it("should not throw when key is absent (exit code 5) when clearing scopes", async () => {
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 5, stdout: "", stderr: "" });
 
       await expect(restorePersistedExtraheader(SERVER_URL, [])).resolves.toBeUndefined();
     });
@@ -363,7 +374,9 @@ describe("git_auth_helpers.cjs", () => {
     });
 
     it("should clear all scopes after callback when no previous value existed", async () => {
-      mockExec.getExecOutput.mockResolvedValue({ exitCode: 1, stdout: "", stderr: "" });
+      // Exit code 5 = key absent (the expected state when no extraheader is configured).
+      // Using 1 here would cause unsetExtraheaderAllScopes to throw as of the fixed implementation.
+      mockExec.getExecOutput.mockResolvedValue({ exitCode: 5, stdout: "", stderr: "" });
 
       await withGitHubHostToken("fork-token", async () => {});
 
@@ -404,21 +417,56 @@ describe("git_auth_helpers.cjs", () => {
     });
 
     it("should not accumulate extraheader values across multiple override/restore cycles", async () => {
-      // Regression test for: restore loop reporting 'read 1', 'read 2', 'read 3', ...
-      // Root cause: getExtraheaderValues reads from ALL scopes, but --replace-all without
-      // explicit scope only writes to local scope, leaving the global scope value intact.
-      // After restore, both global and local have the value → 2 values on next read → etc.
+      // Regression test: verifies header cardinality stays at 1 across retries.
+      //
+      // Simulates real git config state with independent global and local scopes so that
+      // --unset-all, --replace-all, and --get-all operations interact with the same in-memory
+      // state. Without this, --get-all is hard-coded to one value regardless of what the other
+      // commands do, meaning the test would pass even with the old accumulating implementation.
+      //
+      // Bug: getExtraheaderValues reads ALL scopes (--get-all), but the old --replace-all
+      // without an explicit scope only wrote to local, leaving the global value intact.
+      // After each restore both scopes held a copy, so the next --get-all returned N+1 values.
       const upstreamHeader = `Authorization: basic ${Buffer.from("x-access-token:upstream").toString("base64")}`;
-      let capturedPreviousValueCounts = [];
 
-      // Simulate the initial state: git config --get-all returns 1 value (global scope)
+      // Simulate git config state: actions/checkout writes the upstream token to global scope.
+      let globalValues = [upstreamHeader];
+      let localValues = [];
+
       mockExec.getExecOutput.mockImplementation(async (_cmd, args) => {
-        if (args[1] === "--get-all") return { exitCode: 0, stdout: upstreamHeader + "\n", stderr: "" };
-        // unset-all calls return success (exit 0)
-        return { exitCode: 0, stdout: "", stderr: "" };
+        if (args[1] === "--get-all") {
+          // git config --get-all reads from all scopes combined
+          const all = [...globalValues, ...localValues];
+          return all.length > 0 ? { exitCode: 0, stdout: all.join("\n") + "\n", stderr: "" } : { exitCode: 5, stdout: "", stderr: "" };
+        }
+        if (args[2] === "--unset-all") {
+          if (args[1] === "--global") {
+            const hadValues = globalValues.length > 0;
+            globalValues = [];
+            return { exitCode: hadValues ? 0 : 5, stdout: "", stderr: "" };
+          }
+          if (args[1] === "--local") {
+            const hadValues = localValues.length > 0;
+            localValues = [];
+            return { exitCode: hadValues ? 0 : 5, stdout: "", stderr: "" };
+          }
+        }
+        return { exitCode: 5, stdout: "", stderr: "" };
       });
 
-      // Intercept the info log to capture the "read N existing" count
+      mockExec.exec.mockImplementation(async (_cmd, args) => {
+        if (args[1] === "--local" && args[2] === "--replace-all") {
+          localValues = [args[4]];
+          return 0;
+        }
+        if (args[1] === "--local" && args[2] === "--add") {
+          localValues.push(args[4]);
+          return 0;
+        }
+        return 0;
+      });
+
+      let capturedPreviousValueCounts = [];
       mockCore.info.mockImplementation(msg => {
         const m = msg.match(/read (\d+) existing extraheader value/);
         if (m) capturedPreviousValueCounts.push(Number(m[1]));
@@ -429,7 +477,9 @@ describe("git_auth_helpers.cjs", () => {
         await withGitHubHostToken("fork-token", async () => {});
       }
 
-      // Both cycles should read exactly 1 value — no accumulation
+      // Both cycles should read exactly 1 value — no accumulation.
+      // Without the fix (no --global unset before writing), the second cycle would
+      // see both global and local copies of the token and return 2.
       expect(capturedPreviousValueCounts).toEqual([1, 1]);
     });
   });

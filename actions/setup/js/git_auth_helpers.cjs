@@ -36,11 +36,13 @@ async function unsetExtraheaderAllScopes(key, cwd) {
   // skipped because it is usually read-only in CI environments.
   const scopes = ["--global", "--local"];
   for (const scope of scopes) {
-    try {
-      const opts = { silent: true, ignoreReturnCode: true, ...(cwd ? { cwd } : {}) };
-      await exec.getExecOutput("git", ["config", scope, "--unset-all", key], opts);
-    } catch {
-      // Ignore – scope may not be accessible or key may be absent.
+    const opts = { silent: true, ignoreReturnCode: true, ...(cwd ? { cwd } : {}) };
+    const result = await exec.getExecOutput("git", ["config", scope, "--unset-all", key], opts);
+    // Exit code 5 means the key was absent in this scope — expected and safe to ignore.
+    // Any other non-zero exit code indicates a real failure (e.g., permission denied,
+    // write lock). Throw so the caller knows the credential may still be effective.
+    if (result.exitCode !== 0 && result.exitCode !== 5) {
+      throw new Error(`git config ${scope} --unset-all ${key} failed (exit ${result.exitCode}): ${result.stderr.trim()}`);
     }
   }
 }
