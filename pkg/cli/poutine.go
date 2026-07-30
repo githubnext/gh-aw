@@ -84,8 +84,9 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	}
 
 	// Validate gitRoot is an absolute path (security: ensure trusted path from git)
-	if !filepath.IsAbs(gitRoot) {
-		return fmt.Errorf("git root is not an absolute path: %s", gitRoot)
+	gitRoot, err = fileutil.ValidateAbsolutePath(gitRoot)
+	if err != nil {
+		return fmt.Errorf("invalid git root %q: %w", gitRoot, err)
 	}
 
 	// Ensure poutine config exists with custom runner configuration
@@ -97,11 +98,19 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json
 	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path
 	// exec.Command with separate args (not shell execution) prevents command injection
+	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
+	if err != nil {
+		return fmt.Errorf("invalid docker mount path: %w", err)
+	}
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return fmt.Errorf("docker command not found: %w", err)
+	}
 	cmd := exec.Command(
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
-		"-v", gitRoot+":/workdir",
+		"-v", volumeMount,
 		"-w", "/workdir",
 		"ghcr.io/boostsecurityio/poutine:latest",
 		"analyze_local",
@@ -115,8 +124,18 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json --quiet",
-			gitRoot)
+		dockerCmd := shellJoinArgs([]string{
+			"docker",
+			"run",
+			"--rm",
+			"-v", volumeMount,
+			"-w", "/workdir",
+			"ghcr.io/boostsecurityio/poutine:latest",
+			"analyze_local",
+			".",
+			"--format", "json",
+			"--quiet",
+		})
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run poutine directly: "+dockerCmd))
 	}
 
@@ -152,7 +171,7 @@ func runPoutineOnDirectory(workflowDir string, verbose bool, strict bool) error 
 			if exitCode == 1 {
 				// In strict mode, any findings in the scan are treated as errors
 				if strict && totalWarnings > 0 {
-					return fmt.Errorf("strict mode: poutine found %d security warnings/errors - workflows must have no poutine findings in strict mode", totalWarnings)
+					return fmt.Errorf("strict mode: poutine found %d security warnings/errors - workflows must have no poutine findings in strict mode. Example: rerun after resolving all reported findings", totalWarnings)
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
@@ -179,8 +198,9 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	}
 
 	// Validate gitRoot is an absolute path (security: ensure trusted path from git)
-	if !filepath.IsAbs(gitRoot) {
-		return fmt.Errorf("git root is not an absolute path: %s", gitRoot)
+	gitRoot, err = fileutil.ValidateAbsolutePath(gitRoot)
+	if err != nil {
+		return fmt.Errorf("invalid git root %q: %w", gitRoot, err)
 	}
 
 	// Ensure poutine config exists with custom runner configuration
@@ -198,11 +218,19 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 	// docker run --rm -v "$(pwd)":/workdir -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json
 	// #nosec G204 -- gitRoot comes from git rev-parse (trusted source) and is validated as absolute path
 	// exec.Command with separate args (not shell execution) prevents command injection
+	volumeMount, err := buildDockerVolumeMount(gitRoot, "/workdir")
+	if err != nil {
+		return fmt.Errorf("invalid docker mount path: %w", err)
+	}
+	dockerPath, err := fileutil.ResolveExecutablePath("docker")
+	if err != nil {
+		return fmt.Errorf("docker command not found: %w", err)
+	}
 	cmd := exec.Command(
-		"docker",
+		dockerPath,
 		"run",
 		"--rm",
-		"-v", gitRoot+":/workdir",
+		"-v", volumeMount,
 		"-w", "/workdir",
 		"ghcr.io/boostsecurityio/poutine:latest",
 		"analyze_local",
@@ -216,8 +244,18 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 
 	// In verbose mode, also show the command that users can run directly
 	if verbose {
-		dockerCmd := fmt.Sprintf("docker run --rm -v \"%s:/workdir\" -w /workdir ghcr.io/boostsecurityio/poutine:latest analyze_local . --format json --quiet",
-			gitRoot)
+		dockerCmd := shellJoinArgs([]string{
+			"docker",
+			"run",
+			"--rm",
+			"-v", volumeMount,
+			"-w", "/workdir",
+			"ghcr.io/boostsecurityio/poutine:latest",
+			"analyze_local",
+			".",
+			"--format", "json",
+			"--quiet",
+		})
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Run poutine directly: "+dockerCmd))
 	}
 
@@ -255,7 +293,7 @@ func runPoutineOnFile(lockFile string, verbose bool, strict bool) error {
 			if exitCode == 1 {
 				// In strict mode, any findings in the scan are treated as errors
 				if strict && totalWarnings > 0 {
-					return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode", totalWarnings, filepath.Base(lockFile))
+					return fmt.Errorf("strict mode: poutine found %d security warnings/errors in %s - workflows must have no poutine findings in strict mode. Example: rerun after resolving all reported findings in %s", totalWarnings, filepath.Base(lockFile), filepath.Base(lockFile))
 				}
 				// In non-strict mode, findings are logged but not treated as errors
 				return nil
@@ -283,7 +321,7 @@ func parseAndDisplayPoutineOutput(stdout, targetFile string, verbose bool) (int,
 	if !strings.HasPrefix(trimmed, "{") {
 		// Non-JSON output, likely an error
 		if trimmed != "" {
-			return 0, fmt.Errorf("unexpected poutine output format: %s", trimmed)
+			return 0, fmt.Errorf("unexpected poutine output format (expected JSON object). Example: {\"findings\":[]}. Got: %s", trimmed)
 		}
 		return 0, nil
 	}
@@ -393,7 +431,7 @@ func parseAndDisplayPoutineOutputForDirectory(stdout string, verbose bool, gitRo
 	if !strings.HasPrefix(trimmed, "{") {
 		// Non-JSON output, likely an error
 		if trimmed != "" {
-			return 0, fmt.Errorf("unexpected poutine output format: %s", trimmed)
+			return 0, fmt.Errorf("unexpected poutine output format (expected JSON object). Example: {\"findings\":[]}. Got: %s", trimmed)
 		}
 		return 0, nil
 	}
