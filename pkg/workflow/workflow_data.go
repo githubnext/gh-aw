@@ -36,6 +36,7 @@ type SkipIfCheckFailingConfig struct {
 type WorkflowData struct {
 	Name                           string
 	WorkflowID                     string           // workflow identifier derived from markdown filename (basename without extension)
+	CompiledVersion                string           // gh-aw compiler version (e.g. "v0.72.5"); injected by the Compiler into generated install steps as GH_AW_COMPILED_VERSION so the install script can resolve a compat.json window at runtime
 	TrialMode                      bool             // whether the workflow is running in trial mode
 	TrialLogicalRepo               string           // target repository slug for trial mode (owner/repo)
 	UseSamples                     bool             // whether the agentic step should be replaced by a deterministic samples replay driver (hidden feature)

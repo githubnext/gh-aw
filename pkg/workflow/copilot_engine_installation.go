@@ -142,21 +142,28 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 		return appendCopilotLSPInstallSteps(steps, workflowData)
 	}
 
-	// Use engine.version if provided, otherwise fall back to the default pinned version.
-	// When no explicit version is set, normalize the engine config so downstream
-	// consumers observe the effective installed value.
-	copilotVersion := string(constants.DefaultCopilotVersion)
+	// Version selection follows a three-level priority:
+	//   1. engine.version if explicitly set in the workflow — pass it as a positional arg.
+	//   2. compat.json toolcache lookup at runtime — enabled when no explicit version is set;
+	//      the script uses GH_AW_COMPILED_VERSION (injected by compiledVersion below) to
+	//      select the right compat window and pick the best cached binary.
+	//   3. Baked-in DEFAULT_COPILOT_VERSION in the script — final fallback.
+	//
+	// Regardless of which priority wins at install time, EngineConfig.Version is normalized to
+	// DefaultCopilotVersion so downstream compile-time lookups (OTel, GH_AW_INFO_VERSION, etc.)
+	// have a consistent value to reference.
+	copilotVersion := "" // empty means "let the script decide via compat/default" (priorities 2 & 3)
 	if workflowData.EngineConfig != nil {
 		if workflowData.EngineConfig.Version != "" {
 			copilotVersion = workflowData.EngineConfig.Version
 			copilotInstallLog.Printf("Using engine.version for Copilot CLI installation: %s", copilotVersion)
 		} else {
-			// Normalize engine config version to the effective installed version so
-			// downstream checks that consult EngineConfig.Version stay consistent.
-			// This mutates workflowData by design because subsequent generation steps
-			// in the same compile flow should observe the effective installed version.
-			workflowData.EngineConfig.Version = copilotVersion
-			copilotInstallLog.Printf("No engine.version specified, using default Copilot CLI version: %s", copilotVersion)
+			// Normalize EngineConfig.Version to the compile-time default so downstream
+			// consumers (OTel, GH_AW_INFO_VERSION, copilotSupportsNoAskUser, …) have a
+			// consistent effective value. The install script may install a different
+			// version within the compat window, but that is intentional.
+			workflowData.EngineConfig.Version = string(constants.DefaultCopilotVersion)
+			copilotInstallLog.Printf("No engine.version specified; script will resolve via compat.json or baked-in default (normalized to %s for downstream uses)", constants.DefaultCopilotVersion)
 		}
 	}
 
@@ -167,7 +174,8 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 	// The "Copy Copilot CLI to daemon-visible path" step in nodejs.go then copies from
 	// the rootless location to ${RUNNER_TEMP}/gh-aw/bin/copilot where AWF expects it.
 	rootless := isArcDindTopology(workflowData)
-	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless)
+	compiledVersion := workflowData.CompiledVersion
+	npmSteps := GenerateCopilotInstallerSteps(copilotVersion, "Install GitHub Copilot CLI", rootless, compiledVersion)
 	if len(inlineDriverWriteStep) > 0 {
 		npmSteps = append(npmSteps, inlineDriverWriteStep)
 	}

@@ -212,24 +212,5 @@ func (e *CopilotEngine) GetCleanupStep(workflowData *WorkflowData) GitHubActionS
 
 // generateAWFInstallationStep is implemented in copilot_engine_installation.go
 
-// GenerateCopilotInstallerSteps creates GitHub Actions steps for installing Copilot CLI using the official installer script
-// Parameters:
-//   - version: The Copilot CLI version to install (e.g., "0.0.369" or "v0.0.369")
-//   - stepName: The name to display for the install step (e.g., "Install GitHub Copilot CLI")
-//
-// Returns steps for installing Copilot CLI using the official install.sh script from the Copilot CLI repository.
-// The script is downloaded from https://raw.githubusercontent.com/github/copilot-cli/main/install.sh
-// and executed with the VERSION environment variable set.
-//
-// Security Implementation:
-//  1. Downloads the official installer script from the Copilot CLI repository
-//  2. Saves script to a temporary file before execution (not piped directly to bash)
-//  3. Uses the official script which includes platform detection and error handling
-//
-// Version Handling:
-// The VERSION environment variable is used by the install.sh script.
-// The script automatically adds 'v' prefix if not present.
-// Examples:
-//   - VERSION=0.0.369 → downloads and installs v0.0.369
-//   - VERSION=v0.0.369 → downloads and installs v0.0.369
-//   - VERSION=1.2.3 → downloads and installs v1.2.3
+// GenerateCopilotInstallerSteps is implemented in copilot_installer.go.
+// See that file for the full signature and priority documentation.
