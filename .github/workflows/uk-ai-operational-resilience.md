@@ -90,6 +90,7 @@ pre-agent-steps:
         echo "- Open secret scanning alerts: $(jq 'length' /tmp/gh-aw/agent/open-secret-scanning-alerts.json)"
       } > /tmp/gh-aw/agent/uk-ai-governance-context.md
 imports:
+  - shared/mcp-pagination.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[uk ai resilience] "

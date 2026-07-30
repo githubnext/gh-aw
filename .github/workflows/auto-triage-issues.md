@@ -25,6 +25,7 @@ network:
     - defaults
     - github
 imports:
+  - shared/mcp-pagination.md
   - shared/github-guard-policy.md
   - shared/reporting.md
   - shared/otlp.md
