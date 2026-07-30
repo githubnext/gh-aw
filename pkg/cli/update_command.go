@@ -199,6 +199,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 	updateLog.Printf("Starting update process: workflows=%v, allowMajor=%v, force=%v, noMerge=%v, disableReleaseBump=%v, noCompile=%v, noRedirect=%v, coolDown=%v", opts.WorkflowNames, opts.AllowMajor, opts.Force, opts.NoMerge, opts.DisableReleaseBump, opts.NoCompile, opts.NoRedirect, opts.CoolDown)
 
 	var firstErr error
+	actionDeps := newCachedActionUpdateDeps(defaultActionUpdateDeps())
 
 	if err := UpdateWorkflows(ctx, opts); err != nil {
 		firstErr = fmt.Errorf("workflow update failed: %w", err)
@@ -208,17 +209,25 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 	// By default all actions are updated to the latest major version.
 	// Pass --no-release-bump to revert to only forcing updates for core (actions/*) actions.
 	updateLog.Printf("Updating GitHub Actions versions in actions-lock.json: allowMajor=%v, disableReleaseBump=%v", opts.AllowMajor, opts.DisableReleaseBump)
-	if err := UpdateActions(ctx, opts.AllowMajor, opts.Verbose, opts.DisableReleaseBump, opts.CoolDown); err != nil {
+	if err := updateActions(ctx, actionDeps, opts.AllowMajor, opts.Verbose, opts.DisableReleaseBump, opts.CoolDown); err != nil {
 		// Non-fatal: warn but don't fail the update
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update actions-lock.json: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update actions-lock.json: %v", err)))
 	}
 
 	// Update action references in user-provided steps within workflow .md files.
 	// By default all org/repo@version references are updated to the latest major version.
 	updateLog.Print("Updating action references in workflow .md files")
-	if err := UpdateActionsInWorkflowFiles(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.DisableReleaseBump, opts.NoCompile, opts.CoolDown, opts.Approve); err != nil {
+	if err := updateActionsInWorkflowFiles(ctx, actionDeps, updateActionsOptions{
+		workflowsDir:       opts.WorkflowsDir,
+		engineOverride:     opts.EngineOverride,
+		verbose:            opts.Verbose,
+		disableReleaseBump: opts.DisableReleaseBump,
+		noCompile:          opts.NoCompile,
+		coolDown:           opts.CoolDown,
+		approve:            opts.Approve,
+	}); err != nil {
 		// Non-fatal: warn but don't fail the update
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update action references in workflow files: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update action references in workflow files: %v", err)))
 	}
 
 	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
@@ -229,7 +238,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 	newContainerPins, err := updateContainerPins(ctx, defaultContainerPinUpdateDeps(), opts.WorkflowsDir, opts.Verbose, containerPinUpdateOptions{refreshExisting: true})
 	if err != nil {
 		// Non-fatal: Docker may not be available in all environments.
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to update container pins: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update container pins: %v", err)))
 	}
 
 	// Recompile all workflows when new container pins were added so that the
@@ -239,7 +248,7 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling workflows to embed container digest pins..."))
 		recompileErr := recompileAllWorkflows(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve)
 		if recompileErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Warning: Failed to recompile workflows after container pin update: %v", recompileErr)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not recompile workflows after container pin update: %v", recompileErr)))
 		}
 	}
 
