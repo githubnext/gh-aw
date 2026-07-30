@@ -161,6 +161,7 @@ steps:
         core.info(`PR close-rate (7d): ${rateStr} (${closed7d.length} closed, ${merged7d.length} merged)${autoPause ? ' — AUTO-PAUSE ACTIVE' : ''}`);
 
 imports:
+  - shared/mcp-pagination.md
   - shared/otlp.md
 features:
   gh-aw-detection: true

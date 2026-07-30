@@ -17,6 +17,7 @@ permissions:
 tracker-id: code-simplifier
 
 imports:
+  - shared/mcp-pagination.md
   - uses: shared/skip-if-issue-open.md
     with:
       title-prefix: "[code-simplifier]"

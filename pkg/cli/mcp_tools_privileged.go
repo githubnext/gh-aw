@@ -246,17 +246,22 @@ from where the previous request stopped due to timeout.`,
 		// context, so the subprocess is killed after 60 s even when the caller
 		// explicitly requests a longer timeout via args.Timeout.
 		//
-		// Fix: detach from the gateway deadline by rooting the subprocess context
-		// at context.Background(), using the user-requested timeout as the only
-		// deadline.  We still forward any explicit cancellations from the MCP
-		// request context (e.g. client disconnect) so the subprocess is cleaned up
-		// promptly when the caller goes away.
+		// Fix: detach from the gateway deadline by stripping cancellation/deadline
+		// from ctx via context.WithoutCancel, then applying only the user-requested
+		// timeout.  Context values (e.g. trace IDs) are preserved.  We still forward
+		// any explicit cancellations from the MCP request context (e.g. client
+		// disconnect) so the subprocess is cleaned up promptly when the caller goes away.
 		subCtx, subCancel := context.WithTimeout(
-			context.Background(),
+			context.WithoutCancel(ctx),
 			time.Duration(timeoutValue)*time.Minute,
 		)
 		defer subCancel()
 		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					mcpLog.Printf("Panic in MCP logs context-watcher goroutine (recovered): %v", r)
+				}
+			}()
 			// Goroutine exits cleanly in both cases: client disconnect or subprocess timeout.
 			// Only forward explicit cancellations (context.Canceled); do NOT propagate
 			// context.DeadlineExceeded from the MCP gateway — that would kill the subprocess

@@ -18,7 +18,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:httpnoctx")
 
 // Analyzer is the http-no-ctx analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -39,6 +42,7 @@ var contextFreeMethods = map[string]bool{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -78,6 +82,7 @@ func checkHTTPCall(pass *analysis.Pass, cursor inspector.Cursor, generatedFiles 
 	}
 	if contextFreeMethods[sel.Sel.Name] {
 		if isHTTPClientReceiver(pass, sel.X) {
+			pkgLog.Printf("flagging (*http.Client).%s without context at %s", sel.Sel.Name, pos)
 			pass.ReportRangef(call,
 				"(*http.Client).%s does not accept a context; use http.NewRequestWithContext + client.Do to propagate cancellation",
 				sel.Sel.Name,
@@ -85,6 +90,7 @@ func checkHTTPCall(pass *analysis.Pass, cursor inspector.Cursor, generatedFiles 
 			return
 		}
 		if isHTTPPackage(pass, sel.X) {
+			pkgLog.Printf("flagging http.%s without context at %s", sel.Sel.Name, pos)
 			pass.ReportRangef(call,
 				"http.%s does not accept a context; use http.NewRequestWithContext + http.DefaultClient.Do to propagate cancellation",
 				sel.Sel.Name,
@@ -93,12 +99,14 @@ func checkHTTPCall(pass *analysis.Pass, cursor inspector.Cursor, generatedFiles 
 		}
 	}
 	if sel.Sel.Name == "NewRequest" && isHTTPPackage(pass, sel.X) && hasContextInEnclosingFunc(pass, cursor) {
+		pkgLog.Printf("flagging http.NewRequest in context-aware func at %s", pos)
 		pass.ReportRangef(call,
 			"http.NewRequest does not propagate context; use http.NewRequestWithContext when context.Context is in scope",
 		)
 		return
 	}
 	if sel.Sel.Name == "Do" && isHTTPDefaultClient(pass, sel.X) {
+		pkgLog.Printf("flagging http.DefaultClient.Do at %s", pos)
 		pass.ReportRangef(call,
 			"http.DefaultClient.Do uses a timeout-less client; use a dedicated *http.Client with Timeout set",
 		)

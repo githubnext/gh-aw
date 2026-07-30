@@ -46,7 +46,24 @@ function buildWorkflowRunUrl(ctx, workflowRepo) {
   return `${server}/${owner}/${repo}/actions/runs/${ctx.runId}`;
 }
 
+/**
+ * Human-readable descriptions for GitHub event types, used in comment messages.
+ * Shared by handlers that describe the triggering event (e.g. "issue", "pull request").
+ * @type {Record<string, string>}
+ */
+const EVENT_TYPE_DESCRIPTIONS = {
+  issues: "issue",
+  pull_request: "pull request",
+  pull_request_comment: "pull request comment",
+  pull_request_review: "pull request review",
+  issue_comment: "issue comment",
+  pull_request_review_comment: "pull request review comment",
+  discussion: "discussion",
+  discussion_comment: "discussion comment",
+};
+
 module.exports = {
   getWorkflowMetadata,
   buildWorkflowRunUrl,
+  EVENT_TYPE_DESCRIPTIONS,
 };
