@@ -133,7 +133,14 @@ function resolveChildProcessMethod(node: TSESTree.CallExpression, sourceCode: TS
   }
 
   if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed) return null;
-  if (callee.object.type !== AST_NODE_TYPES.Identifier || callee.property.type !== AST_NODE_TYPES.Identifier) return null;
+  if (callee.property.type !== AST_NODE_TYPES.Identifier) return null;
+
+  if (callee.object.type === AST_NODE_TYPES.CallExpression && isRequireChildProcess(callee.object)) {
+    const method = callee.property.name;
+    return method === "exec" || method === "execSync" || method === "spawn" || method === "spawnSync" || method === "execFile" || method === "execFileSync" ? method : null;
+  }
+
+  if (callee.object.type !== AST_NODE_TYPES.Identifier) return null;
   if (!isChildProcessObjectBinding(callee.object.name, callee.object, sourceCode)) return null;
 
   const method = callee.property.name;
