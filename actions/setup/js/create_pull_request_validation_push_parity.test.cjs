@@ -260,8 +260,11 @@ describe("create_pull_request – validation/push file-set parity", () => {
     const fromPatch = fileListFromPatch(patchContent);
     expect(fromPatch, "patch should contain only main_file.txt").toEqual(["main_file.txt"]);
 
-    // Generate bundle (currently does NOT honour excludedFiles)
-    const bundleResult = await generateGitBundle(branchName, "main", { cwd: agentRepo });
+    // Generate bundle with the same exclusions used for patch validation.
+    const bundleResult = await generateGitBundle(branchName, "main", {
+      cwd: agentRepo,
+      excludedFiles: ["excluded_file.txt"],
+    });
     expect(bundleResult.success, `bundle generation failed: ${bundleResult.error}`).toBe(true);
     createdArtifacts.push(bundleResult.bundlePath);
 
@@ -353,8 +356,11 @@ describe("create_pull_request – validation/push file-set parity", () => {
     const fromPatch = fileListFromPatch(patchContent);
     expect(fromPatch, "patch should contain only main_file.txt").toEqual(["main_file.txt"]);
 
-    // Generate bundle (includes all commits and all files, no exclusion)
-    const bundleResult = await generateGitBundle(branchName, "main", { cwd: agentRepo });
+    // Generate bundle with the same exclusions used for patch validation.
+    const bundleResult = await generateGitBundle(branchName, "main", {
+      cwd: agentRepo,
+      excludedFiles: ["excluded_file.txt"],
+    });
     expect(bundleResult.success, `bundle generation failed: ${bundleResult.error}`).toBe(true);
     createdArtifacts.push(bundleResult.bundlePath);
 
@@ -371,7 +377,9 @@ describe("create_pull_request – validation/push file-set parity", () => {
     // single commit on top of origin/main.  In production this is triggered by
     // pushSignedCommits refusing merge-commit topology, causing create_pull_request
     // to call rewriteBundleBranchAsSingleCommit → linearizeRangeAsCommit.
-    await linearizeRangeAsCommit("origin/main", "apply bundled changes", createExecApi(safeOutputsRepo));
+    await linearizeRangeAsCommit("origin/main", "apply bundled changes", createExecApi(safeOutputsRepo), {
+      excludedFiles: ["excluded_file.txt"],
+    });
 
     // REGRESSION ASSERTION: the rewritten commit must contain the same files as the patch.
     // On pre-fix code this fails because linearizeRangeAsCommit stages ALL files that
