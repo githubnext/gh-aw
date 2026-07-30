@@ -99,6 +99,11 @@ timeout-minutes: 45
 sandbox:
   agent:
     sudo: false
+evals:
+  - id: spending_forecast_analyzed
+    question: Did the agent analyze the agentic workflow spending forecast and its data quality?
+  - id: forecast_report_created
+    question: Did the agent create a report with spending projections and supporting evidence?
 ---
 
 # Daily Spending Forecast

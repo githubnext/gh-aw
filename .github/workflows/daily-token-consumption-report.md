@@ -39,6 +39,11 @@ imports:
   - shared/otlp.md
 features:
   gh-aw-detection: true
+evals:
+  - id: token_consumption_analyzed
+    question: Did the agent analyze AI Credit consumption across agentic workflows using available telemetry?
+  - id: consumption_report_created
+    question: Did the agent create a report with token consumption trends and actionable observations?
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}

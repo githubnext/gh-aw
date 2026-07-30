@@ -281,6 +281,11 @@ steps:
         fs.mkdirSync(path.dirname(outPath), { recursive: true });
         fs.writeFileSync(outPath, JSON.stringify(payload, null, 2) + '\n', 'utf8');
         console.log(JSON.stringify(payload, null, 2));
+evals:
+  - id: dependabot_batch_analyzed
+    question: Did the agent analyze the selected grouped Dependabot remediation batch?
+  - id: remediation_reported
+    question: Did the agent create a remediation pull request or clearly report why no remediation was needed?
 ---
 
 # Dependabot Burner
