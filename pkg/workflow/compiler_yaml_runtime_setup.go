@@ -21,9 +21,6 @@ import (
 // themselves contain a checkout action (used by the caller to compute needsGitConfig).
 func (c *Compiler) generateRuntimeAndWorkspaceSetupSteps(yaml *strings.Builder, data *WorkflowData, needsCheckout bool) bool {
 	runtimeSetupSteps, customStepsContainCheckout := c.prepareRuntimeSetupAndCheckoutInfo(data)
-	if customStepsContainCheckout {
-		runtimeSetupSteps = append(runtimeSetupSteps, sharedLogsCacheRestoreSteps(data)...)
-	}
 	compilerYamlLog.Printf("Custom steps contain checkout: %t (len(customSteps)=%d)", customStepsContainCheckout, len(data.CustomSteps))
 
 	c.emitRuntimeSetupPrelude(yaml, data, needsCheckout, customStepsContainCheckout, runtimeSetupSteps)
@@ -202,13 +199,16 @@ func (c *Compiler) emitCustomSteps(yaml *strings.Builder, data *WorkflowData, cu
 	if hasDIFCProxyNeeded(data) {
 		customStepsToEmit = injectProxyEnvIntoCustomSteps(customStepsToEmit)
 	}
-	if customStepsContainCheckout && len(runtimeSetupSteps) > 0 {
-		// Custom steps contain checkout and we have runtime steps to insert
-		// Insert runtime steps after the first checkout step
-		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps to insert after checkout", len(runtimeSetupSteps))
-		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, data.ParsedTools, isArcDindTopology(data))
+	if customStepsContainCheckout && (len(runtimeSetupSteps) > 0 || len(sharedLogsCacheRestoreSteps(data)) > 0) {
+		// Custom steps contain checkout: insert runtime steps after the first checkout and
+		// the cache restore after the last checkout. Inserting the cache restore after the
+		// last checkout ensures that a multi-checkout custom steps block (where a later root
+		// checkout would wipe .github/aw/logs) does not leave the consumer without cached data.
+		cacheRestoreSteps := sharedLogsCacheRestoreSteps(data)
+		compilerYamlLog.Printf("Calling addCustomStepsWithRuntimeInsertion: %d runtime steps after first checkout, %d cache-restore steps after last checkout", len(runtimeSetupSteps), len(cacheRestoreSteps))
+		c.addCustomStepsWithRuntimeInsertion(yaml, customStepsToEmit, runtimeSetupSteps, cacheRestoreSteps, data.ParsedTools, isArcDindTopology(data))
 	} else {
-		// No checkout in custom steps or no runtime steps, just add custom steps as-is
+		// No checkout in custom steps or no steps to insert, just add custom steps as-is
 		compilerYamlLog.Printf("Calling addCustomStepsAsIs (customStepsContainCheckout=%t, runtimeStepsCount=%d)", customStepsContainCheckout, len(runtimeSetupSteps))
 		c.addCustomStepsAsIs(yaml, customStepsToEmit)
 	}
@@ -344,11 +344,18 @@ func (c *Compiler) addCustomStepsAsIs(yaml *strings.Builder, customSteps string)
 	}
 }
 
-// addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first checkout.
+// addCustomStepsWithRuntimeInsertion adds custom steps and inserts runtime steps after the first
+// checkout and postLastCheckoutSteps (e.g. cache restore) after the last checkout. In the common
+// single-checkout case both insertions happen at the same point. For multi-checkout workflows
+// (where a later root checkout would wipe a previously restored path such as .github/aw/logs)
+// the post-last-checkout steps are deferred until after the final checkout so the path remains
+// intact when the subsequent command runs.
 // Like addCustomStepsAsIs it sanitizes any ${{ ... }} expressions found in run: fields before writing.
-func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, tools *ToolsConfig, ensureArcDindNodePath bool) {
+func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, customSteps string, runtimeSetupSteps []GitHubActionStep, postLastCheckoutSteps []GitHubActionStep, tools *ToolsConfig, ensureArcDindNodePath bool) {
 	customSteps = c.sanitizeAndWarnCustomSteps(customSteps)
-	checkoutStepIndex, hasCheckoutStep := findFirstCheckoutStepIndex(customSteps)
+	firstCheckoutIndex, hasCheckoutStep := findFirstCheckoutStepIndex(customSteps)
+	lastCheckoutIndex, _ := findLastCheckoutStepIndex(customSteps)
+	hasPostLastSteps := len(postLastCheckoutSteps) > 0
 	// Remove "steps:" line and adjust indentation
 	lines := strings.Split(customSteps, "\n")
 	if len(lines) <= 1 {
@@ -356,6 +363,7 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 	}
 
 	insertedRuntime := false
+	insertedPostLast := false
 	i := 1 // Start from index 1 to skip "steps:" line
 	currentStepIndex := -1
 	stepIndent := -1
@@ -386,12 +394,13 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 			isStepStart = indent == stepIndent
 		}
 
-		if isStepStart && !insertedRuntime {
+		if isStepStart {
 			currentStepIndex++
-			isCheckoutStep := hasCheckoutStep && currentStepIndex == checkoutStepIndex
+			isFirstCheckout := hasCheckoutStep && currentStepIndex == firstCheckoutIndex && !insertedRuntime
+			isLastCheckout := hasPostLastSteps && hasCheckoutStep && currentStepIndex == lastCheckoutIndex && !insertedPostLast
 
-			if isCheckoutStep {
-				// This is a checkout step, copy all its lines until the next step
+			if isFirstCheckout || isLastCheckout {
+				// This is a checkout step (first, last, or both): copy all its lines until the next step
 				i++
 				for i < len(lines) {
 					nextLine := lines[i]
@@ -411,11 +420,25 @@ func (c *Compiler) addCustomStepsWithRuntimeInsertion(yaml *strings.Builder, cus
 					i++
 				}
 
-				// Now insert runtime steps after the checkout step
-				compilerYamlLog.Printf("Inserting %d runtime setup steps after checkout in custom steps", len(runtimeSetupSteps))
-				c.emitRuntimeSetupSteps(yaml, runtimeSetupSteps, ensureArcDindNodePath)
+				if isFirstCheckout {
+					// Insert runtime steps after the first checkout step
+					compilerYamlLog.Printf("Inserting %d runtime setup steps after first checkout in custom steps", len(runtimeSetupSteps))
+					c.emitRuntimeSetupSteps(yaml, runtimeSetupSteps, ensureArcDindNodePath)
+					insertedRuntime = true
+				}
+				if isLastCheckout || (isFirstCheckout && firstCheckoutIndex == lastCheckoutIndex) {
+					// Insert post-last-checkout steps (e.g. cache restore) after the last checkout.
+					// When first == last (single-checkout), this runs immediately after runtime insertion above.
+					compilerYamlLog.Printf("Inserting %d post-last-checkout steps after last checkout in custom steps", len(postLastCheckoutSteps))
+					for _, step := range postLastCheckoutSteps {
+						for _, stepLine := range step {
+							yaml.WriteString(stepLine)
+							yaml.WriteByte('\n')
+						}
+					}
+					insertedPostLast = true
+				}
 
-				insertedRuntime = true
 				continue // Continue with the next iteration (i is already advanced)
 			}
 		}

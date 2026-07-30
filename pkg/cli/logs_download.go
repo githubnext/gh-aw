@@ -938,10 +938,12 @@ func downloadRunArtifacts(ctx context.Context, opts downloadArtifactsOptions) er
 			return ErrNoArtifacts
 		}
 		// Write the complete-download marker when the bulk download succeeded with no
-		// errors, or when some non-zip artifacts were skipped but critical artifacts were
-		// recovered via retryCriticalArtifacts. In the skipped-non-zip case the directory
-		// is non-empty (guarded above), so marking prevents redundant re-downloads.
-		if err == nil || skippedNonZipArtifacts {
+		// errors, when some non-zip artifacts were skipped but critical artifacts were
+		// recovered via retryCriticalArtifacts, or when a case-collision caused the bulk
+		// download to abort but all artifacts were successfully retried individually.
+		// In all three cases the directory is non-empty (guarded above for non-zip),
+		// so marking prevents an unbounded re-download loop on subsequent runs.
+		if err == nil || skippedNonZipArtifacts || skippedCaseCollisionArtifacts {
 			if markerErr := markArtifactDownloaded(opts.outputDir, string(ArtifactSetAll)); markerErr != nil {
 				return markerErr
 			}
