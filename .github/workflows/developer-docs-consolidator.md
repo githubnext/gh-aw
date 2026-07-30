@@ -57,6 +57,11 @@ tools:
   repo-memory:
     description: Consolidated developer documentation and instructions
     wiki: true
+evals:
+  - id: developer_docs_analyzed
+    question: Did the agent analyze developer documentation for consolidation and organization opportunities?
+  - id: docs_pr_created_or_noop
+    question: Did the agent create a documentation pull request, or report that no consolidation changes were needed?
 ---
 # Developer Documentation Consolidator
 

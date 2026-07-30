@@ -10,6 +10,7 @@ import (
 
 // TestCommandGroupAssignments verifies that commands are assigned to appropriate groups
 func TestCommandGroupAssignments(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name            string
 		commandName     string
@@ -68,6 +69,7 @@ func TestCommandGroupAssignments(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Find the command
 			var foundCmd *cobra.Command
 			for _, cmd := range rootCmd.Commands() {
@@ -99,6 +101,7 @@ func TestCommandGroupAssignments(t *testing.T) {
 
 // TestCommandGroupsExist verifies that all expected command groups exist
 func TestCommandGroupsExist(t *testing.T) {
+	t.Parallel()
 	expectedGroups := map[string]string{
 		"setup":       "Setup Commands:",
 		"development": "Development Commands:",
@@ -132,11 +135,13 @@ func TestCommandGroupsExist(t *testing.T) {
 // TestNoCommandsInAdditionalCommandsWithGroups verifies that commands that should have groups
 // are not appearing in the "Additional Commands" section
 func TestNoCommandsInAdditionalCommandsWithGroups(t *testing.T) {
+	t.Parallel()
 	// Commands that should NOT be in Additional Commands (should have groups)
 	commandsShouldHaveGroups := []string{"remove", "update", "deploy", "trial", "mcp-server", "pr"}
 
 	for _, cmdName := range commandsShouldHaveGroups {
 		t.Run("command "+cmdName+" has group", func(t *testing.T) {
+			t.Parallel()
 			var foundCmd *cobra.Command
 			for _, cmd := range rootCmd.Commands() {
 				if cmd.Name() == cmdName {
