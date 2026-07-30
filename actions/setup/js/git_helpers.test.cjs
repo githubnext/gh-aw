@@ -1331,13 +1331,16 @@ describe("git_helpers.cjs", () => {
       } catch {
         // If the shallow probe fails, treat as non-shallow for this test
       }
-      let result;
+      // HEAD^ may not be reachable in a depth-1 shallow clone (e.g. PR checkout with
+      // fetch-depth: 1).  checkImplausibleShallowRange swallows the git error and
+      // returns {commitCount: 0} rather than throwing, so we pre-validate here and
+      // skip instead of asserting on a zero count.
       try {
-        result = checkImplausibleShallowRange("HEAD^", "HEAD", { maxCommits: 0 });
+        execGitSync(["rev-parse", "--verify", "HEAD^"], { suppressLogs: true });
       } catch {
-        // If HEAD^ does not exist (initial commit), skip
-        return;
+        return; // HEAD^ unreachable in this environment — skip
       }
+      const result = checkImplausibleShallowRange("HEAD^", "HEAD", { maxCommits: 0 });
       // Count is >0 (above threshold of 0); implausible iff the clone is shallow
       expect(result.commitCount).toBeGreaterThan(0);
       expect(result.implausible).toBe(isShallow);
