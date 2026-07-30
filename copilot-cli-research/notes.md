@@ -42,3 +42,10 @@ These features have been at 0 usage for multiple consecutive runs:
 - `--share` flag remains at 0 usage across 3 consecutive runs — consider deprioritizing or providing a concrete worked example to unblock adoption.
 - New finding: 6 of 11 custom agent files in `.github/agents/` are orphaned (never referenced by any workflow's `agent:` field).
 - `harness` retry tuning still flat (0→1).
+
+## Run 30514465830 (2026-07-30)
+- 133/266 workflows use Copilot engine (~50%).
+- --share flag usage remains very low (2), unchanged trend from prior run (0).
+- 5 of 9 custom agent files (.github/agents/*.agent.md) remain orphaned/unreferenced.
+- block-domains usage is 0 despite 68 workflows using network config - opportunity for tighter egress control.
+- engine.args customization still rare (3 workflows) vs available flags like --no-ask-user, --allow-all-paths, --no-custom-instructions, --disable-builtin-mcps.
