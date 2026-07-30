@@ -989,80 +989,59 @@ func TestLogsToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
 // subprocess deadline is independent of the MCP gateway's 60 s per-request
 // deadline. This is the regression test for the bug where a 60 s gateway
 // deadline caused context deadline exceeded on every audit call.
+//
+// The test calls newMCPSubprocessContext directly with a deadline-bearing
+// context so it is not affected by the MCP in-memory transport's context
+// isolation, which strips deadlines from server handler contexts.
 func TestAuditToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
-	var capturedDeadline time.Time
-	var capturedHasDeadline bool
-
-	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		capturedDeadline, capturedHasDeadline = ctx.Deadline()
-		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", `{"overview":{"run_id":"1234567890"}}`)
-	}
-
-	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
-	err := registerAuditTool(server, mockExecCmd, "", false)
-	require.NoError(t, err, "registerAuditTool should succeed")
-
-	session := connectInMemory(t, server)
-
-	before := time.Now()
-
-	// Simulate the MCP gateway's short per-tool RPC deadline (2 s).
+	// Simulate the MCP gateway's short per-tool RPC deadline (2 s) by passing a
+	// deadline-bearing context directly to the detachment helper — the same
+	// context the handler receives in production.
 	gatewayCtx, gatewayCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer gatewayCancel()
 
-	_, _ = session.CallTool(gatewayCtx, &mcp.CallToolParams{
-		Name:      "audit",
-		Arguments: map[string]any{"run_id": "1234567890"},
-	})
+	before := time.Now()
 
-	require.True(t, capturedHasDeadline, "subprocess context should have a deadline")
+	subCtx, subCancel := newMCPSubprocessContext(gatewayCtx, time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute, "audit")
+	defer subCancel()
+
+	deadline, ok := subCtx.Deadline()
+	require.True(t, ok, "subprocess context should have a deadline")
 
 	// The subprocess deadline must be at least defaultMCPAuditTimeoutMinutes out,
-	// not bounded by the 2-second gateway context.
+	// not bounded by the 2-second gateway context.  This assertion would fail if
+	// newMCPSubprocessContext were changed to context.WithTimeout(ctx, ...) without
+	// the context.WithoutCancel detachment step.
 	expectedMinDeadline := before.Add(time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute - 5*time.Second)
-	assert.True(t, capturedDeadline.After(expectedMinDeadline),
+	assert.True(t, deadline.After(expectedMinDeadline),
 		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v) regardless of the 2s gateway deadline; got %v from start",
-		capturedDeadline, defaultMCPAuditTimeoutMinutes, before, capturedDeadline.Sub(before))
+		deadline, defaultMCPAuditTimeoutMinutes, before, deadline.Sub(before))
 }
 
 // TestAuditDiffToolSubprocessContextIgnoresGatewayDeadline verifies that the
 // audit-diff tool creates a subprocess context rooted at context.Background()
 // so the subprocess deadline is independent of the MCP gateway's 60 s
 // per-request deadline.
+//
+// The test calls newMCPSubprocessContext directly with a deadline-bearing
+// context so it is not affected by the MCP in-memory transport's context
+// isolation, which strips deadlines from server handler contexts.
 func TestAuditDiffToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
-	var capturedDeadline time.Time
-	var capturedHasDeadline bool
-
-	mockExecCmd := func(ctx context.Context, args ...string) *exec.Cmd {
-		capturedDeadline, capturedHasDeadline = ctx.Deadline()
-		return exec.CommandContext(ctx, "sh", "-c", `printf '%s' "$1"`, "sh", `[{"base_run_id":100,"compare_run_id":200}]`)
-	}
-
-	server := mcp.NewServer(&mcp.Implementation{Name: "test", Version: "1.0"}, nil)
-	err := registerAuditDiffTool(server, mockExecCmd, "", false)
-	require.NoError(t, err, "registerAuditDiffTool should succeed")
-
-	session := connectInMemory(t, server)
-
-	before := time.Now()
-
 	// Simulate the MCP gateway's short per-tool RPC deadline (2 s).
 	gatewayCtx, gatewayCancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer gatewayCancel()
 
-	_, _ = session.CallTool(gatewayCtx, &mcp.CallToolParams{
-		Name: "audit-diff",
-		Arguments: map[string]any{
-			"base_run_id":     "100",
-			"compare_run_ids": []string{"200"},
-		},
-	})
+	before := time.Now()
 
-	require.True(t, capturedHasDeadline, "subprocess context should have a deadline")
+	subCtx, subCancel := newMCPSubprocessContext(gatewayCtx, time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute, "audit-diff")
+	defer subCancel()
+
+	deadline, ok := subCtx.Deadline()
+	require.True(t, ok, "subprocess context should have a deadline")
 
 	// The subprocess deadline must be at least defaultMCPAuditDiffTimeoutMinutes out.
 	expectedMinDeadline := before.Add(time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute - 5*time.Second)
-	assert.True(t, capturedDeadline.After(expectedMinDeadline),
+	assert.True(t, deadline.After(expectedMinDeadline),
 		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v) regardless of the 2s gateway deadline; got %v from start",
-		capturedDeadline, defaultMCPAuditDiffTimeoutMinutes, before, capturedDeadline.Sub(before))
+		deadline, defaultMCPAuditDiffTimeoutMinutes, before, deadline.Sub(before))
 }

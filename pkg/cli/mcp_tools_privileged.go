@@ -39,8 +39,8 @@ const (
 	// bounding the subprocess lifetime.
 	defaultMCPAuditTimeoutMinutes = 5
 	// defaultMCPAuditDiffTimeoutMinutes is the default subprocess timeout for the
-	// audit-diff tool.  It downloads artifacts for all referenced runs before
-	// computing the diff, so it needs more headroom than a single-run audit.
+	// audit-diff tool.  5 minutes gives ample headroom for the artifact-download
+	// and diff steps while still bounding the subprocess lifetime.
 	defaultMCPAuditDiffTimeoutMinutes = 5
 )
 
@@ -55,6 +55,43 @@ func appendRepoFlagFromEnv(args []string) []string {
 		return append(args, "--repo", repo)
 	}
 	return args
+}
+
+// newMCPSubprocessContext creates a subprocess context that is detached from the
+// MCP gateway's per-request deadline.  The gateway imposes a short RPC deadline
+// (typically 60 s) on the request context; passing that context directly to
+// exec.CommandContext would kill long-running subprocesses prematurely.
+//
+// The returned context is rooted at context.Background() (values preserved,
+// gateway deadline stripped) and carries only the caller-specified timeout.
+// A goroutine is started to forward explicit client cancellations
+// (context.Canceled) to the subprocess while ignoring DeadlineExceeded from
+// the gateway.
+//
+// toolName is used solely in the panic-recovery log message.
+func newMCPSubprocessContext(ctx context.Context, timeout time.Duration, toolName string) (context.Context, context.CancelFunc) {
+	subCtx, subCancel := context.WithTimeout(
+		context.WithoutCancel(ctx),
+		timeout,
+	)
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				mcpLog.Printf("Panic in MCP %s context-watcher goroutine (recovered): %v", toolName, r)
+			}
+		}()
+		// Only forward explicit cancellations (context.Canceled); do NOT propagate
+		// context.DeadlineExceeded from the MCP gateway — that would kill the subprocess
+		// at the gateway's 60 s RPC deadline and defeat the purpose of this fix.
+		select {
+		case <-ctx.Done():
+			if ctx.Err() == context.Canceled {
+				subCancel() // propagate client disconnect to subprocess
+			}
+		case <-subCtx.Done(): // subprocess timed out or caller already cancelled
+		}
+	}()
+	return subCtx, subCancel
 }
 
 // logsArgs holds the input parameters for the logs tool.
@@ -496,38 +533,9 @@ Multi-run diff returns JSON describing changes between the base and each compari
 
 		notifyProgress(ctx, req, 0, 100, "Downloading audit artifacts...")
 
-		// The MCP gateway imposes a per-tool RPC deadline (typically 60 s) on the
-		// request context. exec.CommandContext ties the subprocess lifetime to that
-		// context, so the subprocess would be killed after 60 s even for legitimate
-		// long-running audits (large runs with many artifact sets can take longer).
-		//
-		// Fix: detach from the gateway deadline by stripping cancellation/deadline
-		// from ctx via context.WithoutCancel, then applying only the subprocess
-		// timeout.  Context values (e.g. trace IDs) are preserved.  We still forward
-		// any explicit cancellations from the MCP request context (e.g. client
-		// disconnect) so the subprocess is cleaned up promptly when the caller goes away.
-		subCtx, subCancel := context.WithTimeout(
-			context.WithoutCancel(ctx),
-			time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute,
-		)
+		// Detach from the gateway's per-tool RPC deadline; see newMCPSubprocessContext.
+		subCtx, subCancel := newMCPSubprocessContext(ctx, time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute, "audit")
 		defer subCancel()
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					mcpLog.Printf("Panic in MCP audit context-watcher goroutine (recovered): %v", r)
-				}
-			}()
-			// Only forward explicit cancellations (context.Canceled); do NOT propagate
-			// context.DeadlineExceeded from the MCP gateway — that would kill the subprocess
-			// at the gateway's 60 s RPC deadline and defeat the purpose of this fix.
-			select {
-			case <-ctx.Done():
-				if ctx.Err() == context.Canceled {
-					subCancel() // propagate client disconnect to subprocess
-				}
-			case <-subCtx.Done():
-			}
-		}()
 
 		// Execute the CLI command.
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
@@ -662,30 +670,9 @@ Returns JSON describing the differences between the base run and each comparison
 
 		notifyProgress(ctx, req, 0, 100, "Downloading artifacts for diff...")
 
-		// The MCP gateway imposes a per-tool RPC deadline (typically 60 s) on the
-		// request context. Detach from that deadline so the subprocess can run for
-		// its full allotted time without being killed at the gateway boundary.
-		subCtx, subCancel := context.WithTimeout(
-			context.WithoutCancel(ctx),
-			time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute,
-		)
+		// Detach from the gateway's per-tool RPC deadline; see newMCPSubprocessContext.
+		subCtx, subCancel := newMCPSubprocessContext(ctx, time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute, "audit-diff")
 		defer subCancel()
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					mcpLog.Printf("Panic in MCP audit-diff context-watcher goroutine (recovered): %v", r)
-				}
-			}()
-			// Only forward explicit cancellations (context.Canceled); do NOT propagate
-			// context.DeadlineExceeded from the MCP gateway.
-			select {
-			case <-ctx.Done():
-				if ctx.Err() == context.Canceled {
-					subCancel()
-				}
-			case <-subCtx.Done():
-			}
-		}()
 
 		stdout, err := runMCPExecOutput(subCtx, execCmd, cmdArgs...)
 		outputStr := string(stdout)
