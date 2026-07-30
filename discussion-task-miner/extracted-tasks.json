@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-30T07:36:00Z",
+  "last_run": "2026-07-30T19:08:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -113,6 +113,18 @@
       "source_discussion": 49027,
       "title": "Split oversized CompileWorkflowData/generateAndValidateYAML in compiler.go and add %w error wrapping",
       "created_at": "2026-07-30T07:36:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 49154,
+      "title": "Improve error message in samples_validation.go to list valid tool names instead of internal file path",
+      "created_at": "2026-07-30T19:08:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 49141,
+      "title": "Add t.Parallel() to leaf utility packages (stringutil, fileutil, timeutil, constants) to unlock CI -parallel=4",
+      "created_at": "2026-07-30T19:08:00Z",
       "status": "created"
     }
   ]

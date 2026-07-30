@@ -1,13 +1,23 @@
-# Task Mining Run - 2026-07-30 (13:16 UTC)
+# Task Mining Run - 2026-07-30 (19:08 UTC)
 
 ## Summary
-- Discussions scanned: 17 new (49032, 49044, 49047, 49049, 49050, 49055, 49062, 49068, 49091, 49098, 49103, 49107, 49118, 49123, 49125, 49131, 49136)
-- Tasks identified: 0
-- Issues created: 0
-- Duplicates/out-of-scope avoided: 17
+- Discussions scanned: 10 new (since last run at #49107)
+- Tasks identified: 2 high-value, actionable code-quality tasks
+- Issues created: 2
+- Duplicates avoided: 0 (both topics verified novel via GitHub issue search)
 
-## Notes
-- Most discussions this run were ops/meta reports with no actionable code-quality content: session/prompt/API-consumption statistics, MCP tool usefulness ratings, docs review findings, daily news digest, and puzzle-of-the-day content.
-- Terminal Stylist (#49103) flagged 2 minor fmt.Print consistency nits in pkg/cli/status_command.go and pkg/cli/view_command.go — searched existing issues and found this exact pattern already tracked/closed as #47886 ("Fix two direct fmt.Print stdout calls in pkg/cli to use console package"). Not re-filed since it's a previously closed, recurring low-value nit explicitly marked "optional"/"not urgent" in the source report.
-- Several reports (lint-monster #49032, Workflow Skill Extraction #49044, eslint-refiner #49068) already created their own downstream issues via their own workflows.
-- No genuinely new, well-scoped, non-duplicate code-quality task was found this run.
+## Created Issues
+- Improve error message in samples_validation.go to list valid tool names instead of internal file path (source: discussion #49154)
+- Add t.Parallel() to leaf utility packages (stringutil, fileutil, timeutil, constants) to unlock CI -parallel=4 (source: discussion #49141)
+
+## Discussions Reviewed, No Action Taken
+- #49184 Cache Strategy Analysis - perf/ops report, no distinct code-quality task
+- #49183 Daily Copilot Agent Analysis - stats only
+- #49180 Daily Secrets Analysis - security metrics, no new finding
+- #49175, #49165, #49142 - threat detection engine tooling errors, no analysis produced
+- #49166 UK AI Resilience Review - security governance summary, no new code-quality task
+- #49162 DeepReport Intelligence Briefing - fleet health summary
+
+## Top Patterns Observed
+- Test parallelism underused despite CI `-parallel=4` flag (2.7% of test functions use `t.Parallel()`)
+- Error messages occasionally leak internal implementation file paths instead of actionable guidance
