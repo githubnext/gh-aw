@@ -17,7 +17,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:panicinlibrarycode")
 
 // Analyzer is the panic-in-library-code analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -32,8 +35,10 @@ func run(pass *analysis.Pass) (any, error) {
 	pkgPath := pass.Pkg.Path()
 	// Skip packages under cmd/ entry-points — they are allowed to call panic.
 	if strings.HasSuffix(pkgPath, "/main") || strings.Contains(pkgPath, "/cmd/") {
+		pkgLog.Printf("skipping cmd/main package %s", pkgPath)
 		return nil, nil
 	}
+	pkgLog.Printf("analyzing package %s", pkgPath)
 
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
@@ -79,6 +84,7 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
+		pkgLog.Printf("flagging panic() call at %s", position)
 		pass.ReportRangef(call, "avoid panic in library code; return an error instead")
 	}
 

@@ -14,7 +14,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:errortypeassertion")
 
 // Analyzer is the error-type-assertion analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -26,6 +29,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -88,6 +92,7 @@ func checkTypeAssertExpr(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex,
 		return
 	}
 
+	pkgLog.Printf("flagging error type assertion to %s at %s", assertedTo, pos)
 	pass.ReportRangef(
 		typeAssert,
 		"type assertion on error to %s bypasses wrapped errors; use errors.As instead",
@@ -129,6 +134,7 @@ func checkTypeSwitchStmt(pass *analysis.Pass, noLintIndex nolint.DirectiveIndex,
 				continue
 			}
 
+			pkgLog.Printf("flagging error type switch case %s at %s", assertedTo, pos)
 			pass.ReportRangef(
 				typeExpr,
 				"type assertion on error to %s bypasses wrapped errors; use errors.As instead",
