@@ -121,8 +121,7 @@ func buildViewRunDir(t *testing.T) string {
 		t.Fatalf("WriteFile events.jsonl: %v", err)
 	}
 
-	// Mark the directory as already downloaded so downloadRunArtifacts skips
-	// network calls during view rendering.
+	// Mark all artifacts as downloaded so downloadRunArtifacts skips network calls.
 	if err := markArtifactDownloaded(runDir, string(ArtifactSetAll)); err != nil {
 		t.Fatalf("markArtifactDownloaded: %v", err)
 	}
@@ -274,8 +273,8 @@ func TestViewWorkflowRun_WithSafeOutputs_ShowsSection(t *testing.T) {
 }
 
 func TestViewWorkflowRun_EmptyDir_WarnsAndReturnsNil(t *testing.T) {
-	// A run dir with a complete-download marker but no JSONL files should warn
-	// about missing timeline data without attempting a network download.
+	// A run dir marked as downloaded, but containing no JSONL files
+	// -> no events -> warning, no error.
 	logsDir := t.TempDir()
 	runDir := filepath.Join(logsDir, "run-1111")
 	if err := os.MkdirAll(runDir, 0755); err != nil {
