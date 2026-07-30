@@ -196,8 +196,10 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 					mcpSection["container"] = containerStr
 
 					// Add environment variables for Docker container
-					if env, hasEnv := server.Config["env"]; hasEnv {
-						mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
+					if envRaw, hasEnv := server.Config["env"]; hasEnv {
+						if envMap, ok := envRaw.(map[string]any); ok {
+							mcpSection["env"] = convertToGitHubActionsEnv(envMap, server.EnvironmentVariables)
+						}
 					}
 				}
 			} else {
@@ -218,8 +220,10 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 				}
 
 				// Add environment variables if present
-				if env, hasEnv := server.Config["env"]; hasEnv {
-					mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
+				if envRaw, hasEnv := server.Config["env"]; hasEnv {
+					if envMap, ok := envRaw.(map[string]any); ok {
+						mcpSection["env"] = convertToGitHubActionsEnv(envMap, server.EnvironmentVariables)
+					}
 				}
 			}
 		} else {
@@ -267,8 +271,10 @@ func createMCPToolConfig(server *MCPRegistryServerForProcessing, preferredTransp
 			}
 
 			// Add environment variables if present
-			if env, hasEnv := server.Config["env"]; hasEnv {
-				mcpSection["env"] = convertToGitHubActionsEnv(env, server.EnvironmentVariables)
+			if envRaw, hasEnv := server.Config["env"]; hasEnv {
+				if envMap, ok := envRaw.(map[string]any); ok {
+					mcpSection["env"] = convertToGitHubActionsEnv(envMap, server.EnvironmentVariables)
+				}
 			}
 		} else {
 			return nil, errors.New("docker transport requires configuration")

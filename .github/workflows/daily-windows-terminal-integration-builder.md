@@ -27,6 +27,11 @@ safe-outputs:
     title-prefix: "[windows-integration] "
     labels: [workflow, windows]
   noop:
+evals:
+  - id: windows_integration_checked
+    question: Did the agent assess the Windows CLI integration build and test workflow?
+  - id: failure_reported_or_noop
+    question: Did the agent create an issue for an actionable integration failure, or use noop when no action was required?
 ---
 
 ### Daily Windows Terminal Integration Builder
