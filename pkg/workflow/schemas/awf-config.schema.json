@@ -802,7 +802,7 @@
         "runtime": {
           "type": "string",
           "description": "Container runtime used to execute bounded-query scripts. When omitted AWF uses its default.",
-          "enum": ["docker"]
+          "enum": ["docker", "gvisor"]
         },
         "timeout": {
           "type": "integer",

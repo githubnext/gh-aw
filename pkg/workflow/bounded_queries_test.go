@@ -333,6 +333,18 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 		assert.Contains(t, err.Error(), "duplicate repository slug")
 	})
 
+	t.Run("rejects duplicate repo slugs case-insensitively", func(t *testing.T) {
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
+			PrivateRepos: []*BoundedQueryPrivateRepo{
+				{Repo: "my-org/my-repo", Sensitivity: "internal"},
+				{Repo: "My-Org/My-Repo", Sensitivity: "confidential"},
+			},
+		})
+		err := validateBoundedQueriesConfig(wd)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "duplicate repository slug")
+	})
+
 	t.Run("rejects GitHub Actions expressions in repo slug", func(t *testing.T) {
 		wd := validAWFWorkflow(&BoundedQueriesConfig{
 			PrivateRepos: []*BoundedQueryPrivateRepo{
@@ -376,6 +388,16 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 		err := validateBoundedQueriesConfig(wd)
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "unsupported bounded-queries runtime")
+	})
+
+	t.Run("accepts gvisor runtime", func(t *testing.T) {
+		wd := validAWFWorkflow(&BoundedQueriesConfig{
+			PrivateRepos: []*BoundedQueryPrivateRepo{
+				{Repo: "my-org/my-repo", Sensitivity: "internal"},
+			},
+			Runtime: "gvisor",
+		})
+		assert.NoError(t, validateBoundedQueriesConfig(wd))
 	})
 
 	t.Run("rejects negative timeout", func(t *testing.T) {

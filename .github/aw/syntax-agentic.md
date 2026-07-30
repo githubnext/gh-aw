@@ -328,7 +328,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
               sensitivity: public         # public | internal | confidential | sealed
             - repo: my-org/internal-service
               sensitivity: internal
-          runtime: docker         # optional; default: AWF default
+          runtime: docker         # optional; docker | gvisor; default: AWF default
           timeout: 30             # optional; seconds; default: AWF default
           memory-limit: 512m      # optional; e.g. 512m, 2g; default: AWF default
           interpreter: python3    # optional; default: AWF default

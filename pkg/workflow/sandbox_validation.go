@@ -224,6 +224,7 @@ var validBoundedQuerySensitivities = map[string]struct{}{
 // validBoundedQueryRuntimes is the set of accepted container runtimes.
 var validBoundedQueryRuntimes = map[string]struct{}{
 	"docker": {},
+	"gvisor": {},
 }
 
 // validBoundedQueryInterpreters is the set of accepted script interpreters.
@@ -291,8 +292,8 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 			)
 		}
 
-		// Validate no duplicates.
-		key := r.Repo
+		// Validate no duplicates (case-insensitive, matching AWF's treatment of slugs).
+		key := strings.ToLower(r.Repo)
 		if _, dup := seen[key]; dup {
 			return NewValidationError(
 				field+".repo",
@@ -310,8 +311,8 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 			return NewValidationError(
 				"tools.github.bounded-queries.runtime",
 				bq.Runtime,
-				"unsupported bounded-queries runtime: must be \"docker\"",
-				fmt.Sprintf("Set runtime to a supported value:\n\ntools:\n  github:\n    bounded-queries:\n      runtime: docker\n\nSee: %s", constants.DocsSandboxURL),
+				"unsupported bounded-queries runtime: must be \"docker\" or \"gvisor\"",
+				fmt.Sprintf("Set runtime to a supported value:\n\ntools:\n  github:\n    bounded-queries:\n      runtime: docker  # or gvisor\n\nSee: %s", constants.DocsSandboxURL),
 			)
 		}
 	}
