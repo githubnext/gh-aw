@@ -23,9 +23,10 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 		{
 			name: "multiple failed workflows with FailureDetails",
 			stats: &CompilationStats{
-				Total:    5,
-				Errors:   4,
-				Warnings: 1,
+				Total:     5,
+				Succeeded: 2,
+				Errors:    4,
+				Warnings:  1,
 				FailureDetails: []WorkflowFailure{
 					{
 						Path:          ".github/workflows/test1.md",
@@ -66,8 +67,9 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 		{
 			name: "single failed workflow with FailureDetails",
 			stats: &CompilationStats{
-				Total:  1,
-				Errors: 2,
+				Total:     1,
+				Succeeded: 0,
+				Errors:    2,
 				FailureDetails: []WorkflowFailure{
 					{
 						Path:          ".github/workflows/workflow-single.md",
@@ -90,8 +92,9 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 			name:    "show-all prints every prioritized error",
 			showAll: true,
 			stats: &CompilationStats{
-				Total:  1,
-				Errors: 6,
+				Total:     1,
+				Succeeded: 0,
+				Errors:    6,
 				FailureDetails: []WorkflowFailure{
 					{
 						Path:       ".github/workflows/workflow-all.md",
@@ -120,6 +123,7 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 			name: "backward compatibility with FailedWorkflows",
 			stats: &CompilationStats{
 				Total:           3,
+				Succeeded:       1,
 				Errors:          2,
 				FailedWorkflows: []string{"old-workflow1.md", "old-workflow2.md"},
 			},
@@ -134,9 +138,10 @@ func TestPrintCompilationSummaryWithFailedWorkflows(t *testing.T) {
 		{
 			name: "successful compilation without failures",
 			stats: &CompilationStats{
-				Total:    5,
-				Errors:   0,
-				Warnings: 0,
+				Total:     5,
+				Succeeded: 5,
+				Errors:    0,
+				Warnings:  0,
 			},
 			expectedInOutput: []string{
 				"Compiled 5 workflows: 5 succeeded, 0 warnings",

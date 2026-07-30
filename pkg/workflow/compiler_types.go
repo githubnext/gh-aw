@@ -221,6 +221,18 @@ func (c *Compiler) CopilotRequestsTipNeeded() bool {
 	return c.copilotTipNeeded
 }
 
+// SetExperimentalFeatureUsage replaces the experimental feature usage map.
+// Intended for use in tests that need to exercise aggregation output.
+func (c *Compiler) SetExperimentalFeatureUsage(usage map[string]int) {
+	c.featureUsage = usage
+}
+
+// SetCopilotTipNeeded sets whether the Copilot billing tip should be shown.
+// Intended for use in tests that need to exercise aggregation output.
+func (c *Compiler) SetCopilotTipNeeded(needed bool) {
+	c.copilotTipNeeded = needed
+}
+
 // SetNoEmit configures whether to validate without generating lock files
 func (c *Compiler) SetNoEmit(noEmit bool) {
 	c.noEmit = noEmit
