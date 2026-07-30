@@ -710,6 +710,8 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   When omitted, exec calls are made without additional options.
  * @param {string[]} [opts.commitFlags] - Extra flags prepended before `-m` in the `git commit`
  *   invocation (e.g. `["--allow-empty", "--no-verify"]`).
+ * @param {string[]} [opts.excludedFiles] - Paths that should be removed from the staged rewrite
+ *   before creating the linearized commit.
  * @param {number} [opts.maxCommits] - Override the implausibility threshold (default
  *   `SHALLOW_RANGE_MAX_COMMITS`).  Set to `Infinity` to disable the shallow guard.
  * @returns {Promise<string>} The new HEAD SHA after the rewrite.
