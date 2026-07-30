@@ -20,7 +20,7 @@ import (
 // Analyzer is the string-concat-in-loop analysis pass.
 var Analyzer = &analysis.Analyzer{
 	Name:     "stringsconcatloop",
-	Doc:      "reports string += or x = x + y concatenation inside for/range loops that should use strings.Builder",
+	Doc:      "reports string concatenation (+=  or x = x + y) inside for/range loops that should use strings.Builder",
 	URL:      "https://github.com/github/gh-aw/tree/main/pkg/linters/stringsconcatloop",
 	Requires: []*analysis.Analyzer{inspect.Analyzer, nolint.Analyzer, filecheck.Analyzer},
 	Run:      run,
@@ -107,7 +107,7 @@ func run(pass *analysis.Pass) (any, error) {
 		}
 
 		pass.ReportRangef(assign,
-			"string concatenation with += inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
+			"string concatenation inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
 	}
 
 	return nil, nil
@@ -133,28 +133,22 @@ func enclosingLoop(pass *analysis.Pass, cur inspector.Cursor) (token.Position, a
 }
 
 // isLoopScopedIdent reports whether name is declared by loopNode as a loop
-// variable: the Key or Value identifier of a RangeStmt, or a variable in the
-// short-declaration Init of a ForStmt. Such variables are per-iteration
-// rebinds, not cross-iteration accumulators.
+// variable: the Key or Value identifier of a RangeStmt. Such variables are
+// per-iteration rebinds, not cross-iteration accumulators.
+//
+// Note: ForStmt init variables (e.g. for s := ""; ...) are intentionally NOT
+// exempted — the init clause runs only once, so the variable carries state
+// across all iterations and is a genuine accumulator.
 func isLoopScopedIdent(loopNode ast.Node, name string) bool {
-	switch n := loopNode.(type) {
-	case *ast.RangeStmt:
-		if id, ok := n.Key.(*ast.Ident); ok && id.Name == name {
-			return true
-		}
-		if id, ok := n.Value.(*ast.Ident); ok && id.Name == name {
-			return true
-		}
-	case *ast.ForStmt:
-		init, ok := n.Init.(*ast.AssignStmt)
-		if !ok || init.Tok != token.DEFINE {
-			return false
-		}
-		for _, lhs := range init.Lhs {
-			if id, ok := lhs.(*ast.Ident); ok && id.Name == name {
-				return true
-			}
-		}
+	n, ok := loopNode.(*ast.RangeStmt)
+	if !ok {
+		return false
+	}
+	if id, ok := n.Key.(*ast.Ident); ok && id.Name == name {
+		return true
+	}
+	if id, ok := n.Value.(*ast.Ident); ok && id.Name == name {
+		return true
 	}
 	return false
 }

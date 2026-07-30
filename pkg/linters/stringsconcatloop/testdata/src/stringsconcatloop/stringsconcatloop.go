@@ -8,14 +8,14 @@ func bad() {
 	// Basic range loop – should be flagged.
 	result := ""
 	for _, p := range parts {
-		result += p // want `string concatenation with \+= inside a loop`
+		result += p // want `string concatenation inside a loop`
 	}
 	_ = result
 
 	// Classic for loop – should be flagged.
 	s := ""
 	for i := 0; i < len(parts); i++ {
-		s += parts[i] // want `string concatenation with \+= inside a loop`
+		s += parts[i] // want `string concatenation inside a loop`
 	}
 	_ = s
 
@@ -23,23 +23,30 @@ func bad() {
 	type myString string
 	var ms myString
 	for _, p := range parts {
-		ms += myString(p) // want `string concatenation with \+= inside a loop`
+		ms += myString(p) // want `string concatenation inside a loop`
 	}
 	_ = ms
 
 	// x = x + y form in a range loop – should be flagged.
 	accum := ""
 	for _, p := range parts {
-		accum = accum + p // want `string concatenation with \+= inside a loop`
+		accum = accum + p // want `string concatenation inside a loop`
 	}
 	_ = accum
 
 	// x = x + y form in a classic for loop – should be flagged.
 	s2 := ""
 	for i := 0; i < len(parts); i++ {
-		s2 = s2 + parts[i] // want `string concatenation with \+= inside a loop`
+		s2 = s2 + parts[i] // want `string concatenation inside a loop`
 	}
 	_ = s2
+
+	// for-init string accumulator – the init clause runs once, so the variable
+	// carries state across all iterations and is a genuine accumulator.
+	for s3 := ""; len(s3) < 10; {
+		s3 = s3 + "x" // want `string concatenation inside a loop`
+		_ = s3
+	}
 }
 
 func good() {
