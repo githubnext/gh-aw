@@ -124,6 +124,11 @@ const AWFLegacySecurityMinVersion Version = "v0.27.32"
 // future release that adds apiProxy.providers to awf-config-schema.json.
 const AWFAPIProxyProvidersMinVersion Version = "v0.27.43"
 
+// AWFBoundedQueriesMinVersion is the minimum AWF version that supports
+// the boundedQueries section in awf-config.json.
+// Workflows pinning an older AWF version must not emit this section.
+const AWFBoundedQueriesMinVersion Version = "v0.28.0"
+
 // DefaultGVisorVersion is the pinned gVisor release used by the compiler-generated
 // install step. A specific dated release name is used instead of "latest" to ensure
 // reproducible, verifiable installs. Each release provides SHA-512 files for

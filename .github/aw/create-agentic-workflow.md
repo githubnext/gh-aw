@@ -307,12 +307,16 @@ Before finalizing any newly generated workflow, verify:
 
 ## Multi-Repository Requests
 
-For cross-repository workflows:
+For cross-repository workflows, first determine whether the question is **finite and bounded**:
 
-- enable the GitHub toolsets needed to read external repositories
-- configure cross-repo authentication in `safe-outputs:`
-- tell the agent to set `target-repo`
-- explain that the workflow still cannot wait for external workflows or create multi-job orchestration
+- If the agent needs to answer a finite, pre-approved question about a private repository (e.g. "does this repo have open critical issues?", "what is the latest release version?"):
+  - Use `tools.github.bounded-queries` with `private-repos` and `sandbox.agent.id: awf` (AWF v0.28.0+)
+  - This is the preferred approach — no raw source code is exposed and no cross-repo token is needed
+- If the answer is unbounded (e.g. arbitrary source-code extraction, full file contents), or if bounded queries are not appropriate:
+  - enable the GitHub toolsets needed to read external repositories
+  - configure cross-repo authentication in `safe-outputs:`
+  - tell the agent to set `target-repo`
+  - explain that the workflow still cannot wait for external workflows or create multi-job orchestration
 
 Use [workflow-patterns.md](workflow-patterns.md) for the compact cross-repo pattern.
 
