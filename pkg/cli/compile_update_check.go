@@ -311,17 +311,17 @@ func printCompileUpdateNotification(notification *compileUpdateNotification) {
 
 	switch notification.Kind {
 	case compileUpdateNotificationRemovedTag:
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf(
 			"The installed gh-aw compiler version %s is no longer available as a repository tag.", notification.CurrentVersion,
 		)))
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf(
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf(
 			"Update the compiler before recompiling workflows (latest release: %s).", notification.LatestVersion,
 		)))
 	default:
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf(
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf(
 			"Compiler upgrade recommended: gh-aw %s is behind the latest release %s.", notification.CurrentVersion, notification.LatestVersion,
 		)))
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Hint: upgrade the compiler with: gh extension upgrade github/gh-aw"))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Hint: upgrade the compiler with: gh extension upgrade github/gh-aw"))
 	}
 
 	fmt.Fprintln(os.Stderr)

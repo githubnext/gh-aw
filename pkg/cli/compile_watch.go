@@ -49,11 +49,11 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 	compileWatchLog.Print("Building dependency graph for watch mode...")
 	if err := depGraph.BuildGraph(compiler); err != nil {
 		compileWatchLog.Printf("Warning: failed to build dependency graph: %v", err)
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to build dependency graph: %v", err)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to build dependency graph: %v", err)))
 	} else {
 		compileWatchLog.Printf("Dependency graph built successfully: %d workflows", len(depGraph.nodes))
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Dependency graph built: %d workflows", len(depGraph.nodes))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Dependency graph built: %d workflows", len(depGraph.nodes))))
 		}
 	}
 
@@ -99,9 +99,9 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 
 	// Always emit the begin pattern for task integration
 	if markdownFile != "" {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Watching for file changes to %s...", markdownFile)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Watching for file changes to %s...", markdownFile)))
 	} else {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Watching for file changes in %s...", workflowsDir)))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Watching for file changes in %s...", workflowsDir)))
 	}
 
 	if verbose {
@@ -123,7 +123,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 		stats, err := compileAllWorkflowFiles(ctx, compiler, workflowsDir, verbose)
 		if err != nil {
 			// Always show initial compilation errors, not just in verbose mode
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Initial compilation failed: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Initial compilation failed: %v", err)))
 		}
 		// Print summary instead of just "Recompiled"
 		printCompilationSummary(stats, false)
@@ -136,7 +136,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 
 		fmt.Fprintln(os.Stderr, "Watching for file changes")
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Initial compilation of %s...", markdownFile)))
+			fmt.Fprintln(os.Stderr, console.FormatProgressMessageStderr(fmt.Sprintf("Initial compilation of %s...", markdownFile)))
 		}
 
 		// Use compileSingleFile to handle both regular workflows and campaign files
@@ -174,7 +174,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 
 			compileWatchLog.Printf("Detected change: %s (%s)", event.Name, event.Op.String())
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Detected change: %s (%s)", event.Name, event.Op.String())))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Detected change: %s (%s)", event.Name, event.Op.String())))
 			}
 
 			// Handle file operations
@@ -220,7 +220,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 			}
 			compileWatchLog.Printf("Watcher error: %v", err)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Watcher error: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Watcher error: %v", err)))
 			}
 
 		case <-ctx.Done():

@@ -282,7 +282,7 @@ func updateManifestManagedWorkflow(ctx context.Context, update manifestManagedWo
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", update.wf.Name, shortRef(update.currentRef), shortRef(update.latestRef))))
 	if !opts.NoCompile {
-		if err := compileWorkflowWithRefresh(ctx, update.wf.Path, opts.Verbose, false, opts.EngineOverride, true, opts.Approve); err != nil {
+		if err := compileWorkflowsForUpdate(ctx, []string{update.wf.Path}, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve); err != nil {
 			return fmt.Errorf("failed to compile updated workflow: %w", err)
 		}
 	}
@@ -323,7 +323,7 @@ func addManifestManagedWorkflow(ctx context.Context, targetDir, name, repo, late
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Added new workflow from manifest: "+filepath.Base(destPath)))
 	if !opts.NoCompile {
-		if err := compileWorkflowWithRefresh(ctx, destPath, opts.Verbose, false, opts.EngineOverride, true, opts.Approve); err != nil {
+		if err := compileWorkflowsForUpdate(ctx, []string{destPath}, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve); err != nil {
 			return fmt.Errorf("failed to compile new manifest workflow: %w", err)
 		}
 	}

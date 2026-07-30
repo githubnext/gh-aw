@@ -67,7 +67,7 @@ func compileSingleFile(ctx context.Context, compiler *workflow.Compiler, file st
 	// Regular workflow file - compile normally
 	compileHelpersLog.Printf("Compiling as regular workflow: %s", file)
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Compiling: "+file))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessageStderr("Compiling: "+file))
 	}
 
 	if err := CompileWorkflowWithValidation(ctx, compiler, file, CompileValidationOptions{Verbose: verbose}); err != nil {
@@ -103,7 +103,7 @@ func compileAllWorkflowFiles(ctx context.Context, compiler *workflow.Compiler, w
 	if len(mdFiles) == 0 {
 		compileHelpersLog.Printf("No workflow markdown files found in %s after frontmatter filtering", workflowsDir)
 		if verbose {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("No workflow markdown files found in "+workflowsDir+" (workflow files must start with a frontmatter opener on the first line)"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("No workflow markdown files found in "+workflowsDir+" (workflow files must start with a frontmatter opener on the first line)"))
 		}
 		return stats, nil
 	}
@@ -118,7 +118,7 @@ func compileAllWorkflowFiles(ctx context.Context, compiler *workflow.Compiler, w
 		if err != nil {
 			compileHelpersLog.Printf("Failed to resolve absolute path for %s: %v", file, err)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to resolve absolute path for %s: %v", file, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to resolve absolute path for %s: %v", file, err)))
 			}
 		} else {
 			file = absFile
@@ -174,9 +174,9 @@ func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflo
 		}
 	}
 
-	fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Watching for file changes"))
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessageStderr("Watching for file changes"))
 	if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))))
+		fmt.Fprintln(os.Stderr, console.FormatProgressMessageStderr(fmt.Sprintf("Recompiling %d workflow(s) affected by %d change(s)...", len(workflowsToCompile), len(files))))
 	}
 
 	// Reset warning count before compilation
@@ -202,7 +202,7 @@ func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflo
 		if err := actionCache.Save(); err != nil {
 			compileHelpersLog.Printf("Failed to save action cache: %v", err)
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to save action cache: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to save action cache: %v", err)))
 			}
 		} else {
 			compileHelpersLog.Print("Action cache saved successfully")
@@ -214,7 +214,7 @@ func compileModifiedFilesWithDependencies(ctx context.Context, compiler *workflo
 	if successCount > 0 || hasActionCacheEntries {
 		if _, err := ensureGitAttributes(); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to update .gitattributes: %v", err)))
 			}
 		}
 	} else {
@@ -234,11 +234,11 @@ func handleFileDeleted(mdFile string, verbose bool) {
 	if _, err := os.Stat(lockFile); err == nil {
 		if err := os.Remove(lockFile); err != nil {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to remove lock file %s: %v", lockFile, err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to remove lock file %s: %v", lockFile, err)))
 			}
 		} else {
 			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Removed corresponding lock file: "+lockFile))
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Removed corresponding lock file: "+lockFile))
 			}
 		}
 	}

@@ -5,6 +5,7 @@ package colorwriter
 import (
 	"io"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/charmbracelet/colorprofile"
@@ -28,7 +29,14 @@ func Stderr() io.Writer {
 // call Degrade so that the caller's output honors the color profile.
 func Degrade(s string, environ []string) string {
 	var buf strings.Builder
-	w := colorprofile.NewWriter(&buf, environ)
+	profile := colorprofile.Env(environ)
+	if noColorEnabled(environ) {
+		profile = colorprofile.NoTTY
+	}
+	w := &colorprofile.Writer{
+		Forward: &buf,
+		Profile: profile,
+	}
 	// colorprofile.Writer writes synchronously and does not buffer past Write,
 	// and strings.Builder writes cannot fail, so a write error would indicate an
 	// unexpected future behavior change; fall back to the original string then.
@@ -36,4 +44,16 @@ func Degrade(s string, environ []string) string {
 		return s
 	}
 	return buf.String()
+}
+
+func noColorEnabled(environ []string) bool {
+	for _, entry := range environ {
+		key, value, ok := strings.Cut(entry, "=")
+		if !ok || key != "NO_COLOR" {
+			continue
+		}
+		enabled, err := strconv.ParseBool(value)
+		return err == nil && enabled
+	}
+	return false
 }

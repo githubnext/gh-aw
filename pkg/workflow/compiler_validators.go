@@ -50,7 +50,7 @@ func (c *Compiler) validateExpressions(workflowData *WorkflowData, markdownPath 
 		// so they are counted and consistently formatted with all other warnings.
 		for _, w := range subAgentWarnings {
 			expressionValidationLog.Printf("%s", w)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(w))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(w))
 			c.IncrementWarningCount()
 		}
 		if err != nil {
@@ -300,7 +300,7 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	}
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
 			"assign-to-agent does not support GitHub App tokens. "+
 				"The Copilot assignment API requires a fine-grained PAT. "+
 				"The token fallback chain (GH_AW_AGENT_TOKEN || GH_AW_GITHUB_TOKEN || GITHUB_TOKEN) will be used automatically. "+
@@ -336,12 +336,16 @@ func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {
 	}
 	for _, warning := range warnings {
 		if warning.enabled {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning.message))
+			if c.batchMode {
+				c.featureUsage[warning.message]++
+			} else {
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning.message))
+			}
 			c.IncrementWarningCount()
 		}
 	}
 	if shouldWarnSparseInteractionCells(workflowData) {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
 			"experiments: potential sparse interaction cells detected (multiple active experiments with weighted traffic). "+
 				"Reporting should include factorial K1×K2 cell diagnostics before recommending promotion."))
 		c.IncrementWarningCount()
@@ -361,8 +365,8 @@ func (c *Compiler) validateGitHubToolsAndPermissions(workflowData *WorkflowData,
 		}
 		originalToolsets := workflowData.ParsedTools.GitHub.Toolset.ToStringSlice()
 		if slices.Contains(originalToolsets, "projects") {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("The 'projects' toolset requires additional authentication."))
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("See: https://github.github.com/gh-aw/reference/auth-projects/"))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("The 'projects' toolset requires additional authentication."))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("See: https://github.github.com/gh-aw/reference/auth-projects/"))
 		}
 	}
 	workflowLog.Printf("Validating permissions for agentic-workflows tool")

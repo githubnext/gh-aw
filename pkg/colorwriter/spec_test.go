@@ -72,6 +72,11 @@ func TestSpec_PublicAPI_Degrade(t *testing.T) {
 			environ: []string{"TERM=xterm-256color", "CLICOLOR_FORCE=1"},
 			want:    ansiRed,
 		},
+		{
+			name:    "preserves ansi for interactive color terminals",
+			environ: []string{"TERM=xterm-256color"},
+			want:    ansiRed,
+		},
 	}
 
 	for _, tt := range tests {

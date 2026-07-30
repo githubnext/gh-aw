@@ -911,10 +911,10 @@ func updateWorkflow(ctx context.Context, wf *workflowWithSource, opts UpdateWork
 	updateLog.Printf("Successfully updated workflow %s from %s to %s", wf.Name, currentRef, latestRef)
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", wf.Name, shortRef(currentRef), shortRef(latestRef))))
 
-	// Compile the updated workflow with refreshStopTime enabled (unless --no-compile is set)
+	// Compile the updated workflow using the same path as the compile command.
 	if !opts.NoCompile {
 		updateLog.Printf("Compiling updated workflow: %s", wf.Name)
-		if err := compileWorkflowWithRefresh(ctx, wf.Path, opts.Verbose, false, opts.EngineOverride, true, opts.Approve); err != nil {
+		if err := compileWorkflowsForUpdate(ctx, []string{wf.Path}, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve); err != nil {
 			updateLog.Printf("Compilation failed for workflow %s: %v", wf.Name, err)
 			return fmt.Errorf("failed to compile updated workflow: %w", err)
 		}

@@ -23,6 +23,7 @@ var consoleLog = logger.New("console:console")
 // stdoutEnviron caches the process environment on first use so stdout styling
 // helpers do not repeatedly copy and re-parse it while rendering output.
 var stdoutEnviron = sync.OnceValue(os.Environ)
+var stderrEnviron = sync.OnceValue(os.Environ)
 
 // isTTY checks if stdout is a terminal
 func isTTY() bool {
@@ -48,6 +49,17 @@ func applyStdoutStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() 
 	return colorwriter.Degrade(style.Render(text), environ)
 }
 
+func applyStderrStyle(style lipgloss.Style, text string) string {
+	return applyStderrStyleWithTTY(style, text, isStderrTTY, stderrEnviron())
+}
+
+func applyStderrStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool, environ []string) string {
+	if !ttyCheck() {
+		return text
+	}
+	return colorwriter.Degrade(style.Render(text), environ)
+}
+
 // applyStyleWithTTY conditionally renders raw ANSI based on a provided TTY check.
 // Use this only for strings that will later be written through a color-profile-
 // aware writer (for example stderrWriter); stdout-facing helpers should use
@@ -61,6 +73,21 @@ func applyStyleWithTTY(style lipgloss.Style, text string, ttyCheck func() bool) 
 
 // FormatError formats a CompilerError with Rust-like rendering
 func FormatError(err CompilerError) string {
+	return formatErrorWithStyle(err, applyStyle)
+}
+
+// FormatErrorStderr formats a CompilerError for stderr with stderr TTY detection.
+func FormatErrorStderr(err CompilerError) string {
+	return formatErrorStderrWithTTY(err, isStderrTTY, stderrEnviron())
+}
+
+func formatErrorStderrWithTTY(err CompilerError, ttyCheck func() bool, environ []string) string {
+	return formatErrorWithStyle(err, func(style lipgloss.Style, text string) string {
+		return applyStderrStyleWithTTY(style, text, ttyCheck, environ)
+	})
+}
+
+func formatErrorWithStyle(err CompilerError, styleText func(lipgloss.Style, string) string) string {
 	consoleLog.Printf("Formatting error: type=%s, file=%s, line=%d", err.Type, err.Position.File, err.Position.Line)
 	var output strings.Builder
 
@@ -92,19 +119,19 @@ func FormatError(err CompilerError) string {
 		} else {
 			location = relativePath + ":"
 		}
-		output.WriteString(applyStyle(styles.FilePath, location))
+		output.WriteString(styleText(styles.FilePath, location))
 		output.WriteString(" ")
 	}
 
 	// Error type and message
-	output.WriteString(applyStyle(typeStyle, prefix+":"))
+	output.WriteString(styleText(typeStyle, prefix+":"))
 	output.WriteString(" ")
 	output.WriteString(err.Message)
 	output.WriteString("\n")
 
 	// Context lines (Rust-like error rendering)
 	if len(err.Context) > 0 && err.Position.Line > 0 {
-		output.WriteString(renderContext(err))
+		output.WriteString(renderContext(err, styleText))
 	}
 
 	// Hint for fixing the error
@@ -112,7 +139,7 @@ func FormatError(err CompilerError) string {
 	// dedicated Hint style; Info is visually distinct and non-alarming, which is
 	// appropriate for actionable guidance.
 	if err.Hint != "" {
-		output.WriteString(applyStyle(styles.Info, "hint: "))
+		output.WriteString(styleText(styles.Info, "hint: "))
 		output.WriteString(err.Hint)
 		output.WriteString("\n")
 	}
@@ -121,7 +148,7 @@ func FormatError(err CompilerError) string {
 }
 
 // renderContext renders source code context with line numbers and highlighting
-func renderContext(err CompilerError) string {
+func renderContext(err CompilerError, styleText func(lipgloss.Style, string) string) string {
 	var output strings.Builder
 
 	maxLineNum := err.Position.Line + len(err.Context)/2
@@ -134,7 +161,7 @@ func renderContext(err CompilerError) string {
 		}
 
 		lineNumStr := fmt.Sprintf("%*d", lineNumWidth, lineNum)
-		output.WriteString(applyStyle(styles.LineNumber, lineNumStr))
+		output.WriteString(styleText(styles.LineNumber, lineNumStr))
 		output.WriteString(" | ")
 
 		if lineNum == err.Position.Line {
@@ -146,14 +173,14 @@ func renderContext(err CompilerError) string {
 				if wordEnd < len(line) {
 					after = line[wordEnd:]
 				}
-				output.WriteString(applyStyle(styles.ContextLine, before))
-				output.WriteString(applyStyle(styles.Highlight, highlightedPart))
-				output.WriteString(applyStyle(styles.ContextLine, after))
+				output.WriteString(styleText(styles.ContextLine, before))
+				output.WriteString(styleText(styles.Highlight, highlightedPart))
+				output.WriteString(styleText(styles.ContextLine, after))
 			} else {
-				output.WriteString(applyStyle(styles.Highlight, line))
+				output.WriteString(styleText(styles.Highlight, line))
 			}
 		} else {
-			output.WriteString(applyStyle(styles.ContextLine, line))
+			output.WriteString(styleText(styles.ContextLine, line))
 		}
 		output.WriteString("\n")
 
@@ -161,7 +188,7 @@ func renderContext(err CompilerError) string {
 			wordEnd := findWordEnd(line, err.Position.Column-1)
 			wordLength := wordEnd - (err.Position.Column - 1)
 			padding := strings.Repeat(" ", lineNumWidth+3+err.Position.Column-1)
-			pointer := applyStyle(styles.Error, strings.Repeat("^", wordLength))
+			pointer := styleText(styles.Error, strings.Repeat("^", wordLength))
 			output.WriteString(padding)
 			output.WriteString(pointer)
 			output.WriteString("\n")
@@ -178,15 +205,11 @@ func FormatSuccessMessage(message string) string {
 
 // FormatSuccessMessageStderr formats a success message for stderr output.
 func FormatSuccessMessageStderr(message string) string {
-	return formatSuccessMessageStderrWithTTY(message, isStderrTTY)
+	return applyStderrStyle(styles.Success, "✓ ") + message
 }
 
 func formatSuccessMessageWithTTY(message string, ttyCheck func() bool, environ []string) string {
 	return applyStdoutStyleWithTTY(styles.Success, "✓ ", ttyCheck, environ) + message
-}
-
-func formatSuccessMessageStderrWithTTY(message string, ttyCheck func() bool) string {
-	return applyStyleWithTTY(styles.Success, "✓ ", ttyCheck) + message
 }
 
 // FormatInfoMessage formats an informational message
@@ -196,20 +219,16 @@ func FormatInfoMessage(message string) string {
 
 // FormatInfoMessageStderr formats an informational message for stderr output.
 func FormatInfoMessageStderr(message string) string {
-	return formatInfoMessageStderrWithTTY(message, isStderrTTY)
+	return applyStderrStyle(styles.Info, "i ") + message
 }
 
 func formatInfoMessageWithTTY(message string, ttyCheck func() bool, environ []string) string {
 	return applyStdoutStyleWithTTY(styles.Info, "i ", ttyCheck, environ) + message
 }
 
-func formatInfoMessageStderrWithTTY(message string, ttyCheck func() bool) string {
-	return applyStyleWithTTY(styles.Info, "i ", ttyCheck) + message
-}
-
 // FormatTableHeaderStderr formats table header text for stderr output.
 func FormatTableHeaderStderr(text string) string {
-	return formatTableHeaderWithTTY(text, isStderrTTY)
+	return applyStderrStyle(styles.TableHeader, text)
 }
 
 func formatTableHeaderWithTTY(text string, ttyCheck func() bool) string {
@@ -223,7 +242,7 @@ func FormatWarningMessage(message string) string {
 
 // FormatWarningMessageStderr formats a warning message for stderr output.
 func FormatWarningMessageStderr(message string) string {
-	return applyStyleWithTTY(styles.Warning, "⚠ ", isStderrTTY) + message
+	return applyStderrStyle(styles.Warning, "⚠ ") + message
 }
 
 // RenderTable renders a formatted table using lipgloss/table package
@@ -323,12 +342,17 @@ func FormatCommandMessage(command string) string {
 
 // FormatCommandMessageStderr formats a command execution message for stderr output.
 func FormatCommandMessageStderr(command string) string {
-	return applyStyleWithTTY(styles.Command, "$ ", isStderrTTY) + command
+	return applyStderrStyle(styles.Command, "$ ") + command
 }
 
 // FormatProgressMessage formats a progress/activity message
 func FormatProgressMessage(message string) string {
 	return applyStyle(styles.Progress, "▸ ") + message
+}
+
+// FormatProgressMessageStderr formats a progress message for stderr output.
+func FormatProgressMessageStderr(message string) string {
+	return applyStderrStyle(styles.Progress, "▸ ") + message
 }
 
 // FormatPromptMessage formats a user prompt message
@@ -348,25 +372,21 @@ func FormatListItem(item string) string {
 
 // FormatListItemStderr formats a list item for stderr output.
 func FormatListItemStderr(item string) string {
-	return formatListItemStderrWithTTY(item, isStderrTTY)
+	return applyStderrStyle(styles.ListItem, "  • "+item)
 }
 
 func formatListItemWithTTY(item string, ttyCheck func() bool, environ []string) string {
 	return applyStdoutStyleWithTTY(styles.ListItem, "  • "+item, ttyCheck, environ)
 }
 
-func formatListItemStderrWithTTY(item string, ttyCheck func() bool) string {
-	return applyStyleWithTTY(styles.ListItem, "  • "+item, ttyCheck)
-}
-
 // FormatErrorMessage formats a simple error message (for stderr output)
 func FormatErrorMessage(message string) string {
-	return applyStyleWithTTY(styles.Error, "✗ ", isStderrTTY) + message
+	return applyStderrStyle(styles.Error, "✗ ") + message
 }
 
 // FormatErrorTextStderr formats plain error-styled text for stderr output.
 func FormatErrorTextStderr(text string) string {
-	return formatErrorTextWithTTY(text, isStderrTTY)
+	return applyStderrStyle(styles.Error, text)
 }
 
 func formatErrorTextWithTTY(text string, ttyCheck func() bool) string {
@@ -460,15 +480,11 @@ func FormatSectionHeader(header string) string {
 
 // FormatSectionHeaderStderr formats a section header for stderr output.
 func FormatSectionHeaderStderr(header string) string {
-	return formatSectionHeaderStderrWithTTY(header, isStderrTTY)
+	return applyStderrStyle(styles.Header, header)
 }
 
 func formatSectionHeaderWithTTY(header string, ttyCheck func() bool, environ []string) string {
 	return applyStdoutStyleWithTTY(styles.Header, header, ttyCheck, environ)
-}
-
-func formatSectionHeaderStderrWithTTY(header string, ttyCheck func() bool) string {
-	return applyStyleWithTTY(styles.Header, header, ttyCheck)
 }
 
 // RenderTitleBox renders a title with a double border box in TTY mode

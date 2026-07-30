@@ -303,6 +303,53 @@ func TestFormatTableHeaderWithTTY(t *testing.T) {
 	})
 }
 
+func TestApplyStderrStyleWithTTY(t *testing.T) {
+	t.Run("plain text when stderr is not tty", func(t *testing.T) {
+		result := applyStderrStyleWithTTY(styles.Warning, "warning", func() bool { return false }, []string{"TERM=xterm-256color"})
+		if result != "warning" {
+			t.Fatalf("applyStderrStyleWithTTY() = %q, want plain text", result)
+		}
+	})
+
+	t.Run("styled text when stderr is tty", func(t *testing.T) {
+		result := applyStderrStyleWithTTY(styles.Warning, "warning", func() bool { return true }, []string{"TERM=xterm-256color"})
+		if !strings.Contains(result, "\x1b[") {
+			t.Fatalf("applyStderrStyleWithTTY() = %q, want ANSI styling", result)
+		}
+	})
+
+	t.Run("no color disables styling", func(t *testing.T) {
+		result := applyStderrStyleWithTTY(styles.Warning, "warning", func() bool { return true }, []string{"TERM=xterm-256color", "NO_COLOR=1"})
+		if strings.Contains(result, "\x1b[") {
+			t.Fatalf("applyStderrStyleWithTTY() = %q, want ANSI-free text", result)
+		}
+	})
+}
+
+func TestFormatErrorStderrWithTTY(t *testing.T) {
+	err := CompilerError{
+		Position: ErrorPosition{File: "workflow.md", Line: 2, Column: 3},
+		Type:     "warning",
+		Message:  "deprecated field",
+		Hint:     "use the replacement",
+	}
+
+	styled := formatErrorStderrWithTTY(err, func() bool { return true }, []string{"TERM=xterm-256color"})
+	if !strings.Contains(styled, "\x1b[") {
+		t.Fatalf("formatErrorStderrWithTTY() = %q, want ANSI styling", styled)
+	}
+	for _, text := range []string{"workflow.md:2:3:", "warning:", "hint:"} {
+		if !strings.Contains(styled, text) {
+			t.Fatalf("formatErrorStderrWithTTY() missing %q in %q", text, styled)
+		}
+	}
+
+	plain := formatErrorStderrWithTTY(err, func() bool { return false }, []string{"TERM=xterm-256color"})
+	if strings.Contains(plain, "\x1b[") {
+		t.Fatalf("formatErrorStderrWithTTY() = %q, want ANSI-free text", plain)
+	}
+}
+
 func TestFormatErrorTextWithTTY(t *testing.T) {
 	t.Run("plain text when not tty", func(t *testing.T) {
 		result := formatErrorTextWithTTY("boom", func() bool { return false })

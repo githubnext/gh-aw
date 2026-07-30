@@ -126,7 +126,7 @@ func (c *Compiler) validatePushToPullRequestBranchWarnings(safeOutputs *SafeOutp
 				"    fetch: [\"*\"]      # fetch all remote branches",
 				"    fetch-depth: 0   # fetch full history",
 			}, "\n")
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(msg))
 			c.IncrementWarningCount()
 		}
 	}
@@ -144,7 +144,7 @@ func (c *Compiler) validatePushToPullRequestBranchWarnings(safeOutputs *SafeOutp
 			"    required-title-prefix: \"[bot] \"  # only PRs whose title starts with this prefix",
 			"    required-labels: [automated]      # only PRs that carry all of these labels",
 		}, "\n")
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(msg))
 		c.IncrementWarningCount()
 	}
 }

@@ -81,7 +81,7 @@ func validateRepositoryManifestForCompilation(config CompileConfig, stats *Compi
 		*validationResults = append(*validationResults, result)
 		if !config.JSONOutput {
 			for _, warning := range warnings {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warning))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warning))
 			}
 		}
 	}

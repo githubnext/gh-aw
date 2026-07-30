@@ -29,6 +29,16 @@ func TestDisplayCentralizedSlashCommandRecommendation(t *testing.T) {
 			expectedWarnCount: 1,
 		},
 		{
+			name: "uses singular grammar for one non centralized command",
+			workflows: []*workflow.WorkflowData{
+				{Command: []string{"a"}, CommandCentralized: false},
+				{Command: []string{"b"}, CommandCentralized: true},
+				{Command: []string{"c"}, CommandCentralized: true},
+			},
+			expectWarning:     true,
+			expectedWarnCount: 1,
+		},
+		{
 			name: "does not warn when fewer than three slash commands exist",
 			workflows: []*workflow.WorkflowData{
 				{Command: []string{"a"}, CommandCentralized: false},
@@ -71,6 +81,9 @@ func TestDisplayCentralizedSlashCommandRecommendation(t *testing.T) {
 			if tt.expectWarning {
 				require.Contains(t, stderrOutput, "Consider setting `on.slash_command.strategy: centralized`")
 				require.Contains(t, stderrOutput, "Detected 3 slash_command entries")
+				if tt.name == "uses singular grammar for one non centralized command" {
+					require.Contains(t, stderrOutput, "1 is not using centralized routing")
+				}
 			} else {
 				require.NotContains(t, stderrOutput, "on.slash_command.strategy: centralized")
 			}

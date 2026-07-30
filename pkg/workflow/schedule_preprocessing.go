@@ -397,7 +397,7 @@ func (c *Compiler) createTriggerParseError(filePath, content, triggerStr string,
 		}
 
 		// Format and return the error
-		formattedErr := console.FormatError(compilerErr)
+		formattedErr := console.FormatErrorStderr(compilerErr)
 		return errors.New(formattedErr)
 	}
 
@@ -467,8 +467,8 @@ func (c *Compiler) addDailyCronWarning(cronExpr string) {
 
 		// Construct the warning message
 		warningMsg := fmt.Sprintf(
-			"Schedule uses fixed daily time (%s:%s UTC). Consider using fuzzy schedule 'daily' instead to distribute workflow execution times and reduce load spikes.",
-			hour, minute,
+			"Schedule uses fixed daily time (%s UTC). Consider using fuzzy schedule 'daily' instead to distribute workflow execution times and reduce load spikes.",
+			formatCronTime(hour, minute),
 		)
 
 		c.emitScheduleWarning(warningMsg)
@@ -524,12 +524,22 @@ func (c *Compiler) addWeeklyCronWarning(cronExpr string) {
 
 		// Construct the warning message
 		warningMsg := fmt.Sprintf(
-			"Schedule uses fixed weekly time (%s %s:%s UTC). Consider using fuzzy schedule 'weekly on %s' instead to distribute workflow execution times and reduce load spikes.",
-			weekdayName, hour, minute, strings.ToLower(weekdayName),
+			"Schedule uses fixed weekly time (%s %s UTC). Consider using fuzzy schedule 'weekly on %s' instead to distribute workflow execution times and reduce load spikes.",
+			weekdayName, formatCronTime(hour, minute), strings.ToLower(weekdayName),
 		)
 
 		c.emitScheduleWarning(warningMsg)
 	}
+}
+
+func formatCronTime(hour, minute string) string {
+	if len(hour) == 1 {
+		hour = "0" + hour
+	}
+	if len(minute) == 1 {
+		minute = "0" + minute
+	}
+	return hour + ":" + minute
 }
 
 func (c *Compiler) emitScheduleWarning(warning string) {

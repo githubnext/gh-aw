@@ -226,8 +226,18 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 		coolDown:           opts.CoolDown,
 		approve:            opts.Approve,
 	}); err != nil {
-		// Non-fatal: warn but don't fail the update
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update action references in workflow files: %v", err)))
+		var compilationErr *updateCompilationError
+		if errors.As(err, &compilationErr) {
+			compileErr := fmt.Errorf("workflow compilation after action reference update failed: %w", err)
+			if firstErr == nil {
+				firstErr = compileErr
+			} else {
+				firstErr = errors.Join(firstErr, compileErr)
+			}
+		} else {
+			// Non-fatal: warn but don't fail the update
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not update action references in workflow files: %v", err)))
+		}
 	}
 
 	// Resolve and store SHA-256 digest pins for container images referenced in lock files.
@@ -248,7 +258,12 @@ func RunUpdateWorkflows(ctx context.Context, opts UpdateWorkflowsOptions) error 
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Recompiling workflows to embed container digest pins..."))
 		recompileErr := recompileAllWorkflows(ctx, opts.WorkflowsDir, opts.EngineOverride, opts.Verbose, opts.Approve)
 		if recompileErr != nil {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Could not recompile workflows after container pin update: %v", recompileErr)))
+			compileErr := fmt.Errorf("workflow compilation after container pin update failed: %w", recompileErr)
+			if firstErr == nil {
+				firstErr = compileErr
+			} else {
+				firstErr = errors.Join(firstErr, compileErr)
+			}
 		}
 	}
 
@@ -273,24 +288,7 @@ func recompileAllWorkflows(ctx context.Context, workflowsDir, engineOverride str
 	if workflowsDir == "" {
 		workflowsDir = getWorkflowsDir()
 	}
-
-	entries, err := os.ReadDir(workflowsDir)
-	if err != nil {
-		return fmt.Errorf("failed to read workflows directory: %w", err)
-	}
-
-	for _, entry := range entries {
-		if entry.IsDir() || !strings.HasSuffix(entry.Name(), ".md") {
-			continue
-		}
-		path := filepath.Join(workflowsDir, entry.Name())
-		if err := compileWorkflowWithRefresh(ctx, path, verbose, true, engineOverride, false, approve); err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to recompile %s: %v", entry.Name(), err)))
-			}
-		}
-	}
-	return nil
+	return compileWorkflowsForUpdate(ctx, nil, workflowsDir, engineOverride, verbose, approve)
 }
 
 func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateWorkflowsOptions, createPR bool, verbose bool) error {

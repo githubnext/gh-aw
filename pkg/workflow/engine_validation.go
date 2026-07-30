@@ -72,7 +72,7 @@ func (c *Compiler) validateEngineVersion(workflowData *WorkflowData) error {
 		"and may introduce vulnerabilities or breaking changes. " +
 		"Pin the engine version to a specific version for reproducibility and security."
 
-	fmt.Fprintln(os.Stderr, console.FormatWarningMessage(warningMsg))
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(warningMsg))
 	c.IncrementWarningCount()
 	return nil
 }

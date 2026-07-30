@@ -27,6 +27,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -50,6 +52,10 @@ func compileSpecificFiles(
 	validationResults *[]ValidationResult,
 ) ([]*workflow.WorkflowData, error) {
 	compileOrchestrationLog.Printf("Compiling %d specific workflow files", len(config.MarkdownFiles))
+
+	batchMode := !config.Verbose && len(config.MarkdownFiles) > 1
+	compiler.SetBatchMode(batchMode)
+	compiler.SetQuiet(batchMode)
 
 	// Enable validation automatically when force-refresh-action-pins is used
 	// to verify all resolved action SHAs are valid
@@ -75,7 +81,7 @@ func compileSpecificFiles(
 		// Respect context cancellation between files (e.g. Ctrl+C)
 		select {
 		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Operation cancelled"))
 			return workflowDataList, ctx.Err()
 		default:
 		}
@@ -138,6 +144,7 @@ func compileSpecificFiles(
 			trackWorkflowFailure(stats, resolvedFile, len(errMsgs), errMsgs)
 		} else {
 			compiledCount++
+			stats.Succeeded++
 			if fileResult.workflowData != nil {
 				workflowDataList = append(workflowDataList, fileResult.workflowData)
 			}
@@ -258,7 +265,8 @@ func compileSpecificFiles(
 			if config.Strict {
 				errorCount++
 				stats.Errors++
-				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				// Grant is a post-compilation tool, not a workflow; record it only in
+				// validationResults (for JSON output) without adding to FailureDetails.
 				*validationResults = append(*validationResults, ValidationResult{
 					Workflow: "grant",
 					Valid:    false,
@@ -286,6 +294,9 @@ func compileSpecificFiles(
 
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
+
+	// Aggregate and display batch-mode notices (experimental features, Copilot tip)
+	displayBatchCompilationNotices(compiler, config)
 
 	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
@@ -340,7 +351,7 @@ func compileAllFilesInDirectory(
 
 	compileOrchestrationLog.Printf("Scanning for markdown files in %s", workflowsDir)
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Scanning for markdown files in "+workflowsDir))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr("Scanning for markdown files in "+workflowsDir))
 	}
 
 	// Find and filter markdown files (shared helper keeps logic in one place)
@@ -359,8 +370,12 @@ func compileAllFilesInDirectory(
 
 	compileOrchestrationLog.Printf("Found %d markdown files to compile", len(mdFiles))
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d markdown files to compile", len(mdFiles))))
 	}
+
+	batchMode := !config.Verbose && len(mdFiles) > 1
+	compiler.SetBatchMode(batchMode)
+	compiler.SetQuiet(batchMode)
 
 	// Handle purge logic: collect existing files before compilation
 	var purgeData *purgeTrackingData
@@ -392,7 +407,7 @@ func compileAllFilesInDirectory(
 		// Respect context cancellation between files (e.g. Ctrl+C)
 		select {
 		case <-ctx.Done():
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Operation cancelled"))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Operation cancelled"))
 			return workflowDataList, ctx.Err()
 		default:
 		}
@@ -425,6 +440,7 @@ func compileAllFilesInDirectory(
 			trackWorkflowFailure(stats, file, len(errMsgs), errMsgs)
 		} else {
 			successCount++
+			stats.Succeeded++
 			if fileResult.workflowData != nil {
 				workflowDataList = append(workflowDataList, fileResult.workflowData)
 			}
@@ -541,7 +557,8 @@ func compileAllFilesInDirectory(
 			if config.Strict {
 				errorCount++
 				stats.Errors++
-				trackWorkflowFailure(stats, "grant", 1, []string{err.Error()})
+				// Grant is a post-compilation tool, not a workflow; record it only in
+				// validationResults (for JSON output) without adding to FailureDetails.
 				*validationResults = append(*validationResults, ValidationResult{
 					Workflow: "grant",
 					Valid:    false,
@@ -573,6 +590,8 @@ func compileAllFilesInDirectory(
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 
+	displayBatchCompilationNotices(compiler, config)
+
 	// Display schedule warnings
 	displayScheduleWarnings(compiler, config.JSONOutput)
 
@@ -580,7 +599,7 @@ func compileAllFilesInDirectory(
 	displaySafeUpdateWarnings(compiler, config.JSONOutput)
 
 	if config.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessageStderr(fmt.Sprintf("Successfully compiled %d out of %d workflow files", successCount, len(mdFiles))))
 	}
 
 	// Handle purge logic if requested
@@ -614,6 +633,45 @@ func compileAllFilesInDirectory(
 	return workflowDataList, nil
 }
 
+func displayBatchCompilationNotices(compiler *workflow.Compiler, config CompileConfig) {
+	if config.JSONOutput || config.Verbose {
+		return
+	}
+
+	featureUsage := compiler.GetExperimentalFeatureUsage()
+	if len(featureUsage) > 0 {
+		type featureCount struct {
+			name  string
+			count int
+		}
+		features := make([]featureCount, 0, len(featureUsage))
+		for message, count := range featureUsage {
+			features = append(features, featureCount{
+				name:  strings.TrimPrefix(message, "Using experimental feature: "),
+				count: count,
+			})
+		}
+		sort.Slice(features, func(i, j int) bool {
+			if features[i].count != features[j].count {
+				return features[i].count > features[j].count
+			}
+			return features[i].name < features[j].name
+		})
+
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("Experimental features in use:"))
+		for _, feature := range features {
+			fmt.Fprintln(os.Stderr, console.FormatListItemStderr(fmt.Sprintf("%s: %s", feature.name, formatWorkflowCount(feature.count))))
+		}
+	}
+
+	if compiler.CopilotRequestsTipNeeded() {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(
+			"Copilot token-based inference may be available: add permissions.copilot-requests: write. "+
+				"See https://github.github.com/gh-aw/reference/billing/",
+		))
+	}
+}
+
 // purgeTrackingData holds data needed for purge operations
 type purgeTrackingData struct {
 	existingLockFiles    []string
@@ -637,10 +695,10 @@ func collectPurgeData(workflowsDir string, mdFiles []string, verbose bool) *purg
 
 	if verbose {
 		if len(data.existingLockFiles) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .lock.yml files", len(data.existingLockFiles))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d existing .lock.yml files", len(data.existingLockFiles))))
 		}
 		if len(data.existingInvalidFiles) > 0 {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Found %d existing .invalid.yml files", len(data.existingInvalidFiles))))
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessageStderr(fmt.Sprintf("Found %d existing .invalid.yml files", len(data.existingInvalidFiles))))
 		}
 	}
 
@@ -680,7 +738,7 @@ func runPostProcessing(
 				if config.Strict {
 					return err
 				}
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
 			}
 		}
 	}
@@ -734,7 +792,7 @@ func runPostProcessingForDirectory(
 			if config.Strict {
 				return err
 			}
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Failed to reconcile compiler-managed Dependabot ignore entries: %v", err)))
 		}
 	}
 

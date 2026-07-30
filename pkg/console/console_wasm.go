@@ -65,6 +65,8 @@ func FormatError(err CompilerError) string {
 	return output.String()
 }
 
+func FormatErrorStderr(err CompilerError) string { return FormatError(err) }
+
 func FormatSuccessMessage(message string) string       { return "✓ " + message }
 func FormatSuccessMessageStderr(message string) string { return "✓ " + message }
 func FormatInfoMessage(message string) string          { return "i " + message }
@@ -78,14 +80,17 @@ func FormatLocationMessage(message string) string      { return "~ " + message }
 func FormatCommandMessage(command string) string       { return "$ " + command }
 func FormatCommandMessageStderr(command string) string { return "$ " + command }
 func FormatProgressMessage(message string) string      { return "▸ " + message }
-func FormatPromptMessage(message string) string        { return "? " + message }
-func FormatCountMessage(message string) string         { return "# " + message }
-func FormatVerboseMessage(message string) string       { return "» " + message }
-func FormatListHeader(header string) string            { return header }
-func FormatListItem(item string) string                { return "  • " + item }
-func FormatListItemStderr(item string) string          { return "  • " + item }
-func FormatSectionHeader(header string) string         { return header }
-func FormatSectionHeaderStderr(header string) string   { return header }
+func FormatProgressMessageStderr(message string) string {
+	return "▸ " + message
+}
+func FormatPromptMessage(message string) string      { return "? " + message }
+func FormatCountMessage(message string) string       { return "# " + message }
+func FormatVerboseMessage(message string) string     { return "» " + message }
+func FormatListHeader(header string) string          { return header }
+func FormatListItem(item string) string              { return "  • " + item }
+func FormatListItemStderr(item string) string        { return "  • " + item }
+func FormatSectionHeader(header string) string       { return header }
+func FormatSectionHeaderStderr(header string) string { return header }
 
 // FormatErrorChain formats an error and its full unwrapped chain.
 // In the WASM build there is no rich terminal styling; the top-level error

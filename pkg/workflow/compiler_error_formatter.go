@@ -73,7 +73,7 @@ func isFormattedCompilerError(err error) bool {
 // cause: optional underlying error to wrap (use nil for validation errors)
 func formatCompilerErrorWithPosition(filePath string, line int, column int, errType string, message string, cause error) error {
 	compilerErrorLog.Printf("Formatting compiler error: file=%s, line=%d, column=%d, type=%s, message=%s", filePath, line, column, errType, message)
-	formattedErr := console.FormatError(console.CompilerError{
+	formattedErr := console.FormatErrorStderr(console.CompilerError{
 		Position: console.ErrorPosition{
 			File:   filePath,
 			Line:   line,
@@ -101,7 +101,7 @@ func formatCompilerErrorWithPosition(filePath string, line int, column int, errT
 // context: source code lines around the error for Rust-like snippet rendering
 func formatCompilerErrorWithContext(filePath string, line int, column int, errType string, message string, cause error, context []string) error {
 	compilerErrorLog.Printf("Formatting compiler error with context: file=%s, line=%d, column=%d, type=%s, context=%d lines", filePath, line, column, errType, len(context))
-	formattedErr := console.FormatError(console.CompilerError{
+	formattedErr := console.FormatErrorStderr(console.CompilerError{
 		Position: console.ErrorPosition{
 			File:   filePath,
 			Line:   line,
@@ -120,7 +120,7 @@ func formatCompilerErrorWithContext(filePath string, line int, column int, errTy
 // msgType: the message type ("error" or "warning")
 // message: the message text
 func formatCompilerMessage(filePath string, msgType string, message string) string {
-	return console.FormatError(console.CompilerError{
+	return console.FormatErrorStderr(console.CompilerError{
 		Position: console.ErrorPosition{
 			File:   filePath,
 			Line:   0,
