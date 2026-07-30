@@ -18,6 +18,10 @@ const BUDGET_EXCEEDED_EVENT = "budget_exceeded";
 // The literal error type emitted by the AWF API proxy (HTTP 400) when maxAiCredits is active
 // and the requested model is not in the built-in pricing table.
 const UNKNOWN_MODEL_AI_CREDITS_TYPE = "unknown_model_ai_credits";
+// The literal error type emitted by the AWF API proxy (HTTP 403) when the consecutive cache
+// miss counter reaches the apiProxy.maxCacheMisses limit. Engine-agnostic: all engines share
+// the same proxy guardrail.
+const MAX_CACHE_MISSES_EXCEEDED_EVENT_TYPE = "max_cache_misses_exceeded";
 const MAX_AI_CREDITS_EXCEEDED_STDIO_RE = /maximum ai credits exceeded(?:\s*\((\d+(?:\.\d+)?)\s*\/\s*(\d+(?:\.\d+)?)\))?/i;
 const DEFAULT_AGENT_STDIO_LOG = "/tmp/gh-aw/agent-stdio.log";
 const AGENT_STDIO_LOG_MAX_TAIL = 64 * 1024; // 64 KB — sufficient for any realistic error block
@@ -426,6 +430,30 @@ function parseUnknownModelAICreditsAndModelFromAuditLog(auditJsonlPathOverride) 
 }
 
 /**
+ * Detects a `max_cache_misses_exceeded` event from the AWF API proxy event logs.
+ * The proxy emits this HTTP 403 error when the consecutive cache miss counter reaches
+ * the configured `apiProxy.maxCacheMisses` limit. Detection is engine-agnostic:
+ * all agentic engines share the same AWF API proxy guardrail.
+ * Structured entries emitted by the AWF API proxy look like:
+ *   { "type": "max_cache_misses_exceeded", "consecutive_cache_misses": 6, "max_cache_misses": 5 }
+ *
+ * @param {string} [eventLogPathOverride]
+ * @returns {boolean}
+ */
+function parseMaxCacheMissesExceededFromEventLog(eventLogPathOverride) {
+  return iterateJSONLFiles(
+    resolveUnknownModelAICreditsLogPaths(eventLogPathOverride),
+    false,
+    content => content.includes(MAX_CACHE_MISSES_EXCEEDED_EVENT_TYPE),
+    (acc, entry) => {
+      if (acc) return true; // already detected, short-circuit
+      return traverseObjectTree(entry, (_key, value) => value === MAX_CACHE_MISSES_EXCEEDED_EVENT_TYPE) || undefined;
+    },
+    acc => acc
+  );
+}
+
+/**
  * Single-pass combined read of the audit log, returning all AI credits fields at once.
  * Used by resolveAICreditsFailureState to avoid reading the same file twice.
  * No contentGuard is applied: rate-limit signal detection must scan all entries anyway,
@@ -552,5 +580,7 @@ module.exports = {
   parseMaxAICreditsExceededFromAuditLog,
   parseUnknownModelAICreditsFromAuditLog,
   parseUnknownModelAICreditsAndModelFromAuditLog,
+  parseMaxCacheMissesExceededFromEventLog,
   resolveAICreditsFailureState,
+  MAX_CACHE_MISSES_EXCEEDED_EVENT_TYPE,
 };

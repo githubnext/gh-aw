@@ -57,6 +57,7 @@
     "computer-use": ["copilot/*computer-use*", "google/*computer-use*", "gemini/*computer-use*", "openai/*computer-use*"],
     "robotics": ["copilot/*robotics*", "google/*robotics*", "gemini/*robotics*"],
     "veo": ["google/veo*", "gemini/veo*"],
-    "lyria": ["google/lyria*", "gemini/lyria*", "copilot/lyria*"]
+    "lyria": ["google/lyria*", "gemini/lyria*", "copilot/lyria*"],
+    "grok": ["copilot/*grok*", "openai/*grok*"]
   }
 }

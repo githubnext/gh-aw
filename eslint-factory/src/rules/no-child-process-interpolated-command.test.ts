@@ -23,6 +23,8 @@ describe("no-child-process-interpolated-command", () => {
         { code: `const { execSync } = require("child_process"); let cmd = \`git checkout \${branch}\`; cmd = "git status"; execSync(cmd);` },
         { code: `const { execSync } = require("child_process"); (function(cmd) { execSync(cmd); })("git status");` },
         { code: `exec.exec(\`git checkout \${branch}\`, []);` },
+        { code: `require("child_process").execSync("git status");` },
+        { code: `require("node:child_process").execSync(\`git status\`);` },
         {
           code: `import { exec } from "node:child_process"; exec("git status");`,
           languageOptions: { sourceType: "module" },
@@ -88,6 +90,18 @@ describe("no-child-process-interpolated-command", () => {
             { messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } },
             { messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "exec" } },
           ],
+        },
+        {
+          code: `require("child_process").execSync(\`rm -rf \${userInput}\`);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "execSync" } }],
+        },
+        {
+          code: `require("node:child_process").execSync("rm -rf " + userInput);`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "dynamic string concatenation", method: "execSync" } }],
+        },
+        {
+          code: `require("child_process").spawn(\`git checkout \${branch}\`, { shell: true });`,
+          errors: [{ messageId: "interpolatedCommand", data: { kind: "interpolated template literal", method: "spawn" } }],
         },
       ],
     });

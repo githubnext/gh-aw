@@ -57,6 +57,11 @@ tools:
     - "*.json"
     - "*.jsonl"
 tracker-id: eslint-refiner
+evals:
+  - id: eslint_trends_analyzed
+    question: Did the agent analyze ESLint diagnostics trends to identify rule refinement opportunities?
+  - id: refinements_reported
+    question: Did the agent report actionable ESLint rule refinements or explain why no refinement was needed?
 ---
 # ESLint Refiner
 

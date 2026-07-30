@@ -983,3 +983,65 @@ func TestLogsToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
 		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v) regardless of the 2s gateway deadline; got %v from start",
 		capturedDeadline, requestedTimeoutMinutes, before, capturedDeadline.Sub(before))
 }
+
+// TestAuditToolSubprocessContextIgnoresGatewayDeadline verifies that the audit
+// tool creates a subprocess context rooted at context.Background() so the
+// subprocess deadline is independent of the MCP gateway's 60 s per-request
+// deadline. This is the regression test for the bug where a 60 s gateway
+// deadline caused context deadline exceeded on every audit call.
+//
+// The test calls newMCPSubprocessContext directly with a deadline-bearing
+// context so it is not affected by the MCP in-memory transport's context
+// isolation, which strips deadlines from server handler contexts.
+func TestAuditToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
+	// Simulate the MCP gateway's short per-tool RPC deadline (2 s) by passing a
+	// deadline-bearing context directly to the detachment helper — the same
+	// context the handler receives in production.
+	gatewayCtx, gatewayCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer gatewayCancel()
+
+	before := time.Now()
+
+	subCtx, subCancel := newMCPSubprocessContext(gatewayCtx, time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute, "audit")
+	defer subCancel()
+
+	deadline, ok := subCtx.Deadline()
+	require.True(t, ok, "subprocess context should have a deadline")
+
+	// The subprocess deadline must be at least defaultMCPAuditTimeoutMinutes out,
+	// not bounded by the 2-second gateway context.  This assertion would fail if
+	// newMCPSubprocessContext were changed to context.WithTimeout(ctx, ...) without
+	// the context.WithoutCancel detachment step.
+	expectedMinDeadline := before.Add(time.Duration(defaultMCPAuditTimeoutMinutes)*time.Minute - 5*time.Second)
+	assert.True(t, deadline.After(expectedMinDeadline),
+		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v) regardless of the 2s gateway deadline; got %v from start",
+		deadline, defaultMCPAuditTimeoutMinutes, before, deadline.Sub(before))
+}
+
+// TestAuditDiffToolSubprocessContextIgnoresGatewayDeadline verifies that the
+// audit-diff tool creates a subprocess context rooted at context.Background()
+// so the subprocess deadline is independent of the MCP gateway's 60 s
+// per-request deadline.
+//
+// The test calls newMCPSubprocessContext directly with a deadline-bearing
+// context so it is not affected by the MCP in-memory transport's context
+// isolation, which strips deadlines from server handler contexts.
+func TestAuditDiffToolSubprocessContextIgnoresGatewayDeadline(t *testing.T) {
+	// Simulate the MCP gateway's short per-tool RPC deadline (2 s).
+	gatewayCtx, gatewayCancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer gatewayCancel()
+
+	before := time.Now()
+
+	subCtx, subCancel := newMCPSubprocessContext(gatewayCtx, time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute, "audit-diff")
+	defer subCancel()
+
+	deadline, ok := subCtx.Deadline()
+	require.True(t, ok, "subprocess context should have a deadline")
+
+	// The subprocess deadline must be at least defaultMCPAuditDiffTimeoutMinutes out.
+	expectedMinDeadline := before.Add(time.Duration(defaultMCPAuditDiffTimeoutMinutes)*time.Minute - 5*time.Second)
+	assert.True(t, deadline.After(expectedMinDeadline),
+		"subprocess context deadline (%v) should be ≥ %d minutes from call start (%v) regardless of the 2s gateway deadline; got %v from start",
+		deadline, defaultMCPAuditDiffTimeoutMinutes, before, deadline.Sub(before))
+}

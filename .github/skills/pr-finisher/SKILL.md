@@ -23,7 +23,7 @@ A PR is merge-ready when **all three** are satisfied. Work them **concurrently**
 
 | Condition | Definition | Agent's signal |
 |---|---|---|
-| **Reviews** | Every unresolved in-scope review thread is addressed on its merits, replied to, and resolved, including GitHub Actions bot threads/comments (`github-actions[bot]`). Code changes alone do not satisfy this. | `copilot-review` skill + GraphQL `reviewThreads` |
+| **Reviews** | Every unresolved in-scope review thread is addressed on its merits, replied to, and resolved, including GitHub Actions bot threads/comments (`github-actions[bot]`). Code changes alone do not satisfy this. Threads where Copilot has already replied with a substantive answer must be resolved before delegating to `copilot-review`. | `copilot-review` skill + GraphQL `reviewThreads` |
 | **Checks** | Local `make fmt` / `make lint` / `make test-unit` / `make test` pass. Last-known CI runs reviewed at log level. | `make` targets locally; `gh pr checks` / `gh run view --log-failed` for prior runs |
 | **Mergeable** | PR is OPEN, not draft, `mergeable: MERGEABLE`, not `BEHIND` if the repo requires up-to-date branches. | `gh pr view --json mergeable,mergeStateStatus,state,isDraft` |
 
@@ -77,7 +77,23 @@ If merged/closed, report and stop. Otherwise classify each condition as ✅ / �
 
 ### 2. Address Reviews
 
-Delegate to the `copilot-review` skill and treat that delegation as mandatory, not optional. Insist on full handling of each unresolved in-scope thread (including `github-actions[bot]`): make change → run relevant local validation → commit → push → reply → resolve. A thread is not handled until reply + resolve both succeed.
+#### 2a. Resolve Copilot-answered threads
+
+Before delegating to `copilot-review`, find review threads where Copilot has already replied with a substantive answer but the thread has not yet been marked as resolved. Resolve those threads immediately — no code changes are needed for them.
+
+```bash
+# Identify unresolved threads that already have a Copilot reply
+jq '.reviewThreads[]? | select(.isResolved==false) | select(any(.comments[]?; .author.login == "app/github-copilot" or (.author.login | test("copilot"; "i"))))' "$PR_SNAPSHOT"
+```
+
+For each such thread:
+- Confirm the Copilot reply is substantive and actually addresses the concern (not merely an acknowledgment or partial response).
+- If the reply fully addresses the concern, resolve the thread.
+- If the reply is incomplete or the concern is not satisfied, treat the thread as still open and address it in step 2b below.
+
+#### 2b. Address remaining unresolved threads
+
+Delegate to the `copilot-review` skill and treat that delegation as mandatory, not optional. Insist on full handling of each remaining unresolved in-scope thread (including `github-actions[bot]`): make change → run relevant local validation → commit → push → reply → resolve. A thread is not handled until reply + resolve both succeed.
 
 Before editing, reuse the triage snapshot instead of fetching the same PR again:
 
@@ -166,6 +182,7 @@ The task is complete only when all are true:
 - `make fmt`, `make lint`, `make test-unit` all pass (or unrelated pre-existing failures explicitly identified).
 - `make test` was run and fixed when it was part of the failing state; wasm goldens regenerated when required.
 - The `copilot-review` skill addressed all in-scope review threads, including GitHub Actions bot review comments/threads (`github-actions[bot]`) (reply + resolve succeeded for each).
+- Review threads where Copilot had already replied with a substantive answer were resolved (step 2a) before delegating unresolved threads to `copilot-review` (step 2b).
 - Mergeable condition was checked; conflicts resolved and `BEHIND` updated when present.
 - Prior CI failures were inspected at the log level and either fixed at the root cause (with a local reproduction where possible) or explicitly flagged as not locally reproducible / escalated.
 - Every iteration that changed files was committed and pushed, and no local changes were left unpushed at stop. No post-push re-check loop.

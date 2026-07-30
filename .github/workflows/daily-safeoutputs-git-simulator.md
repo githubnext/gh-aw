@@ -63,6 +63,11 @@ models:
   default-ai-credits-pricing:
     input: 5.0
     output: 25.0
+evals:
+  - id: git_scenarios_simulated
+    question: Did the agent simulate git configurations for create-pull-request and push-to-pull-request-branch safe outputs?
+  - id: simulator_findings_reported
+    question: Did the agent report the simulator results and any systematic safe-output issues it found?
 ---
 
 # Daily Safe Outputs Git Simulator

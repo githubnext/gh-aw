@@ -357,6 +357,12 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 
 ---
 
+## Pagination
+
+MCP tool responses have a **25,000 token limit**; always pass an explicit `perPage`. See [github-mcp-server-pagination.md](github-mcp-server-pagination.md) for per-tool `perPage` defaults, the pagination loop pattern, known tool quirks (`list_label`, `list_workflows`), and oversized-response recovery.
+
+---
+
 ## Best Practices
 
 ### Toolset Selection
