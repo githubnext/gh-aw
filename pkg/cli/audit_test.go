@@ -527,6 +527,9 @@ func TestAuditCachingBehavior(t *testing.T) {
 	if _, err := os.Stat(summaryPath); os.IsNotExist(err) {
 		t.Fatalf("Run summary file should exist after saveRunSummary")
 	}
+	if err := markArtifactDownloaded(runOutputDir, string(ArtifactSetAll)); err != nil {
+		t.Fatalf("markArtifactDownloaded: %v", err)
+	}
 
 	// Load the summary back
 	loadedSummary, ok := loadRunSummary(runOutputDir, false)
@@ -545,7 +548,8 @@ func TestAuditCachingBehavior(t *testing.T) {
 		t.Errorf("Expected workflow name %s, got %s", summary.Run.WorkflowName, loadedSummary.Run.WorkflowName)
 	}
 
-	// Verify that downloadRunArtifacts skips download when valid summary exists
+	// Verify that downloadRunArtifacts skips download when a completed artifact
+	// cache already exists on disk.
 	// This is tested by checking that the function returns without error
 	// and doesn't attempt to call `gh run download`
 	err := downloadRunArtifacts(context.Background(), downloadArtifactsOptions{runID: run.DatabaseID, outputDir: runOutputDir})
