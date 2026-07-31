@@ -21,7 +21,7 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("shows budget exhaustion message with inline usage, limit, and overage — no table, no run URL", () => {
-    const rendered = buildAICreditsRateLimitErrorContext(true, "105000", "100000", "https://github.com/octo/repo/actions/runs/456");
+    const rendered = buildAICreditsRateLimitErrorContext(true, "105000", "100000", "https://github.com/octo/repo/actions/runs/456", true);
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     expect(rendered).toContain("hit the configured `max-ai-credits` guardrail");
@@ -42,7 +42,7 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("shows message without metrics when no credit data is available, still shows snippet with default limit", () => {
-    const rendered = buildAICreditsRateLimitErrorContext(true, "", "", "");
+    const rendered = buildAICreditsRateLimitErrorContext(true, "", "", "", true);
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     expect(rendered).not.toContain("Used `");
@@ -53,7 +53,10 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("does not show overage when usage does not exceed limit", () => {
-    const rendered = buildAICreditsRateLimitErrorContext(true, "50000", "100000", "");
+    // isBudgetExceeded=true because the maxAICreditsExceeded signal was set (the credit amounts
+    // in the log may be sampled before the final over-budget request, so usage < max is possible
+    // even when the budget was truly exceeded).
+    const rendered = buildAICreditsRateLimitErrorContext(true, "50000", "100000", "", true);
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     expect(rendered).toContain("Used `50K` of `100K` max");
@@ -65,6 +68,6 @@ describe("handle_agent_failure Max AI Credits exceeded context", () => {
   });
 
   it("returns empty string when max_ai_credits_exceeded is false", () => {
-    expect(buildAICreditsRateLimitErrorContext(false, "105000", "100000", "https://github.com/octo/repo/actions/runs/456")).toBe("");
+    expect(buildAICreditsRateLimitErrorContext(false, "105000", "100000", "https://github.com/octo/repo/actions/runs/456", true)).toBe("");
   });
 });
