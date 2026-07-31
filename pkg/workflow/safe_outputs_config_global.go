@@ -10,6 +10,15 @@ import (
 // extractGlobalConfigFields parses safe-outputs fields that apply across handlers,
 // keeping extractSafeOutputsConfig focused on routing handler-specific configuration.
 func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
+	c.extractNetworkAndDataGlobalFields(outputMap, config)
+	c.extractBehaviorGlobalFields(outputMap, config)
+	c.extractReportingGlobalFields(outputMap, config)
+	c.extractJobInfraGlobalFields(outputMap, config)
+}
+
+// extractNetworkAndDataGlobalFields parses allowed-domains, URLs, data, github-references,
+// threat-detection, and runtime settings (runs-on, timeout).
+func (c *Compiler) extractNetworkAndDataGlobalFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 	if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 		if domainsArray, ok := allowedDomains.([]any); ok {
@@ -49,6 +58,27 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		}
 	}
 
+	// Handle threat-detection
+	if threatDetectionConfig := c.parseThreatDetectionConfig(outputMap); threatDetectionConfig != nil {
+		config.ThreatDetection = threatDetectionConfig
+	}
+
+	// Handle runs-on configuration
+	if runsOn, exists := outputMap["runs-on"]; exists {
+		config.RunsOn = renderRunsOnSnippet(runsOn)
+	}
+
+	// Handle timeout-minutes configuration
+	if timeoutMinutes, ok := parseBoundedIntField(outputMap, "timeout-minutes", safeOutputsConfigLog); ok {
+		config.TimeoutMinutes = timeoutMinutes
+	}
+	// The safe-outputs job applies its 45-minute default at render time in
+	// compiler_safe_outputs_job.go, so extraction only preserves explicit overrides.
+}
+
+// extractBehaviorGlobalFields parses staged, env, github-token, patch limits, messages,
+// activation-comments, mentions, footer, group-reports, and max-bot-mentions.
+func (c *Compiler) extractBehaviorGlobalFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle staged flag
 	if err := preprocessBoolFieldAsString(outputMap, "staged", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("staged: %v", err)
@@ -91,24 +121,12 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 	// the other global bounded integer fields.
 	config.MaximumPatchFiles = parseBoundedIntFieldOrDefault(outputMap, "max-patch-files", 100, safeOutputsConfigLog)
 
-	// Handle threat-detection
-	threatDetectionConfig := c.parseThreatDetectionConfig(outputMap)
-	if threatDetectionConfig != nil {
-		config.ThreatDetection = threatDetectionConfig
-	}
+	c.extractNotificationGlobalFields(outputMap, config)
+}
 
-	// Handle runs-on configuration
-	if runsOn, exists := outputMap["runs-on"]; exists {
-		config.RunsOn = renderRunsOnSnippet(runsOn)
-	}
-
-	// Handle timeout-minutes configuration
-	if timeoutMinutes, ok := parseBoundedIntField(outputMap, "timeout-minutes", safeOutputsConfigLog); ok {
-		config.TimeoutMinutes = timeoutMinutes
-	}
-	// The safe-outputs job applies its 45-minute default at render time in
-	// compiler_safe_outputs_job.go, so extraction only preserves explicit overrides.
-
+// extractNotificationGlobalFields parses messages, activation-comments, mentions,
+// footer, group-reports, and max-bot-mentions.
+func (c *Compiler) extractNotificationGlobalFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle messages configuration
 	if messages, exists := outputMap["messages"]; exists {
 		if messagesMap, ok := messages.(map[string]any); ok {
@@ -150,6 +168,18 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		}
 	}
 
+	// Handle max-bot-mentions (templatable integer)
+	if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
+		safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
+	} else if maxBotMentions, exists := outputMap["max-bot-mentions"]; exists {
+		if maxBotMentionsStr, ok := maxBotMentions.(string); ok {
+			config.MaxBotMentions = &maxBotMentionsStr
+		}
+	}
+}
+
+// extractReportingGlobalFields parses report-failure-as-issue and failure-issue-repo.
+func (c *Compiler) extractReportingGlobalFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle report-failure-as-issue as templatable bool or array of categories.
 	if reportFailureAsIssue, exists := outputMap["report-failure-as-issue"]; exists {
 		// Support []any category filters.
@@ -208,16 +238,11 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 			safeOutputsConfigLog.Printf("Failure issue repo: %s", failureIssueRepoStr)
 		}
 	}
+}
 
-	// Handle max-bot-mentions (templatable integer)
-	if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
-		safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)
-	} else if maxBotMentions, exists := outputMap["max-bot-mentions"]; exists {
-		if maxBotMentionsStr, ok := maxBotMentions.(string); ok {
-			config.MaxBotMentions = &maxBotMentionsStr
-		}
-	}
-
+// extractJobInfraGlobalFields parses steps, id-token, concurrency-group, needs, environment,
+// jobs, scripts, actions, and github-app.
+func (c *Compiler) extractJobInfraGlobalFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle steps (user-provided steps injected after checkout/setup, before safe-output code)
 	if steps, exists := outputMap["steps"]; exists {
 		if stepsList, ok := steps.([]any); ok {
@@ -266,6 +291,11 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		safeOutputsConfigLog.Printf("Configured environment override for safe-outputs job: %s", config.Environment)
 	}
 
+	c.extractExtensionGlobalFields(outputMap, config)
+}
+
+// extractExtensionGlobalFields parses jobs, scripts, actions, and github-app.
+func (c *Compiler) extractExtensionGlobalFields(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Handle jobs (safe-jobs must be under safe-outputs)
 	if jobs, exists := outputMap["jobs"]; exists {
 		if jobsMap, ok := jobs.(map[string]any); ok {

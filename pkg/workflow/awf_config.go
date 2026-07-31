@@ -460,85 +460,52 @@ func buildAWFConfigSchemaURL(firewallConfig *FirewallConfig) string {
 	return fmt.Sprintf("https://github.com/github/gh-aw-firewall/releases/download/%s/awf-config.schema.json", version)
 }
 
-// BuildAWFConfigJSON generates a compact JSON config file for AWF from the provided
-// command configuration. The JSON is single-line (no indentation) for safe embedding
-// in a shell printf command.
-//
-// The caller is responsible for writing the returned JSON to disk at the path expected
-// by the AWF --config flag. See BuildAWFCommand for how this is wired together.
-func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
-	awfConfigLog.Printf("Building AWF config JSON: engine=%s, allowed_domains=%q", config.EngineName, config.AllowedDomains)
+// buildAWFNetworkSection constructs the network section of the AWF config.
+func buildAWFNetworkSection(config AWFCommandConfig) *AWFNetworkConfig {
+	var network *AWFNetworkConfig
 
-	// Resolve firewall config once — used for both the schema URL and the container image tag.
-	firewallConfig := getFirewallConfig(config.WorkflowData)
-
-	awfConfig := AWFConfigFile{
-		Schema: buildAWFConfigSchemaURL(firewallConfig),
-	}
-
-	// ── Runner section ──────────────────────────────────────────────────────
-	if topology := getRunnerTopology(config.WorkflowData); topology != "" {
-		awfConfig.Runner = &AWFRunnerConfig{Topology: topology}
-		awfConfigLog.Printf("Runner section: topology=%s", topology)
-	}
-
-	// ── Network section ──────────────────────────────────────────────────────
 	if config.AllowedDomains != "" {
 		allowList := splitDomainList(config.AllowedDomains)
-		awfConfig.Network = &AWFNetworkConfig{
-			AllowDomains: allowList,
-		}
+		network = &AWFNetworkConfig{AllowDomains: allowList}
 		awfConfigLog.Printf("Network section: %d allowed domains", len(allowList))
 
-		// Blocked domains (if configured in the workflow)
 		if config.WorkflowData != nil {
 			blockedDomainsStr := formatBlockedDomains(config.WorkflowData.NetworkPermissions)
 			if blockedDomainsStr != "" {
-				blockList := splitDomainList(blockedDomainsStr)
-				awfConfig.Network.BlockDomains = blockList
-				awfConfigLog.Printf("Network section: %d blocked domains", len(blockList))
+				network.BlockDomains = splitDomainList(blockedDomainsStr)
+				awfConfigLog.Printf("Network section: %d blocked domains", len(network.BlockDomains))
 			}
 		}
 	}
 
 	if isAWFNetworkIsolationEnabled(config.WorkflowData) {
-		if awfConfig.Network == nil {
-			awfConfig.Network = &AWFNetworkConfig{}
+		if network == nil {
+			network = &AWFNetworkConfig{}
 		}
-		awfConfig.Network.Isolation = true
-		awfConfig.Network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
-		awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(awfConfig.Network.TopologyAttach))
+		network.Isolation = true
+		network.TopologyAttach = buildAWFTopologyAttachList(config.WorkflowData)
+		awfConfigLog.Printf("Network section: isolation enabled with %d topology attachments", len(network.TopologyAttach))
 	}
 
-	// docker-sbx: the sbx microVM resolves host services via host.docker.internal
-	// (the Docker bridge gateway, 172.17.0.1). Allow this domain so AWF's network
-	// policy permits connections from the microVM to the api-proxy, MCP gateway, and
-	// Squid proxy that are all published on the host bridge.
 	if isDockerSbxRuntime(config.WorkflowData) {
-		if awfConfig.Network == nil {
-			awfConfig.Network = &AWFNetworkConfig{}
+		if network == nil {
+			network = &AWFNetworkConfig{}
 		}
 		const hostDockerInternal = "host.docker.internal"
-		if !slices.Contains(awfConfig.Network.AllowDomains, hostDockerInternal) {
-			awfConfig.Network.AllowDomains = append(awfConfig.Network.AllowDomains, hostDockerInternal)
+		if !slices.Contains(network.AllowDomains, hostDockerInternal) {
+			network.AllowDomains = append(network.AllowDomains, hostDockerInternal)
 			awfConfigLog.Printf("Network section: added %s for docker-sbx microVM routing", hostDockerInternal)
 		}
 	}
 
-	if platformType := extractPlatformType(config.WorkflowData); platformType != "" {
-		awfConfig.Platform = &AWFPlatformConfig{Type: platformType}
-		awfConfigLog.Printf("Platform section: type=%s", platformType)
-	}
+	return network
+}
 
-	// ── API proxy section ─────────────────────────────────────────────────────
-	// maxAICredits is taken from frontmatter/imports only; when unset (0) the
-	// runtime value is resolved from vars.GH_AW_DEFAULT_MAX_AI_CREDITS via a
-	// GitHub Actions expression injected directly into the JSON string in
-	// BuildAWFCommand (see injectMaxAICreditsExpression in awf_helpers.go).
+// buildAWFAPIProxyBase creates the base API proxy config with credits, runs, token
+// steering, model fallback, and pricing.
+func buildAWFAPIProxyBase(config AWFCommandConfig, firewallConfig *FirewallConfig) *AWFAPIProxyConfig {
 	maxAICredits := int64(0)
 	maxRuns := constants.DefaultMaxRuns
-	// GetMaxTurnCacheMisses handles nil receiver and env-var fallback, so pre-init
-	// via the nil receiver avoids a redundant os.Getenv when EngineConfig is set.
 	maxTurnCacheMisses := (*EngineConfig)(nil).GetMaxTurnCacheMisses()
 	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil {
 		if config.WorkflowData.EngineConfig.MaxAICredits != 0 {
@@ -548,16 +515,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		maxTurnCacheMisses = config.WorkflowData.EngineConfig.GetMaxTurnCacheMisses()
 	}
 
-	// Token steering is enabled by default. Setting max-ai-credits to a negative
-	// value (-1) omits that budget from the AWF config and disables token steering.
-	// When maxAICredits is 0 (runtime default), token steering stays enabled here.
 	enableTokenSteering := maxAICredits >= 0
 	if maxAICredits < 0 {
-		// Negative signals "disabled" — omit the budget from the AWF config.
 		maxAICredits = 0
 	}
 
-	apiProxy := &AWFAPIProxyConfig{
+	proxy := &AWFAPIProxyConfig{
 		Enabled:             true,
 		MaxRuns:             maxRuns,
 		MaxTurnCacheMisses:  maxTurnCacheMisses,
@@ -572,7 +535,7 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	if mf := extractModelFallback(config.WorkflowData); mf != nil {
-		apiProxy.ModelFallback = mf
+		proxy.ModelFallback = mf
 		enabledDisplay := "<unset>"
 		if mf.Enabled != nil {
 			enabledDisplay = mf.Enabled.String()
@@ -581,10 +544,15 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	if pricing := extractDefaultAiCreditsPricing(config.WorkflowData); pricing != nil {
-		apiProxy.DefaultAiCreditsPricing = pricing
+		proxy.DefaultAiCreditsPricing = pricing
 		awfConfigLog.Printf("API proxy: defaultAiCreditsPricing configured: input=%g, output=%g", pricing.Input, pricing.Output)
 	}
 
+	return proxy
+}
+
+// buildAWFAPIProxyTargets builds the API target map for the proxy configuration.
+func buildAWFAPIProxyTargets(config AWFCommandConfig) map[string]*AWFAPITargetConfig {
 	targets := map[string]*AWFAPITargetConfig{}
 
 	if openaiTarget := extractAPITargetHost(config.WorkflowData, "OPENAI_BASE_URL"); openaiTarget != "" {
@@ -596,9 +564,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: custom anthropic target=%s", anthropicTarget)
 	}
 
-	// Apply authHeader overrides from sandbox.agent.targets frontmatter.
-	// These are independent of the host/env-var settings: authHeader can be set
-	// even when no custom host is configured.
 	for _, provider := range []string{"openai", "anthropic"} {
 		authHeader := extractAPITargetAuthHeader(config.WorkflowData, provider)
 		if authHeader == "" {
@@ -616,9 +581,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("API proxy: custom copilot target=%s", copilotTarget)
 	}
 
-	// Apply BYOK supplemental fields from sandbox.agent.targets.copilot frontmatter.
-	// extraHeaders, extraBodyFields, and sessionId are Copilot-specific and map to
-	// AWF_BYOK_EXTRA_HEADERS, AWF_BYOK_EXTRA_BODY_FIELDS, and AWF_PROVIDER_SESSION_ID.
 	if copilotFrontmatter := extractCopilotTargetConfig(config.WorkflowData); copilotFrontmatter != nil {
 		existing, ok := targets["copilot"]
 		if !ok {
@@ -643,8 +605,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 	}
 	if antigravityTarget := GetAntigravityAPITarget(config.WorkflowData, config.EngineName); antigravityTarget != "" {
-		// Route the Antigravity-resolved API target through the "gemini" provider key
-		// to match AWF's supported target providers.
 		awfConfigLog.Printf("API proxy: mapped antigravity target to gemini provider target=%s", antigravityTarget)
 		targets["gemini"] = &AWFAPITargetConfig{Host: antigravityTarget}
 	} else if geminiTarget := GetGeminiAPITarget(config.WorkflowData, config.EngineName); geminiTarget != "" {
@@ -652,6 +612,14 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		targets["gemini"] = &AWFAPITargetConfig{Host: geminiTarget}
 	}
 
+	return targets
+}
+
+// buildAWFAPIProxySection assembles the full API proxy config including targets and models.
+func buildAWFAPIProxySection(config AWFCommandConfig, firewallConfig *FirewallConfig) *AWFAPIProxyConfig {
+	apiProxy := buildAWFAPIProxyBase(config, firewallConfig)
+
+	targets := buildAWFAPIProxyTargets(config)
 	if len(targets) > 0 {
 		apiProxy.Targets = targets
 		awfConfigLog.Printf("API proxy: %d custom targets configured", len(targets))
@@ -666,7 +634,6 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		}
 	}
 
-	// ── Models section (nested under apiProxy per AWF config schema) ──────────
 	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
 		apiProxy.Models = config.WorkflowData.ModelMappings
 		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
@@ -681,63 +648,85 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 		awfConfigLog.Printf("Models policy: %d disallowed model pattern(s)", len(disallowedModels))
 	}
 
-	awfConfig.APIProxy = apiProxy
+	return apiProxy
+}
 
-	// ── Container section ─────────────────────────────────────────────────────
+// buildAWFContainerSection constructs the container section of the AWF config.
+func buildAWFContainerSection(config AWFCommandConfig, firewallConfig *FirewallConfig) *AWFContainerConfig {
 	awfImageTag := buildAWFImageTagWithDigests(getAWFImageTag(firewallConfig), config.WorkflowData)
 	agentRuntime := getAgentContainerRuntime(config.WorkflowData)
 	agentTimeout := 0
 	if isDockerSbxRuntime(config.WorkflowData) {
 		agentTimeout = resolveAWFContainerAgentTimeoutMinutes(config.WorkflowData)
 	}
-	// containerRuntime is only emitted when the effective AWF version supports it.
-	// Gate here to avoid sending an unrecognised field to older AWF binaries.
 	if !awfSupportsContainerRuntime(firewallConfig) {
 		if agentRuntime != "" {
 			awfConfigLog.Printf("Skipping containerRuntime: AWF version %q requires at least %s (gh-aw-firewall#6093)", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
 		}
 		agentRuntime = ""
 	}
-	if awfImageTag != "" || isArcDindTopology(config.WorkflowData) || agentRuntime != "" || agentTimeout > 0 {
-		container := &AWFContainerConfig{
-			ImageTag:         awfImageTag,
-			AgentTimeout:     agentTimeout,
-			ContainerRuntime: agentRuntime,
-		}
-		// NOTE: dockerHostPathPrefix is intentionally NOT set for arc-dind topology.
-		// With sysroot-stage active, the Docker daemon can access all needed paths:
-		//  - Workspace & RUNNER_TEMP: on the shared work volume (/home/runner/_work/)
-		//  - System binaries: provided by the sysroot named volume (not bind mounts)
-		//  - Kernel VFS (/dev, /sys): daemon's own kernel
-		// Setting a prefix would incorrectly translate the workspace mount source to
-		// a non-existent path (e.g. /prefix/home/runner/_work/repo → empty dir),
-		// causing the agent to see an empty workspace. See gh-aw#34896.
-		awfConfig.Container = container
-		if awfImageTag != "" {
-			awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
-		}
-		if agentRuntime != "" {
-			awfConfigLog.Printf("Container section: containerRuntime=%s", agentRuntime)
-		}
-		if agentTimeout > 0 {
-			awfConfigLog.Printf("Container section: agentTimeout=%d", agentTimeout)
-		}
+	if awfImageTag == "" && !isArcDindTopology(config.WorkflowData) && agentRuntime == "" && agentTimeout == 0 {
+		return nil
 	}
+	container := &AWFContainerConfig{
+		ImageTag:         awfImageTag,
+		AgentTimeout:     agentTimeout,
+		ContainerRuntime: agentRuntime,
+	}
+	if awfImageTag != "" {
+		awfConfigLog.Printf("Container section: image_tag=%s", awfImageTag)
+	}
+	if agentRuntime != "" {
+		awfConfigLog.Printf("Container section: containerRuntime=%s", agentRuntime)
+	}
+	if agentTimeout > 0 {
+		awfConfigLog.Printf("Container section: agentTimeout=%d", agentTimeout)
+	}
+	return container
+}
 
-	// ── Logging section ──────────────────────────────────────────────────────
-	// Logging paths are set in config. For ARC/DinD, the config file is written at runtime,
+// buildAWFLoggingSection constructs the logging section of the AWF config.
+func buildAWFLoggingSection(workflowData *WorkflowData) *AWFLoggingConfig {
+	// For ARC/DinD, the config file is written at runtime,
 	// so ${RUNNER_TEMP} can be preserved for shell expansion before AWF reads the JSON.
-	awfConfig.Logging = &AWFLoggingConfig{
+	logging := &AWFLoggingConfig{
 		ProxyLogsDir: string(constants.AWFProxyLogsDir),
 		AuditDir:     string(constants.AWFAuditDir),
 	}
-	if isArcDindTopology(config.WorkflowData) {
-		awfConfig.Logging.ProxyLogsDir = awfArcDindProxyLogsDirExpr
-		awfConfig.Logging.AuditDir = awfArcDindAuditDirExpr
+	if isArcDindTopology(workflowData) {
+		logging.ProxyLogsDir = awfArcDindProxyLogsDirExpr
+		logging.AuditDir = awfArcDindAuditDirExpr
 	}
-	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", awfConfig.Logging.ProxyLogsDir, awfConfig.Logging.AuditDir)
+	awfConfigLog.Printf("Logging section: proxyLogsDir=%s, auditDir=%s", logging.ProxyLogsDir, logging.AuditDir)
+	return logging
+}
 
-	// ── Bounded queries section ──────────────────────────────────────────────
+// BuildAWFConfigJSON generates a compact JSON config file for AWF from the provided
+// command configuration. The JSON is single-line (no indentation) for safe embedding
+// in a shell printf command.
+//
+// The caller is responsible for writing the returned JSON to disk at the path expected
+// by the AWF --config flag. See BuildAWFCommand for how this is wired together.
+func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
+	awfConfigLog.Printf("Building AWF config JSON: engine=%s, allowed_domains=%q", config.EngineName, config.AllowedDomains)
+
+	firewallConfig := getFirewallConfig(config.WorkflowData)
+
+	awfConfig := AWFConfigFile{Schema: buildAWFConfigSchemaURL(firewallConfig)}
+
+	if topology := getRunnerTopology(config.WorkflowData); topology != "" {
+		awfConfig.Runner = &AWFRunnerConfig{Topology: topology}
+		awfConfigLog.Printf("Runner section: topology=%s", topology)
+	}
+	awfConfig.Network = buildAWFNetworkSection(config)
+	if platformType := extractPlatformType(config.WorkflowData); platformType != "" {
+		awfConfig.Platform = &AWFPlatformConfig{Type: platformType}
+		awfConfigLog.Printf("Platform section: type=%s", platformType)
+	}
+	awfConfig.APIProxy = buildAWFAPIProxySection(config, firewallConfig)
+	awfConfig.Container = buildAWFContainerSection(config, firewallConfig)
+	awfConfig.Logging = buildAWFLoggingSection(config.WorkflowData)
+
 	if bq := extractBoundedQueriesConfig(config.WorkflowData); bq != nil {
 		if awfSupportsBoundedQueries(firewallConfig) {
 			awfConfig.BoundedQueries = bq
@@ -751,15 +740,12 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("failed to marshal AWF config to JSON: %w", err)
 	}
-
 	awfConfigLog.Printf("AWF config JSON generated: %d bytes", len(jsonStr))
-
 	if config.WorkflowData != nil && config.WorkflowData.ValidateAWFConfig {
 		if err := validateAWFConfigJSON(jsonStr); err != nil {
 			return "", fmt.Errorf("generated AWF config failed schema validation: %w", err)
 		}
 	}
-
 	return jsonStr, nil
 }
 
