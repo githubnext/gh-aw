@@ -292,8 +292,14 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 
 	// Propagate the compiler version so engine installation steps can embed it as
 	// GH_AW_COMPILED_VERSION, enabling compat.json-based toolcache resolution at runtime.
+	// Only emit the real version for release builds; dev/dirty builds use "dev" so that
+	// raw commit hashes are not baked into compiled lock files.
 	if data.CompiledVersion == "" {
-		data.CompiledVersion = c.version
+		if IsReleasedVersion(c.version) {
+			data.CompiledVersion = c.version
+		} else {
+			data.CompiledVersion = "dev"
+		}
 	}
 
 	// Add engine-specific installation steps (includes Node.js setup and secret validation for npm-based engines)
