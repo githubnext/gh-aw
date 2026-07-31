@@ -478,6 +478,24 @@ safe-outputs:
 
 When you configure `github-app:` for safe outputs, tokens are minted with permissions specific to the safe output operations being performed, rather than the broader job-level permissions. This provides enhanced security by ensuring that tokens have the minimum necessary permissions for their specific use case.
 
+For workflows that need different permission sets for different safe outputs, configure a handler-specific override under the output type itself. A handler-level `github-app` mints a dedicated installation token for that handler only, while outputs without an override continue to inherit the top-level `safe-outputs.github-app` fallback.
+
+```yaml wrap
+safe-outputs:
+  github-app:
+    client-id: ${{ vars.GLOBAL_APP_ID }}
+    private-key: ${{ secrets.GLOBAL_APP_PRIVATE_KEY }}
+  add-comment:
+    github-app:
+      client-id: ${{ vars.ISSUES_APP_ID }}
+      private-key: ${{ secrets.ISSUES_APP_PRIVATE_KEY }}
+    target: ${{ github.event.issue.number }}
+  dispatch-workflow:
+    workflows: [downstream.yml]
+```
+
+Use this pattern when one output needs narrower access than another. For example, `add-comment` can use an App with only `issues: write` while `dispatch-workflow` keeps using the global App with `actions: write`.
+
 For both tool authentication and safe outputs, you can scope the GitHub App token to specific repositories for enhanced security. This limits the token's access to only the repositories it needs to interact with.
 
 - Omit `repositories` field - Current repository only (default)
