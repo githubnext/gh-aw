@@ -7,9 +7,9 @@ sidebar:
 
 # Safe Outputs MCP Gateway Specification
 
-**Version**: 1.27.0  
+**Version**: 1.28.0  
 **Status**: Working Draft  
-**Publication Date**: 2026-07-29  
+**Publication Date**: 2026-07-31  
 **Editor**: GitHub Agentic Workflows Team  
 **This Version**: [safe-outputs-specification](/gh-aw/specs/safe-outputs-specification/)  
 **Latest Published Version**: This document
@@ -1416,6 +1416,47 @@ The `["*"]` behavior MUST apply to activation-job token minting and to subsequen
 
 In `workflow_call` and other reusable-workflow scenarios, conforming implementations MUST preserve the `["*"]` behavior so that activation can read agent configuration from the callee repository when the App installation grant permits it.
 
+#### GP5a: Type-Specific `github-app` Override
+
+**Syntax**: `safe-outputs.<safe-output-type>.github-app: <github-app-config>`
+
+**Default**: No type-specific app override. Handlers inherit the global `safe-outputs.github-app` fallback when present.
+
+**Semantics**: Allows an individual safe output type to mint and use a dedicated GitHub App installation token instead of sharing the global safe-outputs credential.
+
+**Resolution Rules**:
+
+1. When `safe-outputs.<safe-output-type>.github-app` is configured for a handler that executes GitHub API calls in the `safe_outputs` job, implementations MUST mint a dedicated installation token for that handler using only the permissions required by that handler.
+2. When a handler-specific token is minted, that handler MUST use the dedicated token in preference to the shared `safe-outputs.github-token` or global `safe-outputs.github-app` token.
+3. The global `safe-outputs.github-app` token MUST be computed from only the handlers that do **not** declare a type-specific `github-app` override.
+4. When the effective permission set for a handler is empty (for example, staged-only execution paths or handlers that perform no GitHub API call in `safe_outputs`), implementations MUST NOT mint a dedicated handler token.
+5. When no dedicated handler token is minted, implementations MUST fall back to the handler's configured `github-token` (if any) or to the shared safe-outputs credential flow.
+
+**Security Goal**: Type-specific `github-app` overrides enable least-privilege separation between output types. For example, `add-comment` can use an App with only `issues:write` while `dispatch-workflow` uses a different App with only `actions:write`.
+
+**Example**:
+
+```yaml
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.GLOBAL_APP_ID }}
+    private-key: ${{ secrets.GLOBAL_APP_PRIVATE_KEY }}
+
+  add-comment:
+    github-app:
+      app-id: ${{ vars.ISSUE_APP_ID }}
+      private-key: ${{ secrets.ISSUE_APP_PRIVATE_KEY }}
+    target: ${{ github.event.issue.number }}
+
+  dispatch-workflow:
+    github-app:
+      app-id: ${{ vars.ACTIONS_APP_ID }}
+      private-key: ${{ secrets.ACTIONS_APP_PRIVATE_KEY }}
+    workflows: [downstream.yml]
+```
+
+In this example, `add-comment` and `dispatch-workflow` MUST use separate installation tokens scoped to their respective handler permissions, while any other safe output types continue using the global `safe-outputs.github-app` fallback.
+
 #### GP6: data
 
 **Syntax**: `safe-outputs.data: false | true | <schema-object> | <github-expression>`
@@ -2193,7 +2234,7 @@ The following table defines the exact `createHandlers()` function used for each 
 
 - `issues: write` - Issue creation and modification
 
-*GitHub App* (if using `safe-outputs.app` configuration):
+*GitHub App* (if using `safe-outputs.github-app` or `safe-outputs.create-issue.github-app` configuration):
 
 - `issues: write` - Issue creation and modification  
 - `metadata: read` - Repository metadata (automatically granted)
@@ -2281,7 +2322,7 @@ This extension applies to safe-output processor messages for `add_comment` (incl
 - `pull-requests: write` - Comment creation on pull requests
 - `discussions: write` - Comment creation on discussions (only when `discussions: true`)
 
-*GitHub App* (if using `safe-outputs.app` configuration):
+*GitHub App* (if using `safe-outputs.github-app` or `safe-outputs.add-comment.github-app` configuration):
 
 - `issues: write` - Comment creation on issues
 - `pull-requests: write` - Comment creation on pull requests
@@ -2413,7 +2454,7 @@ safe-outputs:
 - `issues: write` - Issue creation fallback when PR creation fails
 - `pull-requests: write` - Pull request creation
 
-*GitHub App* (if using `safe-outputs.app` configuration):
+*GitHub App* (if using `safe-outputs.github-app` or `safe-outputs.create-pull-request.github-app` configuration):
 
 - `contents: write` - Branch creation and commit operations
 - `pull-requests: write` - Pull request creation
@@ -2493,7 +2534,7 @@ System types are always available in every workflow. The types `noop`, `missing-
 
 - No additional permissions required beyond base workflow permissions
 
-*GitHub App* (if using `safe-outputs.app` configuration):
+*GitHub App* (if using `safe-outputs.github-app` configuration):
 
 - No additional permissions required beyond base app installation
 
@@ -5271,6 +5312,39 @@ safe-outputs:
 
 **Effect**: First issue becomes parent, subsequent issues link to it.
 
+### Pattern 11: Least-Privilege Per-Output Apps
+
+Assign separate GitHub Apps to outputs with different permission needs:
+
+```yaml
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.GLOBAL_APP_ID }}
+    private-key: ${{ secrets.GLOBAL_APP_PRIVATE_KEY }}
+
+  add-comment:
+    github-app:
+      app-id: ${{ vars.ISSUE_APP_ID }}
+      private-key: ${{ secrets.ISSUE_APP_PRIVATE_KEY }}
+    target: ${{ github.event.issue.number }}
+    max: 1
+
+  dispatch-workflow:
+    github-app:
+      app-id: ${{ vars.ACTIONS_APP_ID }}
+      private-key: ${{ secrets.ACTIONS_APP_PRIVATE_KEY }}
+    workflows: [downstream.yml]
+    max: 1
+```
+
+**Use case**: One workflow needs both issue-comment writes and workflow-dispatch writes, but repository policy requires separate Apps for those permission domains.
+
+**Security note**:
+
+- The global `github-app` remains the fallback for handlers without a type-specific override
+- Each overridden handler receives its own installation token scoped to that handler's permissions only
+- Shared/global app permissions exclude handlers that declare their own `github-app`
+
 ### Best Practices
 
 **Start Conservative**:
@@ -5311,6 +5385,15 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **v0.40.1**: append-only status comment behavior was documented for smoke workflow execution.
 - **Earlier changelog entry**: status comments were decoupled from default AI reaction behavior; explicit `on.status-comment` configuration is required when status comments are desired.
 - **Earlier changelog entry**: `command` trigger was renamed to `slash_command` with deprecation compatibility.
+
+**Version 1.28.0** (2026-07-31):
+
+- **Added**: GP5a specifying `safe-outputs.<type>.github-app` as a per-handler GitHub App override for safe output types.
+- **Specified**: Type-specific GitHub App tokens MUST be minted with only the overridden handler's required permissions and MUST take precedence over shared safe-outputs credentials.
+- **Specified**: Global `safe-outputs.github-app` permission aggregation excludes handlers that declare their own `github-app` override.
+- **Specified**: Handlers with no effective `safe_outputs` GitHub API permission requirement MUST NOT mint a dedicated handler token and MUST fall back to existing token resolution.
+- **Updated**: Safe output permission sections to reference the correct `github-app` field name.
+- **Updated**: Publication metadata to 1.28.0.
 
 **Version 1.27.0** (2026-07-29):
 

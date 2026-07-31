@@ -1159,6 +1159,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       checks: write
+      issues: write
       pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-skillet"
@@ -1885,6 +1886,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       checks: write
+      issues: write
       pull-requests: write
     timeout-minutes: 45
     env:

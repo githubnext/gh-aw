@@ -1245,6 +1245,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
+      issues: write
     concurrency:
       group: "gh-aw-conclusion-release"
       cancel-in-progress: false
@@ -2473,6 +2474,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       contents: write
+      issues: write
     timeout-minutes: 45
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}

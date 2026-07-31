@@ -1061,6 +1061,7 @@ jobs:
       needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
+      issues: write
       pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-pr-description-caveman"
@@ -1601,6 +1602,7 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
+      issues: write
       pull-requests: write
     timeout-minutes: 45
     env:

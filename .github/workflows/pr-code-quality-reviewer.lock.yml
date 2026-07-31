@@ -1220,6 +1220,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       checks: write
+      issues: write
       pull-requests: write
     concurrency:
       group: "gh-aw-conclusion-pr-code-quality-reviewer"
@@ -2103,6 +2104,7 @@ jobs:
     runs-on: ubuntu-slim
     permissions:
       checks: write
+      issues: write
       pull-requests: write
     timeout-minutes: 45
     env:
