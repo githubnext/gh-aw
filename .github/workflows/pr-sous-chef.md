@@ -341,24 +341,13 @@ When this workflow is triggered by the `/souschef` slash command on a PR comment
 
 ## Required skip rules per PR
 
-Before any nudge for a PR:
+Skip when **any** of these hold (candidate prefilter eliminates most; these are backup checks):
 
-1. **Skip when checks/actions are running on the PR head branch**
-   - Candidate prefilter already uses `statusCheckRollup` from the batch `gh pr list` call and removes PRs with any pending/in-progress checks that started within the last hour. Long-running checks (running > 1 hour) are intentionally ignored so that agentic checks (Q, coding agents) do not permanently block nudges.
-   - Detect pending/running checks via GitHub PR check runs / statuses for the head SHA.
-   - If any check is `queued`, `in_progress`, or `pending` and started within the last hour, skip this PR.
-   - When calling `gh aw checks` directly, pass `--head-sha <headRefOid>` to avoid a redundant PR-detail fetch (the `headRefOid` is available in the compact JSON).
-
-2. **Skip when the latest PR comment is from pr-sous-chef itself (unless the PR is in a merge-conflict state)**
-   - Candidate prefilter already removes PRs when the latest issue comment body includes the hidden marker `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot`, **except** when `mergeStateStatus` is `CONFLICTING`.
-   - Inspect PR comments ordered by recency.
-   - Treat a comment as an actionable sous-chef comment only when the latest comment body contains both `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot`. Comments with the marker but without `@copilot` are purely informational and do **not** count as a sous-chef nudge for the purpose of this skip rule.
-   - If true **and** `mergeStateStatus` is **not** `CONFLICTING`, skip to avoid back-to-back nudges.
-   - If true **and** `mergeStateStatus` is `CONFLICTING`, do **not** skip — sous-chef must ask Copilot to resolve the merge conflicts even if the previous comment was its own.
-
-3. **Skip during the 30-minute cooldown after a pr-sous-chef comment**
-   - Candidate prefilter already removes PRs where the most recent sous-chef comment (containing both the marker and `@copilot`) was posted within the last 30 minutes.
-   - If any recent comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` and `@copilot` and was created less than 30 minutes ago, skip this PR. Comments with the marker but without `@copilot` are informational and do **not** trigger the cooldown.
+| # | Condition | Key detail | Exception |
+|---|-----------|------------|-----------|
+| 1 | Any check `queued/in_progress/pending` started < 1h | Use `--head-sha <headRefOid>` with `gh aw checks`. Long-running checks (>1h) are ignored. | — |
+| 2 | Latest comment has marker `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot` | Marker-only comments (no `@copilot`) are informational and do not count. | Do **not** skip when `mergeStateStatus == CONFLICTING`. |
+| 3 | Any recent comment has marker **and** `@copilot` posted < 30min ago | Informational comments (no `@copilot`) do not trigger cooldown. | — |
 
 ## Required nudges for prioritized eligible PRs
 
@@ -375,28 +364,11 @@ For each PR that is not skipped:
    - If `mergeStateStatus` is `CONFLICTING`, **skip this step entirely**.
    - Otherwise, attempt `update_pull_request` with `update_branch: true` and a minimal append body marker including `pr-sous-chef` and the run URL.
 
-2. **Post exactly one combined nudge comment**
-   - **At most ONE `add_comment` call per PR per run.** Never post two comments to the same PR in a single run.
-   - **If `mergeStateStatus` is `CONFLICTING`**: post a targeted merge-main nudge:
-     - Include `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line.
-     - @copilot mention with an explicit instruction to run `make merge-main` to resolve the merge conflicts.
-     - Increment the `merge_main_scheduled` counter.
-   - **Otherwise**: inspect PR review threads and comments for unresolved feedback.
-     - If unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved thread, newest first).
-     - If `failed_checks` in the compact JSON contains any entries, include a list of failed check names with URLs.
-     - Combine all nudges into **one single comment** that includes:
-       - `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line.
-       - @copilot mention with a concise, actionable instruction covering all relevant nudges, including a direct instruction to run the `pr-finisher` skill.
-   - Every `add_comment` must include `pr_number` set to the current PR's numeric `number` from the loop item.
-   - Never emit `add_comment` without a numeric target field (`pr_number`/`pull_request_number`/`issue_number`/`item_number`) when `target: "*"` is configured.
-   - All safe-output calls use `safeoutputs <tool> --param value` shell syntax. Do **not** use `gh pr comment`, `gh api ... -X POST`, or other GitHub API write calls outside of `safeoutputs`.
-   - Examples:
-     ```bash
-     # CONFLICTING
-     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot this branch has merge conflicts. Please run `make merge-main` to merge the latest main branch and resolve any conflicts, then push the result.'
-     # Non-conflicting
-     safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot please run the `pr-finisher` skill, address unresolved review comments, and rerun checks once the branch is up to date.'
-     ```
+2. **Post exactly one combined nudge comment** (at most ONE `add_comment` per PR per run)
+   - Always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
+   - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
+   - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
+   - Always set `pr_number` to the current PR's numeric number. Use `safeoutputs add_comment --pr_number <N> --body $'...'` syntax only. Never use `gh pr comment` or `gh api` for writes.
 
 3. **Resolve review threads that already have a response using a safe output**
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
