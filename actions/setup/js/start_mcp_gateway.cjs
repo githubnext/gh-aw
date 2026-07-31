@@ -70,10 +70,11 @@ function sleep(ms) {
 }
 
 /**
- * @param {string|number} gatewayPort
+ * @param {string|number|undefined} gatewayPort
  */
 function logGatewayPortListeners(gatewayPort) {
   const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
+  /** @type {Array<[string, string[]]>} */
   const tools = [
     ["netstat", ["-tlnp"]],
     ["ss", ["-tlnp"]],
