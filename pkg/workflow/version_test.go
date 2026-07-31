@@ -128,3 +128,49 @@ func TestIsReleasedVersion_WithReleaseFlag(t *testing.T) {
 		})
 	}
 }
+
+func TestGetCompiledVersionForEmission(t *testing.T) {
+	originalIsRelease := isReleaseBuild
+	defer func() { isReleaseBuild = originalIsRelease }()
+
+	tests := []struct {
+		name      string
+		isRelease bool
+		version   string
+		want      string
+	}{
+		{
+			name:      "release build keeps version",
+			isRelease: true,
+			version:   "v1.2.3",
+			want:      "v1.2.3",
+		},
+		{
+			name:      "release build with empty version falls back to dev",
+			isRelease: true,
+			version:   "",
+			want:      "dev",
+		},
+		{
+			name:      "non release build uses dev for semver",
+			isRelease: false,
+			version:   "v1.2.3",
+			want:      "dev",
+		},
+		{
+			name:      "non release build uses dev for hash version",
+			isRelease: false,
+			version:   "abc1234",
+			want:      "dev",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			SetIsRelease(tt.isRelease)
+			if got := GetCompiledVersionForEmission(tt.version); got != tt.want {
+				t.Fatalf("GetCompiledVersionForEmission(%q) = %q, want %q", tt.version, got, tt.want)
+			}
+		})
+	}
+}

@@ -9,7 +9,7 @@ sidebar:
 
 ## Quick Start
 
-Get your first MCP integration running in under 5 minutes.
+Get your first MCP integration running in a few minutes.
 
 ### Step 1: Add GitHub Tools
 
@@ -63,7 +63,7 @@ The GitHub MCP server is built into agentic workflows and provides comprehensive
 
 When calling `list_code_scanning_alerts` from workflow prompts, always bound the request with `state: open` and `severity: critical,high`.
 
-The `default` toolset includes: `context`, `repos`, `issues`, `pull_requests`. When used in workflows, `[default]` expands to action-friendly toolsets that work with GitHub Actions tokens. Note: The `users` toolset is not included by default as GitHub Actions tokens do not support user operations.
+The `default` toolset includes `context`, `repos`, `issues`, and `pull_requests`. In workflows, `[default]` expands to toolsets that work with GitHub Actions tokens. The `users` toolset is excluded because those tokens do not support user operations.
 
 > [!WARNING]
 > **`get_me` is not usable under the integration token.** It returns HTTP 403 in all standard gh-aw runs. Do not call `get_me` to discover the agent's identity. Instead, read identity fields directly from the `<github-context>` block that is injected into every workflow prompt — it contains `actor`, `repository`, `run_id`, and other context values.
@@ -110,9 +110,11 @@ mcp-servers:
 
 ## Custom MCP Server Types
 
+Choose the transport that matches how the server runs: stdio for local commands, containers for packaged local servers, HTTP for remote endpoints, and `registry` when you want to attach registry metadata to a server definition.
+
 ### Stdio MCP Servers
 
-Execute commands with stdin/stdout communication for Python modules, Node.js scripts, and local executables:
+Use stdin/stdout communication for Python modules, Node.js scripts, and local executables:
 
 ```yaml wrap
 mcp-servers:
@@ -142,7 +144,7 @@ network:
     - api.example.com
 ```
 
-The `container` field generates `docker run --rm -i <args> <image> <entrypointArgs>`. 
+The `container` field generates `docker run --rm -i <args> <image> <entrypointArgs>`.
 
 ### HTTP MCP Servers
 
@@ -197,7 +199,7 @@ mcp-servers:
 
 ## MCP Tool Filtering
 
-Use `allowed:` to specify which tools are available, or `["*"]` to allow all:
+Use `allowed:` to expose only the tools a workflow needs, or `["*"]` to allow all:
 
 ```yaml wrap
 mcp-servers:
@@ -210,7 +212,7 @@ The `allowed:` filter is enforced at the **MCP gateway level** — the gateway o
 
 ## Shared MCP Configurations
 
-Pre-configured MCP server specifications are available in [`.github/workflows/shared/mcp/`](https://github.com/github/gh-aw/tree/main/.github/workflows/shared/mcp) and can be copied or imported directly. Examples include:
+Pre-configured MCP server specifications are available in [`.github/workflows/shared/mcp/`](https://github.com/github/gh-aw/tree/main/.github/workflows/shared/mcp) and can be copied or imported directly:
 
 | MCP Server | Import Path | Key Capabilities |
 |------------|-------------|------------------|
@@ -260,24 +262,13 @@ mcp-servers:
 ---
 ```
 
-`shared/azure-auth.md` sets `AZURE_CONFIG_DIR=/tmp/gh-aw/agent/.azure` and runs
-`az login` in a pre-agent step. This bridges the runner process to the agent
-sandbox process, so `DefaultAzureCredential` can resolve `AzureCliCredential`
-inside the sandbox.
+`shared/azure-auth.md` sets `AZURE_CONFIG_DIR=/tmp/gh-aw/agent/.azure` and runs `az login` in a pre-agent step so `DefaultAzureCredential` can resolve `AzureCliCredential` inside the sandbox.
 
-Azure DevOps MCP support (`shared/mcp/azure-devops.md`) is still experimental;
-interfaces and required configuration may change in future releases.
+Azure DevOps MCP support (`shared/mcp/azure-devops.md`) is still experimental, and its interfaces and required configuration may change. Set `ADO_MCP_AUTH_TOKEN` to the full `Authorization` header value, such as a bearer token string. In diagnostics and inspect output, the header is masked as `Authorization: ******`; this is expected.
 
-For `shared/mcp/azure-devops.md`, set `ADO_MCP_AUTH_TOKEN` to the full
-`Authorization` header value (for example, a bearer token string). In
-diagnostics and inspect output, the header is masked as
-`Authorization: ******`; this is expected.
+This shared Azure DevOps configuration also requires `*.dev.azure.com`, `*.visualstudio.com`, and `*.microsoftonline.com` in the network allowlist.
 
-This shared Azure DevOps configuration also requires these network domains:
-`*.dev.azure.com`, `*.visualstudio.com`, and `*.microsoftonline.com`.
-
-Keep the command-based Azure MCP variant read-only and keep an explicit
-`allowed` list. Do not switch to `allowed: ["*"]`.
+Keep the command-based Azure MCP variant read-only with an explicit `allowed` list; do not switch to `allowed: ["*"]`.
 
 ## Adding MCP Servers from the Registry
 
@@ -346,19 +337,14 @@ Review code scanning alerts and create weekly security discussions with findings
 
 ## Debugging and Troubleshooting
 
-Inspect MCP configurations with CLI commands: `gh aw mcp inspect my-workflow` (add `--server <name> --verbose` for details) or `gh aw mcp list-tools <server> my-workflow`.
+Inspect MCP configurations with `gh aw mcp inspect my-workflow` (add `--server <name> --verbose` for details) or `gh aw mcp list-tools <server> my-workflow`.
 
 For advanced debugging, import `shared/mcp-debug.md` to access diagnostic tools and the `report_diagnostics_to_pull_request` custom safe-output.
 
-**Common issues**: Connection failures (verify syntax, env vars, network) or tool not found (check toolsets configuration or `allowed` list with `gh aw mcp inspect`).
+Common issues are usually connection failures, which point to syntax, environment variable, or network problems, or missing tools, which usually mean the toolsets configuration or `allowed` list needs to be checked with `gh aw mcp inspect`.
 
 ## Related Documentation
 
-- [MCP Scripts](/gh-aw/reference/mcp-scripts/) - Define custom inline tools without external MCP servers
-- [Tools](/gh-aw/reference/tools/) - Complete tools reference
-- [CLI Commands](/gh-aw/setup/cli/) - CLI commands including `mcp inspect`
-- [Imports](/gh-aw/reference/imports/) - Modularizing workflows with includes
-- [Frontmatter](/gh-aw/reference/frontmatter/) - All configuration options
-- [Workflow Structure](/gh-aw/reference/workflow-structure/) - Directory organization
-- [Model Context Protocol Specification](https://github.com/modelcontextprotocol/specification)
-- [GitHub MCP Server](https://github.com/github/github-mcp-server)
+See [MCP Scripts](/gh-aw/reference/mcp-scripts/) for inline tools without external MCP servers, [Tools](/gh-aw/reference/tools/) for the full tools reference, [CLI Commands](/gh-aw/setup/cli/) for commands such as `mcp inspect`, [Imports](/gh-aw/reference/imports/) for modular workflow composition, [Frontmatter](/gh-aw/reference/frontmatter/) for configuration details, and [Workflow Structure](/gh-aw/reference/workflow-structure/) for directory layout.
+
+For upstream references, see the [Model Context Protocol Specification](https://github.com/modelcontextprotocol/specification) and the [GitHub MCP Server](https://github.com/github/github-mcp-server).
