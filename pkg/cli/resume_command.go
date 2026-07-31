@@ -33,14 +33,25 @@ type resumeCommandOptions struct {
 	verbose   bool
 }
 
+type resumeEngineDefinition struct {
+	id                 string
+	displayName        string
+	commandName        string
+	commandArgs        func(sessionID string) []string
+	sessionStateDir    string
+	homeDirName        string
+	sessionTargetDir   string
+	homeEnvironmentKey string
+}
+
 // NewResumeCommand creates the resume command.
 func NewResumeCommand() *cobra.Command {
 	opts := resumeCommandOptions{}
 	cmd := &cobra.Command{
 		Use:   "resume <run-id-or-url>",
-		Short: "Resume a Copilot CLI session from a workflow run",
+		Short: "Resume a local agent session from a workflow run",
 		Long: `Download the activation and agent artifacts for a GitHub Actions workflow run,
-restore its Copilot CLI session files, and launch Copilot with that session.
+restore saved session files, and launch the matching local CLI continuation command.
 
 This command restores session data only. It does not recreate the GitHub Actions job
 environment, start MCP servers, or replay the workflow run.`,
@@ -84,45 +95,75 @@ func runResumeCommand(ctx context.Context, runIDOrURL string, opts resumeCommand
 	if err != nil {
 		return fmt.Errorf("workflow run does not contain readable activation metadata: %w", err)
 	}
-	if awInfo.EngineID != "copilot" {
-		return fmt.Errorf("resume currently supports Copilot CLI runs only; run %d used engine %q", components.Number, awInfo.EngineID)
+	engine, err := resolveResumeEngine(awInfo.EngineID)
+	if err != nil {
+		return fmt.Errorf("resume currently supports a limited set of engines; run %d used engine %q", components.Number, awInfo.EngineID)
 	}
 
-	sessionSourceDir := filepath.Join(runDir, "sandbox", "agent", "logs", "copilot-session-state")
+	sessionSourceDir := filepath.Join(runDir, "sandbox", "agent", "logs", engine.sessionStateDir)
 	sessionID, err := findResumeSessionID(sessionSourceDir)
 	if err != nil {
 		return err
 	}
-	copilotPath, err := resumeLookPath("copilot")
+	engineCommandPath, err := resumeLookPath(engine.commandName)
 	if err != nil {
-		return errors.New("copilot CLI is required to resume this run; install it and ensure 'copilot' is on PATH")
+		return fmt.Errorf("%s CLI is required to resume this run; install it and ensure %q is on PATH", engine.displayName, engine.commandName)
 	}
-	copilotHome, err := resolveResumeCopilotHome(components.Number)
+	engineHome, err := resolveResumeStateHome(components.Number, engine.homeDirName)
 	if err != nil {
 		return err
 	}
-	sessionTargetDir := filepath.Join(copilotHome, "session-state", sessionID)
+	sessionTargetDir := filepath.Join(engineHome, engine.sessionTargetDir, sessionID)
 	if !fileutil.DirExists(sessionTargetDir) {
 		if err := copyResumeSession(filepath.Join(sessionSourceDir, sessionID), sessionTargetDir); err != nil {
-			return fmt.Errorf("failed to restore Copilot session %s: %w", sessionID, err)
+			return fmt.Errorf("failed to restore %s session %s: %w", engine.displayName, sessionID, err)
 		}
 	} else {
-		resumeCommandLog.Printf("Using existing local Copilot session: %s", sessionTargetDir)
+		resumeCommandLog.Printf("Using existing local %s session: %s", engine.displayName, sessionTargetDir)
 	}
 
-	resumeCommandLog.Printf("Launching Copilot CLI for session %s from run %d", sessionID, components.Number)
-	copilotCmd := resumeCommandContext(ctx, copilotPath, "--resume="+sessionID)
-	copilotCmd.Stdin = os.Stdin
-	copilotCmd.Stdout = os.Stdout
-	copilotCmd.Stderr = os.Stderr
-	copilotCmd.Env = withResumeCopilotHome(os.Environ(), copilotHome)
-	if err := resumeRunCommand(copilotCmd); err != nil {
-		return fmt.Errorf("copilot CLI exited with an error: %w", err)
+	resumeCommandLog.Printf("Launching %s CLI for session %s from run %d", engine.displayName, sessionID, components.Number)
+	engineCmd := resumeCommandContext(ctx, engineCommandPath, engine.commandArgs(sessionID)...)
+	engineCmd.Stdin = os.Stdin
+	engineCmd.Stdout = os.Stdout
+	engineCmd.Stderr = os.Stderr
+	engineCmd.Env = withResumeHomeEnv(os.Environ(), engine.homeEnvironmentKey, engineHome)
+	if err := resumeRunCommand(engineCmd); err != nil {
+		return fmt.Errorf("%s CLI exited with an error: %w", engine.displayName, err)
 	}
 	return nil
 }
 
-func resolveResumeCopilotHome(runID int64) (string, error) {
+func resolveResumeEngine(engineID string) (resumeEngineDefinition, error) {
+	switch {
+	case engineID == "copilot" || strings.HasPrefix(engineID, "copilot-"):
+		return resumeEngineDefinition{
+			id:                 "copilot",
+			displayName:        "Copilot",
+			commandName:        "copilot",
+			commandArgs:        func(sessionID string) []string { return []string{"--resume=" + sessionID} },
+			sessionStateDir:    "copilot-session-state",
+			homeDirName:        "copilot-home",
+			sessionTargetDir:   "session-state",
+			homeEnvironmentKey: "COPILOT_HOME",
+		}, nil
+	case engineID == "claude" || strings.HasPrefix(engineID, "claude-"):
+		return resumeEngineDefinition{
+			id:                 "claude",
+			displayName:        "Claude",
+			commandName:        "claude",
+			commandArgs:        func(string) []string { return []string{"--continue"} },
+			sessionStateDir:    "claude-session-state",
+			homeDirName:        "claude-home",
+			sessionTargetDir:   filepath.Join(".claude", "projects"),
+			homeEnvironmentKey: "HOME",
+		}, nil
+	default:
+		return resumeEngineDefinition{}, fmt.Errorf("unsupported engine: %s", engineID)
+	}
+}
+
+func resolveResumeStateHome(runID int64, homeDirName string) (string, error) {
 	stateHome := os.Getenv("XDG_STATE_HOME")
 	if stateHome == "" {
 		homeDir, err := os.UserHomeDir()
@@ -131,27 +172,28 @@ func resolveResumeCopilotHome(runID int64) (string, error) {
 		}
 		stateHome = filepath.Join(homeDir, ".local", "state")
 	}
-	return filepath.Join(stateHome, "gh-aw", "resume", fmt.Sprintf("run-%d", runID), "copilot-home"), nil
+	return filepath.Join(stateHome, "gh-aw", "resume", fmt.Sprintf("run-%d", runID), homeDirName), nil
 }
 
-func withResumeCopilotHome(environment []string, copilotHome string) []string {
+func withResumeHomeEnv(environment []string, key string, value string) []string {
 	filtered := make([]string, 0, len(environment)+1)
+	keyPrefix := key + "="
 	for _, entry := range environment {
-		if strings.HasPrefix(entry, "COPILOT_HOME=") {
+		if strings.HasPrefix(entry, keyPrefix) {
 			continue
 		}
 		filtered = append(filtered, entry)
 	}
-	return append(filtered, "COPILOT_HOME="+copilotHome)
+	return append(filtered, keyPrefix+value)
 }
 
 func findResumeSessionID(sessionStateDir string) (string, error) {
 	entries, err := os.ReadDir(sessionStateDir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", errors.New("workflow run does not contain Copilot session state")
+			return "", errors.New("workflow run does not contain session state")
 		}
-		return "", fmt.Errorf("failed to read Copilot session state: %w", err)
+		return "", fmt.Errorf("failed to read session state: %w", err)
 	}
 	var sessionIDs []string
 	for _, entry := range entries {
@@ -162,11 +204,11 @@ func findResumeSessionID(sessionStateDir string) (string, error) {
 	sort.Strings(sessionIDs)
 	switch len(sessionIDs) {
 	case 0:
-		return "", errors.New("workflow run does not contain a Copilot session")
+		return "", errors.New("workflow run does not contain a resumable session")
 	case 1:
 		return sessionIDs[0], nil
 	default:
-		return "", fmt.Errorf("workflow run contains multiple Copilot sessions (%v); unable to select one automatically", sessionIDs)
+		return "", fmt.Errorf("workflow run contains multiple sessions (%v); unable to select one automatically", sessionIDs)
 	}
 }
 

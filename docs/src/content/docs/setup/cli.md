@@ -430,7 +430,7 @@ When `--push` is used, automatically recompiles outdated `.lock.yml` files, stag
 
 #### `resume`
 
-Download the activation and agent artifacts from a workflow run, restore its Copilot CLI session state in an isolated local state directory, and launch `copilot --resume`.
+Download the activation and agent artifacts from a workflow run, restore supported session state in an isolated local state directory, and launch the matching local CLI continuation command.
 
 ```bash wrap
 gh aw resume 1234567890
@@ -440,7 +440,7 @@ gh aw resume 1234567890 --repo owner/repo
 
 **Options:** `--dir/-d`, `--repo/-r`, `--verbose/-v`
 
-This command currently supports Copilot CLI runs only. It restores session files but does not recreate the GitHub Actions job environment, start MCP servers, or replay the workflow.
+This command currently supports Copilot (`copilot --resume=<session-id>`) and Claude (`claude --continue`) runs. It restores session files but does not recreate the GitHub Actions job environment, start MCP servers, or replay the workflow.
 
 ### Monitoring
 
