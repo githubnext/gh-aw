@@ -2,7 +2,7 @@
   "counts": {
     "reasoning_depth": {
       "single_pass": 33,
-      "multi_candidate": 23
+      "multi_candidate": 24
     }
   },
   "runs": [
@@ -396,6 +396,13 @@
       "timestamp": "2026-07-30T14:53:02.864Z",
       "assignments": {
         "reasoning_depth": "single_pass"
+      }
+    },
+    {
+      "run_id": "30640613607",
+      "timestamp": "2026-07-31T14:55:21.225Z",
+      "assignments": {
+        "reasoning_depth": "multi_candidate"
       }
     }
   ]
