@@ -51,3 +51,13 @@ func IsRelease() bool {
 func IsReleasedVersion(version string) bool {
 	return isReleaseBuild
 }
+
+// GetCompiledVersionForEmission returns the value to emit as GH_AW_COMPILED_VERSION.
+// Release builds keep their concrete release tag; non-release builds normalize to "dev"
+// to avoid lock-file churn from ephemeral build metadata.
+func GetCompiledVersionForEmission(version string) string {
+	if !IsReleasedVersion(version) || version == "" {
+		return "dev"
+	}
+	return version
+}
