@@ -47,6 +47,7 @@ safe-outputs:
     max: 1
 timeout-minutes: 45
 imports:
+  - shared/aw-logs-24h-fetch-setup.md
   - uses: shared/daily-audit-base.md
     with:
       title-prefix: "[agentrx-optimizer] "
@@ -60,6 +61,7 @@ evals:
 ---
 
 {{#runtime-import? .github/shared-instructions.md}}
+{{#runtime-import? shared/aw-logs-24h-fetch-prompt.md}}
 
 # Daily AgentRx Trace Optimizer
 
@@ -76,7 +78,7 @@ Focus on:
 
 ## Data and Tooling Requirements
 
-1. Start with `tools.agentic-workflows` MCP tools to download and analyze recent runs:
+1. Start with the pre-downloaded logs bundle. Use `tools.agentic-workflows` MCP tools only for additional run data:
    - Use `status` to list workflows/runs.
    - Use `logs` to download parsed logs for recent runs, specifying `artifacts: ["agent"]` to include agent telemetry (turns, token usage, stdout) needed for AgentRx trajectory analysis.
      **`logs` precondition rules (follow strictly):**
@@ -92,7 +94,7 @@ Focus on:
      }
      ```
    - Use `audit` for selected failing or high-latency runs, and as the primary fallback whenever `logs` is unavailable or returns empty.
-2. Use only MCP-downloaded run data and logs as the telemetry source, prioritizing `runs[]` session fields over OTEL spans.
+2. Use only pre-downloaded or MCP-downloaded run data and logs as the telemetry source, prioritizing `runs[]` session fields over OTEL spans.
 3. Use Python in `/tmp/gh-aw/agent/agentrx` to avoid polluting the repository.
 4. Install AgentRx from GitHub:
    - `python -m venv /tmp/gh-aw/agent/agentrx/.venv`
