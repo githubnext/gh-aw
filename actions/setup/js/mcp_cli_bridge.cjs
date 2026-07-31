@@ -1126,16 +1126,26 @@ function showToolHelp(serverName, toolName, tools) {
  * Determine whether the bridge should show tool help instead of invoking the tool
  * with an empty arguments object.
  *
- * safeoutputs tools always require arguments, so any call with an empty argument
- * object is a schema-discovery probe that would otherwise trigger a -32602
- * validation error and encourage wasteful retries.
+ * For safeoutputs tools, help is shown only when the tool schema declares at least
+ * one required field.  Zero-argument tools (empty properties, no required array) and
+ * optional-only tools are valid and should proceed to MCP tools/call.  A missing or
+ * malformed cached schema is treated conservatively as no-required so the MCP server
+ * remains authoritative; it can return the appropriate protocol error if needed.
  *
  * @param {string} serverName
  * @param {Record<string, unknown>} toolArgs
+ * @param {{inputSchema?: {required?: string[]}} | null | undefined} matchedTool - resolved tool definition from the cached tool schema
  * @returns {boolean}
  */
-function shouldShowToolHelpForEmptyArgs(serverName, toolArgs) {
-  return serverName === SAFEOUTPUTS_SERVER_NAME && Object.keys(toolArgs).length === 0;
+function shouldShowToolHelpForEmptyArgs(serverName, toolArgs, matchedTool) {
+  if (serverName !== SAFEOUTPUTS_SERVER_NAME || Object.keys(toolArgs).length !== 0) {
+    return false;
+  }
+  // Show help only when the schema explicitly declares required fields.
+  // Zero-argument and optional-only tools have no required array (or an empty one)
+  // and must be allowed to call through to MCP so their output item is recorded.
+  const required = matchedTool && matchedTool.inputSchema && Array.isArray(matchedTool.inputSchema.required) ? matchedTool.inputSchema.required : [];
+  return required.length > 0;
 }
 
 /**
@@ -1431,7 +1441,7 @@ async function main() {
   const stdinContent = hasStdinJsonPayload(toolUserArgs) ? readStdinSync() : null;
   const { args: toolArgs, json: jsonOutput } = parseToolArgs(toolUserArgs, schemaProperties, stdinContent);
 
-  if (shouldShowToolHelpForEmptyArgs(serverName, toolArgs)) {
+  if (shouldShowToolHelpForEmptyArgs(serverName, toolArgs, matchedTool)) {
     core.warning(`[${serverName}] No arguments provided for '${toolName}'; showing command help instead of calling the tool`);
     auditLog(serverName, { event: "show_tool_help_empty_args", tool: toolName });
     showToolHelp(serverName, toolName, tools);

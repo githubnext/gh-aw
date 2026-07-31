@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import fs from "fs";
+import http from "http";
 import os from "os";
 import path from "path";
 
@@ -8,6 +9,7 @@ import {
   formatResponse,
   getToolCallTimeoutMs,
   hasStdinJsonPayload,
+  main,
   parseToolArgs,
   readStdinSync,
   shouldShowToolHelpForEmptyArgs,
@@ -205,10 +207,32 @@ describe("mcp_cli_bridge.cjs", () => {
     }
   });
 
-  it("shows help instead of calling safeoutputs tools with an empty args object", () => {
-    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {})).toBe(true);
-    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", { title: "Bug report" })).toBe(false);
-    expect(shouldShowToolHelpForEmptyArgs("other-server", {})).toBe(false);
+  it("allows zero-argument tools to proceed — only shows help when required fields are declared", () => {
+    // Empty schema (zero-input custom tool) — must NOT show help; empty call is valid
+    const emptySchemaTools = { inputSchema: { type: "object", properties: {}, additionalProperties: false } };
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {}, emptySchemaTools)).toBe(false);
+
+    // Optional-only tool (required array absent) — must NOT show help
+    const optionalOnlyTool = { inputSchema: { type: "object", properties: { flag: { type: "boolean" } } } };
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {}, optionalOnlyTool)).toBe(false);
+
+    // Optional-only tool (required array present but empty) — must NOT show help
+    const emptyRequiredTool = { inputSchema: { required: [] } };
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {}, emptyRequiredTool)).toBe(false);
+
+    // Tool with required fields and empty args — MUST show help (probe detection)
+    const requiredFieldTool = { inputSchema: { required: ["title"] } };
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {}, requiredFieldTool)).toBe(true);
+
+    // Missing matchedTool (e.g. unknown tool) — treated as no-required; must NOT show help
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {}, null)).toBe(false);
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", {}, undefined)).toBe(false);
+
+    // Non-empty args are never affected
+    expect(shouldShowToolHelpForEmptyArgs("safeoutputs", { title: "Bug report" }, requiredFieldTool)).toBe(false);
+
+    // Non-safeoutputs servers are never affected
+    expect(shouldShowToolHelpForEmptyArgs("other-server", {}, requiredFieldTool)).toBe(false);
   });
 
   it("coerces scientific notation when schema properties are unavailable", () => {
@@ -1140,6 +1164,177 @@ describe("mcp_cli_bridge.cjs", () => {
       } finally {
         onceStub.mockRestore();
       }
+    });
+  });
+
+  describe("main — zero-argument tool routing via local MCP server", () => {
+    /** @type {import("http").Server} */
+    let server;
+    /** @type {string} */
+    let serverUrl;
+    /** @type {object[]} */
+    let recordedBodies;
+    /** @type {string} */
+    let toolsFile;
+    /** @type {string[]} */
+    let savedArgv;
+
+    /** @type {Array<{name: string, description: string, inputSchema: object}>} */
+    const zeroInputTools = [
+      {
+        name: "dispatch_code_factory",
+        description: "Record a dispatch code factory safe-output item",
+        inputSchema: {
+          type: "object",
+          properties: {},
+          additionalProperties: false,
+        },
+      },
+    ];
+
+    /** @type {Array<{name: string, description: string, inputSchema: object}>} */
+    const requiredInputTools = [
+      {
+        name: "create_issue",
+        description: "Create an issue",
+        inputSchema: {
+          type: "object",
+          properties: { title: { type: "string" } },
+          required: ["title"],
+          additionalProperties: false,
+        },
+      },
+    ];
+
+    /**
+     * Start a minimal MCP HTTP server that records request bodies and returns
+     * appropriate responses for each protocol step.
+     *
+     * @returns {Promise<void>}
+     */
+    async function startMcpServer() {
+      recordedBodies = [];
+      server = await new Promise(resolve => {
+        const s = http.createServer((req, res) => {
+          let body = "";
+          req.on("data", chunk => {
+            body += chunk;
+          });
+          req.on("end", () => {
+            let parsed;
+            try {
+              parsed = JSON.parse(body);
+            } catch {
+              parsed = {};
+            }
+            recordedBodies.push(parsed);
+
+            res.setHeader("Content-Type", "application/json");
+
+            if (parsed.method === "initialize") {
+              res.setHeader("mcp-session-id", "test-session-001");
+              res.end(JSON.stringify({ jsonrpc: "2.0", id: parsed.id, result: { capabilities: {} } }));
+            } else if (parsed.method === "tools/call") {
+              res.end(
+                JSON.stringify({
+                  jsonrpc: "2.0",
+                  id: parsed.id,
+                  result: { content: [{ type: "text", text: "ok" }] },
+                })
+              );
+            } else {
+              // notifications/initialized, ping, etc.
+              res.end(JSON.stringify({ jsonrpc: "2.0", result: {} }));
+            }
+          });
+        });
+        s.listen(0, "127.0.0.1", () => resolve(s));
+      });
+
+      const addr = /** @type {import("net").AddressInfo} */ server.address();
+      serverUrl = `http://127.0.0.1:${addr.port}`;
+    }
+
+    beforeEach(async () => {
+      savedArgv = process.argv;
+      await startMcpServer();
+    });
+
+    afterEach(async () => {
+      process.argv = savedArgv;
+      if (toolsFile && fs.existsSync(toolsFile)) {
+        fs.unlinkSync(toolsFile);
+      }
+      await new Promise(resolve => server.close(resolve));
+    });
+
+    /**
+     * Write a tools file and configure process.argv for a main() call.
+     *
+     * @param {object[]} tools
+     * @param {string[]} userArgs
+     */
+    function setupMainCall(tools, userArgs) {
+      toolsFile = path.join(os.tmpdir(), `test-bridge-tools-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
+      fs.writeFileSync(toolsFile, JSON.stringify(tools));
+      process.argv = ["node", "mcp_cli_bridge.cjs", "--server-name", "safeoutputs", "--server-url", serverUrl, "--tools-file", toolsFile, "--api-key", "test-key", ...userArgs];
+    }
+
+    it("reaches MCP tools/call with {} for a zero-input tool (bare invocation)", async () => {
+      setupMainCall(zeroInputTools, ["dispatch_code_factory"]);
+
+      await main();
+
+      const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+      expect(toolsCallBody).toBeDefined();
+      expect(toolsCallBody.params.name).toBe("dispatch_code_factory");
+      expect(toolsCallBody.params.arguments).toEqual({});
+    });
+
+    it("reaches MCP tools/call with {} for a zero-input tool (piped {} via . sentinel)", async () => {
+      setupMainCall(zeroInputTools, ["dispatch_code_factory", "."]);
+
+      // Simulate piped `{}` via the . sentinel with stdinContent = "{}"
+      const readStdinSyncSpy = vi.spyOn(/** @type {any} */ require("./mcp_cli_bridge.cjs"), "readStdinSync");
+      // readStdinSync is a module-level function already called inside main(); we need
+      // to intercept at the module level. Since we cannot easily do that here, simulate
+      // the piped-stdin path by using process.stdin.isTTY = undefined so hasStdinJsonPayload
+      // returns true for the empty-args path, and by spying on fs.readSync to return "{}".
+      const origIsTTY = process.stdin.isTTY;
+      // @ts-ignore
+      process.stdin.isTTY = undefined;
+
+      const fsReadSyncSpy = vi.spyOn(fs, "readSync").mockImplementationOnce((_fd, buf, _offset, length) => {
+        const encoded = Buffer.from("{}");
+        encoded.copy(/** @type {Buffer} */ buf, 0, 0, Math.min(encoded.length, length));
+        return Math.min(encoded.length, length);
+      });
+      fsReadSyncSpy.mockImplementationOnce(() => 0); // EOF on second read
+
+      try {
+        setupMainCall(zeroInputTools, ["dispatch_code_factory"]);
+        await main();
+
+        const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+        expect(toolsCallBody).toBeDefined();
+        expect(toolsCallBody.params.name).toBe("dispatch_code_factory");
+        expect(toolsCallBody.params.arguments).toEqual({});
+      } finally {
+        process.stdin.isTTY = origIsTTY;
+        fsReadSyncSpy.mockRestore();
+        readStdinSyncSpy.mockRestore?.();
+      }
+    });
+
+    it("shows help and does NOT reach MCP tools/call for a required-input tool called with no args", async () => {
+      setupMainCall(requiredInputTools, ["create_issue"]);
+
+      await main();
+
+      const toolsCallBody = recordedBodies.find(b => b.method === "tools/call");
+      expect(toolsCallBody).toBeUndefined();
+
+      expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("No arguments provided for 'create_issue'"));
     });
   });
 });
