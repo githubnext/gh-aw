@@ -8,7 +8,7 @@ description: Repo entrypoint skill for gh-aw workflow authoring, routing, and tr
 This repository publishes the `agentic-workflows` skill.
 
 For gh-aw workflow design, creation, update, debug, or upgrade tasks, load and
-follow `./skills/agentic-workflows/SKILL.md`.
+follow `./.github/skills/agentic-workflows/SKILL.md`.
 
 ## What this surface does
 
@@ -43,5 +43,5 @@ gh aw audit 24814681146
 ## Where to learn more in this repo
 
 - `/AGENTS.md` for development and agent workflow conventions
-- `/skills/*/SKILL.md` for focused domain guidance
+- `/.github/skills/*/SKILL.md` for focused domain guidance
 - `/.github/aw/*.md` for gh-aw workflow authoring and runtime reference material
