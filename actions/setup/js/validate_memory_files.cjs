@@ -41,7 +41,12 @@ function validateMemoryFiles(memoryDir, memoryType = "cache", allowedExtensions)
    * @param {string} [relativePath=""] - Relative path from memory directory
    */
   const scanDirectory = (dirPath, relativePath = "") => {
-    const entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    let entries;
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    } catch (err) {
+      throw new Error(`Failed to read directory ${dirPath}: ${getErrorMessage(err)}`, { cause: err });
+    }
 
     for (const entry of entries) {
       const fullPath = path.join(dirPath, entry.name);

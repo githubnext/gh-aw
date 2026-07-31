@@ -1,5 +1,7 @@
 // @ts-check
 
+const { getErrorMessage } = require("./error_helpers.cjs");
+
 const SUPPORTED_TYPES = new Set(["object", "array", "string", "number", "integer", "boolean"]);
 const ALLOWED_KEYS = new Set(["type", "description", "properties", "required", "items", "enum", "additionalProperties", "minLength", "maxLength", "minimum", "maximum", "pattern"]);
 
@@ -152,7 +154,12 @@ function resolveDataSchema(rawSchema, path) {
     return normalized;
   }
   if (typeof rawSchema === "string") {
-    const parsed = JSON.parse(rawSchema);
+    let parsed;
+    try {
+      parsed = JSON.parse(rawSchema);
+    } catch (err) {
+      throw new Error(`${path}: failed to parse JSON string: ${getErrorMessage(err)}`, { cause: err });
+    }
     if (!isPlainObject(parsed)) {
       throw new Error(`${path}: string JSON must decode to an object schema`);
     }

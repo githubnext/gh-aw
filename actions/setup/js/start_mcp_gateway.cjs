@@ -873,7 +873,13 @@ async function main() {
   if (converterFile) {
     core.info(`Using ${engineType} converter...`);
     const converterPath = path.join(runnerTemp || "", "gh-aw/actions", converterFile);
-    execSync(`node "${converterPath}"`, { stdio: "inherit", env: process.env });
+    try {
+      execSync(`node "${converterPath}"`, { stdio: "inherit", env: process.env });
+    } catch (err) {
+      stopGatewayProcess(gatewayPid);
+      core.setFailed(`ERROR: Converter script failed: ${getErrorMessage(err)}`);
+      return;
+    }
   } else {
     let copilotConfigDir, copilotConfigFile;
     try {

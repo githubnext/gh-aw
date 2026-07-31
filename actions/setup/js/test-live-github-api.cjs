@@ -103,4 +103,7 @@ async function testLiveGitHubAPI() {
 }
 
 // Run the test
-testLiveGitHubAPI();
+testLiveGitHubAPI().catch(err => {
+  core.setFailed(`Unhandled error: ${getErrorMessage(err)}`);
+  process.exit(1);
+});

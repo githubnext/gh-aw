@@ -134,7 +134,12 @@ function listFilesRecursive(dir, baseDir) {
   const files = [];
   if (!fs.existsSync(dir)) return files;
 
-  const entries = fs.readdirSync(dir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = fs.readdirSync(dir, { withFileTypes: true });
+  } catch (err) {
+    throw new Error(`Failed to read directory ${dir}: ${getErrorMessage(err)}`, { cause: err });
+  }
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
@@ -197,7 +202,12 @@ function copySingleFileToStaging(sourcePath, destRelPath) {
  */
 function copyDirectoryToStaging(sourceDir, destRelDir) {
   let copiedCount = 0;
-  const entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+  let entries;
+  try {
+    entries = fs.readdirSync(sourceDir, { withFileTypes: true });
+  } catch (err) {
+    return { copiedCount, error: `Failed to read directory ${sourceDir}: ${getErrorMessage(err)}` };
+  }
   for (const entry of entries) {
     const srcFull = path.join(sourceDir, entry.name);
     const destRel = path.join(destRelDir, entry.name);
