@@ -44,18 +44,6 @@ function parsePositiveNumberString(value) {
 }
 
 /**
- * @param {string} left
- * @param {string} right
- * @returns {boolean}
- */
-function isNumberStringGreaterThanOrEqual(left, right) {
-  if (!left || !right) return false;
-  const leftNumber = Number.parseFloat(left);
-  const rightNumber = Number.parseFloat(right);
-  return Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && leftNumber >= rightNumber;
-}
-
-/**
  * @param {boolean} hasRateLimitSignal
  * @returns {boolean}
  */

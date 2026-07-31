@@ -1,7 +1,7 @@
 > [!WARNING]
 > **AI Credits Rate Limit**
 >
-> The Copilot API returned a rate limit response (HTTP 429) before the workflow's AI credits budget was exhausted.{metrics_summary}
+> The Copilot API returned a rate limit response (HTTP 429), but the workflow did not report the explicit AI credits budget-exceeded guardrail signal.{metrics_summary}
 
 <details>
 <summary>Tips for reducing rate limit issues</summary>

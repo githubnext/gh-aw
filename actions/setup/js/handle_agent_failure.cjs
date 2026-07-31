@@ -2087,10 +2087,12 @@ function buildAICreditsRateLimitErrorContext(hasAICreditsRateLimitError, aiCredi
     throw new Error(`failed to resolve template path for ${templateName} (${getErrorMessage(error)}); ensure RUNNER_TEMP or GH_AW_PROMPTS_DIR is set and the template file exists`, { cause: error });
   }
 
-  // Suggest a new limit: 2x current max, or 2x actual usage if max is unknown, or a reasonable default
-  // (only relevant for the budget-exceeded template, but harmless to compute for both)
-  const baseForSuggestion = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? numericMaxAICredits : Number.isFinite(numericAICredits) && numericAICredits > 0 ? numericAICredits : 0;
-  const suggestedCredits = baseForSuggestion > 0 ? Math.ceil(baseForSuggestion * 2) : 2000;
+  let suggestedCredits;
+  if (isBudgetExceeded) {
+    // Suggest a new limit: 2x current max, or 2x actual usage if max is unknown, or a reasonable default.
+    const baseForSuggestion = Number.isFinite(numericMaxAICredits) && numericMaxAICredits > 0 ? numericMaxAICredits : Number.isFinite(numericAICredits) && numericAICredits > 0 ? numericAICredits : 0;
+    suggestedCredits = baseForSuggestion > 0 ? Math.ceil(baseForSuggestion * 2) : 2000;
+  }
 
   try {
     return (

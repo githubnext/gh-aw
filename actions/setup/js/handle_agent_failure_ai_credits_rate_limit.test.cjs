@@ -63,6 +63,13 @@ describe("handle_agent_failure AI Credits rate-limit context", () => {
     expect(rendered).not.toContain("AI Credits Budget Exceeded");
   });
 
+  it("shows throughput message without metrics when no credit data is available", () => {
+    const rendered = buildAICreditsRateLimitErrorContext(true, "", "", "", false);
+
+    expect(rendered).toContain("AI Credits Rate Limit");
+    expect(rendered).not.toContain("Used");
+  });
+
   it("returns empty string when the AI Credits rate-limit did not trigger", () => {
     expect(buildAICreditsRateLimitErrorContext(false, "17.3", "10", "")).toBe("");
   });
