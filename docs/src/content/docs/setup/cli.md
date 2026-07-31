@@ -19,6 +19,7 @@ The `gh aw` CLI extension enables developers to create, manage, and execute AI-p
 | [`gh aw compile`](#compile) | Convert markdown to GitHub Actions YAML | After editing a workflow `.md` file to regenerate the `.lock.yml` |
 | [`gh aw list`](#list) | Quick listing of all workflows | Checking which workflows are installed in the current repository |
 | [`gh aw run`](#run) | Execute workflows immediately in GitHub Actions | Triggering a workflow run from the command line without opening GitHub |
+| [`gh aw resume`](#resume) | Continue a Copilot CLI session from a workflow run | Continuing local work with the session state saved by a completed run |
 | [`gh aw status`](#status) | Check current state of all workflows | Verifying workflows are enabled and seeing their last run result |
 | [`gh aw logs`](#logs) | Download and analyze agentic workflow logs and artifacts | Debugging a past run by inspecting output, tokens used, and artifacts |
 | [`gh aw audit`](#audit) | Audit and compare workflow runs | Investigating cost, tool usage, or comparing two runs side-by-side |
@@ -426,6 +427,20 @@ When `--push` is used, automatically recompiles outdated `.lock.yml` files, stag
 > [!NOTE]
 > Codespaces Permissions
 > Requires `workflows:write` permission. In Codespaces, either configure custom permissions in `devcontainer.json` ([docs](https://docs.github.com/en/codespaces/managing-your-codespaces/managing-repository-access-for-your-codespaces)) or authenticate manually: `unset GH_TOKEN && gh auth login`
+
+#### `resume`
+
+Download the activation and agent artifacts from a workflow run, restore its Copilot CLI session state in an isolated local state directory, and launch `copilot --resume`.
+
+```bash wrap
+gh aw resume 1234567890
+gh aw resume https://github.com/owner/repo/actions/runs/1234567890
+gh aw resume 1234567890 --repo owner/repo
+```
+
+**Options:** `--dir/-d`, `--repo/-r`, `--verbose/-v`
+
+This command currently supports Copilot CLI runs only. It restores session files but does not recreate the GitHub Actions job environment, start MCP servers, or replay the workflow.
 
 ### Monitoring
 

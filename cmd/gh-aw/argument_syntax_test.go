@@ -31,6 +31,13 @@ func TestArgumentSyntaxConsistency(t *testing.T) {
 			shouldValidate: func(cmd *cobra.Command) error { return cmd.Args(cmd, []string{"123456"}) },
 		},
 		{
+			name:           "resume command requires run-id-or-url",
+			command:        cli.NewResumeCommand(),
+			expectedUse:    "resume <run-id-or-url>",
+			argsValidator:  "ExactArgs(1)",
+			shouldValidate: func(cmd *cobra.Command) error { return cmd.Args(cmd, []string{"123456"}) },
+		},
+		{
 			name:           "trial command requires workflow-spec",
 			command:        cli.NewTrialCommand(validateEngine),
 			expectedUse:    "trial <workflow-spec>...",

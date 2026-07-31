@@ -41,6 +41,7 @@ func TestCommandGroupAssignments(t *testing.T) {
 		{name: "enable command in execution group", commandName: "enable", expectedGroup: "execution", shouldHaveGroup: true},
 		{name: "disable command in execution group", commandName: "disable", expectedGroup: "execution", shouldHaveGroup: true},
 		{name: "trial command in execution group", commandName: "trial", expectedGroup: "execution", shouldHaveGroup: true},
+		{name: "resume command in execution group", commandName: "resume", expectedGroup: "execution", shouldHaveGroup: true},
 
 		// Analysis Commands
 		{name: "logs command in analysis group", commandName: "logs", expectedGroup: "analysis", shouldHaveGroup: true},

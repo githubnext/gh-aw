@@ -855,6 +855,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	experimentsCmd := cli.NewExperimentsCommand()
 	forecastCmd := cli.NewForecastCommand()
 	envCmd := cli.NewEnvCommand()
+	resumeCmd := cli.NewResumeCommand()
 
 	// Assign commands to groups
 	// Setup Commands
@@ -883,6 +884,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	enableCmd.GroupID = "execution"
 	disableCmd.GroupID = "execution"
 	trialCmd.GroupID = "execution"
+	resumeCmd.GroupID = "execution"
 
 	// Analysis Commands
 	logsCmd.GroupID = "analysis"
@@ -916,6 +918,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	rootCmd.AddCommand(initCmd)
 
 	rootCmd.AddCommand(runCmd)
+	rootCmd.AddCommand(resumeCmd)
 	rootCmd.AddCommand(removeCmd)
 	rootCmd.AddCommand(statusCmd)
 	rootCmd.AddCommand(listCmd)
