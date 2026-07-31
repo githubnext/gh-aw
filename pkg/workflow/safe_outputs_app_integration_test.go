@@ -46,7 +46,7 @@ engine: copilot
 Test workflow.
 `)
 
-		globalStep := compiledStepBlock(compiled, "safe-outputs-app-token")
+		globalStep := compiledLastStepBlock(compiled, "safe-outputs-app-token")
 		require.NotEmpty(t, globalStep)
 		assert.Contains(t, globalStep, "permission-contents: write")
 		assert.NotContains(t, globalStep, "permission-issues: write")
@@ -151,6 +151,20 @@ func compileSafeOutputsAppWorkflow(t *testing.T, dir, fileName, content string) 
 func compiledStepBlock(compiled, stepID string) string {
 	marker := "id: " + stepID
 	start := strings.Index(compiled, marker)
+	if start == -1 {
+		return ""
+	}
+	rest := compiled[start:]
+	next := strings.Index(rest[len(marker):], "\n      - name: ")
+	if next == -1 {
+		return rest
+	}
+	return rest[:len(marker)+next]
+}
+
+func compiledLastStepBlock(compiled, stepID string) string {
+	marker := "id: " + stepID
+	start := strings.LastIndex(compiled, marker)
 	if start == -1 {
 		return ""
 	}

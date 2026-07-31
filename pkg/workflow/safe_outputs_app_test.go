@@ -858,7 +858,7 @@ func TestSafeOutputsPerHandlerGitHubAppDispatchRepository(t *testing.T) {
 func TestGetHandlerGitHubAppRegisteredHandlers(t *testing.T) {
 	config := &SafeOutputsConfig{}
 	configValue := reflect.ValueOf(config).Elem()
-	appFieldType := reflect.TypeOf((*GitHubAppConfig)(nil))
+	appFieldType := reflect.TypeFor[*GitHubAppConfig]()
 
 	for _, handler := range safeOutputHandlers {
 		if handler.StructField == "" {

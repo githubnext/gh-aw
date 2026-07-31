@@ -693,7 +693,13 @@ Test workflow.
 
 	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
 	require.NoError(t, err)
-	globalStep := compiledStepBlockForTest(yamlContent, "safe-outputs-app-token")
+	require.NotNil(t, workflowData.SafeOutputs.AddComments)
+	require.NotNil(t, workflowData.SafeOutputs.AddComments.GitHubApp)
+	require.Equal(t, "${{ vars.ISSUE_APP_ID }}", workflowData.SafeOutputs.AddComments.GitHubApp.AppID)
+	require.NotNil(t, workflowData.SafeOutputs.ReportIncomplete)
+	require.NotNil(t, workflowData.SafeOutputs.ReportIncomplete.GitHubApp)
+	require.Equal(t, "${{ vars.INCOMPLETE_APP_ID }}", workflowData.SafeOutputs.ReportIncomplete.GitHubApp.AppID)
+	globalStep := compiledLastStepBlockForTest(yamlContent, "safe-outputs-app-token")
 	require.NotEmpty(t, globalStep)
 	assert.Contains(t, globalStep, "permission-contents: write")
 	assert.NotContains(t, globalStep, "permission-issues: write")
@@ -718,6 +724,15 @@ func compiledStepBlockForTest(compiled, stepID string) string {
 		return rest
 	}
 	return rest[:len(marker)+next]
+}
+
+func compiledLastStepBlockForTest(compiled, stepID string) string {
+	marker := "id: " + stepID
+	start := strings.LastIndex(compiled, marker)
+	if start == -1 {
+		return ""
+	}
+	return compiledStepBlockForTest(compiled[start:], stepID)
 }
 
 func TestComputePermissionsForSafeOutputs_NoOpAndMissingTool(t *testing.T) {
