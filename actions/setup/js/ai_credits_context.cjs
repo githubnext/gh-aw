@@ -44,27 +44,11 @@ function parsePositiveNumberString(value) {
 }
 
 /**
- * @param {string} left
- * @param {string} right
- * @returns {boolean}
- */
-function isNumberStringGreaterThanOrEqual(left, right) {
-  if (!left || !right) return false;
-  const leftNumber = Number.parseFloat(left);
-  const rightNumber = Number.parseFloat(right);
-  return Number.isFinite(leftNumber) && Number.isFinite(rightNumber) && leftNumber >= rightNumber;
-}
-
-/**
  * @param {boolean} hasRateLimitSignal
- * @param {string} aiCredits
- * @param {string} maxAICredits
  * @returns {boolean}
  */
-function shouldReportAICreditsRateLimitError(hasRateLimitSignal, aiCredits, maxAICredits) {
-  if (!hasRateLimitSignal) return false;
-  if (!aiCredits || !maxAICredits) return true;
-  return isNumberStringGreaterThanOrEqual(aiCredits, maxAICredits);
+function shouldReportAICreditsRateLimitError(hasRateLimitSignal) {
+  return hasRateLimitSignal;
 }
 
 /**
@@ -525,7 +509,7 @@ function resolveAICreditsFailureState({ logProvenance = true } = {}) {
   const aiCredits = auditAICredits || stdioSignals.aiCredits || envAICredits || "";
   const maxAICredits = auditMaxAICredits || stdioSignals.maxAICredits || envMaxAICredits || "";
   const rawAICreditsRateLimitError = auditRateLimitError || stdioSignals.rateLimitError || envRateLimitSignalHasEvidence;
-  const aiCreditsRateLimitError = shouldReportAICreditsRateLimitError(rawAICreditsRateLimitError, aiCredits, maxAICredits);
+  const aiCreditsRateLimitError = shouldReportAICreditsRateLimitError(rawAICreditsRateLimitError);
   return { aiCredits, maxAICredits, aiCreditsRateLimitError, maxAICreditsExceeded: auditMaxAICreditsExceeded || stdioSignals.maxAICreditsExceeded };
 }
 
