@@ -178,6 +178,14 @@ c. If the constant exists but the artifact is **not** produced by any workflow (
 
 d. Only if the artifact **is** produced, verify that the artifact name value is listed in `docs/src/content/docs/reference/artifacts.md`. If a confirmed-produced artifact is missing from the reference page, treat it as a documentation gap and add it.
 
+6. **Experimental engine exemption**: If the issue concerns a registered engine that is absent from `docs/src/content/docs/reference/engines.md`, verify whether that engine is experimental before treating it as a documentation gap:
+
+```bash
+grep -n "experimental\s*:" pkg/workflow/<engine>_engine.go
+```
+
+If the engine's Go source sets `experimental: true` (in its `BaseEngine` initializer) **and** the engine does not already appear in `engines.md`, the omission is **intentional** — experimental engines may be deliberately held back from the curated reference table until they reach GA. Do **not** create or re-file documentation drift issues for such engines; treat this as a resolved exemption and skip the issue.
+
 Only proceed with issues where you can confirm the documentation gap still exists.
 
 ---
