@@ -282,3 +282,49 @@ func TestHandleEmptyWorkflowRunBatch(t *testing.T) {
 		assert.False(t, shouldStop)
 	})
 }
+
+// TestCollectProcessedWorkflowRunsAccumulatesBatches is a regression test for a bug where
+// the batch results were assigned to a loop-scoped copy of processedRuns, so every
+// processed run was discarded and `gh aw logs` reported "No workflow runs with artifacts
+// found matching the specified criteria" even though artifacts had been downloaded.
+func TestCollectProcessedWorkflowRunsAccumulatesBatches(t *testing.T) {
+	batches := [][]WorkflowRun{
+		{{DatabaseID: 1}, {DatabaseID: 2}},
+		{{DatabaseID: 3}},
+	}
+	fetchCalls := 0
+
+	originalFetch := logsFetchWorkflowRunBatch
+	originalProcess := logsProcessWorkflowRunBatch
+	t.Cleanup(func() {
+		logsFetchWorkflowRunBatch = originalFetch
+		logsProcessWorkflowRunBatch = originalProcess
+	})
+
+	logsFetchWorkflowRunBatch = func(_ context.Context, _ LogsDownloadOptions, _ string, _ int, _ bool) (workflowRunBatch, error) {
+		if fetchCalls >= len(batches) {
+			return workflowRunBatch{runs: nil, totalFetched: 0, batchSize: 2}, nil
+		}
+		runs := batches[fetchCalls]
+		fetchCalls++
+		// totalFetched == batchSize keeps pagination going after the first batch.
+		return workflowRunBatch{runs: runs, totalFetched: len(runs), batchSize: 2}, nil
+	}
+	logsProcessWorkflowRunBatch = func(_ context.Context, batch workflowRunBatch, processedRuns []ProcessedRun, _ processWorkflowRunBatchOptions) ([]ProcessedRun, int, bool, bool) {
+		for _, run := range batch.runs {
+			processedRuns = append(processedRuns, ProcessedRun{Run: run})
+		}
+		return processedRuns, len(batch.runs), true, false
+	}
+
+	runs, timeoutReached, countLimitReached, err := collectProcessedWorkflowRuns(
+		logsDownloadRuntime{activeCtx: context.Background(), fetchAllInRange: true},
+		LogsDownloadOptions{Count: 100, StartDate: "-1d"},
+	)
+	require.NoError(t, err)
+	assert.False(t, timeoutReached)
+	assert.False(t, countLimitReached)
+	require.Len(t, runs, 3, "runs from every batch should accumulate across iterations")
+	assert.Equal(t, int64(1), runs[0].Run.DatabaseID)
+	assert.Equal(t, int64(3), runs[2].Run.DatabaseID)
+}
