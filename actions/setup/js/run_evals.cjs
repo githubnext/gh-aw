@@ -334,9 +334,8 @@ function extractAssistantTextFromJsonlLog(logContent) {
           texts.push(part.text);
         }
       }
-    }
-    // v1 legacy schema: assistant event carries raw text content directly
-    if (obj.type === "assistant" && typeof obj.content === "string" && obj.content) {
+      // v1 legacy schema: assistant event carries raw text content directly
+    } else if (obj.type === "assistant" && typeof obj.content === "string" && obj.content) {
       texts.push(obj.content);
     }
   }
