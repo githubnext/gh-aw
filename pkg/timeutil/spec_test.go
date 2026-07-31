@@ -15,6 +15,7 @@ import (
 // as described in the timeutil package README.md specification.
 // Spec section: "### FormatDuration(d time.Duration) string"
 func TestSpec_PublicAPI_FormatDuration(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    time.Duration
@@ -40,6 +41,7 @@ func TestSpec_PublicAPI_FormatDuration(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := timeutil.FormatDuration(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"FormatDuration(%v) should return %q as documented in spec", tt.input, tt.expected)
@@ -51,6 +53,7 @@ func TestSpec_PublicAPI_FormatDuration(t *testing.T) {
 // as described in the timeutil package README.md specification.
 // Spec section: "### FormatDurationMs(ms int) string"
 func TestSpec_PublicAPI_FormatDurationMs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		inputMs  int
@@ -70,6 +73,7 @@ func TestSpec_PublicAPI_FormatDurationMs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := timeutil.FormatDurationMs(tt.inputMs)
 			assert.Equal(t, tt.expected, result,
 				"FormatDurationMs(%d) should return %q as documented in spec", tt.inputMs, tt.expected)
@@ -81,6 +85,7 @@ func TestSpec_PublicAPI_FormatDurationMs(t *testing.T) {
 // as described in the timeutil package README.md specification.
 // Spec section: "### FormatDurationNs(ns int64) string"
 func TestSpec_PublicAPI_FormatDurationNs(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		inputNs  int64
@@ -96,6 +101,7 @@ func TestSpec_PublicAPI_FormatDurationNs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := timeutil.FormatDurationNs(tt.inputNs)
 			assert.Equal(t, tt.expected, result,
 				"FormatDurationNs(%d) should return %q as documented in spec", tt.inputNs, tt.expected)

@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"path/filepath"
 	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -53,8 +54,9 @@ func resolveWorkflowExtension(fileResult *findWorkflowFileResult) (string, bool)
 		return ".lock.yml", true
 	}
 	if fileResult.ymlExists {
-		safeOutputsWorkflowHelpersLog.Print("Resolved workflow extension: .yml (yml file exists)")
-		return ".yml", true
+		ext := filepath.Ext(fileResult.ymlPath)
+		safeOutputsWorkflowHelpersLog.Printf("Resolved workflow extension: %s (yml/yaml file exists)", ext)
+		return ext, true
 	}
 	if fileResult.mdExists {
 		// .md-only: the workflow is a same-batch compilation target that will produce a .lock.yml

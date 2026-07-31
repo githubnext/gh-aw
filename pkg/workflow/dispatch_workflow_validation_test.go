@@ -110,6 +110,7 @@ This workflow references a non-existent workflow.
 	assert.Contains(t, errMsg, "missing-workflow.md", "Should mention .md extension")
 	assert.Contains(t, errMsg, "missing-workflow.lock.yml", "Should mention .lock.yml extension")
 	assert.Contains(t, errMsg, "missing-workflow.yml", "Should mention .yml extension")
+	assert.Contains(t, errMsg, "missing-workflow.yaml", "Should mention .yaml extension")
 	assert.Contains(t, errMsg, "To fix:", "Should include fix instructions header")
 	assert.Contains(t, errMsg, "Verify the workflow file exists", "Should include verification step")
 	assert.Contains(t, errMsg, "case-sensitive", "Should warn about case sensitivity")
@@ -548,4 +549,62 @@ safe-outputs:
 	assert.Contains(t, errMsg, "not found", "Should include not found error")
 	assert.Contains(t, errMsg, "To fix:", "Should include fix instructions")
 	assert.Contains(t, errMsg, "Checked for:", "Should include checked extensions")
+}
+
+// TestDispatchWorkflowValidation_YAMLExtension tests that a workflow defined as a
+// plain .yaml file (instead of .yml) is correctly resolved and validated.
+func TestDispatchWorkflowValidation_YAMLExtension(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+
+	err := os.MkdirAll(awDir, 0755)
+	require.NoError(t, err, "Failed to create aw directory")
+	err = os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a target workflow using the .yaml extension
+	targetWorkflow := `name: Target Worker
+on:
+  workflow_dispatch:
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Working"
+`
+	err = os.WriteFile(filepath.Join(workflowsDir, "target-worker.yaml"), []byte(targetWorkflow), 0644)
+	require.NoError(t, err, "Failed to write target workflow")
+
+	dispatcherWorkflow := `---
+on: issues
+engine: copilot
+permissions:
+  contents: read
+safe-outputs:
+  dispatch-workflow:
+    workflows:
+      - target-worker
+    max: 1
+---
+
+# Dispatcher Workflow
+`
+	dispatcherFile := filepath.Join(awDir, "dispatcher.md")
+	err = os.WriteFile(dispatcherFile, []byte(dispatcherWorkflow), 0644)
+	require.NoError(t, err, "Failed to write dispatcher workflow")
+
+	oldDir, err := os.Getwd()
+	require.NoError(t, err, "Failed to get current directory")
+	err = os.Chdir(awDir)
+	require.NoError(t, err, "Failed to change directory")
+	defer func() { _ = os.Chdir(oldDir) }()
+
+	workflowData, err := compiler.ParseWorkflowFile("dispatcher.md")
+	require.NoError(t, err, "Failed to parse workflow")
+
+	err = compiler.validateDispatchWorkflow(workflowData, dispatcherFile)
+	assert.NoError(t, err, "Validation should pass for a .yaml workflow target")
 }

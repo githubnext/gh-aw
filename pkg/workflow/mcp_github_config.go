@@ -624,6 +624,8 @@ func getGitHubDockerImageVersion(githubTool map[string]any) string {
 // Otherwise, "fields_param" is enabled by default when the effective server version is v1.6.0
 // or later, because that version introduced the optional fields-filtering parameter for
 // list/search tools (search_code, list_pull_requests, search_issues, etc.).
+// As of v1.8.0, the fields parameter is available by default without the feature flag;
+// the flag is still emitted for v1.6.0–v1.7.x compatibility and is a no-op on v1.8.0+.
 // Enabling fields_param reduces token usage by letting agents request only the fields they need.
 func getGitHubFeatures(githubTool map[string]any) string {
 	// Respect an explicit user-supplied features override.
@@ -635,7 +637,8 @@ func getGitHubFeatures(githubTool map[string]any) string {
 		}
 	}
 
-	// Default: enable fields_param when the server version supports it (v1.6.0+)
+	// Default: enable fields_param when the server version supports it (v1.6.0+).
+	// On v1.8.0+ the fields parameter is available by default, so the flag is a no-op.
 	version := getGitHubDockerImageVersion(githubTool)
 	if versionAtLeast(version, string(constants.DefaultGitHubMCPServerVersion), "v1.6.0") {
 		githubConfigLog.Printf("GitHub MCP features (default v1.6.0+): fields_param")

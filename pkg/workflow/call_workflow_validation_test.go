@@ -286,3 +286,49 @@ This is a worker workflow.
 	err = compiler.validateCallWorkflow(workflowData, gatewayFile)
 	assert.NoError(t, err, ".md source with workflow_call should pass validation")
 }
+
+// TestValidateCallWorkflow_YAMLExtension tests that a workflow defined as a
+// plain .yaml file (instead of .yml) is correctly resolved and validated.
+func TestValidateCallWorkflow_YAMLExtension(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	err := os.MkdirAll(awDir, 0755)
+	require.NoError(t, err, "Failed to create aw directory")
+	err = os.MkdirAll(workflowsDir, 0755)
+	require.NoError(t, err, "Failed to create workflows directory")
+
+	// Create a worker workflow using the .yaml extension
+	workerYAML := `name: Worker A
+on:
+  workflow_call:
+    inputs:
+      payload:
+        type: string
+jobs:
+  work:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo "Working"
+`
+	err = os.WriteFile(filepath.Join(workflowsDir, "worker-a.yaml"), []byte(workerYAML), 0644)
+	require.NoError(t, err, "Failed to write worker .yaml file")
+
+	gatewayFile := filepath.Join(awDir, "gateway.md")
+
+	workflowData := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					Max: strPtr("1"),
+				},
+				Workflows: []string{"worker-a"},
+			},
+		},
+	}
+
+	err = compiler.validateCallWorkflow(workflowData, gatewayFile)
+	assert.NoError(t, err, "Validation should pass for a .yaml workflow target")
+}
