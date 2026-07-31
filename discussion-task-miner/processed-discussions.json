@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-30T19:08:00Z",
+  "last_run": "2026-07-31T01:16:00Z",
   "discussions_processed": [
     {
       "id": 49032,
@@ -135,6 +135,66 @@
       "id": 49141,
       "title": "[repository-quality] Test Parallelism Adoption Gap - extracted as new issue",
       "processed_at": "2026-07-30T19:08:00Z"
+    },
+    {
+      "id": 49238,
+      "title": "Auto-Triage Report - labeling only, no code-quality tasks",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49234,
+      "title": "Daily Sentrux Report - god files saturated topic, tracked #48219/#48061/#45587",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49232,
+      "title": "Observability Coverage Report - single-run MCP telemetry gap, not distinct",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49221,
+      "title": "Detection Analysis Report - gh-aw-detection lock.yml drift - extracted as new issue",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49216,
+      "title": "ESLint Monster remediation plan - already filed as #49009/#49010/#49011",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49211,
+      "title": "Dev discussion Q&A, not a report",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49209,
+      "title": "Daily Regulatory Report - governance summary, no code-quality task",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49207,
+      "title": "Daily Performance Summary - stats only",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49206,
+      "title": "Copilot PR Prompt Analysis - descriptive stats",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49205,
+      "title": "Lockfile Statistics Report - engine-detection 44% unclassified - extracted as new issue",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49204,
+      "title": "Daily Team Evolution Insights - narrative summary",
+      "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49188,
+      "title": "Daily Code Metrics Report - 23-day cadence gap extracted; large-files already tracked #49019",
+      "processed_at": "2026-07-31T01:16:00Z"
     }
   ]
 }

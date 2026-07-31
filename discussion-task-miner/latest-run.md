@@ -1,23 +1,17 @@
-# Task Mining Run - 2026-07-30 (19:08 UTC)
+# Task Mining Run - 2026-07-31
 
 ## Summary
-- Discussions scanned: 10 new (since last run at #49107)
-- Tasks identified: 2 high-value, actionable code-quality tasks
-- Issues created: 2
-- Duplicates avoided: 0 (both topics verified novel via GitHub issue search)
+- Discussions scanned: 12 new (since discussion #49141)
+- Tasks identified: 3
+- Issues created: 3
+- Duplicates/saturated topics avoided: 2 (Sentrux god-files, ESLint Monster remediation)
 
 ## Created Issues
-- Improve error message in samples_validation.go to list valid tool names instead of internal file path (source: discussion #49154)
-- Add t.Parallel() to leaf utility packages (stringutil, fileutil, timeutil, constants) to unlock CI -parallel=4 (source: discussion #49141)
-
-## Discussions Reviewed, No Action Taken
-- #49184 Cache Strategy Analysis - perf/ops report, no distinct code-quality task
-- #49183 Daily Copilot Agent Analysis - stats only
-- #49180 Daily Secrets Analysis - security metrics, no new finding
-- #49175, #49165, #49142 - threat detection engine tooling errors, no analysis produced
-- #49166 UK AI Resilience Review - security governance summary, no new code-quality task
-- #49162 DeepReport Intelligence Briefing - fleet health summary
+- Fix gh-aw-detection frontmatter/lock.yml drift across 6 workflows (PR Sous Chef, Matt Pocock Skills Reviewer, Design Decision Gate, Impeccable Skills Reviewer, PR Code Quality Reviewer, PR Description Updater) — from discussion #49221
+- Widen engine-detection heuristics: 44% of compiled workflows classified as unclassified/other — from discussion #49205
+- Investigate and fix daily-code-metrics reporting-cadence gap (23-day scheduling failure) — from discussion #49188
 
 ## Top Patterns Observed
-- Test parallelism underused despite CI `-parallel=4` flag (2.7% of test functions use `t.Parallel()`)
-- Error messages occasionally leak internal implementation file paths instead of actionable guidance
+- Config drift between markdown frontmatter and compiled `.lock.yml` (detection settings)
+- Metrics/classification heuristics falling short as workflow diversity grows
+- Scheduling reliability gaps in daily reporting workflows

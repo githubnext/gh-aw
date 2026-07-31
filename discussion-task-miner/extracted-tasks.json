@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-30T19:08:00Z",
+  "last_run": "2026-07-31T01:16:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -126,6 +126,36 @@
       "title": "Add t.Parallel() to leaf utility packages (stringutil, fileutil, timeutil, constants) to unlock CI -parallel=4",
       "created_at": "2026-07-30T19:08:00Z",
       "status": "created"
+    },
+    {
+      "source_discussion": 49221,
+      "title": "Fix gh-aw-detection frontmatter/lock.yml drift across 6 workflows",
+      "created_at": "2026-07-31T01:16:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 49205,
+      "title": "Widen engine-detection heuristics - 44% unclassified",
+      "created_at": "2026-07-31T01:16:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 49188,
+      "title": "Investigate and fix daily-code-metrics 23-day reporting-cadence gap",
+      "created_at": "2026-07-31T01:16:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 49234,
+      "title": "Sentrux god-files - saturated topic, tracked #48219/#48061/#45587",
+      "created_at": "2026-07-31T01:16:00Z",
+      "status": "skipped_saturated_topic"
+    },
+    {
+      "source_discussion": 49216,
+      "title": "ESLint Monster remediation - already filed as #49009/#49010/#49011",
+      "created_at": "2026-07-31T01:16:00Z",
+      "status": "skipped_already_filed_upstream"
     }
   ]
 }
