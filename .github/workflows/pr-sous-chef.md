@@ -368,7 +368,9 @@ For each PR that is not skipped:
    - Always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
    - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
    - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
+   - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
    - Always set `pr_number` to the current PR's numeric number. Use `safeoutputs add_comment --pr_number <N> --body $'...'` syntax only. Never use `gh pr comment` or `gh api` for writes.
+   - Example: `safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot ...'`
 
 3. **Resolve review threads that already have a response using a safe output**
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
@@ -433,7 +435,7 @@ model: sonnet
 Given one PR number and compact metadata:
 
 1. Check skip conditions in this order:
-   - checks/actions running — note: the candidate prefilter already excluded PRs with short-running pending checks (running < 1 hour) via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran; long-running checks (> 1 hour) are intentionally ignored
+   - checks/actions running — note: the candidate prefilter already excluded PRs with short-running pending checks (running < 1 hour) via `statusCheckRollup`; only re-verify if you have reason to believe state changed since the prefilter ran; Long-running checks (running > 1 hour) are intentionally ignored
    - latest comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` **and** `@copilot`, **and** `mergeStateStatus` is **not** `CONFLICTING` (when the branch has merge conflicts, do NOT skip even if the last actionable comment is from sous-chef — it must nudge Copilot to resolve them; also, comments with the marker but without `@copilot` are purely informational and do NOT count as a sous-chef nudge for this check)
    - any recent comment contains both `<!-- gh-aw-pr-sous-chef-nudge -->` and `@copilot` and was posted within the last 30 minutes (informational comments without `@copilot` do not count toward cooldown)
 2. If skipped, return `skip_reason` only.
