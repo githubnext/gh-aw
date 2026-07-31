@@ -846,6 +846,11 @@
           "type": "object",
           "description": "Input parameters for the workflow_dispatch event, matching the workflow's input schema",
           "additionalProperties": true
+        },
+        "ref": {
+          "type": "string",
+          "description": "Optional git ref or branch name to dispatch against (highest priority when provided)",
+          "minLength": 1
         }
       },
       "required": ["type", "workflow_name"],

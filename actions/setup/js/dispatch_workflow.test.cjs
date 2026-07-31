@@ -454,6 +454,73 @@ describe("dispatch_workflow handler factory", () => {
     });
   });
 
+  it("should prioritize message ref over configured and environment refs", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    process.env.GITHUB_HEAD_REF = "pr-branch";
+
+    const config = {
+      "target-ref": "refs/heads/config-branch",
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "agent-branch",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/heads/agent-branch",
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+      return_run_details: true,
+    });
+  });
+
+  it("should use message ref as-is when it is already a full ref", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "refs/tags/v1.2.3",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/tags/v1.2.3",
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+      return_run_details: true,
+    });
+  });
+
   it("should handle PR context with slashes in branch names", async () => {
     process.env.GITHUB_REF = "refs/pull/456/merge";
     process.env.GITHUB_HEAD_REF = "feature/add-new-feature";

@@ -312,6 +312,7 @@ var ValidationConfig = map[string]TypeValidationConfig{
 		Fields: map[string]FieldValidation{
 			"workflow_name": {Required: true, Type: "string", Sanitize: true, MinLength: 1, MaxLength: 256, Pattern: ".*\\S.*", PatternError: "must not be empty"},
 			"inputs":        {Type: "object"},
+			"ref":           {Type: "string", Sanitize: true, MinLength: 1, MaxLength: 256, Pattern: ".*\\S.*", PatternError: "must not be empty"},
 		},
 	},
 	"missing_tool": {

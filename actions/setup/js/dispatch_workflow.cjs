@@ -107,23 +107,23 @@ async function main(config = {}) {
   // GITHUB_HEAD_REF which contains the actual PR branch name.
   // For cross-repo dispatch (workflow_call relay), the caller's GITHUB_REF has no meaning on
   // the target repository, so we use the compiler-injected target-ref instead.
-  let ref;
+  let defaultRef;
   if (config["target-ref"]) {
     // Compiler-injected target ref for cross-repo dispatch (workflow_call relay pattern).
     // Takes precedence over all environment variables to avoid using the caller's ref.
-    ref = config["target-ref"];
-    core.info(`Using configured target-ref: ${ref}`);
+    defaultRef = config["target-ref"];
+    core.info(`Using configured target-ref: ${defaultRef}`);
   } else if (process.env.GITHUB_HEAD_REF) {
     // We're in a pull_request event, use the PR branch ref
-    ref = `refs/heads/${process.env.GITHUB_HEAD_REF}`;
-    core.info(`Using PR branch ref: ${ref}`);
+    defaultRef = `refs/heads/${process.env.GITHUB_HEAD_REF}`;
+    core.info(`Using PR branch ref: ${defaultRef}`);
   } else if (process.env.GITHUB_REF || context.ref) {
     // Use GITHUB_REF for non-PR contexts (push, workflow_dispatch, etc.)
-    ref = process.env.GITHUB_REF || context.ref;
+    defaultRef = process.env.GITHUB_REF || context.ref;
   } else {
     // Last resort: fetch the repository's default branch
-    ref = await getDefaultBranchRef();
-    core.info(`Using default branch ref: ${ref}`);
+    defaultRef = await getDefaultBranchRef();
+    core.info(`Using default branch ref: ${defaultRef}`);
   }
 
   /**
@@ -176,6 +176,9 @@ async function main(config = {}) {
       }
 
       core.info(`Dispatching workflow: ${workflowName}`);
+
+      const outputRef = typeof message.ref === "string" ? message.ref.trim() : "";
+      const ref = outputRef ? (outputRef.startsWith("refs/") ? outputRef : `refs/heads/${outputRef}`) : defaultRef;
 
       // Prepare inputs - convert all values to strings as required by workflow_dispatch
       // and resolve any #temporary_id references before dispatching

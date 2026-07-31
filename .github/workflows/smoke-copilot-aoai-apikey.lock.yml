@@ -1057,6 +1057,14 @@ jobs:
                   "inputs": {
                     "type": "object"
                   },
+                  "ref": {
+                    "type": "string",
+                    "sanitize": true,
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "pattern": ".*\\S.*",
+                    "patternError": "must not be empty"
+                  },
                   "workflow_name": {
                     "required": true,
                     "type": "string",
