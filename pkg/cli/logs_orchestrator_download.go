@@ -166,6 +166,13 @@ func cancelLogsDownload(cancel context.CancelFunc) {
 	}
 }
 
+// logsFetchWorkflowRunBatch and logsProcessWorkflowRunBatch are indirection points so
+// tests can exercise the batch collection loop without hitting the GitHub API.
+var (
+	logsFetchWorkflowRunBatch   = fetchWorkflowRunBatch
+	logsProcessWorkflowRunBatch = processWorkflowRunBatch
+)
+
 func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownloadOptions) ([]ProcessedRun, bool, bool, error) {
 	var processedRuns []ProcessedRun
 	var beforeDate string
@@ -189,7 +196,7 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 		}
 		iteration++
 		logLogsIterationFetch(opts, runtime.fetchAllInRange, iteration, len(processedRuns))
-		batch, err := fetchWorkflowRunBatch(runtime.activeCtx, opts, beforeDate, len(processedRuns), runtime.fetchAllInRange)
+		batch, err := logsFetchWorkflowRunBatch(runtime.activeCtx, opts, beforeDate, len(processedRuns), runtime.fetchAllInRange)
 		if err != nil {
 			// Context deadline exceeded means our own timeout fired mid-call.
 			// Treat it like a graceful timeout: return whatever was collected so far.
@@ -218,7 +225,10 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 			}
 		}
 		logWorkflowRunBatchFound(batch, iteration, opts.Verbose)
-		processedRuns, batchProcessed, allRunsConsumed, timedOut := processWorkflowRunBatch(runtime.activeCtx, batch, processedRuns, processWorkflowRunBatchOptions{
+		var batchProcessed int
+		var allRunsConsumed, batchTimedOut bool
+		// Assign (not :=) so the accumulated runs are not shadowed by a loop-scoped variable.
+		processedRuns, batchProcessed, allRunsConsumed, batchTimedOut = logsProcessWorkflowRunBatch(runtime.activeCtx, batch, processedRuns, processWorkflowRunBatchOptions{
 			count:          opts.Count,
 			outputDir:      opts.OutputDir,
 			verbose:        opts.Verbose,
@@ -229,7 +239,7 @@ func collectProcessedWorkflowRuns(runtime logsDownloadRuntime, opts LogsDownload
 			parse:          opts.Parse,
 			filters:        runtime.filters,
 		})
-		timeoutReached = timeoutReached || timedOut
+		timeoutReached = timeoutReached || batchTimedOut
 		logProcessedWorkflowRunBatch(opts, runtime.fetchAllInRange, iteration, batchProcessed, len(processedRuns), opts.Verbose)
 		if allRunsConsumed {
 			if cursor, ok := selectPaginationCursorDate(batch.runs, batch.oldestFetchedCreatedAt); ok {
