@@ -17,6 +17,7 @@ import (
 // - Truncates s to at most maxLen characters, appending "..." when truncation occurs.
 // - For maxLen ≤ 3 the string is truncated without ellipsis.
 func TestSpec_PublicAPI_Truncate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -57,6 +58,7 @@ func TestSpec_PublicAPI_Truncate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := Truncate(tt.input, tt.maxLen)
 			assert.Equal(t, tt.expected, result,
 				"Truncate(%q, %d) should match documented output", tt.input, tt.maxLen)
@@ -71,7 +73,9 @@ func TestSpec_PublicAPI_Truncate(t *testing.T) {
 // trailing spaces and tabs from every line, then ensures the content ends with
 // exactly one newline (or is empty)."
 func TestSpec_PublicAPI_NormalizeWhitespace(t *testing.T) {
+	t.Parallel()
 	t.Run("trims trailing spaces from each line", func(t *testing.T) {
+		t.Parallel()
 		input := "line one   \nline two\t\t\nline three"
 		result := NormalizeWhitespace(input)
 		for line := range strings.SplitSeq(strings.TrimRight(result, "\n"), "\n") {
@@ -81,6 +85,7 @@ func TestSpec_PublicAPI_NormalizeWhitespace(t *testing.T) {
 	})
 
 	t.Run("ensures content ends with exactly one newline", func(t *testing.T) {
+		t.Parallel()
 		result := NormalizeWhitespace("content\n\n\n")
 		assert.True(t, strings.HasSuffix(result, "\n"),
 			"non-empty result should end with a newline")
@@ -89,6 +94,7 @@ func TestSpec_PublicAPI_NormalizeWhitespace(t *testing.T) {
 	})
 
 	t.Run("empty input returns empty (no trailing newline added)", func(t *testing.T) {
+		t.Parallel()
 		result := NormalizeWhitespace("")
 		assert.Empty(t, result,
 			"empty input should remain empty (no trailing newline added)")
@@ -106,6 +112,7 @@ func TestSpec_PublicAPI_NormalizeWhitespace(t *testing.T) {
 //
 // Spec also states: "Returns an empty string for nil."
 func TestSpec_PublicAPI_ParseVersionValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    any
@@ -135,6 +142,7 @@ func TestSpec_PublicAPI_ParseVersionValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ParseVersionValue(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"ParseVersionValue(%v) should match documented output", tt.input)
@@ -150,6 +158,7 @@ func TestSpec_PublicAPI_ParseVersionValue(t *testing.T) {
 // characters. Returns false for "", "0", negative strings (e.g. "-5"), strings
 // with leading zeros (e.g. "007"), and non-numeric strings."
 func TestSpec_PublicAPI_IsPositiveInteger(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -194,6 +203,7 @@ func TestSpec_PublicAPI_IsPositiveInteger(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := IsPositiveInteger(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"IsPositiveInteger(%q) should match documented behavior", tt.input)
@@ -212,6 +222,7 @@ func TestSpec_PublicAPI_IsPositiveInteger(t *testing.T) {
 //	colored := "\x1b[32mSuccess\x1b[0m"
 //	plain := stringutil.StripANSI(colored) // "Success"
 func TestSpec_PublicAPI_StripANSI(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -236,6 +247,7 @@ func TestSpec_PublicAPI_StripANSI(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := StripANSI(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"StripANSI(%q) should remove ANSI escape sequences", tt.input)
@@ -252,6 +264,7 @@ func TestSpec_PublicAPI_StripANSI(t *testing.T) {
 //	stringutil.NormalizeWorkflowName("weekly-research.lock.yml") // "weekly-research"
 //	stringutil.NormalizeWorkflowName("weekly-research")          // "weekly-research"
 func TestSpec_PublicAPI_NormalizeWorkflowName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -276,6 +289,7 @@ func TestSpec_PublicAPI_NormalizeWorkflowName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeWorkflowName(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"NormalizeWorkflowName(%q) should match documented output", tt.input)
@@ -295,6 +309,7 @@ func TestSpec_PublicAPI_NormalizeWorkflowName(t *testing.T) {
 //	stringutil.NormalizeSafeOutputIdentifier("create-issue")            // "create_issue"
 //	stringutil.NormalizeSafeOutputIdentifier("executor-workflow.agent") // "executor_workflow_agent"
 func TestSpec_PublicAPI_NormalizeSafeOutputIdentifier(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -314,6 +329,7 @@ func TestSpec_PublicAPI_NormalizeSafeOutputIdentifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeSafeOutputIdentifier(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"NormalizeSafeOutputIdentifier(%q) should match documented output", tt.input)
@@ -332,6 +348,7 @@ func TestSpec_PublicAPI_NormalizeSafeOutputIdentifier(t *testing.T) {
 //	stringutil.MarkdownToLockFile(".github/workflows/test.md")
 //	// → ".github/workflows/test.lock.yml"
 func TestSpec_PublicAPI_MarkdownToLockFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -351,6 +368,7 @@ func TestSpec_PublicAPI_MarkdownToLockFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := MarkdownToLockFile(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"MarkdownToLockFile(%q) should match documented output", tt.input)
@@ -369,6 +387,7 @@ func TestSpec_PublicAPI_MarkdownToLockFile(t *testing.T) {
 //	stringutil.LockFileToMarkdown(".github/workflows/test.lock.yml")
 //	// → ".github/workflows/test.md"
 func TestSpec_PublicAPI_LockFileToMarkdown(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -388,6 +407,7 @@ func TestSpec_PublicAPI_LockFileToMarkdown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := LockFileToMarkdown(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"LockFileToMarkdown(%q) should match documented output", tt.input)
@@ -407,6 +427,7 @@ func TestSpec_PublicAPI_LockFileToMarkdown(t *testing.T) {
 //	stringutil.NormalizeGitHubHostURL("github.example.com")        // "https://github.example.com"
 //	stringutil.NormalizeGitHubHostURL("https://github.com/")       // "https://github.com"
 func TestSpec_PublicAPI_NormalizeGitHubHostURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -426,6 +447,7 @@ func TestSpec_PublicAPI_NormalizeGitHubHostURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeGitHubHostURL(tt.input)
 			assert.Equal(t, tt.expected, result,
 				"NormalizeGitHubHostURL(%q) should match documented output", tt.input)
@@ -442,6 +464,7 @@ func TestSpec_PublicAPI_NormalizeGitHubHostURL(t *testing.T) {
 //
 //	stringutil.ExtractDomainFromURL("https://api.github.com/repos") // "api.github.com"
 func TestSpec_PublicAPI_ExtractDomainFromURL(t *testing.T) {
+	t.Parallel()
 	result := ExtractDomainFromURL("https://api.github.com/repos")
 	assert.Equal(t, "api.github.com", result,
 		"ExtractDomainFromURL should return hostname without port (documented example)")
@@ -456,25 +479,30 @@ func TestSpec_PublicAPI_ExtractDomainFromURL(t *testing.T) {
 // runes beyond the normal identifier rules; if extraAllowed is nil, no extra
 // characters are allowed."
 func TestSpec_PublicAPI_SanitizeIdentifierName(t *testing.T) {
+	t.Parallel()
 	t.Run("replaces invalid characters with underscores", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeIdentifierName("foo-bar.baz", nil)
 		assert.Equal(t, "foo_bar_baz", result,
 			"non-identifier characters should be replaced with underscores")
 	})
 
 	t.Run("prefixes underscore when starting with digit", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeIdentifierName("123name", nil)
 		assert.True(t, strings.HasPrefix(result, "_"),
 			"result starting with a digit should be prefixed with underscore")
 	})
 
 	t.Run("nil extraAllowed permits no extra characters", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeIdentifierName("a$b", nil)
 		assert.NotContains(t, result, "$",
 			"with nil extraAllowed, $ is not preserved")
 	})
 
 	t.Run("extraAllowed permits additional runes", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeIdentifierName("a$b", func(r rune) bool { return r == '$' })
 		assert.Contains(t, result, "$",
 			"extraAllowed returning true for $ should preserve $")
@@ -488,13 +516,16 @@ func TestSpec_PublicAPI_SanitizeIdentifierName(t *testing.T) {
 // or environment variable name. Preserves letters, digits, $, and _, and replaces
 // all other characters with underscores."
 func TestSpec_PublicAPI_SanitizeParameterName(t *testing.T) {
+	t.Parallel()
 	t.Run("preserves letters digits underscores and $", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeParameterName("Hello_World$1")
 		assert.Equal(t, "Hello_World$1", result,
 			"letters, digits, _, and $ should be preserved")
 	})
 
 	t.Run("replaces other characters with underscores", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeParameterName("foo-bar.baz")
 		assert.Equal(t, "foo_bar_baz", result,
 			"non-preserved characters should be replaced with underscores")
@@ -511,13 +542,16 @@ func TestSpec_PublicAPI_SanitizeParameterName(t *testing.T) {
 // listing exact rules. We verify documented invariants only: non-identifier
 // characters are replaced with underscores and identifiers can be used safely.
 func TestSpec_PublicAPI_SanitizePythonVariableName(t *testing.T) {
+	t.Parallel()
 	t.Run("replaces non-identifier characters with underscores", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizePythonVariableName("foo-bar.baz")
 		assert.Equal(t, "foo_bar_baz", result,
 			"non-identifier characters should be replaced with underscores")
 	})
 
 	t.Run("preserves letters digits and underscores", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizePythonVariableName("valid_name123")
 		assert.Equal(t, "valid_name123", result,
 			"valid Python identifier characters should be preserved")
@@ -534,7 +568,9 @@ func TestSpec_PublicAPI_SanitizePythonVariableName(t *testing.T) {
 // function returns a non-empty result for non-empty input and does not contain
 // characters typically invalid in code identifiers.
 func TestSpec_PublicAPI_SanitizeToolID(t *testing.T) {
+	t.Parallel()
 	t.Run("returns non-empty result for non-empty input", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeToolID("some-tool-id")
 		assert.NotEmpty(t, result,
 			"SanitizeToolID should return non-empty result for non-empty input")
@@ -548,7 +584,9 @@ func TestSpec_PublicAPI_SanitizeToolID(t *testing.T) {
 // with '-' and any remaining non-alphanumeric characters (except '-', '_', '.') with '-'.
 // Returns 'clone-mode' if the slug is empty. Does not change the letter case."
 func TestSpec_PublicAPI_SanitizeForFilename(t *testing.T) {
+	t.Parallel()
 	t.Run("returns non-empty filesystem-safe string for non-empty input", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeForFilename("owner/repo")
 		assert.NotEmpty(t, result,
 			"SanitizeForFilename should return non-empty result for non-empty input")
@@ -557,18 +595,21 @@ func TestSpec_PublicAPI_SanitizeForFilename(t *testing.T) {
 	})
 
 	t.Run("returns clone-mode sentinel for empty input", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeForFilename("")
 		assert.Equal(t, "clone-mode", result,
 			"SanitizeForFilename should return 'clone-mode' for empty input")
 	})
 
 	t.Run("does not lowercase input", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeForFilename("Owner/Repo")
 		assert.Equal(t, "Owner-Repo", result,
 			"SanitizeForFilename should preserve letter case")
 	})
 
 	t.Run("preserves hyphens underscores and dots", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeForFilename("my.org/my_repo")
 		assert.Equal(t, "my.org-my_repo", result,
 			"SanitizeForFilename should preserve '-', '_', and '.' characters")
@@ -589,7 +630,9 @@ func TestSpec_PublicAPI_SanitizeForFilename(t *testing.T) {
 //	stringutil.SanitizeErrorMessage("Error: MY_SECRET_TOKEN is invalid")
 //	// → "Error: [REDACTED] is invalid"
 func TestSpec_PublicAPI_SanitizeErrorMessage(t *testing.T) {
+	t.Parallel()
 	t.Run("redacts SNAKE_CASE secret (documented example)", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeErrorMessage("Error: MY_SECRET_TOKEN is invalid")
 		assert.Equal(t, "Error: [REDACTED] is invalid", result,
 			"SanitizeErrorMessage should redact SNAKE_CASE secret identifiers")
@@ -598,6 +641,7 @@ func TestSpec_PublicAPI_SanitizeErrorMessage(t *testing.T) {
 	// Specification: PascalCase identifiers ending with security-related suffixes
 	// (e.g. GitHubToken, ApiKey) are redacted.
 	t.Run("redacts PascalCase identifier ending with security suffix", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeErrorMessage("error: ApiKey not found")
 		assert.Contains(t, result, "[REDACTED]",
 			"SanitizeErrorMessage should redact PascalCase identifiers ending with security suffixes")
@@ -608,6 +652,7 @@ func TestSpec_PublicAPI_SanitizeErrorMessage(t *testing.T) {
 	// Standalone keywords like "GITHUB" don't match the compound pattern which
 	// requires underscores, so they pass through unchanged.
 	t.Run("does not redact standalone GITHUB keyword", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeErrorMessage("Error: GITHUB is not responding")
 		assert.NotContains(t, result, "[REDACTED]",
 			"SanitizeErrorMessage should not redact standalone GITHUB keyword")
@@ -626,6 +671,7 @@ func TestSpec_PublicAPI_SanitizeErrorMessage(t *testing.T) {
 //	| PATTypeOAuth        | "oauth"        | gho_         |
 //	| PATTypeUnknown      | "unknown"      | (other)      |
 func TestSpec_Constants_PATType(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, PATTypeFineGrained, PATType("fine-grained"),
 		"PATTypeFineGrained should have documented value 'fine-grained'")
 	assert.Equal(t, PATTypeClassic, PATType("classic"),
@@ -641,7 +687,9 @@ func TestSpec_Constants_PATType(t *testing.T) {
 //
 // Specification: Methods: String() string, IsFineGrained() bool, IsValid() bool
 func TestSpec_PublicAPI_PATType_Methods(t *testing.T) {
+	t.Parallel()
 	t.Run("String returns string representation", func(t *testing.T) {
+		t.Parallel()
 		assert.Equal(t, "fine-grained", PATTypeFineGrained.String(),
 			"PATType.String() should return the underlying string value")
 		assert.Equal(t, "classic", PATTypeClassic.String(),
@@ -649,6 +697,7 @@ func TestSpec_PublicAPI_PATType_Methods(t *testing.T) {
 	})
 
 	t.Run("IsFineGrained returns true only for fine-grained type", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, PATTypeFineGrained.IsFineGrained(),
 			"PATTypeFineGrained.IsFineGrained() should return true")
 		assert.False(t, PATTypeClassic.IsFineGrained(),
@@ -660,6 +709,7 @@ func TestSpec_PublicAPI_PATType_Methods(t *testing.T) {
 	})
 
 	t.Run("IsValid returns false only for unknown type", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, PATTypeFineGrained.IsValid(),
 			"PATTypeFineGrained.IsValid() should return true")
 		assert.True(t, PATTypeClassic.IsValid(),
@@ -682,6 +732,7 @@ func TestSpec_PublicAPI_PATType_Methods(t *testing.T) {
 //   - gho_        → PATTypeOAuth
 //   - (other)     → PATTypeUnknown
 func TestSpec_PublicAPI_ClassifyPAT(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		token    string
@@ -711,6 +762,7 @@ func TestSpec_PublicAPI_ClassifyPAT(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ClassifyPAT(tt.token)
 			assert.Equal(t, tt.expected, result,
 				"ClassifyPAT(%q) should classify token by prefix", tt.token)
@@ -724,13 +776,16 @@ func TestSpec_PublicAPI_ClassifyPAT(t *testing.T) {
 // Specification: "Returns nil if the token is a fine-grained PAT; returns an
 // actionable error message with a link to create the correct token type otherwise."
 func TestSpec_PublicAPI_ValidateCopilotPAT(t *testing.T) {
+	t.Parallel()
 	t.Run("fine-grained PAT returns nil", func(t *testing.T) {
+		t.Parallel()
 		err := ValidateCopilotPAT("github_pat_validtokenhere")
 		assert.NoError(t, err,
 			"ValidateCopilotPAT should return nil for fine-grained PAT")
 	})
 
 	t.Run("classic PAT returns actionable error", func(t *testing.T) {
+		t.Parallel()
 		err := ValidateCopilotPAT("ghp_classic_token")
 		require.Error(t, err,
 			"ValidateCopilotPAT should return an error for classic PAT")
@@ -739,6 +794,7 @@ func TestSpec_PublicAPI_ValidateCopilotPAT(t *testing.T) {
 	})
 
 	t.Run("oauth token returns actionable error", func(t *testing.T) {
+		t.Parallel()
 		err := ValidateCopilotPAT("gho_oauth_token")
 		require.Error(t, err,
 			"ValidateCopilotPAT should return an error for OAuth token")
@@ -751,13 +807,16 @@ func TestSpec_PublicAPI_ValidateCopilotPAT(t *testing.T) {
 // Specification: "Returns a human-readable description of the token type
 // (e.g. 'fine-grained personal access token')."
 func TestSpec_PublicAPI_GetPATTypeDescription(t *testing.T) {
+	t.Parallel()
 	t.Run("fine-grained PAT description (documented example)", func(t *testing.T) {
+		t.Parallel()
 		result := GetPATTypeDescription("github_pat_validtokenhere")
 		assert.Equal(t, "fine-grained personal access token", result,
 			"GetPATTypeDescription should return the documented example string for fine-grained PATs")
 	})
 
 	t.Run("returns non-empty human-readable description for any token", func(t *testing.T) {
+		t.Parallel()
 		for _, token := range []string{"github_pat_x", "ghp_x", "gho_x", "xyz_x"} {
 			result := GetPATTypeDescription(token)
 			assert.NotEmpty(t, result,
@@ -773,7 +832,9 @@ func TestSpec_PublicAPI_GetPATTypeDescription(t *testing.T) {
 // multi-line string. This is useful for normalizing heredoc-like blocks while
 // preserving relative indentation."
 func TestSpec_PublicAPI_NormalizeLeadingWhitespace(t *testing.T) {
+	t.Parallel()
 	t.Run("removes shared leading indentation from all non-empty lines", func(t *testing.T) {
+		t.Parallel()
 		input := "    first\n    second\n    third"
 		result := NormalizeLeadingWhitespace(input)
 		assert.Equal(t, "first\nsecond\nthird", result,
@@ -781,6 +842,7 @@ func TestSpec_PublicAPI_NormalizeLeadingWhitespace(t *testing.T) {
 	})
 
 	t.Run("preserves relative indentation between lines", func(t *testing.T) {
+		t.Parallel()
 		input := "    outer\n        inner\n    outer"
 		result := NormalizeLeadingWhitespace(input)
 		assert.Equal(t, "outer\n    inner\nouter", result,
@@ -788,6 +850,7 @@ func TestSpec_PublicAPI_NormalizeLeadingWhitespace(t *testing.T) {
 	})
 
 	t.Run("ignores empty lines when computing minimum indent", func(t *testing.T) {
+		t.Parallel()
 		input := "    line one\n\n    line two"
 		result := NormalizeLeadingWhitespace(input)
 		assert.Contains(t, result, "line one",
@@ -807,7 +870,9 @@ func TestSpec_PublicAPI_NormalizeLeadingWhitespace(t *testing.T) {
 //
 //	stringutil.FormatList([]string{"a", "b", "c"}) // "a, b, and c"
 func TestSpec_PublicAPI_FormatList(t *testing.T) {
+	t.Parallel()
 	t.Run("three items formatted with Oxford comma (documented example)", func(t *testing.T) {
+		t.Parallel()
 		result := FormatList([]string{"a", "b", "c"})
 		assert.Equal(t, "a, b, and c", result,
 			"FormatList should produce documented Oxford-comma output for three items")
@@ -824,7 +889,9 @@ func TestSpec_PublicAPI_FormatList(t *testing.T) {
 // The README documents the SanitizeOptions type as: "Options for SanitizeName
 // (preserved characters, hyphen trimming, and default value)."
 func TestSpec_PublicAPI_SanitizeName(t *testing.T) {
+	t.Parallel()
 	t.Run("uses default value when sanitized result would be empty", func(t *testing.T) {
+		t.Parallel()
 		opts := &SanitizeOptions{DefaultValue: "fallback"}
 		result := SanitizeName("!!!", opts)
 		assert.Equal(t, "fallback", result,
@@ -832,6 +899,7 @@ func TestSpec_PublicAPI_SanitizeName(t *testing.T) {
 	})
 
 	t.Run("TrimHyphens removes leading and trailing hyphens", func(t *testing.T) {
+		t.Parallel()
 		opts := &SanitizeOptions{TrimHyphens: true}
 		result := SanitizeName("---hello---", opts)
 		assert.NotEmpty(t, result,
@@ -843,6 +911,7 @@ func TestSpec_PublicAPI_SanitizeName(t *testing.T) {
 	})
 
 	t.Run("PreserveSpecialChars preserves listed characters", func(t *testing.T) {
+		t.Parallel()
 		opts := &SanitizeOptions{PreserveSpecialChars: []rune{'.'}}
 		result := SanitizeName("file.name", opts)
 		assert.Contains(t, result, ".",
@@ -850,6 +919,7 @@ func TestSpec_PublicAPI_SanitizeName(t *testing.T) {
 	})
 
 	t.Run("nil options is accepted", func(t *testing.T) {
+		t.Parallel()
 		result := SanitizeName("hello", nil)
 		assert.NotEmpty(t, result,
 			"SanitizeName should accept nil options and return a non-empty sanitized name")
@@ -870,7 +940,9 @@ func TestSpec_PublicAPI_SanitizeName(t *testing.T) {
 //	matches := stringutil.FindClosestMatches("copiliot", engines, 3)
 //	// → ["copilot"]
 func TestSpec_PublicAPI_FindClosestMatches(t *testing.T) {
+	t.Parallel()
 	t.Run("returns closest match for documented example", func(t *testing.T) {
+		t.Parallel()
 		engines := []string{"copilot", "claude", "codex", "custom"}
 		matches := FindClosestMatches("copiliot", engines, 3)
 		require.NotEmpty(t, matches,
@@ -880,24 +952,28 @@ func TestSpec_PublicAPI_FindClosestMatches(t *testing.T) {
 	})
 
 	t.Run("excludes exact matches from results", func(t *testing.T) {
+		t.Parallel()
 		matches := FindClosestMatches("copilot", []string{"copilot", "copiliot"}, 3)
 		assert.NotContains(t, matches, "copilot",
 			"FindClosestMatches should exclude exact matches (documented)")
 	})
 
 	t.Run("respects maxResults limit", func(t *testing.T) {
+		t.Parallel()
 		matches := FindClosestMatches("ab", []string{"ac", "ad", "ae", "af"}, 2)
 		assert.LessOrEqual(t, len(matches), 2,
 			"FindClosestMatches should return no more than maxResults items")
 	})
 
 	t.Run("returns no matches when distance exceeds 3", func(t *testing.T) {
+		t.Parallel()
 		matches := FindClosestMatches("xyz", []string{"completely-different-string"}, 3)
 		assert.Empty(t, matches,
 			"FindClosestMatches should return empty result when no candidate is within distance 3")
 	})
 
 	t.Run("matching is case-insensitive", func(t *testing.T) {
+		t.Parallel()
 		matches := FindClosestMatches("CopilOt", []string{"copilot"}, 3)
 		assert.Empty(t, matches,
 			"FindClosestMatches should treat 'CopilOt' as an exact match of 'copilot' (case-insensitive) and exclude it")
@@ -916,6 +992,7 @@ func TestSpec_PublicAPI_FindClosestMatches(t *testing.T) {
 //	distance := stringutil.LevenshteinDistance("copiliot", "copilot")
 //	// → 1
 func TestSpec_PublicAPI_LevenshteinDistance(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		a        string
@@ -956,6 +1033,7 @@ func TestSpec_PublicAPI_LevenshteinDistance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, LevenshteinDistance(tt.a, tt.b),
 				"LevenshteinDistance(%q, %q) should equal %d", tt.a, tt.b, tt.expected)
 		})

@@ -12,6 +12,7 @@ import (
 )
 
 func TestGetWorkflowDir(t *testing.T) {
+	t.Parallel()
 	expected := filepath.Join(".github", "workflows")
 	assert.Equal(t, expected, GetWorkflowDir())
 }
@@ -28,18 +29,21 @@ func TestGetWorkflowDirEnvEmpty(t *testing.T) {
 }
 
 func TestDefaultAllowedDomains(t *testing.T) {
+	t.Parallel()
 	expectedDomains := []string{"localhost", "localhost:*", "127.0.0.1", "127.0.0.1:*"}
 	require.NotEmpty(t, DefaultAllowedDomains)
 	assert.Equal(t, expectedDomains, DefaultAllowedDomains)
 }
 
 func TestSafeWorkflowEvents(t *testing.T) {
+	t.Parallel()
 	expectedEvents := []string{"workflow_dispatch", "schedule"}
 	require.NotEmpty(t, SafeWorkflowEvents)
 	assert.Equal(t, expectedEvents, SafeWorkflowEvents)
 }
 
 func TestAllowedExpressions(t *testing.T) {
+	t.Parallel()
 	require.NotEmpty(t, AllowedExpressions)
 
 	for _, expr := range []string{
@@ -54,6 +58,7 @@ func TestAllowedExpressions(t *testing.T) {
 }
 
 func TestAgenticEngines(t *testing.T) {
+	t.Parallel()
 	expectedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
 	require.NotEmpty(t, AgenticEngines)
 	assert.Equal(t, expectedEngines, AgenticEngines)
@@ -65,6 +70,7 @@ func TestAgenticEngines(t *testing.T) {
 }
 
 func TestDefaultGitHubTools(t *testing.T) {
+	t.Parallel()
 	require.NotEmpty(t, DefaultGitHubToolsLocal)
 	require.NotEmpty(t, DefaultGitHubToolsRemote)
 	require.NotEmpty(t, DefaultReadOnlyGitHubTools)
@@ -86,6 +92,7 @@ func TestDefaultGitHubTools(t *testing.T) {
 		"DefaultReadOnlyGitHubTools": DefaultReadOnlyGitHubTools,
 	} {
 		t.Run(name, func(t *testing.T) {
+			t.Parallel()
 			for _, tool := range requiredTools {
 				assert.Contains(t, tools, tool)
 			}
@@ -94,6 +101,7 @@ func TestDefaultGitHubTools(t *testing.T) {
 }
 
 func TestDefaultBashTools(t *testing.T) {
+	t.Parallel()
 	require.NotEmpty(t, DefaultBashTools)
 	for _, tool := range []string{"echo", "printf", "ls", "cat", "grep"} {
 		assert.Contains(t, DefaultBashTools, tool)
@@ -101,6 +109,7 @@ func TestDefaultBashTools(t *testing.T) {
 }
 
 func TestPriorityFields(t *testing.T) {
+	t.Parallel()
 	require.NotEmpty(t, PriorityStepFields)
 	require.NotEmpty(t, PriorityJobFields)
 	require.NotEmpty(t, PriorityWorkflowFields)
@@ -110,6 +119,7 @@ func TestPriorityFields(t *testing.T) {
 }
 
 func TestConstantValues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    string
@@ -155,12 +165,14 @@ func TestConstantValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.value)
 		})
 	}
 }
 
 func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
+	t.Parallel()
 	for _, jobName := range []string{
 		string(AgentJobName),
 		string(ActivationJobName),
@@ -179,10 +191,12 @@ func TestKnownBuiltInJobNamesContainsAllKnownJobs(t *testing.T) {
 }
 
 func TestModelNameConstants(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "test-model", string(ModelName("test-model")))
 }
 
 func TestNumericConstants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    LineLength
@@ -194,12 +208,14 @@ func TestNumericConstants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.GreaterOrEqual(t, tt.value, tt.minValue)
 		})
 	}
 }
 
 func TestPolicyConstants(t *testing.T) {
+	t.Parallel()
 	assert.EqualValues(t, 1000, DefaultMaxAICredits)
 	assert.EqualValues(t, 400, DefaultDetectionMaxAICredits)
 	assert.Equal(t, "5000", DefaultMaxDailyAICredits)
@@ -209,6 +225,7 @@ func TestPolicyConstants(t *testing.T) {
 }
 
 func TestTimeoutConstants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		value      time.Duration
@@ -227,6 +244,7 @@ func TestTimeoutConstants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.GreaterOrEqual(t, tt.value, tt.minValue)
 			if tt.checkExact {
 				assert.Equal(t, tt.exactValue, tt.value)
@@ -239,6 +257,7 @@ func TestTimeoutConstants(t *testing.T) {
 }
 
 func TestFeatureFlagConstants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		value    FeatureFlag
@@ -254,18 +273,21 @@ func TestFeatureFlagConstants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, string(tt.value))
 		})
 	}
 }
 
 func TestFeatureFlagType(t *testing.T) {
+	t.Parallel()
 	var flag FeatureFlag = "test-flag"
 	assert.Equal(t, "test-flag", string(flag))
 	assert.Equal(t, MCPScriptsFeatureFlag, FeatureFlag("mcp-scripts"))
 }
 
 func TestSemanticTypeAliases(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		convert  func() string
@@ -295,12 +317,14 @@ func TestSemanticTypeAliases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.convert())
 		})
 	}
 }
 
 func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
+	t.Parallel()
 	job1 := AgentJobName
 	job2 := ActivationJobName
 	assert.NotEqual(t, job1, job2)
@@ -314,6 +338,7 @@ func TestTypeSafetyBetweenSemanticTypes(t *testing.T) {
 }
 
 func TestHelperMethods(t *testing.T) {
+	t.Parallel()
 	type semanticValue interface {
 		String() string
 		IsValid() bool
@@ -333,6 +358,7 @@ func TestHelperMethods(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.value.String())
 			assert.True(t, tt.value.IsValid())
 			assert.False(t, tt.empty.IsValid())
@@ -341,6 +367,7 @@ func TestHelperMethods(t *testing.T) {
 }
 
 func TestGetAllEngineSecretNames(t *testing.T) {
+	t.Parallel()
 	secrets := GetAllEngineSecretNames()
 	require.NotEmpty(t, secrets)
 
@@ -362,6 +389,7 @@ func TestGetAllEngineSecretNames(t *testing.T) {
 }
 
 func TestGetEngineOption_AllBuiltInEngines(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		engine       string
 		label        string
@@ -379,6 +407,7 @@ func TestGetEngineOption_AllBuiltInEngines(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.engine, func(t *testing.T) {
+			t.Parallel()
 			opt := GetEngineOption(tt.engine)
 			require.NotNil(t, opt)
 			assert.Equal(t, tt.engine, opt.Value)

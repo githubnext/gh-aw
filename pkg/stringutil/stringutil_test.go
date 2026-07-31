@@ -10,6 +10,7 @@ import (
 )
 
 func TestTruncate(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		s        string
@@ -92,6 +93,7 @@ func TestTruncate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := Truncate(tt.s, tt.maxLen)
 			assert.Equal(t, tt.expected, result, "Truncate(%q, %d) should return expected output", tt.s, tt.maxLen)
 		})
@@ -99,6 +101,7 @@ func TestTruncate(t *testing.T) {
 }
 
 func TestNormalizeWhitespace(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -153,6 +156,7 @@ func TestNormalizeWhitespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeWhitespace(tt.content)
 			assert.Equal(t, tt.expected, result, "NormalizeWhitespace(%q) should normalize trailing whitespace and newlines", tt.content)
 		})
@@ -176,6 +180,7 @@ func BenchmarkNormalizeWhitespace(b *testing.B) {
 // Additional edge case tests
 
 func TestTruncate_Unicode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		s        string
@@ -204,6 +209,7 @@ func TestTruncate_Unicode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := Truncate(tt.s, tt.maxLen)
 			assert.Equal(t, tt.expected, result, "Truncate(%q, %d) should handle unicode input as expected", tt.s, tt.maxLen)
 		})
@@ -211,6 +217,7 @@ func TestTruncate_Unicode(t *testing.T) {
 }
 
 func TestNormalizeWhitespace_OnlyWhitespace(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		content  string
@@ -240,6 +247,7 @@ func TestNormalizeWhitespace_OnlyWhitespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeWhitespace(tt.content)
 			assert.Equal(t, tt.expected, result, "NormalizeWhitespace(%q) should handle whitespace-only input", tt.content)
 		})
@@ -247,6 +255,7 @@ func TestNormalizeWhitespace_OnlyWhitespace(t *testing.T) {
 }
 
 func TestNormalizeWhitespace_ManyLines(t *testing.T) {
+	t.Parallel()
 	// Test with many lines
 	lines := make([]string, 100)
 	for i := range 100 {
@@ -273,6 +282,7 @@ func TestNormalizeWhitespace_ManyLines(t *testing.T) {
 }
 
 func TestNormalizeWhitespace_PreservesContent(t *testing.T) {
+	t.Parallel()
 	// Ensure that non-trailing whitespace is preserved
 	content := "line1  middle  spaces\nline2\t\tmiddle\t\ttabs\n"
 	result := NormalizeWhitespace(content)
@@ -310,6 +320,7 @@ func BenchmarkNormalizeWhitespace_ManyChanges(b *testing.B) {
 }
 
 func TestParseVersionValue(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		version  any
@@ -388,6 +399,7 @@ func TestParseVersionValue(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ParseVersionValue(tt.version)
 			assert.Equal(t, tt.expected, result, "ParseVersionValue(%v) should return normalized string representation", tt.version)
 		})
@@ -395,6 +407,7 @@ func TestParseVersionValue(t *testing.T) {
 }
 
 func TestFormatList(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		items    []string
@@ -429,6 +442,7 @@ func TestFormatList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := FormatList(tt.items)
 			assert.Equal(t, tt.expected, result, "FormatList(%v) should return natural-language list formatting", tt.items)
 		})
@@ -436,6 +450,7 @@ func TestFormatList(t *testing.T) {
 }
 
 func TestNormalizeLeadingWhitespace(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -480,6 +495,7 @@ func TestNormalizeLeadingWhitespace(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeLeadingWhitespace(tt.input)
 			assert.Equal(t, tt.expected, result, "NormalizeLeadingWhitespace should normalize indentation for case %q", tt.name)
 		})
@@ -487,6 +503,7 @@ func TestNormalizeLeadingWhitespace(t *testing.T) {
 }
 
 func TestIsPositiveInteger(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		s    string
@@ -546,6 +563,7 @@ func TestIsPositiveInteger(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := IsPositiveInteger(tt.s)
 			assert.Equal(t, tt.want, got, "IsPositiveInteger(%q) should match expected positivity result", tt.s)
 		})

@@ -368,8 +368,10 @@ For each PR that is not skipped:
    - Always start with `<!-- gh-aw-pr-sous-chef-nudge -->` as the first hidden marker line and a `@copilot` mention.
    - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
    - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
+   - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
+   - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
    - Always set `pr_number` to the current PR's numeric number. Use `safeoutputs add_comment --pr_number <N> --body $'...'` syntax only. Never use `gh pr comment` or `gh api` for writes.
-   - Every `add_comment` must include `pr_number` as a numeric field. Never emit `add_comment` without a numeric target field. Example: `safeoutputs add_comment --pr_number 12345 --body $'...'`.
+   - Example: `safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot ...'`
 
 3. **Resolve review threads that already have a response using a safe output**
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
