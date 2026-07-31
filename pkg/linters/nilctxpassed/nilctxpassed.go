@@ -13,7 +13,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:nilctxpassed")
 
 // Analyzer is the nil-context-passed analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -25,6 +28,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -86,6 +90,7 @@ func checkCallForNilContext(pass *analysis.Pass, cur inspector.Cursor, generated
 		if nolint.HasDirectiveForLinter(argPos, noLintIndex, "nilctxpassed") {
 			continue
 		}
+		pkgLog.Printf("flagging nil context.Context argument at %s", argPos)
 		pass.Report(analysis.Diagnostic{
 			Pos:     arg.Pos(),
 			End:     arg.End(),
