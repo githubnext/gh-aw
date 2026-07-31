@@ -93,18 +93,25 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	var steps []string
 
 	// Add per-handler GitHub App token minting steps before the handler manager step.
-	// These run before the main handler step so the minted token expressions (e.g.
-	// ${{ steps.create-check-run-app-token.outputs.token }}) are resolved at runtime.
-	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
-		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token minting step for create-check-run")
-		var permissions *Permissions
-		if data.SafeOutputs.CreateCheckRun.Target != "" {
-			permissions = NewPermissionsChecksWritePRRead()
-		} else {
-			permissions = NewPermissionsChecksWrite()
-		}
-		for _, step := range c.buildGitHubAppTokenMintStep(data.SafeOutputs.CreateCheckRun.GitHubApp, permissions, "") {
-			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
+	// For each registered handler that has a per-handler github-app configured, mint a
+	// dedicated token step whose permissions are scoped to only that handler's needs.
+	// This implements the principle of least privilege: a workflow can assign separate
+	// apps to different outputs so each token only carries the permissions it requires.
+	if data.SafeOutputs != nil {
+		for _, handler := range safeOutputHandlers {
+			if handler.StructField == "" || handler.PermissionBuilder == nil {
+				continue
+			}
+			handlerApp := getHandlerGitHubApp(data.SafeOutputs, handler.StructField)
+			if handlerApp == nil {
+				continue
+			}
+			handlerPermissions := handler.PermissionBuilder(data.SafeOutputs)
+			stepID := handler.Key + "-app-token"
+			consolidatedSafeOutputsStepsLog.Printf("Adding per-handler GitHub App token minting step for %s", handler.Key)
+			for _, step := range c.buildGitHubAppTokenMintStep(handlerApp, handlerPermissions, "") {
+				steps = append(steps, replaceStepID(step, "safe-outputs-app-token", stepID))
+			}
 		}
 	}
 

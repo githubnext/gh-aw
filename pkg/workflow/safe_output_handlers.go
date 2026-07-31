@@ -660,6 +660,39 @@ func setSafeOutputField(config *SafeOutputsConfig, fieldName string, value any) 
 	return true
 }
 
+// getHandlerGitHubApp extracts the GitHubApp from the handler config at the given
+// SafeOutputsConfig field using reflection. It first looks for a direct GitHubApp
+// field, then falls back to the embedded BaseSafeOutputConfig.GitHubApp. Returns
+// nil if the field is absent, the handler is not configured, or no GitHubApp is set.
+func getHandlerGitHubApp(config *SafeOutputsConfig, fieldName string) *GitHubAppConfig {
+	field, ok := safeOutputPointerFieldValue(config, fieldName)
+	if !ok || field.IsNil() {
+		return nil
+	}
+	inner := field.Elem()
+	if !inner.IsValid() || inner.Kind() != reflect.Struct {
+		return nil
+	}
+	// Try direct GitHubApp field (for structs with an explicit GitHubApp field)
+	appField := inner.FieldByName("GitHubApp")
+	if !appField.IsValid() {
+		// Fall back to embedded BaseSafeOutputConfig.GitHubApp
+		baseField := inner.FieldByName("BaseSafeOutputConfig")
+		if !baseField.IsValid() || baseField.Kind() != reflect.Struct {
+			return nil
+		}
+		appField = baseField.FieldByName("GitHubApp")
+	}
+	if !appField.IsValid() || appField.IsNil() {
+		return nil
+	}
+	app, ok := appField.Interface().(*GitHubAppConfig)
+	if !ok || app == nil {
+		return nil
+	}
+	return app
+}
+
 func mergeSafeOutputFieldIfNil(result, imported *SafeOutputsConfig, fieldName string) {
 	resultField, ok := safeOutputPointerFieldValue(result, fieldName)
 	if !ok || !resultField.IsNil() {

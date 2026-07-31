@@ -614,3 +614,153 @@ func TestSafeOutputsCreateCheckRunAppTokenMinimalPermissions(t *testing.T) {
 			"App token must not include contents:read for create-check-run")
 	})
 }
+
+// TestSafeOutputsPerHandlerGitHubAppAddComment tests that when add-comment has its own
+// github-app override, a dedicated token step is minted using only issues:write, and the
+// handler config references that per-handler token (not the global token).
+func TestSafeOutputsPerHandlerGitHubAppAddComment(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.GLOBAL_APP_ID }}",
+				PrivateKey: "${{ secrets.GLOBAL_APP_PRIVATE_KEY }}",
+			},
+			AddComments: &AddCommentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ISSUE_APP_ID }}",
+						PrivateKey: "${{ secrets.ISSUE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Per-handler token step must be present with the correct step ID
+	assert.Contains(t, stepsStr, "id: add-comment-app-token",
+		"Per-handler app token step for add-comment must be present")
+
+	// The per-handler step must use the handler-scoped app credentials
+	assert.Contains(t, stepsStr, "${{ vars.ISSUE_APP_ID }}",
+		"Per-handler token step must use the handler-level app-id")
+
+	// The per-handler token must use only issues:write (not broader permissions)
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"Per-handler token must include issues:write")
+
+	// Handler config must reference the per-handler token step
+	assert.Contains(t, stepsStr, "steps.add-comment-app-token.outputs.token",
+		"Handler config must reference the per-handler token step output")
+}
+
+// TestSafeOutputsPerHandlerGitHubAppDispatchWorkflow tests that when dispatch-workflow has
+// its own github-app override, a dedicated token step is minted with actions:write
+// and the handler config references that token.
+func TestSafeOutputsPerHandlerGitHubAppDispatchWorkflow(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.GLOBAL_APP_ID }}",
+				PrivateKey: "${{ secrets.GLOBAL_APP_PRIVATE_KEY }}",
+			},
+			DispatchWorkflow: &DispatchWorkflowConfig{
+				Workflows: []string{"my-downstream.yml"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ACTIONS_APP_ID }}",
+						PrivateKey: "${{ secrets.ACTIONS_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Per-handler token step must be present with the correct step ID
+	assert.Contains(t, stepsStr, "id: dispatch-workflow-app-token",
+		"Per-handler app token step for dispatch-workflow must be present")
+
+	// The per-handler step must use the handler-scoped app credentials
+	assert.Contains(t, stepsStr, "${{ vars.ACTIONS_APP_ID }}",
+		"Per-handler token step must use the handler-level app-id")
+
+	// Handler config must reference the per-handler token step
+	assert.Contains(t, stepsStr, "steps.dispatch-workflow-app-token.outputs.token",
+		"Handler config must reference the per-handler token step output")
+}
+
+// TestSafeOutputsPerHandlerGitHubAppMultipleHandlers tests the scenario from the issue:
+// two separate apps, one for issues (add-comment) and one for actions (dispatch-workflow).
+// Each handler must mint its own token with only its required permissions.
+// The global token step must not appear when all handlers have per-handler overrides.
+func TestSafeOutputsPerHandlerGitHubAppMultipleHandlers(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ISSUE_APP_ID }}",
+						PrivateKey: "${{ secrets.ISSUE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			DispatchWorkflow: &DispatchWorkflowConfig{
+				Workflows: []string{"my-downstream.yml"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ACTIONS_APP_ID }}",
+						PrivateKey: "${{ secrets.ACTIONS_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Both per-handler token steps must be present
+	assert.Contains(t, stepsStr, "id: add-comment-app-token",
+		"Per-handler app token step for add-comment must be present")
+	assert.Contains(t, stepsStr, "id: dispatch-workflow-app-token",
+		"Per-handler app token step for dispatch-workflow must be present")
+
+	// Each step references its own app credentials
+	assert.Contains(t, stepsStr, "${{ vars.ISSUE_APP_ID }}",
+		"add-comment token step must reference issues app-id")
+	assert.Contains(t, stepsStr, "${{ vars.ACTIONS_APP_ID }}",
+		"dispatch-workflow token step must reference actions app-id")
+
+	// The global safe-outputs token step must not appear (no global github-app configured)
+	assert.NotContains(t, stepsStr, "id: safe-outputs-app-token",
+		"Global token step must not appear when no global github-app is configured")
+
+	// Each handler must reference its own per-handler token
+	assert.Contains(t, stepsStr, "steps.add-comment-app-token.outputs.token",
+		"add-comment handler config must reference its per-handler token")
+	assert.Contains(t, stepsStr, "steps.dispatch-workflow-app-token.outputs.token",
+		"dispatch-workflow handler config must reference its per-handler token")
+}
