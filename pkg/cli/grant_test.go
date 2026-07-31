@@ -91,6 +91,8 @@ func TestGrantRunOnImageRejectsInvalidImageRef(t *testing.T) {
 		{name: "whitespace", imageRef: "bad image", want: "invalid whitespace/control characters"},
 		{name: "empty", imageRef: "", want: "cannot be empty"},
 		{name: "null byte", imageRef: "img\x00ref", want: "invalid whitespace/control characters"},
+		{name: "escape character", imageRef: "img\x1bref", want: "invalid whitespace/control characters"},
+		{name: "leading dash", imageRef: "-alpine:latest", want: "cannot start with '-'"},
 	}
 
 	for _, tt := range testCases {

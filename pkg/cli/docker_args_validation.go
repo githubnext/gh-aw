@@ -6,15 +6,22 @@ import (
 	"os"
 	"path"
 	"strings"
+	"unicode"
 
 	"github.com/github/gh-aw/pkg/fileutil"
 )
+
+func containsControlCharacters(value string) bool {
+	return strings.IndexFunc(value, func(r rune) bool {
+		return unicode.IsControl(r) || unicode.In(r, unicode.Cf) || r == '\u2028' || r == '\u2029'
+	}) >= 0
+}
 
 func validateContainerMountPath(containerPath string) (string, error) {
 	if containerPath == "" {
 		return "", errors.New("container path cannot be empty. Example: /workdir")
 	}
-	if strings.ContainsAny(containerPath, "\x00\r\n:") {
+	if containsControlCharacters(containerPath) || strings.Contains(containerPath, ":") {
 		return "", errors.New("container path contains invalid control characters or reserved characters. Example: /workdir")
 	}
 	if !path.IsAbs(containerPath) {
@@ -36,6 +43,21 @@ func validateHostMountPath(hostPath string) (string, error) {
 		return "", fmt.Errorf("host path contains unsupported ':' for docker -v mount syntax. Example: /tmp/repo or C:/repo. Got: %s", cleanHostPath)
 	}
 	return cleanHostPath, nil
+}
+
+func validateDockerImageRef(imageRef string) (string, error) {
+	if imageRef == "" {
+		return "", errors.New("grant image reference cannot be empty. Example: ghcr.io/example/image:tag")
+	}
+	// Image refs disallow all Unicode whitespace, while containsControlCharacters also rejects
+	// non-whitespace spoofing characters such as bidi overrides and other format controls.
+	if containsControlCharacters(imageRef) || strings.IndexFunc(imageRef, unicode.IsSpace) >= 0 {
+		return "", fmt.Errorf("grant image reference contains invalid whitespace/control characters. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+	}
+	if strings.HasPrefix(imageRef, "-") {
+		return "", fmt.Errorf("grant image reference cannot start with '-'. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+	}
+	return imageRef, nil
 }
 
 func isWindowsDrivePath(hostPath string) bool {

@@ -53,6 +53,11 @@ func TestSpec_PublicAPI_ValidateAbsolutePath(t *testing.T) {
 			wantErr:     false,
 			expectedOut: "/usr/bin",
 		},
+		{
+			name:    "rejects control characters in absolute path",
+			input:   "/usr/local/\n/bin",
+			wantErr: true,
+		},
 	}
 
 	for _, tt := range tests {
