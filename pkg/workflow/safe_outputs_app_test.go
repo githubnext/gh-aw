@@ -312,9 +312,11 @@ Test workflow with discussions permission.
 	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
-// TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission tests that issues read permission
+// TestSafeOutputsAppTokenUpdateProjectIssuesWritePermission tests that issues write permission
 // is included in the GitHub App token minting step when update-project is configured.
-func TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission(t *testing.T) {
+// The safe_outputs job also includes the built-in report_incomplete issue path, so the
+// least-privilege token must be able to write issues, not just read them.
+func TestSafeOutputsAppTokenUpdateProjectIssuesWritePermission(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
@@ -349,13 +351,15 @@ Test workflow with update-project permissions.
 	stepsStr := strings.Join(job.Steps, "")
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
-	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
+	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission for issue-backed project items and built-in report_incomplete issue creation")
 	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
-// TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesReadPermission tests that issues read permission
+// TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesWritePermission tests that issues write permission
 // is included in the GitHub App token minting step when create-project is configured with item_url.
-func TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesReadPermission(t *testing.T) {
+// The safe_outputs job also includes the built-in report_incomplete issue path, so the
+// least-privilege token must be able to write issues, not just read them.
+func TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesWritePermission(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
@@ -390,7 +394,7 @@ Test workflow with create-project item_url permissions.
 	stepsStr := strings.Join(job.Steps, "")
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
-	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
+	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission for issue-backed project items and built-in report_incomplete issue creation")
 	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
