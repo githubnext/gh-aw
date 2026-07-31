@@ -9,6 +9,7 @@ import (
 )
 
 func TestFindClosestMatches(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		target     string
@@ -146,6 +147,7 @@ func TestFindClosestMatches(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := FindClosestMatches(tt.target, tt.candidates, tt.maxResults)
 			assert.Equal(t, tt.want, got, "FindClosestMatches(%q, %v, %d)", tt.target, tt.candidates, tt.maxResults)
 		})
@@ -153,6 +155,7 @@ func TestFindClosestMatches(t *testing.T) {
 }
 
 func TestLevenshteinDistance(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name string
 		a    string
@@ -174,6 +177,7 @@ func TestLevenshteinDistance(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := LevenshteinDistance(tt.a, tt.b)
 			assert.Equal(t, tt.want, got, "LevenshteinDistance(%q, %q)", tt.a, tt.b)
 		})
