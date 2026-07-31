@@ -36,6 +36,20 @@ type runnerGuardOutput struct {
 	Grade    string               `json:"grade,omitempty"`
 }
 
+func buildRunnerGuardContainerScanPath(scanPath string) (string, error) {
+	if scanPath == "" {
+		scanPath = "."
+	}
+	cleanPath := filepath.Clean(scanPath)
+	if !filepath.IsLocal(cleanPath) {
+		return "", fmt.Errorf("runner-guard scan path must stay local to the repository. Got: %s", scanPath)
+	}
+	if containsControlCharacters(cleanPath) {
+		return "", fmt.Errorf("runner-guard scan path contains invalid control characters. Got: %q", scanPath)
+	}
+	return "./" + filepath.ToSlash(cleanPath), nil
+}
+
 // runRunnerGuardOnDirectory runs the runner-guard taint analysis scanner on a directory
 // containing workflows using the Docker image.
 func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) error {
@@ -76,7 +90,10 @@ func runRunnerGuardOnDirectory(workflowDir string, verbose bool, strict bool) er
 	// Prefix with "./" and convert host separators to forward slashes for the Linux container.
 	// This prevents option injection: without the prefix a workflowDir such as "--help" would
 	// produce a scanPath beginning with "-", which runner-guard could interpret as a flag.
-	containerScanPath := "./" + filepath.ToSlash(scanPath)
+	containerScanPath, err := buildRunnerGuardContainerScanPath(scanPath)
+	if err != nil {
+		return fmt.Errorf("invalid runner-guard scan path: %w", err)
+	}
 
 	// Build the Docker command
 	// docker run --rm -v "$gitRoot:/workdir" -w /workdir ghcr.io/vigilant-llc/runner-guard:latest scan <path> --format json

@@ -355,6 +355,34 @@ func TestRunnerGuardPathTraversalGuard(t *testing.T) {
 	}
 }
 
+func TestBuildRunnerGuardContainerScanPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		scanPath string
+		want     string
+		wantErr  string
+	}{
+		{name: "default current directory", scanPath: "", want: "./."},
+		{name: "flag-looking path stays positional", scanPath: "--help", want: "./--help"},
+		{name: "nested relative path", scanPath: "dir/subdir", want: "./dir/subdir"},
+		{name: "path traversal rejected", scanPath: "../escape", wantErr: "must stay local"},
+		{name: "control character rejected", scanPath: "bad\npath", wantErr: "invalid control characters"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := buildRunnerGuardContainerScanPath(tt.scanPath)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.ErrorContains(t, err, tt.wantErr)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
 func TestRunRunnerGuardOnDirectoryRejectsPathsOutsideRepo(t *testing.T) {
 	outsideDir := filepath.Join(t.TempDir(), "outside")
 	require.NoError(t, os.MkdirAll(outsideDir, 0o755))

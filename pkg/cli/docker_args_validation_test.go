@@ -34,6 +34,10 @@ func TestBuildDockerVolumeMount(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid control characters")
 
+	_, err = buildDockerVolumeMount(tmpDir+"\nrepo", "/workdir")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid control characters")
+
 	if runtime.GOOS != "windows" {
 		_, err = buildDockerVolumeMount("/tmp/repo:fixture", "/workdir")
 		require.Error(t, err)
@@ -59,6 +63,10 @@ func TestBuildDockerReadonlyFileMount(t *testing.T) {
 	require.ErrorContains(t, err, "reserved characters")
 
 	_, err = buildDockerReadonlyFileMount(policyFile, "/tmp/policy\x00yaml")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid control characters")
+
+	_, err = buildDockerReadonlyFileMount(policyFile+"\n", "/tmp/policy.yaml")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid control characters")
 }
