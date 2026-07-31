@@ -60,6 +60,14 @@ For recurring PM, stakeholder, and information-worker digests, fix all three ele
 | Grouping dimensions | Group by the dimensions the audience already uses to decide | team, area, milestone, owner, severity, status, repository |
 | Deduplication key | One stable key per scope and window; week-based for weekly, calendar-date for daily/monthly | `pm-digest:platform:2026-W27`, `stakeholder-digest:mobile:2026-07-02` |
 
+**Deduplication key format:** `<report-type>:<scope>:<window-id>` where `<window-id>` uses `YYYY-Www` for weekly cadence, `YYYY-MM-DD` for daily, and `YYYY-MM` for monthly. Concrete examples by cadence:
+
+| Cadence | Key examples |
+|---|---|
+| Weekly | `pm-digest:platform:2026-W27`, `stakeholder-digest:mobile:2026-W30` |
+| Daily | `status-digest:team-alpha:2026-07-28` |
+| Monthly | `compliance-audit:frontend:2026-07`, `release-report:v3:2026-07` |
+
 Duplicate-suppression: search for an existing open issue by the stable key (title prefix or dedicated label) before creating; if one exists, update it with `add-comment` instead of opening a duplicate. Use `create-issue` with `close-older-issues: true` for recurring issue-style digests.
 
 ## Fallback for Incomplete Metadata

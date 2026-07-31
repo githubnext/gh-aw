@@ -110,10 +110,12 @@ Common mappings:
 - UI-driven actions → `label_command`
 - GitHub Actions pipeline monitoring → `workflow_run`
 - external deployment monitoring → `deployment_status`
+- on-demand reports or operator readiness checks → `workflow_dispatch` with explicit `inputs:`
 
 | Scenario | Trigger and default output | Details |
 |---|---|---|
 | Recurring reports and stakeholder digests | `schedule` (+ `workflow_dispatch` for reruns), usually `create-issue` | [Reporting/digest guidance](create-agentic-workflow-trigger-details.md#reporting-and-digest-guidance) |
+| On-demand readiness reports and operator-invoked checks | `workflow_dispatch` with explicit `inputs:` for report window (default `last 7 full days`), scope, and output channel (default `create-issue`); fall back to `add-comment` only when a known target issue or PR already exists | [Reporting/digest guidance](create-agentic-workflow-trigger-details.md#reporting-and-digest-guidance) |
 | Persona-oriented requests (PM, design governance, compliance policy) | `pull_request` with scoped `paths:` when the request is framed around changed files (`tokens/**`, `**/*tokens*.json`, `**/theme/**`, `policy/**`, `compliance/**`, `controls/**`, `docs/policies/**`); `schedule` (+ `workflow_dispatch`) for recurring audits | [Persona scenario map](create-agentic-workflow-trigger-details.md#persona-oriented-scenario-map) |
 | Backend schema/API review | `pull_request` with backend contract `paths:` and `add-comment` | [Backend review guidance](create-agentic-workflow-trigger-details.md#backend-review-guidance) |
 | PR analyzers deciding comment vs issue vs noop | `pull_request` + escalation logic | [PR analyzer escalation](create-agentic-workflow-trigger-details.md#pr-analyzer-escalation-guidance) |
@@ -170,6 +172,10 @@ Common mappings:
 - `pubspec.yaml` → `dart`
 
 Never use `network: defaults` alone for workflows that build, test, or install packages.
+
+For compliance and policy-review workflows, network access depends on the data source:
+- **In-repo policy checks** (reading `policy/**`, `compliance/**`, `controls/**`, or in-repo license files) — `github` read access is sufficient; no external `network.allowed` entries are needed.
+- **External license or policy checks** (querying SPDX, ClearlyDefined, FOSSA, or similar services) — add the required endpoints to `network.allowed` explicitly; do not use `network: defaults` as a catch-all.
 
 ### 6. Configure safe outputs
 
