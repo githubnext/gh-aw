@@ -1,6 +1,8 @@
 import type { APIRoute } from 'astro';
 import { getAwPrompts } from './_aw-prompts.js';
 
+export const prerender = true;
+
 export const GET: APIRoute = () => {
 	const prompts = getAwPrompts();
 
