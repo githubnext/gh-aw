@@ -106,6 +106,10 @@ func getCheckBranchProtection(config *PushToPullRequestBranchConfig) bool {
 // Handlers that are staged (globally or per-handler) are skipped because
 // staged mode only emits preview output and does not make any API calls.
 func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissions {
+	return computePermissionsForSafeOutputs(safeOutputs, false)
+}
+
+func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig, excludePerHandlerApps bool) *Permissions {
 	if safeOutputs == nil {
 		safeOutputsPermissionsLog.Print("No safe outputs configured, returning empty permissions")
 		return NewPermissions()
@@ -117,6 +121,9 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 		if handler.PermissionBuilder == nil {
 			continue
 		}
+		if excludePerHandlerApps && handler.StructField != "" && getHandlerGitHubApp(safeOutputs, handler.StructField) != nil {
+			continue
+		}
 		handlerPermissions := handler.PermissionBuilder(safeOutputs)
 		if handlerPermissions == nil {
 			continue
@@ -125,6 +132,10 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 			safeOutputsPermissionsLog.Printf("Adding permissions for %s", handler.Key)
 		}
 		permissions.Merge(handlerPermissions)
+	}
+
+	if dispatchRepositoryPermissions := computeDispatchRepositoryPermissions(safeOutputs, excludePerHandlerApps); dispatchRepositoryPermissions != nil {
+		permissions.Merge(dispatchRepositoryPermissions)
 	}
 
 	// NoOp and MissingTool don't require write permissions beyond what's already included
@@ -161,6 +172,30 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 	}
 
 	safeOutputsPermissionsLog.Printf("Computed permissions with %d scopes", len(permissions.permissions))
+	return permissions
+}
+
+func computeDispatchRepositoryPermissions(safeOutputs *SafeOutputsConfig, excludePerToolApps bool) *Permissions {
+	if safeOutputs == nil || safeOutputs.DispatchRepository == nil || len(safeOutputs.DispatchRepository.Tools) == 0 {
+		return nil
+	}
+
+	var permissions *Permissions
+	globalStaged := templatableBoolIsTrue(safeOutputs.Staged)
+	for _, tool := range safeOutputs.DispatchRepository.Tools {
+		if tool == nil || isHandlerStaged(globalStaged, tool.Staged) {
+			continue
+		}
+		if excludePerToolApps && tool.GitHubApp != nil {
+			continue
+		}
+		if permissions == nil {
+			permissions = NewPermissionsContentsWrite()
+			continue
+		}
+		permissions.Merge(NewPermissionsContentsWrite())
+	}
+
 	return permissions
 }
 

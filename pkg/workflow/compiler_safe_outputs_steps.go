@@ -2,7 +2,7 @@ package workflow
 
 import (
 	"fmt"
-	"strings"
+	"sort"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -93,18 +93,58 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	var steps []string
 
 	// Add per-handler GitHub App token minting steps before the handler manager step.
-	// These run before the main handler step so the minted token expressions (e.g.
-	// ${{ steps.create-check-run-app-token.outputs.token }}) are resolved at runtime.
-	if data.SafeOutputs != nil && data.SafeOutputs.CreateCheckRun != nil && data.SafeOutputs.CreateCheckRun.GitHubApp != nil {
-		consolidatedSafeOutputsStepsLog.Print("Adding per-handler GitHub App token minting step for create-check-run")
-		var permissions *Permissions
-		if data.SafeOutputs.CreateCheckRun.Target != "" {
-			permissions = NewPermissionsChecksWritePRRead()
-		} else {
-			permissions = NewPermissionsChecksWrite()
+	// For each registered handler that has a per-handler github-app configured, mint a
+	// dedicated token step whose permissions are scoped to only that handler's needs.
+	// This implements the principle of least privilege: a workflow can assign separate
+	// apps to different outputs so each token only carries the permissions it requires.
+	if data.SafeOutputs != nil {
+		for _, handler := range safeOutputHandlers {
+			if handler.StructField == "" {
+				continue
+			}
+			handlerApp := getHandlerGitHubApp(data.SafeOutputs, handler.StructField)
+			if handlerApp == nil || handler.PermissionBuilder == nil {
+				continue
+			}
+			handlerPermissions := handler.PermissionBuilder(data.SafeOutputs)
+			if handlerPermissions == nil {
+				continue
+			}
+			stepID := handler.Key + "-app-token"
+			consolidatedSafeOutputsStepsLog.Printf("Adding per-handler GitHub App token minting step for %s", handler.Key)
+			steps = append(steps, c.buildGitHubAppTokenMintStepWithMeta(
+				handlerApp,
+				handlerPermissions,
+				"",
+				"",
+				fmt.Sprintf("Generate GitHub App token (%s)", handler.Key),
+				stepID,
+			)...)
 		}
-		for _, step := range c.buildGitHubAppTokenMintStep(data.SafeOutputs.CreateCheckRun.GitHubApp, permissions, "") {
-			steps = append(steps, replaceStepID(step, "safe-outputs-app-token", "create-check-run-app-token"))
+
+		if data.SafeOutputs.DispatchRepository != nil && len(data.SafeOutputs.DispatchRepository.Tools) > 0 {
+			toolKeys := make([]string, 0, len(data.SafeOutputs.DispatchRepository.Tools))
+			for toolKey := range data.SafeOutputs.DispatchRepository.Tools {
+				toolKeys = append(toolKeys, toolKey)
+			}
+			sort.Strings(toolKeys)
+			globalStaged := templatableBoolIsTrue(data.SafeOutputs.Staged)
+			for _, toolKey := range toolKeys {
+				tool := data.SafeOutputs.DispatchRepository.Tools[toolKey]
+				if tool == nil || tool.GitHubApp == nil || isHandlerStaged(globalStaged, tool.Staged) {
+					continue
+				}
+				stepID := dispatchRepositoryToolAppTokenStepID(toolKey)
+				consolidatedSafeOutputsStepsLog.Printf("Adding dispatch-repository GitHub App token minting step for %s", toolKey)
+				steps = append(steps, c.buildGitHubAppTokenMintStepWithMeta(
+					tool.GitHubApp,
+					NewPermissionsContentsWrite(),
+					"",
+					"",
+					fmt.Sprintf("Generate GitHub App token (dispatch-repository %s)", toolKey),
+					stepID,
+				)...)
+			}
 		}
 	}
 
@@ -297,10 +337,4 @@ func (c *Compiler) buildHandlerManagerStep(data *WorkflowData) ([]string, error)
 	steps = append(steps, generateGitHubScriptWithRequire("process_safe_outputs.cjs"))
 
 	return steps, nil
-}
-
-// replaceStepID replaces all occurrences of oldID with newID in a YAML step string.
-// Used to generate per-handler token steps from the generic safe-outputs-app-token template.
-func replaceStepID(step, oldID, newID string) string {
-	return strings.ReplaceAll(step, oldID, newID)
 }

@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
+	"unicode"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -39,6 +41,10 @@ func ValidateAbsolutePath(path string) (string, error) {
 	if path == "" {
 		fileutilLog.Print("ValidateAbsolutePath: rejected empty path")
 		return "", errors.New("path cannot be empty")
+	}
+	if strings.IndexFunc(path, unicode.IsControl) >= 0 {
+		fileutilLog.Printf("ValidateAbsolutePath: rejected path with control characters: %q", path)
+		return "", fmt.Errorf("path contains invalid control characters: %q", path)
 	}
 
 	// Sanitize the filepath to prevent path traversal attacks

@@ -104,6 +104,12 @@ func TestValidateAbsolutePath(t *testing.T) {
 			shouldError: true,
 			errorMsg:    "path must be absolute",
 		},
+		{
+			name:        "path with control character",
+			path:        "/tmp/gh-aw\nrepo",
+			shouldError: true,
+			errorMsg:    "invalid control characters",
+		},
 	}
 
 	// Add Windows-specific tests only on Windows

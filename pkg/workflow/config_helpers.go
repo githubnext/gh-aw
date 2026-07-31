@@ -184,6 +184,8 @@ func unmarshalConfig(m map[string]any, key string, target any, debugLog *logger.
 		debugLog.Printf("Unmarshaling config for key %q into typed struct", key)
 	}
 
+	configData = normalizeGitHubAppAliases(configData)
+
 	// Marshal the config data back to YAML bytes
 	yamlBytes, err := yaml.Marshal(configData)
 	if err != nil {
@@ -200,6 +202,36 @@ func unmarshalConfig(m map[string]any, key string, target any, debugLog *logger.
 	}
 
 	return nil
+}
+
+func normalizeGitHubAppAliases(value any) any {
+	switch typed := value.(type) {
+	case map[string]any:
+		normalized := make(map[string]any, len(typed))
+		for key, nested := range typed {
+			normalizedValue := normalizeGitHubAppAliases(nested)
+			if key == "github-app" {
+				if appMap, ok := normalizedValue.(map[string]any); ok {
+					if _, hasClientID := appMap["client-id"]; !hasClientID {
+						if appID, hasAppID := appMap["app-id"]; hasAppID {
+							appMap["client-id"] = appID
+						}
+					}
+					normalizedValue = appMap
+				}
+			}
+			normalized[key] = normalizedValue
+		}
+		return normalized
+	case []any:
+		normalized := make([]any, len(typed))
+		for i, nested := range typed {
+			normalized[i] = normalizeGitHubAppAliases(nested)
+		}
+		return normalized
+	default:
+		return value
+	}
 }
 
 // parseConfigScaffold is the generic parser scaffold for safe-output handler config parsers.

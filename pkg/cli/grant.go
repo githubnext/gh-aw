@@ -155,12 +155,10 @@ func grantPolicyFile() (string, error) {
 func grantRunOnImage(imageRef, policyFile string, verbose bool) (*grantOutput, error) {
 	containerPolicyPath := grantContainerPolicyPath
 
-	imageRef = strings.TrimSpace(imageRef)
-	if imageRef == "" {
-		return nil, errors.New("grant image reference cannot be empty. Example: ghcr.io/example/image:tag")
-	}
-	if strings.ContainsAny(imageRef, " \t\r\n\x00") {
-		return nil, fmt.Errorf("grant image reference contains invalid whitespace/control characters. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+	var err error
+	imageRef, err = validateDockerImageRef(imageRef)
+	if err != nil {
+		return nil, err
 	}
 
 	dockerPath, err := fileutil.ResolveExecutablePath("docker")

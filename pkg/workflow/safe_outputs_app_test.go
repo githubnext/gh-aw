@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -311,9 +312,11 @@ Test workflow with discussions permission.
 	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
-// TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission tests that issues read permission
+// TestSafeOutputsAppTokenUpdateProjectIssuesWritePermission tests that issues write permission
 // is included in the GitHub App token minting step when update-project is configured.
-func TestSafeOutputsAppTokenUpdateProjectIssuesReadPermission(t *testing.T) {
+// The safe_outputs job also includes the built-in report_incomplete issue path, so the
+// least-privilege token must be able to write issues, not just read them.
+func TestSafeOutputsAppTokenUpdateProjectIssuesWritePermission(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
@@ -348,13 +351,15 @@ Test workflow with update-project permissions.
 	stepsStr := strings.Join(job.Steps, "")
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
-	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
+	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission for issue-backed project items and built-in report_incomplete issue creation")
 	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
-// TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesReadPermission tests that issues read permission
+// TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesWritePermission tests that issues write permission
 // is included in the GitHub App token minting step when create-project is configured with item_url.
-func TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesReadPermission(t *testing.T) {
+// The safe_outputs job also includes the built-in report_incomplete issue path, so the
+// least-privilege token must be able to write issues, not just read them.
+func TestSafeOutputsAppTokenCreateProjectWithItemURLIssuesWritePermission(t *testing.T) {
 	compiler := NewCompiler(WithVersion("1.0.0"))
 
 	markdown := `---
@@ -389,7 +394,7 @@ Test workflow with create-project item_url permissions.
 	stepsStr := strings.Join(job.Steps, "")
 
 	assert.Contains(t, stepsStr, "permission-organization-projects: write", "GitHub App token should include organization projects write permission")
-	assert.Contains(t, stepsStr, "permission-issues: read", "GitHub App token should include issues read permission for issue-backed project items")
+	assert.Contains(t, stepsStr, "permission-issues: write", "GitHub App token should include issues write permission for issue-backed project items and built-in report_incomplete issue creation")
 	assert.NotContains(t, stepsStr, "permission-contents: read", "GitHub App token should not include contents read permission for output-only handlers")
 }
 
@@ -613,4 +618,307 @@ func TestSafeOutputsCreateCheckRunAppTokenMinimalPermissions(t *testing.T) {
 		assert.NotContains(t, stepsStr, "permission-contents: read",
 			"App token must not include contents:read for create-check-run")
 	})
+}
+
+// TestSafeOutputsPerHandlerGitHubAppAddComment tests that when add-comment has its own
+// github-app override, a dedicated token step is minted using only issues:write, and the
+// handler config references that per-handler token (not the global token).
+func TestSafeOutputsPerHandlerGitHubAppAddComment(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.GLOBAL_APP_ID }}",
+				PrivateKey: "${{ secrets.GLOBAL_APP_PRIVATE_KEY }}",
+			},
+			AddComments: &AddCommentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ISSUE_APP_ID }}",
+						PrivateKey: "${{ secrets.ISSUE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Per-handler token step must be present with the correct step ID
+	assert.Contains(t, stepsStr, "id: add-comment-app-token",
+		"Per-handler app token step for add-comment must be present")
+
+	// The per-handler step must use the handler-scoped app credentials
+	assert.Contains(t, stepsStr, "${{ vars.ISSUE_APP_ID }}",
+		"Per-handler token step must use the handler-level app-id")
+
+	// The per-handler token must use only issues:write (not broader permissions)
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"Per-handler token must include issues:write")
+
+	// Handler config must reference the per-handler token step
+	assert.Contains(t, stepsStr, "steps.add-comment-app-token.outputs.token",
+		"Handler config must reference the per-handler token step output")
+}
+
+// TestSafeOutputsPerHandlerGitHubAppDispatchWorkflow tests that when dispatch-workflow has
+// its own github-app override, a dedicated token step is minted with actions:write
+// and the handler config references that token.
+func TestSafeOutputsPerHandlerGitHubAppDispatchWorkflow(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.GLOBAL_APP_ID }}",
+				PrivateKey: "${{ secrets.GLOBAL_APP_PRIVATE_KEY }}",
+			},
+			DispatchWorkflow: &DispatchWorkflowConfig{
+				Workflows: []string{"my-downstream.yml"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ACTIONS_APP_ID }}",
+						PrivateKey: "${{ secrets.ACTIONS_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Per-handler token step must be present with the correct step ID
+	assert.Contains(t, stepsStr, "id: dispatch-workflow-app-token",
+		"Per-handler app token step for dispatch-workflow must be present")
+
+	// The per-handler step must use the handler-scoped app credentials
+	assert.Contains(t, stepsStr, "${{ vars.ACTIONS_APP_ID }}",
+		"Per-handler token step must use the handler-level app-id")
+
+	// Handler config must reference the per-handler token step
+	assert.Contains(t, stepsStr, "steps.dispatch-workflow-app-token.outputs.token",
+		"Handler config must reference the per-handler token step output")
+}
+
+// TestSafeOutputsPerHandlerGitHubAppMultipleHandlers tests the scenario from the issue:
+// two separate apps, one for issues (add-comment) and one for actions (dispatch-workflow).
+// Each handler must mint its own token with only its required permissions.
+// The global token step must not appear when all handlers have per-handler overrides.
+func TestSafeOutputsPerHandlerGitHubAppMultipleHandlers(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			AddComments: &AddCommentConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ISSUE_APP_ID }}",
+						PrivateKey: "${{ secrets.ISSUE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			DispatchWorkflow: &DispatchWorkflowConfig{
+				Workflows: []string{"my-downstream.yml"},
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ACTIONS_APP_ID }}",
+						PrivateKey: "${{ secrets.ACTIONS_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Both per-handler token steps must be present
+	assert.Contains(t, stepsStr, "id: add-comment-app-token",
+		"Per-handler app token step for add-comment must be present")
+	assert.Contains(t, stepsStr, "id: dispatch-workflow-app-token",
+		"Per-handler app token step for dispatch-workflow must be present")
+
+	// Each step references its own app credentials
+	assert.Contains(t, stepsStr, "${{ vars.ISSUE_APP_ID }}",
+		"add-comment token step must reference issues app-id")
+	assert.Contains(t, stepsStr, "${{ vars.ACTIONS_APP_ID }}",
+		"dispatch-workflow token step must reference actions app-id")
+
+	// The global safe-outputs token step must not appear (no global github-app configured)
+	assert.NotContains(t, stepsStr, "id: safe-outputs-app-token",
+		"Global token step must not appear when no global github-app is configured")
+
+	// Each handler must reference its own per-handler token
+	assert.Contains(t, stepsStr, "steps.add-comment-app-token.outputs.token",
+		"add-comment handler config must reference its per-handler token")
+	assert.Contains(t, stepsStr, "steps.dispatch-workflow-app-token.outputs.token",
+		"dispatch-workflow handler config must reference its per-handler token")
+}
+
+func TestSafeOutputsPerHandlerGitHubAppReportIncomplete(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			ReportIncomplete: &ReportIncompleteConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.INCOMPLETE_APP_ID }}",
+						PrivateKey: "${{ secrets.INCOMPLETE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
+	stepsStr := strings.Join(steps, "")
+	assert.Contains(t, stepsStr, "id: report-incomplete-app-token")
+	assert.Contains(t, stepsStr, "permission-issues: write")
+	assert.Contains(t, stepsStr, "steps.report-incomplete-app-token.outputs.token")
+}
+
+func TestSafeOutputsPerHandlerGitHubAppCloseHandlers(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CloseIssues: &CloseIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.CLOSE_ISSUE_APP_ID }}",
+						PrivateKey: "${{ secrets.CLOSE_ISSUE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			CloseDiscussions: &CloseDiscussionsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.CLOSE_DISCUSSION_APP_ID }}",
+						PrivateKey: "${{ secrets.CLOSE_DISCUSSION_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err)
+
+	stepsStr := strings.Join(job.Steps, "")
+	assert.Contains(t, stepsStr, "id: close-issue-app-token")
+	assert.Contains(t, stepsStr, "steps.close-issue-app-token.outputs.token")
+	assert.Contains(t, stepsStr, "id: close-discussion-app-token")
+	assert.Contains(t, stepsStr, "steps.close-discussion-app-token.outputs.token")
+}
+
+func TestSafeOutputsPerHandlerGitHubAppDispatchRepository(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			DispatchRepository: &DispatchRepositoryConfig{
+				Tools: map[string]*DispatchRepositoryToolConfig{
+					"trigger-ci": {
+						Workflow:    "ci.yml",
+						EventType:   "ci_trigger",
+						Repository:  "github/gh-aw",
+						Max:         strPtr("1"),
+						GitHubApp:   &GitHubAppConfig{AppID: "${{ vars.DISPATCH_APP_ID }}", PrivateKey: "${{ secrets.DISPATCH_APP_PRIVATE_KEY }}"},
+						GitHubToken: "${{ secrets.FALLBACK_TOKEN }}",
+					},
+				},
+			},
+		},
+	}
+
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
+	stepsStr := strings.Join(steps, "")
+	assert.Contains(t, stepsStr, "id: dispatch-repository-trigger_ci-app-token")
+	assert.Contains(t, stepsStr, "permission-contents: write")
+	assert.Contains(t, stepsStr, "steps.dispatch-repository-trigger_ci-app-token.outputs.token")
+}
+
+func TestGetHandlerGitHubAppRegisteredHandlers(t *testing.T) {
+	config := &SafeOutputsConfig{}
+	configValue := reflect.ValueOf(config).Elem()
+	appFieldType := reflect.TypeFor[*GitHubAppConfig]()
+
+	for _, handler := range safeOutputHandlers {
+		if handler.StructField == "" {
+			continue
+		}
+
+		field := configValue.FieldByName(handler.StructField)
+		if !field.IsValid() || field.Kind() != reflect.Pointer || !field.CanSet() {
+			continue
+		}
+
+		handlerValue := reflect.New(field.Type().Elem())
+		inner := handlerValue.Elem()
+		expected := &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}
+
+		switch {
+		case inner.FieldByName("GitHubApp").IsValid() && inner.FieldByName("GitHubApp").Type() == appFieldType:
+			inner.FieldByName("GitHubApp").Set(reflect.ValueOf(expected))
+		case inner.FieldByName("BaseSafeOutputConfig").IsValid():
+			baseField := inner.FieldByName("BaseSafeOutputConfig")
+			appField := baseField.FieldByName("GitHubApp")
+			if !appField.IsValid() || appField.Type() != appFieldType {
+				continue
+			}
+			appField.Set(reflect.ValueOf(expected))
+		default:
+			continue
+		}
+
+		field.Set(handlerValue)
+		assert.Same(t, expected, getHandlerGitHubApp(config, handler.StructField), handler.StructField)
+		field.Set(reflect.Zero(field.Type()))
+	}
+}
+
+func TestResolveHandlerGitHubTokenFallbackForHandlersWithoutPerHandlerMinting(t *testing.T) {
+	app := &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}
+	const fallback = "${{ secrets.FALLBACK_TOKEN }}"
+
+	for _, handlerKey := range []string{"missing-tool", "missing-data", "upload-asset", "upload-artifact"} {
+		t.Run(handlerKey, func(t *testing.T) {
+			assert.Equal(t, fallback, resolveHandlerGitHubToken(app, handlerKey, fallback))
+			assert.Empty(t, resolveHandlerGitHubToken(app, handlerKey, ""))
+		})
+	}
+}
+
+func TestResolveHandlerGitHubTokenUsesDedicatedMintStepForSupportedHandlers(t *testing.T) {
+	app := &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}
+
+	assert.Equal(t,
+		"${{ steps.report-incomplete-app-token.outputs.token }}",
+		resolveHandlerGitHubToken(app, "report-incomplete", "${{ secrets.FALLBACK_TOKEN }}"),
+	)
+	assert.Equal(t,
+		"${{ steps.close-issue-app-token.outputs.token }}",
+		resolveHandlerGitHubToken(app, "close-issue", "${{ secrets.FALLBACK_TOKEN }}"),
+	)
 }

@@ -518,7 +518,7 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 	threatDetectionEnabled := opts.threatDetectionEnabled
 
 	// Build and insert preamble token minting steps (GitHub App tokens) before checkout/safe-output steps.
-	preambleTokenSteps := c.buildPreambleTokenSteps(data, outputs, permissions)
+	preambleTokenSteps := c.buildPreambleTokenSteps(data, outputs)
 	if len(preambleTokenSteps) > 0 {
 		steps = c.insertPreambleTokenStepsIntoSteps(steps, preambleTokenSteps, data, agentArtifactPrefix)
 	}
@@ -563,17 +563,23 @@ func (c *Compiler) buildSafeOutputsJobFromParts(
 
 // buildPreambleTokenSteps builds GitHub App token minting steps that must be inserted before
 // checkout and safe-output handler steps. It also mutates outputs to track minting failures.
-func (c *Compiler) buildPreambleTokenSteps(data *WorkflowData, outputs map[string]string, permissions *Permissions) []string {
+func (c *Compiler) buildPreambleTokenSteps(data *WorkflowData, outputs map[string]string) []string {
 	var preambleTokenSteps []string
 	if data.SafeOutputs.GitHubApp != nil {
 		outputs["app_token_minting_failed"] = "${{ steps.safe-outputs-app-token.outcome == 'failure' }}"
+		appPermissions := computePermissionsForSafeOutputs(data.SafeOutputs, true)
+		if appPermissions != nil && len(appPermissions.permissions) == 0 {
+			appPermissions = NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
+				PermissionMetadata: PermissionRead,
+			})
+		}
 		var appTokenFallbackRepo string
 		if hasWorkflowCallTrigger(data.On) {
 			appTokenFallbackRepo = "${{ needs.activation.outputs.target_repo_name }}"
 		}
 		preambleTokenSteps = append(preambleTokenSteps, c.buildGitHubAppTokenMintStepForRepository(
 			data.SafeOutputs.GitHubApp,
-			permissions,
+			appPermissions,
 			appTokenFallbackRepo,
 			inferSingleCheckoutRepositoryForGitHubAppOwner(data),
 		)...)
