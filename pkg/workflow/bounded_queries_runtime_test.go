@@ -159,17 +159,25 @@ tools:
 	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0o644))
 
 	compiler := NewCompiler()
-	require.NoError(t, compiler.CompileWorkflow(testFile))
 
+	// Capture stderr to verify the experimental sbx warning is emitted by the compiler.
+	stderr := captureStderrOutput(t, func() {
+		require.NoError(t, compiler.CompileWorkflow(testFile))
+	})
+
+	// Assert the exact AWF config JSON fragment is present in the lock file.
+	// The JSON is embedded with double-quote escaping inside the printf shell command,
+	// so double quotes appear as \" in the lock YAML content.
 	lockContent, err := os.ReadFile(filepath.Join(workflowsDir, "test-sbx-bounded-query.lock.yml"))
 	require.NoError(t, err)
-	assert.Contains(t, string(lockContent), "sbx")
-	assert.NotContains(t, string(lockContent), `"runtime":"docker-sbx"`)
-	assert.True(t, usesSbxBoundedQueryRuntime(&WorkflowData{
-		ParsedTools: &ToolsConfig{
-			GitHub: &GitHubToolConfig{
-				BoundedQueries: &BoundedQueriesConfig{Runtime: BoundedQueryRuntimeSbx},
-			},
-		},
-	}))
+	assert.Contains(t, string(lockContent), `\"runtime\":\"sbx\"`,
+		"AWF config JSON must contain the exact boundedQueries.runtime:sbx field")
+	assert.Contains(t, string(lockContent), `\"boundedQueries\":{\"enabled\":true`,
+		"AWF config JSON must contain the boundedQueries section with enabled:true")
+	assert.NotContains(t, string(lockContent), `\"runtime\":\"docker-sbx\"`,
+		"sbx bounded-query runtime must not be mapped to docker-sbx")
+
+	// Verify the compiler emits the experimental sbx warning to stderr.
+	assert.Contains(t, stderr, "runtime: sbx is experimental",
+		"compiler must emit the experimental-sbx warning to stderr")
 }
