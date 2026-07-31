@@ -323,16 +323,19 @@ function extractAssistantTextFromJsonlLog(logContent) {
     } catch {
       continue;
     }
-    // v3 schema: turn_end carries the complete assistant message
-    if (obj.type === "turn_end" && obj.message && Array.isArray(obj.message.content)) {
+    // v3 schema: turn_end carries the complete assistant message.
+    // Claude engine's native stream-json format also emits a top-level
+    // "assistant" event with the same nested message.content array shape
+    // (e.g. `{"type":"assistant","message":{"content":[{"type":"text","text":...}]}}`),
+    // so both are handled identically here.
+    if ((obj.type === "turn_end" || obj.type === "assistant") && obj.message && Array.isArray(obj.message.content)) {
       for (const part of obj.message.content) {
         if (part && typeof part.text === "string") {
           texts.push(part.text);
         }
       }
-    }
-    // v1 legacy schema: assistant event carries raw text content
-    if (obj.type === "assistant" && typeof obj.content === "string" && obj.content) {
+      // v1 legacy schema: assistant event carries raw text content directly
+    } else if (obj.type === "assistant" && typeof obj.content === "string" && obj.content) {
       texts.push(obj.content);
     }
   }

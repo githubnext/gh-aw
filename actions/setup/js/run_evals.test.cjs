@@ -179,6 +179,45 @@ describe("run_evals.cjs", () => {
     expect(JSON.parse(line).answer).toBe("YES");
   });
 
+  it("parses multiple ID-based answers from Claude engine's native assistant JSONL event", async () => {
+    // Regression test: Claude's stream-json format emits a top-level "assistant" event
+    // with a nested message.content array (not the v1 legacy plain-string content, nor
+    // the v3 turn_end wrapper). Previously this shape was not decoded, so the raw
+    // un-decoded JSON (with literal "\n" escape sequences) was searched instead,
+    // breaking \b word-boundary matching for any question ID following an embedded
+    // newline and causing spurious UNKNOWN answers.
+    vi.stubEnv(
+      "GH_AW_EVALS_QUESTIONS",
+      JSON.stringify([
+        { id: "adr-check-performed", question: "Checked?" },
+        { id: "action-taken", question: "Action taken?" },
+        { id: "decision-justified", question: "Justified?" },
+      ])
+    );
+    vi.stubEnv("GH_AW_EVALS_MODEL", "small");
+    vi.stubEnv("GITHUB_RUN_ID", "999");
+
+    const assistantEvent = JSON.stringify({
+      type: "assistant",
+      message: {
+        model: "claude-sonnet-4-6",
+        role: "assistant",
+        content: [{ type: "text", text: "adr-check-performed: NO\naction-taken: YES\ndecision-justified: YES" }],
+      },
+    });
+    fs.writeFileSync(EVALS_LOG_PATH, assistantEvent + "\n", "utf8");
+
+    await parseMain();
+
+    const lines = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
+    const results = Object.fromEntries(lines.map(l => [JSON.parse(l).id, JSON.parse(l).answer]));
+    expect(results).toEqual({
+      "adr-check-performed": "NO",
+      "action-taken": "YES",
+      "decision-justified": "YES",
+    });
+  });
+
   it('keeps missing answers as "UNKNOWN"', async () => {
     vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
     vi.stubEnv("GH_AW_EVALS_MODEL", "small");
@@ -207,6 +246,16 @@ describe("run_evals.cjs", () => {
     it("extracts text from v1 legacy assistant events", () => {
       const log = JSON.stringify({ type: "assistant", content: "Q1: YES" });
       expect(extractAssistantTextFromJsonlLog(log)).toBe("Q1: YES");
+    });
+
+    it("extracts text from Claude engine's native assistant events (message.content array)", () => {
+      // Claude's stream-json format emits `{"type":"assistant","message":{"content":[...]}}`,
+      // the same nested shape as turn_end but under the "assistant" type name.
+      const log = JSON.stringify({
+        type: "assistant",
+        message: { model: "claude-sonnet-4-6", role: "assistant", content: [{ type: "text", text: "adr-check-performed: NO\naction-taken: YES\ndecision-justified: YES" }] },
+      });
+      expect(extractAssistantTextFromJsonlLog(log)).toBe("adr-check-performed: NO\naction-taken: YES\ndecision-justified: YES");
     });
 
     it("joins multiple assistant messages with newlines", () => {
