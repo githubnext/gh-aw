@@ -893,3 +893,28 @@ func TestGetHandlerGitHubAppRegisteredHandlers(t *testing.T) {
 		field.Set(reflect.Zero(field.Type()))
 	}
 }
+
+func TestResolveHandlerGitHubTokenFallbackForHandlersWithoutPerHandlerMinting(t *testing.T) {
+	app := &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}
+	const fallback = "${{ secrets.FALLBACK_TOKEN }}"
+
+	for _, handlerKey := range []string{"missing-tool", "missing-data", "upload-asset", "upload-artifact"} {
+		t.Run(handlerKey, func(t *testing.T) {
+			assert.Equal(t, fallback, resolveHandlerGitHubToken(app, handlerKey, fallback))
+			assert.Empty(t, resolveHandlerGitHubToken(app, handlerKey, ""))
+		})
+	}
+}
+
+func TestResolveHandlerGitHubTokenUsesDedicatedMintStepForSupportedHandlers(t *testing.T) {
+	app := &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}
+
+	assert.Equal(t,
+		"${{ steps.report-incomplete-app-token.outputs.token }}",
+		resolveHandlerGitHubToken(app, "report-incomplete", "${{ secrets.FALLBACK_TOKEN }}"),
+	)
+	assert.Equal(t,
+		"${{ steps.close-issue-app-token.outputs.token }}",
+		resolveHandlerGitHubToken(app, "close-issue", "${{ secrets.FALLBACK_TOKEN }}"),
+	)
+}
