@@ -96,6 +96,8 @@ tools:
 tracker-id: daily-compiler-quality
 features:
   gh-aw-detection: true
+skills:
+  - githubnext/rig/skills/rig/SKILL.md@0ba73e37355f92adca11f9d596eb709e77f25332
 sandbox:
   agent:
     sudo: false

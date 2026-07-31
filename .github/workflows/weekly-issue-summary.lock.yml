@@ -550,7 +550,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
           GH_HOST: github.com
-          GH_AW_COMPILED_VERSION: 5adcdb6
+          GH_AW_COMPILED_VERSION: 2c9487c-dirty
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.43 --rootless
       - name: Determine automatic lockdown mode for GitHub MCP Server
@@ -1520,7 +1520,7 @@ jobs:
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh"
         env:
           GH_HOST: github.com
-          GH_AW_COMPILED_VERSION: 5adcdb6
+          GH_AW_COMPILED_VERSION: 2c9487c-dirty
       - name: Install AWF binary
         run: bash "${RUNNER_TEMP}/gh-aw/actions/install_awf_binary.sh" v0.27.43
       - name: Execute GitHub Copilot CLI
