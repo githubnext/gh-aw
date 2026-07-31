@@ -45,6 +45,7 @@ func (s *stubSyncWriteCloser) String() string {
 }
 
 func TestValidateAbsolutePath(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		path        string
@@ -128,6 +129,7 @@ func TestValidateAbsolutePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result, err := ValidateAbsolutePath(tt.path)
 
 			if tt.shouldError {
@@ -148,6 +150,7 @@ func TestValidateAbsolutePath(t *testing.T) {
 }
 
 func TestValidateAbsolutePath_Cleaning(t *testing.T) {
+	t.Parallel()
 	// Test that paths are properly cleaned
 	tests := []struct {
 		name     string
@@ -178,6 +181,7 @@ func TestValidateAbsolutePath_Cleaning(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			// Only run on Unix systems for consistent path separators
 			if runtime.GOOS != "windows" {
 				result, err := ValidateAbsolutePath(tt.path)
@@ -189,6 +193,7 @@ func TestValidateAbsolutePath_Cleaning(t *testing.T) {
 }
 
 func TestValidateAbsolutePath_SecurityScenarios(t *testing.T) {
+	t.Parallel()
 	// Test common path traversal attack patterns
 	traversalPatterns := []string{
 		"../../etc/passwd",
@@ -201,6 +206,7 @@ func TestValidateAbsolutePath_SecurityScenarios(t *testing.T) {
 
 	for _, pattern := range traversalPatterns {
 		t.Run("blocks_"+strings.ReplaceAll(pattern, "/", "_"), func(t *testing.T) {
+			t.Parallel()
 			result, err := ValidateAbsolutePath(pattern)
 			require.Error(t, err, "Should reject path traversal pattern: %s", pattern)
 			require.ErrorContains(t, err, "path must be absolute", "Error should mention absolute path requirement")
@@ -210,6 +216,7 @@ func TestValidateAbsolutePath_SecurityScenarios(t *testing.T) {
 }
 
 func TestFileExists(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a real file to test against
@@ -240,6 +247,7 @@ func TestFileExists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := FileExists(tt.path)
 			assert.Equal(t, tt.expected, result, "FileExists(%q) should return %v", tt.path, tt.expected)
 		})
@@ -247,6 +255,7 @@ func TestFileExists(t *testing.T) {
 }
 
 func TestDirExists(t *testing.T) {
+	t.Parallel()
 	dir := t.TempDir()
 
 	// Create a real file to use as a non-directory path
@@ -277,6 +286,7 @@ func TestDirExists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := DirExists(tt.path)
 			assert.Equal(t, tt.expected, result, "DirExists(%q) should return %v", tt.path, tt.expected)
 		})
@@ -284,7 +294,9 @@ func TestDirExists(t *testing.T) {
 }
 
 func TestEnsureParentDir(t *testing.T) {
+	t.Parallel()
 	t.Run("creates nested directories", func(t *testing.T) {
+		t.Parallel()
 		baseDir := t.TempDir()
 		targetPath := filepath.Join(baseDir, "nested", "deep", "file.txt")
 
@@ -296,6 +308,7 @@ func TestEnsureParentDir(t *testing.T) {
 	})
 
 	t.Run("is idempotent when parent already exists", func(t *testing.T) {
+		t.Parallel()
 		baseDir := t.TempDir()
 		targetPath := filepath.Join(baseDir, "nested", "deep", "file.txt")
 
@@ -304,11 +317,13 @@ func TestEnsureParentDir(t *testing.T) {
 	})
 
 	t.Run("rejects empty path", func(t *testing.T) {
+		t.Parallel()
 		err := EnsureParentDir("", 0o755)
 		require.ErrorContains(t, err, "path cannot be empty")
 	})
 
 	t.Run("returns error when parent cannot be created", func(t *testing.T) {
+		t.Parallel()
 		baseDir := t.TempDir()
 		blockingFile := filepath.Join(baseDir, "blocking")
 		require.NoError(t, os.WriteFile(blockingFile, []byte{}, 0o644))
@@ -319,18 +334,22 @@ func TestEnsureParentDir(t *testing.T) {
 }
 
 func TestIsDirEmpty(t *testing.T) {
+	t.Parallel()
 	t.Run("empty directory returns true", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		assert.True(t, IsDirEmpty(dir), "Newly created temp dir should be empty")
 	})
 
 	t.Run("non-empty directory returns false", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "file.txt"), []byte("data"), 0600), "Should create file in dir")
 		assert.False(t, IsDirEmpty(dir), "Dir with a file should not be empty")
 	})
 
 	t.Run("unreadable directory returns true", func(t *testing.T) {
+		t.Parallel()
 		if runtime.GOOS == "windows" {
 			t.Skip("Permission-based test not applicable on Windows")
 		}
@@ -343,7 +362,9 @@ func TestIsDirEmpty(t *testing.T) {
 }
 
 func TestCopyFile(t *testing.T) {
+	t.Parallel()
 	t.Run("successful copy", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		src := filepath.Join(dir, "src.txt")
 		dst := filepath.Join(dir, "dst.txt")
@@ -360,6 +381,7 @@ func TestCopyFile(t *testing.T) {
 	})
 
 	t.Run("missing source file returns error", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		src := filepath.Join(dir, "nonexistent.txt")
 		dst := filepath.Join(dir, "dst.txt")
@@ -369,6 +391,7 @@ func TestCopyFile(t *testing.T) {
 	})
 
 	t.Run("missing destination directory returns error", func(t *testing.T) {
+		t.Parallel()
 		dir := t.TempDir()
 		src := filepath.Join(dir, "src.txt")
 		dst := filepath.Join(dir, "missing_dir", "dst.txt")
@@ -380,6 +403,7 @@ func TestCopyFile(t *testing.T) {
 	})
 
 	t.Run("destination file is removed on io.Copy write failure", func(t *testing.T) {
+		t.Parallel()
 		// /dev/full is a Linux special device that always returns ENOSPC on
 		// writes, making it the most reliable way to inject an io.Copy error
 		// without modifying CopyFile's signature.
@@ -409,7 +433,9 @@ func TestCopyFile(t *testing.T) {
 }
 
 func TestCopyFileContents(t *testing.T) {
+	t.Parallel()
 	t.Run("returns close error after successful sync", func(t *testing.T) {
+		t.Parallel()
 		closeErr := errors.New("close failed")
 		out := &stubSyncWriteCloser{closeErr: closeErr}
 
@@ -421,6 +447,7 @@ func TestCopyFileContents(t *testing.T) {
 	})
 
 	t.Run("preserves copy error and closes destination once", func(t *testing.T) {
+		t.Parallel()
 		writeErr := errors.New("write failed")
 		closeErr := errors.New("close failed")
 		out := &stubSyncWriteCloser{
@@ -440,6 +467,7 @@ func TestCopyFileContents(t *testing.T) {
 }
 
 func TestValidatePathWithinBase(t *testing.T) {
+	t.Parallel()
 	base := t.TempDir()
 
 	tests := []struct {
@@ -481,6 +509,7 @@ func TestValidatePathWithinBase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidatePathWithinBase(base, tt.candidate)
 			if tt.shouldErr {
 				require.Error(t, err, "ValidatePathWithinBase should reject path %q relative to %q", tt.candidate, base)
@@ -492,6 +521,7 @@ func TestValidatePathWithinBase(t *testing.T) {
 	}
 
 	t.Run("symlink escape", func(t *testing.T) {
+		t.Parallel()
 		// Create a real file outside the base directory.
 		outsideFile, err := os.CreateTemp("", "validatepathwithinbase-outside-*")
 		require.NoError(t, err, "failed to create outside file")
@@ -512,6 +542,7 @@ func TestValidatePathWithinBase(t *testing.T) {
 	})
 
 	t.Run("symlink directory ancestor with new file", func(t *testing.T) {
+		t.Parallel()
 		// Create a real directory outside the base to serve as the symlink target.
 		outsideDir, err := os.MkdirTemp("", "validatepathwithinbase-outsidedir-*")
 		require.NoError(t, err, "failed to create outside directory")
@@ -536,6 +567,7 @@ func TestValidatePathWithinBase(t *testing.T) {
 }
 
 func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
+	t.Parallel()
 	buildTar := func(files map[string][]byte) []byte {
 		var buf bytes.Buffer
 		tw := tar.NewWriter(&buf)
@@ -559,6 +591,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 	}
 
 	t.Run("rejects absolute path as search target", func(t *testing.T) {
+		t.Parallel()
 		archive := buildTar(map[string][]byte{"file.txt": []byte("data")})
 		got, err := ExtractFileFromTar(archive, "/etc/passwd")
 		require.Error(t, err, "Should reject absolute path as search target")
@@ -567,6 +600,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 	})
 
 	t.Run("rejects dotdot in search target", func(t *testing.T) {
+		t.Parallel()
 		archive := buildTar(map[string][]byte{"file.txt": []byte("data")})
 		got, err := ExtractFileFromTar(archive, "../escape.txt")
 		require.Error(t, err, "Should reject .. in search target")
@@ -575,6 +609,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 	})
 
 	t.Run("allows filename containing dotdot as substring", func(t *testing.T) {
+		t.Parallel()
 		want := []byte("not a traversal")
 		archive := buildTar(map[string][]byte{"file..backup.txt": want})
 		got, err := ExtractFileFromTar(archive, "file..backup.txt")
@@ -583,6 +618,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 	})
 
 	t.Run("skips tar entry with absolute name, does not match", func(t *testing.T) {
+		t.Parallel()
 		// Build archive with an absolute-named entry; it should be skipped even
 		// if the caller searches for the same name.
 		archive := buildTar(map[string][]byte{"/etc/passwd": []byte("root")})
@@ -593,6 +629,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 	})
 
 	t.Run("skips tar entry with dotdot name and returns not found", func(t *testing.T) {
+		t.Parallel()
 		archive := buildTar(map[string][]byte{"../escape.txt": []byte("bad")})
 		// Searching for the relative form that doesn't start with .. is fine as
 		// a target; the archive entry is just silently skipped.
@@ -604,6 +641,7 @@ func TestExtractFileFromTar_UnsafePaths(t *testing.T) {
 }
 
 func TestExtractFileFromTar(t *testing.T) {
+	t.Parallel()
 	// Helper to build an in-memory tar archive
 	buildTar := func(files map[string][]byte) []byte {
 		var buf bytes.Buffer
@@ -628,6 +666,7 @@ func TestExtractFileFromTar(t *testing.T) {
 	}
 
 	t.Run("found file returns its content", func(t *testing.T) {
+		t.Parallel()
 		want := []byte("hello from tar")
 		archive := buildTar(map[string][]byte{"subdir/file.txt": want})
 
@@ -637,6 +676,7 @@ func TestExtractFileFromTar(t *testing.T) {
 	})
 
 	t.Run("file not found returns error", func(t *testing.T) {
+		t.Parallel()
 		archive := buildTar(map[string][]byte{"other.txt": []byte("data")})
 
 		got, err := ExtractFileFromTar(archive, "missing.txt")
@@ -646,6 +686,7 @@ func TestExtractFileFromTar(t *testing.T) {
 	})
 
 	t.Run("corrupted archive returns error", func(t *testing.T) {
+		t.Parallel()
 		corrupted := []byte("this is not a valid tar archive")
 
 		got, err := ExtractFileFromTar(corrupted, "any.txt")

@@ -15,6 +15,7 @@ import (
 // TestSpec_EngineConstants_NameValues validates the documented engine name constant values.
 // Spec section: "## Engine Constants"
 func TestSpec_EngineConstants_NameValues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		constant constants.EngineName
@@ -40,6 +41,7 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, string(tt.constant),
 				"engine constant %s should have documented value %q", tt.name, tt.expected)
 		})
@@ -50,6 +52,7 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 // Spec section: "// All supported engine names"
 // Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
 func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
+	t.Parallel()
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
@@ -64,7 +67,9 @@ func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 // TestSpec_PublicAPI_GetEngineOption validates the documented GetEngineOption function.
 // Spec section: "// Get engine metadata"
 func TestSpec_PublicAPI_GetEngineOption(t *testing.T) {
+	t.Parallel()
 	t.Run("GetEngineOption returns EngineOption for known engine", func(t *testing.T) {
+		t.Parallel()
 		// Spec documents: opt := constants.GetEngineOption("copilot")
 		// opt.Label = "GitHub Copilot"
 		// opt.SecretName = "COPILOT_GITHUB_TOKEN"
@@ -77,12 +82,14 @@ func TestSpec_PublicAPI_GetEngineOption(t *testing.T) {
 	})
 
 	t.Run("GetEngineOption returns nil for unknown engine", func(t *testing.T) {
+		t.Parallel()
 		// Spec documents GetEngineOption returns nil for unknown engine values
 		opt := constants.GetEngineOption("unknown-engine-xyz")
 		assert.Nil(t, opt, "GetEngineOption should return nil for unknown engine names")
 	})
 
 	t.Run("EngineOption has documented fields", func(t *testing.T) {
+		t.Parallel()
 		// Spec documents EngineOption fields: Value, Label, Description, SecretName,
 		// AlternativeSecrets, EnvVarName, KeyURL, WhenNeeded
 		opt := constants.GetEngineOption("copilot")
@@ -98,6 +105,7 @@ func TestSpec_PublicAPI_GetEngineOption(t *testing.T) {
 // TestSpec_PublicAPI_GetAllEngineSecretNames validates the documented helper function.
 // Spec section: "// Get all secret names for all engines"
 func TestSpec_PublicAPI_GetAllEngineSecretNames(t *testing.T) {
+	t.Parallel()
 	secrets := constants.GetAllEngineSecretNames()
 	require.NotEmpty(t, secrets, "GetAllEngineSecretNames should return non-empty slice")
 
@@ -112,7 +120,9 @@ func TestSpec_PublicAPI_GetAllEngineSecretNames(t *testing.T) {
 // Spec: "Selected semantic types implement String() and IsValid(). EngineName and FeatureFlag
 // are plain typed strings without these methods — use direct string() conversion."
 func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
+	t.Parallel()
 	t.Run("EngineName string representation", func(t *testing.T) {
+		t.Parallel()
 		// EngineName is a plain typed string; use string() conversion directly.
 		e := constants.CopilotEngine
 		assert.Equal(t, "copilot", string(e),
@@ -124,6 +134,7 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 	})
 
 	t.Run("FeatureFlag string representation", func(t *testing.T) {
+		t.Parallel()
 		// FeatureFlag is a plain typed string; use string() conversion directly.
 		f := constants.MCPGatewayFeatureFlag
 		assert.NotEmpty(t, string(f),
@@ -131,6 +142,7 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 	})
 
 	t.Run("JobName implements String and IsValid", func(t *testing.T) {
+		t.Parallel()
 		j := constants.AgentJobName
 		// From spec: AgentJobName // "agent"
 		assert.Equal(t, "agent", j.String(),
@@ -144,6 +156,7 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 	})
 
 	t.Run("StepID implements String and IsValid", func(t *testing.T) {
+		t.Parallel()
 		s := constants.CheckMembershipStepID
 		// From spec: CheckMembershipStepID // "check_membership"
 		assert.Equal(t, "check_membership", s.String(),
@@ -157,6 +170,7 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 	})
 
 	t.Run("CommandPrefix implements String and IsValid", func(t *testing.T) {
+		t.Parallel()
 		// From spec: CLIExtensionPrefix // "gh aw" — user-facing CLI prefix
 		p := constants.CLIExtensionPrefix
 		assert.Equal(t, "gh aw", p.String(),
@@ -170,6 +184,7 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 	})
 
 	t.Run("Version implements String and IsValid", func(t *testing.T) {
+		t.Parallel()
 		v := constants.Version("1.0.0")
 		assert.Equal(t, "1.0.0", v.String(),
 			"Version.String() should return the underlying string value")
@@ -185,6 +200,7 @@ func TestSpec_SemanticTypes_StringAndIsValid(t *testing.T) {
 // TestSpec_FormattingConstants_Values validates the documented formatting constant values.
 // Spec section: "## Formatting Constants"
 func TestSpec_FormattingConstants_Values(t *testing.T) {
+	t.Parallel()
 	// From spec: MaxExpressionLineLength // 120 — maximum line length for YAML expressions
 	assert.Equal(t, constants.MaxExpressionLineLength, constants.LineLength(120),
 		"MaxExpressionLineLength should be 120 as documented")
@@ -201,6 +217,7 @@ func TestSpec_FormattingConstants_Values(t *testing.T) {
 // TestSpec_NetworkPorts_Values validates the documented network port constant values.
 // Spec section: "## Network Port Constants"
 func TestSpec_NetworkPorts_Values(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		actual   int
@@ -228,6 +245,7 @@ func TestSpec_NetworkPorts_Values(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.actual,
 				"port constant %s should have documented value %d", tt.name, tt.expected)
 		})
@@ -237,6 +255,7 @@ func TestSpec_NetworkPorts_Values(t *testing.T) {
 // TestSpec_RuntimeConfiguration_Timeouts validates the documented timeout constants.
 // Spec section: "## Runtime Configuration"
 func TestSpec_RuntimeConfiguration_Timeouts(t *testing.T) {
+	t.Parallel()
 	// From spec: DefaultAgenticWorkflowTimeout // 20 * time.Minute
 	assert.Equal(t, 20*time.Minute, constants.DefaultAgenticWorkflowTimeout,
 		"DefaultAgenticWorkflowTimeout should be 20 minutes as documented")
@@ -253,6 +272,7 @@ func TestSpec_RuntimeConfiguration_Timeouts(t *testing.T) {
 // TestSpec_RuntimeConfiguration_RateLimits validates the documented rate limit constants.
 // Spec section: "// Rate limits"
 func TestSpec_RuntimeConfiguration_RateLimits(t *testing.T) {
+	t.Parallel()
 	// From spec: DefaultRateLimitMax // 5 — max runs per window
 	assert.Equal(t, 5, constants.DefaultRateLimitMax,
 		"DefaultRateLimitMax should be 5 as documented")
@@ -265,6 +285,7 @@ func TestSpec_RuntimeConfiguration_RateLimits(t *testing.T) {
 // TestSpec_FeatureFlags_Values validates the documented feature flag constant values.
 // Spec section: "## Feature Flags"
 func TestSpec_FeatureFlags_Values(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		constant constants.FeatureFlag
@@ -290,6 +311,7 @@ func TestSpec_FeatureFlags_Values(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, string(tt.constant),
 				"feature flag %s should have documented string value %q", tt.name, tt.expected)
 		})
@@ -299,6 +321,7 @@ func TestSpec_FeatureFlags_Values(t *testing.T) {
 // TestSpec_MCPServerIDs_Values validates the documented MCP server ID constants.
 // Spec section: "### MCP Server IDs"
 func TestSpec_MCPServerIDs_Values(t *testing.T) {
+	t.Parallel()
 	// From spec: SafeOutputsMCPServerID // "safeoutputs"
 	assert.Equal(t, "safeoutputs", string(constants.SafeOutputsMCPServerID),
 		"SafeOutputsMCPServerID should be 'safeoutputs' as documented")
@@ -319,6 +342,7 @@ func TestSpec_MCPServerIDs_Values(t *testing.T) {
 // TestSpec_JobNames_Values validates the documented job name constant values.
 // Spec section: "### Job Names"
 func TestSpec_JobNames_Values(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		constant constants.JobName
@@ -336,6 +360,7 @@ func TestSpec_JobNames_Values(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.constant.String(),
 				"job name %s should have documented value %q", tt.name, tt.expected)
 			assert.True(t, tt.constant.IsValid(),
@@ -347,6 +372,7 @@ func TestSpec_JobNames_Values(t *testing.T) {
 // TestSpec_VersionConstraints_MinVersionValues validates the documented minimum version constraints.
 // Spec section: "### Minimum Version Constraints"
 func TestSpec_VersionConstraints_MinVersionValues(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		constant constants.Version
@@ -366,6 +392,7 @@ func TestSpec_VersionConstraints_MinVersionValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.constant.String(),
 				"version constraint %s should have documented value %q", tt.name, tt.expected)
 		})
@@ -375,6 +402,7 @@ func TestSpec_VersionConstraints_MinVersionValues(t *testing.T) {
 // TestSpec_SystemSecrets_GlobalSlice validates the documented SystemSecrets global variable.
 // Spec section: "### SystemSecretSpec"
 func TestSpec_SystemSecrets_GlobalSlice(t *testing.T) {
+	t.Parallel()
 	// Spec: "SystemSecrets is the global []SystemSecretSpec slice containing
 	// GH_AW_GITHUB_TOKEN, GH_AW_AGENT_TOKEN, and GH_AW_GITHUB_MCP_SERVER_TOKEN."
 	secrets := constants.SystemSecrets
@@ -396,6 +424,7 @@ func TestSpec_SystemSecrets_GlobalSlice(t *testing.T) {
 // for the OpenCode engine.
 // Spec section: "### Model Environment Variables"
 func TestSpec_ModelEnvVars_OpenCode(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		actual   string
@@ -411,6 +440,7 @@ func TestSpec_ModelEnvVars_OpenCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.actual,
 				"model env var %s should have documented value %q", tt.name, tt.expected)
 		})
@@ -421,6 +451,7 @@ func TestSpec_ModelEnvVars_OpenCode(t *testing.T) {
 // for the Pi engine (experimental).
 // Spec section: "### Model Environment Variables"
 func TestSpec_ModelEnvVars_Pi(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		actual   string
@@ -434,6 +465,7 @@ func TestSpec_ModelEnvVars_Pi(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.actual,
 				"Pi engine env var %s should have documented value %q", tt.name, tt.expected)
 		})
@@ -445,6 +477,7 @@ func TestSpec_ModelEnvVars_Pi(t *testing.T) {
 // Spec section: "### Default Versions (pinned dependencies)"
 // Spec: constants.DefaultPiVersion // Pi CLI version (experimental)
 func TestSpec_VersionConstants_DefaultPiVersion(t *testing.T) {
+	t.Parallel()
 	assert.NotEmpty(t, constants.DefaultPiVersion.String(),
 		"DefaultPiVersion should be a non-empty Version as documented")
 }
@@ -452,6 +485,7 @@ func TestSpec_VersionConstants_DefaultPiVersion(t *testing.T) {
 // TestSpec_CopilotBYOK validates the documented Copilot BYOK constants.
 // Spec section: "### Copilot BYOK"
 func TestSpec_CopilotBYOK(t *testing.T) {
+	t.Parallel()
 	// From spec: CopilotBYOKDummyAPIKey // "dummy-byok-key-for-offline-mode"
 	assert.Equal(t, "dummy-byok-key-for-offline-mode", constants.CopilotBYOKDummyAPIKey,
 		"CopilotBYOKDummyAPIKey should match the documented value")
@@ -464,6 +498,7 @@ func TestSpec_CopilotBYOK(t *testing.T) {
 // TestSpec_RuntimeConfiguration_GhAwRootDir validates the documented runtime root directory
 // constants. Spec section: "## Runtime Configuration"
 func TestSpec_RuntimeConfiguration_GhAwRootDir(t *testing.T) {
+	t.Parallel()
 	// From spec: GhAwRootDir // "${{ runner.temp }}/gh-aw" (use in with:/env: YAML)
 	assert.Equal(t, "${{ runner.temp }}/gh-aw", constants.GhAwRootDir,
 		"GhAwRootDir should match the documented GitHub Actions expression form")
@@ -476,6 +511,7 @@ func TestSpec_RuntimeConfiguration_GhAwRootDir(t *testing.T) {
 // TestSpec_URLConstants_Values validates the documented URL constant values.
 // Spec section: "## URL Constants"
 func TestSpec_URLConstants_Values(t *testing.T) {
+	t.Parallel()
 	// From spec: DefaultMCPRegistryURL // "https://api.mcp.github.com/v0.1"
 	assert.Equal(t, "https://api.mcp.github.com/v0.1", string(constants.DefaultMCPRegistryURL),
 		"DefaultMCPRegistryURL should match the documented value")
@@ -492,6 +528,7 @@ func TestSpec_URLConstants_Values(t *testing.T) {
 // TestSpec_AWFConstants_Values validates the documented AWF constants.
 // Spec section: "## AWF (Agentic Workflow Firewall) Constants"
 func TestSpec_AWFConstants_Values(t *testing.T) {
+	t.Parallel()
 	// From spec: AWFDefaultCommand // "awf" (strict mode default; legacy mode uses AWFLegacySecurityCommand)
 	assert.Equal(t, "awf", constants.AWFDefaultCommand,
 		"AWFDefaultCommand should be 'awf' for strict security mode")
@@ -540,6 +577,7 @@ func TestSpec_AWFConstants_Values(t *testing.T) {
 // TestSpec_ContainerImages_Values validates the documented container image constants.
 // Spec section: "### Images"
 func TestSpec_ContainerImages_Values(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		actual   string
@@ -561,6 +599,7 @@ func TestSpec_ContainerImages_Values(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			assert.Equal(t, tt.expected, tt.actual,
 				"container image %s should have documented value %q", tt.name, tt.expected)
 		})
@@ -592,6 +631,7 @@ func TestSpec_PublicAPI_GetWorkflowDir(t *testing.T) {
 // MaxSymlinkDepth constant. Spec section: "## Runtime Configuration"
 // Spec: MaxSymlinkDepth // 5 — max recursive symlink depth for remote file fetching
 func TestSpec_RuntimeConfiguration_MaxSymlinkDepth(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, 5, constants.MaxSymlinkDepth,
 		"MaxSymlinkDepth should be 5 as documented")
 }
@@ -601,6 +641,7 @@ func TestSpec_RuntimeConfiguration_MaxSymlinkDepth(t *testing.T) {
 // Spec section: "## Runtime Configuration"
 // Spec: DefaultActivationJobRunnerImage // "ubuntu-slim"
 func TestSpec_RuntimeConfiguration_DefaultActivationJobRunnerImage(t *testing.T) {
+	t.Parallel()
 	assert.Equal(t, "ubuntu-slim", constants.DefaultActivationJobRunnerImage,
 		"DefaultActivationJobRunnerImage should be 'ubuntu-slim' as documented")
 }

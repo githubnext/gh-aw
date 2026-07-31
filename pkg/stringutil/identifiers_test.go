@@ -7,6 +7,7 @@ import (
 )
 
 func TestNormalizeWorkflowName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -71,6 +72,7 @@ func TestNormalizeWorkflowName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeWorkflowName(tt.input)
 			if result != tt.expected {
 				t.Errorf("NormalizeWorkflowName(%q) = %q, expected %q", tt.input, result, tt.expected)
@@ -80,6 +82,7 @@ func TestNormalizeWorkflowName(t *testing.T) {
 }
 
 func TestNormalizeSafeOutputIdentifier(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name       string
 		identifier string
@@ -164,6 +167,7 @@ func TestNormalizeSafeOutputIdentifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeSafeOutputIdentifier(tt.identifier)
 			if result != tt.expected {
 				t.Errorf("NormalizeSafeOutputIdentifier(%q) = %q, want %q", tt.identifier, result, tt.expected)
@@ -187,6 +191,7 @@ func BenchmarkNormalizeSafeOutputIdentifier(b *testing.B) {
 }
 
 func TestMarkdownToLockFile(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -226,6 +231,7 @@ func TestMarkdownToLockFile(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := MarkdownToLockFile(tt.input)
 			if result != tt.expected {
 				t.Errorf("MarkdownToLockFile(%q) = %q, expected %q", tt.input, result, tt.expected)
@@ -235,6 +241,7 @@ func TestMarkdownToLockFile(t *testing.T) {
 }
 
 func TestLockFileToMarkdown(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -274,6 +281,7 @@ func TestLockFileToMarkdown(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := LockFileToMarkdown(tt.input)
 			if result != tt.expected {
 				t.Errorf("LockFileToMarkdown(%q) = %q, expected %q", tt.input, result, tt.expected)
@@ -283,8 +291,10 @@ func TestLockFileToMarkdown(t *testing.T) {
 }
 
 func TestRoundTripConversions(t *testing.T) {
+	t.Parallel()
 	// Test that converting back and forth preserves the base name
 	t.Run("markdown to lock and back", func(t *testing.T) {
+		t.Parallel()
 		original := "workflow.md"
 		lockFile := MarkdownToLockFile(original)
 		backToMd := LockFileToMarkdown(lockFile)
@@ -294,6 +304,7 @@ func TestRoundTripConversions(t *testing.T) {
 	})
 
 	t.Run("lock to markdown and back", func(t *testing.T) {
+		t.Parallel()
 		original := "workflow.lock.yml"
 		mdFile := LockFileToMarkdown(original)
 		backToLock := MarkdownToLockFile(mdFile)

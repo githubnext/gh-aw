@@ -11,6 +11,7 @@ import (
 )
 
 func TestValidateExecutablePathRejectsNonRegularFile(t *testing.T) {
+	t.Parallel()
 	pipePath := filepath.Join(t.TempDir(), "tool.pipe")
 	require.NoError(t, syscall.Mkfifo(pipePath, 0o755))
 

@@ -10,6 +10,7 @@ import (
 )
 
 func TestClassifyPAT(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		token    string
@@ -54,6 +55,7 @@ func TestClassifyPAT(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ClassifyPAT(tt.token)
 			assert.Equal(t, tt.expected, result, "ClassifyPAT should return correct type")
 		})
@@ -61,6 +63,7 @@ func TestClassifyPAT(t *testing.T) {
 }
 
 func TestPATType_IsFineGrained(t *testing.T) {
+	t.Parallel()
 	assert.True(t, PATTypeFineGrained.IsFineGrained(), "fine-grained should return true")
 	assert.False(t, PATTypeClassic.IsFineGrained(), "classic should return false")
 	assert.False(t, PATTypeOAuth.IsFineGrained(), "OAuth should return false")
@@ -68,6 +71,7 @@ func TestPATType_IsFineGrained(t *testing.T) {
 }
 
 func TestPATType_IsValid(t *testing.T) {
+	t.Parallel()
 	assert.True(t, PATTypeFineGrained.IsValid(), "fine-grained should be valid")
 	assert.True(t, PATTypeClassic.IsValid(), "classic should be valid")
 	assert.True(t, PATTypeOAuth.IsValid(), "OAuth should be valid")
@@ -75,6 +79,7 @@ func TestPATType_IsValid(t *testing.T) {
 }
 
 func TestValidateCopilotPAT(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		token       string
@@ -114,6 +119,7 @@ func TestValidateCopilotPAT(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			err := ValidateCopilotPAT(tt.token)
 			if tt.expectError {
 				require.Error(t, err, "should return error for invalid token")
@@ -126,6 +132,7 @@ func TestValidateCopilotPAT(t *testing.T) {
 }
 
 func TestGetPATTypeDescription(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		token    string
@@ -155,6 +162,7 @@ func TestGetPATTypeDescription(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := GetPATTypeDescription(tt.token)
 			assert.Equal(t, tt.expected, result, "should return correct description")
 		})
