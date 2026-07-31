@@ -166,7 +166,7 @@ describe("parse_pi_log.cjs", () => {
       expect(entries).toHaveLength(1);
       expect(entries[0].type).toBe("assistant");
       expect(entries[0].message.content[0].type).toBe("tool_use");
-      expect(entries[0].message.content[0].name).toBe("bash");
+      expect(entries[0].message.content[0].name).toBe("Bash");
       expect(entries[0].message.content[0].id).toBe("t1");
     });
 
@@ -258,7 +258,7 @@ describe("parse_pi_log.cjs", () => {
 
       expect(result.markdown).toContain("Let me list the files.");
       expect(result.markdown).toContain("All done.");
-      expect(result.markdown).toContain("bash");
+      expect(result.markdown).toContain("`ls`");
       expect(result.markdown).toContain("gpt-5.4");
       // The conversation must not be empty for a real v3 log.
       expect(result.markdown.length).toBeGreaterThan(0);
