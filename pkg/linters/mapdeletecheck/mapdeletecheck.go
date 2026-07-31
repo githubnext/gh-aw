@@ -14,7 +14,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:mapdeletecheck")
 
 // Analyzer is the map-delete-check analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -26,6 +29,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -102,6 +106,7 @@ func analyzeIfStmt(pass *analysis.Pass, n ast.Node, generatedFiles filecheck.Gen
 			}},
 		}}
 	}
+	pkgLog.Printf("flagging redundant map delete check at %s", pos)
 	pass.Report(diag)
 }
 
