@@ -55,6 +55,7 @@ Test workflow.
 		addCommentStep := compiledStepBlock(compiled, "add-comment-app-token")
 		require.NotEmpty(t, addCommentStep)
 		assert.Contains(t, addCommentStep, "permission-issues: write")
+		assert.NotContains(t, addCommentStep, "permission-contents: write")
 	})
 
 	t.Run("report-incomplete app compiles dedicated issue token", func(t *testing.T) {
@@ -77,10 +78,48 @@ Test workflow.
 		step := compiledStepBlock(compiled, "report-incomplete-app-token")
 		require.NotEmpty(t, step)
 		assert.Contains(t, step, "permission-issues: write")
+		assert.NotContains(t, step, "permission-contents: write")
 		assert.Contains(t, compiled, "steps.report-incomplete-app-token.outputs.token")
 	})
 
-	t.Run("dispatch-repository tool app compiles dedicated token", func(t *testing.T) {
+	t.Run("dispatch-workflow app compiles dedicated actions token", func(t *testing.T) {
+		ensureWorkflowFixture(t, tmpDir, "downstream.yml", `name: Downstream
+on:
+  workflow_dispatch:
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ok
+`)
+
+		compiled := compileSafeOutputsAppWorkflow(t, tmpDir, "dispatch-workflow-app.md", `---
+name: Dispatch Workflow App
+on:
+  issues:
+    types: [opened]
+safe-outputs:
+  dispatch-workflow:
+    github-app:
+      app-id: ${{ vars.DISPATCH_WORKFLOW_APP_ID }}
+      private-key: ${{ secrets.DISPATCH_WORKFLOW_APP_PRIVATE_KEY }}
+    workflows:
+      - downstream
+engine: copilot
+---
+
+Test workflow.
+`)
+
+		step := compiledStepBlock(compiled, "dispatch-workflow-app-token")
+		require.NotEmpty(t, step)
+		assert.Contains(t, step, "permission-actions: write")
+		assert.NotContains(t, step, "permission-contents: write")
+		assert.NotContains(t, step, "permission-issues: write")
+		assert.Contains(t, compiled, "steps.dispatch-workflow-app-token.outputs.token")
+	})
+
+	t.Run("dispatch-repository tool app compiles dedicated contents token", func(t *testing.T) {
 		compiled := compileSafeOutputsAppWorkflow(t, tmpDir, "dispatch-repository-app.md", `---
 name: Dispatch Repository App
 on:
@@ -104,10 +143,12 @@ Test workflow.
 		step := compiledStepBlock(compiled, "dispatch-repository-trigger_ci-app-token")
 		require.NotEmpty(t, step)
 		assert.Contains(t, step, "permission-contents: write")
+		assert.NotContains(t, step, "permission-actions: write")
+		assert.NotContains(t, step, "permission-issues: write")
 		assert.Contains(t, compiled, "steps.dispatch-repository-trigger_ci-app-token.outputs.token")
 	})
 
-	t.Run("close handlers wire dedicated tokens into handler config", func(t *testing.T) {
+	t.Run("close handlers wire dedicated tokens into handler config with scoped permissions", func(t *testing.T) {
 		compiled := compileSafeOutputsAppWorkflow(t, tmpDir, "close-handlers-app.md", `---
 name: Close Handlers App
 on:
@@ -128,7 +169,16 @@ engine: copilot
 Test workflow.
 `)
 
+		closeIssueStep := compiledStepBlock(compiled, "close-issue-app-token")
+		require.NotEmpty(t, closeIssueStep)
+		assert.Contains(t, closeIssueStep, "permission-issues: write")
+		assert.NotContains(t, closeIssueStep, "permission-discussions: write")
 		assert.Contains(t, compiled, "steps.close-issue-app-token.outputs.token")
+
+		closeDiscussionStep := compiledStepBlock(compiled, "close-discussion-app-token")
+		require.NotEmpty(t, closeDiscussionStep)
+		assert.Contains(t, closeDiscussionStep, "permission-discussions: write")
+		assert.NotContains(t, closeDiscussionStep, "permission-issues: write")
 		assert.Contains(t, compiled, "steps.close-discussion-app-token.outputs.token")
 	})
 }
@@ -136,16 +186,27 @@ Test workflow.
 func compileSafeOutputsAppWorkflow(t *testing.T, dir, fileName, content string) string {
 	t.Helper()
 
-	mdPath := filepath.Join(dir, fileName)
+	awDir := filepath.Join(dir, ".github", "aw")
+	require.NoError(t, os.MkdirAll(awDir, 0o755))
+
+	mdPath := filepath.Join(awDir, fileName)
 	require.NoError(t, os.WriteFile(mdPath, []byte(content), 0600))
 
 	compiler := NewCompiler()
 	require.NoError(t, compiler.CompileWorkflow(mdPath))
 
-	lockPath := filepath.Join(dir, strings.TrimSuffix(fileName, ".md")+".lock.yml")
+	lockPath := filepath.Join(awDir, strings.TrimSuffix(fileName, ".md")+".lock.yml")
 	compiledBytes, err := os.ReadFile(lockPath)
 	require.NoError(t, err)
 	return string(compiledBytes)
+}
+
+func ensureWorkflowFixture(t *testing.T, dir, fileName, content string) {
+	t.Helper()
+
+	workflowsDir := filepath.Join(dir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(workflowsDir, 0o755))
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, fileName), []byte(content), 0600))
 }
 
 func compiledStepBlock(compiled, stepID string) string {
