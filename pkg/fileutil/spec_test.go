@@ -173,13 +173,13 @@ func TestSpec_PublicAPI_CopyFile(t *testing.T) {
 	t.Parallel()
 	dir := t.TempDir()
 	src := filepath.Join(dir, "source.txt")
-	dst := filepath.Join(dir, "destination.txt")
 	content := []byte("hello specification test")
 
 	require.NoError(t, os.WriteFile(src, content, 0600))
 
 	t.Run("copies file content to new destination", func(t *testing.T) {
 		t.Parallel()
+		dst := filepath.Join(dir, "destination-copy.txt")
 		err := fileutil.CopyFile(src, dst)
 		require.NoError(t, err, "CopyFile should not error for valid src/dst")
 		got, err := os.ReadFile(dst)
@@ -189,6 +189,7 @@ func TestSpec_PublicAPI_CopyFile(t *testing.T) {
 
 	t.Run("truncates existing destination", func(t *testing.T) {
 		t.Parallel()
+		dst := filepath.Join(dir, "destination-truncate.txt")
 		require.NoError(t, os.WriteFile(dst, []byte("old content that is longer"), 0600))
 		err := fileutil.CopyFile(src, dst)
 		require.NoError(t, err, "CopyFile should not error when destination exists")

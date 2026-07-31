@@ -55,7 +55,6 @@ func TestResolveExecutablePath(t *testing.T) {
 	})
 
 	t.Run("resolves executable on PATH", func(t *testing.T) {
-		t.Parallel()
 		binDir := t.TempDir()
 		exeName := "fake-tool"
 		if runtime.GOOS == "windows" {
