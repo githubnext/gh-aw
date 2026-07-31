@@ -1,12 +1,15 @@
 package workflow
 
 // GitHubMCPFeatureFieldsParam is the feature flag name that enables the optional `fields`
-// response-filtering parameter on selected GitHub MCP read tools. Introduced in v1.6.0.
+// response-filtering parameter on selected GitHub MCP read tools. Introduced in v1.6.0
+// as an opt-in experiment. As of v1.8.0, the `fields` parameter is available by default
+// and the flag is a no-op (still emitted for backward compatibility with v1.6.0–v1.7.x).
 // When enabled, tools such as list_pull_requests, search_code, and search_issues
 // advertise a `fields` array parameter that lets agents restrict which fields are
 // returned, reducing response size and context-window consumption.
 //
 // See: https://github.com/github/github-mcp-server/releases/tag/v1.6.0
+// See: https://github.com/github/github-mcp-server/releases/tag/v1.8.0
 const GitHubMCPFeatureFieldsParam = "fields_param"
 
 // GitHubMCPDefaultFields maps each fields-enabled GitHub MCP tool to its recommended
