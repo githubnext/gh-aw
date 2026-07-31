@@ -60,6 +60,7 @@ safe-outputs:
     close-older-discussions: true
 timeout-minutes: 60
 imports:
+  - uses: shared/aw-logs-24h-fetch-setup.md
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions]
@@ -132,19 +133,9 @@ fi
 
 ## Phase 1: Download Recent Workflow Logs
 
-Use the `agentic-workflows` MCP `logs` tool to fetch logs from the last 24 hours.
+{{#runtime-import? shared/aw-logs-24h-fetch-prompt.md}}
 
-**Tool**: `logs`
-**Parameters**:
-```json
-{
-  "count": 200,
-  "start_date": "-1d",
-  "parse": true
-}
-```
-
-Logs are saved to `/tmp/gh-aw/aw-mcp/logs/`. Each run directory contains:
+Logs are available in `/tmp/gh-aw/aw-mcp/logs/`. Each run directory contains:
 
 ```
 /tmp/gh-aw/aw-mcp/logs/run-<id>/
