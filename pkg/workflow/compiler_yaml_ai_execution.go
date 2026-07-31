@@ -292,7 +292,9 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 
 	// Propagate the compiler version so engine installation steps can embed it as
 	// GH_AW_COMPILED_VERSION, enabling compat.json-based toolcache resolution at runtime.
-	if data.CompiledVersion == "" {
+	// Only inject for release builds: non-release versions (e.g. dev git SHAs) are not
+	// valid semver and would not match any compat.json window.
+	if data.CompiledVersion == "" && IsReleasedVersion(c.version) {
 		data.CompiledVersion = c.version
 	}
 
