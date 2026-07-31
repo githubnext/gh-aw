@@ -20,7 +20,7 @@ describe("handle_agent_failure AI Credits rate-limit context", () => {
   });
 
   it("shows inline usage and overage without table, no run URL, with suggested limit snippet", () => {
-    const rendered = buildAICreditsRateLimitErrorContext(true, "17.329230000000003", "10.1", "https://github.com/octo/repo/actions/runs/123");
+    const rendered = buildAICreditsRateLimitErrorContext(true, "17.329230000000003", "10.1", "https://github.com/octo/repo/actions/runs/123", true);
 
     expect(rendered).toContain("AI Credits Budget Exceeded");
     // inline metrics
@@ -39,6 +39,35 @@ describe("handle_agent_failure AI Credits rate-limit context", () => {
     expect(rendered).toContain("<summary>Tips for reducing AI credit usage</summary>");
     expect(rendered).toContain("https://github.github.com/gh-aw/reference/cost-management/");
     expect(rendered).not.toContain("Consult the billing dashboards for accurate usage and charges.");
+  });
+
+  it("shows throughput rate-limit message when under budget (isBudgetExceeded=false)", () => {
+    const rendered = buildAICreditsRateLimitErrorContext(true, "236.079", "1000", "https://github.com/octo/repo/actions/runs/123", false);
+
+    expect(rendered).toContain("AI Credits Rate Limit");
+    expect(rendered).not.toContain("AI Credits Budget Exceeded");
+    // inline metrics show usage without an overage
+    expect(rendered).toContain("Used `236.1` of `1K` max");
+    expect(rendered).not.toContain("over by");
+    // no "Increase the limit" section
+    expect(rendered).not.toContain("<summary>Increase the limit</summary>");
+    // tips section is still present
+    expect(rendered).toContain("<summary>Tips for reducing rate limit issues</summary>");
+    expect(rendered).toContain("https://github.github.com/gh-aw/reference/cost-management/");
+  });
+
+  it("defaults to throughput template when isBudgetExceeded is omitted", () => {
+    const rendered = buildAICreditsRateLimitErrorContext(true, "236.079", "1000", "");
+
+    expect(rendered).toContain("AI Credits Rate Limit");
+    expect(rendered).not.toContain("AI Credits Budget Exceeded");
+  });
+
+  it("shows throughput message without metrics when no credit data is available", () => {
+    const rendered = buildAICreditsRateLimitErrorContext(true, "", "", "", false);
+
+    expect(rendered).toContain("AI Credits Rate Limit");
+    expect(rendered).not.toContain("Used");
   });
 
   it("returns empty string when the AI Credits rate-limit did not trigger", () => {

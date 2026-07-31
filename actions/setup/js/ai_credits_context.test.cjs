@@ -174,6 +174,28 @@ describe("ai_credits_context max_ai_credits_exceeded detection", () => {
       expect(result.aiCredits).toBe("");
       expect(result.maxAICredits).toBe("1000");
     });
+
+    it("reports aiCreditsRateLimitError when rate-limit signal present but under budget", () => {
+      // Reproduces the failing run scenario: gateway log detected a 429 while the agent
+      // was under budget (236 AIC used vs 1000 max).  Before the fix, the check
+      // `aiCredits >= maxAICredits` suppressed this signal, causing the conclusion handler
+      // to fall through to the generic "unexpected engine termination" path.
+      writeAuditLog([{ type: "response", ai_credits_rate_limit_error: true, ai_credits: 236, max_ai_credits: 1000 }]);
+      const result = resolveAICreditsFailureState();
+      expect(result.aiCreditsRateLimitError).toBe(true);
+      expect(result.maxAICreditsExceeded).toBe(false);
+    });
+
+    it("reports aiCreditsRateLimitError from env signal combined with env AIC evidence when under budget", () => {
+      writeAuditLog([{ type: "response", status: 200 }]);
+      process.env.GH_AW_AI_CREDITS_RATE_LIMIT_ERROR = "true";
+      process.env.GH_AW_AIC = "236.079";
+      process.env.GH_AW_MAX_AI_CREDITS = "1000";
+      const result = resolveAICreditsFailureState();
+      expect(result.aiCreditsRateLimitError).toBe(true);
+      expect(result.maxAICreditsExceeded).toBe(false);
+      expect(result.aiCredits).toBe("236.079");
+    });
   });
 });
 
