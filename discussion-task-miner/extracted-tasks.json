@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-31T01:16:00Z",
+  "last_run": "2026-07-31T07:40:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -156,6 +156,36 @@
       "title": "ESLint Monster remediation - already filed as #49009/#49010/#49011",
       "created_at": "2026-07-31T01:16:00Z",
       "status": "skipped_already_filed_upstream"
+    },
+    {
+      "source_discussion": 49284,
+      "title": "antigravity/dispatch_repository schema drift - saturated topic, 20+ closed historical dupes",
+      "created_at": "2026-07-31T07:40:00Z",
+      "status": "skipped_saturated_topic"
+    },
+    {
+      "source_discussion": 49283,
+      "title": "require-escaped-regexp-interpolation false positives - already filed as #49281/#49282",
+      "created_at": "2026-07-31T07:40:00Z",
+      "status": "skipped_already_filed_upstream"
+    },
+    {
+      "source_discussion": 49272,
+      "title": "pr_review_buffer.cjs Path-variant fix - already present in code, no action needed",
+      "created_at": "2026-07-31T07:40:00Z",
+      "status": "skipped_already_resolved"
+    },
+    {
+      "source_discussion": 49272,
+      "title": "safeoutputs bridge safe.directory git config - already tracked in closed #46028, unvalidated recurrence not confirmed this run",
+      "created_at": "2026-07-31T07:40:00Z",
+      "status": "skipped_duplicate_existing_issue"
+    },
+    {
+      "source_discussion": 49272,
+      "title": "Pre-bundle Process Safe Outputs step log on failure - already open as #49156",
+      "created_at": "2026-07-31T07:40:00Z",
+      "status": "skipped_duplicate_existing_issue"
     }
   ]
 }

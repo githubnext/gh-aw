@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-31T01:16:00Z",
+  "last_run": "2026-07-31T07:40:00Z",
   "discussions_processed": [
     {
       "id": 49032,
@@ -195,6 +195,41 @@
       "id": 49188,
       "title": "Daily Code Metrics Report - 23-day cadence gap extracted; large-files already tracked #49019",
       "processed_at": "2026-07-31T01:16:00Z"
+    },
+    {
+      "id": 49299,
+      "title": "Auto-Triage Report - labeling only, no code-quality tasks",
+      "processed_at": "2026-07-31T07:40:00Z"
+    },
+    {
+      "id": 49284,
+      "title": "Schema Consistency Check - antigravity/dispatch_repository saturated topic (20+ closed dupes historically)",
+      "processed_at": "2026-07-31T07:40:00Z"
+    },
+    {
+      "id": 49283,
+      "title": "ESLint Refiner report - findings already filed as #49281/#49282",
+      "processed_at": "2026-07-31T07:40:00Z"
+    },
+    {
+      "id": 49273,
+      "title": "Firewall Escape Test Report - SECURE, no findings",
+      "processed_at": "2026-07-31T07:40:00Z"
+    },
+    {
+      "id": 49272,
+      "title": "Safe Output Health Monitor - all recommended fixes already tracked (#49156 open, #46028 closed) or already applied (pr_review_buffer.cjs fix verified present in code)",
+      "processed_at": "2026-07-31T07:40:00Z"
+    },
+    {
+      "id": 49268,
+      "title": "Sergo Report - registry relocation notes, its own issues already filed by that workflow",
+      "processed_at": "2026-07-31T07:40:00Z"
+    },
+    {
+      "id": 49254,
+      "title": "LintMonster daily scan - already created own issues #49251/#49252/#49250",
+      "processed_at": "2026-07-31T07:40:00Z"
     }
   ]
 }
