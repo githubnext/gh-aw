@@ -35,6 +35,11 @@ imports:
       expires: "1d"
   - shared/otlp.md
 timeout-minutes: 45
+checkout:
+  lfs: true
+runtimes:
+  node:
+    version: "24"
 tools:
   cli-proxy: true
   cache-memory: true
@@ -42,11 +47,14 @@ tools:
     mode: cli
   edit:
   bash:
+    - "npm *"
     - "npm install*"
     - "npm run*"
     - "npm ci*"
+    - "npx *"
     - "npx @marp-team/marp-cli*"
     - "npx http-server*"
+    - "node *"
     - "curl*"
     - "kill*"
     - "lsof*"
