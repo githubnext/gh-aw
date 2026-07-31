@@ -369,6 +369,7 @@ For each PR that is not skipped:
    - **If `CONFLICTING`**: instruct `@copilot` to run `make merge-main` to resolve conflicts; increment `merge_main_scheduled`.
    - **Otherwise**: combine into one comment — unresolved reviews (reviewer + direct link per thread, newest first), `failed_checks` from compact JSON (name + URL), branch refresh, and instruction to run the `pr-finisher` skill.
    - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
+   - Every `add_comment` must include `pr_number`. Never emit `add_comment` without a numeric target field.
    - Always set `pr_number` to the current PR's numeric number. Use `safeoutputs add_comment --pr_number <N> --body $'...'` syntax only. Never use `gh pr comment` or `gh api` for writes.
    - Example: `safeoutputs add_comment --pr_number 12345 --body $'<!-- gh-aw-pr-sous-chef-nudge -->\n@copilot ...'`
 
