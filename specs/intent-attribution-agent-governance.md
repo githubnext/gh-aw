@@ -128,6 +128,14 @@ label-to-intent selectors derived from `.github/objective-mapping.json` — duri
 or CI. Keys present in one source but not the other SHOULD surface as a sync warning or
 compliance failure so attribution and authorization stay aligned.
 
+**Escalation norm**: A sync warning that persists across **3 or more consecutive CI runs**
+without a corresponding corrective PR or explicit waiver **MUST** be escalated to a compliance
+failure. When a sync warning escalates, the CI check responsible for drift detection **MUST**
+fail with a non-zero exit code and open (or update) a tracking issue recording the affected
+keys, the first-detected date, and the on-call maintainer as the default assignee. This norm
+ensures that aspirational migration language does not mask persistent, unaddressed
+configuration drift.
+
 ## Product boundary
 
 The system can establish:

@@ -104,21 +104,21 @@ When updating AWF config generation, schema sync, or validation in gh-aw, agents
 
 The following fields previously existed in schema but were missed in spec CLI mapping checks:
 
-| Config path | CLI flag |
-|---|---|
-| `apiProxy.anthropicAutoCache` | `--anthropic-auto-cache` |
-| `apiProxy.anthropicCacheTailTtl` | `--anthropic-cache-tail-ttl` |
-| `apiProxy.models` | config-only (model alias rewriting) |
-| `apiProxy.modelMultipliers` | config-only (effective-token accounting) |
-| `apiProxy.modelFallback` | config-only (model fallback policy; set `sandbox.agent.model-fallback: false` to prevent deployment-name rewriting for BYOK Azure) |
-| `apiProxy.maxRuns` | config-only (LLM invocation hard cap) |
-| `apiProxy.auth.*` | config-only (maps to `AWF_AUTH_*` env vars) |
-| `apiProxy.targets.openai.authHeader` | `--openai-api-auth-header` (frontmatter: `sandbox.agent.targets.openai.authHeader`) |
-| `apiProxy.targets.anthropic.authHeader` | `--anthropic-api-auth-header` (frontmatter: `sandbox.agent.targets.anthropic.authHeader`) |
-| `apiProxy.targets.copilot.extraHeaders` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraHeaders`; maps to `AWF_BYOK_EXTRA_HEADERS`) |
-| `apiProxy.targets.copilot.extraBodyFields` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraBodyFields`; maps to `AWF_BYOK_EXTRA_BODY_FIELDS`) |
-| `apiProxy.targets.copilot.sessionId` | config-only (frontmatter: `sandbox.agent.targets.copilot.sessionId`; maps to `AWF_PROVIDER_SESSION_ID`) |
-| `container.dockerHostPathPrefix` | `--docker-host-path-prefix` |
+| Config path | CLI flag | Test reference |
+|---|---|---|
+| `apiProxy.anthropicAutoCache` | `--anthropic-auto-cache` | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.anthropicCacheTailTtl` | `--anthropic-cache-tail-ttl` | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.models` | config-only (model alias rewriting) | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.modelMultipliers` | config-only (effective-token accounting) | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.modelFallback` | config-only (model fallback policy; set `sandbox.agent.model-fallback: false` to prevent deployment-name rewriting for BYOK Azure) | `pkg/workflow/awf_config_test.go` (`TestAWFConfig_ModelFallback*`) |
+| `apiProxy.maxRuns` | config-only (LLM invocation hard cap) | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.auth.*` | config-only (maps to `AWF_AUTH_*` env vars) | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.targets.openai.authHeader` | `--openai-api-auth-header` (frontmatter: `sandbox.agent.targets.openai.authHeader`) | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.targets.anthropic.authHeader` | `--anthropic-api-auth-header` (frontmatter: `sandbox.agent.targets.anthropic.authHeader`) | `pkg/workflow/awf_config_test.go` |
+| `apiProxy.targets.copilot.extraHeaders` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraHeaders`; maps to `AWF_BYOK_EXTRA_HEADERS`) | `pkg/workflow/copilot_byok_extra_fields_compilation_test.go` (`TestCopilotBYOKExtraFieldsInCompiledWorkflow`) |
+| `apiProxy.targets.copilot.extraBodyFields` | config-only (frontmatter: `sandbox.agent.targets.copilot.extraBodyFields`; maps to `AWF_BYOK_EXTRA_BODY_FIELDS`) | `pkg/workflow/copilot_byok_extra_fields_compilation_test.go` (`TestCopilotBYOKExtraFieldsInCompiledWorkflow`) |
+| `apiProxy.targets.copilot.sessionId` | config-only (frontmatter: `sandbox.agent.targets.copilot.sessionId`; maps to `AWF_PROVIDER_SESSION_ID`) | `pkg/workflow/copilot_byok_extra_fields_compilation_test.go` (`TestCopilotBYOKExtraFieldsInCompiledWorkflow`) |
+| `container.dockerHostPathPrefix` | `--docker-host-path-prefix` | `pkg/workflow/awf_config_test.go` |
 
 Agents SHOULD treat this class of mismatch as a regression signal and open a corrective PR when detected.
 
@@ -275,7 +275,7 @@ The drift detection procedure (Section 7.2, Step 5) **MUST** produce a list of z
 
 When canonical sources in `github/gh-aw-firewall` are unavailable (GitHub outage, auth failure, transient fetch errors), agents and automation MUST apply the following safeguards:
 
-1. The workflow **MUST** attempt to use the last-known validated local snapshot (for example cached schema/spec artifacts from the previous successful run) to keep checks deterministic.
+1. The workflow **MUST** attempt to use the last-known validated local snapshot (for example cached schema/spec artifacts from the previous successful run) to keep checks deterministic. The snapshot **MUST** be stored at a stable, well-known path: `~/.cache/gh-aw/schema-consistency/last-known-snapshot/` on self-hosted runners or `/tmp/gh-aw/agent/schema-consistency/last-known-snapshot/` when the runner is ephemeral. Snapshots older than **7 days** (168 hours from the `detected_at` timestamp of the last successful refresh) **MUST** be treated as expired and **MUST NOT** be used to suppress drift warnings; when a snapshot is expired, the run **MUST** be marked degraded even if the snapshot files are physically present. Implementations **SHOULD** delete snapshots older than 14 days to prevent unbounded disk use.
 2. The workflow **SHOULD** emit a warning that canonical source retrieval failed, including the failing source path(s) and timestamp.
 3. The workflow **MUST** skip destructive validation actions (for example failing required checks, auto-opening corrective PRs, or auto-creating drift issues from stale snapshots) when canonical data cannot be refreshed, and mark the run as degraded instead of silently passing.
 4. The workflow **SHOULD** open or update a tracking issue when canonical source unavailability persists for more than one consecutive scheduled run.
