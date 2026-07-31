@@ -1120,7 +1120,7 @@ jobs:
       needs.activation.outputs.secret_verification_result == 'failed' || needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
-      actions: write
+      issues: write
     concurrency:
       group: "gh-aw-conclusion-daily-firewall-report"
       cancel-in-progress: false
@@ -1945,7 +1945,8 @@ jobs:
       - detection
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
-    permissions: {}
+    permissions:
+      issues: write
     timeout-minutes: 45
     env:
       GH_AW_AGENT_AIC: ${{ needs.agent.outputs.aic }}

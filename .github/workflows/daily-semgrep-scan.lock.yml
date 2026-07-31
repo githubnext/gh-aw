@@ -1112,6 +1112,7 @@ jobs:
       needs.activation.outputs.daily_ai_credits_exceeded == 'true')
     runs-on: ubuntu-slim
     permissions:
+      issues: write
       security-events: write
     concurrency:
       group: "gh-aw-conclusion-daily-semgrep-scan"
@@ -2022,6 +2023,7 @@ jobs:
     if: (!cancelled()) && needs.agent.result != 'skipped' && needs.detection.result == 'success'
     runs-on: ubuntu-slim
     permissions:
+      issues: write
       security-events: write
     timeout-minutes: 45
     env:
