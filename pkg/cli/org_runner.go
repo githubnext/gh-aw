@@ -225,16 +225,9 @@ func validateOrgRunInputs(org string, repoGlobs []string, cbs orgRunCallbacks, c
 // a per-repo scan loop is run with rate-limit awareness. When the scan returns
 // no results (including early-stop scenarios) this function prints the
 // appropriate message and returns nil.
-func buildOrgRepoResults(ctx context.Context, repos []string, cbs orgRunCallbacks, verbose bool) []orgRepoPreview {
-	if cbs.ScanFn == nil {
-		// No per-repo scanning: include every discovered repo directly.
-		results := make([]orgRepoPreview, 0, len(repos))
-		for _, repo := range repos {
-			results = append(results, orgRepoPreview{Repo: repo})
-		}
-		return results
-	}
-
+// buildOrgRepoScanResults iterates repos, applying cbs.ScanFn to filter them.
+// Returns the accepted previews and whether the loop was stopped early.
+func buildOrgRepoScanResults(ctx context.Context, repos []string, cbs orgRunCallbacks, verbose bool) ([]orgRepoPreview, bool) {
 	total := len(repos)
 	scanLabel := cbs.ScanLabel
 	if scanLabel == "" {
@@ -244,8 +237,6 @@ func buildOrgRepoResults(ctx context.Context, repos []string, cbs orgRunCallback
 	stopped := false
 
 	for i, repo := range repos {
-		// Honor a cancellation signal between repos so we can still show
-		// the report for the work completed so far.
 		if ctx.Err() != nil {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Cancellation requested; stopping after %d/%d repositories", i, total)))
 			orgRunnerLog.Printf("Context canceled during scan at repo %d/%d: %v", i, total, ctx.Err())
@@ -278,6 +269,20 @@ func buildOrgRepoResults(ctx context.Context, repos []string, cbs orgRunCallback
 		}
 		results = append(results, preview)
 	}
+	return results, stopped
+}
+
+func buildOrgRepoResults(ctx context.Context, repos []string, cbs orgRunCallbacks, verbose bool) []orgRepoPreview {
+	if cbs.ScanFn == nil {
+		// No per-repo scanning: include every discovered repo directly.
+		results := make([]orgRepoPreview, 0, len(repos))
+		for _, repo := range repos {
+			results = append(results, orgRepoPreview{Repo: repo})
+		}
+		return results
+	}
+
+	results, stopped := buildOrgRepoScanResults(ctx, repos, cbs, verbose)
 
 	if len(results) == 0 {
 		if stopped {
