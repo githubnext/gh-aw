@@ -44,7 +44,7 @@ function ensureDir(filePath) {
     try {
       fs.mkdirSync(dir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${dir}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to create directory ${dir}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 }

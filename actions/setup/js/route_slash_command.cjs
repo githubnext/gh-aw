@@ -38,7 +38,7 @@ async function appendRoutingSummary(existingCommands, selectedCommand) {
     }
     await summary.write({ overwrite: false });
   } catch (error) {
-    core.warning(`Failed to write centralized routing details to step summary: ${String(error)}`);
+    core.warning(`Failed to write centralized routing details to step summary: ${getErrorMessage(error)}`);
   }
 }
 
@@ -103,7 +103,7 @@ async function resolveIssueBackedPRHeadRef() {
     }
     return normalizeDispatchRef(headRef);
   } catch (error) {
-    core.warning(`Failed to resolve PR head ref for #${pullNumber}: ${String(error)}`);
+    core.warning(`Failed to resolve PR head ref for #${pullNumber}: ${getErrorMessage(error)}`);
     return "";
   }
 }
@@ -298,7 +298,7 @@ async function addImmediateReaction(reaction) {
         return;
     }
   } catch (error) {
-    core.warning(`Immediate reaction '${normalized}' failed: ${String(error)}`);
+    core.warning(`Immediate reaction '${normalized}' failed: ${getErrorMessage(error)}`);
   }
 }
 
@@ -317,7 +317,7 @@ async function addImmediateStatusComment() {
       ...(comment.repo?.owner && comment.repo?.repo ? { status_comment_repo: `${comment.repo.owner}/${comment.repo.repo}` } : {}),
     };
   } catch (error) {
-    core.warning(`Immediate status comment failed: ${String(error)}`);
+    core.warning(`Immediate status comment failed: ${getErrorMessage(error)}`);
     return null;
   }
 }
@@ -398,7 +398,7 @@ async function dispatchWorkflow(workflowId, ref, inputs) {
       core.info(`Skipping workflow '${workflowId}' because it is disabled.`);
       return { dispatched: false };
     }
-    throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${String(error)}`, { cause: error });
+    throw new Error(`Failed to dispatch workflow '${workflowId}' on ref '${ref}': ${getErrorMessage(error)}`, { cause: error });
   }
 }
 
@@ -434,7 +434,7 @@ async function updateStatusCommentWithDispatch(statusCommentContext, eventName, 
       nonFatalStatusCommentErrors: true,
     });
   } catch (error) {
-    core.warning(`Failed to update immediate status comment with dispatched run details: ${String(error)}`);
+    core.warning(`Failed to update immediate status comment with dispatched run details: ${getErrorMessage(error)}`);
   }
 }
 
@@ -477,7 +477,7 @@ function parseHelpCommandsMetadata() {
       })
       .sort((left, right) => left.command.localeCompare(right.command));
   } catch (error) {
-    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${String(error)}`);
+    core.warning(`Failed to parse GH_AW_HELP_COMMANDS metadata: ${getErrorMessage(error)}`);
     return [];
   }
 }
@@ -600,7 +600,7 @@ async function postBuiltinHelpComment(commentBody) {
     core.warning(`Unable to post builtin /help response for event '${context.eventName}'.`);
     return false;
   } catch (error) {
-    core.warning(`Failed to post builtin /help comment: ${String(error)}`);
+    core.warning(`Failed to post builtin /help comment: ${getErrorMessage(error)}`);
     return false;
   }
 }

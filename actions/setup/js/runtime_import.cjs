@@ -668,7 +668,7 @@ async function fetchUrlContent(url, cacheDir) {
     try {
       fs.mkdirSync(cacheDir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${cacheDir}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to create directory ${cacheDir}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 
@@ -695,7 +695,7 @@ async function fetchUrlContent(url, cacheDir) {
         try {
           return fs.readFileSync(cacheFile, "utf8");
         } catch (err) {
-          throw new Error(`Failed to read file ${cacheFile}: ${String(err)}`, { cause: err });
+          throw new Error(`Failed to read file ${cacheFile}: ${getErrorMessage(err)}`, { cause: err });
         }
       }
     }
@@ -724,7 +724,7 @@ async function fetchUrlContent(url, cacheDir) {
           try {
             fs.writeFileSync(cacheFile, data, "utf8");
           } catch (err) {
-            reject(new Error(`Failed to write file ${cacheFile}: ${String(err)}`, { cause: err }));
+            reject(new Error(`Failed to write file ${cacheFile}: ${getErrorMessage(err)}`, { cause: err }));
             return;
           }
           resolve(data);
@@ -1061,7 +1061,7 @@ async function processRuntimeImport(filepathOrUrl, optional, workspaceDir, start
   try {
     content = fs.readFileSync(normalizedPath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${normalizedPath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${normalizedPath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // If line range is specified, extract those lines first (before other processing)

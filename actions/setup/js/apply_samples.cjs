@@ -458,7 +458,7 @@ async function preStagePatch(entry, index, workspace) {
   try {
     fs.writeFileSync(tmpPatch, patch.endsWith("\n") ? patch : patch + "\n");
   } catch (err) {
-    throw new Error(`Failed to write file ${tmpPatch}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to write file ${tmpPatch}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
     runGit(["apply", "--whitespace=nowarn", tmpPatch], repoCwd);
@@ -711,7 +711,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    core.setFailed(err && err.stack ? err.stack : String(err));
+    core.setFailed(getErrorMessage(err));
   });
 }
 

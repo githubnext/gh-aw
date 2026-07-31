@@ -414,7 +414,7 @@ async function main(config = {}) {
     try {
       patchContent = fs.readFileSync(patchFilePath, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
     }
 
     // Check for actual error conditions
@@ -552,7 +552,7 @@ async function main(config = {}) {
             try {
               patchStats = fs.readFileSync(patchFilePath, "utf8");
             } catch (err) {
-              throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+              throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
             }
             if (patchStats.trim()) {
               content += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;

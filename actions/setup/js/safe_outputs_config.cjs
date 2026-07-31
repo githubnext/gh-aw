@@ -107,7 +107,7 @@ function loadConfig(server) {
     try {
       fs.mkdirSync(outputDir, { recursive: true });
     } catch (err) {
-      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${outputDir}: ${String(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${outputDir}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 

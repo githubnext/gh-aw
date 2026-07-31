@@ -177,12 +177,12 @@ function copySingleFileToStaging(sourcePath, destRelPath) {
   try {
     fs.mkdirSync(path.dirname(destPath), { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${path.dirname(destPath)}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${path.dirname(destPath)}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
     fs.copyFileSync(sourcePath, destPath);
   } catch (err) {
-    throw new Error(`Failed to copy file ${sourcePath} to ${destPath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to copy file ${sourcePath} to ${destPath}: ${getErrorMessage(err)}`, { cause: err });
   }
   return { error: null };
 }

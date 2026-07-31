@@ -1497,7 +1497,7 @@ function buildToolDenialsExceededContext(events, workflowId) {
   try {
     template = fs.readFileSync(templatePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
   return (
     "\n" +
@@ -1669,7 +1669,7 @@ function buildInferenceAccessErrorContext(hasInferenceAccessError) {
   try {
     template = fs.readFileSync(templatePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
   return "\n" + template;
 }
@@ -2130,7 +2130,7 @@ function buildLockdownCheckFailedContext(hasLockdownCheckFailed) {
   try {
     template = fs.readFileSync(templatePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
   return "\n" + template;
 }
@@ -2153,7 +2153,7 @@ function buildOAuthTokenCheckFailedContext(hasOAuthTokenCheckFailed, runUrl) {
   try {
     template = fs.readFileSync(templatePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
   return "\n" + renderTemplate(template, { run_url: runUrl });
 }
@@ -2175,7 +2175,7 @@ function buildStaleLockFileFailedContext(hasStaleLockFileFailed) {
   try {
     template = fs.readFileSync(templatePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
   return "\n" + template;
 }

@@ -111,7 +111,7 @@ async function filterFilesNeedingUpdate(comparisonRef, changedFiles, workspaceDi
     try {
       workingTreeContent = fs.readFileSync(workingTreePath, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${workingTreePath}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${workingTreePath}: ${getErrorMessage(err)}`, { cause: err });
     }
     const { stdout, exitCode } = await exec.getExecOutput("git", ["show", `${comparisonRef}:${file}`], {
       ignoreReturnCode: true,
