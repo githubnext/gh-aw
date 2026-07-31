@@ -153,16 +153,6 @@ async function fetchAllRepoLabels(githubClient, owner, repo) {
  * @param {string|null|undefined} commentNodeId - The node_id of the triggering comment
  * @returns {Promise<string|null|undefined>} The node ID to use as replyToId (parent if reply, otherwise the original)
  */
-/**
- * Type guard for a resolved REST endpoint descriptor, shared by handlers that
- * choose between a REST call ({route, params}) and a GraphQL/discussion path.
- * @param {unknown} endpoint
- * @returns {endpoint is { route: string, params: Record<string, unknown> }}
- */
-function isRestEndpoint(endpoint) {
-  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
-}
-
 async function resolveTopLevelDiscussionCommentId(github, commentNodeId) {
   if (!commentNodeId) {
     return commentNodeId;
@@ -185,6 +175,16 @@ async function resolveTopLevelDiscussionCommentId(github, commentNodeId) {
     logGraphQLError(/** @type {Error & { errors?: Array<{ type?: string, message: string, path?: unknown, locations?: unknown }>, request?: unknown, data?: unknown, status?: number }} */ error, "resolving top-level discussion comment");
     return commentNodeId;
   }
+}
+
+/**
+ * Type guard for a resolved REST endpoint descriptor, shared by handlers that
+ * choose between a REST call ({route, params}) and a GraphQL/discussion path.
+ * @param {unknown} endpoint
+ * @returns {endpoint is { route: string, params: Record<string, unknown> }}
+ */
+function isRestEndpoint(endpoint) {
+  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
 }
 
 /**
