@@ -7,7 +7,7 @@ const { generateWorkflowIdMarker } = require("./generate_footer.cjs");
 const { sanitizeContent } = require("./sanitize_content.cjs");
 const { ERR_API, ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { buildWorkflowRunUrl, EVENT_TYPE_DESCRIPTIONS } = require("./workflow_metadata_helpers.cjs");
-const { createDiscussionComment, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { createDiscussionComment, isRestEndpoint, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
 const { addReaction, addDiscussionReaction, getDiscussionNodeId, REACTION_MAP } = require("./add_reaction.cjs");
 
@@ -17,14 +17,6 @@ const VALID_REACTIONS = Object.freeze(Object.keys(REACTION_MAP));
 /**
  * @typedef {{ route: string, params: Record<string, unknown> }} RestEndpoint
  */
-
-/**
- * @param {unknown} endpoint
- * @returns {endpoint is RestEndpoint}
- */
-function isRestEndpoint(endpoint) {
-  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
-}
 
 /**
  * @param {unknown} endpoint

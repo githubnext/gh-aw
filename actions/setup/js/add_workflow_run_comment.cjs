@@ -9,16 +9,8 @@ const { ERR_NOT_FOUND, ERR_VALIDATION } = require("./error_codes.cjs");
 const { getMessages } = require("./messages_core.cjs");
 const { parseBoolTemplatable } = require("./templatable.cjs");
 const { buildWorkflowRunUrl, EVENT_TYPE_DESCRIPTIONS } = require("./workflow_metadata_helpers.cjs");
-const { resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
+const { isRestEndpoint, resolveTopLevelDiscussionCommentId } = require("./github_api_helpers.cjs");
 const { resolveInvocationContext } = require("./invocation_context_helpers.cjs");
-
-/**
- * @param {unknown} endpoint
- * @returns {endpoint is { route: string, params: Record<string, unknown> }}
- */
-function isRestEndpoint(endpoint) {
-  return typeof endpoint === "object" && endpoint !== null && "route" in endpoint && "params" in endpoint;
-}
 
 /**
  * @typedef {{ owner: string, repo: string }} RepoRef
