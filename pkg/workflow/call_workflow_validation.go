@@ -93,7 +93,7 @@ func validateWorkflowFileExists(fileResult *findWorkflowFileResult, workflowName
 	githubDir := filepath.Dir(currentDir)
 	repoRoot := filepath.Dir(githubDir)
 	workflowsDir := filepath.Join(repoRoot, constants.GetWorkflowDir())
-	return fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowsDir)
+	return fmt.Errorf("call-workflow: workflow '%s' not found in %s\n\nChecked for: %s.md, %s.lock.yml, %s.yml, %s.yaml\n\nTo fix:\n1. Verify the workflow file exists in %s/\n2. Ensure the filename matches exactly (case-sensitive)\n3. Use the filename without extension in your configuration", workflowName, workflowsDir, workflowName, workflowName, workflowName, workflowName, workflowsDir)
 }
 
 func validateWorkflowSupportsCallTrigger(workflowName string, fileResult *findWorkflowFileResult) error {

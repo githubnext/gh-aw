@@ -22,6 +22,7 @@ func assertSanitizeResultWithContext(t *testing.T, functionName, context, got, w
 }
 
 func TestSanitizeErrorMessage(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -76,6 +77,7 @@ func TestSanitizeErrorMessage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeErrorMessage(tt.message)
 			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
@@ -92,6 +94,7 @@ func BenchmarkSanitizeErrorMessage(b *testing.B) {
 // Additional edge case tests
 
 func TestSanitizeErrorMessage_AllWorkflowKeywords(t *testing.T) {
+	t.Parallel()
 	// Test all common workflow keywords that should NOT be redacted
 	keywords := []string{
 		"GITHUB", "ACTIONS", "WORKFLOW", "RUNNER", "JOB", "STEP",
@@ -108,6 +111,7 @@ func TestSanitizeErrorMessage_AllWorkflowKeywords(t *testing.T) {
 }
 
 func TestSanitizeErrorMessage_MultipleOccurrences(t *testing.T) {
+	t.Parallel()
 	message := "MY_SECRET is used twice: MY_SECRET here and MY_SECRET there"
 	result := SanitizeErrorMessage(message)
 	expected := "[REDACTED] is used twice: [REDACTED] here and [REDACTED] there"
@@ -116,6 +120,7 @@ func TestSanitizeErrorMessage_MultipleOccurrences(t *testing.T) {
 }
 
 func TestSanitizeErrorMessage_MixedCase(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -140,6 +145,7 @@ func TestSanitizeErrorMessage_MixedCase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeErrorMessage(tt.message)
 			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
@@ -147,6 +153,7 @@ func TestSanitizeErrorMessage_MixedCase(t *testing.T) {
 }
 
 func TestSanitizeErrorMessage_PascalCaseVariants(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		message      string
@@ -164,6 +171,7 @@ func TestSanitizeErrorMessage_PascalCaseVariants(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeErrorMessage(tt.message)
 			containsRedacted := strings.Contains(result, "[REDACTED]")
 			assert.Equal(t, tt.shouldRedact, containsRedacted, "SanitizeErrorMessage(%q) redaction state should match expectation", tt.message)
@@ -172,6 +180,7 @@ func TestSanitizeErrorMessage_PascalCaseVariants(t *testing.T) {
 }
 
 func TestSanitizeErrorMessage_EdgeCases(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -201,6 +210,7 @@ func TestSanitizeErrorMessage_EdgeCases(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeErrorMessage(tt.message)
 			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
@@ -208,6 +218,7 @@ func TestSanitizeErrorMessage_EdgeCases(t *testing.T) {
 }
 
 func TestSanitizeErrorMessage_GhAwVariables(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -242,6 +253,7 @@ func TestSanitizeErrorMessage_GhAwVariables(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeErrorMessage(tt.message)
 			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
@@ -249,6 +261,7 @@ func TestSanitizeErrorMessage_GhAwVariables(t *testing.T) {
 }
 
 func TestSanitizeErrorMessage_RealWorldExamples(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		message  string
@@ -278,6 +291,7 @@ func TestSanitizeErrorMessage_RealWorldExamples(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeErrorMessage(tt.message)
 			assertSanitizeResult(t, "SanitizeErrorMessage", tt.message, result, tt.expected)
 		})
@@ -299,6 +313,7 @@ func BenchmarkSanitizeErrorMessage_ManySecrets(b *testing.B) {
 }
 
 func TestSanitizeIdentifierName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name         string
 		input        string
@@ -325,6 +340,7 @@ func TestSanitizeIdentifierName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeIdentifierName(tt.input, tt.extraAllowed)
 			assertSanitizeResultWithContext(
 				t,
@@ -338,6 +354,7 @@ func TestSanitizeIdentifierName(t *testing.T) {
 }
 
 func TestSanitizeParameterName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -407,6 +424,7 @@ func TestSanitizeParameterName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeParameterName(tt.input)
 			assertSanitizeResult(t, "SanitizeParameterName", tt.input, result, tt.expected)
 		})
@@ -414,6 +432,7 @@ func TestSanitizeParameterName(t *testing.T) {
 }
 
 func TestSanitizePythonVariableName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -483,6 +502,7 @@ func TestSanitizePythonVariableName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizePythonVariableName(tt.input)
 			assertSanitizeResult(t, "SanitizePythonVariableName", tt.input, result, tt.expected)
 		})
@@ -490,6 +510,7 @@ func TestSanitizePythonVariableName(t *testing.T) {
 }
 
 func TestSanitizeToolID(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -549,6 +570,7 @@ func TestSanitizeToolID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeToolID(tt.input)
 			assertSanitizeResult(t, "SanitizeToolID", tt.input, result, tt.expected)
 		})
@@ -577,6 +599,7 @@ func BenchmarkSanitizeToolID(b *testing.B) {
 }
 
 func TestSanitizeForFilename(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		slug     string
@@ -646,6 +669,7 @@ func TestSanitizeForFilename(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeForFilename(tt.slug)
 			assertSanitizeResult(t, "SanitizeForFilename", tt.slug, result, tt.expected)
 		})
@@ -668,6 +692,7 @@ func BenchmarkSanitizeNamePreserveSpecialChars(b *testing.B) {
 }
 
 func TestSanitizeName(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -701,6 +726,7 @@ func TestSanitizeName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := SanitizeName(tt.input, tt.opts)
 			assertSanitizeResultWithContext(
 				t,
@@ -714,6 +740,7 @@ func TestSanitizeName(t *testing.T) {
 }
 
 func TestBuildSanitizePreservePattern(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		preserve []rune
@@ -742,6 +769,7 @@ func TestBuildSanitizePreservePattern(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			opts := &SanitizeOptions{PreserveSpecialChars: tt.preserve}
 			assertSanitizeResultWithContext(
 				t,

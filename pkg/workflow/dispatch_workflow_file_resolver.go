@@ -74,9 +74,11 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 	mdPath := filepath.Clean(filepath.Join(searchDir, workflowName+".md"))
 	lockPath := filepath.Clean(filepath.Join(searchDir, workflowName+".lock.yml"))
 	ymlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".yml"))
+	yamlPath := filepath.Clean(filepath.Join(searchDir, workflowName+".yaml"))
 
 	// Validate paths are within the search directory (prevent path traversal)
-	if !isPathWithinDir(mdPath, searchDir) || !isPathWithinDir(lockPath, searchDir) || !isPathWithinDir(ymlPath, searchDir) {
+	if !isPathWithinDir(mdPath, searchDir) || !isPathWithinDir(lockPath, searchDir) ||
+		!isPathWithinDir(ymlPath, searchDir) || !isPathWithinDir(yamlPath, searchDir) {
 		dispatchWorkflowValidationLog.Printf("Rejecting workflow name '%s': resolved paths escape search dir %s", workflowName, searchDir)
 		return result, fmt.Errorf("invalid workflow name '%s' (path traversal not allowed)", workflowName)
 	}
@@ -84,12 +86,23 @@ func findWorkflowFile(workflowName string, currentWorkflowPath string) (*findWor
 	// Check which files exist
 	result.mdPath = mdPath
 	result.lockPath = lockPath
-	result.ymlPath = ymlPath
 	result.mdExists = fileutil.FileExists(mdPath)
 	result.lockExists = fileutil.FileExists(lockPath)
-	result.ymlExists = fileutil.FileExists(ymlPath)
 
-	dispatchWorkflowValidationLog.Printf("Workflow file search results: md_exists=%v, lock_exists=%v, yml_exists=%v", result.mdExists, result.lockExists, result.ymlExists)
+	// Prefer .yml over .yaml; fall back to .yaml when only that exists.
+	// Both extensions are valid GitHub Actions workflow file extensions.
+	if fileutil.FileExists(ymlPath) {
+		result.ymlPath = ymlPath
+		result.ymlExists = true
+	} else if fileutil.FileExists(yamlPath) {
+		result.ymlPath = yamlPath
+		result.ymlExists = true
+	} else {
+		result.ymlPath = ymlPath // default to .yml path when neither exists
+		result.ymlExists = false
+	}
+
+	dispatchWorkflowValidationLog.Printf("Workflow file search results: md_exists=%v, lock_exists=%v, yml_exists=%v (path=%s)", result.mdExists, result.lockExists, result.ymlExists, result.ymlPath)
 	return result, nil
 }
 

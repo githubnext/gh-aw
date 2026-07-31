@@ -9,6 +9,7 @@ import (
 )
 
 func TestExtractDomainFromURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		url      string
@@ -111,6 +112,7 @@ func TestExtractDomainFromURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := ExtractDomainFromURL(tt.url)
 			assert.Equal(t, tt.expected, result, "Extracted domain should match expected")
 		})
@@ -135,6 +137,7 @@ func BenchmarkExtractDomainFromURL(b *testing.B) {
 }
 
 func TestNormalizeGitHubHostURL(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    string
@@ -179,6 +182,7 @@ func TestNormalizeGitHubHostURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			result := NormalizeGitHubHostURL(tt.input)
 			assert.Equal(t, tt.expected, result, "Normalized URL should match expected")
 		})
