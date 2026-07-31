@@ -279,6 +279,11 @@
       "image": "semgrep/semgrep:latest",
       "digest": "sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8",
       "pinned_image": "semgrep/semgrep:latest@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8"
+    },
+    "ghcr.io/github/github-mcp-server:v1.8.0": {
+      "image": "ghcr.io/github/github-mcp-server:v1.8.0",
+      "digest": "sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520",
+      "pinned_image": "ghcr.io/github/github-mcp-server:v1.8.0@sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520"
     }
   }
 }
