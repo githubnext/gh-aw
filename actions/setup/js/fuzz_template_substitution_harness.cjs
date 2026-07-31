@@ -16,6 +16,14 @@ const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * @param {string} value
+ * @returns {string}
+ */
+function escapeRegex(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
  * Simulates the template rendering logic from interpolate_prompt
  * @param {string} markdown - The markdown content to process
  * @returns {string} - The processed markdown content
@@ -48,7 +56,7 @@ function renderMarkdownTemplate(markdown) {
 function interpolateVariables(content, variables) {
   let result = content;
   for (const [varName, value] of Object.entries(variables)) {
-    const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+    const pattern = new RegExp("\\$\\{" + escapeRegex(varName) + "\\}", "g");
     result = result.replace(pattern, value);
   }
   return result;

@@ -16,6 +16,7 @@ const COMMENT_MEMORY_PROMPT_START_MARKER = "<!-- gh-aw-comment-memory-prompt:sta
 const COMMENT_MEMORY_PROMPT_END_MARKER = "<!-- gh-aw-comment-memory-prompt:end -->";
 const COMMENT_MEMORY_CODE_FENCE = "``````";
 const ESCAPED_COMMENT_MEMORY_CODE_FENCE = COMMENT_MEMORY_CODE_FENCE.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const ESCAPED_COMMENT_MEMORY_TAG = COMMENT_MEMORY_TAG.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 /**
  * Builds the opening line of a code-fence memory block.
@@ -67,7 +68,7 @@ function extractCommentMemoryEntries(commentBody, warn = () => {}) {
 
   // New format: ``````gh-aw-comment-memory:<id>\ncontent\n``````
   // Use a broad character class and then validate with isSafeMemoryId() to keep validation in one place.
-  const codeFenceOpenerPattern = new RegExp(`${ESCAPED_COMMENT_MEMORY_CODE_FENCE}${COMMENT_MEMORY_TAG}:([^\\n]{1,${MAX_MEMORY_ID_LENGTH}})\\n([\\s\\S]*?)\\n${ESCAPED_COMMENT_MEMORY_CODE_FENCE}(?:\\n|$)`, "g");
+  const codeFenceOpenerPattern = new RegExp(ESCAPED_COMMENT_MEMORY_CODE_FENCE + ESCAPED_COMMENT_MEMORY_TAG + ":([^\\n]{1," + String(MAX_MEMORY_ID_LENGTH) + "})\\n([\\s\\S]*?)\\n" + ESCAPED_COMMENT_MEMORY_CODE_FENCE + "(?:\\n|$)", "g");
   let match;
   while ((match = codeFenceOpenerPattern.exec(commentBody)) !== null) {
     const memoryId = match[1];

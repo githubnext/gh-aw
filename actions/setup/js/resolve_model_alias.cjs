@@ -59,7 +59,7 @@ function globMatch(pattern, entry) {
     if (!pattern.includes("*")) {
       return pattern.toLowerCase() === entry.toLowerCase();
     }
-    const regex = new RegExp(`^${escapeRegex(pattern).replace(/\*/g, "[^/]*")}$`, "i");
+    const regex = new RegExp("^" + escapeRegex(pattern).replace(/\*/g, "[^/]*") + "$", "i");
     return regex.test(entry);
   }
   if (entryParts.length === 1) {
@@ -68,7 +68,7 @@ function globMatch(pattern, entry) {
   if (patternParts[0].toLowerCase() !== entryParts[0].toLowerCase()) {
     return false;
   }
-  const regex = new RegExp(`^${escapeRegex(patternParts[1]).replace(/\*/g, "[^/]*")}$`, "i");
+  const regex = new RegExp("^" + escapeRegex(patternParts[1]).replace(/\*/g, "[^/]*") + "$", "i");
   return regex.test(entryParts[1]);
 }
 

@@ -12,6 +12,17 @@ const { parseAllowedRepos, validateRepo } = require("./repo_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
 /**
+ * @param {unknown} error
+ * @returns {string|undefined}
+ */
+function getErrorName(error) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  return "name" in error && typeof error.name === "string" ? error.name : undefined;
+}
+
+/**
  * Push repo-memory changes to git branch
  * Environment variables:
  *   ARTIFACT_DIR: Path to the downloaded artifact directory containing memory files
@@ -481,7 +492,7 @@ async function main() {
               core.info(`Formatted JSON: ${path.relative(destMemoryPath, fullPath)}`);
             }
           } catch (/** @type {any} */ error) {
-            if (error?.name === "FormatJSONSizeLimitError") {
+            if (getErrorName(error) === "FormatJSONSizeLimitError") {
               throw error;
             }
             core.warning(`Skipping JSON formatting for ${path.relative(destMemoryPath, fullPath)}: ${getErrorMessage(error)}`);

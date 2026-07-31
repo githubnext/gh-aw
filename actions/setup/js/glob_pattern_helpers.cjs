@@ -71,7 +71,7 @@ function globPatternToRegex(pattern, options) {
     regexPattern = `[^/]+/${regexPattern}`;
   }
 
-  return new RegExp(`^${regexPattern}$`, caseSensitive ? "" : "i");
+  return new RegExp("^" + regexPattern + "$", caseSensitive ? "" : "i");
 }
 
 /**

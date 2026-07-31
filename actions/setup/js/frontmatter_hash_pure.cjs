@@ -18,6 +18,23 @@ const HTTP_STATUS_NOT_FOUND = 404;
 const MAX_SYMLINK_DEPTH = 5;
 
 /**
+ * @param {unknown} error
+ * @returns {number|undefined}
+ */
+function getErrorStatus(error) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  if ("status" in error && typeof error.status === "number") {
+    return error.status;
+  }
+  if (!("response" in error) || typeof error.response !== "object" || error.response === null) {
+    return undefined;
+  }
+  return "status" in error.response && typeof error.response.status === "number" ? error.response.status : undefined;
+}
+
+/**
  * Default file reader using Node.js fs module
  * @param {string} filePath - Path to the file
  * @returns {Promise<string>} File content
@@ -39,7 +56,8 @@ async function defaultFileReader(filePath) {
  * @returns {boolean}
  */
 function parseBoolFromFrontmatter(frontmatterText, key) {
-  const pattern = new RegExp(`^${key}:\\s*(true|false)\\s*$`, "m");
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const pattern = new RegExp("^" + escapedKey + ":\\s*(true|false)\\s*$", "m");
   const match = frontmatterText.match(pattern);
   return match !== null && match[1] === "true";
 }
@@ -716,7 +734,7 @@ function createGitHubFileReader(github, owner, repo, ref) {
       // This handles the case where an import path traverses a symlinked directory
       // (e.g. .github/agents → ../.ai/agents), which the GitHub Contents API cannot
       // follow automatically. Mirrors the Go logic in remote_download_file.go.
-      const status = error.status || (error.response && error.response.status);
+      const status = getErrorStatus(error);
       if (status === HTTP_STATUS_NOT_FOUND) {
         if (symlinkDepth >= MAX_SYMLINK_DEPTH) {
           throw new Error(`${ERR_SYSTEM}: Failed to read file ${filePath} from GitHub: symlink chain exceeded maximum depth of ${MAX_SYMLINK_DEPTH}`);

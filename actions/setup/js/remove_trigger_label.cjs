@@ -5,6 +5,17 @@ const { ERR_API, ERR_CONFIG } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * @param {unknown} error
+ * @returns {number|undefined}
+ */
+function getErrorStatus(error) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  return "status" in error && typeof error.status === "number" ? error.status : undefined;
+}
+
+/**
  * Remove the label that triggered this workflow from the issue, pull request, or discussion.
  * This allows the same label to be applied again later to re-trigger the workflow.
  *
@@ -124,7 +135,7 @@ async function main() {
     // Non-fatal: log a warning but do not fail the step.
     // A 404 status means the label is no longer present on the item (e.g., another concurrent
     // workflow run already removed it), which is an expected outcome in multi-workflow setups.
-    const status = error?.status;
+    const status = getErrorStatus(error);
     if (status === 404) {
       core.info(`Label '${triggerLabel}' is no longer present on the item – already removed by another run.`);
     } else {

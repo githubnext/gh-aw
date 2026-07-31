@@ -29,7 +29,7 @@ require("./shim.cjs");
  * - GH_AW_MCP_CLI_SERVERS: JSON array of server names to exclude from agent config
  */
 
-const { spawn, execSync } = require("child_process");
+const { spawn, execSync, execFileSync, spawnSync } = require("child_process");
 const fs = require("fs");
 const http = require("http");
 const path = require("path");
@@ -67,6 +67,32 @@ function printTiming(startMs, label) {
  */
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * @param {string|number} gatewayPort
+ */
+function logGatewayPortListeners(gatewayPort) {
+  const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
+  const tools = [
+    ["netstat", ["-tlnp"]],
+    ["ss", ["-tlnp"]],
+  ];
+  for (const [command, args] of tools) {
+    const result = spawnSync(command, args, { encoding: "utf8" });
+    if (result.error || result.status !== 0) {
+      continue;
+    }
+    const output = (result.stdout || "")
+      .split("\n")
+      .filter(line => line.includes(":" + safePort))
+      .join("\n");
+    if (output) {
+      process.stdout.write(output + "\n");
+      return;
+    }
+  }
+  core.info(`Port ${safePort} does not appear to be listening`);
 }
 
 /**
@@ -736,9 +762,7 @@ async function main() {
     core.error("");
     core.error("Checking network connectivity to gateway port...");
     try {
-      // Validate gatewayPort is numeric to prevent shell injection
-      const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
-      execSync(`netstat -tlnp 2>/dev/null | grep ":${safePort}" || ss -tlnp 2>/dev/null | grep ":${safePort}" || echo "Port ${safePort} does not appear to be listening"`, { stdio: "inherit" });
+      logGatewayPortListeners(gatewayPort);
     } catch {
       // ignore
     }
@@ -873,7 +897,7 @@ async function main() {
   if (converterFile) {
     core.info(`Using ${engineType} converter...`);
     const converterPath = path.join(runnerTemp || "", "gh-aw/actions", converterFile);
-    execSync(`node "${converterPath}"`, { stdio: "inherit", env: process.env });
+    execFileSync("node", [converterPath], { stdio: "inherit", env: process.env });
   } else {
     let copilotConfigDir, copilotConfigFile;
     try {
@@ -946,7 +970,19 @@ async function main() {
     // as a shell argument to avoid shell metacharacter injection risks.
     const safePort = String(gatewayPort).replace(/[^0-9]/g, "");
     try {
-      execSync(`bash "${checkScript}" "${outputPath}" "http://localhost:${safePort}" "$MCP_GATEWAY_API_KEY" 2>&1 | tee /tmp/gh-aw/mcp-logs/start-gateway.log`, { stdio: "inherit", env: process.env });
+      const checkResult = spawnSync("bash", [checkScript, outputPath, `http://localhost:${safePort}`, process.env.MCP_GATEWAY_API_KEY || ""], {
+        encoding: "utf8",
+        env: process.env,
+      });
+      const checkOutput = `${checkResult.stdout || ""}${checkResult.stderr || ""}`;
+      fs.mkdirSync("/tmp/gh-aw/mcp-logs", { recursive: true });
+      fs.writeFileSync("/tmp/gh-aw/mcp-logs/start-gateway.log", checkOutput, "utf8");
+      if (checkOutput) {
+        process.stdout.write(checkOutput);
+      }
+      if (checkResult.status !== 0) {
+        throw new Error(`MCP server check script failed with exit code ${checkResult.status ?? "unknown"}`);
+      }
     } catch {
       core.error("ERROR: MCP server checks failed - no servers could be connected");
       core.error("Gateway process will be terminated");

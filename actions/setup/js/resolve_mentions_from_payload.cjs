@@ -9,6 +9,17 @@ const { resolveMentionsLazily, isPayloadUserBot } = require("./resolve_mentions.
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 /**
+ * @param {unknown} error
+ * @returns {number|undefined}
+ */
+function getErrorStatus(error) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  return "status" in error && typeof error.status === "number" ? error.status : undefined;
+}
+
+/**
  * Push a non-bot user's login to the array if present.
  * @param {string[]} users - Target array
  * @param {{ login?: string, type?: string } | null | undefined} user - User object from payload
@@ -150,7 +161,7 @@ async function fetchTeamMembers(teamEntry, defaultOrg, github, core) {
     core.info(`[MENTIONS] Fetched ${logins.length} member(s) from team ${org}/${teamSlug}`);
     return logins;
   } catch (error) {
-    const status = /** @type {any} */ error?.status;
+    const status = getErrorStatus(error);
     const isRateLimit = status === 429 || (status === 403 && /rate.?limit/i.test(getErrorMessage(error)));
     const isPermission = !isRateLimit && (status === 403 || status === 404);
 

@@ -44,7 +44,8 @@ function interpolateVariables(content, variables) {
 
   // Replace each ${VAR_NAME} with its corresponding value
   for (const [varName, value] of Object.entries(variables)) {
-    const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+    const escapedVarName = varName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const pattern = new RegExp("\\$\\{" + escapedVarName + "\\}", "g");
     const matches = (content.match(pattern) || []).length;
 
     if (matches > 0) {
@@ -237,7 +238,8 @@ async function main() {
         // to resolve correctly — after substitution the condition becomes: concise == "concise".
         const experimentName = key.substring("GH_AW_EXPERIMENTS_".length).toLowerCase();
         const exprForm = `experiments.${experimentName}`;
-        const conditionPattern = new RegExp(`(\\{\\{#if[^}]*?)${exprForm.replace(".", "\\.")}`, "gi");
+        const escapedExprForm = exprForm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const conditionPattern = new RegExp("(\\{\\{#if[^}]*?)" + escapedExprForm, "gi");
         if (conditionPattern.test(content)) {
           conditionPattern.lastIndex = 0;
           content = content.replace(conditionPattern, (_, prefix) => prefix + (value || ""));

@@ -1000,7 +1000,8 @@ async function handleMessage(server, req, defaultHandler) {
     // Subprocess exit codes (positive integers like 1, 2, etc.) must not be used as JSON-RPC
     // error codes, as that would produce non-conformant responses (e.g. "code=1").
     const code = e && typeof e === "object" && Number.isInteger(e.code) && e.code < 0 ? e.code : -32603;
-    server.replyError(id, code, e && e.message ? String(e.message) : "Internal error");
+    const message = typeof e === "object" && e !== null && "message" in e && typeof e.message === "string" ? e.message : "Internal error";
+    server.replyError(id, code, message);
   }
 }
 

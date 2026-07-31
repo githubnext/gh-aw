@@ -32,12 +32,12 @@ function reduceModelNameToIdentifier(modelName) {
 
   /** @type {Array<{ familyPattern: RegExp, versionPattern: RegExp, prefix: string }>} */
   const shortcuts = [
-    { familyPattern: /sonnet/, versionPattern: new RegExp(`sonnet${VERSION_SUFFIX_PATTERN}`), prefix: "sonnet" },
-    { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opus" },
-    { familyPattern: /haiku/, versionPattern: new RegExp(`haiku${VERSION_SUFFIX_PATTERN}`), prefix: "haiku" },
-    { familyPattern: /gpt/, versionPattern: new RegExp(`gpt${VERSION_SUFFIX_PATTERN}`), prefix: "gpt" },
-    { familyPattern: /^o[0-9](?:$|[-_])/, versionPattern: new RegExp(`o${VERSION_SUFFIX_PATTERN}`), prefix: "o" },
-    { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
+    { familyPattern: /sonnet/, versionPattern: new RegExp("sonnet" + VERSION_SUFFIX_PATTERN), prefix: "sonnet" },
+    { familyPattern: /opus/, versionPattern: new RegExp("opus" + VERSION_SUFFIX_PATTERN), prefix: "opus" },
+    { familyPattern: /haiku/, versionPattern: new RegExp("haiku" + VERSION_SUFFIX_PATTERN), prefix: "haiku" },
+    { familyPattern: /gpt/, versionPattern: new RegExp("gpt" + VERSION_SUFFIX_PATTERN), prefix: "gpt" },
+    { familyPattern: /^o[0-9](?:$|[-_])/, versionPattern: new RegExp("o" + VERSION_SUFFIX_PATTERN), prefix: "o" },
+    { familyPattern: /gemini/, versionPattern: new RegExp("gemini" + VERSION_SUFFIX_PATTERN), prefix: "gem" },
   ];
 
   for (const { familyPattern, versionPattern, prefix } of shortcuts) {
@@ -95,7 +95,8 @@ function extractKnownModelTierSuffix(normalizedModelName) {
  * @returns {boolean}
  */
 function hasDelimitedModelQualifier(normalizedModelName, qualifier) {
-  return new RegExp(`(^|[-_\\s])${qualifier}($|[-_\\s])`).test(normalizedModelName);
+  const escapedQualifier = qualifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp("(^|[-_\\s])" + escapedQualifier + "($|[-_\\s])").test(normalizedModelName);
 }
 
 /**

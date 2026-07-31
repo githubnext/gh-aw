@@ -6,6 +6,17 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const STANDARD_ROLES = new Set(["admin", "maintain", "write", "triage", "read"]);
 
 /**
+ * @param {unknown} error
+ * @returns {number|undefined}
+ */
+function getErrorStatus(error) {
+  if (typeof error !== "object" || error === null) {
+    return undefined;
+  }
+  return "status" in error && typeof error.status === "number" ? error.status : undefined;
+}
+
+/**
  * Normalize GitHub permission/role aliases to the canonical values used by on.roles.
  * @param {string} role
  * @returns {string}
@@ -203,7 +214,7 @@ async function checkBotStatus(actor, owner, repo) {
       // If we get a 404, the [bot]-suffixed form may not be listed as a collaborator.
       // Fall back to checking the non-[bot] (slug) form, as some GitHub Apps appear
       // under their plain slug name rather than the [bot]-suffixed form.
-      if (botError?.status === 404) {
+      if (getErrorStatus(botError) === 404) {
         try {
           const slugPermission = await github.rest.repos.getCollaboratorPermissionLevel({
             owner,
@@ -213,7 +224,7 @@ async function checkBotStatus(actor, owner, repo) {
           core.info(`Bot '${actor}' is active (via slug form) with permission level: ${slugPermission.data.permission}`);
           return { isBot: true, isActive: true };
         } catch (slugError) {
-          if (slugError?.status === 404) {
+          if (getErrorStatus(slugError) === 404) {
             core.warning(`Bot '${actor}' is not active/installed on ${owner}/${repo}`);
             return { isBot: true, isActive: false };
           }
