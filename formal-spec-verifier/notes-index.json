@@ -55,6 +55,13 @@
       "notation": "TLA+ / Z3 / F*",
       "predicate_count": 11,
       "issue_number": null
+    },
+    "specs/github-mcp-access-control-compliance/README.md": {
+      "slug": "github-mcp-access-control-compliance-README",
+      "last_formalized": "2026-07-31-16-13-09",
+      "notation": "TLA+ / Z3-style guard conjunction",
+      "predicate_count": 12,
+      "issue_number": null
     }
   }
 }
