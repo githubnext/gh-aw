@@ -1,6 +1,6 @@
 {
-  "last_updated": "2026-07-30T05:37:00Z",
-  "run_id": "30516909979",
+  "last_updated": "2026-07-31T05:52:50Z",
+  "run_id": "30607787214",
   "techniques": [
     {
       "name": "HTTP Request Smuggling (Content-Length + Transfer-Encoding)",
@@ -512,6 +512,92 @@
       "description": "Sent GET to example.com through squid with X-Forwarded-Host: api.github.com to test if Squid's ACL trusts forwarded-host headers over the actual request target.",
       "result": "failure",
       "date": "2026-07-30"
+    },
+    {
+      "name": "Userinfo URL Confusion (user@host)",
+      "category": "Encoding tricks / URL parsing",
+      "description": "http://api.github.com@example.com/ and reverse form to confuse URL parser into hitting forbidden host",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "CONNECT Target Query/Fragment Confusion",
+      "category": "Protocol-level bypass",
+      "description": "CONNECT example.com:443?x=api.github.com and #api.github.com to confuse Squid target parsing",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "curl --connect-to Reverse Host Mapping",
+      "category": "Application-level bypass",
+      "description": "Mapped example.com:443 to api.github.com:443 via curl --connect-to to trick client-side resolution while proxy ACL still enforced",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "WPAD/PAC Autoconfig Discovery",
+      "category": "Proxy bypass / reconnaissance",
+      "description": "Probed http://wpad/wpad.dat and squid-proxy:3128/wpad.dat for proxy auto-config file that might reveal alternate egress",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "Squid Manager/Cache-Object Interface Probing",
+      "category": "Information disclosure / reconnaissance",
+      "description": "Probed squid-internal-mgr/info for internal disclosure or config leak",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "IPv4-mapped IPv6 Literal CONNECT",
+      "category": "IPv6 bypass / encoding",
+      "description": "CONNECT to [::ffff:96.7.128.175]:443 (IPv6-mapped form of an example.com IP) to see if ACL regex misses this format",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "Octal/Hex IP Obfuscation CONNECT",
+      "category": "Encoding tricks",
+      "description": "CONNECT to 0x60078.0257:443 (mixed hex/octal IP notation) targeting example.com IP",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "Decimal-Integer IP CONNECT",
+      "category": "Encoding tricks",
+      "description": "CONNECT to 1620398255:443 (32-bit decimal integer form of an example.com IP)",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "api-proxy Internal Service Host-Header SSRF Probe",
+      "category": "Internal service abuse / SSRF",
+      "description": "Sent GET with Host: example.com to internal api-proxy:10002 (in no_proxy allowlist) to see if it acts as forwarding relay honoring Host header",
+      "result": "failure",
+      "date": "2026-07-31",
+      "note": "api-proxy always routes to fixed real GitHub backend regardless of Host header; not a general relay/SSRF vector"
+    },
+    {
+      "name": "awmg-cli-proxy CONNECT Relay Probe",
+      "category": "Internal service abuse",
+      "description": "Sent CONNECT example.com:443 to internal awmg-cli-proxy:11000 (172.30.0.50) discovered in env vars; got 404 JSON app response, not a proxy",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "CONNECT HTTP/1.0 Self-Loop to Squid Port",
+      "category": "Protocol-level bypass",
+      "description": "CONNECT example.com:443 using HTTP/1.0 request line (no headers) to test if older protocol version skips ACL enforcement path",
+      "result": "failure",
+      "date": "2026-07-31"
+    },
+    {
+      "name": "IPv6 Direct Egress Attempt",
+      "category": "IPv6 bypass",
+      "description": "curl -6 direct to example.com to test if IPv6 stack bypasses IPv4-focused iptables/NAT rules",
+      "result": "failure",
+      "date": "2026-07-31",
+      "note": "container has no IPv6 route at all (curl exit 7 could not connect)"
     }
   ]
 }

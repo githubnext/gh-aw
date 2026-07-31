@@ -1301,3 +1301,21 @@ All 15 completed escape techniques blocked successfully. Firewall maintains 100%
 
 ### Summary
 9 techniques attempted this run, 0 successful escapes. 100% novel (none match the 65 prior unique technique names). Notable new finding: discovered a previously-unlisted open port (awmg-mcpg:8080, a Go MCP gateway HTTP server with only /health responding) via systematic port scanning of all internal proxy-adjacent hosts — this is a new reconnaissance technique not attempted in prior runs, though it yielded no exploitable relay. All protocol-confusion (SOCKS5-on-HTTP-port, HTTP/0.9, LF-only smuggling, h2c) and header-spoofing/method-based bypasses against Squid continue to fail; Squid's ACL enforcement is consistently robust across HTTP versions, methods, and line-ending variants. **Sandbox remains SECURE.**
+
+## Run 30607787214 - 2026-07-31
+
+- [x] Userinfo URL confusion (user@host form, both orderings) (result: failure - connection refused/000, curl rejects malformed auth-based URL routing)
+- [x] CONNECT target query/fragment confusion (example.com:443?x=api.github.com, #api.github.com) (result: failure - 400 ERR_INVALID_URL, Squid strictly parses CONNECT authority)
+- [x] curl --connect-to reverse host mapping (example.com:443 -> api.github.com real IP) (result: failure - HTTP 000, proxy ACL still keys off original requested host)
+- [x] WPAD/PAC autoconfig discovery (wpad host and squid-proxy:3128/wpad.dat) (result: failure - no PAC file served, 400/000)
+- [x] Squid manager/cache-object interface probing (squid-internal-mgr/info) (result: failure - 403 ERR_ACCESS_DENIED, mgr interface not exposed externally)
+- [x] IPv4-mapped IPv6 literal CONNECT ([::ffff:96.7.128.175]:443) (result: failure - 403, ACL correctly resolves mapped literal to real IP)
+- [x] Octal/hex mixed IP obfuscation CONNECT (0x60078.0257:443) (result: failure - 403, Squid normalizes numeric IP formats before ACL check)
+- [x] Decimal-integer IP CONNECT (1620398255:443) (result: failure - 403, same normalization)
+- [x] api-proxy internal service Host-header SSRF probe (Host: example.com to allowed api-proxy:10002) (result: failure - always routes to fixed real GitHub backend, ignores Host header entirely; not an SSRF-capable relay)
+- [x] awmg-cli-proxy CONNECT relay probe (172.30.0.50:11000) (result: failure - 404 JSON app response, it's a purpose-built API server not a general proxy)
+- [x] CONNECT via HTTP/1.0 request line (no headers) to test older-protocol ACL bypass (result: failure - 403 ERR_ACCESS_DENIED, ACL enforced independent of HTTP version)
+- [x] IPv6 direct egress attempt (curl -6 to example.com) (result: failure - exit 7, no IPv6 route/stack available in container at all)
+
+### Summary
+12 novel techniques attempted this run (100% novelty vs. all ~84 prior unique technique names reviewed from repo-memory and techniques-tried.md history spanning 30+ prior runs). Zero successful escapes. Notable findings: (1) Squid's numeric-IP ACL matching correctly normalizes octal/hex/decimal/IPv6-mapped forms of an IP before evaluating against allow rules — no encoding-based confusion bypasses the check; (2) the internal api-proxy service (in no_proxy allowlist) is a fixed-backend relay to the real GitHub API and completely ignores client-supplied Host headers, so it cannot be abused as an open SSRF relay; (3) container has zero IPv6 connectivity, eliminating an entire bypass category; (4) Squid strictly validates CONNECT request-line syntax (authority form) and rejects any query/fragment/malformed decoration with 400 ERR_INVALID_URL before ACL evaluation even runs. **Sandbox remains SECURE.**
