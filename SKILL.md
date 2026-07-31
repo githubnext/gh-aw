@@ -1,13 +1,20 @@
+---
+name: agentic-workflows
+description: Repo entrypoint skill for gh-aw workflow authoring, routing, and troubleshooting.
+---
+
 # gh-aw Prompt Surface
 
-This repository builds **gh-aw** (GitHub Agentic Workflows), a GitHub CLI extension for writing workflows in markdown and compiling them to GitHub Actions.
+This repository publishes the `agentic-workflows` skill.
+
+For gh-aw workflow design, creation, update, debug, or upgrade tasks, load and
+follow `./skills/agentic-workflows/SKILL.md`.
 
 ## What this surface does
 
-- Converts markdown workflow specs (`.md`) into compiled lock files (`.lock.yml`)
-- Supports multiple AI engines (`copilot`, `claude`, `codex`, `custom`)
-- Integrates tools, including GitHub MCP servers and safe-output tooling
-- Provides CLI commands to compile, run, inspect, and audit workflows
+- Exposes the installable `agentic-workflows` router skill for this repository
+- Summarizes the gh-aw repository purpose for first-turn ambient context
+- Points task-specific work to the deeper skill files only when needed
 
 ## Key concepts
 
@@ -35,5 +42,6 @@ gh aw audit 24814681146
 
 ## Where to learn more in this repo
 
-- `/AGENTS.md` for development/agent workflow conventions
-- `/skills/*/SKILL.md` for focused domain guidance (GitHub MCP, docs, errors, etc.)
+- `/AGENTS.md` for development and agent workflow conventions
+- `/skills/*/SKILL.md` for focused domain guidance
+- `/.github/aw/*.md` for gh-aw workflow authoring and runtime reference material
