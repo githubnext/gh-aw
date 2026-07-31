@@ -49,3 +49,12 @@ These features have been at 0 usage for multiple consecutive runs:
 - 5 of 9 custom agent files (.github/agents/*.agent.md) remain orphaned/unreferenced.
 - block-domains usage is 0 despite 68 workflows using network config - opportunity for tighter egress control.
 - engine.args customization still rare (3 workflows) vs available flags like --no-ask-user, --allow-all-paths, --no-custom-instructions, --disable-builtin-mcps.
+
+## Run 30605101336 (2026-07-31)
+- 132/266 workflows use Copilot engine (~50%), stable vs prior run (133).
+- `--share` flag usage dropped back to 1 (was 2) — 4+ consecutive runs near-zero; recommend deprioritizing or adding a worked example.
+- `block-domains`/network `blocked:` usage grew 2→4, still marginal vs 142 workflows using `network:` config at all.
+- Custom agent orphan rate unchanged: 5 of 9 `.github/agents/*.agent.md` files still never referenced (`create-safe-output-type`, `custom-engine-implementation`, `grumpy-reviewer`, `interactive-agent-designer`, `w3c-specification-writer`).
+- `harness:` (retry tuning) usage still effectively flat (1).
+- Positive: model overrides steady at 85, bare mode 23, max-autopilot-continues climbed to 22 (from 11 two runs ago) — strong continued adoption.
+- engine.args (custom CLI args like --add-dir, --no-ask-user, --allow-all-paths, --no-custom-instructions, --disable-builtin-mcps) remains rare at 3 workflows despite rich flag surface in copilot_engine_execution.go.
