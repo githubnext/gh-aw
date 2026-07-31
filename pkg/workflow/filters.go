@@ -1,6 +1,7 @@
 package workflow
 
 import (
+	"fmt"
 	"slices"
 
 	"github.com/github/gh-aw/pkg/logger"
@@ -190,6 +191,94 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	existingCondition := data.If
 	conditionTree := BuildConditionTree(existingCondition, forkCondition.Render())
 	data.If = RenderCondition(conditionTree)
+}
+
+// applyPullRequestStackFilter applies stacked pull request protection.
+// Default behavior: run only for the latest PR in a stack (max-stack = 1).
+// Set on.pull_request.max-stack: -1 to disable this protection.
+func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter map[string]any) {
+	filtersLog.Print("Applying pull request stack filter")
+
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn || !hasPullRequestTrigger(onValue) {
+		return
+	}
+
+	maxStack := 1
+	if configuredMaxStack, ok := extractPullRequestMaxStack(onValue); ok {
+		maxStack = configuredMaxStack
+	}
+
+	if maxStack == -1 {
+		filtersLog.Print("Pull request stack filter disabled via max-stack: -1")
+		return
+	}
+
+	stackCondition := fmt.Sprintf(
+		"github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position + %d > github.event.pull_request.stack.size",
+		maxStack,
+	)
+
+	existingCondition := data.If
+	conditionTree := BuildConditionTree(existingCondition, stackCondition)
+	data.If = RenderCondition(conditionTree)
+}
+
+func hasPullRequestTrigger(onValue any) bool {
+	switch on := onValue.(type) {
+	case string:
+		return on == "pull_request"
+	case []any:
+		for _, item := range on {
+			if item == "pull_request" {
+				return true
+			}
+			if eventMap, ok := item.(map[string]any); ok {
+				if _, exists := eventMap["pull_request"]; exists {
+					return true
+				}
+			}
+		}
+	case map[string]any:
+		_, exists := on["pull_request"]
+		return exists
+	}
+	return false
+}
+
+func extractPullRequestMaxStack(onValue any) (int, bool) {
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return 0, false
+	}
+
+	prValue, hasPR := onMap["pull_request"]
+	if !hasPR {
+		return 0, false
+	}
+
+	prMap, ok := prValue.(map[string]any)
+	if !ok {
+		return 0, false
+	}
+
+	maxStackValue, hasMaxStack := prMap["max-stack"]
+	if !hasMaxStack {
+		return 0, false
+	}
+
+	switch v := maxStackValue.(type) {
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case float64:
+		if v == float64(int(v)) {
+			return int(v), true
+		}
+	}
+
+	return 0, false
 }
 
 // applyLabelFilter applies label name filter conditions for labeled/unlabeled triggers

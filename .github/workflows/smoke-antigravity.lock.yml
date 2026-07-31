@@ -95,7 +95,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      needs.pre_activation.outputs.activated == 'true' && (((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position + 1 > github.event.pull_request.stack.size)) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke'))
     runs-on: ubuntu-slim
     permissions:
@@ -1953,7 +1954,8 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position + 1 > github.event.pull_request.stack.size)) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'smoke')
     runs-on: ubuntu-slim
     permissions:
