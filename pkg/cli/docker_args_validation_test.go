@@ -34,6 +34,10 @@ func TestBuildDockerVolumeMount(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid control characters")
 
+	_, err = buildDockerVolumeMount(tmpDir, "/work\u202edir")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid control characters")
+
 	_, err = buildDockerVolumeMount(tmpDir+"\nrepo", "/workdir")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid control characters")
@@ -66,7 +70,31 @@ func TestBuildDockerReadonlyFileMount(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid control characters")
 
+	_, err = buildDockerReadonlyFileMount(policyFile, "/tmp/policy\u202eyaml")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid control characters")
+
 	_, err = buildDockerReadonlyFileMount(policyFile+"\n", "/tmp/policy.yaml")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid control characters")
+}
+
+func TestValidateDockerImageRefRejectsUnsafeCharacters(t *testing.T) {
+	testCases := []struct {
+		name     string
+		imageRef string
+		wantErr  string
+	}{
+		{name: "trailing newline", imageRef: "alpine:latest\n", wantErr: "invalid whitespace/control characters"},
+		{name: "unicode line separator", imageRef: "alpine\u2028latest", wantErr: "invalid whitespace/control characters"},
+		{name: "unicode bidi override", imageRef: "alpine\u202elatest", wantErr: "invalid whitespace/control characters"},
+	}
+
+	for _, tt := range testCases {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := validateDockerImageRef(tt.imageRef)
+			require.Error(t, err)
+			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
 }

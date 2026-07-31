@@ -362,11 +362,12 @@ func TestBuildRunnerGuardContainerScanPath(t *testing.T) {
 		want     string
 		wantErr  string
 	}{
-		{name: "default current directory", scanPath: "", want: "./."},
+		{name: "default current directory", scanPath: "", want: "./"},
 		{name: "flag-looking path stays positional", scanPath: "--help", want: "./--help"},
 		{name: "nested relative path", scanPath: "dir/subdir", want: "./dir/subdir"},
 		{name: "path traversal rejected", scanPath: "../escape", wantErr: "must stay local"},
 		{name: "control character rejected", scanPath: "bad\npath", wantErr: "invalid control characters"},
+		{name: "unicode format character rejected", scanPath: "bad\u202epath", wantErr: "invalid control characters"},
 	}
 
 	for _, tt := range tests {

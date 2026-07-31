@@ -38,11 +38,11 @@ type runnerGuardOutput struct {
 
 func buildRunnerGuardContainerScanPath(scanPath string) (string, error) {
 	if scanPath == "" {
-		scanPath = "."
+		return "./", nil
 	}
 	cleanPath := filepath.Clean(scanPath)
 	if !filepath.IsLocal(cleanPath) {
-		return "", fmt.Errorf("runner-guard scan path must stay local to the repository. Got: %s", scanPath)
+		return "", fmt.Errorf("runner-guard scan path must stay local to the repository. Got: %q", scanPath)
 	}
 	if containsControlCharacters(cleanPath) {
 		return "", fmt.Errorf("runner-guard scan path contains invalid control characters. Got: %q", scanPath)

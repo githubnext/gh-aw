@@ -12,7 +12,9 @@ import (
 )
 
 func containsControlCharacters(value string) bool {
-	return strings.IndexFunc(value, unicode.IsControl) >= 0
+	return strings.IndexFunc(value, func(r rune) bool {
+		return unicode.IsControl(r) || unicode.In(r, unicode.Cf) || r == '\u2028' || r == '\u2029'
+	}) >= 0
 }
 
 func validateContainerMountPath(containerPath string) (string, error) {
@@ -44,10 +46,11 @@ func validateHostMountPath(hostPath string) (string, error) {
 }
 
 func validateDockerImageRef(imageRef string) (string, error) {
-	imageRef = strings.TrimSpace(imageRef)
 	if imageRef == "" {
 		return "", errors.New("grant image reference cannot be empty. Example: ghcr.io/example/image:tag")
 	}
+	// Image refs disallow all Unicode whitespace, while containsControlCharacters also rejects
+	// non-whitespace spoofing characters such as bidi overrides and other format controls.
 	if containsControlCharacters(imageRef) || strings.IndexFunc(imageRef, unicode.IsSpace) >= 0 {
 		return "", fmt.Errorf("grant image reference contains invalid whitespace/control characters. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
