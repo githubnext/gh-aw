@@ -5368,6 +5368,10 @@
                   "type": "boolean",
                   "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
                   "examples": [true, false]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -5466,6 +5470,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -5537,6 +5545,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -5694,6 +5706,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -5830,6 +5846,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -5896,6 +5916,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -6046,6 +6070,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -6141,6 +6169,14 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that discussions can be closed in. The target repository is always implicitly allowed."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token_same_job",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
@@ -6266,6 +6302,10 @@
                 "github-token": {
                   "$ref": "#/$defs/github_token_same_job",
                   "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -6329,6 +6369,14 @@
                     "type": "string"
                   },
                   "description": "List of additional repositories in format 'owner/repo' that issues can be closed in. When specified, the agent can use a 'repo' field in the output to specify which repository to close the issue in. The target repository (current or target-repo) is always implicitly allowed."
+                },
+                "github-token": {
+                  "$ref": "#/$defs/github_token_same_job",
+                  "description": "GitHub token to use for this specific output type. Overrides global github-token if specified."
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 },
                 "staged": {
                   "$ref": "#/$defs/templatable_boolean",
@@ -6471,6 +6519,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -6568,6 +6620,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -6726,6 +6782,10 @@
                   "type": "boolean",
                   "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
                   "examples": [true, false]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -7139,6 +7199,10 @@
                   "type": "boolean",
                   "description": "When true, strip backticks from recognized issue-closing keywords (e.g. `Closes #1` \u2192 Closes #1) in body fields for this output type.",
                   "examples": [true, false]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false,
@@ -7243,6 +7307,10 @@
                 "commit-id": {
                   "type": "string",
                   "description": "Pin the review to this specific commit SHA. When set, the review is attributed to this commit instead of the current PR head. GitHub will mark the review as outdated if the PR head has since moved."
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -7356,6 +7424,10 @@
                 "commit-id": {
                   "type": "string",
                   "description": "Pin the review to this specific commit SHA. When set, the review is attributed to this commit instead of the current PR head. GitHub will mark the review as outdated if the PR head has since moved."
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -7438,6 +7510,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -7528,6 +7604,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -7610,6 +7690,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -7680,6 +7764,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -7735,6 +7823,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -7924,6 +8016,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8025,6 +8121,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8160,6 +8260,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8250,6 +8354,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8367,6 +8475,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8471,6 +8583,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8566,6 +8682,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8673,6 +8793,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8773,6 +8897,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8877,6 +9005,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -8980,6 +9112,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -9245,6 +9381,10 @@
                   "type": "boolean",
                   "description": "When false, skips the branch protection API pre-flight check before pushing. Set to false to avoid requiring administration: read permission. The GitHub platform will still enforce branch protection at push time. Default is true (check enabled).",
                   "default": true
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -9433,6 +9573,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -9525,6 +9669,10 @@
                 "required-title-prefix": {
                   "type": "string",
                   "description": "The target item's title must start with this prefix for this operation to proceed"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -9612,6 +9760,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "required": ["workflows"],
@@ -9724,6 +9876,10 @@
                 "$ref": "#/$defs/templatable_boolean",
                 "description": "When true, emit step summary messages instead of making GitHub API calls (preview mode)",
                 "examples": [true, false]
+              },
+              "github-app": {
+                "$ref": "#/$defs/github_app",
+                "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
               }
             },
             "required": ["workflow", "event_type"],
@@ -9790,6 +9946,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "required": ["workflows"],
@@ -9870,6 +10030,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -9948,6 +10112,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -10014,6 +10182,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -10095,6 +10267,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -10200,6 +10376,10 @@
                   "$ref": "#/$defs/templatable_boolean",
                   "description": "When true, emit step summary messages instead of making GitHub Actions artifact uploads (preview mode)",
                   "examples": [true, false]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -10537,6 +10717,10 @@
                 "agent-output": {
                   "type": "string",
                   "description": "Agent output field to use as input for this safe job (alias for output)"
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -11045,6 +11229,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false
@@ -11185,6 +11373,10 @@
                       "additionalProperties": true
                     }
                   ]
+                },
+                "github-app": {
+                  "$ref": "#/$defs/github_app",
+                  "description": "GitHub App authentication. Mints a short-lived installation access token via actions/create-github-app-token. Mutually exclusive with github-token."
                 }
               },
               "additionalProperties": false

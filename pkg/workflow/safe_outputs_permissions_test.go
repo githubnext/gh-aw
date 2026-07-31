@@ -3,6 +3,9 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -525,6 +528,196 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestComputePermissionsForSafeOutputsExcludesPerHandlerAppsFromGlobalAppToken(t *testing.T) {
+	safeOutputs := &SafeOutputsConfig{
+		AddComments: &AddCommentsConfig{
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Max:       strPtr("1"),
+				GitHubApp: &GitHubAppConfig{AppID: "issue-app", PrivateKey: "issue-key"},
+			},
+		},
+		DispatchWorkflow: &DispatchWorkflowConfig{
+			Workflows: []string{"downstream.yml"},
+			BaseSafeOutputConfig: BaseSafeOutputConfig{
+				Max: strPtr("1"),
+			},
+		},
+	}
+
+	perms := computePermissionsForSafeOutputs(safeOutputs, true)
+	require.NotNil(t, perms)
+	assert.Equal(t, PermissionWrite, perms.permissions[PermissionActions])
+	assert.NotContains(t, perms.permissions, PermissionIssues)
+}
+
+func TestComputePermissionsForSafeOutputsDispatchRepositoryAppSplit(t *testing.T) {
+	safeOutputs := &SafeOutputsConfig{
+		DispatchRepository: &DispatchRepositoryConfig{
+			Tools: map[string]*DispatchRepositoryToolConfig{
+				"with-app": {
+					Workflow:   "ci.yml",
+					EventType:  "ci_trigger",
+					Repository: "github/gh-aw",
+					GitHubApp:  &GitHubAppConfig{AppID: "dispatch-app", PrivateKey: "dispatch-key"},
+				},
+				"without-app": {
+					Workflow:   "ci.yml",
+					EventType:  "ci_trigger",
+					Repository: "github/gh-aw",
+				},
+			},
+		},
+	}
+
+	perms := computePermissionsForSafeOutputs(safeOutputs, true)
+	require.NotNil(t, perms)
+	assert.Equal(t, PermissionWrite, perms.permissions[PermissionContents])
+}
+
+func TestComputePermissionsForSafeOutputsExcludesParsedPerHandlerApps(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "parsed-safe-outputs.md")
+	content := `---
+on: issues
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.GLOBAL_APP_ID }}
+    private-key: ${{ secrets.GLOBAL_APP_PRIVATE_KEY }}
+  add-comment:
+    github-app:
+      app-id: ${{ vars.ISSUE_APP_ID }}
+      private-key: ${{ secrets.ISSUE_APP_PRIVATE_KEY }}
+    pull-requests: false
+  report-incomplete:
+    github-app:
+      app-id: ${{ vars.INCOMPLETE_APP_ID }}
+      private-key: ${{ secrets.INCOMPLETE_APP_PRIVATE_KEY }}
+  dispatch-repository:
+    trigger-ci:
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: github/gh-aw
+---
+
+Test workflow.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+	require.NotNil(t, getHandlerGitHubApp(workflowData.SafeOutputs, "AddComments"))
+
+	perms := computePermissionsForSafeOutputs(workflowData.SafeOutputs, true)
+	require.NotNil(t, perms)
+	assert.NotContains(t, perms.permissions, PermissionIssues)
+	assert.NotContains(t, perms.permissions, PermissionPullRequests)
+	assert.Equal(t, PermissionWrite, perms.permissions[PermissionContents])
+}
+
+func TestBuildPreambleTokenStepsExcludesParsedPerHandlerApps(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "parsed-safe-outputs.md")
+	content := `---
+on: issues
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.GLOBAL_APP_ID }}
+    private-key: ${{ secrets.GLOBAL_APP_PRIVATE_KEY }}
+  add-comment:
+    github-app:
+      app-id: ${{ vars.ISSUE_APP_ID }}
+      private-key: ${{ secrets.ISSUE_APP_PRIVATE_KEY }}
+    pull-requests: false
+  report-incomplete:
+    github-app:
+      app-id: ${{ vars.INCOMPLETE_APP_ID }}
+      private-key: ${{ secrets.INCOMPLETE_APP_PRIVATE_KEY }}
+  dispatch-repository:
+    trigger-ci:
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: github/gh-aw
+---
+
+Test workflow.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+
+	steps := compiler.buildPreambleTokenSteps(workflowData, map[string]string{})
+	joined := strings.Join(steps, "")
+	assert.Contains(t, joined, "permission-contents: write")
+	assert.NotContains(t, joined, "permission-issues: write")
+	assert.NotContains(t, joined, "permission-pull-requests: write")
+}
+
+func TestGenerateYAMLDoesNotReintroduceParsedPerHandlerPermissions(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+	tmpDir := t.TempDir()
+	testFile := filepath.Join(tmpDir, "parsed-safe-outputs.md")
+	content := `---
+on: issues
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.GLOBAL_APP_ID }}
+    private-key: ${{ secrets.GLOBAL_APP_PRIVATE_KEY }}
+  add-comment:
+    github-app:
+      app-id: ${{ vars.ISSUE_APP_ID }}
+      private-key: ${{ secrets.ISSUE_APP_PRIVATE_KEY }}
+    pull-requests: false
+  report-incomplete:
+    github-app:
+      app-id: ${{ vars.INCOMPLETE_APP_ID }}
+      private-key: ${{ secrets.INCOMPLETE_APP_PRIVATE_KEY }}
+  dispatch-repository:
+    trigger-ci:
+      workflow: ci.yml
+      event_type: ci_trigger
+      repository: github/gh-aw
+engine: copilot
+---
+
+Test workflow.
+`
+	require.NoError(t, os.WriteFile(testFile, []byte(content), 0600))
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err)
+
+	yamlContent, _, _, err := compiler.generateYAML(workflowData, testFile)
+	require.NoError(t, err)
+	globalStep := compiledStepBlockForTest(yamlContent, "safe-outputs-app-token")
+	require.NotEmpty(t, globalStep)
+	assert.Contains(t, globalStep, "permission-contents: write")
+	assert.NotContains(t, globalStep, "permission-issues: write")
+	assert.NotContains(t, globalStep, "permission-pull-requests: write")
+
+	steps := compiler.buildPreambleTokenSteps(workflowData, map[string]string{})
+	joined := strings.Join(steps, "")
+	assert.Contains(t, joined, "permission-contents: write")
+	assert.NotContains(t, joined, "permission-issues: write")
+	assert.NotContains(t, joined, "permission-pull-requests: write")
+}
+
+func compiledStepBlockForTest(compiled, stepID string) string {
+	marker := "id: " + stepID
+	start := strings.Index(compiled, marker)
+	if start == -1 {
+		return ""
+	}
+	rest := compiled[start:]
+	next := strings.Index(rest[len(marker):], "\n      - name: ")
+	if next == -1 {
+		return rest
+	}
+	return rest[:len(marker)+next]
 }
 
 func TestComputePermissionsForSafeOutputs_NoOpAndMissingTool(t *testing.T) {

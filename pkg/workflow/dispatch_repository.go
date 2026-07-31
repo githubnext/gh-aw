@@ -17,6 +17,7 @@ type DispatchRepositoryToolConfig struct {
 	Inputs              map[string]any   `yaml:"inputs,omitempty"`               // Input schema (similar to workflow_dispatch inputs)
 	Max                 *string          `yaml:"max,omitempty"`                  // Max dispatch executions (templatable int)
 	GitHubToken         string           `yaml:"github-token,omitempty"`         // Optional override token
+	GitHubApp           *GitHubAppConfig `yaml:"github-app,omitempty"`           // Optional per-tool GitHub App override
 	Staged              *TemplatableBool `yaml:"staged,omitempty"`               // Templatable preview-only mode
 }
 
@@ -101,6 +102,7 @@ func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *Disp
 		c.parseBaseSafeOutputConfig(toolMap, &baseCfg, 1)
 		tool.Max = baseCfg.Max
 		tool.GitHubToken = baseCfg.GitHubToken
+		tool.GitHubApp = baseCfg.GitHubApp
 		tool.Staged = baseCfg.Staged
 
 		// Cap max at 50
@@ -121,6 +123,10 @@ func (c *Compiler) parseDispatchRepositoryConfig(outputMap map[string]any) *Disp
 	}
 
 	return dispatchRepoConfig
+}
+
+func dispatchRepositoryToolAppTokenStepID(toolKey string) string {
+	return "dispatch-repository-" + stringutil.NormalizeSafeOutputIdentifier(toolKey) + "-app-token"
 }
 
 // generateDispatchRepositoryTool generates an MCP tool definition for a specific dispatch-repository tool.

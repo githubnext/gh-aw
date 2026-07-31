@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"reflect"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -580,6 +581,15 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 	{
 		Key:         "report-incomplete",
 		StructField: "ReportIncomplete",
+		PermissionBuilder: func(safeOutputs *SafeOutputsConfig) *Permissions {
+			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "ReportIncomplete") || safeOutputs.ReportIncomplete == nil {
+				return nil
+			}
+			if safeOutputs.ReportIncomplete.CreateIssue != nil && strings.EqualFold(strings.TrimSpace(*safeOutputs.ReportIncomplete.CreateIssue), "false") {
+				return nil
+			}
+			return NewPermissionsIssuesWrite()
+		},
 	},
 	{
 		Key:         "threat-detection",

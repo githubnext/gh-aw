@@ -5,6 +5,7 @@ package workflow
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 
@@ -763,4 +764,132 @@ func TestSafeOutputsPerHandlerGitHubAppMultipleHandlers(t *testing.T) {
 		"add-comment handler config must reference its per-handler token")
 	assert.Contains(t, stepsStr, "steps.dispatch-workflow-app-token.outputs.token",
 		"dispatch-workflow handler config must reference its per-handler token")
+}
+
+func TestSafeOutputsPerHandlerGitHubAppReportIncomplete(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			ReportIncomplete: &ReportIncompleteConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.INCOMPLETE_APP_ID }}",
+						PrivateKey: "${{ secrets.INCOMPLETE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
+	stepsStr := strings.Join(steps, "")
+	assert.Contains(t, stepsStr, "id: report-incomplete-app-token")
+	assert.Contains(t, stepsStr, "permission-issues: write")
+	assert.Contains(t, stepsStr, "steps.report-incomplete-app-token.outputs.token")
+}
+
+func TestSafeOutputsPerHandlerGitHubAppCloseHandlers(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			CloseIssues: &CloseIssuesConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.CLOSE_ISSUE_APP_ID }}",
+						PrivateKey: "${{ secrets.CLOSE_ISSUE_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+			CloseDiscussions: &CloseDiscussionsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.CLOSE_DISCUSSION_APP_ID }}",
+						PrivateKey: "${{ secrets.CLOSE_DISCUSSION_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err)
+
+	stepsStr := strings.Join(job.Steps, "")
+	assert.Contains(t, stepsStr, "id: close-issue-app-token")
+	assert.Contains(t, stepsStr, "steps.close-issue-app-token.outputs.token")
+	assert.Contains(t, stepsStr, "id: close-discussion-app-token")
+	assert.Contains(t, stepsStr, "steps.close-discussion-app-token.outputs.token")
+}
+
+func TestSafeOutputsPerHandlerGitHubAppDispatchRepository(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			DispatchRepository: &DispatchRepositoryConfig{
+				Tools: map[string]*DispatchRepositoryToolConfig{
+					"trigger-ci": {
+						Workflow:    "ci.yml",
+						EventType:   "ci_trigger",
+						Repository:  "github/gh-aw",
+						Max:         strPtr("1"),
+						GitHubApp:   &GitHubAppConfig{AppID: "${{ vars.DISPATCH_APP_ID }}", PrivateKey: "${{ secrets.DISPATCH_APP_PRIVATE_KEY }}"},
+						GitHubToken: "${{ secrets.FALLBACK_TOKEN }}",
+					},
+				},
+			},
+		},
+	}
+
+	steps, err := compiler.buildHandlerManagerStep(workflowData)
+	require.NoError(t, err)
+	stepsStr := strings.Join(steps, "")
+	assert.Contains(t, stepsStr, "id: dispatch-repository-trigger_ci-app-token")
+	assert.Contains(t, stepsStr, "permission-contents: write")
+	assert.Contains(t, stepsStr, "steps.dispatch-repository-trigger_ci-app-token.outputs.token")
+}
+
+func TestGetHandlerGitHubAppRegisteredHandlers(t *testing.T) {
+	config := &SafeOutputsConfig{}
+	configValue := reflect.ValueOf(config).Elem()
+	appFieldType := reflect.TypeOf((*GitHubAppConfig)(nil))
+
+	for _, handler := range safeOutputHandlers {
+		if handler.StructField == "" {
+			continue
+		}
+
+		field := configValue.FieldByName(handler.StructField)
+		if !field.IsValid() || field.Kind() != reflect.Pointer || !field.CanSet() {
+			continue
+		}
+
+		handlerValue := reflect.New(field.Type().Elem())
+		inner := handlerValue.Elem()
+		expected := &GitHubAppConfig{AppID: "app-id", PrivateKey: "private-key"}
+
+		switch {
+		case inner.FieldByName("GitHubApp").IsValid() && inner.FieldByName("GitHubApp").Type() == appFieldType:
+			inner.FieldByName("GitHubApp").Set(reflect.ValueOf(expected))
+		case inner.FieldByName("BaseSafeOutputConfig").IsValid():
+			baseField := inner.FieldByName("BaseSafeOutputConfig")
+			appField := baseField.FieldByName("GitHubApp")
+			if !appField.IsValid() || appField.Type() != appFieldType {
+				continue
+			}
+			appField.Set(reflect.ValueOf(expected))
+		default:
+			continue
+		}
+
+		field.Set(handlerValue)
+		assert.Same(t, expected, getHandlerGitHubApp(config, handler.StructField), handler.StructField)
+		field.Set(reflect.Zero(field.Type()))
+	}
 }

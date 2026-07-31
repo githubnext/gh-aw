@@ -14,11 +14,23 @@ const commentMemoryHandlerKey = "comment_memory"
 // buildHandlerManagerStep, which iterates safeOutputHandlers and mints a token for each
 // handler whose BaseSafeOutputConfig.GitHubApp is set.
 func resolveHandlerGitHubToken(app *GitHubAppConfig, handlerKey, fallbackToken string) string {
-	if app != nil {
-		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
-		return "${{ steps." + handlerKey + "-app-token.outputs.token }}"
+	if app != nil && handlerSupportsPerHandlerGitHubAppToken(handlerKey) {
+		return resolveHandlerGitHubTokenWithStepID(app, handlerKey+"-app-token", fallbackToken)
 	}
 	return fallbackToken
+}
+
+func resolveHandlerGitHubTokenWithStepID(app *GitHubAppConfig, stepID, fallbackToken string) string {
+	if app != nil && stepID != "" {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+		return "${{ steps." + stepID + ".outputs.token }}"
+	}
+	return fallbackToken
+}
+
+func handlerSupportsPerHandlerGitHubAppToken(handlerKey string) bool {
+	handler, ok := getSafeOutputHandlerByKey(handlerKey)
+	return ok && handler.PermissionBuilder != nil
 }
 
 // handlerRegistry maps handler names to their builder functions.
@@ -129,6 +141,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed_state_reason", c.AllowedStateReason).
 			AddBoolPtr("allow_body", c.AllowBody).
 			AddBoolPtr("issue_intent", c.IssueIntent).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "close-issue", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
@@ -145,6 +158,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
 			AddBoolPtr("allow_body", c.AllowBody).
+			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "close-discussion", c.GitHubToken)).
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
@@ -716,7 +730,7 @@ var handlerRegistry = map[string]handlerBuilder{
 				AddIfNotEmpty("repository", tool.Repository).
 				AddStringSlice("allowed_repositories", tool.AllowedRepositories).
 				AddTemplatableInt("max", tool.Max).
-				AddIfNotEmpty("github-token", tool.GitHubToken).
+				AddIfNotEmpty("github-token", resolveHandlerGitHubTokenWithStepID(tool.GitHubApp, dispatchRepositoryToolAppTokenStepID(toolKey), tool.GitHubToken)).
 				AddTemplatableBool("staged", templatableBoolPtrToStringPtr(tool.Staged)).
 				Build()
 			tools[toolKey] = toolConfig
