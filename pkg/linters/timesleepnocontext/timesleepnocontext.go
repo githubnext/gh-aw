@@ -15,7 +15,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:timesleepnocontext")
 
 // Analyzer is the time-sleep-no-context analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -27,6 +30,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -70,6 +74,7 @@ func run(pass *analysis.Pass) (any, error) {
 				}
 				continue
 			}
+			pkgLog.Printf("flagging time.Sleep in context-aware function at %s", pos)
 			pass.Report(analysis.Diagnostic{
 				Pos:     call.Pos(),
 				End:     call.End(),
