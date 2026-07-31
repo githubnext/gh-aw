@@ -187,6 +187,107 @@ describe("create_pull_request - draft policy enforcement", () => {
   });
 });
 
+describe("create_pull_request - auto-merge configuration", () => {
+  let originalEnv;
+
+  beforeEach(() => {
+    originalEnv = { ...process.env };
+    process.env.GH_AW_WORKFLOW_ID = "test-workflow";
+    process.env.GITHUB_REPOSITORY = "test-owner/test-repo";
+    process.env.GITHUB_BASE_REF = "main";
+
+    global.core = {
+      info: vi.fn(),
+      warning: vi.fn(),
+      error: vi.fn(),
+      debug: vi.fn(),
+      setFailed: vi.fn(),
+      setOutput: vi.fn(),
+      startGroup: vi.fn(),
+      endGroup: vi.fn(),
+      summary: {
+        addRaw: vi.fn().mockReturnThis(),
+        write: vi.fn().mockResolvedValue(undefined),
+      },
+    };
+    global.github = {
+      rest: {
+        pulls: {
+          create: vi.fn().mockResolvedValue({
+            data: {
+              number: 1,
+              node_id: "PR_node_id",
+              html_url: "https://github.com/test-owner/test-repo/pull/1",
+              head: { sha: "abc123" },
+            },
+          }),
+          createReview: vi.fn().mockResolvedValue({ data: { id: 77 } }),
+        },
+        repos: {
+          get: vi.fn().mockResolvedValue({ data: { default_branch: "main" } }),
+        },
+        issues: {
+          addLabels: vi.fn().mockResolvedValue({}),
+          addAssignees: vi.fn().mockResolvedValue({}),
+        },
+      },
+      graphql: vi.fn().mockResolvedValue({ enablePullRequestAutoMerge: { pullRequest: { id: "PR_node_id" } } }),
+    };
+    global.context = {
+      eventName: "workflow_dispatch",
+      repo: { owner: "test-owner", repo: "test-repo" },
+      payload: {},
+    };
+    global.exec = {
+      exec: vi.fn().mockResolvedValue(0),
+      getExecOutput: vi.fn().mockResolvedValue({ exitCode: 0, stdout: "", stderr: "" }),
+    };
+
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  afterEach(() => {
+    for (const key of Object.keys(process.env)) {
+      if (!(key in originalEnv)) {
+        delete process.env[key];
+      }
+    }
+    Object.assign(process.env, originalEnv);
+
+    delete global.core;
+    delete global.github;
+    delete global.context;
+    delete global.exec;
+    vi.clearAllMocks();
+  });
+
+  it("passes an explicit auto-merge method to GraphQL", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ auto_merge: "rebase", allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.graphql).toHaveBeenCalledWith(expect.stringContaining("enablePullRequestAutoMerge"), {
+      prId: "PR_node_id",
+      mergeMethod: "REBASE",
+    });
+  });
+
+  it("preserves boolean auto-merge behavior without forcing a method", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ auto_merge: true, allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.github.graphql).toHaveBeenCalledWith(expect.stringContaining("enablePullRequestAutoMerge"), {
+      prId: "PR_node_id",
+      mergeMethod: undefined,
+    });
+  });
+});
+
 describe("create_pull_request - bundle transport shallow checkout", () => {
   let tempDir;
   let originalEnv;

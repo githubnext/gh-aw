@@ -54,7 +54,7 @@ type CreatePullRequestsConfig struct {
 	MaxPatchSize                   int              `yaml:"max-patch-size,omitempty"`                      // Maximum allowed patch size in KB for create-pull-request only. Overrides safe-outputs.max-patch-size when set.
 	MaxPatchFiles                  int              `yaml:"max-patch-files,omitempty"`                     // Maximum allowed unique files in create-pull-request patch only. Overrides safe-outputs.max-patch-files when set.
 	Expires                        int              `yaml:"expires,omitempty"`                             // Hours until the pull request expires and should be automatically closed (only for same-repo PRs)
-	AutoMerge                      *string          `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request when all required checks pass
+	AutoMerge                      *string          `yaml:"auto-merge,omitempty"`                          // Enable auto-merge for the pull request; accepts true/false or merge method strings squash|merge|rebase
 	BaseBranch                     string           `yaml:"base-branch,omitempty"`                         // Base branch for the pull request (defaults to github.ref_name if not specified)
 	Footer                         *string          `yaml:"footer,omitempty"`                              // Controls whether AI-generated footer is added. When false, visible footer is omitted but XML markers are kept.
 	FallbackAsIssue                *bool            `yaml:"fallback-as-issue,omitempty"`                   // When true (default), creates an issue if PR creation fails. When false, no fallback occurs and issues: write permission is not requested.
@@ -86,7 +86,7 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 		outputMap,
 		"create-pull-request",
 		CreateParseOptions{
-			BoolFields:    []string{"draft", "allow-empty", "auto-merge", "footer", "auto-close-issue", "close-older-pull-requests"},
+			BoolFields:    []string{"draft", "allow-empty", "footer", "auto-close-issue", "close-older-pull-requests"},
 			IntFields:     []string{"max"},
 			HandleExpires: true,
 		},
@@ -109,6 +109,25 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 
 			// Pre-process patch-format: valid values are "bundle" (default) and "am".
 			validateStringEnumField(configData, "patch-format", []string{"am", "bundle"}, createPRLog)
+
+			if val, exists := configData["auto-merge"]; exists {
+				switch v := val.(type) {
+				case bool:
+					if v {
+						configData["auto-merge"] = "true"
+					} else {
+						configData["auto-merge"] = "false"
+					}
+				case string:
+					if !isExpression(v) && v != "true" && v != "false" && v != "squash" && v != "merge" && v != "rebase" {
+						createPRLog.Printf("Invalid auto-merge value %q", v)
+						return false
+					}
+				default:
+					createPRLog.Printf("Invalid auto-merge value type %T", val)
+					return false
+				}
+			}
 
 			// Pre-process list fields that also accept a GitHub Actions expression string.
 			// An expression is wrapped in a single-element []string so the []string struct field
