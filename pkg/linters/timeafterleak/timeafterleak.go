@@ -16,7 +16,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:timeafterleak")
 
 // Analyzer is the time-after-leak analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -28,6 +31,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -62,6 +66,7 @@ func run(pass *analysis.Pass) (any, error) {
 			continue
 		}
 
+		pkgLog.Printf("flagging time.After inside loop select at %s", pos)
 		pass.ReportRangef(call,
 			"time.After creates a new timer on each loop iteration that is not garbage collected until it fires; use time.NewTimer with Reset and Stop instead")
 	}
