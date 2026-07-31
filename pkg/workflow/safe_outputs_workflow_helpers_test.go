@@ -17,14 +17,20 @@ func TestResolveWorkflowExtension(t *testing.T) {
 	}{
 		{
 			name:       "prefers lock file",
-			fileResult: &findWorkflowFileResult{lockExists: true, ymlExists: true, mdExists: true},
+			fileResult: &findWorkflowFileResult{lockExists: true, ymlExists: true, ymlPath: "path/to/workflow.yml", mdExists: true},
 			expected:   ".lock.yml",
 			found:      true,
 		},
 		{
 			name:       "uses yml file",
-			fileResult: &findWorkflowFileResult{ymlExists: true, mdExists: true},
+			fileResult: &findWorkflowFileResult{ymlExists: true, ymlPath: "path/to/workflow.yml", mdExists: true},
 			expected:   ".yml",
+			found:      true,
+		},
+		{
+			name:       "uses yaml file",
+			fileResult: &findWorkflowFileResult{ymlExists: true, ymlPath: "path/to/workflow.yaml"},
+			expected:   ".yaml",
 			found:      true,
 		},
 		{

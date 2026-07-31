@@ -3,6 +3,7 @@ package workflow
 import (
 	"encoding/json"
 	"fmt"
+	"path/filepath"
 
 	"github.com/github/gh-aw/pkg/sliceutil"
 	"github.com/github/gh-aw/pkg/stringutil"
@@ -100,7 +101,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				extension = ".lock.yml"
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
-				extension = ".yml"
+				extension = filepath.Ext(fileResult.ymlPath)
 			} else if fileResult.mdExists {
 				workflowPath = fileResult.mdPath
 				extension = ".lock.yml"
@@ -166,7 +167,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				extension = ".lock.yml"
 			} else if fileResult.ymlExists {
 				workflowPath = fileResult.ymlPath
-				extension = ".yml"
+				extension = filepath.Ext(fileResult.ymlPath)
 			} else if fileResult.mdExists {
 				workflowPath = fileResult.mdPath
 				extension = ".lock.yml"

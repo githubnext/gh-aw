@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -620,4 +622,76 @@ func TestComputePropertyInjectionsAddsGenericDataForBodyTypes(t *testing.T) {
 		require.True(t, ok)
 		assert.Equal(t, "#/0/inputSchema/$defs/structured_data", prop["$ref"])
 	}
+}
+
+// TestGenerateDynamicTools_DispatchWorkflow_YAMLExtension verifies that generateDynamicTools
+// correctly sets the .yaml extension in WorkflowFiles when the target workflow uses a .yaml file.
+func TestGenerateDynamicTools_DispatchWorkflow_YAMLExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(awDir, 0755))
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Create a .yaml workflow (not .yml) with a workflow_dispatch trigger
+	yamlWorkflow := "name: Deploy\non:\n  workflow_dispatch:\n    inputs:\n      env:\n        description: Environment\n        type: string\n"
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "deploy.yaml"), []byte(yamlWorkflow), 0644))
+
+	markdownPath := filepath.Join(awDir, "gateway.md")
+
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			DispatchWorkflow: &DispatchWorkflowConfig{
+				Workflows: []string{"deploy"},
+			},
+		},
+	}
+
+	tools, err := generateDynamicTools(data, markdownPath)
+	require.NoError(t, err)
+
+	// WorkflowFiles must use .yaml, not .yml
+	require.NotNil(t, data.SafeOutputs.DispatchWorkflow.WorkflowFiles)
+	assert.Equal(t, ".yaml", data.SafeOutputs.DispatchWorkflow.WorkflowFiles["deploy"],
+		"WorkflowFiles extension must be .yaml when only .yaml exists")
+
+	// A tool must have been generated for the workflow
+	require.Len(t, tools, 1, "one tool expected for the dispatch workflow")
+	assert.Equal(t, "deploy", tools[0]["_workflow_name"])
+}
+
+// TestGenerateDynamicTools_CallWorkflow_YAMLExtension verifies that generateDynamicTools
+// correctly sets the .yaml extension in the WorkflowFiles relative path for call_workflow.
+func TestGenerateDynamicTools_CallWorkflow_YAMLExtension(t *testing.T) {
+	tmpDir := t.TempDir()
+	awDir := filepath.Join(tmpDir, ".github", "aw")
+	workflowsDir := filepath.Join(tmpDir, ".github", "workflows")
+	require.NoError(t, os.MkdirAll(awDir, 0755))
+	require.NoError(t, os.MkdirAll(workflowsDir, 0755))
+
+	// Create a .yaml reusable workflow (workflow_call trigger)
+	yamlWorkflow := "name: Worker\non:\n  workflow_call:\n    inputs:\n      task:\n        description: Task to run\n        type: string\n"
+	require.NoError(t, os.WriteFile(filepath.Join(workflowsDir, "worker.yaml"), []byte(yamlWorkflow), 0644))
+
+	markdownPath := filepath.Join(awDir, "gateway.md")
+
+	data := &WorkflowData{
+		SafeOutputs: &SafeOutputsConfig{
+			CallWorkflow: &CallWorkflowConfig{
+				Workflows: []string{"worker"},
+			},
+		},
+	}
+
+	tools, err := generateDynamicTools(data, markdownPath)
+	require.NoError(t, err)
+
+	// WorkflowFiles relative path must use .yaml, not .yml
+	require.NotNil(t, data.SafeOutputs.CallWorkflow.WorkflowFiles)
+	assert.Equal(t, "./.github/workflows/worker.yaml", data.SafeOutputs.CallWorkflow.WorkflowFiles["worker"],
+		"WorkflowFiles path must end in .yaml when only .yaml exists")
+
+	// A tool must have been generated for the call workflow
+	require.Len(t, tools, 1, "one tool expected for the call workflow")
+	assert.Equal(t, "worker", tools[0]["_call_workflow_name"])
 }
