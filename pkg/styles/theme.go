@@ -53,6 +53,10 @@ import (
 	"runtime"
 
 	lipgloss "charm.land/lipgloss/v2"
+	// term is imported solely to satisfy lipgloss.HasDarkBackground's
+	// term.File parameter type below; none of the package's terminal
+	// functions (IsTerminal, MakeRaw, GetSize, etc.) are used here.
+	// See pkg/tty/tty.go for the unrelated golang.org/x/term usage.
 	"github.com/charmbracelet/x/term"
 )
 
@@ -82,6 +86,8 @@ func (c adaptiveColor) RGBA() (uint32, uint32, uint32, uint32) {
 	return c.Light.RGBA()
 }
 
+// backgroundDetector mirrors lipgloss.HasDarkBackground's signature, which is
+// declared against charmbracelet/x/term.File specifically.
 type backgroundDetector func(term.File, term.File) bool
 
 func configureHasDarkBackground(detector backgroundDetector) {
