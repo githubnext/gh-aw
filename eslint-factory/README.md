@@ -33,6 +33,7 @@ This project hosts custom ESLint linters for `/actions/setup/js`.
 | [`require-async-entrypoint-catch`](#require-async-entrypoint-catch) | Require `.catch(...)` on bare async entrypoint calls |
 | [`require-await-core-summary-write`](#require-await-core-summary-write) | Require `await` on `core.summary.write()` calls |
 | [`require-error-cause-in-rethrow`](#require-error-cause-in-rethrow) | Require `{ cause: err }` when rethrowing inside a `catch` block |
+| [`require-fetch-timeout`](#require-fetch-timeout) | Require `fetch(...)` calls to include a non-nullish abort `signal` option |
 | [`require-fetch-try-catch`](#require-fetch-try-catch) | Require try/catch around awaited `fetch(...)` calls, including chained promise forms without rejection handlers |
 | [`require-fs-io-try-catch`](#require-fs-io-try-catch) | Require try/catch around `fs.statSync`, `readdirSync`, `copyFileSync`, `unlinkSync`, and `renameSync` |
 | [`require-fs-sync-try-catch`](#require-fs-sync-try-catch) | Require try/catch around `fs.readFileSync`, `writeFileSync`, and `appendFileSync` |
@@ -246,6 +247,27 @@ Why: `fetch` rejects with `TypeError` on network failures (DNS errors, connectio
 **Out of scope:**
 - locally shadowed `fetch` bindings such as `async function f(fetch) { await fetch(url); }`
 - named-reference rejection handlers are not inspected for correctness; the rule only checks that `.catch(handler)` or `.then(ok, onErr)` is present on the awaited fetch chain
+
+### `require-fetch-timeout`
+
+Require `fetch(...)` calls to include a `signal` option so requests can be aborted instead of hanging indefinitely.
+
+Why: without an abort signal, a stalled network call can block the action until the workflow/job timeout ends it.
+
+**Flagged forms:**
+- `fetch(url);`
+- `fetch(url, null);`
+- `fetch(url, undefined);`
+- `fetch(url, { method: "GET" });`
+- `fetch(url, { signal: null });`
+- `globalThis.fetch(url, { method: "GET" });`
+
+**Not flagged:**
+- `fetch(url, { signal: AbortSignal.timeout(10_000) });`
+- `fetch(url, { signal: controller.signal });`
+- `fetch(url, options);` (options object is not statically resolved)
+- `fetch(url, { ...options });` (spread may already include `signal`)
+- `obj.fetch(url);` (only global `fetch` calls are in scope)
 
 ### `require-fs-io-try-catch`
 
