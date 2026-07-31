@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 
 describe("parse_pi_log.cjs", () => {
   let mockCore;
-  let parsePiLog, transformPiEntries, isPiV3Schema, transformPiV3Entries, computePiV3Stats;
+  let parsePiLog, transformPiEntries, isPiV3Schema, transformPiV3Entries, computePiV3Stats, normalizePiToolName;
 
   beforeEach(async () => {
     mockCore = {
@@ -25,6 +25,7 @@ describe("parse_pi_log.cjs", () => {
     isPiV3Schema = module.isPiV3Schema;
     transformPiV3Entries = module.transformPiV3Entries;
     computePiV3Stats = module.computePiV3Stats;
+    normalizePiToolName = module.normalizePiToolName;
   });
 
   afterEach(() => {
@@ -166,7 +167,7 @@ describe("parse_pi_log.cjs", () => {
       expect(entries).toHaveLength(1);
       expect(entries[0].type).toBe("assistant");
       expect(entries[0].message.content[0].type).toBe("tool_use");
-      expect(entries[0].message.content[0].name).toBe("bash");
+      expect(entries[0].message.content[0].name).toBe("Bash");
       expect(entries[0].message.content[0].id).toBe("t1");
     });
 
@@ -258,7 +259,7 @@ describe("parse_pi_log.cjs", () => {
 
       expect(result.markdown).toContain("Let me list the files.");
       expect(result.markdown).toContain("All done.");
-      expect(result.markdown).toContain("bash");
+      expect(result.markdown).toContain("`ls`");
       expect(result.markdown).toContain("gpt-5.4");
       // The conversation must not be empty for a real v3 log.
       expect(result.markdown.length).toBeGreaterThan(0);
@@ -302,6 +303,22 @@ describe("parse_pi_log.cjs", () => {
       expect(toolResult).toBeDefined();
       expect(toolResult.message.content[0].is_error).toBe(true);
       expect(toolResult.message.content[0].content).toContain("boom");
+    });
+  });
+
+  describe("normalizePiToolName", () => {
+    it("maps lowercase bash to Bash", () => {
+      expect(normalizePiToolName("bash")).toBe("Bash");
+    });
+
+    it("maps uppercase and mixed-case bash variants to Bash", () => {
+      expect(normalizePiToolName("BASH")).toBe("Bash");
+      expect(normalizePiToolName("Bash")).toBe("Bash");
+    });
+
+    it("passes through non-bash tool names unchanged", () => {
+      expect(normalizePiToolName("str_replace_editor")).toBe("str_replace_editor");
+      expect(normalizePiToolName("read")).toBe("read");
     });
   });
 });
