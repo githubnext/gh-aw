@@ -1014,7 +1014,7 @@ func flattenDownloadedArtifacts(ctx context.Context, opts downloadArtifactsOptio
 
 // logVerboseArtifactSummary prints a summary of downloaded artifact files to stderr.
 func logVerboseArtifactSummary(outputDir string) {
-	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Downloaded artifacts to %s", outputDir)))
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Downloaded artifacts to "+outputDir))
 	var fileCount int
 	var firstFiles []string
 	var walkFailed bool
