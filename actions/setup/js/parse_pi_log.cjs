@@ -438,7 +438,7 @@ function isConsecutiveDeltaEntry(entry) {
  * @returns {string} Normalized tool name
  */
 function normalizePiToolName(name) {
-  return name === "bash" ? "Bash" : name;
+  return typeof name === "string" && name.trim().toLowerCase() === "bash" ? "Bash" : name;
 }
 
 // Export for testing
