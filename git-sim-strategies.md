@@ -193,7 +193,33 @@ content there could realistically breach 4096 KB).
   estimate — likely author/date line length variance, not a contradiction). merge_msg(155)
   filename leak + single-parent reconfirmed at this payload size too. All far under caps
   (~5.6% of 4096 KB, 100/200 files).
-- **Next index: 156** = tiny-none-batch-medium-ahead-single. Remaining to close batch-medium
-  tier: ahead×3 + diverged×3 (idx156-161). Still zero real fail/error/rejected across 156
-  cells — first realistic rejection candidate remains SIZE>tiny (idx720+) or a same-file
-  re-append multi-commit shape, per earlier analysis.
+## Run 2026-07-31: idx156-159 (batch-medium ahead tier + diverged-single)
+
+- **⚠ CAP CORRECTION:** this workflow's YAML (daily-safeoutputs-git-simulator.md:45,57)
+  sets `max-patch-size: 5120` KB for BOTH create-pull-request and push-to-pull-request-branch
+  (NOT the framework default 4096 cited earlier — that default was never actually the live
+  cap here). All prior "% of 4096" headroom calcs in this file understate real headroom by
+  ~25%; re-baseline future large/xlarge-tier analysis against 5120. max-patch-files=200
+  confirmed unchanged. Also confirmed `allowed-files: [sim/**, stuff.md, history.md]` on both
+  handlers — from idx156 onward, patch payload files are placed under `sim/batch/...` (not
+  bare `batch/...`) for allow-list fidelity; negligible effect on measured sizes (path-string
+  length only).
+- **idx156 ahead-single: PASS.** 101 files/226-228KB (2 format-patch commits, two-dot==three-dot
+  since no main divergence). ff rc0, merges=0/parent=1, sim/** compliant.
+- **idx157 ahead-multi: PASS.** 3 disjoint batch commits (34/33/33) + 1 followup = 4 commits,
+  101 files, 226.74 KB — confirms disjoint-multi stays ~1x (no multiplication) even at
+  FILES=batch scale. ff rc0, merges=0, sim/** compliant.
+- **idx158 ahead-merge_msg: PASS.** Filename leak reconfirmed at batch scale:
+  `0001-Merge-branch-topic-into-feature.patch`. merges=0/parent=1 (structurally normal despite
+  message). 101 files/226.19 KB, ff rc0.
+- **idx159 diverged-single: PASS.** New precise numbers: two-dot format-patch=2 files/226.19KB
+  (feature-only, authoritative for caps); three-dot=3 files/226.71KB (+0.51KB main phantom
+  commit leaked in). **Confirms format-patch vs `diff --name-only` phantom INVERSION exactly**:
+  `diff --name-only main..feature`=102 (contaminated by main's divergent history.md) vs
+  `main...feature`=101 (clean) — opposite polarity from format-patch where two-dot is clean.
+  Correct ff check for push_to_pull_request_branch under divergence = feature-tip-vs-feature-tip
+  (rc0), NOT main-vs-feature (rc1, correctly fails — divergence is real).
+- **batch-medium tier: 8/9 done (152-159), only diverged-multi(160)/diverged-merge_msg(161)
+  remain.** Zero real fail/error/rejected across 160 cells. Next realistic rejection candidate
+  still SIZE>tiny (idx720+) or same-file re-append multi-commit shape.
+- **Next index: 160** = tiny-none-batch-medium-diverged-multi.
