@@ -13,7 +13,9 @@ import (
 )
 
 func TestValidateExecutablePath(t *testing.T) {
+	t.Parallel()
 	t.Run("accepts executable file", func(t *testing.T) {
+		t.Parallel()
 		exe := filepath.Join(t.TempDir(), "tool")
 		require.NoError(t, os.WriteFile(exe, []byte("#!/bin/sh\nexit 0\n"), 0o755))
 
@@ -23,12 +25,14 @@ func TestValidateExecutablePath(t *testing.T) {
 	})
 
 	t.Run("rejects directory", func(t *testing.T) {
+		t.Parallel()
 		_, err := ValidateExecutablePath(t.TempDir())
 		require.Error(t, err)
 		require.ErrorContains(t, err, "is a directory")
 	})
 
 	t.Run("rejects non-executable file on unix", func(t *testing.T) {
+		t.Parallel()
 		if runtime.GOOS == "windows" {
 			t.Skip("executable bit semantics differ on Windows")
 		}
@@ -44,6 +48,7 @@ func TestValidateExecutablePath(t *testing.T) {
 
 func TestResolveExecutablePath(t *testing.T) {
 	t.Run("rejects empty name", func(t *testing.T) {
+		t.Parallel()
 		_, err := ResolveExecutablePath("")
 		require.Error(t, err)
 		require.ErrorContains(t, err, "executable name cannot be empty")
