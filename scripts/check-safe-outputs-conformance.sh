@@ -1622,7 +1622,7 @@ check_create_check_run_handler() {
     # Per spec Section 7.3 dual-permission profile: checks:write without target,
     # adds pull-requests:read when target is configured.
     if [ -f "$handler_registry" ]; then
-        if ! grep -q "NewPermissionsChecksWrite" "$handler_registry"; then
+        if ! grep -q "NewPermissionsChecksWrite()" "$handler_registry"; then
             log_critical "TYPE-008: create_check_run dual-permission profile missing checks:write base permission (Section 7.3 v1.23.0)"
             failed=1
         fi
