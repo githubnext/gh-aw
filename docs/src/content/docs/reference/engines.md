@@ -430,7 +430,7 @@ engine:
 
 ### Bare Mode (`bare`)
 
-Set `engine.bare: true` to disable automatic loading of context and custom instructions by the engine. Use this when the workflow prompt is fully self-contained and you want to prevent the engine from reading memory files, AGENTS.md, or built-in system prompts that would otherwise be loaded automatically.
+Set `engine.bare: true` to disable automatic loading of context and custom instructions by the engine. Use this when the workflow prompt is fully self-contained and you want to prevent the engine from reading memory files, AGENTS.md, or built-in system prompts that would otherwise be loaded automatically. Pi also accepts `engine.bare: true`; for Pi the setting is supported but is a no-op because Pi already runs in bare mode by default.
 
 ```yaml wrap
 engine:
