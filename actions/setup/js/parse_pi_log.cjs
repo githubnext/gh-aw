@@ -159,7 +159,7 @@ function transformPiEntries(rawEntries) {
             {
               type: "tool_use",
               id: raw.tool_id,
-              name: raw.tool_name,
+              name: normalizePiToolName(raw.tool_name),
               input: raw.parameters || {},
             },
           ],
@@ -289,7 +289,7 @@ function transformPiV3Entries(rawEntries) {
         entries.push({
           type: "assistant",
           message: {
-            content: [{ type: "tool_use", id: part.id, name: part.name, input: part.arguments || {} }],
+            content: [{ type: "tool_use", id: part.id, name: normalizePiToolName(part.name), input: part.arguments || {} }],
           },
         });
         if (part.id) {
@@ -431,6 +431,16 @@ function isConsecutiveDeltaEntry(entry) {
   return entry && entry.type === "assistant" && entry.message && Array.isArray(entry.message.content) && entry.message.content.length === 1 && entry.message.content[0].type === "text";
 }
 
+/**
+ * Normalizes Pi tool call names to the canonical names expected by the shared
+ * formatters (e.g. log_parser_format.cjs special-cases "Bash", not "bash").
+ * @param {string} name - Raw tool name as emitted by Pi
+ * @returns {string} Normalized tool name
+ */
+function normalizePiToolName(name) {
+  return typeof name === "string" && name.trim().toLowerCase() === "bash" ? "Bash" : name;
+}
+
 // Export for testing
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
@@ -440,5 +450,6 @@ if (typeof module !== "undefined" && module.exports) {
     isPiV3Schema,
     transformPiV3Entries,
     computePiV3Stats,
+    normalizePiToolName,
   };
 }
