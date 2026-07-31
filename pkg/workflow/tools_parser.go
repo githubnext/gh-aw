@@ -462,7 +462,7 @@ func parseBoundedQueriesConfig(bqMap map[string]any) *BoundedQueriesConfig {
 	}
 
 	if runtime, ok := bqMap["runtime"].(string); ok {
-		config.Runtime = BoundedQueryRuntime(runtime)
+		config.Runtime = runtime
 	}
 	if rawTimeout, hasTimeout := bqMap["timeout"]; hasTimeout {
 		if timeout, ok := rawTimeout.(int); ok {

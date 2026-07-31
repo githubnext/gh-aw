@@ -33,7 +33,7 @@ func TestBoundedQueryRuntimeMatrix(t *testing.T) {
 
 	for _, agentRuntime := range agentRuntimes {
 		for _, queryRuntime := range queryRuntimes {
-			t.Run(agentRuntime.name+"-agent/"+string(queryRuntime)+"-query", func(t *testing.T) {
+			t.Run(agentRuntime.name+"-agent/"+queryRuntime+"-query", func(t *testing.T) {
 				workflowData := &WorkflowData{
 					EngineConfig:   &EngineConfig{ID: "copilot"},
 					TimeoutMinutes: "timeout-minutes: 30",
@@ -102,7 +102,7 @@ func TestBoundedQueryRuntimeVersionGate(t *testing.T) {
 		BoundedQueryRuntimeGVisor,
 		BoundedQueryRuntimeSbx,
 	} {
-		t.Run(string(runtime), func(t *testing.T) {
+		t.Run(runtime, func(t *testing.T) {
 			makeWorkflow := func(version string) *WorkflowData {
 				return &WorkflowData{
 					SandboxConfig: &SandboxConfig{

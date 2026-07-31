@@ -342,7 +342,7 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 		if _, ok := validBoundedQueryRuntimes[bq.Runtime]; !ok {
 			return NewValidationError(
 				"tools.github.bounded-queries.runtime",
-				string(bq.Runtime),
+				bq.Runtime,
 				"unsupported bounded-queries runtime: must be \"docker\", \"gvisor\", or \"sbx\"",
 				fmt.Sprintf("Set runtime to a supported value:\n\ntools:\n  github:\n    bounded-queries:\n      runtime: docker  # docker, gvisor, or sbx\n\nThe sbx backend is experimental and capability-gated. AWF performs a fail-closed host preflight and never falls back to docker or gvisor.\n\nSee: %s", constants.DocsSandboxURL),
 			)
