@@ -59,13 +59,15 @@ tracker-id: "example-value"
 labels: []
   # Array of strings
 
-# Optional list of skill references to install during activation.
-# Supports local development paths (`skills/name`, `.github/skills/name`),
-# repository-wide installs (`owner/repo@<sha>`), and path-scoped installs
-# (`owner/repo/skill/path@<sha>`). Static external references must be pinned to
-# a full 40-character lowercase commit SHA. GitHub Actions expressions (`${{ ... }}`)
-# are also accepted and are evaluated at runtime. Entries may also be objects to
-# configure per-skill authentication via github-token or github-app.
+# Optional list of skill references to install during activation. Supports remote
+# repository-wide installs (`owner/repo@<sha>`), remote path-scoped installs
+# (`owner/repo/skill/path@<sha>`), and local path references (e.g. `skills/rig` or
+# `.github/skills/my-skill`). Remote static references must be pinned to a full
+# 40-character lowercase commit SHA. Local paths are installed with --from-local
+# at runtime and are rewritten to a remote repospec by `gh aw add`. GitHub Actions
+# expressions (`${{ ... }}`) are also accepted and are evaluated at runtime.
+# Entries may also be objects to configure per-skill authentication via
+# github-token or github-app.
 # (optional)
 skills: []
 
@@ -1867,7 +1869,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -2141,6 +2143,38 @@ sandbox:
         # "x-api-key" for Anthropic). Example: "api-key" for Azure OpenAI gateways.
         # (optional)
         authHeader: "example-value"
+
+      # AWF API proxy target configuration for the Copilot BYOK provider. Supports
+      # injecting additional headers, body fields, and an optional session ID on
+      # upstream requests.
+      # (optional)
+      copilot:
+        # Custom authentication header name to use when forwarding requests to the Copilot
+        # API. Example: "api-key" for Azure OpenAI gateways.
+        # (optional)
+        authHeader: "example-value"
+
+        # Additional non-sensitive HTTP headers to inject on Copilot BYOK upstream
+        # requests. Maps to AWF_BYOK_EXTRA_HEADERS. Example: { "x-openrouter-title":
+        # "my-workflow" }.
+        # (optional)
+        extraHeaders:
+          {}
+
+        # Additional non-sensitive JSON body fields to inject on Copilot BYOK upstream
+        # requests. Maps to AWF_BYOK_EXTRA_BODY_FIELDS. Example: { "custom-field":
+        # "custom-value" }.
+        # (optional)
+        extraBodyFields:
+          {}
+
+        # Optional session identifier injected as the x-session-id request header and
+        # session_id body field on Copilot BYOK upstream requests. Maps to
+        # AWF_PROVIDER_SESSION_ID. Only set this field when your upstream supports it —
+        # strict OpenAI-compatible upstreams (e.g. Azure OpenAI) reject the unknown
+        # session_id body field with HTTP 400. Example: "${{ github.run_id }}".
+        # (optional)
+        sessionId: "example-value"
 
     # Opt into legacy security mode. When set to 'enable', AWF runs with sudo and
     # --enable-host-access for backward compatibility. The default (omitted) uses
@@ -2456,9 +2490,8 @@ engine:
     # (optional)
     azure-cloud: "example-value"
 
-    # Optional WIF provider discriminator. Recognized values are 'azure',
-    # 'anthropic', and 'gcp'. Use 'gcp' for Gemini Vertex AI authentication via
-    # Google Cloud Workload Identity Federation.
+    # Optional WIF provider discriminator. Recognized values are 'azure', 'anthropic',
+    # and 'gcp'.
     # (optional)
     provider: "example-value"
 
@@ -2478,19 +2511,22 @@ engine:
     # (optional)
     workspace-id: "example-value"
 
-    # Google Cloud Workload Identity Provider resource name for Vertex AI WIF.
+    # Google Cloud WIF workload identity provider resource name (e.g.,
+    # projects/PROJECT_NUMBER/locations/global/workloadIdentityPools/POOL/providers/PROVIDER).
     # (optional)
     workload-identity-provider: "example-value"
 
-    # Google Cloud service account email to impersonate for Vertex AI WIF.
+    # Google Cloud service account email to impersonate via WIF (e.g.,
+    # my-sa@my-project.iam.gserviceaccount.com).
     # (optional)
     service-account: "example-value"
 
-    # Google Cloud project ID for Vertex AI WIF.
+    # Google Cloud project ID used for Vertex AI / Gemini Enterprise inference.
     # (optional)
     project: "example-value"
 
-    # Google Cloud location for Vertex AI WIF (defaults to us-central1).
+    # Google Cloud region for Vertex AI inference (e.g., us-central1). Defaults to
+    # us-central1 when omitted.
     # (optional)
     location: "example-value"
 
@@ -2546,7 +2582,7 @@ engine:
     # (optional)
     tool-timeout: "example-value"
 
-  # Enables the GitHub Copilot SDK integration (copilot engine only).
+  # Enables the experimental GitHub Copilot SDK integration (copilot engine only).
   # When true, the harness starts a separate headless Copilot CLI sidecar on the
   # configured localhost port and sets COPILOT_SDK_URI on child processes.
   # (optional)
@@ -2566,11 +2602,22 @@ engine:
   driver: "example-value"
 
   # Format 2: Inline Copilot SDK driver source. Provide exactly one runtime key.
-  # The supported runtime keys are node, python, go, and java.
   driver:
     # Inline Node.js driver source written to a generated .cjs file.
     # (optional)
     node: "example-value"
+
+    # Inline Python driver source written to a generated .py file.
+    # (optional)
+    python: "example-value"
+
+    # Inline Go driver source written to a generated .go file.
+    # (optional)
+    go: "example-value"
+
+    # Inline Java driver source written to a generated .java file.
+    # (optional)
+    java: "example-value"
 
   # Engine-specific plugin names to install before launching the engine. Currently
   # used by the Pi engine: each entry is passed to `pi install <extension>`.
@@ -3315,8 +3362,6 @@ tools:
     # agent can access. Use 'all' to allow all repos, 'public' for public repositories
     # only, '${{ github.repository }}' for the current repository, or an array of
     # repository patterns (e.g., 'owner/repo', 'owner/*', 'owner/prefix*').
-    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
-    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
@@ -3332,9 +3377,6 @@ tools:
 
     # Guard policy: minimum required integrity level for repository access. Restricts
     # the agent to users with at least the specified permission level.
-    # Required when any guard-policy list field is configured.
-    # Reference: /gh-aw/reference/integrity/ and
-    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     min-integrity: "none"
 
@@ -3344,8 +3386,6 @@ tools:
     # 'approval-labels'. Requires 'min-integrity' to be set. Accepts an array of
     # usernames, a comma-separated string, a newline-separated string, or a GitHub
     # Actions expression (e.g. '${{ vars.BLOCKED_USERS }}').
-    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
-    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
@@ -3364,8 +3404,6 @@ tools:
     # 'min-integrity' to be set. Accepts an array of usernames, a comma-separated
     # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
     # vars.TRUSTED_USERS }}').
-    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
-    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
@@ -3384,8 +3422,6 @@ tools:
     # 'min-integrity' to be set. Accepts an array of label names, a comma-separated
     # string, a newline-separated string, or a GitHub Actions expression (e.g. '${{
     # vars.APPROVAL_LABELS }}').
-    # Reference: /gh-aw/reference/github-tools/#guard-policy-frontmatter-examples and
-    # /gh-aw/reference/mcp-gateway/#103-guard-policy-fields
     # (optional)
     # Accepted formats:
 
@@ -3647,6 +3683,50 @@ tools:
     # empty string to disable all feature flags.
     # (optional)
     features: "example-value"
+
+    # AWF bounded-query configuration for cross-repository private data access (AWF
+    # v0.28.0+). Requires the AWF sandbox (sandbox.agent.id: awf). Query execution is
+    # independent from the primary agent sandbox, and every query runs in a fresh
+    # backend-specific sandbox.
+    # (optional)
+    bounded-queries:
+      # List of private repositories the agent may query via bounded queries.
+      private-repos: []
+        # Array items:
+          # Repository slug in 'owner/repo' format.
+          repo: "example-value"
+
+          # Confidentiality classification for this repository.
+          sensitivity: "public"
+
+      # Isolated backend used to execute each bounded-query script. Accepted values are
+      # docker, gvisor, and sbx. The sbx backend is experimental and capability-gated:
+      # AWF performs a fail-closed host preflight and never falls back to docker or
+      # gvisor. Current Docker Sandboxes v0.37.1 hosts do not provide all mandatory
+      # controls, so AWF rejects them unless the required capabilities become available.
+      # When omitted AWF uses its default.
+      # (optional)
+      runtime: "docker"
+
+      # Maximum execution time in seconds for a single bounded-query invocation. When
+      # omitted AWF uses its default.
+      # (optional)
+      timeout: 1
+
+      # Memory limit for bounded-query container execution (e.g. "512m", "2g"). When
+      # omitted AWF uses its default.
+      # (optional)
+      memory-limit: "example-value"
+
+      # Script interpreter for bounded-query execution. When omitted AWF uses its
+      # default.
+      # (optional)
+      interpreter: "python3"
+
+      # Maximum number of bounded-query invocations allowed per run. When omitted AWF
+      # uses its default.
+      # (optional)
+      max-invocations: 1
 
   # Bash shell command execution tool. Supports wildcards: '*' (all commands),
   # 'command *' (command with any args, e.g., 'date *', 'echo *'). Default safe
@@ -4077,6 +4157,24 @@ safe-outputs:
   # (optional)
   allowed-domains: []
     # Array of strings
+
+  # Structured data configuration for body-based safe outputs. Set false (or omit)
+  # to disable data, true to allow any object data, provide an inline schema object
+  # to enforce shape, or provide a GitHub Actions expression string that resolves to
+  # one of those forms at runtime.
+  # (optional)
+  # Accepted formats:
+
+  # Format 1: boolean
+  data: true
+
+  # Format 2: object
+  data:
+    {}
+
+  # Format 3: GitHub Actions expression resolving to false, true, or a JSON object
+  # schema at runtime
+  data: "example-value"
 
   # List of allowed repositories for GitHub references (e.g., #123 or
   # owner/repo#456). Use 'repo' to allow current repository. References to other
@@ -5971,7 +6069,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: request_review (default),
     # blocked, allowed, or fallback-to-issue — or a GitHub Actions expression for
-    # reusable workflows. Object form: { policy, exclude } to customize the
+    # reusable workflows. Object form: { policy, exclude } to customise the
     # protected-file set.
     # (optional)
     # Accepted formats:
@@ -5987,7 +6085,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
     # 'fallback-to-issue', or 'request_review' at runtime. Use in reusable
-    # workflow_call workflows to parameterize the policy per caller.
+    # workflow_call workflows to parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -6067,7 +6165,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -6208,6 +6306,12 @@ safe-outputs:
     # (optional)
     required-title-prefix: "example-value"
 
+    # Pin the review to this specific commit SHA. When set, the review is attributed
+    # to this commit instead of the current PR head. GitHub will mark the review as
+    # outdated if the PR head has since moved.
+    # (optional)
+    commit-id: "example-value"
+
   # Format 2: Enable PR review comment creation with default configuration
   create-pull-request-review-comment: null
 
@@ -6326,6 +6430,12 @@ safe-outputs:
     # proceed
     # (optional)
     required-title-prefix: "example-value"
+
+    # Pin the review to this specific commit SHA. When set, the review is attributed
+    # to this commit instead of the current PR head. GitHub will mark the review as
+    # outdated if the PR head has since moved.
+    # (optional)
+    commit-id: "example-value"
 
   # Format 2: Enable PR review submission with default configuration
   submit-pull-request-review: null
@@ -8562,7 +8672,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customize the protected-file set.
+    # Object form: { policy, exclude } to customise the protected-file set.
     # (optional)
     # Accepted formats:
 
@@ -8575,7 +8685,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterize the policy per caller.
+    # parameterise the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -8637,7 +8747,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterize the transport
+    # runtime. Use in reusable workflow_call workflows to parameterise the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -9617,7 +9727,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behavior when no files match: 'error' (default) or 'ignore'
+      # Behaviour when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 

@@ -312,6 +312,7 @@ For cross-repository workflows, first determine whether the question is **finite
 - If the agent needs to answer a finite, pre-approved question about a private repository (e.g. "does this repo have open critical issues?", "what is the latest release version?"):
   - Use `tools.github.bounded-queries` with `private-repos` and `sandbox.agent.id: awf` (AWF v0.28.0+)
   - This is the preferred approach — no raw source code is exposed and no cross-repo token is needed
+  - Select `runtime: sbx` only when experimental, capability-gated execution is intended. Each query gets a separate sbx VM; AWF fails closed during host preflight and never falls back to Docker or gVisor.
 - If the answer is unbounded (e.g. arbitrary source-code extraction, full file contents), or if bounded queries are not appropriate:
   - enable the GitHub toolsets needed to read external repositories
   - configure cross-repo authentication in `safe-outputs:`
