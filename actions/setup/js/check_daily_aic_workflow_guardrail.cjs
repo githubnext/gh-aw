@@ -703,12 +703,16 @@ async function main() {
     } catch (summaryError) {
       core.warning(`Failed to write daily AIC summary: ${getErrorMessage(summaryError)}`);
     }
-    core.warning(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
-    core.setFailed(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
+    // Log as info so the activation job succeeds. The daily_ai_credits_exceeded output
+    // is already set to "true"; the agent job's condition (daily_ai_credits_exceeded != 'true')
+    // will skip the agent, and the conclusion job will handle reporting via the
+    // daily_ai_credits_exceeded flag. Failing the activation job here causes the overall
+    // workflow to fail even though hitting the daily limit is an expected, graceful outcome.
+    core.info(`Daily workflow AIC guardrail exceeded for ${workflowName}: ${totalAIC}/${threshold}.`);
   } catch (error) {
     // Treat unexpected guardrail execution errors as non-blocking skips so transient
     // API/runtime issues do not fail activation. The output stays at the default "false",
-    // allowing the agent to run. Legitimate threshold exceedance still fails via setFailed.
+    // allowing the agent to run.
     core.warning(`Daily workflow AI Credits guardrail encountered an unexpected error and will be skipped: ${getErrorMessage(error)}`);
   }
 }

@@ -1286,6 +1286,15 @@ async function main() {
             reasons.push("LLM invocation cap saturated — the pooled per-run budget is fully exhausted; retries cannot make progress");
           }
           log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
+          // When the per-run AI credits budget is exceeded the AWF firewall intentionally
+          // stopped the agent — this is controlled budget enforcement, not an unexpected
+          // error.  Exit 0 so the agent step and job succeed; the ai_credits_rate_limit_error
+          // output surfaced by parse-mcp-gateway will inform downstream handlers (e.g.
+          // handle_agent_failure) of the budget exceedance.
+          if (nonRetryableGuard.aiCreditsExceeded) {
+            log(`attempt ${attempt + 1}: AI credits budget enforced — exiting 0 (budget control, not an error)`);
+            lastExitCode = 0;
+          }
           break;
         }
 
