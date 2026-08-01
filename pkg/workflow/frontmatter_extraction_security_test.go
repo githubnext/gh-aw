@@ -187,6 +187,42 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 	})
 }
 
+func TestExtractAgentSandboxConfigMemory(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.memory string", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":     "awf",
+			"memory": "48g",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Equal(t, "48g", config.Memory, "Should extract sandbox.agent.memory")
+	})
+
+	t.Run("memory is empty when absent", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Empty(t, config.Memory, "Memory should be empty when not configured")
+	})
+
+	t.Run("ignores non-string memory value", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":     "awf",
+			"memory": 48,
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Empty(t, config.Memory, "Memory should be empty for non-string value")
+	})
+}
+
 func TestExtractDefaultAiCreditsPricingFromModels(t *testing.T) {
 	t.Run("extracts zero pricing for self-hosted BYOK model", func(t *testing.T) {
 		frontmatter := map[string]any{
