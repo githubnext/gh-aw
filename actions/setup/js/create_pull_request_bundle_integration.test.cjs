@@ -725,4 +725,433 @@ describe("create_pull_request bundle integration", () => {
     const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
     expect(linearCommitCount).toBe(1);
   });
+
+  it("rewriteBundleBranchAsSingleCommit falls back to origin/main when bundle declares no prerequisites (self-contained bundle)", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // Some agents bundle with `git bundle create <file> refs/heads/<branch>`
+    // without a `<base>..` range exclusion. This produces a self-contained
+    // bundle that includes all reachable history — meaning the bundle has NO
+    // recorded prerequisites (getBundlePrerequisites returns []).
+    //
+    // rewriteBundleBranchAsSingleCommit must take the "prereqs.length === 0"
+    // fallback branch and use origin/<base> as the linearization base, still
+    // producing a single correct commit.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const branchName = "feature/self-contained-bundle";
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-no-prereq-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-no-prereq-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-no-prereq-so-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
+
+    // 1. Initialize bare remote and seed main.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    execGit(["add", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+
+    // 2. Agent creates feature branch and adds a file.
+    execGit(["checkout", "-b", branchName], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "agent-file.txt"), "agent change\n");
+    execGit(["add", "agent-file.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: agent adds a file"], { cwd: agentRepo });
+
+    // 3. Create a SELF-CONTAINED bundle (no range exclusion → no prerequisites).
+    //    The bundle includes the full reachable history and records no prereqs.
+    const bundlePath = path.join(agentRepo, "self-contained.bundle");
+    execGit(["bundle", "create", bundlePath, `refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // Confirm the bundle has no prerequisites (git reports "complete history").
+    const verifyOut = execGit(["bundle", "verify", bundlePath], { cwd: agentRepo, allowFailure: true });
+    const verifyText = `${verifyOut.stdout || ""}\n${verifyOut.stderr || ""}`;
+    expect(verifyText).toMatch(/complete history/i);
+
+    // 4. Safe-outputs runner: fresh clone of origin/main.
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 5. Rewrite using the self-contained bundle; function should log
+    //    "Bundle declares no prerequisites; falling back to origin/main".
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), bundlePath);
+
+    // 6. Exactly one commit beyond origin/main.
+    const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
+    expect(linearCommitCount).toBe(1);
+
+    // 7. The diff origin/main..HEAD must contain only agent-file.txt.
+    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim().split("\n").filter(Boolean).sort();
+    expect(diffNames).toEqual(["agent-file.txt"]);
+
+    // 8. Exactly one parent (linearized, not a merge commit).
+    const parentLine = execGit(["log", "-1", "--format=%P", "HEAD"], { cwd: safeOutputsRepo }).stdout.trim();
+    const parentShas = parentLine.split(/\s+/).filter(Boolean);
+    expect(parentShas).toHaveLength(1);
+  });
+
+  it("rewriteBundleBranchAsSingleCommit falls back to origin/main when bundle has multiple prerequisites", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // When the bundle range includes a commit whose parent is NOT reachable
+    // from the range exclusion commit, the bundle records TWO prerequisites:
+    //
+    //   ROOT ─── MAIN (main branch, pushed to origin as agent base)
+    //    └────── INDEPENDENT (side branch, never on main)
+    //
+    //   Feature: MAIN → FEAT(agent-work.txt) → MERGE(FEAT, INDEPENDENT)
+    //   Bundle:  MAIN..refs/heads/feature
+    //     • Included:      FEAT, INDEPENDENT, MERGE
+    //     • Prerequisites: MAIN (parent of FEAT) + ROOT (parent of INDEPENDENT)
+    //
+    // rewriteBundleBranchAsSingleCommit falls back to origin/main when
+    // prereqs.length > 1 and must still produce a single correct commit.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const branchName = "feature/multi-prereq-rewrite";
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-multi-prereq-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-multi-prereq-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-multi-prereq-so-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
+
+    // 1. Initialize bare remote.  ROOT is the initial commit; MAIN is the
+    //    second commit on main.  The agent branches from MAIN.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    execGit(["add", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+    const rootCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    fs.writeFileSync(path.join(agentRepo, "setup.txt"), "project setup\n");
+    execGit(["add", "setup.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "chore: project setup"], { cwd: agentRepo });
+    execGit(["push", "origin", "main"], { cwd: agentRepo });
+    const agentBaseCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    // 2. Create an INDEPENDENT branch off ROOT (not on main's history).
+    //    This branch is never pushed to origin.
+    execGit(["checkout", "-b", "side-branch", rootCommit], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "side.txt"), "side branch content\n");
+    execGit(["add", "side.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: add side.txt from independent branch"], { cwd: agentRepo });
+
+    // 3. Agent creates feature branch from MAIN and makes a commit.
+    execGit(["checkout", "-b", branchName, agentBaseCommit], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "agent-work.txt"), "agent work\n");
+    execGit(["add", "agent-work.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: agent work"], { cwd: agentRepo });
+
+    // 4. Agent merges the independent side branch into the feature branch.
+    execGit(["merge", "--no-ff", "side-branch", "-m", "feat: merge side branch"], { cwd: agentRepo });
+
+    // 5. Create the bundle with range MAIN..feature.
+    //    FEAT and INDEPENDENT are included (reachable from feature but not from MAIN).
+    //    Prerequisites: MAIN (parent of FEAT, not included) +
+    //                   ROOT (parent of INDEPENDENT, not included) = TWO prereqs.
+    const bundlePath = path.join(agentRepo, "multi-prereq.bundle");
+    execGit(["bundle", "create", bundlePath, `${agentBaseCommit}..refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // Confirm the bundle records both prereq SHAs in git bundle verify output.
+    const verifyOut = execGit(["bundle", "verify", bundlePath], { cwd: agentRepo, allowFailure: true });
+    const verifyText = `${verifyOut.stdout || ""}\n${verifyOut.stderr || ""}`;
+    expect(verifyText).toMatch(new RegExp(rootCommit.slice(0, 8), "i"));
+    expect(verifyText).toMatch(new RegExp(agentBaseCommit.slice(0, 8), "i"));
+
+    // 6. Safe-outputs runner: fresh clone of origin/main (has ROOT and MAIN,
+    //    satisfying both bundle prerequisites).
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 7. Rewrite: 2 prereqs detected → falls back to origin/main (= MAIN).
+    //    All changes relative to origin/main are captured in one squash commit.
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), bundlePath);
+
+    // 8. Exactly one commit beyond origin/main.
+    const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
+    expect(linearCommitCount).toBe(1);
+
+    // 9. The diff origin/main..HEAD covers both the agent's file and the merged-in
+    //    side file (all changes relative to origin/main = MAIN).
+    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim().split("\n").filter(Boolean).sort();
+    expect(diffNames).toContain("agent-work.txt");
+    expect(diffNames).toContain("side.txt");
+
+    // 10. Exactly one parent (linearized, not a merge commit).
+    const parentLine = execGit(["log", "-1", "--format=%P", "HEAD"], { cwd: safeOutputsRepo }).stdout.trim();
+    const parentShas = parentLine.split(/\s+/).filter(Boolean);
+    expect(parentShas).toHaveLength(1);
+  });
+
+  it("rewriteBundleBranchAsSingleCommit falls back to origin/main when bundle prerequisite SHA is not in local object store", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // rewriteBundleBranchAsSingleCommit verifies reachability of the bundle's
+    // prerequisite SHA via `git cat-file -e <sha>^{commit}`.  If the SHA is
+    // not in the local object store (e.g., in a shallow clone, or when the
+    // prereq comes from a repo whose history was never fetched), the function
+    // falls back to origin/main.
+    //
+    // To trigger this path deterministically, we pass a bundle file whose
+    // prerequisite commit is from an unrelated repository — a SHA that will
+    // never exist in the safe-outputs checkout — while the feature branch
+    // itself was correctly applied via a separate (full) bundle.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const branchName = "feature/prereq-inaccessible";
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-inaccessible-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-inaccessible-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-inaccessible-so-"));
+    // Unrelated repo whose history never enters safeOutputsRepo.
+    const unrelatedRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-inaccessible-unrelated-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo, unrelatedRepo);
+
+    // 1. Normal project setup.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    execGit(["add", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+    const agentBaseCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    // 2. Agent creates feature branch and adds a file.
+    execGit(["checkout", "-b", branchName], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "agent-file.txt"), "agent change\n");
+    execGit(["add", "agent-file.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: agent adds a file"], { cwd: agentRepo });
+
+    // 3. Create the real bundle (with correct prereq) for applyBundleToBranch.
+    const realBundlePath = path.join(agentRepo, "real.bundle");
+    execGit(["bundle", "create", realBundlePath, `${agentBaseCommit}..refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // 4. Create an UNRELATED repo and bundle from it.
+    //    This bundle's prerequisite SHA is from unrelatedRepo and will NEVER
+    //    exist in safeOutputsRepo.
+    execGit(["init"], { cwd: unrelatedRepo });
+    execGit(["config", "user.name", "Unrelated"], { cwd: unrelatedRepo });
+    execGit(["config", "user.email", "unrelated@example.com"], { cwd: unrelatedRepo });
+    fs.writeFileSync(path.join(unrelatedRepo, "base.txt"), "unrelated base\n");
+    execGit(["add", "base.txt"], { cwd: unrelatedRepo });
+    execGit(["commit", "-m", "unrelated base"], { cwd: unrelatedRepo });
+    const unrelatedBase = execGit(["rev-parse", "HEAD"], { cwd: unrelatedRepo }).stdout.trim();
+    execGit(["checkout", "-b", "feature-side"], { cwd: unrelatedRepo });
+    fs.writeFileSync(path.join(unrelatedRepo, "side.txt"), "side\n");
+    execGit(["add", "side.txt"], { cwd: unrelatedRepo });
+    execGit(["commit", "-m", "side commit"], { cwd: unrelatedRepo });
+    // Bundle with prereq = unrelatedBase (a SHA that will NOT be in safeOutputsRepo).
+    const fakeBundlePath = path.join(unrelatedRepo, "fake.bundle");
+    execGit(["bundle", "create", fakeBundlePath, `${unrelatedBase}..refs/heads/feature-side`], { cwd: unrelatedRepo });
+
+    // Confirm the fake bundle's prereq is unrelatedBase.
+    const fakeVerify = execGit(["bundle", "verify", fakeBundlePath], { cwd: unrelatedRepo, allowFailure: true });
+    const fakeVerifyText = `${fakeVerify.stdout || ""}\n${fakeVerify.stderr || ""}`;
+    expect(fakeVerifyText).toMatch(new RegExp(unrelatedBase.slice(0, 8), "i"));
+
+    // 5. Safe-outputs runner: fresh clone, apply the REAL bundle.
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(realBundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 6. Confirm the unrelated prereq is not in safeOutputsRepo.
+    const catFileResult = execGit(["cat-file", "-e", `${unrelatedBase}^{commit}`], { cwd: safeOutputsRepo, allowFailure: true });
+    expect(catFileResult.status).not.toBe(0);
+
+    // 7. Rewrite using the FAKE bundle path (whose prereq is not accessible).
+    //    The function must detect `cat-file -e` failure and fall back to origin/main.
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), fakeBundlePath);
+
+    // 8. The diff origin/main..HEAD must contain only agent-file.txt (correct result
+    //    from the fallback-to-origin/main path).
+    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim().split("\n").filter(Boolean).sort();
+    expect(diffNames).toEqual(["agent-file.txt"]);
+
+    // 9. Exactly one linearized commit beyond origin/main.
+    const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
+    expect(linearCommitCount).toBe(1);
+  });
+
+  it("rewriteBundleBranchAsSingleCommit correctly preserves a file deletion", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // Existing tests cover file additions. This test verifies that when the
+    // agent DELETES a file that was present on the base branch,
+    // rewriteBundleBranchAsSingleCommit produces a linearized commit that also
+    // deletes the file — the deletion is not silently dropped.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const branchName = "feature/delete-file-rewrite";
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-del-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-del-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-del-so-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
+
+    // 1. Initialize bare remote with a base commit that includes a file to delete.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    fs.writeFileSync(path.join(agentRepo, "to-delete.txt"), "this file will be removed\n");
+    execGit(["add", "README.md", "to-delete.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+    const agentBaseCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    // 2. Agent deletes to-delete.txt and adds a new file in the same commit.
+    execGit(["checkout", "-b", branchName], { cwd: agentRepo });
+    execGit(["rm", "to-delete.txt"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "replacement.txt"), "replacement content\n");
+    execGit(["add", "replacement.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: remove to-delete.txt, add replacement.txt"], { cwd: agentRepo });
+
+    // 3. Bundle the feature branch.
+    const bundlePath = path.join(agentRepo, "delete-file.bundle");
+    execGit(["bundle", "create", bundlePath, `${agentBaseCommit}..refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // 4. Safe-outputs runner: fresh clone, apply bundle.
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 5. Rewrite.
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), bundlePath);
+
+    // 6. to-delete.txt must be ABSENT from the working tree (it was deleted).
+    expect(fs.existsSync(path.join(safeOutputsRepo, "to-delete.txt"))).toBe(false);
+
+    // 7. replacement.txt must be present.
+    expect(fs.existsSync(path.join(safeOutputsRepo, "replacement.txt"))).toBe(true);
+
+    // 8. The PR diff (origin/main..HEAD) must show:
+    //    - to-delete.txt as DELETED (D)
+    //    - replacement.txt as ADDED (A)
+    const prDiffStatus = execGit(["diff", "--name-status", "origin/main", "HEAD"], { cwd: safeOutputsRepo }).stdout;
+    expect(prDiffStatus).toMatch(/^D\s+to-delete\.txt/m);
+    expect(prDiffStatus).toMatch(/^A\s+replacement\.txt/m);
+
+    // 9. The commit diff (HEAD^..HEAD) must also show the deletion.
+    const commitDiffStatus = execGit(["diff", "--name-status", "HEAD^", "HEAD"], { cwd: safeOutputsRepo }).stdout;
+    expect(commitDiffStatus).toMatch(/^D\s+to-delete\.txt/m);
+    expect(commitDiffStatus).toMatch(/^A\s+replacement\.txt/m);
+
+    // 10. Exactly one linearized commit.
+    const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
+    expect(linearCommitCount).toBe(1);
+  });
+
+  it("rewriteBundleBranchAsSingleCommit correctly preserves file modifications", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // Existing tests only cover new file additions. This test verifies that
+    // when the agent MODIFIES an existing file (changes its content),
+    // rewriteBundleBranchAsSingleCommit produces a linearized commit that
+    // reflects the final modified state — both the diff and the working tree
+    // must show the updated content.
+    //
+    // It also covers the case where the agent makes multiple sequential commits
+    // that each update the same file: only the final state matters.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const branchName = "feature/modify-file-rewrite";
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-mod-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-mod-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-mod-so-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
+
+    // 1. Initialize bare remote with a base file to modify.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "config.txt"), "version: 1\n");
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    execGit(["add", "config.txt", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+    const agentBaseCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    // 2. Agent modifies config.txt twice (tests that only the final state is captured)
+    //    and appends to README.md.
+    execGit(["checkout", "-b", branchName], { cwd: agentRepo });
+
+    fs.writeFileSync(path.join(agentRepo, "config.txt"), "version: 2\n");
+    execGit(["add", "config.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "refactor: bump version to 2"], { cwd: agentRepo });
+
+    fs.writeFileSync(path.join(agentRepo, "config.txt"), "version: 3\nfeature-flag: true\n");
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n\nUpdated docs.\n");
+    execGit(["add", "config.txt", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "refactor: final config and readme update"], { cwd: agentRepo });
+
+    // 3. Bundle the feature branch (two commits in range).
+    const bundlePath = path.join(agentRepo, "modify-file.bundle");
+    execGit(["bundle", "create", bundlePath, `${agentBaseCommit}..refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // Confirm two commits in range before squash.
+    const commitCount = Number(execGit(["rev-list", "--count", `${agentBaseCommit}..HEAD`], { cwd: agentRepo }).stdout.trim());
+    expect(commitCount).toBe(2);
+
+    // 4. Safe-outputs runner: fresh clone, apply bundle.
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 5. Rewrite two commits into one.
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), bundlePath);
+
+    // 6. Working tree must reflect the final modified state.
+    expect(fs.readFileSync(path.join(safeOutputsRepo, "config.txt"), "utf8")).toBe("version: 3\nfeature-flag: true\n");
+    expect(fs.readFileSync(path.join(safeOutputsRepo, "README.md"), "utf8")).toBe("# Project\n\nUpdated docs.\n");
+
+    // 7. The PR diff must show config.txt and README.md as modified (M).
+    const prDiffStatus = execGit(["diff", "--name-status", "origin/main", "HEAD"], { cwd: safeOutputsRepo }).stdout;
+    expect(prDiffStatus).toMatch(/^M\s+README\.md/m);
+    expect(prDiffStatus).toMatch(/^M\s+config\.txt/m);
+
+    // 8. Exactly one linearized commit beyond origin/main.
+    const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
+    expect(linearCommitCount).toBe(1);
+
+    // 9. Exactly one parent.
+    const parentLine = execGit(["log", "-1", "--format=%P", "HEAD"], { cwd: safeOutputsRepo }).stdout.trim();
+    const parentShas = parentLine.split(/\s+/).filter(Boolean);
+    expect(parentShas).toHaveLength(1);
+  });
 });
