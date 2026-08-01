@@ -50,7 +50,7 @@ describe("dismiss_pull_request_review", () => {
     mockGetReview.mockResolvedValue({
       data: {
         html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
-        user: { login: "github-actions[bot]" },
+        user: { login: "github-actions[bot]", type: "Bot" },
       },
     });
     mockDismissReview.mockResolvedValue({
@@ -118,7 +118,7 @@ describe("dismiss_pull_request_review", () => {
   it("rejects when fetched review author differs from current actor", async () => {
     mockGetReview.mockResolvedValueOnce({
       data: {
-        user: { login: "octocat" },
+        user: { login: "octocat", type: "User" },
       },
     });
 
@@ -133,7 +133,7 @@ describe("dismiss_pull_request_review", () => {
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
 
-  it("allows dismissal when review was authored by a bot and actor is a different user", async () => {
+  it("skips dismissal when review was authored by a bot and actor is a different user", async () => {
     process.env.GITHUB_ACTOR = "pelikhan";
     const { main } = require("./dismiss_pull_request_review.cjs");
     handler = await main({ max: 10 });
@@ -141,12 +141,7 @@ describe("dismiss_pull_request_review", () => {
     mockGetReview.mockResolvedValueOnce({
       data: {
         html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
-        user: { login: "github-actions[bot]" },
-      },
-    });
-    mockDismissReview.mockResolvedValueOnce({
-      data: {
-        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
+        user: { login: "github-actions[bot]", type: "Bot" },
       },
     });
 
@@ -156,13 +151,10 @@ describe("dismiss_pull_request_review", () => {
       justification: "Dismissing stale github-actions review because all PR review threads are resolved.",
     });
 
-    expect(result.success).toBe(true);
-    expect(mockDismissReview).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pull_number: 42,
-        review_id: 123,
-      })
-    );
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.error).toContain("Actor-bound dismissal only permits");
+    expect(mockDismissReview).not.toHaveBeenCalled();
   });
 
   it("resolves review_id=auto to all dismissible reviews by current actor", async () => {

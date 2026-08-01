@@ -123,22 +123,22 @@ describe("Safe Output Handler Manager", () => {
       ).toBe(true);
     });
 
-    it("treats failed resolve_pull_request_review_thread results as report-only", () => {
+    it("does not treat failed resolve_pull_request_review_thread results as report-only", () => {
       expect(
         isReportOnlyFailureResult({
           type: "resolve_pull_request_review_thread",
           success: false,
         })
-      ).toBe(true);
+      ).toBe(false);
     });
 
-    it("treats failed dismiss_pull_request_review results as report-only", () => {
+    it("does not treat failed dismiss_pull_request_review results as report-only", () => {
       expect(
         isReportOnlyFailureResult({
           type: "dismiss_pull_request_review",
           success: false,
         })
-      ).toBe(true);
+      ).toBe(false);
     });
 
     it("does not treat skipped or cancelled assign_to_agent results as report-only", () => {
@@ -203,6 +203,19 @@ describe("Safe Output Handler Manager", () => {
 
       expect(reportOnlyFailures).toEqual([{ type: "upload_artifact", success: false, error: "artifact twirp CreateArtifact failed (400)" }]);
       expect(fatalFailures).toEqual([{ type: "create_issue", success: false, error: "Validation failed" }]);
+    });
+
+    it("keeps review cleanup failures fatal unless a handler marks them skipped", () => {
+      const { fatalFailures, reportOnlyFailures } = partitionFailureResults([
+        { type: "resolve_pull_request_review_thread", success: false, error: "wrong node type" },
+        { type: "dismiss_pull_request_review", success: false, error: "wrong actor" },
+      ]);
+
+      expect(reportOnlyFailures).toEqual([]);
+      expect(fatalFailures).toEqual([
+        { type: "resolve_pull_request_review_thread", success: false, error: "wrong node type" },
+        { type: "dismiss_pull_request_review", success: false, error: "wrong actor" },
+      ]);
     });
   });
 

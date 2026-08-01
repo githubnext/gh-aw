@@ -668,7 +668,7 @@ function isFailedProcessingResult(result) {
 }
 
 /** Types whose failures are surfaced as warnings rather than failing the safe_outputs job. */
-const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact", "resolve_pull_request_review_thread", "dismiss_pull_request_review"]);
+const REPORT_ONLY_FAILURE_TYPES = new Set(["assign_to_agent", "upload_artifact"]);
 
 /**
  * Determine whether a failed result should be reported without failing the safe_outputs job.
