@@ -22,13 +22,14 @@ const HANDLER_TYPE = "resolve_pull_request_review_thread";
  * Used to validate the thread before resolving.
  * @param {any} github - GitHub GraphQL instance
  * @param {string} threadId - Review thread node ID (e.g., 'PRRT_kwDOABCD...')
- * @returns {Promise<{prNumber: number, repoNameWithOwner: string|null}|null>} The PR number and repo, or null if not found
+ * @returns {Promise<{prNumber: number, repoNameWithOwner: string|null, isResolved: boolean}|null>} The PR number, repo, and resolved state; or null if not found
  */
 async function getThreadPullRequestInfo(github, threadId) {
   const query = /* GraphQL */ `
     query ($threadId: ID!) {
       node(id: $threadId) {
         ... on PullRequestReviewThread {
+          isResolved
           pullRequest {
             number
             repository {
@@ -42,7 +43,8 @@ async function getThreadPullRequestInfo(github, threadId) {
 
   const result = await github.graphql(query, { threadId });
 
-  const pullRequest = result?.node?.pullRequest;
+  const threadNode = result?.node;
+  const pullRequest = threadNode?.pullRequest;
   if (!pullRequest) {
     return null;
   }
@@ -50,6 +52,7 @@ async function getThreadPullRequestInfo(github, threadId) {
   return {
     prNumber: pullRequest.number,
     repoNameWithOwner: pullRequest.repository?.nameWithOwner ?? null,
+    isResolved: threadNode?.isResolved === true,
   };
 }
 
@@ -175,10 +178,22 @@ async function main(config = {}) {
       // Look up the thread's PR number and repository
       const threadInfo = await getThreadPullRequestInfo(githubClient, threadId);
       if (threadInfo === null) {
-        core.warning(`Review thread not found or not a PullRequestReviewThread: ${threadId}`);
+        core.info(`Review thread ${threadId} not found — already resolved or stale; skipping`);
         return {
-          success: false,
-          error: `Review thread not found: ${threadId}`,
+          success: true,
+          thread_id: threadId,
+          is_resolved: true,
+          skipped: true,
+        };
+      }
+
+      if (threadInfo.isResolved) {
+        core.info(`Review thread ${threadId} is already resolved; skipping`);
+        return {
+          success: true,
+          thread_id: threadId,
+          is_resolved: true,
+          skipped: true,
         };
       }
 

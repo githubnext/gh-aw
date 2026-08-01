@@ -133,6 +133,38 @@ describe("dismiss_pull_request_review", () => {
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
 
+  it("allows dismissal when review was authored by a bot and actor is a different user", async () => {
+    process.env.GITHUB_ACTOR = "pelikhan";
+    const { main } = require("./dismiss_pull_request_review.cjs");
+    handler = await main({ max: 10 });
+
+    mockGetReview.mockResolvedValueOnce({
+      data: {
+        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
+        user: { login: "github-actions[bot]" },
+      },
+    });
+    mockDismissReview.mockResolvedValueOnce({
+      data: {
+        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
+      },
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: 123,
+      justification: "Dismissing stale github-actions review because all PR review threads are resolved.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(mockDismissReview).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pull_number: 42,
+        review_id: 123,
+      })
+    );
+  });
+
   it("resolves review_id=auto to all dismissible reviews by current actor", async () => {
     mockListReviews.mockResolvedValueOnce({
       data: [

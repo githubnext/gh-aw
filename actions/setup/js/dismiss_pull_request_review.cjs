@@ -241,10 +241,14 @@ async function main(config = {}) {
       }
       const reviewAuthor = reviewAuthorLogin.trim();
       if (reviewAuthor !== expectedAuthor) {
-        return {
-          success: false,
-          error: `review author (${reviewAuthor || "unknown"}) must match dismisser (${dismisser})`,
-        };
+        if (reviewAuthor.endsWith("[bot]")) {
+          core.info(`Review ${reviewId} was authored by bot ${reviewAuthor}; allowing dismissal by ${dismisser}`);
+        } else {
+          return {
+            success: false,
+            error: `review author (${reviewAuthor || "unknown"}) must match dismisser (${dismisser})`,
+          };
+        }
       }
 
       const { data: dismissed } = await githubClient.rest.pulls.dismissReview({

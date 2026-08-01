@@ -52,9 +52,10 @@ function mockGraphqlForThread(lookupPRNumber, lookupRepo = "test-owner/test-repo
         },
       });
     }
-    // Lookup query
+    // Lookup query — isResolved: false means the thread is still open and needs resolving
     return Promise.resolve({
       node: {
+        isResolved: false,
         pullRequest: {
           number: lookupPRNumber,
           repository: { nameWithOwner: lookupRepo },
@@ -125,12 +126,12 @@ describe("resolve_pr_review_thread", () => {
     expect(result.error).toContain("triggering PR #42");
   });
 
-  it("should reject when thread is not found", async () => {
+  it("should succeed as a no-op when thread is not found (stale or already resolved)", async () => {
     mockGraphql.mockImplementation(query => {
       if (query.includes("resolveReviewThread")) {
         return Promise.resolve({});
       }
-      // Lookup returns null node
+      // Lookup returns null node — stale thread ID
       return Promise.resolve({ node: null });
     });
 
@@ -144,8 +145,45 @@ describe("resolve_pr_review_thread", () => {
 
     const result = await freshHandler(message, {});
 
-    expect(result.success).toBe(false);
-    expect(result.error).toContain("not found");
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.is_resolved).toBe(true);
+    // Should not have called the resolve mutation
+    expect(mockGraphql).toHaveBeenCalledTimes(1);
+  });
+
+  it("should succeed as a no-op when thread is already resolved", async () => {
+    mockGraphql.mockImplementation(query => {
+      if (query.includes("resolveReviewThread")) {
+        return Promise.resolve({});
+      }
+      // Lookup returns thread with isResolved: true
+      return Promise.resolve({
+        node: {
+          isResolved: true,
+          pullRequest: {
+            number: 42,
+            repository: { nameWithOwner: "test-owner/test-repo" },
+          },
+        },
+      });
+    });
+
+    const { main } = require("./resolve_pr_review_thread.cjs");
+    const freshHandler = await main({ max: 10 });
+
+    const message = {
+      type: "resolve_pull_request_review_thread",
+      thread_id: "PRRT_kwDOAlreadyResolved",
+    };
+
+    const result = await freshHandler(message, {});
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.is_resolved).toBe(true);
+    // Should not have called the resolve mutation
+    expect(mockGraphql).toHaveBeenCalledTimes(1);
   });
 
   it("should succeed when not in a pull request context but explicit thread_id is provided", async () => {

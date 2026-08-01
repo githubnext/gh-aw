@@ -123,6 +123,24 @@ describe("Safe Output Handler Manager", () => {
       ).toBe(true);
     });
 
+    it("treats failed resolve_pull_request_review_thread results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "resolve_pull_request_review_thread",
+          success: false,
+        })
+      ).toBe(true);
+    });
+
+    it("treats failed dismiss_pull_request_review results as report-only", () => {
+      expect(
+        isReportOnlyFailureResult({
+          type: "dismiss_pull_request_review",
+          success: false,
+        })
+      ).toBe(true);
+    });
+
     it("does not treat skipped or cancelled assign_to_agent results as report-only", () => {
       expect(
         isReportOnlyFailureResult({
