@@ -231,10 +231,6 @@ func FormatTableHeaderStderr(text string) string {
 	return applyStderrStyle(styles.TableHeader, text)
 }
 
-func formatTableHeaderWithTTY(text string, ttyCheck func() bool) string {
-	return applyStyleWithTTY(styles.TableHeader, text, ttyCheck)
-}
-
 // FormatWarningMessage formats a warning message
 func FormatWarningMessage(message string) string {
 	return applyStyle(styles.Warning, "⚠ ") + message
@@ -387,10 +383,6 @@ func FormatErrorMessage(message string) string {
 // FormatErrorTextStderr formats plain error-styled text for stderr output.
 func FormatErrorTextStderr(text string) string {
 	return applyStderrStyle(styles.Error, text)
-}
-
-func formatErrorTextWithTTY(text string, ttyCheck func() bool) string {
-	return applyStyleWithTTY(styles.Error, text, ttyCheck)
 }
 
 // FormatErrorChain formats an error and its full unwrapped chain in a reading-friendly way.

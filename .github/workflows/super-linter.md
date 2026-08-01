@@ -51,6 +51,9 @@ jobs:
           VALIDATE_MARKDOWN: "true"
           # Disable all other linters to improve performance
           VALIDATE_ALL_CODEBASE: "false"
+          # Avoid false-negative failures from super-linter summary formatter
+          ENABLE_GITHUB_ACTIONS_STEP_SUMMARY: "false"
+          ENABLE_GITHUB_PULL_REQUEST_SUMMARY_COMMENT: "false"
           FILTER_REGEX_EXCLUDE: "(^|.*/)super-linter-output/.*"
       
       - name: Check for linting issues
