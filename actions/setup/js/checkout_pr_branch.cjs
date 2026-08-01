@@ -203,21 +203,22 @@ async function main() {
     if (awContextStr) {
       try {
         const awContext = JSON.parse(awContextStr);
-        if (awContext.item_type === "pull_request" && awContext.item_number) {
+        const prNumber = Number(awContext.item_number);
+        if (awContext.item_type === "pull_request" && Number.isInteger(prNumber) && prNumber > 0) {
           if (awContext.repo) {
             const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
             if (awContext.repo !== currentRepo) {
               core.warning(`Cross-repository workflow_dispatch is not supported: aw_context.repo (${awContext.repo}) does not match current repository (${currentRepo}), skipping checkout`);
             } else {
               pullRequest = {
-                number: awContext.item_number,
+                number: prNumber,
                 state: "open",
               };
               core.info(`Detected workflow_dispatch event for PR #${pullRequest.number} via aw_context, will fetch PR ref`);
             }
           } else {
             pullRequest = {
-              number: awContext.item_number,
+              number: prNumber,
               state: "open",
             };
             core.info(`Detected workflow_dispatch event for PR #${pullRequest.number} via aw_context, will fetch PR ref`);

@@ -576,6 +576,9 @@ If the pull request is still open, verify that:
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
       expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
 
+      // fetchPRDetails must be called with the correct PR number to resolve head ref / commit count
+      expect(mockGithub.rest.pulls.get).toHaveBeenCalledWith(expect.objectContaining({ pull_number: 123 }));
+
       expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
       expect(mockCore.setFailed).not.toHaveBeenCalled();
     });
@@ -620,6 +623,33 @@ If the pull request is still open, verify that:
 
     it("should skip checkout when aw_context pull_request has no item_number", async () => {
       mockContext.payload.inputs.aw_context = JSON.stringify({ item_type: "pull_request" });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should skip checkout when aw_context item_number is a non-numeric string", async () => {
+      mockContext.payload.inputs.aw_context = JSON.stringify({ item_type: "pull_request", item_number: "abc" });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should skip checkout when aw_context item_number is zero", async () => {
+      mockContext.payload.inputs.aw_context = JSON.stringify({ item_type: "pull_request", item_number: 0 });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should skip checkout when aw_context item_number is a non-integer float", async () => {
+      mockContext.payload.inputs.aw_context = JSON.stringify({ item_type: "pull_request", item_number: 1.5 });
 
       await runScript();
 
