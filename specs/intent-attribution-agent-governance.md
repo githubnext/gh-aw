@@ -76,9 +76,9 @@ A policy decision MUST be deterministic: given identical attribution inputs, the
 The minimum conformance fixture set for these RFC 2119 norms is tracked in
 `specs/intent-attribution-compliance/`:
 
-- `explicit-intent-wins.yaml`
-- `ambiguous-root-closing-issues.yaml`
-- `unlinked-pr-fail-closed.yaml`
+- `specs/intent-attribution-compliance/explicit-intent-wins.yaml`
+- `specs/intent-attribution-compliance/ambiguous-root-closing-issues.yaml`
+- `specs/intent-attribution-compliance/unlinked-pr-fail-closed.yaml`
 
 
 ## Current implementation
