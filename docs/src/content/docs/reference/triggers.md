@@ -169,6 +169,8 @@ When using stacked pull requests (a chain of PRs each targeting the previous one
 
 By default (`max-stack: 1`), workflows run only on the **top-most PR** in the stack — the one currently under review. Lower-stack PRs are skipped automatically.
 
+This is supported for both `pull_request` and `pull_request_review` triggers.
+
 ```yaml wrap
 on:
   pull_request:
@@ -194,7 +196,16 @@ on:
     max-stack: -1  # run on all pull requests regardless of stack position
 ```
 
-Non-stacked PRs and non-`pull_request` events are unaffected by this setting.
+You can also apply the same filter to review events:
+
+```yaml wrap
+on:
+  pull_request_review:
+    types: [submitted]
+    max-stack: 2   # run only for reviews on the top 2 PRs in a stack
+```
+
+Non-stacked PRs and non-`pull_request`/`pull_request_review` events are unaffected by this setting.
 
 ### Comment Triggers
 
