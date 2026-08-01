@@ -153,7 +153,7 @@ Note: In GitHub Enterprise repos, shorthand source specs resolve on your enterpr
 
 			if createPR {
 				prBody := "This PR updates agentic workflows from their source repositories."
-				_, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
+				_, err := CreatePRWithChanges(cmd.Context(), "update-workflows", "chore: update workflows",
 					"Update workflows from source", prBody, verbose)
 				return err
 			}
@@ -347,7 +347,7 @@ func runUpdateForTargetRepo(ctx context.Context, targetRepo string, opts UpdateW
 		prBody := "This PR updates agentic workflows from their source repositories." +
 			releaseLine + "\n" + xmlMarker
 
-		prURL, err := CreatePRWithChanges("update-workflows", "chore: update workflows",
+		prURL, err := CreatePRWithChanges(ctx, "update-workflows", "chore: update workflows",
 			"Update workflows from source", prBody, verbose)
 		if err != nil {
 			return err

@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -201,7 +202,7 @@ func TestBuildAuditDataIncludesObservabilityInsights(t *testing.T) {
 		},
 	}
 
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 	require.NotEmpty(t, auditData.ObservabilityInsights, "audit data should expose observability insights")
 	assert.Equal(t, "execution", auditData.ObservabilityInsights[0].Category)
 }

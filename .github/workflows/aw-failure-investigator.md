@@ -85,7 +85,7 @@ steps:
       OUT = "/tmp/gh-aw/agent/failure-investigator/prefetch.json"
       TRACKER_ID = "aw-failure-investigator"
       LOOKBACK_HOURS = 6
-      FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure", "cancelled"}
+      FAILURE_CONCLUSIONS = {"failure", "timed_out", "startup_failure"}
       MAX_DISCOVERY_PAGES = 20
       # Most dominant signatures appear in the final 30-60 lines.
       MAX_LOG_TAIL_LINES = 50
