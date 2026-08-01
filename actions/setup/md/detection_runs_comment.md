@@ -4,4 +4,4 @@
 |---|---|
 | Conclusion | `{conclusion}` |
 | Reason | `{reason}` |
-| Run | [{workflow_name}]({run_url}) |
+| Run | [View run]({run_url}) |

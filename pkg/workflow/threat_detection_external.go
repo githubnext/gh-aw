@@ -295,9 +295,16 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	}
 	// Pi workflows normalise to Copilot; strip the provider prefix so the Copilot CLI
 	// receives a bare model ID rather than a "pi/model-name" string.
+	// Precedence mirrors the inline path: explicit threat-detection.engine.id overrides
+	// the main engine config, which overrides the legacy top-level AI field.
 	originalEngineID := data.AI
 	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
 		originalEngineID = data.EngineConfig.ID
+	}
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig != nil &&
+		data.SafeOutputs.ThreatDetection.EngineConfig.ID != "" {
+		originalEngineID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
 	}
 	if engineID == "copilot" && originalEngineID == "pi" {
 		resolvedDetectionModel = extractPiModelID(resolvedDetectionModel)

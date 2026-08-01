@@ -2223,6 +2223,66 @@ func TestExternalDetectorPropagatesModel(t *testing.T) {
 			t.Errorf("expected defaultAiCreditsPricing to be included in detection AWF config; got:\n%s", allSteps)
 		}
 	})
+
+	t.Run("Pi detection engine override on Copilot main workflow strips pi/ prefix", func(t *testing.T) {
+		// Main engine is Copilot, but the detection engine is explicitly pi.
+		// After Pi->Copilot normalization, the model must be extracted from the
+		// "pi/model-name" form so the Copilot CLI receives a bare model ID.
+		data := &WorkflowData{
+			AI:    "copilot",
+			Model: "copilot/gpt-5.4",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					EngineConfig: &EngineConfig{
+						ID: "pi",
+					},
+				},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		// The pi/ prefix must be stripped; Copilot CLI expects a bare model ID.
+		if !strings.Contains(allSteps, "COPILOT_MODEL: gpt-5.4") {
+			t.Errorf("expected COPILOT_MODEL to be bare 'gpt-5.4' after Pi prefix stripping; got:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, "COPILOT_MODEL: copilot/gpt-5.4") {
+			t.Errorf("COPILOT_MODEL must not retain the 'copilot/' prefix; got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("Pi main workflow with explicit Copilot detection engine does not strip model", func(t *testing.T) {
+		// Main engine is Pi, but detection engine is explicitly Copilot.
+		// The model should NOT be normalised because originalEngineID is "copilot",
+		// not "pi", so extractPiModelID must not be called.
+		data := &WorkflowData{
+			AI:    "pi",
+			Model: "copilot/gpt-5.4",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					EngineConfig: &EngineConfig{
+						ID: "copilot",
+					},
+				},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		// Detection engine is explicitly Copilot (not Pi), so the model
+		// should not be stripped of any prefix.
+		if !strings.Contains(allSteps, "COPILOT_MODEL: copilot/gpt-5.4") {
+			t.Errorf("expected COPILOT_MODEL to remain 'copilot/gpt-5.4' when detection engine is explicitly copilot; got:\n%s", allSteps)
+		}
+	})
 }
 
 func TestGetThreatDetectionAdditionalAllowedDomains_WithCustomProviderBaseURL(t *testing.T) {
