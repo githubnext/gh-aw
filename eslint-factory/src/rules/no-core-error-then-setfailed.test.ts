@@ -28,17 +28,8 @@ describe("no-core-error-then-setfailed", () => {
         `core.error("msg"); doSomething(); core.setFailed("msg");`,
         // Different messages — core.error provides extra context not repeated by setFailed
         `core.error("upload failed: " + filename); core.setFailed("action failed");`,
-        // Different template literals — messages differ in prefix
-        {
-          code: `
-            try {
-              doSomething();
-            } catch (err) {
-              core.error(\`Failed: \${err.message}\`);
-              core.setFailed(\`ERR: Failed: \${err.message}\`);
-            }
-          `,
-        },
+        // Suffix added to setFailed message — not a prefix-match shape, not flagged
+        "core.error(`Failed: ${msg}`); core.setFailed(`Failed: ${msg} [extra context]`);",
         // core.error with annotation properties — carries extra diagnostic context
         `core.error("msg", { title: "Upload error" }); core.setFailed("msg");`,
         // Different core objects (cross-alias false-positive guard):
@@ -85,6 +76,46 @@ describe("no-core-error-then-setfailed", () => {
             {
               messageId: "noCoreErrorThenSetFailed",
               suggestions: [{ messageId: "removeErrorCall", output: `function run() {  core.setFailed("fatal"); }` }],
+            },
+          ],
+        },
+        // Literal prefix in setFailed template literal — same message with error-code text prefix
+        {
+          code: "core.error(`Failed: ${err.message}`); core.setFailed(`ERR: Failed: ${err.message}`);",
+          errors: [
+            {
+              messageId: "noCoreErrorThenSetFailed",
+              suggestions: [{ messageId: "removeErrorCall", output: " core.setFailed(`ERR: Failed: ${err.message}`);" }],
+            },
+          ],
+        },
+        // Expression prefix in setFailed template literal — mirrors add_reaction.cjs:184-185
+        {
+          code: "core.error(`Failed to add reaction: ${errorMessage}`); core.setFailed(`${ERR_API}: Failed to add reaction: ${errorMessage}`);",
+          errors: [
+            {
+              messageId: "noCoreErrorThenSetFailed",
+              suggestions: [{ messageId: "removeErrorCall", output: " core.setFailed(`${ERR_API}: Failed to add reaction: ${errorMessage}`);" }],
+            },
+          ],
+        },
+        // Expression-first (empty leading quasi) in errorArg — errorArg starts with an expression
+        {
+          code: "core.error(`${msg} failed`); core.setFailed(`ERR: ${msg} failed`);",
+          errors: [
+            {
+              messageId: "noCoreErrorThenSetFailed",
+              suggestions: [{ messageId: "removeErrorCall", output: " core.setFailed(`ERR: ${msg} failed`);" }],
+            },
+          ],
+        },
+        // BinaryExpression concatenation: "prefix" + templateLiteral matching errorArg
+        {
+          code: 'core.error(`Failed: ${msg}`); core.setFailed("ERR: " + `Failed: ${msg}`);',
+          errors: [
+            {
+              messageId: "noCoreErrorThenSetFailed",
+              suggestions: [{ messageId: "removeErrorCall", output: ' core.setFailed("ERR: " + `Failed: ${msg}`);' }],
             },
           ],
         },

@@ -3593,6 +3593,8 @@ describe("create_pull_request - threat detection caution", () => {
     copyPromptTemplate(promptsDir, "manifest_protection_request_review.md");
     copyPromptTemplate(promptsDir, "manifest_protection_request_changes_review.md");
     copyPromptTemplate(promptsDir, "threat_warning_request_changes_review.md");
+    copyPromptTemplate(promptsDir, "threat_detection_caution.md");
+    copyPromptTemplate(promptsDir, "threat_detection_engine_error.md");
     copyPromptTemplate(promptsDir, "safe_outputs_disclosure_header.md");
     process.env.GH_AW_PROMPTS_DIR = promptsDir;
 

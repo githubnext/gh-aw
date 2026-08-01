@@ -359,6 +359,7 @@ Summary version **1.0.0** corresponds to the minimum validated `.lock.yml` compi
 | Add formal model and test suite for SG-01 through SG-07 | ✅ Done (2026-07-09) | Added "Formal Model" (TLA+/F*/Z3 invariants), "Behavioral Coverage Map" (15 predicates), and "Generated Test Suite" sections; 15 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
 | Sync PM-11 formal coverage into behavioral coverage map | ✅ Done (2026-07-15) | Added `TestFormalPM11_PreActivationContainsMembershipStep` to the behavioral coverage map and generated suite notes; formal suite now tracks 16 tests in `pkg/workflow/security_architecture_sg_formal_test.go` |
 | Sync §12 CS/RS coverage update from daily SPDD queue | ✅ Done (2026-07-28) | Added formal coverage map/test-suite entries for T-CS-001/002 and T-RS-003..008; synced to `specs/security-architecture-spec-validation.md` §12 matrix |
+| Add RS-05a for workflow_dispatch + aw_context PR checkout | ✅ Done (2026-08-01) | Security threat review cleared; added RS-05a to §11.3 (repository scope, actor trust, parse resilience, ref isolation); validation §7a added with 9-test unit evidence; §12 matrix updated; spec bumped to v1.0.1 |
 
 ## Versioning
 
@@ -368,7 +369,7 @@ The specification follows **semantic versioning**:
 - **Minor**: New features, backward-compatible additions
 - **Patch**: Bug fixes, clarifications, editorial changes
 
-Current version: **1.0.0** (Candidate Recommendation)
+Current version: **1.0.1** (Candidate Recommendation)
 
 ## Feedback
 

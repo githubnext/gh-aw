@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -698,4 +700,22 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 	})
 	agenticEngineLog.Printf("Found %d engine candidate(s) for prefix %s, using: %s", len(candidates), prefix, candidates[0].id)
 	return candidates[0].engine, nil
+}
+
+// resolveStepTimeoutValue returns the timeout value string to emit on an
+// agentic_execution step's timeout-minutes field.  It reads the already-parsed
+// TimeoutMinutes from ParsedFrontmatter, so no raw-string parsing is needed.
+// When workflowData is nil, ParsedFrontmatter is nil, or TimeoutMinutes is
+// unset, it falls back to DefaultAgenticWorkflowTimeout.
+func resolveStepTimeoutValue(workflowData *WorkflowData) string {
+	defaultValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	if workflowData == nil {
+		return defaultValue
+	}
+	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.TimeoutMinutes != nil {
+		if v := workflowData.ParsedFrontmatter.TimeoutMinutes.String(); v != "" {
+			return v
+		}
+	}
+	return defaultValue
 }

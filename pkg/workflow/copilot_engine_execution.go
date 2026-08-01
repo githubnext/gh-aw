@@ -28,7 +28,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -319,18 +318,7 @@ func getCopilotModelEnvVar(workflowData *WorkflowData) string {
 }
 
 func getCopilotTimeoutValue(workflowData *WorkflowData) string {
-	timeoutValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
-	if workflowData.TimeoutMinutes == "" {
-		return timeoutValue
-	}
-	rawTimeoutValue := strings.TrimSpace(workflowData.TimeoutMinutes)
-	if after, ok := strings.CutPrefix(rawTimeoutValue, "timeout-minutes:"); ok {
-		rawTimeoutValue = strings.TrimSpace(after)
-	}
-	if rawTimeoutValue != "" {
-		return rawTimeoutValue
-	}
-	return timeoutValue
+	return resolveStepTimeoutValue(workflowData)
 }
 
 func (e *CopilotEngine) resolveCopilotCommand(workflowData *WorkflowData, sandboxEnabled bool) (string, string) {
