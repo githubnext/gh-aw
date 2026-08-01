@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-01T07:34:00Z",
+  "last_run": "2026-08-01T13:07:00Z",
   "discussions_processed": [
     {
       "id": 49032,
@@ -350,6 +350,46 @@
     {
       "id": 49325,
       "processed_at": "2026-08-01T07:34:00Z"
+    },
+    {
+      "id": 49576,
+      "title": "Agent Performance Report Week of 2026-08-01 - deprecation gap already filed as #49577, metrics collector already tracked #49361",
+      "processed_at": "2026-08-01T13:07:00Z"
+    },
+    {
+      "id": 49575,
+      "title": "Claude Code User Docs Review - docs findings, not code quality",
+      "processed_at": "2026-08-01T13:07:00Z"
+    },
+    {
+      "id": 49571,
+      "title": "Constraint Solving POTD - puzzle content, not code quality",
+      "processed_at": "2026-08-01T13:07:00Z"
+    },
+    {
+      "id": 49569,
+      "title": "GitHub API Consumption Report - descriptive stats",
+      "processed_at": "2026-08-01T13:07:00Z"
+    },
+    {
+      "id": 49567,
+      "title": "Copilot Agent Prompt Clustering Analysis - descriptive stats, no code-quality task",
+      "processed_at": "2026-08-01T13:07:00Z"
+    },
+    {
+      "id": 49563,
+      "title": "Terminal Stylist Report - no defects, minor PrintStyled suggestion too low-value to file",
+      "processed_at": "2026-08-01T13:07:00Z"
+    },
+    {
+      "id": 49552,
+      "title": "Daily Copilot Agent Session Analysis - stats/data-quality alert only, not actionable code quality",
+      "processed_at": "2026-08-01T13:07:00Z"
+    },
+    {
+      "id": 49543,
+      "title": "copilot was here - smoke test, firewall warning, not actionable",
+      "processed_at": "2026-08-01T13:07:00Z"
     }
   ]
 }
