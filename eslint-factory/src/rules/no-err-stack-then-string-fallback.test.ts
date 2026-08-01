@@ -64,7 +64,7 @@ describe("no-err-stack-then-string-fallback", () => {
       valid: [],
       invalid: [
         {
-          code: `const msg = err instanceof Error ? err.stack : String(err);`,
+          code: `const { getErrorMessage } = require("./error_helpers.cjs"); const msg = err instanceof Error ? err.stack : String(err);`,
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -73,7 +73,7 @@ describe("no-err-stack-then-string-fallback", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "err" },
-                  output: `const msg = getErrorMessage(err);`,
+                  output: `const { getErrorMessage } = require("./error_helpers.cjs"); const msg = getErrorMessage(err);`,
                 },
               ],
             },
@@ -88,7 +88,7 @@ describe("no-err-stack-then-string-fallback", () => {
       valid: [],
       invalid: [
         {
-          code: "core.setFailed(`unhandled error: ${err instanceof Error ? err.stack : String(err)}`);",
+          code: `const { getErrorMessage } = require("./error_helpers.cjs"); core.setFailed(\`unhandled error: \${err instanceof Error ? err.stack : String(err)}\`);`,
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -97,7 +97,7 @@ describe("no-err-stack-then-string-fallback", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "err" },
-                  output: "core.setFailed(`unhandled error: ${getErrorMessage(err)}`);",
+                  output: `const { getErrorMessage } = require("./error_helpers.cjs"); core.setFailed(\`unhandled error: \${getErrorMessage(err)}\`);`,
                 },
               ],
             },
@@ -119,7 +119,7 @@ describe("no-err-stack-then-string-fallback", () => {
       valid: [],
       invalid: [
         {
-          code: `core.setFailed(err && err.stack ? err.stack : String(err));`,
+          code: `const { getErrorMessage } = require("./error_helpers.cjs"); core.setFailed(err && err.stack ? err.stack : String(err));`,
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -128,7 +128,7 @@ describe("no-err-stack-then-string-fallback", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "err" },
-                  output: `core.setFailed(getErrorMessage(err));`,
+                  output: `const { getErrorMessage } = require("./error_helpers.cjs"); core.setFailed(getErrorMessage(err));`,
                 },
               ],
             },
@@ -143,7 +143,7 @@ describe("no-err-stack-then-string-fallback", () => {
       valid: [],
       invalid: [
         {
-          code: `const msg = err && err.stack ? err.stack : String(err);`,
+          code: `const { getErrorMessage } = require("./error_helpers.cjs"); const msg = err && err.stack ? err.stack : String(err);`,
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -152,7 +152,7 @@ describe("no-err-stack-then-string-fallback", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "err" },
-                  output: `const msg = getErrorMessage(err);`,
+                  output: `const { getErrorMessage } = require("./error_helpers.cjs"); const msg = getErrorMessage(err);`,
                 },
               ],
             },
@@ -167,7 +167,7 @@ describe("no-err-stack-then-string-fallback", () => {
       valid: [],
       invalid: [
         {
-          code: `console.error(error && error.stack ? error.stack : String(error));`,
+          code: `const { getErrorMessage } = require("./error_helpers.cjs"); console.error(error && error.stack ? error.stack : String(error));`,
           errors: [
             {
               messageId: "preferGetErrorMessage",
@@ -176,9 +176,55 @@ describe("no-err-stack-then-string-fallback", () => {
                 {
                   messageId: "replaceWithGetErrorMessage",
                   data: { errorVar: "error" },
-                  output: `console.error(getErrorMessage(error));`,
+                  output: `const { getErrorMessage } = require("./error_helpers.cjs"); console.error(getErrorMessage(error));`,
                 },
               ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: getErrorMessage defined in its own initializer (TDZ) — diagnostic fires but no suggestion offered", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const getErrorMessage = err instanceof Error ? err.stack : String(err);`,
+          errors: [
+            {
+              messageId: "preferGetErrorMessage",
+              data: { errorVar: "err" },
+              suggestions: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: no getErrorMessage in scope — diagnostic fires but no suggestion offered", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const msg = err instanceof Error ? err.stack : String(err);`,
+          errors: [
+            {
+              messageId: "preferGetErrorMessage",
+              data: { errorVar: "err" },
+              suggestions: [],
+            },
+          ],
+        },
+        {
+          code: `process.stderr.write(\`[copilot-sdk-driver] unhandled error: \${err instanceof Error ? err.stack : String(err)}\\n\`);`,
+          errors: [
+            {
+              messageId: "preferGetErrorMessage",
+              data: { errorVar: "err" },
+              suggestions: [],
             },
           ],
         },
