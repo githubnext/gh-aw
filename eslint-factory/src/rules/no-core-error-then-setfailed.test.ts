@@ -99,6 +99,26 @@ describe("no-core-error-then-setfailed", () => {
             },
           ],
         },
+        // Expression-first (empty leading quasi) in errorArg — errorArg starts with an expression
+        {
+          code: "core.error(`${msg} failed`); core.setFailed(`ERR: ${msg} failed`);",
+          errors: [
+            {
+              messageId: "noCoreErrorThenSetFailed",
+              suggestions: [{ messageId: "removeErrorCall", output: " core.setFailed(`ERR: ${msg} failed`);" }],
+            },
+          ],
+        },
+        // BinaryExpression concatenation: "prefix" + templateLiteral matching errorArg
+        {
+          code: 'core.error(`Failed: ${msg}`); core.setFailed("ERR: " + `Failed: ${msg}`);',
+          errors: [
+            {
+              messageId: "noCoreErrorThenSetFailed",
+              suggestions: [{ messageId: "removeErrorCall", output: ' core.setFailed("ERR: " + `Failed: ${msg}`);' }],
+            },
+          ],
+        },
       ],
     });
   });

@@ -71,8 +71,12 @@ function isSetFailedArgPrefixedVersion(errorArg: TSESTree.Expression, setFailedA
   }
 
   // Quasis at offsets [prefixExprCount+1 .. end] of sfTpl must equal errTpl quasis [1 .. end].
+  // Guard against null cooked values (produced by invalid Unicode escape sequences).
   for (let i = 1; i < errTpl.quasis.length; i++) {
-    if (sfTpl.quasis[prefixExprCount + i].value.cooked !== errTpl.quasis[i].value.cooked) return false;
+    const sfCooked = sfTpl.quasis[prefixExprCount + i].value.cooked;
+    const errCooked = errTpl.quasis[i].value.cooked;
+    if (sfCooked === null || errCooked === null) return false;
+    if (sfCooked !== errCooked) return false;
   }
 
   // The junction quasi (sfTpl.quasis[prefixExprCount]) must end with errTpl's first quasi.
@@ -83,6 +87,30 @@ function isSetFailedArgPrefixedVersion(errorArg: TSESTree.Expression, setFailedA
 
   // There must be an actual prefix (not an exact-equal pair).
   return prefixExprCount > 0 || junctionCooked.length > errFirstCooked.length;
+}
+
+/**
+ * Returns true when `setFailedArg` is a BinaryExpression of the form
+ * `<string> + <expr>` where the string literal is non-empty (the prefix)
+ * and the right operand is identical in source text to `errorArg`.
+ * This captures:
+ *   core.error(`Failed: ${msg}`)
+ *   core.setFailed("ERR: " + `Failed: ${msg}`)
+ */
+function isSetFailedArgStringConcatPrefixedVersion(errorArg: TSESTree.Expression, setFailedArg: TSESTree.Expression, sourceCode: SourceCode): boolean {
+  if (setFailedArg.type !== AST_NODE_TYPES.BinaryExpression) return false;
+  const be = setFailedArg as TSESTree.BinaryExpression;
+  if (be.operator !== "+") return false;
+
+  // Left side must be a non-empty string literal (the prefix).
+  const left = be.left as TSESTree.Expression;
+  if (left.type !== AST_NODE_TYPES.Literal) return false;
+  if (typeof (left as TSESTree.Literal).value !== "string") return false;
+  if ((left as TSESTree.Literal).value === "") return false;
+
+  // Right side must be identical in source to errorArg.
+  const right = be.right as TSESTree.Expression;
+  return sourceCode.getText(right) === sourceCode.getText(errorArg);
 }
 
 /**
@@ -212,7 +240,7 @@ export const noCoreErrorThenSetFailedRule = createRule({
         const setFailedArg = getFirstNonSpreadArg(setFailedCall);
         if (errorArg === null || setFailedArg === null) continue;
         const exactMatch = sourceCode.getText(errorArg) === sourceCode.getText(setFailedArg);
-        if (!exactMatch && !isSetFailedArgPrefixedVersion(errorArg, setFailedArg, sourceCode)) continue;
+        if (!exactMatch && !isSetFailedArgPrefixedVersion(errorArg, setFailedArg, sourceCode) && !isSetFailedArgStringConcatPrefixedVersion(errorArg, setFailedArg, sourceCode)) continue;
 
         // The auto-remove suggestion is semantics-preserving only when the shared
         // argument is provably side-effect-free. For example,
