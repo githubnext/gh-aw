@@ -37,6 +37,7 @@
 "use strict";
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { emitJsonl, getApiKey: getBuiltinApiKey } = require("./pi_agent_core_driver_helpers.cjs");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
@@ -48,11 +49,6 @@ const crypto = require("crypto");
 /** @param {string} msg */
 function log(msg) {
   process.stderr.write(`[pi-agent-core-driver] ${msg}\n`);
-}
-
-/** @param {unknown} obj */
-function emitJsonl(obj) {
-  process.stdout.write(JSON.stringify(obj) + "\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -146,18 +142,7 @@ function buildGetApiKey(gatewayConfig) {
     }
 
     // Built-in providers used in no-firewall mode.
-    switch (provider) {
-      case "github-copilot":
-      case "copilot":
-        return process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
-      case "anthropic":
-        return process.env.ANTHROPIC_API_KEY;
-      case "openai":
-      case "codex":
-        return process.env.CODEX_API_KEY || process.env.OPENAI_API_KEY;
-      default:
-        return undefined;
-    }
+    return getBuiltinApiKey(provider);
   };
 }
 

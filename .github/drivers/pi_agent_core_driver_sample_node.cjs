@@ -19,6 +19,13 @@
  * For the full implementation see:
  *   actions/setup/js/pi_agent_core_driver.cjs
  *
+ * Shared helpers (emitJsonl, getApiKey) are provided by:
+ *   actions/setup/js/pi_agent_core_driver_helpers.cjs
+ *
+ * If you copy this file to a repository that does not include the gh-aw
+ * action sources, inline the two helpers from pi_agent_core_driver_helpers.cjs
+ * or adjust the require() path accordingly.
+ *
  * See also:
  *   https://github.com/earendil-works/pi/blob/main/packages/agent/README.md
  */
@@ -26,34 +33,7 @@
 const { execSync } = require("child_process");
 const fs = require("fs");
 const crypto = require("crypto");
-
-// ---------------------------------------------------------------------------
-// Minimal JSONL emitter
-// ---------------------------------------------------------------------------
-
-/** @param {unknown} obj */
-function emitJsonl(obj) {
-  process.stdout.write(JSON.stringify(obj) + "\n");
-}
-
-// ---------------------------------------------------------------------------
-// API key resolution (customise as needed)
-// ---------------------------------------------------------------------------
-
-/** @param {string} provider */
-function getApiKey(provider) {
-  switch (provider) {
-    case "github-copilot":
-    case "copilot":
-      return process.env.COPILOT_GITHUB_TOKEN || process.env.GITHUB_TOKEN;
-    case "anthropic":
-      return process.env.ANTHROPIC_API_KEY;
-    case "openai":
-      return process.env.CODEX_API_KEY || process.env.OPENAI_API_KEY;
-    default:
-      return undefined;
-  }
-}
+const { emitJsonl, getApiKey } = require("../../actions/setup/js/pi_agent_core_driver_helpers.cjs");
 
 // ---------------------------------------------------------------------------
 // Entry point
