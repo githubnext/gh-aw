@@ -58,3 +58,9 @@ These features have been at 0 usage for multiple consecutive runs:
 - `harness:` (retry tuning) usage still effectively flat (1).
 - Positive: model overrides steady at 85, bare mode 23, max-autopilot-continues climbed to 22 (from 11 two runs ago) — strong continued adoption.
 - engine.args (custom CLI args like --add-dir, --no-ask-user, --allow-all-paths, --no-custom-instructions, --disable-builtin-mcps) remains rare at 3 workflows despite rich flag surface in copilot_engine_execution.go.
+
+## 2026-08-01 (Run 30684585899)
+- Confirmed 5 orphaned agent files persist unchanged since last run (2026-07-31): create-safe-output-type, interactive-agent-designer, grumpy-reviewer, custom-engine-implementation, w3c-specification-writer.
+- `--share` flag still only used in 1 workflow (copilot-cli-deep-research.md itself).
+- `engine.args` remains completely unused (0 workflows) - a real gap for exposing new upstream CLI flags.
+- Recommendation carried forward: convert these into a tracked PR/issue instead of leaving as recurring research findings.
