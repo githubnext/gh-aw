@@ -274,7 +274,7 @@ describe("create_pull_request - auto-merge configuration", () => {
     });
   });
 
-  it("preserves boolean auto-merge behavior without forcing a method", async () => {
+  it("defaults to SQUASH when auto-merge is boolean true", async () => {
     const { main } = require("./create_pull_request.cjs");
     const handler = await main({ auto_merge: true, allow_empty: true });
 
@@ -283,7 +283,7 @@ describe("create_pull_request - auto-merge configuration", () => {
     expect(result.success).toBe(true);
     expect(global.github.graphql).toHaveBeenCalledWith(expect.stringContaining("enablePullRequestAutoMerge"), {
       prId: "PR_node_id",
-      mergeMethod: undefined,
+      mergeMethod: "SQUASH",
     });
   });
 });

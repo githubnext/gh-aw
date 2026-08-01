@@ -12,7 +12,7 @@ The `safe-outputs.create-pull-request` handler supports an `auto-merge` boolean 
 
 ### Decision
 
-We will extend the `auto-merge` field to accept, in addition to the existing `true`/`false` boolean, one of the string literals `"squash"`, `"merge"`, or `"rebase"`. When an explicit strategy string is provided, the handler will pass the corresponding `PullRequestMergeMethod` enum value (`SQUASH`, `MERGE`, `REBASE`) to `enablePullRequestAutoMerge`. The existing boolean semantics — where `true` enables auto-merge with the repository's default strategy and `false` disables it — remain unchanged. Schema validation is extended with a `oneOf` to cover both the boolean and string-enum shapes.
+We will extend the `auto-merge` field to accept, in addition to the existing `true`/`false` boolean, one of the string literals `"squash"`, `"merge"`, or `"rebase"`. When an explicit strategy string is provided, the handler will pass the corresponding `PullRequestMergeMethod` enum value (`SQUASH`, `MERGE`, `REBASE`) to `enablePullRequestAutoMerge`. When `true` is specified without an explicit method, it defaults to `SQUASH`. The value `false` disables auto-merge. Schema validation is extended with a `oneOf` to cover both the boolean and string-enum shapes.
 
 ### Alternatives Considered
 
@@ -28,7 +28,7 @@ Accept that auto-merge always uses the repository default merge strategy and doc
 
 #### Positive
 - Workflow authors can enforce a specific merge strategy for auto-merged PRs without relying on the repository default, making agentic workflows predictable across repos with varying defaults.
-- Existing workflows using `auto-merge: true` or `auto-merge: false` require no changes — full backward compatibility is preserved.
+- `auto-merge: true` now defaults to `SQUASH`, providing a sensible and consistent default. Explicit method strings (`squash`, `merge`, `rebase`) and `auto-merge: false` continue to work as before.
 
 #### Negative
 - The `auto-merge` field now has a polymorphic type (boolean or string enum), which increases schema complexity. The `oneOf` with three variants (boolean, string enum, and GitHub Actions expression pattern) is more difficult to document clearly than a simple boolean.

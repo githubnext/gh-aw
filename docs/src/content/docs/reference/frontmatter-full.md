@@ -5871,7 +5871,8 @@ safe-outputs:
 
     # Enable auto-merge for the pull request. When enabled, the PR will be
     # automatically merged once all required checks pass and required approvals are
-    # met. Defaults to false.
+    # met. Defaults to false. Accepts true (defaults to squash), false, or an
+    # explicit merge method: squash, merge, or rebase.
     # (optional)
     auto-merge: true
 

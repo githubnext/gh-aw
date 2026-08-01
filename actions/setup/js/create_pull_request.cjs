@@ -182,7 +182,7 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
  *
  * Supported values:
  *   - false / "false" => disabled
- *   - true / "true" => enabled with repository default merge strategy
+ *   - true / "true" => enabled with SQUASH as the default merge strategy
  *   - "squash" | "merge" | "rebase" => enabled with explicit strategy
  *
  * @param {any} value
@@ -197,6 +197,7 @@ function parseAutoMergeConfig(value) {
   }
   switch (normalized) {
     case "squash":
+    case "true":
       return { enabled: true, mergeMethod: "SQUASH" };
     case "merge":
       return { enabled: true, mergeMethod: "MERGE" };
