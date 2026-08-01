@@ -285,12 +285,13 @@ func TestMainWorkflowSchema_SafeOutputsTargetProperties(t *testing.T) {
 			},
 		},
 		{
-			name: "dispatch-workflow with target-repo and allowed-repos",
+			name: "dispatch-workflow with target-repo, allowed-repos, and allowed-refs",
 			safeOutputs: map[string]any{
 				"dispatch-workflow": map[string]any{
 					"workflows":     []any{"worker"},
 					"target-repo":   "github/github",
 					"allowed-repos": []any{"github/docs"},
+					"allowed-refs":  []any{"refs/heads/release/*"},
 				},
 			},
 		},

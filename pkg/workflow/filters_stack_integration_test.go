@@ -63,6 +63,19 @@ permissions:
 Test workflow.
 `,
 		},
+		{
+			name: "pull_request_review default max-stack (1) uses equality not arithmetic",
+			workflowBody: `---
+on:
+  pull_request_review:
+    types: [submitted]
+permissions:
+  contents: read
+---
+
+Test workflow.
+`,
+		},
 	}
 
 	for _, tt := range tests {
@@ -144,6 +157,45 @@ Test workflow.
 			ifValue := strings.TrimPrefix(trimmed, "if: ")
 			require.NotContains(t, ifValue, "stack.position +",
 				"job-level if: must not contain arithmetic operators for max-stack: 2.\nLine: %s", line)
+		}
+	}
+}
+
+func TestStackFilterPullRequestReviewMaxStack2UsesPreStep(t *testing.T) {
+	workflowBody := `---
+on:
+  pull_request_review:
+    types: [submitted]
+    max-stack: 2
+permissions:
+  contents: read
+---
+
+Test workflow.
+`
+	tempDir := t.TempDir()
+	workflowPath := filepath.Join(tempDir, "test-workflow.md")
+	err := os.WriteFile(workflowPath, []byte(workflowBody), 0644)
+	require.NoError(t, err)
+
+	compiler := NewCompiler()
+	err = compiler.CompileWorkflow(workflowPath)
+	require.NoError(t, err)
+
+	lockPath := stringutil.MarkdownToLockFile(workflowPath)
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err)
+
+	lockStr := string(lockContent)
+	require.Contains(t, lockStr, "Stack position gate (max-stack: 2)")
+	require.Contains(t, lockStr, "github.event_name == 'pull_request_review'")
+
+	for _, line := range strings.Split(lockStr, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "if: ") {
+			ifValue := strings.TrimPrefix(trimmed, "if: ")
+			require.NotContains(t, ifValue, "stack.position +",
+				"job-level if: must not contain arithmetic operators for pull_request_review max-stack: 2.\nLine: %s", line)
 		}
 	}
 }

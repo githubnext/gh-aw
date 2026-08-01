@@ -558,6 +558,18 @@ func TestCommentOutProcessedFieldsInOnSectionBlankLineInBlock(t *testing.T) {
 	assert.NotContains(t, result, "# \n")
 }
 
+func TestCommentOutProcessedFieldsInOnSection_PullRequestReviewMaxStack(t *testing.T) {
+	compiler := NewCompiler()
+
+	result := compiler.commentOutProcessedFieldsInOnSection(`on:
+  pull_request_review:
+    types: [submitted]
+    max-stack: 2
+  workflow_dispatch:`, map[string]any{})
+
+	assert.Contains(t, result, "# max-stack: 2 # Stack filtering applied via job conditions")
+}
+
 func TestCommentOutProcessedFieldsInOnSectionTrailingSpaceOnNonBlankLine(t *testing.T) {
 	compiler := NewCompiler()
 

@@ -103,8 +103,9 @@ jobs:
     needs: pre_activation
     if: >
       needs.pre_activation.outputs.activated == 'true' && (((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
-      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)) &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water'))
+      ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.stack == null ||
+      github.event.pull_request.stack.position == github.event.pull_request.stack.size)) && (github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' || github.event.label.name == 'water'))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -947,6 +948,13 @@ jobs:
                 "fields": {
                   "inputs": {
                     "type": "object"
+                  },
+                  "ref": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "pattern": "^[^\\x00-\\x20\\x7f~^:?*\\[\\\\]+$",
+                    "patternError": "must be a valid git ref"
                   },
                   "workflow_name": {
                     "required": true,
@@ -2617,8 +2625,9 @@ jobs:
   pre_activation:
     if: >
       ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
-      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)) &&
-      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'water')
+      ((github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.stack == null ||
+      github.event.pull_request.stack.position == github.event.pull_request.stack.size)) && (github.event_name != 'pull_request' ||
+      github.event.action != 'labeled' || github.event.label.name == 'water')
     runs-on: ubuntu-slim
     permissions:
       contents: read

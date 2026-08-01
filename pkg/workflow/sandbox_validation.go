@@ -109,6 +109,13 @@ func validateSandboxConfig(workflowData *WorkflowData) error {
 		}
 	}
 
+	// Validate memory format if specified in agent config
+	if agentConfig != nil && agentConfig.Memory != "" {
+		if err := validateAgentMemoryLimit(agentConfig.Memory); err != nil {
+			return err
+		}
+	}
+
 	// Validate gVisor runtime compatibility
 	if agentConfig != nil && agentConfig.Runtime == AgentRuntimeGVisor {
 		// gVisor is incompatible with ARC/DinD topology: the runner has no access to the
@@ -440,6 +447,19 @@ func validateBoundedQueryMemoryLimit(memoryLimit string) error {
 			memoryLimit,
 			"memory-limit must be a positive number followed by a unit: b, k, m, or g (e.g. \"512m\", \"2g\")",
 			fmt.Sprintf("Use a valid memory limit format:\n\ntools:\n  github:\n    bounded-queries:\n      memory-limit: 512m  # examples: 512m, 2g, 1024k, 1b\n\nSee: %s", constants.DocsSandboxURL),
+		)
+	}
+	return nil
+}
+
+// validateAgentMemoryLimit checks that a sandbox.agent.memory string has the correct format.
+func validateAgentMemoryLimit(memory string) error {
+	if !memoryLimitPattern.MatchString(memory) {
+		return NewValidationError(
+			"sandbox.agent.memory",
+			memory,
+			"memory value is not a valid limit. Expected a positive integer without leading zeros followed by a unit: b, k, m, or g (e.g. \"4g\", \"512m\")",
+			fmt.Sprintf("Use a valid memory limit format:\n\nsandbox:\n  agent:\n    memory: 4g  # examples: 512m, 4g, 8g\n\nSee: %s", constants.DocsSandboxURL),
 		)
 	}
 	return nil
