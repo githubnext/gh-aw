@@ -28,14 +28,25 @@ func downloadWorkflowContentViaGit(ctx context.Context, repo, path, ref string, 
 
 	downloadLog.Printf("Attempting git fallback for downloading workflow content: %s/%s@%s", repo, path, ref)
 
+	if err := gitutil.ValidateGitRef(ref); err != nil {
+		return nil, fmt.Errorf("refusing git fallback: %w", err)
+	}
+	if err := gitutil.ValidateGitPath(path); err != nil {
+		return nil, fmt.Errorf("refusing git fallback: %w", err)
+	}
+
 	// Use git archive to get the file content without cloning
 	githubHost := getGitHubHostForRepo(repo)
 	repoURL := fmt.Sprintf("%s/%s.git", githubHost, repo)
 
-	// git archive command: git archive --remote=<repo> <ref> <path>
+	// git archive command: git archive --remote=<repo> <ref> -- <path>
+	// The '--' end-of-options separator ensures path is never parsed as a git flag
+	// even if it begins with '-' (argument injection, CWE-88).
+	// ValidateGitRef/ValidateGitPath above guard against leading '-' and '..' at
+	// this layer; '--' is kept as defence-in-depth per the git(1) specification.
 	// #nosec G204 -- repoURL, ref, and path are from workflow import configuration authored by the
 	// developer; exec.CommandContext with separate args (not shell execution) prevents shell injection.
-	cmd := exec.CommandContext(ctx, "git", "archive", "--remote="+repoURL, ref, path)
+	cmd := exec.CommandContext(ctx, "git", "archive", "--remote="+repoURL, ref, "--", path)
 	archiveOutput, err := cmd.Output()
 	if err != nil {
 		downloadLog.Printf("git archive failed, falling back to git clone: repo=%s, ref=%s, err=%v", repo, ref, err)
