@@ -293,6 +293,9 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 			resolvedDetectionModel = defaultModel
 		}
 	}
+	if resolvedDetectionModel == "" {
+		resolvedDetectionModel = "detection"
+	}
 	// Pi workflows normalise to Copilot; strip the provider prefix so the Copilot CLI
 	// receives a bare model ID rather than a "pi/model-name" string.
 	// Precedence mirrors the inline path: explicit threat-detection.engine.id overrides
