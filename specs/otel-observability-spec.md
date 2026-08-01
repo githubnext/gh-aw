@@ -4,7 +4,7 @@ description: Formal W3C-style specification for observability contract for GitHu
 version: 0.4.0
 status: Working Draft
 date: 2026-06-18
-last_updated: 2026-06-18
+last_updated: 2026-08-01
 editors:
   - GitHub gh-aw Team
 ---
@@ -709,13 +709,17 @@ It MUST NOT extend the original workflow trace across hours or days when doing s
 
 Each outcome-evaluation span SHOULD contain a span link to the originating workflow root context when that context was persisted.
 
-When a full span context is unavailable, the evaluation span SHOULD include `gh-aw.outcome.source_run_id`, `gh-aw.outcome.source_workflow`, and `gh-aw.outcome.repository`.
+When a full span context is unavailable, the evaluation span SHOULD include `gh-aw.outcome.source_run_id`, `gh-aw.outcome.source_workflow`, and `gh-aw.outcome.repo`.
+
+For compatibility with existing processors, implementations MAY additionally emit `gh-aw.outcome.repository` as an alias. New implementations SHOULD prefer `gh-aw.outcome.repo` for consistency with `specs/safe-output-outcome-evaluation.md`.
 
 ### 13.3 Evaluation Span and Metrics
 
 The span SHOULD be named `gh-aw.outcome.evaluate` and use `INTERNAL` span kind.
 
-It SHOULD include `gh-aw.outcome.type`, `gh-aw.outcome.result`, `gh-aw.outcome.source_run_id`, `gh-aw.outcome.source_workflow`, and `gh-aw.outcome.repository`.
+It SHOULD include `gh-aw.outcome.type`, `gh-aw.outcome.result`, `gh-aw.outcome.source_run_id`, `gh-aw.outcome.source_workflow`, and `gh-aw.outcome.repo`.
+
+`gh-aw.outcome.result` SHOULD use the canonical outcome taxonomy defined in `specs/safe-output-outcome-evaluation.md` (`accepted`, `rejected`, `ignored`, `pending`, `lifecycle`, `lifecycle_close`).
 
 URLs and item identifiers MUST NOT be metric dimensions.
 
@@ -758,6 +762,8 @@ When telemetry artifacts are uploaded, the artifact SHOULD contain `otel.jsonl`,
 ### 15.1 Secret Handling
 
 Exporter headers and credentials MUST be masked before any diagnostic output; MUST NOT appear in telemetry records, artifacts, generated gateway JSON, or job summaries; SHOULD be short-lived and least-privilege; and SHOULD be held by a Collector or trusted exporter helper rather than workflow-global environment variables.
+
+In direct-export mode (`observability.otlp.mode: direct`), implementations MUST treat `OTEL_EXPORTER_OTLP_HEADERS` and equivalent header sources as secret material, MUST redact header values before writing any mirror/artifact/diagnostic record, and MUST NOT copy raw header values or credential-bearing header keys into span attributes, span events, logs, or metric attributes.
 
 ### 15.2 Content Defaults and Redaction
 
@@ -943,6 +949,7 @@ context is added to outcome spans or links.
 - **Clarified**: A versioned mirror envelope may be added only as an additive format; `/tmp/gh-aw/otel.jsonl` remains raw OTLP/JSON lines for compatibility.
 - **Added**: Metric cardinality, privacy, redaction, and secret-handling guidance while preserving existing artifacts and query surfaces.
 - **Added**: Inlined compatibility validation requirements, optional extension tests, and the implementation map so this document is self-contained.
+- **See also**: `specs/safe-output-outcome-evaluation.md` (Change Log, Version 1.0.1) for aligned outcome-taxonomy and provenance rules.
 
 ### Version 0.3.0 (Working Draft, June 15, 2026)
 
