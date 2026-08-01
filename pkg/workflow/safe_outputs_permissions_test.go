@@ -1179,3 +1179,66 @@ func TestComputePermissionsForSafeOutputs_StagedYAMLRendering(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateAddLabelsPermissions(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		wantErr     bool
+	}{
+		{
+			name:        "nil config - no error",
+			safeOutputs: nil,
+			wantErr:     false,
+		},
+		{
+			name: "add-labels not configured - no error",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "both nil (defaults) - no error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "issues:false, pull-requests:true - no error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{Issues: ptrBool(false), PullRequests: ptrBool(true)},
+			},
+			wantErr: false,
+		},
+		{
+			name: "issues:true, pull-requests:false - no error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{Issues: ptrBool(true), PullRequests: ptrBool(false)},
+			},
+			wantErr: false,
+		},
+		{
+			name: "both issues:false and pull-requests:false - error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{Issues: ptrBool(false), PullRequests: ptrBool(false)},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateAddLabelsPermissions(tt.safeOutputs)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "at least one of 'issues' or 'pull-requests' must be enabled")
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}

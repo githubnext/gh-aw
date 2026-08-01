@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"errors"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -42,4 +44,18 @@ func buildAddLabelsPermissions(config *AddLabelsConfig) *Permissions {
 		permMap[PermissionPullRequests] = PermissionWrite
 	}
 	return NewPermissionsFromMap(permMap)
+}
+
+// validateAddLabelsPermissions returns an error when both issues and pull-requests
+// are explicitly set to false, which would produce an empty permission set and
+// cause every label operation to fail at runtime with a token scope error.
+func validateAddLabelsPermissions(config *SafeOutputsConfig) error {
+	if config == nil || config.AddLabels == nil {
+		return nil
+	}
+	c := config.AddLabels
+	if c.Issues != nil && !*c.Issues && c.PullRequests != nil && !*c.PullRequests {
+		return errors.New("safe-outputs.add-labels: at least one of 'issues' or 'pull-requests' must be enabled")
+	}
+	return nil
 }

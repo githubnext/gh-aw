@@ -172,8 +172,6 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddStringSlice("allowed", c.Allowed).
 			AddStringSlice("blocked", c.Blocked).
 			AddBoolPtr("issue_intent", c.IssueIntent).
-			AddBoolPtr("issues", c.Issues).
-			AddBoolPtr("pull-requests", c.PullRequests).
 			AddIfNotEmpty("target", c.Target).
 			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
 			AddStringSlice("allowed_repos", c.AllowedRepos).
