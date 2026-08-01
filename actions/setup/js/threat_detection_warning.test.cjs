@@ -1,5 +1,14 @@
 import { describe, it, expect } from "vitest";
-import { normalizeThreatKinds, getThreatDetectedMarker, getThreatDetectedMarkerTemplate, getThreatEngineErrorMarker, getThreatEngineErrorMarkerTemplate, getDetectionReasonText, isToolingFailureReason } from "./threat_detection_warning.cjs";
+import {
+  normalizeThreatKinds,
+  getThreatWarningPresentation,
+  getThreatDetectedMarker,
+  getThreatDetectedMarkerTemplate,
+  getThreatEngineErrorMarker,
+  getThreatEngineErrorMarkerTemplate,
+  getDetectionReasonText,
+  isToolingFailureReason,
+} from "./threat_detection_warning.cjs";
 
 describe("threat_detection_warning", () => {
   describe("normalizeThreatKinds", () => {
@@ -31,6 +40,21 @@ describe("threat_detection_warning", () => {
     it("getThreatEngineErrorMarker always returns the engine-error marker", () => {
       expect(getThreatEngineErrorMarker()).toBe("<!-- gh-aw-threat-engine-error -->");
       expect(getThreatEngineErrorMarkerTemplate()).toBe("<!-- gh-aw-threat-engine-error -->");
+    });
+
+    it("returns a centralized warning presentation for tooling failures and threats", () => {
+      expect(getThreatWarningPresentation("agent_failure")).toEqual({
+        admonition: "WARNING",
+        title: "threat detection engine error",
+        summary: "The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.",
+        marker: "<!-- gh-aw-threat-engine-error -->",
+      });
+      expect(getThreatWarningPresentation("threat_detected")).toEqual({
+        admonition: "CAUTION",
+        title: "agentic threat detected",
+        summary: "Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.",
+        marker: "<!-- gh-aw-threat-detected -->",
+      });
     });
   });
 

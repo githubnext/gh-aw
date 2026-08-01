@@ -71,6 +71,31 @@ function getThreatEngineErrorMarkerTemplate() {
 }
 
 /**
+ * Returns the review-warning presentation associated with a detection reason.
+ * Centralizing these fields keeps admonition copy and marker routing in sync
+ * across status messages, footers, and fallback pull request bodies.
+ *
+ * @param {string | undefined | null} reason
+ * @returns {{admonition: string, title: string, summary: string, marker: string}}
+ */
+function getThreatWarningPresentation(reason) {
+  if (isToolingFailureReason(reason)) {
+    return {
+      admonition: "WARNING",
+      title: "threat detection engine error",
+      summary: "The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.",
+      marker: getThreatEngineErrorMarker(),
+    };
+  }
+  return {
+    admonition: "CAUTION",
+    title: "agentic threat detected",
+    summary: "Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.",
+    marker: getThreatDetectedMarker(reason),
+  };
+}
+
+/**
  * Returns the XML marker used to identify threat-detected output.
  * When the reason indicates a tooling failure (agent_failure, parse_error) a
  * distinct engine-error marker is returned so automated tools can distinguish
@@ -99,6 +124,7 @@ function getThreatDetectedMarkerTemplate() {
 
 module.exports = {
   normalizeThreatKinds,
+  getThreatWarningPresentation,
   getThreatDetectedMarker,
   getThreatDetectedMarkerTemplate,
   getThreatEngineErrorMarker,

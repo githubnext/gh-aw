@@ -21,7 +21,7 @@ const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
-const { getThreatDetectedMarker, isToolingFailureReason } = require("./threat_detection_warning.cjs");
+const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
 const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 
@@ -1304,14 +1304,12 @@ async function main(config = {}) {
           // For fork-backed PRs, use an owner-qualified head reference.
           const reviewHeadRef = pushRemoteUrl ? `${pushRepoParts.owner}:${reviewBranchName}` : reviewBranchName;
           const detectionReasonEnv = process.env.GH_AW_DETECTION_REASON || "unknown";
-          const isEngineError = isToolingFailureReason(detectionReasonEnv);
+          const warning = getThreatWarningPresentation(detectionReasonEnv);
           const prBody = [
-            isEngineError ? "> [!WARNING]" : "> [!CAUTION]",
-            isEngineError ? "> threat detection engine error" : "> agentic threat detected",
-            isEngineError
-              ? "> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding."
-              : "> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.",
-            `> ${getThreatDetectedMarker(detectionReasonEnv)}`,
+            `> [!${warning.admonition}]`,
+            `> ${warning.title}`,
+            `> ${warning.summary}`,
+            `> ${warning.marker}`,
             ">",
             `> **Reason:** ${detectionReasonEnv}`,
             ">",

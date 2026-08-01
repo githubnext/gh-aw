@@ -8,7 +8,7 @@
  */
 
 const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
-const { getDetectionReasonText, getThreatDetectedMarkerTemplate, getThreatEngineErrorMarkerTemplate, normalizeThreatKinds, isToolingFailureReason } = require("./threat_detection_warning.cjs");
+const { getDetectionReasonText, getThreatWarningPresentation, normalizeThreatKinds, isToolingFailureReason } = require("./threat_detection_warning.cjs");
 
 /**
  * Renders a message using a custom template from config or a default template.
@@ -152,12 +152,13 @@ function getCommitPushedMessage(ctx) {
  */
 function getDetectionWarningMessage(ctx) {
   const reasonText = getDetectionReasonText(ctx.reason);
+  const presentation = getThreatWarningPresentation(ctx.reason);
   const isEngineError = isToolingFailureReason(ctx.reason);
   if (isEngineError) {
-    const defaultTemplate = `> [!WARNING]\n> threat detection engine error\n> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.\n> ${getThreatEngineErrorMarkerTemplate()}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
+    const defaultTemplate = `> [!${presentation.admonition}]\n> ${presentation.title}\n> ${presentation.summary}\n> ${presentation.marker}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
     return renderConfiguredMessage("detectionEngineError", defaultTemplate, { ...ctx, reasonText, threatKinds: normalizeThreatKinds(ctx.reason) });
   }
-  const defaultTemplate = `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> ${getThreatDetectedMarkerTemplate()}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
+  const defaultTemplate = `> [!${presentation.admonition}]\n> ${presentation.title}\n> ${presentation.summary}\n> ${presentation.marker}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
   return renderConfiguredMessage("detectionWarning", defaultTemplate, { ...ctx, reasonText, threatKinds: normalizeThreatKinds(ctx.reason) });
 }
 
