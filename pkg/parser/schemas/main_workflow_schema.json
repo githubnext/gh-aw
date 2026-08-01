@@ -12589,7 +12589,8 @@
       "oneOf": [
         {
           "type": "string",
-          "description": "Engine name: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry"
+          "description": "Engine name: built-in ('antigravity', 'claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry",
+          "examples": ["antigravity", "claude", "codex", "copilot", "gemini", "opencode", "pi"]
         },
         {
           "type": "object",
@@ -12597,7 +12598,8 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "AI engine identifier: built-in ('claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry"
+              "description": "AI engine identifier: built-in ('antigravity', 'claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi') or a named catalog entry",
+              "examples": ["antigravity", "claude", "codex", "copilot", "gemini", "opencode", "pi"]
             },
             "version": {
               "type": ["string", "number"],
@@ -12922,8 +12924,8 @@
               "properties": {
                 "id": {
                   "type": "string",
-                  "description": "Runtime adapter identifier (e.g. 'codex', 'claude', 'copilot', 'gemini', 'opencode', 'pi')",
-                  "examples": ["codex", "claude", "copilot", "gemini", "opencode", "pi"]
+                  "description": "Runtime adapter identifier (e.g. 'antigravity', 'claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi')",
+                  "examples": ["antigravity", "claude", "codex", "copilot", "gemini", "opencode", "pi"]
                 },
                 "version": {
                   "type": ["string", "number"],
@@ -13044,7 +13046,7 @@
           "properties": {
             "id": {
               "type": "string",
-              "description": "Unique engine identifier (e.g. 'copilot', 'claude', 'codex', 'gemini', 'opencode', 'pi')"
+              "description": "Unique engine identifier (e.g. 'antigravity', 'claude', 'codex', 'copilot', 'gemini', 'opencode', 'pi')"
             },
             "display-name": {
               "type": "string",
