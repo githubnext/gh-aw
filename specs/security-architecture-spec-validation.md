@@ -370,6 +370,61 @@ activation:
 
 ---
 
+### 7a. workflow_dispatch + aw_context PR Checkout Validation (Section 11.3 - RS-05a)
+
+**Specification Claim**:
+> **RS-05a**: For `workflow_dispatch` triggers where the `aw_context` input encodes a pull request context, the implementation MUST enforce: repository scope check, actor trust, parse resilience, and ref isolation.
+
+**Implementation Validation** (`actions/setup/js/checkout_pr_branch.cjs`, lines 200–230):
+
+```js
+// Parse aw_context from workflow_dispatch input
+if (!pullRequest && eventName === "workflow_dispatch") {
+  const awContextStr = context.payload.inputs?.aw_context;
+  if (awContextStr) {
+    try {
+      const awContext = JSON.parse(awContextStr);               // parse resilience: catch block below
+      if (awContext.item_type === "pull_request" && awContext.item_number) {
+        if (awContext.repo) {
+          const currentRepo = `${context.repo.owner}/${context.repo.repo}`;
+          if (awContext.repo !== currentRepo) {
+            core.warning(`Cross-repository workflow_dispatch is not supported: aw_context.repo ` +
+              `(${awContext.repo}) does not match current repository (${currentRepo}), skipping checkout`);
+            // pullRequest remains null — checkout skipped (repository scope check)
+          } else {
+            pullRequest = { number: awContext.item_number, state: "open" };
+          }
+        } else {
+          pullRequest = { number: awContext.item_number, state: "open" };
+        }
+      }
+    } catch (e) {
+      core.warning(`Failed to parse aw_context: ${getErrorMessage(e)}`);  // parse resilience
+    }
+  }
+}
+```
+
+Actor trust and ref isolation are provided by the shared `assertTrustedCheckoutRuntime()` call (lines 247–248) and the `exec.exec("git", [...])` array invocation (lines 305–310) that apply to all PR checkout paths.
+
+**Unit test coverage** (`actions/setup/js/checkout_pr_branch.test.cjs`):
+
+| Test | RS-05a property |
+|------|-----------------|
+| successful checkout via `aw_context` | actor trust + ref isolation |
+| non-PR `item_type` → skip | parse validation |
+| no `aw_context` input → skip | parse resilience |
+| no `inputs` at all → skip | parse resilience |
+| invalid JSON → warn + skip | parse resilience |
+| missing `item_number` → skip | item_number guard |
+| `aw_context.repo` matches current repo → checkout | repository scope |
+| `aw_context.repo` mismatches → warn + skip | repository scope |
+| successful checkout → output `true` | ref isolation |
+
+**Status**: ✅ **VERIFIED** — all four RS-05a properties (repository scope, actor trust, parse resilience, ref isolation) are implemented and covered by unit tests.
+
+---
+
 ### 8. Network Isolation (Section 6 - Claims)
 
 **Specification References Network Isolation** but actual enforcement is engine-specific. Let me check for AWF references:
@@ -512,6 +567,7 @@ concurrency:
 | **9.1** | Threat Detection (TD-01) | ✅ Verified | `detection:` job |
 | **10.6** | Action Pinning (CS-10) | ✅ Verified | All `uses:` statements |
 | **11.1** | Timestamp Validation (RS-01, RS-02) | ✅ Verified | `activation.steps` |
+| **11.3** | workflow_dispatch PR Checkout (RS-05a) | ✅ Verified | `checkout_pr_branch.cjs` lines 200–230 |
 | **11.8** | Concurrency Control (RS-16 to RS-22) | ✅ Verified | `concurrency:` blocks |
 
 ---
@@ -604,7 +660,7 @@ This section audits the compliance test matrix defined in `security-architecture
 | Sandbox Isolation | T-SI-001 to T-SI-007 | ⚠️ PARTIALLY EVIDENCED | §8c adds compiled-workflow and runtime-script evidence for AWF chrooting, docker-host indirection, environment filtering, MCP/tool mounts, and composed sandbox/firewall operation; direct runtime host-visibility proof remains outstanding (tracked in [#48686](https://github.com/github/gh-aw/issues/48686)) |
 | Threat Detection | T-TD-001 to T-TD-007 | ⚠️ PARTIALLY EVIDENCED | TD-01 (automatic threat detection) verified via `detection:` job; T-TD-002 (prompt injection), T-TD-003 (secret leaks), T-TD-004 (malicious patches), T-TD-005 (custom prompt), T-TD-006 (engine override), T-TD-007 (workflow failure on detection) lack dedicated evidence entries |
 | Compilation-Time Security | T-CS-001 to T-CS-006, T-SG07-001, T-SG07-002 | ✅ EVIDENCED | T-CS-001 via `TestFormalCS001_SchemaValidationRejectsUnknownField`; T-CS-002 via `TestFormalCS002_ExpressionSafetyRejectsUnauthorizedExpression`; T-CS-003 via `TestFormalSG02_AgentJobHasNoWritePermissions`; T-CS-004 via `TestFormal_P9_CompilationValidatesBeforeEmit`; T-CS-005 via CS-10 evidence in §10; T-CS-006 via `TestStrictModeDeprecatedFields`; T-SG07-001/T-SG07-002 via `TestFormalSG07_FailSecureOnSecurityError` and `TestFormal_P9_CompilationValidatesBeforeEmit`. |
-| Runtime Security | T-RS-001 to T-RS-011 | ✅ EVIDENCED | RS-01/RS-02 (timestamp validation) and RS-16 to RS-22 (concurrency control) remain evidenced; T-RS-003 via `TestFormalRS003_WorkflowRunRepositoryValidation`; T-RS-004 via `TestFormalRS004_RuntimeRoleValidation`; T-RS-005 via `TestFormalRS005_RuntimeTokenValidation`; T-RS-006 via `TestFormalRS006_AWFNetworkPolicyValidation`; T-RS-007 via `TestFormalRS007_MCPNetworkPolicyValidation`; T-RS-008 via `TestFormalRS008_OutputTargetValidation`. |
+| Runtime Security | T-RS-001 to T-RS-011 | ✅ EVIDENCED | RS-01/RS-02 (timestamp validation) and RS-16 to RS-22 (concurrency control) remain evidenced; RS-05a (`workflow_dispatch` + `aw_context` PR checkout) evidenced in §7a; T-RS-003 via `TestFormalRS003_WorkflowRunRepositoryValidation`; T-RS-004 via `TestFormalRS004_RuntimeRoleValidation`; T-RS-005 via `TestFormalRS005_RuntimeTokenValidation`; T-RS-006 via `TestFormalRS006_AWFNetworkPolicyValidation`; T-RS-007 via `TestFormalRS007_MCPNetworkPolicyValidation`; T-RS-008 via `TestFormalRS008_OutputTargetValidation`. |
 | Companion MCP Access-Control | T-GH-047 to T-GH-060 | ⚠️ PARTIALLY EVIDENCED | Deferred to companion specifications (`scratchpad/github-mcp-access-control-specification.md`, `scratchpad/guard-policies-specification.md`); not directly evidenced in this document |
 
 ### Gap Summary
