@@ -21,7 +21,7 @@ const { withGitHubHostToken } = require("./git_auth_helpers.cjs");
 const { ensureFullHistoryForBundle, extractBundlePrerequisiteCommits, isShallowOrSparseCheckout, linearizeRangeAsCommit, ensureSafeDirectoryTrust } = require("./git_helpers.cjs");
 const { normalizeCommitSHA } = require("./commit_sha_helpers.cjs");
 const { findRepoCheckout } = require("./find_repo_checkout.cjs");
-const { getThreatDetectedMarker } = require("./threat_detection_warning.cjs");
+const { getThreatWarningPresentation } = require("./threat_detection_warning.cjs");
 const { attachExecutionState } = require("./safe_output_execution_metadata.cjs");
 const { resolveTransportPaths } = require("./resolve_transport_paths.cjs");
 
@@ -1304,11 +1304,12 @@ async function main(config = {}) {
           // For fork-backed PRs, use an owner-qualified head reference.
           const reviewHeadRef = pushRemoteUrl ? `${pushRepoParts.owner}:${reviewBranchName}` : reviewBranchName;
           const detectionReasonEnv = process.env.GH_AW_DETECTION_REASON || "unknown";
+          const warning = getThreatWarningPresentation(detectionReasonEnv);
           const prBody = [
-            "> [!CAUTION]",
-            "> agentic threat detected",
-            "> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.",
-            `> ${getThreatDetectedMarker(detectionReasonEnv)}`,
+            `> [!${warning.admonition}]`,
+            `> ${warning.title}`,
+            `> ${warning.summary}`,
+            `> ${warning.marker}`,
             ">",
             `> **Reason:** ${detectionReasonEnv}`,
             ">",
