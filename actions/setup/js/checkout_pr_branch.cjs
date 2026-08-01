@@ -19,6 +19,11 @@
  *    - Also run in base repository context
  *    - Uses refs/pull/N/head to fetch PR branch
  *
+ * 4. workflow_dispatch with aw_context:
+ *    - When aw_context input contains item_type=="pull_request" and item_number,
+ *      the PR number is extracted and the head is fetched via refs/pull/N/head
+ *    - Mirrors the guard in the compiled workflow's if: condition
+ *
  * NOTE: This handler operates within the PR context from the workflow event
  * and does not support cross-repository operations or target-repo parameters.
  * No allowlist validation (checkAllowedRepo/validateTargetRepo) is needed as
@@ -190,6 +195,25 @@ async function main() {
       state: context.payload.issue.state || "open",
     };
     core.info(`Detected ${eventName} event on PR #${pullRequest.number}, will fetch PR ref`);
+  }
+
+  // Handle workflow_dispatch events with aw_context pointing to a PR
+  if (!pullRequest && eventName === "workflow_dispatch") {
+    const awContextStr = context.payload.inputs?.aw_context;
+    if (awContextStr) {
+      try {
+        const awContext = JSON.parse(awContextStr);
+        if (awContext.item_type === "pull_request" && awContext.item_number) {
+          pullRequest = {
+            number: awContext.item_number,
+            state: "open",
+          };
+          core.info(`Detected workflow_dispatch event for PR #${pullRequest.number} via aw_context, will fetch PR ref`);
+        }
+      } catch (e) {
+        core.warning(`Failed to parse aw_context: ${getErrorMessage(e)}`);
+      }
+    }
   }
 
   if (!pullRequest) {

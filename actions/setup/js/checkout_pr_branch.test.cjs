@@ -554,6 +554,87 @@ If the pull request is still open, verify that:
     });
   });
 
+  describe("workflow_dispatch events with aw_context", () => {
+    beforeEach(() => {
+      mockContext.eventName = "workflow_dispatch";
+      mockContext.payload = {
+        repository: { fork: false },
+        inputs: {
+          aw_context: JSON.stringify({ item_type: "pull_request", item_number: 123 }),
+        },
+      };
+    });
+
+    it("should checkout PR using git fetch refs/pull when aw_context has item_type pull_request", async () => {
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Detected workflow_dispatch event for PR #123 via aw_context, will fetch PR ref");
+      expect(mockCore.info).toHaveBeenCalledWith("Event: workflow_dispatch");
+      expect(mockCore.info).toHaveBeenCalledWith("Pull Request #123");
+
+      // workflow_dispatch uses git fetch refs/pull + checkout (not the fast pull_request path)
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "-B", "feature-branch", "origin/pr-head"]);
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should skip checkout when aw_context item_type is not pull_request", async () => {
+      mockContext.payload.inputs.aw_context = JSON.stringify({ item_type: "issue", item_number: 42 });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
+    it("should skip checkout when workflow_dispatch has no aw_context input", async () => {
+      mockContext.payload.inputs = {};
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should skip checkout when workflow_dispatch has no inputs at all", async () => {
+      mockContext.payload.inputs = undefined;
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should warn and skip checkout when aw_context is invalid JSON", async () => {
+      mockContext.payload.inputs.aw_context = "not-valid-json{";
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Failed to parse aw_context:"));
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should skip checkout when aw_context pull_request has no item_number", async () => {
+      mockContext.payload.inputs.aw_context = JSON.stringify({ item_type: "pull_request" });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
+    it("should set output to true on successful workflow_dispatch PR checkout", async () => {
+      await runScript();
+
+      expect(mockCore.setOutput).toHaveBeenCalledWith("checkout_pr_success", "true");
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+  });
+
   describe("different event types", () => {
     it("should handle pull_request_target event", async () => {
       mockContext.eventName = "pull_request_target";
