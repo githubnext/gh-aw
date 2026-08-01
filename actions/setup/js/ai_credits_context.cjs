@@ -206,22 +206,7 @@ function parseAICreditsErrorInfoFromAuditEntry(entry) {
 function iterateAuditEntries(auditJsonlPathOverride, defaultValue, contentGuard, accumulate) {
   try {
     const auditJsonlPath = resolveFirewallAuditLogPath(auditJsonlPathOverride);
-    if (!fs.existsSync(auditJsonlPath)) return defaultValue;
-    const content = fs.readFileSync(auditJsonlPath, "utf8");
-    if (!content.trim()) return defaultValue;
-    if (contentGuard && !contentGuard(content)) return defaultValue;
-    let result = defaultValue;
-    for (const line of content.split("\n")) {
-      const trimmed = line.trim();
-      if (!trimmed || trimmed[0] !== "{") continue;
-      try {
-        const nextResult = accumulate(result, JSON.parse(trimmed));
-        if (nextResult !== undefined) result = nextResult;
-      } catch {
-        // ignore malformed lines
-      }
-    }
-    return result;
+    return iterateJSONLFiles([auditJsonlPath], defaultValue, contentGuard, accumulate);
   } catch {
     return defaultValue;
   }

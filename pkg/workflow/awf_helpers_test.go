@@ -909,7 +909,7 @@ func TestEngineExecutionWithCustomAPITarget(t *testing.T) {
 }
 
 // TestGetCopilotAPITarget tests the GetCopilotAPITarget helper that resolves the effective
-// Copilot API target from either engine.api-target or GITHUB_COPILOT_BASE_URL in engine.env.
+// Copilot API target from engine.api-target or supported Copilot base URL env vars.
 func TestGetCopilotAPITarget(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -954,10 +954,34 @@ func TestGetCopilotAPITarget(t *testing.T) {
 			expected: "copilot-proxy.corp.example.com",
 		},
 		{
-			name: "empty when neither api-target nor GITHUB_COPILOT_BASE_URL is set",
+			name: "literal COPILOT_PROVIDER_BASE_URL used as final fallback when other target sources are unset",
 			workflowData: &WorkflowData{
 				EngineConfig: &EngineConfig{
 					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "http://host.docker.internal:11434/v1",
+					},
+				},
+			},
+			expected: "host.docker.internal:11434",
+		},
+		{
+			name: "empty when neither api-target nor supported copilot base url env vars are set",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+				},
+			},
+			expected: "",
+		},
+		{
+			name: "empty when COPILOT_PROVIDER_BASE_URL is a GitHub expression",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "${{ secrets.PROVIDER_BASE_URL }}",
+					},
 				},
 			},
 			expected: "",
@@ -975,6 +999,29 @@ func TestGetCopilotAPITarget(t *testing.T) {
 			assert.Equal(t, tt.expected, result, "GetCopilotAPITarget should return expected hostname")
 		})
 	}
+}
+
+func TestBuildAWFConfigJSONIncludesCopilotLiteralBYOKTarget(t *testing.T) {
+	config := AWFCommandConfig{
+		EngineName:     "copilot",
+		AllowedDomains: "github.com",
+		WorkflowData: &WorkflowData{
+			EngineConfig: &EngineConfig{
+				ID: "copilot",
+				Env: map[string]string{
+					constants.CopilotProviderBaseURL: "http://host.docker.internal:11434/v1",
+				},
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{Enabled: true},
+			},
+		},
+	}
+
+	jsonStr, err := BuildAWFConfigJSON(config)
+	require.NoError(t, err)
+	assert.Contains(t, jsonStr, `"copilot"`, "should include copilot target entry")
+	assert.Contains(t, jsonStr, `"host":"host.docker.internal:11434"`, "should preserve literal BYOK host and port in apiProxy target config")
 }
 
 func TestGetCopilotAllowlistTargets(t *testing.T) {
