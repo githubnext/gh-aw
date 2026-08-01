@@ -627,6 +627,35 @@ If the pull request is still open, verify that:
       expect(mockExec.exec).not.toHaveBeenCalled();
     });
 
+    it("should checkout PR when aw_context repo matches current repository", async () => {
+      mockContext.payload.inputs.aw_context = JSON.stringify({
+        item_type: "pull_request",
+        item_number: 123,
+        repo: "test-owner/test-repo",
+      });
+
+      await runScript();
+
+      expect(mockCore.info).toHaveBeenCalledWith("Detected workflow_dispatch event for PR #123 via aw_context, will fetch PR ref");
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "+refs/pull/123/head:refs/remotes/origin/pr-head", "--depth=2"]);
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("should warn and skip checkout when aw_context repo does not match current repository", async () => {
+      mockContext.payload.inputs.aw_context = JSON.stringify({
+        item_type: "pull_request",
+        item_number: 123,
+        repo: "other-owner/other-repo",
+      });
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("Cross-repository workflow_dispatch is not supported"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("other-owner/other-repo"));
+      expect(mockCore.info).toHaveBeenCalledWith("No pull request context available, skipping checkout");
+      expect(mockExec.exec).not.toHaveBeenCalled();
+    });
+
     it("should set output to true on successful workflow_dispatch PR checkout", async () => {
       await runScript();
 
