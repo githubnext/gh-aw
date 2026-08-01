@@ -36,7 +36,7 @@ func TestUpdateManifestWorkflowGroup_AddsUpdatesRemoves(t *testing.T) {
 	resolveLatestRefFn = func(ctx context.Context, repo, currentRef string, allowMajor, verbose bool, coolDown time.Duration) (latestRefResolution, error) {
 		return latestRefResolution{Ref: "v2.0.0"}, nil
 	}
-	getRepositoryPackageDefaultBranch = func(repoSlug, host string) (string, error) {
+	getRepositoryPackageDefaultBranch = func(_ context.Context, repoSlug, host string) (string, error) {
 		return "main", nil
 	}
 	downloadPackageFileFromGitHubForHost = func(_ context.Context, owner, repo, path, ref, host string) ([]byte, error) {

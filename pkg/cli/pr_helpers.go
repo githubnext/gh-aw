@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -28,7 +29,7 @@ func PreflightCheckForCreatePR(verbose bool) error {
 // pushes the branch, creates a pull request, and returns to the original branch.
 // branchPrefix is used as the prefix for the auto-generated branch name.
 // Returns the PR URL on success.
-func CreatePRWithChanges(branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error) {
+func CreatePRWithChanges(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error) {
 	prHelpersLog.Printf("Creating PR with branch prefix: %s", branchPrefix)
 
 	currentBranch, err := getCurrentBranch()
@@ -58,7 +59,7 @@ func CreatePRWithChanges(branchPrefix, commitMessage, prTitle, prBody string, ve
 		return "", err
 	}
 
-	_, prURL, err := createPR(branchName, prTitle, prBody, verbose)
+	_, prURL, err := createPR(ctx, branchName, prTitle, prBody, verbose)
 	if err != nil {
 		_ = switchBranch(currentBranch, verbose)
 		return "", fmt.Errorf("failed to create PR: %w", err)

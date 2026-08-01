@@ -18,9 +18,9 @@
  *
  * Both regression tests assert: file_set(patch) == file_set(pushed_commit).
  *
- * The non-rewrite regression now passes with the filtered-bundle fix in place.
- * The merge-commit rewrite regression remains `it.fails(...)` until the rewrite
- * path is updated to preserve parity across base-branch drift as well.
+ * Both regressions now pass: filtered bundle synthesis keeps excluded files out
+ * of the pushed commit, and the merge-commit rewrite path linearizes against
+ * the bundle prerequisite so base-branch drift is not absorbed into the result.
  */
 
 import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
@@ -297,11 +297,10 @@ describe("create_pull_request – validation/push file-set parity", () => {
    * taken by `rewriteBundleBranchAsSingleCommit` inside `create_pull_request`
    * when signed push refuses merge-commit topology).
    *
-   * When base drift exists, the rewrite path still synthesizes a commit whose
-   * file set does not match the validated patch. Keep this as `it.fails(...)`
-   * until the rewrite/base-drift fix lands.
+   * When base drift exists, the rewritten commit must still match the validated
+   * patch file set rather than reverting or absorbing unrelated base changes.
    */
-  it.fails("merge-commit rewrite path: rewritten commit file set matches validated patch", async () => {
+  it("merge-commit rewrite path: rewritten commit file set matches validated patch", async () => {
     const { generateGitPatch } = require("./generate_git_patch.cjs");
     const { generateGitBundle } = require("./generate_git_bundle.cjs");
     const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
@@ -390,8 +389,6 @@ describe("create_pull_request – validation/push file-set parity", () => {
     });
 
     // REGRESSION ASSERTION: the rewritten commit must contain the same files as the patch.
-    // Today this still fails under base drift, which is why the test is marked
-    // `it.fails(...)` until the remaining rewrite-path fix lands.
     const fromPush = fileListFromPushedCommit(safeOutputsRepo, "origin/main");
     expect(fromPush, "rewritten commit should match patch file set after rewrite under base drift").toEqual(fromPatch);
   });

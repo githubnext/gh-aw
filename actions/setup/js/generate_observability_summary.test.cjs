@@ -28,6 +28,8 @@ describe("generate_observability_summary.cjs", () => {
       "/tmp/gh-aw/otlp-export-errors.jsonl",
       "/tmp/gh-aw/mcp-logs/gateway.jsonl",
       "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl",
+      "/tmp/gh-aw/sandbox/firewall/logs/squid-logs/access.log",
+      "/tmp/gh-aw/sandbox/firewall/logs/access.log",
     ]) {
       if (fs.existsSync(path)) {
         fs.unlinkSync(path);
@@ -132,5 +134,49 @@ describe("generate_observability_summary.cjs", () => {
 
     expect(mockCore.summary.addRaw).toHaveBeenCalledTimes(1);
     expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports squid access.log present when firewall enabled and file exists at squid-logs path", async () => {
+    fs.mkdirSync("/tmp/gh-aw/sandbox/firewall/logs/squid-logs", { recursive: true });
+    fs.writeFileSync("/tmp/gh-aw/sandbox/firewall/logs/squid-logs/access.log", '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"\n');
+    fs.writeFileSync("/tmp/gh-aw/aw_info.json", JSON.stringify({ workflow_name: "firewall-workflow", firewall_enabled: true }));
+
+    await module.main(mockCore);
+
+    const summary = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summary).toContain("- **squid access.log present**: true");
+    expect(summary).not.toContain("egress traffic for this run cannot be audited");
+  });
+
+  it("reports squid access.log present when firewall enabled and file exists at legacy path", async () => {
+    fs.mkdirSync("/tmp/gh-aw/sandbox/firewall/logs", { recursive: true });
+    fs.writeFileSync("/tmp/gh-aw/sandbox/firewall/logs/access.log", '1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"\n');
+    fs.writeFileSync("/tmp/gh-aw/aw_info.json", JSON.stringify({ workflow_name: "firewall-workflow", firewall_enabled: true }));
+
+    await module.main(mockCore);
+
+    const summary = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summary).toContain("- **squid access.log present**: true");
+    expect(summary).not.toContain("egress traffic for this run cannot be audited");
+  });
+
+  it("warns when firewall enabled but squid access.log is missing", async () => {
+    fs.writeFileSync("/tmp/gh-aw/aw_info.json", JSON.stringify({ workflow_name: "firewall-workflow", firewall_enabled: true }));
+
+    await module.main(mockCore);
+
+    const summary = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summary).toContain("- **squid access.log present**: false");
+    expect(summary).toContain("Squid access.log not found; egress traffic for this run cannot be audited.");
+  });
+
+  it("omits squid access.log status when firewall is disabled", async () => {
+    fs.writeFileSync("/tmp/gh-aw/aw_info.json", JSON.stringify({ workflow_name: "no-firewall-workflow", firewall_enabled: false }));
+
+    await module.main(mockCore);
+
+    const summary = mockCore.summary.addRaw.mock.calls[0][0];
+    expect(summary).not.toContain("squid access.log");
+    expect(summary).not.toContain("egress traffic for this run cannot be audited");
   });
 });

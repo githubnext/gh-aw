@@ -223,7 +223,7 @@ func TestBuildAuditData(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(run.LogsPath, constants.TemporaryIdMapFilename), []byte("{\"aw_alpha\":{\"repo\":\"github/gh-aw\",\"number\":17}}"), 0o600), "should write temporary ID map")
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 	auditData.Comparison = &AuditComparisonData{BaselineFound: false}
 
 	// Verify overview
@@ -308,7 +308,7 @@ func TestBuildAuditDataCountsFailedWorkflowWithoutTelemetryAsError(t *testing.T)
 		},
 	}
 
-	auditData := buildAuditData(processedRun, LogMetrics{}, nil)
+	auditData := buildAuditData(context.Background(), processedRun, LogMetrics{}, nil)
 
 	assert.Equal(t, 1, auditData.Metrics.ErrorCount, "failed workflow should contribute at least one error")
 }
@@ -756,7 +756,7 @@ func TestBuildAuditDataWithFirewall(t *testing.T) {
 	}
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Verify firewall analysis is included
 	if auditData.FirewallAnalysis == nil {

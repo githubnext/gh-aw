@@ -216,7 +216,7 @@ func InitRepository(opts InitOptions) error {
 			"- Configuring .gitattributes\n" +
 			"- Creating GitHub Copilot custom instructions\n" +
 			"- Setting up workflow prompts and skills"
-		if _, err := CreatePRWithChanges("init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose); err != nil {
+		if _, err := CreatePRWithChanges(ctx, "init-agentic-workflows", "chore: initialize agentic workflows", "Initialize agentic workflows", prBody, opts.Verbose); err != nil {
 			return err
 		}
 	}

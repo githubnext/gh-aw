@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -11,7 +12,7 @@ import (
 var outcomeEvalCommentLog = logger.New("cli:outcome_eval_comment")
 
 // evalAddComment checks whether a comment received replies, reactions, or was deleted/hidden.
-func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalAddComment(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	outcomeEvalCommentLog.Printf("Evaluating add_comment: repo=%s, url=%s", repo, item.URL)
 	report := OutcomeReport{
@@ -29,7 +30,7 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 		return report
 	}
 
-	data, err := ghAPIGet("issues/comments/"+commentID, repo)
+	data, err := ghAPIGet(ctx, "issues/comments/"+commentID, repo)
 	if err != nil {
 		// 404 means deleted
 		if errorutil.IsNotFoundError(err) {
@@ -61,7 +62,7 @@ func evalAddComment(item CreatedItemReport, repoOverride string) OutcomeReport {
 	issueNumber := parseNumberFromURL(item.URL)
 	replyCount := 0
 	if issueNumber > 0 {
-		commentList, cerr := ghAPIGetArray(fmt.Sprintf("issues/%d/comments", issueNumber), repo)
+		commentList, cerr := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", issueNumber), repo)
 		if cerr == nil {
 			createdAt, _ := data["created_at"].(string)
 			for _, c := range commentList {

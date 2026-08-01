@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -358,7 +359,7 @@ func TestAuditDataJSONStructure(t *testing.T) {
 	}
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Marshal to JSON
 	jsonBytes, err := json.MarshalIndent(auditData, "", "  ")

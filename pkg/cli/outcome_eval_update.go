@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -14,17 +15,17 @@ var outcomeEvalUpdateLog = logger.New("cli:outcome_eval_update")
 
 var outcomeUpdateGHAPIGet = ghAPIGet
 
-func evalUpdateIssue(item CreatedItemReport, repoOverride string) OutcomeReport {
-	return evalRetainedUpdate(item, repoOverride, "issue", extractCurrentIssueUpdateState, false)
+func evalUpdateIssue(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
+	return evalRetainedUpdate(ctx, item, repoOverride, "issue", extractCurrentIssueUpdateState, false)
 }
 
-func evalUpdatePullRequest(item CreatedItemReport, repoOverride string) OutcomeReport {
-	return evalRetainedUpdate(item, repoOverride, "pull request", extractCurrentPullRequestUpdateState, true)
+func evalUpdatePullRequest(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
+	return evalRetainedUpdate(ctx, item, repoOverride, "pull request", extractCurrentPullRequestUpdateState, true)
 }
 
-type mutableStateLoader func(repo string, number int) (map[string]any, bool, error)
+type mutableStateLoader func(ctx context.Context, repo string, number int) (map[string]any, bool, error)
 
-func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind string, load mutableStateLoader, strongOnMerge bool) OutcomeReport {
+func evalRetainedUpdate(ctx context.Context, item CreatedItemReport, repoOverride string, objectKind string, load mutableStateLoader, strongOnMerge bool) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	outcomeEvalUpdateLog.Printf("Evaluating retained update: kind=%s, type=%s, repo=%s, num=%d", objectKind, item.Type, repo, num)
@@ -56,7 +57,7 @@ func evalRetainedUpdate(item CreatedItemReport, repoOverride string, objectKind 
 		return report
 	}
 
-	currentState, merged, err := load(repo, num)
+	currentState, merged, err := load(ctx, repo, num)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -220,8 +221,8 @@ func mutableStringSlice(raw any) []string {
 	}
 }
 
-func extractCurrentIssueUpdateState(repo string, number int) (map[string]any, bool, error) {
-	issue, err := outcomeUpdateGHAPIGet(fmt.Sprintf("issues/%d", number), repo)
+func extractCurrentIssueUpdateState(ctx context.Context, repo string, number int) (map[string]any, bool, error) {
+	issue, err := outcomeUpdateGHAPIGet(ctx, fmt.Sprintf("issues/%d", number), repo)
 	if err != nil {
 		return nil, false, err
 	}
@@ -234,8 +235,8 @@ func extractCurrentIssueUpdateState(repo string, number int) (map[string]any, bo
 	}, false, nil
 }
 
-func extractCurrentPullRequestUpdateState(repo string, number int) (map[string]any, bool, error) {
-	pullRequest, err := outcomeUpdateGHAPIGet(fmt.Sprintf("pulls/%d", number), repo)
+func extractCurrentPullRequestUpdateState(ctx context.Context, repo string, number int) (map[string]any, bool, error) {
+	pullRequest, err := outcomeUpdateGHAPIGet(ctx, fmt.Sprintf("pulls/%d", number), repo)
 	if err != nil {
 		return nil, false, err
 	}
