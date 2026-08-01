@@ -27,10 +27,7 @@ tools:
     - "cat *"
     - "ls *"
 
-network:
-  allowed:
-    - defaults
-    - export.arxiv.org
+network: defaults
 
 safe-outputs:
   create-discussion:
@@ -40,13 +37,94 @@ safe-outputs:
 
 steps:
   - name: Fetch and parse arXiv papers
-    run: |
-      set -e
-      mkdir -p /tmp/gh-aw/agent/arxiv
-      ARXIV_URL='https://export.arxiv.org/api/query?search_query=(cat:cs.AI+OR+cat:cs.SE+OR+cat:cs.LG)+AND+(agentic+OR+%22multi-agent%22+OR+%22llm+agent%22+OR+%22workflow+automation%22+OR+%22code+generation%22+OR+%22ai+agent%22)&max_results=40&sortBy=submittedDate&sortOrder=descending'
-      curl -sf --max-time 30 "$ARXIV_URL" -o /tmp/gh-aw/agent/arxiv/raw.xml \
-        || echo '{}' > /tmp/gh-aw/agent/arxiv/raw.xml
-      python3 .github/scripts/arxiv-fetch-and-filter.py
+    uses: actions/github-script@v9.0.0
+    with:
+      script: |
+        const fs = require('fs');
+        const https = require('https');
+
+        const BASE_DIR = '/tmp/gh-aw/agent/arxiv';
+        const PAPERS_JSON = `${BASE_DIR}/papers.json`;
+        const NEW_PAPERS_JSON = `${BASE_DIR}/new-papers.json`;
+        const SEEN_IDS_JSON = '/tmp/gh-aw/cache-memory/seen-paper-ids.json';
+
+        fs.mkdirSync(BASE_DIR, { recursive: true });
+
+        const ARXIV_URL = 'https://export.arxiv.org/api/query?search_query=(cat:cs.AI+OR+cat:cs.SE+OR+cat:cs.LG)+AND+(agentic+OR+%22multi-agent%22+OR+%22llm+agent%22+OR+%22workflow+automation%22+OR+%22code+generation%22+OR+%22ai+agent%22)&max_results=40&sortBy=submittedDate&sortOrder=descending';
+
+        let xml = '';
+        try {
+          xml = await new Promise((resolve, reject) => {
+            const req = https.get(ARXIV_URL, { timeout: 30000 }, res => {
+              const chunks = [];
+              res.on('data', c => chunks.push(c));
+              res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+            });
+            req.on('error', reject);
+            req.on('timeout', () => { req.destroy(); reject(new Error('request timed out')); });
+          });
+        } catch (e) {
+          core.warning(`arXiv fetch failed: ${e.message}`);
+        }
+
+        const decodeEntities = s => s.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+        const getText = (tag, s) => {
+          const m = s.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
+          return m ? decodeEntities(m[1].replace(/\s+/g, ' ').trim()) : '';
+        };
+        const getAllText = (tag, s) => {
+          const re = new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`, 'g');
+          const out = []; let m;
+          while ((m = re.exec(s)) !== null) out.push(decodeEntities(m[1].replace(/\s+/g, ' ').trim()));
+          return out;
+        };
+        const getAllAttr = (tag, attr, s) => {
+          const re = new RegExp(`<${tag}[^>]*${attr}="([^"]*)"`, 'g');
+          const out = []; let m;
+          while ((m = re.exec(s)) !== null) out.push(m[1]);
+          return out;
+        };
+
+        const papers = [];
+        const entryRe = /<entry>([\s\S]*?)<\/entry>/g;
+        let em;
+        while ((em = entryRe.exec(xml)) !== null) {
+          const entry = em[1];
+          const idUrl = getText('id', entry);
+          const arxivId = idUrl.replace(/.*abs\//, '').trim();
+          if (!arxivId) continue;
+          papers.push({
+            id: arxivId,
+            title: getText('title', entry),
+            abstract: getText('summary', entry).slice(0, 1200),
+            authors: getAllText('name', entry).slice(0, 3),
+            published: getText('published', entry).slice(0, 10),
+            categories: getAllAttr('category', 'term', entry).slice(0, 3),
+            url: `https://arxiv.org/abs/${arxivId}`
+          });
+        }
+
+        const fetchedAt = new Date().toISOString().slice(0, 10);
+        fs.writeFileSync(PAPERS_JSON, JSON.stringify({ fetched_at: fetchedAt, count: papers.length, papers }, null, 2));
+
+        const seenIds = new Set();
+        if (fs.existsSync(SEEN_IDS_JSON)) {
+          try {
+            const d = JSON.parse(fs.readFileSync(SEEN_IDS_JSON, 'utf8'));
+            for (const id of (d.ids || [])) seenIds.add(id);
+          } catch (_) {}
+        }
+
+        const newPapers = papers.filter(p => !seenIds.has(p.id));
+        fs.writeFileSync(NEW_PAPERS_JSON, JSON.stringify({
+          total_fetched: papers.length,
+          already_seen: papers.length - newPapers.length,
+          new_count: newPapers.length,
+          fetched_at: fetchedAt,
+          papers: newPapers
+        }, null, 2));
+
+        core.info(`Parsed ${papers.length} papers, ${newPapers.length} new`);
 
 ---
 
