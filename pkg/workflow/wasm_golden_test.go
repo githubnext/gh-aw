@@ -33,6 +33,8 @@ var testDefaultAWFSchemaURLRE = regexp.MustCompile(`(releases/download/)` + rege
 var testDefaultAWFImageTagRE = regexp.MustCompile(`("imageTag"\s*:\s*")(?:v)?` + regexp.QuoteMeta(strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")) + `"`)
 var testDefaultMCPGImageRE = regexp.MustCompile(`(ghcr\.io/github/gh-aw-mcpg:)` + regexp.QuoteMeta(string(constants.DefaultMCPGatewayVersion)) + `\b`)
 var testDefaultGitHubMCPServerImageRE = regexp.MustCompile(`(ghcr\.io/github/github-mcp-server:)` + regexp.QuoteMeta(string(constants.DefaultGitHubMCPServerVersion)) + `\b`)
+var testDefaultCopilotInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultCopilotVersion)) + `"`)
+var testDefaultCopilotAgentInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AGENT_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultCopilotVersion)) + `"`)
 var testDefaultCodexInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultCodexVersion)) + `"`)
 var testDefaultCodexAgentInfoVersionRE = regexp.MustCompile(`GH_AW_INFO_AGENT_VERSION: "` + regexp.QuoteMeta(string(constants.DefaultCodexVersion)) + `"`)
 var testDefaultCodexInstallVersionRE = regexp.MustCompile(`(@openai/codex@)` + regexp.QuoteMeta(string(constants.DefaultCodexVersion)) + `\b`)
@@ -51,6 +53,8 @@ func normalizeDefaultRuntimeVersions(content string) string {
 	normalized = testDefaultCodexInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_VERSION: "CODEX_VERSION"`)
 	normalized = testDefaultCodexAgentInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_AGENT_VERSION: "CODEX_VERSION"`)
 	normalized = testDefaultCodexInstallVersionRE.ReplaceAllString(normalized, `${1}CODEX_VERSION`)
+	normalized = testDefaultCopilotInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_VERSION: "COPILOT_VERSION"`)
+	normalized = testDefaultCopilotAgentInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_AGENT_VERSION: "COPILOT_VERSION"`)
 	normalized = testDefaultPiInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_VERSION: "PI_VERSION"`)
 	normalized = testDefaultPiAgentInfoVersionRE.ReplaceAllString(normalized, `GH_AW_INFO_AGENT_VERSION: "PI_VERSION"`)
 	normalized = testDefaultPiInstallVersionRE.ReplaceAllString(normalized, `${1}PI_VERSION`)
@@ -98,6 +102,8 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 		`GH_AW_INFO_AGENT_VERSION: "` + string(constants.DefaultCodexVersion) + `"`,
 		`GH_AW_INFO_VERSION: "` + string(constants.DefaultPiVersion) + `"`,
 		`GH_AW_INFO_AGENT_VERSION: "` + string(constants.DefaultPiVersion) + `"`,
+		`GH_AW_INFO_VERSION: "` + string(constants.DefaultCopilotVersion) + `"`,
+		`GH_AW_INFO_AGENT_VERSION: "` + string(constants.DefaultCopilotVersion) + `"`,
 		`run: npm install --ignore-scripts -g @openai/codex@` + string(constants.DefaultCodexVersion),
 		`run: npm install --ignore-scripts -g @earendil-works/pi-coding-agent@` + string(constants.DefaultPiVersion),
 		`{"pinnedAwf":"v0.5.0","pinnedAwfImage":"ghcr.io/github/gh-aw-firewall/agent:0.5.0","pinnedMcpgImage":"ghcr.io/github/gh-aw-mcpg:v0.0.12"}`,
@@ -118,6 +124,8 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "CODEX_VERSION"`)
 	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "PI_VERSION"`)
 	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "PI_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_INFO_VERSION: "COPILOT_VERSION"`)
+	require.Contains(t, normalized, `GH_AW_INFO_AGENT_VERSION: "COPILOT_VERSION"`)
 	require.Contains(t, normalized, `@openai/codex@CODEX_VERSION`)
 	require.Contains(t, normalized, `@earendil-works/pi-coding-agent@PI_VERSION`)
 	require.Contains(t, normalized, `"pinnedAwf":"v0.5.0"`)
@@ -128,6 +136,7 @@ func TestNormalizeOutput_DefaultRuntimeVersions(t *testing.T) {
 	require.NotContains(t, normalized, constants.SonnetDefaultModel)
 	require.NotContains(t, normalized, string(constants.DefaultCodexVersion))
 	require.NotContains(t, normalized, string(constants.DefaultPiVersion))
+	require.NotContains(t, normalized, string(constants.DefaultCopilotVersion))
 }
 
 // TestWasmGolden_CompileFixtures compiles each workflow fixture using the string API
