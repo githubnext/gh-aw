@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -115,4 +116,31 @@ func TestHelpTextUsesStandardEgPunctuation(t *testing.T) {
 	assert.Contains(t, NewChecksCommand().Long, "(e.g., Vercel,", "checks help should use e.g., punctuation")
 	assert.Contains(t, NewViewCommand().Long, "(e.g., issues,", "view help should use e.g., punctuation")
 	assert.Contains(t, NewExperimentsAnalyzeSubcommand().Long, "e.g., \"my-workflow\"", "experiments analyze help should use e.g., punctuation")
+}
+
+func TestLegacyNestedGHHelpIsRejected(t *testing.T) {
+	tests := []struct {
+		name    string
+		newCmd  func() *cobra.Command
+		cmdName string
+	}{
+		{name: "secrets", newCmd: NewSecretsCommand, cmdName: "secrets"},
+		{name: "mcp", newCmd: NewMCPCommand, cmdName: "mcp"},
+		{name: "project", newCmd: NewProjectCommand, cmdName: "project"},
+		{name: "pr", newCmd: NewPRCommand, cmdName: "pr"},
+		{name: "env", newCmd: NewEnvCommand, cmdName: "env"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmd := tt.newCmd()
+			cmd.SilenceUsage = true
+			cmd.SilenceErrors = true
+			cmd.SetArgs([]string{"gh", "--help"})
+
+			err := cmd.Execute()
+			require.Error(t, err)
+			assert.Equal(t, `unknown command "gh" for "`+tt.cmdName+`"`, err.Error())
+		})
+	}
 }
