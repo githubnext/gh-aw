@@ -383,7 +383,10 @@ async function rewriteBundleBranchAsSingleCommit(baseBranch, execApi, bundleFile
   }
 
   core.warning(`Rewriting bundled commits to a single linear commit for signed push compatibility (base: ${baseRef})`);
-  const newHead = await linearizeRangeAsCommit(baseRef, commitHeadline, execApi, { excludedFiles: options.excludedFiles });
+  const newHead = await linearizeRangeAsCommit(baseRef, commitHeadline, execApi, {
+    excludedFiles: options.excludedFiles,
+    rebaseOnto: fallbackBaseRef,
+  });
   core.info(`Bundle rewrite completed (new HEAD: ${newHead})`);
 }
 

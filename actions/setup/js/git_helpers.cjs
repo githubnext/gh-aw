@@ -712,6 +712,9 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   invocation (e.g. `["--allow-empty", "--no-verify"]`).
  * @param {string[]} [opts.excludedFiles] - Paths that should be removed from the staged rewrite
  *   before creating the linearized commit.
+ * @param {string} [opts.rebaseOnto] - Optional ref to replay the synthesized commit onto after
+ *   it has been linearized relative to `baseRef`. Use this when `baseRef` captures the agent's
+ *   actual change base but the resulting single commit must sit on a newer branch tip.
  * @param {number} [opts.maxCommits] - Override the implausibility threshold (default
  *   `SHALLOW_RANGE_MAX_COMMITS`).  Set to `Infinity` to disable the shallow guard.
  * @returns {Promise<string>} The new HEAD SHA after the rewrite.
@@ -719,7 +722,7 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   shallow checkout produces an implausible commit range.
  */
 async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}) {
-  const { gitOpts, commitFlags = [], excludedFiles = [], maxCommits = SHALLOW_RANGE_MAX_COMMITS } = opts;
+  const { gitOpts, commitFlags = [], excludedFiles = [], rebaseOnto, maxCommits = SHALLOW_RANGE_MAX_COMMITS } = opts;
   // Spread gitOpts into exec calls only when it is explicitly provided — passing
   // `undefined` as a third argument changes the arity seen by mocks in tests.
   const execArgs = gitOpts !== undefined ? [gitOpts] : [];
@@ -775,10 +778,18 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
       throw new Error(`No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
     }
     await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], ...execArgs);
+    if (typeof rebaseOnto === "string" && rebaseOnto.trim() && rebaseOnto.trim() !== baseRef) {
+      await execApi.exec("git", ["rebase", "--onto", rebaseOnto.trim(), baseRef, "HEAD"], ...execArgs);
+    }
     const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
     return newHeadOut.trim();
   } catch (rewriteError) {
     try {
+      try {
+        await execApi.exec("git", ["rebase", "--abort"], ...execArgs);
+      } catch {
+        // Ignore: rebase may not be in progress.
+      }
       await execApi.exec("git", ["reset", "--hard", originalHead], ...execArgs);
       core.warning(`linearizeRangeAsCommit: rewrite failed; restored original HEAD ${originalHead}`);
     } catch (restoreError) {
