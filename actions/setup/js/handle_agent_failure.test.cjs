@@ -157,6 +157,10 @@ describe("handle_agent_failure", () => {
         "[aw] Test Workflow has no AI credits pricing for model (claude-opus-5)"
       );
     });
+
+    it("aiCreditsRateLimitError takes precedence over hasEngineRateLimit429 when both are true", () => {
+      expect(buildFailureIssueTitle({ ...baseOptions, aiCreditsRateLimitError: true, hasEngineRateLimit429: true })).toBe("[aw] Test Workflow hit AI credits rate limit");
+    });
   });
 
   describe("detection caution placement in main()", () => {

@@ -3419,7 +3419,7 @@ async function main() {
     if (hasToolDenialsExceeded) {
       core.info(`Detected ${toolDenialsExceededEvents.length} guard.tool_denials_exceeded event(s) from Copilot SDK events.jsonl`);
     }
-    const hasEngineRateLimit429 = agentConclusion === "failure" && !maxAICreditsExceeded && detectEngineRateLimit429Failure();
+    const hasEngineRateLimit429 = agentConclusion === "failure" && !maxAICreditsExceeded && !aiCreditsRateLimitError && detectEngineRateLimit429Failure();
 
     // Detect cache-miss misconfiguration: the agent reported a missing_data with reason
     // "cache_memory_miss" after a cache restore matched. This indicates the prompt
