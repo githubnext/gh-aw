@@ -37,13 +37,13 @@ describe("render_evals_summary.cjs", () => {
       expect(module.readEvalsResults()).toEqual([]);
     });
 
-    it("parses JSONL, skips malformed lines, and normalizes answers to YES/NO", () => {
+    it("parses JSONL, skips malformed lines, and preserves rationale text", () => {
       fs.writeFileSync(
         OUTPUT_PATH,
         [
-          JSON.stringify({ id: "q1", question: "First?", answer: " yes ", model: "claude-sonnet-4.6", timestamp: "2026-07-15T00:00:00Z" }),
+          JSON.stringify({ id: "q1", question: "First?", answer: " yes ", rationale: "The output clearly confirms the change.", model: "claude-sonnet-4.6", timestamp: "2026-07-15T00:00:00Z" }),
           "not-json",
-          JSON.stringify({ id: "q2", question: "Second?", answer: "No", model: "claude-sonnet-4.6" }),
+          JSON.stringify({ id: "q2", question: "Second?", answer: "No", rationale: "The output does not mention the requested test.", model: "claude-sonnet-4.6" }),
           JSON.stringify({ id: "q3", question: "Third?" }),
         ].join("\n"),
         "utf8"
@@ -54,6 +54,7 @@ describe("render_evals_summary.cjs", () => {
           id: "q1",
           question: "First?",
           answer: "YES",
+          rationale: "The output clearly confirms the change.",
           model: "claude-sonnet-4.6",
           timestamp: "2026-07-15T00:00:00Z",
         },
@@ -61,6 +62,7 @@ describe("render_evals_summary.cjs", () => {
           id: "q2",
           question: "Second?",
           answer: "NO",
+          rationale: "The output does not mention the requested test.",
           model: "claude-sonnet-4.6",
           timestamp: "",
         },
@@ -68,6 +70,7 @@ describe("render_evals_summary.cjs", () => {
           id: "q3",
           question: "Third?",
           answer: "NO",
+          rationale: "",
           model: "",
           timestamp: "",
         },
@@ -76,12 +79,13 @@ describe("render_evals_summary.cjs", () => {
   });
 
   describe("buildEvalsBody", () => {
-    it("renders tallies, escapes table cells, and includes the model", () => {
+    it("renders tallies, escapes table cells, rationale text, and includes the model", () => {
       const markdown = module.buildEvalsBody([
         {
           id: "id|`1`\r",
           question: "Line 1\nLine 2 | `code`",
           answer: "YES",
+          rationale: "A short | `reason`.",
           model: "claude`-4.6`",
           timestamp: "",
         },
@@ -89,6 +93,7 @@ describe("render_evals_summary.cjs", () => {
           id: "id2",
           question: "Question 2",
           answer: "NO",
+          rationale: "Missing evidence in the output.",
           model: "claude`-4.6`",
           timestamp: "",
         },
@@ -96,14 +101,15 @@ describe("render_evals_summary.cjs", () => {
           id: "id3",
           question: "Question 3",
           answer: "NO",
+          rationale: "",
           model: "claude`-4.6`",
           timestamp: "",
         },
       ]);
 
-      expect(markdown).toContain("| id\\|\\`1\\`  | Line 1 Line 2 \\| \\`code\\` | ✅ YES |");
-      expect(markdown).toContain("| id2 | Question 2 | ❌ NO |");
-      expect(markdown).toContain("| id3 | Question 3 | ❌ NO |");
+      expect(markdown).toContain("| id\\|\\`1\\`  | Line 1 Line 2 \\| \\`code\\` | ✅ YES | A short \\| \\`reason\\`. |");
+      expect(markdown).toContain("| id2 | Question 2 | ❌ NO | Missing evidence in the output. |");
+      expect(markdown).toContain("| id3 | Question 3 | ❌ NO |  |");
       expect(markdown).toContain("**YES**: 1 | **NO**: 2");
       expect(markdown).toContain("**model**: claude\\`-4.6\\`");
     });
@@ -127,7 +133,10 @@ describe("render_evals_summary.cjs", () => {
     it("writes the evals details section to the step summary", async () => {
       fs.writeFileSync(
         OUTPUT_PATH,
-        [JSON.stringify({ id: "builds", question: "Does it build?", answer: "YES", model: "claude-sonnet-4.6" }), JSON.stringify({ id: "tests", question: "Do tests pass?", answer: "NO", model: "claude-sonnet-4.6" })].join("\n") + "\n",
+        [
+          JSON.stringify({ id: "builds", question: "Does it build?", answer: "YES", rationale: "The output reports a successful build.", model: "claude-sonnet-4.6" }),
+          JSON.stringify({ id: "tests", question: "Do tests pass?", answer: "NO", rationale: "The output does not include a passing test result.", model: "claude-sonnet-4.6" }),
+        ].join("\n") + "\n",
         "utf8"
       );
 
@@ -139,6 +148,7 @@ describe("render_evals_summary.cjs", () => {
       expect(summary).toContain("<summary>BinEval Results</summary>");
       expect(summary).toContain("✅ YES");
       expect(summary).toContain("❌ NO");
+      expect(summary).toContain("The output reports a successful build.");
       expect(summary).toContain("**model**: claude-sonnet-4.6");
       expect(mockCore.summary.write).toHaveBeenCalledTimes(1);
       expect(mockCore.info).toHaveBeenCalledWith(expect.stringContaining("2 result(s)"));

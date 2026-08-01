@@ -22,7 +22,7 @@ const { normalizeEvalAnswer } = require("./run_evals.cjs");
 /**
  * Reads and parses evals.jsonl records.
  * Returns an empty array when the file is absent or unparseable.
- * @returns {Array<{id: string, question: string, answer: "YES"|"NO", model: string, timestamp: string}>}
+ * @returns {Array<{id: string, question: string, answer: "YES"|"NO", rationale: string, model: string, timestamp: string}>}
  */
 function readEvalsResults() {
   if (!fs.existsSync(EVALS_OUTPUT_PATH)) {
@@ -47,6 +47,7 @@ function readEvalsResults() {
           id: String(record.id ?? ""),
           question: String(record.question ?? ""),
           answer: normalizeEvalAnswer(String(record.answer ?? "")),
+          rationale: String(record.rationale ?? "").trim(),
           model: String(record.model ?? ""),
           timestamp: String(record.timestamp ?? ""),
         });
@@ -61,7 +62,7 @@ function readEvalsResults() {
 
 /**
  * Builds the markdown body for the evals <details> section.
- * @param {Array<{id: string, question: string, answer: "YES"|"NO", model: string, timestamp: string}>} results
+ * @param {Array<{id: string, question: string, answer: "YES"|"NO", rationale: string, model: string, timestamp: string}>} results
  * @returns {string}
  */
 function buildEvalsBody(results) {
@@ -73,11 +74,11 @@ function buildEvalsBody(results) {
   const noCount = results.filter(r => r.answer === "NO").length;
 
   const lines = [];
-  lines.push(`| ID | Question | Answer |`);
-  lines.push(`| --- | --- | --- |`);
+  lines.push(`| ID | Question | Answer | Rationale |`);
+  lines.push(`| --- | --- | --- | --- |`);
   for (const r of results) {
     const answerEmoji = r.answer === "YES" ? "✅ YES" : "❌ NO";
-    lines.push(`| ${escapeMarkdownCell(r.id)} | ${escapeMarkdownCell(r.question)} | ${answerEmoji} |`);
+    lines.push(`| ${escapeMarkdownCell(r.id)} | ${escapeMarkdownCell(r.question)} | ${answerEmoji} | ${escapeMarkdownCell(r.rationale)} |`);
   }
   lines.push("");
   lines.push(`**YES**: ${yesCount} | **NO**: ${noCount}`);

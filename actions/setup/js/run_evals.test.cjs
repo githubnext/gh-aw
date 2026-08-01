@@ -44,11 +44,11 @@ describe("run_evals.cjs", () => {
     }
   });
 
-  it("stores the workflow run id when writing eval records", async () => {
+  it("stores the workflow run id and rationale when writing eval records", async () => {
     vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
     vi.stubEnv("GH_AW_EVALS_MODEL", "small");
     vi.stubEnv("GITHUB_RUN_ID", "123456789");
-    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: YES\n", "utf8");
+    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: YES - The agent requested labels in the output.\n", "utf8");
 
     await parseMain();
 
@@ -58,6 +58,7 @@ describe("run_evals.cjs", () => {
       id: "labels-applied",
       question: "Did labels get applied?",
       answer: "YES",
+      rationale: "The agent requested labels in the output.",
       model: "small",
       timestamp: expect.any(String),
       runid: "123456789",
@@ -89,14 +90,15 @@ describe("run_evals.cjs", () => {
     expect(JSON.parse(line).model).toBe("claude-sonnet-4.6");
   });
 
-  it("builds setup prompt with binary YES/NO guidance", async () => {
+  it("builds setup prompt with binary YES/NO and rationale guidance", async () => {
     vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
     await setupMain();
 
     const prompt = fs.readFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", "utf8");
-    expect(prompt).toContain("<question-id>: YES");
-    expect(prompt).toContain("<question-id>: NO");
+    expect(prompt).toContain("<question-id>: YES - <one short sentence rationale>");
+    expect(prompt).toContain("<question-id>: NO - <one short sentence rationale>");
     expect(prompt).toContain("Use the exact question IDs provided in <questions>.");
+    expect(prompt).toContain("After the judgment, include a short single sentence explaining the rationale.");
     expect(prompt).toContain("If the agent output does not provide enough evidence to safely answer YES, answer NO.");
   });
 
@@ -118,7 +120,7 @@ describe("run_evals.cjs", () => {
       type: "turn_end",
       message: {
         role: "assistant",
-        content: [{ type: "text", text: "Q1: YES\nQ2: YES" }],
+        content: [{ type: "text", text: "Q1: YES - The output shows label requests.\nQ2: YES - The summary comment was created." }],
       },
     });
     fs.writeFileSync(EVALS_LOG_PATH, turnEndEvent + "\n", "utf8");
@@ -127,8 +129,8 @@ describe("run_evals.cjs", () => {
 
     const lines = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
     expect(lines).toHaveLength(2);
-    expect(JSON.parse(lines[0]).answer).toBe("YES");
-    expect(JSON.parse(lines[1]).answer).toBe("YES");
+    expect(JSON.parse(lines[0])).toMatchObject({ answer: "YES", rationale: "The output shows label requests." });
+    expect(JSON.parse(lines[1])).toMatchObject({ answer: "YES", rationale: "The summary comment was created." });
   });
 
   it("parses answers from Pi v3 JSONL turn_end events (mixed YES/NO)", async () => {
@@ -146,7 +148,7 @@ describe("run_evals.cjs", () => {
       type: "turn_end",
       message: {
         role: "assistant",
-        content: [{ type: "text", text: "Q1: YES\nQ2: NO" }],
+        content: [{ type: "text", text: "Q1: YES - The output shows the requested label.\nQ2: NO - The output does not mention tests." }],
       },
     });
     fs.writeFileSync(EVALS_LOG_PATH, turnEndEvent + "\n", "utf8");
@@ -155,8 +157,8 @@ describe("run_evals.cjs", () => {
 
     const lines = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
     expect(lines).toHaveLength(2);
-    expect(JSON.parse(lines[0]).answer).toBe("YES");
-    expect(JSON.parse(lines[1]).answer).toBe("NO");
+    expect(JSON.parse(lines[0])).toMatchObject({ answer: "YES", rationale: "The output shows the requested label." });
+    expect(JSON.parse(lines[1])).toMatchObject({ answer: "NO", rationale: "The output does not mention tests." });
   });
 
   it("parses answers from Pi v3 JSONL turn_end events (id-based format)", async () => {
@@ -168,7 +170,7 @@ describe("run_evals.cjs", () => {
       type: "turn_end",
       message: {
         role: "assistant",
-        content: [{ type: "text", text: "labels-applied: YES" }],
+        content: [{ type: "text", text: "labels-applied: YES - The agent explicitly asked for a label change." }],
       },
     });
     fs.writeFileSync(EVALS_LOG_PATH, turnEndEvent + "\n", "utf8");
@@ -176,7 +178,10 @@ describe("run_evals.cjs", () => {
     await parseMain();
 
     const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
-    expect(JSON.parse(line).answer).toBe("YES");
+    expect(JSON.parse(line)).toMatchObject({
+      answer: "YES",
+      rationale: "The agent explicitly asked for a label change.",
+    });
   });
 
   it("parses multiple ID-based answers from Claude engine's native assistant JSONL event", async () => {
@@ -202,7 +207,9 @@ describe("run_evals.cjs", () => {
       message: {
         model: "claude-sonnet-4-6",
         role: "assistant",
-        content: [{ type: "text", text: "adr-check-performed: NO\naction-taken: YES\ndecision-justified: YES" }],
+        content: [
+          { type: "text", text: "adr-check-performed: NO - The output does not mention existing ADRs.\naction-taken: YES - The output includes a concrete action.\ndecision-justified: YES - The decision includes supporting evidence." },
+        ],
       },
     });
     fs.writeFileSync(EVALS_LOG_PATH, assistantEvent + "\n", "utf8");
@@ -210,11 +217,16 @@ describe("run_evals.cjs", () => {
     await parseMain();
 
     const lines = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
-    const results = Object.fromEntries(lines.map(l => [JSON.parse(l).id, JSON.parse(l).answer]));
+    const results = Object.fromEntries(
+      lines.map(l => {
+        const parsed = JSON.parse(l);
+        return [parsed.id, { answer: parsed.answer, rationale: parsed.rationale }];
+      })
+    );
     expect(results).toEqual({
-      "adr-check-performed": "NO",
-      "action-taken": "YES",
-      "decision-justified": "YES",
+      "adr-check-performed": { answer: "NO", rationale: "The output does not mention existing ADRs." },
+      "action-taken": { answer: "YES", rationale: "The output includes a concrete action." },
+      "decision-justified": { answer: "YES", rationale: "The decision includes supporting evidence." },
     });
   });
 
@@ -227,19 +239,22 @@ describe("run_evals.cjs", () => {
     await parseMain();
 
     const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
-    expect(JSON.parse(line).answer).toBe("NO");
+    expect(JSON.parse(line)).toMatchObject({ answer: "NO", rationale: "" });
   });
 
   it('normalizes explicit "UNKNOWN" answers to "NO"', async () => {
     vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
     vi.stubEnv("GH_AW_EVALS_MODEL", "small");
     vi.stubEnv("GITHUB_RUN_ID", "999");
-    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: UNKNOWN\n", "utf8");
+    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: UNKNOWN - The output does not provide enough evidence.\n", "utf8");
 
     await parseMain();
 
     const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
-    expect(JSON.parse(line).answer).toBe("NO");
+    expect(JSON.parse(line)).toMatchObject({
+      answer: "NO",
+      rationale: "The output does not provide enough evidence.",
+    });
   });
 
   describe("extractAssistantTextFromJsonlLog", () => {

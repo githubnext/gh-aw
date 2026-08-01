@@ -13,8 +13,8 @@ Evals let you verify automatically whether an agentic run met its goals. Each ev
 Per run:
 
 1. **Setup** — the evals job downloads the agent artifact (`agent_output.json`) and writes a BinEval prompt containing all declared questions.
-2. **Execute** — an LLM judge runs in a network-restricted sandbox (same engine as the agent job) and answers each question with YES or NO.
-3. **Parse** — raw engine output is parsed into per-question records and written to `evals.jsonl`.
+2. **Execute** — an LLM judge runs in a network-restricted sandbox (same engine as the agent job) and answers each question with YES or NO plus a short rationale sentence.
+3. **Parse** — raw engine output is parsed into per-question records, including the rationale text, and written to `evals.jsonl`.
 4. **Redact** — any credential patterns are removed from the results before upload.
 5. **Upload** — `evals.jsonl` is uploaded as the `evals` workflow artifact and committed to the `evals/<workflow-id>` git branch by the `push_evals_state` job.
 
@@ -144,7 +144,7 @@ evals:
 Each run uploads `evals.jsonl` as the `evals` artifact (retention follows repository or organization settings). Each line is a JSON object:
 
 ```json
-{"id":"compiles","question":"Does the generated code compile?","answer":"YES","model":"small","timestamp":"2026-07-15T10:00:00Z","runid":"12345678"}
+{"id":"compiles","question":"Does the generated code compile?","answer":"YES","rationale":"The output reports a successful build with no compiler errors.","model":"small","timestamp":"2026-07-15T10:00:00Z","runid":"12345678"}
 ```
 
 ### Git branch

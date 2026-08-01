@@ -14,7 +14,7 @@
  *
  * Phase "parse" (runs AFTER the agentic engine):
  *   - Reads the engine output log from /tmp/gh-aw/evals/evals.log
- *   - Extracts binary YES/NO answers for each question by ID or by position
+ *   - Extracts binary YES/NO answers and optional rationale text for each question by ID or by position
  *   - Writes structured results to /tmp/gh-aw/evals.jsonl
  *
  * Environment variables:
@@ -119,7 +119,7 @@ async function setupMain() {
 // ---------------------------------------------------------------------------
 
 /**
- * Reads the engine log, extracts per-question binary answers, and writes
+ * Reads the engine log, extracts per-question binary answers plus optional rationale text, and writes
  * structured JSONL records to the evals output file.
  * @returns {Promise<void>}
  */
@@ -162,7 +162,7 @@ async function parseMain() {
   // the escape sequence "\n", so the line-based regex patterns below would miss them
   // unless the JSON content is decoded first.
   const extractedText = extractAssistantTextFromJsonlLog(logContent);
-  const searchContent = extractedText ? logContent + "\n" + extractedText : logContent;
+  const searchContent = extractedText ? extractedText + "\n" + logContent : logContent;
 
   // Collect all positional Q1/Q2/... answers from the log for fallback lookup
   const positionalAnswers = extractAllPositionalAnswers(searchContent);
@@ -174,15 +174,16 @@ async function parseMain() {
     const q = questions[i];
 
     // Try ID-specific match first (e.g. "builds: YES"), then positional (Q1: YES)
-    let answer = extractAnswerByID(searchContent, q.id);
-    if (!answer && i < positionalAnswers.length && positionalAnswers[i]) {
-      answer = positionalAnswers[i];
+    let parsed = extractAnswerByID(searchContent, q.id);
+    if (!parsed.answer && i < positionalAnswers.length && positionalAnswers[i]) {
+      parsed = positionalAnswers[i];
     }
-    answer = normalizeEvalAnswer(answer);
+    const answer = normalizeEvalAnswer(parsed.answer);
     const record = {
       id: q.id,
       question: q.question,
       answer,
+      rationale: parsed.rationale,
       model,
       timestamp,
       runid: runID,
@@ -248,10 +249,11 @@ ${agentSection}
 
 <instructions>
 Answer each question on a separate line using EXACTLY this format:
-<question-id>: YES
-<question-id>: NO
+<question-id>: YES - <one short sentence rationale>
+<question-id>: NO - <one short sentence rationale>
 
-Use only YES or NO. Do not provide explanations or reasoning.
+Use only YES or NO for the judgment.
+After the judgment, include a short single sentence explaining the rationale.
 Use the exact question IDs provided in <questions>.
 If the agent output does not provide enough evidence to safely answer YES, answer NO.
 Evaluate each question solely based on the agent output shown above.
@@ -262,17 +264,20 @@ Evaluate each question solely based on the agent output shown above.
  * Extracts all positional Q1/Q2/... answers from log content.
  * Returns a 0-indexed array where index 0 = Q1's answer.
  * @param {string} logContent
- * @returns {string[]}
+ * @returns {Array<{answer: string, rationale: string}>}
  */
 function extractAllPositionalAnswers(logContent) {
-  /** @type {string[]} */
+  /** @type {Array<{answer: string, rationale: string}>} */
   const answers = [];
   for (const line of logContent.split("\n")) {
-    const match = line.trim().match(/^Q(\d+):\s+(YES|NO|UNKNOWN)\b/i);
+    const match = line.trim().match(/^Q(\d+):\s+(YES|NO|UNKNOWN)\b(?:\s*-\s*(.+))?$/i);
     if (match) {
       const idx = parseInt(match[1], 10) - 1; // Convert 1-indexed to 0-indexed
       if (idx >= 0) {
-        answers[idx] = match[2].toUpperCase();
+        answers[idx] = {
+          answer: match[2].toUpperCase(),
+          rationale: normalizeRationale(match[3] || ""),
+        };
       }
     }
   }
@@ -280,16 +285,18 @@ function extractAllPositionalAnswers(logContent) {
 }
 
 /**
- * Tries to find an answer for a question by its id using flexible pattern matching.
- * Returns the raw extracted answer token when present, otherwise "".
+ * Tries to find an answer and optional rationale for a question by its id using flexible pattern matching.
  * @param {string} logContent
  * @param {string} id
- * @returns {string}
+ * @returns {{answer: string, rationale: string}}
  */
 function extractAnswerByID(logContent, id) {
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const match = logContent.match(new RegExp(`\\b${escaped}\\b[:\\s]+(YES|NO|UNKNOWN)\\b`, "i"));
-  return match?.[1]?.toUpperCase() || "";
+  const match = logContent.match(new RegExp(`\\b${escaped}\\b[:\\s]+(YES|NO|UNKNOWN)\\b(?:\\s*-\\s*([^\\n\\r]+))?`, "i"));
+  return {
+    answer: match?.[1]?.toUpperCase() || "",
+    rationale: normalizeRationale(match?.[2] || ""),
+  };
 }
 
 /**
@@ -300,6 +307,18 @@ function extractAnswerByID(logContent, id) {
  */
 function normalizeEvalAnswer(answer) {
   return String(answer).trim().toUpperCase() === "YES" ? "YES" : "NO";
+}
+
+/**
+ * Normalizes rationale text to a single trimmed line.
+ * @param {string} rationale
+ * @returns {string}
+ */
+function normalizeRationale(rationale) {
+  return String(rationale)
+    .replace(/[\r\n]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /**
@@ -349,4 +368,4 @@ function extractAssistantTextFromJsonlLog(logContent) {
   return texts.join("\n");
 }
 
-module.exports = { main, setupMain, parseMain, extractAssistantTextFromJsonlLog, normalizeEvalAnswer };
+module.exports = { main, setupMain, parseMain, extractAssistantTextFromJsonlLog, normalizeEvalAnswer, normalizeRationale };
