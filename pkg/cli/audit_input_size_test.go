@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"testing"
@@ -43,7 +44,7 @@ func TestAuditDataJSONIncludesInputSizes(t *testing.T) {
 	}
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Verify tool usage data includes input sizes
 	if len(auditData.ToolUsage) == 0 {

@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -116,7 +117,7 @@ func TestAgentFriendlyOutputExample(t *testing.T) {
 	}
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Test JSON output
 	t.Run("JSON Output", func(t *testing.T) {
@@ -301,7 +302,7 @@ func TestAgentFriendlyOutputFailureScenario(t *testing.T) {
 	}
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Test key findings for failure
 	t.Run("Failure Findings", func(t *testing.T) {

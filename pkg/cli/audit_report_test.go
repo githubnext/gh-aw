@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"os"
@@ -789,7 +790,7 @@ func TestBuildAuditDataComplete(t *testing.T) {
 	}
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Verify overview
 	t.Run("Overview", func(t *testing.T) {
@@ -902,7 +903,7 @@ func TestBuildAuditDataMinimal(t *testing.T) {
 
 	metrics := workflow.LogMetrics{}
 
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Should still produce valid data
 	assert.Equal(t, int64(1), auditData.Overview.RunID,
@@ -937,7 +938,7 @@ func TestBuildAuditDataFallbackMetricsWithoutAwInfo(t *testing.T) {
 		},
 	}
 
-	auditData := buildAuditData(processedRun, workflow.LogMetrics{}, nil)
+	auditData := buildAuditData(context.Background(), processedRun, workflow.LogMetrics{}, nil)
 	assert.Equal(t, 14642, auditData.Metrics.TokenUsage, "token usage should fall back to input+output from agent usage summary")
 	assert.Equal(t, 7, auditData.Metrics.Turns, "turns should fall back to inferred value from agent log")
 }
@@ -1084,7 +1085,7 @@ func TestToolUsageAggregation(t *testing.T) {
 		},
 	}
 
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	// Tool usage should be aggregated
 	// The exact aggregation depends on workflow.PrettifyToolName behavior
@@ -1599,7 +1600,7 @@ func TestExtractPreAgentStepErrors(t *testing.T) {
 		processedRun := ProcessedRun{Run: run}
 		metrics := LogMetrics{}
 
-		data := buildAuditData(processedRun, metrics, nil)
+		data := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 		require.NotEmpty(t, data.Errors, "Should have errors extracted from step logs for failed run")
 		assert.Contains(t, data.Errors[0].Message, "Lockdown mode is enabled",
@@ -1682,7 +1683,7 @@ func TestBuildAuditDataActionMinutes(t *testing.T) {
 		}
 
 		metrics := workflow.LogMetrics{}
-		auditData := buildAuditData(processedRun, metrics, nil)
+		auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 		assert.InDelta(t, 7.0, auditData.Metrics.ActionMinutes, 0.01,
 			"ActionMinutes should be ceil of duration minutes (6.5m → 7)")
@@ -1705,7 +1706,7 @@ func TestBuildAuditDataActionMinutes(t *testing.T) {
 		}
 
 		metrics := workflow.LogMetrics{}
-		auditData := buildAuditData(processedRun, metrics, nil)
+		auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 		assert.InDelta(t, 8.0, auditData.Metrics.ActionMinutes, 0.01,
 			"Pre-set ActionMinutes should take precedence over Duration")

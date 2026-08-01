@@ -50,3 +50,18 @@ if command -v awf &> /dev/null; then
 else
   echo 'AWF binary not installed, skipping firewall log summary'
 fi
+
+# Warn if Squid access.log is missing (current layout: squid-logs/; legacy layout: directly under logs/).
+# A missing access.log means egress traffic for this run cannot be audited.
+ACCESS_LOG_FOUND=false
+for candidate in \
+  "${AWF_LOGS_DIR}/squid-logs/access.log" \
+  "${AWF_LOGS_DIR}/access.log"; do
+  if [[ -f "${candidate}" ]]; then
+    ACCESS_LOG_FOUND=true
+    break
+  fi
+done
+if [[ "${ACCESS_LOG_FOUND}" == "false" ]]; then
+  echo "WARNING: Squid access.log not found under ${AWF_LOGS_DIR}; egress traffic for this run cannot be audited." >&2
+fi
