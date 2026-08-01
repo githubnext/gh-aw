@@ -3,7 +3,6 @@ private: true
 emoji: "🧪"
 description: "Tests that max-ai-credits: 1 is enforced by the AWF firewall and that the per-run budget guardrail cuts off the agent. Concludes success when the credit limit is reached."
 features:
-  intentional-failure: true
   gh-aw-detection: true
 on:
   schedule: daily around 10:30
