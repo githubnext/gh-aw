@@ -1,0 +1,56 @@
+{
+  "cli_version": "0.0.0-test",
+  "run_id": 12345682,
+  "processed_at": "2026-05-01T12:00:00Z",
+  "run": {
+    "id": 12345682,
+    "name": "daily-report",
+    "workflow_id": 98765,
+    "head_branch": "main",
+    "head_sha": "abc123def456abc123def456abc123def456abc123",
+    "status": "completed",
+    "conclusion": "cancelled",
+    "created_at": "2026-05-01T11:00:00Z",
+    "updated_at": "2026-05-01T11:02:10Z",
+    "run_started_at": "2026-05-01T11:00:05Z"
+  },
+  "metrics": {
+    "total_steps": 2,
+    "failed_steps": 0,
+    "tool_calls": 3
+  },
+  "access_analysis": null,
+  "firewall_analysis": null,
+  "redacted_domains_analysis": null,
+  "missing_tools": [],
+  "missing_data": [],
+  "noops": [],
+  "mcp_failures": [],
+  "artifacts_list": [],
+  "job_details": [],
+  "token_usage_summary": {
+    "total_input_tokens": 900,
+    "total_output_tokens": 200,
+    "total_cache_read_tokens": 0,
+    "total_cache_write_tokens": 0,
+    "total_requests": 1,
+    "total_duration_ms": 4200,
+    "total_response_bytes": 3800,
+    "cache_efficiency": 0.0,
+    "total_effective_tokens": 0,
+    "total_aic": 0.0,
+    "by_model": {
+      "claude-3-7-sonnet": {
+        "provider": "anthropic",
+        "input_tokens": 900,
+        "output_tokens": 200,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "requests": 1,
+        "duration_ms": 4200,
+        "response_bytes": 3800,
+        "effective_tokens": 0
+      }
+    }
+  }
+}
