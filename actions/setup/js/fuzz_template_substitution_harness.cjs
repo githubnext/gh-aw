@@ -48,7 +48,7 @@ function renderMarkdownTemplate(markdown) {
 function interpolateVariables(content, variables) {
   let result = content;
   for (const [varName, value] of Object.entries(variables)) {
-    const pattern = new RegExp(`\\$\\{${varName}\\}`, "g");
+    const pattern = new RegExp(`\\$\\{${varName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\}`, "g");
     result = result.replace(pattern, value);
   }
   return result;

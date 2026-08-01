@@ -59,6 +59,7 @@ function globMatch(pattern, entry) {
     if (!pattern.includes("*")) {
       return pattern.toLowerCase() === entry.toLowerCase();
     }
+    // eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- value is already escaped via escapeRegex(); glob * is intentionally converted to [^/]*
     const regex = new RegExp(`^${escapeRegex(pattern).replace(/\*/g, "[^/]*")}$`, "i");
     return regex.test(entry);
   }
@@ -68,6 +69,7 @@ function globMatch(pattern, entry) {
   if (patternParts[0].toLowerCase() !== entryParts[0].toLowerCase()) {
     return false;
   }
+  // eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- value is already escaped via escapeRegex(); glob * is intentionally converted to [^/]*
   const regex = new RegExp(`^${escapeRegex(patternParts[1]).replace(/\*/g, "[^/]*")}$`, "i");
   return regex.test(entryParts[1]);
 }

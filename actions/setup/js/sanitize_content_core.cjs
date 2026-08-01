@@ -491,6 +491,7 @@ function getFencedCodeRanges(s) {
     } else {
       // A closing fence: same character, at least as long, only whitespace after
       const fc = fenceChar === "`" ? "\\`" : "~";
+      // eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- fc is a single literal fence character and fenceLen is a numeric quantifier, both intentional regex components
       const closingRegex = new RegExp(`^[${fc}]{${fenceLen},}\\s*$`);
       if (closingRegex.test(trimmed)) {
         ranges.push([blockStart, lineEnd]);

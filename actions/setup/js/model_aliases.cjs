@@ -31,6 +31,7 @@ function reduceModelNameToIdentifier(modelName) {
   const FALLBACK_PADDING_CHAR = "x";
 
   /** @type {Array<{ familyPattern: RegExp, versionPattern: RegExp, prefix: string }>} */
+  /* eslint-disable gh-aw-custom/require-escaped-regexp-interpolation -- VERSION_SUFFIX_PATTERN is an intentional regex fragment, not a literal string */
   const shortcuts = [
     { familyPattern: /sonnet/, versionPattern: new RegExp(`sonnet${VERSION_SUFFIX_PATTERN}`), prefix: "sonnet" },
     { familyPattern: /opus/, versionPattern: new RegExp(`opus${VERSION_SUFFIX_PATTERN}`), prefix: "opus" },
@@ -39,6 +40,7 @@ function reduceModelNameToIdentifier(modelName) {
     { familyPattern: /^o[0-9](?:$|[-_])/, versionPattern: new RegExp(`o${VERSION_SUFFIX_PATTERN}`), prefix: "o" },
     { familyPattern: /gemini/, versionPattern: new RegExp(`gemini${VERSION_SUFFIX_PATTERN}`), prefix: "gem" },
   ];
+  /* eslint-enable gh-aw-custom/require-escaped-regexp-interpolation */
 
   for (const { familyPattern, versionPattern, prefix } of shortcuts) {
     if (!familyPattern.test(normalized)) continue;
@@ -95,7 +97,7 @@ function extractKnownModelTierSuffix(normalizedModelName) {
  * @returns {boolean}
  */
 function hasDelimitedModelQualifier(normalizedModelName, qualifier) {
-  return new RegExp(`(^|[-_\\s])${qualifier}($|[-_\\s])`).test(normalizedModelName);
+  return new RegExp(`(^|[-_\\s])${qualifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}($|[-_\\s])`).test(normalizedModelName);
 }
 
 /**
