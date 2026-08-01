@@ -3,8 +3,11 @@
 package workflow
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/github/gh-aw/pkg/testutil"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -185,6 +188,73 @@ func TestExtractAgentSandboxConfigModelFallback(t *testing.T) {
 		require.NotNil(t, config, "Should extract agent sandbox config")
 		assert.Nil(t, config.ModelFallback, "ModelFallback should be nil for object value")
 	})
+}
+
+func TestExtractAgentSandboxConfigMemory(t *testing.T) {
+	compiler := &Compiler{}
+
+	t.Run("extracts sandbox.agent.memory string", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":     "awf",
+			"memory": "48g",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Equal(t, "48g", config.Memory, "Should extract sandbox.agent.memory")
+	})
+
+	t.Run("memory is empty when absent", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id": "awf",
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Empty(t, config.Memory, "Memory should be empty when not configured")
+	})
+
+	t.Run("ignores non-string memory value", func(t *testing.T) {
+		agentObj := map[string]any{
+			"id":     "awf",
+			"memory": 48,
+		}
+
+		config := compiler.extractAgentSandboxConfig(agentObj)
+		require.NotNil(t, config, "Should extract agent sandbox config")
+		assert.Empty(t, config.Memory, "Memory should be empty for non-string value")
+	})
+}
+
+func TestCompileWorkflowPassesSandboxAgentMemoryToAWF(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "sandbox-agent-memory-*")
+	workflowPath := filepath.Join(tmpDir, "memory-limit.md")
+
+	workflowContent := `---
+on: workflow_dispatch
+permissions:
+  contents: read
+engine: copilot
+sandbox:
+  agent:
+    memory: 48g
+---
+
+# Memory limit
+`
+
+	require.NoError(t, os.WriteFile(workflowPath, []byte(workflowContent), 0o644))
+
+	compiler := NewCompiler()
+	require.NoError(t, compiler.CompileWorkflow(workflowPath))
+
+	lockPath := filepath.Join(tmpDir, "memory-limit.lock.yml")
+	lockContent, err := os.ReadFile(lockPath)
+	require.NoError(t, err, "expected compiled lock file to be generated")
+
+	lockYAML := string(lockContent)
+	assert.Contains(t, lockYAML, "--memory-limit", "compiled lock file should include --memory-limit flag")
+	assert.Regexp(t, `--memory-limit\s+48g`, lockYAML, "compiled lock file should pass --memory-limit 48g to AWF")
 }
 
 func TestExtractDefaultAiCreditsPricingFromModels(t *testing.T) {

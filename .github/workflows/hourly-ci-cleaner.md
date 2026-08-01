@@ -9,6 +9,8 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+env:
+  GOTOOLCHAIN: auto
 tracker-id: hourly-ci-cleaner
 # Token Budget Guardrails:
 # - Prompt optimization: Added efficiency guidelines and early termination

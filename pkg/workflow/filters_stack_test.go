@@ -49,6 +49,26 @@ func TestApplyPullRequestStackFilter_ConfiguredMaxStack(t *testing.T) {
 	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
 }
 
+func TestApplyPullRequestStackFilter_ConfiguredMaxStackInArrayTriggerForm(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	frontmatter := map[string]any{
+		"on": []any{
+			map[string]any{
+				"pull_request": map[string]any{
+					"types":     []any{"opened"},
+					"max-stack": 2,
+				},
+			},
+		},
+	}
+
+	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
+
+	assert.Empty(t, workflowData.If, "job-level if should not contain arithmetic for max-stack > 1")
+	assert.Contains(t, workflowData.PreSteps, "Stack position gate (max-stack: 2)")
+}
+
 func TestApplyPullRequestStackFilter_Disabled(t *testing.T) {
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{If: "github.actor != 'dependabot[bot]'"}
@@ -78,6 +98,43 @@ func TestApplyPullRequestStackFilter_SimplePullRequestTrigger(t *testing.T) {
 
 	// String trigger form — max-stack defaults to 1, so equality expression is used
 	assert.Contains(t, workflowData.If, "github.event.pull_request.stack.position == github.event.pull_request.stack.size")
+	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
+}
+
+func TestApplyPullRequestStackFilter_SimplePullRequestReviewTrigger(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	frontmatter := map[string]any{
+		"on": "pull_request_review",
+	}
+
+	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
+
+	assert.Contains(t, workflowData.If, "github.event_name != 'pull_request_review'")
+	assert.Contains(t, workflowData.If, "github.event.pull_request.stack.position == github.event.pull_request.stack.size")
+	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
+}
+
+func TestApplyPullRequestStackFilter_PullRequestReviewConfiguredMaxStack(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"pull_request_review": map[string]any{
+				"types":     []any{"submitted"},
+				"max-stack": 2,
+			},
+		},
+	}
+
+	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
+
+	assert.Empty(t, workflowData.If, "job-level if should not contain arithmetic for max-stack > 1")
+	assert.Contains(t, workflowData.PreSteps, "Stack position gate (max-stack: 2)")
+	assert.Contains(t, workflowData.PreSteps, "max_stack=2")
+	// Intermediate positions are gated via inequality: skip when position + N <= size
+	assert.Contains(t, workflowData.PreSteps, "STACK_POSITION + max_stack <= STACK_SIZE")
+	assert.Contains(t, workflowData.PreSteps, "github.event_name == 'pull_request_review'")
 	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
 }
 

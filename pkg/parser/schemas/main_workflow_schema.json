@@ -1694,6 +1694,21 @@
                     "type": "string",
                     "enum": ["submitted", "edited", "dismissed"]
                   }
+                },
+                "max-stack": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "const": -1,
+                      "description": "Disable stack protection; run on every pull request review in the stack."
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Run only on pull request reviews for the top N pull requests in the stack. Default is 1 (only the latest/top pull request)."
+                    }
+                  ],
+                  "description": "Maximum number of top stack layers to run on for stacked pull request review events. Default is 1 (only the latest/top pull request in the stack). Set to -1 to disable stack protection and run on every pull request review in the stack. Value 0 is not allowed."
                 }
               }
             },
@@ -3468,7 +3483,7 @@
                     "memory": {
                       "type": "string",
                       "description": "Memory limit for the AWF container (e.g., '4g', '8g'). Passed as --memory-limit to AWF. If not specified, AWF's default memory limit is used.",
-                      "pattern": "^[0-9]+(b|k|m|g|kb|mb|gb|B|K|M|G|KB|MB|GB)$",
+                      "pattern": "^[1-9][0-9]*[bkmgBKMG]$",
                       "examples": ["4g", "8g", "512m"]
                     },
                     "model-fallback": {
@@ -7001,9 +7016,22 @@
                   "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format. Minimum duration: 2 hours."
                 },
                 "auto-merge": {
-                  "type": "boolean",
-                  "description": "Enable auto-merge for the pull request. When enabled, the PR will be automatically merged once all required checks pass and required approvals are met. Defaults to false.",
-                  "default": false
+                  "description": "Enable auto-merge for the pull request. Accepts true/false, an explicit merge method (squash, merge, rebase), or a GitHub Actions expression resolving to any of those values. When enabled, the PR will be automatically merged once all required checks pass and required approvals are met. Defaults to false.",
+                  "default": false,
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "string",
+                      "enum": ["squash", "merge", "rebase"]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to false, true, or a merge method string"
+                    }
+                  ]
                 },
                 "base-branch": {
                   "type": "string",
@@ -9748,6 +9776,22 @@
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
                       "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs['allowed-repos'] }}')"
+                    }
+                  ]
+                },
+                "allowed-refs": {
+                  "description": "List of allowed ref glob patterns for per-call dispatch_workflow message.ref overrides. Supports arrays and GitHub Actions expressions resolving to a comma-separated list (e.g. '${{ inputs['allowed-refs'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of ref glob patterns (e.g. '${{ inputs['allowed-refs'] }}')"
                     }
                   ]
                 },

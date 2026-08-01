@@ -1073,6 +1073,13 @@ jobs:
                   "inputs": {
                     "type": "object"
                   },
+                  "ref": {
+                    "type": "string",
+                    "maxLength": 256,
+                    "minLength": 1,
+                    "pattern": "^[^\\x00-\\x20\\x7f~^:?*\\[\\\\]+$",
+                    "patternError": "must be a valid git ref"
+                  },
                   "workflow_name": {
                     "required": true,
                     "type": "string",

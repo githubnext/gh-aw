@@ -266,6 +266,14 @@ func (c *Compiler) extractAgentSandboxConfig(agentVal any) *AgentSandboxConfig {
 		}
 	}
 
+	// Extract memory (memory limit for the AWF container)
+	if memoryVal, hasMemory := agentObj["memory"]; hasMemory {
+		if memoryStr, ok := memoryVal.(string); ok {
+			agentConfig.Memory = memoryStr
+			frontmatterExtractionSecurityLog.Printf("Extracted sandbox.agent.memory: %s", memoryStr)
+		}
+	}
+
 	// Extract runtime (container runtime for the agent container)
 	if runtimeVal, hasRuntime := agentObj["runtime"]; hasRuntime {
 		if runtimeStr, ok := runtimeVal.(string); ok {

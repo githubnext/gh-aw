@@ -24,6 +24,11 @@ safe-outputs:
   upload-asset:
     max: 3
     allowed-exts: [.png, .jpg, .jpeg, .svg]
+  create-discussion:
+    category: "audits"
+    title-prefix: "Daily Firewall Report"
+    close-older-discussions: true
+    expires: 14
 sandbox:
   agent:
     sudo: false

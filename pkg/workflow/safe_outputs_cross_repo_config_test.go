@@ -21,6 +21,7 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 		configMap     map[string]any
 		expectedRepo  string
 		expectedRepos []string
+		expectedRefs  []string
 		expectedToken string
 	}{
 		{
@@ -30,11 +31,13 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 					"workflows":     []any{"worker"},
 					"target-repo":   "githubnext/gh-aw-side-repo",
 					"allowed-repos": []any{"githubnext/gh-aw-side-repo"},
+					"allowed-refs":  []any{"refs/heads/release/*"},
 					"github-token":  "${{ secrets.TEMP_USER_PAT }}",
 				},
 			},
 			expectedRepo:  "githubnext/gh-aw-side-repo",
 			expectedRepos: []string{"githubnext/gh-aw-side-repo"},
+			expectedRefs:  []string{"refs/heads/release/*"},
 			expectedToken: "${{ secrets.TEMP_USER_PAT }}",
 		},
 		{
@@ -48,6 +51,7 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 			},
 			expectedRepo:  "org/primary-repo",
 			expectedRepos: []string{"org/primary-repo", "org/secondary-repo"},
+			expectedRefs:  nil,
 			expectedToken: "",
 		},
 		{
@@ -57,10 +61,12 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 					"workflows":     []any{"worker"},
 					"target-repo":   "${{ inputs.target_repo }}",
 					"allowed-repos": "${{ inputs['allowed-repos'] }}",
+					"allowed-refs":  "${{ inputs['allowed-refs'] }}",
 				},
 			},
 			expectedRepo:  "${{ inputs.target_repo }}",
 			expectedRepos: []string{"${{ inputs['allowed-repos'] }}"},
+			expectedRefs:  []string{"${{ inputs['allowed-refs'] }}"},
 			expectedToken: "",
 		},
 		{
@@ -73,6 +79,7 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 			},
 			expectedRepo:  "",
 			expectedRepos: nil,
+			expectedRefs:  nil,
 			expectedToken: "",
 		},
 	}
@@ -84,6 +91,7 @@ func TestDispatchWorkflowConfigTargetRepo(t *testing.T) {
 			require.NotNil(t, cfg, "config should not be nil")
 			assert.Equal(t, tt.expectedRepo, cfg.TargetRepoSlug, "TargetRepoSlug mismatch")
 			assert.Equal(t, tt.expectedRepos, cfg.AllowedRepos, "AllowedRepos mismatch")
+			assert.Equal(t, tt.expectedRefs, cfg.AllowedRefs, "AllowedRefs mismatch")
 			assert.Equal(t, tt.expectedToken, cfg.GitHubToken, "GitHubToken mismatch")
 		})
 	}
@@ -607,6 +615,7 @@ func TestDispatchWorkflowCrossRepoInHandlerConfig(t *testing.T) {
 				Workflows:      []string{"worker"},
 				TargetRepoSlug: "githubnext/gh-aw-side-repo",
 				AllowedRepos:   []string{"githubnext/gh-aw-side-repo"},
+				AllowedRefs:    []string{"refs/heads/release/*"},
 			},
 		},
 	}
@@ -626,6 +635,10 @@ func TestDispatchWorkflowCrossRepoInHandlerConfig(t *testing.T) {
 	allowedRepos, ok := dispatchWorkflow["allowed_repos"]
 	require.True(t, ok, "allowed_repos should be present")
 	assert.Contains(t, allowedRepos, "githubnext/gh-aw-side-repo", "allowed_repos should contain the repo")
+
+	allowedRefs, ok := dispatchWorkflow["allowed_refs"]
+	require.True(t, ok, "allowed_refs should be present")
+	assert.Contains(t, allowedRefs, "refs/heads/release/*", "allowed_refs should contain the ref glob")
 }
 
 // TestHandlerManagerStepPerOutputTokenInHandlerConfig verifies that per-output tokens

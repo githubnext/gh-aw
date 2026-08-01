@@ -53,6 +53,7 @@ func newOnSectionLine(raw string) onSectionLine {
 
 type onSectionCleanupState struct {
 	inPullRequest                bool
+	inPullRequestReview          bool
 	inIssues                     bool
 	inDiscussion                 bool
 	inIssueComment               bool
@@ -119,7 +120,7 @@ func collectNativeLabelFilterSections(frontmatter map[string]any) map[string]str
 }
 
 func (s *onSectionCleanupState) inEventSection() bool {
-	return s.inPullRequest || s.inIssues || s.inDiscussion || s.inIssueComment
+	return s.inPullRequest || s.inPullRequestReview || s.inIssues || s.inDiscussion || s.inIssueComment
 }
 
 func (s *onSectionCleanupState) handleEventSectionEntry(info onSectionLine, result *[]string) bool {
@@ -140,7 +141,7 @@ func (s *onSectionCleanupState) detectEventSection(info onSectionLine) (string, 
 		return "", false
 	}
 	switch info.trimmed {
-	case "pull_request:", "issues:", "discussion:", "issue_comment:", "deployment_status:", "workflow_run:":
+	case "pull_request:", "pull_request_review:", "issues:", "discussion:", "issue_comment:", "deployment_status:", "workflow_run:":
 		return strings.TrimSuffix(info.trimmed, ":"), true
 	default:
 		return "", false
@@ -152,6 +153,7 @@ func (s *onSectionCleanupState) activateEventSection(section string, indent int)
 	s.inCommentBlock = false
 	s.commentBlockIndent = ""
 	s.inPullRequest = section == "pull_request"
+	s.inPullRequestReview = section == "pull_request_review"
 	s.inIssues = section == "issues"
 	s.inDiscussion = section == "discussion"
 	s.inIssueComment = section == "issue_comment"
@@ -198,6 +200,7 @@ func (s *onSectionCleanupState) leaveCurrentEventSection(info onSectionLine) {
 	}
 	if s.currentSectionIndent >= 0 && info.indent <= s.currentSectionIndent {
 		s.inPullRequest = false
+		s.inPullRequestReview = false
 		s.inIssues = false
 		s.inDiscussion = false
 		s.inIssueComment = false
@@ -513,7 +516,7 @@ func (s *onSectionCleanupState) commentPullRequestAndTriggerField(info onSection
 	switch {
 	case s.inPullRequest && strings.Contains(info.trimmed, "draft:"):
 		return true, " # Draft filtering applied via job conditions"
-	case s.inPullRequest && strings.HasPrefix(info.trimmed, "max-stack:"):
+	case (s.inPullRequest || s.inPullRequestReview) && strings.HasPrefix(info.trimmed, "max-stack:"):
 		return true, " # Stack filtering applied via job conditions"
 	case s.inPullRequest && strings.HasPrefix(info.trimmed, "forks:"):
 		return true, " # Fork filtering applied via job conditions"

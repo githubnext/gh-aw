@@ -145,6 +145,23 @@ jobs:
 Use `go build` or `python3` - both are available.
 ```
 
+#### Memory Limit (`sandbox.agent.memory`)
+
+By default, AWF uses its own built-in memory limit for the agent container. Set `sandbox.agent.memory` to override this limit on large-memory runners:
+
+```yaml wrap
+sandbox:
+  agent:
+    memory: 8g
+```
+
+Valid values are a positive integer followed by a unit: `b`, `k`, `m`, or `g` (case-insensitive). Examples: `512m`, `4g`, `8g`, `1024m`.
+
+When omitted, AWF's own default memory limit applies. Specifying an invalid format (e.g., `48gb` or `48`) is rejected at compile time.
+
+> [!NOTE]
+> Exit code 137 means the process received `SIGKILL`. A memory limit can be one cause, but verify with logs before changing `memory`. If you increase `memory`, leave headroom for the runner OS and other processes.
+
 #### Copilot BYOK request customization (`sandbox.agent.targets.copilot`)
 
 When routing Copilot through a BYOK-compatible upstream behind the AWF proxy, you can attach custom headers, extra request body fields, and an explicit session identifier on upstream requests:
