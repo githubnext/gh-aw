@@ -788,7 +788,7 @@ jobs:
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
       - name: Execute Pi CLI
         id: agentic_execution
-        timeout-minutes: 30
+        timeout-minutes: 20
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

@@ -256,13 +256,13 @@ func TestAllEnginesEmitTimeoutMinutes(t *testing.T) {
 		},
 		{
 			name:         "explicit timeout-minutes: 15",
-			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: 15"},
+			workflowData: &WorkflowData{Name: "test-workflow", ParsedFrontmatter: &FrontmatterConfig{TimeoutMinutes: func() *TemplatableInt32 { v := TemplatableInt32("15"); return &v }()}},
 			wantTimeout:  "15",
 			description:  "engine should forward the explicit timeout value",
 		},
 		{
 			name:         "timeout as expression",
-			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}"},
+			workflowData: &WorkflowData{Name: "test-workflow", ParsedFrontmatter: &FrontmatterConfig{TimeoutMinutes: func() *TemplatableInt32 { v := TemplatableInt32("${{ inputs.timeout }}"); return &v }()}},
 			wantTimeout:  "${{ inputs.timeout }}",
 			description:  "engine should forward GitHub Actions expressions verbatim",
 		},

@@ -703,22 +703,19 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 }
 
 // resolveStepTimeoutValue returns the timeout value string to emit on an
-// agentic_execution step's timeout-minutes field.  It strips the optional
-// "timeout-minutes:" key prefix and surrounding whitespace so that the
-// WorkflowData field can be stored in either raw YAML ("timeout-minutes: 30")
-// or bare ("30") form.  When workflowData is nil or TimeoutMinutes is empty
-// it falls back to DefaultAgenticWorkflowTimeout.
+// agentic_execution step's timeout-minutes field.  It reads the already-parsed
+// TimeoutMinutes from ParsedFrontmatter, so no raw-string parsing is needed.
+// When workflowData is nil, ParsedFrontmatter is nil, or TimeoutMinutes is
+// unset, it falls back to DefaultAgenticWorkflowTimeout.
 func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 	defaultValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
-	if workflowData == nil || workflowData.TimeoutMinutes == "" {
+	if workflowData == nil {
 		return defaultValue
 	}
-	v := strings.TrimSpace(workflowData.TimeoutMinutes)
-	if after, ok := strings.CutPrefix(v, "timeout-minutes:"); ok {
-		v = strings.TrimSpace(after)
+	if workflowData.ParsedFrontmatter != nil && workflowData.ParsedFrontmatter.TimeoutMinutes != nil {
+		if v := workflowData.ParsedFrontmatter.TimeoutMinutes.String(); v != "" {
+			return v
+		}
 	}
-	if v == "" {
-		return defaultValue
-	}
-	return v
+	return defaultValue
 }

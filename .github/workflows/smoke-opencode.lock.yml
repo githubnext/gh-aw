@@ -952,7 +952,7 @@ jobs:
           chmod 600 "$CONFIG"
       - name: Execute OpenCode CLI
         id: agentic_execution
-        timeout-minutes: 10
+        timeout-minutes: 20
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
