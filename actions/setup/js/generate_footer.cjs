@@ -133,7 +133,7 @@ function getExpiredEntityCautionAlert(workflowName, runUrl) {
   const detectionReason = process.env.GH_AW_DETECTION_REASON || "";
   const reasonText = getDetectionReasonText(detectionReason);
   if (isToolingFailureReason(detectionReason)) {
-    return `> [!WARNING]\n> threat detection engine error\n> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.\n> ${getThreatDetectedMarker(detectionReason)}\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText}\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
+    return `> [!WARNING]\n> **Threat Detection Engine Failure** — The analysis engine could not complete. This is a tooling failure, not a security finding.\n> ${getThreatDetectedMarker(detectionReason)}\n>\n> <details>\n> <summary>What happened</summary>\n>\n> ${reasonText}\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
   }
   return `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> ${getThreatDetectedMarker(detectionReason)}\n>\n> <details>\n> <summary>Details</summary>\n>\n> ${reasonText}\n>\n> Review the [workflow run logs](${runUrl}) for details.\n> </details>`;
 }

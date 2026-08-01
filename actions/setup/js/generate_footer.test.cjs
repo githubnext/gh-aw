@@ -486,7 +486,7 @@ describe("generate_footer.cjs", () => {
         const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
         expect(result).toContain("> [!WARNING]");
-        expect(result).toContain("threat detection engine error");
+        expect(result).toContain("Threat Detection Engine Failure");
         expect(result).toContain("<!-- gh-aw-threat-detected -->");
         expect(result).not.toContain("> [!CAUTION]");
         expect(result).not.toContain("agentic threat detected");
@@ -500,7 +500,7 @@ describe("generate_footer.cjs", () => {
         const result = getExpiredEntityCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
         expect(result).toContain("> [!WARNING]");
-        expect(result).toContain("threat detection engine error");
+        expect(result).toContain("Threat Detection Engine Failure");
         expect(result).not.toContain("> [!CAUTION]");
         expect(result).not.toContain("agentic threat detected");
         expect(result).toContain("could not be parsed");
