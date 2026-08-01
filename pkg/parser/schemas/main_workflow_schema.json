@@ -1694,6 +1694,21 @@
                     "type": "string",
                     "enum": ["submitted", "edited", "dismissed"]
                   }
+                },
+                "max-stack": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "const": -1,
+                      "description": "Disable stack protection; run on every pull request review in the stack."
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Run only on pull request reviews for the top N pull requests in the stack. Default is 1 (only the latest/top pull request)."
+                    }
+                  ],
+                  "description": "Maximum number of top stack layers to run on for stacked pull request review events. Default is 1 (only the latest/top pull request in the stack). Set to -1 to disable stack protection and run on every pull request review in the stack. Value 0 is not allowed."
                 }
               }
             },

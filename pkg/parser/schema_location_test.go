@@ -665,6 +665,11 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxStack(t *testin
 			wantErr:  false,
 		},
 		{
+			name:     "max-stack: 5 is valid (intermediate value)",
+			maxStack: 5,
+			wantErr:  false,
+		},
+		{
 			name:     "max-stack: -1 is valid (disable stack protection)",
 			maxStack: -1,
 			wantErr:  false,
@@ -689,6 +694,75 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxStack(t *testin
 				"on": map[string]any{
 					"pull_request": map[string]any{
 						"types":     []any{"opened"},
+						"max-stack": tt.maxStack,
+					},
+				},
+			}
+			err := ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatter, "/test/workflow.md")
+			if tt.wantErr && err == nil {
+				t.Errorf("expected validation error for max-stack: %v, got nil", tt.maxStack)
+				return
+			}
+			if !tt.wantErr && err != nil {
+				t.Errorf("unexpected validation error for max-stack: %v: %v", tt.maxStack, err)
+				return
+			}
+			if tt.wantErr && err != nil && tt.errContains != "" {
+				if !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("expected error containing %q, got: %v", tt.errContains, err)
+				}
+			}
+		})
+	}
+}
+
+func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_PullRequestReviewMaxStack(t *testing.T) {
+	tests := []struct {
+		name        string
+		maxStack    any
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:     "max-stack: 1 is valid (default)",
+			maxStack: 1,
+			wantErr:  false,
+		},
+		{
+			name:     "max-stack: 2 is valid",
+			maxStack: 2,
+			wantErr:  false,
+		},
+		{
+			name:     "max-stack: 5 is valid (intermediate value)",
+			maxStack: 5,
+			wantErr:  false,
+		},
+		{
+			name:     "max-stack: -1 is valid (disable stack protection)",
+			maxStack: -1,
+			wantErr:  false,
+		},
+		{
+			name:        "max-stack: 0 is rejected",
+			maxStack:    0,
+			wantErr:     true,
+			errContains: "max-stack",
+		},
+		{
+			name:        "max-stack: -2 is rejected",
+			maxStack:    -2,
+			wantErr:     true,
+			errContains: "max-stack",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			frontmatter := map[string]any{
+				"on": map[string]any{
+					"pull_request_review": map[string]any{
+						"types":     []any{"submitted"},
 						"max-stack": tt.maxStack,
 					},
 				},
