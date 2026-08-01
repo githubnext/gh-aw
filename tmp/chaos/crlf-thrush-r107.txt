@@ -1,0 +1,6 @@
+persona: crlf-thrush
+strategy: line-ending-variant+amend
+run: 107
+date: 2026-08-01
+step: 1
+before-amend
