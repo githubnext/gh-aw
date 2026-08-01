@@ -99,8 +99,9 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
+      needs.pre_activation.outputs.activated == 'true' && ((((github.event.pull_request.base.ref == github.event.repository.default_branch) &&
       (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'changeset' ||
       github.event.label.name == 'smoke'))
     runs-on: ubuntu-slim
@@ -1535,6 +1536,7 @@ jobs:
           WORKFLOW_NAME: "Changeset Generator"
           WORKFLOW_DESCRIPTION: "Automatically creates changeset files when PRs are labeled with 'changeset' or 'smoke' to document changes for release notes"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1932,9 +1934,11 @@ jobs:
 
   pre_activation:
     if: >
-      ((github.event.pull_request.base.ref == github.event.repository.default_branch) && (github.event_name != 'pull_request' ||
+      (((github.event.pull_request.base.ref == github.event.repository.default_branch) && (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' ||
-      github.event.action != 'labeled' || github.event.label.name == 'changeset' || github.event.label.name == 'smoke')
+      github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)) &&
+      (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'changeset' ||
+      github.event.label.name == 'smoke')
     runs-on: ubuntu-slim
     permissions:
       contents: read

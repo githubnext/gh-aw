@@ -120,7 +120,9 @@ env:
 jobs:
   activation:
     needs: pre_activation
-    if: needs.pre_activation.outputs.activated == 'true'
+    if: >
+      needs.pre_activation.outputs.activated == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.stack == null ||
+      github.event.pull_request.stack.position == github.event.pull_request.stack.size)
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1677,9 +1679,10 @@ jobs:
 
   pre_activation:
     if: >
-      (!(github.event_name == 'issue_comment') || !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) &&
+      ((!(github.event_name == 'issue_comment') || !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)) &&
       (!(github.event_name == 'issues') || !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.issue.author_association)) &&
-      (!(github.event_name == 'pull_request') || !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association))
+      (!(github.event_name == 'pull_request') || !contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.pull_request.author_association))) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)
     runs-on: ubuntu-slim
     permissions:
       actions: read

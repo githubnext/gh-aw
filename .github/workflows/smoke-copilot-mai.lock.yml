@@ -1491,6 +1491,7 @@ jobs:
           WORKFLOW_NAME: "Smoke Copilot MAI"
           WORKFLOW_DESCRIPTION: "Smoke test for MAI-Code-1-Flash (mai-code-1-flash-picker) — pricing: $0.75/M input, $0.075/M cached, $4.50/M output"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

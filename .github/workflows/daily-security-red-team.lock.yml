@@ -1620,6 +1620,7 @@ jobs:
           WORKFLOW_NAME: "Cache directory setup"
           WORKFLOW_DESCRIPTION: "Daily deep red teaming security scan of actions/setup/js and actions/setup/sh directories, looking for backdoors, secret leaks, and malicious code"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

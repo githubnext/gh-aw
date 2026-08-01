@@ -1490,6 +1490,7 @@ jobs:
           WORKFLOW_NAME: "jsweep - JavaScript Unbloater"
           WORKFLOW_DESCRIPTION: "Daily JavaScript unbloater that cleans one .cjs file per day, prioritizing files with @ts-nocheck to enable type checking"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

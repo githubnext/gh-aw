@@ -121,6 +121,16 @@ describe("checkFileExists", () => {
     expect(mockCore.setFailedCalls).toHaveLength(1);
   });
 
+  it("should return false and warn instead of failing when continueOnError is true", () => {
+    const filePath = path.join(tempDir, "missing.txt");
+
+    const result = checkFileExists(filePath, tempDir, "Test file", true, true);
+    expect(result).toBe(false);
+    expect(mockCore.errorCalls).toHaveLength(0);
+    expect(mockCore.warningCalls.some(msg => msg.includes("Continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true"))).toBe(true);
+    expect(mockCore.setFailedCalls).toHaveLength(0);
+  });
+
   it("should return true for missing non-required file", () => {
     const filePath = path.join(tempDir, "missing.txt");
 

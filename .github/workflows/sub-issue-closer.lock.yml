@@ -1455,6 +1455,7 @@ jobs:
           WORKFLOW_NAME: "Sub-Issue Closer"
           WORKFLOW_DESCRIPTION: "Scheduled workflow that recursively closes parent issues when all sub-issues are 100% complete"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

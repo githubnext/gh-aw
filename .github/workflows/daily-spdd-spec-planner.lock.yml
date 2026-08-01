@@ -1509,6 +1509,7 @@ jobs:
           WORKFLOW_NAME: "Daily SPDD Spec Planner"
           WORKFLOW_DESCRIPTION: "Runs daily SPDD planning over repository specifications and creates a prioritized issue with actionable work items."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1631,6 +1631,7 @@ jobs:
           WORKFLOW_NAME: "Approach Validator"
           WORKFLOW_DESCRIPTION: "Validates proposed technical approaches before implementation begins using a sequential multi-agent panel of Devil's Advocate, Alternatives Scout, Implementation Estimator, and Dead End Detector"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

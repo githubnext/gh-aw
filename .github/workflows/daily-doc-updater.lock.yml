@@ -1500,6 +1500,7 @@ jobs:
           WORKFLOW_NAME: "Daily Documentation Updater"
           WORKFLOW_DESCRIPTION: "Automatically reviews and updates documentation to ensure accuracy and completeness"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1455,6 +1455,7 @@ jobs:
           WORKFLOW_NAME: "ESLint Miner"
           WORKFLOW_DESCRIPTION: "Daily workflow that mines JavaScript/TypeScript patterns in actions/setup/js and creates new TypeScript-based ESLint rules in eslint-factory"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1595,6 +1595,7 @@ jobs:
           WORKFLOW_NAME: "CI Cleaner"
           WORKFLOW_DESCRIPTION: "CI cleaner that fixes format, lint, and test issues when CI fails on main branch. Schedule disabled (issue"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

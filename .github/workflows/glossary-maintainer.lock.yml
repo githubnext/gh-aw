@@ -1591,6 +1591,7 @@ jobs:
           WORKFLOW_NAME: "Glossary Maintainer"
           WORKFLOW_DESCRIPTION: "Maintains and updates the documentation glossary based on codebase changes"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

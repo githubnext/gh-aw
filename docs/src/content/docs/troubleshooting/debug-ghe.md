@@ -14,13 +14,11 @@ Based on the debugging discussion in [github/gh-aw#18480](https://github.com/git
 
 ## Prerequisites
 
-- A repository on your GHE Cloud data residency instance (e.g., `yourorg.ghe.com`)
-- The `gh aw` CLI extension **v0.61.1 or later** (`gh extension install github/gh-aw`)
-- Copilot enabled for your enterprise
-- The `gh` CLI authenticated with your GHE instance:
-  ```bash
-  gh auth login --hostname yourorg.ghe.com
-  ```
+You need a repository on your GHE Cloud data residency instance (for example, `yourorg.ghe.com`), `gh aw` **v0.61.1+** (`gh extension install github/gh-aw`), Copilot enabled for your enterprise, and `gh` authenticated against your GHE host:
+
+```bash
+gh auth login --hostname yourorg.ghe.com
+```
 
 ## Setup
 
@@ -60,10 +58,7 @@ See [Enterprise API Endpoint](/gh-aw/reference/engines/#enterprise-api-endpoint-
 GH_HOST=yourorg.ghe.com gh aw compile repo-assist
 ```
 
-The compiler (v0.61.1+) will automatically:
-- Add your GHE domains (`api.yourorg.ghe.com`, `copilot-api.yourorg.ghe.com`) to the firewall allow-list
-- Set `--copilot-api-target` for the AWF api-proxy
-- Configure `GH_HOST` so the `gh` CLI targets the correct host
+The compiler (v0.61.1+) automatically adds your GHE domains (`api.yourorg.ghe.com`, `copilot-api.yourorg.ghe.com`) to the firewall allow-list, sets `--copilot-api-target` for the AWF api-proxy, and configures `GH_HOST` so the `gh` CLI targets the correct host.
 
 ### Step 5: Commit, Push, and Run
 
@@ -78,31 +73,26 @@ GH_HOST=yourorg.ghe.com gh workflow run repo-assist.lock.yml --ref main
 
 ## Troubleshooting
 
-If the workflow fails, start by using the Copilot CLI to help diagnose the issue.
+If the workflow fails, start with the Copilot CLI on your local machine. First confirm authentication:
 
-### Debugging with Copilot CLI Locally
+```bash
+GH_HOST=yourorg.ghe.com gh auth status
+```
 
-The fastest way to diagnose failures is to use the Copilot CLI interactively from your local machine. This lets you confirm Copilot can authenticate against your GHE instance and then use Copilot itself to help debug workflow failures.
+Then launch Copilot:
 
-1. **Ensure you're authenticated with your GHE instance**:
-   ```bash
-   GH_HOST=yourorg.ghe.com gh auth status
-   ```
+```bash
+GH_HOST=yourorg.ghe.com copilot
+```
 
-2. **Launch the Copilot CLI**:
-   ```bash
-   GH_HOST=yourorg.ghe.com copilot
-   ```
+Invoke the `agentic-workflows` skill and ask it to run and debug the workflow, for example:
 
-3. **Select the agentic-workflows skill** — when Copilot starts, invoke `agentic-workflows`.
+```
+Run the repo-assist workflow and check if it succeeds.
+If it fails, help me debug the failure.
+```
 
-4. **Ask Copilot to run and debug the workflow** — trigger the workflow, wait for it to complete, and then ask Copilot to analyze the results. For example:
-   ```
-   Run the repo-assist workflow and check if it succeeds.
-   If it fails, help me debug the failure.
-   ```
-
-Copilot has access to your workflow files, run logs, and the `gh aw audit` tool, so it can inspect failures end-to-end and suggest fixes.
+Copilot can inspect your workflow files, run logs, and `gh aw audit` output to help narrow down the failure.
 
 ### Common Errors
 

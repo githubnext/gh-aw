@@ -1746,6 +1746,7 @@ jobs:
           WORKFLOW_NAME: "Scout"
           WORKFLOW_DESCRIPTION: "Performs deep research investigations using web search to gather and synthesize comprehensive information on any topic"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

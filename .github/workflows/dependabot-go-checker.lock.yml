@@ -1518,6 +1518,7 @@ jobs:
           WORKFLOW_NAME: "Dependabot Dependency Checker"
           WORKFLOW_DESCRIPTION: "Checks for Go module and NPM dependency updates and analyzes Dependabot PRs for compatibility and breaking changes"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

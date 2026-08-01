@@ -71,9 +71,10 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/') &&
+      needs.pre_activation.outputs.activated == 'true' && (((github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/') &&
       !startsWith(github.event.pull_request.head.ref, 'copilot/')) && (github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.id == github.repository_id))
+      github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' ||
+      github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1431,6 +1432,7 @@ jobs:
           WORKFLOW_NAME: "PR Description Updater"
           WORKFLOW_DESCRIPTION: "Rewrites a merged PR description with a structured, considered summary optimised for downstream agentic analysis. Processes the full diff in chunks using sub-agents. Ignores lock files and auto-generated code."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1546,9 +1548,10 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/') &&
+      ((github.event.pull_request.merged == true && !startsWith(github.event.pull_request.head.ref, 'signed/jsweep/') &&
       !startsWith(github.event.pull_request.head.ref, 'copilot/')) && (github.event_name != 'pull_request' ||
-      github.event.pull_request.head.repo.id == github.repository_id)
+      github.event.pull_request.head.repo.id == github.repository_id)) && (github.event_name != 'pull_request' ||
+      github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)
     runs-on: ubuntu-slim
     permissions:
       contents: read

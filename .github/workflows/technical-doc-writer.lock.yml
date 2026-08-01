@@ -1590,6 +1590,7 @@ jobs:
           WORKFLOW_NAME: "Rebuild the documentation after making changes"
           WORKFLOW_DESCRIPTION: "Reviews and improves technical documentation based on provided topics"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

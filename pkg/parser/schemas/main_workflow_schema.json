@@ -944,6 +944,21 @@
                   "type": "boolean",
                   "description": "Filter by draft pull request state. Set to false to exclude draft PRs, true to include only drafts, or omit to include both"
                 },
+                "max-stack": {
+                  "anyOf": [
+                    {
+                      "type": "integer",
+                      "const": -1,
+                      "description": "Disable stack protection; run on every pull request in the stack."
+                    },
+                    {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Run only on the top N pull requests in the stack. Default is 1 (only the latest/top pull request)."
+                    }
+                  ],
+                  "description": "Maximum number of top stack layers to run on for stacked pull requests. Default is 1 (only the latest/top pull request in the stack). Set to -1 to disable stack protection and run on every pull request in the stack. Value 0 is not allowed."
+                },
                 "forks": {
                   "oneOf": [
                     {

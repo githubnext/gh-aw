@@ -48,9 +48,10 @@ function listFilesRecursively(dirPath, relativeTo) {
  * @param {string} artifactDir - The artifact directory to list if file not found
  * @param {string} fileDescription - Description of the file (e.g., "Prompt file", "Agent output file")
  * @param {boolean} required - Whether the file is required
+ * @param {boolean} [continueOnError=false] - Whether missing required files should warn instead of failing
  * @returns {boolean} True if file exists (or not required), false otherwise
  */
-function checkFileExists(filePath, artifactDir, fileDescription, required) {
+function checkFileExists(filePath, artifactDir, fileDescription, required, continueOnError = false) {
   if (fs.existsSync(filePath)) {
     try {
       const stats = fs.statSync(filePath);
@@ -63,7 +64,9 @@ function checkFileExists(filePath, artifactDir, fileDescription, required) {
     }
   } else {
     if (required) {
-      core.error("❌ " + fileDescription + " not found at: " + filePath);
+      if (!continueOnError) {
+        core.error("❌ " + fileDescription + " not found at: " + filePath);
+      }
       // List all files in artifact directory for debugging
       core.info("📁 Listing all files in artifact directory: " + artifactDir);
       const files = listFilesRecursively(artifactDir, artifactDir);
@@ -73,7 +76,11 @@ function checkFileExists(filePath, artifactDir, fileDescription, required) {
         core.info("  Found " + files.length + " file(s):");
         files.forEach(file => core.info("    - " + file));
       }
-      core.setFailed(`${ERR_SYSTEM}: ❌ ${fileDescription} not found at: ${filePath}`);
+      if (continueOnError) {
+        core.warning(`${ERR_SYSTEM}: ❌ ${fileDescription} not found at: ${filePath}. Continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true`);
+      } else {
+        core.setFailed(`${ERR_SYSTEM}: ❌ ${fileDescription} not found at: ${filePath}`);
+      }
       return false;
     } else {
       core.info("No " + fileDescription.toLowerCase() + " found at: " + filePath);

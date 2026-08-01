@@ -1415,6 +1415,7 @@ jobs:
           WORKFLOW_NAME: "GitHub Remote MCP Authentication Test"
           WORKFLOW_DESCRIPTION: "Daily test of GitHub remote MCP authentication with GitHub Actions token"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1661,6 +1661,7 @@ jobs:
           WORKFLOW_NAME: "Daily Security Observability Report"
           WORKFLOW_DESCRIPTION: "Daily unified security observability report combining firewall traffic analysis and DIFC integrity-filtered event analysis"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
