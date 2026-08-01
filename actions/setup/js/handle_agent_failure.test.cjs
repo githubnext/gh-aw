@@ -2948,6 +2948,62 @@ describe("handle_agent_failure", () => {
   });
 
   // ──────────────────────────────────────────────────────
+  // detectEngineRateLimit429Failure
+  // ──────────────────────────────────────────────────────
+
+  describe("detectEngineRateLimit429Failure", () => {
+    let detectEngineRateLimit429Failure;
+    const fs = require("fs");
+    const path = require("path");
+    const os = require("os");
+
+    /** @type {string} */
+    let tmpDir;
+    /** @type {string} */
+    let stdioLogPath;
+
+    beforeEach(() => {
+      vi.resetModules();
+      tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "aw-test-detect-429-"));
+      stdioLogPath = path.join(tmpDir, "agent-stdio.log");
+      process.env.GH_AW_AGENT_OUTPUT = path.join(tmpDir, "agent_output.json");
+      ({ detectEngineRateLimit429Failure } = require("./handle_agent_failure.cjs"));
+    });
+
+    afterEach(() => {
+      delete process.env.GH_AW_AGENT_OUTPUT;
+      delete process.env.GH_AW_OTEL_JSONL_PATH;
+      if (fs.existsSync(tmpDir)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("returns true when stdio log contains a 429 rate-limit signal", () => {
+      fs.writeFileSync(stdioLogPath, "Failed to get response from the AI model; retried 5 times. Last error: CAPIError: 429 429 Sorry, you've exceeded your rate limit.\n");
+      expect(detectEngineRateLimit429Failure()).toBe(true);
+    });
+
+    it("returns false when stdio log contains terminal_reason: completed even with a 429 signal", () => {
+      fs.writeFileSync(stdioLogPath, 'Failed to get response; CAPIError: 429 rate limit\n{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":10}\n');
+      expect(detectEngineRateLimit429Failure()).toBe(false);
+    });
+
+    it("returns false when stdio log contains terminal_reason: completed and no 429 signal", () => {
+      fs.writeFileSync(stdioLogPath, '{"type":"result","subtype":"success","terminal_reason":"completed","num_turns":5}\n');
+      expect(detectEngineRateLimit429Failure()).toBe(false);
+    });
+
+    it("returns false when stdio log has no 429 signal and OTLP mirror is absent", () => {
+      fs.writeFileSync(stdioLogPath, "Agent exited normally.\n");
+      expect(detectEngineRateLimit429Failure()).toBe(false);
+    });
+
+    it("returns false when log file does not exist and OTLP mirror is absent", () => {
+      expect(detectEngineRateLimit429Failure()).toBe(false);
+    });
+  });
+
+  // ──────────────────────────────────────────────────────
   // hasEngineMaxCacheMissesExceededSignal
   // ──────────────────────────────────────────────────────
 
@@ -5176,6 +5232,23 @@ describe("handle_agent_failure", () => {
         missingModelPricingError: false,
       });
       expect(categories).not.toContain("missing_model_pricing");
+    });
+
+    it("returns engine_rate_limit_429 category when hasEngineRateLimit429 is true", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        hasEngineRateLimit429: true,
+      });
+      expect(categories).toContain("engine_rate_limit_429");
+      expect(categories).not.toContain("agent_failure");
+    });
+
+    it("does not return engine_rate_limit_429 category when hasEngineRateLimit429 is false", () => {
+      const categories = buildFailureMatchCategories({
+        agentConclusion: "failure",
+        hasEngineRateLimit429: false,
+      });
+      expect(categories).not.toContain("engine_rate_limit_429");
     });
   });
 

@@ -253,6 +253,7 @@ function buildFailureMatchCategories(options) {
   if (options.modelNotSupportedError) categories.push("model_not_supported_error");
   if (options.http400ResponseError) categories.push("http_400_response_error");
   if (options.aiCreditsRateLimitError) categories.push("ai_credits_rate_limit_error");
+  if (options.hasEngineRateLimit429) categories.push("engine_rate_limit_429");
   if (options.unknownModelAICredits) categories.push("unknown_model_ai_credits");
   if (options.missingModelPricingError) categories.push("missing_model_pricing");
   if (options.maxAICreditsExceeded) categories.push("max_ai_credits_exceeded");
@@ -2627,6 +2628,12 @@ function detectEngineRateLimit429Failure() {
   try {
     if (fs.existsSync(stdioLogPath)) {
       const logContent = fs.readFileSync(stdioLogPath, "utf8");
+      // If the agent completed successfully (terminal_reason: "completed"), the failure
+      // was caused by something other than the agent itself. Suppress the 429 signal to
+      // avoid giving a rate-limit title to an unrelated post-processing failure.
+      if (/"terminal_reason"[ ]?:[ ]?"completed"/.test(logContent)) {
+        return false;
+      }
       if (hasEngineRateLimit429Signal(logContent)) {
         return true;
       }
@@ -3591,6 +3598,7 @@ async function main() {
       modelNotSupportedError,
       http400ResponseError,
       aiCreditsRateLimitError,
+      hasEngineRateLimit429,
       unknownModelAICredits,
       missingModelPricingError,
       maxAICreditsExceeded,
@@ -4166,6 +4174,7 @@ module.exports = {
   hasEngineMaxRunsExceededSignal,
   hasEngineRateLimit429Signal,
   hasEngineRateLimit429InOTELMirror,
+  detectEngineRateLimit429Failure,
   buildEngineMaxRunsExceededContext,
   buildEngineRateLimit429Context,
   hasEngineMaxCacheMissesExceededSignal,
