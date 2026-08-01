@@ -8998,6 +8998,22 @@ safe-outputs:
     # (optional)
     target-ref: "example-value"
 
+    # List of ref glob patterns the agent is allowed to supply via message.ref at
+    # runtime. Branch shorthand (e.g. 'feature/*') expands to refs/heads/feature/*,
+    # 'tags/v*' expands to refs/tags/v*; full refs/ patterns are used as-is. When
+    # omitted, per-call message.ref overrides are rejected.
+    # Supports arrays and GitHub Actions expressions resolving to a comma-separated list.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: array
+    allowed-refs: []
+      # Array items: string
+
+    # Format 2: GitHub Actions expression resolving to a comma-separated list of
+    # ref glob patterns (e.g. '${{ inputs['allowed-refs'] }}')
+    allowed-refs: "example-value"
+
     # When true, emit step summary messages instead of making GitHub API calls for
     # this specific output type (preview mode)
     # (optional)

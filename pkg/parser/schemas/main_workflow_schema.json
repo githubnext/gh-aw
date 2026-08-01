@@ -9766,6 +9766,22 @@
                     }
                   ]
                 },
+                "allowed-refs": {
+                  "description": "List of allowed ref glob patterns for per-call dispatch_workflow message.ref overrides. Supports arrays and GitHub Actions expressions resolving to a comma-separated list (e.g. '${{ inputs['allowed-refs'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of ref glob patterns (e.g. '${{ inputs['allowed-refs'] }}')"
+                    }
+                  ]
+                },
                 "target-ref": {
                   "type": "string",
                   "description": "Git ref (branch, tag, or SHA) to use when dispatching the workflow. For workflow_call relay scenarios this is auto-injected by the compiler from needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF."
