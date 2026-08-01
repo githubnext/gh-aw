@@ -264,6 +264,18 @@ func TestValidateSandboxConfigMemory(t *testing.T) {
 		assert.Contains(t, err.Error(), "48gb")
 	})
 
+	t.Run("leading zero memory format explains why it is invalid", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Memory: "08g"},
+			},
+		}
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err, "leading-zero memory format should fail validation")
+		assert.Contains(t, err.Error(), "without leading zeros")
+	})
+
 	t.Run("absent memory skips validation", func(t *testing.T) {
 		workflowData := &WorkflowData{
 			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},

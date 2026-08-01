@@ -160,7 +160,7 @@ Valid values are a positive integer followed by a unit: `b`, `k`, `m`, or `g` (c
 When omitted, AWF's own default memory limit applies. Specifying an invalid format (e.g., `48gb` or `48`) is rejected at compile time.
 
 > [!NOTE]
-> If your build tools (MSBuild, `csc`, large JVM processes) are killed with exit code 137, the container is hitting its memory limit. Set `memory` to match your runner's available RAM.
+> Exit code 137 means the process received `SIGKILL`. A memory limit can be one cause, but verify with logs before changing `memory`. If you increase `memory`, leave headroom for the runner OS and other processes.
 
 #### Copilot BYOK request customization (`sandbox.agent.targets.copilot`)
 

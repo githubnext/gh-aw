@@ -458,7 +458,7 @@ func validateAgentMemoryLimit(memory string) error {
 		return NewValidationError(
 			"sandbox.agent.memory",
 			memory,
-			"memory value is not a valid limit. Expected a positive number followed by a unit: b, k, m, or g (e.g. \"4g\", \"512m\")",
+			"memory value is not a valid limit. Expected a positive integer without leading zeros followed by a unit: b, k, m, or g (e.g. \"4g\", \"512m\")",
 			fmt.Sprintf("Use a valid memory limit format:\n\nsandbox:\n  agent:\n    memory: 4g  # examples: 512m, 4g, 8g\n\nSee: %s", constants.DocsSandboxURL),
 		)
 	}
