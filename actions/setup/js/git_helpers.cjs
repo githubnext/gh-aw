@@ -765,6 +765,9 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
     throw new Error("Could not resolve current HEAD before linearizing range");
   }
 
+  // Track whether a `git rebase` call was started so the catch block can distinguish
+  // "rebase in progress" (needs --abort) from "pre-rebase failure" (needs reset only).
+  let rebaseStarted = false;
   try {
     await execApi.exec("git", ["reset", "--soft", baseRef], ...execArgs);
     if (Array.isArray(excludedFiles) && excludedFiles.length > 0) {
@@ -778,17 +781,30 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
       throw new Error(`No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
     }
     await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], ...execArgs);
-    if (typeof rebaseOnto === "string" && rebaseOnto.trim() && rebaseOnto.trim() !== baseRef) {
+    if (typeof rebaseOnto === "string" && rebaseOnto.trim() && rebaseOnto.trim() !== baseRef.trim()) {
+      rebaseStarted = true;
       await execApi.exec("git", ["rebase", "--onto", rebaseOnto.trim(), baseRef, "HEAD"], ...execArgs);
+      rebaseStarted = false;
+      // Guard: if the rebase silently dropped the commit (became empty relative to rebaseOnto),
+      // the agent's changes are lost. Detect and fail loudly rather than pushing an empty diff.
+      const { stdout: diffOut } = await execApi.getExecOutput("git", ["diff", "--name-only", rebaseOnto.trim(), "HEAD"], ...execArgs);
+      if (!diffOut.trim()) {
+        throw new Error(`Rebase onto ${rebaseOnto} produced no changes; the synthesized commit was dropped as empty`);
+      }
     }
     const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
     return newHeadOut.trim();
   } catch (rewriteError) {
     try {
-      try {
-        await execApi.exec("git", ["rebase", "--abort"], ...execArgs);
-      } catch {
-        // Ignore: rebase may not be in progress.
+      if (rebaseStarted) {
+        // A rebase was in progress when the error occurred; abort it to restore the repo to its
+        // pre-rebase state before the hard reset below finishes the rollback.
+        try {
+          await execApi.exec("git", ["rebase", "--abort"], ...execArgs);
+        } catch (abortError) {
+          // --abort failed while a rebase was genuinely in progress — repo may be in a dirty state.
+          core.error(`linearizeRangeAsCommit: rebase --abort also failed: ${getErrorMessage(abortError)}`);
+        }
       }
       await execApi.exec("git", ["reset", "--hard", originalHead], ...execArgs);
       core.warning(`linearizeRangeAsCommit: rewrite failed; restored original HEAD ${originalHead}`);
