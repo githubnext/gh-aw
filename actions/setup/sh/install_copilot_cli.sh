@@ -429,8 +429,11 @@ find_cached_copilot_bin() {
           printf '%s\n' "$candidate"
           return 0
         fi
-        echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
-        continue
+        if [ -z "$min_version" ] && [ -z "$max_version" ]; then
+          echo "  Skipping candidate (version mismatch: want ${requested_version_normalized}, got ${candidate_version_normalized})" >&2
+          continue
+        fi
+        echo "  Exact version mismatch (want ${requested_version_normalized}, got ${candidate_version_normalized}); checking compat window fallback" >&2
       fi
 
       if [ -n "$min_version" ] && version_is_greater "$min_version" "$candidate_version_normalized"; then
@@ -512,23 +515,33 @@ trap 'rm -rf "$TEMP_DIR"' EXIT
 
 # Version resolution follows this priority order:
 # 1. Explicit VERSION argument (from engine.version in the workflow)
+#    - Prefer an exact toolcache hit first.
+#    - When GH_AW_COMPILED_VERSION is available, also resolve the compat window so an in-range
+#      cached binary can satisfy the request before a network download.
 # 2. Compat.json toolcache lookup (requires GH_AW_COMPILED_VERSION to select the right window)
 # 3. DEFAULT_COPILOT_VERSION baked into this script
 if [ -z "$VERSION" ]; then
   echo "No explicit Copilot CLI version requested. Attempting compat-driven version resolution..."
-  if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
-    IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
+else
+  echo "Explicit Copilot CLI version argument provided (${VERSION}). Attempting compat-driven toolcache resolution before download fallback."
+fi
+
+if RESOLVED_COMPAT_INFO="$(resolve_version_from_compat "$COMPILED_GH_AW_VERSION" "${TEMP_DIR}/compat.json")"; then
+  IFS='|' read -r RESOLVED_COMPAT_VERSION COMPAT_MATCHED_MIN_AGENT COMPAT_MATCHED_MAX_AGENT COMPAT_CACHE_TTL_DAYS <<< "$RESOLVED_COMPAT_INFO"
+  echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
+  if [ -z "$VERSION" ]; then
     VERSION="$RESOLVED_COMPAT_VERSION"
     REQUESTED_VERSION="latest"
-    echo "Using compat-resolved Copilot CLI window: ${COMPAT_MATCHED_MIN_AGENT}..${COMPAT_MATCHED_MAX_AGENT}"
     echo "Will install compat max-agent ${VERSION} if no cached version satisfies the window."
   else
-    echo "Compat resolution unavailable; falling back to baked-in default version: ${DEFAULT_COPILOT_VERSION}" >&2
-    VERSION="$DEFAULT_COPILOT_VERSION"
-    REQUESTED_VERSION="$DEFAULT_COPILOT_VERSION"
+    echo "Will prefer an exact toolcache hit for ${VERSION}, then fall back to the compat window before downloading."
   fi
+elif [ -z "$VERSION" ]; then
+  echo "Compat resolution unavailable; falling back to baked-in default version: ${DEFAULT_COPILOT_VERSION}" >&2
+  VERSION="$DEFAULT_COPILOT_VERSION"
+  REQUESTED_VERSION="$DEFAULT_COPILOT_VERSION"
 else
-  echo "Explicit Copilot CLI version argument provided (${VERSION}); skipping compat matrix resolution."
+  echo "Compat resolution unavailable for explicit version ${VERSION}; toolcache lookup will use exact matches only." >&2
 fi
 
 # Prefer the runner toolcache when a compatible Copilot CLI is already available.

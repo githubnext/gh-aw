@@ -11,8 +11,10 @@ var copilotInstallerLog = logger.New("workflow:copilot_installer")
 //
 // Version priority enforced by this function and the install script:
 //  1. Explicit version argument (from engine.version in the workflow) — passed as a positional arg.
-//  2. Compat.json toolcache lookup — script resolves a compatible window using GH_AW_COMPILED_VERSION;
-//     compiledVersion is injected into the step env so the script can perform this lookup at runtime.
+//     When compiledVersion is available, GH_AW_COMPILED_VERSION is still injected so the install
+//     script can resolve the compat window and prefer an in-range toolcache entry before download.
+//  2. Compat.json toolcache lookup — script resolves a compatible window using GH_AW_COMPILED_VERSION
+//     and picks the best cached binary when no explicit version is set.
 //  3. Baked-in default — when neither (1) nor (2) is available the script falls back to
 //     DEFAULT_COPILOT_VERSION compiled into install_copilot_cli.sh.
 //
@@ -74,6 +76,9 @@ func GenerateCopilotInstallerSteps(version, stepName string, rootless bool, comp
 		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/install_copilot_cli.sh\" " + version + rootlessFlag,
 		"        env:",
 		"          GH_HOST: github.com",
+	}
+	if compiledVersion != "" {
+		stepLines = append(stepLines, "          GH_AW_COMPILED_VERSION: "+compiledVersion)
 	}
 
 	return []GitHubActionStep{GitHubActionStep(stepLines)}

@@ -146,9 +146,27 @@ func TestGenerateCopilotInstallerSteps_EmptyVersionNoCompiledVersion(t *testing.
 	}
 }
 
+func TestGenerateCopilotInstallerSteps_ExplicitVersionWithCompiledVersion(t *testing.T) {
+	compiledVersion := "v0.72.5"
+	steps := GenerateCopilotInstallerSteps("1.0.75", "Install GitHub Copilot CLI", false, compiledVersion)
+
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 step, got %d", len(steps))
+	}
+	stepContent := strings.Join(steps[0], "\n")
+
+	if !strings.Contains(stepContent, `install_copilot_cli.sh" 1.0.75`) {
+		t.Errorf("Expected step to retain the explicit version argument, got:\n%s", stepContent)
+	}
+	if !strings.Contains(stepContent, "GH_AW_COMPILED_VERSION: "+compiledVersion) {
+		t.Errorf("Expected step to include GH_AW_COMPILED_VERSION for compat toolcache fallback, got:\n%s", stepContent)
+	}
+}
+
 func TestCopilotEngineWithVersion(t *testing.T) {
 	// engine.version must be honored: when an explicit version is set it should be
-	// passed to the installer and compat.json resolution must be skipped.
+	// passed to the installer, while still allowing compat metadata to be injected
+	// separately when a compiled version is available.
 	engine := NewCopilotEngine()
 
 	customVersion := "1.0.0"
@@ -180,7 +198,7 @@ func TestCopilotEngineWithVersion(t *testing.T) {
 		t.Fatal("Could not find install step with install_copilot_cli.sh")
 	}
 
-	// Should pass the user-specified version to the installer (compat.json skipped).
+	// Should pass the user-specified version to the installer.
 	if !strings.Contains(installStep, `install_copilot_cli.sh" `+customVersion) {
 		t.Errorf("Expected user-specified version %q in install step, got:\n%s", customVersion, installStep)
 	}

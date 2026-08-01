@@ -144,9 +144,11 @@ func (e *CopilotEngine) GetInstallationSteps(workflowData *WorkflowData) []GitHu
 
 	// Version selection follows a three-level priority:
 	//   1. engine.version if explicitly set in the workflow — pass it as a positional arg.
-	//   2. compat.json toolcache lookup at runtime — enabled when no explicit version is set;
-	//      the script uses GH_AW_COMPILED_VERSION (injected by compiledVersion below) to
-	//      select the right compat window and pick the best cached binary.
+	//      When CompiledVersion is available, still inject GH_AW_COMPILED_VERSION so the
+	//      installer can use the compat window for toolcache fallback before download.
+	//   2. compat.json toolcache lookup at runtime — when no explicit version is set the
+	//      script uses GH_AW_COMPILED_VERSION (injected by compiledVersion below) to select
+	//      the right compat window and pick the best cached binary.
 	//   3. Baked-in DEFAULT_COPILOT_VERSION in the script — final fallback.
 	//
 	// EngineConfig.Version is intentionally left unset when no explicit engine.version is given.
