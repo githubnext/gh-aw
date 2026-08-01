@@ -268,3 +268,166 @@ This workflow uses API tools only and does not need the repository to be checked
 		t.Error("Expected 'Clean credentials' step with 'continue-on-error: true' to be present when checkout: false")
 	}
 }
+
+// TestGenerateGitConfigurationStepsForData tests the generateGitConfigurationStepsForData helper
+// which handles current: true checkouts in subdirectories.
+func TestGenerateGitConfigurationStepsForData(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("nil data falls back to standard behavior", func(t *testing.T) {
+		steps := compiler.generateGitConfigurationStepsForData(nil)
+		fullContent := strings.Join(steps, "")
+
+		if !strings.Contains(fullContent, "Configure Git credentials") {
+			t.Error("Expected 'Configure Git credentials' step name")
+		}
+		if strings.Contains(fullContent, "working-directory:") {
+			t.Error("working-directory must not be present when data is nil")
+		}
+		if !strings.Contains(fullContent, "GITHUB_REPOSITORY: ${{ github.repository }}") {
+			t.Error("Expected default GITHUB_REPOSITORY expression")
+		}
+	})
+
+	t.Run("no checkout configs falls back to standard behavior", func(t *testing.T) {
+		data := &WorkflowData{}
+		steps := compiler.generateGitConfigurationStepsForData(data)
+		fullContent := strings.Join(steps, "")
+
+		if strings.Contains(fullContent, "working-directory:") {
+			t.Error("working-directory must not be present when there are no checkout configs")
+		}
+		if !strings.Contains(fullContent, "GITHUB_REPOSITORY: ${{ github.repository }}") {
+			t.Error("Expected default GITHUB_REPOSITORY expression")
+		}
+	})
+
+	t.Run("current: true at workspace root falls back to standard behavior", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "owner/target", Current: true},
+			},
+		}
+		steps := compiler.generateGitConfigurationStepsForData(data)
+		fullContent := strings.Join(steps, "")
+
+		// current at root (no path) → no working-directory needed
+		if strings.Contains(fullContent, "working-directory:") {
+			t.Error("working-directory must not be present when current checkout is at workspace root")
+		}
+	})
+
+	t.Run("current: true in subdirectory emits working-directory with custom repo", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "owner/public-target", Path: "./target", Current: true},
+			},
+		}
+		steps := compiler.generateGitConfigurationStepsForData(data)
+		fullContent := strings.Join(steps, "")
+
+		if !strings.Contains(fullContent, "Configure Git credentials") {
+			t.Error("Expected 'Configure Git credentials' step name")
+		}
+		if !strings.Contains(fullContent, `working-directory: "target"`) {
+			t.Errorf("Expected working-directory to be 'target', got:\n%s", fullContent)
+		}
+		if !strings.Contains(fullContent, `GITHUB_REPOSITORY: "owner/public-target"`) {
+			t.Errorf("Expected GITHUB_REPOSITORY to be the current checkout's repository, got:\n%s", fullContent)
+		}
+		if !strings.Contains(fullContent, "configure_git_credentials.sh") {
+			t.Error("Expected configure_git_credentials.sh to be called")
+		}
+		// Verify proper indentation
+		if !strings.HasPrefix(steps[0], "      - name:") {
+			t.Error("Expected first line to have proper indentation for job step (6 spaces)")
+		}
+	})
+
+	t.Run("current: true in subdirectory without explicit repository uses default", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				// No Repository set — checkout the workflow repo into a subdirectory
+				{Path: "./subdir", Current: true},
+			},
+		}
+		steps := compiler.generateGitConfigurationStepsForData(data)
+		fullContent := strings.Join(steps, "")
+
+		if !strings.Contains(fullContent, `working-directory: "subdir"`) {
+			t.Errorf("Expected working-directory to be 'subdir', got:\n%s", fullContent)
+		}
+		// When no custom repo, GITHUB_REPOSITORY should be the workflow expression
+		if !strings.Contains(fullContent, "GITHUB_REPOSITORY: ${{ github.repository }}") {
+			t.Errorf("Expected default GITHUB_REPOSITORY expression when no custom repo set, got:\n%s", fullContent)
+		}
+	})
+
+	t.Run("current: true in nested subdirectory strips leading ./ from path", func(t *testing.T) {
+		data := &WorkflowData{
+			CheckoutConfigs: []*CheckoutConfig{
+				{Repository: "owner/repo", Path: "./nested/target", Current: true},
+			},
+		}
+		steps := compiler.generateGitConfigurationStepsForData(data)
+		fullContent := strings.Join(steps, "")
+
+		if !strings.Contains(fullContent, `working-directory: "nested/target"`) {
+			t.Errorf("Expected working-directory to be 'nested/target', got:\n%s", fullContent)
+		}
+	})
+}
+
+// TestGitConfigurationWithCurrentCheckoutInSubdir verifies that the compiled workflow
+// emits working-directory in both Configure Git credentials steps (pre- and post-agent)
+// when checkout: current: true is in a subdirectory.
+func TestGitConfigurationWithCurrentCheckoutInSubdir(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "git-config-current-checkout-test")
+
+	testContent := `---
+on: push
+permissions:
+  contents: read
+engine: copilot
+checkout:
+  - sparse-checkout: |
+      .github/workflows
+  - repository: owner/public-target
+    path: ./target
+    current: true
+---
+
+# Test workflow with current checkout in subdirectory
+`
+
+	testFile := filepath.Join(tmpDir, "test-current-checkout.md")
+	if err := os.WriteFile(testFile, []byte(testContent), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	compiler := NewCompiler()
+	compiler.SetSkipValidation(true)
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow file: %v", err)
+	}
+
+	lockContent, _, _, err := compiler.generateYAML(workflowData, testFile)
+	if err != nil {
+		t.Fatalf("Failed to generate YAML: %v", err)
+	}
+
+	// The agent job should have Configure Git credentials steps with working-directory
+	// pointing to the current checkout path ("target")
+	if !strings.Contains(lockContent, "Configure Git credentials") {
+		t.Error("Expected 'Configure Git credentials' step to be present")
+	}
+	if !strings.Contains(lockContent, `working-directory: "target"`) {
+		t.Errorf("Expected working-directory: \"target\" in Configure Git credentials step.\nLock content:\n%s", lockContent)
+	}
+	// The configured repository should be the current checkout's repo
+	if !strings.Contains(lockContent, `GITHUB_REPOSITORY: "owner/public-target"`) {
+		t.Errorf("Expected GITHUB_REPOSITORY to be 'owner/public-target'.\nLock content:\n%s", lockContent)
+	}
+}
