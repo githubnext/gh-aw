@@ -62,6 +62,13 @@
       "notation": "TLA+ / Z3-style guard conjunction",
       "predicate_count": 12,
       "issue_number": null
+    },
+    "specs/intent-attribution-compliance/README.md": {
+      "slug": "intent-attribution-compliance-README",
+      "last_formalized": "2026-08-01-15-49-05",
+      "notation": "TLA+ / Z3-style guard conjunction",
+      "predicate_count": 7,
+      "issue_number": null
     }
   }
 }
