@@ -57,23 +57,14 @@ Natural language instructions for the AI agent.
 
 ## Recompilation Rule
 
-- Edit the **frontmatter** → run `gh aw compile <workflow-id>`.
-- Edit the **markdown body** only → no recompilation required.
-
-See also: [workflow-editing.md](workflow-editing.md)
+See [workflow-editing.md](workflow-editing.md) for the frontmatter-vs-body recompilation rule and validation commands.
 
 ## Core Rules
 
-- Keep the main agent job read-only.
-- Use `safe-outputs:` for GitHub writes.
-- Prefer `tools.github.mode: gh-proxy` and use `gh` for GitHub reads.
-- For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and use mounted `mcp-clis` commands.
-- Use `${{ steps.sanitized.outputs.text }}` for untrusted user content.
-- Set `strict: true` for production workflows.
-- Limit network and bash access to what the workflow actually needs.
-- For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
+See [workflow-constraints.md](workflow-constraints.md) for the full security posture (read-only agent job, `safe-outputs:` for writes, `gh-proxy`/`cli-proxy` preference, sanitized-text usage), safer-alternatives pattern, and common risk areas.
 
-See [workflow-constraints.md](workflow-constraints.md) for the full security posture, safer-alternatives pattern, and common risk areas.
+- Set `strict: true` for production workflows.
+- For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
 ## Repository-Specific Instructions
 
@@ -105,13 +96,7 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 - Return a compact design recommendation covering trigger, scope, tools, permissions, safe outputs, `noop` behavior, and any report window / grouping / deduplication requirements.
 - Offer to turn the recommendation into `.github/workflows/<workflow-id>.md` only if the user asks to proceed.
 
-### Non-technical persona examples
-
-| Persona | Default trigger | Default output | Key prompt details |
-|---|---|---|---|
-| Program Manager | `schedule` (+ `workflow_dispatch` for previews/backfills) | `create-issue` with `close-older-issues: true` | Report window, grouping dimensions, stable dedup key, and `noop` for empty windows |
-| Designer | `pull_request` with `paths:` scoped to UI, design-token, copy, and asset files | `add-comment` | Review rubric (accessibility, token consistency, asset policy); `noop` when scoped files unchanged |
-| Legal / Compliance | `pull_request` with `paths:` scoped to dependency manifests or policy docs; `schedule` for recurring audits | `add-comment` for findings; `create-issue` for violations | Classify against policy tiers; dedup before escalating; `noop` when no in-scope change or violation |
+For non-technical persona examples (Program Manager, Designer, Legal/Compliance), see the [Persona-to-Pattern Quick Matrix](#persona-to-pattern-quick-matrix) above.
 
 ## PR Checks with Linked References
 
@@ -152,12 +137,3 @@ Permissions: `pull-requests: read` only; all writes route through `add-comment` 
 | Experiments and A/B testing | [experiments.md](experiments.md) |
 | Charts and Python data visualization | [charts.md](charts.md) |
 | LLM API endpoint discovery | [llms.md](llms.md) |
-
-## Compile Commands
-
-```bash
-gh aw compile
-gh aw compile <workflow-id>
-gh aw compile --purge
-gh aw compile --strict
-```

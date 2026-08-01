@@ -35,10 +35,7 @@ This prompt is for **updating existing workflows only**. For new workflows, use 
 
 ## First Decision: Frontmatter or Prompt Body?
 
-Use [workflow-editing.md](workflow-editing.md) as the source of truth.
-
-- frontmatter change → recompilation required
-- markdown-body-only change → no recompilation required for runtime behavior, but always compile to keep `.lock.yml` in sync
+Use [workflow-editing.md](workflow-editing.md) as the source of truth for the frontmatter-vs-body recompilation rule.
 
 ## Update Rules
 
