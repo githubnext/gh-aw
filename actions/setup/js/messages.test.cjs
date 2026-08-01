@@ -1413,6 +1413,8 @@ describe("messages.cjs", () => {
       expect(result).toContain("> [!WARNING]");
       expect(result).toContain("**Threat Detection Engine Failure**");
       expect(result).toContain("What happened");
+      expect(result).toContain("<!-- gh-aw-threat-engine-error -->");
+      expect(result).not.toContain("<!-- gh-aw-threat-detected -->");
       expect(result).not.toContain("> [!CAUTION]");
       expect(result).not.toContain("agentic threat detected");
       expect(result).toContain("threat detection engine failed");

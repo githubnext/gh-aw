@@ -8,7 +8,7 @@
  */
 
 const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPromptPath } = require("./messages_core.cjs");
-const { getDetectionReasonText, getThreatDetectedMarkerTemplate, normalizeThreatKinds, isToolingFailureReason } = require("./threat_detection_warning.cjs");
+const { getDetectionReasonText, getThreatDetectedMarkerTemplate, getThreatEngineErrorMarkerTemplate, normalizeThreatKinds, isToolingFailureReason } = require("./threat_detection_warning.cjs");
 
 /**
  * Renders a message using a custom template from config or a default template.
@@ -155,12 +155,13 @@ function getDetectionWarningMessage(ctx) {
   const isEngineError = isToolingFailureReason(ctx.reason);
   const templateFile = isEngineError ? "threat_detection_engine_error.md" : "threat_detection_caution.md";
   const messageKey = isEngineError ? "detectionEngineError" : "detectionWarning";
+  const markerTemplate = isEngineError ? getThreatEngineErrorMarkerTemplate() : getThreatDetectedMarkerTemplate();
   const messages = getMessages();
   const configTemplate = messages?.[messageKey];
   if (configTemplate) {
-    return renderTemplate(configTemplate, toSnakeCase({ ...ctx, reasonText, threat_detected_marker: getThreatDetectedMarkerTemplate(), threatKinds: normalizeThreatKinds(ctx.reason) }));
+    return renderTemplate(configTemplate, toSnakeCase({ ...ctx, reasonText, threat_detected_marker: markerTemplate, threatKinds: normalizeThreatKinds(ctx.reason) }));
   }
-  return renderTemplateFromFile(getPromptPath(templateFile), toSnakeCase({ ...ctx, reasonText, threat_detected_marker: getThreatDetectedMarkerTemplate(), threatKinds: normalizeThreatKinds(ctx.reason) })).trimEnd();
+  return renderTemplateFromFile(getPromptPath(templateFile), toSnakeCase({ ...ctx, reasonText, threat_detected_marker: markerTemplate, threatKinds: normalizeThreatKinds(ctx.reason) })).trimEnd();
 }
 
 module.exports = {
