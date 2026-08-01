@@ -21,6 +21,12 @@ function hasJSDocCoreParamAnnotation(functionNode: TSESTree.Node, paramName: str
   if (parent?.type === AST_NODE_TYPES.VariableDeclarator && parent.parent) {
     nodesToCheck.push(parent.parent);
   }
+  // JSDoc before `export function` / `export async function` / `export default function`
+  // is attached to the ExportNamedDeclaration/ExportDefaultDeclaration, not the inner
+  // FunctionDeclaration/FunctionExpression, so check the export wrapper as well.
+  if (parent?.type === AST_NODE_TYPES.ExportNamedDeclaration || parent?.type === AST_NODE_TYPES.ExportDefaultDeclaration) {
+    nodesToCheck.push(parent);
+  }
   for (const node of nodesToCheck) {
     for (const comment of sourceCode.getCommentsBefore(node)) {
       if (comment.type !== "Block" || !comment.value.startsWith("*")) continue;

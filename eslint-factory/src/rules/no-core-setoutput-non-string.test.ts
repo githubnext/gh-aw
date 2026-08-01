@@ -9,6 +9,13 @@ const cjsRuleTester = new RuleTester({
   },
 });
 
+const esmRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+  },
+});
+
 describe("no-core-setoutput-non-string", () => {
   it("uses the correct docs URL", () => {
     expect(noCoreSetOutputNonStringRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#no-core-setoutput-non-string");
@@ -385,6 +392,17 @@ function f(coreArg) { coreArg.setOutput("n", "str"); }`,
     });
   });
 
+  it("valid: export async function with JSDoc-annotated DI parameter is accepted (ESM)", () => {
+    esmRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [
+        // export function — JSDoc is before the ExportNamedDeclaration, not the inner FunctionDeclaration
+        `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setOutput("n", "str"); }`,
+      ],
+      invalid: [],
+    });
+  });
+
   it("invalid: JSDoc-annotated DI parameter with non-string value is flagged", () => {
     cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
       valid: [],
@@ -418,6 +436,31 @@ function g(coreLib) { coreLib.setOutput("flag", true); }`,
                   messageId: "wrapWithString",
                   output: `/** @param {typeof import('@actions/core')} coreLib */
 function g(coreLib) { coreLib.setOutput("flag", String(true)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("invalid: export async function with JSDoc-annotated DI parameter with non-string value is flagged (ESM)", () => {
+    esmRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        // export async function — JSDoc is before the ExportNamedDeclaration
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setOutput("count", 0); }`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [
+                {
+                  messageId: "wrapWithString",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setOutput("count", String(0)); }`,
                 },
               ],
             },

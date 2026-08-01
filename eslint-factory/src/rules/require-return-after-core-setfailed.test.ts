@@ -9,6 +9,13 @@ const ruleTester = new RuleTester({
   },
 });
 
+const esmRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+  },
+});
+
 describe("require-return-after-core-setfailed", () => {
   it("uses the correct docs URL", () => {
     expect(requireReturnAfterCoreSetFailedRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#require-return-after-core-setfailed");
@@ -450,6 +457,44 @@ function g(coreLib) { coreLib.setFailed("x"); doMore(); keepGoing(); }`,
                   messageId: "addReturn",
                   output: `/** @param {typeof import('@actions/core')} coreLib */
 function g(coreLib) { coreLib.setFailed("x"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: export async function with JSDoc-annotated DI parameter is accepted (ESM)", () => {
+    esmRuleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // export async function — JSDoc is before the ExportNamedDeclaration, not the inner FunctionDeclaration
+        `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("x"); return; }`,
+        `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("x"); throw new Error("x"); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: export async function with JSDoc-annotated DI parameter missing control transfer is flagged (ESM)", () => {
+    esmRuleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        // export async function — JSDoc is before the ExportNamedDeclaration
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("bad"); return; doMore(); keepGoing(); }`,
                 },
               ],
             },
