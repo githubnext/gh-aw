@@ -101,6 +101,7 @@ See also: [workflow-constraints.md](workflow-constraints.md)
 Installed gh-aw agents should support scenario evaluation requests that do not create workflow files.
 
 - Treat prompts such as `agentic-workflows evaluate this scenario without creating files` as ad hoc evaluation mode.
+- For explicit research/evaluation requests, invoke with wording such as `agentic-workflows evaluate this scenario without creating files` or `agentic-workflows research this workflow pattern and return recommendations only`.
 - Return a compact design recommendation covering trigger, scope, tools, permissions, safe outputs, `noop` behavior, and any report window / grouping / deduplication requirements.
 - Offer to turn the recommendation into `.github/workflows/<workflow-id>.md` only if the user asks to proceed.
 

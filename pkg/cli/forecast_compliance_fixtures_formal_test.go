@@ -20,9 +20,10 @@ package cli
 //   - FC-P3: run_summary_zero_et.json has total_effective_tokens == 0 (T-FC-022)
 //   - FC-P4: run_summary_high_et.json has total_effective_tokens >= 1,000,000 (T-ET-006)
 //   - FC-P6: run_summary_failed.json has conclusion == "failure" (T-FC-035)
+//   - FC-P7: run_summary_cancelled.json has conclusion == "cancelled" (T-FC-036)
 //   - FC-P8: RunSummary JSON round-trip serialization is lossless
 //   - FC-P9: run_started_at <= updated_at in every fixture
-//   - FC-P10: all four fixtures have required Monte Carlo input fields
+//   - FC-P10: all five fixtures have required Monte Carlo input fields
 
 import (
 	"encoding/json"
@@ -483,6 +484,25 @@ func TestFormal_FC_P6_FailedRunFixture(t *testing.T) {
 			"so it is not counted as a Bernoulli success")
 }
 
+// TestFormal_FC_P7_CancelledRunFixture verifies that run_summary_cancelled.json
+// has conclusion == "cancelled", confirming it is included in the Bernoulli sample
+// (status == "completed" and conclusion != "skipped") but is not counted as a success.
+//
+// Formal predicate (FC-P7): fixture["run"]["conclusion"] = "cancelled"
+// Specification reference: T-FC-036; specs/forecast-compliance-fixtures/README.md
+func TestFormal_FC_P7_CancelledRunFixture(t *testing.T) {
+	fixture := loadFixture(t, "run_summary_cancelled.json")
+
+	run, ok := fixture["run"].(map[string]any)
+	require.True(t, ok, "FC-P7: 'run' must be a JSON object")
+
+	conclusion, ok := run["conclusion"].(string)
+	require.True(t, ok, "FC-P7: run.conclusion must be a string")
+	assert.Equal(t, "cancelled", conclusion,
+		"FC-P7 (T-FC-036): run_summary_cancelled.json must have conclusion == \"cancelled\" "+
+			"so it is included in the sample but not counted as a Bernoulli success")
+}
+
 // TestFormal_FC_P8_RunSummaryRoundTrip verifies that marshalling a RunSummary to
 // JSON and unmarshalling it back produces an equal value (cache-hit determinism).
 //
@@ -539,6 +559,7 @@ func TestFormal_FC_P9_TimestampOrdering(t *testing.T) {
 		"run_summary_zero_et.json",
 		"run_summary_failed.json",
 		"run_summary_high_et.json",
+		"run_summary_cancelled.json",
 	}
 
 	for _, name := range fixtures {
@@ -584,6 +605,7 @@ func TestFormal_FC_P10_MonteCarloInputCompleteness(t *testing.T) {
 		{name: "run_summary_zero_et.json", wantConclusion: "success", aicMustBeGT0: false},
 		{name: "run_summary_failed.json", wantConclusion: "failure", aicMustBeGT0: false},
 		{name: "run_summary_high_et.json", wantConclusion: "success", aicMustBeGT0: true},
+		{name: "run_summary_cancelled.json", wantConclusion: "cancelled", aicMustBeGT0: false},
 	}
 
 	for _, tc := range cases {
