@@ -21,25 +21,6 @@ function normalizeThreatKinds(reason) {
 }
 
 /**
- * Returns the XML marker used to identify threat-detected output.
- *
- * @param {string | undefined | null} reason
- * @returns {string}
- */
-function getThreatDetectedMarker(reason) {
-  return "<!-- gh-aw-threat-detected -->";
-}
-
-/**
- * Returns the marker template for configured message rendering.
- *
- * @returns {string}
- */
-function getThreatDetectedMarkerTemplate() {
-  return "<!-- gh-aw-threat-detected -->";
-}
-
-/**
  * Returns a human-readable reason text for detection warnings.
  *
  * @param {string | undefined | null} reason
@@ -69,10 +50,59 @@ function isToolingFailureReason(reason) {
   return normalized === "agent_failure" || normalized === "parse_error";
 }
 
+/**
+ * Returns the XML marker used to identify threat-engine-error output.
+ * This marker is distinct from the real-threat marker so that automated tools
+ * can distinguish a tooling failure from an actual security finding.
+ *
+ * @returns {string}
+ */
+function getThreatEngineErrorMarker() {
+  return "<!-- gh-aw-threat-engine-error -->";
+}
+
+/**
+ * Returns the marker template for configured engine-error message rendering.
+ *
+ * @returns {string}
+ */
+function getThreatEngineErrorMarkerTemplate() {
+  return "<!-- gh-aw-threat-engine-error -->";
+}
+
+/**
+ * Returns the XML marker used to identify threat-detected output.
+ * When the reason indicates a tooling failure (agent_failure, parse_error) a
+ * distinct engine-error marker is returned so automated tools can distinguish
+ * "detection engine crashed" from "detection engine found something".
+ *
+ * @param {string | undefined | null} reason
+ * @returns {string}
+ */
+function getThreatDetectedMarker(reason) {
+  if (isToolingFailureReason(reason)) {
+    return getThreatEngineErrorMarker();
+  }
+  return "<!-- gh-aw-threat-detected -->";
+}
+
+/**
+ * Returns the marker template for configured message rendering.
+ * Always returns the real-threat marker; use getThreatEngineErrorMarkerTemplate()
+ * for tooling-failure templates where the reason is known at template-build time.
+ *
+ * @returns {string}
+ */
+function getThreatDetectedMarkerTemplate() {
+  return "<!-- gh-aw-threat-detected -->";
+}
+
 module.exports = {
   normalizeThreatKinds,
   getThreatDetectedMarker,
   getThreatDetectedMarkerTemplate,
+  getThreatEngineErrorMarker,
+  getThreatEngineErrorMarkerTemplate,
   getDetectionReasonText,
   isToolingFailureReason,
 };

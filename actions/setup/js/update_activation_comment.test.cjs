@@ -84,6 +84,10 @@ const createTestableFunction = scriptContent => {
             parse_error: "The threat detection results could not be parsed.",
           };
           const reasonText = reasons[reason] || "The threat detection analysis could not be completed.";
+          const isEngineError = reason === "agent_failure" || reason === "parse_error";
+          if (isEngineError) {
+            return `> [!WARNING]\n> threat detection engine error\n> The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.\n> <!-- gh-aw-threat-engine-error -->\n>\n> ${reasonText}`;
+          }
           return `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> <!-- gh-aw-threat-detected -->\n>\n> ${reasonText}`;
         },
       };

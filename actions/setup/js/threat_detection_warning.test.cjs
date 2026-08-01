@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeThreatKinds, getThreatDetectedMarker, getThreatDetectedMarkerTemplate, getDetectionReasonText, isToolingFailureReason } from "./threat_detection_warning.cjs";
+import { normalizeThreatKinds, getThreatDetectedMarker, getThreatDetectedMarkerTemplate, getThreatEngineErrorMarker, getThreatEngineErrorMarkerTemplate, getDetectionReasonText, isToolingFailureReason } from "./threat_detection_warning.cjs";
 
 describe("threat_detection_warning", () => {
   describe("normalizeThreatKinds", () => {
@@ -15,9 +15,22 @@ describe("threat_detection_warning", () => {
   });
 
   describe("marker helpers", () => {
-    it("emits the normative threat marker", () => {
-      expect(getThreatDetectedMarker("threat_detected,parse_error")).toBe("<!-- gh-aw-threat-detected -->");
+    it("emits the normative threat marker for real threats", () => {
+      expect(getThreatDetectedMarker("threat_detected")).toBe("<!-- gh-aw-threat-detected -->");
+      expect(getThreatDetectedMarker(null)).toBe("<!-- gh-aw-threat-detected -->");
+      expect(getThreatDetectedMarker(undefined)).toBe("<!-- gh-aw-threat-detected -->");
+      expect(getThreatDetectedMarker("")).toBe("<!-- gh-aw-threat-detected -->");
       expect(getThreatDetectedMarkerTemplate()).toBe("<!-- gh-aw-threat-detected -->");
+    });
+
+    it("emits the engine-error marker for tooling failures", () => {
+      expect(getThreatDetectedMarker("agent_failure")).toBe("<!-- gh-aw-threat-engine-error -->");
+      expect(getThreatDetectedMarker("parse_error")).toBe("<!-- gh-aw-threat-engine-error -->");
+    });
+
+    it("getThreatEngineErrorMarker always returns the engine-error marker", () => {
+      expect(getThreatEngineErrorMarker()).toBe("<!-- gh-aw-threat-engine-error -->");
+      expect(getThreatEngineErrorMarkerTemplate()).toBe("<!-- gh-aw-threat-engine-error -->");
     });
   });
 
