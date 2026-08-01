@@ -426,4 +426,40 @@ function g(coreLib) { coreLib.setOutput("flag", String(true)); }`,
       ],
     });
   });
+
+  it("valid: JSDoc-annotated DI param destructuring with string value is accepted", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setOutput } = coreArg; setOutput("n", "str"); }`,
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setOutput } = coreArg; setOutput("n", someVariable); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: JSDoc-annotated DI param destructuring with non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setOutput } = coreArg; setOutput("count", 0); }`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [
+                {
+                  messageId: "wrapWithString",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setOutput } = coreArg; setOutput("count", String(0)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
 });

@@ -6,7 +6,7 @@ import { CORE_ALIASES } from "./core-aliases";
  * in a JSDoc block-comment value. Used as an unambiguous signal that a parameter
  * is a dependency-injected `@actions/core`-like object.
  */
-const JSDOC_CORE_PARAM_RE = /@param\s*\{typeof\s+import\(['"]@actions\/core['"]\)\}\s+(\w+)/g;
+const JSDOC_CORE_PARAM_RE = /@param\s*\{typeof\s+import\(['"]@actions\/core['"]\)\}\s+([$\w]+)/g;
 
 /**
  * Returns true when the enclosing function carries a JSDoc block comment with
@@ -90,7 +90,7 @@ export function isCoreAliasIdentifier(identifier: TSESTree.Identifier, sourceCod
       if (variable.references.some(ref => ref.isWrite() && !ref.init)) return false;
       const declarator = def.node as TSESTree.VariableDeclarator;
       if (!declarator.init) return false;
-      return declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init.type === AST_NODE_TYPES.Identifier && CORE_ALIASES.has(declarator.init.name);
+      return declarator.id.type === AST_NODE_TYPES.Identifier && declarator.init.type === AST_NODE_TYPES.Identifier && (CORE_ALIASES.has(declarator.init.name) || isJSDocCoreParamInScope(declarator.init as TSESTree.Identifier, sourceCode));
     }
     currentScope = currentScope.upper;
   }

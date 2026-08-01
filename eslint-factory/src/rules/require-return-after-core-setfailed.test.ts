@@ -459,6 +459,47 @@ function g(coreLib) { coreLib.setFailed("x"); return; doMore(); keepGoing(); }`,
     });
   });
 
+  it("valid: JSDoc-annotated DI param destructuring with control transfer is accepted", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // Destructured setFailed from JSDoc-annotated coreArg with throw
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("x"); throw new Error("x"); }`,
+        // Destructured setFailed with return
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("x"); return; }`,
+        // Destructured setFailed as last statement in block
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("x"); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: JSDoc-annotated DI param destructuring missing control transfer is flagged", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("bad"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: bare switch-case fall-through after setFailed is flagged (FN fix)", () => {
     ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
       valid: [
