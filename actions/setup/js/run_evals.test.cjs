@@ -65,6 +65,21 @@ describe("run_evals.cjs", () => {
     });
   });
 
+  it("sanitizes rationale text before writing eval records", async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
+    vi.stubEnv("GH_AW_EVALS_MODEL", "small");
+    vi.stubEnv("GITHUB_RUN_ID", "123456789");
+    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: YES - <script>oops</script> @pelikhan\n", "utf8");
+
+    await parseMain();
+
+    const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
+    expect(JSON.parse(line)).toMatchObject({
+      answer: "YES",
+      rationale: "(script)oops(/script) `@pelikhan`",
+    });
+  });
+
   it('falls back to "unknown" when the workflow run id is absent', async () => {
     vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
     vi.stubEnv("GH_AW_EVALS_MODEL", "small");

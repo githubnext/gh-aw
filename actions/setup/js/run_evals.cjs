@@ -37,6 +37,7 @@ const { ERR_VALIDATION } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { resolveModelWithFallback } = require("./model_fallback.cjs");
+const { sanitizeContent } = require("./sanitize_content.cjs");
 
 const EVALS_DIR = "/tmp/gh-aw/evals";
 const EVALS_LOG_PATH = "/tmp/gh-aw/evals/evals.log";
@@ -315,10 +316,12 @@ function normalizeEvalAnswer(answer) {
  * @returns {string}
  */
 function normalizeRationale(rationale) {
-  return String(rationale)
-    .replace(/[\r\n]+/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return sanitizeContent(
+    String(rationale)
+      .replace(/[\r\n]+/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+  ).trim();
 }
 
 /**
