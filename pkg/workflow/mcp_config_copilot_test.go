@@ -3,6 +3,8 @@
 package workflow
 
 import (
+	"encoding/json"
+	"regexp"
 	"strings"
 	"testing"
 )
@@ -217,6 +219,12 @@ func TestRenderCustomMCPEnvVars_NonCopilotSecretsEscaped(t *testing.T) {
 		renderer          MCPConfigRenderer
 		expectedContent   []string
 		unexpectedContent []string
+		// validateJSON, when true, replaces \${VAR} placeholders with a benign
+		// string (simulating bash heredoc stripping the leading backslash) and
+		// then verifies the result is parseable as a JSON object. This catches
+		// regressions where the rendered fragment would produce invalid JSON once
+		// the gateway resolves environment variables at runtime.
+		validateJSON bool
 	}{
 		{
 			name: "Non-Copilot stdio container - secret in env uses backslash-escaped var",
@@ -286,6 +294,33 @@ func TestRenderCustomMCPEnvVars_NonCopilotSecretsEscaped(t *testing.T) {
 				`"DD_SITE": "${DD_SITE}"`,
 			},
 		},
+		{
+			// The var *name* is always a safe identifier, but this test verifies
+			// that the \${VAR} placeholder produces structurally valid JSON once
+			// the gateway resolves the env var at runtime. Before the fix, a bare
+			// ${VAR} would have been spliced directly by bash into the heredoc;
+			// any secret containing '"' or '\' would have corrupted the JSON.
+			name: "Non-Copilot stdio - env placeholder produces valid JSON after gateway resolution",
+			toolConfig: map[string]any{
+				"type":      "stdio",
+				"container": "some/image:latest",
+				"env": map[string]any{
+					"SPECIAL_KEY": `${{ secrets.SPECIAL_KEY }}`,
+				},
+			},
+			renderer: MCPConfigRenderer{
+				IndentLevel:           "  ",
+				Format:                "json",
+				RequiresCopilotFields: false,
+			},
+			expectedContent: []string{
+				`"SPECIAL_KEY": "\${SPECIAL_KEY}"`,
+			},
+			unexpectedContent: []string{
+				`"SPECIAL_KEY": "${SPECIAL_KEY}"`,
+			},
+			validateJSON: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -308,6 +343,20 @@ func TestRenderCustomMCPEnvVars_NonCopilotSecretsEscaped(t *testing.T) {
 			for _, unexpected := range tt.unexpectedContent {
 				if strings.Contains(result, unexpected) {
 					t.Errorf("Unexpected content found: %q\nActual output:\n%s", unexpected, result)
+				}
+			}
+
+			if tt.validateJSON {
+				// Simulate bash heredoc processing (\${VAR} → ${VAR}) and then
+				// gateway env-var substitution (${VAR} → a benign placeholder).
+				// The resulting fragment must be parseable as a JSON object,
+				// proving that no secret value -- regardless of its content --
+				// can corrupt the JSON structure.
+				escapedVarRe := regexp.MustCompile(`\\\$\{[A-Z0-9_]+\}`)
+				resolved := escapedVarRe.ReplaceAllString(result, "placeholder-value")
+				var obj map[string]any
+				if err := json.Unmarshal([]byte("{"+resolved+"}"), &obj); err != nil {
+					t.Errorf("Rendered output is not valid JSON after placeholder substitution: %v\nResolved fragment:\n%s", err, resolved)
 				}
 			}
 		})
