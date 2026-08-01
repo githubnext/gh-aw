@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -391,12 +390,7 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 		"      - name: " + exec.StepName,
 		"        id: agentic_execution",
 	}
-	if workflowData != nil && workflowData.TimeoutMinutes != "" {
-		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
-	} else {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute)))
-	}
+	stepLines = append(stepLines, "        timeout-minutes: "+resolveStepTimeoutValue(workflowData))
 	filteredEnv := FilterEnvForSecrets(env, e.GetRequiredSecretNames(workflowData))
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
 	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
