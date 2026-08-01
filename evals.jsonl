@@ -1,2 +1,2 @@
-{"id":"workflow_runs_audited","question":"Did the agent audit agentic workflow runs from the last 24 hours?","answer":"YES","model":"small","timestamp":"2026-07-31T21:56:52.881Z","runid":"30666867283"}
-{"id":"issues_identified_or_noop","question":"Were issues, missing tools, errors, and improvement opportunities identified, or was noop used when no problems were found?","answer":"YES","model":"small","timestamp":"2026-07-31T21:56:52.881Z","runid":"30666867283"}
+{"id":"workflow_runs_audited","question":"Did the agent audit agentic workflow runs from the last 24 hours?","answer":"YES","model":"evals","timestamp":"2026-08-01T21:59:25.342Z","runid":"30719113402"}
+{"id":"issues_identified_or_noop","question":"Were issues, missing tools, errors, and improvement opportunities identified, or was noop used when no problems were found?","answer":"YES","model":"evals","timestamp":"2026-08-01T21:59:25.342Z","runid":"30719113402"}
