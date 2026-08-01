@@ -98,6 +98,9 @@ function buildEvalsBody(results) {
  */
 function escapeMarkdownCell(text) {
   return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
     .replace(/[\r\n]/g, " ")
     .replace(/\|/g, "\\|")
     .replace(/`/g, "\\`");

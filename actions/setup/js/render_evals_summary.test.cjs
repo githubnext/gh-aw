@@ -83,10 +83,10 @@ describe("render_evals_summary.cjs", () => {
       const markdown = module.buildEvalsBody([
         {
           id: "id|`1`\r",
-          question: "Line 1\nLine 2 | `code`",
+          question: "Line 1\nLine 2 | `code` <tag> & more",
           answer: "YES",
-          rationale: "A short | `reason`.",
-          model: "claude`-4.6`",
+          rationale: "A short | `reason` with <b>tag</b> & evidence.",
+          model: "claude`-4.6` & more",
           timestamp: "",
         },
         {
@@ -107,11 +107,11 @@ describe("render_evals_summary.cjs", () => {
         },
       ]);
 
-      expect(markdown).toContain("| id\\|\\`1\\`  | Line 1 Line 2 \\| \\`code\\` | ✅ YES | A short \\| \\`reason\\`. |");
+      expect(markdown).toContain("| id\\|\\`1\\`  | Line 1 Line 2 \\| \\`code\\` &lt;tag&gt; &amp; more | ✅ YES | A short \\| \\`reason\\` with &lt;b&gt;tag&lt;/b&gt; &amp; evidence. |");
       expect(markdown).toContain("| id2 | Question 2 | ❌ NO | Missing evidence in the output. |");
       expect(markdown).toContain("| id3 | Question 3 | ❌ NO |  |");
       expect(markdown).toContain("**YES**: 1 | **NO**: 2");
-      expect(markdown).toContain("**model**: claude\\`-4.6\\`");
+      expect(markdown).toContain("**model**: claude\\`-4.6\\` &amp; more");
     });
 
     it("returns an empty string for empty results", () => {
