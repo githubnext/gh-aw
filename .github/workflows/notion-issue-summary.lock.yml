@@ -1414,6 +1414,7 @@ jobs:
           WORKFLOW_NAME: "Notion Issue Summary"
           WORKFLOW_DESCRIPTION: "Creates issue summaries and syncs them to Notion for project management and tracking"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

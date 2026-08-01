@@ -1542,6 +1542,7 @@ jobs:
           WORKFLOW_NAME: "Smoke Service Ports"
           WORKFLOW_DESCRIPTION: "Smoke test to validate --allow-host-service-ports with Redis service container"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

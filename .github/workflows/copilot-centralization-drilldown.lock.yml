@@ -1397,6 +1397,7 @@ jobs:
           WORKFLOW_NAME: "Copilot Centralization Drilldown"
           WORKFLOW_DESCRIPTION: "Expands one mined centralization candidate into a concrete draft workflow or reusable prompt template."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

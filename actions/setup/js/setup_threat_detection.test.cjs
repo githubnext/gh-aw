@@ -33,6 +33,7 @@ describe("setup_threat_detection", () => {
     delete process.env.WORKFLOW_NAME;
     delete process.env.WORKFLOW_DESCRIPTION;
     delete process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR;
+    delete process.env.HAS_PATCH;
   });
 
   function setupCoreMocks() {
@@ -103,5 +104,28 @@ describe("setup_threat_detection", () => {
     await module.main();
 
     expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Agent output file not found"));
+  });
+
+  it("warns but continues when patch is missing and continue-on-error is enabled", async () => {
+    setupCoreMocks();
+    process.env.HAS_PATCH = "true";
+    process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "true";
+
+    const module = await import("./setup_threat_detection.cjs");
+    await module.main();
+
+    expect(global.core.setFailed).not.toHaveBeenCalled();
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true"));
+  });
+
+  it("fails when patch is missing and continue-on-error is disabled", async () => {
+    setupCoreMocks();
+    process.env.HAS_PATCH = "true";
+    process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR = "false";
+
+    const module = await import("./setup_threat_detection.cjs");
+    await module.main();
+
+    expect(global.core.setFailed).toHaveBeenCalledWith(expect.stringContaining("Patch/bundle file(s) expected but not found"));
   });
 });

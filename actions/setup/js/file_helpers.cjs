@@ -64,7 +64,9 @@ function checkFileExists(filePath, artifactDir, fileDescription, required, conti
     }
   } else {
     if (required) {
-      core.error("❌ " + fileDescription + " not found at: " + filePath);
+      if (!continueOnError) {
+        core.error("❌ " + fileDescription + " not found at: " + filePath);
+      }
       // List all files in artifact directory for debugging
       core.info("📁 Listing all files in artifact directory: " + artifactDir);
       const files = listFilesRecursively(artifactDir, artifactDir);

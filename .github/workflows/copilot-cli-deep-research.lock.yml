@@ -1469,6 +1469,7 @@ jobs:
           WORKFLOW_NAME: "Copilot CLI Deep Research Agent"
           WORKFLOW_DESCRIPTION: "Deep research analyzing Copilot CLI current state, available features, and missed optimization opportunities"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

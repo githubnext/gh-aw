@@ -1540,6 +1540,7 @@ jobs:
           WORKFLOW_NAME: "Smoke Agent: all/merged"
           WORKFLOW_DESCRIPTION: "Guard policy smoke test: repos=all, min-integrity=merged (most restrictive)"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

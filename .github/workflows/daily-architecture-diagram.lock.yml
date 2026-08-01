@@ -1596,6 +1596,7 @@ jobs:
           WORKFLOW_NAME: "1. List all Go packages with their doc comments"
           WORKFLOW_DESCRIPTION: "Generates a weekly high-level ASCII architecture diagram of the repository, using cache-memory to focus only on what changed since the last run."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

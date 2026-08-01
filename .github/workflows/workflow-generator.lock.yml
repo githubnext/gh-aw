@@ -1517,6 +1517,7 @@ jobs:
           WORKFLOW_NAME: "Workflow Generator"
           WORKFLOW_DESCRIPTION: "Workflow generator that updates issue status and assigns to Copilot coding agent for workflow design"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

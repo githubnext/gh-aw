@@ -96,7 +96,11 @@ async function main() {
   }
 
   if (patchFiles.length === 0 && hasPatch) {
-    core.setFailed(`${ERR_VALIDATION}: Patch/bundle file(s) expected but not found in: ${threatDetectionDir}`);
+    if (continueOnError) {
+      core.warning(`${ERR_VALIDATION}: Patch/bundle file(s) expected but not found in: ${threatDetectionDir}. Continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true`);
+    } else {
+      core.setFailed(`${ERR_VALIDATION}: Patch/bundle file(s) expected but not found in: ${threatDetectionDir}`);
+    }
     return;
   }
 

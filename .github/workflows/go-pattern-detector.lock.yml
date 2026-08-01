@@ -1531,6 +1531,7 @@ jobs:
           WORKFLOW_NAME: "Go Pattern Detector"
           WORKFLOW_DESCRIPTION: "Detects common Go code patterns and anti-patterns to maintain code quality and consistency"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

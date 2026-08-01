@@ -1539,6 +1539,7 @@ jobs:
           WORKFLOW_NAME: "Daily Cli Tools Tester"
           WORKFLOW_DESCRIPTION: "Daily exploratory testing of audit, logs, and compile tools in gh-aw CLI"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

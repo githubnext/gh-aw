@@ -1419,6 +1419,7 @@ jobs:
           WORKFLOW_NAME: "Smoke Copilot Auto"
           WORKFLOW_DESCRIPTION: "Smoke Copilot Auto — generates a haiku and posts it as a PR comment"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

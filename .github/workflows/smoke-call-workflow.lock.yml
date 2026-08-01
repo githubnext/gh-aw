@@ -1534,6 +1534,7 @@ jobs:
           WORKFLOW_NAME: "Smoke Call Workflow"
           WORKFLOW_DESCRIPTION: "Smoke test for the call-workflow safe output - orchestrator that calls a worker via workflow_call at compile-time fan-out"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

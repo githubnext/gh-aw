@@ -1415,6 +1415,7 @@ jobs:
           WORKFLOW_NAME: "Artifacts Usage Report"
           WORKFLOW_DESCRIPTION: "Generates a comprehensive summary of GitHub Actions artifacts usage across all workflows in the repository"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

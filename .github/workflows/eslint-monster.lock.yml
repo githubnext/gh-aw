@@ -1553,6 +1553,7 @@ jobs:
           WORKFLOW_NAME: "ESLint Monster"
           WORKFLOW_DESCRIPTION: "Daily workflow that runs the ESLint factory against actions/setup/js, groups findings, and launches up to three Copilot agent sessions to remediate them"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

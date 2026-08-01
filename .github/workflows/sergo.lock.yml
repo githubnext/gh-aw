@@ -1606,6 +1606,7 @@ jobs:
           WORKFLOW_NAME: "Sergo - Serena Go Expert"
           WORKFLOW_DESCRIPTION: "Daily Go code quality analysis using Serena MCP language service protocol expert"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

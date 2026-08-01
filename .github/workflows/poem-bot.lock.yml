@@ -1811,6 +1811,7 @@ jobs:
           WORKFLOW_NAME: "Poem Bot - A Creative Agentic Workflow"
           WORKFLOW_DESCRIPTION: "Generates creative poems on specified themes when invoked with /poem-bot command"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1685,6 +1685,7 @@ jobs:
           WORKFLOW_NAME: "Stale Repository Identifier"
           WORKFLOW_DESCRIPTION: "Monthly workflow that identifies stale repositories in an organization and creates detailed activity reports"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

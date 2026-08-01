@@ -1443,6 +1443,7 @@ jobs:
           WORKFLOW_NAME: "Basic Research Agent"
           WORKFLOW_DESCRIPTION: "Performs web research on any topic using Tavily search and creates a discussion with findings"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1526,6 +1526,7 @@ jobs:
           WORKFLOW_NAME: "Mergefest"
           WORKFLOW_DESCRIPTION: "Automatically merges the main branch into pull request branches when invoked with /mergefest command"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

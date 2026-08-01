@@ -1514,6 +1514,7 @@ jobs:
           WORKFLOW_NAME: "DeepSec Security Scan"
           WORKFLOW_DESCRIPTION: "On-demand DeepSec scan that bootstraps a bounded agentic vulnerability review and files one issue for actionable findings"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1651,6 +1651,7 @@ jobs:
           WORKFLOW_NAME: "Workflow Portfolio Analyst"
           WORKFLOW_DESCRIPTION: "Weekly portfolio analyst that maps AI Credit spend per workflow from OpenTelemetry telemetry with colorful charts and 30-day trends"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

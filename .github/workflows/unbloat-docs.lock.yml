@@ -1559,6 +1559,7 @@ jobs:
           WORKFLOW_NAME: "Documentation Unbloat"
           WORKFLOW_DESCRIPTION: "Reviews and simplifies documentation by reducing verbosity while maintaining clarity and completeness"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1264,6 +1264,7 @@ jobs:
           WORKFLOW_NAME: "Daily Max Ai Credits Test"
           WORKFLOW_DESCRIPTION: "⚠️ INTENTIONALLY FAILS — Tests that max-ai-credits: 1 is enforced by the AWF firewall and that the per-run budget guardrail cuts off the agent."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

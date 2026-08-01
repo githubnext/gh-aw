@@ -1853,6 +1853,7 @@ jobs:
           WORKFLOW_NAME: "PR Triage Agent"
           WORKFLOW_DESCRIPTION: "Automates PR categorization, risk assessment, and prioritization for agent-created pull requests"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

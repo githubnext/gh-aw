@@ -1523,6 +1523,7 @@ jobs:
           WORKFLOW_NAME: "The Great Escapi"
           WORKFLOW_DESCRIPTION: "Security testing to find escape paths in the AWF (Agent Workflow Firewall)"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
