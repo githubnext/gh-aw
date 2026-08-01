@@ -178,6 +178,39 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
 }
 
 /**
+ * Resolves auto-merge enablement and merge method from the handler config.
+ *
+ * Supported values:
+ *   - false / "false" / empty => disabled
+ *   - true / "true"  => enabled with SQUASH as the default merge strategy
+ *   - "squash" | "merge" | "rebase" => enabled with explicit strategy
+ *   - any other value => disabled with a warning (fail-closed)
+ *
+ * @param {any} value
+ * @returns {{ enabled: boolean, mergeMethod?: "SQUASH" | "MERGE" | "REBASE" }}
+ */
+function parseAutoMergeConfig(value) {
+  const normalized = String(value ?? "")
+    .trim()
+    .toLowerCase();
+  if (!normalized || normalized === "false") {
+    return { enabled: false };
+  }
+  switch (normalized) {
+    case "squash":
+    case "true":
+      return { enabled: true, mergeMethod: "SQUASH" };
+    case "merge":
+      return { enabled: true, mergeMethod: "MERGE" };
+    case "rebase":
+      return { enabled: true, mergeMethod: "REBASE" };
+    default:
+      core.warning(`Unrecognized auto-merge value "${value}". Expected true, false, "squash", "merge", or "rebase". Auto-merge will be disabled.`);
+      return { enabled: false };
+  }
+}
+
+/**
  * Apply a git bundle to a local branch without fetching directly into the branch ref.
  * Fetching directly into refs/heads/<branch> fails when that branch is currently checked out.
  *
@@ -724,7 +757,7 @@ async function main(config = {}) {
   const draftDefault = parseBoolTemplatable(config.draft, true);
   const ifNoChanges = config.if_no_changes || "warn";
   const allowEmpty = parseBoolTemplatable(config.allow_empty, false);
-  const autoMerge = parseBoolTemplatable(config.auto_merge, false);
+  const { enabled: autoMerge, mergeMethod: autoMergeMethod } = parseAutoMergeConfig(config.auto_merge);
   const preserveBranchName = config.preserve_branch_name === true;
   const recreateRef = config.recreate_ref === true;
   const signedCommits = config.signed_commits !== false;
@@ -2559,8 +2592,8 @@ ${patchPreview}`;
         if (autoMerge) {
           try {
             await githubClient.graphql(
-              `mutation($prId: ID!) {
-              enablePullRequestAutoMerge(input: {pullRequestId: $prId}) {
+              `mutation($prId: ID!, $mergeMethod: PullRequestMergeMethod) {
+              enablePullRequestAutoMerge(input: {pullRequestId: $prId, mergeMethod: $mergeMethod}) {
                 pullRequest {
                   id
                 }
@@ -2568,6 +2601,7 @@ ${patchPreview}`;
             }`,
               {
                 prId: pullRequest.node_id,
+                mergeMethod: autoMergeMethod,
               }
             );
             core.info(`Enabled auto-merge for pull request #${pullRequest.number}`);
@@ -2786,4 +2820,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch, rewriteBundleBranchAsSingleCommit };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch, rewriteBundleBranchAsSingleCommit, parseAutoMergeConfig };
