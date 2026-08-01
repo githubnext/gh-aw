@@ -196,17 +196,17 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 
 // applyPullRequestStackFilter applies stacked pull request protection.
 // Default behavior: run only for the latest PR in a stack (max-stack = 1).
-// Set on.pull_request.max-stack: -1 to disable this protection.
+// Set on.pull_request.max-stack or on.pull_request_review.max-stack to -1 to disable this protection.
 func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter map[string]any) {
 	filtersLog.Print("Applying pull request stack filter")
 
 	onValue, hasOn := frontmatter["on"]
-	if !hasOn || !hasPullRequestTrigger(onValue) {
+	if !hasOn || !hasStackFilterTrigger(onValue) {
 		return
 	}
 
 	maxStack := 1
-	if configuredMaxStack, ok := extractPullRequestMaxStack(onValue); ok {
+	if configuredMaxStack, ok := extractStackMaxStack(onValue); ok {
 		maxStack = configuredMaxStack
 	}
 
@@ -220,7 +220,7 @@ func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter m
 		// equality operator. This gates the entire job (shows as "skipped") for non-top PRs.
 		// GitHub Actions expressions do not support arithmetic (+, -, etc.), so we use
 		// position == size to check that this PR is at the top of the stack.
-		stackCondition := "github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size"
+		stackCondition := "(github.event_name != 'pull_request' && github.event_name != 'pull_request_review') || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size"
 
 		existingCondition := data.If
 		conditionTree := BuildConditionTree(existingCondition, stackCondition)
@@ -232,7 +232,7 @@ func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter m
 		// default-condition steps from running (they use if: success() by default).
 		stackGateStep := fmt.Sprintf(
 			"- name: Stack position gate (max-stack: %d)\n"+
-				"  if: github.event_name == 'pull_request' && github.event.pull_request.stack != null\n"+
+				"  if: (github.event_name == 'pull_request' || github.event_name == 'pull_request_review') && github.event.pull_request.stack != null\n"+
 				"  env:\n"+
 				"    STACK_POSITION: ${{ github.event.pull_request.stack.position }}\n"+
 				"    STACK_SIZE: ${{ github.event.pull_request.stack.size }}\n"+
@@ -254,57 +254,81 @@ func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter m
 	}
 }
 
-func hasPullRequestTrigger(onValue any) bool {
+func hasStackFilterTrigger(onValue any) bool {
 	switch on := onValue.(type) {
 	case string:
-		return on == "pull_request"
+		return on == "pull_request" || on == "pull_request_review"
 	case []any:
 		for _, item := range on {
-			if item == "pull_request" {
+			if item == "pull_request" || item == "pull_request_review" {
 				return true
 			}
 			if eventMap, ok := item.(map[string]any); ok {
 				if _, exists := eventMap["pull_request"]; exists {
 					return true
 				}
+				if _, exists := eventMap["pull_request_review"]; exists {
+					return true
+				}
 			}
 		}
 	case map[string]any:
-		_, exists := on["pull_request"]
-		return exists
+		if _, exists := on["pull_request"]; exists {
+			return true
+		}
+		if _, exists := on["pull_request_review"]; exists {
+			return true
+		}
 	}
 	return false
 }
 
-func extractPullRequestMaxStack(onValue any) (int, bool) {
-	onMap, ok := onValue.(map[string]any)
-	if !ok {
-		return 0, false
+func extractStackMaxStack(onValue any) (int, bool) {
+	switch on := onValue.(type) {
+	case map[string]any:
+		return extractStackMaxStackFromMap(on)
+	case []any:
+		for _, item := range on {
+			eventMap, ok := item.(map[string]any)
+			if !ok {
+				continue
+			}
+			if maxStack, ok := extractStackMaxStackFromMap(eventMap); ok {
+				return maxStack, true
+			}
+		}
 	}
 
-	prValue, hasPR := onMap["pull_request"]
-	if !hasPR {
-		return 0, false
-	}
+	return 0, false
+}
 
-	prMap, ok := prValue.(map[string]any)
-	if !ok {
-		return 0, false
-	}
-
-	maxStackValue, hasMaxStack := prMap["max-stack"]
-	if !hasMaxStack {
-		return 0, false
-	}
-
-	switch v := maxStackValue.(type) {
-	case int:
-		return v, true
-	case int64:
-		return int(v), true
-	case float64:
-		if v == float64(int(v)) {
+func extractStackMaxStackFromMap(onMap map[string]any) (int, bool) {
+	for _, triggerName := range []string{"pull_request", "pull_request_review"} {
+		triggerValue, hasTrigger := onMap[triggerName]
+		if !hasTrigger {
+			continue
+		}
+		triggerMap, ok := triggerValue.(map[string]any)
+		if !ok {
+			continue
+		}
+		maxStackValue, hasMaxStack := triggerMap["max-stack"]
+		if !hasMaxStack {
+			continue
+		}
+		switch v := maxStackValue.(type) {
+		case int:
+			return v, true
+		case int64:
 			return int(v), true
+		case uint:
+			return int(v), true
+		case uint64:
+			return int(v), true
+		case float64:
+			if v == float64(int(v)) {
+				return int(v), true
+			}
 		}
 	}
 

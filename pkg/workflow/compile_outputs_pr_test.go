@@ -662,6 +662,59 @@ This test verifies that auto-merge configuration is properly handled.
 	}
 }
 
+func TestCreatePullRequestAutoMergeMethodConfig(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "test-auto-merge-method-*")
+
+	testMarkdown := `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+  pull-requests: read
+  issues: read
+strict: false
+safe-outputs:
+  create-pull-request:
+    auto-merge: squash
+---
+
+# Test Create Pull Request Auto-Merge Method
+`
+
+	mdFile := filepath.Join(tmpDir, "test-auto-merge-method.md")
+	if err := os.WriteFile(mdFile, []byte(testMarkdown), 0644); err != nil {
+		t.Fatalf("Failed to write test markdown file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	workflowData, err := compiler.ParseWorkflowFile(mdFile)
+	if err != nil {
+		t.Fatalf("Failed to parse workflow: %v", err)
+	}
+
+	if workflowData.SafeOutputs == nil || workflowData.SafeOutputs.CreatePullRequests == nil {
+		t.Fatal("Expected create-pull-request configuration to be parsed")
+	}
+	if workflowData.SafeOutputs.CreatePullRequests.AutoMerge == nil || *workflowData.SafeOutputs.CreatePullRequests.AutoMerge != "squash" {
+		t.Fatalf("Expected auto-merge to be squash, got %#v", workflowData.SafeOutputs.CreatePullRequests.AutoMerge)
+	}
+
+	if err := compiler.CompileWorkflow(mdFile); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := stringutil.MarkdownToLockFile(mdFile)
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	if !strings.Contains(string(lockContent), `"auto_merge":"squash"`) {
+		t.Error(`Expected auto_merge:"squash" in handler config JSON`)
+	}
+}
+
 func TestOutputPullRequestFallbackAsIssueFalse(t *testing.T) {
 	// Create temporary directory for test files
 	tmpDir := testutil.TempDir(t, "output-pr-fallback-false-test")

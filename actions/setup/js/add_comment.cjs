@@ -73,6 +73,16 @@ function normalizeWorkflowIdList(ids) {
 }
 
 /**
+ * Normalize a list of mention aliases: trim, strip leading "@" characters, and drop empty entries.
+ * @param {unknown} aliases
+ * @returns {string[]}
+ */
+function normalizeMentionAliases(aliases) {
+  if (!Array.isArray(aliases)) return [];
+  return aliases.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0);
+}
+
+/**
  * Resolve effective event name/payload for native and forwarded contexts.
  * Supports:
  * - workflow_dispatch with event_name/event_payload inputs (via resolveInvocationContext)
@@ -408,10 +418,8 @@ async function main(config = {}) {
   const requiredLabels = Array.isArray(config.required_labels) ? config.required_labels : [];
   const requiredTitlePrefix = config.required_title_prefix || "";
   const mentionsDisabled = config.mentions === false || config.mentions?.enabled === false;
-  const preResolvedMentionAliases =
-    !mentionsDisabled && Array.isArray(config.allowedMentionAliases) ? config.allowedMentionAliases.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
-  const configuredMentionAliases =
-    !mentionsDisabled && Array.isArray(config.mentions?.allowed) ? config.mentions.allowed.map(alias => (typeof alias === "string" ? alias.trim().replace(/^@+/, "") : "")).filter(alias => alias.length > 0) : [];
+  const preResolvedMentionAliases = !mentionsDisabled ? normalizeMentionAliases(config.allowedMentionAliases) : [];
+  const configuredMentionAliases = !mentionsDisabled ? normalizeMentionAliases(config.mentions?.allowed) : [];
 
   // Create an authenticated GitHub client. Uses config["github-token"] when set
   // (for cross-repository operations), otherwise falls back to the step-level github.
