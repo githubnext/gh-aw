@@ -1215,10 +1215,8 @@ func TestBuildDetectionEngineExecutionStepStripsAgentField(t *testing.T) {
 	}
 }
 
-// TestCopilotDetectionDefaultModel verifies that the copilot engine uses the
-// Copilot CLI's native default model for the detection step when no model is specified.
-// Detection now matches main agent behavior: both use ${{ vars.* || ” }} so the
-// Copilot CLI picks its native default (currently claude-sonnet-4.6).
+// TestCopilotDetectionDefaultModel verifies that the detection step defaults to
+// the detection alias when no model is specified.
 func TestCopilotDetectionDefaultModel(t *testing.T) {
 	compiler := NewCompiler()
 
@@ -1230,7 +1228,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 		expectedModel      string
 	}{
 		{
-			name: "copilot engine without model uses native CLI default via env var",
+			name: "copilot engine without model uses detection alias default",
 			data: &WorkflowData{
 				AI: "copilot",
 				SafeOutputs: &SafeOutputsConfig{
@@ -1238,9 +1236,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			// Detection uses env var fallback (same pattern as main agent), allowing
-			// the Copilot CLI to pick its native default (currently claude-sonnet-4.6)
-			expectedModel: "${{ vars." + constants.EnvVarModelDetectionCopilot + " || vars.GH_AW_DEFAULT_MODEL_COPILOT || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedModel:      "detection",
 		},
 		{
 			name: "detection model uses enterprise default override when configured",
@@ -1303,7 +1299,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 			expectedModel:      "gpt-4o",
 		},
 		{
-			name: "copilot engine with threat detection engine config without model uses native CLI default via env var",
+			name: "copilot engine with threat detection engine config without model uses detection alias default",
 			data: &WorkflowData{
 				AI: "claude",
 				SafeOutputs: &SafeOutputsConfig{
@@ -1315,7 +1311,7 @@ func TestCopilotDetectionDefaultModel(t *testing.T) {
 				},
 			},
 			shouldContainModel: true,
-			expectedModel:      "${{ vars." + constants.EnvVarModelDetectionCopilot + " || vars.GH_AW_DEFAULT_MODEL_COPILOT || '" + constants.CopilotBYOKDefaultModel + "' }}",
+			expectedModel:      "detection",
 		},
 		{
 			name: "claude engine does not add model parameter",

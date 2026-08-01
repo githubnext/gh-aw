@@ -170,6 +170,30 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
+			name: "add-labels with pull-requests:false - no pull-requests permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+					PullRequests:         ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
+			},
+		},
+		{
+			name: "add-labels with issues:false - no issues permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+					Issues:               ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
 			name: "remove-labels only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				RemoveLabels: &RemoveLabelsConfig{
@@ -1152,6 +1176,69 @@ func TestComputePermissionsForSafeOutputs_StagedYAMLRendering(t *testing.T) {
 			require.NotNil(t, permissions, "Permissions should not be nil")
 			rendered := permissions.RenderToYAML()
 			assert.Equal(t, tt.expectedRendered, rendered, "Fully-staged safe-outputs must render explicit empty permissions block")
+		})
+	}
+}
+
+func TestValidateAddLabelsPermissions(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name        string
+		safeOutputs *SafeOutputsConfig
+		wantErr     bool
+	}{
+		{
+			name:        "nil config - no error",
+			safeOutputs: nil,
+			wantErr:     false,
+		},
+		{
+			name: "add-labels not configured - no error",
+			safeOutputs: &SafeOutputsConfig{
+				CreateIssues: &CreateIssuesConfig{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "both nil (defaults) - no error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{},
+			},
+			wantErr: false,
+		},
+		{
+			name: "issues:false, pull-requests:true - no error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{Issues: ptrBool(false), PullRequests: ptrBool(true)},
+			},
+			wantErr: false,
+		},
+		{
+			name: "issues:true, pull-requests:false - no error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{Issues: ptrBool(true), PullRequests: ptrBool(false)},
+			},
+			wantErr: false,
+		},
+		{
+			name: "both issues:false and pull-requests:false - error",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{Issues: ptrBool(false), PullRequests: ptrBool(false)},
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateAddLabelsPermissions(tt.safeOutputs)
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), "at least one of 'issues' or 'pull-requests' must be enabled")
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

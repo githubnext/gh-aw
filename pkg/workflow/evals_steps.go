@@ -435,7 +435,7 @@ func (c *Compiler) resolveEvalsExecutionModel(data *WorkflowData) string {
 		}
 	}
 	if model == "" {
-		model = "small"
+		model = "evals"
 	}
 
 	originalEngineID := data.AI

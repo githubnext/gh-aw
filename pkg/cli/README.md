@@ -576,6 +576,12 @@ err := cli.RunHealth(cli.HealthConfig{
 
 Individual command `Run*` functions are not concurrently safe unless explicitly documented. The `CompileWorkflows` orchestrator serializes compilation by default; parallel compilation is gated by `CompileConfig` flags.
 
+### Additional exported helpers
+
+- MCP cache helpers: `GetPermission`, `SetPermission`, `GetRepo`, `SetRepo`
+- HTTP wiring helpers: `RoundTrip`, `WriteHeader`
+- External scanner helpers: `RunGrantOnLockFiles`, `RunGrypeOnLockFiles`, `RunSyftOnLockFiles`, `RunYamllintOnFiles`
+
 <!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
 ## Source-verified export coverage
 

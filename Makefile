@@ -1040,6 +1040,11 @@ generate-schema-docs:
 generate-agent-factory:
 	node scripts/generate-agent-factory.js
 
+# Generate llms.txt at repository root from .github/aw/*.md
+.PHONY: generate-llms-txt
+generate-llms-txt:
+	node scripts/generate-llms-txt.js
+
 # Build slides with Marp
 .PHONY: build-slides
 build-slides:
@@ -1217,7 +1222,7 @@ sbom:
 
 # Agent should run this task before finishing its turns
 .PHONY: agent-finish
-agent-finish: deps-dev fmt lint build build-wasm test-all validate-otel-contract fix recompile dependabot generate-schema-docs generate-agent-factory security-scan
+agent-finish: deps-dev fmt lint build build-wasm test-all validate-otel-contract fix recompile dependabot generate-schema-docs generate-agent-factory generate-llms-txt security-scan
 	@echo "Agent finished tasks successfully."
 
 # Fast pre-PR gate — run before every intermediate report_progress call.
@@ -1322,6 +1327,7 @@ help:
 	@echo "  dependabot       - Generate Dependabot manifests for npm dependencies in workflows"
 	@echo "  generate-schema-docs - Generate frontmatter full reference documentation from JSON schema"
 	@echo "  generate-agent-factory     - Generate agent factory documentation page"
+	@echo "  generate-llms-txt  - Generate llms.txt at repository root from .github/aw/*.md"
 	@echo "  build-slides     - Build slides with Marp to docs/public/slides/gh-aw.html"
 	@echo "  deps-docs        - Install Astro documentation dependencies"
 	@echo "  build-docs       - Build Astro documentation to docs/dist"

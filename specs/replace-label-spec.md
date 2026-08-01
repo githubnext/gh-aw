@@ -562,6 +562,15 @@ and `specs/replace-label-compliance/rl-003-blocklist-ordering.yaml`.
 - **T-RL-024**: Verify that `label_to_remove` matching a `blocked` pattern is rejected.
 - **T-RL-025**: Verify that `label_to_remove` is accepted when `allowed-remove` is empty.
 
+Fixture linkage check (2026-08-01):
+
+- [x] T-RL-020 covered by `specs/replace-label-compliance/rl-001-glob-semantics.yaml`
+- [x] T-RL-021 covered by `specs/replace-label-compliance/rl-001-glob-semantics.yaml`
+- [x] T-RL-022 covered by `specs/replace-label-compliance/rl-001-glob-semantics.yaml`
+- [x] T-RL-023 covered by `specs/replace-label-compliance/rl-001-glob-semantics.yaml` and `specs/replace-label-compliance/rl-003-blocklist-ordering.yaml`
+- [x] T-RL-024 covered by `specs/replace-label-compliance/rl-003-blocklist-ordering.yaml`
+- [x] T-RL-025 covered by `specs/replace-label-compliance/rl-002-allowlist-enforcement.yaml`
+
 #### 9.2.4 Gate Check Tests
 
 - **T-RL-030**: Verify that an item satisfying all `required-labels` proceeds to the mutation stage.

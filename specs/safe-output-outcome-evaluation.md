@@ -3,7 +3,7 @@ title: Safe Output Outcome Evaluation Specification
 version: 1.0.0
 status: Working Draft
 date: 2026-05-15
-last_updated: 2026-05-16
+last_updated: 2026-08-01
 ---
 
 # Safe Output Outcome Evaluation Specification
@@ -35,6 +35,7 @@ Outcome evaluation is based on observable GitHub state and actor identity, not h
 3. Outcome evaluation workers **MUST NOT** infer hidden AI assistance when GitHub exposes only a normal user identity.
 4. Metrics and fields that use `human_*` names are historical names. In this specification they mean actor-visible, non-bot activity unless explicit provenance metadata is available.
 5. Implementations **SHOULD** prefer explicit provenance markers when available, such as bot identities, GitHub App identities, trace IDs, labels, commit trailers, or other durable metadata emitted by the workflow.
+6. When GitHub surfaces an action under a GitHub App or bot identity (including app-token API writes performed on behalf of a human), outcome evaluation workers **MUST** classify that action as bot/app activity for `human_*` fields unless separate durable provenance metadata explicitly identifies a visible non-bot actor.
 
 ## Outcome Categories
 
@@ -779,6 +780,41 @@ The table below specifies one conformance test row per safe-output type. Each ro
 | `missing_tool` | `missing_tool` | Evaluation is skipped; no outcome is computed | N/A — `missing_tool` always results in `ignored` |
 | `replace_label` | `replace_label` | `label_to_add` is present on the target item AND `label_to_remove` is absent at evaluation time | `label_to_add` is absent, or `label_to_remove` is still present, or the item was deleted within the evaluation window |
 
+### Sync Follow-ups: Safe-Output Section-to-Test Mapping
+
+| Section | Output type | Compliance test file(s) | Coverage status |
+|---|---|---|---|
+| §1 | `create_pull_request` | `pkg/cli/outcome_eval_formal_test.go` | covered |
+| §2 | `create_issue` | `pkg/cli/outcome_eval_formal_test.go` | covered |
+| §3 | `add_comment` | `pkg/cli/outcome_eval_formal_test.go` | covered |
+| §4 | `add_labels` | `pkg/cli/outcome_eval_formal_test.go`, `pkg/cli/outcome_eval_test.go` | covered |
+| §5 | `add_reviewer` | `pkg/cli/outcome_eval_test.go` | covered |
+| §6 | `update_issue` | `pkg/cli/outcome_eval_update_test.go` | covered |
+| §7 | `update_pull_request` | `pkg/cli/outcome_eval_update_test.go` | covered |
+| §8 | `close_issue` | `pkg/cli/outcome_eval_formal_test.go` | covered |
+| §9 | `close_pull_request` | `pkg/cli/outcome_eval_formal_test.go` | covered |
+| §10 | `close_discussion` | not-started | not-started |
+| §11 | `create_discussion` | not-started | not-started |
+| §12 | `update_discussion` | `pkg/cli/outcome_eval_workflow_test.go` | covered |
+| §13 | `create_pull_request_review_comment` | not-started | not-started |
+| §14 | `submit_pull_request_review` | `pkg/cli/outcome_eval_test.go` | covered |
+| §15 | `reply_to_pull_request_review_comment` | not-started | not-started |
+| §16 | `resolve_pull_request_review_thread` | not-started | not-started |
+| §17 | `push_to_pull_request_branch` | not-started | not-started |
+| §18 | `mark_pull_request_as_ready_for_review` | not-started | not-started |
+| §19 | `assign_to_agent` | not-started | not-started |
+| §20 | `dispatch_workflow` | `pkg/cli/outcome_eval_workflow_test.go` | covered |
+| §21 | `autofix_code_scanning_alert` | not-started | not-started |
+| §22 | `create_code_scanning_alert` | not-started | not-started |
+| §23 | `link_sub_issue` | not-started | not-started |
+| §24 | `hide_comment` | not-started | not-started |
+| §25 | `assign_milestone` | not-started | not-started |
+| §26 | `update_project` | not-started | not-started |
+| §27 | `update_release` | not-started | not-started |
+| §28 | `noop` | `pkg/cli/outcome_eval_test.go` | covered |
+| §29 | `missing_tool` | `pkg/cli/outcome_eval_test.go` | covered |
+| §30 | `replace_label` | `pkg/cli/outcome_eval_update_test.go`, `pkg/workflow/replace_label_formal_test.go` | covered |
+
 ### OTel Backend Unavailability
 
 When the OTLP exporter is unavailable (e.g., endpoint unreachable, network timeout, authentication failure) during outcome evaluation, the following safeguards **MUST** apply:
@@ -958,3 +994,13 @@ go test ./pkg/cli/ -run 'TestFormalOutcomeDomainInvariant|TestFormalAPIFailurePe
 | TLA+ state-machine invariants | P1, P4, P5, P6, P9 | State transition correctness |
 | F* pre/post contracts | P2, P3, P7, P8, P11, P12 | Function-level contracts |
 | Z3/SMT-LIB arithmetic bounds | P10 | Division-by-zero safety for derived metrics |
+
+---
+
+## Change Log
+
+### Version 1.0.1 (Working Draft, 2026-08-01)
+
+- Clarified provenance-resolution rules for `human_*` metrics when GitHub Apps act on behalf of humans.
+- Added a section-to-test cross-reference table for all 30 safe-output types, marking uncovered rows as `not-started`.
+- See also: `specs/otel-observability-spec.md` §13 (Outcome Evaluation) and §19 (Change Log).

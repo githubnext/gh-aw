@@ -344,6 +344,9 @@ touch %s
 		"        id: agentic_execution",
 	}
 
+	// Add timeout at step level (GitHub Actions standard)
+	stepLines = append(stepLines, "        timeout-minutes: "+resolveStepTimeoutValue(workflowData))
+
 	// Filter environment variables for security
 	allowedSecrets := append([]string{"GEMINI_API_KEY"}, e.GetRequiredSecretNames(workflowData)...)
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)
