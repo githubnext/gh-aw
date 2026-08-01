@@ -779,6 +779,16 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
         // both cases: removes new files from the index and restores modified files to
         // the HEAD version, without touching the working tree.
         await execApi.exec("git", ["reset", "HEAD", "--", ...excludedFiles], ...execArgs);
+        // For excluded files that were modifications (not new additions), the working tree
+        // still has the agent's version while the index was just restored to HEAD. This
+        // creates an unstaged change that would cause `git rebase --onto` to fail.
+        // Detect any such unstaged changes among the excluded files and restore them from
+        // the index so the working tree stays in sync before the commit and rebase steps.
+        const { stdout: modifiedExcludedOut } = await execApi.getExecOutput("git", ["diff", "--name-only", "--", ...excludedFiles], ...execArgs);
+        const modifiedExcluded = modifiedExcludedOut.trim().split("\n").filter(Boolean);
+        if (modifiedExcluded.length > 0) {
+          await execApi.exec("git", ["checkout", "--", ...modifiedExcluded], ...execArgs);
+        }
       }
     }
     const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], ...execArgs);
