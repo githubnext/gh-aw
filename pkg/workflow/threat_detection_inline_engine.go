@@ -95,6 +95,9 @@ func (c *Compiler) buildDetectionEngineExecutionStep(data *WorkflowData) []strin
 			resolvedDetectionModel = defaultModel
 		}
 	}
+	if resolvedDetectionModel == "" {
+		resolvedDetectionModel = "detection"
+	}
 
 	// Inherit APITarget from the main engine config for GHE/custom endpoints if not already set.
 	// This ensures the threat detection AWF invocation receives the same --copilot-api-target

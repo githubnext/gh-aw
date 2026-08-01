@@ -731,6 +731,13 @@ pkg/workflow ── FrontmatterConfig (typed structs)
 
 Constants (`MaxLockFileSize`) and action pin data are read-only after initialization and are safe for concurrent access.
 
+### Additional exported helpers
+
+- Safe-output builder methods on `handlerConfigBuilder`: `AddBoolPtr`, `AddBoolPtrOrDefault`, `AddDefault`, `AddIfNotEmpty`, `AddIfPositive`, `AddIfTrue`, `AddMapSlice`, `AddStringPtr`, `AddStringSlice`, `AddTemplatableBool`, `AddTemplatableBoolOrInt`, `AddTemplatableInt`, `AddTemplatableStringSlice`, `Build`
+- Permission factory helpers: `NewPermissionsChecksWrite`, `NewPermissionsChecksWritePRRead`, `NewPermissionsDiscussionsWrite`, `NewPermissionsIssuesWrite`, `NewPermissionsIssuesWriteDiscussionsWrite`, `NewPermissionsIssuesWritePRWrite`, `NewPermissionsOrganizationProjWrite`, `NewPermissionsOrganizationProjWriteIssuesRead`, `NewPermissionsPRWrite`, `NewPermissionsSecurityEventsWrite`, `NewPermissionsSecurityEventsWriteActionsRead`
+- Compiler/runtime methods and helpers: `SetBatchMode`, `SetCopilotTipNeeded`, `CopilotRequestsTipNeeded`, `SetExperimentalFeatureUsage`, `GetExperimentalFeatureUsage`, `WorkflowStateBranchName`, `GetCompiledVersionForEmission`, `GetValidationConfigJSONWithDataSchema`, `GenerateDockerSbxNpmCLIInstallStep`, `GetDockerSbxNpmCLIPathSetup`, `ContainsJobOutputExpr`, `IsIntentionalFailure`, `IsInPayload`, `ParseEvalsFromFrontmatter`, `ParseExperimentMetricEvalReference`, `GetSecretFailureMessage`, `HasAnyWriteScope`
+- Exported `Get` methods are provided on multiple types: `ActionCache.Get`, `EngineCatalog.Get`, and `Permissions.Get`
+
 <!-- BEGIN SOURCE-VERIFIED EXPORT COVERAGE -->
 ## Source-verified export coverage
 
