@@ -3,6 +3,7 @@ package workflow
 import (
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -214,14 +215,43 @@ func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter m
 		return
 	}
 
-	stackCondition := fmt.Sprintf(
-		"github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position + %d > github.event.pull_request.stack.size",
-		maxStack,
-	)
+	if maxStack == 1 {
+		// For max-stack: 1 (the default), use a job-level if: condition with the supported
+		// equality operator. This gates the entire job (shows as "skipped") for non-top PRs.
+		// GitHub Actions expressions do not support arithmetic (+, -, etc.), so we use
+		// position == size to check that this PR is at the top of the stack.
+		stackCondition := "github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size"
 
-	existingCondition := data.If
-	conditionTree := BuildConditionTree(existingCondition, stackCondition)
-	data.If = RenderCondition(conditionTree)
+		existingCondition := data.If
+		conditionTree := BuildConditionTree(existingCondition, stackCondition)
+		data.If = RenderCondition(conditionTree)
+	} else {
+		// For max-stack: N > 1, GitHub Actions expressions do not support arithmetic
+		// operators (+, -, etc.), so we inject a PreStep that uses bash arithmetic instead.
+		// The step exits 1 if this PR is not in the top N layers, stopping all subsequent
+		// default-condition steps from running (they use if: success() by default).
+		stackGateStep := fmt.Sprintf(
+			"- name: Stack position gate (max-stack: %d)\n"+
+				"  if: github.event_name == 'pull_request' && github.event.pull_request.stack != null\n"+
+				"  env:\n"+
+				"    STACK_POSITION: ${{ github.event.pull_request.stack.position }}\n"+
+				"    STACK_SIZE: ${{ github.event.pull_request.stack.size }}\n"+
+				"  run: |\n"+
+				"    max_stack=%d\n"+
+				"    if (( STACK_POSITION + max_stack <= STACK_SIZE )); then\n"+
+				"      printf '## Stack gate\\n\\nRun skipped: stack position %%s is not in the top %%s of %%s.\\n' \\\n"+
+				"        \"$STACK_POSITION\" \"$max_stack\" \"$STACK_SIZE\" >> \"$GITHUB_STEP_SUMMARY\"\n"+
+				"      exit 1\n"+
+				"    fi\n",
+			maxStack, maxStack,
+		)
+
+		if data.PreSteps == "" {
+			data.PreSteps = "pre-steps:\n" + stackGateStep
+		} else {
+			data.PreSteps = strings.TrimRight(data.PreSteps, "\n") + "\n" + stackGateStep
+		}
+	}
 }
 
 func hasPullRequestTrigger(onValue any) bool {
