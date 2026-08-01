@@ -26,7 +26,7 @@ global.exec = mockExec;
 global.context = mockContext;
 global.github = {};
 
-const { main } = await import("./push_experiment_state.cjs");
+const { main, mergeExperimentStateJSON } = await import("./push_experiment_state.cjs");
 
 describe("push_experiment_state", () => {
   let tmpDir;
@@ -126,5 +126,27 @@ describe("push_experiment_state", () => {
     expect(mockCore.info).not.toHaveBeenCalledWith(expect.stringContaining("Files to push:"));
 
     statSpy.mockRestore();
+  });
+
+  it("merges concurrent experiment state updates without losing same-variant increments", () => {
+    const baseState = {
+      counts: { prompt_style: { concise: 1, detailed: 1 } },
+      runs: [{ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } }],
+    };
+    const remoteState = {
+      counts: { prompt_style: { concise: 2, detailed: 1 } },
+      runs: [...baseState.runs, { run_id: "200", timestamp: "2026-07-31T12:01:00.000Z", assignments: { prompt_style: "concise" } }],
+    };
+    const localState = {
+      counts: { prompt_style: { concise: 2, detailed: 1 } },
+      runs: [...baseState.runs, { run_id: "300", timestamp: "2026-07-31T12:02:00.000Z", assignments: { prompt_style: "concise" } }],
+    };
+
+    const mergedState = mergeExperimentStateJSON(baseState, remoteState, localState);
+
+    expect(mergedState.counts.prompt_style.concise).toBe(3);
+    expect(mergedState.counts.prompt_style.detailed).toBe(1);
+    expect(mergedState.runs).toHaveLength(3);
+    expect(mergedState.runs.map(run => run.run_id)).toEqual(["100", "200", "300"]);
   });
 });

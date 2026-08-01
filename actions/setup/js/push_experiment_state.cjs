@@ -31,6 +31,124 @@ const { getErrorMessage } = require("./error_helpers.cjs");
 const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function stableJSONStringify(value) {
+  if (Array.isArray(value)) {
+    return `[${value.map(stableJSONStringify).join(",")}]`;
+  }
+  if (isPlainObject(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map(key => `${JSON.stringify(key)}:${stableJSONStringify(value[key])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value);
+}
+
+function mergeExperimentRuns(remoteRuns, localRuns) {
+  const merged = [];
+  const seen = new Set();
+  for (const run of [...remoteRuns, ...localRuns]) {
+    const key =
+      isPlainObject(run) && typeof run.run_id === "string" && typeof run.timestamp === "string" && isPlainObject(run.assignments)
+        ? `${run.run_id}\u0000${run.timestamp}\u0000${stableJSONStringify(run.assignments)}`
+        : stableJSONStringify(run);
+    if (!seen.has(key)) {
+      seen.add(key);
+      merged.push(run);
+    }
+  }
+  return merged;
+}
+
+function mergeExperimentStateValue(baseValue, remoteValue, localValue) {
+  if (Number.isFinite(baseValue) && Number.isFinite(remoteValue) && Number.isFinite(localValue)) {
+    return remoteValue + localValue - baseValue;
+  }
+  if (stableJSONStringify(baseValue) === stableJSONStringify(remoteValue)) {
+    return localValue;
+  }
+  if (stableJSONStringify(baseValue) === stableJSONStringify(localValue)) {
+    return remoteValue;
+  }
+  if (Array.isArray(remoteValue) && Array.isArray(localValue)) {
+    return mergeExperimentRuns(remoteValue, localValue);
+  }
+  if (isPlainObject(remoteValue) && isPlainObject(localValue)) {
+    const result = {};
+    for (const key of new Set([...Object.keys(baseValue || {}), ...Object.keys(remoteValue), ...Object.keys(localValue)])) {
+      result[key] = mergeExperimentStateValue(baseValue?.[key], remoteValue[key], localValue[key]);
+    }
+    return result;
+  }
+  if (stableJSONStringify(remoteValue) === stableJSONStringify(localValue)) {
+    return localValue;
+  }
+  return localValue;
+}
+
+function mergeExperimentStateJSON(baseState, remoteState, localState) {
+  if (!isPlainObject(baseState) || !isPlainObject(remoteState) || !isPlainObject(localState)) {
+    throw new Error("Experiment state merge requires JSON objects");
+  }
+  const merged = mergeExperimentStateValue(baseState, remoteState, localState);
+  if (!isPlainObject(merged) || !isPlainObject(merged.counts)) {
+    throw new Error("Merged experiment state is invalid");
+  }
+  if (merged.runs !== undefined && !Array.isArray(merged.runs)) {
+    throw new Error("Merged experiment state runs must be an array when present");
+  }
+  return merged;
+}
+
+function readGitStageFile(workspaceDir, stage, filePath) {
+  return execGitSync(["show", `:${stage}:${filePath}`], {
+    cwd: workspaceDir,
+    stdio: "pipe",
+    suppressLogs: true,
+  });
+}
+
+function resolveExperimentStateRebaseConflict({ cwd }) {
+  const conflictedFiles = execGitSync(["diff", "--name-only", "--diff-filter=U"], {
+    cwd,
+    stdio: "pipe",
+    suppressLogs: true,
+  })
+    .trim()
+    .split("\n")
+    .map(file => file.trim())
+    .filter(Boolean);
+
+  if (conflictedFiles.length === 0 || !conflictedFiles.includes("state.json")) {
+    return false;
+  }
+
+  const allowedConflicts = new Set(["state.json", "assignments.json"]);
+  for (const file of conflictedFiles) {
+    if (!allowedConflicts.has(file)) {
+      return false;
+    }
+  }
+
+  const baseState = JSON.parse(readGitStageFile(cwd, 1, "state.json"));
+  const remoteState = JSON.parse(readGitStageFile(cwd, 2, "state.json"));
+  const localState = JSON.parse(readGitStageFile(cwd, 3, "state.json"));
+  const mergedState = mergeExperimentStateJSON(baseState, remoteState, localState);
+  fs.writeFileSync(path.join(cwd, "state.json"), JSON.stringify(mergedState, null, 2) + "\n", "utf8");
+
+  if (conflictedFiles.includes("assignments.json")) {
+    const localAssignments = readGitStageFile(cwd, 3, "assignments.json");
+    fs.writeFileSync(path.join(cwd, "assignments.json"), localAssignments, "utf8");
+  }
+
+  execGitSync(["add", "--", ...conflictedFiles], { stdio: "inherit", cwd });
+  return true;
+}
+
 /**
  * Checkout or create an orphan git branch for experiment state.
  * Returns the remote HEAD SHA (empty string for a new branch).
@@ -214,6 +332,7 @@ async function main() {
         baseRef: currentBaseRef,
         cwd: workspaceDir,
         gitAuthEnv: getGitAuthEnv(ghToken),
+        resolveRebaseConflict: resolveExperimentStateRebaseConflict,
       });
       core.info(`Successfully pushed ${stateLabel} to ${branchName}`);
       return;
@@ -251,4 +370,4 @@ async function main() {
   }
 }
 
-module.exports = { main, checkoutOrCreateBranch };
+module.exports = { main, checkoutOrCreateBranch, mergeExperimentStateJSON, resolveExperimentStateRebaseConflict };
