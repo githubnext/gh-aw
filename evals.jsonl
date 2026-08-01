@@ -1,2 +1,2 @@
-{"id":"instruction_file_optimized","question":"Did the agent apply caveman optimization to an instruction file in .github/aw or .github/agents?","answer":"NO","model":"claude-haiku-4.5","timestamp":"2026-07-31T21:09:21.558Z","runid":"30665067483"}
-{"id":"pr_created_or_noop","question":"Was a PR created with concise improvements, or was noop used when no improvements were needed?","answer":"YES","model":"claude-haiku-4.5","timestamp":"2026-07-31T21:09:21.558Z","runid":"30665067483"}
+{"id":"instruction_file_optimized","question":"Did the agent apply caveman optimization to an instruction file in .github/aw or .github/agents?","answer":"NO","model":"claude-haiku-4.5","timestamp":"2026-08-01T21:08:23.010Z","runid":"30718176175"}
+{"id":"pr_created_or_noop","question":"Was a PR created with concise improvements, or was noop used when no improvements were needed?","answer":"YES","model":"claude-haiku-4.5","timestamp":"2026-08-01T21:08:23.010Z","runid":"30718176175"}
