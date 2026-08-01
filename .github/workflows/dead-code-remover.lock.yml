@@ -1493,6 +1493,7 @@ jobs:
           WORKFLOW_NAME: "Dead Code Removal Agent"
           WORKFLOW_DESCRIPTION: "Daily dead code assessment and removal — identifies unreachable Go functions using static analysis and creates a PR to remove a batch each day"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

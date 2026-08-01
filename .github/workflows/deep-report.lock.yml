@@ -1998,6 +1998,7 @@ jobs:
           WORKFLOW_NAME: "Deep Report"
           WORKFLOW_DESCRIPTION: "Intelligence gathering agent that continuously reviews and aggregates information from agent-generated reports in discussions"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

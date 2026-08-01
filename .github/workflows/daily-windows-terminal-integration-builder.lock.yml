@@ -1380,6 +1380,7 @@ jobs:
           WORKFLOW_NAME: "Daily Windows Terminal Integration Builder"
           WORKFLOW_DESCRIPTION: "Daily agent that maintains a Windows-focused CLI integration workflow with Ubuntu build, Windows test, and failure issue reporting"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -2669,6 +2669,7 @@ jobs:
           WORKFLOW_NAME: "Smoke Copilot - AOAI (apikey)"
           WORKFLOW_DESCRIPTION: "Smoke Copilot - AOAI (apikey)"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

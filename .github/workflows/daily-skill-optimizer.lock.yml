@@ -1438,6 +1438,7 @@ jobs:
           WORKFLOW_NAME: "Daily Skill Optimizer Improvements"
           WORKFLOW_DESCRIPTION: "Runs fastxyz/skill-optimizer daily, packages results as an artifact, and creates one issue with 3 improvements"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

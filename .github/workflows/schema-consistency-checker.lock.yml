@@ -1422,6 +1422,7 @@ jobs:
           WORKFLOW_NAME: "Schema Consistency Checker"
           WORKFLOW_DESCRIPTION: "Detects inconsistencies between JSON schema, implementation code, and documentation"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -25,6 +25,8 @@ const { getPromptPath } = require("./messages_core.cjs");
  * @returns {Promise<void>}
  */
 async function main() {
+  const continueOnError = (process.env.GH_AW_DETECTION_CONTINUE_ON_ERROR || "true").toLowerCase() !== "false";
+
   // Read the threat detection template from file
   const templatePath = getPromptPath("threat_detection.md");
   if (!fs.existsSync(templatePath)) {
@@ -72,7 +74,7 @@ async function main() {
   // The agent-output artifact is also downloaded to /tmp/gh-aw/threat-detection/
   // The artifact contains /tmp/gh-aw/agent_output.json which becomes /tmp/gh-aw/threat-detection/agent_output.json
   const agentOutputPath = path.join(threatDetectionDir, AGENT_OUTPUT_FILENAME);
-  if (!checkFileExists(agentOutputPath, threatDetectionDir, "Agent output file", true)) {
+  if (!checkFileExists(agentOutputPath, threatDetectionDir, "Agent output file", true, continueOnError)) {
     return;
   }
 
@@ -94,7 +96,11 @@ async function main() {
   }
 
   if (patchFiles.length === 0 && hasPatch) {
-    core.setFailed(`${ERR_VALIDATION}: Patch/bundle file(s) expected but not found in: ${threatDetectionDir}`);
+    if (continueOnError) {
+      core.warning(`${ERR_VALIDATION}: Patch/bundle file(s) expected but not found in: ${threatDetectionDir}. Continuing because GH_AW_DETECTION_CONTINUE_ON_ERROR=true`);
+    } else {
+      core.setFailed(`${ERR_VALIDATION}: Patch/bundle file(s) expected but not found in: ${threatDetectionDir}`);
+    }
     return;
   }
 

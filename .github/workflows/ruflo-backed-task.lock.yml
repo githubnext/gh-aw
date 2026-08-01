@@ -1633,6 +1633,7 @@ jobs:
           WORKFLOW_NAME: "Ruflo-backed Task"
           WORKFLOW_DESCRIPTION: "Runs a repository task inside GitHub Agentic Workflows while delegating inner planning and coordination to Ruflo"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

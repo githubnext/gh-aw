@@ -1393,6 +1393,7 @@ jobs:
           WORKFLOW_NAME: "Daily Copilot PR Merged Report"
           WORKFLOW_DESCRIPTION: "Generates a daily report analyzing Copilot pull requests merged in the last 24 hours, tracking code generation, tests, and token usage"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

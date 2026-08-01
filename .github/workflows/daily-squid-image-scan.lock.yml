@@ -1409,6 +1409,7 @@ jobs:
           WORKFLOW_NAME: "Daily Container Image Security Scan"
           WORKFLOW_DESCRIPTION: "Scan container images used by compiled workflows for vulnerabilities, updates, and rejected licenses"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

@@ -1470,6 +1470,7 @@ jobs:
           WORKFLOW_NAME: "Repository Audit & Agentic Workflow Opportunity Analyzer"
           WORKFLOW_DESCRIPTION: "Comprehensive repository audit to identify productivity improvement opportunities using agentic workflows"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

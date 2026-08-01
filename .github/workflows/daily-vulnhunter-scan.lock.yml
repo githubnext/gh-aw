@@ -1479,6 +1479,7 @@ jobs:
           WORKFLOW_NAME: "Daily VulnHunter Scan"
           WORKFLOW_DESCRIPTION: "Daily Claude Code workflow that clones Capital One VulnHunter and runs its vulnhunt methodology inside the sandbox against this repository"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

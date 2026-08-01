@@ -1399,6 +1399,7 @@ jobs:
           WORKFLOW_NAME: "Repository Tree Map Generator"
           WORKFLOW_DESCRIPTION: "Generates ASCII tree map visualization of repository file structure weekly"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

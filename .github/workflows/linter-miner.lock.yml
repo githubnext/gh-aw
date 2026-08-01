@@ -1517,6 +1517,7 @@ jobs:
           WORKFLOW_NAME: "Linter Miner"
           WORKFLOW_DESCRIPTION: "Daily workflow that mines GitHub Discussions, issues, and the Go codebase to identify new custom linter ideas and generates them as pull requests in pkg/linters"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

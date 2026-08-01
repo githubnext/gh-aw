@@ -1378,6 +1378,7 @@ jobs:
           WORKFLOW_NAME: "Sighthound Security Scan"
           WORKFLOW_DESCRIPTION: "Daily security scan using Sighthound; runs agent only when actionable findings are detected and opens one issue with the top violations"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

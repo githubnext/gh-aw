@@ -1471,6 +1471,7 @@ jobs:
           WORKFLOW_NAME: "Super Linter Report"
           WORKFLOW_DESCRIPTION: "Runs Markdown quality checks using Super Linter and creates issues for violations"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
