@@ -210,3 +210,80 @@ func TestValidateSandboxConfigStoresJustification(t *testing.T) {
 	assert.Equal(t, reason, workflowData.SandboxConfig.Agent.DisableReason,
 		"justification must be stored on AgentSandboxConfig for audit/logging")
 }
+
+func TestValidateAgentMemoryLimit(t *testing.T) {
+	tests := []struct {
+		name        string
+		memory      string
+		expectError bool
+	}{
+		{name: "valid: 48g", memory: "48g", expectError: false},
+		{name: "valid: 512m", memory: "512m", expectError: false},
+		{name: "valid: 8G uppercase", memory: "8G", expectError: false},
+		{name: "valid: 1024k", memory: "1024k", expectError: false},
+		{name: "invalid: no unit", memory: "48", expectError: true},
+		{name: "invalid: gb suffix", memory: "48gb", expectError: true},
+		{name: "invalid: leading zero", memory: "08g", expectError: true},
+		{name: "invalid: zero", memory: "0m", expectError: true},
+		{name: "invalid: empty", memory: "", expectError: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validateAgentMemoryLimit(tt.memory)
+			if tt.expectError {
+				require.Error(t, err, "expected validation error for memory %q", tt.memory)
+			} else {
+				require.NoError(t, err, "expected no error for memory %q", tt.memory)
+			}
+		})
+	}
+}
+
+func TestValidateSandboxConfigMemory(t *testing.T) {
+	t.Run("valid memory passes validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Memory: "4g"},
+			},
+		}
+		err := validateSandboxConfig(workflowData)
+		assert.NoError(t, err, "valid memory should pass validation")
+	})
+
+	t.Run("invalid memory format fails validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Memory: "48gb"},
+			},
+		}
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err, "invalid memory format should fail validation")
+		assert.Contains(t, err.Error(), "48gb")
+	})
+
+	t.Run("leading zero memory format explains why it is invalid", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{Memory: "08g"},
+			},
+		}
+		err := validateSandboxConfig(workflowData)
+		require.Error(t, err, "leading-zero memory format should fail validation")
+		assert.Contains(t, err.Error(), "without leading zeros")
+	})
+
+	t.Run("absent memory skips validation", func(t *testing.T) {
+		workflowData := &WorkflowData{
+			Tools: map[string]any{"github": map[string]any{"mode": "remote"}},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{},
+			},
+		}
+		err := validateSandboxConfig(workflowData)
+		assert.NoError(t, err, "absent memory should pass validation")
+	})
+}
