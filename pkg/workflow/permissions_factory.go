@@ -273,16 +273,6 @@ func NewPermissionsChecksWritePRRead() *Permissions {
 	})
 }
 
-// NewPermissionsIssuesWriteDiscussionsWritePRWrite creates permissions with issues: write, discussions: write,
-// and pull-requests: write.
-func NewPermissionsIssuesWriteDiscussionsWritePRWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionIssues:       PermissionWrite,
-		PermissionDiscussions:  PermissionWrite,
-		PermissionPullRequests: PermissionWrite,
-	})
-}
-
 // NewPermissionsOrganizationProjWriteIssuesRead creates permissions with organization-projects: write
 // and issues: read. Used for project-management handlers (update-project, create-project) that read
 // issue metadata when adding items to projects.
