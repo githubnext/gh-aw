@@ -1,1 +1,1 @@
-{"id":"sub_agent_strategy_goal_met","question":"Does the agent output show that the objective for experiment sub_agent_strategy was successfully completed?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-01T19:55:37.419Z","runid":"30715626932"}
+{"id":"sub_agent_strategy_goal_met","question":"Does the agent output show that the objective for experiment sub_agent_strategy was successfully completed?","answer":"UNKNOWN","model":"small","timestamp":"2026-08-01T20:08:46.334Z","runid":"30716130194"}
