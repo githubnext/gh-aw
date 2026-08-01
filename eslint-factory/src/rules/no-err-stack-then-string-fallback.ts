@@ -49,7 +49,14 @@ function isDefinitionAvailableAtNode(definition: TSESLint.Scope.Definition, node
   }
   const definitionNode = definition.name ?? definition.node;
   if (!definitionNode?.range || !node.range) return false;
-  return definitionNode.range[0] < node.range[0];
+  if (definitionNode.range[0] >= node.range[0]) return false;
+  // If the node falls inside the variable declarator's range, the binding is in the
+  // temporal dead zone at that point (e.g. `const getErrorMessage = <node>`).
+  const declNode = definition.node;
+  if (declNode?.range && node.range[0] >= declNode.range[0] && node.range[1] <= declNode.range[1]) {
+    return false;
+  }
+  return true;
 }
 
 export const noErrStackThenStringFallbackRule = createRule({

@@ -186,6 +186,24 @@ describe("no-err-stack-then-string-fallback", () => {
     });
   });
 
+  it("invalid: getErrorMessage defined in its own initializer (TDZ) — diagnostic fires but no suggestion offered", () => {
+    cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `const getErrorMessage = err instanceof Error ? err.stack : String(err);`,
+          errors: [
+            {
+              messageId: "preferGetErrorMessage",
+              data: { errorVar: "err" },
+              suggestions: [],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: no getErrorMessage in scope — diagnostic fires but no suggestion offered", () => {
     cjsRuleTester.run("no-err-stack-then-string-fallback", noErrStackThenStringFallbackRule, {
       valid: [],
