@@ -2125,6 +2125,197 @@ func TestExternalDetectorInheritsOpenAIBaseURL(t *testing.T) {
 	}
 }
 
+// TestExternalDetectorPropagatesModel verifies that buildExternalDetectorExecutionStep
+// inherits the main workflow model and model mappings, preventing the COPILOT_MODEL env
+// var from falling back to 'auto' when no org variable is configured.
+func TestExternalDetectorPropagatesModel(t *testing.T) {
+	compiler := NewCompiler()
+
+	t.Run("inherits main workflow model", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:    "copilot",
+			Model: "claude-haiku-4.5",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if !strings.Contains(allSteps, "COPILOT_MODEL: claude-haiku-4.5") {
+			t.Errorf("expected COPILOT_MODEL to be set to the main workflow model 'claude-haiku-4.5', but got:\n%s", allSteps)
+		}
+		// When a model is configured, COPILOT_MODEL must be a static value — not
+		// a template variable expression. Checking for '${{' is more robust than
+		// checking for a specific fallback string like "|| 'auto'" that could change.
+		for line := range strings.SplitSeq(allSteps, "\n") {
+			if strings.Contains(line, "COPILOT_MODEL:") && strings.Contains(line, "${{") {
+				t.Errorf("expected COPILOT_MODEL to be a static value, not a template expression; got: %s", line)
+			}
+		}
+	})
+
+	t.Run("inherits model mappings into AWF config", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:    "copilot",
+			Model: "haiku",
+			ModelMappings: map[string][]string{
+				"haiku": {"copilot/claude-haiku-4.5"},
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if !strings.Contains(allSteps, `\"haiku\"`) {
+			t.Errorf("expected model mappings to be included in detection AWF config; got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("inherits threat-detection-specific model override", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:    "copilot",
+			Model: "claude-sonnet-4.6",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					Model: "claude-haiku-4.5",
+				},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if !strings.Contains(allSteps, "COPILOT_MODEL: claude-haiku-4.5") {
+			t.Errorf("expected COPILOT_MODEL to use the threat-detection model override 'claude-haiku-4.5'; got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("inherits default AI credits pricing into AWF config", func(t *testing.T) {
+		data := &WorkflowData{
+			AI:    "copilot",
+			Model: "custom-model",
+			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+				Input:  3.0,
+				Output: 15.0,
+			},
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		if !strings.Contains(allSteps, "defaultAiCreditsPricing") {
+			t.Errorf("expected defaultAiCreditsPricing to be included in detection AWF config; got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("Pi detection engine override on Copilot main workflow strips pi/ prefix", func(t *testing.T) {
+		// Main engine is Copilot, but the detection engine is explicitly pi.
+		// After Pi->Copilot normalization, the model must be extracted from the
+		// "pi/model-name" form so the Copilot CLI receives a bare model ID.
+		data := &WorkflowData{
+			AI:    "copilot",
+			Model: "copilot/gpt-5.4",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					EngineConfig: &EngineConfig{
+						ID: "pi",
+					},
+				},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		// The pi/ prefix must be stripped; Copilot CLI expects a bare model ID.
+		if !strings.Contains(allSteps, "COPILOT_MODEL: gpt-5.4") {
+			t.Errorf("expected COPILOT_MODEL to be bare 'gpt-5.4' after Pi prefix stripping; got:\n%s", allSteps)
+		}
+		if strings.Contains(allSteps, "COPILOT_MODEL: copilot/gpt-5.4") {
+			t.Errorf("COPILOT_MODEL must not retain the 'copilot/' prefix; got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("Pi main workflow with explicit Copilot detection engine does not strip model", func(t *testing.T) {
+		// Main engine is Pi, but detection engine is explicitly Copilot.
+		// The model should NOT be normalised because originalEngineID is "copilot",
+		// not "pi", so extractPiModelID must not be called.
+		data := &WorkflowData{
+			AI:    "pi",
+			Model: "copilot/gpt-5.4",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{
+					EngineConfig: &EngineConfig{
+						ID: "copilot",
+					},
+				},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		// Detection engine is explicitly Copilot (not Pi), so the model
+		// should not be stripped of any prefix.
+		if !strings.Contains(allSteps, "COPILOT_MODEL: copilot/gpt-5.4") {
+			t.Errorf("expected COPILOT_MODEL to remain 'copilot/gpt-5.4' when detection engine is explicitly copilot; got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("strips pi/ provider prefix for Pi-engine main workflow with no detection override", func(t *testing.T) {
+		// Main engine is Pi with a provider-scoped model; no detection engine override.
+		// getThreatDetectionEngineID normalizes Pi → Copilot, so extractPiModelID must
+		// fire and strip the "pi/" prefix so the Copilot CLI receives a bare model ID.
+		data := &WorkflowData{
+			AI:    "pi",
+			Model: "pi/claude-haiku-4.5",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		// The "pi/" prefix must be stripped; the bare model ID is expected.
+		if strings.Contains(allSteps, "COPILOT_MODEL: pi/") {
+			t.Errorf("expected provider prefix to be stripped from COPILOT_MODEL; got:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, "COPILOT_MODEL: claude-haiku-4.5") {
+			t.Errorf("expected COPILOT_MODEL to be bare 'claude-haiku-4.5' after Pi prefix stripping; got:\n%s", allSteps)
+		}
+	})
+}
+
 func TestGetThreatDetectionAdditionalAllowedDomains_WithCustomProviderBaseURL(t *testing.T) {
 	tests := []struct {
 		name         string

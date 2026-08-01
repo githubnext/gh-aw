@@ -107,6 +107,15 @@ describe("add_reaction", () => {
       expect(mockGithub.request).not.toHaveBeenCalled();
     });
 
+    it("should reject inherited property names as invalid reaction types", async () => {
+      process.env.GH_AW_REACTION = "constructor";
+
+      await runScript();
+
+      expect(mockCore.setFailed).toHaveBeenCalledWith(expect.stringContaining("Invalid reaction type"));
+      expect(mockGithub.request).not.toHaveBeenCalled();
+    });
+
     it("should accept all valid reaction types", async () => {
       const validReactions = ["+1", "-1", "laugh", "confused", "heart", "hooray", "rocket", "eyes"];
 

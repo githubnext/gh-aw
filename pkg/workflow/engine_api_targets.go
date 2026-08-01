@@ -149,6 +149,7 @@ func extractCopilotTargetConfig(workflowData *WorkflowData) *AgentAPIProxyTarget
 // GetCopilotAPITarget returns the effective Copilot API target hostname, checking in order:
 //  1. engine.api-target (explicit, takes precedence)
 //  2. GITHUB_COPILOT_BASE_URL in engine.env (implicit, derived from the configured Copilot base URL)
+//  3. COPILOT_PROVIDER_BASE_URL in engine.env when it is a literal URL (BYOK self-hosted target)
 //
 // This mirrors the pattern used by other engines:
 //   - Codex:    OPENAI_BASE_URL     → --openai-api-target
@@ -156,7 +157,7 @@ func extractCopilotTargetConfig(workflowData *WorkflowData) *AgentAPIProxyTarget
 //   - Copilot:  GITHUB_COPILOT_BASE_URL → --copilot-api-target (fallback when api-target not set)
 //   - Antigravity:   ANTIGRAVITY_API_BASE_URL → --antigravity-api-target (default: generativelanguage.googleapis.com)
 //
-// Returns empty string if neither source is configured.
+// Returns empty string if no usable source is configured.
 func GetCopilotAPITarget(workflowData *WorkflowData) string {
 	awfHelpersLog.Print("Getting Copilot API target")
 	// Explicit engine.api-target takes precedence.
@@ -167,7 +168,14 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 
 	// Fallback: derive from the well-known GITHUB_COPILOT_BASE_URL env var.
 	awfHelpersLog.Print("No explicit api-target, deriving Copilot API target from GITHUB_COPILOT_BASE_URL")
-	return extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL")
+	if target := extractAPITargetHost(workflowData, "GITHUB_COPILOT_BASE_URL"); target != "" {
+		return target
+	}
+
+	// Final fallback: derive from a literal BYOK provider URL so AWF's api-proxy preserves
+	// non-default hosts and ports for self-hosted OpenAI-compatible backends such as Ollama.
+	awfHelpersLog.Print("No GITHUB_COPILOT_BASE_URL, deriving Copilot API target from literal COPILOT_PROVIDER_BASE_URL")
+	return extractLiteralEngineEnvHost(workflowData, constants.CopilotProviderBaseURL)
 }
 
 func extractLiteralEngineEnvHost(workflowData *WorkflowData, envVar string) string {
