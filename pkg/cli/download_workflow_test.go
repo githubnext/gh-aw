@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/base64"
 	"strings"
 	"testing"
@@ -72,6 +73,70 @@ func TestDecodeBase64FileContent(t *testing.T) {
 			}
 			require.NoError(t, err, "unexpected error decoding base64 content")
 			assert.Equal(t, tt.expected, string(got), "decoded content should match expected")
+		})
+	}
+}
+
+// TestDownloadWorkflowContentViaGitValidation ensures that downloadWorkflowContentViaGit
+// rejects dangerous ref/path values before spawning any git subprocess (CWE-88).
+func TestDownloadWorkflowContentViaGitValidation(t *testing.T) {
+	tests := []struct {
+		name        string
+		repo        string
+		path        string
+		ref         string
+		errContains string
+	}{
+		{
+			name:        "path starting with dash is rejected",
+			repo:        "owner/repo",
+			path:        "--output=/tmp/evil",
+			ref:         "abc123",
+			errContains: "refusing git fallback",
+		},
+		{
+			name:        "ref starting with dash is rejected",
+			repo:        "owner/repo",
+			path:        "workflow.md",
+			ref:         "--upload-pack=evil",
+			errContains: "refusing git fallback",
+		},
+		{
+			name:        "path with traversal is rejected",
+			repo:        "owner/repo",
+			path:        "../../../etc/passwd",
+			ref:         "abc123",
+			errContains: "refusing git fallback",
+		},
+		{
+			name:        "ref with dotdot is rejected",
+			repo:        "owner/repo",
+			path:        "workflow.md",
+			ref:         "main..evil",
+			errContains: "refusing git fallback",
+		},
+		{
+			name:        "empty ref is rejected",
+			repo:        "owner/repo",
+			path:        "workflow.md",
+			ref:         "",
+			errContains: "refusing git fallback",
+		},
+		{
+			name:        "empty path is rejected",
+			repo:        "owner/repo",
+			path:        "",
+			ref:         "abc123",
+			errContains: "refusing git fallback",
+		},
+	}
+
+	ctx := context.Background()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := downloadWorkflowContentViaGit(ctx, tt.repo, tt.path, tt.ref, false)
+			require.Error(t, err, "expected validation error for invalid input")
+			assert.Contains(t, err.Error(), tt.errContains)
 		})
 	}
 }
