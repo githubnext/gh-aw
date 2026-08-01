@@ -2149,9 +2149,13 @@ func TestExternalDetectorPropagatesModel(t *testing.T) {
 		if !strings.Contains(allSteps, "COPILOT_MODEL: claude-haiku-4.5") {
 			t.Errorf("expected COPILOT_MODEL to be set to the main workflow model 'claude-haiku-4.5', but got:\n%s", allSteps)
 		}
-		// Must not fall back to 'auto' when a model is configured.
-		if strings.Contains(allSteps, "|| 'auto'") {
-			t.Errorf("expected COPILOT_MODEL not to fall back to 'auto' when model is configured; got:\n%s", allSteps)
+		// When a model is configured, COPILOT_MODEL must be a static value — not
+		// a template variable expression. Checking for '${{' is more robust than
+		// checking for a specific fallback string like "|| 'auto'" that could change.
+		for line := range strings.SplitSeq(allSteps, "\n") {
+			if strings.Contains(line, "COPILOT_MODEL:") && strings.Contains(line, "${{") {
+				t.Errorf("expected COPILOT_MODEL to be a static value, not a template expression; got: %s", line)
+			}
 		}
 	})
 
@@ -2281,6 +2285,33 @@ func TestExternalDetectorPropagatesModel(t *testing.T) {
 		// should not be stripped of any prefix.
 		if !strings.Contains(allSteps, "COPILOT_MODEL: copilot/gpt-5.4") {
 			t.Errorf("expected COPILOT_MODEL to remain 'copilot/gpt-5.4' when detection engine is explicitly copilot; got:\n%s", allSteps)
+		}
+	})
+
+	t.Run("strips pi/ provider prefix for Pi-engine main workflow with no detection override", func(t *testing.T) {
+		// Main engine is Pi with a provider-scoped model; no detection engine override.
+		// getThreatDetectionEngineID normalizes Pi → Copilot, so extractPiModelID must
+		// fire and strip the "pi/" prefix so the Copilot CLI receives a bare model ID.
+		data := &WorkflowData{
+			AI:    "pi",
+			Model: "pi/claude-haiku-4.5",
+			SafeOutputs: &SafeOutputsConfig{
+				ThreatDetection: &ThreatDetectionConfig{},
+			},
+		}
+
+		steps := compiler.buildExternalDetectorExecutionStep(data)
+		if len(steps) == 0 {
+			t.Fatal("expected non-empty steps")
+		}
+		allSteps := strings.Join(steps, "")
+
+		// The "pi/" prefix must be stripped; the bare model ID is expected.
+		if strings.Contains(allSteps, "COPILOT_MODEL: pi/") {
+			t.Errorf("expected provider prefix to be stripped from COPILOT_MODEL; got:\n%s", allSteps)
+		}
+		if !strings.Contains(allSteps, "COPILOT_MODEL: claude-haiku-4.5") {
+			t.Errorf("expected COPILOT_MODEL to be bare 'claude-haiku-4.5' after Pi prefix stripping; got:\n%s", allSteps)
 		}
 	})
 }
