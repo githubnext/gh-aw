@@ -935,7 +935,7 @@ func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error
 	var output []byte
 	var err error
 	if host != "" {
-		output, err = workflow.RunGHWithHost("Fetching repo info...", host, args...)
+		output, err = workflow.RunGHContextWithHost(context.Background(), "Fetching repo info...", host, args...)
 		if err != nil {
 			return "", err
 		}
@@ -987,7 +987,7 @@ func resolveRepositoryPackageLatestRelease(repoSlug, host string) (string, error
 		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
 			args := []string{"api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name"}
 			if host != "" {
-				return workflow.RunGHWithHost("Fetching releases...", host, args...)
+				return workflow.RunGHContextWithHost(ctx, "Fetching releases...", host, args...)
 			}
 			return workflow.RunGHContext(ctx, "Fetching releases...", args...)
 		},

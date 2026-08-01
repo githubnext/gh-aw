@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -258,7 +259,7 @@ func ghAPIGet(endpoint string, repo string) (map[string]any, error) {
 	var output []byte
 	var err error
 	if host != "" {
-		output, err = workflow.RunGHWithHost("Checking outcome...", host, args...)
+		output, err = workflow.RunGHContextWithHost(context.Background(), "Checking outcome...", host, args...)
 	} else {
 		output, err = workflow.RunGH("Checking outcome...", args...)
 	}
@@ -283,7 +284,7 @@ func ghAPIGetArray(endpoint string, repo string) ([]map[string]any, error) {
 	var output []byte
 	var err error
 	if host != "" {
-		output, err = workflow.RunGHWithHost("Checking outcome...", host, args...)
+		output, err = workflow.RunGHContextWithHost(context.Background(), "Checking outcome...", host, args...)
 	} else {
 		output, err = workflow.RunGH("Checking outcome...", args...)
 	}
@@ -304,7 +305,7 @@ func ghAPIGraphQL(query string, repo string) (map[string]any, error) {
 	var output []byte
 	var err error
 	if host != "" {
-		output, err = workflow.RunGHWithHost("Checking outcome...", host, args...)
+		output, err = workflow.RunGHContextWithHost(context.Background(), "Checking outcome...", host, args...)
 	} else {
 		output, err = workflow.RunGH("Checking outcome...", args...)
 	}

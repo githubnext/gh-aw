@@ -160,7 +160,7 @@ This command always upgrades all Markdown files in .github/workflows.`,
 			if createPR {
 				prBody := "This PR upgrades agentic workflows by applying the latest codemods, " +
 					"updating GitHub Actions versions, and recompiling all workflows."
-				_, err := CreatePRWithChanges("upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+				_, err := CreatePRWithChanges(cmd.Context(), "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 					"Upgrade agentic workflows", prBody, verbose)
 				return err
 			}
