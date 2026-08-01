@@ -269,7 +269,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/dailyissuesreport
         with:
@@ -283,7 +283,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"output_format":{"variants":["collapsible","inline"],"description":"Test whether hiding report details behind a \u003cdetails\u003e block vs. presenting them inline affects discussion engagement","hypothesis":"H0: no change in discussion engagement score. H1: inline format produces ≥20% higher reactions+replies by making charts and recommendations immediately visible","metric":"discussion_engagement_score","secondary_metrics":["output_length_chars","run_duration_ms"],"guardrail_metrics":[{"name":"empty_output_rate","threshold":"==0"}],"min_samples":30,"weight":[50,50],"issue":30573,"start_date":"2026-05-07","analysis_type":"mann_whitney","tags":["output","readability","engagement"]}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |

@@ -270,7 +270,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/deepreport
         with:
@@ -284,7 +284,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"output_format":{"variants":["full_briefing","executive_brief","annotated_brief"],"description":"Tests whether report verbosity and structure affect token cost and discussion engagement","hypothesis":"H0: no change in discussion engagement or token cost. H1: executive_brief reduces token usage by ≥20% without reducing engagement; annotated_brief improves actionability.","metric":"token_count","secondary_metrics":["discussion_reactions","discussion_replies","output_char_length","run_duration_ms"],"guardrail_metrics":[{"name":"empty_output_rate","threshold":"==0"},{"name":"issue_creation_success_rate","threshold":"\u003e=0.8"}],"min_samples":15,"weight":[34,33,33],"start_date":"2026-05-06","analysis_type":"mann_whitney","tags":["output-format","token-cost","engagement","daily"]}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |

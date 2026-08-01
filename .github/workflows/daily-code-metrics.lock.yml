@@ -266,7 +266,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/dailycodemetrics
         with:
@@ -280,7 +280,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"output_format":{"variants":["full_detail","executive_summary"],"description":"Tests whether a concise executive summary report drives higher reader engagement than the current full-detail 6-chart report.","hypothesis":"H0: no change in discussion engagement rate. H1: executive_summary variant increases discussion reactions+comments by ≥20% due to improved readability.","metric":"discussion_engagement_score","secondary_metrics":["output_token_count","run_duration_seconds","chart_count"],"guardrail_metrics":[{"name":"report_empty_rate","threshold":"\u003c=0"},{"name":"quality_score_present","threshold":"\u003e=1"}],"min_samples":20,"weight":[50,50],"issue":1,"start_date":"2026-05-16"}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |

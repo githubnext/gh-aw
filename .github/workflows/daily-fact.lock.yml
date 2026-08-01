@@ -266,7 +266,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/dailyfact
         with:
@@ -280,7 +280,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"reasoning_depth":{"variants":["single_pass","multi_candidate"],"description":"Tests whether deliberating over multiple candidate facts before writing improves verse novelty and engagement.","hypothesis":"H0: no change in discussion engagement rate. H1: multi_candidate produces more novel verses with higher reaction counts (expected +20% reactions).","metric":"discussion_reaction_count","secondary_metrics":["output_length_chars","run_duration_ms"],"guardrail_metrics":[{"name":"empty_output_rate","threshold":"\u003c0.05"},{"name":"run_success_rate","threshold":"\u003e=0.95"}],"min_samples":30,"weight":[50,50],"issue":31324,"start_date":"2026-05-11"}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |
