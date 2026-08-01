@@ -39,7 +39,7 @@ const DefaultClaudeCodeVersion Version = "2.1.220"
 // When unpinning or upgrading this version, verify:
 //   - MCPs are not blocked from loading (tools.mcp configuration still works end-to-end)
 //   - /models does not silently fail on PATs (check that model listing works with PAT auth)
-const DefaultCopilotVersion Version = "1.0.75"
+const DefaultCopilotVersion Version = "1.0.77"
 
 // DefaultCopilotSDKVersion is the default version of the @github/copilot-sdk package.
 const DefaultCopilotSDKVersion Version = "1.0.8"
@@ -54,7 +54,7 @@ const DefaultGeminiVersion Version = "0.39.1"
 const DefaultAntigravityVersion Version = "1.0.2-6113393518706688"
 
 // DefaultPiVersion is the default version of the Pi CLI
-const DefaultPiVersion Version = "0.82.1"
+const DefaultPiVersion Version = "0.83.0"
 
 // DefaultOpenCodeVersion is the default version of the OpenCode CLI
 const DefaultOpenCodeVersion Version = "1.2.14"
@@ -165,7 +165,7 @@ const DefaultPlaywrightMCPVersion Version = "0.0.78"
 const DefaultPlaywrightCLIVersion Version = "0.1.17"
 
 // DefaultPlaywrightBrowserVersion is the default version of the Playwright browser Docker image
-const DefaultPlaywrightBrowserVersion Version = "v1.62.0"
+const DefaultPlaywrightBrowserVersion Version = "v1.62.1"
 
 // DefaultMCPSDKVersion is the default version of the @modelcontextprotocol/sdk package
 const DefaultMCPSDKVersion Version = "1.24.0"
