@@ -849,7 +849,7 @@
         },
         "ref": {
           "type": "string",
-          "description": "Optional git ref or branch name to dispatch against (highest priority when provided)",
+          "description": "Optional git ref or branch name to dispatch against (highest priority when provided). Requires safe-outputs.dispatch-workflow.allowed-refs configuration.",
           "minLength": 1
         }
       },

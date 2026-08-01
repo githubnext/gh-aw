@@ -9,6 +9,7 @@
 const HANDLER_TYPE = "dispatch_workflow";
 
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { globPatternToRegex } = require("./glob_pattern_helpers.cjs");
 const { createAuthenticatedGitHubClient } = require("./handler_auth.cjs");
 const { resolveTargetRepoConfig, parseRepoSlug, validateTargetRepo } = require("./repo_helpers.cjs");
 const { logStagedPreviewInfo } = require("./staged_preview.cjs");
@@ -29,6 +30,8 @@ async function main(config = {}) {
   const awContextWorkflows = new Set(config.aw_context_workflows || []); // Workflows that accept aw_context input
   const githubClient = await createAuthenticatedGitHubClient(config);
   const { defaultTargetRepo, allowedRepos } = resolveTargetRepoConfig(config);
+  const allowedRefPatterns = parseAllowedRefPatterns(config.allowed_refs);
+  const allowedRefRegexes = allowedRefPatterns.map(pattern => globPatternToRegex(pattern, { pathMode: true, caseSensitive: true }));
 
   // Resolve the dispatch destination repository from target-repo config, falling back to context.repo
   const contextRepoSlug = `${context.repo.owner}/${context.repo.repo}`;
@@ -178,7 +181,26 @@ async function main(config = {}) {
       core.info(`Dispatching workflow: ${workflowName}`);
 
       const outputRef = typeof message.ref === "string" ? message.ref.trim() : "";
-      const ref = outputRef ? (outputRef.startsWith("refs/") ? outputRef : `refs/heads/${outputRef}`) : defaultRef;
+      let ref = defaultRef;
+      if (outputRef) {
+        ref = normalizeRef(outputRef);
+        if (allowedRefRegexes.length === 0) {
+          const error = "message.ref is not allowed unless 'allowed-refs' is configured in safe-outputs.dispatch-workflow";
+          core.warning(error);
+          return {
+            success: false,
+            error,
+          };
+        }
+        if (!allowedRefRegexes.some(pattern => pattern.test(ref))) {
+          const error = `Ref '${ref}' is not in allowed-refs: ${allowedRefPatterns.join(", ")}`;
+          core.warning(error);
+          return {
+            success: false,
+            error,
+          };
+        }
+      }
 
       // Prepare inputs - convert all values to strings as required by workflow_dispatch
       // and resolve any #temporary_id references before dispatching
@@ -321,6 +343,50 @@ async function main(config = {}) {
       };
     }
   };
+}
+
+/**
+ * @param {string[]|string|undefined} allowedRefsValue
+ * @returns {string[]}
+ */
+function parseAllowedRefPatterns(allowedRefsValue) {
+  /** @type {string[]} */
+  const refs = [];
+  if (Array.isArray(allowedRefsValue)) {
+    for (const pattern of allowedRefsValue) {
+      if (typeof pattern === "string") {
+        const trimmed = pattern.trim();
+        if (trimmed) {
+          refs.push(normalizeRefPattern(trimmed));
+        }
+      }
+    }
+    return refs;
+  }
+  if (typeof allowedRefsValue === "string") {
+    return allowedRefsValue
+      .split(",")
+      .map(pattern => pattern.trim())
+      .filter(Boolean)
+      .map(normalizeRefPattern);
+  }
+  return refs;
+}
+
+/**
+ * @param {string} refOrBranch
+ * @returns {string}
+ */
+function normalizeRef(refOrBranch) {
+  return refOrBranch.startsWith("refs/") ? refOrBranch : `refs/heads/${refOrBranch}`;
+}
+
+/**
+ * @param {string} pattern
+ * @returns {string}
+ */
+function normalizeRefPattern(pattern) {
+  return pattern.startsWith("refs/") ? pattern : `refs/heads/${pattern}`;
 }
 
 module.exports = { main };

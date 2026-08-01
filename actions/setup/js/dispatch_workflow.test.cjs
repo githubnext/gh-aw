@@ -460,6 +460,7 @@ describe("dispatch_workflow handler factory", () => {
 
     const config = {
       "target-ref": "refs/heads/config-branch",
+      allowed_refs: ["refs/heads/agent-*"],
       workflows: ["test-workflow"],
       workflow_files: {
         "test-workflow": ".lock.yml",
@@ -493,6 +494,7 @@ describe("dispatch_workflow handler factory", () => {
     delete process.env.GITHUB_HEAD_REF;
 
     const config = {
+      allowed_refs: ["refs/tags/*"],
       workflows: ["test-workflow"],
       workflow_files: {
         "test-workflow": ".lock.yml",
@@ -519,6 +521,67 @@ describe("dispatch_workflow handler factory", () => {
       inputs: expect.objectContaining({ aw_context: expect.any(String) }),
       return_run_details: true,
     });
+  });
+
+  it("should reject message ref when allowed-refs is not configured", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "agent-branch",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "message.ref is not allowed unless 'allowed-refs' is configured in safe-outputs.dispatch-workflow",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should reject message ref when it does not match allowed-refs", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: ["release/*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "feature/new-ui",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Ref 'refs/heads/feature/new-ui' is not in allowed-refs: refs/heads/release/*",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
   });
 
   it("should handle PR context with slashes in branch names", async () => {
