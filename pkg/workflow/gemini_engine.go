@@ -400,6 +400,9 @@ touch %s
 		"        id: agentic_execution",
 	}
 
+	// Add timeout at step level (GitHub Actions standard)
+	stepLines = append(stepLines, "        timeout-minutes: "+resolveStepTimeoutValue(workflowData))
+
 	// Filter environment variables for security
 	allowedSecrets := e.GetRequiredSecretNames(workflowData)
 	filteredEnv := FilterEnvForSecrets(env, allowedSecrets)

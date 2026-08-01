@@ -58,6 +58,12 @@ Resolution is performed by a `Resolver`, which holds a label matcher function an
 | `ResolvePullRequest` | `func (r Resolver) ResolvePullRequest(pr PullRequestData) IntentRecord` | Resolves intent for a pull request using explicit intent, closing issues, or PR labels |
 | `ResolveIssue` | `func (r Resolver) ResolveIssue(nodeID, url string, labels []string) IntentRecord` | Resolves intent for an issue using its labels |
 
+### Policy compiler methods
+
+| Method | Signature | Description |
+|--------|-----------|-------------|
+| `Compile` | `func (c PolicyCompiler) Compile(rec IntentRecord, repo RepositoryContext) ExecutionPolicy` | Compiles an `IntentRecord` and repository context into an execution policy |
+
 ## Usage Examples
 
 ```go

@@ -253,6 +253,57 @@ describe("push_to_pull_request_branch.cjs", () => {
     return module;
   }
 
+  async function runFallbackPullRequestScenario(branch, detectionReason = "unknown") {
+    createPatchFile(branch);
+    process.env.GH_AW_DETECTION_REASON = detectionReason;
+
+    mockExec.exec.mockResolvedValueOnce(0); // fetch
+    mockExec.exec.mockResolvedValueOnce(0); // rev-parse
+    mockExec.exec.mockResolvedValueOnce(0); // checkout
+
+    mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
+
+    mockExec.exec.mockResolvedValueOnce(0); // git am
+
+    const originalGetExecOutput = mockExec.getExecOutput;
+    mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
+      const argList = Array.isArray(args) ? args : [];
+      if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
+        return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
+      }
+      if (argList[0] === "rev-list" && argList[1] === "--merges") {
+        return { exitCode: 0, stdout: "0\n", stderr: "" };
+      }
+      if (argList[0] === "rev-list" && argList[1] === "--parents") {
+        return {
+          exitCode: 0,
+          stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n",
+          stderr: "",
+        };
+      }
+      if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
+        return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
+      }
+      if (argList[0] === "log") {
+        if (argList.includes(".github/workflows/")) {
+          return { exitCode: 0, stdout: "", stderr: "" };
+        }
+        return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
+      }
+      if (argList[0] === "diff-tree") {
+        return { exitCode: 0, stdout: "", stderr: "" };
+      }
+      return originalGetExecOutput(cmd, args);
+    });
+
+    mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
+    mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
+
+    const module = await loadModule();
+    const handler = await module.main({});
+    return handler({ branch }, {});
+  }
+
   /**
    * Helper to create a valid patch file at the canonical path derived from the
    * message branch. The privileged handler always re-derives the patch path
@@ -1171,59 +1222,7 @@ index 0000000..abc1234
     });
 
     it("should create fallback pull request on non-fast-forward push rejection by default", async () => {
-      const patchPath = createPatchFile("should-create-fallback-pull-request-on-non-fast-forward-push");
-
-      // Set up successful operations until push
-      mockExec.exec.mockResolvedValueOnce(0); // fetch
-      mockExec.exec.mockResolvedValueOnce(0); // rev-parse
-      mockExec.exec.mockResolvedValueOnce(0); // checkout
-
-      mockExec.getExecOutput.mockResolvedValueOnce({ exitCode: 0, stdout: "before-sha\n", stderr: "" }); // git rev-parse HEAD (before patch)
-
-      mockExec.exec.mockResolvedValueOnce(0); // git am
-
-      const originalGetExecOutput = mockExec.getExecOutput;
-      mockExec.getExecOutput = vi.fn().mockImplementation(async (cmd, args) => {
-        const argList = Array.isArray(args) ? args : [];
-        if (argList[0] === "rev-parse" && argList[1] === "origin/feature-branch^{commit}") {
-          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\n", stderr: "" };
-        }
-        if (argList[0] === "rev-list" && argList[1] === "--merges") {
-          return { exitCode: 0, stdout: "0\n", stderr: "" };
-        }
-        if (argList[0] === "rev-list" && argList[1] === "--parents") {
-          return {
-            exitCode: 0,
-            stdout: "2222222222222222222222222222222222222222 1111111111111111111111111111111111111111\n",
-            stderr: "",
-          };
-        }
-        if (argList[0] === "ls-remote" && argList[2] === "refs/heads/feature-branch") {
-          return { exitCode: 0, stdout: "1111111111111111111111111111111111111111\trefs/heads/feature-branch\n", stderr: "" };
-        }
-        if (argList[0] === "log") {
-          // Pre-flight workflow check targets .github/workflows/; return empty to avoid
-          // short-circuiting the fallback path with a workflows_scope_required error.
-          if (argList.includes(".github/workflows/")) {
-            return { exitCode: 0, stdout: "", stderr: "" };
-          }
-          return { exitCode: 0, stdout: "Test commit\n", stderr: "" };
-        }
-        if (argList[0] === "diff-tree") {
-          return { exitCode: 0, stdout: "", stderr: "" };
-        }
-        return originalGetExecOutput(cmd, args);
-      });
-
-      // GraphQL call fails, triggering fallback to git push
-      mockGithub.graphql.mockRejectedValueOnce(new Error("GraphQL error: branch protection"));
-
-      // Fallback git push also fails with non-fast-forward
-      mockExec.exec.mockRejectedValueOnce(new Error("! [rejected] feature-branch -> feature-branch (non-fast-forward)"));
-
-      const module = await loadModule();
-      const handler = await module.main({});
-      const result = await handler({ branch: "should-create-fallback-pull-request-on-non-fast-forward-push" }, {});
+      const result = await runFallbackPullRequestScenario("should-create-fallback-pull-request-on-non-fast-forward-push");
 
       expect(result.success).toBe(true);
       expect(result.fallback_used).toBe(true);
@@ -1464,6 +1463,27 @@ index 0000000..abc1234
 
     afterEach(() => {
       mockExec.getExecOutput = savedGetExecOutput;
+    });
+
+    it.each([
+      ["agent_failure", "> [!WARNING]", "> threat detection engine error", "<!-- gh-aw-threat-engine-error -->", "<!-- gh-aw-threat-detected -->"],
+      ["threat_detected", "> [!CAUTION]", "> agentic threat detected", "<!-- gh-aw-threat-detected -->", "<!-- gh-aw-threat-engine-error -->"],
+    ])("should create a review PR body for %s with the correct admonition and marker", async (reason, admonition, title, expectedMarker, unexpectedMarker) => {
+      process.env.GH_AW_DETECTION_CONCLUSION = "warning";
+      process.env.GH_AW_DETECTION_REASON = reason;
+      mockContext.runId = 12345;
+      createPatchFile(`review-branch-body-${reason}`);
+
+      const module = await loadModule();
+      const handler = await module.main({});
+      const result = await handler({ branch: `review-branch-body-${reason}` }, {});
+
+      expect(result.success).toBe(true);
+      const [params] = mockGithub.rest.pulls.create.mock.calls.at(-1);
+      expect(params.body).toContain(admonition);
+      expect(params.body).toContain(title);
+      expect(params.body).toContain(expectedMarker);
+      expect(params.body).not.toContain(unexpectedMarker);
     });
 
     it("should skip non-fatally when review branch is rejected for workflows scope (timeout variant, agent has none)", async () => {

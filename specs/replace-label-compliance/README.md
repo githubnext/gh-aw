@@ -56,6 +56,10 @@ Evaluation order is modeled as: blocked check → allowlist check → gates
 | Edge: Alias fields | `TestFormalItemNumberAliases` | issue_number/pr_number/pull_number resolve correctly |
 | Edge: Cross-repo restriction | `TestFormalCrossRepoRestriction` | repo not in allowed-repos is rejected |
 
+Coverage parity check (2026-08-01): verified 18/18 Behavioral Coverage Map
+entries (P1–P15 plus 3 edge cases) are implemented in
+`pkg/workflow/replace_label_formal_test.go`.
+
 ## Fixture Schema
 
 Each fixture file is a YAML document with the following top-level keys:
