@@ -13,6 +13,8 @@ permissions:
   actions: read
   issues: read
   pull-requests: read
+env:
+  GOTOOLCHAIN: auto
 tracker-id: avenger-ci
 max-turns: 50
 model: claude-haiku-4.5
