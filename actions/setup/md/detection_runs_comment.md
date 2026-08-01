@@ -1,6 +1,6 @@
 ### {workflow_name}
 
-The threat detection engine could not complete analysis for this run. This is a tooling failure, not a security finding.
+Threat detection produced a **{conclusion}** result for this run.
 
 <details>
 <summary>Run details</summary>

@@ -1411,7 +1411,8 @@ describe("messages.cjs", () => {
       const result = getDetectionCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("Threat Detection Engine Failure");
+      expect(result).toContain("**Threat Detection Engine Failure**");
+      expect(result).toContain("What happened");
       expect(result).not.toContain("> [!CAUTION]");
       expect(result).not.toContain("agentic threat detected");
       expect(result).toContain("threat detection engine failed");
