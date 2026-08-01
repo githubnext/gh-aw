@@ -98,6 +98,59 @@ func TestApplyPullRequestStackFilter_NoPullRequestTrigger(t *testing.T) {
 	assert.Empty(t, workflowData.PreSteps)
 }
 
+// TestApplyPullRequestStackFilter_DualTriggerListFormat tests the common scenario where
+// a workflow has both push and pull_request triggers using list syntax.
+// This is the blast-radius case described in the bug: workflows with on: [push, pull_request]
+// were getting startup_failure on push events due to unguarded arithmetic.
+func TestApplyPullRequestStackFilter_DualTriggerListFormat(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	frontmatter := map[string]any{
+		"on": []any{"push", "pull_request"},
+	}
+
+	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
+
+	// The condition must be guarded with an event_name check so that it is
+	// safe on push events (where github.event.pull_request is absent).
+	assert.Contains(t, workflowData.If, "github.event_name != 'pull_request'",
+		"condition must start with event_name guard to be safe on non-PR events")
+	assert.Contains(t, workflowData.If, "github.event.pull_request.stack == null")
+	assert.Contains(t, workflowData.If, "github.event.pull_request.stack.position == github.event.pull_request.stack.size")
+	// Arithmetic operators (+, -, *, /) are not supported by GitHub Actions expressions.
+	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
+	assert.Empty(t, workflowData.PreSteps, "max-stack defaults to 1 — no PreStep needed")
+}
+
+// TestApplyPullRequestStackFilter_DualTriggerMapFormat tests the scenario where
+// a workflow uses the map form of on: with both push and pull_request keys.
+func TestApplyPullRequestStackFilter_DualTriggerMapFormat(t *testing.T) {
+	compiler := NewCompiler()
+	workflowData := &WorkflowData{}
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"push": map[string]any{
+				"branches": []any{"main"},
+			},
+			"pull_request": map[string]any{
+				"types": []any{"opened", "synchronize"},
+			},
+		},
+	}
+
+	compiler.applyPullRequestStackFilter(workflowData, frontmatter)
+
+	// The condition must be guarded with an event_name check so that it is
+	// safe on push events (where github.event.pull_request is absent).
+	assert.Contains(t, workflowData.If, "github.event_name != 'pull_request'",
+		"condition must start with event_name guard to be safe on non-PR events")
+	assert.Contains(t, workflowData.If, "github.event.pull_request.stack == null")
+	assert.Contains(t, workflowData.If, "github.event.pull_request.stack.position == github.event.pull_request.stack.size")
+	// Arithmetic operators (+, -, *, /) are not supported by GitHub Actions expressions.
+	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
+	assert.Empty(t, workflowData.PreSteps, "max-stack defaults to 1 — no PreStep needed")
+}
+
 func TestApplyPullRequestStackFilter_ExistingPreStepsAppended(t *testing.T) {
 	compiler := NewCompiler()
 	workflowData := &WorkflowData{
