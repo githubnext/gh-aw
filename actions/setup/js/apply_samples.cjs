@@ -188,7 +188,7 @@ async function fetchPullRequestHeadRef({ owner, repo, pullNumber }) {
   const token = selectTokenForRepo(owner, repo);
   if (token) headers["Authorization"] = `Bearer ${token}`;
   try {
-    const resp = await fetch(url, { headers });
+    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(30_000) });
     if (!resp.ok) {
       core.warning(`apply_samples: GET ${url} returned HTTP ${resp.status}`);
       return null;

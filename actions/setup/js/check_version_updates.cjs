@@ -89,7 +89,7 @@ async function main() {
   try {
     config = await withRetry(
       async () => {
-        const res = await fetch(CONFIG_URL);
+        const res = await fetch(CONFIG_URL, { signal: AbortSignal.timeout(10_000) });
         if (!res.ok) {
           const err = new Error(`HTTP ${res.status} fetching ${CONFIG_URL}`);
           // @ts-ignore - Attach status so the retry predicate can inspect it

@@ -99,6 +99,7 @@ async function twirpRequest(method, body) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
+        signal: AbortSignal.timeout(30_000),
       });
 
       if (response.ok) {
@@ -214,16 +215,22 @@ async function uploadFileToSignedURL(filePath, signedUploadURL, contentType) {
   } catch (err) {
     throw new Error(`Failed to read file metadata for ${filePath}: ${getErrorMessage(err)}`, { cause: err });
   }
-  const response = await fetch(signedUploadURL, {
-    method: "PUT",
-    headers: {
-      "Content-Type": contentType,
-      "Content-Length": String(stats.size),
-      "x-ms-blob-type": "BlockBlob",
-    },
-    body: fs.createReadStream(filePath),
-    duplex: "half",
-  });
+  let response;
+  try {
+    response = await fetch(signedUploadURL, {
+      method: "PUT",
+      headers: {
+        "Content-Type": contentType,
+        "Content-Length": String(stats.size),
+        "x-ms-blob-type": "BlockBlob",
+      },
+      body: fs.createReadStream(filePath),
+      duplex: "half",
+      signal: AbortSignal.timeout(300_000),
+    });
+  } catch (err) {
+    throw new Error(`artifact blob upload failed: ${getErrorMessage(err)}`, { cause: err });
+  }
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`artifact blob upload failed (${response.status}): ${body || response.statusText}`);
@@ -266,13 +273,19 @@ class DefaultArtifactClient {
       const url = parseURL(`/repos/${findBy.repositoryOwner}/${findBy.repositoryName}/actions/runs/${findBy.workflowRunId}/artifacts`, serverUrl, `Failed to construct artifacts URL for run ${findBy.workflowRunId}`);
       url.searchParams.set("per_page", String(PAGE_SIZE));
       url.searchParams.set("page", String(page));
-      const response = await fetch(url.toString(), {
-        headers: {
-          Authorization: "Bearer " + findBy.token,
-          Accept: "application/vnd.github+json",
-          "User-Agent": "gh-aw-artifact-client",
-        },
-      });
+      let response;
+      try {
+        response = await fetch(url.toString(), {
+          headers: {
+            Authorization: "Bearer " + findBy.token,
+            Accept: "application/vnd.github+json",
+            "User-Agent": "gh-aw-artifact-client",
+          },
+          signal: AbortSignal.timeout(30_000),
+        });
+      } catch (err) {
+        throw new Error(`failed to list artifacts: ${getErrorMessage(err)}`, { cause: err });
+      }
       if (!response.ok) {
         throw new Error(`failed to list artifacts (${response.status}): ${await response.text()}`);
       }
@@ -316,14 +329,20 @@ class DefaultArtifactClient {
       process.env.GITHUB_API_URL || "https://api.github.com",
       `Failed to construct download URL for artifact ${artifactId}`
     );
-    const redirectResponse = await fetch(apiUrl.toString(), {
-      headers: {
-        Authorization: "Bearer " + findBy.token,
-        Accept: "application/vnd.github+json",
-        "User-Agent": "gh-aw-artifact-client",
-      },
-      redirect: "manual",
-    });
+    let redirectResponse;
+    try {
+      redirectResponse = await fetch(apiUrl.toString(), {
+        headers: {
+          Authorization: "Bearer " + findBy.token,
+          Accept: "application/vnd.github+json",
+          "User-Agent": "gh-aw-artifact-client",
+        },
+        redirect: "manual",
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (err) {
+      throw new Error(`unable to download artifact: ${getErrorMessage(err)}`, { cause: err });
+    }
     if (![301, 302, 303, 307, 308].includes(redirectResponse.status)) {
       throw new Error(`unable to download artifact: unexpected status ${redirectResponse.status}`);
     }
@@ -332,7 +351,12 @@ class DefaultArtifactClient {
       throw new Error("unable to download artifact: missing redirect location");
     }
 
-    const blobResponse = await fetch(location);
+    let blobResponse;
+    try {
+      blobResponse = await fetch(location, { signal: AbortSignal.timeout(300_000) });
+    } catch (err) {
+      throw new Error(`artifact blob download failed: ${getErrorMessage(err)}`, { cause: err });
+    }
     if (!blobResponse.ok) {
       throw new Error(`artifact blob download failed (${blobResponse.status})`);
     }

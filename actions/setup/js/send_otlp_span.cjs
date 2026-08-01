@@ -1097,6 +1097,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
             method: "POST",
             headers,
             body: sanitizedBody,
+            signal: AbortSignal.timeout(10_000),
           });
       if (response.ok) {
         return;
