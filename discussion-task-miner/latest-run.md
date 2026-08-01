@@ -1,22 +1,16 @@
-# Task Mining Run - 2026-07-31 (07:40 UTC)
+# Task Mining Run - 2026-08-01
 
 ## Summary
-- Discussions scanned: 7 new (since discussion #49238)
-- Tasks identified: 0 new actionable, distinct tasks
-- Issues created: 0
-- Duplicates/saturated/already-resolved avoided: 7
+- Discussions scanned: 30
+- Tasks identified: 8
+- Issues created: 2
+- Duplicates/already-tracked avoided: 6
 
-## Discussions Reviewed
-- #49299 Auto-Triage Report — labeling only, no code-quality tasks
-- #49284 Schema Consistency Check — antigravity engine.id/docs drift and dispatch_repository deprecated-alias visibility; this is a heavily saturated topic (20+ historical closed dupes across "Code Quality", "deep-report", and "doc-healer" workflows, including explicit DDUw rejections recorded for the antigravity direction). No new issue filed.
-- #49283 ESLint Refiner report — both grounded findings already filed as open issues #49281 and #49282
-- #49273 Firewall Escape Test Report — SECURE, no findings
-- #49272 Safe Output Health Monitor — reviewed all 3 recommended fixes:
-  - `pr_review_buffer.cjs:554` Path-variant predicate: verified already present in current code (line 713), no action needed
-  - safeoutputs bridge `safe.directory` git config: already tracked in closed issue #46028 documenting the same root cause; not re-filed
-  - Pre-bundle `Process Safe Outputs` step log on failure: already open as #49156
-- #49268 Sergo Report — registry relocation notes; issues already filed by that workflow's own run
-- #49254 LintMonster daily scan — already created own issues #49251/#49252/#49250
+## Created Issues
+- refactor: migrate remaining RunGHWithHost call sites to RunGHContextWithHost (89% still legacy) — from discussion #49349
+- refactor: extract shared DifcContentFields struct in pkg/cli/gateway_logs_types.go — from discussion #49330 (Typist)
 
-## Conclusion
-No new code-quality issues created this run. All discovered findings were either non-actionable status reports, already self-filed by the originating automation, or duplicates/saturated topics with existing tracking (open or closed with explicit rejection history).
+## Top Patterns Observed
+- gh CLI wrapper context-propagation gap mostly closed by prior PR #48488, but RunGHWithHost (cross-host ops) still 89% legacy — new focused issue created
+- Typist duplicate-type clusters: most high-value clusters (updateFailure, CopilotWorkflowStep, RepositoryFeatures wasm pair, TokenCoreMetrics embedding, mcp_github_config/mcp.go typed wiring) already have open or closed issues; only the DIFC content-fields cluster was untracked
+- Schema/docs drift (antigravity engine), lint-monster function-length backlog, and most daily audit reports are already tracked by dedicated recurring issues

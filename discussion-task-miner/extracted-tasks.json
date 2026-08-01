@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-07-31T07:40:00Z",
+  "last_run": "2026-08-01T07:34:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -186,6 +186,42 @@
       "title": "Pre-bundle Process Safe Outputs step log on failure - already open as #49156",
       "created_at": "2026-07-31T07:40:00Z",
       "status": "skipped_duplicate_existing_issue"
+    },
+    {
+      "source_discussion": 49349,
+      "title": "refactor: migrate remaining RunGHWithHost call sites to RunGHContextWithHost (89% still legacy)",
+      "status": "created",
+      "created_at": "2026-08-01T07:34:00Z"
+    },
+    {
+      "source_discussion": 49330,
+      "title": "refactor: extract shared DifcContentFields struct in pkg/cli/gateway_logs_types.go",
+      "status": "created",
+      "created_at": "2026-08-01T07:34:00Z"
+    },
+    {
+      "source_discussion": 49330,
+      "title": "typist duplicate/untyped clusters (updateFailure, CopilotWorkflowStep, RepositoryFeatures wasm, mcp_github_config wiring, TokenCoreMetrics) - already covered by prior issues #49345/#49344/#48890/#48736/#45863/#46059/#49343",
+      "status": "already_tracked",
+      "created_at": "2026-08-01T07:34:00Z"
+    },
+    {
+      "source_discussion": 49484,
+      "title": "antigravity engine schema omission - already tracked #49364",
+      "status": "already_tracked",
+      "created_at": "2026-08-01T07:34:00Z"
+    },
+    {
+      "source_discussion": 49457,
+      "title": "lint-monster function-length backlog - already tracked #49251/#49250/#49252",
+      "status": "already_tracked",
+      "created_at": "2026-08-01T07:34:00Z"
+    },
+    {
+      "source_discussion": 49349,
+      "title": "gh CLI wrapper context propagation Tasks 1/2/3/4 - largely superseded by closed #48436/#48488, remaining gap narrowed to RunGHWithHost issue created above",
+      "status": "partially_created",
+      "created_at": "2026-08-01T07:34:00Z"
     }
   ]
 }
