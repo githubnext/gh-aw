@@ -51,7 +51,7 @@ function escapeRegex(text) {
 function loadDefaultRuntimeVersions() {
   const source = readFileSync(VERSION_CONSTANTS_FILE, "utf8");
   const getVersion = (name) => {
-    const match = source.match(new RegExp(`const\\s+${name}\\s+Version\\s+=\\s+"([^"]+)"`));
+    const match = source.match(new RegExp(`^const\\s+${name}\\s+Version\\s+=\\s+"([^"]+)"`, "m"));
     if (!match) {
       throw new Error(`Could not find ${name} in ${VERSION_CONSTANTS_FILE}`);
     }
@@ -66,6 +66,7 @@ function loadDefaultRuntimeVersions() {
     ghMcpVersion: getVersion("DefaultGitHubMCPServerVersion"),
     codexVersion: getVersion("DefaultCodexVersion"),
     piVersion: getVersion("DefaultPiVersion"),
+    copilotVersion: getVersion("DefaultCopilotVersion"),
   };
 }
 
@@ -242,6 +243,7 @@ function normalizeDefaultRuntimeVersions(content) {
     ghMcpVersion,
     codexVersion,
     piVersion,
+    copilotVersion,
   } = DEFAULT_RUNTIME_VERSIONS;
   return content
     .replace(
@@ -299,6 +301,14 @@ function normalizeDefaultRuntimeVersions(content) {
     .replace(
       new RegExp(`(@earendil-works/pi-coding-agent@)${escapeRegex(piVersion)}\\b`, "g"),
       "$1PI_VERSION"
+    )
+    .replace(
+      new RegExp(`GH_AW_INFO_VERSION: "${escapeRegex(copilotVersion)}"`, "g"),
+      'GH_AW_INFO_VERSION: "COPILOT_VERSION"'
+    )
+    .replace(
+      new RegExp(`GH_AW_INFO_AGENT_VERSION: "${escapeRegex(copilotVersion)}"`, "g"),
+      'GH_AW_INFO_AGENT_VERSION: "COPILOT_VERSION"'
     );
 }
 
