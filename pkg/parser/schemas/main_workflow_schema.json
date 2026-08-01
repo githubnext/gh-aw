@@ -3483,7 +3483,7 @@
                     "memory": {
                       "type": "string",
                       "description": "Memory limit for the AWF container (e.g., '4g', '8g'). Passed as --memory-limit to AWF. If not specified, AWF's default memory limit is used.",
-                      "pattern": "^[0-9]+(b|k|m|g|kb|mb|gb|B|K|M|G|KB|MB|GB)$",
+                      "pattern": "^[1-9][0-9]*[bkmgBKMG]$",
                       "examples": ["4g", "8g", "512m"]
                     },
                     "model-fallback": {
@@ -9763,6 +9763,22 @@
                       "type": "string",
                       "pattern": "^\\$\\{\\{.*\\}\\}$",
                       "description": "GitHub Actions expression resolving to a comma-separated list of repository slugs (e.g. '${{ inputs['allowed-repos'] }}')"
+                    }
+                  ]
+                },
+                "allowed-refs": {
+                  "description": "List of allowed ref glob patterns for per-call dispatch_workflow message.ref overrides. Supports arrays and GitHub Actions expressions resolving to a comma-separated list (e.g. '${{ inputs['allowed-refs'] }}').",
+                  "oneOf": [
+                    {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to a comma-separated list of ref glob patterns (e.g. '${{ inputs['allowed-refs'] }}')"
                     }
                   ]
                 },

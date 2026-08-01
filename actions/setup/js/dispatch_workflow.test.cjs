@@ -454,6 +454,262 @@ describe("dispatch_workflow handler factory", () => {
     });
   });
 
+  it("should prioritize message ref over configured and environment refs", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    process.env.GITHUB_HEAD_REF = "pr-branch";
+
+    const config = {
+      "target-ref": "refs/heads/config-branch",
+      allowed_refs: ["refs/heads/agent-*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "agent-branch",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/heads/agent-branch",
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+      return_run_details: true,
+    });
+  });
+
+  it("should use message ref as-is when it is already a full ref", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: ["refs/tags/*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "refs/tags/v1.2.3",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/tags/v1.2.3",
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+      return_run_details: true,
+    });
+  });
+
+  it("should expand tags/ prefix in message ref to refs/tags/", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: ["tags/v*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "tags/v1.2.3",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/tags/v1.2.3",
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+      return_run_details: true,
+    });
+  });
+
+  it("should reject message ref when allowed-refs is not configured", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "agent-branch",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "message.ref is not allowed unless 'allowed-refs' is configured in safe-outputs.dispatch-workflow",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should reject message ref when it does not match allowed-refs", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: ["release/*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "feature/new-ui",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Ref 'refs/heads/feature/new-ui' is not in allowed-refs: refs/heads/release/*",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should reject message ref when allowed-refs is an empty array", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: [],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "some-branch",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "message.ref is not allowed unless 'allowed-refs' is configured in safe-outputs.dispatch-workflow",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
+  it("should warn and fall back to default ref when message.ref is a non-string", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: ["refs/heads/*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: 42,
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result.success).toBe(true);
+    expect(core.warning).toHaveBeenCalledWith(expect.stringContaining("non-string"));
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ref: "refs/heads/main",
+      })
+    );
+  });
+
+  it("should reject bare branch name when allowed-refs only permits tags", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: ["refs/tags/*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+    };
+    const handler = await main(config);
+
+    const result = await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "main",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(result).toEqual({
+      success: false,
+      error: "Ref 'refs/heads/main' is not in allowed-refs: refs/tags/*",
+    });
+    expect(github.rest.actions.createWorkflowDispatch).not.toHaveBeenCalled();
+  });
+
   it("should handle PR context with slashes in branch names", async () => {
     process.env.GITHUB_REF = "refs/pull/456/merge";
     process.env.GITHUB_HEAD_REF = "feature/add-new-feature";
