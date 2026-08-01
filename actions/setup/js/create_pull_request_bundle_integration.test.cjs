@@ -560,4 +560,160 @@ describe("create_pull_request bundle integration", () => {
     const parentShas = parentLine.split(/\s+/).filter(Boolean);
     expect(parentShas).toHaveLength(1);
   });
+
+  it("rewriteBundleBranchAsSingleCommit squashes multiple linear commits into one", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // The signed-push path requires a single-commit head. An agent may produce
+    // several linear commits (no merge topology). Verify that
+    // rewriteBundleBranchAsSingleCommit collapses all of them into one commit
+    // that contains every file change from the full range, and that the result
+    // has exactly one parent rooted on origin/main.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const branchName = "feature/multi-commit-squash";
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-squash-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-squash-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-squash-so-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
+
+    // 1. Initialize bare remote and seed main.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    execGit(["add", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+
+    const agentBaseCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    // 2. Agent creates the feature branch with three separate commits.
+    execGit(["checkout", "-b", branchName], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "file-a.txt"), "content a\n");
+    execGit(["add", "file-a.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: add file-a"], { cwd: agentRepo });
+
+    fs.writeFileSync(path.join(agentRepo, "file-b.txt"), "content b\n");
+    execGit(["add", "file-b.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: add file-b"], { cwd: agentRepo });
+
+    fs.writeFileSync(path.join(agentRepo, "file-c.txt"), "content c\n");
+    execGit(["add", "file-c.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: add file-c"], { cwd: agentRepo });
+
+    // Confirm three commits beyond main before bundling.
+    const commitCount = Number(execGit(["rev-list", "--count", `${agentBaseCommit}..HEAD`], { cwd: agentRepo }).stdout.trim());
+    expect(commitCount).toBe(3);
+
+    // 3. Bundle the feature branch (prereq = agentBaseCommit).
+    const bundlePath = path.join(agentRepo, "multi-commit.bundle");
+    execGit(["bundle", "create", bundlePath, `${agentBaseCommit}..refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // 4. Safe-outputs runner: fresh clone of origin/main, apply bundle.
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 5. Rewrite the three commits to one.
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), bundlePath);
+
+    // 6. HEAD must have exactly one parent.
+    const parentLine = execGit(["log", "-1", "--format=%P", "HEAD"], { cwd: safeOutputsRepo }).stdout.trim();
+    const parentShas = parentLine.split(/\s+/).filter(Boolean);
+    expect(parentShas).toHaveLength(1);
+
+    // 7. All three files must be present in the working tree.
+    expect(fs.existsSync(path.join(safeOutputsRepo, "file-a.txt"))).toBe(true);
+    expect(fs.existsSync(path.join(safeOutputsRepo, "file-b.txt"))).toBe(true);
+    expect(fs.existsSync(path.join(safeOutputsRepo, "file-c.txt"))).toBe(true);
+
+    // 8. The diff origin/main..HEAD must contain exactly those three files.
+    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo })
+      .stdout.trim()
+      .split("\n")
+      .filter(Boolean)
+      .sort();
+    expect(diffNames).toEqual(["file-a.txt", "file-b.txt", "file-c.txt"]);
+
+    // 9. Exactly one commit beyond origin/main.
+    const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
+    expect(linearCommitCount).toBe(1);
+  });
+
+  it("rewriteBundleBranchAsSingleCommit excludes specified files from the linearized commit", async () => {
+    // ─── Why this test exists ────────────────────────────────────────────────
+    //
+    // When the caller specifies excludedFiles (e.g. secrets or build artifacts),
+    // the rewritten single commit must not contain those files. This verifies
+    // that excludedFiles are forwarded through rewriteBundleBranchAsSingleCommit
+    // → linearizeRangeAsCommit and are unstaged before the squash commit is made.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    const branchName = "feature/excluded-files-rewrite";
+
+    const bareRemote = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-excl-rewrite-bare-"));
+    const agentRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-excl-rewrite-agent-"));
+    const safeOutputsRepo = fs.mkdtempSync(path.join(os.tmpdir(), "create-pr-excl-rewrite-so-"));
+    tempDirs.push(bareRemote, agentRepo, safeOutputsRepo);
+
+    // 1. Initialize bare remote and seed main.
+    execGit(["init", "--bare", "-b", "main"], { cwd: bareRemote });
+    execGit(["clone", bareRemote, "."], { cwd: agentRepo });
+    execGit(["config", "user.name", "Agent"], { cwd: agentRepo });
+    execGit(["config", "user.email", "agent@example.com"], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "README.md"), "# Project\n");
+    execGit(["add", "README.md"], { cwd: agentRepo });
+    execGit(["commit", "-m", "Initial commit"], { cwd: agentRepo });
+    execGit(["branch", "-M", "main"], { cwd: agentRepo });
+    execGit(["push", "-u", "origin", "main"], { cwd: agentRepo });
+
+    const agentBaseCommit = execGit(["rev-parse", "HEAD"], { cwd: agentRepo }).stdout.trim();
+
+    // 2. Agent adds both a kept file and a file that should be excluded.
+    execGit(["checkout", "-b", branchName], { cwd: agentRepo });
+    fs.writeFileSync(path.join(agentRepo, "kept.txt"), "agent change\n");
+    fs.writeFileSync(path.join(agentRepo, "secret.txt"), "sensitive data\n");
+    execGit(["add", "kept.txt", "secret.txt"], { cwd: agentRepo });
+    execGit(["commit", "-m", "feat: add kept and secret files"], { cwd: agentRepo });
+
+    // 3. Bundle the feature branch.
+    const bundlePath = path.join(agentRepo, "excluded-files.bundle");
+    execGit(["bundle", "create", bundlePath, `${agentBaseCommit}..refs/heads/${branchName}`], { cwd: agentRepo });
+
+    // 4. Safe-outputs runner: fresh clone, apply bundle.
+    execGit(["clone", bareRemote, "."], { cwd: safeOutputsRepo });
+    execGit(["config", "user.name", "Runner"], { cwd: safeOutputsRepo });
+    execGit(["config", "user.email", "runner@example.com"], { cwd: safeOutputsRepo });
+
+    const { applyBundleToBranch, rewriteBundleBranchAsSingleCommit } = require("./create_pull_request.cjs");
+    await applyBundleToBranch(bundlePath, branchName, `refs/heads/${branchName}`, createExecApi(safeOutputsRepo), "main");
+
+    // 5. Rewrite with secret.txt excluded.
+    await rewriteBundleBranchAsSingleCommit("main", createExecApi(safeOutputsRepo), bundlePath, {
+      excludedFiles: ["secret.txt"],
+    });
+
+    // 6. The diff origin/main..HEAD must contain only kept.txt.
+    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo })
+      .stdout.trim()
+      .split("\n")
+      .filter(Boolean)
+      .sort();
+    expect(diffNames).toEqual(["kept.txt"]);
+
+    // 7. secret.txt must not appear in the commit diff at all (not added, not deleted).
+    const commitDiff = execGit(["diff", "--name-status", "HEAD^", "HEAD"], { cwd: safeOutputsRepo }).stdout;
+    expect(commitDiff).not.toMatch(/secret\.txt/);
+
+    // 8. Exactly one linearized commit beyond origin/main.
+    const linearCommitCount = Number(execGit(["rev-list", "--count", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim());
+    expect(linearCommitCount).toBe(1);
+  });
 });
