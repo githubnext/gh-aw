@@ -131,7 +131,11 @@ func TestApplyPullRequestStackFilter_PullRequestReviewConfiguredMaxStack(t *test
 
 	assert.Empty(t, workflowData.If, "job-level if should not contain arithmetic for max-stack > 1")
 	assert.Contains(t, workflowData.PreSteps, "Stack position gate (max-stack: 2)")
+	assert.Contains(t, workflowData.PreSteps, "max_stack=2")
+	// Intermediate positions are gated via inequality: skip when position + N <= size
+	assert.Contains(t, workflowData.PreSteps, "STACK_POSITION + max_stack <= STACK_SIZE")
 	assert.Contains(t, workflowData.PreSteps, "github.event_name == 'pull_request_review'")
+	assert.NotContains(t, workflowData.If, "+", "job-level if must not contain arithmetic operators")
 }
 
 func TestApplyPullRequestStackFilter_NoPullRequestTrigger(t *testing.T) {

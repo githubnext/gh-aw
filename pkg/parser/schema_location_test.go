@@ -665,6 +665,11 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_MaxStack(t *testin
 			wantErr:  false,
 		},
 		{
+			name:     "max-stack: 5 is valid (intermediate value)",
+			maxStack: 5,
+			wantErr:  false,
+		},
+		{
 			name:     "max-stack: -1 is valid (disable stack protection)",
 			maxStack: -1,
 			wantErr:  false,
@@ -726,6 +731,11 @@ func TestValidateMainWorkflowFrontmatterWithSchemaAndLocation_PullRequestReviewM
 		{
 			name:     "max-stack: 2 is valid",
 			maxStack: 2,
+			wantErr:  false,
+		},
+		{
+			name:     "max-stack: 5 is valid (intermediate value)",
+			maxStack: 5,
 			wantErr:  false,
 		},
 		{
