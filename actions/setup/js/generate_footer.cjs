@@ -1,49 +1,8 @@
 // @ts-check
 /// <reference types="@actions/github-script" />
 
-const fs = require("fs");
-const path = require("path");
 const { getDetectionReasonText, getThreatDetectedMarker, isToolingFailureReason } = require("./threat_detection_warning.cjs");
-
-/**
- * Resolves the path to a named template file in the prompts directory.
- * Uses GH_AW_PROMPTS_DIR if set, otherwise falls back to the source md/ directory.
- * Intentionally does not import from messages_core.cjs — see getExpiredEntityCautionAlert note.
- * @param {string} filename - Template filename (e.g. "threat_detection_engine_error.md")
- * @returns {string} Absolute path to the template file
- */
-function resolveLocalTemplatePath(filename) {
-  const promptsDir = process.env.GH_AW_PROMPTS_DIR;
-  if (promptsDir) return `${promptsDir}/${filename}`;
-  return path.join(__dirname, "../md", filename);
-}
-
-/**
- * Renders a template string by replacing {key} placeholders with context values.
- * Intentionally does not import renderTemplate from messages_core.cjs — see getExpiredEntityCautionAlert note.
- * @param {string} template - Template string with {key} placeholders
- * @param {Record<string, string>} context - Key-value pairs for substitution
- * @returns {string} Rendered string
- */
-function renderLocalTemplate(template, context) {
-  return template.replace(/\{(\w+)\}/g, (match, key) => {
-    const value = context[key];
-    return value !== undefined && value !== null ? String(value) : match;
-  });
-}
-
-/**
- * Reads a template file and renders it with the given context.
- * Intentionally does not import renderTemplateFromFile from messages_core.cjs — see getExpiredEntityCautionAlert note.
- * @param {string} filename - Template filename (e.g. "threat_detection_engine_error.md")
- * @param {Record<string, string>} context - Key-value pairs for substitution
- * @returns {string} Rendered template content (trailing newline trimmed)
- */
-function renderLocalTemplateFile(filename, context) {
-  const filePath = resolveLocalTemplatePath(filename);
-  const template = fs.readFileSync(filePath, "utf8");
-  return renderLocalTemplate(template.trimEnd(), context);
-}
+const { getPromptPath, renderTemplateFromFile } = require("./prompt_file_helpers.cjs");
 
 /**
  * Generates a standalone workflow-id XML comment marker for searchability.
@@ -155,11 +114,10 @@ function generateXMLMarker(workflowName, runUrl) {
  * admonition is used so reviewers can distinguish "detection engine crashed" from "detection
  * engine found something". Actual threat findings (threat_detected) keep [!CAUTION].
  *
- * Note: Template rendering uses local helpers (resolveLocalTemplatePath / renderLocalTemplateFile)
- * instead of importing from messages_core.cjs, because importing messages_core.cjs (directly
- * or transitively via messages_footer.cjs) would cause the bundler to inline
- * 'GH_AW_SAFE_OUTPUT_MESSAGES:' in a warning message, breaking tests that check for env var
- * declarations.
+ * Note: Template rendering uses prompt_file_helpers.cjs instead of messages_core.cjs,
+ * because importing messages_core.cjs (directly or transitively via messages_footer.cjs)
+ * would cause the bundler to inline 'GH_AW_SAFE_OUTPUT_MESSAGES:' in a warning message,
+ * breaking tests that check for env var declarations.
  *
  * Warning reason text and threat marker formatting are centralized in
  * threat_detection_warning.cjs to keep warning-mode messaging consistent.
@@ -177,9 +135,9 @@ function getExpiredEntityCautionAlert(workflowName, runUrl) {
   const reasonText = getDetectionReasonText(detectionReason);
   const context = { threat_detected_marker: getThreatDetectedMarker(detectionReason), reason_text: reasonText, run_url: runUrl };
   if (isToolingFailureReason(detectionReason)) {
-    return renderLocalTemplateFile("threat_detection_engine_error.md", context);
+    return renderTemplateFromFile(getPromptPath("threat_detection_engine_error.md"), context).trimEnd();
   }
-  return renderLocalTemplateFile("threat_detection_caution.md", context);
+  return renderTemplateFromFile(getPromptPath("threat_detection_caution.md"), context).trimEnd();
 }
 
 /**

@@ -1,4 +1,6 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+import { fileURLToPath } from "url";
+import path from "path";
 
 // Mock the global objects that GitHub Actions provides
 const mockCore = {
@@ -337,13 +339,27 @@ describe("generate_footer.cjs", () => {
   describe("generateExpiredEntityFooter", () => {
     let generateExpiredEntityFooter;
     let getExpiredEntityCautionAlert;
+    let originalPromptsDir;
 
     beforeEach(async () => {
+      // Point GH_AW_PROMPTS_DIR to the source md/ directory so getPromptPath()
+      // resolves to the local templates. This is needed because RUNNER_TEMP may be
+      // set but the runtime prompts directory is not populated in the test environment.
+      originalPromptsDir = process.env.GH_AW_PROMPTS_DIR;
+      process.env.GH_AW_PROMPTS_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), "../md");
       // Reset modules and import fresh
       vi.resetModules();
       const freshModule = await import("./generate_footer.cjs");
       generateExpiredEntityFooter = freshModule.generateExpiredEntityFooter;
       getExpiredEntityCautionAlert = freshModule.getExpiredEntityCautionAlert;
+    });
+
+    afterEach(() => {
+      if (originalPromptsDir !== undefined) {
+        process.env.GH_AW_PROMPTS_DIR = originalPromptsDir;
+      } else {
+        delete process.env.GH_AW_PROMPTS_DIR;
+      }
     });
 
     it("should generate footer with 'Closed by' wording and workflow link", () => {
