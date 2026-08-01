@@ -852,6 +852,50 @@ The `steps.sanitized.outputs.text` output is automatically sanitized:
 - `github.event.pull_request.body`
 - `github.head_ref` (can be controlled by PR authors)
 
+### Cross-Trigger Nullability in Generated Conditional Expressions
+
+When Go code generates GitHub Actions `if:` expressions, nested event fields must be guarded by trigger checks across all declared workflow triggers.
+
+GitHub Actions expression evaluation can fail before any jobs run when an expression accesses an object graph that does not exist for the active trigger (for example `github.event.pull_request.*` on `push`, `workflow_dispatch`, or `schedule`).
+
+#### Insecure Pattern (missing trigger guard)
+
+```go
+// VULNERABLE: pull_request-only fields referenced unconditionally
+condition := fmt.Sprintf(
+    "github.event.pull_request.stack.position >= %d && github.event.pull_request.stack.position <= %d",
+    minPos,
+    maxPos,
+)
+```
+
+**Why vulnerable:** On non-PR triggers, `github.event.pull_request` is absent. Property access or arithmetic on absent nested fields can cause expression evaluation failure (`startup_failure`) before workflow error handling can run.
+
+#### Secure Pattern (event_name + nullability guard)
+
+```go
+// SECURE: gate nested pull_request fields behind explicit trigger and null checks
+condition := fmt.Sprintf(
+    "github.event_name == 'pull_request' && github.event.pull_request != null && github.event.pull_request.stack != null && github.event.pull_request.stack.position >= %d && github.event.pull_request.stack.position <= %d",
+    minPos,
+    maxPos,
+)
+```
+
+#### Required Guidance for Condition Generation
+
+- Guard every trigger-specific object chain (`github.event.pull_request.*`, `github.event.issue.*`, etc.) with `github.event_name` checks.
+- Add nullability guards for each parent object in the chain before accessing deeper properties.
+- For workflows with multiple triggers, ensure every trigger path either short-circuits safely or avoids unsupported fields entirely.
+- Prefer conservative composition (`A && B && C`) where early terms validate event type/object existence before nested access.
+
+#### Verification Checklist
+
+- Enumerate all declared triggers in the generated workflow.
+- For each generated condition, confirm nested event-field access is valid for every trigger.
+- Validate that unsupported triggers short-circuit before nested field access.
+- Add/update tests in `pkg/workflow/*filter*.go` (or equivalent) that assert safe conditions for mixed-trigger workflows.
+
 ### Shell Script Best Practices
 
 #### SC2086: Double Quote to Prevent Globbing and Word Splitting
