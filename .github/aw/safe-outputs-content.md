@@ -177,7 +177,7 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
       if-no-changes: "warn"           # Optional: "warn" (default), "error", or "ignore"
       allow-empty: false              # Optional: create PR with empty branch, no changes required (default: false)
       expires: 7                      # Optional: auto-close after 7 days (supports: 2h, 7d, 2w, 1m, 1y; min: 2h)
-      auto-merge: squash             # Optional: false/true or merge method squash|merge|rebase for native auto-merge
+      auto-merge: squash             # Optional: false (default), true, or merge method: squash|merge|rebase
       base-branch: "vnext"            # Optional: base branch for PR (defaults to workflow's branch)
       preserve-branch-name: true      # Optional: skip random salt suffix on agent-specified branch names (default: false)
       recreate-ref: false             # Optional: force-recreate existing remote branch when preserve-branch-name is true (default: false)

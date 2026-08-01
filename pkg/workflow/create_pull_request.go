@@ -120,12 +120,12 @@ func (c *Compiler) parseCreatePullRequestsConfig(outputMap map[string]any) *Crea
 					}
 				case string:
 					if !isExpression(v) && v != "true" && v != "false" && v != "squash" && v != "merge" && v != "rebase" {
-						createPRLog.Printf("Invalid auto-merge value %q", v)
-						return false
+						createPRLog.Printf("Invalid auto-merge value %q, ignoring", v)
+						delete(configData, "auto-merge")
 					}
 				default:
-					createPRLog.Printf("Invalid auto-merge value type %T", val)
-					return false
+					createPRLog.Printf("Invalid auto-merge value type %T, ignoring", val)
+					delete(configData, "auto-merge")
 				}
 			}
 

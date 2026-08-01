@@ -8480,10 +8480,10 @@ safe-outputs:
     # hour values
     expires: "example-value"
 
-    # Enable auto-merge for the pull request. Accepts true/false or an explicit merge
-    # method string (squash, merge, rebase). When enabled, the PR will be
-    # automatically merged once all required checks pass and required approvals are
-    # met. Defaults to false.
+    # Enable auto-merge for the pull request. Accepts true/false, an explicit merge
+    # method (squash, merge, rebase), or a GitHub Actions expression resolving to any
+    # of those values. When enabled, the PR will be automatically merged once all
+    # required checks pass and required approvals are met. Defaults to false.
     # (optional)
     # Accepted formats:
 

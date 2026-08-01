@@ -187,6 +187,82 @@ describe("create_pull_request - draft policy enforcement", () => {
   });
 });
 
+describe("parseAutoMergeConfig unit tests", () => {
+  let warnSpy;
+
+  beforeEach(() => {
+    global.core = {
+      warning: vi.fn(),
+      info: vi.fn(),
+      debug: vi.fn(),
+    };
+    warnSpy = global.core.warning;
+  });
+
+  afterEach(() => {
+    delete global.core;
+    vi.clearAllMocks();
+    delete require.cache[require.resolve("./create_pull_request.cjs")];
+  });
+
+  it("treats boolean true as enabled with SQUASH method", () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig(true)).toEqual({ enabled: true, mergeMethod: "SQUASH" });
+  });
+
+  it('treats string "true" as enabled with SQUASH method', () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig("true")).toEqual({ enabled: true, mergeMethod: "SQUASH" });
+  });
+
+  it("treats boolean false as disabled", () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig(false)).toEqual({ enabled: false });
+  });
+
+  it('treats string "false" as disabled', () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig("false")).toEqual({ enabled: false });
+  });
+
+  it("treats null as disabled", () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig(null)).toEqual({ enabled: false });
+  });
+
+  it("treats undefined as disabled", () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig(undefined)).toEqual({ enabled: false });
+  });
+
+  it('treats "squash" as enabled with SQUASH method', () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig("squash")).toEqual({ enabled: true, mergeMethod: "SQUASH" });
+  });
+
+  it('treats "merge" as enabled with MERGE method', () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig("merge")).toEqual({ enabled: true, mergeMethod: "MERGE" });
+  });
+
+  it('treats "rebase" as enabled with REBASE method', () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig("rebase")).toEqual({ enabled: true, mergeMethod: "REBASE" });
+  });
+
+  it("warns and disables auto-merge for an unrecognized string", () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig("sqaush")).toEqual({ enabled: false });
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("Unrecognized auto-merge value"));
+  });
+
+  it("does not warn for empty string (treated as disabled)", () => {
+    const { parseAutoMergeConfig } = require("./create_pull_request.cjs");
+    expect(parseAutoMergeConfig("")).toEqual({ enabled: false });
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+});
+
 describe("create_pull_request - auto-merge configuration", () => {
   let originalEnv;
 

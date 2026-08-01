@@ -2820,4 +2820,4 @@ ${patchPreview}`;
   }; // End of handleCreatePullRequest
 } // End of main
 
-module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch, rewriteBundleBranchAsSingleCommit };
+module.exports = { main, enforcePullRequestLimits, countUniquePatchFiles, parseDiffGitHeader, applyBundleToBranch, rewriteBundleBranchAsSingleCommit, parseAutoMergeConfig };
