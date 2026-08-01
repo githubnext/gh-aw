@@ -381,6 +381,12 @@ function parseGatewayLogs() {
  * Reads the JSONL file written by the safe_outputs job and downloaded into
  * the conclusion job via the safe-outputs-items artifact.
  *
+ * Three distinct return states let callers distinguish artifact provenance:
+ *   • returns null                          → manifest file not found
+ *   • returns { total_items: 0, ... }       → manifest present but contained no loggable items
+ *   • returns { total_items: N, ... }       → manifest present with N items
+ *   • throws                                → manifest file exists but could not be read
+ *
  * @param {string} [manifestPath] - Path to the manifest file (defaults to MANIFEST_FILE_PATH)
  * @returns {{ total_items: number, items_by_type: Record<string, number> } | null}
  */
@@ -391,12 +397,9 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
     return null;
   }
 
-  let content;
-  try {
-    content = fs.readFileSync(manifestPath, "utf-8");
-  } catch (err) {
-    return null;
-  }
+  // Let read errors propagate so the caller can distinguish "unreadable file"
+  // from "file present but no items" — both previously collapsed to null.
+  const content = fs.readFileSync(manifestPath, "utf-8");
 
   const itemsByType = {};
   let totalItems = 0;
@@ -421,10 +424,6 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
 
     totalItems += 1;
     itemsByType[itemType] = (itemsByType[itemType] || 0) + 1;
-  }
-
-  if (totalItems === 0) {
-    return null;
   }
 
   return {
@@ -458,21 +457,27 @@ function main() {
   }
 
   // Parse safe outputs manifest.
-  // When the manifest file is present (downloaded by the conclusion job from the
-  // safe-outputs-items artifact), always include safe_outputs in the summary — even
-  // when totalItems is 0.  This lets downstream consumers distinguish two cases:
-  //   • safe_outputs absent  → manifest not found (artifact download failed or job never ran)
-  //   • safe_outputs.total_items == 0 → manifest was present but no items were logged
-  const safeOutputs = parseSafeOutputsManifest();
-  if (safeOutputs) {
-    summary.safe_outputs = safeOutputs;
-    core.info(`safe-output-items manifest: ${safeOutputs.total_items} item(s) logged (types: ${Object.keys(safeOutputs.items_by_type).join(", ") || "none"})`);
-  } else if (fs.existsSync(MANIFEST_FILE_PATH)) {
-    // Manifest was downloaded but contained no loggable items.
-    summary.safe_outputs = { total_items: 0, items_by_type: {} };
-    core.info(`safe-output-items manifest: 0 item(s) logged (file present but empty)`);
-  } else {
-    core.info(`safe-output-items manifest not found at ${MANIFEST_FILE_PATH} — safe-outputs-items artifact may not have been downloaded`);
+  // parseSafeOutputsManifest() has three distinct outcomes that drive the three
+  // states downstream consumers need to distinguish:
+  //   • safe_outputs absent        → manifest not found (artifact download failed or job never ran)
+  //   • safe_outputs.total_items == 0 → manifest present, no items logged
+  //   • safe_outputs.total_items > 0  → manifest present with N items
+  // A read error is kept separate: it logs a warning but omits safe_outputs so
+  // the consumer cannot mistake a broken artifact for a legitimately empty one.
+  try {
+    const safeOutputs = parseSafeOutputsManifest();
+    if (safeOutputs === null) {
+      core.info(`safe-output-items manifest not found at ${MANIFEST_FILE_PATH} — safe-outputs-items artifact may not have been downloaded`);
+    } else {
+      summary.safe_outputs = safeOutputs;
+      if (safeOutputs.total_items === 0) {
+        core.info(`safe-output-items manifest: 0 item(s) logged (file present but contained no loggable items)`);
+      } else {
+        core.info(`safe-output-items manifest: ${safeOutputs.total_items} item(s) logged (types: ${Object.keys(safeOutputs.items_by_type).join(", ")})`);
+      }
+    }
+  } catch (err) {
+    core.warning(`safe-output-items manifest could not be read from ${MANIFEST_FILE_PATH}: ${String(err)} — safe_outputs omitted from summary`);
   }
 
   // Write summary to file
