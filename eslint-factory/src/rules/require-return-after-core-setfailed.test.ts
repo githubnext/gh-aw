@@ -9,6 +9,13 @@ const ruleTester = new RuleTester({
   },
 });
 
+const esmRuleTester = new RuleTester({
+  languageOptions: {
+    ecmaVersion: 2022,
+    sourceType: "module",
+  },
+});
+
 describe("require-return-after-core-setfailed", () => {
   it("uses the correct docs URL", () => {
     expect(requireReturnAfterCoreSetFailedRule.meta.docs.url).toBe("https://github.com/github/gh-aw/tree/main/eslint-factory#require-return-after-core-setfailed");
@@ -387,6 +394,154 @@ doMore();`,
         `core.setFailed("bad"); function helper() {}`,
       ],
       invalid: [],
+    });
+  });
+
+  it("valid: JSDoc-annotated DI parameter with control transfer is accepted", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // Corpus case: coreArg annotated with typeof import('@actions/core'), throw follows
+        `/** @param {typeof import('@actions/core')} coreArg */
+async function validateContextVariables(coreArg, ctx) {
+  coreArg.setFailed("bad");
+  throw new Error("bad");
+}`,
+        // return follows setFailed
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setFailed("x"); return; }`,
+        // setFailed is the last statement in the block — nothing to continue into
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setFailed("x"); }`,
+        // coreLib as a differently-named parameter
+        `/** @param {typeof import('@actions/core')} coreLib */
+function f(coreLib) { coreLib.setFailed("x"); return; }`,
+        // double-quote variant of the JSDoc type annotation
+        `/** @param {typeof import("@actions/core")} coreArg */
+function f(coreArg) { coreArg.setFailed("x"); return; }`,
+        // un-annotated parameter with the same name must NOT be treated as core
+        // (the rule should not fire because coreArg is not recognised as core)
+        `function f(coreArg) { coreArg.setFailed("x"); doMore(); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: JSDoc-annotated DI parameter missing control transfer is flagged", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+async function f(coreArg, ctx) { coreArg.setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+async function f(coreArg, ctx) { coreArg.setFailed("bad"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `/** @param {typeof import('@actions/core')} coreLib */
+function g(coreLib) { coreLib.setFailed("x"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreLib */
+function g(coreLib) { coreLib.setFailed("x"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: export async function with JSDoc-annotated DI parameter is accepted (ESM)", () => {
+    esmRuleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // export async function — JSDoc is before the ExportNamedDeclaration, not the inner FunctionDeclaration
+        `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("x"); return; }`,
+        `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("x"); throw new Error("x"); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: export async function with JSDoc-annotated DI parameter missing control transfer is flagged (ESM)", () => {
+    esmRuleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        // export async function — JSDoc is before the ExportNamedDeclaration
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+export async function main(coreArg) { coreArg.setFailed("bad"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("valid: JSDoc-annotated DI param destructuring with control transfer is accepted", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // Destructured setFailed from JSDoc-annotated coreArg with throw
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("x"); throw new Error("x"); }`,
+        // Destructured setFailed with return
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("x"); return; }`,
+        // Destructured setFailed as last statement in block
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("x"); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: JSDoc-annotated DI param destructuring missing control transfer is flagged", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { const { setFailed } = coreArg; setFailed("bad"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
   });
 
