@@ -276,7 +276,7 @@ var safeOutputHandlers = []safeOutputHandlerDescriptor{
 			if !isSafeOutputHandlerEnabledAndUnstaged(safeOutputs, "AddLabels") {
 				return nil
 			}
-			return NewPermissionsIssuesWritePRWrite()
+			return buildAddLabelsPermissions(safeOutputs.AddLabels)
 		},
 	},
 	{
