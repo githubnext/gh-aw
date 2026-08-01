@@ -773,7 +773,12 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
     if (Array.isArray(excludedFiles) && excludedFiles.length > 0) {
       const { stdout: excludedStagedOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only", "--", ...excludedFiles], ...execArgs);
       if (excludedStagedOut.trim()) {
-        await execApi.exec("git", ["checkout", "HEAD", "--", ...excludedFiles], ...execArgs);
+        // Use `git reset HEAD -- <files>` rather than `git checkout HEAD -- <files>`.
+        // For newly-added excluded files (not present in HEAD), `checkout` fails with
+        // "pathspec did not match any file(s) known to git". `reset HEAD --` handles
+        // both cases: removes new files from the index and restores modified files to
+        // the HEAD version, without touching the working tree.
+        await execApi.exec("git", ["reset", "HEAD", "--", ...excludedFiles], ...execArgs);
       }
     }
     const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], ...execArgs);

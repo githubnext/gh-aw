@@ -5,14 +5,27 @@
  * bundle handling for checked-out target branches.
  */
 
-import { describe, it, expect, afterEach, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterEach, vi } from "vitest";
 import { createRequire } from "module";
+import { fileURLToPath } from "url";
 import fs from "fs";
 import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
 
 const require = createRequire(import.meta.url);
+const promptsSourceDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../md");
+
+/**
+ * create_pull_request.cjs reads the disclosure-header prompt template at module
+ * load time. Ensure the file is present before the first `require` so the module
+ * can be loaded successfully in any environment (local dev or CI).
+ */
+function ensureDisclosureHeaderPrompt() {
+  const promptsDir = path.join(process.env.RUNNER_TEMP || os.tmpdir(), "gh-aw", "prompts");
+  fs.mkdirSync(promptsDir, { recursive: true });
+  fs.copyFileSync(path.join(promptsSourceDir, "safe_outputs_disclosure_header.md"), path.join(promptsDir, "safe_outputs_disclosure_header.md"));
+}
 
 global.core = {
   debug: vi.fn(),
@@ -76,6 +89,10 @@ function createExecApi(cwd, onExec) {
 
 describe("create_pull_request bundle integration", () => {
   const tempDirs = [];
+
+  beforeAll(() => {
+    ensureDisclosureHeaderPrompt();
+  });
 
   afterEach(() => {
     for (const tempDir of tempDirs.splice(0)) {
@@ -635,11 +652,7 @@ describe("create_pull_request bundle integration", () => {
     expect(fs.existsSync(path.join(safeOutputsRepo, "file-c.txt"))).toBe(true);
 
     // 8. The diff origin/main..HEAD must contain exactly those three files.
-    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo })
-      .stdout.trim()
-      .split("\n")
-      .filter(Boolean)
-      .sort();
+    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim().split("\n").filter(Boolean).sort();
     expect(diffNames).toEqual(["file-a.txt", "file-b.txt", "file-c.txt"]);
 
     // 9. Exactly one commit beyond origin/main.
@@ -701,11 +714,7 @@ describe("create_pull_request bundle integration", () => {
     });
 
     // 6. The diff origin/main..HEAD must contain only kept.txt.
-    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo })
-      .stdout.trim()
-      .split("\n")
-      .filter(Boolean)
-      .sort();
+    const diffNames = execGit(["diff", "--name-only", "origin/main..HEAD"], { cwd: safeOutputsRepo }).stdout.trim().split("\n").filter(Boolean).sort();
     expect(diffNames).toEqual(["kept.txt"]);
 
     // 7. secret.txt must not appear in the commit diff at all (not added, not deleted).
