@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/github/gh-aw/pkg/constants"
+	"github.com/github/gh-aw/pkg/workflow/compilerenv"
 )
 
 func (c *Compiler) buildPrepareDetectionEngineConfigForExternalDetectorStep(data *WorkflowData) []string {
@@ -275,6 +276,41 @@ func (c *Compiler) buildExternalDetectorExecutionStep(data *WorkflowData) []stri
 	// The rw mount for ThreatDetectionDir allows the threat-detect binary to write
 	// detection_result.json from inside the AWF container to the host filesystem.
 	threatDetectionData := buildExternalDetectorWorkflowData(data, engineID)
+
+	// Resolve the detection model, mirroring buildDetectionEngineExecutionStep on the
+	// inline path. Without this, the engine env block falls back to
+	// ${{ vars.GH_AW_MODEL_DETECTION_COPILOT || ... || 'auto' }}, and when no org var
+	// is set COPILOT_MODEL is 'auto'. The AWF API proxy has no pricing for 'auto' and
+	// returns HTTP 400, causing every inference attempt to fail.
+	resolvedDetectionModel := data.Model
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.Model != "" {
+		resolvedDetectionModel = data.SafeOutputs.ThreatDetection.Model
+	}
+	if resolvedDetectionModel == "" {
+		if defaultModel := compilerenv.ResolveDefaultDetectionModel(""); defaultModel != "" {
+			resolvedDetectionModel = defaultModel
+		} else if defaultModel := engine.GetDefaultDetectionModel(); defaultModel != "" {
+			resolvedDetectionModel = defaultModel
+		}
+	}
+	// Pi workflows normalise to Copilot; strip the provider prefix so the Copilot CLI
+	// receives a bare model ID rather than a "pi/model-name" string.
+	originalEngineID := data.AI
+	if data.EngineConfig != nil && data.EngineConfig.ID != "" {
+		originalEngineID = data.EngineConfig.ID
+	}
+	if engineID == "copilot" && originalEngineID == "pi" {
+		resolvedDetectionModel = extractPiModelID(resolvedDetectionModel)
+	}
+	threatDetectionData.Model = resolvedDetectionModel
+	// Propagate the model alias map so the detection AWF config includes
+	// apiProxy.models, enabling the harness to resolve aliases (e.g. "haiku") to
+	// concrete model IDs before the Copilot CLI makes inference requests.
+	threatDetectionData.ModelMappings = data.ModelMappings
+	// Propagate default AI credits pricing so the detection AWF config includes
+	// apiProxy.defaultAiCreditsPricing when the main workflow configures it.
+	threatDetectionData.DefaultAiCreditsPricing = data.DefaultAiCreditsPricing
+
 	threatDetectionData.NetworkPermissions = &NetworkPermissions{
 		Allowed: getThreatDetectionAdditionalAllowedDomains(data),
 	}

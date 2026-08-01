@@ -1,5 +1,7 @@
 ### {workflow_name}
 
-**Conclusion:** {conclusion} | **Reason:** {reason}
-
-> Generated from [{workflow_name}]({run_url})
+| Field | Value |
+|---|---|
+| Conclusion | `{conclusion}` |
+| Reason | `{reason}` |
+| Run | [{workflow_name}]({run_url}) |
