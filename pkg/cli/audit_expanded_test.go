@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -601,7 +602,7 @@ func TestBuildAuditDataWithExpandedSections(t *testing.T) {
 		},
 	}
 
-	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, mcpToolUsage)
 
 	// Verify new expanded sections are populated
 	t.Run("AuditEngineConfig", func(t *testing.T) {
@@ -661,7 +662,7 @@ func TestBuildAuditDataExpandedWithNoData(t *testing.T) {
 	}
 	metrics := LogMetrics{}
 
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 
 	assert.Nil(t, auditData.EngineConfig, "Engine config should be nil without aw_info.json")
 	assert.Nil(t, auditData.PromptAnalysis, "Prompt analysis should be nil without prompt.txt")

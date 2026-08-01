@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"slices"
 
@@ -11,7 +12,7 @@ var outcomeEvalIssueLog = logger.New("cli:outcome_eval_issue")
 
 // evalCreateIssue checks whether an issue was resolved, dismissed, or is still open.
 // Bot-initiated closes (e.g. close-older-issues) are classified as lifecycle, not rejection.
-func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalCreateIssue(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	outcomeEvalIssueLog.Printf("Evaluating create_issue: repo=%s, num=%d, url=%s", repo, num, item.URL)
@@ -28,7 +29,7 @@ func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport 
 		return report
 	}
 
-	data, err := ghAPIGet(fmt.Sprintf("issues/%d", num), repo)
+	data, err := ghAPIGet(ctx, fmt.Sprintf("issues/%d", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -41,7 +42,7 @@ func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport 
 
 	// Count human comments
 	comments, _ := data["comments"].(float64)
-	commentList, cerr := ghAPIGetArray(fmt.Sprintf("issues/%d/comments", num), repo)
+	commentList, cerr := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", num), repo)
 	if cerr == nil {
 		for _, c := range commentList {
 			user, _ := c["user"].(map[string]any)
@@ -62,7 +63,7 @@ func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport 
 
 	case state == "closed" && stateReason == "not_planned":
 		// Check if closed by a bot (lifecycle) or human (rejection)
-		closedByBot := isClosedByBot(num, repo)
+		closedByBot := isClosedByBot(ctx, num, repo)
 		outcomeEvalIssueLog.Printf("Issue #%d closed as not_planned, closed_by_bot=%v", num, closedByBot)
 		if closedByBot {
 			report.Result = OutcomeLifecycle
@@ -99,8 +100,8 @@ func evalCreateIssue(item CreatedItemReport, repoOverride string) OutcomeReport 
 }
 
 // isClosedByBot checks the issue timeline to determine if the close event was performed by a bot.
-func isClosedByBot(issueNumber int, repo string) bool {
-	events, err := ghAPIGetArray(fmt.Sprintf("issues/%d/events", issueNumber), repo)
+func isClosedByBot(ctx context.Context, issueNumber int, repo string) bool {
+	events, err := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/events", issueNumber), repo)
 	if err != nil {
 		return false
 	}

@@ -47,7 +47,7 @@ This answers the question: "Did this workflow's actions actually help?"`,
 				return fmt.Errorf("invalid run ID %q: %w", args[0], err)
 			}
 
-			return RunOutcomes(OutcomesConfig{
+			return RunOutcomes(cmd.Context(), OutcomesConfig{
 				RunID:        runID,
 				Verbose:      verbose,
 				JSONOutput:   jsonOutput,
@@ -86,7 +86,7 @@ type OutcomesData struct {
 }
 
 // RunOutcomes executes the outcomes evaluation for a single run.
-func RunOutcomes(config OutcomesConfig) error {
+func RunOutcomes(ctx context.Context, config OutcomesConfig) error {
 	outcomesLog.Printf("Evaluating outcomes for run %d", config.RunID)
 
 	// Resolve repo
@@ -134,7 +134,6 @@ func RunOutcomes(config OutcomesConfig) error {
 		if config.Verbose {
 			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("Downloading artifacts for run %d...", config.RunID)))
 		}
-		ctx := context.Background()
 		err := downloadRunArtifacts(ctx, downloadArtifactsOptions{runID: config.RunID, outputDir: runDir, verbose: config.Verbose, owner: owner, repo: repoName, hostname: hostname})
 		if err != nil {
 			return fmt.Errorf("failed to download artifacts for run %d: %w", config.RunID, err)
@@ -166,7 +165,7 @@ func RunOutcomes(config OutcomesConfig) error {
 
 	// Run the evaluations
 	mapping := github.LoadObjectiveMappingFromConfig()
-	reports := EvaluateOutcomes(items, repo, mapping)
+	reports := EvaluateOutcomes(ctx, items, repo, mapping)
 	outcomeSummary := ComputeOutcomeSummary(reports, mapping)
 
 	// Write outcome JSONL if requested (for OTLP export or downstream processing).

@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -11,7 +12,7 @@ import (
 
 func TestEvalDispatchWorkflowNoRunID(t *testing.T) {
 	// No metadata at all → pending with an informative detail message.
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type: "dispatch_workflow",
 		Repo: "owner/repo",
 	}, "owner/repo")
@@ -22,7 +23,7 @@ func TestEvalDispatchWorkflowNoRunID(t *testing.T) {
 
 func TestEvalDispatchWorkflowRunIDZero(t *testing.T) {
 	// run_id present but zero → treated as missing.
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": float64(0)},
@@ -34,11 +35,11 @@ func TestEvalDispatchWorkflowRunIDZero(t *testing.T) {
 func TestEvalDispatchWorkflowAPIError(t *testing.T) {
 	old := workflowOutcomeGHAPIGet
 	t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
-	workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+	workflowOutcomeGHAPIGet = func(_ context.Context, _ string, _ string) (map[string]any, error) {
 		return nil, errors.New("connection refused")
 	}
 
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": float64(12345678)},
@@ -51,14 +52,14 @@ func TestEvalDispatchWorkflowAPIError(t *testing.T) {
 func TestEvalDispatchWorkflowCompletedSuccess(t *testing.T) {
 	old := workflowOutcomeGHAPIGet
 	t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
-	workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+	workflowOutcomeGHAPIGet = func(_ context.Context, _ string, _ string) (map[string]any, error) {
 		return map[string]any{
 			"status":     "completed",
 			"conclusion": "success",
 		}, nil
 	}
 
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": float64(12345678)},
@@ -73,14 +74,14 @@ func TestEvalDispatchWorkflowCompletedFailure(t *testing.T) {
 		t.Run(conclusion, func(t *testing.T) {
 			old := workflowOutcomeGHAPIGet
 			t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
-			workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+			workflowOutcomeGHAPIGet = func(_ context.Context, _ string, _ string) (map[string]any, error) {
 				return map[string]any{
 					"status":     "completed",
 					"conclusion": conclusion,
 				}, nil
 			}
 
-			report := evalDispatchWorkflow(CreatedItemReport{
+			report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 				Type:     "dispatch_workflow",
 				Repo:     "owner/repo",
 				Metadata: map[string]any{"run_id": float64(99999)},
@@ -95,14 +96,14 @@ func TestEvalDispatchWorkflowCompletedFailure(t *testing.T) {
 func TestEvalDispatchWorkflowCompletedOtherConclusion(t *testing.T) {
 	old := workflowOutcomeGHAPIGet
 	t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
-	workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+	workflowOutcomeGHAPIGet = func(_ context.Context, _ string, _ string) (map[string]any, error) {
 		return map[string]any{
 			"status":     "completed",
 			"conclusion": "skipped",
 		}, nil
 	}
 
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": float64(42)},
@@ -115,14 +116,14 @@ func TestEvalDispatchWorkflowCompletedOtherConclusion(t *testing.T) {
 func TestEvalDispatchWorkflowInProgress(t *testing.T) {
 	old := workflowOutcomeGHAPIGet
 	t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
-	workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+	workflowOutcomeGHAPIGet = func(_ context.Context, _ string, _ string) (map[string]any, error) {
 		return map[string]any{
 			"status":     "in_progress",
 			"conclusion": "",
 		}, nil
 	}
 
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": float64(77)},
@@ -136,14 +137,14 @@ func TestEvalDispatchWorkflowRunIDInt64(t *testing.T) {
 	// run_id supplied as int64 (not float64) must be handled without panic.
 	old := workflowOutcomeGHAPIGet
 	t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
-	workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+	workflowOutcomeGHAPIGet = func(_ context.Context, _ string, _ string) (map[string]any, error) {
 		return map[string]any{
 			"status":     "completed",
 			"conclusion": "success",
 		}, nil
 	}
 
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": int64(9876543210)},
@@ -159,7 +160,7 @@ func TestEvalDispatchWorkflowFloat64OverflowGuard(t *testing.T) {
 	// to the same float64, so this value would be mangled if cast to int64 directly.
 	aboveMaxSafeInt := float64(maxSafeFloat64Int) + 2
 
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": aboveMaxSafeInt},
@@ -174,14 +175,14 @@ func TestEvalDispatchWorkflowActionRequired(t *testing.T) {
 	// it must map to OutcomeRejected (not OutcomeIgnored).
 	old := workflowOutcomeGHAPIGet
 	t.Cleanup(func() { workflowOutcomeGHAPIGet = old })
-	workflowOutcomeGHAPIGet = func(_ string, _ string) (map[string]any, error) {
+	workflowOutcomeGHAPIGet = func(_ context.Context, _ string, _ string) (map[string]any, error) {
 		return map[string]any{
 			"status":     "completed",
 			"conclusion": "action_required",
 		}, nil
 	}
 
-	report := evalDispatchWorkflow(CreatedItemReport{
+	report := evalDispatchWorkflow(context.Background(), CreatedItemReport{
 		Type:     "dispatch_workflow",
 		Repo:     "owner/repo",
 		Metadata: map[string]any{"run_id": float64(12345678)},
@@ -195,7 +196,7 @@ func TestEvalDispatchWorkflowActionRequired(t *testing.T) {
 func TestEvalUpdateDiscussionReturnsIgnored(t *testing.T) {
 	// evalUpdateDiscussion must return OutcomeIgnored (not OutcomePending) so that
 	// callers do not enter an infinite retry loop waiting for a terminal status.
-	report := evalUpdateDiscussion(CreatedItemReport{
+	report := evalUpdateDiscussion(context.Background(), CreatedItemReport{
 		Type: "update_discussion",
 		URL:  "https://github.com/owner/repo/discussions/1",
 	}, "owner/repo")

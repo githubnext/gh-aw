@@ -2,6 +2,7 @@ package cli
 
 import (
 	"bufio"
+	"context"
 	"encoding/json"
 	"io"
 	"math"
@@ -259,7 +260,7 @@ type OverviewDisplay struct {
 }
 
 // buildAuditData creates structured audit data from workflow run information
-func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) AuditData {
+func buildAuditData(ctx context.Context, processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage *MCPToolUsageData) AuditData {
 	run := processedRun.Run
 	auditReportLog.Printf("Building audit data for run ID %d", run.DatabaseID)
 	expData := extractExperimentData(run.LogsPath)
@@ -292,7 +293,7 @@ func buildAuditData(processedRun ProcessedRun, metrics LogMetrics, mcpToolUsage 
 		recommendations:       recommendations,
 		observabilityInsights: observabilityInsights,
 	})
-	addAuditOutcomeSummary(&auditData, createdItems)
+	addAuditOutcomeSummary(ctx, &auditData, createdItems)
 	return auditData
 }
 
@@ -510,12 +511,12 @@ func assembleAuditData(inputs auditDataInputs) AuditData {
 	}
 }
 
-func addAuditOutcomeSummary(auditData *AuditData, createdItems []CreatedItemReport) {
+func addAuditOutcomeSummary(ctx context.Context, auditData *AuditData, createdItems []CreatedItemReport) {
 	if len(createdItems) == 0 {
 		return
 	}
 	mapping := github.LoadObjectiveMappingFromConfig()
-	outcomeReports := EvaluateOutcomes(createdItems, "", mapping)
+	outcomeReports := EvaluateOutcomes(ctx, createdItems, "", mapping)
 	auditData.Outcomes = outcomeReports
 	outcomeSummary := ComputeOutcomeSummary(outcomeReports, mapping)
 	auditData.OutcomeSummary = &outcomeSummary

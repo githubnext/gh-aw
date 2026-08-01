@@ -88,7 +88,7 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 	ref := repositoryPackageEffectiveRef(repoSpec, nil)
 	if ref == "" {
 		if isGhAwRepository(repoSpec.RepoSlug) {
-			if latestRelease, err := getRepositoryPackageLatestRelease(repoSpec.RepoSlug, host); err == nil {
+			if latestRelease, err := getRepositoryPackageLatestRelease(ctx, repoSpec.RepoSlug, host); err == nil {
 				ref = latestRelease
 			} else {
 				addPackageManifestLog.Printf("failed to resolve latest release for %s (host=%q): %v", repoSpec.RepoSlug, host, err)
@@ -96,7 +96,7 @@ func resolveRepositoryPackage(ctx context.Context, repoSpec *RepoSpec, host stri
 		}
 		if ref == "" {
 			ref = "main"
-			if defaultBranch, err := getRepositoryPackageDefaultBranch(repoSpec.RepoSlug, host); err == nil {
+			if defaultBranch, err := getRepositoryPackageDefaultBranch(ctx, repoSpec.RepoSlug, host); err == nil {
 				ref = defaultBranch
 			} else {
 				addPackageManifestLog.Printf("failed to resolve default branch for %s (host=%q), falling back to %q: %v", repoSpec.RepoSlug, host, ref, err)
@@ -930,12 +930,12 @@ func isRepositoryPackageRemoteNotFound(err error) bool {
 	return strings.Contains(errText, "404") || strings.Contains(errText, "not found")
 }
 
-func resolveRepositoryPackageDefaultBranch(repoSlug, host string) (string, error) {
+func resolveRepositoryPackageDefaultBranch(ctx context.Context, repoSlug, host string) (string, error) {
 	args := []string{"api", "/repos/" + repoSlug, "--jq", ".default_branch"}
 	var output []byte
 	var err error
 	if host != "" {
-		output, err = workflow.RunGHContextWithHost(context.Background(), "Fetching repo info...", host, args...)
+		output, err = workflow.RunGHContextWithHost(ctx, "Fetching repo info...", host, args...)
 		if err != nil {
 			return "", err
 		}
@@ -982,16 +982,16 @@ func isGhAwRepository(repoSlug string) bool {
 // repoSlug must be in "owner/repo" format. host is an optional explicit GitHub
 // hostname (for example "github.com" or a GHES host); when provided, gh API
 // calls are executed against that host.
-func resolveRepositoryPackageLatestRelease(repoSlug, host string) (string, error) {
+func resolveRepositoryPackageLatestRelease(ctx context.Context, repoSlug, host string) (string, error) {
 	deps := workflowUpdateDeps{
-		runReleasesAPI: func(ctx context.Context, repo string) ([]byte, error) {
+		runReleasesAPI: func(innerCtx context.Context, repo string) ([]byte, error) {
 			args := []string{"api", fmt.Sprintf("/repos/%s/releases", repo), "--jq", ".[].tag_name"}
 			if host != "" {
-				return workflow.RunGHContextWithHost(ctx, "Fetching releases...", host, args...)
+				return workflow.RunGHContextWithHost(innerCtx, "Fetching releases...", host, args...)
 			}
-			return workflow.RunGHContext(ctx, "Fetching releases...", args...)
+			return workflow.RunGHContext(innerCtx, "Fetching releases...", args...)
 		},
 	}
 
-	return resolveLatestReleaseWithDeps(context.Background(), deps, repoSlug, "", true, false, 0)
+	return resolveLatestReleaseWithDeps(ctx, deps, repoSlug, "", true, false, 0)
 }
