@@ -3,3 +3,4 @@ strategy: line-ending-variant+staged-subset
 run: 107
 date: 2026-08-01
 step: 1
+note: line-ending-variant
