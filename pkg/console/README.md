@@ -45,10 +45,10 @@ The following components and functions are exported by the `console` package:
 | `RenderStruct` | func | Renders a Go struct to a styled terminal string |
 | `RenderTable` | func | Renders a formatted table string |
 | `RenderTree` | func | Renders a tree-node hierarchy |
-| `RenderTitleBox` / `RenderErrorBox` / `RenderInfoSection` | funcs | Section rendering helpers |
+| `RenderTitleBox` / `RenderErrorBox` / `RenderInfoSection` / `PrintSectionHeader` | funcs | Section rendering and section-header helpers |
 | `RenderComposedSections` | func | Composes and prints multiple sections |
 | `FormatSuccessMessage` / `FormatInfoMessage` / `FormatWarningMessage` / `FormatErrorMessage` | funcs | Styled status message formatting |
-| `FormatSuccessMessageStderr` / `FormatInfoMessageStderr` / `FormatListItemStderr` / `FormatSectionHeaderStderr` / `FormatTableHeaderStderr` / `FormatErrorTextStderr` | funcs | Stderr-TTY-aware variants of matching format functions |
+| `FormatSuccessMessageStderr` / `FormatInfoMessageStderr` / `FormatListItemStderr` / `FormatSectionHeaderStderr` / `FormatTableHeaderStderr` / `FormatErrorTextStderr` / `FormatCommandMessageStderr` / `FormatProgressMessageStderr` / `FormatWarningMessageStderr` / `FormatErrorStderr` | funcs | Stderr-TTY-aware variants of matching format functions |
 | `FormatCommandMessage` / `FormatProgressMessage` / `FormatVerboseMessage` | funcs | Additional message styles |
 | `FormatError` | func | Renders a structured `CompilerError` with context |
 | `FormatErrorChain` | func | Renders a wrapped-error chain |
@@ -63,6 +63,7 @@ The following components and functions are exported by the `console` package:
 | `IsAccessibleMode` | func | Detects accessibility mode |
 | `SetTimeLocation` / `ResetTimeLocation` | funcs | Configure `time.Time` rendering timezone |
 | `SpinnerWrapper` | type | Spinner controller with `Start`, `Stop`, `StopWithMessage`, and `UpdateMessage` |
+| `Init` / `View` | methods | Bubble Tea model methods on the spinner model implementation |
 | `CompilerError` / `ErrorPosition` / `TableConfig` / `TreeNode` | types | Supporting data types |
 
 ## Spinner Component

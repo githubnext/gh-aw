@@ -505,6 +505,9 @@ mkdir -p "$CODEX_HOME/logs"
 	stepLines = append(stepLines, "      - name: "+stepName)
 	stepLines = append(stepLines, "        id: agentic_execution")
 
+	// Add timeout at step level (GitHub Actions standard)
+	stepLines = append(stepLines, "        timeout-minutes: "+resolveStepTimeoutValue(workflowData))
+
 	// Filter environment variables to only include allowed secrets
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container
 	allowedSecrets := e.GetRequiredSecretNames(workflowData)

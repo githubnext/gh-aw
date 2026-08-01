@@ -28,7 +28,7 @@ type EvalsConfig struct {
 	Questions []EvalDefinition
 	// Model is the default LLM model to use for evaluations. Use a model alias such as
 	// "small" or a full model ID. Per-question Model fields override this value.
-	// When empty, the compiler default ("small") is used.
+	// When empty, the compiler default ("evals") is used.
 	Model string
 	// RunsOn allows overriding the runner for the evals job.
 	RunsOn string

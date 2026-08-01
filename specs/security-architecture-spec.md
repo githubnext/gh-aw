@@ -7,7 +7,7 @@ sidebar:
 
 # GitHub Agentic Workflows Security Architecture Specification
 
-**Version**: 1.0.0  
+**Version**: 1.0.1  
 **Status**: Candidate Recommendation  
 **Latest Version**: https://github.com/github/gh-aw/blob/main/specs/security-architecture-spec.md  
 **Editors**: GitHub Next (GitHub, Inc.)
@@ -957,6 +957,15 @@ if: github.event.pull_request.head.repo.id == github.repository_id
 - Repository ID match: `github.event.workflow_run.repository.id == github.repository_id`
 - Not from fork: `!github.event.workflow_run.repository.fork`
 
+**RS-05a**: For `workflow_dispatch` triggers where the `aw_context` input encodes a pull request context (`item_type == "pull_request"`), the implementation MUST enforce all of the following before executing a PR checkout:
+
+1. **Repository scope**: If `aw_context.repo` is present, the implementation MUST compare it against the current repository identity (`context.repo.owner/context.repo.repo`). A mismatch MUST cause checkout to be skipped with a warning; cross-repository PR checkout is NOT supported.
+2. **Actor trust**: The triggering actor MUST satisfy `assertTrustedCheckoutRuntime()` — the runtime repository MUST NOT be a fork, and the actor MUST hold write-or-higher repository permission (or be a verified bot/app actor).
+3. **Parse resilience**: Malformed `aw_context` JSON MUST be caught; the implementation MUST emit a warning and skip checkout rather than propagating the parse error.
+4. **Ref isolation**: The PR head MUST be fetched exclusively via `refs/pull/N/head` from the current repository's origin, using array-based execution (no shell interpolation).
+
+The implementation MUST NOT perform checkout when `aw_context.item_number` is absent or falsy.
+
 ### 11.4 Role Validation
 
 **RS-06**: The implementation MUST validate user roles at workflow start.
@@ -1042,7 +1051,7 @@ A conforming implementation MUST execute runtime controls in this order:
 
 1. **Concurrency gate setup**: Apply `concurrency` grouping and cancellation policy before executing job logic (RS-16 through RS-22).
 2. **Freshness gate**: Validate source-vs-compiled timestamps and fail fast on stale lock files (RS-01 through RS-03).
-3. **Repository trust gate**: Validate repository identity and fork constraints for the active trigger (RS-04 and RS-05).
+3. **Repository trust gate**: Validate repository identity and fork constraints for the active trigger (RS-04, RS-05, and RS-05a).
 4. **Actor authorization gate**: Validate role membership and required privileges before any mutation-capable step (RS-06 through RS-08).
 5. **Credential gate**: Validate token shape and expression-only sourcing before token use (RS-09 through RS-11).
 6. **Network boundary gate**: Activate sandbox/proxy/iptables controls before running agent or MCP execution paths (RS-12 and RS-13).
@@ -1944,6 +1953,19 @@ roles: [admin, maintainer]  # Restrict to trusted roles
 ---
 
 ## Change Log
+
+### Version 1.0.1 (Editorial Update)
+
+**Published**: August 1, 2026
+
+**Added RS-05a** — `workflow_dispatch` + `aw_context` PR checkout validation:
+- Documents the four-property security contract for the new `workflow_dispatch`
+  event path in `checkout_pr_branch.cjs`: repository-scope check, actor trust,
+  parse resilience, and ref isolation.
+- Updates Section 11.9 (Runtime Enforcement Operations Sequence) to reference RS-05a
+  alongside RS-04 and RS-05 in the repository trust gate.
+- Backed by 9 unit test cases in `actions/setup/js/checkout_pr_branch.test.cjs`
+  (cross-repo mismatch, invalid JSON, missing `item_number`, successful checkout, etc.).
 
 ### Version 1.0.0 (Candidate Recommendation)
 
