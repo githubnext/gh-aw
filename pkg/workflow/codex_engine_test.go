@@ -1329,3 +1329,58 @@ func TestCodexEngineForwardsSafeOutputsInputEnvVars(t *testing.T) {
 		t.Errorf("Expected GH_AW_INPUT_REPO in step env for TOML env_vars forwarding, got:\n%s", stepContent)
 	}
 }
+
+func TestCodexEngineTimeout_Default(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name: "test-workflow",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	defaultTimeout := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / (60 * 1000000000)))
+	expected := "        timeout-minutes: " + defaultTimeout
+	if !strings.Contains(stepContent, expected) {
+		t.Errorf("Expected default timeout-minutes %q in step, got:\n%s", expected, stepContent)
+	}
+}
+
+func TestCodexEngineTimeout_Explicit(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name:           "test-workflow",
+		TimeoutMinutes: "timeout-minutes: 15",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(stepContent, "        timeout-minutes: 15") {
+		t.Errorf("Expected explicit timeout-minutes 15 in step, got:\n%s", stepContent)
+	}
+}
+
+func TestCodexEngineTimeout_Expression(t *testing.T) {
+	engine := NewCodexEngine()
+	workflowData := &WorkflowData{
+		Name:           "test-workflow",
+		TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}",
+	}
+
+	steps := engine.GetExecutionSteps(workflowData, "test-log")
+	if len(steps) != 1 {
+		t.Fatalf("Expected 1 execution step, got %d", len(steps))
+	}
+	stepContent := strings.Join([]string(steps[0]), "\n")
+
+	if !strings.Contains(stepContent, "        timeout-minutes: ${{ inputs.timeout }}") {
+		t.Errorf("Expected timeout expression in step, got:\n%s", stepContent)
+	}
+}

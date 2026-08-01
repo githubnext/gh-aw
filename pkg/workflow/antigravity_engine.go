@@ -3,6 +3,8 @@ package workflow
 import (
 	"fmt"
 	"maps"
+	"strings"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -342,6 +344,14 @@ touch %s
 	stepLines := []string{
 		"      - name: Execute Antigravity CLI",
 		"        id: agentic_execution",
+	}
+
+	// Add timeout at step level (GitHub Actions standard)
+	if workflowData.TimeoutMinutes != "" {
+		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
+		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
+	} else {
+		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute)))
 	}
 
 	// Filter environment variables for security

@@ -4,8 +4,12 @@ package workflow
 
 import (
 	"slices"
+	"strconv"
+	"strings"
 	"testing"
+	"time"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -230,4 +234,71 @@ func TestEngineRegistry_GetAllAgentManifestFiles(t *testing.T) {
 		files := registry.GetAllAgentManifestFiles()
 		assert.Empty(t, files, "empty registry should return no manifest files")
 	})
+}
+
+// TestAllEnginesEmitTimeoutMinutes verifies that every registered agentic engine
+// emits a timeout-minutes field on the agentic_execution step. This prevents
+// silent 6-hour timeouts when timeout-minutes is not forwarded to the step.
+func TestAllEnginesEmitTimeoutMinutes(t *testing.T) {
+	defaultTimeout := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+
+	tests := []struct {
+		name         string
+		workflowData *WorkflowData
+		wantTimeout  string
+		description  string
+	}{
+		{
+			name:         "no timeout set — default emitted",
+			workflowData: &WorkflowData{Name: "test-workflow"},
+			wantTimeout:  defaultTimeout,
+			description:  "engine should emit the default timeout when none is specified",
+		},
+		{
+			name:         "explicit timeout-minutes: 15",
+			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: 15"},
+			wantTimeout:  "15",
+			description:  "engine should forward the explicit timeout value",
+		},
+		{
+			name:         "timeout as expression",
+			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}"},
+			wantTimeout:  "${{ inputs.timeout }}",
+			description:  "engine should forward GitHub Actions expressions verbatim",
+		},
+	}
+
+	registry := NewEngineRegistry()
+	engineIDs := registry.GetSupportedEngines()
+
+	for _, engineID := range engineIDs {
+		t.Run(engineID, func(t *testing.T) {
+			engine, err := registry.GetEngine(engineID)
+			require.NoError(t, err)
+
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					execSteps := engine.GetExecutionSteps(tt.workflowData, "/tmp/gh-aw/test.log")
+					require.NotEmpty(t, execSteps, "engine must return at least one execution step")
+
+					// Find the agentic_execution step (it may not be the first step for engines
+					// that prepend settings-write steps, e.g. Gemini).
+					var agentStep GitHubActionStep
+					for _, step := range execSteps {
+						stepContent := strings.Join([]string(step), "\n")
+						if strings.Contains(stepContent, "id: agentic_execution") {
+							agentStep = step
+							break
+						}
+					}
+					require.NotNil(t, agentStep, "execution steps must include a step with id: agentic_execution")
+
+					stepContent := strings.Join([]string(agentStep), "\n")
+					expected := "timeout-minutes: " + tt.wantTimeout
+					assert.Contains(t, stepContent, expected,
+						"%s: %s\ngot step:\n%s", engineID, tt.description, stepContent)
+				})
+			}
+		})
+	}
 }
