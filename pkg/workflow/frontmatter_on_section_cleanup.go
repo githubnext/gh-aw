@@ -707,7 +707,7 @@ func (c *Compiler) addZizmorIgnoreForWorkflowRun(yamlStr string) string {
 		// Match lines that are only 'workflow_run:' (possibly with trailing whitespace or a comment)
 		// e.g., 'workflow_run:', 'workflow_run: # comment', '  workflow_run:'
 		// But not 'someworkflow_run:', 'workflow_run: value', etc.
-		if idx := strings.Index(trimmedLine, "workflow_run:"); idx == 0 {
+		if strings.HasPrefix(trimmedLine, "workflow_run:") {
 			after := strings.TrimSpace(trimmedLine[len("workflow_run:"):])
 			// Only allow if nothing or only a comment follows
 			if after == "" || strings.HasPrefix(after, "#") {
