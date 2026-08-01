@@ -667,9 +667,31 @@ func BuildAWFConfigJSON(config AWFCommandConfig) (string, error) {
 	}
 
 	// ── Models section (nested under apiProxy per AWF config schema) ──────────
-	if config.WorkflowData != nil && len(config.WorkflowData.ModelMappings) > 0 {
-		apiProxy.Models = config.WorkflowData.ModelMappings
-		awfConfigLog.Printf("Models section: %d alias entries", len(config.WorkflowData.ModelMappings))
+	if config.WorkflowData != nil {
+		models := config.WorkflowData.ModelMappings
+
+		// When the workflow model is a provider-scoped name such as
+		// "copilot/gpt-5.6-sol", the AWF api-proxy validates the requested model
+		// against the keys of the apiProxy.models alias map.  Since alias keys
+		// cannot contain "/" (V-MAF-005), a provider-scoped identifier can never
+		// appear as a key in the frontmatter models: section or the builtin alias
+		// map.  Add an implicit self-alias so the AWF finds the model and routes
+		// the request correctly, preventing the runtime rejection described in
+		// gh-aw#46306.
+		if m := config.WorkflowData.Model; strings.Contains(m, "/") && !containsExpression(m) {
+			if _, exists := models[m]; !exists {
+				clone := make(map[string][]string, len(models)+1)
+				maps.Copy(clone, models)
+				clone[m] = []string{m}
+				models = clone
+				awfConfigLog.Printf("Models section: added implicit self-alias for provider-scoped model %q", m)
+			}
+		}
+
+		if len(models) > 0 {
+			apiProxy.Models = models
+			awfConfigLog.Printf("Models section: %d alias entries", len(models))
+		}
 	}
 	allowedModels, disallowedModels := resolveModelPolicyForAWFConfig(config.WorkflowData)
 	if len(allowedModels) > 0 {

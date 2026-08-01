@@ -2250,3 +2250,132 @@ func TestBuildAWFConfigJSON_ModelPolicyConflictDisallowedWins(t *testing.T) {
 	assert.Contains(t, jsonStr, `"allowedModels":["claude-sonnet"]`)
 	assert.Contains(t, jsonStr, `"disallowedModels":["gpt-5"]`)
 }
+
+// TestBuildAWFConfigJSON_ProviderScopedModelImplicitSelfAlias verifies that when the
+// workflow model is a provider-scoped name (e.g. "copilot/gpt-5.6-sol"), BuildAWFConfigJSON
+// adds an implicit self-alias entry to apiProxy.models so the AWF firewall can validate
+// and route the model at runtime (gh-aw#46306).
+func TestBuildAWFConfigJSON_ProviderScopedModelImplicitSelfAlias(t *testing.T) {
+	t.Run("adds implicit self-alias for provider-scoped model when not already in mappings", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				Model:        "copilot/gpt-5.6-sol",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+
+		apiProxy, ok := parsed["apiProxy"].(map[string]any)
+		require.True(t, ok, "apiProxy must be present")
+
+		models, ok := apiProxy["models"].(map[string]any)
+		require.True(t, ok, "apiProxy.models must be present")
+
+		selfAlias, ok := models["copilot/gpt-5.6-sol"].([]any)
+		require.True(t, ok, "apiProxy.models must contain key 'copilot/gpt-5.6-sol'")
+		require.Len(t, selfAlias, 1, "self-alias must have exactly one entry")
+		assert.Equal(t, "copilot/gpt-5.6-sol", selfAlias[0], "self-alias value must equal the model name")
+	})
+
+	t.Run("adds implicit self-alias even when ModelMappings is nil", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				Model:         "copilot/gpt-5.4",
+				EngineConfig:  &EngineConfig{ID: "copilot"},
+				ModelMappings: nil,
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.Contains(t, jsonStr, `"copilot/gpt-5.4":["copilot/gpt-5.4"]`,
+			"self-alias must be present even when no ModelMappings are declared")
+	})
+
+	t.Run("does not add self-alias when model is a bare alias name", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				Model:        "gpt-5.6-sol",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.NotContains(t, jsonStr, `"gpt-5.6-sol":["gpt-5.6-sol"]`,
+			"bare alias names must not generate a self-alias entry")
+	})
+
+	t.Run("does not add self-alias when model contains a runtime expression", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				Model:        "copilot/${{ inputs.model }}",
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		assert.NotContains(t, jsonStr, `"copilot/${{ inputs.model }}"`,
+			"runtime expressions in model must not generate a self-alias entry")
+	})
+
+	t.Run("does not overwrite existing mapping when provider-scoped model is already a key", func(t *testing.T) {
+		config := AWFCommandConfig{
+			EngineName:     "copilot",
+			AllowedDomains: "github.com",
+			WorkflowData: &WorkflowData{
+				Model: "copilot/gpt-5.6-sol",
+				ModelMappings: map[string][]string{
+					"copilot/gpt-5.6-sol": {"openai/gpt-5.6-sol"},
+				},
+				EngineConfig: &EngineConfig{ID: "copilot"},
+				NetworkPermissions: &NetworkPermissions{
+					Firewall: &FirewallConfig{Enabled: true},
+				},
+			},
+		}
+
+		jsonStr, err := BuildAWFConfigJSON(config)
+		require.NoError(t, err)
+
+		var parsed map[string]any
+		require.NoError(t, json.Unmarshal([]byte(jsonStr), &parsed))
+
+		apiProxy := parsed["apiProxy"].(map[string]any)
+		models := apiProxy["models"].(map[string]any)
+		existing, ok := models["copilot/gpt-5.6-sol"].([]any)
+		require.True(t, ok)
+		require.Len(t, existing, 1)
+		assert.Equal(t, "openai/gpt-5.6-sol", existing[0],
+			"existing explicit mapping must not be overwritten by the self-alias")
+	})
+}
