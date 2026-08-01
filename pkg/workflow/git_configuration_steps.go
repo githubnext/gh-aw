@@ -14,6 +14,57 @@ func (c *Compiler) generateGitConfigurationSteps() []string {
 	return c.generateGitConfigurationStepsWithToken("${{ github.token }}", "")
 }
 
+// generateGitConfigurationStepsForData generates git credential setup with awareness of the
+// workflow's checkout configuration. When a checkout is marked current: true and is located
+// in a subdirectory, the generated step targets that subdirectory via working-directory so
+// that git operations succeed even when the workspace root is no longer a git repository
+// (for example, after a pre-agent step that removes the private control-plane checkout).
+// Falls back to the standard workspace-root step when no current-checkout subdirectory is
+// configured.
+func (c *Compiler) generateGitConfigurationStepsForData(data *WorkflowData) []string {
+	token := "${{ github.token }}"
+
+	if data == nil || len(data.CheckoutConfigs) == 0 {
+		return c.generateGitConfigurationStepsWithToken(token, "")
+	}
+
+	checkoutMgr := NewCheckoutManager(data.CheckoutConfigs)
+	currentPath := checkoutMgr.GetCurrentCheckoutPath()
+
+	if currentPath == "" {
+		// No current checkout in a subdirectory — use the standard workspace-root behaviour.
+		return c.generateGitConfigurationStepsWithToken(token, "")
+	}
+
+	// current: true checkout is in a subdirectory. Emit the step with a working-directory
+	// so configure_git_credentials.sh runs from that directory. This ensures that
+	// `git remote set-url origin` targets the correct git repository even when the
+	// workspace root no longer contains a .git directory.
+	currentRepo := checkoutMgr.GetCurrentRepository()
+	repoNameValue := "${{ github.repository }}"
+	if currentRepo != "" {
+		repoNameValue = fmt.Sprintf("%q", currentRepo)
+		gitConfigStepsLog.Printf("Generating git config steps for current checkout: path=%s repo=%s", currentPath, currentRepo)
+	} else if c.trialMode && c.trialLogicalRepoSlug != "" {
+		repoNameValue = fmt.Sprintf("%q", c.trialLogicalRepoSlug)
+		gitConfigStepsLog.Printf("Generating git config steps in trial mode with logical repo and current path=%s", currentPath)
+	} else {
+		gitConfigStepsLog.Printf("Generating git config steps for current checkout: path=%s (workflow repo)", currentPath)
+	}
+
+	return []string{
+		"      - name: Configure Git credentials\n",
+		fmt.Sprintf("        working-directory: %q\n", currentPath),
+		"        env:\n",
+		fmt.Sprintf("          GITHUB_REPOSITORY: %s\n", repoNameValue),
+		"          GITHUB_SERVER_URL: ${{ github.server_url }}\n",
+		// SECURITY: token moved to env mapping so the shell treats it as data,
+		// not syntax. Prevents shell injection if token value contains metacharacters.
+		fmt.Sprintf("          GITHUB_TOKEN: %s\n", token),
+		"        run: bash \"${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh\"\n",
+	}
+}
+
 // generateGitConfigurationStepsWithToken generates git credential setup with a custom token
 // and optional target repository for cross-repo operations
 // Parameters:
