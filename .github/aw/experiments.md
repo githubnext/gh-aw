@@ -295,6 +295,6 @@ experiments:
 - ❌ **Interpreting early results** (<~20 runs/variant) — chance variation dominates.
 - ❌ **Experiments as feature flags** — use `features:` for deterministic switches.
 - ❌ **Engine experiments in one file** — `engine:` cannot switch mid-run; use two parallel files.
-- ❌ **Conditional frontmatter imports** — keep imports security-stable and use `{{#if experiments.<name> }}` with `{{#runtime-import? path}}` (optional form, not promoted to unconditional lock-file macros) for prompt experiments instead.
+- ❌ **Conditional frontmatter imports** — keep imports security-stable. If you only need to organize prompt text, `{{#if experiments.<name> }}` with `{{#runtime-import? path}}` is valid, but remember it resolves before the agent's first turn and does not reduce initial prompt size. For token-sensitive prompt variants, prefer inline `## skill:` blocks and instruct the agent to use only the active variant's skill.
 - ❌ **Nesting `{{#if experiments.<name> }}` inside `{{#runtime-import? }}`** — evaluation order is brittle across import boundaries. Prefer explicit branching in the main workflow prompt or separate workflow files per variant.
 - ❌ **Writing the internal env-var form** `__GH_AW_EXPERIMENTS__*` — implementation detail, may change.

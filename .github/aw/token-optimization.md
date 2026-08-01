@@ -17,6 +17,7 @@ Apply these in order, measuring cost and quality after each change:
 - [ ] **cli-proxy**: Mount additional MCP servers as CLIs via `cli-proxy: true` — agent pipes output through `jq` before it enters context
 - [ ] **Sub-agents**: Delegate repetitive per-item tasks to `model: small` sub-agents (~10–20× cheaper)
 - [ ] **Sub-skills**: Keep the main prompt as a short execution plan; move detailed playbooks/output layouts into `## skill:` blocks the agent invokes only when needed
+- [ ] **Do not count runtime-imports as prompt deferral**: `{{#runtime-import? ...}}` resolves before the first agent turn, so it helps source organization but not first-request token reduction
 - [ ] **Prompt size**: Strip redundant instructions, examples, and pleasantries from the prompt body
 - [ ] **Dynamic context**: Inject only required fields — `${{ github.event.issue.number }}` not the full event payload
 - [ ] **Pull context on demand**: query logs/data only after a hypothesis forms; avoid preloading large raw dumps into the initial prompt

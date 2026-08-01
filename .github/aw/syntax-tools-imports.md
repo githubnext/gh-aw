@@ -216,7 +216,7 @@ imports:
 
 `path`/`uses` and `with`/`inputs` are the only valid keys on an import entry. To supply environment variables or a checkout ref, set top-level `env:`/`checkout:` frontmatter inside the imported file itself — those are merged into the importing workflow (see the merge list below), not configured per import entry.
 
-Conditional `imports:` entries are not supported. For experiment-specific prompt variants, keep the import unconditional and gate a `{{#runtime-import? ...}}` block (optional form) in the workflow body instead. The optional form is not promoted to unconditional lock-file macros, so the content is only injected when the condition is true at runtime.
+Conditional `imports:` entries are not supported. For experiment-specific prompt variants, `{{#runtime-import? ...}}` can still be useful for keeping the workflow source organized, but it is resolved during workflow setup before the agent's first execution turn. That means it does **not** reduce the initial prompt surface for token-optimization work. If the goal is to keep inactive experiment instructions out of the first request, prefer inline `## skill:` blocks and tell the agent to use only the skill for the active variant.
 
 Inside the imported workflow, access values via `${{ github.aw.import-inputs.<name> }}`.
 
