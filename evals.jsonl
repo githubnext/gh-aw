@@ -1,2 +1,2 @@
-{"id":"prompt_patterns_analyzed","question":"Did the agent analyze prompt patterns used in Copilot PR interactions?","answer":"YES","model":"small","timestamp":"2026-07-31T21:04:56.083Z","runid":"30664779556"}
-{"id":"optimization_findings_produced","question":"Were findings produced identifying common usage patterns and optimization opportunities?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-31T21:04:56.083Z","runid":"30664779556"}
+{"id":"prompt_patterns_analyzed","question":"Did the agent analyze prompt patterns used in Copilot PR interactions?","answer":"YES","model":"evals","timestamp":"2026-08-01T21:02:31.932Z","runid":"30717989899"}
+{"id":"optimization_findings_produced","question":"Were findings produced identifying common usage patterns and optimization opportunities?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-01T21:02:31.932Z","runid":"30717989899"}
