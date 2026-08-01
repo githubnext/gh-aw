@@ -390,6 +390,75 @@ doMore();`,
     });
   });
 
+  it("valid: JSDoc-annotated DI parameter with control transfer is accepted", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [
+        // Corpus case: coreArg annotated with typeof import('@actions/core'), throw follows
+        `/** @param {typeof import('@actions/core')} coreArg */
+async function validateContextVariables(coreArg, ctx) {
+  coreArg.setFailed("bad");
+  throw new Error("bad");
+}`,
+        // return follows setFailed
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setFailed("x"); return; }`,
+        // setFailed is the last statement in the block — nothing to continue into
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setFailed("x"); }`,
+        // coreLib as a differently-named parameter
+        `/** @param {typeof import('@actions/core')} coreLib */
+function f(coreLib) { coreLib.setFailed("x"); return; }`,
+        // double-quote variant of the JSDoc type annotation
+        `/** @param {typeof import("@actions/core")} coreArg */
+function f(coreArg) { coreArg.setFailed("x"); return; }`,
+        // un-annotated parameter with the same name must NOT be treated as core
+        // (the rule should not fire because coreArg is not recognised as core)
+        `function f(coreArg) { coreArg.setFailed("x"); doMore(); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: JSDoc-annotated DI parameter missing control transfer is flagged", () => {
+    ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+async function f(coreArg, ctx) { coreArg.setFailed("bad"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+async function f(coreArg, ctx) { coreArg.setFailed("bad"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `/** @param {typeof import('@actions/core')} coreLib */
+function g(coreLib) { coreLib.setFailed("x"); doMore(); keepGoing(); }`,
+          errors: [
+            {
+              messageId: "missingReturnAfterSetFailed",
+              suggestions: [
+                {
+                  messageId: "addReturn",
+                  output: `/** @param {typeof import('@actions/core')} coreLib */
+function g(coreLib) { coreLib.setFailed("x"); return; doMore(); keepGoing(); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
+
   it("invalid: bare switch-case fall-through after setFailed is flagged (FN fix)", () => {
     ruleTester.run("require-return-after-core-setfailed", requireReturnAfterCoreSetFailedRule, {
       valid: [

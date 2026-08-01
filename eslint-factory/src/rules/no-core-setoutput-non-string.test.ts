@@ -364,4 +364,66 @@ describe("no-core-setoutput-non-string", () => {
       invalid: [],
     });
   });
+
+  it("valid: JSDoc-annotated DI parameter with string value is accepted", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setOutput("n", "str"); }`,
+        `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setOutput("n", someVariable); }`,
+        // coreLib as a differently-named DI parameter
+        `/** @param {typeof import('@actions/core')} coreLib */
+function f(coreLib) { coreLib.setOutput("n", String(count)); }`,
+        // double-quote variant
+        `/** @param {typeof import("@actions/core")} coreArg */
+function f(coreArg) { coreArg.setOutput("n", "str"); }`,
+        // un-annotated parameter must NOT be treated as core
+        `function f(coreArg) { coreArg.setOutput("n", 0); }`,
+      ],
+      invalid: [],
+    });
+  });
+
+  it("invalid: JSDoc-annotated DI parameter with non-string value is flagged", () => {
+    cjsRuleTester.run("no-core-setoutput-non-string", noCoreSetOutputNonStringRule, {
+      valid: [],
+      invalid: [
+        {
+          code: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setOutput("count", 0); }`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              data: { kind: "numeric literal", valueText: "0" },
+              suggestions: [
+                {
+                  messageId: "wrapWithString",
+                  data: { valueText: "0" },
+                  output: `/** @param {typeof import('@actions/core')} coreArg */
+function f(coreArg) { coreArg.setOutput("count", String(0)); }`,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          code: `/** @param {typeof import('@actions/core')} coreLib */
+function g(coreLib) { coreLib.setOutput("flag", true); }`,
+          errors: [
+            {
+              messageId: "nonStringValue",
+              suggestions: [
+                {
+                  messageId: "wrapWithString",
+                  output: `/** @param {typeof import('@actions/core')} coreLib */
+function g(coreLib) { coreLib.setOutput("flag", String(true)); }`,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+  });
 });
