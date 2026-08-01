@@ -1,0 +1,18 @@
+# For more information, see https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repository
+* @dsyme @eaftan @pelikhan @krzysztof-cieslak
+
+# Security-sensitive CLI paths (GraphQL/REST injection risk)
+/pkg/cli/ @dsyme @eaftan @pelikhan @krzysztof-cieslak
+
+# Scripts (CodeQL and automation scripts)
+/scripts/ @dsyme @eaftan @pelikhan @krzysztof-cieslak
+
+# Workflow definitions
+/.github/workflows/ @dsyme @eaftan @pelikhan @krzysztof-cieslak
+
+# Container and Dockerfile definitions
+Dockerfile @dsyme @eaftan @pelikhan @krzysztof-cieslak
+Dockerfile.* @dsyme @eaftan @pelikhan @krzysztof-cieslak
+/actions/setup/js/Dockerfile.safe-outputs-mcp @dsyme @eaftan @pelikhan @krzysztof-cieslak
