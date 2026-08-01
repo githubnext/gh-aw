@@ -180,6 +180,9 @@ async function main(config = {}) {
 
       core.info(`Dispatching workflow: ${workflowName}`);
 
+      if (message.ref !== undefined && message.ref !== null && typeof message.ref !== "string") {
+        core.warning(`message.ref must be a string; ignoring non-string value (type: ${typeof message.ref})`);
+      }
       const outputRef = typeof message.ref === "string" ? message.ref.trim() : "";
       let ref = defaultRef;
       if (outputRef) {
