@@ -141,14 +141,16 @@ The AWF Firewall uses Squid proxy for egress control. The key log file is `acces
 For each firewall-enabled workflow run, check:
 
 1. **access.log existence**: Search recursively inside each run folder for firewall access logs
-   - Canonical path: `/tmp/gh-aw/aw-mcp/logs/run-<id>/sandbox/firewall/logs/access.log`
+   - Canonical path (current AWF layout): `run-<id>/sandbox/firewall/logs/squid-logs/access.log`
+   - Also accept the legacy path: `run-<id>/sandbox/firewall/logs/access.log` (older AWF layout)
    - Also accept equivalent paths nested under artifact-prefixed directories (workflow_call)
    - Do not assume a fixed top-level location; use recursive discovery
 
 2. **access.log content quality**:
    - Are there log entries present?
-   - Do entries follow squid format: `timestamp duration client status size method url user hierarchy type`
-   - Are both allowed and blocked requests logged?
+   - Do entries follow AWF custom format: `timestamp client_ip:port domain dest_ip:port proto method status decision url user_agent`
+   - Example entry: `1761332530.474 172.30.0.20:35288 api.github.com:443 140.82.112.22:443 1.1 CONNECT 200 TCP_TUNNEL:HIER_DIRECT api.github.com:443 "-"`
+   - Are both allowed (TCP_TUNNEL) and blocked (TCP_DENIED) requests logged?
 
 3. **Firewall configuration**:
    - Check `aw_info.json` for firewall settings:

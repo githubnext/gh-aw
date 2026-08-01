@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"math"
 
@@ -18,7 +19,7 @@ var workflowOutcomeGHAPIGet = ghAPIGet
 // evalDispatchWorkflow checks whether a dispatched workflow run completed successfully.
 // It looks for a run_id in the item metadata and queries the workflow run status.
 // Spec: specs/safe-output-outcome-evaluation.md §20
-func evalDispatchWorkflow(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalDispatchWorkflow(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	outcomeEvalWorkflowLog.Printf("Evaluating dispatch_workflow: repo=%s, url=%s", repo, item.URL)
 
@@ -57,7 +58,7 @@ func evalDispatchWorkflow(item CreatedItemReport, repoOverride string) OutcomeRe
 		return report
 	}
 
-	data, err := workflowOutcomeGHAPIGet(fmt.Sprintf("actions/runs/%d", runID), repo)
+	data, err := workflowOutcomeGHAPIGet(ctx, fmt.Sprintf("actions/runs/%d", runID), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -93,7 +94,7 @@ func evalDispatchWorkflow(item CreatedItemReport, repoOverride string) OutcomeRe
 // Until the GraphQL evaluator is implemented this returns OutcomeIgnored so that
 // callers do not retry indefinitely.
 // Spec: specs/safe-output-outcome-evaluation.md §12
-func evalUpdateDiscussion(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalUpdateDiscussion(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	return OutcomeReport{
 		Type:      item.Type,
 		ObjectURL: item.URL,

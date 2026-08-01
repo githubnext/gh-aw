@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
@@ -46,7 +47,7 @@ func findPRByTimestamp(repo string, timestamp string) int {
 }
 
 // evalCreatePullRequest checks whether a PR was merged, closed, or is still open.
-func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalCreatePullRequest(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	outcomeEvalPRLog.Printf("Evaluating create_pull_request: repo=%s, num=%d, url=%s", repo, num, item.URL)
@@ -73,7 +74,7 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 		return report
 	}
 
-	data, err := ghAPIGet(fmt.Sprintf("pulls/%d", num), repo)
+	data, err := ghAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -104,7 +105,7 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 	}
 
 	// Count human comments (non-bot)
-	comments, err := ghAPIGetArray(fmt.Sprintf("issues/%d/comments", num), repo)
+	comments, err := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/comments", num), repo)
 	if err == nil {
 		for _, c := range comments {
 			user, _ := c["user"].(map[string]any)
@@ -116,7 +117,7 @@ func evalCreatePullRequest(item CreatedItemReport, repoOverride string) OutcomeR
 	}
 
 	// Count reviews (used for ZeroTouch, stored separately from edits to avoid conflation)
-	reviews, err := ghAPIGetArray(fmt.Sprintf("pulls/%d/reviews", num), repo)
+	reviews, err := ghAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err == nil {
 		report.HumanReviews = len(reviews)
 	}

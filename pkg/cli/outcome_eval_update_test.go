@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -13,7 +14,7 @@ func TestEvalUpdateIssueRetained(t *testing.T) {
 	t.Cleanup(func() {
 		outcomeUpdateGHAPIGet = old
 	})
-	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeUpdateGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"title": "New title",
 			"body":  "New body",
@@ -28,7 +29,7 @@ func TestEvalUpdateIssueRetained(t *testing.T) {
 		}, nil
 	}
 
-	report := evalUpdateIssue(CreatedItemReport{
+	report := evalUpdateIssue(context.Background(), CreatedItemReport{
 		Type:   "update_issue",
 		Number: 12,
 		Repo:   "owner/repo",
@@ -59,7 +60,7 @@ func TestEvalUpdateIssueReverted(t *testing.T) {
 	t.Cleanup(func() {
 		outcomeUpdateGHAPIGet = old
 	})
-	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeUpdateGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"title": "Old title",
 			"body":  "Old body",
@@ -67,7 +68,7 @@ func TestEvalUpdateIssueReverted(t *testing.T) {
 		}, nil
 	}
 
-	report := evalUpdateIssue(CreatedItemReport{
+	report := evalUpdateIssue(context.Background(), CreatedItemReport{
 		Type:   "update_issue",
 		Number: 12,
 		Repo:   "owner/repo",
@@ -94,7 +95,7 @@ func TestEvalUpdatePullRequestRetainedAndMerged(t *testing.T) {
 	t.Cleanup(func() {
 		outcomeUpdateGHAPIGet = old
 	})
-	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeUpdateGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"title":  "New title",
 			"body":   "New body",
@@ -106,7 +107,7 @@ func TestEvalUpdatePullRequestRetainedAndMerged(t *testing.T) {
 		}, nil
 	}
 
-	report := evalUpdatePullRequest(CreatedItemReport{
+	report := evalUpdatePullRequest(context.Background(), CreatedItemReport{
 		Type:   "update_pull_request",
 		Number: 42,
 		Repo:   "owner/repo",
@@ -139,7 +140,7 @@ func TestEvalUpdatePullRequestReplaced(t *testing.T) {
 	t.Cleanup(func() {
 		outcomeUpdateGHAPIGet = old
 	})
-	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeUpdateGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"title":  "Maintainer rewrite",
 			"body":   "Reworked body",
@@ -151,7 +152,7 @@ func TestEvalUpdatePullRequestReplaced(t *testing.T) {
 		}, nil
 	}
 
-	report := evalUpdatePullRequest(CreatedItemReport{
+	report := evalUpdatePullRequest(context.Background(), CreatedItemReport{
 		Type:   "update_pull_request",
 		Number: 42,
 		Repo:   "owner/repo",
@@ -180,7 +181,7 @@ func TestEvalUpdatePullRequestReplaced(t *testing.T) {
 }
 
 func TestEvalRetainedUpdateMissingExecutionStateUsesEvidenceNone(t *testing.T) {
-	report := evalUpdateIssue(CreatedItemReport{
+	report := evalUpdateIssue(context.Background(), CreatedItemReport{
 		Type:   "update_issue",
 		Number: 12,
 		Repo:   "owner/repo",
@@ -197,7 +198,7 @@ func TestEvalReplaceLabelRetained(t *testing.T) {
 	t.Cleanup(func() {
 		outcomeUpdateGHAPIGet = old
 	})
-	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeUpdateGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"labels": []any{
 				map[string]any{"name": "triage"},
@@ -206,7 +207,7 @@ func TestEvalReplaceLabelRetained(t *testing.T) {
 		}, nil
 	}
 
-	report := evalReplaceLabel(CreatedItemReport{
+	report := evalReplaceLabel(context.Background(), CreatedItemReport{
 		Type:   "replace_label",
 		Number: 12,
 		Repo:   "owner/repo",
@@ -233,7 +234,7 @@ func TestEvalReplaceLabelRetainedWithExtraLabel(t *testing.T) {
 	t.Cleanup(func() {
 		outcomeUpdateGHAPIGet = old
 	})
-	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeUpdateGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"labels": []any{
 				map[string]any{"name": "done"},
@@ -242,7 +243,7 @@ func TestEvalReplaceLabelRetainedWithExtraLabel(t *testing.T) {
 		}, nil
 	}
 
-	report := evalReplaceLabel(CreatedItemReport{
+	report := evalReplaceLabel(context.Background(), CreatedItemReport{
 		Type:   "replace_label",
 		Number: 12,
 		Repo:   "owner/repo",
@@ -268,7 +269,7 @@ func TestEvalReplaceLabelReverted(t *testing.T) {
 	t.Cleanup(func() {
 		outcomeUpdateGHAPIGet = old
 	})
-	outcomeUpdateGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeUpdateGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"labels": []any{
 				map[string]any{"name": "in-progress"},
@@ -276,7 +277,7 @@ func TestEvalReplaceLabelReverted(t *testing.T) {
 		}, nil
 	}
 
-	report := evalReplaceLabel(CreatedItemReport{
+	report := evalReplaceLabel(context.Background(), CreatedItemReport{
 		Type:   "replace_label",
 		Number: 12,
 		Repo:   "owner/repo",

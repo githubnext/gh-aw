@@ -301,7 +301,7 @@ func runUpgradeForTargetRepo(ctx context.Context, repo string, opts upgradeOptio
 		"updating GitHub Actions versions, and recompiling all workflows." +
 		releaseLine + "\n" + xmlMarker
 
-	prURL, err := CreatePRWithChanges("upgrade-agentic-workflows", "chore: upgrade agentic workflows",
+	prURL, err := CreatePRWithChanges(ctx, "upgrade-agentic-workflows", "chore: upgrade agentic workflows",
 		"Upgrade agentic workflows", prBody, verbose)
 	if err != nil {
 		return err

@@ -952,7 +952,7 @@ func buildRenderedAuditData(ctx context.Context, processedRun ProcessedRun, metr
 	currentCreatedItems := extractCreatedItemsFromManifest(runOutputDir)
 	currentSnapshot := buildAuditComparisonSnapshot(processedRun, currentCreatedItems)
 	comparison := buildAuditComparisonForRun(ctx, processedRun, currentSnapshot, runOutputDir, opts.Owner, opts.Repo, opts.Hostname, opts.Verbose)
-	auditData := buildAuditData(processedRun, metrics, mcpToolUsage)
+	auditData := buildAuditData(ctx, processedRun, metrics, mcpToolUsage)
 	auditData.Comparison = comparison
 	return auditData
 }

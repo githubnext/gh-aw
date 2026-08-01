@@ -219,7 +219,7 @@ All diagnostic output MUST go to `stderr` using `console` formatting helpers. St
 | `StartDockerImageDownload` | `func(ctx context.Context, image string) (bool, func() error)` | Begins a background image pull; returns false if already pulling. The join function blocks until the goroutine exits and returns any download error. |
 | `CheckAndPrepareDockerImages` | `func(ctx context.Context, opts DockerImagesOptions) error` | Pre-pulls security-scanner Docker images |
 | `UpdateContainerPins` | `func(ctx, workflowDir string, verbose bool) error` | Updates container image SHA pins in workflow files |
-| `CreatePRWithChanges` | `func(branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |
+| `CreatePRWithChanges` | `func(ctx context.Context, branchPrefix, commitMessage, prTitle, prBody string, verbose bool) (string, error)` | Creates a GitHub PR from uncommitted changes |
 | `AutoMergePullRequestsCreatedAfter` | `func(repoSlug string, createdAfter time.Time, verbose bool) error` | Auto-merges eligible PRs created after a given time |
 | `PreflightCheckForCreatePR` | `func(bool) error` | Validates prerequisites before creating a PR |
 | `DisableAllWorkflowsExcept` | `func(repoSlug string, exceptWorkflows []string, verbose bool) error` | Disables all workflows in a repo except the named ones |
