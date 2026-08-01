@@ -1146,6 +1146,37 @@ func TestMainWorkflowSchema_CreatePullRequestAllowedBaseBranches(t *testing.T) {
 	if _, ok := createPullRequestProperties["max-patch-files"].(map[string]any); !ok {
 		t.Fatal("'max-patch-files' not found under safe-outputs.create-pull-request")
 	}
+
+	autoMerge, ok := createPullRequestProperties["auto-merge"].(map[string]any)
+	if !ok {
+		t.Fatal("'auto-merge' not found under safe-outputs.create-pull-request")
+	}
+
+	autoMergeOneOf, ok := autoMerge["oneOf"].([]any)
+	if !ok || len(autoMergeOneOf) < 2 {
+		t.Fatal("'auto-merge.oneOf' not found under safe-outputs.create-pull-request")
+	}
+
+	var foundBoolean bool
+	var foundMergeMethodEnum bool
+	for _, candidate := range autoMergeOneOf {
+		candidateMap, ok := candidate.(map[string]any)
+		if !ok {
+			continue
+		}
+		if candidateMap["type"] == "boolean" {
+			foundBoolean = true
+		}
+		if enumVals, ok := candidateMap["enum"].([]any); ok && len(enumVals) == 3 {
+			foundMergeMethodEnum = enumVals[0] == "squash" && enumVals[1] == "merge" && enumVals[2] == "rebase"
+		}
+	}
+	if !foundBoolean {
+		t.Fatal("'auto-merge.oneOf' should include a boolean variant")
+	}
+	if !foundMergeMethodEnum {
+		t.Fatal("'auto-merge.oneOf' should include a squash|merge|rebase enum variant")
+	}
 }
 
 func TestGetSafeOutputTypeKeys(t *testing.T) {

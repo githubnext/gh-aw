@@ -7,6 +7,12 @@ permissions:
   contents: read
   issues: read
   pull-requests: read
+env:
+  GOTOOLCHAIN: auto
+network:
+  allowed:
+    - defaults
+    - go
 
 sandbox:
   agent:
