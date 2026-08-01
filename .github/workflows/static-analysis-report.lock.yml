@@ -1652,6 +1652,7 @@ jobs:
           WORKFLOW_NAME: "Static Analysis Report"
           WORKFLOW_DESCRIPTION: "Scans agentic workflows daily with zizmor, poutine, actionlint, runner-guard, syft, grype, and yamllint"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

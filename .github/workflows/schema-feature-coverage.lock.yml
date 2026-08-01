@@ -1469,6 +1469,7 @@ jobs:
           WORKFLOW_NAME: "Schema Feature Coverage Checker"
           WORKFLOW_DESCRIPTION: "Ensures 100% schema feature coverage across existing agentic workflows by creating PRs for any uncovered fields"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

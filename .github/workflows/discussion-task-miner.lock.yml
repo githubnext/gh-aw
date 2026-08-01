@@ -1532,6 +1532,7 @@ jobs:
           WORKFLOW_NAME: "Discussion Task Miner - Code Quality Improvement Agent"
           WORKFLOW_DESCRIPTION: "Scans AI-generated discussions to extract actionable code quality improvement tasks"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

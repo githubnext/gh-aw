@@ -1572,6 +1572,7 @@ jobs:
           WORKFLOW_NAME: "Daily Safe Outputs Git Simulator"
           WORKFLOW_DESCRIPTION: "Daily synthetic tester that exhaustively explores the space of git configurations for create-pull-request and push-to-pull-request-branch safe outputs, using Z3-style constraint enumeration, repo-memory persistence, and parallel inline sub-agents to detect systematic issues related to repo size, history depth, and file count."
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

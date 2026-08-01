@@ -286,6 +286,22 @@ func (c *Compiler) buildDetectionTokenUsageSummaryStep(data *WorkflowData) []str
 func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string {
 	var steps []string
 
+	// Determine continue-on-error mode (same logic as buildDetectionConclusionStep).
+	continueOnError := true
+	var continueOnErrorExpr *string
+	if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil {
+		continueOnError = data.SafeOutputs.ThreatDetection.IsContinueOnError()
+		continueOnErrorExpr = data.SafeOutputs.ThreatDetection.ContinueOnErrorExpr
+	}
+
+	// Build the GH_AW_DETECTION_CONTINUE_ON_ERROR env var for the setup step.
+	var coeEnvLine string
+	if continueOnErrorExpr != nil {
+		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %s\n", *continueOnErrorExpr)
+	} else {
+		coeEnvLine = fmt.Sprintf("          GH_AW_DETECTION_CONTINUE_ON_ERROR: %q\n", strconv.FormatBool(continueOnError))
+	}
+
 	// Setup step
 	steps = append(steps, []string{
 		"      - name: Setup threat detection\n",
@@ -297,6 +313,9 @@ func (c *Compiler) buildThreatDetectionAnalysisStep(data *WorkflowData) []string
 
 	// Add HAS_PATCH environment variable from the agent job output (detection runs in a separate job)
 	steps = append(steps, "          HAS_PATCH: ${{ needs.agent.outputs.has_patch }}\n")
+
+	// Propagate continue-on-error policy so setup failures also respect warn/strict mode.
+	steps = append(steps, coeEnvLine)
 
 	// Add custom prompt instructions if configured
 	customPrompt := ""

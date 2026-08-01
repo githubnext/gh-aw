@@ -1507,6 +1507,7 @@ jobs:
           WORKFLOW_NAME: "Daily yamllint Fixer"
           WORKFLOW_DESCRIPTION: "Daily workflow that runs yamllint on generated *.lock.yml files, analyzes noise (trailing spaces, indentation), and opens a pull-request with Go generator fixes"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

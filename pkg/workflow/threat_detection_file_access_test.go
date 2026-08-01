@@ -215,6 +215,24 @@ func TestBuildThreatDetectionAnalysisStep_ConfiguresEnvironment(t *testing.T) {
 				assert.Contains(t, stepsString, "HAS_PATCH: ${{ needs.agent.outputs.has_patch }}", "should include HAS_PATCH env var from agent job output")
 			},
 		},
+		{
+			name: "includes GH_AW_DETECTION_CONTINUE_ON_ERROR env var with default (true)",
+			data: createTestWorkflowData(t, &ThreatDetectionConfig{}),
+			checkStep: func(t *testing.T, stepsString string) {
+				assert.Contains(t, stepsString, "GH_AW_DETECTION_CONTINUE_ON_ERROR:", "should include GH_AW_DETECTION_CONTINUE_ON_ERROR env var in setup step")
+				assert.Contains(t, stepsString, `GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"`, "default should be true")
+			},
+		},
+		{
+			name: "includes GH_AW_DETECTION_CONTINUE_ON_ERROR env var when strict mode",
+			data: func() *WorkflowData {
+				f := false
+				return createTestWorkflowData(t, &ThreatDetectionConfig{ContinueOnError: &f})
+			}(),
+			checkStep: func(t *testing.T, stepsString string) {
+				assert.Contains(t, stepsString, `GH_AW_DETECTION_CONTINUE_ON_ERROR: "false"`, "strict mode should emit false")
+			},
+		},
 	}
 
 	for _, tt := range tests {

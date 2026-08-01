@@ -102,7 +102,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)
+      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1704,6 +1705,7 @@ jobs:
           WORKFLOW_NAME: "Matt Pocock Skills Reviewer"
           WORKFLOW_DESCRIPTION: "Reviews pull requests using Matt Pocock's engineering skills to provide targeted, high-quality improvement suggestions based on the type of changes"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1819,7 +1821,9 @@ jobs:
           bash "${RUNNER_TEMP}/gh-aw/actions/conclude_threat_detection.sh" /tmp/gh-aw/threat-detection/detection_result.json
 
   pre_activation:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id
+    if: >
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)
     runs-on: ubuntu-slim
     permissions:
       contents: read

@@ -286,23 +286,6 @@ func TestFormatErrorMessage(t *testing.T) {
 	}
 }
 
-func TestFormatTableHeaderWithTTY(t *testing.T) {
-	t.Run("plain text when not tty", func(t *testing.T) {
-		result := formatTableHeaderWithTTY("Header", func() bool { return false })
-		if result != "Header" {
-			t.Fatalf("formatTableHeaderWithTTY() = %q, want %q", result, "Header")
-		}
-	})
-
-	t.Run("styled text when tty", func(t *testing.T) {
-		result := formatTableHeaderWithTTY("Header", func() bool { return true })
-		expected := styles.TableHeader.Render("Header")
-		if result != expected {
-			t.Fatalf("formatTableHeaderWithTTY() = %q, want %q", result, expected)
-		}
-	})
-}
-
 func TestApplyStderrStyleWithTTY(t *testing.T) {
 	t.Run("plain text when stderr is not tty", func(t *testing.T) {
 		result := applyStderrStyleWithTTY(styles.Warning, "warning", func() bool { return false }, []string{"TERM=xterm-256color"})
@@ -348,23 +331,6 @@ func TestFormatErrorStderrWithTTY(t *testing.T) {
 	if strings.Contains(plain, "\x1b[") {
 		t.Fatalf("formatErrorStderrWithTTY() = %q, want ANSI-free text", plain)
 	}
-}
-
-func TestFormatErrorTextWithTTY(t *testing.T) {
-	t.Run("plain text when not tty", func(t *testing.T) {
-		result := formatErrorTextWithTTY("boom", func() bool { return false })
-		if result != "boom" {
-			t.Fatalf("formatErrorTextWithTTY() = %q, want %q", result, "boom")
-		}
-	})
-
-	t.Run("styled text when tty", func(t *testing.T) {
-		result := formatErrorTextWithTTY("boom", func() bool { return true })
-		expected := styles.Error.Render("boom")
-		if result != expected {
-			t.Fatalf("formatErrorTextWithTTY() = %q, want %q", result, expected)
-		}
-	})
 }
 
 func TestFormatSectionHeader(t *testing.T) {

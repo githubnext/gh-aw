@@ -1589,6 +1589,7 @@ jobs:
           WORKFLOW_NAME: "Go Logger Enhancement"
           WORKFLOW_DESCRIPTION: "Analyzes and enhances Go logging practices across the codebase for improved debugging and observability"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

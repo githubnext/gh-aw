@@ -1462,6 +1462,7 @@ jobs:
           WORKFLOW_NAME: "Repository Quality Improvement Agent"
           WORKFLOW_DESCRIPTION: "Daily analysis and improvement of repository quality focusing on different software development lifecycle areas"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

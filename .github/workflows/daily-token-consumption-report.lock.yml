@@ -1632,6 +1632,7 @@ jobs:
           WORKFLOW_NAME: "Daily AIC Consumption Report (Sentry + Grafana OTel)"
           WORKFLOW_DESCRIPTION: "Daily report of AI Credits (AIC) consumption across all agentic workflows using OTel telemetry from Sentry and Grafana"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

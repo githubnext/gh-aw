@@ -1600,6 +1600,7 @@ jobs:
           WORKFLOW_NAME: "Python Data Visualization Generator"
           WORKFLOW_DESCRIPTION: "Generates high-quality data visualizations and trend charts using Python scientific computing libraries"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

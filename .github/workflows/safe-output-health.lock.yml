@@ -1632,6 +1632,7 @@ jobs:
           WORKFLOW_NAME: "Safe Output Health Monitor"
           WORKFLOW_DESCRIPTION: "Monitors and analyzes the health of safe output operations across all agentic workflows"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

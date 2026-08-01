@@ -667,6 +667,9 @@ func (c *Compiler) processOnSectionAndFilters(
 	// Apply pull request fork filter if specified
 	c.applyPullRequestForkFilter(workflowData, frontmatter)
 
+	// Apply pull request stack filter (default: latest stacked PR only)
+	c.applyPullRequestStackFilter(workflowData, frontmatter)
+
 	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, frontmatter)
 

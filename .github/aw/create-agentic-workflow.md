@@ -86,6 +86,7 @@ Use this mode for exploratory testing, persona walkthroughs, and "what workflow 
 - Do not create or edit workflow files.
 - Return a compact recommendation covering trigger, any scoped `paths:` filters for file-event triggers, read tools, safe outputs, permissions, and explicit `noop` criteria.
 - For recurring reports or digests, always include the report window, grouping dimensions, and deduplication key. See [triggers.md](triggers.md) for key-format examples.
+- If custom-agent invocation is unavailable in the environment, use fallback evaluation mode: provide the recommendation directly from local gh-aw guidance, record scoring/response quality as unavailable, and continue with partial-results reporting.
 - Exit ad hoc evaluation mode only when the user explicitly asks to create, implement, or write the workflow file.
 - End by offering to turn the recommendation into `.github/workflows/<workflow-id>.md` if the user wants to proceed.
 

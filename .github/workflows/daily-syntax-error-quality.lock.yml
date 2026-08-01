@@ -1440,6 +1440,7 @@ jobs:
           WORKFLOW_NAME: "Daily Syntax Error Quality Check"
           WORKFLOW_DESCRIPTION: "Tests compiler error message quality by introducing syntax errors in workflows, evaluating error clarity, and suggesting improvements"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

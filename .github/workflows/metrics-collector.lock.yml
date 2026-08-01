@@ -1548,6 +1548,7 @@ jobs:
           WORKFLOW_NAME: "Metrics Collector"
           WORKFLOW_DESCRIPTION: "Collects daily performance metrics for the agent ecosystem and stores them in repo-memory"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

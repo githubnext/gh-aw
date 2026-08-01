@@ -93,7 +93,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id)
+      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size))
     runs-on: ubuntu-slim
     permissions:
       actions: read
@@ -1603,6 +1604,7 @@ jobs:
           WORKFLOW_NAME: "Test Quality Sentinel"
           WORKFLOW_DESCRIPTION: "Analyzes test quality beyond code coverage percentages on every PR, detecting implementation-detail tests, happy-path-only tests, test inflation, and duplication"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1940,7 +1942,9 @@ jobs:
           if-no-files-found: ignore
 
   pre_activation:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id
+    if: >
+      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)
     runs-on: ubuntu-slim
     permissions:
       contents: read

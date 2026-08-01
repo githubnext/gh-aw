@@ -1,7 +1,9 @@
 package workflow
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -190,6 +192,123 @@ func (c *Compiler) applyPullRequestForkFilter(data *WorkflowData, frontmatter ma
 	existingCondition := data.If
 	conditionTree := BuildConditionTree(existingCondition, forkCondition.Render())
 	data.If = RenderCondition(conditionTree)
+}
+
+// applyPullRequestStackFilter applies stacked pull request protection.
+// Default behavior: run only for the latest PR in a stack (max-stack = 1).
+// Set on.pull_request.max-stack: -1 to disable this protection.
+func (c *Compiler) applyPullRequestStackFilter(data *WorkflowData, frontmatter map[string]any) {
+	filtersLog.Print("Applying pull request stack filter")
+
+	onValue, hasOn := frontmatter["on"]
+	if !hasOn || !hasPullRequestTrigger(onValue) {
+		return
+	}
+
+	maxStack := 1
+	if configuredMaxStack, ok := extractPullRequestMaxStack(onValue); ok {
+		maxStack = configuredMaxStack
+	}
+
+	if maxStack == -1 {
+		filtersLog.Print("Pull request stack filter disabled via max-stack: -1")
+		return
+	}
+
+	if maxStack == 1 {
+		// For max-stack: 1 (the default), use a job-level if: condition with the supported
+		// equality operator. This gates the entire job (shows as "skipped") for non-top PRs.
+		// GitHub Actions expressions do not support arithmetic (+, -, etc.), so we use
+		// position == size to check that this PR is at the top of the stack.
+		stackCondition := "github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size"
+
+		existingCondition := data.If
+		conditionTree := BuildConditionTree(existingCondition, stackCondition)
+		data.If = RenderCondition(conditionTree)
+	} else {
+		// For max-stack: N > 1, GitHub Actions expressions do not support arithmetic
+		// operators (+, -, etc.), so we inject a PreStep that uses bash arithmetic instead.
+		// The step exits 1 if this PR is not in the top N layers, stopping all subsequent
+		// default-condition steps from running (they use if: success() by default).
+		stackGateStep := fmt.Sprintf(
+			"- name: Stack position gate (max-stack: %d)\n"+
+				"  if: github.event_name == 'pull_request' && github.event.pull_request.stack != null\n"+
+				"  env:\n"+
+				"    STACK_POSITION: ${{ github.event.pull_request.stack.position }}\n"+
+				"    STACK_SIZE: ${{ github.event.pull_request.stack.size }}\n"+
+				"  run: |\n"+
+				"    max_stack=%d\n"+
+				"    if (( STACK_POSITION + max_stack <= STACK_SIZE )); then\n"+
+				"      printf '## Stack gate\\n\\nRun skipped: stack position %%s is not in the top %%s of %%s.\\n' \\\n"+
+				"        \"$STACK_POSITION\" \"$max_stack\" \"$STACK_SIZE\" >> \"$GITHUB_STEP_SUMMARY\"\n"+
+				"      exit 1\n"+
+				"    fi\n",
+			maxStack, maxStack,
+		)
+
+		if data.PreSteps == "" {
+			data.PreSteps = "pre-steps:\n" + stackGateStep
+		} else {
+			data.PreSteps = strings.TrimRight(data.PreSteps, "\n") + "\n" + stackGateStep
+		}
+	}
+}
+
+func hasPullRequestTrigger(onValue any) bool {
+	switch on := onValue.(type) {
+	case string:
+		return on == "pull_request"
+	case []any:
+		for _, item := range on {
+			if item == "pull_request" {
+				return true
+			}
+			if eventMap, ok := item.(map[string]any); ok {
+				if _, exists := eventMap["pull_request"]; exists {
+					return true
+				}
+			}
+		}
+	case map[string]any:
+		_, exists := on["pull_request"]
+		return exists
+	}
+	return false
+}
+
+func extractPullRequestMaxStack(onValue any) (int, bool) {
+	onMap, ok := onValue.(map[string]any)
+	if !ok {
+		return 0, false
+	}
+
+	prValue, hasPR := onMap["pull_request"]
+	if !hasPR {
+		return 0, false
+	}
+
+	prMap, ok := prValue.(map[string]any)
+	if !ok {
+		return 0, false
+	}
+
+	maxStackValue, hasMaxStack := prMap["max-stack"]
+	if !hasMaxStack {
+		return 0, false
+	}
+
+	switch v := maxStackValue.(type) {
+	case int:
+		return v, true
+	case int64:
+		return int(v), true
+	case float64:
+		if v == float64(int(v)) {
+			return int(v), true
+		}
+	}
+
+	return 0, false
 }
 
 // applyLabelFilter applies label name filter conditions for labeled/unlabeled triggers

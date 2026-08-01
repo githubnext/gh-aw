@@ -1475,6 +1475,7 @@ jobs:
           WORKFLOW_NAME: "Layout Specification Maintainer"
           WORKFLOW_DESCRIPTION: "Maintains scratchpad/layout.md with patterns of file paths, folder names, and artifact names used in lock.yml files"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

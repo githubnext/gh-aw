@@ -1504,6 +1504,7 @@ jobs:
           WORKFLOW_NAME: "Daily Firewall Logs Collector and Reporter"
           WORKFLOW_DESCRIPTION: "Collects and reports on firewall log events to monitor network security and access patterns"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

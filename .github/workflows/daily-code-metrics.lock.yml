@@ -1677,6 +1677,7 @@ jobs:
           WORKFLOW_NAME: "Daily Code Metrics and Trend Tracking Agent"
           WORKFLOW_DESCRIPTION: "Tracks and visualizes daily code metrics and trends to monitor repository health and development patterns"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

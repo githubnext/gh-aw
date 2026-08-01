@@ -1478,6 +1478,7 @@ jobs:
           WORKFLOW_NAME: "Documentation Noob Tester"
           WORKFLOW_DESCRIPTION: "Tests documentation as a new user would, identifying confusing or broken steps in getting started guides"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

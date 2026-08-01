@@ -93,7 +93,8 @@ jobs:
   activation:
     needs: pre_activation
     if: >
-      needs.pre_activation.outputs.activated == 'true' && ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      needs.pre_activation.outputs.activated == 'true' && (((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'metal'))
     runs-on: ubuntu-slim
     permissions:
@@ -1547,6 +1548,7 @@ jobs:
           WORKFLOW_NAME: "Smoke Agent: scoped/approved"
           WORKFLOW_DESCRIPTION: "Guard policy smoke test: repos=[github/gh-aw, github/*], min-integrity=approved (scoped patterns)"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -1696,7 +1698,8 @@ jobs:
 
   pre_activation:
     if: >
-      (github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      ((github.event_name != 'pull_request' || github.event.pull_request.head.repo.id == github.repository_id) &&
+      (github.event_name != 'pull_request' || github.event.pull_request.stack == null || github.event.pull_request.stack.position == github.event.pull_request.stack.size)) &&
       (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'metal')
     runs-on: ubuntu-slim
     permissions:

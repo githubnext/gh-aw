@@ -163,6 +163,39 @@ on:
 
 Use `["owner/repo"]` for a specific repository, `["owner/*"]` for an entire org/user, or `["*"]` to allow all forks (use with caution). Omit `forks:` for the default behavior (same-repository PRs only). The compiler uses repository ID comparison so fork detection is unaffected by repository renames.
 
+#### Stacked PR Filtering (`max-stack:`)
+
+When using stacked pull requests (a chain of PRs each targeting the previous one), every PR in the stack normally triggers workflows. This multiplies CI cost for identical changes being reviewed at multiple layers. The `max-stack:` field lets you limit which stack layers run the workflow.
+
+By default (`max-stack: 1`), workflows run only on the **top-most PR** in the stack — the one currently under review. Lower-stack PRs are skipped automatically.
+
+```yaml wrap
+on:
+  pull_request:
+    types: [opened, synchronize]
+    max-stack: 1   # default: run only on the top/latest PR in a stack
+```
+
+To run on the **top N** layers (for example, if you review multiple interdependent PRs at once):
+
+```yaml wrap
+on:
+  pull_request:
+    types: [opened, synchronize]
+    max-stack: 2   # run on the top 2 PRs in a stack
+```
+
+To **disable** stack protection and run on every PR in a stack:
+
+```yaml wrap
+on:
+  pull_request:
+    types: [opened, synchronize]
+    max-stack: -1  # run on all pull requests regardless of stack position
+```
+
+Non-stacked PRs and non-`pull_request` events are unaffected by this setting.
+
 ### Comment Triggers
 
 The triggers `issue_comment:`, `pull_request_review_comment:`, and `discussion_comment:` activate workflows when comments are created or edited.

@@ -1523,6 +1523,7 @@ jobs:
           WORKFLOW_NAME: "GPL Dependency Cleaner (gpclean)"
           WORKFLOW_DESCRIPTION: "Reviews go.mod dependencies daily to detect and remove GPL-licensed transitive dependencies"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

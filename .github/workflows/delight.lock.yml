@@ -1539,6 +1539,7 @@ jobs:
           WORKFLOW_NAME: "Delight"
           WORKFLOW_DESCRIPTION: "Targeted scan of user-facing aspects to improve clarity, usability, and professionalism in enterprise software context"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');

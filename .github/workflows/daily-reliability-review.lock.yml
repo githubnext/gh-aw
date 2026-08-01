@@ -1556,6 +1556,7 @@ jobs:
           WORKFLOW_NAME: "Daily Reliability Review"
           WORKFLOW_DESCRIPTION: "Daily reliability review of agentic workflow failures and regressions using Sentry traces"
           HAS_PATCH: ${{ needs.agent.outputs.has_patch }}
+          GH_AW_DETECTION_CONTINUE_ON_ERROR: "true"
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
