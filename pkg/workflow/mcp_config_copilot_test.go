@@ -203,6 +203,117 @@ func TestRenderSharedMCPConfig_ToolsFieldGeneration(t *testing.T) {
 	}
 }
 
+// TestRenderCustomMCPEnvVars_NonCopilotSecretsEscaped verifies that for non-Copilot
+// JSON engines, secrets in custom MCP server env blocks are rendered as \${VAR}
+// (backslash-escaped) rather than ${VAR} (unescaped). Unescaped references would
+// be expanded by bash inside the unquoted heredoc that carries the MCP gateway
+// JSON config -- a secret containing '"' or '\' would corrupt the JSON and cause
+// the gateway to fail before the agent runs. Backslash-escaping keeps the JSON
+// valid regardless of the secret's runtime value.
+func TestRenderCustomMCPEnvVars_NonCopilotSecretsEscaped(t *testing.T) {
+	tests := []struct {
+		name              string
+		toolConfig        map[string]any
+		renderer          MCPConfigRenderer
+		expectedContent   []string
+		unexpectedContent []string
+	}{
+		{
+			name: "Non-Copilot stdio container - secret in env uses backslash-escaped var",
+			toolConfig: map[string]any{
+				"type":      "stdio",
+				"container": "some/image:latest",
+				"env": map[string]any{
+					"MY_TOKEN": "${{ secrets.MY_TOKEN }}",
+				},
+			},
+			renderer: MCPConfigRenderer{
+				IndentLevel:           "  ",
+				Format:                "json",
+				RequiresCopilotFields: false,
+			},
+			// Secret must be rendered as \${MY_TOKEN} so the unquoted heredoc
+			// leaves a literal ${MY_TOKEN} string in the JSON (valid JSON).
+			expectedContent: []string{
+				`"MY_TOKEN": "\${MY_TOKEN}"`,
+			},
+			// Must NOT appear as an unescaped bash variable reference -- that
+			// would let bash splice the raw secret value into the JSON.
+			unexpectedContent: []string{
+				`"MY_TOKEN": "${MY_TOKEN}"`,
+			},
+		},
+		{
+			name: "Copilot stdio - secret in env also uses backslash-escaped var",
+			toolConfig: map[string]any{
+				"type":      "stdio",
+				"container": "some/image:latest",
+				"env": map[string]any{
+					"MY_TOKEN": "${{ secrets.MY_TOKEN }}",
+				},
+				"allowed": []string{"*"},
+			},
+			renderer: MCPConfigRenderer{
+				IndentLevel:           "  ",
+				Format:                "json",
+				RequiresCopilotFields: true,
+			},
+			expectedContent: []string{
+				`"MY_TOKEN": "\${MY_TOKEN}"`,
+			},
+			unexpectedContent: []string{
+				`"MY_TOKEN": "${MY_TOKEN}"`,
+			},
+		},
+		{
+			name: "Non-Copilot stdio container - secret with fallback in env uses backslash-escaped var",
+			toolConfig: map[string]any{
+				"type":      "stdio",
+				"container": "some/image:latest",
+				"env": map[string]any{
+					"DD_SITE": "${{ secrets.DD_SITE || 'datadoghq.com' }}",
+				},
+			},
+			renderer: MCPConfigRenderer{
+				IndentLevel:           "  ",
+				Format:                "json",
+				RequiresCopilotFields: false,
+			},
+			expectedContent: []string{
+				`"DD_SITE": "\${DD_SITE}"`,
+			},
+			unexpectedContent: []string{
+				`"DD_SITE": "${DD_SITE}"`,
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var output strings.Builder
+
+			err := renderSharedMCPConfig(&output, "test-tool", tt.toolConfig, tt.renderer)
+			if err != nil {
+				t.Fatalf("renderSharedMCPConfig failed: %v", err)
+			}
+
+			result := output.String()
+
+			for _, expected := range tt.expectedContent {
+				if !strings.Contains(result, expected) {
+					t.Errorf("Expected content not found: %q\nActual output:\n%s", expected, result)
+				}
+			}
+
+			for _, unexpected := range tt.unexpectedContent {
+				if strings.Contains(result, unexpected) {
+					t.Errorf("Unexpected content found: %q\nActual output:\n%s", unexpected, result)
+				}
+			}
+		})
+	}
+}
+
 func TestRenderSharedMCPConfig_TypeConversion(t *testing.T) {
 	tests := []struct {
 		name           string
