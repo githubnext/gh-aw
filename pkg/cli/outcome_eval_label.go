@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"slices"
 
@@ -13,7 +14,7 @@ var outcomeEvalLabelLog = logger.New("cli:outcome_eval_label")
 // still intact in the current issue state.  It computes the set of labels added
 // and removed by the replacement and verifies only that delta, ignoring any
 // unrelated labels that may have been added or removed since execution.
-func evalReplaceLabel(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalReplaceLabel(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	outcomeEvalLabelLog.Printf("Evaluating replace_label outcome: repo=%s, number=%d", repo, num)
@@ -52,7 +53,7 @@ func evalReplaceLabel(item CreatedItemReport, repoOverride string) OutcomeReport
 		return report
 	}
 
-	currentState, _, err := extractCurrentIssueUpdateState(repo, num)
+	currentState, _, err := extractCurrentIssueUpdateState(ctx, repo, num)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -136,7 +137,7 @@ func labelSetContainsAny(current, want []string) bool {
 }
 
 // evalAddLabels checks whether labels added by the workflow are still present.
-func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalAddLabels(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	outcomeEvalLabelLog.Printf("Evaluating add_labels outcome: repo=%s, number=%d", repo, num)
@@ -153,7 +154,7 @@ func evalAddLabels(item CreatedItemReport, repoOverride string) OutcomeReport {
 		return report
 	}
 
-	labels, err := ghAPIGetArray(fmt.Sprintf("issues/%d/labels", num), repo)
+	labels, err := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/labels", num), repo)
 	if err != nil {
 		outcomeEvalLabelLog.Printf("Failed to fetch labels for %s#%d: %v", repo, num, err)
 		report.Result = OutcomeError
