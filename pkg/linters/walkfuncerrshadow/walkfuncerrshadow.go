@@ -89,15 +89,15 @@ func checkAssign(pass *analysis.Pass, assign *ast.AssignStmt, generatedFiles fil
 		return
 	}
 
-	pos := pass.Fset.PositionFor(callbackErr.Pos(), false)
-	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+	assignPos := pass.Fset.PositionFor(assign.Pos(), false)
+	if filecheck.ShouldSkipFilename(assignPos.Filename, generatedFiles) {
 		return
 	}
-	if nolint.HasDirectiveForLinter(pos, noLintIndex, analyzerName) {
+	if nolint.HasDirectiveForLinter(assignPos, noLintIndex, analyzerName) {
 		return
 	}
 
-	pkgLog.Printf("flagging filepath.%s callback err shadow at %s", sel.Sel.Name, pos)
+	pkgLog.Printf("flagging filepath.%s callback err shadow at %s", sel.Sel.Name, assignPos)
 	pass.ReportRangef(
 		callbackErr,
 		"callback parameter err shadows outer err assigned from filepath.%s; rename the callback parameter (for example walkErr)",
@@ -110,6 +110,8 @@ func callbackErrParam(pass *analysis.Pass, callback *ast.FuncLit) *ast.Ident {
 		return nil
 	}
 	params := callback.Type.Params.List
+	// checkAssign narrows to filepath.Walk / WalkDir callback literals, both of
+	// which require exactly three parameters.
 	if len(params) != 3 {
 		return nil
 	}
