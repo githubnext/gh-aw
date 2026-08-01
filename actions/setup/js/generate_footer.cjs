@@ -2,7 +2,7 @@
 /// <reference types="@actions/github-script" />
 
 const { getDetectionReasonText, getThreatDetectedMarker, isToolingFailureReason } = require("./threat_detection_warning.cjs");
-const { getPromptPath, renderTemplateFromFile } = require("./prompt_file_helpers.cjs");
+const { getPromptPath, renderTemplateFromFile } = require("./messages_core.cjs");
 
 /**
  * Generates a standalone workflow-id XML comment marker for searchability.
@@ -114,12 +114,7 @@ function generateXMLMarker(workflowName, runUrl) {
  * admonition is used so reviewers can distinguish "detection engine crashed" from "detection
  * engine found something". Actual threat findings (threat_detected) keep [!CAUTION].
  *
- * Note: Template rendering uses prompt_file_helpers.cjs instead of messages_core.cjs,
- * because importing messages_core.cjs (directly or transitively via messages_footer.cjs)
- * would cause the bundler to inline 'GH_AW_SAFE_OUTPUT_MESSAGES:' in a warning message,
- * breaking tests that check for env var declarations.
- *
- * Warning reason text and threat marker formatting are centralized in
+ * Note: Warning reason text and threat marker formatting are centralized in
  * threat_detection_warning.cjs to keep warning-mode messaging consistent.
  *
  * @param {string} workflowName - Name of the workflow
