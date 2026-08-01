@@ -523,6 +523,40 @@ describe("dispatch_workflow handler factory", () => {
     });
   });
 
+  it("should expand tags/ prefix in message ref to refs/tags/", async () => {
+    process.env.GITHUB_REF = "refs/heads/main";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      allowed_refs: ["tags/v*"],
+      workflows: ["test-workflow"],
+      workflow_files: {
+        "test-workflow": ".lock.yml",
+      },
+      aw_context_workflows: ["test-workflow"],
+    };
+    const handler = await main(config);
+
+    await handler(
+      {
+        type: "dispatch_workflow",
+        workflow_name: "test-workflow",
+        ref: "tags/v1.2.3",
+        inputs: {},
+      },
+      {}
+    );
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith({
+      owner: "test-owner",
+      repo: "test-repo",
+      workflow_id: "test-workflow.lock.yml",
+      ref: "refs/tags/v1.2.3",
+      inputs: expect.objectContaining({ aw_context: expect.any(String) }),
+      return_run_details: true,
+    });
+  });
+
   it("should reject message ref when allowed-refs is not configured", async () => {
     process.env.GITHUB_REF = "refs/heads/main";
     delete process.env.GITHUB_HEAD_REF;

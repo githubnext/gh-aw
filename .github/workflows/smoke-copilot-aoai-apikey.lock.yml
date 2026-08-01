@@ -1059,11 +1059,10 @@ jobs:
                   },
                   "ref": {
                     "type": "string",
-                    "sanitize": true,
                     "maxLength": 256,
                     "minLength": 1,
-                    "pattern": ".*\\S.*",
-                    "patternError": "must not be empty"
+                    "pattern": "^[^\\x00-\\x20\\x7f~^:?*\\[\\\\]+$",
+                    "patternError": "must be a valid git ref"
                   },
                   "workflow_name": {
                     "required": true,

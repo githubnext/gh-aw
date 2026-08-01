@@ -378,7 +378,9 @@ function parseAllowedRefPatterns(allowedRefsValue) {
  * @returns {string}
  */
 function normalizeRef(refOrBranch) {
-  return refOrBranch.startsWith("refs/") ? refOrBranch : `refs/heads/${refOrBranch}`;
+  if (refOrBranch.startsWith("refs/")) return refOrBranch;
+  if (refOrBranch.startsWith("tags/")) return `refs/${refOrBranch}`;
+  return `refs/heads/${refOrBranch}`;
 }
 
 /**
@@ -386,7 +388,9 @@ function normalizeRef(refOrBranch) {
  * @returns {string}
  */
 function normalizeRefPattern(pattern) {
-  return pattern.startsWith("refs/") ? pattern : `refs/heads/${pattern}`;
+  if (pattern.startsWith("refs/")) return pattern;
+  if (pattern.startsWith("tags/")) return `refs/${pattern}`;
+  return `refs/heads/${pattern}`;
 }
 
 module.exports = { main };
