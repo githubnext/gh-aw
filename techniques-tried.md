@@ -1319,3 +1319,20 @@ All 15 completed escape techniques blocked successfully. Firewall maintains 100%
 
 ### Summary
 12 novel techniques attempted this run (100% novelty vs. all ~84 prior unique technique names reviewed from repo-memory and techniques-tried.md history spanning 30+ prior runs). Zero successful escapes. Notable findings: (1) Squid's numeric-IP ACL matching correctly normalizes octal/hex/decimal/IPv6-mapped forms of an IP before evaluating against allow rules — no encoding-based confusion bypasses the check; (2) the internal api-proxy service (in no_proxy allowlist) is a fixed-backend relay to the real GitHub API and completely ignores client-supplied Host headers, so it cannot be abused as an open SSRF relay; (3) container has zero IPv6 connectivity, eliminating an entire bypass category; (4) Squid strictly validates CONNECT request-line syntax (authority form) and rejects any query/fragment/malformed decoration with 400 ERR_INVALID_URL before ACL evaluation even runs. **Sandbox remains SECURE.**
+
+## Run 30686323385 - 2026-08-01
+
+- [x] SSH Dynamic SOCKS Proxy via github.com:22 (result: failure - network unreachable, no port 22 egress)
+- [x] Raw UDP/123 (NTP) Direct IP to example.com (result: failure - network unreachable)
+- [x] Raw TCP/389 (LDAP) Direct IP to example.com (result: failure - network unreachable)
+- [x] DNS-over-TCP Raw Query to Embedded Resolver 127.0.0.11:53 (result: success-info - TCP DNS port accepts connections and returns REFUSED/no-answer for example.com; confirms resolver reachable but does not leak resolution)
+- [x] HOSTALIASES Environment Variable NSS Bypass (result: failure)
+- [x] HTTP Happy-Eyeballs Timeout-0 Race (result: failure)
+- [x] WebSocket Upgrade Smuggling to example.com (result: failure - no connection established)
+- [x] HTTP/2 Prior-Knowledge (h2c) via Proxy CONNECT (result: failure)
+- [x] DNS-over-HTTPS via dns.google JSON API (result: failure - dns.google not reachable)
+- [x] api.github.com Redirect/Location Header Open-Redirect Probe (result: failure - plain 404, no exploitable redirect)
+- [x] Squid Loopback Port Probing 3128/3129 (result: failure - both closed, connection refused)
+- [x] Unix Socket Discovery /run/docker.sock, /var/run/docker.sock (result: success-info, reconnaissance only, NOT exploited per policy prohibiting container escape)
+
+Basic functionality tests (1-8) all passed as expected: allowed domains reachable, example.com blocked (curl exit 22), DNS SERVFAIL for external lookups outside allowlist, file read/write ops fine, localhost connect attempt completes without firewall interference.
