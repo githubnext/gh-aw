@@ -37,7 +37,7 @@ describe("render_evals_summary.cjs", () => {
       expect(module.readEvalsResults()).toEqual([]);
     });
 
-    it("parses JSONL, skips malformed lines, and normalizes answers", () => {
+    it("parses JSONL, skips malformed lines, and normalizes answers to YES/NO", () => {
       fs.writeFileSync(
         OUTPUT_PATH,
         [
@@ -67,7 +67,7 @@ describe("render_evals_summary.cjs", () => {
         {
           id: "q3",
           question: "Third?",
-          answer: "UNKNOWN",
+          answer: "NO",
           model: "",
           timestamp: "",
         },
@@ -95,7 +95,7 @@ describe("render_evals_summary.cjs", () => {
         {
           id: "id3",
           question: "Question 3",
-          answer: "UNKNOWN",
+          answer: "NO",
           model: "claude`-4.6`",
           timestamp: "",
         },
@@ -103,8 +103,8 @@ describe("render_evals_summary.cjs", () => {
 
       expect(markdown).toContain("| id\\|\\`1\\`  | Line 1 Line 2 \\| \\`code\\` | ✅ YES |");
       expect(markdown).toContain("| id2 | Question 2 | ❌ NO |");
-      expect(markdown).toContain("| id3 | Question 3 | ❓ UNKNOWN |");
-      expect(markdown).toContain("**YES**: 1 | **NO**: 1 | **UNKNOWN**: 1");
+      expect(markdown).toContain("| id3 | Question 3 | ❌ NO |");
+      expect(markdown).toContain("**YES**: 1 | **NO**: 2");
       expect(markdown).toContain("**model**: claude\\`-4.6\\`");
     });
 

@@ -26,7 +26,7 @@ The evals job runs **after** the agent job and **in parallel with** `safe_output
 
 ### Shorthand — plain list
 
-> **Prerequisite:** `agent_output.json` is only included in the agent artifact when `safe-outputs` is also declared. Without it, the evals job runs with no agent context and every question will receive `UNKNOWN`.
+> **Prerequisite:** `agent_output.json` is only included in the agent artifact when `safe-outputs` is also declared. Without it, the evals job runs with no agent context and questions without sufficient evidence will resolve to `NO`.
 
 ```yaml
 ---

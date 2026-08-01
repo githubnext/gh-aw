@@ -89,15 +89,15 @@ describe("run_evals.cjs", () => {
     expect(JSON.parse(line).model).toBe("claude-sonnet-4.6");
   });
 
-  it("builds setup prompt with ID-based format and UNKNOWN guidance", async () => {
+  it("builds setup prompt with binary YES/NO guidance", async () => {
     vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
     await setupMain();
 
     const prompt = fs.readFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", "utf8");
     expect(prompt).toContain("<question-id>: YES");
-    expect(prompt).toContain("<question-id>: UNKNOWN");
+    expect(prompt).toContain("<question-id>: NO");
     expect(prompt).toContain("Use the exact question IDs provided in <questions>.");
-    expect(prompt).toContain("answer UNKNOWN.");
+    expect(prompt).toContain("If the agent output does not provide enough evidence to safely answer YES, answer NO.");
   });
 
   it("parses answers from Pi v3 JSONL turn_end events (positional format)", async () => {
@@ -185,7 +185,7 @@ describe("run_evals.cjs", () => {
     // the v3 turn_end wrapper). Previously this shape was not decoded, so the raw
     // un-decoded JSON (with literal "\n" escape sequences) was searched instead,
     // breaking \b word-boundary matching for any question ID following an embedded
-    // newline and causing spurious UNKNOWN answers.
+    // newline and causing spurious non-YES answers.
     vi.stubEnv(
       "GH_AW_EVALS_QUESTIONS",
       JSON.stringify([
@@ -218,7 +218,7 @@ describe("run_evals.cjs", () => {
     });
   });
 
-  it('keeps missing answers as "UNKNOWN"', async () => {
+  it('normalizes missing answers to "NO"', async () => {
     vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
     vi.stubEnv("GH_AW_EVALS_MODEL", "small");
     vi.stubEnv("GITHUB_RUN_ID", "999");
@@ -227,7 +227,19 @@ describe("run_evals.cjs", () => {
     await parseMain();
 
     const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
-    expect(JSON.parse(line).answer).toBe("UNKNOWN");
+    expect(JSON.parse(line).answer).toBe("NO");
+  });
+
+  it('normalizes explicit "UNKNOWN" answers to "NO"', async () => {
+    vi.stubEnv("GH_AW_EVALS_QUESTIONS", JSON.stringify([{ id: "labels-applied", question: "Did labels get applied?" }]));
+    vi.stubEnv("GH_AW_EVALS_MODEL", "small");
+    vi.stubEnv("GITHUB_RUN_ID", "999");
+    fs.writeFileSync(EVALS_LOG_PATH, "labels-applied: UNKNOWN\n", "utf8");
+
+    await parseMain();
+
+    const [line] = fs.readFileSync(EVALS_OUTPUT_PATH, "utf8").trim().split("\n");
+    expect(JSON.parse(line).answer).toBe("NO");
   });
 
   describe("extractAssistantTextFromJsonlLog", () => {

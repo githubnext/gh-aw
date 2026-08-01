@@ -17,11 +17,12 @@
 const fs = require("fs");
 const { EVALS_OUTPUT_PATH } = require("./evals_constants.cjs");
 const { buildStepSummaryDetailsSection } = require("./log_parser_step_summary_builder.cjs");
+const { normalizeEvalAnswer } = require("./run_evals.cjs");
 
 /**
  * Reads and parses evals.jsonl records.
  * Returns an empty array when the file is absent or unparseable.
- * @returns {Array<{id: string, question: string, answer: string, model: string, timestamp: string}>}
+ * @returns {Array<{id: string, question: string, answer: "YES"|"NO", model: string, timestamp: string}>}
  */
 function readEvalsResults() {
   if (!fs.existsSync(EVALS_OUTPUT_PATH)) {
@@ -45,9 +46,7 @@ function readEvalsResults() {
         results.push({
           id: String(record.id ?? ""),
           question: String(record.question ?? ""),
-          answer: String(record.answer ?? "UNKNOWN")
-            .trim()
-            .toUpperCase(),
+          answer: normalizeEvalAnswer(String(record.answer ?? "")),
           model: String(record.model ?? ""),
           timestamp: String(record.timestamp ?? ""),
         });
@@ -62,7 +61,7 @@ function readEvalsResults() {
 
 /**
  * Builds the markdown body for the evals <details> section.
- * @param {Array<{id: string, question: string, answer: string, model: string, timestamp: string}>} results
+ * @param {Array<{id: string, question: string, answer: "YES"|"NO", model: string, timestamp: string}>} results
  * @returns {string}
  */
 function buildEvalsBody(results) {
@@ -72,17 +71,16 @@ function buildEvalsBody(results) {
 
   const yesCount = results.filter(r => r.answer === "YES").length;
   const noCount = results.filter(r => r.answer === "NO").length;
-  const unknownCount = results.filter(r => r.answer === "UNKNOWN").length;
 
   const lines = [];
   lines.push(`| ID | Question | Answer |`);
   lines.push(`| --- | --- | --- |`);
   for (const r of results) {
-    const answerEmoji = r.answer === "YES" ? "✅ YES" : r.answer === "NO" ? "❌ NO" : "❓ UNKNOWN";
+    const answerEmoji = r.answer === "YES" ? "✅ YES" : "❌ NO";
     lines.push(`| ${escapeMarkdownCell(r.id)} | ${escapeMarkdownCell(r.question)} | ${answerEmoji} |`);
   }
   lines.push("");
-  lines.push(`**YES**: ${yesCount} | **NO**: ${noCount} | **UNKNOWN**: ${unknownCount}`);
+  lines.push(`**YES**: ${yesCount} | **NO**: ${noCount}`);
 
   const model = results[0]?.model;
   if (model) {

@@ -14,7 +14,7 @@
  *
  * Phase "parse" (runs AFTER the agentic engine):
  *   - Reads the engine output log from /tmp/gh-aw/evals/evals.log
- *   - Extracts YES/NO answer for each question by ID or by position
+ *   - Extracts binary YES/NO answers for each question by ID or by position
  *   - Writes structured results to /tmp/gh-aw/evals.jsonl
  *
  * Environment variables:
@@ -119,7 +119,7 @@ async function setupMain() {
 // ---------------------------------------------------------------------------
 
 /**
- * Reads the engine log, extracts per-question YES/NO answers, and writes
+ * Reads the engine log, extracts per-question binary answers, and writes
  * structured JSONL records to the evals output file.
  * @returns {Promise<void>}
  */
@@ -175,9 +175,10 @@ async function parseMain() {
 
     // Try ID-specific match first (e.g. "builds: YES"), then positional (Q1: YES)
     let answer = extractAnswerByID(searchContent, q.id);
-    if (answer === "UNKNOWN" && i < positionalAnswers.length && positionalAnswers[i]) {
+    if (!answer && i < positionalAnswers.length && positionalAnswers[i]) {
       answer = positionalAnswers[i];
     }
+    answer = normalizeEvalAnswer(answer);
     const record = {
       id: q.id,
       question: q.question,
@@ -249,11 +250,10 @@ ${agentSection}
 Answer each question on a separate line using EXACTLY this format:
 <question-id>: YES
 <question-id>: NO
-<question-id>: UNKNOWN
 
-Use only YES, NO, or UNKNOWN. Do not provide explanations or reasoning.
+Use only YES or NO. Do not provide explanations or reasoning.
 Use the exact question IDs provided in <questions>.
-If the agent output does not provide enough evidence to safely answer YES or NO, answer UNKNOWN.
+If the agent output does not provide enough evidence to safely answer YES, answer NO.
 Evaluate each question solely based on the agent output shown above.
 </instructions>`;
 }
@@ -268,7 +268,7 @@ function extractAllPositionalAnswers(logContent) {
   /** @type {string[]} */
   const answers = [];
   for (const line of logContent.split("\n")) {
-    const match = line.trim().match(/^Q(\d+):\s+(YES|NO)\b/i);
+    const match = line.trim().match(/^Q(\d+):\s+(YES|NO|UNKNOWN)\b/i);
     if (match) {
       const idx = parseInt(match[1], 10) - 1; // Convert 1-indexed to 0-indexed
       if (idx >= 0) {
@@ -281,18 +281,25 @@ function extractAllPositionalAnswers(logContent) {
 
 /**
  * Tries to find an answer for a question by its id using flexible pattern matching.
- * Returns "YES", "NO", or "UNKNOWN".
+ * Returns the raw extracted answer token when present, otherwise "".
  * @param {string} logContent
  * @param {string} id
  * @returns {string}
  */
 function extractAnswerByID(logContent, id) {
   const escaped = id.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const yesPattern = new RegExp(`\\b${escaped}\\b[:\\s]+(YES)\\b`, "i");
-  const noPattern = new RegExp(`\\b${escaped}\\b[:\\s]+(NO)\\b`, "i");
-  if (yesPattern.test(logContent)) return "YES";
-  if (noPattern.test(logContent)) return "NO";
-  return "UNKNOWN";
+  const match = logContent.match(new RegExp(`\\b${escaped}\\b[:\\s]+(YES|NO|UNKNOWN)\\b`, "i"));
+  return match?.[1]?.toUpperCase() || "";
+}
+
+/**
+ * Normalizes an eval answer to the binary YES/NO domain.
+ * Any missing, UNKNOWN, or malformed answer is treated as NO.
+ * @param {string} answer
+ * @returns {"YES"|"NO"}
+ */
+function normalizeEvalAnswer(answer) {
+  return String(answer).trim().toUpperCase() === "YES" ? "YES" : "NO";
 }
 
 /**
@@ -342,4 +349,4 @@ function extractAssistantTextFromJsonlLog(logContent) {
   return texts.join("\n");
 }
 
-module.exports = { main, setupMain, parseMain, extractAssistantTextFromJsonlLog };
+module.exports = { main, setupMain, parseMain, extractAssistantTextFromJsonlLog, normalizeEvalAnswer };
