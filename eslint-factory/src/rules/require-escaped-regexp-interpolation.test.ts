@@ -41,6 +41,13 @@ describe("require-escaped-regexp-interpolation", () => {
     });
   });
 
+  it("valid: targeted literal .replace() escape forms are accepted", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: ['new RegExp(`^${varName.replace(".", "\\\\.")}$`);', 'new RegExp(`^${varName.replace(/\\./g, "\\\\.")}$`);'],
+      invalid: [],
+    });
+  });
+
   it("valid: unrelated `new` calls to other constructors are not flagged", () => {
     cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
       valid: ["new Foo(`^${bar}$`);", "new Date(`${year}-01-01`);"],
@@ -114,6 +121,18 @@ describe("require-escaped-regexp-interpolation", () => {
       invalid: [
         {
           code: "new RegExp(`^${escapeHtml(userInput)}$`);",
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: arbitrary .replace() calls are not treated as regex escaping", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace(".", ".")}$`);',
           errors: [{ messageId: "unescapedInterpolation" }],
         },
       ],
