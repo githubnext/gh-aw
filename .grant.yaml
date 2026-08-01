@@ -1,11 +1,35 @@
-# License allowlist from CONTRIBUTING.md.
-require-license: true
-require-known-license: true
+# License policy for container image scanning via `gh aw compile --grant`.
+# This file governs Docker container image scans only, not Go source dependencies.
+# Go source code license policy is in CONTRIBUTING.md (allows only MIT/Apache/BSD/ISC).
+#
+# Alpine-based container images include OS packages with GPL/LGPL/MPL licenses.
+# These are standard system packages and do not affect the project's own license
+# obligations, so they are explicitly allowlisted here.
+#
+# require-license and require-known-license are disabled because:
+#   - Internal container packages (e.g. awf-api-proxy) have no published license.
+#   - Some packages report non-SPDX license strings (e.g. "Apache 2.0" vs "Apache-2.0")
+#     that are not recognized by grant as a known identifier.
+require-license: false
+require-known-license: false
 
 allow:
+  # Permissive licenses (source-code policy and container image policy)
   - MIT
   - Apache-2.0
   - BSD-2-Clause
   - BSD-3-Clause
   - ISC
-
+  - BlueOak-1.0.0
+  - Zlib
+  - curl
+  - CC-BY-3.0
+  - CC0-1.0
+  - Artistic-2.0
+  # Copyleft OS/system package licenses — standard in Alpine Linux base images.
+  # These OS-level packages do not affect the project's application license obligations.
+  - GPL-2.0-only
+  - GPL-2.0-or-later
+  - LGPL-2.1-or-later
+  - LGPL-3.0-or-later
+  - MPL-2.0
