@@ -23,6 +23,8 @@ const RESULTS_SCOPE_PREFIX = "Actions.Results:";
 const TWIRP_ARTIFACT_SERVICE = "github.actions.results.api.v1.ArtifactService";
 const MAX_ARTIFACTS = 1000;
 const PAGE_SIZE = 100;
+const FETCH_TIMEOUT_MS = 30_000;
+const FETCH_TRANSFER_TIMEOUT_MS = 300_000;
 
 function sleep(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
@@ -99,7 +101,7 @@ async function twirpRequest(method, body) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify(body),
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
 
       if (response.ok) {
@@ -226,7 +228,7 @@ async function uploadFileToSignedURL(filePath, signedUploadURL, contentType) {
       },
       body: fs.createReadStream(filePath),
       duplex: "half",
-      signal: AbortSignal.timeout(300_000),
+      signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS),
     });
   } catch (err) {
     throw new Error(`artifact blob upload failed: ${getErrorMessage(err)}`, { cause: err });
@@ -281,7 +283,7 @@ class DefaultArtifactClient {
             Accept: "application/vnd.github+json",
             "User-Agent": "gh-aw-artifact-client",
           },
-          signal: AbortSignal.timeout(30_000),
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
         });
       } catch (err) {
         throw new Error(`failed to list artifacts: ${getErrorMessage(err)}`, { cause: err });
@@ -338,7 +340,7 @@ class DefaultArtifactClient {
           "User-Agent": "gh-aw-artifact-client",
         },
         redirect: "manual",
-        signal: AbortSignal.timeout(30_000),
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
       });
     } catch (err) {
       throw new Error(`unable to download artifact: ${getErrorMessage(err)}`, { cause: err });
@@ -353,7 +355,7 @@ class DefaultArtifactClient {
 
     let blobResponse;
     try {
-      blobResponse = await fetch(location, { signal: AbortSignal.timeout(300_000) });
+      blobResponse = await fetch(location, { signal: AbortSignal.timeout(FETCH_TRANSFER_TIMEOUT_MS) });
     } catch (err) {
       throw new Error(`artifact blob download failed: ${getErrorMessage(err)}`, { cause: err });
     }
