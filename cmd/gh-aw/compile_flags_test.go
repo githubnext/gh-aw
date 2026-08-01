@@ -5,6 +5,7 @@ package main
 import "testing"
 
 func TestCompileCommandShortFlags(t *testing.T) {
+	t.Parallel()
 	forceFlag := compileCmd.Flags().Lookup("force")
 	if forceFlag == nil {
 		t.Fatal("expected --force flag on compile command")
