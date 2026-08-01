@@ -76,6 +76,7 @@ safe-outputs:
     remove-labels:
       allowed: [smoke]
     dispatch-workflow:
+      target-ref: refs/heads/${{ github.event.repository.default_branch }}
       workflows:
         - haiku-printer
       max: 1

@@ -1079,6 +1079,28 @@ describe("dispatch_workflow handler factory", () => {
     );
   });
 
+  it("should use configured target-ref when dispatching to same repo", async () => {
+    process.env.GITHUB_REF = "refs/heads/copilot/ephemeral-branch";
+    delete process.env.GITHUB_HEAD_REF;
+
+    const config = {
+      "target-ref": "refs/heads/main",
+      workflows: ["local-workflow"],
+      workflow_files: { "local-workflow": ".lock.yml" },
+    };
+    const handler = await main(config);
+
+    await handler({ type: "dispatch_workflow", workflow_name: "local-workflow", inputs: {} }, {});
+
+    expect(github.rest.actions.createWorkflowDispatch).toHaveBeenCalledWith(
+      expect.objectContaining({
+        owner: "test-owner",
+        repo: "test-repo",
+        ref: "refs/heads/main",
+      })
+    );
+  });
+
   it("should prefer configured target-ref over GITHUB_HEAD_REF for cross-repo dispatch", async () => {
     process.env.GITHUB_REF = "refs/pull/42/merge";
     process.env.GITHUB_HEAD_REF = "pr-branch";
