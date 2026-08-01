@@ -7,7 +7,7 @@
  * for workflow execution notifications.
  */
 
-const { getMessages, renderTemplate, toSnakeCase } = require("./messages_core.cjs");
+const { getMessages, renderTemplate, renderTemplateFromFile, toSnakeCase, getPromptPath } = require("./messages_core.cjs");
 const { getDetectionReasonText, getThreatDetectedMarkerTemplate, normalizeThreatKinds, isToolingFailureReason } = require("./threat_detection_warning.cjs");
 
 /**
@@ -153,12 +153,14 @@ function getCommitPushedMessage(ctx) {
 function getDetectionWarningMessage(ctx) {
   const reasonText = getDetectionReasonText(ctx.reason);
   const isEngineError = isToolingFailureReason(ctx.reason);
-  if (isEngineError) {
-    const defaultTemplate = `> [!WARNING]\n> **Threat Detection Engine Failure** — The analysis engine could not complete. This is a tooling failure, not a security finding.\n> ${getThreatDetectedMarkerTemplate()}\n>\n> <details>\n> <summary>What happened</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
-    return renderConfiguredMessage("detectionEngineError", defaultTemplate, { ...ctx, reasonText, threatKinds: normalizeThreatKinds(ctx.reason) });
+  const templateFile = isEngineError ? "threat_detection_engine_error.md" : "threat_detection_caution.md";
+  const messageKey = isEngineError ? "detectionEngineError" : "detectionWarning";
+  const messages = getMessages();
+  const configTemplate = messages?.[messageKey];
+  if (configTemplate) {
+    return renderTemplate(configTemplate, toSnakeCase({ ...ctx, reasonText, threat_detected_marker: getThreatDetectedMarkerTemplate(), threatKinds: normalizeThreatKinds(ctx.reason) }));
   }
-  const defaultTemplate = `> [!CAUTION]\n> agentic threat detected\n> Threat detection flagged this output in warn mode. Manual review is REQUIRED before any follow-up automation.\n> ${getThreatDetectedMarkerTemplate()}\n>\n> <details>\n> <summary>Details</summary>\n>\n> {reason_text}\n>\n> Review the [workflow run logs]({run_url}) for details.\n> </details>`;
-  return renderConfiguredMessage("detectionWarning", defaultTemplate, { ...ctx, reasonText, threatKinds: normalizeThreatKinds(ctx.reason) });
+  return renderTemplateFromFile(getPromptPath(templateFile), toSnakeCase({ ...ctx, reasonText, threat_detected_marker: getThreatDetectedMarkerTemplate(), threatKinds: normalizeThreatKinds(ctx.reason) })).trimEnd();
 }
 
 module.exports = {
