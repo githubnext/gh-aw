@@ -170,6 +170,30 @@ func TestComputePermissionsForSafeOutputs(t *testing.T) {
 			},
 		},
 		{
+			name: "add-labels with pull-requests:false - no pull-requests permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+					PullRequests:         ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionIssues: PermissionWrite,
+			},
+		},
+		{
+			name: "add-labels with issues:false - no issues permission",
+			safeOutputs: &SafeOutputsConfig{
+				AddLabels: &AddLabelsConfig{
+					BaseSafeOutputConfig: BaseSafeOutputConfig{Max: strPtr("5")},
+					Issues:               ptrBool(false),
+				},
+			},
+			expected: map[PermissionScope]PermissionLevel{
+				PermissionPullRequests: PermissionWrite,
+			},
+		},
+		{
 			name: "remove-labels only - no discussions permission",
 			safeOutputs: &SafeOutputsConfig{
 				RemoveLabels: &RemoveLabelsConfig{

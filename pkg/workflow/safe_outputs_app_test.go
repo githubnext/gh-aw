@@ -462,6 +462,54 @@ Test workflow
 		"Job-level permissions must be handler-computed (issues:write)")
 }
 
+func TestSafeOutputsAppTokenAddLabelsPullRequestsOptOut(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: my-org
+  add-labels:
+    max: 4
+    allowed: [routed]
+    pull-requests: false
+---
+Test workflow
+`
+
+	tmpDir := t.TempDir()
+	testFile := tmpDir + "/test.md"
+	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0644), "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "GitHubApp should not be nil")
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"App token must keep issues:write for issue label operations")
+	assert.NotContains(t, stepsStr, "permission-pull-requests: write",
+		"App token must omit pull-requests:write when add-labels disables pull request targets")
+	assert.Contains(t, job.Permissions, "issues: write",
+		"Job-level permissions must preserve issues:write")
+	assert.NotContains(t, job.Permissions, "pull-requests: write",
+		"Job-level permissions must omit pull-requests:write when opted out")
+}
+
 // TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite is a regression test for the
 // add-comment + add-labels + update-project co-presence case reported after github/gh-aw#30437.
 // update-project must not downgrade issues permission from write to read in the minted GitHub App token.
