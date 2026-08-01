@@ -2166,11 +2166,11 @@ describe("push_signed_commits integration tests", () => {
       const concurrentDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-signed-concurrent-jsonl-"));
       try {
         execGit(["checkout", "-b", "experiment-state-jsonl-merge-branch"], { cwd: workDir });
-        const snapshot = {
-          counts: { prompt_style: { concise: 1, detailed: 1 } },
-          runs: [{ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } }],
-        };
-        fs.writeFileSync(path.join(workDir, "state.jsonl"), `${JSON.stringify(snapshot)}\n${JSON.stringify({ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } })}\n`);
+        const seedRuns = [
+          { run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } },
+          { run_id: "101", timestamp: "2026-07-31T12:00:30.000Z", assignments: { prompt_style: "detailed" } },
+        ];
+        fs.writeFileSync(path.join(workDir, "state.jsonl"), `${seedRuns.map(run => JSON.stringify(run)).join("\n")}\n`);
         fs.writeFileSync(path.join(workDir, "assignments.json"), JSON.stringify({ prompt_style: "concise" }, null, 2) + "\n");
         execGit(["add", "state.jsonl", "assignments.json"], { cwd: workDir });
         execGit(["commit", "-m", "Seed experiment state jsonl"], { cwd: workDir });
@@ -2182,10 +2182,7 @@ describe("push_signed_commits integration tests", () => {
         execGit(["config", "user.name", "Test User"], { cwd: concurrentDir });
         execGit(["config", "user.email", "test@example.com"], { cwd: concurrentDir });
 
-        fs.writeFileSync(
-          path.join(workDir, "state.jsonl"),
-          `${JSON.stringify(snapshot)}\n${JSON.stringify({ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } })}\n${JSON.stringify({ run_id: "200", timestamp: "2026-07-31T12:01:00.000Z", assignments: { prompt_style: "concise" } })}\n`
-        );
+        fs.writeFileSync(path.join(workDir, "state.jsonl"), `${seedRuns.map(run => JSON.stringify(run)).join("\n")}\n${JSON.stringify({ run_id: "200", timestamp: "2026-07-31T12:01:00.000Z", assignments: { prompt_style: "concise" } })}\n`);
         fs.writeFileSync(path.join(workDir, "assignments.json"), JSON.stringify({ prompt_style: "concise" }, null, 2) + "\n");
         execGit(["add", "state.jsonl", "assignments.json"], { cwd: workDir });
         execGit(["commit", "-m", "Local experiment update jsonl"], { cwd: workDir });
@@ -2193,7 +2190,7 @@ describe("push_signed_commits integration tests", () => {
         execGit(["checkout", "experiment-state-jsonl-merge-branch"], { cwd: concurrentDir });
         fs.writeFileSync(
           path.join(concurrentDir, "state.jsonl"),
-          `${JSON.stringify(snapshot)}\n${JSON.stringify({ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } })}\n${JSON.stringify({ run_id: "300", timestamp: "2026-07-31T12:02:00.000Z", assignments: { prompt_style: "concise" } })}\n`
+          `${seedRuns.map(run => JSON.stringify(run)).join("\n")}\n${JSON.stringify({ run_id: "300", timestamp: "2026-07-31T12:02:00.000Z", assignments: { prompt_style: "concise" } })}\n`
         );
         fs.writeFileSync(path.join(concurrentDir, "assignments.json"), JSON.stringify({ prompt_style: "concise" }, null, 2) + "\n");
         execGit(["add", "state.jsonl", "assignments.json"], { cwd: concurrentDir });
@@ -2227,7 +2224,7 @@ describe("push_signed_commits integration tests", () => {
           .filter(entry => entry.run_id)
           .map(entry => entry.run_id)
           .sort();
-        expect(runIds).toEqual(["100", "200", "300"]);
+        expect(runIds).toEqual(["100", "101", "200", "300"]);
       } finally {
         cleanupDir(concurrentDir);
       }

@@ -357,6 +357,38 @@ describe("load_experiment_state_from_repo", () => {
       const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-state-"));
       try {
         const stateFile = path.join(tmpDir, "state.jsonl");
+        const jsonlContent = `${JSON.stringify({ run_id: "1", timestamp: "2026-08-01T00:00:00.000Z", assignments: { exp: "A" } })}\n${JSON.stringify({ run_id: "2", timestamp: "2026-08-01T00:01:00.000Z", assignments: { exp: "B" } })}\n`;
+
+        process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;
+        process.env.GH_AW_EXPERIMENT_STATE_DIR = tmpDir;
+        process.env.GH_AW_EXPERIMENT_BRANCH = "experiments/myworkflow";
+        process.env.GITHUB_REPOSITORY = "owner/repo";
+
+        global.github = {
+          rest: {
+            repos: {
+              getContent: vi.fn().mockResolvedValue({
+                data: {
+                  type: "file",
+                  content: Buffer.from(jsonlContent, "utf8").toString("base64"),
+                },
+              }),
+            },
+          },
+        };
+
+        await main();
+
+        expect(fs.readFileSync(stateFile, "utf8")).toBe(jsonlContent);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it("still accepts legacy jsonl snapshot content", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-state-"));
+      try {
+        const stateFile = path.join(tmpDir, "state.jsonl");
         const jsonlContent = `${JSON.stringify({ counts: { exp: { A: 2 } }, runs: [] })}\n${JSON.stringify({ run_id: "1", timestamp: "2026-08-01T00:00:00.000Z", assignments: { exp: "B" } })}\n`;
 
         process.env.GH_AW_EXPERIMENT_STATE_FILE = stateFile;

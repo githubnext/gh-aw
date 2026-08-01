@@ -18,7 +18,7 @@ var experimentsLog = logger.New("workflow:compiler_experiments")
 // experimentsCacheDir is the runtime directory where the experiment state file is stored.
 const experimentsCacheDir = "/tmp/gh-aw/experiments"
 
-// experimentStateFile is the path to the experiment state JSONL file written by pick_experiment.cjs.
+// experimentStateFile is the path to the experiment run-ledger JSONL file written by pick_experiment.cjs.
 const experimentStateFile = experimentsCacheDir + "/state.jsonl"
 
 // ExperimentsStorageCache uses GitHub Actions cache to persist experiment state.

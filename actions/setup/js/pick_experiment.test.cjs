@@ -143,24 +143,29 @@ describe("pick_experiment", () => {
       expect(loaded.runs).toEqual(runs);
     });
 
-    it("parses jsonl state files with a legacy snapshot and appended runs", () => {
+    it("parses jsonl state files with run-ledger records", () => {
       const file = path.join(tmpDir, "state.jsonl");
-      const snapshot = { counts: { f: { A: 2, B: 1 } }, runs: [] };
-      const run = { run_id: "456", timestamp: "2026-01-02T00:00:00.000Z", assignments: { f: "B" } };
-      fs.writeFileSync(file, `${JSON.stringify(snapshot)}\n${JSON.stringify(run)}\n`, "utf8");
+      const runs = [
+        { run_id: "123", timestamp: "2026-01-01T00:00:00.000Z", assignments: { f: "A" } },
+        { run_id: "124", timestamp: "2026-01-01T01:00:00.000Z", assignments: { f: "A" } },
+        { run_id: "125", timestamp: "2026-01-01T02:00:00.000Z", assignments: { f: "B" } },
+        { run_id: "456", timestamp: "2026-01-02T00:00:00.000Z", assignments: { f: "B" } },
+      ];
+      fs.writeFileSync(file, `${runs.map(run => JSON.stringify(run)).join("\n")}\n`, "utf8");
 
       const loaded = loadState(file);
 
       expect(loaded.counts).toEqual({ f: { A: 2, B: 2 } });
-      expect(loaded.runs).toEqual([run]);
+      expect(loaded.runs).toEqual(runs);
     });
 
-    it("appends jsonl run records while preserving legacy json counts in a snapshot line", () => {
+    it("migrates legacy json state to a jsonl run ledger with baseline counts", () => {
       const legacyFile = path.join(tmpDir, "state.jsonl");
       fs.writeFileSync(legacyFile, JSON.stringify({ counts: { f: { A: 2 } }, runs: [] }) + "\n", "utf8");
 
       const state = loadState(legacyFile);
       state.runs.push({ run_id: "789", timestamp: "2026-01-03T00:00:00.000Z", assignments: { f: "A" } });
+      state.counts.f.A += 1;
       saveState(legacyFile, state);
 
       const lines = fs
@@ -169,9 +174,18 @@ describe("pick_experiment", () => {
         .split("\n")
         .map(line => JSON.parse(line));
       expect(lines).toEqual([
-        { counts: { f: { A: 2 } }, runs: [] },
-        { run_id: "789", timestamp: "2026-01-03T00:00:00.000Z", assignments: { f: "A" } },
+        {
+          run_id: "789",
+          timestamp: "2026-01-03T00:00:00.000Z",
+          assignments: { f: "A" },
+          baseline_counts: { f: { A: 2 } },
+        },
       ]);
+
+      expect(loadState(legacyFile)).toEqual({
+        counts: { f: { A: 3 } },
+        runs: [{ run_id: "789", timestamp: "2026-01-03T00:00:00.000Z", assignments: { f: "A" }, baseline_counts: { f: { A: 2 } } }],
+      });
     });
   });
 

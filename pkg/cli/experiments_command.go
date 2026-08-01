@@ -32,17 +32,18 @@ var experimentsLog = logger.New("cli:experiments_command")
 const experimentsBranchPrefix = "experiments/"
 
 // ExperimentState represents experiment state stored in experiments/* branches.
-// This matches the JSON and JSONL formats written by pick_experiment.cjs.
+// This matches the legacy JSON snapshot format and the JSONL run-ledger format written by pick_experiment.cjs.
 type ExperimentState struct {
 	Counts map[string]map[string]int `json:"counts"` // experiment name → variant → count
 	Runs   []ExperimentRunRecord     `json:"runs,omitempty"`
 }
 
-// ExperimentRunRecord represents a single workflow run in the state history.
+// ExperimentRunRecord represents a single workflow run in the JSONL ledger.
 type ExperimentRunRecord struct {
-	RunID       string            `json:"run_id"`
-	Timestamp   string            `json:"timestamp"`
-	Assignments map[string]string `json:"assignments"`
+	RunID          string                    `json:"run_id"`
+	Timestamp      string                    `json:"timestamp"`
+	Assignments    map[string]string         `json:"assignments"`
+	BaselineCounts map[string]map[string]int `json:"baseline_counts,omitempty"`
 }
 
 // ExperimentVariantStats holds counts for all variants of one named A/B experiment.
@@ -754,6 +755,14 @@ func readRemoteExperimentState(repoOverride, branchName string) *ExperimentState
 func appendExperimentRun(state *ExperimentState, run ExperimentRunRecord) {
 	if state.Counts == nil {
 		state.Counts = map[string]map[string]int{}
+	}
+	for name, variants := range run.BaselineCounts {
+		if state.Counts[name] == nil {
+			state.Counts[name] = map[string]int{}
+		}
+		for variant, count := range variants {
+			state.Counts[name][variant] += count
+		}
 	}
 	for name, variant := range run.Assignments {
 		if state.Counts[name] == nil {

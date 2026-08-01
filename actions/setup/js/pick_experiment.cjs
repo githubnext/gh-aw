@@ -30,16 +30,17 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-/** Maximum number of per-run records retained in state.runs for summaries. */
+/** Maximum number of per-run ledger records retained in state.runs for summaries. */
 const MAX_RUN_HISTORY = 512;
 const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
-const STATE_SOURCE_SNAPSHOT = Symbol("experimentStateSourceSnapshot");
 
 /**
  * @typedef {Object} ExperimentRunRecord
  * @property {string} run_id       - GitHub Actions run ID (GITHUB_RUN_ID)
  * @property {string} timestamp    - ISO-8601 UTC timestamp of the run
  * @property {Record<string, string>} assignments - Maps experiment name → selected variant
+ * @property {Record<string, Record<string, number>>} [baseline_counts]
+ *   Optional cumulative counts that existed before the recorded run history began.
  */
 
 /**
@@ -47,7 +48,7 @@ const STATE_SOURCE_SNAPSHOT = Symbol("experimentStateSourceSnapshot");
  * @property {Record<string, Record<string, number>>} counts
  *   Maps experiment name → variant → cumulative invocation count.
  * @property {ExperimentRunRecord[]} [runs]
- *   Per-run assignment history appended on each invocation.
+ *   Per-run ledger history appended on each invocation.
  */
 
 /**
@@ -88,6 +89,67 @@ function normalizeConfig(raw) {
   return raw;
 }
 
+function isPlainObject(value) {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeBaselineCounts(targetCounts, baselineCounts) {
+  if (!isPlainObject(baselineCounts)) {
+    throw new Error("Invalid baseline counts");
+  }
+  for (const [name, variants] of Object.entries(baselineCounts)) {
+    if (!isPlainObject(variants)) {
+      throw new Error("Invalid baseline count variants");
+    }
+    if (!targetCounts[name]) {
+      targetCounts[name] = {};
+    }
+    for (const [variant, count] of Object.entries(variants)) {
+      if (!Number.isFinite(count)) {
+        throw new Error("Invalid baseline count value");
+      }
+      targetCounts[name][variant] = (targetCounts[name][variant] || 0) + count;
+    }
+  }
+}
+
+function deriveCountsFromRuns(runs) {
+  const counts = {};
+  for (const run of runs) {
+    if (isPlainObject(run.baseline_counts)) {
+      mergeBaselineCounts(counts, run.baseline_counts);
+    }
+    for (const [name, variant] of Object.entries(run.assignments || {})) {
+      if (!counts[name]) {
+        counts[name] = {};
+      }
+      counts[name][variant] = (counts[name][variant] || 0) + 1;
+    }
+  }
+  return counts;
+}
+
+function diffBaselineCounts(totalCounts, representedCounts) {
+  const baselineCounts = {};
+  for (const [name, variants] of Object.entries(totalCounts || {})) {
+    for (const [variant, count] of Object.entries(variants || {})) {
+      const represented = representedCounts[name]?.[variant] || 0;
+      const delta = count - represented;
+      if (delta > 0) {
+        if (!baselineCounts[name]) {
+          baselineCounts[name] = {};
+        }
+        baselineCounts[name][variant] = delta;
+      }
+    }
+  }
+  return baselineCounts;
+}
+
+function hasCounts(counts) {
+  return Object.values(counts).some(variants => Object.keys(variants).length > 0);
+}
+
 /**
  * Load and parse the state file. Returns an empty state if the file does not exist
  * or cannot be parsed (e.g. first run or corrupted cache).
@@ -105,10 +167,6 @@ function loadState(stateFile) {
           parsed.runs = [];
         }
         Object.defineProperty(parsed, STATE_SOURCE_FORMAT, { value: "json", configurable: true });
-        Object.defineProperty(parsed, STATE_SOURCE_SNAPSHOT, {
-          value: JSON.parse(JSON.stringify({ counts: parsed.counts, runs: Array.isArray(parsed.runs) ? parsed.runs : [] })),
-          configurable: true,
-        });
         return parsed;
       }
     } catch {}
@@ -126,6 +184,9 @@ function loadState(stateFile) {
         continue;
       }
       if (entry && typeof entry.run_id === "string" && typeof entry.timestamp === "string" && entry.assignments && typeof entry.assignments === "object" && !Array.isArray(entry.assignments)) {
+        if (entry.baseline_counts !== undefined) {
+          mergeBaselineCounts(state.counts, entry.baseline_counts);
+        }
         state.runs.push(entry);
         if (state.runs.length > MAX_RUN_HISTORY) {
           state.runs = state.runs.slice(-MAX_RUN_HISTORY);
@@ -162,17 +223,21 @@ function saveState(stateFile, state) {
   try {
     fs.mkdirSync(dir, { recursive: true });
     if (stateFile.endsWith(".jsonl")) {
-      const latestRun = Array.isArray(state.runs) ? state.runs[state.runs.length - 1] : undefined;
-      if (!latestRun) {
+      const runs = Array.isArray(state.runs) ? state.runs.map(run => JSON.parse(JSON.stringify(run))) : [];
+      if (runs.length === 0) {
         fs.writeFileSync(stateFile, "", "utf8");
         return;
       }
       if (state[STATE_SOURCE_FORMAT] === "json") {
-        const snapshot = state[STATE_SOURCE_SNAPSHOT] || { counts: {}, runs: [] };
-        fs.writeFileSync(stateFile, `${JSON.stringify(snapshot)}\n${JSON.stringify(latestRun)}\n`, "utf8");
+        const baselineCounts = diffBaselineCounts(state.counts || {}, deriveCountsFromRuns(runs));
+        if (hasCounts(baselineCounts)) {
+          runs[0].baseline_counts = baselineCounts;
+        }
+        fs.writeFileSync(stateFile, `${runs.map(run => JSON.stringify(run)).join("\n")}\n`, "utf8");
         Object.defineProperty(state, STATE_SOURCE_FORMAT, { value: "jsonl", configurable: true });
         return;
       }
+      const latestRun = runs[runs.length - 1];
       fs.appendFileSync(stateFile, `${JSON.stringify(latestRun)}\n`, "utf8");
       return;
     }

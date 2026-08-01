@@ -106,9 +106,16 @@ func TestParseExperimentState(t *testing.T) {
 			wantLastRun:     "",
 		},
 		{
-			name: "jsonl state with snapshot and run records",
-			input: []byte(`{"counts":{"feature":{"A":2}},"runs":[]}
-{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"}}
+			name: "jsonl run ledger",
+			input: []byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"}}
+{"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`),
+			wantExperiments: 1,
+			wantTotalRuns:   2,
+			wantLastRun:     "2024-06-15",
+		},
+		{
+			name: "jsonl run ledger with baseline counts",
+			input: []byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"},"baseline_counts":{"feature":{"A":2}}}
 {"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`),
 			wantExperiments: 1,
 			wantTotalRuns:   2,
@@ -152,6 +159,17 @@ func TestExperimentDetailsFromState(t *testing.T) {
 	assert.Equal(t, 10, details.Experiments[0].Total, "feature total")
 	assert.Equal(t, "style", details.Experiments[1].Name, "second experiment sorted by name")
 	assert.Equal(t, 10, details.Experiments[1].Total, "style total")
+}
+
+func TestParseExperimentStateJSONLBaselineCounts(t *testing.T) {
+	state := parseExperimentState([]byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"},"baseline_counts":{"feature":{"A":2,"B":1}}}
+{"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`))
+
+	require.NotNil(t, state)
+	assert.Equal(t, map[string]map[string]int{
+		"feature": {"A": 3, "B": 2},
+	}, state.Counts)
+	assert.Len(t, state.Runs, 2)
 }
 
 func TestExperimentTotalRunsFallback(t *testing.T) {

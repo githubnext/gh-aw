@@ -112,9 +112,9 @@ func TestExtractExperimentData(t *testing.T) {
 		assert.Equal(t, "detailed", got.Assignments["style"], "detailed has higher count so should be selected")
 	})
 
-	t.Run("reads state.jsonl with snapshot and appended runs", func(t *testing.T) {
+	t.Run("reads state.jsonl run ledger", func(t *testing.T) {
 		dir := t.TempDir()
-		raw := []byte(`{"counts":{"style":{"concise":1}},"runs":[]}
+		raw := []byte(`{"run_id":"0","timestamp":"2026-07-31T23:00:00Z","assignments":{"style":"concise"}}
 {"run_id":"1","timestamp":"2026-08-01T00:00:00Z","assignments":{"style":"concise"}}
 {"run_id":"2","timestamp":"2026-08-01T01:00:00Z","assignments":{"style":"detailed"}}`)
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.jsonl"), raw, 0o600))
@@ -122,7 +122,7 @@ func TestExtractExperimentData(t *testing.T) {
 		got := extractExperimentData(dir)
 		require.NotNil(t, got, "should return non-nil ExperimentData")
 		assert.Equal(t, "detailed", got.Assignments["style"], "latest run assignment should be used")
-		assert.Equal(t, 2, got.CumulativeCounts["style"]["concise"], "snapshot count and run record should both be counted")
+		assert.Equal(t, 2, got.CumulativeCounts["style"]["concise"], "ledger should count both concise runs")
 		assert.Equal(t, 1, got.CumulativeCounts["style"]["detailed"], "jsonl run record should increment counts")
 	})
 

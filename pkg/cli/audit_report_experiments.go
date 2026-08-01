@@ -51,7 +51,7 @@ func findExperimentStatePath(logsPath string) string {
 // logsPath and returns a populated ExperimentData or nil when no experiment artifact
 // is present.
 //
-// When the state file contains a non-empty "runs" array (written by pick_experiment.cjs
+// When the state file contains a non-empty run ledger (written by pick_experiment.cjs
 // v2+), the assignments of the most recent run record are returned directly.
 // For legacy state files that only contain "counts" (no "runs" field), the selected
 // variant is inferred by the max-count heuristic: the variant with the highest cumulative
