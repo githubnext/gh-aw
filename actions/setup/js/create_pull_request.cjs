@@ -181,9 +181,10 @@ async function tryRecoverGitAmAddAddConflict(execApi) {
  * Resolves auto-merge enablement and merge method from the handler config.
  *
  * Supported values:
- *   - false / "false" => disabled
- *   - true / "true" => enabled with SQUASH as the default merge strategy
+ *   - false / "false" / empty => disabled
+ *   - true / "true"  => enabled with SQUASH as the default merge strategy
  *   - "squash" | "merge" | "rebase" => enabled with explicit strategy
+ *   - any other value => disabled with a warning (fail-closed)
  *
  * @param {any} value
  * @returns {{ enabled: boolean, mergeMethod?: "SQUASH" | "MERGE" | "REBASE" }}
@@ -204,7 +205,8 @@ function parseAutoMergeConfig(value) {
     case "rebase":
       return { enabled: true, mergeMethod: "REBASE" };
     default:
-      return { enabled: parseBoolTemplatable(value, false) };
+      core.warning(`Unrecognized auto-merge value "${value}". Expected true, false, "squash", "merge", or "rebase". Auto-merge will be disabled.`);
+      return { enabled: false };
   }
 }
 

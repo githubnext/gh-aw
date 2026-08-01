@@ -286,6 +286,17 @@ describe("create_pull_request - auto-merge configuration", () => {
       mergeMethod: "SQUASH",
     });
   });
+
+  it("warns and disables auto-merge for unrecognized values", async () => {
+    const { main } = require("./create_pull_request.cjs");
+    const handler = await main({ auto_merge: "sqaush", allow_empty: true });
+
+    const result = await handler({ title: "Test PR", body: "Test body" }, {});
+
+    expect(result.success).toBe(true);
+    expect(global.core.warning).toHaveBeenCalledWith(expect.stringContaining("Unrecognized auto-merge value"));
+    expect(global.github.graphql).not.toHaveBeenCalledWith(expect.stringContaining("enablePullRequestAutoMerge"), expect.anything());
+  });
 });
 
 describe("create_pull_request - bundle transport shallow checkout", () => {
