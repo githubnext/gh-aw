@@ -44,8 +44,12 @@ pre-agent-steps:
         }
       '
 
-      ./gh-aw --help > "${output_dir}/main.txt"
+      ./gh-aw --help > "${output_dir}/main.txt" 2>&1
       mapfile -t top_commands < <(awk "${extract_commands}" "${output_dir}/main.txt" | sort -u)
+      if [ ${#top_commands[@]} -eq 0 ]; then
+        echo "No top-level commands were parsed from ./gh-aw --help output" >&2
+        exit 1
+      fi
 
       for cmd in "${top_commands[@]}"; do
         if ! ./gh-aw "$cmd" --help > "${output_dir}/${cmd}.txt" 2>&1; then
@@ -67,6 +71,10 @@ pre-agent-steps:
         exit 1
       fi
       cat "${help_files[@]}" > /tmp/gh-aw/agent/all-help.txt
+      if [ ! -s /tmp/gh-aw/agent/all-help.txt ]; then
+        echo "Combined help output is empty" >&2
+        exit 1
+      fi
       wc -l /tmp/gh-aw/agent/all-help.txt | awk '{print "Pre-collected help lines:", $1}'
 safe-outputs:
   create-issue:
