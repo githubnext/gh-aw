@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -43,6 +43,22 @@ function isStringErr(node: TSESTree.Node, errVar: string): boolean {
   return isIdentifierNamed(node.arguments[0], errVar);
 }
 
+function isDefinitionAvailableAtNode(definition: TSESLint.Scope.Definition, node: TSESTree.Node): boolean {
+  if (definition.type === "ImportBinding" || definition.type === "FunctionName") {
+    return true;
+  }
+  const definitionNode = definition.name ?? definition.node;
+  if (!definitionNode?.range || !node.range) return false;
+  if (definitionNode.range[0] >= node.range[0]) return false;
+  // If the node falls inside the variable declarator's range, the binding is in the
+  // temporal dead zone at that point (e.g. `const getErrorMessage = <node>`).
+  const declNode = definition.node;
+  if (declNode?.range && node.range[0] >= declNode.range[0] && node.range[1] <= declNode.range[1]) {
+    return false;
+  }
+  return true;
+}
+
 export const noErrStackThenStringFallbackRule = createRule({
   name: "no-err-stack-then-string-fallback",
   meta: {
@@ -63,6 +79,21 @@ export const noErrStackThenStringFallbackRule = createRule({
   },
   defaultOptions: [],
   create(context) {
+    const sourceCode = context.sourceCode;
+    type SourceCodeScope = ReturnType<typeof sourceCode.getScope>;
+
+    function hasResolvableLocalBinding(node: TSESTree.Node, name: string): boolean {
+      let scope: SourceCodeScope | null = sourceCode.getScope(node);
+      while (scope) {
+        const variable = scope.set.get(name);
+        if (variable && variable.defs.some(def => isDefinitionAvailableAtNode(def, node))) {
+          return true;
+        }
+        scope = scope.upper;
+      }
+      return false;
+    }
+
     return {
       ConditionalExpression(node) {
         // Patterns:
@@ -91,15 +122,17 @@ export const noErrStackThenStringFallbackRule = createRule({
           node,
           messageId: "preferGetErrorMessage",
           data: { errorVar: errVar },
-          suggest: [
-            {
-              messageId: "replaceWithGetErrorMessage",
-              data: { errorVar: errVar },
-              fix(fixer) {
-                return fixer.replaceText(node, `getErrorMessage(${errVar})`);
-              },
-            },
-          ],
+          suggest: hasResolvableLocalBinding(node, "getErrorMessage")
+            ? [
+                {
+                  messageId: "replaceWithGetErrorMessage",
+                  data: { errorVar: errVar },
+                  fix(fixer) {
+                    return fixer.replaceText(node, `getErrorMessage(${errVar})`);
+                  },
+                },
+              ]
+            : [],
         });
       },
     };
