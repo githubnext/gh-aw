@@ -24,3 +24,15 @@ updates:
   directory: /.github/workflows
   schedule:
     interval: weekly
+- package-ecosystem: docker
+  directory: /
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /actions/setup/js
+  schedule:
+    interval: weekly
+- package-ecosystem: docker
+  directory: /.devcontainer
+  schedule:
+    interval: weekly
