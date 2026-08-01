@@ -1620,6 +1620,90 @@ describe("git_helpers.cjs - integration (real git repo)", () => {
       expect(fs.existsSync(path.join(repoDir, "r.txt"))).toBe(true);
     });
 
+    it("can replay the synthesized commit onto a newer origin/main tip without reverting base drift", async () => {
+      const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+
+      const originalBaseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+      const originalBranch = spawnSync("git", ["rev-parse", "--abbrev-ref", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+
+      try {
+        execSync("git checkout -b feature-drift", { cwd: repoDir, stdio: "pipe" });
+        addCommit(repoDir, "agent.txt", "agent\n", "add agent change");
+
+        const collaboratorDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-collab-"));
+        try {
+          execSync(`git clone ${remoteDir} ${collaboratorDir}`, { stdio: "pipe" });
+          execSync('git config user.email "test@example.com"', { cwd: collaboratorDir, stdio: "pipe" });
+          execSync('git config user.name "Test User"', { cwd: collaboratorDir, stdio: "pipe" });
+          addCommit(collaboratorDir, "drift.txt", "drift\n", "base drift");
+          execSync("git push origin main", { cwd: collaboratorDir, stdio: "pipe" });
+        } finally {
+          fs.rmSync(collaboratorDir, { recursive: true, force: true });
+        }
+
+        execSync("git fetch origin main:refs/remotes/origin/main", { cwd: repoDir, stdio: "pipe" });
+
+        await linearizeRangeAsCommit(originalBaseSha, "Squash agent change", makeRealExecApi(repoDir), {
+          gitOpts: { cwd: repoDir },
+          rebaseOnto: "origin/main",
+        });
+
+        const diffNames = spawnSync("git", ["diff", "--name-only", "origin/main..HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim().split("\n").filter(Boolean);
+        expect(diffNames).toEqual(["agent.txt"]);
+        expect(fs.readFileSync(path.join(repoDir, "drift.txt"), "utf8")).toBe("drift\n");
+
+        const parentSha = spawnSync("git", ["rev-parse", "HEAD^"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+        const currentOriginMain = spawnSync("git", ["rev-parse", "origin/main"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+        expect(parentSha).toBe(currentOriginMain);
+      } finally {
+        execSync(`git checkout ${originalBranch}`, { cwd: repoDir, stdio: "pipe" });
+      }
+    });
+
+    it("aborts cleanly and throws when rebase --onto encounters a conflict", async () => {
+      const { linearizeRangeAsCommit } = requireLocal("./git_helpers.cjs");
+
+      // Setup: main has conflict.txt at a known base.
+      addCommit(repoDir, "conflict.txt", "original\n", "add conflict.txt");
+      execSync("git push origin main", { cwd: repoDir, stdio: "pipe" });
+      const originalBaseSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+
+      // Agent branch: modifies the same file.
+      execSync("git checkout -b feature-conflict", { cwd: repoDir, stdio: "pipe" });
+      addCommit(repoDir, "conflict.txt", "agent-change\n", "agent modifies conflict.txt");
+      const agentHeadSha = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+
+      // Collaborator pushes a conflicting change to main (same file, incompatible content).
+      const collaboratorDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-conflict-collab-"));
+      try {
+        execSync(`git clone ${remoteDir} ${collaboratorDir}`, { stdio: "pipe" });
+        execSync('git config user.email "test@example.com"', { cwd: collaboratorDir, stdio: "pipe" });
+        execSync('git config user.name "Test User"', { cwd: collaboratorDir, stdio: "pipe" });
+        addCommit(collaboratorDir, "conflict.txt", "base-change\n", "base drift modifies conflict.txt");
+        execSync("git push origin main", { cwd: collaboratorDir, stdio: "pipe" });
+      } finally {
+        fs.rmSync(collaboratorDir, { recursive: true, force: true });
+      }
+
+      execSync("git fetch origin main:refs/remotes/origin/main", { cwd: repoDir, stdio: "pipe" });
+
+      // Rebase will conflict: the squashed diff touches the same file as origin/main.
+      await expect(
+        linearizeRangeAsCommit(originalBaseSha, "Squash agent change", makeRealExecApi(repoDir), {
+          gitOpts: { cwd: repoDir },
+          rebaseOnto: "origin/main",
+        })
+      ).rejects.toThrow(/Failed to linearize/);
+
+      // Repo must be in a clean state — no rebase in progress after the abort.
+      const rebaseHeadExists = fs.existsSync(path.join(repoDir, ".git", "REBASE_HEAD"));
+      expect(rebaseHeadExists).toBe(false);
+
+      // HEAD must be restored to the pre-linearize state (agent's commit, not the squash).
+      const headAfter = spawnSync("git", ["rev-parse", "HEAD"], { cwd: repoDir, encoding: "utf8" }).stdout.trim();
+      expect(headAfter).toBe(agentHeadSha);
+    });
+
     it("throws before any git state mutation for a shallow+implausible range", async () => {
       const shallowDir = fs.mkdtempSync(path.join(os.tmpdir(), "gh-aw-helpers-shallow-lin-"));
       try {

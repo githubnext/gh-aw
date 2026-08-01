@@ -712,6 +712,9 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   invocation (e.g. `["--allow-empty", "--no-verify"]`).
  * @param {string[]} [opts.excludedFiles] - Paths that should be removed from the staged rewrite
  *   before creating the linearized commit.
+ * @param {string} [opts.rebaseOnto] - Optional ref to replay the synthesized commit onto after
+ *   it has been linearized relative to `baseRef`. Use this when `baseRef` captures the agent's
+ *   actual change base but the resulting single commit must sit on a newer branch tip.
  * @param {number} [opts.maxCommits] - Override the implausibility threshold (default
  *   `SHALLOW_RANGE_MAX_COMMITS`).  Set to `Infinity` to disable the shallow guard.
  * @returns {Promise<string>} The new HEAD SHA after the rewrite.
@@ -719,7 +722,7 @@ async function backfillCommitObjects(execApi, commitShas, options = {}) {
  *   shallow checkout produces an implausible commit range.
  */
 async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}) {
-  const { gitOpts, commitFlags = [], excludedFiles = [], maxCommits = SHALLOW_RANGE_MAX_COMMITS } = opts;
+  const { gitOpts, commitFlags = [], excludedFiles = [], rebaseOnto, maxCommits = SHALLOW_RANGE_MAX_COMMITS } = opts;
   // Spread gitOpts into exec calls only when it is explicitly provided — passing
   // `undefined` as a third argument changes the arity seen by mocks in tests.
   const execArgs = gitOpts !== undefined ? [gitOpts] : [];
@@ -762,12 +765,30 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
     throw new Error("Could not resolve current HEAD before linearizing range");
   }
 
+  // Track whether a `git rebase` call was started so the catch block can distinguish
+  // "rebase in progress" (needs --abort) from "pre-rebase failure" (needs reset only).
+  let rebaseStarted = false;
   try {
     await execApi.exec("git", ["reset", "--soft", baseRef], ...execArgs);
     if (Array.isArray(excludedFiles) && excludedFiles.length > 0) {
       const { stdout: excludedStagedOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only", "--", ...excludedFiles], ...execArgs);
       if (excludedStagedOut.trim()) {
-        await execApi.exec("git", ["checkout", "HEAD", "--", ...excludedFiles], ...execArgs);
+        // Use `git reset HEAD -- <files>` rather than `git checkout HEAD -- <files>`.
+        // For newly-added excluded files (not present in HEAD), `checkout` fails with
+        // "pathspec did not match any file(s) known to git". `reset HEAD --` handles
+        // both cases: removes new files from the index and restores modified files to
+        // the HEAD version, without touching the working tree.
+        await execApi.exec("git", ["reset", "HEAD", "--", ...excludedFiles], ...execArgs);
+        // For excluded files that were modifications (not new additions), the working tree
+        // still has the agent's version while the index was just restored to HEAD. This
+        // creates an unstaged change that would cause `git rebase --onto` to fail.
+        // Detect any such unstaged changes among the excluded files and restore them from
+        // the index so the working tree stays in sync before the commit and rebase steps.
+        const { stdout: modifiedExcludedOut } = await execApi.getExecOutput("git", ["diff", "--name-only", "--", ...excludedFiles], ...execArgs);
+        const modifiedExcluded = modifiedExcludedOut.trim().split("\n").filter(Boolean);
+        if (modifiedExcluded.length > 0) {
+          await execApi.exec("git", ["checkout", "--", ...modifiedExcluded], ...execArgs);
+        }
       }
     }
     const { stdout: stagedFilesOut } = await execApi.getExecOutput("git", ["diff", "--cached", "--name-only"], ...execArgs);
@@ -775,10 +796,31 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
       throw new Error(`No staged changes found after soft reset to ${baseRef}. ` + `The commit range may contain only no-op or empty commits. ` + `Ensure your commits contain actual file changes before pushing.`);
     }
     await execApi.exec("git", ["commit", ...commitFlags, "-m", commitMessage], ...execArgs);
+    if (typeof rebaseOnto === "string" && rebaseOnto.trim() && rebaseOnto.trim() !== baseRef.trim()) {
+      rebaseStarted = true;
+      await execApi.exec("git", ["rebase", "--onto", rebaseOnto.trim(), baseRef, "HEAD"], ...execArgs);
+      rebaseStarted = false;
+      // Guard: if the rebase silently dropped the commit (became empty relative to rebaseOnto),
+      // the agent's changes are lost. Detect and fail loudly rather than pushing an empty diff.
+      const { stdout: diffOut } = await execApi.getExecOutput("git", ["diff", "--name-only", rebaseOnto.trim(), "HEAD"], ...execArgs);
+      if (!diffOut.trim()) {
+        throw new Error(`Rebase onto ${rebaseOnto} produced no changes; the synthesized commit was dropped as empty`);
+      }
+    }
     const { stdout: newHeadOut } = await execApi.getExecOutput("git", ["rev-parse", "HEAD"], ...execArgs);
     return newHeadOut.trim();
   } catch (rewriteError) {
     try {
+      if (rebaseStarted) {
+        // A rebase was in progress when the error occurred; abort it to restore the repo to its
+        // pre-rebase state before the hard reset below finishes the rollback.
+        try {
+          await execApi.exec("git", ["rebase", "--abort"], ...execArgs);
+        } catch (abortError) {
+          // --abort failed while a rebase was genuinely in progress — repo may be in a dirty state.
+          core.error(`linearizeRangeAsCommit: rebase --abort also failed: ${getErrorMessage(abortError)}`);
+        }
+      }
       await execApi.exec("git", ["reset", "--hard", originalHead], ...execArgs);
       core.warning(`linearizeRangeAsCommit: rewrite failed; restored original HEAD ${originalHead}`);
     } catch (restoreError) {
