@@ -457,10 +457,22 @@ function main() {
     summary.gateway = gateway;
   }
 
-  // Parse safe outputs manifest
+  // Parse safe outputs manifest.
+  // When the manifest file is present (downloaded by the conclusion job from the
+  // safe-outputs-items artifact), always include safe_outputs in the summary — even
+  // when totalItems is 0.  This lets downstream consumers distinguish two cases:
+  //   • safe_outputs absent  → manifest not found (artifact download failed or job never ran)
+  //   • safe_outputs.total_items == 0 → manifest was present but no items were logged
   const safeOutputs = parseSafeOutputsManifest();
   if (safeOutputs) {
     summary.safe_outputs = safeOutputs;
+    core.info(`safe-output-items manifest: ${safeOutputs.total_items} item(s) logged (types: ${Object.keys(safeOutputs.items_by_type).join(", ") || "none"})`);
+  } else if (fs.existsSync(MANIFEST_FILE_PATH)) {
+    // Manifest was downloaded but contained no loggable items.
+    summary.safe_outputs = { total_items: 0, items_by_type: {} };
+    core.info(`safe-output-items manifest: 0 item(s) logged (file present but empty)`);
+  } else {
+    core.info(`safe-output-items manifest not found at ${MANIFEST_FILE_PATH} — safe-outputs-items artifact may not have been downloaded`);
   }
 
   // Write summary to file
