@@ -2162,6 +2162,77 @@ describe("push_signed_commits integration tests", () => {
       }
     });
 
+    it("should merge state.jsonl conflicts when a custom resolver is provided", async () => {
+      const concurrentDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-signed-concurrent-jsonl-"));
+      try {
+        execGit(["checkout", "-b", "experiment-state-jsonl-merge-branch"], { cwd: workDir });
+        const snapshot = {
+          counts: { prompt_style: { concise: 1, detailed: 1 } },
+          runs: [{ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } }],
+        };
+        fs.writeFileSync(path.join(workDir, "state.jsonl"), `${JSON.stringify(snapshot)}\n${JSON.stringify({ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } })}\n`);
+        fs.writeFileSync(path.join(workDir, "assignments.json"), JSON.stringify({ prompt_style: "concise" }, null, 2) + "\n");
+        execGit(["add", "state.jsonl", "assignments.json"], { cwd: workDir });
+        execGit(["commit", "-m", "Seed experiment state jsonl"], { cwd: workDir });
+        execGit(["push", "-u", "origin", "experiment-state-jsonl-merge-branch"], { cwd: workDir });
+
+        const baseRef = execGit(["rev-parse", "HEAD"], { cwd: workDir }).stdout.trim();
+
+        execGit(["clone", bareDir, "."], { cwd: concurrentDir });
+        execGit(["config", "user.name", "Test User"], { cwd: concurrentDir });
+        execGit(["config", "user.email", "test@example.com"], { cwd: concurrentDir });
+
+        fs.writeFileSync(
+          path.join(workDir, "state.jsonl"),
+          `${JSON.stringify(snapshot)}\n${JSON.stringify({ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } })}\n${JSON.stringify({ run_id: "200", timestamp: "2026-07-31T12:01:00.000Z", assignments: { prompt_style: "concise" } })}\n`
+        );
+        fs.writeFileSync(path.join(workDir, "assignments.json"), JSON.stringify({ prompt_style: "concise" }, null, 2) + "\n");
+        execGit(["add", "state.jsonl", "assignments.json"], { cwd: workDir });
+        execGit(["commit", "-m", "Local experiment update jsonl"], { cwd: workDir });
+
+        execGit(["checkout", "experiment-state-jsonl-merge-branch"], { cwd: concurrentDir });
+        fs.writeFileSync(
+          path.join(concurrentDir, "state.jsonl"),
+          `${JSON.stringify(snapshot)}\n${JSON.stringify({ run_id: "100", timestamp: "2026-07-31T12:00:00.000Z", assignments: { prompt_style: "concise" } })}\n${JSON.stringify({ run_id: "300", timestamp: "2026-07-31T12:02:00.000Z", assignments: { prompt_style: "concise" } })}\n`
+        );
+        fs.writeFileSync(path.join(concurrentDir, "assignments.json"), JSON.stringify({ prompt_style: "concise" }, null, 2) + "\n");
+        execGit(["add", "state.jsonl", "assignments.json"], { cwd: concurrentDir });
+        execGit(["commit", "-m", "Remote experiment update jsonl"], { cwd: concurrentDir });
+        execGit(["push", "origin", "experiment-state-jsonl-merge-branch"], { cwd: concurrentDir });
+        execGit(["fetch", "origin", "refs/heads/experiment-state-jsonl-merge-branch"], { cwd: workDir });
+
+        global.exec = makeRealExec(workDir);
+        const githubClient = makeMockGithubClient();
+
+        await pushSignedCommits({
+          githubClient,
+          owner: "test-owner",
+          repo: "test-repo",
+          branch: "experiment-state-jsonl-merge-branch",
+          baseRef,
+          cwd: workDir,
+          resolveRebaseConflict: resolveExperimentStateRebaseConflict,
+        });
+
+        expect(githubClient.graphql).toHaveBeenCalledTimes(1);
+        const additions = githubClient.graphql.mock.calls[0][1].input.fileChanges.additions;
+        const stateAddition = additions.find(entry => entry.path === "state.jsonl");
+        expect(stateAddition).toBeDefined();
+        const mergedLines = Buffer.from(stateAddition.contents, "base64")
+          .toString("utf8")
+          .trim()
+          .split("\n")
+          .map(line => JSON.parse(line));
+        const runIds = mergedLines
+          .filter(entry => entry.run_id)
+          .map(entry => entry.run_id)
+          .sort();
+        expect(runIds).toEqual(["100", "200", "300"]);
+      } finally {
+        cleanupDir(concurrentDir);
+      }
+    });
+
     it("should enforce protected-files policy against synthesized GraphQL payload", async () => {
       execGit(["checkout", "-b", "protected-payload-branch"], { cwd: workDir });
       fs.writeFileSync(path.join(workDir, "CODEOWNERS"), "* @octocat\n");

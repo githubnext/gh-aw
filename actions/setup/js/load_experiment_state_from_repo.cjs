@@ -12,7 +12,7 @@
  *
  * Environment variables (set by the compiled workflow step):
  *   GH_AW_EXPERIMENT_STATE_FILE - Absolute path to the local state file to write
- *                                  e.g. /tmp/gh-aw/experiments/state.json
+ *                                  e.g. /tmp/gh-aw/experiments/state.jsonl
  *   GH_AW_EXPERIMENT_STATE_DIR  - Directory that holds the state file (created if missing)
  *                                  e.g. /tmp/gh-aw/experiments
  *   GH_AW_EXPERIMENT_BRANCH     - Git branch name to fetch state from
@@ -28,6 +28,31 @@ const MAX_STATE_FILE_BYTES = 102400;
 // Keep this allowlist aligned with actions/setup/js/normalize_branch_name.cjs valid characters.
 const BRANCH_NAME_PATTERN = /^[A-Za-z0-9._/-]+$/;
 const REPOSITORY_PATTERN = /^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/;
+
+function isExperimentStateContentValid(content) {
+  try {
+    const parsed = JSON.parse(content);
+    return !!parsed && typeof parsed.counts === "object";
+  } catch {}
+
+  try {
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      const entry = JSON.parse(trimmed);
+      const isSnapshot = !!entry && typeof entry.counts === "object";
+      const isRunRecord = !!entry && typeof entry.run_id === "string" && typeof entry.timestamp === "string" && entry.assignments && typeof entry.assignments === "object" && !Array.isArray(entry.assignments);
+      if (!isSnapshot && !isRunRecord) {
+        return false;
+      }
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /**
  * Returns true when decoded state content exceeds allowed byte length.
@@ -100,7 +125,7 @@ async function fetchFileFromBranch(octokit, owner, repo, branch, filePath) {
     if (errAny.status === 404) {
       return null;
     }
-    throw new Error(`${ERR_API}: Failed to fetch file "${filePath}" from branch "${branch}": ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_API}: Failed to fetch file "${filePath}" from branch "${branch}": ${getErrorMessage(err)}`, { cause: err });
   }
 }
 
@@ -108,7 +133,7 @@ async function fetchFileFromBranch(octokit, owner, repo, branch, filePath) {
  * Main entry point called by the actions/github-script step.
  */
 async function main() {
-  const stateFile = process.env.GH_AW_EXPERIMENT_STATE_FILE || "/tmp/gh-aw/experiments/state.json";
+  const stateFile = process.env.GH_AW_EXPERIMENT_STATE_FILE || "/tmp/gh-aw/experiments/state.jsonl";
   const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
   const branch = process.env.GH_AW_EXPERIMENT_BRANCH || "";
   const repository = process.env.GITHUB_REPOSITORY || "";
@@ -120,7 +145,7 @@ async function main() {
     try {
       fs.mkdirSync(stateDir, { recursive: true });
     } catch (err) {
-      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${getErrorMessage(err)}`, { cause: err });
     }
     return;
   }
@@ -129,13 +154,19 @@ async function main() {
   // This avoids requiring GITHUB_TOKEN to be explicitly set in the step env.
   const octokit = github;
   const stateFileName = path.basename(stateFile);
+  const stateFileCandidates = Array.from(new Set(stateFileName === "state.json" ? ["state.jsonl", "state.json"] : stateFileName === "state.jsonl" ? ["state.jsonl", "state.json"] : [stateFileName]));
 
-  core.info(`Loading experiment state from branch "${branch}" (file: ${stateFileName})`);
+  core.info(`Loading experiment state from branch "${branch}" (file: ${stateFileCandidates.join(" or ")})`);
 
   /** @type {any} */
   let content = null;
   try {
-    content = await fetchFileFromBranch(octokit, owner, repo, branch, stateFileName);
+    for (const candidate of stateFileCandidates) {
+      content = await fetchFileFromBranch(octokit, owner, repo, branch, candidate);
+      if (content !== null) {
+        break;
+      }
+    }
   } catch (/** @type {any} */ err) {
     core.warning(`Failed to fetch experiment state from branch "${branch}": ${getErrorMessage(err)} – starting fresh`);
   }
@@ -144,7 +175,7 @@ async function main() {
   try {
     fs.mkdirSync(stateDir, { recursive: true });
   } catch (err) {
-    throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   if (content === null) {
@@ -157,14 +188,7 @@ async function main() {
     return;
   }
 
-  // Validate that the content is parseable JSON before writing.
-  try {
-    const parsed = JSON.parse(content);
-    if (!parsed || typeof parsed.counts !== "object") {
-      core.warning(`Experiment state in branch "${branch}" is invalid JSON – starting fresh`);
-      return;
-    }
-  } catch {
+  if (!isExperimentStateContentValid(content)) {
     core.warning(`Experiment state in branch "${branch}" could not be parsed – starting fresh`);
     return;
   }
@@ -172,7 +196,7 @@ async function main() {
   try {
     fs.writeFileSync(stateFile, content, "utf8");
   } catch (err) {
-    throw new Error(`${ERR_SYSTEM}: Failed to write file ${stateFile}: ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${stateFile}: ${getErrorMessage(err)}`, { cause: err });
   }
   core.info(`Experiment state written to ${stateFile}`);
 }

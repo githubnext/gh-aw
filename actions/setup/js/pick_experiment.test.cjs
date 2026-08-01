@@ -142,6 +142,37 @@ describe("pick_experiment", () => {
       const loaded = loadState(file);
       expect(loaded.runs).toEqual(runs);
     });
+
+    it("parses jsonl state files with a legacy snapshot and appended runs", () => {
+      const file = path.join(tmpDir, "state.jsonl");
+      const snapshot = { counts: { f: { A: 2, B: 1 } }, runs: [] };
+      const run = { run_id: "456", timestamp: "2026-01-02T00:00:00.000Z", assignments: { f: "B" } };
+      fs.writeFileSync(file, `${JSON.stringify(snapshot)}\n${JSON.stringify(run)}\n`, "utf8");
+
+      const loaded = loadState(file);
+
+      expect(loaded.counts).toEqual({ f: { A: 2, B: 2 } });
+      expect(loaded.runs).toEqual([run]);
+    });
+
+    it("appends jsonl run records while preserving legacy json counts in a snapshot line", () => {
+      const legacyFile = path.join(tmpDir, "state.jsonl");
+      fs.writeFileSync(legacyFile, JSON.stringify({ counts: { f: { A: 2 } }, runs: [] }) + "\n", "utf8");
+
+      const state = loadState(legacyFile);
+      state.runs.push({ run_id: "789", timestamp: "2026-01-03T00:00:00.000Z", assignments: { f: "A" } });
+      saveState(legacyFile, state);
+
+      const lines = fs
+        .readFileSync(legacyFile, "utf8")
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line));
+      expect(lines).toEqual([
+        { counts: { f: { A: 2 } }, runs: [] },
+        { run_id: "789", timestamp: "2026-01-03T00:00:00.000Z", assignments: { f: "A" } },
+      ]);
+    });
   });
 
   // ── statistical balance ────────────────────────────────────────────────────

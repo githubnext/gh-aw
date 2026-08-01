@@ -26,6 +26,16 @@ func TestFindExperimentStatePath(t *testing.T) {
 		assert.Equal(t, statePath, got, "should find state.json at logsPath root")
 	})
 
+	t.Run("prefers state.jsonl at root", func(t *testing.T) {
+		dir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.json"), []byte("{}"), 0o600))
+		statePath := filepath.Join(dir, "state.jsonl")
+		require.NoError(t, os.WriteFile(statePath, []byte("{}"), 0o600))
+
+		got := findExperimentStatePath(dir)
+		assert.Equal(t, statePath, got, "should prefer state.jsonl at logsPath root")
+	})
+
 	t.Run("finds state.json in experiment subdirectory", func(t *testing.T) {
 		dir := t.TempDir()
 		subDir := filepath.Join(dir, "experiment")
@@ -100,6 +110,20 @@ func TestExtractExperimentData(t *testing.T) {
 		got := extractExperimentData(dir)
 		require.NotNil(t, got, "should return non-nil ExperimentData from subdir")
 		assert.Equal(t, "detailed", got.Assignments["style"], "detailed has higher count so should be selected")
+	})
+
+	t.Run("reads state.jsonl with snapshot and appended runs", func(t *testing.T) {
+		dir := t.TempDir()
+		raw := []byte(`{"counts":{"style":{"concise":1}},"runs":[]}
+{"run_id":"1","timestamp":"2026-08-01T00:00:00Z","assignments":{"style":"concise"}}
+{"run_id":"2","timestamp":"2026-08-01T01:00:00Z","assignments":{"style":"detailed"}}`)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.jsonl"), raw, 0o600))
+
+		got := extractExperimentData(dir)
+		require.NotNil(t, got, "should return non-nil ExperimentData")
+		assert.Equal(t, "detailed", got.Assignments["style"], "latest run assignment should be used")
+		assert.Equal(t, 2, got.CumulativeCounts["style"]["concise"], "snapshot count and run record should both be counted")
+		assert.Equal(t, 1, got.CumulativeCounts["style"]["detailed"], "jsonl run record should increment counts")
 	})
 
 	t.Run("extracts multiple experiments", func(t *testing.T) {

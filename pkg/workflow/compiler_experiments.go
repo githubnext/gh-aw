@@ -15,11 +15,11 @@ import (
 
 var experimentsLog = logger.New("workflow:compiler_experiments")
 
-// experimentsCacheDir is the runtime directory where the experiment state JSON is stored.
+// experimentsCacheDir is the runtime directory where the experiment state file is stored.
 const experimentsCacheDir = "/tmp/gh-aw/experiments"
 
-// experimentStateFile is the path to the experiment state JSON written by pick_experiment.cjs.
-const experimentStateFile = experimentsCacheDir + "/state.json"
+// experimentStateFile is the path to the experiment state JSONL file written by pick_experiment.cjs.
+const experimentStateFile = experimentsCacheDir + "/state.jsonl"
 
 // ExperimentsStorageCache uses GitHub Actions cache to persist experiment state.
 const ExperimentsStorageCache = "cache"
@@ -389,13 +389,13 @@ func validateExperimentMetricReferences(configs map[string]*ExperimentConfig, ev
 //
 // When storage is "cache" (legacy) the steps are:
 //  1. Restore experiment cache   – actions/cache/restore keyed by workflow ID
-//  2. Pick variants              – pick_experiment.cjs (reads/writes state.json, sets step outputs,
+//  2. Pick variants              – pick_experiment.cjs (reads/writes state.jsonl/state.json, sets step outputs,
 //     writes a Markdown step summary); outputs: one per experiment (e.g. "caveman=yes") + "experiments" JSON blob
 //  3. Save experiment cache      – actions/cache/save keyed by workflow ID
 //  4. Upload experiment artifact – actions/upload-artifact named "{workflowID}-experiment"
 //
 // When storage is "repo" (default) the steps are:
-//  1. Restore experiment state from git – load_experiment_state_from_repo.cjs fetches state.json
+//  1. Restore experiment state from git – load_experiment_state_from_repo.cjs fetches state.jsonl/state.json
 //     from the "experiments/{sanitizedID}" branch via the GitHub API (read-only; falls back to
 //     empty state when the branch/file does not yet exist)
 //  2. Pick variants              – same as cache mode
@@ -629,7 +629,7 @@ func experimentArtifactDownloadName(data *WorkflowData) string {
 
 // buildExperimentArtifactDownloadSteps creates a download step for the experiment artifact.
 // The artifact is downloaded to experimentsCacheDir so the detection agent can read the
-// current variant assignments from state.json.
+// current variant assignments from state.jsonl/state.json.
 // The step is a no-op when no experiments are declared.
 // pinAction resolves the download-artifact action reference; pass c.getActionPin from Compiler methods.
 func buildExperimentArtifactDownloadSteps(data *WorkflowData, pinAction func(string) string) []string {

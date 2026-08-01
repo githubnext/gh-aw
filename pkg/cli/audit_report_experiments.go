@@ -6,7 +6,6 @@
 package cli
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -30,11 +29,13 @@ type ExperimentData struct {
 	CumulativeCounts map[string]map[string]int `json:"cumulative_counts,omitempty"`
 }
 
-// findExperimentStatePath returns the first existing state.json path inside the experiment
+// findExperimentStatePath returns the first existing experiment state path inside the experiment
 // artifact directory. The file may be flattened to the run root or nested inside the
 // artifact subdirectory.
 func findExperimentStatePath(logsPath string) string {
 	candidates := []string{
+		filepath.Join(logsPath, "state.jsonl"),
+		filepath.Join(logsPath, constants.ExperimentArtifactName, "state.jsonl"),
 		filepath.Join(logsPath, "state.json"),
 		filepath.Join(logsPath, constants.ExperimentArtifactName, "state.json"),
 	}
@@ -46,7 +47,7 @@ func findExperimentStatePath(logsPath string) string {
 	return ""
 }
 
-// extractExperimentData reads state.json from the experiment artifact directory under
+// extractExperimentData reads experiment state from the experiment artifact directory under
 // logsPath and returns a populated ExperimentData or nil when no experiment artifact
 // is present.
 //
@@ -74,8 +75,8 @@ func extractExperimentData(logsPath string) *ExperimentData {
 		return nil
 	}
 
-	var state ExperimentState
-	if err := json.Unmarshal(raw, &state); err != nil || len(state.Counts) == 0 {
+	state := parseExperimentState(raw)
+	if len(state.Counts) == 0 {
 		return nil
 	}
 

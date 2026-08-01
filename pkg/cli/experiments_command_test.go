@@ -105,6 +105,15 @@ func TestParseExperimentState(t *testing.T) {
 			wantTotalRuns:   0,
 			wantLastRun:     "",
 		},
+		{
+			name: "jsonl state with snapshot and run records",
+			input: []byte(`{"counts":{"feature":{"A":2}},"runs":[]}
+{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"}}
+{"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`),
+			wantExperiments: 1,
+			wantTotalRuns:   2,
+			wantLastRun:     "2024-06-15",
+		},
 	}
 
 	for _, tt := range tests {

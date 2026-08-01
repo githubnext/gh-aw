@@ -16,7 +16,7 @@
  *   GH_AW_STATE_LABEL           - Human-readable label used in logs/messages
  *
  * Backward-compatible experiment aliases:
- *   GH_AW_EXPERIMENT_STATE_DIR  - Directory containing state.json / assignments.json
+ *   GH_AW_EXPERIMENT_STATE_DIR  - Directory containing state.jsonl/state.json and assignments.json
  *   GH_AW_EXPERIMENT_BRANCH     - Target git branch for experiment state
  *   GH_TOKEN / GITHUB_TOKEN     - GitHub token for API access and git operations
  *   GITHUB_RUN_ID               - Run ID used in commit messages
@@ -104,6 +104,31 @@ function mergeExperimentStateJSON(baseState, remoteState, localState) {
   return merged;
 }
 
+function mergeExperimentStateJSONL(remoteContent, localContent) {
+  const merged = [];
+  const seen = new Set();
+  for (const content of [remoteContent, localContent]) {
+    for (const line of content.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      let entry;
+      try {
+        entry = JSON.parse(trimmed);
+      } catch (err) {
+        throw new Error(`Failed to parse state.jsonl conflict entry: ${getErrorMessage(err)}`, { cause: err });
+      }
+      const key = stableJSONStringify(entry);
+      if (!seen.has(key)) {
+        seen.add(key);
+        merged.push(entry);
+      }
+    }
+  }
+  return merged.length > 0 ? `${merged.map(entry => JSON.stringify(entry)).join("\n")}\n` : "";
+}
+
 function readGitStageFile(workspaceDir, stage, filePath) {
   return execGitSync(["show", `:${stage}:${filePath}`], {
     cwd: workspaceDir,
@@ -123,26 +148,47 @@ function resolveExperimentStateRebaseConflict({ cwd }) {
     .map(file => file.trim())
     .filter(Boolean);
 
-  if (conflictedFiles.length === 0 || !conflictedFiles.includes("state.json")) {
+  if (conflictedFiles.length === 0 || (!conflictedFiles.includes("state.json") && !conflictedFiles.includes("state.jsonl"))) {
     return false;
   }
 
-  const allowedConflicts = new Set(["state.json", "assignments.json"]);
+  const allowedConflicts = new Set(["state.json", "state.jsonl", "assignments.json"]);
   for (const file of conflictedFiles) {
     if (!allowedConflicts.has(file)) {
       return false;
     }
   }
 
-  const baseState = JSON.parse(readGitStageFile(cwd, 1, "state.json"));
-  const remoteState = JSON.parse(readGitStageFile(cwd, 2, "state.json"));
-  const localState = JSON.parse(readGitStageFile(cwd, 3, "state.json"));
-  const mergedState = mergeExperimentStateJSON(baseState, remoteState, localState);
-  fs.writeFileSync(path.join(cwd, "state.json"), JSON.stringify(mergedState, null, 2) + "\n", "utf8");
+  if (conflictedFiles.includes("state.json")) {
+    try {
+      const baseState = JSON.parse(readGitStageFile(cwd, 1, "state.json"));
+      const remoteState = JSON.parse(readGitStageFile(cwd, 2, "state.json"));
+      const localState = JSON.parse(readGitStageFile(cwd, 3, "state.json"));
+      const mergedState = mergeExperimentStateJSON(baseState, remoteState, localState);
+      fs.writeFileSync(path.join(cwd, "state.json"), JSON.stringify(mergedState, null, 2) + "\n", "utf8");
+    } catch (err) {
+      throw new Error(`Failed to resolve state.json rebase conflict: ${getErrorMessage(err)}`, { cause: err });
+    }
+  }
+
+  if (conflictedFiles.includes("state.jsonl")) {
+    try {
+      const remoteState = readGitStageFile(cwd, 2, "state.jsonl");
+      const localState = readGitStageFile(cwd, 3, "state.jsonl");
+      const mergedState = mergeExperimentStateJSONL(remoteState, localState);
+      fs.writeFileSync(path.join(cwd, "state.jsonl"), mergedState, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to resolve state.jsonl rebase conflict: ${getErrorMessage(err)}`, { cause: err });
+    }
+  }
 
   if (conflictedFiles.includes("assignments.json")) {
-    const localAssignments = readGitStageFile(cwd, 3, "assignments.json");
-    fs.writeFileSync(path.join(cwd, "assignments.json"), localAssignments, "utf8");
+    try {
+      const localAssignments = readGitStageFile(cwd, 3, "assignments.json");
+      fs.writeFileSync(path.join(cwd, "assignments.json"), localAssignments, "utf8");
+    } catch (err) {
+      throw new Error(`Failed to resolve assignments.json rebase conflict: ${getErrorMessage(err)}`, { cause: err });
+    }
   }
 
   execGitSync(["add", "--", ...conflictedFiles], { stdio: "inherit", cwd });
@@ -183,7 +229,11 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
     }
     for (const entry of entries) {
       if (entry !== ".git") {
-        fs.rmSync(path.join(workspaceDir, entry), { recursive: true, force: true });
+        try {
+          fs.rmSync(path.join(workspaceDir, entry), { recursive: true, force: true });
+        } catch (err) {
+          throw new Error(`Failed to remove workspace entry ${entry}: ${getErrorMessage(err)}`, { cause: err });
+        }
       }
     }
     return "";
@@ -197,7 +247,7 @@ async function main() {
   const stateDir = process.env.GH_AW_STATE_DIR || process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
   const branchName = process.env.GH_AW_STATE_BRANCH || process.env.GH_AW_EXPERIMENT_BRANCH || "";
   const stateLabel = process.env.GH_AW_STATE_LABEL || "experiment state";
-  const filesEnv = process.env.GH_AW_STATE_FILES || "state.json,assignments.json";
+  const filesEnv = process.env.GH_AW_STATE_FILES || "state.jsonl,state.json,assignments.json";
   const candidateFiles = filesEnv
     .split(",")
     .map(name => name.trim())

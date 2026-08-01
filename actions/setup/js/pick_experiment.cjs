@@ -12,8 +12,8 @@
  *                                  or a new object with a 'variants' field and optional
  *                                  metadata: weight, start_date, end_date, description, metric.
  *                                  e.g. '{"feature1":["A","B"],"style":{"variants":["concise","detailed"],"weight":[70,30]}}'
- *   GH_AW_EXPERIMENT_STATE_FILE - Absolute path to the JSON state file to read/write
- *                                  e.g. /tmp/gh-aw/experiments/state.json
+ *   GH_AW_EXPERIMENT_STATE_FILE - Absolute path to the experiment state file to read/write
+ *                                  e.g. /tmp/gh-aw/experiments/state.jsonl
  *   GH_AW_EXPERIMENT_STATE_DIR  - Directory that holds the state file (created if missing)
  *                                  e.g. /tmp/gh-aw/experiments
  *
@@ -30,8 +30,10 @@ const fs = require("fs");
 const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
-/** Maximum number of per-run records retained in state.runs. Older entries are pruned to keep state.json small. */
+/** Maximum number of per-run records retained in state.runs for summaries. */
 const MAX_RUN_HISTORY = 512;
+const STATE_SOURCE_FORMAT = Symbol("experimentStateSourceFormat");
+const STATE_SOURCE_SNAPSHOT = Symbol("experimentStateSourceSnapshot");
 
 /**
  * @typedef {Object} ExperimentRunRecord
@@ -87,7 +89,7 @@ function normalizeConfig(raw) {
 }
 
 /**
- * Load and parse the state JSON file.  Returns an empty state if the file does not exist
+ * Load and parse the state file. Returns an empty state if the file does not exist
  * or cannot be parsed (e.g. first run or corrupted cache).
  *
  * @param {string} stateFile
@@ -96,13 +98,53 @@ function normalizeConfig(raw) {
 function loadState(stateFile) {
   try {
     const raw = fs.readFileSync(stateFile, "utf8");
-    const parsed = JSON.parse(raw);
-    if (parsed && typeof parsed.counts === "object") {
-      if (!Array.isArray(parsed.runs)) {
-        parsed.runs = [];
+    try {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed.counts === "object") {
+        if (!Array.isArray(parsed.runs)) {
+          parsed.runs = [];
+        }
+        Object.defineProperty(parsed, STATE_SOURCE_FORMAT, { value: "json", configurable: true });
+        Object.defineProperty(parsed, STATE_SOURCE_SNAPSHOT, {
+          value: JSON.parse(JSON.stringify({ counts: parsed.counts, runs: Array.isArray(parsed.runs) ? parsed.runs : [] })),
+          configurable: true,
+        });
+        return parsed;
       }
-      return parsed;
+    } catch {}
+
+    const state = { counts: {}, runs: [] };
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed) {
+        continue;
+      }
+      const entry = JSON.parse(trimmed);
+      if (entry && typeof entry.counts === "object") {
+        state.counts = entry.counts;
+        state.runs = Array.isArray(entry.runs) ? entry.runs.slice(-MAX_RUN_HISTORY) : [];
+        continue;
+      }
+      if (entry && typeof entry.run_id === "string" && typeof entry.timestamp === "string" && entry.assignments && typeof entry.assignments === "object" && !Array.isArray(entry.assignments)) {
+        state.runs.push(entry);
+        if (state.runs.length > MAX_RUN_HISTORY) {
+          state.runs = state.runs.slice(-MAX_RUN_HISTORY);
+        }
+        for (const [name, variant] of Object.entries(entry.assignments)) {
+          if (typeof variant !== "string") {
+            throw new Error("Invalid assignment variant");
+          }
+          if (!state.counts[name]) {
+            state.counts[name] = {};
+          }
+          state.counts[name][variant] = (state.counts[name][variant] || 0) + 1;
+        }
+        continue;
+      }
+      throw new Error("Invalid experiment state record");
     }
+    Object.defineProperty(state, STATE_SOURCE_FORMAT, { value: "jsonl", configurable: true });
+    return state;
   } catch {
     // File missing, unreadable, or invalid JSON – start fresh.
   }
@@ -110,7 +152,7 @@ function loadState(stateFile) {
 }
 
 /**
- * Persist the state JSON file to disk.
+ * Persist the state file to disk.
  *
  * @param {string} stateFile
  * @param {ExperimentState} state
@@ -119,9 +161,24 @@ function saveState(stateFile, state) {
   const dir = path.dirname(stateFile);
   try {
     fs.mkdirSync(dir, { recursive: true });
+    if (stateFile.endsWith(".jsonl")) {
+      const latestRun = Array.isArray(state.runs) ? state.runs[state.runs.length - 1] : undefined;
+      if (!latestRun) {
+        fs.writeFileSync(stateFile, "", "utf8");
+        return;
+      }
+      if (state[STATE_SOURCE_FORMAT] === "json") {
+        const snapshot = state[STATE_SOURCE_SNAPSHOT] || { counts: {}, runs: [] };
+        fs.writeFileSync(stateFile, `${JSON.stringify(snapshot)}\n${JSON.stringify(latestRun)}\n`, "utf8");
+        Object.defineProperty(state, STATE_SOURCE_FORMAT, { value: "jsonl", configurable: true });
+        return;
+      }
+      fs.appendFileSync(stateFile, `${JSON.stringify(latestRun)}\n`, "utf8");
+      return;
+    }
     fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", "utf8");
   } catch (err) {
-    throw new Error(`Failed to persist experiment state ${stateFile}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to persist experiment state ${stateFile}: ${getErrorMessage(err)}`, { cause: err });
   }
 }
 
@@ -362,7 +419,7 @@ async function writeSummary(assignments, configs, state, core) {
  */
 async function main() {
   const specRaw = process.env.GH_AW_EXPERIMENT_SPEC || "{}";
-  const stateFile = process.env.GH_AW_EXPERIMENT_STATE_FILE || "/tmp/gh-aw/experiments/state.json";
+  const stateFile = process.env.GH_AW_EXPERIMENT_STATE_FILE || "/tmp/gh-aw/experiments/state.jsonl";
   const stateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR || "/tmp/gh-aw/experiments";
 
   /** @type {Record<string, string[]|ExperimentConfig>} */
@@ -391,7 +448,7 @@ async function main() {
   try {
     fs.mkdirSync(stateDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${stateDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const state = loadState(stateFile);
@@ -445,7 +502,7 @@ async function main() {
       state.runs = [];
     }
     state.runs.push({ run_id: runId, timestamp, assignments: { ...assignments } });
-    // Prune run history to avoid state.json growing without bound over many runs.
+    // Prune in-memory run history so summaries stay small even when state.jsonl is append-only.
     if (state.runs.length > MAX_RUN_HISTORY) {
       state.runs = state.runs.slice(-MAX_RUN_HISTORY);
     }
@@ -463,7 +520,7 @@ async function main() {
     try {
       fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
     } catch (err) {
-      throw new Error(`Failed to write file ${assignmentsFile}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to write file ${assignmentsFile}: ${getErrorMessage(err)}`, { cause: err });
     }
     core.info(`Experiment assignments written to ${assignmentsFile}`);
 
