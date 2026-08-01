@@ -5,7 +5,6 @@ import (
 	"maps"
 	"regexp"
 	"strings"
-	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -507,12 +506,7 @@ mkdir -p "$CODEX_HOME/logs"
 	stepLines = append(stepLines, "        id: agentic_execution")
 
 	// Add timeout at step level (GitHub Actions standard)
-	if workflowData.TimeoutMinutes != "" {
-		timeoutValue := strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")
-		stepLines = append(stepLines, "        timeout-minutes: "+timeoutValue)
-	} else {
-		stepLines = append(stepLines, fmt.Sprintf("        timeout-minutes: %d", int(constants.DefaultAgenticWorkflowTimeout/time.Minute)))
-	}
+	stepLines = append(stepLines, "        timeout-minutes: "+resolveStepTimeoutValue(workflowData))
 
 	// Filter environment variables to only include allowed secrets
 	// This is a security measure to prevent exposing unnecessary secrets to the AWF container

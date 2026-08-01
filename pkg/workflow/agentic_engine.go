@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/github/gh-aw/pkg/constants"
 	"github.com/github/gh-aw/pkg/logger"
@@ -698,4 +700,25 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 	})
 	agenticEngineLog.Printf("Found %d engine candidate(s) for prefix %s, using: %s", len(candidates), prefix, candidates[0].id)
 	return candidates[0].engine, nil
+}
+
+// resolveStepTimeoutValue returns the timeout value string to emit on an
+// agentic_execution step's timeout-minutes field.  It strips the optional
+// "timeout-minutes:" key prefix and surrounding whitespace so that the
+// WorkflowData field can be stored in either raw YAML ("timeout-minutes: 30")
+// or bare ("30") form.  When workflowData is nil or TimeoutMinutes is empty
+// it falls back to DefaultAgenticWorkflowTimeout.
+func resolveStepTimeoutValue(workflowData *WorkflowData) string {
+	defaultValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
+	if workflowData == nil || workflowData.TimeoutMinutes == "" {
+		return defaultValue
+	}
+	v := strings.TrimSpace(workflowData.TimeoutMinutes)
+	if after, ok := strings.CutPrefix(v, "timeout-minutes:"); ok {
+		v = strings.TrimSpace(after)
+	}
+	if v == "" {
+		return defaultValue
+	}
+	return v
 }

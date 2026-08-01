@@ -1,7 +1,7 @@
 # ADR-49495: Forward timeout-minutes to the agentic_execution Step in Every Engine
 
 **Date**: 2026-08-01
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -26,9 +26,9 @@ The reported issue was specifically about the codex engine. Scoping the fix narr
 
 #### Alternative 2: Centralize timeout injection in a shared base struct or helper function
 
-Rather than copying the if/else block into each engine file, a shared helper (e.g., `appendStepTimeout(stepLines []string, workflowData *WorkflowData) []string`) could be called by all engines. This would eliminate duplication and make future engines harder to get wrong.
+Rather than copying the if/else block into each engine file, a shared helper (e.g., `resolveStepTimeoutValue(workflowData *WorkflowData) string`) could be called by all engines. This would eliminate duplication and make future engines harder to get wrong.
 
-This alternative was not taken because the PR aimed for a minimal, targeted fix with no refactoring. Introducing a shared abstraction would have enlarged the blast radius of the change during review. The regression test (`TestAllEnginesEmitTimeoutMinutes`) provides a safety net that catches any future engine omitting the field, partially mitigating the risk of ongoing copy-paste divergence.
+This alternative **was taken** in a follow-up change based on review feedback. A `resolveStepTimeoutValue` helper was added to `agentic_engine.go` with robust whitespace handling (`strings.CutPrefix` + `strings.TrimSpace`) and is now called by all engines — including `claude_engine.go` and `behavior_defined_engine.go`, which previously used the fragile `strings.TrimPrefix` pattern. This eliminates copy-paste divergence and simplifies each engine's execution-step code.
 
 ### Consequences
 
@@ -38,12 +38,11 @@ This alternative was not taken because the PR aimed for a minimal, targeted fix 
 - Compiled lock files for affected workflows (smoke-codex, smoke-gemini, smoke-pi, smoke-antigravity, and others) are regenerated, so production runs immediately benefit.
 
 #### Negative
-- The timeout-injection if/else block is now duplicated verbatim across four engine files (`codex_engine.go`, `gemini_engine.go`, `pi_engine.go`, `antigravity_engine.go`). Any future change to timeout logic (e.g., new fallback rules, format changes) must be applied to all four locations.
-- The `strings.TrimPrefix(workflowData.TimeoutMinutes, "timeout-minutes: ")` parsing assumes a fixed prefix format. A value that does not start with `"timeout-minutes: "` would be forwarded unchanged, potentially producing valid but unexpected step YAML. No input validation was added to guard against this.
+- The default fallback value (20 minutes, from `DefaultAgenticWorkflowTimeout`) now appears explicitly in generated YAML for workflows that do not set `timeout-minutes`, making previously implicit behavior visible in lock files.
 
 #### Neutral
 - The default fallback value (20 minutes, from `DefaultAgenticWorkflowTimeout`) now appears explicitly in generated YAML for workflows that do not set `timeout-minutes`, making previously implicit behavior visible in lock files.
-- Tests for the codex engine were duplicated in both `codex_engine_test.go` (engine-specific) and `agentic_engine_test.go` (cross-engine). The intent is different (targeted vs. registry-wide coverage), but the overlap may cause confusion for future test authors.
+- The cross-engine regression test (`TestAllEnginesEmitTimeoutMinutes`) is the sole timeout contract test; engine-specific duplicates were removed to reduce noise.
 
 ---
 
