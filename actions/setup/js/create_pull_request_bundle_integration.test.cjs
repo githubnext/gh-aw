@@ -529,18 +529,21 @@ describe("create_pull_request bundle integration", () => {
     // 8. Verify the synthesized commit.
     //
     //   a) "agent-file.txt" must be in the working tree (agent's actual change was preserved).
-    //   b) "base-drift.txt" must NOT be in the working tree — the rewrite was anchored at A
-    //      (which predates the drift), so the feature branch tree never included it.
+    //   b) "base-drift.txt" must NOT appear in `git diff origin/main..HEAD` (the PR diff).
+    //      After rebase-onto B the file is present in the working tree (inherited from origin/main),
+    //      but must not appear as added or deleted relative to origin/main — the PR diff is clean.
     //   c) The diff HEAD^..HEAD must show "agent-file.txt" as added.
-    //   d) "base-drift.txt" must NOT appear in the diff at all — not deleted, not added.
-    //      (With the naive soft-reset to origin/main=B, it would appear as "D base-drift.txt".)
+    //   d) "base-drift.txt" must NOT appear in HEAD^..HEAD — not deleted, not added.
+    //      (With a naive soft-reset to origin/main=B, it would appear as "D base-drift.txt".)
     //   e) HEAD must have exactly one parent (linear, not a merge commit).
     const agentFilePresent = fs.existsSync(path.join(safeOutputsRepo, "agent-file.txt"));
-    const baseDriftInWorkingTree = fs.existsSync(path.join(safeOutputsRepo, "base-drift.txt"));
 
     expect(agentFilePresent).toBe(true);
-    // base-drift.txt belongs to origin/main (B), not to the feature branch anchored at A.
-    expect(baseDriftInWorkingTree).toBe(false);
+    // base-drift.txt must not appear in the PR diff (origin/main..HEAD). After rebase-onto B
+    // the file is present in the working tree (inherited from origin/main) but must not be
+    // listed as added or deleted relative to origin/main.
+    const prDiffStat = execGit(["diff", "--name-status", "origin/main", "HEAD"], { cwd: safeOutputsRepo }).stdout;
+    expect(prDiffStat).not.toMatch(/base-drift\.txt/);
 
     // The HEAD commit (linearized) should show "agent-file.txt" as added.
     const headStat = execGit(["show", "--stat", "HEAD"], { cwd: safeOutputsRepo }).stdout;
