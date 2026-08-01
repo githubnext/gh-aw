@@ -1,7 +1,7 @@
 # Git Simulator Strategy Notes
 
 Z3 sweep of 3600 cells (SIZE×HISTORY×FILES×PATCH×BRANCH×COMMIT, COMMIT innermost).
-**152/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
+**164/3600 tested, ALL PASS.** No fail/error/rejected ever seen. Enumeration:
 `commit=i%3, branch=(i//3)%3, patch=(i//9)%5, files=(i//45)%4, history=(i//180)%4,
 size=(i//720)%5`. sizes[tiny,small,medium,large,huge] hist[none,shallow,medium,deep]
 files[single,few,many,batch]=[1,5,20,100] patch[micro,small,medium,large,xlarge]=
@@ -219,7 +219,31 @@ content there could realistically breach 4096 KB).
   `main...feature`=101 (clean) — opposite polarity from format-patch where two-dot is clean.
   Correct ff check for push_to_pull_request_branch under divergence = feature-tip-vs-feature-tip
   (rc0), NOT main-vs-feature (rc1, correctly fails — divergence is real).
-- **batch-medium tier: 8/9 done (152-159), only diverged-multi(160)/diverged-merge_msg(161)
-  remain.** Zero real fail/error/rejected across 160 cells. Next realistic rejection candidate
-  still SIZE>tiny (idx720+) or same-file re-append multi-commit shape.
-- **Next index: 160** = tiny-none-batch-medium-diverged-multi.
+## Run 2026-08-01: idx160-163 (batch-medium tier CLOSED + batch-large clean tier opened)
+
+- **idx160 diverged-multi: PASS.** 101f/234.13KB/4c (two-dot log-range, correct). `git diff
+  --stat main..feature` (TREE diff, not log range) showed 102f w/ 2 phantom deletions from
+  main's divergent commit — confirms the two-dot GOTCHA generalizes beyond `--name-only` to
+  plain `diff --stat` too: only `format-patch`/`log` two-dot (commit-range semantics) is
+  phantom-free; any tree-comparison form (`diff`, `diff --stat`, `diff --name-only`) leaks
+  main's divergent commit content when using two dots. Three-dot format-patch added a 5th
+  phantom patch file (240.3KB) for main's commit — reconfirms two-dot is correct for both
+  create-pull-request and push-to-pull-request-branch patch generation.
+- **idx161 diverged-merge_msg: PASS.** 100f/224.94KB/2c. Same tree-diff-vs-log-range GOTCHA
+  reconfirmed independently. Literal 3-dot format-patch leaked main's commit as an extra
+  patch file named for its own subject (not just phantom bytes) — a real file-level leak, not
+  just a byte-count artifact. merge_msg filename leak (`0001-Merge-branch-topic-into-...`)
+  + single-parent/no-merges structural check reconfirmed at this tier too.
+- **batch-medium tier now FULLY CLOSED (idx153-161, 9/9 pass).**
+- **idx162 batch-large-clean-single: PASS.** 100f/1043.77KB (1000KB payload, 1c). Bundle
+  766.97KB (~27% smaller, consistent w/ zlib-vs-base64 law). Headroom to REAL cap (5120KB,
+  not the old assumed 4096) = 4076KB (~20.4% utilized) — much safer margin than earlier notes
+  implied before the 5120 correction (idx156) was made.
+- **idx163 batch-large-clean-multi: PASS.** 100f/1054.67KB/3c disjoint. Single-commit baseline
+  built for direct A/B: 1079391B vs multi 1079982B = 1.0005x — tightest confirmation yet that
+  disjoint-multi commits add negligible (~590B total) overhead vs same-file re-append's ~3x.
+- **Zero real fail/error/rejected across 164 cells.** Rejection candidate still SIZE>tiny
+  (idx720+, first real stuff.md/history.md payload in the diff) or same-file re-append shape.
+- **Next index: 164** = tiny-none-batch-large-clean-merge_msg (closes batch-large clean tier;
+  ahead/diverged sub-tiers of batch-large remain after that, then batch-xlarge under the
+  corrected 5120KB cap — prior xlarge-vs-4096 margin analysis needs re-derivation vs 5120).
