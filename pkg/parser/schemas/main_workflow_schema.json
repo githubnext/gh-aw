@@ -7016,9 +7016,22 @@
                   "description": "Time until the pull request expires and should be automatically closed (only for same-repo PRs without target-repo). Supports integer (days) or relative time format. Minimum duration: 2 hours."
                 },
                 "auto-merge": {
-                  "type": "boolean",
-                  "description": "Enable auto-merge for the pull request. When enabled, the PR will be automatically merged once all required checks pass and required approvals are met. Defaults to false.",
-                  "default": false
+                  "description": "Enable auto-merge for the pull request. Accepts true/false, an explicit merge method (squash, merge, rebase), or a GitHub Actions expression resolving to any of those values. When enabled, the PR will be automatically merged once all required checks pass and required approvals are met. Defaults to false.",
+                  "default": false,
+                  "oneOf": [
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "string",
+                      "enum": ["squash", "merge", "rebase"]
+                    },
+                    {
+                      "type": "string",
+                      "pattern": "^\\$\\{\\{.*\\}\\}$",
+                      "description": "GitHub Actions expression resolving to false, true, or a merge method string"
+                    }
+                  ]
                 },
                 "base-branch": {
                   "type": "string",
