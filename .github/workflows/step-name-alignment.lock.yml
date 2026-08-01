@@ -928,7 +928,7 @@ jobs:
         # - mcp__github__search_repositories
         # - mcp__github__search_users
         # - mcp__safeoutputs
-        timeout-minutes: 30
+        timeout-minutes: 20
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

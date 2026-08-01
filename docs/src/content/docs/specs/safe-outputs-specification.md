@@ -4577,7 +4577,7 @@ Operations execute in:
 
 When threat detection executes in `warn` mode and reports a threat signal for a safe output, implementations MUST apply a type-specific fallback policy before any safe output side effect is committed.
 
-**Requirement WTD1 (Reviewable Annotation)**: For safe output types classified as **Reviewable** in Table WTD-A, implementations MUST convert the output into a review-first artifact that includes all of the following:
+**Requirement WTD1 (Reviewable Annotation)**: For safe output types classified as **Reviewable** in Table WTD-A, implementations MUST convert the output into a review-first artifact that includes all of the following when threat detection reports an actual threat verdict (`threat_detected`):
 
 1. A prominent caution section:
 
@@ -4588,7 +4588,18 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
 2. A visible threat label string: `agentic threat detected`.
 3. An XML comment marker in emitted markdown content: `<!-- gh-aw-threat-detected -->`.
 
-**Requirement WTD2 (Convertible Fallback)**: For safe output types classified as **Convertible**, implementations MUST transform the operation into the mapped Reviewable type before execution. For this specification, `push_to_pull_request_branch` (also referred to as `update-pull-request-branch`) MUST fall back to `create_pull_request` with the WTD1 caution, label, and XML marker.
+**Requirement WTD1a (Threat Engine Error Annotation)**: When warn-mode threat detection produces a tooling-failure reason (`agent_failure` or `parse_error`) instead of a real threat verdict, implementations MUST emit a review-first artifact with all of the following:
+
+1. A prominent warning section:
+
+   > [!WARNING]
+   > threat detection engine error
+   > The threat detection engine encountered an error and could not complete analysis. This is a tooling failure, not a security finding.
+
+2. A visible warning label string: `threat detection engine error`.
+3. An XML comment marker in emitted markdown content: `<!-- gh-aw-threat-engine-error -->`.
+
+**Requirement WTD2 (Convertible Fallback)**: For safe output types classified as **Convertible**, implementations MUST transform the operation into the mapped Reviewable type before execution. For this specification, `push_to_pull_request_branch` (also referred to as `update-pull-request-branch`) MUST fall back to `create_pull_request` with the WTD1 or WTD1a review annotation that matches the detection reason.
 
 **Requirement WTD3 (Non-Reviewable Abort)**: For safe output types classified as **Abort**, implementations MUST NOT apply the original safe output. Implementations MUST activate a threat-detected code path, emit an explicit failure summary, and return a machine-readable threat-detected error outcome.
 
@@ -4639,7 +4650,7 @@ When threat detection executes in `warn` mode and reports a threat signal for a 
 
 **Compliance Testing**:
 
-- **T-WTD-001**: Reviewable outputs include CAUTION block, label text `agentic threat detected`, and XML comment marker.
+- **T-WTD-001**: Reviewable outputs include the threat-appropriate annotation: WTD1 CAUTION block/label/marker for `threat_detected`, or WTD1a WARNING block/label/marker for `agent_failure` and `parse_error`.
 - **T-WTD-002**: `push_to_pull_request_branch` in warn-mode threat failure is converted to `create_pull_request`.
 - **T-WTD-003**: Abort-class outputs are not applied and produce threat-detected error outcomes.
 
@@ -5448,6 +5459,7 @@ This specification revision aligns with directly relevant `CHANGELOG.md` entries
 - **Added**: `add_comment` status-comment reuse extension semantics in Section 7.1 for `target: "status"` behavior and issue/PR-only restrictions.
 - **Added**: Changelog alignment subsection mapping safe-output/reviewer changelog items to this specification revision.
 - **Updated**: Publication metadata to 1.21.0.
+- **Clarified**: Section 10.5 now distinguishes real threat verdict annotations (`<!-- gh-aw-threat-detected -->`) from threat-engine tooling failures (`<!-- gh-aw-threat-engine-error -->`).
 
 **Version 1.20.0** (2026-05-15):
 

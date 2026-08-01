@@ -929,6 +929,7 @@ jobs:
           bash "${RUNNER_TEMP}/gh-aw/actions/start_cli_proxy.sh"
       - name: Execute Codex CLI
         id: agentic_execution
+        timeout-minutes: 5
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt
@@ -1579,6 +1580,7 @@ jobs:
         if: always()
         continue-on-error: true
         id: evals_agentic_execution
+        timeout-minutes: 20
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

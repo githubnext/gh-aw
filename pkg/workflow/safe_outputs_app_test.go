@@ -462,6 +462,54 @@ Test workflow
 		"Job-level permissions must be handler-computed (issues:write)")
 }
 
+func TestSafeOutputsAppTokenAddLabelsPullRequestsOptOut(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+safe-outputs:
+  github-app:
+    app-id: ${{ vars.APP_ID }}
+    private-key: ${{ secrets.APP_PRIVATE_KEY }}
+    owner: my-org
+  add-labels:
+    max: 4
+    allowed: [routed]
+    pull-requests: false
+---
+Test workflow
+`
+
+	tmpDir := t.TempDir()
+	testFile := tmpDir + "/test.md"
+	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0644), "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.GitHubApp, "GitHubApp should not be nil")
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"App token must keep issues:write for issue label operations")
+	assert.NotContains(t, stepsStr, "permission-pull-requests: write",
+		"App token must omit pull-requests:write when add-labels disables pull request targets")
+	assert.Contains(t, job.Permissions, "issues: write",
+		"Job-level permissions must preserve issues:write")
+	assert.NotContains(t, job.Permissions, "pull-requests: write",
+		"Job-level permissions must omit pull-requests:write when opted out")
+}
+
 // TestSafeOutputsAppTokenUpdateProjectDoesNotDowngradeIssuesWrite is a regression test for the
 // add-comment + add-labels + update-project co-presence case reported after github/gh-aw#30437.
 // update-project must not downgrade issues permission from write to read in the minted GitHub App token.
@@ -896,6 +944,174 @@ func TestGetHandlerGitHubAppRegisteredHandlers(t *testing.T) {
 		assert.Same(t, expected, getHandlerGitHubApp(config, handler.StructField), handler.StructField)
 		field.Set(reflect.Zero(field.Type()))
 	}
+}
+
+// TestSafeOutputsPerHandlerGitHubAppAddLabels tests that add-labels with its own nested
+// github-app mints a dedicated token step with issues:write and pull-requests:write (defaults),
+// and the handler config references that per-handler token (not the global token).
+func TestSafeOutputsPerHandlerGitHubAppAddLabels(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.GLOBAL_APP_ID }}",
+				PrivateKey: "${{ secrets.GLOBAL_APP_PRIVATE_KEY }}",
+			},
+			AddLabels: &AddLabelsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.LABELS_APP_ID }}",
+						PrivateKey: "${{ secrets.LABELS_APP_PRIVATE_KEY }}",
+					},
+				},
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Per-handler token step must be present with the correct step ID
+	assert.Contains(t, stepsStr, "id: add-labels-app-token",
+		"Per-handler app token step for add-labels must be present")
+
+	// The per-handler step must use the handler-scoped app credentials
+	assert.Contains(t, stepsStr, "${{ vars.LABELS_APP_ID }}",
+		"Per-handler token step must use the handler-level app-id")
+
+	// The per-handler token must include both default permissions
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"Per-handler token must include issues:write (default)")
+	assert.Contains(t, stepsStr, "permission-pull-requests: write",
+		"Per-handler token must include pull-requests:write (default)")
+
+	// Handler config must reference the per-handler token step
+	assert.Contains(t, stepsStr, "steps.add-labels-app-token.outputs.token",
+		"Handler config must reference the per-handler token step output")
+}
+
+// TestSafeOutputsPerHandlerGitHubAppAddLabelsIssuesOnly tests that add-labels with its own
+// nested github-app and pull-requests: false mints a token with only issues:write.
+// The per-handler app credentials are used, not the global app.
+func TestSafeOutputsPerHandlerGitHubAppAddLabelsIssuesOnly(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	prFalse := false
+	workflowData := &WorkflowData{
+		Name: "Test Workflow",
+		SafeOutputs: &SafeOutputsConfig{
+			GitHubApp: &GitHubAppConfig{
+				AppID:      "${{ vars.GLOBAL_APP_ID }}",
+				PrivateKey: "${{ secrets.GLOBAL_APP_PRIVATE_KEY }}",
+			},
+			AddLabels: &AddLabelsConfig{
+				BaseSafeOutputConfig: BaseSafeOutputConfig{
+					GitHubApp: &GitHubAppConfig{
+						AppID:      "${{ vars.ISSUES_ONLY_APP_ID }}",
+						PrivateKey: "${{ secrets.ISSUES_ONLY_APP_PRIVATE_KEY }}",
+					},
+				},
+				PullRequests: &prFalse,
+			},
+		},
+	}
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", "test.md")
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Per-handler token step must be present
+	assert.Contains(t, stepsStr, "id: add-labels-app-token",
+		"Per-handler app token step for add-labels must be present")
+
+	// The per-handler step must use the handler-scoped app credentials
+	assert.Contains(t, stepsStr, "${{ vars.ISSUES_ONLY_APP_ID }}",
+		"Per-handler token step must use the handler-level app-id")
+
+	// Token must carry only issues:write — pull-requests:write is opted out
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"Per-handler token must include issues:write")
+	assert.NotContains(t, stepsStr, "permission-pull-requests: write",
+		"Per-handler token must omit pull-requests:write when add-labels has pull-requests: false")
+
+	// Handler config must reference the per-handler token step
+	assert.Contains(t, stepsStr, "steps.add-labels-app-token.outputs.token",
+		"Handler config must reference the per-handler token step output")
+}
+
+// TestSafeOutputsAppTokenAddLabelsNestedGitHubApp is an end-to-end compiler test that
+// parses a markdown workflow with github-app nested directly inside add-labels (no global app).
+// Verifies that the per-handler token step is emitted and the handler references it.
+func TestSafeOutputsAppTokenAddLabelsNestedGitHubApp(t *testing.T) {
+	compiler := NewCompiler(WithVersion("1.0.0"))
+
+	markdown := `---
+on:
+  issues:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+safe-outputs:
+  add-labels:
+    max: 3
+    allowed: [bug, enhancement]
+    pull-requests: false
+    github-app:
+      app-id: ${{ vars.LABELS_APP_ID }}
+      private-key: ${{ secrets.LABELS_APP_PRIVATE_KEY }}
+      owner: my-org
+---
+Test workflow
+`
+
+	tmpDir := t.TempDir()
+	testFile := tmpDir + "/test.md"
+	require.NoError(t, os.WriteFile(testFile, []byte(markdown), 0644), "Failed to write test file")
+
+	workflowData, err := compiler.ParseWorkflowFile(testFile)
+	require.NoError(t, err, "Failed to parse markdown content")
+	require.NotNil(t, workflowData.SafeOutputs, "SafeOutputs should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.AddLabels, "AddLabels should not be nil")
+	require.NotNil(t, workflowData.SafeOutputs.AddLabels.GitHubApp,
+		"Add-labels per-handler GitHubApp must be parsed from nested github-app key")
+	assert.Nil(t, workflowData.SafeOutputs.GitHubApp,
+		"No global github-app should be set — only the per-handler one is configured")
+
+	job, _, err := compiler.buildConsolidatedSafeOutputsJob(workflowData, "agent", testFile)
+	require.NoError(t, err, "Failed to build safe_outputs job")
+	require.NotNil(t, job, "Job should not be nil")
+
+	stepsStr := strings.Join(job.Steps, "")
+
+	// Per-handler token step must be emitted
+	assert.Contains(t, stepsStr, "id: add-labels-app-token",
+		"Per-handler app token step for add-labels must be present")
+
+	// Must use the nested app credentials
+	assert.Contains(t, stepsStr, "${{ vars.LABELS_APP_ID }}",
+		"Per-handler token step must use the nested app-id")
+
+	// pull-requests: false → only issues:write in the minted token
+	assert.Contains(t, stepsStr, "permission-issues: write",
+		"Per-handler token must include issues:write")
+	assert.NotContains(t, stepsStr, "permission-pull-requests: write",
+		"Per-handler token must omit pull-requests:write when opted out")
+
+	// No global safe-outputs-app-token step (there is no global github-app)
+	assert.NotContains(t, stepsStr, "id: safe-outputs-app-token",
+		"Global token step must not appear when only a per-handler app is configured")
+
+	// Handler config must reference the per-handler token step
+	assert.Contains(t, stepsStr, "steps.add-labels-app-token.outputs.token",
+		"Handler config must reference the per-handler token step output")
 }
 
 func TestResolveHandlerGitHubTokenFallbackForHandlersWithoutPerHandlerMinting(t *testing.T) {

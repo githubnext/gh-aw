@@ -434,9 +434,12 @@ func TestCopilotEngineExecutionStepsWithCopilotSDK(t *testing.T) {
 
 func TestCopilotEngineExecutionStepsWithCopilotSDKTimeoutExpression(t *testing.T) {
 	engine := NewCopilotEngine()
+	timeoutExpr := TemplatableInt32("${{ inputs.timeout }}")
 	workflowData := &WorkflowData{
-		Name:           "test-workflow",
-		TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}",
+		Name: "test-workflow",
+		ParsedFrontmatter: &FrontmatterConfig{
+			TimeoutMinutes: &timeoutExpr,
+		},
 		EngineConfig: &EngineConfig{
 			CopilotSDK: true,
 		},

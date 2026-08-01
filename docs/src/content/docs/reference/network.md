@@ -92,7 +92,7 @@ Mix ecosystem identifiers with specific domains for fine-grained control:
 | `deno` | Deno runtime (`deno.land`, `jsr.io`, `googleapis.deno.dev`) |
 | `dotnet` | NuGet packages and .NET SDK |
 | `elixir` | Elixir packages (`hex.pm`) |
-| `go` | Go modules (`proxy.golang.org`, `sum.golang.org`) |
+| `go` | Go modules and toolchain downloads (`proxy.golang.org`, `sum.golang.org`, `go.dev`) |
 | `haskell` | Haskell packages (`hackage.haskell.org`, GHCup) |
 | `java` | Maven Central, Gradle, Adoptium |
 | `julia` | Julia packages (`pkg.julialang.org`, `storage.julialang.net`) |
