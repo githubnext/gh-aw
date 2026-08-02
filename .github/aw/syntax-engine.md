@@ -32,7 +32,7 @@ See [syntax-agentic.md](syntax-agentic.md) for the full frontmatter field index.
         key = "value"
     ```
 
-  - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `max-turns`, `web-fetch`, or `web-search`. Supports AWF firewall and LLM gateway.
+  - **`gemini` engine**: Google Gemini CLI. Requires `GEMINI_API_KEY` secret. Does not support `web-search`. Supports AWF firewall and LLM gateway.
   - **`antigravity` engine** (experimental): Google Antigravity CLI in headless mode. Requires `ANTIGRAVITY_API_KEY` secret; model via `model:` (maps to `ANTIGRAVITY_MODEL`). Supports `max-turns`, tools allow-list, AWF firewall, and LLM gateway. Does not support `web-search`, `max-continuations`, or native agent files (agent content is prepended to the prompt).
   - **`opencode` engine** (experimental): Provider-agnostic, open-source AI coding agent (BYOK). Defaults to Copilot routing via `COPILOT_GITHUB_TOKEN` (or `${{ github.token }}` with `copilot-requests` feature). Supports 75+ models via `provider/model` format. Supports AWF firewall and LLM gateway.
   - **`engine.driver:`** — canonical field to run a custom inner driver script instead of the engine's built-in CLI. For the `pi` engine it launches the driver directly with Node.js (e.g. built-in `pi_agent_core_driver.cjs`, or a workspace-relative path like `.github/drivers/pi_agent_core_driver_sample_node.cjs`); the driver must emit JSONL compatible with `parse_pi_log.cjs` so step summaries and token tracking keep working. Accepts a bare basename (resolved from the setup-action directory) or a workspace-relative path; no absolute paths, no `..`, only `.js`/`.cjs`/`.mjs` (pi).
