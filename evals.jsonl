@@ -1,2 +1,2 @@
-{"id":"spending_forecast_analyzed","question":"Did the agent analyze the agentic workflow spending forecast and its data quality?","answer":"YES","model":"small","timestamp":"2026-08-01T10:23:44.136Z","runid":"30695263224"}
-{"id":"forecast_report_created","question":"Did the agent create a report with spending projections and supporting evidence?","answer":"YES","model":"small","timestamp":"2026-08-01T10:23:44.136Z","runid":"30695263224"}
+{"id":"spending_forecast_analyzed","question":"Did the agent analyze the agentic workflow spending forecast and its data quality?","answer":"YES","model":"evals","timestamp":"2026-08-02T10:23:01.820Z","runid":"30743260655"}
+{"id":"forecast_report_created","question":"Did the agent create a report with spending projections and supporting evidence?","answer":"YES","model":"evals","timestamp":"2026-08-02T10:23:01.820Z","runid":"30743260655"}
