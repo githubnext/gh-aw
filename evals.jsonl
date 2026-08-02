@@ -1,2 +1,2 @@
-{"id":"errored_calls_analyzed","question":"Did the agent analyze gateway logs for errored safe output tool calls?","answer":"YES","model":"evals","timestamp":"2026-08-01T21:33:19.241Z","runid":"30718547762"}
-{"id":"issues_created_or_noop","question":"Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?","answer":"YES","model":"evals","timestamp":"2026-08-01T21:33:19.241Z","runid":"30718547762"}
+{"id":"errored_calls_analyzed","question":"Did the agent analyze gateway logs for errored safe output tool calls?","answer":"YES","model":"evals","timestamp":"2026-08-02T21:34:55.619Z","runid":"30767278598"}
+{"id":"issues_created_or_noop","question":"Were issues created to improve tool descriptions for errored calls, or was noop used when no errors were found?","answer":"YES","model":"evals","timestamp":"2026-08-02T21:34:55.619Z","runid":"30767278598"}
