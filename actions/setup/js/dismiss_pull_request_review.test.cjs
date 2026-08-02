@@ -365,4 +365,21 @@ describe("dismiss_pull_request_review", () => {
     expect(result.error).toContain("truncated");
     expect(mockListReviews).toHaveBeenCalledTimes(10);
   });
+
+  it("returns skipped no-op when getReview returns 404 for an explicit review_id", async () => {
+    const notFoundError = Object.assign(new Error("Not Found"), { status: 404 });
+    mockGetReview.mockRejectedValueOnce(notFoundError);
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: 123,
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toContain("review no longer exists");
+    expect(result.review_id).toBe(123);
+    expect(mockDismissReview).not.toHaveBeenCalled();
+  });
 });

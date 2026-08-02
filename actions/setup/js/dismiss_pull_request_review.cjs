@@ -225,12 +225,28 @@ async function main(config = {}) {
         };
       }
 
-      const { data: review } = await githubClient.rest.pulls.getReview({
-        owner,
-        repo,
-        pull_number: pullRequestNumber,
-        review_id: reviewId,
-      });
+      let review;
+      try {
+        const { data } = await githubClient.rest.pulls.getReview({
+          owner,
+          repo,
+          pull_number: pullRequestNumber,
+          review_id: reviewId,
+        });
+        review = data;
+      } catch (getReviewError) {
+        if (getReviewError?.status === 404) {
+          return {
+            success: true,
+            skipped: true,
+            reason: "review no longer exists",
+            review_id: reviewId,
+            pull_request_number: pullRequestNumber,
+            repo: `${owner}/${repo}`,
+          };
+        }
+        throw getReviewError;
+      }
 
       const reviewAuthorLogin = review?.user?.login;
       const reviewAuthorType = typeof review?.user?.type === "string" ? review.user.type.trim() : "";
