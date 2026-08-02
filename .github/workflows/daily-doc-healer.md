@@ -326,4 +326,6 @@ Call `noop` with a summary:
 
 ### Output Format
 
+Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body. Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks for progressive disclosure.
+
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

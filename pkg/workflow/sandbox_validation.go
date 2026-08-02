@@ -228,10 +228,11 @@ var validBoundedQuerySensitivities = map[string]struct{}{
 	"sealed":       {},
 }
 
-// validBoundedQueryRuntimes is the set of accepted container runtimes.
-var validBoundedQueryRuntimes = map[string]struct{}{
-	"docker": {},
-	"gvisor": {},
+// validBoundedQueryRuntimes is the set of accepted isolated query backends.
+var validBoundedQueryRuntimes = map[BoundedQueryRuntime]struct{}{
+	BoundedQueryRuntimeDocker: {},
+	BoundedQueryRuntimeGVisor: {},
+	BoundedQueryRuntimeSbx:    {},
 }
 
 // validBoundedQueryInterpreters is the set of accepted script interpreters.
@@ -349,8 +350,8 @@ func validateBoundedQueriesConfig(workflowData *WorkflowData) error {
 			return NewValidationError(
 				"tools.github.bounded-queries.runtime",
 				bq.Runtime,
-				"unsupported bounded-queries runtime: must be \"docker\" or \"gvisor\"",
-				fmt.Sprintf("Set runtime to a supported value:\n\ntools:\n  github:\n    bounded-queries:\n      runtime: docker  # or gvisor\n\nSee: %s", constants.DocsSandboxURL),
+				"unsupported bounded-queries runtime: must be \"docker\", \"gvisor\", or \"sbx\"",
+				fmt.Sprintf("Set runtime to a supported value:\n\ntools:\n  github:\n    bounded-queries:\n      runtime: docker  # docker, gvisor, or sbx\n\nThe sbx backend is experimental and capability-gated. AWF performs a fail-closed host preflight and never falls back to docker or gvisor.\n\nSee: %s", constants.DocsSandboxURL),
 			)
 		}
 	}

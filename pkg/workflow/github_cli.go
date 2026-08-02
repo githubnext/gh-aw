@@ -229,6 +229,8 @@ func RunGHCombinedContext(ctx context.Context, spinnerMessage string, args ...st
 // is set on the command. This is necessary because most gh subcommands (repo, pr, run, etc.)
 // do not accept a --hostname flag — only `gh api` does.
 //
+// Deprecated: Use RunGHContextWithHost to support context cancellation and timeouts.
+//
 // Usage:
 //
 //	output, err := RunGHWithHost("Fetching repo info...", "myorg.ghe.com", "repo", "view", "--json", "owner,name")

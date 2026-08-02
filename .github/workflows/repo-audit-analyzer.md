@@ -402,13 +402,13 @@ Create a detailed analysis report with actionable recommendations:
 ### Report Structure
 
 ```markdown
-# 🔍 Repository Audit & Agentic Workflow Opportunities Report
+### 🔍 Repository Audit & Agentic Workflow Opportunities Report
 
 **Repository**: ${{ inputs.repository }}  
 **Analysis Date**: $(date +%Y-%m-%d)  
 **Audit Type**: Comprehensive (code + workflows + issues + patterns)
 
-## 📋 Executive Summary
+### 📋 Executive Summary
 
 [3-4 paragraphs summarizing the repository, current state, key findings, and top opportunities]
 
@@ -422,7 +422,7 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🏗️ Repository Overview
+### 🏗️ Repository Overview
 
 <details>
 <summary>Project Details</summary>
@@ -453,7 +453,7 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🤖 GitHub Actions Analysis
+### 🤖 GitHub Actions Analysis
 
 ### Current Workflows
 
@@ -479,7 +479,7 @@ Create a detailed analysis report with actionable recommendations:
 
 ---
 
-## 🎯 Agentic Workflow Opportunities
+### 🎯 Agentic Workflow Opportunities
 
 ### High Priority Opportunities
 
@@ -543,7 +543,7 @@ safe-outputs:
 
 ---
 
-## 📊 Issue Pattern Analysis
+### 📊 Issue Pattern Analysis
 
 ### Common Issue Categories
 
@@ -571,7 +571,7 @@ safe-outputs:
 
 ---
 
-## 💻 Code Pattern Analysis
+### 💻 Code Pattern Analysis
 
 ### Code Quality Insights
 
@@ -594,7 +594,7 @@ safe-outputs:
 
 ---
 
-## 🚀 Implementation Roadmap
+### 🚀 Implementation Roadmap
 
 ### Phase 1: Quick Wins (Week 1-2)
 1. **[Workflow 1]** - [Why it's a quick win]
@@ -610,7 +610,7 @@ safe-outputs:
 
 ---
 
-## 📈 Expected Impact
+### 📈 Expected Impact
 
 ### Quantitative Benefits
 
@@ -629,7 +629,7 @@ safe-outputs:
 
 ---
 
-## 🔄 Continuous Improvement
+### 🔄 Continuous Improvement
 
 ### Monitoring & Metrics
 
@@ -650,7 +650,7 @@ safe-outputs:
 
 ---
 
-## 📚 Repository-Specific Recommendations
+### 📚 Repository-Specific Recommendations
 
 ### Custom Insights for ${{ inputs.repository }}
 
@@ -667,7 +667,7 @@ safe-outputs:
 
 ---
 
-## 💾 Cache Memory Update
+### 💾 Cache Memory Update
 
 [Document what was stored in cache for future analysis]
 
@@ -682,7 +682,7 @@ safe-outputs:
 
 ---
 
-## 🎯 Next Steps
+### 🎯 Next Steps
 
 ### Immediate Actions
 
@@ -786,5 +786,11 @@ Your output MUST:
 5. Update cache memory with analysis results
 6. Follow the detailed report template structure
 7. Include repository-specific insights and recommendations
+
+## Reporting Guidelines
+
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks for progressive disclosure.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 Begin your repository audit analysis now!
