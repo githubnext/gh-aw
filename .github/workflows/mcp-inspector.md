@@ -41,7 +41,7 @@ imports:
   - shared/mcp/fabric-rti.md
   - shared/mcp/markitdown.md
   - shared/mcp/microsoft-docs.md
-  - shared/mcp/notion.md
+  # Note: notion.md excluded — docker.io/mcp/notion has Critical/High CVEs (see #49517)
   - shared/mcp/sentry.md
   - shared/mcp/server-memory.md
   - shared/mcp/slack.md
