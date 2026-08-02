@@ -13,6 +13,7 @@ package cli
 //   - F* pre/post contracts: P2, P3, P7, P8, P11, P12
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -107,11 +108,11 @@ func TestFormalAPIFailurePending(t *testing.T) {
 
 	for _, tc := range apiErrors {
 		t.Run(tc.name, func(t *testing.T) {
-			closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+			closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 				return nil, errors.New(tc.errText)
 			}
 			item := CreatedItemReport{Type: "close_issue", Number: 99, Repo: "owner/repo"}
-			report := evalCloseSticky(item, "owner/repo")
+			report := evalCloseSticky(context.Background(), item, "owner/repo")
 
 			assert.NotEqual(t, OutcomeAccepted, report.Result,
 				"P2: API error %q must not yield accepted", tc.errText)
@@ -165,11 +166,11 @@ func TestFormal404Classification(t *testing.T) {
 	t.Run("404 API error must not yield accepted", func(t *testing.T) {
 		old := closeStickyGHAPIGet
 		t.Cleanup(func() { closeStickyGHAPIGet = old })
-		closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+		closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 			return nil, errors.New("gh api: 404 Not Found")
 		}
 		item := CreatedItemReport{Type: "close_issue", Number: 99, Repo: "owner/repo"}
-		report := evalCloseSticky(item, "owner/repo")
+		report := evalCloseSticky(context.Background(), item, "owner/repo")
 		assert.NotEqual(t, OutcomeAccepted, report.Result,
 			"P3: 404 API error must not yield accepted")
 	})
@@ -507,15 +508,15 @@ func TestFormalCloseStickyReopenRejection(t *testing.T) {
 				closeStickyGHAPIGetArray = oldArray
 			})
 			stateVal := tc.state
-			closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+			closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 				return map[string]any{"state": stateVal}, nil
 			}
-			closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+			closeStickyGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
 				return tc.events, nil
 			}
 
 			item := CreatedItemReport{Type: "close_issue", Number: 99, Repo: "owner/repo"}
-			report := evalCloseSticky(item, "owner/repo")
+			report := evalCloseSticky(context.Background(), item, "owner/repo")
 
 			assert.Equal(t, tc.wantResult, report.Result,
 				"P9: state=%q must yield %s", tc.state, tc.wantResult)
@@ -532,14 +533,14 @@ func TestFormalCloseStickyRejectsMergedPullRequest(t *testing.T) {
 		closeStickyGHAPIGet = old
 		closeStickyGHAPIGetArray = oldArray
 	})
-	closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+	closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 		return map[string]any{"state": "closed", "merged": true}, nil
 	}
-	closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+	closeStickyGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
 		return []map[string]any{{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}}}, nil
 	}
 
-	report := evalCloseSticky(CreatedItemReport{Type: "close_pull_request", Number: 99, Repo: "owner/repo"}, "owner/repo")
+	report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_pull_request", Number: 99, Repo: "owner/repo"}, "owner/repo")
 
 	assert.Equal(t, OutcomeRejected, report.Result, "P9: merged PR must be rejected for close_pull_request")
 	assert.Equal(t, "merged", report.Detail, "P9: merged PR must record merged detail")
@@ -664,7 +665,7 @@ func TestFormalOTelGracefulDegradation(t *testing.T) {
 	old := closeStickyGHAPIGet
 	t.Cleanup(func() { closeStickyGHAPIGet = old })
 	// Simulate a transport failure (connection refused) that would also prevent OTLP export.
-	closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+	closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 		return nil, errors.New("transport error: connection refused")
 	}
 
@@ -679,7 +680,7 @@ func TestFormalOTelGracefulDegradation(t *testing.T) {
 	}
 	for _, item := range items {
 		t.Run(item.Type, func(t *testing.T) {
-			report := evalCloseSticky(item, "owner/repo")
+			report := evalCloseSticky(context.Background(), item, "owner/repo")
 
 			// P11: outcome must always be produced — never discarded on transport failure.
 			assert.NotEmpty(t, report.Type,
@@ -722,13 +723,13 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			closeStickyGHAPIGet = old
 			closeStickyGHAPIGetArray = oldArray
 		})
-		closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+		closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 			return map[string]any{"state": "closed"}, nil
 		}
-		closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+		closeStickyGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
 			return []map[string]any{{"event": "closed", "actor": map[string]any{"login": "github-actions[bot]"}}}, nil
 		}
-		report := evalCloseSticky(CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
+		report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
 		assert.Equal(t, OutcomeLifecycleClose, report.Result,
 			"P12 Class A: lifecycle-bot-closed issue must be lifecycle_close")
 	})
@@ -740,13 +741,13 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			closeStickyGHAPIGet = old
 			closeStickyGHAPIGetArray = oldArray
 		})
-		closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+		closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 			return map[string]any{"state": "open"}, nil
 		}
-		closeStickyGHAPIGetArray = func(endpoint, repo string) ([]map[string]any, error) {
+		closeStickyGHAPIGetArray = func(_ context.Context, endpoint, repo string) ([]map[string]any, error) {
 			return nil, nil
 		}
-		report := evalCloseSticky(CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
+		report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
 		assert.Equal(t, OutcomeRejected, report.Result,
 			"P12 Class A: reopened issue must be rejected")
 	})
@@ -754,7 +755,7 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 	t.Run("Class A: update_issue accepted (state retained)", func(t *testing.T) {
 		old := outcomeUpdateGHAPIGet
 		t.Cleanup(func() { outcomeUpdateGHAPIGet = old })
-		outcomeUpdateGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+		outcomeUpdateGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 			return map[string]any{"title": "New title", "body": "", "state": "open", "labels": []any{}, "assignees": []any{}}, nil
 		}
 		item := CreatedItemReport{
@@ -762,7 +763,7 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			BeforeState: map[string]any{"title": "Old title", "body_hash": mutableBodyHash(""), "state": "open", "labels": []any{}, "assignees": []any{}},
 			AfterState:  map[string]any{"title": "New title", "body_hash": mutableBodyHash(""), "state": "open", "labels": []any{}, "assignees": []any{}},
 		}
-		report := evalUpdateIssue(item, "o/r")
+		report := evalUpdateIssue(context.Background(), item, "o/r")
 		assert.Equal(t, OutcomeAccepted, report.Result,
 			"P12 Class A: retained update must be accepted")
 	})
@@ -781,10 +782,10 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 	t.Run("Class C: API 5xx for close_issue", func(t *testing.T) {
 		old := closeStickyGHAPIGet
 		t.Cleanup(func() { closeStickyGHAPIGet = old })
-		closeStickyGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+		closeStickyGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 			return nil, errors.New("gh api: 500 Internal Server Error")
 		}
-		report := evalCloseSticky(CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
+		report := evalCloseSticky(context.Background(), CreatedItemReport{Type: "close_issue", Number: 1, Repo: "o/r"}, "o/r")
 		assert.NotEqual(t, OutcomeAccepted, report.Result,
 			"P12 Class C: 5xx error must not yield accepted")
 		assert.NotEqual(t, OutcomeRejected, report.Result,
@@ -794,7 +795,7 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 	t.Run("Class C: rate limit for update_issue", func(t *testing.T) {
 		old := outcomeUpdateGHAPIGet
 		t.Cleanup(func() { outcomeUpdateGHAPIGet = old })
-		outcomeUpdateGHAPIGet = func(endpoint, repo string) (map[string]any, error) {
+		outcomeUpdateGHAPIGet = func(_ context.Context, endpoint, repo string) (map[string]any, error) {
 			return nil, errors.New("gh api: 429 Too Many Requests")
 		}
 		item := CreatedItemReport{
@@ -802,7 +803,7 @@ func TestFormalConformanceClassCoverage(t *testing.T) {
 			BeforeState: map[string]any{"title": "Old"},
 			AfterState:  map[string]any{"title": "New"},
 		}
-		report := evalUpdateIssue(item, "o/r")
+		report := evalUpdateIssue(context.Background(), item, "o/r")
 		assert.NotEqual(t, OutcomeAccepted, report.Result,
 			"P12 Class C: rate limit must not yield accepted")
 		assert.NotEqual(t, OutcomeRejected, report.Result,

@@ -36,7 +36,14 @@ describe("require-escaped-regexp-interpolation", () => {
 
   it('valid: standard inline .replace(…, "\\\\$&") escape form is accepted', () => {
     cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
-      valid: ['new RegExp(`^${varName.replace(/[.*+?^${}()|[\\\\]\\\\\\\\]/g, "\\\\$&")}$`);', 'new RegExp(`^${qualifier.replace(/[.*+?^${}()|[\\\\]\\\\\\\\]/g, "\\\\$&")}($|[-_\\\\s])`);'],
+      valid: ['new RegExp(`^${varName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}$`);', 'new RegExp(`^${qualifier.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}($|[-_\\\\s])`);'],
+      invalid: [],
+    });
+  });
+
+  it("valid: targeted literal .replace() escape forms are accepted", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: ['new RegExp(`^${varName.replace(".", "\\\\.")}$`);', 'new RegExp(`^${varName.replace(/\\./g, "\\\\.")}$`);'],
       invalid: [],
     });
   });
@@ -114,6 +121,54 @@ describe("require-escaped-regexp-interpolation", () => {
       invalid: [
         {
           code: "new RegExp(`^${escapeHtml(userInput)}$`);",
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: arbitrary .replace() calls are not treated as regex escaping", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace(".", ".")}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it('invalid: .replace() with "\\\\$&" but non-canonical search pattern is not treated as an escape', () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace(/./, "\\\\$&")}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it('invalid: .replace() with "\\\\$&" and sticky-flag regex is not treated as an escape', () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace(/[.*+?^${}()|[\\]\\\\]/y, "\\\\$&")}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: .replace() with a $' replacement token is not treated as an escape", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace("$\'", "\\\\$\'")}$`);',
           errors: [{ messageId: "unescapedInterpolation" }],
         },
       ],

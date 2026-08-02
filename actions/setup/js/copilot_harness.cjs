@@ -77,6 +77,7 @@ const { isCAPIQuotaExceededError } = require("./detect_agent_errors.cjs");
 const { applyModelFallback } = require("./model_fallback.cjs");
 const { loadModelsJson } = require("./model_costs.cjs");
 const { resolveConfiguredCopilotModel } = require("./resolve_model_alias.cjs");
+const { parseMaxAICreditsExceededFromAuditLog } = require("./ai_credits_context.cjs");
 
 const AWF_CONFIG_PATH = process.env.GH_AW_AWF_CONFIG_PATH || "/tmp/gh-aw/awf-config.json";
 
@@ -1278,14 +1279,28 @@ async function main() {
           break;
         }
 
-        if (nonRetryableGuard.aiCreditsExceeded || nonRetryableGuard.awfAPIProxyBlockingRequests || isInvocationCapExceeded) {
+        const trustedAICreditsExceeded = nonRetryableGuard.aiCreditsExceeded && parseMaxAICreditsExceededFromAuditLog();
+        if (nonRetryableGuard.aiCreditsExceeded && !trustedAICreditsExceeded) {
+          log(`attempt ${attempt + 1}: AI credits marker found in CLI output without trusted firewall audit confirmation — preserving normal failure handling`);
+        }
+        const shouldTreatAICreditsExceededAsSuccess = trustedAICreditsExceeded && !isAuthenticationFailed;
+        if (shouldTreatAICreditsExceededAsSuccess || nonRetryableGuard.awfAPIProxyBlockingRequests || isInvocationCapExceeded) {
           const reasons = [];
-          if (nonRetryableGuard.aiCreditsExceeded) reasons.push("AI credits budget exceeded");
+          if (shouldTreatAICreditsExceededAsSuccess) reasons.push("AI credits budget exceeded");
           if (nonRetryableGuard.awfAPIProxyBlockingRequests) reasons.push("AWF API proxy is blocking requests");
           if (isInvocationCapExceeded) {
             reasons.push("LLM invocation cap saturated — the pooled per-run budget is fully exhausted; retries cannot make progress");
           }
           log(`attempt ${attempt + 1}: ${reasons.join(" and ")} — not retrying (non-retryable guard condition)`);
+          // When the per-run AI credits budget is exceeded the AWF firewall intentionally
+          // stopped the agent — this is controlled budget enforcement, not an unexpected
+          // error.  Exit 0 so the agent step and job succeed; the ai_credits_rate_limit_error
+          // output surfaced by parse-mcp-gateway will inform downstream handlers (e.g.
+          // handle_agent_failure) of the budget exceedance.
+          if (shouldTreatAICreditsExceededAsSuccess) {
+            log(`attempt ${attempt + 1}: AI credits budget enforced — exiting 0 (budget control, not an error)`);
+            lastExitCode = 0;
+          }
           break;
         }
 

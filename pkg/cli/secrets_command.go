@@ -37,6 +37,7 @@ Available subcommands:
 	}
 
 	// Add subcommands
+	cmd.AddCommand(newLegacyGHGuardSubcommand())
 	cmd.AddCommand(newSecretsSetSubcommand())
 	cmd.AddCommand(newSecretsBootstrapSubcommand())
 

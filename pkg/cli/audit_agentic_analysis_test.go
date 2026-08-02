@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"math"
 	"testing"
 	"time"
@@ -101,7 +102,7 @@ func TestBuildAuditDataIncludesAgenticAnalysis(t *testing.T) {
 	}
 	metrics := LogMetrics{Turns: 3}
 
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 	require.NotNil(t, auditData.TaskDomain, "task domain should be present")
 	require.NotNil(t, auditData.BehaviorFingerprint, "behavioral fingerprint should be present")
 	assert.NotEmpty(t, auditData.AgenticAssessments, "agentic assessments should be present")
@@ -319,7 +320,7 @@ func TestBuildAuditDataToolUsageMatchesBuildToolUsageInfo(t *testing.T) {
 		},
 	}
 
-	auditData := buildAuditData(processedRun, metrics, nil)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, nil)
 	expected := buildToolUsageInfo(metrics)
 
 	require.Equal(t, expected, auditData.ToolUsage, "buildAuditData tool usage should match buildToolUsageInfo output")

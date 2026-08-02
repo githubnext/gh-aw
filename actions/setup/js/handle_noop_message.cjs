@@ -54,7 +54,7 @@ async function ensureAgentRunsIssue() {
   try {
     parentBodyContent = fs.readFileSync(templatePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const parentBody = generateFooterWithExpiration({

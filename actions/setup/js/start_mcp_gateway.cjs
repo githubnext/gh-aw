@@ -377,7 +377,7 @@ async function main() {
   try {
     fs.mkdirSync("/tmp/gh-aw/mcp-logs", { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory /tmp/gh-aw/mcp-logs: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory /tmp/gh-aw/mcp-logs: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // Symlink attack prevention on the config directory
@@ -387,7 +387,7 @@ async function main() {
   try {
     fs.mkdirSync(configDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${configDir}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${configDir}: ${getErrorMessage(err)}`, { cause: err });
   }
   // Post-creation check
   if (!assertNotSymlink(configDir)) {
@@ -396,7 +396,7 @@ async function main() {
   try {
     fs.chmodSync(configDir, 0o700);
   } catch (err) {
-    throw new Error(`Failed to set permissions on ${configDir}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to set permissions on ${configDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // -----------------------------------------------------------------------
@@ -432,7 +432,7 @@ async function main() {
   try {
     mcpConfig = fs.readFileSync(0, "utf8"); // fd 0 = stdin
   } catch (err) {
-    throw new Error(`Failed to read MCP configuration from stdin: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read MCP configuration from stdin: ${getErrorMessage(err)}`, { cause: err });
   }
   const normalizedConfig = normalizeSinkVisibilityEncoding(mcpConfig);
   if (normalizedConfig !== mcpConfig) {
@@ -811,7 +811,7 @@ async function main() {
   try {
     fs.chmodSync(outputPath, 0o600);
   } catch (err) {
-    throw new Error(`Failed to set permissions on ${outputPath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to set permissions on ${outputPath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // Check for error payload
@@ -889,7 +889,7 @@ async function main() {
     try {
       fs.mkdirSync(copilotConfigDir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${copilotConfigDir}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to create directory ${copilotConfigDir}: ${getErrorMessage(err)}`, { cause: err });
     }
     const cliServersRaw = process.env.GH_AW_MCP_CLI_SERVERS;
     if (cliServersRaw) {
@@ -911,21 +911,21 @@ async function main() {
         try {
           fs.copyFileSync(outputPath, copilotConfigFile);
         } catch (err) {
-          throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${String(err)}`, { cause: err });
+          throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${getErrorMessage(err)}`, { cause: err });
         }
       }
     } else {
       try {
         fs.copyFileSync(outputPath, copilotConfigFile);
       } catch (err) {
-        throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${String(err)}`, { cause: err });
+        throw new Error(`Failed to copy file ${outputPath} to ${copilotConfigFile}: ${getErrorMessage(err)}`, { cause: err });
       }
     }
     let copilotConfigContent;
     try {
       copilotConfigContent = fs.readFileSync(copilotConfigFile, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${copilotConfigFile}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${copilotConfigFile}: ${getErrorMessage(err)}`, { cause: err });
     }
     core.info(copilotConfigContent);
   }
@@ -972,7 +972,7 @@ async function main() {
   try {
     fs.mkdirSync(cliDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${cliDir}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${cliDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   try {

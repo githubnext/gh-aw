@@ -121,7 +121,7 @@ function saveState(stateFile, state) {
     fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", "utf8");
   } catch (err) {
-    throw new Error(`Failed to persist experiment state ${stateFile}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to persist experiment state ${stateFile}: ${getErrorMessage(err)}`, { cause: err });
   }
 }
 
@@ -391,7 +391,7 @@ async function main() {
   try {
     fs.mkdirSync(stateDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${stateDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const state = loadState(stateFile);
@@ -463,7 +463,7 @@ async function main() {
     try {
       fs.writeFileSync(assignmentsFile, JSON.stringify(assignments, null, 2) + "\n", "utf8");
     } catch (err) {
-      throw new Error(`Failed to write file ${assignmentsFile}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to write file ${assignmentsFile}: ${getErrorMessage(err)}`, { cause: err });
     }
     core.info(`Experiment assignments written to ${assignmentsFile}`);
 

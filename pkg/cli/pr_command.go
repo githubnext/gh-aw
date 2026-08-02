@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -59,6 +60,7 @@ Available subcommands:
 	}
 
 	// Add subcommands
+	cmd.AddCommand(newLegacyGHGuardSubcommand())
 	cmd.AddCommand(NewPRTransferSubcommand())
 
 	return cmd
@@ -757,7 +759,7 @@ func transferPR(prURL, targetRepo string, verbose bool) error {
 }
 
 // createPR creates a pull request using GitHub CLI and returns the PR number
-func createPR(branchName, title, body string, verbose bool) (int, string, error) {
+func createPR(ctx context.Context, branchName, title, body string, verbose bool) (int, string, error) {
 	if verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Creating PR: "+title))
 	}
@@ -768,7 +770,7 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 
 	// Get the current repository info to ensure PR is created in the correct repo.
 	// Use GH_HOST env var instead of --hostname (which is only valid for gh api, not gh repo view).
-	repoOutput, err := workflow.RunGHWithHost("Fetching repository info...", remoteHost, "repo", "view", "--json", "owner,name")
+	repoOutput, err := workflow.RunGHContextWithHost(ctx, "Fetching repository info...", remoteHost, "repo", "view", "--json", "owner,name")
 	if err != nil {
 		return 0, "", fmt.Errorf("failed to get current repository info: %w", err)
 	}
@@ -790,7 +792,7 @@ func createPR(branchName, title, body string, verbose bool) (int, string, error)
 	// current repo (not an upstream fork). Use GH_HOST env var instead of --hostname
 	// (which is only valid for gh api, not gh pr create).
 	prCreateArgs := []string{"pr", "create", "--repo", repoSpec, "--title", title, "--body", body, "--head", branchName}
-	output, err := workflow.RunGHWithHost("Creating pull request...", remoteHost, prCreateArgs...)
+	output, err := workflow.RunGHContextWithHost(ctx, "Creating pull request...", remoteHost, prCreateArgs...)
 	if err != nil {
 		// Try to get stderr for better error reporting
 		var exitError *exec.ExitError
