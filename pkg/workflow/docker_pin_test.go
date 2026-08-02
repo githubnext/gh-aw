@@ -115,13 +115,13 @@ func TestApplyContainerPins(t *testing.T) {
 }
 
 // TestApplyContainerPins_DefaultFirewallVersion is a regression test for gh-aw#43307:
-// all four gh-aw-firewall images at constants.DefaultFirewallVersion (including cli-proxy,
-// which was new in v0.82) must have entries in the embedded pin table so that consumer
-// compiles without a local cache still emit digest-pinned references.
-// Using constants means the test automatically tracks version bumps.
+// the embedded pin table must cover the default firewall sidecars that still publish
+// trusted digest pins (agent, api-proxy, squid) so consumer compiles without a local
+// cache still emit digest-pinned references. Using constants means the test
+// automatically tracks version bumps.
 func TestApplyContainerPins_DefaultFirewallVersion(t *testing.T) {
 	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
-	sidecars := []string{"agent", "api-proxy", "cli-proxy", "squid"}
+	sidecars := []string{"agent", "api-proxy", "squid"}
 
 	for _, sidecar := range sidecars {
 		image := constants.DefaultFirewallRegistry + "/" + sidecar + ":" + imageTag
@@ -137,6 +137,21 @@ func TestApplyContainerPins_DefaultFirewallVersion(t *testing.T) {
 			assert.Equal(t, pin.Digest, pinEntries[0].Digest, "digest in manifest entry for %s", image)
 		})
 	}
+}
+
+func TestApplyContainerPins_DefaultFirewallCliProxyFallsBackToTag(t *testing.T) {
+	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
+	image := constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag
+
+	_, ok := getEmbeddedContainerPin(image)
+	require.False(t, ok, "embedded pin should not exist for %s", image)
+
+	refs, pinEntries := applyContainerPins([]string{image}, nil)
+	require.Len(t, refs, 1)
+	require.Len(t, pinEntries, 1)
+	assert.Equal(t, image, refs[0], "cli-proxy should fall back to its tag when no embedded pin exists")
+	assert.Empty(t, pinEntries[0].Digest, "cli-proxy should not report a digest when no embedded pin exists")
+	assert.Empty(t, pinEntries[0].PinnedImage, "cli-proxy should not report a pinned image when no embedded pin exists")
 }
 
 // TestCollectDockerImages_StoresInWorkflowData verifies that collectDockerImages

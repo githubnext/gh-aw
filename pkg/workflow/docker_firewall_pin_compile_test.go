@@ -100,10 +100,10 @@ Test workflow.`
 }
 
 // TestCompileWorkflow_FirewallImagesPinnedForDefaultVersion is a regression test for
-// gh-aw#43307: the four gh-aw-firewall images at the current default version
-// (constants.DefaultFirewallVersion) must all be digest-pinned in consumer lock files
-// even when no local action-cache is present.  This covers the cli-proxy image
-// introduced in v0.82 as well as the three legacy images (agent, api-proxy, squid).
+// gh-aw#43307: the default gh-aw-firewall images must continue to be emitted in
+// consumer lock files even when no local action-cache is present. Images with
+// trusted embedded pins (agent, api-proxy, squid) must be digest-pinned, while
+// cli-proxy falls back to its tag when no embedded pin exists.
 func TestCompileWorkflow_FirewallImagesPinnedForDefaultVersion(t *testing.T) {
 	// Strip the leading "v" to get the Docker image tag (mirrors getAWFImageTag).
 	imageTag := strings.TrimPrefix(string(constants.DefaultFirewallVersion), "v")
@@ -143,17 +143,16 @@ Test workflow.`
 
 	yamlStr := string(yaml)
 
-	expectedPins := []struct {
+	expectedPinnedImages := []struct {
 		name  string
 		image string
 	}{
 		{name: "agent", image: constants.DefaultFirewallRegistry + "/agent:" + imageTag},
 		{name: "api-proxy", image: constants.DefaultFirewallRegistry + "/api-proxy:" + imageTag},
-		{name: "cli-proxy", image: constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag},
 		{name: "squid", image: constants.DefaultFirewallRegistry + "/squid:" + imageTag},
 	}
 
-	for _, expectedPin := range expectedPins {
+	for _, expectedPin := range expectedPinnedImages {
 		pin, ok := getEmbeddedContainerPin(expectedPin.image)
 		if !ok {
 			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
@@ -170,11 +169,25 @@ Test workflow.`
 		}
 	}
 
+	cliProxyImage := constants.DefaultFirewallRegistry + "/cli-proxy:" + imageTag
+	if strings.Contains(yamlStr, `"image":"`+cliProxyImage+`","digest":"`) {
+		t.Errorf("Did not expect manifest header to include a digest for %s", cliProxyImage)
+	}
+	if strings.Contains(yamlStr, cliProxyImage+"@sha256:") {
+		t.Errorf("Did not expect %s to be emitted as a digest-pinned image", cliProxyImage)
+	}
+	if !strings.Contains(yamlStr, "#   - "+cliProxyImage) {
+		t.Errorf("Expected unpinned container comment for %s", cliProxyImage)
+	}
+	if !strings.Contains(yamlStr, cliProxyImage) {
+		t.Errorf("Expected download reference for %s", cliProxyImage)
+	}
+
 	imageTagParts := []string{
 		`imageTag`,
 		imageTag + `,`,
 	}
-	for _, expectedPin := range expectedPins {
+	for _, expectedPin := range expectedPinnedImages {
 		pin, ok := getEmbeddedContainerPin(expectedPin.image)
 		if !ok {
 			t.Fatalf("Expected embedded pin for %s", expectedPin.image)
@@ -189,6 +202,9 @@ Test workflow.`
 		if !strings.Contains(yamlStr, imageTagPart) {
 			t.Errorf("Expected AWF config JSON to include %s", imageTagPart)
 		}
+	}
+	if strings.Contains(yamlStr, "cli-proxy=sha256:") {
+		t.Errorf("Did not expect AWF config JSON to include cli-proxy digest metadata when no pin exists")
 	}
 }
 

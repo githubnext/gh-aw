@@ -2241,7 +2241,7 @@ func TestBuildAWFImageTagWithDigests(t *testing.T) {
 		assert.Contains(t, tag, "squid=sha256:", "should include squid digest metadata")
 		assert.Contains(t, tag, "agent=sha256:", "should include agent digest metadata")
 		assert.Contains(t, tag, "api-proxy=sha256:", "should include api-proxy digest metadata")
-		assert.Contains(t, tag, "cli-proxy=sha256:", "should include cli-proxy digest metadata")
+		assert.NotContains(t, tag, "cli-proxy=sha256:", "should omit cli-proxy digest metadata when no embedded pin exists")
 	})
 
 	t.Run("leaves tag unchanged when digests are unavailable", func(t *testing.T) {
