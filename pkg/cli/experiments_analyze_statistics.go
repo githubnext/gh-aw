@@ -21,7 +21,7 @@ const defaultMinSamples = 20
 const balanceSignificanceThreshold = 0.05
 
 // ExperimentAnalysis holds statistical analysis results for one named A/B experiment.
-// The analysis is computed from state.json counts and optional experiment configuration.
+// The analysis is computed from state.jsonl/state.json counts and optional experiment configuration.
 type ExperimentAnalysis struct {
 	// ExperimentName is the name of the A/B experiment (key in state.counts).
 	ExperimentName string `json:"experiment_name"`
@@ -68,7 +68,7 @@ type ExperimentAnalysis struct {
 	BonferroniAlpha float64 `json:"bonferroni_alpha,omitempty"`
 
 	// Guardrails lists the declared metric thresholds.
-	// Pass/fail evaluation requires per-run outcome data not stored in state.json (R-STAT-009).
+	// Pass/fail evaluation requires per-run outcome data not stored in state.jsonl/state.json (R-STAT-009).
 	Guardrails []GuardrailStatus `json:"guardrails,omitempty"`
 
 	// Recommendation is the analysis recommendation: EXTEND or READY_FOR_ANALYSIS.
