@@ -1,0 +1,40 @@
+# Grype vulnerability scanner configuration for gh-aw container images.
+#
+# This file is mounted into the grype container when --grype is passed to
+# `gh aw compile` so that known-accepted / unresolvable findings do not
+# generate noise in the daily container image security scan.
+#
+# Each entry must include a justification comment explaining:
+#   1. Why the finding cannot be fixed in the image layer we control.
+#   2. What the risk acceptance decision is and who should revisit it.
+#
+# Format reference: https://github.com/anchore/grype?tab=readme-ov-file#configuration
+
+ignore:
+  # ── brace-expansion bundled inside the vendored npm CLI ──────────────────────
+  #
+  # GHSA-mh99-v99m-4gvg (brace-expansion <=5.0.7 -> 5.0.8, HIGH):
+  #   DoS via unbounded brace expansion length causing an out-of-memory crash.
+  #
+  #   Risk acceptance — BOUNDED DoS in a build-time CLI tool, no other impact:
+  #     The gh-aw-firewall images (agent, api-proxy, cli-proxy) all vendor the
+  #     npm CLI (pinned npm@11.18.0, extracted into
+  #     /usr/local/lib/node_modules/npm), and npm bundles brace-expansion inside
+  #     its own node_modules. The sidecars build with `npm ci --omit=dev`, which
+  #     prunes app-level dev copies, so the only brace-expansion left in the
+  #     runtime images is npm's bundled one. The worst case is that an `npm`
+  #     invocation over a hostile brace pattern hangs/OOMs that npm process —
+  #     no privilege escalation, data exfiltration, or RCE. npm is a trusted
+  #     build tool here, not exposed to untrusted input.
+  #
+  #   No fix is shippable today: npm 11.18.0 is the latest npm release and still
+  #   bundles brace-expansion <=5.0.7. brace-expansion 5.0.8 (the patched
+  #   version) exists on the registry but no npm release ships it yet.
+  #   Revisit: once a gh-aw-firewall release ships images built with an npm
+  #   version that bundles brace-expansion >= 5.0.8, update DefaultFirewallVersion
+  #   in pkg/constants/version_constants.go and DELETE this entry.
+  #   Tracked in github/gh-aw#49505.
+  - vulnerability: GHSA-mh99-v99m-4gvg
+    package:
+      name: brace-expansion
+      type: npm

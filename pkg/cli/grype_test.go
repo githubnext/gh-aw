@@ -292,3 +292,55 @@ func makeGrypeFinding(id, severity, pkgName, pkgVersion string, fixVersions []st
 	f.Artifact.Version = pkgVersion
 	return f
 }
+
+func TestFindGrypeConfig_NotPresent(t *testing.T) {
+	// Change to a temp directory without a .grype.yaml.
+	tmpDir := t.TempDir()
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(orig); err != nil {
+			t.Fatalf("Failed to restore cwd: %v", err)
+		}
+	}()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	path := findGrypeConfig()
+	if path != "" {
+		t.Errorf("Expected empty path when .grype.yaml is absent, got %q", path)
+	}
+}
+
+func TestFindGrypeConfig_Present(t *testing.T) {
+	// Create a temp directory with a .grype.yaml file.
+	tmpDir := t.TempDir()
+	configFile := tmpDir + "/.grype.yaml"
+	if err := os.WriteFile(configFile, []byte("ignore: []\n"), 0600); err != nil {
+		t.Fatalf("Failed to write .grype.yaml: %v", err)
+	}
+
+	orig, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get cwd: %v", err)
+	}
+	defer func() {
+		if err := os.Chdir(orig); err != nil {
+			t.Fatalf("Failed to restore cwd: %v", err)
+		}
+	}()
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to chdir: %v", err)
+	}
+
+	path := findGrypeConfig()
+	if path == "" {
+		t.Error("Expected non-empty path when .grype.yaml is present")
+	}
+	if _, err := os.Stat(path); err != nil {
+		t.Errorf("findGrypeConfig returned a path that does not exist: %v", err)
+	}
+}

@@ -17,6 +17,14 @@
 // Scan results are cached by image reference (pinned image@digest when available, or
 // image tag otherwise). This prevents re-scanning the same image when multiple lock
 // files reference it.
+//
+// # Exception configuration
+//
+// When a .grype.yaml file is present in the current working directory it is
+// mounted read-only into the grype container at /root/.grype.yaml so that
+// grype picks it up automatically. This mirrors the pattern used by
+// gh-aw-firewall's supply-chain-scan workflow. Exceptions in that file must
+// include a documented justification.
 
 package cli
 
@@ -27,6 +35,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -34,6 +43,10 @@ import (
 	"github.com/github/gh-aw/pkg/logger"
 	"github.com/github/gh-aw/pkg/workflow"
 )
+
+// grypeConfigFileName is the name of the grype exception configuration file
+// that is searched for in the current working directory.
+const grypeConfigFileName = ".grype.yaml"
 
 var grypeLog = logger.New("cli:grype")
 
@@ -176,6 +189,17 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 			fmt.Sprintf("Running grype vulnerability scanner on %d container images", len(images))))
 	}
 
+	// Look for a .grype.yaml exception config in the current working directory.
+	// When present it is mounted into the grype container so that known-accepted
+	// vulnerabilities do not appear in scan output.
+	grypeConfigPath := findGrypeConfig()
+	if grypeConfigPath != "" {
+		grypeLog.Printf("Using grype exception config: %s", grypeConfigPath)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatVerboseMessage("Using grype exception config: "+grypeConfigPath))
+		}
+	}
+
 	totalFindings := 0
 	var scanErrors []string
 
@@ -186,7 +210,7 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 			imageRef = img.Image
 		}
 
-		output, err := grypeRunOnImage(imageRef, verbose)
+		output, err := grypeRunOnImage(imageRef, grypeConfigPath, verbose)
 		if err != nil {
 			grypeLog.Printf("Grype scan failed for %s: %v", img.Image, err)
 			scanErrors = append(scanErrors, fmt.Sprintf("%s: %v", img.Image, err))
@@ -215,7 +239,9 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 
 // grypeRunOnImage runs grype on a single container image reference via Docker,
 // using the result cache to avoid re-scanning images already checked in this run.
-func grypeRunOnImage(imageRef string, verbose bool) (*grypeOutput, error) {
+// grypeConfigPath is the absolute path to a .grype.yaml exception config file;
+// an empty string disables the config mount.
+func grypeRunOnImage(imageRef string, grypeConfigPath string, verbose bool) (*grypeOutput, error) {
 	// Check cache first.
 	if result, err, ok := grypeScanResultCache.get(imageRef); ok {
 		grypeLog.Printf("Grype cache hit for %s", imageRef)
@@ -224,21 +250,29 @@ func grypeRunOnImage(imageRef string, verbose bool) (*grypeOutput, error) {
 
 	grypeLog.Printf("Scanning %s with grype", imageRef)
 
+	// Build the docker run argument list. Volume-mount the .grype.yaml exception
+	// config (if present) so that grype picks it up at /root/.grype.yaml, which
+	// is the default home-directory location grype reads automatically.
+	dockerArgs := []string{"run", "--rm"}
+	if grypeConfigPath != "" {
+		// #nosec G204 -- grypeConfigPath is derived from os.Getwd() + a fixed
+		// filename; it does not incorporate user-controlled input.
+		dockerArgs = append(dockerArgs, "-v", grypeConfigPath+":/root/.grype.yaml:ro")
+	}
+	dockerArgs = append(dockerArgs, GrypeImage, imageRef, "-o", "json")
+
 	// #nosec G204 -- imageRef is extracted from the gh-aw-manifest in compiled lock files,
 	// which are produced by this tool from trusted markdown sources. exec.Command passes
 	// args directly to the OS without shell interpretation, preventing command injection.
-	cmd := exec.Command(
-		"docker",
-		"run",
-		"--rm",
-		GrypeImage,
-		imageRef,
-		"-o", "json",
-	)
+	cmd := exec.Command("docker", dockerArgs...)
 
 	if verbose {
+		configNote := ""
+		if grypeConfigPath != "" {
+			configNote = fmt.Sprintf(" (config: %s)", grypeConfigPath)
+		}
 		dockerCmd := fmt.Sprintf("docker run --rm %s %s -o json", GrypeImage, imageRef)
-		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run grype directly: "+dockerCmd))
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Run grype directly: "+dockerCmd+configNote))
 	}
 
 	var stdout, stderr bytes.Buffer
@@ -337,4 +371,20 @@ func grypeDisplayFindings(imageTag string, output *grypeOutput) int {
 	}
 
 	return len(output.Matches)
+}
+
+// findGrypeConfig looks for a .grype.yaml file in the current working directory
+// and returns its absolute path. Returns an empty string if no file is found or
+// if the working directory cannot be determined.
+func findGrypeConfig() string {
+	cwd, err := os.Getwd()
+	if err != nil {
+		grypeLog.Printf("Could not determine working directory for grype config lookup: %v", err)
+		return ""
+	}
+	candidate := filepath.Join(cwd, grypeConfigFileName)
+	if _, err := os.Stat(candidate); err != nil {
+		return ""
+	}
+	return candidate
 }
