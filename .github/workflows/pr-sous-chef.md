@@ -74,20 +74,19 @@ steps:
       pr_list_ok=0
       while [ "$pr_list_attempt" -le "$pr_list_retries" ]; do
         set +e
-        pr_list_error="$(
-          gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
-            --state open \
-            --search "is:pr is:open -is:draft sort:updated-desc" \
-            --limit "$pr_limit" \
-            --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus,statusCheckRollup \
-            > "$candidate_file" 2>&1
-        )"
+        gh pr list --repo "$EXPR_GITHUB_REPOSITORY" \
+          --state open \
+          --search "is:pr is:open -is:draft sort:updated-desc" \
+          --limit "$pr_limit" \
+          --json number,title,url,headRefOid,headRefName,updatedAt,author,mergeStateStatus,statusCheckRollup \
+          > "$candidate_file" 2>&1
         pr_list_status=$?
         set -e
         if [ "$pr_list_status" -eq 0 ]; then
           pr_list_ok=1
           break
         fi
+        pr_list_error=$(cat "$candidate_file" 2>/dev/null || true)
         if echo "$pr_list_error" | grep -qiE 'HTTP 50[0234]|HTTP 429|Bad Gateway|timeout|temporarily unavailable|EOF'; then
           echo "Transient gh pr list failure on attempt $pr_list_attempt/$pr_list_retries; retrying: $pr_list_error" >&2
           if [ "$pr_list_attempt" -lt "$pr_list_retries" ]; then

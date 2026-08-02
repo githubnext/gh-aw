@@ -2620,6 +2620,83 @@ setInterval(() => {}, 1000);`,
       expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
       expect(result.stderr).toContain("late-activity exit suppressed");
     });
+
+    it('exits 0 without retrying when watchdog fires after terminal safe-output was produced and output contains benign "not logged in" tool text', () => {
+      const tempDir = makeHarnessTempDir("copilot-watchdog-authentication-failed-suppression-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+const safeOutputsPath = process.env.GH_AW_SAFE_OUTPUTS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+fs.appendFileSync(safeOutputsPath, JSON.stringify({type:"add_comment",body:"Daily report posted"}) + "\\n");
+process.stdout.write(JSON.stringify({
+  type: "tool.execution_complete",
+  tool: "bash",
+  output: "You are not logged into any GitHub hosts. To log in, run: gh auth login"
+}) + "\\n");
+process.on("SIGTERM", () => process.exit(1));
+setInterval(() => {}, 1000);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "generate the report", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+          GH_AW_HARNESS_WATCHDOG_TIMEOUT_MS: "100",
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      const callCount = fs.readFileSync(callsPath, "utf8").trim().split("\n").filter(Boolean).length;
+      expect(callCount).toBe(1);
+      expect(result.status).toBe(0);
+      expect(result.stderr).toContain("post-result watchdog fired after terminal safe-output was emitted");
+      expect(result.stderr).toContain("late-activity exit suppressed");
+    });
+
+    it("does not rescue authentication_failed when no terminal safe-output was produced before the watchdog fires", () => {
+      const tempDir = makeHarnessTempDir("copilot-watchdog-auth-failed-no-output-");
+      const safeOutputsPath = path.join(tempDir, "safe-outputs.jsonl");
+      const stubPath = path.join(tempDir, "stub.cjs");
+      const promptPath = path.join(tempDir, "prompt.txt");
+      const callsPath = path.join(tempDir, "calls.jsonl");
+      // Stub emits auth-failure-looking text but does NOT write any safe-output entry.
+      // Without terminal safe-output the watchdog never arms, so authentication_failed
+      // falls through to the normal non-retryable failure path and exits non-zero.
+      fs.writeFileSync(
+        stubPath,
+        `const fs = require("fs");
+const callsPath = process.env.COPILOT_HARNESS_STUB_CALLS;
+fs.appendFileSync(callsPath, JSON.stringify({args: process.argv.slice(2)}) + "\\n");
+process.stdout.write("Error: No authentication information found.\\n");
+process.exit(1);`,
+        "utf8"
+      );
+      fs.writeFileSync(promptPath, "generate the report", "utf8");
+
+      const result = spawnSync(process.execPath, ["copilot_harness.cjs", process.execPath, stubPath, "--prompt-file", promptPath], {
+        cwd: path.dirname(require.resolve("./copilot_harness.cjs")),
+        env: {
+          ...process.env,
+          COPILOT_HARNESS_STUB_CALLS: callsPath,
+          GH_AW_SAFE_OUTPUTS: safeOutputsPath,
+        },
+        encoding: "utf8",
+        timeout: 15000,
+      });
+      // Harness exits non-zero: genuine auth failure with no terminal safe-output is not rescued
+      expect(result.status).not.toBe(0);
+      expect(result.stderr).not.toContain("late-activity exit suppressed");
+    });
   });
 
   describe("AI credits budget enforcement exits 0", () => {

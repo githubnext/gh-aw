@@ -192,8 +192,10 @@ Returns JSON array with validation results for each workflow:
 		}
 
 		// Build command arguments
-		// Always validate workflows during compilation and use JSON output for MCP
-		cmdArgs := []string{"compile", "--validate", "--json"}
+		// Always validate workflows during compilation and use JSON output for MCP.
+		// Shellcheck output goes to stderr (captured in subprocess error buffer only) and
+		// therefore never reaches the LLM via the JSON response — always disable it.
+		cmdArgs := []string{"compile", "--validate", "--json", "--no-shellcheck"}
 
 		// Add fix flag if requested
 		if args.Fix {
