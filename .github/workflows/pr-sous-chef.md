@@ -377,6 +377,7 @@ For each PR that is not skipped:
    - For `schedule` and `workflow_dispatch` runs, use the `resolve_review_threads` list returned by the `pr-processor` sub-agent.
    - Include a thread only when all of the following are true: the thread is currently unresolved; contains reviewer feedback; and has a later reply from the PR author or `@copilot`.
    - For each thread ID, call `safeoutputs resolve_pull_request_review_thread --thread_id <ID>`.
+   - Each `<ID>` must be the review thread node ID (`PRRT_...`) taken from `reviewThreads`; never pass a review comment node ID (`PRRC_...`).
    - If resolving one thread fails, record `{thread_id: <ID>, skip_reason: "resolve_review_thread_failed"}` in the `skipped` array and continue.
 
 4. **Dismiss stale `github-actions[bot]` blocking reviews when all PR review threads are resolved**
@@ -446,7 +447,7 @@ Given one PR number and compact metadata:
    - a single combined nudge comment body:
      - if `conflicting` is true: a targeted nudge asking `@copilot` to run `make merge-main` to resolve conflicts
      - otherwise: a combined nudge covering unresolved review feedback, failed checks (from `failed_checks` in the compact JSON — list each by name with URL when available), branch refresh, and any other forward-progress action including a direct instruction to run the `pr-finisher` skill — one comment only, never two; if unresolved PR reviews exist, include an explicit unresolved-reviews list (reviewer + direct link per unresolved review thread)
-   - `resolve_review_threads`: an array of unresolved PR review thread node IDs to resolve via safe output; include a thread only when the thread already contains a follow-up response from the PR author or `@copilot` that addresses the feedback
+   - `resolve_review_threads`: an array of unresolved PR review thread node IDs (`PRRT_...`) from `reviewThreads` to resolve via safe output; never emit review comment node IDs (`PRRC_...`). Include a thread only when the thread already contains a follow-up response from the PR author or `@copilot` that addresses the feedback
    - `dismiss_reviews`: an array of review IDs — include a review ID only when the review was authored by `github-actions[bot]` with `CHANGES_REQUESTED` state AND all review threads on the PR are resolved (no unresolved threads remain); return an empty array if there are unresolved threads or no qualifying reviews
 4. Make at most 8 tool calls total. If 8 calls are insufficient to reach a confident decision, set all fields to `null` and set `skip_reason: "insufficient_context"`.
 5. Keep output compact JSON only — a single object, no prose.
