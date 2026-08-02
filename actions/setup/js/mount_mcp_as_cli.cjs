@@ -41,6 +41,18 @@ const SAFEOUTPUTS_SERVER_NAME = "safeoutputs";
 const DEFAULT_HTTP_TIMEOUT_MS = 15000;
 
 /**
+ * Maximum number of times to retry tools/list when a server returns 0 tools.
+ * The gateway may report a backend as "running" before the backend has finished
+ * building its tool schema (a race condition more likely with large configs).
+ */
+const TOOLS_EMPTY_MAX_RETRIES = 5;
+
+/**
+ * Milliseconds to wait between tools/list retry attempts when the result is empty.
+ */
+const TOOLS_EMPTY_RETRY_DELAY_MS = 1000;
+
+/**
  * Parse a tools JSON file and return a validated tools array.
  *
  * @param {string} toolsPath
@@ -378,6 +390,38 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
 }
 
 /**
+ * Fetch MCP tools with retry on empty result.
+ *
+ * The MCP gateway may report a backend as "running" before that backend has
+ * finished building its internal tool schema (a race between process-level
+ * readiness and schema construction). This is more likely with large
+ * dispatch-workflow configs where building tool definitions takes long enough
+ * that tools/list can still return 0 tools immediately after the health check
+ * passes. Retrying a handful of times with a short delay bridges that gap
+ * without making a genuinely broken backend any slower to surface as an error.
+ *
+ * @param {string} serverUrl
+ * @param {string} apiKey
+ * @param {string} serverName - Server name, used only for log messages
+ * @param {typeof import("@actions/core")} core
+ * @param {object} [options]
+ * @param {(ms: number) => Promise<void>} [options.sleep] - Delay function (injectable for tests)
+ * @param {(url: string, key: string, c: typeof import("@actions/core")) => Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>} [options.fetchFn] - Fetch function (injectable for tests)
+ * @returns {Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>}
+ */
+async function fetchMCPToolsWithRetry(serverUrl, apiKey, serverName, core, { sleep = undefined, fetchFn = undefined } = {}) {
+  const doSleep = sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
+  const doFetch = fetchFn ?? ((url, key, c) => fetchMCPTools(url, key, c));
+  let tools = await doFetch(serverUrl, apiKey, core);
+  for (let attempt = 1; attempt <= TOOLS_EMPTY_MAX_RETRIES && tools.length === 0; attempt++) {
+    core.warning(`  tools/list returned 0 tools for '${serverName}', retrying in ${TOOLS_EMPTY_RETRY_DELAY_MS}ms (attempt ${attempt}/${TOOLS_EMPTY_MAX_RETRIES})...`);
+    await doSleep(TOOLS_EMPTY_RETRY_DELAY_MS);
+    tools = await doFetch(serverUrl, apiKey, core);
+  }
+  return tools;
+}
+
+/**
  * Generate the bash wrapper script content for a given MCP server.
  * The generated script is a thin wrapper that delegates all work to the
  * mcp_cli_bridge.cjs Node.js script, which handles the full MCP session
@@ -521,8 +565,10 @@ async function main() {
 
     const toolsFile = path.join(TOOLS_DIR, `${name}.json`);
 
-    // Query tools from the server using the host-accessible URL (mount step runs on host)
-    let tools = await fetchMCPTools(url, apiKey, core);
+    // Query tools from the server using the host-accessible URL (mount step runs on host).
+    // Retries on empty to handle the race between gateway health-reporting and
+    // the backend finishing internal tool-schema construction (common with large configs).
+    let tools = await fetchMCPToolsWithRetry(url, apiKey, name, core);
     const validate = SERVER_VALIDATORS[name];
     if (validate) {
       tools = validate(tools, core);
@@ -582,6 +628,7 @@ module.exports = {
   AWF_GATEWAY_IP,
   main,
   fetchMCPTools,
+  fetchMCPToolsWithRetry,
   generateCLIWrapperScript,
   isValidServerName,
   shellEscapeDoubleQuoted,
@@ -593,4 +640,6 @@ module.exports = {
   writeSafeOutputsGatewayEmptyFlag,
   SERVER_VALIDATORS,
   buildMCPCLIServersPromptList,
+  TOOLS_EMPTY_MAX_RETRIES,
+  TOOLS_EMPTY_RETRY_DELAY_MS,
 };

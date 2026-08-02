@@ -4,7 +4,17 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 
-import { AWF_GATEWAY_IP, buildMCPCLIServersPromptList, getSafeOutputsGatewayEmptyFlagPath, parseMCPResponseBody, recoverSafeOutputsToolsIfNeeded, toContainerUrl } from "./mount_mcp_as_cli.cjs";
+import {
+  AWF_GATEWAY_IP,
+  buildMCPCLIServersPromptList,
+  fetchMCPToolsWithRetry,
+  getSafeOutputsGatewayEmptyFlagPath,
+  parseMCPResponseBody,
+  recoverSafeOutputsToolsIfNeeded,
+  toContainerUrl,
+  TOOLS_EMPTY_MAX_RETRIES,
+  TOOLS_EMPTY_RETRY_DELAY_MS,
+} from "./mount_mcp_as_cli.cjs";
 
 describe("mount_mcp_as_cli.cjs", () => {
   it("parses JSON object responses unchanged", () => {
@@ -169,5 +179,99 @@ describe("mount_mcp_as_cli.cjs", () => {
     expect(docs).toContain("[--rationale <reason, max 280 characters>]");
     expect(docs).toContain('--confidence \"HIGH\"');
     expect(docs).toContain("`mcpscripts` — run `mcpscripts --help`");
+  });
+
+  it("exports retry constants with expected values", () => {
+    expect(TOOLS_EMPTY_MAX_RETRIES).toBeGreaterThan(0);
+    expect(TOOLS_EMPTY_RETRY_DELAY_MS).toBeGreaterThan(0);
+  });
+
+  it("returns tools immediately when fetchFn succeeds on first attempt", async () => {
+    const tools = [{ name: "push_to_pull_request_branch" }];
+    let callCount = 0;
+    const fakeFetch = async () => {
+      callCount++;
+      return tools;
+    };
+    const result = await fetchMCPToolsWithRetry(
+      "http://localhost/mcp/safeoutputs",
+      "key",
+      "safeoutputs",
+      { warning: () => {} },
+      {
+        fetchFn: fakeFetch,
+        sleep: async () => {},
+      }
+    );
+    expect(result).toEqual(tools);
+    expect(callCount).toBe(1);
+  });
+
+  it("retries when fetchFn returns empty and succeeds on a later attempt", async () => {
+    const tools = [{ name: "push_to_pull_request_branch" }];
+    let callCount = 0;
+    const fakeFetch = async () => {
+      callCount++;
+      return callCount < 3 ? [] : tools;
+    };
+    const warnings = [];
+    const result = await fetchMCPToolsWithRetry(
+      "http://localhost/mcp/safeoutputs",
+      "key",
+      "safeoutputs",
+      { warning: msg => warnings.push(msg) },
+      {
+        fetchFn: fakeFetch,
+        sleep: async () => {},
+      }
+    );
+    expect(result).toEqual(tools);
+    expect(callCount).toBe(3);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("tools/list returned 0 tools");
+    expect(warnings[0]).toContain("safeoutputs");
+  });
+
+  it("stops retrying after TOOLS_EMPTY_MAX_RETRIES and returns empty when always empty", async () => {
+    let callCount = 0;
+    const fakeFetch = async () => {
+      callCount++;
+      return [];
+    };
+    const result = await fetchMCPToolsWithRetry(
+      "http://localhost/mcp/safeoutputs",
+      "key",
+      "safeoutputs",
+      { warning: () => {} },
+      {
+        fetchFn: fakeFetch,
+        sleep: async () => {},
+      }
+    );
+    expect(result).toEqual([]);
+    // 1 initial attempt + TOOLS_EMPTY_MAX_RETRIES retries
+    expect(callCount).toBe(1 + TOOLS_EMPTY_MAX_RETRIES);
+  });
+
+  it("invokes sleep between retry attempts", async () => {
+    let callCount = 0;
+    const sleepDelays = [];
+    const fakeFetch = async () => {
+      callCount++;
+      return callCount < 2 ? [] : [{ name: "tool" }];
+    };
+    await fetchMCPToolsWithRetry(
+      "http://localhost/mcp/safeoutputs",
+      "key",
+      "safeoutputs",
+      { warning: () => {} },
+      {
+        fetchFn: fakeFetch,
+        sleep: async ms => {
+          sleepDelays.push(ms);
+        },
+      }
+    );
+    expect(sleepDelays).toEqual([TOOLS_EMPTY_RETRY_DELAY_MS]);
   });
 });
