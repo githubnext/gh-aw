@@ -262,6 +262,17 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 		return nil
 	}
 
+	exec := behavior.Execution
+	firewallEnabled := e.behaviorDefinedFirewallEnabled(workflowData)
+	engineCommand := e.buildBehaviorDefinedEngineCommand(exec, workflowData)
+	command := e.buildBehaviorDefinedExecutionCommand(exec, workflowData, logFile, engineCommand, firewallEnabled)
+	env := e.buildBehaviorDefinedExecutionEnv(exec, workflowData, firewallEnabled)
+	steps := e.buildBehaviorDefinedSetupSteps()
+	steps = append(steps, e.buildBehaviorDefinedExecutionStep(exec, workflowData, command, env))
+	return steps
+}
+
+func (e *BehaviorDefinedEngine) buildBehaviorDefinedSetupSteps() []GitHubActionStep {
 	var steps []GitHubActionStep
 	if configStep := e.buildConfigFileStep(); len(configStep) > 0 {
 		steps = append(steps, configStep)
@@ -269,103 +280,77 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	if harnessStep := e.buildHarnessWriteStep(); len(harnessStep) > 0 {
 		steps = append(steps, harnessStep)
 	}
+	return steps
+}
 
-	exec := behavior.Execution
+func (e *BehaviorDefinedEngine) buildBehaviorDefinedEngineCommand(exec *EngineExecutionDefinition, workflowData *WorkflowData) string {
 	commandName := exec.CommandName
 	if workflowData != nil && workflowData.EngineConfig != nil && workflowData.EngineConfig.Command != "" {
 		commandName = workflowData.EngineConfig.Command
 	}
-
-	var engineCommand string
-	if behavior.HarnessScript != "" {
-		// Harness execution: the harness is responsible for reading GH_AW_PROMPT and
-		// spawning the engine CLI. Pass the shell-escaped command name and configured args
-		// so the harness can forward them or use them to build the full command.
+	if behavior := e.behavior(); behavior != nil && behavior.HarnessScript != "" {
 		harnessArgs := []string{shellEscapeArg(commandName)}
 		if len(exec.Args) > 0 {
 			harnessArgs = append(harnessArgs, shellJoinArgs(exec.Args))
 		}
 		harnessPath := SetupActionDestinationShell + "/" + e.harnessScriptFilename()
-		engineCommand = fmt.Sprintf("%s %s %s", nodeRuntimeResolutionCommand, harnessPath, strings.Join(harnessArgs, " "))
-	} else {
-		commandParts := []string{commandName}
-		if len(exec.Args) > 0 {
-			commandParts = append(commandParts, shellJoinArgs(exec.Args))
-		}
-		if modelFragment := e.modelFlagFragment(exec, workflowData); modelFragment != "" {
-			commandParts = append(commandParts, modelFragment)
-		}
-		if mcpFragment := e.mcpFlagFragment(exec, workflowData); mcpFragment != "" {
-			commandParts = append(commandParts, mcpFragment)
-		}
-		commandParts = append(commandParts, fmt.Sprintf(`"$(cat %s)"`, constants.AwPromptsFile))
-		engineCommand = strings.Join(commandParts, " ")
-		engineCommand = getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + engineCommand
+		return fmt.Sprintf("%s %s %s", nodeRuntimeResolutionCommand, harnessPath, strings.Join(harnessArgs, " "))
 	}
 
+	commandParts := []string{commandName}
+	if len(exec.Args) > 0 {
+		commandParts = append(commandParts, shellJoinArgs(exec.Args))
+	}
+	if modelFragment := e.modelFlagFragment(exec, workflowData); modelFragment != "" {
+		commandParts = append(commandParts, modelFragment)
+	}
+	if mcpFragment := e.mcpFlagFragment(exec, workflowData); mcpFragment != "" {
+		commandParts = append(commandParts, mcpFragment)
+	}
+	commandParts = append(commandParts, fmt.Sprintf(`"$(cat %s)"`, constants.AwPromptsFile))
+	return getWorkspaceCommandPrefixFor(workflowData.EngineConfig) + strings.Join(commandParts, " ")
+}
+
+func (e *BehaviorDefinedEngine) behaviorDefinedFirewallEnabled(workflowData *WorkflowData) bool {
 	firewallEnabled := isFirewallEnabled(workflowData)
-	// harness-script requires the AWF API proxy sidecar (/reflect) to dynamically
-	// configure the agentic engine at runtime. Force AWF execution when a harness is
-	// present unless the sandbox has been explicitly disabled via sandbox.agent: false,
-	// which also prevents the /reflect endpoint from being available.
-	if behavior.HarnessScript != "" && !isFirewallDisabledBySandboxAgent(workflowData) {
+	if behavior := e.behavior(); behavior != nil && behavior.HarnessScript != "" && !isFirewallDisabledBySandboxAgent(workflowData) {
 		firewallEnabled = true
 	}
-	var command string
-	if firewallEnabled {
-		command = e.buildFirewallCommand(exec, workflowData, logFile, engineCommand)
-	} else if exec.WriteTimestamp {
-		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
-			AgentCLIStartMsPath, engineCommand, logFile)
-	} else {
-		command = fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
-	}
+	return firewallEnabled
+}
 
+func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionCommand(exec *EngineExecutionDefinition, workflowData *WorkflowData, logFile, engineCommand string, firewallEnabled bool) string {
+	if firewallEnabled {
+		return e.buildFirewallCommand(exec, workflowData, logFile, engineCommand)
+	}
+	if exec.WriteTimestamp {
+		return fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\nprintf '%%s' \"$(date +%%s%%3N)\" > %s\n%s 2>&1 | tee -a %s",
+			AgentCLIStartMsPath, engineCommand, logFile)
+	}
+	return fmt.Sprintf("set -o pipefail\nexport no_proxy=\"${NO_PROXY:-}\"\n%s 2>&1 | tee -a %s", engineCommand, logFile)
+}
+
+func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionEnv(exec *EngineExecutionDefinition, workflowData *WorkflowData, firewallEnabled bool) map[string]string {
 	env := map[string]string{
 		"GH_AW_PROMPT":     constants.AwPromptsFile,
 		"GITHUB_WORKSPACE": "${{ github.workspace }}",
+		"NO_PROXY":         constants.AWFNoProxyHosts,
 		"RUNNER_TEMP":      "${{ runner.temp }}",
-		// Set NO_PROXY so that the AWF agent's HTTP client skips the squid proxy
-		// for local endpoints. The lowercase no_proxy variant is exported inside
-		// the run script rather than as a YAML env key because GitHub's workflow
-		// parser rejects case-insensitive duplicate env keys (NO_PROXY/no_proxy),
-		// which causes workflow_dispatch to fail with "failed to parse workflow".
-		"NO_PROXY": constants.AWFNoProxyHosts,
 	}
 	injectWorkflowCallNetworkAllowedEnv(env, workflowData)
-
-	// Apply static env vars declared in the engine definition first so that
-	// the dynamic AWF vars below can still override them if needed.
 	maps.Copy(env, exec.Env)
-
 	if exec.ProviderEnvMode == behaviorProviderEnvModeUniversalLLMConsumer {
 		e.ApplyUniversalProviderEnv(env, workflowData, firewallEnabled)
 	}
-
-	if exec.MCPConfigEnvVar != "" && HasMCPServers(workflowData) {
-		if behavior.ConfigFile != nil {
-			env[exec.MCPConfigEnvVar] = "${{ github.workspace }}/" + behavior.ConfigFile.Path
-		} else {
-			mcpPath := constants.McpServersJsonPathExpr
-			if behavior.MCP != nil && behavior.MCP.ConfigPath != "" {
-				mcpPath = behavior.MCP.ConfigPath
-			}
-			env[exec.MCPConfigEnvVar] = mcpPath
-		}
-	}
-
+	e.applyBehaviorDefinedMCPEnv(exec, workflowData, env)
 	for _, binding := range e.definition.Auth {
 		if binding.Secret != "" {
 			env[binding.Secret] = "${{ secrets." + binding.Secret + " }}"
 		}
 	}
-
-	// When a harness script is present and the AWF firewall is running, signal to the
-	// harness that the AWF API proxy sidecar is available so it can read /reflect data.
-	if behavior.HarnessScript != "" && firewallEnabled {
+	if behavior := e.behavior(); behavior != nil && behavior.HarnessScript != "" && firewallEnabled {
 		env["AWF_REFLECT_ENABLED"] = "1"
 	}
-
 	applySafeOutputEnvToMap(env, workflowData)
 	applyTraceContextEnvToMap(env)
 	applyOptionalEngineToolTimeouts(env, workflowData)
@@ -373,29 +358,48 @@ func (e *BehaviorDefinedEngine) GetExecutionSteps(workflowData *WorkflowData, lo
 	applyEngineCwdEnv(env, workflowData)
 	applyEngineAndAgentEnv(env, workflowData, behaviorDefinedEngineLog)
 	applyMCPScriptsSecretEnv(env, workflowData)
+	e.applyBehaviorDefinedModelEnv(exec, workflowData, env)
+	return env
+}
 
-	if exec.ModelEnvVarName != "" {
-		if workflowData != nil && workflowData.Model != "" {
-			modelVal := workflowData.Model
-			if exec.ModelEnvProviderPrefix != "" {
-				if parts := strings.SplitN(modelVal, "/", 2); len(parts) == 2 {
-					modelVal = exec.ModelEnvProviderPrefix + "/" + parts[1]
-				}
-			}
-			env[exec.ModelEnvVarName] = modelVal
+func (e *BehaviorDefinedEngine) applyBehaviorDefinedMCPEnv(exec *EngineExecutionDefinition, workflowData *WorkflowData, env map[string]string) {
+	if exec.MCPConfigEnvVar == "" || !HasMCPServers(workflowData) {
+		return
+	}
+	behavior := e.behavior()
+	if behavior != nil && behavior.ConfigFile != nil {
+		env[exec.MCPConfigEnvVar] = "${{ github.workspace }}/" + behavior.ConfigFile.Path
+		return
+	}
+	mcpPath := constants.McpServersJsonPathExpr
+	if behavior != nil && behavior.MCP != nil && behavior.MCP.ConfigPath != "" {
+		mcpPath = behavior.MCP.ConfigPath
+	}
+	env[exec.MCPConfigEnvVar] = mcpPath
+}
+
+func (e *BehaviorDefinedEngine) applyBehaviorDefinedModelEnv(exec *EngineExecutionDefinition, workflowData *WorkflowData, env map[string]string) {
+	if exec.ModelEnvVarName == "" || workflowData == nil || workflowData.Model == "" {
+		return
+	}
+	modelVal := workflowData.Model
+	if exec.ModelEnvProviderPrefix != "" {
+		if parts := strings.SplitN(modelVal, "/", 2); len(parts) == 2 {
+			modelVal = exec.ModelEnvProviderPrefix + "/" + parts[1]
 		}
 	}
+	env[exec.ModelEnvVarName] = modelVal
+}
 
+func (e *BehaviorDefinedEngine) buildBehaviorDefinedExecutionStep(exec *EngineExecutionDefinition, workflowData *WorkflowData, command string, env map[string]string) GitHubActionStep {
 	stepLines := []string{
 		"      - name: " + exec.StepName,
 		"        id: agentic_execution",
+		"        timeout-minutes: " + resolveStepTimeoutValue(workflowData),
 	}
-	stepLines = append(stepLines, "        timeout-minutes: "+resolveStepTimeoutValue(workflowData))
 	filteredEnv := FilterEnvForSecrets(env, e.GetRequiredSecretNames(workflowData))
 	addCliProxyGHTokenToEnv(filteredEnv, workflowData)
-	stepLines = FormatStepWithCommandAndEnv(stepLines, command, filteredEnv)
-	steps = append(steps, GitHubActionStep(stepLines))
-	return steps
+	return GitHubActionStep(FormatStepWithCommandAndEnv(stepLines, command, filteredEnv))
 }
 
 func (e *BehaviorDefinedEngine) modelFlagFragment(exec *EngineExecutionDefinition, workflowData *WorkflowData) string {
