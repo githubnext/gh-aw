@@ -19,12 +19,12 @@
  * For the full implementation see:
  *   actions/setup/js/pi_agent_core_driver.cjs
  *
- * Shared helpers (emitJsonl, getApiKey) are provided by:
- *   actions/setup/js/pi_agent_core_driver_helpers.cjs
+ * Shared helpers (emitJsonl, getApiKey) are loaded at runtime from:
+ *   ${RUNNER_TEMP}/gh-aw/actions/pi_agent_core_driver_helpers.cjs
  *
- * If you copy this file to a repository that does not include the gh-aw
- * action sources, inline the two helpers from pi_agent_core_driver_helpers.cjs
- * or adjust the require() path accordingly.
+ * The gh-aw setup action deploys all driver helpers to that location, so
+ * this path works correctly whether the file lives in the gh-aw repo itself
+ * or has been copied into your own repository's .github/drivers/ directory.
  *
  * See also:
  *   https://github.com/earendil-works/pi/blob/main/packages/agent/README.md
@@ -33,7 +33,7 @@
 const { execSync } = require("child_process");
 const fs = require("fs");
 const crypto = require("crypto");
-const { emitJsonl, getApiKey } = require("../../actions/setup/js/pi_agent_core_driver_helpers.cjs");
+const { emitJsonl, getApiKey } = require(`${process.env.RUNNER_TEMP}/gh-aw/actions/pi_agent_core_driver_helpers.cjs`);
 
 // ---------------------------------------------------------------------------
 // Entry point
