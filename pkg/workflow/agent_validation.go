@@ -16,6 +16,7 @@
 //   - validateMaxToolDenialsSupport() - Validates max-tool-denials support for Copilot SDK mode
 //   - validateWebSearchSupport() - Validates web-search feature support (warning)
 //   - validateBareModeSupport() - Validates bare mode feature support (warning)
+//   - validateBashCommandAllowlistSupport() - Errors when restricted bash allowlist is unsupported
 //   - validateWorkflowRunBranches() - Validates workflow_run has branch restrictions
 //
 // # Validation Patterns
@@ -249,6 +250,61 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
 		c.IncrementWarningCount()
 	}
+}
+
+// validateBashCommandAllowlistSupport errors when an explicit bash restriction is used
+// with an engine that cannot enforce it. An explicit restriction is any of:
+//   - bash: false  (disabling bash — silently ignored at runtime)
+//   - bash: []     (empty allowlist — silently ignored at runtime)
+//   - bash: [cmd1, cmd2, ...]  (non-wildcard list — silently ignored at runtime)
+//
+// Engines that do not map these configurations to their own CLI syntax silently ignore them,
+// creating the dangerous illusion of restriction where none exists.
+func (c *Compiler) validateBashCommandAllowlistSupport(tools map[string]any, engine CodingAgentEngine) error {
+	if engine.GetCapabilities().BashCommandAllowlist {
+		return nil
+	}
+	if !hasBashExplicitRestriction(tools) {
+		return nil
+	}
+	agentValidationLog.Printf("Engine %s does not support bash command allowlist, emitting error", engine.GetID())
+	return fmt.Errorf("engine '%s' does not support bash command allow-listing: tools.bash with specific commands is silently ignored at runtime for this engine. "+
+		"Use 'bash: [\"*\"]' to allow all commands or remove the tools.bash entry. "+
+		"To restrict bash commands, switch to an engine that supports this feature (copilot, claude, gemini, or antigravity)",
+		engine.GetID())
+}
+
+// hasBashExplicitRestriction reports true when the tools map contains a bash configuration
+// that represents an explicit restriction: bash: false, bash: [], or a non-wildcard command list.
+// Only absent/nil bash, bash: true, and wildcard lists (["*"], [":*"]) return false.
+// This function is used for compile-time validation only.
+// See hasBashRestrictedAllowlist for the variant used in MCP CLI command injection.
+func hasBashExplicitRestriction(tools map[string]any) bool {
+	if tools == nil {
+		return false
+	}
+	bashConfig, hasBash := tools["bash"]
+	if !hasBash || bashConfig == nil {
+		return false
+	}
+	if asBool, ok := bashConfig.(bool); ok {
+		// bash: false disables bash (explicit restriction); bash: true allows all (unrestricted)
+		return !asBool
+	}
+	bashCommands, ok := bashConfig.([]any)
+	if !ok {
+		return false
+	}
+	// empty list explicitly allows no commands — that is a restriction
+	if len(bashCommands) == 0 {
+		return true
+	}
+	for _, cmd := range bashCommands {
+		if cmdStr, ok := cmd.(string); ok && (cmdStr == "*" || cmdStr == ":*") {
+			return false
+		}
+	}
+	return true
 }
 
 // validateWorkflowRunBranches validates workflow_run trigger requirements.

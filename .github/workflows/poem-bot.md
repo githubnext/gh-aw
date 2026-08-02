@@ -48,9 +48,7 @@ tools:
     toolsets: [default]
   edit:
   bash:
-    - "echo"
-    - "date"
-    - "git"
+    - "*"
   # Memory cache for persistent AI memory across runs
   cache-memory:
     key: poem-memory-${{ github.workflow }}

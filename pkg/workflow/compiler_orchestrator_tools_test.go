@@ -632,7 +632,7 @@ tracker-id: TEST-123
 	assert.Equal(t, "TEST-123", result.trackerID, "Tracker ID should be extracted")
 }
 
-// TestProcessToolsAndMarkdown_CustomEngineNoTools tests codex engine tool processing
+// TestProcessToolsAndMarkdown_CustomEngineNoTools tests that codex engine rejects restricted bash allowlists
 func TestProcessToolsAndMarkdown_CustomEngineNoTools(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tools-codex-engine")
 
@@ -660,6 +660,48 @@ tools:
 
 	importsResult := &parser.ImportsResult{}
 
+	_, err = compiler.processToolsAndMarkdown(
+		frontmatterResult,
+		testFile,
+		tmpDir,
+		agenticEngine,
+		"codex",
+		importsResult,
+	)
+
+	// Codex engine does not support restricted bash allowlists - should produce a compile error
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not support bash command allow-listing")
+}
+
+// TestProcessToolsAndMarkdown_CodexWildcardBashSucceeds tests that codex engine with bash: ["*"] compiles cleanly
+func TestProcessToolsAndMarkdown_CodexWildcardBashSucceeds(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "tools-codex-wildcard")
+
+	testContent := `---
+on: push
+engine: codex
+tools:
+  bash:
+    - "*"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(testContent)
+	require.NoError(t, err)
+
+	agenticEngine, err := compiler.getAgenticEngine("codex")
+	require.NoError(t, err)
+
+	importsResult := &parser.ImportsResult{}
+
 	result, err := compiler.processToolsAndMarkdown(
 		frontmatterResult,
 		testFile,
@@ -669,11 +711,9 @@ tools:
 		importsResult,
 	)
 
+	// Codex engine with wildcard bash should compile without error
 	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	// Codex engine supports tool allowlists - tools should be processed
-	assert.NotEmpty(t, result.tools)
+	assert.NotNil(t, result)
 }
 
 // TestProcessToolsAndMarkdown_IncludeExpansionError tests include expansion errors
