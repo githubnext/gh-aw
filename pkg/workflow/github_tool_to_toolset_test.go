@@ -185,9 +185,9 @@ func TestValidateGitHubToolsAgainstToolsets(t *testing.T) {
 			errorContains:   []string{"labels", "list_label"},
 		},
 		{
-			name:            "Search toolset",
-			allowedTools:    []string{"search_repositories", "search_users"},
-			enabledToolsets: []string{"search"},
+			name:            "Redistributed search tools",
+			allowedTools:    []string{"search_repositories", "search_users", "semantic_issues_search"},
+			enabledToolsets: []string{"repos", "users", "issues"},
 			expectError:     false,
 		},
 	}
@@ -291,8 +291,8 @@ func TestGitHubToolToToolsetMap_Completeness(t *testing.T) {
 	// Verify that the map contains entries for all expected tool categories
 	expectedToolsets := []string{
 		"context", "repos", "issues", "pull_requests", "actions",
-		"code_security", "discussions", "gists", "labels",
-		"notifications", "orgs", "users", "search", "secret_protection",
+		"code_quality", "code_security", "copilot", "discussions", "gists", "labels",
+		"notifications", "orgs", "users", "secret_protection", "security_advisories",
 	}
 
 	foundToolsets := make(map[string]bool)
@@ -319,28 +319,36 @@ func TestGitHubToolToToolsetMap_IncludesDefaultGitHubTools(t *testing.T) {
 func TestGitHubToolToToolsetMap_ConsistencyWithDocumentation(t *testing.T) {
 	// Sample of tools that should be in the map based on documentation
 	expectedMappings := map[string]string{
-		"get_me":                      "context",
-		"get_repository":              "repos",
-		"get_file_contents":           "repos",
-		"list_issues":                 "issues",
-		"create_issue":                "issues",
-		"issue_dependency_read":       "issues",
-		"issue_dependency_write":      "issues",
-		"pull_request_read":           "pull_requests",
-		"search_pull_requests":        "pull_requests",
-		"actions_list":                "actions",
-		"actions_get":                 "actions",
-		"actions_run_trigger":         "actions",
-		"list_code_scanning_alerts":   "code_security",
-		"create_discussion":           "discussions",
-		"create_gist":                 "gists",
-		"get_label":                   "labels",
-		"list_label":                  "labels",
-		"list_notifications":          "notifications",
-		"get_organization":            "orgs",
-		"get_user":                    "users",
-		"search_repositories":         "search",
-		"list_secret_scanning_alerts": "secret_protection",
+		"get_me":                           "context",
+		"get_repository":                   "repos",
+		"get_file_contents":                "repos",
+		"list_issues":                      "issues",
+		"create_issue":                     "issues",
+		"issue_dependency_read":            "issues",
+		"issue_dependency_write":           "issues",
+		"pull_request_read":                "pull_requests",
+		"search_pull_requests":             "pull_requests",
+		"actions_list":                     "actions",
+		"actions_get":                      "actions",
+		"actions_run_trigger":              "actions",
+		"get_code_quality_finding":         "code_quality",
+		"create_pull_request_with_copilot": "copilot",
+		"list_code_scanning_alerts":        "code_security",
+		"create_discussion":                "discussions",
+		"create_gist":                      "gists",
+		"get_label":                        "labels",
+		"list_label":                       "labels",
+		"list_notifications":               "notifications",
+		"get_organization":                 "orgs",
+		"search_orgs":                      "orgs",
+		"get_user":                         "users",
+		"search_users":                     "users",
+		"search_repositories":              "repos",
+		"semantic_issue_similarity_search": "issues",
+		"semantic_issues_search":           "issues",
+		"check_dependency_vulnerabilities": "security_advisories",
+		"list_secret_scanning_alerts":      "secret_protection",
+		"run_secret_scanning":              "secret_protection",
 	}
 
 	toolToToolsetMap := loadGitHubToolToToolsetMap(t)

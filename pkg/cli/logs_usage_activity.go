@@ -21,6 +21,7 @@ type usageActivitySummary struct {
 	Session     *usageActivitySession     `json:"session,omitempty"`
 	Gateway     *usageActivityGateway     `json:"gateway,omitempty"`
 	SafeOutputs *usageActivitySafeOutputs `json:"safe_outputs,omitempty"`
+	Experiments *usageActivityExperiments `json:"experiments,omitempty"`
 }
 
 type usageActivityFirewall struct {
@@ -59,6 +60,11 @@ type usageActivityGatewayServer struct {
 type usageActivitySafeOutputs struct {
 	TotalItems  int            `json:"total_items"`
 	ItemsByType map[string]int `json:"items_by_type,omitempty"`
+}
+
+type usageActivityExperiments struct {
+	// Assignments maps each experiment name to the variant selected for this run.
+	Assignments map[string]string `json:"assignments,omitempty"`
 }
 
 func loadUsageActivitySummary(runDir string) (*usageActivitySummary, error) {

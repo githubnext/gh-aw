@@ -31,18 +31,19 @@ var experimentsLog = logger.New("cli:experiments_command")
 // experimentsBranchPrefix is the git branch prefix used to identify experiment state branches.
 const experimentsBranchPrefix = "experiments/"
 
-// ExperimentState represents the state.json format stored in experiments/* branches.
-// This matches the format written by pick_experiment.cjs.
+// ExperimentState represents experiment state stored in experiments/* branches.
+// This matches the legacy JSON snapshot format and the JSONL run-ledger format written by pick_experiment.cjs.
 type ExperimentState struct {
 	Counts map[string]map[string]int `json:"counts"` // experiment name → variant → count
 	Runs   []ExperimentRunRecord     `json:"runs,omitempty"`
 }
 
-// ExperimentRunRecord represents a single workflow run in the state history.
+// ExperimentRunRecord represents a single workflow run in the JSONL ledger.
 type ExperimentRunRecord struct {
-	RunID       string            `json:"run_id"`
-	Timestamp   string            `json:"timestamp"`
-	Assignments map[string]string `json:"assignments"`
+	RunID          string                    `json:"run_id"`
+	Timestamp      string                    `json:"timestamp"`
+	Assignments    map[string]string         `json:"assignments"`
+	BaselineCounts map[string]map[string]int `json:"baseline_counts,omitempty"`
 }
 
 // ExperimentVariantStats holds counts for all variants of one named A/B experiment.
@@ -94,8 +95,9 @@ func NewExperimentsCommand() *cobra.Command {
 		Long: `List and analyze experiment workflow branches in the repository.
 
 Experiments are tracked via git branches with the "experiments/" prefix (e.g.,
-experiments/my-workflow). Each branch stores a state.json file written by the
-workflow's pick_experiment step, containing variant counts and run history.
+experiments/my-workflow). Each branch stores a state.jsonl or state.json file
+written by the workflow's pick_experiment step, containing variant counts and
+run history.
 
 Available subcommands:
   - list    - List all experiment workflow branches (default)
@@ -131,7 +133,7 @@ func NewExperimentsListSubcommand() *cobra.Command {
 		Short: "List all experiment workflow branches",
 		Long: `List all experiment workflow branches in the repository.
 
-Reads the state.json file from each experiments/* branch and shows a summary
+Reads the state.jsonl/state.json file from each experiments/* branch and shows a summary
 of each workflow's A/B experiments: number of experiments defined, total runs,
 and timestamp of the most recent run.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` experiments list                             # List all experiments
@@ -163,7 +165,7 @@ func NewExperimentsAnalyzeSubcommand() *cobra.Command {
 The experiment argument is the workflow ID (branch name without the "experiments/"
 prefix, e.g., "my-workflow" for the "experiments/my-workflow" branch).
 
-Reads the state.json file from the branch and shows per-variant counts, total
+Reads the state.jsonl/state.json file from the branch and shows per-variant counts, total
 runs, and the most recent run assignments.`,
 		Example: `  ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow              # Analyze experiments/my-workflow
   ` + string(constants.CLIExtensionPrefix) + ` experiments analyze my-workflow --json       # Output in JSON format
@@ -676,7 +678,7 @@ func fetchRemoteExperiments(repoOverride string) ([]ExperimentInfo, error) {
 	return experiments, nil
 }
 
-// fetchLocalExperimentDetails reads the state.json from a local experiment branch.
+// fetchLocalExperimentDetails reads experiment state from a local experiment branch.
 func fetchLocalExperimentDetails(branchName, workflowID string) (*ExperimentDetails, error) {
 	experimentsLog.Printf("Fetching local experiment details: branch=%s", branchName)
 
@@ -693,7 +695,7 @@ func fetchLocalExperimentDetails(branchName, workflowID string) (*ExperimentDeta
 	return experimentDetailsFromState(workflowID, branchName, state), nil
 }
 
-// fetchRemoteExperimentDetails reads the state.json from a remote experiment branch.
+// fetchRemoteExperimentDetails reads experiment state from a remote experiment branch.
 func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (*ExperimentDetails, error) {
 	experimentsLog.Printf("Fetching remote experiment details: repo=%s, branch=%s", repoOverride, branchName)
 
@@ -721,39 +723,88 @@ func fetchRemoteExperimentDetails(repoOverride, branchName, workflowID string) (
 	return experimentDetailsFromState(workflowID, branchName, state), nil
 }
 
-// readLocalExperimentState reads state.json from a local git ref (e.g. "origin/experiments/foo").
+func experimentStateFilenames() []string {
+	return []string{"state.jsonl", "state.json"}
+}
+
+// readLocalExperimentState reads experiment state from a local git ref (e.g. "origin/experiments/foo").
 // Returns an empty state when the file is absent or cannot be parsed.
 func readLocalExperimentState(ref string) *ExperimentState {
-	cmd := exec.Command("git", "show", ref+":state.json")
-	out, err := cmd.Output()
-	if err != nil {
-		return emptyExperimentState()
+	for _, fileName := range experimentStateFilenames() {
+		cmd := exec.Command("git", "show", ref+":"+fileName)
+		out, err := cmd.Output()
+		if err == nil {
+			return parseExperimentState(out)
+		}
 	}
-	return parseExperimentState(out)
+	return emptyExperimentState()
 }
 
-// readRemoteExperimentState fetches state.json from an experiments/* branch via the GitHub API.
+// readRemoteExperimentState fetches experiment state from an experiments/* branch via the GitHub API.
 // Returns an empty state on any error (branch missing, file absent, parse failure).
 func readRemoteExperimentState(repoOverride, branchName string) *ExperimentState {
-	decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, "state.json", "")
-	if err != nil {
-		return emptyExperimentState()
+	for _, fileName := range experimentStateFilenames() {
+		decoded, err := readRemoteRepoBranchFile(repoOverride, branchName, fileName, "")
+		if err == nil {
+			return parseExperimentState(decoded)
+		}
 	}
-	return parseExperimentState(decoded)
+	return emptyExperimentState()
 }
 
-// parseExperimentState unmarshals raw JSON into an ExperimentState.
-// Returns an empty state when parsing fails or the data is invalid.
-func parseExperimentState(data []byte) *ExperimentState {
-	var state ExperimentState
-	if err := json.Unmarshal(data, &state); err != nil {
-		return emptyExperimentState()
-	}
-	// Validate: state.json must have a counts object.
+func appendExperimentRun(state *ExperimentState, run ExperimentRunRecord) {
 	if state.Counts == nil {
 		state.Counts = map[string]map[string]int{}
 	}
-	return &state
+	for name, variants := range run.BaselineCounts {
+		if state.Counts[name] == nil {
+			state.Counts[name] = map[string]int{}
+		}
+		for variant, count := range variants {
+			state.Counts[name][variant] += count
+		}
+	}
+	for name, variant := range run.Assignments {
+		if state.Counts[name] == nil {
+			state.Counts[name] = map[string]int{}
+		}
+		state.Counts[name][variant]++
+	}
+	state.Runs = append(state.Runs, run)
+}
+
+func parseExperimentStateJSONL(data []byte) *ExperimentState {
+	state := emptyExperimentState()
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		var snapshot ExperimentState
+		if err := json.Unmarshal([]byte(line), &snapshot); err == nil && snapshot.Counts != nil {
+			state = &snapshot
+			continue
+		}
+
+		var run ExperimentRunRecord
+		if err := json.Unmarshal([]byte(line), &run); err != nil || run.RunID == "" || run.Timestamp == "" || len(run.Assignments) == 0 {
+			experimentsLog.Printf("parseExperimentStateJSONL: skipping unrecognized line")
+			continue
+		}
+		appendExperimentRun(state, run)
+	}
+	return state
+}
+
+// parseExperimentState unmarshals raw JSON or JSONL into an ExperimentState.
+// Returns an empty state when parsing fails or the data is invalid.
+func parseExperimentState(data []byte) *ExperimentState {
+	var state ExperimentState
+	if err := json.Unmarshal(data, &state); err == nil && state.Counts != nil {
+		return &state
+	}
+	return parseExperimentStateJSONL(data)
 }
 
 // emptyExperimentState returns a zero-value ExperimentState with an initialised Counts map.
@@ -761,7 +812,7 @@ func emptyExperimentState() *ExperimentState {
 	return &ExperimentState{Counts: map[string]map[string]int{}}
 }
 
-// experimentInfoFromState builds an ExperimentInfo summary from a state.json.
+// experimentInfoFromState builds an ExperimentInfo summary from experiment state.
 func experimentInfoFromState(workflowID, branchName string, state *ExperimentState) ExperimentInfo {
 	return ExperimentInfo{
 		WorkflowID:  workflowID,
@@ -772,7 +823,7 @@ func experimentInfoFromState(workflowID, branchName string, state *ExperimentSta
 	}
 }
 
-// experimentDetailsFromState builds ExperimentDetails from a state.json.
+// experimentDetailsFromState builds ExperimentDetails from experiment state.
 func experimentDetailsFromState(workflowID, branchName string, state *ExperimentState) *ExperimentDetails {
 	experiments := make([]ExperimentVariantStats, 0, len(state.Counts))
 	for name, variants := range state.Counts {
@@ -905,7 +956,7 @@ func printExperimentDetails(d *ExperimentDetails) {
 			}
 		}
 	} else {
-		fmt.Fprintln(os.Stderr, "\nNo experiment data found (state.json not present or empty).")
+		fmt.Fprintln(os.Stderr, "\nNo experiment data found (state.jsonl/state.json not present or empty).")
 	}
 
 	printExperimentAnalyses(d.Analyses)
