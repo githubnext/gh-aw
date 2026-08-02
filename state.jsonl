@@ -1,0 +1,11 @@
+{"run_id":"30038928843","timestamp":"2026-07-23T19:41:00.076Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
+{"run_id":"30121382400","timestamp":"2026-07-24T19:42:24.537Z","assignments":{"sub_agent_strategy":"single_agent_control"}}
+{"run_id":"30171909664","timestamp":"2026-07-25T19:36:07.779Z","assignments":{"sub_agent_strategy":"single_agent_control"}}
+{"run_id":"30217178815","timestamp":"2026-07-26T19:36:14.993Z","assignments":{"sub_agent_strategy":"inline_strict"}}
+{"run_id":"30299477403","timestamp":"2026-07-27T19:43:50.604Z","assignments":{"sub_agent_strategy":"single_agent_control"}}
+{"run_id":"30393148171","timestamp":"2026-07-28T19:43:41.566Z","assignments":{"sub_agent_strategy":"single_agent_control"}}
+{"run_id":"30485362869","timestamp":"2026-07-29T19:40:02.039Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
+{"run_id":"30576027335","timestamp":"2026-07-30T19:43:57.859Z","assignments":{"sub_agent_strategy":"single_agent_control"}}
+{"run_id":"30660153448","timestamp":"2026-07-31T19:43:32.935Z","assignments":{"sub_agent_strategy":"inline_strict"}}
+{"run_id":"30715092481","timestamp":"2026-08-01T19:36:02.108Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
+{"run_id":"30763720875","timestamp":"2026-08-02T19:36:17.973Z","assignments":{"sub_agent_strategy":"delegated_sequential"}}
