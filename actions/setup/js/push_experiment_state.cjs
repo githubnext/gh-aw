@@ -131,8 +131,11 @@ function mergeExperimentStateJSONL(remoteContent, localContent) {
       let entry;
       try {
         entry = JSON.parse(trimmed);
-      } catch (err) {
-        throw new Error(`Failed to parse state.jsonl conflict entry: ${getErrorMessage(err)}`, { cause: err });
+      } catch {
+        // Skip lines that cannot be parsed as JSON. This makes the merge resilient
+        // to partial writes or corruption in either side of the conflict.
+        core.warning(`mergeExperimentStateJSONL: skipping unparseable line during conflict merge`);
+        continue;
       }
       const key = stableJSONStringify(entry);
       if (!seen.has(key)) {

@@ -218,4 +218,18 @@ describe("push_experiment_state", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].run_id).toBe("X1");
   });
+
+  it("mergeExperimentStateJSONL skips unparseable lines and emits a warning", () => {
+    const valid = '{"run_id":"V1","timestamp":"2026-08-01T12:00:00.000Z","assignments":{"f":"A"}}\n';
+    // Simulate a partially-written or corrupted line in the remote content.
+    const corrupt = "not-valid-json\n" + valid;
+    const result = mergeExperimentStateJSONL(corrupt, "");
+    const entries = result
+      .trim()
+      .split("\n")
+      .map(line => JSON.parse(line));
+    expect(entries).toHaveLength(1);
+    expect(entries[0].run_id).toBe("V1");
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("skipping unparseable line"));
+  });
 });
