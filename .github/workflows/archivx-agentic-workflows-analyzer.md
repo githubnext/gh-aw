@@ -17,6 +17,14 @@ tools:
   cli-proxy: true
   agentic-workflows:
   bash: true
+steps:
+  - name: Download agentic workflow logs (last 7 days)
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    run: |
+      set -euo pipefail
+      mkdir -p /tmp/gh-aw/aw-mcp/logs
+      ./gh-aw logs --start-date -7d --count 200 -o /tmp/gh-aw/aw-mcp/logs
 safe-outputs:
   create-discussion:
     category: "General"
@@ -53,18 +61,26 @@ You are Archivx, an animated workflow visualizer that creates premium animated H
 
 Analyze the past 7 days of agentic workflow runs and generate an animated visual summary using the glowmotion skill. Upload the diagram as an artifact and create a discussion with key insights.
 
+{{#runtime-import? shared/aw-logs-24h-fetch-prompt.md}}
+
 ## Step 1: Collect Workflow Data
 
-Use the agentic-workflows MCP tool `logs` with parameters:
-- `start_date`: "-7d"
-- `count`: 200
-
-From the summary, extract:
+Workflow logs for the past 7 days have been pre-downloaded to `/tmp/gh-aw/aw-mcp/logs/`. Read the `aw_info.json` metadata files to extract:
 - Total runs and overall success rate
 - Top 5 workflows by run count
 - Top 3 failing workflows
 - Engine distribution (claude, copilot, codex, gemini)
 - Average token usage
+
+```bash
+# Count total runs
+ls /tmp/gh-aw/aw-mcp/logs/ | wc -l
+
+# Read metadata from all runs
+for d in /tmp/gh-aw/aw-mcp/logs/*/; do
+  cat "$d/aw_info.json" 2>/dev/null || true
+done
+```
 
 If fewer than 5 runs are found, call `noop` with message:
 "Insufficient workflow data for visual summary (fewer than 5 runs in the past 7 days)."
@@ -83,7 +99,7 @@ Derive `GLOWMOTION_SCRIPTS` as the directory containing `layout.py`. If not foun
 
 ### 3a. Author the Graph JSON
 
-Write a graph JSON to `/tmp/glowmotion-graph.json` describing the agentic workflow ecosystem as an `architecture` diagram:
+Write a graph JSON to `/tmp/gh-aw/agent/glowmotion-graph.json` describing the agentic workflow ecosystem as an `architecture` diagram:
 
 - **mode**: `"architecture"`
 - **darkTheme**: `"aurora"` (appropriate for data/ML topics)
@@ -99,20 +115,20 @@ Write a graph JSON to `/tmp/glowmotion-graph.json` describing the agentic workfl
 ### 3b. Render
 
 ```bash
-python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/glowmotion-graph.json --render /tmp/agentic-workflows-archivx.html
+python3 "${GLOWMOTION_SCRIPTS}/layout.py" /tmp/gh-aw/agent/glowmotion-graph.json --render /tmp/gh-aw/agent/agentic-workflows-archivx.html
 ```
 
 ### 3c. Verify
 
 ```bash
-python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" /tmp/agentic-workflows-archivx.html
+python3 "${GLOWMOTION_SCRIPTS}/check_diagram.py" /tmp/gh-aw/agent/agentic-workflows-archivx.html
 ```
 
-Fix every violation by editing `/tmp/glowmotion-graph.json` and re-rendering until the checker prints `0 violations`.
+Fix every violation by editing `/tmp/gh-aw/agent/glowmotion-graph.json` and re-rendering until the checker prints `0 violations`.
 
 ## Step 4: Upload the Artifact
 
-Upload `/tmp/agentic-workflows-archivx.html` as artifact named `archivx-animated-diagram` (HTML, opens in any browser).
+Upload `/tmp/gh-aw/agent/agentic-workflows-archivx.html` as artifact named `archivx-animated-diagram` (HTML, opens in any browser).
 
 ## Step 5: Create Discussion
 
