@@ -170,7 +170,7 @@ func (c *Compiler) addActivationVersionCheckStep(ctx *activationJobBuildContext)
 	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("check_version_updates.cjs"))
 }
 
-func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) error {
+func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) {
 	skillRefs := append([]SkillReference(nil), ctx.data.SkillReferences...)
 	if len(skillRefs) == 0 && len(ctx.data.Skills) > 0 {
 		skillRefs = make([]SkillReference, 0, len(ctx.data.Skills))
@@ -182,7 +182,7 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 		}
 	}
 	if len(skillRefs) == 0 {
-		return nil
+		return
 	}
 
 	engineID := resolveActivationEngineID(ctx.data)
@@ -243,8 +243,6 @@ func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext
 
 	ctx.outputs["skill_install_failure_count"] = "${{ steps.collect-skill-install-failures.outputs.failure_count || '0' }}"
 	ctx.outputs["skill_install_errors"] = "${{ steps.collect-skill-install-failures.outputs.errors || '' }}"
-
-	return nil
 }
 
 func (c *Compiler) addActivationTextOutputStep(ctx *activationJobBuildContext) error {
@@ -312,9 +310,7 @@ func (c *Compiler) addActivationStatusCommentStep(ctx *activationJobBuildContext
 	if ctx.data.LockForAgent {
 		ctx.steps = append(ctx.steps, "          GH_AW_LOCK_FOR_AGENT: \"true\"\n")
 	}
-	if err := addActivationSafeOutputMessagesEnv(ctx); err != nil {
-		return err
-	}
+	addActivationSafeOutputMessagesEnv(ctx)
 	ctx.steps = append(ctx.steps, "        with:\n")
 	commentToken := c.resolveActivationToken(ctx.data)
 	if commentToken != "${{ secrets.GITHUB_TOKEN }}" {
@@ -328,18 +324,16 @@ func (c *Compiler) addActivationStatusCommentStep(ctx *activationJobBuildContext
 	return nil
 }
 
-func addActivationSafeOutputMessagesEnv(ctx *activationJobBuildContext) error {
+func addActivationSafeOutputMessagesEnv(ctx *activationJobBuildContext) {
 	if ctx.data.SafeOutputs == nil || ctx.data.SafeOutputs.Messages == nil {
-		return nil
+		return
 	}
-	messagesJSON, err := serializeMessagesConfig(ctx.data.SafeOutputs.Messages)
-	if err != nil {
-		return fmt.Errorf("failed to serialize messages config for activation job: %w", err)
-	}
+	// serializeMessagesConfig uses json.Marshal on a struct containing only strings and bools,
+	// so it cannot fail in practice; the error is intentionally ignored here.
+	messagesJSON, _ := serializeMessagesConfig(ctx.data.SafeOutputs.Messages)
 	if messagesJSON != "" {
 		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_AW_SAFE_OUTPUT_MESSAGES: %q\n", messagesJSON))
 	}
-	return nil
 }
 
 func (c *Compiler) addActivationIssueLockStep(ctx *activationJobBuildContext) {

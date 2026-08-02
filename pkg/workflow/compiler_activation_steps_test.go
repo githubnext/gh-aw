@@ -267,9 +267,8 @@ func TestActivationStepsAddSkillInstallSteps(t *testing.T) {
 			},
 		})
 
-		err := compiler.addActivationSkillInstallSteps(ctx)
+		compiler.addActivationSkillInstallSteps(ctx)
 
-		require.NoError(t, err)
 		steps := strings.Join(ctx.steps, "")
 		assert.Contains(t, steps, "Upgrade gh CLI for frontmatter skills")
 		assert.Contains(t, steps, "Install frontmatter skill 1")
@@ -284,9 +283,8 @@ func TestActivationStepsAddSkillInstallSteps(t *testing.T) {
 	t.Run("skips when no skills are configured", func(t *testing.T) {
 		ctx := newActivationStepsTestContext(&WorkflowData{})
 
-		err := compiler.addActivationSkillInstallSteps(ctx)
+		compiler.addActivationSkillInstallSteps(ctx)
 
-		require.NoError(t, err)
 		assert.Empty(t, ctx.steps)
 		assert.Empty(t, ctx.outputs)
 	})
@@ -412,6 +410,7 @@ func TestActivationStepsAddStatusCommentStep(t *testing.T) {
 		assert.Contains(t, steps, "GH_AW_TRACKER_ID: \"tracker-1234\"")
 		assert.Contains(t, steps, "GH_AW_LOCK_FOR_AGENT: \"true\"")
 		assert.Contains(t, steps, "GH_AW_SAFE_OUTPUT_MESSAGES:")
+		assert.Contains(t, steps, "started")
 		assert.Contains(t, steps, "add_workflow_run_comment.cjs")
 		assert.NotContains(t, steps, "github-token:")
 		assert.Equal(t, "${{ steps.add-comment.outputs.comment-id }}", ctx.outputs["comment_id"])
@@ -433,7 +432,7 @@ func TestActivationStepsAddStatusCommentStep(t *testing.T) {
 }
 
 func TestActivationStepsAddSafeOutputMessagesEnv(t *testing.T) {
-	t.Run("adds serialized messages env", func(t *testing.T) {
+	t.Run("adds serialized messages env with message value", func(t *testing.T) {
 		ctx := newActivationStepsTestContext(&WorkflowData{
 			SafeOutputs: &SafeOutputsConfig{
 				Messages: &SafeOutputMessagesConfig{
@@ -442,18 +441,18 @@ func TestActivationStepsAddSafeOutputMessagesEnv(t *testing.T) {
 			},
 		})
 
-		err := addActivationSafeOutputMessagesEnv(ctx)
+		addActivationSafeOutputMessagesEnv(ctx)
 
-		require.NoError(t, err)
-		assert.Contains(t, strings.Join(ctx.steps, ""), "GH_AW_SAFE_OUTPUT_MESSAGES:")
+		combined := strings.Join(ctx.steps, "")
+		assert.Contains(t, combined, "GH_AW_SAFE_OUTPUT_MESSAGES:")
+		assert.Contains(t, combined, "failed")
 	})
 
 	t.Run("skips when messages are absent", func(t *testing.T) {
 		ctx := newActivationStepsTestContext(&WorkflowData{})
 
-		err := addActivationSafeOutputMessagesEnv(ctx)
+		addActivationSafeOutputMessagesEnv(ctx)
 
-		require.NoError(t, err)
 		assert.Empty(t, ctx.steps)
 	})
 }

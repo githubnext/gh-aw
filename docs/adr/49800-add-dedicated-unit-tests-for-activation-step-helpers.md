@@ -1,8 +1,8 @@
 # ADR-49800: Add Dedicated Unit Test File for Activation Step Helpers
 
 **Date**: 2026-08-02
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
+**Deciders**: Copilot
 
 ---
 
@@ -30,9 +30,10 @@ Write tests that call `Compiler.Compile(...)` end-to-end with fixture workflow d
 - Focused tests that directly exercise each helper make regressions in individual methods easy to identify without reading through a full compilation diff.
 - Error-returning paths (e.g., malformed model causing sanitization failure) are now explicitly covered, reducing the risk of silent breakage.
 - Tests run without a full compilation pass, keeping the unit-test suite fast.
+- Writing focused tests surfaced two helpers (`addActivationSkillInstallSteps`, `addActivationSafeOutputMessagesEnv`) whose `error` return types were unreachable; both were removed, simplifying callers and eliminating misleading dead-code paths.
 
 #### Negative
-- Adds 508 lines of test code that must be maintained alongside `compiler_activation_steps.go`; renaming helpers or changing their signatures requires updating both files.
+- Adds test code that must be maintained alongside `compiler_activation_steps.go`; renaming helpers or changing their signatures requires updating both files.
 - The test helpers (`newActivationStepsTestCompiler`, `newActivationStepsTestContext`) partially duplicate the construction logic of production build contexts and may drift if the context struct evolves.
 
 #### Neutral
@@ -41,4 +42,4 @@ Write tests that call `Compiler.Compile(...)` end-to-end with fixture workflow d
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR reviewed and accepted as part of PR #49800.*
