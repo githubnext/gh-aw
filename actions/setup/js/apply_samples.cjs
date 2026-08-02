@@ -41,7 +41,7 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
-const FETCH_TIMEOUT_MS = 30_000;
+const FETCH_TIMEOUT_MS = 120_000;
 
 /**
  * @typedef {Object} SampleEntry

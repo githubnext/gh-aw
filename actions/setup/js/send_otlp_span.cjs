@@ -873,7 +873,7 @@ const MAX_ATTR_VALUE_LENGTH = 1024;
  */
 const REDACTED = "[REDACTED]";
 
-const FETCH_TIMEOUT_MS = 10_000;
+const FETCH_TIMEOUT_MS = 120_000;
 
 /**
  * Sanitize an array of OTLP key-value attributes in-place (shallowly cloned).
