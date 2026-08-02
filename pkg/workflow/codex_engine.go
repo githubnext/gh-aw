@@ -291,8 +291,10 @@ func (e *CodexEngine) buildCodexCommand(workflowData *WorkflowData, commandName,
 
 func (e *CodexEngine) buildCodexExecutionCommand(workflowData *WorkflowData, logFile, codexCommand, harnessScriptName, detectionSchemaWriteCmd string, firewallEnabled bool) string {
 	if firewallEnabled {
-		codexCommandWithSetup := fmt.Sprintf(`%s && %s`, GetNpmBinPathSetup(), codexCommand)
-		if harnessScriptName == "" {
+		var codexCommandWithSetup string
+		if harnessScriptName != "" {
+			codexCommandWithSetup = fmt.Sprintf(`%s && %s`, GetNpmBinPathSetup(), codexCommand)
+		} else {
 			codexCommandWithSetup = fmt.Sprintf(`%s && INSTRUCTION="$(cat /tmp/gh-aw/aw-prompts/prompt.txt)" && %s`, GetNpmBinPathSetup(), codexCommand)
 		}
 		if dockerSbxCLIPath := GetDockerSbxNpmCLIPathSetup(workflowData); dockerSbxCLIPath != "" {

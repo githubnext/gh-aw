@@ -183,9 +183,10 @@ func (e *ClaudeEngine) parseClaudeMixedLogEntries(logContent string, verbose boo
 			continue
 		}
 		if strings.HasPrefix(trimmedLine, "[") {
-			if entries, next := extractClaudeJSONArrayEntries(lines, i); len(entries) > 0 {
+			entries, next := extractClaudeJSONArrayEntries(lines, i)
+			i = next // always advance past consumed lines regardless of parse success
+			if len(entries) > 0 {
 				logEntries = append(logEntries, entries...)
-				i = next
 				continue
 			}
 		}
@@ -249,16 +250,18 @@ func (e *ClaudeEngine) extractClaudeMetricsFromEntries(logEntries []map[string]a
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls across entries
 	var currentSequence []string                  // Track tool sequence within current context
 
+	var done bool
 	for _, entry := range logEntries {
 		switch e.claudeEntryType(entry) {
 		case "result":
 			e.applyClaudeResultEntry(&metrics, entry, verbose)
+			done = true
 		case "assistant":
 			currentSequence = append(currentSequence, e.claudeAssistantSequence(entry, toolCallMap)...)
 		case "user":
 			e.claudeUserToolResults(entry, toolCallMap)
 		}
-		if e.claudeEntryType(entry) == "result" {
+		if done {
 			break
 		}
 	}

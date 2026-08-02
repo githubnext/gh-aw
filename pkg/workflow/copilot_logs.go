@@ -164,6 +164,7 @@ type copilotSessionJSONLParser struct {
 	verbose               bool
 	totalTokenUsage       int
 	toolCallMap           map[string]*ToolCallInfo
+	toolUseIDMap          map[string]string // maps tool_use ID → tool name for output-size correlation
 	currentSequence       []string
 	turns                 int
 	assistantMessageCount int
@@ -172,8 +173,9 @@ type copilotSessionJSONLParser struct {
 
 func newCopilotSessionJSONLParser(verbose bool) *copilotSessionJSONLParser {
 	return &copilotSessionJSONLParser{
-		verbose:     verbose,
-		toolCallMap: make(map[string]*ToolCallInfo),
+		verbose:      verbose,
+		toolCallMap:  make(map[string]*ToolCallInfo),
+		toolUseIDMap: make(map[string]string),
 	}
 }
 
@@ -211,6 +213,9 @@ func (p *copilotSessionJSONLParser) handleAssistantEntry(entry SessionEntry) {
 			continue
 		}
 		p.currentSequence = append(p.currentSequence, content.Name)
+		if content.ID != "" {
+			p.toolUseIDMap[content.ID] = content.Name
+		}
 		inputSize := copilotSessionInputSize(content.Input)
 		if toolInfo, exists := p.toolCallMap[content.Name]; exists {
 			toolInfo.CallCount++
@@ -247,14 +252,18 @@ func (p *copilotSessionJSONLParser) handleUserEntry(entry SessionEntry) {
 		if content.Type != "tool_result" || content.ToolUseID == "" {
 			continue
 		}
-		outputSize := len(content.Content)
-		for toolName, toolInfo := range p.toolCallMap {
-			if outputSize > toolInfo.MaxOutputSize {
-				toolInfo.MaxOutputSize = outputSize
-				if p.verbose {
-					copilotLogsLog.Printf("Updated %s MaxOutputSize to %d bytes", toolName, outputSize)
+		toolName, ok := p.toolUseIDMap[content.ToolUseID]
+		if !ok {
+			continue
+		}
+		if outputSize := len(content.Content); outputSize > 0 {
+			if toolInfo, exists := p.toolCallMap[toolName]; exists {
+				if outputSize > toolInfo.MaxOutputSize {
+					toolInfo.MaxOutputSize = outputSize
+					if p.verbose {
+						copilotLogsLog.Printf("Updated %s MaxOutputSize to %d bytes", toolName, outputSize)
+					}
 				}
-				break
 			}
 		}
 	}
@@ -279,9 +288,6 @@ func (p *copilotSessionJSONLParser) finalize() (LogMetrics, bool) {
 	}
 	if !p.foundSessionEntry {
 		return p.metrics, false
-	}
-	if len(p.currentSequence) > 0 {
-		p.metrics.ToolSequences = append(p.metrics.ToolSequences, p.currentSequence)
 	}
 	copilotLogsLog.Printf("Session JSONL parsing complete: totalTokenUsage=%d, turns=%d, toolCalls=%d",
 		p.totalTokenUsage, p.turns, len(p.toolCallMap))
