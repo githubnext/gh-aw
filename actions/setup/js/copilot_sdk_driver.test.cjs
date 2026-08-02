@@ -1007,7 +1007,8 @@ describe("copilot_sdk_driver.cjs", () => {
       expect(onPermissionRequest({ kind: "mcp", serverName: "github", toolName: "get_file_contents" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "url", url: "https://example.com" })).toEqual({ kind: "approve-once" });
       expect(onPermissionRequest({ kind: "write", fileName: "a.txt", diff: "", intention: "" })).toEqual({ kind: "approve-once" });
-      expect(onPermissionRequest({ kind: "read", path: "a.txt", intention: "" })).toEqual({
+      // Reads of paths outside the workspace are denied without an explicit read grant.
+      expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({
         kind: "reject",
         feedback: "Tool invocation is not allowed by workflow tool permissions.",
       });
@@ -1215,17 +1216,97 @@ describe("copilot_sdk_driver.cjs", () => {
         // Relative paths that match the pattern must still work.
         expect(onPermissionRequest({ kind: "read", path: "pkg/workflow/compiler.go", intention: "" })).toEqual({ kind: "approve-once" });
 
-        // Files outside pkg/ or outside the workspace root must be denied.
-        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md", intention: "" })).toEqual({
-          kind: "reject",
-          feedback: "Tool invocation is not allowed by workflow tool permissions.",
-        });
+        // Files within the workspace root are always allowed (workspace-root allowlist).
+        // Even files outside pkg/ must be readable since they are part of the checkout.
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw", intention: "" })).toEqual({ kind: "approve-once" });
+        // Files outside the workspace root must be denied.
         expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({
           kind: "reject",
           feedback: "Tool invocation is not allowed by workflow tool permissions.",
         });
         // A path outside the workspace that contains /pkg/ must not be permitted.
         expect(onPermissionRequest({ kind: "read", path: "/other/workspace/pkg/workflow/file.go", intention: "" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+      } finally {
+        if (prevWorkspace === undefined) {
+          delete process.env.GITHUB_WORKSPACE;
+        } else {
+          process.env.GITHUB_WORKSPACE = prevWorkspace;
+        }
+      }
+    });
+
+    it("always allows read of workspace root and its subdirectories for read-only workflows (regression: #49836)", async () => {
+      // Regression test: a workflow with only specific tool restrictions (e.g., github MCP + specific
+      // bash commands) must never have read($GITHUB_WORKSPACE) denied. Previously, any workflow with
+      // partial tool restrictions and no explicit read grant would deny workspace reads, causing
+      // guard.tool_denials_exceeded after 3 attempts and killing the run.
+      const prevWorkspace = process.env.GITHUB_WORKSPACE;
+      process.env.GITHUB_WORKSPACE = "/home/runner/work/gh-aw/gh-aw";
+      try {
+        const disconnect = vi.fn().mockResolvedValue(undefined);
+        const stop = vi.fn().mockResolvedValue(undefined);
+        const createSession = vi.fn().mockResolvedValue({
+          sessionId: "session-workspace-root-always-readable",
+          on: () => {},
+          sendAndWait: vi.fn().mockResolvedValue({ data: { content: "ok" } }),
+          disconnect,
+        });
+        class FakeCopilotClient {
+          start = vi.fn().mockResolvedValue(undefined);
+          createSession = createSession;
+          stop = stop;
+        }
+
+        await runWithCopilotSDK({
+          sdkUri: "http://127.0.0.1:3002",
+          prompt: "test prompt",
+          logger: () => {},
+          // Read-only workflow: only github MCP + restricted bash, no explicit read grant.
+          permissionConfig: {
+            allowedTools: ["github", 'shell(find . -name "*_test.go" -type f)', "shell(cat **/*_test.go)", 'shell(grep -r "func Test" . --include="*_test.go")', "shell(go test -v ./...)", "shell(wc -l **/*_test.go)", "shell(gh:*)"],
+          },
+          sdkModule: {
+            CopilotClient: FakeCopilotClient,
+            RuntimeConnection: { forUri: vi.fn(() => ({})) },
+            approveAll: () => ({ kind: "approve-once" }),
+          },
+        });
+
+        const sessionConfig = createSession.mock.calls[0][0];
+        const onPermissionRequest = sessionConfig.onPermissionRequest;
+
+        // The workspace root itself must always be readable.
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw", intention: "" })).toEqual({ kind: "approve-once" });
+        // Any subdirectory under the workspace must be readable.
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/pkg/workflow", intention: "" })).toEqual({ kind: "approve-once" });
+        // Any file under the workspace must be readable.
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/pkg/workflow/copilot_engine_tools.go", intention: "" })).toEqual({ kind: "approve-once" });
+
+        // Relative paths must be resolved inside the workspace and approved.
+        expect(onPermissionRequest({ kind: "read", path: "AGENTS.md", intention: "" })).toEqual({ kind: "approve-once" });
+        expect(onPermissionRequest({ kind: "read", path: "pkg/workflow/file.go", intention: "" })).toEqual({ kind: "approve-once" });
+
+        // Path traversal attempts must be rejected even when they start with the workspace prefix.
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/../../../../etc/passwd", intention: "" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/../../../other-repo/secret.txt", intention: "" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+
+        // Paths outside the workspace root must still be denied.
+        expect(onPermissionRequest({ kind: "read", path: "/etc/passwd", intention: "" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        expect(onPermissionRequest({ kind: "read", path: "/home/runner/work/other-repo/secret.txt", intention: "" })).toEqual({
           kind: "reject",
           feedback: "Tool invocation is not allowed by workflow tool permissions.",
         });
@@ -1801,24 +1882,57 @@ for f in $FILES; do wc -l "/home/runner/work/gh-aw/gh-aw/pkg/workflow/$f"; done`
       expect(result).toEqual({ kind: "approve-once" });
     });
 
-    it("requires explicit read permission for AGENTS.md and SKILL.md reads", async () => {
-      const denied = await makePermissionHandlerViaSDK(["shell(ls)"]);
-      expect(denied({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md" })).toEqual({
-        kind: "reject",
-        feedback: "Tool invocation is not allowed by workflow tool permissions.",
-      });
-      expect(denied({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/SKILL.md" })).toEqual({
-        kind: "reject",
-        feedback: "Tool invocation is not allowed by workflow tool permissions.",
-      });
+    it("workspace files are always readable; only non-workspace paths require explicit read permission", async () => {
+      // Regression fix (#49836): workspace root and its contents are always readable regardless
+      // of tool restrictions. Only paths outside GITHUB_WORKSPACE require an explicit read grant.
+      const prevWorkspace = process.env.GITHUB_WORKSPACE;
+      process.env.GITHUB_WORKSPACE = "/home/runner/work/gh-aw/gh-aw";
+      try {
+        const deniedOutsideWorkspace = await makePermissionHandlerViaSDK(["shell(ls)"]);
+        // Files inside the workspace are always readable — no explicit grant needed.
+        expect(deniedOutsideWorkspace({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md" })).toEqual({
+          kind: "approve-once",
+        });
+        expect(deniedOutsideWorkspace({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/SKILL.md" })).toEqual({
+          kind: "approve-once",
+        });
+        // Relative paths must be resolved inside the workspace and approved.
+        expect(deniedOutsideWorkspace({ kind: "read", path: "AGENTS.md" })).toEqual({
+          kind: "approve-once",
+        });
+        expect(deniedOutsideWorkspace({ kind: "read", path: "pkg/workflow/file.go" })).toEqual({
+          kind: "approve-once",
+        });
+        // Path traversal attempts must be rejected even when they start with the workspace prefix.
+        expect(deniedOutsideWorkspace({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/../../../../etc/passwd" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        // Files outside the workspace still require an explicit read grant.
+        expect(deniedOutsideWorkspace({ kind: "read", path: "/etc/passwd" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
+        expect(deniedOutsideWorkspace({ kind: "read", path: "/home/runner/other-repo/secret.txt" })).toEqual({
+          kind: "reject",
+          feedback: "Tool invocation is not allowed by workflow tool permissions.",
+        });
 
-      const allowed = await makePermissionHandlerViaSDK(["read"]);
-      expect(allowed({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md" })).toEqual({
-        kind: "approve-once",
-      });
-      expect(allowed({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/SKILL.md" })).toEqual({
-        kind: "approve-once",
-      });
+        const allowed = await makePermissionHandlerViaSDK(["read"]);
+        // With an explicit read grant, all paths are readable.
+        expect(allowed({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/AGENTS.md" })).toEqual({
+          kind: "approve-once",
+        });
+        expect(allowed({ kind: "read", path: "/home/runner/work/gh-aw/gh-aw/SKILL.md" })).toEqual({
+          kind: "approve-once",
+        });
+      } finally {
+        if (prevWorkspace === undefined) {
+          delete process.env.GITHUB_WORKSPACE;
+        } else {
+          process.env.GITHUB_WORKSPACE = prevWorkspace;
+        }
+      }
     });
 
     it("denies issue-37538 commands when workflow only allows jq shell usage", async () => {

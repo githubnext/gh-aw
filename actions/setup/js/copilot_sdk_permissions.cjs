@@ -352,6 +352,21 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
         return allowedToolEntries.has("write");
       case "read":
         // Any read grant (read, read(...), read:*) is path-agnostic in Copilot SDK.
+        // Always allow reads for paths at or under the workspace root (GITHUB_WORKSPACE).
+        // Every workflow runs inside its own checkout and must be able to read its source tree
+        // regardless of any narrower tool-permission scoping configured elsewhere.
+        //
+        // Use path.resolve + path.relative for containment rather than a string-prefix check so
+        // that ".." traversal paths (e.g. workspace/../../../../etc/passwd) are rejected and
+        // relative paths (e.g. "AGENTS.md") are correctly resolved inside the workspace.
+        if (logOptions?.workspaceRoot && typeof request.path === "string" && request.path.length > 0) {
+          const resolvedWorkspace = path.resolve(logOptions.workspaceRoot);
+          const resolvedPath = path.isAbsolute(request.path) ? path.resolve(request.path) : path.resolve(resolvedWorkspace, request.path);
+          const rel = path.relative(resolvedWorkspace, resolvedPath);
+          if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
+            return true;
+          }
+        }
         return hasReadGrant || allowedToolEntries.has("shell") || isReadPathAllowedByShellRules(request.path, readablePathPatterns, logOptions?.workspaceRoot);
       case "url":
         return allowedToolEntries.has("web_fetch");
