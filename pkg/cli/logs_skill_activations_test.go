@@ -248,12 +248,11 @@ No skills here.`,
 	}
 }
 
-// TestExtractSkillActivationsAgentOutputTakesPrecedence verifies that when
-// agent_output.json contains skill_invocation entries, log-file parsing is
-// skipped to avoid double-counting.
-func TestExtractSkillActivationsAgentOutputTakesPrecedence(t *testing.T) {
-	tmpDir := testutil.TempDir(t, "skill-precedence-*")
-	testRun := WorkflowRun{DatabaseID: 789, WorkflowName: "precedence-test"}
+// TestExtractSkillActivationsBothSourcesMerged verifies that skills from both
+// agent_output.json and log files are returned (applies to all skills).
+func TestExtractSkillActivationsBothSourcesMerged(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "skill-merge-*")
+	testRun := WorkflowRun{DatabaseID: 789, WorkflowName: "merge-test"}
 
 	// Write agent_output.json with one explicit entry.
 	agentOutputContent := `{
@@ -270,7 +269,7 @@ func TestExtractSkillActivationsAgentOutputTakesPrecedence(t *testing.T) {
 		t.Fatalf("failed to write agent_output.json: %v", err)
 	}
 
-	// Also write a log file that would produce a different entry.
+	// Also write a log file that has a different skill not present in agent_output.
 	logContent := `skill(from-log-file)`
 	logPath := filepath.Join(tmpDir, "agent.log")
 	if err := os.WriteFile(logPath, []byte(logContent), 0o600); err != nil {
@@ -282,14 +281,74 @@ func TestExtractSkillActivationsAgentOutputTakesPrecedence(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	if len(got) != 1 {
-		t.Fatalf("got %d activations, want 1 (agent_output should take precedence)", len(got))
+	// Both skills should be present since they have different names.
+	if len(got) != 2 {
+		names := make([]string, len(got))
+		for i, a := range got {
+			names[i] = a.Name
+		}
+		t.Fatalf("got %d activations %v, want 2 (both sources merged)", len(got), names)
 	}
-	if got[0].Name != "from-agent-output" {
-		t.Errorf("got skill name %q, want %q", got[0].Name, "from-agent-output")
+
+	byName := make(map[string]SkillActivation, len(got))
+	for _, a := range got {
+		byName[a.Name] = a
+	}
+
+	if act, ok := byName["from-agent-output"]; !ok {
+		t.Error("expected skill from-agent-output not found")
+	} else if act.Source != "agent_output" {
+		t.Errorf("from-agent-output source = %q, want %q", act.Source, "agent_output")
+	}
+
+	if act, ok := byName["from-log-file"]; !ok {
+		t.Error("expected skill from-log-file not found")
+	} else if act.Source != "log_parse" {
+		t.Errorf("from-log-file source = %q, want %q", act.Source, "log_parse")
+	}
+}
+
+// TestExtractSkillActivationsAgentOutputWinsOnDuplicate verifies that when the
+// same skill name appears in both agent_output.json and log files, the
+// agent_output version is kept (and the log entry is silently dropped).
+func TestExtractSkillActivationsAgentOutputWinsOnDuplicate(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "skill-dedup-*")
+	testRun := WorkflowRun{DatabaseID: 790, WorkflowName: "dedup-test"}
+
+	agentOutputContent := `{
+		"items": [
+			{
+				"type": "skill_invocation",
+				"name": "shared-skill",
+				"status": "invoked"
+			}
+		]
+	}`
+	agentOutputPath := filepath.Join(tmpDir, constants.AgentOutputFilename)
+	if err := os.WriteFile(agentOutputPath, []byte(agentOutputContent), 0o600); err != nil {
+		t.Fatalf("failed to write agent_output.json: %v", err)
+	}
+
+	// Log file mentions the same skill.
+	logContent := `skill(shared-skill)`
+	logPath := filepath.Join(tmpDir, "agent.log")
+	if err := os.WriteFile(logPath, []byte(logContent), 0o600); err != nil {
+		t.Fatalf("failed to write log file: %v", err)
+	}
+
+	got, err := extractSkillActivationsFromRun(tmpDir, testRun, false, "", "")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(got) != 1 {
+		t.Fatalf("got %d activations, want 1 (duplicate deduplicated)", len(got))
+	}
+	if got[0].Name != "shared-skill" {
+		t.Errorf("got skill name %q, want %q", got[0].Name, "shared-skill")
 	}
 	if got[0].Source != "agent_output" {
-		t.Errorf("got source %q, want %q", got[0].Source, "agent_output")
+		t.Errorf("got source %q, want %q (agent_output should win on duplicate)", got[0].Source, "agent_output")
 	}
 }
 

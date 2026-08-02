@@ -807,14 +807,14 @@ func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool,
 }
 
 // extractSkillActivationsFromRun extracts skill invocation records from a workflow run.
-// It first looks for explicit skill_invocation entries in the agent_output.json safe-output
-// artifact (Option 2 from the issue), then falls back to scanning raw agent log files for
-// engine-specific skill invocation patterns (e.g. Copilot's skill(name) form).
+// It applies to all skills in the workflow: Phase 1 reads explicit skill_invocation entries
+// from agent_output.json; Phase 2 always runs to supplement with any additional skills
+// detected in raw agent log files that were not already reported in Phase 1.
+// agent_output entries take precedence when the same skill name appears in both sources.
 // experimentName and variant are the pre-resolved experiment assignment for this run; pass
 // empty strings when no experiment context is available.
 func extractSkillActivationsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]SkillActivation, error) {
 	logsMetricsLog.Printf("Extracting skill activations from run: %d", run.DatabaseID)
-	var activations []SkillActivation
 
 	// Phase 1 – look for explicit skill_invocation items in agent_output.json.
 	agentOutputActivations, err := extractSkillActivationsFromAgentOutput(runDir, run, verbose, experimentName, variant)
@@ -823,18 +823,29 @@ func extractSkillActivationsFromRun(runDir string, run WorkflowRun, verbose bool
 			fmt.Sprintf("Failed to read skill activations from agent output for run %d: %v", run.DatabaseID, err),
 		))
 	}
-	activations = append(activations, agentOutputActivations...)
 
 	// Phase 2 – scan raw agent log files for engine-specific patterns.
-	// Skip if we already have explicit records from agent_output.json to avoid duplicates.
-	if len(activations) == 0 {
-		logActivations, logErr := extractSkillActivationsFromLogFiles(runDir, run, verbose, experimentName, variant)
-		if logErr != nil && verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
-				fmt.Sprintf("Failed to parse skill activations from logs for run %d: %v", run.DatabaseID, logErr),
-			))
+	// Always runs so that skills not covered by agent_output.json are also captured.
+	// Skills already found in Phase 1 are skipped to avoid duplicates.
+	logActivations, logErr := extractSkillActivationsFromLogFiles(runDir, run, verbose, experimentName, variant)
+	if logErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("Failed to parse skill activations from logs for run %d: %v", run.DatabaseID, logErr),
+		))
+	}
+
+	// Merge: agent_output entries take precedence; add log-parsed entries for skills
+	// not already present in the agent_output results.
+	seen := make(map[string]struct{}, len(agentOutputActivations))
+	activations := make([]SkillActivation, 0, len(agentOutputActivations)+len(logActivations))
+	for _, act := range agentOutputActivations {
+		seen[act.Name] = struct{}{}
+		activations = append(activations, act)
+	}
+	for _, act := range logActivations {
+		if _, already := seen[act.Name]; !already {
+			activations = append(activations, act)
 		}
-		activations = append(activations, logActivations...)
 	}
 
 	if verbose && len(activations) > 0 {
