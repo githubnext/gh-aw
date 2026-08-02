@@ -1,2 +1,2 @@
-{"id":"code_analyzed","question":"Did the agent analyze recently modified code for simplification opportunities?","answer":"YES","model":"small","timestamp":"2026-08-01T04:29:45.552Z","runid":"30683673238"}
-{"id":"pr_created_or_noop","question":"Was a pull request created with simplifications, or was noop used when no improvements were needed?","answer":"YES","model":"small","timestamp":"2026-08-01T04:29:45.552Z","runid":"30683673238"}
+{"id":"code_analyzed","question":"Did the agent analyze recently modified code for simplification opportunities?","answer":"YES","model":"evals","timestamp":"2026-08-02T04:26:29.476Z","runid":"30732150287"}
+{"id":"pr_created_or_noop","question":"Was a pull request created with simplifications, or was noop used when no improvements were needed?","answer":"YES","model":"evals","timestamp":"2026-08-02T04:26:29.476Z","runid":"30732150287"}
