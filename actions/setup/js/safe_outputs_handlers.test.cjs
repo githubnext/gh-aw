@@ -1440,19 +1440,22 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should require explicit pull_request_number when push_to_pull_request_branch target is '*'", async () => {
+    it("should require explicit repo when push_to_pull_request_branch target is '*'", async () => {
       const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
         push_to_pull_request_branch: {
           target: "*",
         },
       });
 
-      const result = await wildcardHandlers.pushToPullRequestBranchHandler({ message: "Apply requested changes." });
+      const result = await wildcardHandlers.pushToPullRequestBranchHandler({
+        message: "Apply requested changes.",
+        pull_request_number: 123,
+      });
 
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
-      expect(responseData.error).toContain("requires pull_request_number");
+      expect(responseData.error).toContain("requires repo");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
     });
 
