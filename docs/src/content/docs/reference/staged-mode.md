@@ -5,9 +5,9 @@ sidebar:
   order: 820
 ---
 
-Staged mode lets you run a workflow and see what [safe outputs](/gh-aw/reference/safe-outputs/) it would create — issues, comments, pull requests, and more — without actually creating anything. Every write operation is skipped; instead, a detailed preview appears in the GitHub Actions step summary with a 🎭 indicator.
+Staged mode lets you run a workflow and preview the [safe outputs](/gh-aw/reference/safe-outputs/) it would create — issues, comments, pull requests, and more — without making any changes. Every write operation is skipped and replaced with a detailed 🎭 preview in the GitHub Actions step summary.
 
-This is useful when you're adopting a new workflow and want to verify its behavior before it has any real effect, or when you want to share what a workflow *would* do with colleagues before enabling it in production.
+Use it to validate a new workflow before it has any real effect, or to share what a workflow *would* do before enabling it in production.
 
 ## Enabling Staged Mode
 
@@ -49,7 +49,7 @@ A type-level `staged` setting overrides the global one, so you can pilot one ris
 
 ## What the Preview Looks Like
 
-When staged mode is active the step summary contains a structured preview for each output type. The 🎭 emoji appears in every heading to make previews easy to spot:
+When staged mode is active, the step summary contains a structured preview for each output type. The 🎭 emoji marks every heading so previews are easy to spot:
 
 ```markdown
 ## 🎭 Staged Mode: Issue Creation Preview
@@ -75,7 +75,7 @@ Performance profiling shows repeated queries to the users table …
 **Preview Summary**: 2 operations previewed. No GitHub resources were created.
 ```
 
-The preview includes every field the AI populated — title, body, labels, assignees — so you can evaluate the full output before enabling.
+The preview includes every populated field — title, body, labels, assignees, and similar metadata — so you can review the full output before enabling it.
 
 ## Supported Output Types
 
@@ -148,20 +148,17 @@ The `{operation}` placeholder is replaced with the safe output operation name (f
 
 ## Recommended Workflow
 
-A common adoption pattern is to start with staged mode and disable it once you're satisfied with the output:
+A common adoption pattern is:
 
 1. Enable `staged: true` and trigger the workflow on a real event.
-2. Open the Actions run and review the 🎭 preview in the step summary.
-3. Adjust the workflow prompt or configuration based on the preview.
+2. Review the 🎭 preview in the Actions run summary.
+3. Adjust the prompt or configuration.
 4. Repeat until the output looks correct.
-5. Remove `staged: true` (or set it to `false`) to start creating real GitHub resources.
+5. Disable staged mode to start creating real GitHub resources.
 
 > [!TIP]
-> Keep staged mode enabled when iterating on prompt changes, and only remove it when the workflow is stable. You can always re-enable it for a single type if you add a new safe output.
+> Keep staged mode enabled while iterating on prompt changes, and re-enable it for a single output type when introducing a new safe output.
 
 ## Related Documentation
 
-- [Safe Outputs](/gh-aw/reference/safe-outputs/) — All built-in safe output types and their configuration
-- [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) — Adding custom jobs with staged mode support
-- [Frontmatter (Full)](/gh-aw/reference/frontmatter-full/) — Complete configuration reference
-- [Threat Detection](/gh-aw/reference/threat-detection/) — Security scanning for safe output content
+See [Safe Outputs](/gh-aw/reference/safe-outputs/) for built-in output types, [Custom Safe Outputs](/gh-aw/reference/custom-safe-outputs/) for custom jobs with staged mode support, [Frontmatter (Full)](/gh-aw/reference/frontmatter-full/) for the full configuration reference, and [Threat Detection](/gh-aw/reference/threat-detection/) for security scanning of safe output content.
