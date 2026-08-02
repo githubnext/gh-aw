@@ -126,10 +126,9 @@ Use [triggers.md](triggers.md), [workflow-patterns.md](workflow-patterns.md), an
 
 ### 3. Keep permissions read-only
 
-The main agent job must stay read-only.
+See [workflow-constraints.md](workflow-constraints.md) for the read-only security posture. Specific to workflow creation:
 
 - Do not grant `issues: write`, `pull-requests: write`, or `contents: write` to the agent job.
-- Route GitHub writes through `safe-outputs:`.
 - When targeting the Copilot coding agent, recommend `permissions: { copilot-requests: write }` so Copilot can authenticate with `${{ github.token }}`.
 - If the user asks for direct writes, explain why the safe-output pattern is required.
 

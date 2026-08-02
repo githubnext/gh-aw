@@ -314,6 +314,11 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 | `semantic_issue_similarity_search` | Find GitHub issues semantically similar to a given issue | `owner`, `repo`, `issue_number` |
 | `semantic_issues_search` | Search issues using natural language queries | `query`, `owner`, `repo` |
 
+> **`search_repositories` known limitation — `repo:` qualifier is ignored**: The `repo:owner/name` qualifier has no effect in `search_repositories` queries. Instead of scoping results to the named repository, the API ranks by star count and may return a completely unrelated high-star repository as the top hit (e.g. querying `repo:github/gh-aw` may return `github/gitignore`). **Do not use `repo:` with `search_repositories`.**
+>
+> - To check whether a specific repository exists or to fetch its metadata, use `get_file_contents` (with explicit `owner` and `repo`) or any other `repos`-toolset call that takes `owner`/`repo` directly.
+> - To discover repositories in a scope, use supported qualifiers such as `org:`, `user:`, `topic:`, `language:`, or `stars:`.
+
 ---
 
 ### secret_protection
@@ -359,7 +364,7 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 
 ## Pagination
 
-MCP tool responses have a **25,000 token limit**; always pass an explicit `perPage`. See [github-mcp-server-pagination.md](github-mcp-server-pagination.md) for per-tool `perPage` defaults, the pagination loop pattern, known tool quirks (`list_label`, `list_workflows`), and oversized-response recovery.
+MCP tool responses have a **25,000 token limit**; always pass an explicit `perPage`. See [github-mcp-server-pagination.md](github-mcp-server-pagination.md) for per-tool `perPage` defaults, the pagination loop pattern, known tool quirks (`list_label`, `list_workflows`, `search_repositories` with `repo:`), and oversized-response recovery.
 
 ---
 

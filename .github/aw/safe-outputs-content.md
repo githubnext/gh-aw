@@ -104,6 +104,8 @@ description: Safe-output reference for issue, discussion, comment, and pull requ
 
   `close-older-discussions: true` closes up to 10 older discussions matching the same title prefix or labels as "OUTDATED" with a comment linking to the new one. Requires `title-prefix` or `labels`.
 
+  `create_discussion` output validation requires `body` minimum length: **64** characters.
+
 - `close-discussion:` - Close discussions with comment and resolution
 
   ```yaml
