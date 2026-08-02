@@ -7,8 +7,9 @@ imports:
   - shared/security-analysis-base.md
   - shared/mcp/semgrep.md
   - shared/otlp.md
+# SECURITY: Daily schedule disabled — semgrep/semgrep has Critical/High CVEs with no upstream fix (issue #49520).
+# Re-enable schedule when a patched semgrep image is available and the container definition in shared/mcp/semgrep.md is restored.
 on:
-  schedule: daily
   workflow_dispatch:
 timeout-minutes: 30
 permissions:
