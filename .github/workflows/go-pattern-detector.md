@@ -56,7 +56,7 @@ engine: claude
 timeout-minutes: 10
 
 imports:
-  - shared/mcp/ast-grep.md
+  # Note: ast-grep.md excluded — mcp/ast-grep has Critical/High CVEs (see #49513)
   - shared/reporting.md
 
   - shared/otlp.md

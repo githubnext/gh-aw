@@ -32,7 +32,7 @@ imports:
       title-prefix: "[mcp-inspector] "
       expires: 1d
   - shared/mcp/arxiv.md
-  - shared/mcp/ast-grep.md
+  # Note: ast-grep.md excluded — mcp/ast-grep has Critical/High CVEs (see #49513)
   # Note: azure.md excluded due to schema validation issue with entrypointArgs
   # Note: brave.md excluded — docker.io/mcp/brave-search has Critical/High CVEs (see #48546)
   # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)

@@ -1,9 +1,10 @@
 ---
-mcp-servers:
-  ast-grep:
-    container: "mcp/ast-grep"
-    version: "latest"
-    allowed: ["*"]
+# ast-grep MCP Server
+# SECURITY: mcp/ast-grep:latest has Critical/High CVEs with no upstream fix available (issue #49513).
+# The container definition has been removed until a patched image is published upstream.
+# To re-enable, restore the mcp-servers block and update the pinned digest in actions-lock.json.
+#
+# Docker Image: https://hub.docker.com/r/mcp/ast-grep
 ---
 
 ## ast-grep MCP Server
