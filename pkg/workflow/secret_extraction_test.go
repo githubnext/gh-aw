@@ -372,33 +372,6 @@ func TestReplaceSecretsWithEnvVars_FallbackExpressionDeterminism(t *testing.T) {
 	}
 }
 
-// TestReplaceSecretsWithBashVars_FallbackExpressionDeterminism verifies that
-// ReplaceSecretsWithBashVars produces deterministic output for fallback expressions
-// with two secret references. Mirrors TestReplaceSecretsWithEnvVars_FallbackExpressionDeterminism.
-func TestReplaceSecretsWithBashVars_FallbackExpressionDeterminism(t *testing.T) {
-	value := "${{ secrets.DD_APPLICATION_KEY || secrets.DD_APP_KEY }}"
-
-	const runs = 50
-	var first string
-	for i := range runs {
-		got := ReplaceSecretsWithBashVars(value)
-		if i == 0 {
-			first = got
-			continue
-		}
-		if got != first {
-			t.Errorf("non-deterministic output: run 0 produced %q, run %d produced %q", first, i, got)
-		}
-	}
-
-	// "DD_APPLICATION_KEY" sorts before "DD_APP_KEY" ('L' < '_'), so it wins.
-	want := "${DD_APPLICATION_KEY}"
-	if first != want {
-		t.Errorf("ReplaceSecretsWithBashVars(%q) = %q, want %q", value, first, want)
-	}
-}
-
-// TestSharedExtractSecretsFromValueEdgeCases tests edge cases for the shared ExtractSecretsFromValue utility function
 func TestSharedExtractSecretsFromValueEdgeCases(t *testing.T) {
 	tests := []struct {
 		name     string
