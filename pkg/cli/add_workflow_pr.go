@@ -52,103 +52,88 @@ func sanitizeBranchName(name string) string {
 // addWorkflowsWithPR handles workflow addition with PR creation using pre-resolved workflows.
 func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts AddOptions) (int, string, error) {
 	addWorkflowPRLog.Printf("Adding %d workflow(s) with PR creation (resolved)", len(workflows))
+	currentBranch, branchName, tracker, err := prepareWorkflowPRBranch(workflows, opts)
+	if err != nil {
+		return 0, "", err
+	}
+	defer restoreWorkflowPRBranch(currentBranch, opts.Verbose)
+	if err := stageWorkflowsForPR(ctx, workflows, tracker, opts); err != nil {
+		return 0, "", err
+	}
+	commitMessage, prTitle, prBody := workflowPRMessages(workflows)
+	if err := commitWorkflowPRChanges(commitMessage, branchName, prTitle, opts.Verbose); err != nil {
+		return 0, "", err
+	}
+	if err := pushWorkflowPRBranch(branchName, prTitle, opts.Verbose); err != nil {
+		return 0, "", err
+	}
+	return createWorkflowPullRequest(ctx, tracker, currentBranch, branchName, prTitle, prBody, opts.Verbose)
+}
 
-	// Get current branch for restoration later
+func prepareWorkflowPRBranch(workflows []*ResolvedWorkflow, opts AddOptions) (string, string, *FileTracker, error) {
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
 		addWorkflowPRLog.Printf("Failed to get current branch: %v", err)
-		return 0, "", fmt.Errorf("failed to get current branch: %w", err)
+		return "", "", nil, fmt.Errorf("failed to get current branch: %w", err)
 	}
-
-	addWorkflowPRLog.Printf("Current branch: %s", currentBranch)
-
-	// Create temporary branch with random 4-digit number
-	// Use sanitized workflow name to avoid invalid git ref characters
-	randomNum := rand.Intn(9000) + 1000 // Generate number between 1000-9999
-	sanitizedName := sanitizeBranchName(workflows[0].Spec.WorkflowPath)
-	branchName := fmt.Sprintf("add-workflow-%s-%04d", sanitizedName, randomNum)
-
+	branchName := fmt.Sprintf("add-workflow-%s-%04d", sanitizeBranchName(workflows[0].Spec.WorkflowPath), rand.Intn(9000)+1000)
 	addWorkflowPRLog.Printf("Creating temporary branch: %s", branchName)
-
 	if err := createAndSwitchBranch(branchName, opts.Verbose); err != nil {
-		return 0, "", fmt.Errorf("failed to create branch %s: %w", branchName, err)
+		return "", "", nil, fmt.Errorf("failed to create branch %s: %w", branchName, err)
 	}
+	return currentBranch, branchName, NewFileTracker(), nil
+}
 
-	// Create file tracker for rollback capability
-	tracker := NewFileTracker()
+func restoreWorkflowPRBranch(currentBranch string, verbose bool) {
+	if switchErr := switchBranch(currentBranch, verbose); switchErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to branch %s: %v", currentBranch, switchErr)))
+	}
+}
 
-	// Ensure we switch back to original branch on exit
-	defer func() {
-		if switchErr := switchBranch(currentBranch, opts.Verbose); switchErr != nil && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to switch back to branch %s: %v", currentBranch, switchErr)))
-		}
-	}()
-
-	// Add workflows using the resolved workflow path
+func stageWorkflowsForPR(ctx context.Context, workflows []*ResolvedWorkflow, tracker *FileTracker, opts AddOptions) error {
 	addWorkflowPRLog.Print("Adding workflows to repository")
-	prOpts := opts
-	if err := addWorkflowsWithTracking(ctx, workflows, tracker, prOpts); err != nil {
+	if err := addWorkflowsWithTracking(ctx, workflows, tracker, opts); err != nil {
 		addWorkflowPRLog.Printf("Failed to add workflows: %v", err)
-		return 0, "", fmt.Errorf("failed to add workflows: %w", err)
+		return fmt.Errorf("failed to add workflows: %w", err)
 	}
-
-	// Stage all files before creating PR
 	addWorkflowPRLog.Print("Staging workflow files")
 	if err := tracker.StageAllFiles(opts.Verbose); err != nil {
-		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
-		}
-		return 0, "", fmt.Errorf("failed to stage workflow files: %w", err)
+		rollbackWorkflowPRFiles(tracker, opts.Verbose)
+		return fmt.Errorf("failed to stage workflow files: %w", err)
 	}
-
-	// Update .gitattributes and stage it if changed
 	if err := stageGitAttributesIfChanged(); err != nil && opts.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to stage .gitattributes: %v", err)))
 	}
+	return nil
+}
 
-	// Commit changes
-	var commitMessage, prTitle, prBody, joinedNames string
+func rollbackWorkflowPRFiles(tracker *FileTracker, verbose bool) {
+	if rollbackErr := tracker.RollbackAllFiles(verbose); rollbackErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
+	}
+}
+
+func workflowPRMessages(workflows []*ResolvedWorkflow) (string, string, string) {
 	if len(workflows) == 1 {
-		joinedNames = workflows[0].Spec.WorkflowName
-		commitMessage = "Add agentic workflow " + joinedNames
-		prTitle = "Add agentic workflow " + joinedNames
-		prBody = "Add agentic workflow " + joinedNames
-	} else {
-		workflowNames := sliceutil.Map(workflows, func(wf *ResolvedWorkflow) string {
-			return wf.Spec.WorkflowName
-		})
-		joinedNames = strings.Join(workflowNames, ", ")
-		commitMessage = "Add agentic workflows: " + joinedNames
-		prTitle = "Add agentic workflows: " + joinedNames
-		prBody = "Add agentic workflows: " + joinedNames
+		message := "Add agentic workflow " + workflows[0].Spec.WorkflowName
+		return message, message, message
 	}
+	workflowNames := sliceutil.Map(workflows, func(wf *ResolvedWorkflow) string { return wf.Spec.WorkflowName })
+	message := "Add agentic workflows: " + strings.Join(workflowNames, ", ")
+	return message, message, message
+}
 
-	if err := commitChanges(commitMessage, opts.Verbose); err != nil {
-		// Don't rollback - leave the workflow files on disk for manual recovery.
-		// Return a richly formatted error with clear instructions so the user can
-		// commit and push manually. The top-level error handler will print this.
-		return 0, "", fmt.Errorf(
-			"failed to commit workflow files: %w\n\n"+
-				"The workflow files have been written to disk and staged in git.\n"+
-				"Please commit the files manually, then either push them to the\n"+
-				"repository or create a pull request:\n\n"+
-				"  git commit -m %q\n"+
-				"  git push\n\n"+
-				"Or to create a pull request:\n\n"+
-				"  git checkout -b %s\n"+
-				"  git commit -m %q\n"+
-				"  git push -u origin %s\n"+
-				"  gh pr create --title %q",
-			err, commitMessage, branchName, commitMessage, branchName, prTitle,
-		)
+func commitWorkflowPRChanges(commitMessage, branchName, prTitle string, verbose bool) error {
+	if err := commitChanges(commitMessage, verbose); err != nil {
+		return fmt.Errorf("failed to commit workflow files: %w\n\nThe workflow files have been written to disk and staged in git.\nPlease commit the files manually, then either push them to the\nrepository or create a pull request:\n\n  git commit -m %q\n  git push\n\nOr to create a pull request:\n\n  git checkout -b %s\n  git commit -m %q\n  git push -u origin %s\n  gh pr create --title %q", err, commitMessage, branchName, commitMessage, branchName, prTitle)
 	}
+	return nil
+}
 
-	// Push branch
+func pushWorkflowPRBranch(branchName, prTitle string, verbose bool) error {
 	addWorkflowPRLog.Printf("Pushing branch %s to remote", branchName)
-	if err := pushBranch(branchName, opts.Verbose); err != nil {
+	if err := pushBranch(branchName, verbose); err != nil {
 		addWorkflowPRLog.Printf("Failed to push branch: %v", err)
-		// Treat push failure as a warning: keep the files and commit intact so the
-		// user can push manually. Do NOT rollback.
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to push branch %s: %v", branchName, err)))
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
 			"The workflow files have been committed to local branch "+branchName+".\n"+
@@ -156,27 +141,23 @@ func addWorkflowsWithPR(ctx context.Context, workflows []*ResolvedWorkflow, opts
 				"    git push -u origin "+branchName+"\n"+
 				"    gh pr create --title "+fmt.Sprintf("%q", prTitle),
 		))
-		return 0, "", fmt.Errorf("failed to push branch %s: %w", branchName, err)
+		return fmt.Errorf("failed to push branch %s: %w", branchName, err)
 	}
+	return nil
+}
 
-	// Create PR
+func createWorkflowPullRequest(ctx context.Context, tracker *FileTracker, currentBranch, branchName, prTitle, prBody string, verbose bool) (int, string, error) {
 	addWorkflowPRLog.Printf("Creating pull request: %s", prTitle)
-	prNumber, prURL, err := createPR(ctx, branchName, prTitle, prBody, opts.Verbose)
+	prNumber, prURL, err := createPR(ctx, branchName, prTitle, prBody, verbose)
 	if err != nil {
 		addWorkflowPRLog.Printf("Failed to create PR: %v", err)
-		if rollbackErr := tracker.RollbackAllFiles(opts.Verbose); rollbackErr != nil && opts.Verbose {
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to rollback files: %v", rollbackErr)))
-		}
+		rollbackWorkflowPRFiles(tracker, verbose)
 		return 0, "", fmt.Errorf("failed to create PR: %w", err)
 	}
-
 	addWorkflowPRLog.Printf("Successfully created PR #%d: %s", prNumber, prURL)
-
-	// Switch back to original branch
-	if err := switchBranch(currentBranch, opts.Verbose); err != nil {
+	if err := switchBranch(currentBranch, verbose); err != nil {
 		return prNumber, prURL, fmt.Errorf("failed to switch back to branch %s: %w", currentBranch, err)
 	}
-
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Created pull request "+prURL))
 	return prNumber, prURL, nil
 }

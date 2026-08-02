@@ -110,6 +110,10 @@ func resolveSafeOutputsDataSchema(config *SafeOutputsConfig) (bool, map[string]a
 }
 
 func simplifyDataSchemaNode(raw any, path string, allowShorthand bool) (map[string]any, error) {
+	return simplifyDataSchemaNodeBody(raw, path, allowShorthand)
+}
+
+func simplifyDataSchemaNodeBody(raw any, path string, allowShorthand bool) (map[string]any, error) {
 	if typeName, ok := raw.(string); ok {
 		if !allowShorthand {
 			return nil, fmt.Errorf("%s: string shorthand is not allowed here", path)

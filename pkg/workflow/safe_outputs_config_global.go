@@ -10,6 +10,10 @@ import (
 // extractGlobalConfigFields parses safe-outputs fields that apply across handlers,
 // keeping extractSafeOutputsConfig focused on routing handler-specific configuration.
 func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *SafeOutputsConfig) {
+	c.extractGlobalConfigFieldsBody(outputMap, config)
+}
+
+func (c *Compiler) extractGlobalConfigFieldsBody(outputMap map[string]any, config *SafeOutputsConfig) {
 	// Parse allowed-domains configuration (additional domains, unioned with network.allowed; supports ecosystem identifiers)
 	if allowedDomains, exists := outputMap["allowed-domains"]; exists {
 		if domainsArray, ok := allowedDomains.([]any); ok {

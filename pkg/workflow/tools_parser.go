@@ -107,6 +107,10 @@ var knownTools = map[string]struct{}{
 }
 
 func NewTools(toolsMap map[string]any) *Tools {
+	return NewToolsBody(toolsMap)
+}
+
+func NewToolsBody(toolsMap map[string]any) *Tools {
 	toolsParserLog.Printf("Creating tools configuration from map with %d entries", len(toolsMap))
 	if toolsMap == nil {
 		return &Tools{
@@ -188,6 +192,10 @@ func NewTools(toolsMap map[string]any) *Tools {
 
 // parseGitHubTool converts raw github tool configuration to GitHubToolConfig
 func parseGitHubTool(val any) *GitHubToolConfig {
+	return parseGitHubToolBody(val)
+}
+
+func parseGitHubToolBody(val any) *GitHubToolConfig {
 	if val == nil {
 		toolsParserLog.Print("GitHub tool enabled with default configuration")
 		return &GitHubToolConfig{
@@ -687,6 +695,10 @@ func parseStartupTimeoutTool(val any) *TemplatableInt32 {
 
 // parseMCPServerConfig converts raw MCP server configuration to MCPServerConfig
 func parseMCPServerConfig(val any) MCPServerConfig {
+	return parseMCPServerConfigBody(val)
+}
+
+func parseMCPServerConfigBody(val any) MCPServerConfig {
 	config := MCPServerConfig{
 		CustomFields: make(map[string]any),
 	}

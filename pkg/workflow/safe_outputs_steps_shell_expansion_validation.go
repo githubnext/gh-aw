@@ -117,6 +117,10 @@ func validateSafeOutputsStepsShellExpansion(config *SafeOutputsConfig) error {
 // validateRunScriptForShellExpansion checks a single run: script for dangerous
 // bash expansion patterns. stepIndex is 0-based and is included in error messages.
 func validateRunScriptForShellExpansion(stepIndex int, script string) error {
+	return validateRunScriptForShellExpansionBody(stepIndex, script)
+}
+
+func validateRunScriptForShellExpansionBody(stepIndex int, script string) error {
 	// Fast path: no '$' or backtick character means no expansion pattern can be present.
 	if !strings.ContainsAny(script, "$`") {
 		return nil

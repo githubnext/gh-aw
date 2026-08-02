@@ -340,98 +340,89 @@ func buildAuditComparison(currentConclusion string, current auditComparisonSnaps
 	if baselineRun == nil || baseline == nil {
 		return &AuditComparisonData{BaselineFound: false}
 	}
-
-	reasonCodes := make([]string, 0, 4)
 	currentConclusion = strings.TrimSpace(strings.ToLower(currentConclusion))
-	currentRunUnsuccessful := currentConclusion != "" && currentConclusion != "success"
-	delta := &AuditComparisonDelta{
-		Turns: AuditComparisonIntDelta{
-			Before:  baseline.Turns,
-			After:   current.Turns,
-			Changed: baseline.Turns != current.Turns,
-		},
-		Posture: AuditComparisonStringDelta{
-			Before:  baseline.Posture,
-			After:   current.Posture,
-			Changed: baseline.Posture != current.Posture,
-		},
-		BlockedRequests: AuditComparisonIntDelta{
-			Before:  baseline.BlockedRequests,
-			After:   current.BlockedRequests,
-			Changed: baseline.BlockedRequests != current.BlockedRequests,
-		},
+	delta, newMCPFailure, mcpFailuresResolved := buildAuditComparisonDelta(current, *baseline)
+	reasonCodes := collectAuditComparisonReasonCodes(currentConclusion, current, *baseline, newMCPFailure, mcpFailuresResolved)
+	label := classifyAuditComparisonLabel(currentConclusion, delta, baseline.BlockedRequests, current.BlockedRequests, newMCPFailure, mcpFailuresResolved, reasonCodes)
+	return &AuditComparisonData{
+		BaselineFound:  true,
+		Baseline:       buildAuditComparisonBaseline(baselineRun),
+		Delta:          delta,
+		Classification: &AuditComparisonClassification{Label: label, ReasonCodes: reasonCodes},
+		Recommendation: &AuditComparisonRecommendation{Action: recommendAuditComparisonAction(label, currentConclusion, delta)},
 	}
+}
 
-	if current.Turns > baseline.Turns {
-		reasonCodes = append(reasonCodes, "turns_increase")
-	} else if current.Turns < baseline.Turns {
-		reasonCodes = append(reasonCodes, "turns_decrease")
+func buildAuditComparisonDelta(current, baseline auditComparisonSnapshot) (*AuditComparisonDelta, bool, bool) {
+	newMCPFailure := len(baseline.MCPFailures) == 0 && len(current.MCPFailures) > 0
+	mcpFailuresResolved := len(baseline.MCPFailures) > 0 && len(current.MCPFailures) == 0
+	delta := &AuditComparisonDelta{
+		Turns:           AuditComparisonIntDelta{Before: baseline.Turns, After: current.Turns, Changed: baseline.Turns != current.Turns},
+		Posture:         AuditComparisonStringDelta{Before: baseline.Posture, After: current.Posture, Changed: baseline.Posture != current.Posture},
+		BlockedRequests: AuditComparisonIntDelta{Before: baseline.BlockedRequests, After: current.BlockedRequests, Changed: baseline.BlockedRequests != current.BlockedRequests},
 	}
+	if newMCPFailure || len(baseline.MCPFailures) > 0 || len(current.MCPFailures) > 0 {
+		delta.MCPFailure = &AuditComparisonMCPFailureDelta{Before: baseline.MCPFailures, After: current.MCPFailures, NewlyPresent: newMCPFailure}
+	}
+	return delta, newMCPFailure, mcpFailuresResolved
+}
+
+func collectAuditComparisonReasonCodes(currentConclusion string, current, baseline auditComparisonSnapshot, newMCPFailure, mcpFailuresResolved bool) []string {
+	reasonCodes := make([]string, 0, 4)
+	reasonCodes = appendAuditComparisonTurnReason(reasonCodes, baseline.Turns, current.Turns)
 	if baseline.Posture != current.Posture {
 		reasonCodes = append(reasonCodes, "posture_changed")
 	}
-	if current.BlockedRequests > baseline.BlockedRequests {
-		reasonCodes = append(reasonCodes, "blocked_requests_increase")
-	} else if current.BlockedRequests < baseline.BlockedRequests {
-		reasonCodes = append(reasonCodes, "blocked_requests_decrease")
-	}
-	if currentRunUnsuccessful {
+	reasonCodes = appendAuditComparisonBlockedReason(reasonCodes, baseline.BlockedRequests, current.BlockedRequests)
+	if currentConclusion != "" && currentConclusion != "success" {
 		reasonCodes = append(reasonCodes, "run_unsuccessful")
-	}
-
-	newMCPFailure := len(baseline.MCPFailures) == 0 && len(current.MCPFailures) > 0
-	mcpFailuresResolved := len(baseline.MCPFailures) > 0 && len(current.MCPFailures) == 0
-	if newMCPFailure || len(baseline.MCPFailures) > 0 || len(current.MCPFailures) > 0 {
-		delta.MCPFailure = &AuditComparisonMCPFailureDelta{
-			Before:       baseline.MCPFailures,
-			After:        current.MCPFailures,
-			NewlyPresent: newMCPFailure,
-		}
 	}
 	if newMCPFailure {
 		reasonCodes = append(reasonCodes, "new_mcp_failure")
 	} else if mcpFailuresResolved {
 		reasonCodes = append(reasonCodes, "mcp_failures_resolved")
 	}
+	return reasonCodes
+}
 
-	label := "stable"
+func appendAuditComparisonTurnReason(reasonCodes []string, before, after int) []string {
 	switch {
-	case currentRunUnsuccessful:
-		label = "risky"
-	case delta.Posture.Before == "read_only" && delta.Posture.After == "write_capable":
-		label = "risky"
-	case newMCPFailure:
-		label = "risky"
-	case current.BlockedRequests > baseline.BlockedRequests:
-		label = "risky"
-	case delta.Posture.Before != "" && delta.Posture.After != "" && delta.Posture.Before != delta.Posture.After:
-		label = "changed"
-	case mcpFailuresResolved:
-		label = "changed"
-	case current.BlockedRequests < baseline.BlockedRequests:
-		label = "changed"
-	case len(reasonCodes) > 0:
-		label = "changed"
+	case after > before:
+		return append(reasonCodes, "turns_increase")
+	case after < before:
+		return append(reasonCodes, "turns_decrease")
+	default:
+		return reasonCodes
 	}
+}
 
-	return &AuditComparisonData{
-		BaselineFound: true,
-		Baseline: &AuditComparisonBaseline{
-			RunID:        baselineRun.DatabaseID,
-			WorkflowName: baselineRun.WorkflowName,
-			Conclusion:   baselineRun.Conclusion,
-			CreatedAt:    baselineRun.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			Selection:    "latest_success",
-		},
-		Delta: delta,
-		Classification: &AuditComparisonClassification{
-			Label:       label,
-			ReasonCodes: reasonCodes,
-		},
-		Recommendation: &AuditComparisonRecommendation{
-			Action: recommendAuditComparisonAction(label, currentConclusion, delta),
-		},
+func appendAuditComparisonBlockedReason(reasonCodes []string, before, after int) []string {
+	switch {
+	case after > before:
+		return append(reasonCodes, "blocked_requests_increase")
+	case after < before:
+		return append(reasonCodes, "blocked_requests_decrease")
+	default:
+		return reasonCodes
 	}
+}
+
+func classifyAuditComparisonLabel(currentConclusion string, delta *AuditComparisonDelta, baselineBlocked, currentBlocked int, newMCPFailure, mcpFailuresResolved bool, reasonCodes []string) string {
+	currentRunUnsuccessful := currentConclusion != "" && currentConclusion != "success"
+	switch {
+	case currentRunUnsuccessful, delta.Posture.Before == "read_only" && delta.Posture.After == "write_capable", newMCPFailure, currentBlocked > baselineBlocked:
+		return "risky"
+	case delta.Posture.Before != "" && delta.Posture.After != "" && delta.Posture.Before != delta.Posture.After:
+		return "changed"
+	case mcpFailuresResolved, currentBlocked < baselineBlocked, len(reasonCodes) > 0:
+		return "changed"
+	default:
+		return "stable"
+	}
+}
+
+func buildAuditComparisonBaseline(baselineRun *WorkflowRun) *AuditComparisonBaseline {
+	return &AuditComparisonBaseline{RunID: baselineRun.DatabaseID, WorkflowName: baselineRun.WorkflowName, Conclusion: baselineRun.Conclusion, CreatedAt: baselineRun.CreatedAt.Format("2006-01-02T15:04:05Z07:00"), Selection: "latest_success"}
 }
 
 func recommendAuditComparisonAction(label, currentConclusion string, delta *AuditComparisonDelta) string {

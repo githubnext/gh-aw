@@ -65,6 +65,10 @@ func parseMessagesConfig(messagesMap map[string]any) *SafeOutputMessagesConfig {
 // - true: always allows mentions (error in strict mode)
 // - object: detailed configuration with allowed-collaborators, allow-context, allowed, max
 func parseMentionsConfig(mentions any) *MentionsConfig {
+	return parseMentionsConfigBody(mentions)
+}
+
+func parseMentionsConfigBody(mentions any) *MentionsConfig {
 	safeOutputMessagesLog.Printf("Parsing mentions configuration: type=%T", mentions)
 	config := &MentionsConfig{}
 

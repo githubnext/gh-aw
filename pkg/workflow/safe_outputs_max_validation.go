@@ -56,6 +56,10 @@ func checkMaxField(toolName string, maxPtr *string) error {
 // it is on the hot path and called on every compilation. The field ordering matches
 // the sorted safeOutputFieldMapping keys for deterministic error reporting.
 func validateSafeOutputsMax(config *SafeOutputsConfig) error {
+	return validateSafeOutputsMaxBody(config)
+}
+
+func validateSafeOutputsMaxBody(config *SafeOutputsConfig) error {
 	if config == nil {
 		return nil
 	}

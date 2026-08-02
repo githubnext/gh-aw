@@ -166,6 +166,10 @@ func parseActionUsesField(uses string) (*actionRef, error) {
 // When available, the action reference is pinned to a commit SHA for security;
 // if no pin is available, later step generation falls back to the original config.Uses.
 func (c *Compiler) fetchAndParseActionYAML(actionName string, config *SafeOutputActionConfig, markdownPath string, data *WorkflowData) {
+	c.fetchAndParseActionYAMLBody(actionName, config, markdownPath, data)
+}
+
+func (c *Compiler) fetchAndParseActionYAMLBody(actionName string, config *SafeOutputActionConfig, markdownPath string, data *WorkflowData) {
 	if config.Uses == "" {
 		return
 	}
@@ -380,6 +384,10 @@ func isGitHubExpressionDefault(input *ActionYAMLInput) bool {
 // generateActionToolDefinition creates an MCP tool definition for a custom safe output action.
 // The tool name is the normalized action name. Inputs are derived from the action.yml.
 func generateActionToolDefinition(actionName string, config *SafeOutputActionConfig) map[string]any {
+	return generateActionToolDefinitionBody(actionName, config)
+}
+
+func generateActionToolDefinitionBody(actionName string, config *SafeOutputActionConfig) map[string]any {
 	normalizedName := stringutil.NormalizeSafeOutputIdentifier(actionName)
 
 	description := config.Description
@@ -500,6 +508,10 @@ func actionOutputKey(normalizedName string) string {
 //   - Uses the resolved action reference
 //   - Has a `with:` block populated from parsed payload output via fromJSON
 func (c *Compiler) buildActionSteps(data *WorkflowData) []string {
+	return c.buildActionStepsBody(data)
+}
+
+func (c *Compiler) buildActionStepsBody(data *WorkflowData) []string {
 	if data.SafeOutputs == nil || len(data.SafeOutputs.Actions) == 0 {
 		return nil
 	}

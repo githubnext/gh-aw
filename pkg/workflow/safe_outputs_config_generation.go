@@ -28,6 +28,10 @@ import (
 // MCP server. Standard handler configs are sourced from handlerRegistry to ensure
 // they stay in sync with GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG.
 func generateSafeOutputsConfig(data *WorkflowData) (string, error) {
+	return generateSafeOutputsConfigBody(data)
+}
+
+func generateSafeOutputsConfigBody(data *WorkflowData) (string, error) {
 	if data.SafeOutputs == nil {
 		safeOutputsConfigLog.Print("No safe outputs configuration found, returning empty config")
 		return "", nil
@@ -242,6 +246,10 @@ func getEngineAgentFileInfoFromWorkflowData(data *WorkflowData) (manifestFiles [
 // generateCustomJobToolDefinition creates an MCP tool definition for a custom safe-output job.
 // Returns a map representing the tool definition in MCP format with name, description, and inputSchema.
 func generateCustomJobToolDefinition(jobName string, jobConfig *SafeJobConfig) map[string]any {
+	return generateCustomJobToolDefinitionBody(jobName, jobConfig)
+}
+
+func generateCustomJobToolDefinitionBody(jobName string, jobConfig *SafeJobConfig) map[string]any {
 	safeOutputsConfigLog.Printf("Generating tool definition for custom job: %s", jobName)
 
 	description := jobConfig.Description

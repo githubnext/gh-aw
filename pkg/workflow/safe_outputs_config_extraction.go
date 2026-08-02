@@ -43,6 +43,10 @@ package workflow
 
 // extractSafeOutputsConfig extracts output configuration from frontmatter
 func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOutputsConfig {
+	return c.extractSafeOutputsConfigBody(frontmatter)
+}
+
+func (c *Compiler) extractSafeOutputsConfigBody(frontmatter map[string]any) *SafeOutputsConfig {
 	safeOutputsConfigLog.Print("Extracting safe-outputs configuration from frontmatter")
 
 	var config *SafeOutputsConfig

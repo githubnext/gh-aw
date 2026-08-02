@@ -201,55 +201,66 @@ func validateActionYml(actionPath string) error {
 // buildAction builds a single action by bundling its dependencies
 func buildAction(actionsDir, actionName string) error {
 	actionsBuildLog.Printf("Building action: %s", actionName)
-
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("\n📦 Building action: "+actionName))
-
 	actionPath := filepath.Join(actionsDir, actionName)
-
-	// Validate action.yml
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Validating action.yml"))
-	if err := validateActionYml(actionPath); err != nil {
+	if err := validateBuiltAction(actionPath); err != nil {
 		return err
 	}
-
-	// Special handling for setup: build shell script with embedded files
 	if actionName == "setup" {
 		return buildSetupAction(actionsDir, actionName)
 	}
-
-	// Check if this is a composite action (doesn't need JavaScript bundling)
 	isComposite, err := isCompositeAction(actionPath)
 	if err != nil {
 		return fmt.Errorf("failed to check action type: %w", err)
 	}
-
 	if isComposite {
 		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Composite action - no JavaScript bundling needed"))
 		return nil
 	}
+	return bundleJavaScriptAction(actionPath, actionName)
+}
 
+func validateBuiltAction(actionPath string) error {
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Validating action.yml"))
+	return validateActionYml(actionPath)
+}
+
+func bundleJavaScriptAction(actionPath, actionName string) error {
+	outputPath, sourceContent, err := readActionSourceFile(actionPath)
+	if err != nil {
+		return err
+	}
+	dependencies := getActionDependencies(actionName)
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
+	files := collectActionDependencyFiles(dependencies)
+	outputContent, err := buildBundledActionSource(sourceContent, files)
+	if err != nil {
+		return err
+	}
+	if err := os.WriteFile(outputPath, []byte(outputContent), constants.FilePermSensitive); err != nil {
+		return fmt.Errorf("failed to write output file: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Built "+outputPath))
+	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
+	return nil
+}
+
+func readActionSourceFile(actionPath string) (string, []byte, error) {
 	srcPath := filepath.Join(actionPath, "src", "index.js")
 	outputPath := filepath.Join(actionPath, "index.js")
-
-	// Check if source file exists
 	if _, err := os.Stat(srcPath); os.IsNotExist(err) {
-		return fmt.Errorf("source file not found: %s", srcPath)
+		return "", nil, fmt.Errorf("source file not found: %s", srcPath)
 	}
-
 	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Reading source file"))
 	sourceContent, err := os.ReadFile(srcPath)
 	if err != nil {
-		return fmt.Errorf("failed to read source file: %w", err)
+		return "", nil, fmt.Errorf("failed to read source file: %w", err)
 	}
+	return outputPath, sourceContent, nil
+}
 
-	// Get dependencies for this action
-	dependencies := getActionDependencies(actionName)
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Found %d dependencies", len(dependencies))))
-
-	// Get all JavaScript sources
+func collectActionDependencyFiles(dependencies []string) map[string]string {
 	sources := workflow.GetJavaScriptSources()
-
-	// Read dependency files
 	files := make(map[string]string)
 	for _, dep := range dependencies {
 		if content, ok := sources[dep]; ok {
@@ -259,30 +270,17 @@ func buildAction(actionsDir, actionName string) error {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage("    ⚠ Warning: Could not find "+dep))
 		}
 	}
+	return files
+}
 
-	// Generate FILES object with embedded content
+func buildBundledActionSource(sourceContent []byte, files map[string]string) (string, error) {
 	filesJSON, err := json.MarshalIndent(files, "", "  ")
 	if err != nil {
-		return fmt.Errorf("failed to marshal files: %w", err)
+		return "", fmt.Errorf("failed to marshal files: %w", err)
 	}
-
-	// Indent the JSON for proper embedding
 	indentedJSON := strings.ReplaceAll(string(filesJSON), "\n", "\n  ")
 	indentedJSON = "  " + strings.TrimPrefix(indentedJSON, " ")
-
-	// Replace the FILES placeholder in source
-	// Match: const FILES = { ... };
-	outputContent := filesConstPattern.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON)))
-
-	// Write output file with restrictive permissions (0600 for security)
-	if err := os.WriteFile(outputPath, []byte(outputContent), constants.FilePermSensitive); err != nil {
-		return fmt.Errorf("failed to write output file: %w", err)
-	}
-
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage("  ✓ Built "+outputPath))
-	fmt.Fprintln(os.Stderr, console.FormatInfoMessage(fmt.Sprintf("  ✓ Embedded %d files", len(files))))
-
-	return nil
+	return filesConstPattern.ReplaceAllString(string(sourceContent), fmt.Sprintf("const FILES = %s;", strings.TrimSpace(indentedJSON))), nil
 }
 
 // isCompositeAction checks if an action uses the 'composite' runtime

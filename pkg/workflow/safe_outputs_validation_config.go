@@ -493,6 +493,10 @@ var validationConfigJSONCache sync.Map // key: string → value: string
 // GetValidationConfigJSONWithDataSchema behaves like GetValidationConfigJSONWithDataSchema and additionally
 // injects a normalized data schema into body-bearing safe-output types.
 func GetValidationConfigJSONWithDataSchema(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
+	return GetValidationConfigJSONWithDataSchemaBody(enabledTypes, mentions, dataEnabled, dataSchema)
+}
+
+func GetValidationConfigJSONWithDataSchemaBody(enabledTypes []string, mentions map[string]any, dataEnabled bool, dataSchema map[string]any) (string, error) {
 	safeOutputValidationLog.Printf("Getting validation config JSON for %d types (mentions=%t)", len(enabledTypes), len(mentions) > 0)
 
 	// Cache only the schema-only path; mentions are workflow-specific and cheap to remarshal.

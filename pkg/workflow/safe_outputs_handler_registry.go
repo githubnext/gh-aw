@@ -504,80 +504,7 @@ var handlerRegistry = map[string]handlerBuilder{
 			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged)).
 			Build()
 	},
-	"create_pull_request": func(cfg *SafeOutputsConfig) map[string]any {
-		if cfg.CreatePullRequests == nil {
-			return nil
-		}
-		c := cfg.CreatePullRequests
-		protectedFilesPolicy := "request_review"
-		if c.ManifestFilesPolicy != nil {
-			protectedFilesPolicy = *c.ManifestFilesPolicy
-		}
-		maxPatchSize := 4096 // default 4096 KB
-		if cfg.MaximumPatchSize > 0 {
-			maxPatchSize = cfg.MaximumPatchSize
-		}
-		if c.MaxPatchSize > 0 {
-			maxPatchSize = c.MaxPatchSize
-		}
-		maxPatchFiles := 100 // default 100 unique files
-		if cfg.MaximumPatchFiles > 0 {
-			maxPatchFiles = cfg.MaximumPatchFiles
-		}
-		if c.MaxPatchFiles > 0 {
-			maxPatchFiles = c.MaxPatchFiles
-		}
-		builder := newHandlerConfigBuilder().
-			AddTemplatableInt("max", c.Max).
-			AddIfTrue("require_temporary_id", c.RequireTemporaryID).
-			AddIfNotEmpty("branch_prefix", c.BranchPrefix).
-			AddIfNotEmpty("title_prefix", c.TitlePrefix).
-			AddTemplatableStringSlice("labels", c.Labels).
-			AddStringSlice("fallback_labels", c.FallbackLabels).
-			AddTemplatableStringSlice("reviewers", c.Reviewers).
-			AddTemplatableStringSlice("team_reviewers", c.TeamReviewers).
-			AddTemplatableStringSlice("assignees", c.Assignees).
-			AddTemplatableBool("draft", c.Draft).
-			AddIfNotEmpty("if_no_changes", c.IfNoChanges).
-			AddTemplatableBool("allow_empty", c.AllowEmpty).
-			AddTemplatableBool("auto_merge", c.AutoMerge).
-			AddIfPositive("expires", c.Expires).
-			AddIfNotEmpty("target-repo", c.TargetRepoSlug).
-			AddIfNotEmpty("head-repo", c.HeadRepoSlug).
-			AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
-			AddTemplatableStringSlice("allowed_base_branches", c.AllowedBaseBranches).
-			AddTemplatableStringSlice("allowed_branches", c.AllowedBranches).
-			AddDefault("max_patch_size", maxPatchSize).
-			AddDefault("max_patch_files", maxPatchFiles).
-			AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "create-pull-request", c.GitHubToken)).
-			AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
-			AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
-			AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
-			AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
-			AddIfNotEmpty("base_branch", c.BaseBranch).
-			AddDefault("protected_files_policy", protectedFilesPolicy).
-			AddStringSlice("protected_files", getAllManifestFiles()).
-			AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
-			AddDefault("protect_top_level_dot_folders", true).
-			AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
-			AddStringSlice("allowed_files", c.AllowedFiles).
-			AddStringSlice("excluded_files", c.ExcludedFiles).
-			AddIfTrue("preserve_branch_name", c.PreserveBranchName).
-			AddIfTrue("recreate_ref", c.RecreateRef).
-			AddIfNotEmpty("patch_format", c.PatchFormat).
-			AddBoolPtr("signed_commits", c.SignedCommits).
-			AddTemplatableBool("close_older_pull_requests", c.CloseOlderPullRequests).
-			AddIfNotEmpty("close_older_key", c.CloseOlderKey).
-			AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
-		// Use app-minted token if head-github-app is configured; fall back to head-github-token.
-		if c.HeadGitHubApp != nil {
-			//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
-			builder.AddIfNotEmpty("head-github-token", "${{ steps.safe-outputs-head-app-token.outputs.token }}")
-		} else {
-			builder.AddIfNotEmpty("head-github-token", c.HeadGitHubToken)
-		}
-		return builder.Build()
-	},
+	"create_pull_request": createPullRequestHandlerConfig,
 	"push_to_pull_request_branch": func(cfg *SafeOutputsConfig) map[string]any {
 		if cfg.PushToPullRequestBranch == nil {
 			return nil
@@ -1038,4 +965,98 @@ var handlerRegistry = map[string]handlerBuilder{
 		}
 		return config
 	},
+}
+
+func createPullRequestHandlerConfig(cfg *SafeOutputsConfig) map[string]any {
+	if cfg.CreatePullRequests == nil {
+		return nil
+	}
+	c := cfg.CreatePullRequests
+	builder := newHandlerConfigBuilder().
+		AddTemplatableInt("max", c.Max).
+		AddIfTrue("require_temporary_id", c.RequireTemporaryID).
+		AddIfNotEmpty("branch_prefix", c.BranchPrefix).
+		AddIfNotEmpty("title_prefix", c.TitlePrefix).
+		AddTemplatableStringSlice("labels", c.Labels).
+		AddStringSlice("fallback_labels", c.FallbackLabels).
+		AddTemplatableStringSlice("reviewers", c.Reviewers).
+		AddTemplatableStringSlice("team_reviewers", c.TeamReviewers).
+		AddTemplatableStringSlice("assignees", c.Assignees).
+		AddTemplatableBool("draft", c.Draft).
+		AddIfNotEmpty("if_no_changes", c.IfNoChanges).
+		AddTemplatableBool("allow_empty", c.AllowEmpty).
+		AddTemplatableBool("auto_merge", c.AutoMerge).
+		AddIfPositive("expires", c.Expires).
+		AddIfNotEmpty("target-repo", c.TargetRepoSlug).
+		AddIfNotEmpty("head-repo", c.HeadRepoSlug).
+		AddTemplatableStringSlice("allowed_repos", c.AllowedRepos).
+		AddTemplatableStringSlice("allowed_base_branches", c.AllowedBaseBranches).
+		AddTemplatableStringSlice("allowed_branches", c.AllowedBranches)
+	addCreatePullRequestHandlerDefaults(builder, cfg, c)
+	addCreatePullRequestHeadToken(builder, c)
+	return builder.Build()
+}
+
+func addCreatePullRequestHandlerDefaults(builder *handlerConfigBuilder, cfg *SafeOutputsConfig, c *CreatePullRequestsConfig) {
+	builder.
+		AddDefault("max_patch_size", resolveCreatePullRequestMaxPatchSize(cfg, c)).
+		AddDefault("max_patch_files", resolveCreatePullRequestMaxPatchFiles(cfg, c)).
+		AddIfNotEmpty("github-token", resolveHandlerGitHubToken(c.GitHubApp, "create-pull-request", c.GitHubToken)).
+		AddTemplatableBool("footer", getEffectiveFooterForTemplatable(c.Footer, cfg.Footer)).
+		AddBoolPtr("normalize_closing_keywords", c.NormalizeClosingKeywords).
+		AddBoolPtr("fallback_as_issue", c.FallbackAsIssue).
+		AddTemplatableBool("auto_close_issue", c.AutoCloseIssue).
+		AddIfNotEmpty("base_branch", c.BaseBranch).
+		AddDefault("protected_files_policy", resolveCreatePullRequestProtectedFilesPolicy(c)).
+		AddStringSlice("protected_files", getAllManifestFiles()).
+		AddStringSlice("protected_path_prefixes", getProtectedPathPrefixes()).
+		AddDefault("protect_top_level_dot_folders", true).
+		AddStringSlice("_protected_files_exclude", c.ProtectedFilesExclude).
+		AddStringSlice("allowed_files", c.AllowedFiles).
+		AddStringSlice("excluded_files", c.ExcludedFiles).
+		AddIfTrue("preserve_branch_name", c.PreserveBranchName).
+		AddIfTrue("recreate_ref", c.RecreateRef).
+		AddIfNotEmpty("patch_format", c.PatchFormat).
+		AddBoolPtr("signed_commits", c.SignedCommits).
+		AddTemplatableBool("close_older_pull_requests", c.CloseOlderPullRequests).
+		AddIfNotEmpty("close_older_key", c.CloseOlderKey).
+		AddTemplatableBool("staged", templatableBoolPtrToStringPtr(c.Staged))
+}
+
+func addCreatePullRequestHeadToken(builder *handlerConfigBuilder, c *CreatePullRequestsConfig) {
+	if c.HeadGitHubApp != nil {
+		//nolint:gosec // G101: False positive - this is a GitHub Actions expression template, not a hardcoded credential
+		builder.AddIfNotEmpty("head-github-token", "${{ steps.safe-outputs-head-app-token.outputs.token }}")
+		return
+	}
+	builder.AddIfNotEmpty("head-github-token", c.HeadGitHubToken)
+}
+
+func resolveCreatePullRequestProtectedFilesPolicy(c *CreatePullRequestsConfig) string {
+	if c.ManifestFilesPolicy != nil {
+		return *c.ManifestFilesPolicy
+	}
+	return "request_review"
+}
+
+func resolveCreatePullRequestMaxPatchSize(cfg *SafeOutputsConfig, c *CreatePullRequestsConfig) int {
+	maxPatchSize := 4096
+	if cfg.MaximumPatchSize > 0 {
+		maxPatchSize = cfg.MaximumPatchSize
+	}
+	if c.MaxPatchSize > 0 {
+		maxPatchSize = c.MaxPatchSize
+	}
+	return maxPatchSize
+}
+
+func resolveCreatePullRequestMaxPatchFiles(cfg *SafeOutputsConfig, c *CreatePullRequestsConfig) int {
+	maxPatchFiles := 100
+	if cfg.MaximumPatchFiles > 0 {
+		maxPatchFiles = cfg.MaximumPatchFiles
+	}
+	if c.MaxPatchFiles > 0 {
+		maxPatchFiles = c.MaxPatchFiles
+	}
+	return maxPatchFiles
 }

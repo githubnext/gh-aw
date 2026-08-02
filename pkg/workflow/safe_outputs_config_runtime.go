@@ -26,6 +26,10 @@ type SafeOutputStepConfig struct {
 }
 
 func (c *Compiler) addHandlerManagerConfigEnvVar(steps *[]string, data *WorkflowData) {
+	c.addHandlerManagerConfigEnvVarBody(steps, data)
+}
+
+func (c *Compiler) addHandlerManagerConfigEnvVarBody(steps *[]string, data *WorkflowData) {
 	if data.SafeOutputs == nil {
 		safeOutputsConfigLog.Print("No safe-outputs configuration, skipping handler manager config")
 		return

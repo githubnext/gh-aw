@@ -33,6 +33,10 @@ type GitHubAppConfig struct {
 
 // parseAppConfig parses the app configuration from a map
 func parseAppConfig(appMap map[string]any) *GitHubAppConfig {
+	return parseAppConfigBody(appMap)
+}
+
+func parseAppConfigBody(appMap map[string]any) *GitHubAppConfig {
 	safeOutputsAppLog.Print("Parsing GitHub App configuration")
 	appConfig := &GitHubAppConfig{}
 
@@ -372,6 +376,10 @@ func (c *Compiler) buildGitHubAppTokenMintStepForRepository(app *GitHubAppConfig
 }
 
 func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string, ownerSourceRepository string, stepName string, stepID string) []string {
+	return c.buildGitHubAppTokenMintStepWithMetaBody(app, permissions, fallbackRepoExpr, ownerSourceRepository, stepName, stepID)
+}
+
+func (c *Compiler) buildGitHubAppTokenMintStepWithMetaBody(app *GitHubAppConfig, permissions *Permissions, fallbackRepoExpr string, ownerSourceRepository string, stepName string, stepID string) []string {
 	safeOutputsAppLog.Printf("Building GitHub App token mint step: owner=%s, repos=%d", app.Owner, len(app.Repositories))
 	var steps []string
 
@@ -475,6 +483,10 @@ func (c *Compiler) buildGitHubAppTokenMintStepWithMeta(app *GitHubAppConfig, per
 // GetExplicit() so that only scopes the user actually declared are forwarded — a "read-all"
 // shorthand must never accidentally grant broad GitHub App-only permissions.
 func convertPermissionsToAppTokenFields(permissions *Permissions) map[string]string {
+	return convertPermissionsToAppTokenFieldsBody(permissions)
+}
+
+func convertPermissionsToAppTokenFieldsBody(permissions *Permissions) map[string]string {
 	fields := make(map[string]string)
 
 	// Map GitHub Actions permissions to GitHub App permissions

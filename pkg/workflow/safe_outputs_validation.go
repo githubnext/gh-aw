@@ -79,6 +79,10 @@ var safeOutputsTargetValidationLog = logger.New("workflow:safe_outputs_target_va
 //   - A positive integer as a string (e.g., "123")
 //   - A GitHub Actions expression (e.g., "${{ github.event.issue.number }}")
 func validateSafeOutputsTarget(config *SafeOutputsConfig) error {
+	return validateSafeOutputsTargetBody(config)
+}
+
+func validateSafeOutputsTargetBody(config *SafeOutputsConfig) error {
 	if config == nil {
 		return nil
 	}

@@ -13,7 +13,15 @@ var addWizardLog = logger.New("cli:add_wizard_command")
 
 // NewAddWizardCommand creates the add-wizard command, which is always interactive.
 func NewAddWizardCommand(validateEngine func(string) error) *cobra.Command {
-	cmd := &cobra.Command{
+	cmd := newAddWizardCommand(validateEngine)
+	configureAddWizardFlags(cmd)
+	RegisterEngineFlagCompletion(cmd)
+	RegisterDirFlagCompletion(cmd, "dir")
+	return cmd
+}
+
+func newAddWizardCommand(validateEngine func(string) error) *cobra.Command {
+	return &cobra.Command{
 		Use:   "add-wizard <workflow>...",
 		Short: "Interactively add one or more agentic workflows with guided setup",
 		Long: `Interactively add one or more agentic workflows with guided setup.
@@ -55,85 +63,79 @@ Note: To create a new workflow from scratch, use the 'new' command instead.`,
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --append "custom footer"            # Append custom content
   ` + string(constants.CLIExtensionPrefix) + ` add-wizard githubnext/agentics/ci-doctor --no-security-scanner             # Skip security scan
 `,
-		Args: func(cmd *cobra.Command, args []string) error {
-			if len(args) < 1 {
-				return errors.New("missing workflow specification\n\nRun 'gh aw add-wizard --help' for usage information")
-			}
-			return nil
-		},
-		RunE: func(cmd *cobra.Command, args []string) error {
-			workflows := args
-			engineOverride, _ := cmd.Flags().GetString("engine")
-			verbose, _ := cmd.Flags().GetBool("verbose")
-			noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
-			workflowDir, _ := cmd.Flags().GetString("dir")
-			noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
-			stopAfter, _ := cmd.Flags().GetString("stop-after")
-			noSecret, _ := cmd.Flags().GetBool("no-secret")
-			skipSecretLegacy, _ := cmd.Flags().GetBool("skip-secret")
-			skipSecret := noSecret || skipSecretLegacy
-			appendText, _ := cmd.Flags().GetString("append")
-			disableSecurityScanner := resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner")
-
-			addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", workflows, engineOverride, verbose)
-
-			if err := validateEngine(engineOverride); err != nil {
-				return err
-			}
-
-			// add-wizard requires an interactive terminal
-			isTerminal := tty.IsStdoutTerminal()
-			isCIEnv := IsRunningInCI()
-			addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
-			if !isTerminal || isCIEnv {
-				return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")
-			}
-
-			return RunAddInteractive(cmd.Context(), &AddInteractiveConfig{
-				WorkflowSpecs:          workflows,
-				Verbose:                verbose,
-				EngineOverride:         engineOverride,
-				NoGitattributes:        noGitattributes,
-				WorkflowDir:            workflowDir,
-				NoStopAfter:            noStopAfter,
-				StopAfter:              stopAfter,
-				SkipSecret:             skipSecret,
-				AppendText:             appendText,
-				DisableSecurityScanner: disableSecurityScanner,
-			})
-		},
+		Args: validateAddWizardArgs,
+		RunE: runAddWizardCommand(validateEngine),
 	}
+}
 
-	// Add AI engine flag
+func validateAddWizardArgs(cmd *cobra.Command, args []string) error {
+	if len(args) < 1 {
+		return errors.New("missing workflow specification\n\nRun 'gh aw add-wizard --help' for usage information")
+	}
+	return nil
+}
+
+func runAddWizardCommand(validateEngine func(string) error) func(*cobra.Command, []string) error {
+	return func(cmd *cobra.Command, args []string) error {
+		config := addWizardConfigFromFlags(cmd, args)
+		addWizardLog.Printf("Starting add-wizard: workflows=%v, engine=%s, verbose=%v", config.WorkflowSpecs, config.EngineOverride, config.Verbose)
+		if err := validateEngine(config.EngineOverride); err != nil {
+			return err
+		}
+		if err := validateAddWizardInteractiveTerminal(); err != nil {
+			return err
+		}
+		return RunAddInteractive(cmd.Context(), config)
+	}
+}
+
+func addWizardConfigFromFlags(cmd *cobra.Command, workflows []string) *AddInteractiveConfig {
+	engineOverride, _ := cmd.Flags().GetString("engine")
+	verbose, _ := cmd.Flags().GetBool("verbose")
+	noGitattributes, _ := cmd.Flags().GetBool("no-gitattributes")
+	workflowDir, _ := cmd.Flags().GetString("dir")
+	noStopAfter, _ := cmd.Flags().GetBool("no-stop-after")
+	stopAfter, _ := cmd.Flags().GetString("stop-after")
+	appendText, _ := cmd.Flags().GetString("append")
+	return &AddInteractiveConfig{
+		WorkflowSpecs:          workflows,
+		Verbose:                verbose,
+		EngineOverride:         engineOverride,
+		NoGitattributes:        noGitattributes,
+		WorkflowDir:            workflowDir,
+		NoStopAfter:            noStopAfter,
+		StopAfter:              stopAfter,
+		SkipSecret:             resolveAddWizardSkipSecret(cmd),
+		AppendText:             appendText,
+		DisableSecurityScanner: resolveDeprecatedBoolFlag(cmd, "no-security-scanner", "disable-security-scanner"),
+	}
+}
+
+func resolveAddWizardSkipSecret(cmd *cobra.Command) bool {
+	noSecret, _ := cmd.Flags().GetBool("no-secret")
+	skipSecretLegacy, _ := cmd.Flags().GetBool("skip-secret")
+	return noSecret || skipSecretLegacy
+}
+
+func validateAddWizardInteractiveTerminal() error {
+	isTerminal := tty.IsStdoutTerminal()
+	isCIEnv := IsRunningInCI()
+	addWizardLog.Printf("Terminal check: is_terminal=%v, is_ci=%v", isTerminal, isCIEnv)
+	if !isTerminal || isCIEnv {
+		return errors.New("add-wizard requires an interactive terminal; use 'add' for non-interactive environments")
+	}
+	return nil
+}
+
+func configureAddWizardFlags(cmd *cobra.Command) {
 	addEngineFlag(cmd)
-
-	// Add no-gitattributes flag
 	cmd.Flags().Bool("no-gitattributes", false, "Skip updating .gitattributes file")
-
-	// Add workflow directory flag
 	cmd.Flags().StringP("dir", "d", "", "Workflow directory (default: $GH_AW_WORKFLOWS_DIR or .github/workflows)")
-
-	// Add no-stop-after flag
 	cmd.Flags().Bool("no-stop-after", false, "Remove any stop-after field from the workflow")
-
-	// Add stop-after flag
 	cmd.Flags().String("stop-after", "", "Override stop-after value in the workflow (e.g., '+48h', '2025-12-31 23:59:59')")
-
-	// Add no-secret flag (--skip-secret is kept as an undocumented alias)
 	cmd.Flags().Bool("no-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
 	cmd.Flags().Bool("skip-secret", false, "Skip the API secret prompt (use when the secret is already set at the org or repo level)")
 	_ = cmd.Flags().MarkHidden("skip-secret")
-
-	// Add append flag (matches --append in add command)
 	cmd.Flags().String("append", "", "Append extra content to the end of the agentic workflow on installation")
-
-	// Add no-security-scanner flag (--disable-security-scanner is kept as a deprecated alias
-	// for consistency with add and other install entry points)
 	addSecurityScannerFlag(cmd)
-
-	// Register completions
-	RegisterEngineFlagCompletion(cmd)
-	RegisterDirFlagCompletion(cmd, "dir")
-
-	return cmd
 }

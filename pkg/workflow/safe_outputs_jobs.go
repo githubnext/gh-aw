@@ -50,6 +50,10 @@ type SafeOutputJobConfig struct {
 // 3. Invoke buildGitHubScriptStep
 // 4. Create Job with standard metadata
 func (c *Compiler) buildSafeOutputJob(data *WorkflowData, config SafeOutputJobConfig) (*Job, error) {
+	return c.buildSafeOutputJobBody(data, config)
+}
+
+func (c *Compiler) buildSafeOutputJobBody(data *WorkflowData, config SafeOutputJobConfig) (*Job, error) {
 	safeOutputsJobsLog.Printf("Building safe output job: %s (actionMode=%s)", config.JobName, c.actionMode)
 	var steps []string
 

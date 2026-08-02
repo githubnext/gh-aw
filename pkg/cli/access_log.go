@@ -86,85 +86,76 @@ func (d *DomainAnalysis) AddMetrics(other LogAnalysis) {
 // parseSquidAccessLog parses a squid access log file and extracts domain information
 func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) {
 	accessLogLog.Printf("Parsing squid access log: %s", logPath)
-
 	file, err := os.Open(logPath)
 	if err != nil {
 		accessLogLog.Printf("Failed to open access log %s: %v", logPath, err)
 		return nil, fmt.Errorf("failed to open access log: %w", err)
 	}
 	defer file.Close()
-
 	analysis := &DomainAnalysis{}
-
-	allowedDomainsSet := make(map[string]struct {
-	})
-	blockedDomainsSet := make(map[string]struct {
-	})
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-
-		entry, err := parseSquidLogLine(line)
-		if err != nil {
-			if verbose {
-				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log line: %v", err)))
-			}
-			continue
-		}
-
-		analysis.TotalRequests++
-
-		// Extract domain from URL
-		domain := stringutil.ExtractDomainFromURL(entry.URL)
-		if domain == "" {
-			continue
-		}
-
-		// Determine if request was allowed or blocked based on status code
-		// Squid typically returns:
-		// - 200, 206, 304: Allowed/successful
-		// - 403: Forbidden (blocked by ACL)
-		// - 407: Proxy authentication required
-		// - 502, 503: Connection/upstream errors
-		statusCode := entry.Status
-		isAllowed := statusCode == "TCP_HIT/200" || statusCode == "TCP_MISS/200" ||
-			statusCode == "TCP_REFRESH_MODIFIED/200" || statusCode == "TCP_IMS_HIT/304" ||
-			strings.Contains(statusCode, "/200") || strings.Contains(statusCode, "/206") ||
-			strings.Contains(statusCode, "/304")
-
-		if isAllowed {
-			analysis.AllowedRequests++
-			if !setutil.Contains(allowedDomainsSet, domain) {
-				allowedDomainsSet[domain] = struct {
-				}{}
-				analysis.AllowedDomains = append(analysis.AllowedDomains, domain)
-			}
-		} else {
-			analysis.BlockedRequests++
-			if !setutil.Contains(blockedDomainsSet, domain) {
-				blockedDomainsSet[domain] = struct {
-				}{}
-				analysis.BlockedDomains = append(analysis.BlockedDomains, domain)
-			}
-		}
+	allowedDomainsSet := make(map[string]struct{})
+	blockedDomainsSet := make(map[string]struct{})
+	if err := scanSquidAccessLog(file, analysis, allowedDomainsSet, blockedDomainsSet, verbose); err != nil {
+		return nil, err
 	}
-
-	if err := scanner.Err(); err != nil {
-		return nil, fmt.Errorf("error reading access log: %w", err)
-	}
-
-	// Sort domains for consistent output
 	sort.Strings(analysis.AllowedDomains)
 	sort.Strings(analysis.BlockedDomains)
-
-	accessLogLog.Printf("Parsed access log: total_requests=%d, allowed=%d, blocked=%d, unique_allowed_domains=%d, unique_blocked_domains=%d",
-		analysis.TotalRequests, analysis.AllowedRequests, analysis.BlockedRequests, len(analysis.AllowedDomains), len(analysis.BlockedDomains))
-
+	accessLogLog.Printf("Parsed access log: total_requests=%d, allowed=%d, blocked=%d, unique_allowed_domains=%d, unique_blocked_domains=%d", analysis.TotalRequests, analysis.AllowedRequests, analysis.BlockedRequests, len(analysis.AllowedDomains), len(analysis.BlockedDomains))
 	return analysis, nil
+}
+
+func scanSquidAccessLog(file *os.File, analysis *DomainAnalysis, allowedDomainsSet, blockedDomainsSet map[string]struct{}, verbose bool) error {
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if err := processSquidLogLine(scanner.Text(), analysis, allowedDomainsSet, blockedDomainsSet, verbose); err != nil {
+			return err
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading access log: %w", err)
+	}
+	return nil
+}
+
+func processSquidLogLine(rawLine string, analysis *DomainAnalysis, allowedDomainsSet, blockedDomainsSet map[string]struct{}, verbose bool) error {
+	line := strings.TrimSpace(rawLine)
+	if line == "" || strings.HasPrefix(line, "#") {
+		return nil
+	}
+	entry, err := parseSquidLogLine(line)
+	if err != nil {
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log line: %v", err)))
+		}
+		return nil
+	}
+	analysis.TotalRequests++
+	domain := stringutil.ExtractDomainFromURL(entry.URL)
+	if domain == "" {
+		return nil
+	}
+	if isAllowedSquidStatus(entry.Status) {
+		analysis.AllowedRequests++
+		appendUniqueDomain(&analysis.AllowedDomains, allowedDomainsSet, domain)
+		return nil
+	}
+	analysis.BlockedRequests++
+	appendUniqueDomain(&analysis.BlockedDomains, blockedDomainsSet, domain)
+	return nil
+}
+
+func isAllowedSquidStatus(statusCode string) bool {
+	return statusCode == "TCP_HIT/200" || statusCode == "TCP_MISS/200" ||
+		statusCode == "TCP_REFRESH_MODIFIED/200" || statusCode == "TCP_IMS_HIT/304" ||
+		strings.Contains(statusCode, "/200") || strings.Contains(statusCode, "/206") || strings.Contains(statusCode, "/304")
+}
+
+func appendUniqueDomain(domains *[]string, seen map[string]struct{}, domain string) {
+	if setutil.Contains(seen, domain) {
+		return
+	}
+	seen[domain] = struct{}{}
+	*domains = append(*domains, domain)
 }
 
 // parseSquidLogLine parses a single squid access log line

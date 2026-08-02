@@ -110,6 +110,10 @@ func ComputePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig) *Permissio
 }
 
 func computePermissionsForSafeOutputs(safeOutputs *SafeOutputsConfig, excludePerHandlerApps bool) *Permissions {
+	return computePermissionsForSafeOutputsBody(safeOutputs, excludePerHandlerApps)
+}
+
+func computePermissionsForSafeOutputsBody(safeOutputs *SafeOutputsConfig, excludePerHandlerApps bool) *Permissions {
 	if safeOutputs == nil {
 		safeOutputsPermissionsLog.Print("No safe outputs configured, returning empty permissions")
 		return NewPermissions()

@@ -25,175 +25,191 @@ func isAlreadyMergedGHError(err error) bool {
 // createWorkflowPRAndConfigureSecret creates the PR, merges it, and adds the secret
 func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Context, workflowFiles, initFiles []string, secretName, secretValue string) error {
 	addInteractiveLog.Print("Applying changes")
-
 	fmt.Fprintln(os.Stderr, "")
-
-	// Add the workflow using existing implementation with --create-pull-request
-	// Pass the resolved workflows to avoid re-fetching them
-	// Pass Quiet=true to suppress detailed output (already shown earlier in interactive mode)
-	// This returns the result including PR number and HasWorkflowDispatch
-	opts := AddOptions{
-		Verbose:                      c.Verbose,
-		Quiet:                        true,
-		EngineOverride:               c.EngineOverride,
-		Name:                         "",
-		Force:                        false,
-		AppendText:                   c.AppendText,
-		CreatePR:                     true,
-		NoGitattributes:              c.NoGitattributes,
-		WorkflowDir:                  c.WorkflowDir,
-		NoStopAfter:                  c.NoStopAfter,
-		StopAfter:                    c.StopAfter,
-		DisableSecurityScanner:       c.DisableSecurityScanner,
-		AddCopilotRequestsPermission: c.UseCopilotRequests,
+	result, err := c.addResolvedWorkflowsForPR(ctx)
+	if err != nil {
+		return err
 	}
+	if err := c.handleWorkflowPullRequest(result); err != nil {
+		return err
+	}
+	return c.configureRepositorySecret(secretName, secretValue)
+}
+
+func (c *AddInteractiveConfig) addResolvedWorkflowsForPR(ctx context.Context) (*AddWorkflowsResult, error) {
+	opts := AddOptions{Verbose: c.Verbose, Quiet: true, EngineOverride: c.EngineOverride, AppendText: c.AppendText, CreatePR: true, NoGitattributes: c.NoGitattributes, WorkflowDir: c.WorkflowDir, NoStopAfter: c.NoStopAfter, StopAfter: c.StopAfter, DisableSecurityScanner: c.DisableSecurityScanner, AddCopilotRequestsPermission: c.UseCopilotRequests}
 	result, err := AddResolvedWorkflows(ctx, c.WorkflowSpecs, c.resolvedWorkflows, opts)
 	if err != nil {
-		return fmt.Errorf("failed to add workflow: %w", err)
+		return nil, fmt.Errorf("failed to add workflow: %w", err)
 	}
 	c.addResult = result
+	return result, nil
+}
 
-	// Step 8b: Optionally merge the PR – loop until merged, confirmed-merged, or user exits
+func (c *AddInteractiveConfig) handleWorkflowPullRequest(result *AddWorkflowsResult) error {
 	if result.PRNumber == 0 {
-		if result.PRURL == "" {
-			fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Requested workflow files already exist locally; no pull request was created."))
-			return nil
+		return c.handleMissingPullRequest(result)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+result.PRURL))
+	fmt.Fprintln(os.Stderr, "")
+	return c.runPullRequestMergeLoop(result)
+}
+
+func (c *AddInteractiveConfig) handleMissingPullRequest(result *AddWorkflowsResult) error {
+	if result.PRURL == "" {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Requested workflow files already exist locally; no pull request was created."))
+		return nil
+	}
+	fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
+	fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
+	return nil
+}
+
+type mergeLoopState struct {
+	mergeDone     bool
+	mergeFailed   bool
+	userReviewing bool
+}
+
+type mergeAction string
+
+const (
+	mergeActionAttempt   mergeAction = "attempt"
+	mergeActionEditTitle mergeAction = "editTitle"
+	mergeActionReview    mergeAction = "review"
+	mergeActionConfirmed mergeAction = "confirmed"
+	mergeActionExit      mergeAction = "exit"
+)
+
+func (c *AddInteractiveConfig) runPullRequestMergeLoop(result *AddWorkflowsResult) error {
+	state := &mergeLoopState{}
+	for !state.mergeDone {
+		action, err := promptMergeAction(result.PRURL, state)
+		if err != nil {
+			return fmt.Errorf("failed to get user input: %w", err)
 		}
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("Could not determine PR number"))
-		fmt.Fprintln(os.Stderr, "Please merge the PR manually from the GitHub web interface.")
-	} else {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Pull request created: "+result.PRURL))
-		fmt.Fprintln(os.Stderr, "")
-
-		// mergeAction values used in the select loop
-		type mergeAction string
-		const (
-			mergeActionAttempt   mergeAction = "attempt"
-			mergeActionEditTitle mergeAction = "editTitle"
-			mergeActionReview    mergeAction = "review"
-			mergeActionConfirmed mergeAction = "confirmed"
-			mergeActionExit      mergeAction = "exit"
-		)
-
-		mergeDone := false     // true when the PR is merged (or confirmed merged)
-		mergeFailed := false   // true after an unsuccessful merge attempt
-		userReviewing := false // true after the user chose "I'll review myself"
-
-		for !mergeDone {
-			// Build option list based on current state
-			var options []huh.Option[mergeAction]
-
-			options = append(options, huh.NewOption("Attempt to merge", mergeActionAttempt))
-
-			if mergeFailed {
-				options = append(options, huh.NewOption("Edit PR title and retry", mergeActionEditTitle))
-			}
-
-			if userReviewing {
-				options = append(options, huh.NewOption("PR has been manually merged", mergeActionConfirmed))
-			} else {
-				options = append(options, huh.NewOption("I'll review/merge myself", mergeActionReview))
-			}
-
-			if userReviewing {
-				options = append(options, huh.NewOption("Exit, I'm done here", mergeActionExit))
-			} else {
-				options = append(options, huh.NewOption("Exit", mergeActionExit))
-			}
-
-			var chosen mergeAction
-			selectForm := console.NewSelectForm(
-				huh.NewSelect[mergeAction]().
-					Title("What would you like to do with pull request " + result.PRURL + "?").
-					Options(options...).
-					Value(&chosen),
-			)
-
-			if selectErr := selectForm.Run(); selectErr != nil {
-				return fmt.Errorf("failed to get user input: %w", selectErr)
-			}
-
-			switch chosen {
-			case mergeActionAttempt:
-				if mergeErr := c.mergePullRequest(result.PRNumber); mergeErr != nil {
-					if isAlreadyMergedGHError(mergeErr) {
-						fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
-						mergeDone = true
-					} else {
-						fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", mergeErr)))
-						if mergeFailed {
-							fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
-						}
-						mergeFailed = true
-					}
-				} else {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
-					mergeDone = true
-				}
-
-			case mergeActionEditTitle:
-				var newTitle string
-				titleForm := console.NewInputForm(
-					huh.NewInput().
-						Title("Enter new PR title").
-						Description("Add a prefix if required, for example: feat: or fix:").
-						Value(&newTitle),
-				)
-				if titleErr := titleForm.Run(); titleErr != nil {
-					return fmt.Errorf("failed to get user input: %w", titleErr)
-				}
-				newTitle = strings.TrimSpace(newTitle)
-				if newTitle == "" {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage("PR title cannot be empty, keeping current title"))
-				} else if editErr := editPRTitle(result.PRNumber, newTitle, c.RepoOverride); editErr != nil {
-					fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update PR title: %v", editErr)))
-				} else {
-					fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR title updated to: "+newTitle))
-					mergeFailed = false
-				}
-
-			case mergeActionReview:
-				userReviewing = true
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please review and merge the pull request: "+result.PRURL))
-				fmt.Fprintln(os.Stderr, "")
-
-			case mergeActionConfirmed:
-				fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Great – continuing with the merged pull request"))
-				mergeDone = true
-
-			case mergeActionExit:
-				fmt.Fprintln(os.Stderr, "")
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Exiting. You can merge the pull request later: "+result.PRURL))
-				return errors.New("user exited before PR was merged")
-			}
+		if err := c.handleMergeAction(result, state, action); err != nil {
+			return err
 		}
 	}
+	return nil
+}
 
-	// Step 8c: Add the secret (skip if no secret configured or already exists in repository)
-	if secretName == "" {
-		// No secret to configure (e.g., user doesn't have write access to the repository)
-	} else if secretValue == "" {
-		// Secret already exists in repo, nothing to do
+func promptMergeAction(prURL string, state *mergeLoopState) (mergeAction, error) {
+	var chosen mergeAction
+	selectForm := console.NewSelectForm(huh.NewSelect[mergeAction]().Title("What would you like to do with pull request " + prURL + "?").Options(buildMergeActionOptions(state)...).Value(&chosen))
+	if err := selectForm.Run(); err != nil {
+		return "", err
+	}
+	return chosen, nil
+}
+
+func buildMergeActionOptions(state *mergeLoopState) []huh.Option[mergeAction] {
+	options := []huh.Option[mergeAction]{huh.NewOption("Attempt to merge", mergeActionAttempt)}
+	if state.mergeFailed {
+		options = append(options, huh.NewOption("Edit PR title and retry", mergeActionEditTitle))
+	}
+	if state.userReviewing {
+		options = append(options, huh.NewOption("PR has been manually merged", mergeActionConfirmed), huh.NewOption("Exit, I'm done here", mergeActionExit))
+		return options
+	}
+	return append(options, huh.NewOption("I'll review/merge myself", mergeActionReview), huh.NewOption("Exit", mergeActionExit))
+}
+
+func (c *AddInteractiveConfig) handleMergeAction(result *AddWorkflowsResult, state *mergeLoopState, action mergeAction) error {
+	switch action {
+	case mergeActionAttempt:
+		return c.attemptMergePullRequest(result, state)
+	case mergeActionEditTitle:
+		return c.editPullRequestTitle(result.PRNumber, state)
+	case mergeActionReview:
+		state.userReviewing = true
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Please review and merge the pull request: "+result.PRURL))
+		fmt.Fprintln(os.Stderr, "")
+	case mergeActionConfirmed:
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Great – continuing with the merged pull request"))
+		state.mergeDone = true
+	case mergeActionExit:
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Exiting. You can merge the pull request later: "+result.PRURL))
+		return errors.New("user exited before PR was merged")
+	}
+	return nil
+}
+
+func (c *AddInteractiveConfig) attemptMergePullRequest(result *AddWorkflowsResult, state *mergeLoopState) error {
+	if err := c.mergePullRequest(result.PRNumber); err != nil {
+		if isAlreadyMergedGHError(err) {
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
+			state.mergeDone = true
+			return nil
+		}
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to merge PR: %v", err)))
+		if state.mergeFailed {
+			fmt.Fprintln(os.Stderr, "Please merge the PR manually: "+result.PRURL)
+		}
+		state.mergeFailed = true
+		return nil
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Merged pull request "+result.PRURL))
+	state.mergeDone = true
+	return nil
+}
+
+func (c *AddInteractiveConfig) editPullRequestTitle(prNumber int, state *mergeLoopState) error {
+	newTitle, err := promptForPullRequestTitle()
+	if err != nil {
+		return fmt.Errorf("failed to get user input: %w", err)
+	}
+	if newTitle == "" {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("PR title cannot be empty, keeping current title"))
+		return nil
+	}
+	if err := editPRTitle(prNumber, newTitle, c.RepoOverride); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update PR title: %v", err)))
+		return nil
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR title updated to: "+newTitle))
+	state.mergeFailed = false
+	return nil
+}
+
+func promptForPullRequestTitle() (string, error) {
+	var newTitle string
+	titleForm := console.NewInputForm(huh.NewInput().Title("Enter new PR title").Description("Add a prefix if required, for example: feat: or fix:").Value(&newTitle))
+	if err := titleForm.Run(); err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(newTitle), nil
+}
+
+func (c *AddInteractiveConfig) configureRepositorySecret(secretName, secretValue string) error {
+	switch {
+	case secretName == "":
+		return nil
+	case secretValue == "":
 		if c.Verbose {
 			fmt.Fprintln(os.Stderr, "")
 			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' already configured", secretName)))
 		}
-	} else {
-		fmt.Fprintln(os.Stderr, "")
-		fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding secret '%s' to repository...", secretName)))
-
-		if err := c.addRepositorySecret(secretName, secretValue); err != nil {
-			fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to add secret: %v", err)))
-			fmt.Fprintln(os.Stderr, "")
-			fmt.Fprintln(os.Stderr, "Please add the secret manually:")
-			fmt.Fprintln(os.Stderr, "  1. Go to your repository Settings → Secrets and variables → Actions")
-			fmt.Fprintf(os.Stderr, "  2. Click 'New repository secret' and add '%s'\n", secretName)
-			return fmt.Errorf("failed to add secret: %w", err)
-		}
-
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' added", secretName)))
+		return nil
+	default:
+		return c.addConfiguredRepositorySecret(secretName, secretValue)
 	}
+}
 
+func (c *AddInteractiveConfig) addConfiguredRepositorySecret(secretName, secretValue string) error {
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, console.FormatProgressMessage(fmt.Sprintf("Adding secret '%s' to repository...", secretName)))
+	if err := c.addRepositorySecret(secretName, secretValue); err != nil {
+		fmt.Fprintln(os.Stderr, console.FormatErrorMessage(fmt.Sprintf("Failed to add secret: %v", err)))
+		fmt.Fprintln(os.Stderr, "")
+		fmt.Fprintln(os.Stderr, "Please add the secret manually:")
+		fmt.Fprintln(os.Stderr, "  1. Go to your repository Settings → Secrets and variables → Actions")
+		fmt.Fprintf(os.Stderr, "  2. Click 'New repository secret' and add '%s'\n", secretName)
+		return fmt.Errorf("failed to add secret: %w", err)
+	}
+	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Secret '%s' added", secretName)))
 	return nil
 }
 
@@ -202,70 +218,81 @@ func (c *AddInteractiveConfig) createWorkflowPRAndConfigureSecret(ctx context.Co
 // the merged workflow files, which are required when offering to run the workflow.
 func (c *AddInteractiveConfig) updateLocalBranch() error {
 	addInteractiveLog.Print("Updating local branch with merged changes")
-
-	// Get the default branch name using gh
-	output, err := workflow.RunGHCombined("Getting default branch...", "repo", "view", "--repo", c.RepoOverride, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name")
-	defaultBranch := ""
-	if err == nil {
-		defaultBranch = strings.TrimSpace(string(output))
+	defaultBranch := c.detectDefaultBranch()
+	addInteractiveLog.Printf("Default branch: %s", defaultBranch)
+	if err := c.fetchDefaultBranch(defaultBranch); err != nil {
+		return err
 	}
+	if err := c.switchToDefaultBranch(defaultBranch); err != nil {
+		return err
+	}
+	if err := c.pullDefaultBranch(defaultBranch); err != nil {
+		return err
+	}
+	if c.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Local branch updated with merged changes"))
+	}
+	return nil
+}
 
-	// Fallback: query the local origin remote directly (works even when gh repo
-	// view fails, e.g. forks without a default remote set).
-	if defaultBranch == "" {
-		addInteractiveLog.Print("gh repo view failed, trying git ls-remote to detect default branch")
-		lsCmd := exec.Command("git", "ls-remote", "--symref", "origin", "HEAD")
-		lsOutput, lsErr := lsCmd.CombinedOutput()
-		if lsErr == nil {
-			defaultBranch = parseDefaultBranchFromLsRemote(string(lsOutput))
+func (c *AddInteractiveConfig) detectDefaultBranch() string {
+	output, err := workflow.RunGHCombined("Getting default branch...", "repo", "view", "--repo", c.RepoOverride, "--json", "defaultBranchRef", "--jq", ".defaultBranchRef.name")
+	if err == nil {
+		if defaultBranch := strings.TrimSpace(string(output)); defaultBranch != "" {
+			return defaultBranch
 		}
 	}
+	return fallbackDefaultBranch()
+}
 
-	if defaultBranch == "" {
-		defaultBranch = "main"
+func fallbackDefaultBranch() string {
+	addInteractiveLog.Print("gh repo view failed, trying git ls-remote to detect default branch")
+	cmd := exec.Command("git", "ls-remote", "--symref", "origin", "HEAD")
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		if defaultBranch := parseDefaultBranchFromLsRemote(string(output)); defaultBranch != "" {
+			return defaultBranch
+		}
 	}
-	addInteractiveLog.Printf("Default branch: %s", defaultBranch)
+	return "main"
+}
 
-	// Fetch the latest changes from origin
+func (c *AddInteractiveConfig) fetchDefaultBranch(defaultBranch string) error {
 	if c.Verbose {
 		fmt.Fprintln(os.Stderr, console.FormatProgressMessage("Fetching latest changes from GitHub..."))
 	}
-
-	fetchCmd := exec.Command("git", "fetch", "origin", defaultBranch)
-	fetchOutput, err := fetchCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git fetch failed: %w (output: %s)", err, string(fetchOutput))
+	cmd := exec.Command("git", "fetch", "origin", defaultBranch)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git fetch failed: %w (output: %s)", err, string(output))
 	}
+	return nil
+}
 
-	// Switch to the default branch so the working tree contains the merged workflow
-	// files. Without this, users on a feature branch won't have the files locally and
-	// the subsequent "run workflow" step will fail with "workflow file not found".
+func (c *AddInteractiveConfig) switchToDefaultBranch(defaultBranch string) error {
 	currentBranch, err := getCurrentBranch()
 	if err != nil {
 		addInteractiveLog.Printf("Could not determine current branch: %v", err)
 		currentBranch = ""
 	}
-
-	if currentBranch != defaultBranch {
-		addInteractiveLog.Printf("Switching from %q to default branch %q", currentBranch, defaultBranch)
-		if err := switchBranch(defaultBranch, c.Verbose); err != nil {
-			return fmt.Errorf("failed to switch to default branch %s: %w", defaultBranch, err)
-		}
+	if currentBranch == defaultBranch {
+		return nil
 	}
-
-	pullCmd := exec.Command("git", "pull", "origin", defaultBranch)
-	pullOutput, err := pullCmd.CombinedOutput()
-	if err != nil {
-		return fmt.Errorf("git pull failed: %w (output: %s)", err, string(pullOutput))
+	addInteractiveLog.Printf("Switching from %q to default branch %q", currentBranch, defaultBranch)
+	if err := switchBranch(defaultBranch, c.Verbose); err != nil {
+		return fmt.Errorf("failed to switch to default branch %s: %w", defaultBranch, err)
 	}
-
-	if c.Verbose {
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Local branch updated with merged changes"))
-	}
-
 	return nil
 }
 
+func (c *AddInteractiveConfig) pullDefaultBranch(defaultBranch string) error {
+	cmd := exec.Command("git", "pull", "origin", defaultBranch)
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("git pull failed: %w (output: %s)", err, string(output))
+	}
+	return nil
+}
+
+// checkCleanWorkingDirectory verifies the working directory has no uncommitted changes.
 // checkCleanWorkingDirectory verifies the working directory has no uncommitted changes.
 // This is checked early in the interactive flow to avoid failing later during PR creation.
 func (c *AddInteractiveConfig) checkCleanWorkingDirectory() error {

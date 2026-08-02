@@ -5,6 +5,10 @@ import "fmt"
 // addRepoParameterIfNeeded adds a "repo" parameter to the tool's inputSchema
 // if the safe output configuration has allowed-repos entries or a wildcard "*" target-repo
 func addRepoParameterIfNeeded(tool map[string]any, toolName string, safeOutputs *SafeOutputsConfig) {
+	addRepoParameterIfNeededBody(tool, toolName, safeOutputs)
+}
+
+func addRepoParameterIfNeededBody(tool map[string]any, toolName string, safeOutputs *SafeOutputsConfig) {
 	safeOutputsConfigLog.Printf("Checking if repo parameter needed for tool: %s", toolName)
 	if safeOutputs == nil {
 		return

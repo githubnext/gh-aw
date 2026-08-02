@@ -9,6 +9,11 @@ var safeOutputsToolsComputationLog = logger.New("workflow:safe_outputs_tools_com
 // call-workflow) are excluded because they are generated separately.
 func computeEnabledToolNames(data *WorkflowData) map[string]struct {
 } {
+	return computeEnabledToolNamesBody(data)
+}
+
+func computeEnabledToolNamesBody(data *WorkflowData) map[string]struct {
+} {
 	enabledTools := make(map[string]struct {
 	})
 	if data.SafeOutputs == nil {

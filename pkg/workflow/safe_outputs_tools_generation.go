@@ -30,6 +30,10 @@ import (
 // These tools are not in safe_outputs_tools.json and must be generated from
 // the workflow configuration at compile time.
 func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string]any, error) {
+	return generateDynamicToolsBody(data, markdownPath)
+}
+
+func generateDynamicToolsBody(data *WorkflowData, markdownPath string) ([]map[string]any, error) {
 	var dynamicTools []map[string]any
 
 	// Add custom job tools from SafeOutputs.Jobs
@@ -366,6 +370,10 @@ func computePropertyInjections(safeOutputs *SafeOutputsConfig) map[string]map[st
 // the actions folder, applies the meta overrides from tools_meta.json, and writes
 // the final ${RUNNER_TEMP}/gh-aw/safeoutputs/tools.json.
 func generateToolsMetaJSON(data *WorkflowData, markdownPath string) (string, error) {
+	return generateToolsMetaJSONBody(data, markdownPath)
+}
+
+func generateToolsMetaJSONBody(data *WorkflowData, markdownPath string) (string, error) {
 	if data.SafeOutputs == nil {
 		empty := ToolsMeta{
 			DescriptionSuffixes: map[string]string{},
