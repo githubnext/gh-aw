@@ -4,6 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: '23 4 * * 1'
+  push:
+    branches:
+      - main
+    paths:
+      - 'actions/setup/js/Dockerfile.safe-outputs-mcp'
 
 permissions:
   contents: read
