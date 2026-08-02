@@ -1,2 +1,2 @@
-{"id":"tests_analyzed","question":"Did the agent analyze Go tests to identify a safe candidate for t.Parallel?","answer":"YES","model":"small","timestamp":"2026-08-01T06:47:01.317Z","runid":"30688170771"}
-{"id":"pr_created_or_noop","question":"Did the agent create a pull request for a safe test change, or use noop when no safe change was available?","answer":"YES","model":"small","timestamp":"2026-08-01T06:47:01.317Z","runid":"30688170771"}
+{"id":"tests_analyzed","question":"Did the agent analyze Go tests to identify a safe candidate for t.Parallel?","answer":"YES","model":"evals","timestamp":"2026-08-02T06:53:01.062Z","runid":"30736408859"}
+{"id":"pr_created_or_noop","question":"Did the agent create a pull request for a safe test change, or use noop when no safe change was available?","answer":"YES","model":"evals","timestamp":"2026-08-02T06:53:01.062Z","runid":"30736408859"}
