@@ -10,13 +10,19 @@ ARG DOCKERFILE_HASH=""
 ARG NPM_VERSION=11.19.0
 
 # Intentional: upgrade all packages to pick up security fixes; downstream digest pins the result.
-# After upgrading npm, patch its bundled dependencies to meet minimum safe versions
-# (tar >= 7.5.21 for CVE-2025-tar, brace-expansion >= 5.0.8 for CVE-2025-brace-expansion).
+# After upgrading npm, patch its bundled dependencies to meet minimum safe versions.
+# Install into a temp prefix (avoids npm's own private package.json) then overlay into npm's
+# bundled node_modules: brace-expansion >= 5.0.8 (GHSA-mh99-v99m-4gvg), tar >= 7.5.22.
 RUN apk upgrade --no-cache \
     && apk add --no-cache git \
     && apk info -v | sort \
     && npm install --global "npm@${NPM_VERSION}" \
-    && npm install --prefix "$(npm root -g)/npm" --no-save "tar@^7.5.22" "brace-expansion@^5.0.8" \
+    && tmpdir=$(mktemp -d) \
+    && npm --prefix "$tmpdir" install --no-save "tar@^7.5.22" "brace-expansion@^5.0.8" \
+    && npm_modules="$(npm root -g)/npm/node_modules" \
+    && cp -rf "$tmpdir/node_modules/brace-expansion/." "$npm_modules/brace-expansion/" \
+    && cp -rf "$tmpdir/node_modules/tar/." "$npm_modules/tar/" \
+    && rm -rf "$tmpdir" \
     && npm cache clean --force
 
 LABEL org.opencontainers.image.source="https://github.com/github/gh-aw" \
