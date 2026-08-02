@@ -144,180 +144,131 @@ func (e *ClaudeEngine) extractClaudeResultMetrics(line string) LogMetrics {
 // parseClaudeJSONLog parses Claude logs as a JSON array or mixed format (debug logs + JSONL)
 func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMetrics {
 	claudeLogsLog.Print("Attempting to parse Claude JSON log")
-	var metrics LogMetrics
+	logEntries := e.parseClaudeLogEntries(logContent, verbose)
+	if len(logEntries) == 0 {
+		return LogMetrics{}
+	}
+	return e.extractClaudeMetricsFromEntries(logEntries, verbose)
+}
 
-	// Try to parse the entire log as a JSON array first (old format)
+func (e *ClaudeEngine) parseClaudeLogEntries(logContent string, verbose bool) []map[string]any {
 	var logEntries []map[string]any
-	if err := json.Unmarshal([]byte(logContent), &logEntries); err != nil {
-		// If that fails, try to parse as mixed format (debug logs + JSONL)
+	if err := json.Unmarshal([]byte(logContent), &logEntries); err == nil {
+		return logEntries
+	} else {
 		claudeLogsLog.Print("JSON array parse failed, trying JSONL format")
 		if verbose {
 			fmt.Fprintf(os.Stderr, "Failed to parse Claude log as JSON array, trying JSONL format: %v\n", err)
 		}
-
-		logEntries = []map[string]any{}
-		lines := strings.Split(logContent, "\n")
-
-		for i := 0; i < len(lines); i++ {
-			line := lines[i]
-			trimmedLine := strings.TrimSpace(line)
-			if trimmedLine == "" {
-				continue // Skip empty lines
-			}
-
-			// If a line looks like a JSON array (starts with '['), try to parse it as an array
-			if strings.HasPrefix(trimmedLine, "[") {
-				buf := trimmedLine
-				// If the closing bracket is not on the same line, accumulate subsequent lines
-				if !strings.Contains(trimmedLine, "]") {
-					j := i + 1
-					var sb strings.Builder
-					for j < len(lines) {
-						sb.WriteString("\n" + lines[j])
-						if strings.Contains(lines[j], "]") {
-							// Advance outer loop to the line we consumed
-							i = j
-							break
-						}
-						j++
-					}
-					buf += sb.String()
-				}
-
-				var arr []map[string]any
-				if err := json.Unmarshal([]byte(buf), &arr); err == nil {
-					logEntries = append(logEntries, arr...)
-					continue
-				}
-
-				// If parsing as a single-line or multi-line array failed, attempt to extract a JSON array substring
-				openIdx := strings.Index(buf, "[")
-				closeIdx := strings.LastIndex(buf, "]")
-				if openIdx != -1 && closeIdx != -1 && closeIdx > openIdx {
-					sub := buf[openIdx : closeIdx+1]
-					var arr2 []map[string]any
-					if err2 := json.Unmarshal([]byte(sub), &arr2); err2 == nil {
-						logEntries = append(logEntries, arr2...)
-						continue
-					}
-				}
-			}
-
-			// Skip debug log lines that don't start with '{'
-			if !strings.HasPrefix(trimmedLine, "{") {
-				continue
-			}
-
-			// Try to parse each line as JSON
-			var jsonEntry map[string]any
-			if err := json.Unmarshal([]byte(trimmedLine), &jsonEntry); err != nil {
-				// Skip invalid JSON lines (could be partial debug output)
-				if verbose {
-					fmt.Fprintf(os.Stderr, "Skipping invalid JSON line: %s\n", trimmedLine)
-				}
-				continue
-			}
-
-			logEntries = append(logEntries, jsonEntry)
-		}
-
-		if len(logEntries) == 0 {
-			if verbose {
-				fmt.Fprintf(os.Stderr, "No valid JSON entries found in Claude log\n")
-			}
-			return metrics
-		}
-
+	}
+	logEntries = e.parseClaudeMixedLogEntries(logContent, verbose)
+	if len(logEntries) == 0 {
 		if verbose {
-			fmt.Fprintf(os.Stderr, "Extracted %d JSON entries from mixed format Claude log\n", len(logEntries))
+			fmt.Fprintf(os.Stderr, "No valid JSON entries found in Claude log\n")
+		}
+		return nil
+	}
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Extracted %d JSON entries from mixed format Claude log\n", len(logEntries))
+	}
+	return logEntries
+}
+
+func (e *ClaudeEngine) parseClaudeMixedLogEntries(logContent string, verbose bool) []map[string]any {
+	var logEntries []map[string]any
+	lines := strings.Split(logContent, "\n")
+	for i := 0; i < len(lines); i++ {
+		trimmedLine := strings.TrimSpace(lines[i])
+		if trimmedLine == "" {
+			continue
+		}
+		if strings.HasPrefix(trimmedLine, "[") {
+			entries, next := extractClaudeJSONArrayEntries(lines, i)
+			i = next // always advance past consumed lines regardless of parse success
+			if len(entries) > 0 {
+				logEntries = append(logEntries, entries...)
+				continue
+			}
+		}
+		if entry, ok := parseClaudeJSONEntry(trimmedLine, verbose); ok {
+			logEntries = append(logEntries, entry)
 		}
 	}
+	return logEntries
+}
 
-	// Look for the result entry with type: "result"
+func extractClaudeJSONArrayEntries(lines []string, start int) ([]map[string]any, int) {
+	buf := strings.TrimSpace(lines[start])
+	end := start
+	if !strings.Contains(buf, "]") {
+		var sb strings.Builder
+		for j := start + 1; j < len(lines); j++ {
+			sb.WriteString("\n" + lines[j])
+			end = j
+			if strings.Contains(lines[j], "]") {
+				break
+			}
+		}
+		buf += sb.String()
+	}
+	return parseClaudeJSONArrayBuffer(buf), end
+}
+
+func parseClaudeJSONArrayBuffer(buf string) []map[string]any {
+	var entries []map[string]any
+	if err := json.Unmarshal([]byte(buf), &entries); err == nil {
+		return entries
+	}
+	openIdx := strings.Index(buf, "[")
+	closeIdx := strings.LastIndex(buf, "]")
+	if openIdx == -1 || closeIdx == -1 || closeIdx <= openIdx {
+		return nil
+	}
+	var subEntries []map[string]any
+	if err := json.Unmarshal([]byte(buf[openIdx:closeIdx+1]), &subEntries); err == nil {
+		return subEntries
+	}
+	return nil
+}
+
+func parseClaudeJSONEntry(trimmedLine string, verbose bool) (map[string]any, bool) {
+	if !strings.HasPrefix(trimmedLine, "{") {
+		return nil, false
+	}
+	var jsonEntry map[string]any
+	if err := json.Unmarshal([]byte(trimmedLine), &jsonEntry); err != nil {
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Skipping invalid JSON line: %s\n", trimmedLine)
+		}
+		return nil, false
+	}
+	return jsonEntry, true
+}
+
+func (e *ClaudeEngine) extractClaudeMetricsFromEntries(logEntries []map[string]any, verbose bool) LogMetrics {
+	var metrics LogMetrics
 	toolCallMap := make(map[string]*ToolCallInfo) // Track tool calls across entries
 	var currentSequence []string                  // Track tool sequence within current context
 
+	var done bool
 	for _, entry := range logEntries {
-		if entryType, exists := entry["type"]; exists {
-			if typeStr, ok := entryType.(string); ok && typeStr == "result" {
-				// Found the result payload, extract cost and token data
-				if totalCost, exists := entry["total_cost_usd"]; exists {
-					if cost := typeutil.ConvertToFloat(totalCost); cost > 0 {
-						metrics.EstimatedCost = cost
-					}
-				}
-
-				// Extract usage information with all token types
-				if usage, exists := entry["usage"]; exists {
-					if usageMap, ok := usage.(map[string]any); ok {
-						inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
-						outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
-						cacheCreationTokens := typeutil.ConvertToInt(usageMap["cache_creation_input_tokens"])
-						cacheReadTokens := typeutil.ConvertToInt(usageMap["cache_read_input_tokens"])
-
-						totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens
-						if totalTokens > 0 {
-							metrics.TokenUsage = totalTokens
-						}
-					}
-				}
-
-				// Extract number of turns
-				if numTurns, exists := entry["num_turns"]; exists {
-					if turns := typeutil.ConvertToInt(numTurns); turns > 0 {
-						metrics.Turns = turns
-					}
-				}
-
-				// Note: duration_ms in the result payload is the total elapsed job time, not per-tool timing.
-				// Claude logs do not provide per-tool execution durations, so MaxDuration is left as 0
-				// for tools whose timing cannot be measured individually. Assigning the total job
-				// duration as a per-tool MaxDuration would be misleading (it produced the bug where
-				// all bash tools appeared to take as long as the entire job).
-
-				if verbose {
-					fmt.Fprintf(os.Stderr, "Extracted from Claude result payload: tokens=%d, cost=%.4f, turns=%d\n",
-						metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
-				}
-				break
-			} else if typeStr == "assistant" {
-				// Parse tool_use entries for tool call statistics and sequence
-				if message, exists := entry["message"]; exists {
-					if messageMap, ok := message.(map[string]any); ok {
-						if content, exists := messageMap["content"]; exists {
-							if contentArray, ok := content.([]any); ok {
-								sequenceInMessage := e.parseToolCallsWithSequence(contentArray, toolCallMap)
-								if len(sequenceInMessage) > 0 {
-									currentSequence = append(currentSequence, sequenceInMessage...)
-								}
-							}
-						}
-					}
-				}
-			}
+		switch e.claudeEntryType(entry) {
+		case "result":
+			e.applyClaudeResultEntry(&metrics, entry, verbose)
+			done = true
+		case "assistant":
+			currentSequence = append(currentSequence, e.claudeAssistantSequence(entry, toolCallMap)...)
+		case "user":
+			e.claudeUserToolResults(entry, toolCallMap)
 		}
-
-		// Parse tool results from user entries for output sizes
-		if entry["type"] == "user" {
-			if message, exists := entry["message"]; exists {
-				if messageMap, ok := message.(map[string]any); ok {
-					if content, exists := messageMap["content"]; exists {
-						if contentArray, ok := content.([]any); ok {
-							// Sequence return value intentionally discarded; only toolCallMap is needed here.
-							e.parseToolCallsWithSequence(contentArray, toolCallMap)
-						}
-					}
-				}
-			}
+		if done {
+			break
 		}
 	}
 
-	// Finalize tool calls and sequences using shared helper
 	FinalizeToolCallsAndSequence(&metrics, toolCallMap, currentSequence)
-
 	claudeLogsLog.Printf("Parsed %d log entries: tokens=%d, cost=$%.4f, turns=%d, tool_types=%d",
 		len(logEntries), metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns, len(metrics.ToolCalls))
-
 	if verbose && len(metrics.ToolSequences) > 0 {
 		totalTools := 0
 		for _, seq := range metrics.ToolSequences {
@@ -326,8 +277,64 @@ func (e *ClaudeEngine) parseClaudeJSONLog(logContent string, verbose bool) LogMe
 		fmt.Fprintf(os.Stderr, "Claude parser extracted %d tool sequences with %d total tool calls\n",
 			len(metrics.ToolSequences), totalTools)
 	}
-
 	return metrics
+}
+
+func (e *ClaudeEngine) claudeEntryType(entry map[string]any) string {
+	typeStr, _ := entry["type"].(string)
+	return typeStr
+}
+
+func (e *ClaudeEngine) applyClaudeResultEntry(metrics *LogMetrics, entry map[string]any, verbose bool) {
+	if totalCost, exists := entry["total_cost_usd"]; exists {
+		if cost := typeutil.ConvertToFloat(totalCost); cost > 0 {
+			metrics.EstimatedCost = cost
+		}
+	}
+	if usage, exists := entry["usage"]; exists {
+		if usageMap, ok := usage.(map[string]any); ok {
+			inputTokens := typeutil.ConvertToInt(usageMap["input_tokens"])
+			outputTokens := typeutil.ConvertToInt(usageMap["output_tokens"])
+			cacheCreationTokens := typeutil.ConvertToInt(usageMap["cache_creation_input_tokens"])
+			cacheReadTokens := typeutil.ConvertToInt(usageMap["cache_read_input_tokens"])
+			if totalTokens := inputTokens + outputTokens + cacheCreationTokens + cacheReadTokens; totalTokens > 0 {
+				metrics.TokenUsage = totalTokens
+			}
+		}
+	}
+	if numTurns, exists := entry["num_turns"]; exists {
+		if turns := typeutil.ConvertToInt(numTurns); turns > 0 {
+			metrics.Turns = turns
+		}
+	}
+	if verbose {
+		fmt.Fprintf(os.Stderr, "Extracted from Claude result payload: tokens=%d, cost=%.4f, turns=%d\n",
+			metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
+	}
+}
+
+func (e *ClaudeEngine) claudeAssistantSequence(entry map[string]any, toolCallMap map[string]*ToolCallInfo) []string {
+	messageMap, ok := entry["message"].(map[string]any)
+	if !ok {
+		return nil
+	}
+	contentArray, ok := messageMap["content"].([]any)
+	if !ok {
+		return nil
+	}
+	return e.parseToolCallsWithSequence(contentArray, toolCallMap)
+}
+
+func (e *ClaudeEngine) claudeUserToolResults(entry map[string]any, toolCallMap map[string]*ToolCallInfo) {
+	messageMap, ok := entry["message"].(map[string]any)
+	if !ok {
+		return
+	}
+	contentArray, ok := messageMap["content"].([]any)
+	if !ok {
+		return
+	}
+	e.parseToolCallsWithSequence(contentArray, toolCallMap)
 }
 
 // parseToolCallsWithSequence extracts tool call information from Claude log content array and returns sequence
@@ -347,82 +354,63 @@ func (e *ClaudeEngine) parseToolCallsWithSequence(contentArray []any, toolCallMa
 
 		switch typeStr {
 		case "tool_use":
-			nameStr, ok := typeutil.LookupString(contentMap, "name")
-			if !ok {
-				continue
-			}
-
-			// Skip internal tools as per existing JavaScript logic (disabled for tool graph visualization)
-			// internalTools := []string{
-			//	"Read", "Write", "Edit", "MultiEdit", "LS", "Grep", "Glob", "TodoWrite",
-			// }
-			// if slices.Contains(internalTools, nameStr) {
-			//	continue
-			// }
-
-			prettifiedName := PrettifyToolName(nameStr)
-
-			// Special handling for bash - each invocation is unique
-			if nameStr == "Bash" {
-				if commandStr, ok := typeutil.LookupStringPath(contentMap, "input", "command"); ok {
-					// Create unique bash entry with command info, avoiding colons for
-					// filesystem-safe names in downstream summaries/artifacts.
-					prettifiedName = "bash_" + ShortenCommand(commandStr)
-				}
-				// If command is missing or non-string, preserve the default "bash" fallback name.
-				// This occurs with partial/malformed tool_use payloads and keeps parsing robust.
-			}
-
-			// Add to sequence
-			sequence = append(sequence, prettifiedName)
-
-			// Calculate input size from the input field
-			inputSize := 0
-			if input, exists := contentMap["input"]; exists {
-				inputSize = e.estimateInputSize(input)
-			}
-
-			// Initialize or update tool call info
-			if toolInfo, exists := toolCallMap[prettifiedName]; exists {
-				toolInfo.CallCount++
-				if inputSize > toolInfo.MaxInputSize {
-					toolInfo.MaxInputSize = inputSize
-				}
-			} else {
-				toolCallMap[prettifiedName] = &ToolCallInfo{
-					Name:          prettifiedName,
-					CallCount:     1,
-					MaxInputSize:  inputSize,
-					MaxOutputSize: 0, // Will be updated when we find tool results
-					MaxDuration:   0, // Will be updated when we find execution timing
-				}
+			if prettifiedName, ok := e.recordClaudeToolUse(contentMap, toolCallMap); ok {
+				sequence = append(sequence, prettifiedName)
 			}
 		case "tool_result":
-			contentStr, ok := typeutil.LookupString(contentMap, "content")
-			if !ok {
-				continue
-			}
-
-			// Estimate token count (rough approximation: 1 token = ~4 characters)
-			outputSize := len(contentStr) / 4
-
-			// tool_use_id confirms this tool_result corresponds to a tool invocation.
-			// We currently do not map IDs back to a single tool, so we still update all tools.
-			if _, ok := typeutil.LookupString(contentMap, "tool_use_id"); !ok {
-				continue
-			}
-
-			// This is simplified - in a full implementation we'd track tool_use_id to tool name mapping
-			// For now, we'll update the max output size for all tools (conservative estimate)
-			for _, toolInfo := range toolCallMap {
-				if outputSize > toolInfo.MaxOutputSize {
-					toolInfo.MaxOutputSize = outputSize
-				}
-			}
+			e.recordClaudeToolResult(contentMap, toolCallMap)
 		}
 	}
 
 	return sequence
+}
+
+func (e *ClaudeEngine) recordClaudeToolUse(contentMap map[string]any, toolCallMap map[string]*ToolCallInfo) (string, bool) {
+	nameStr, ok := typeutil.LookupString(contentMap, "name")
+	if !ok {
+		return "", false
+	}
+	prettifiedName := PrettifyToolName(nameStr)
+	if nameStr == "Bash" {
+		if commandStr, ok := typeutil.LookupStringPath(contentMap, "input", "command"); ok {
+			prettifiedName = "bash_" + ShortenCommand(commandStr)
+		}
+	}
+	inputSize := 0
+	if input, exists := contentMap["input"]; exists {
+		inputSize = e.estimateInputSize(input)
+	}
+	if toolInfo, exists := toolCallMap[prettifiedName]; exists {
+		toolInfo.CallCount++
+		if inputSize > toolInfo.MaxInputSize {
+			toolInfo.MaxInputSize = inputSize
+		}
+	} else {
+		toolCallMap[prettifiedName] = &ToolCallInfo{
+			Name:          prettifiedName,
+			CallCount:     1,
+			MaxInputSize:  inputSize,
+			MaxOutputSize: 0,
+			MaxDuration:   0,
+		}
+	}
+	return prettifiedName, true
+}
+
+func (e *ClaudeEngine) recordClaudeToolResult(contentMap map[string]any, toolCallMap map[string]*ToolCallInfo) {
+	contentStr, ok := typeutil.LookupString(contentMap, "content")
+	if !ok {
+		return
+	}
+	if _, ok := typeutil.LookupString(contentMap, "tool_use_id"); !ok {
+		return
+	}
+	outputSize := len(contentStr) / 4
+	for _, toolInfo := range toolCallMap {
+		if outputSize > toolInfo.MaxOutputSize {
+			toolInfo.MaxOutputSize = outputSize
+		}
+	}
 }
 
 // estimateInputSize estimates the input size in tokens from a tool input object
