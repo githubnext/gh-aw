@@ -873,6 +873,8 @@ const MAX_ATTR_VALUE_LENGTH = 1024;
  */
 const REDACTED = "[REDACTED]";
 
+const FETCH_TIMEOUT_MS = 120_000;
+
 /**
  * Sanitize an array of OTLP key-value attributes in-place (shallowly cloned).
  *
@@ -1097,6 +1099,7 @@ async function sendOTLPSpan(endpoint, payload, { maxRetries = 2, baseDelayMs = 1
             method: "POST",
             headers,
             body: sanitizedBody,
+            signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
           });
       if (response.ok) {
         return;

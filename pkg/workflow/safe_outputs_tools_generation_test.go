@@ -258,7 +258,7 @@ func TestGenerateDispatchWorkflowToolBasic(t *testing.T) {
 		},
 	}
 
-	tool := generateDispatchWorkflowTool("deploy-app", workflowInputs)
+	tool := generateDispatchWorkflowTool("deploy-app", workflowInputs, nil)
 
 	assert.Equal(t, "deploy_app", tool["name"], "Tool name should be normalized")
 	assert.Equal(t, "deploy-app", tool["_workflow_name"], "Internal workflow name should be preserved")
@@ -278,7 +278,7 @@ func TestGenerateDispatchWorkflowToolBasic(t *testing.T) {
 
 // TestGenerateDispatchWorkflowToolEmptyInputs tests dispatch workflow tool with no inputs.
 func TestGenerateDispatchWorkflowToolEmptyInputs(t *testing.T) {
-	tool := generateDispatchWorkflowTool("simple-workflow", make(map[string]any))
+	tool := generateDispatchWorkflowTool("simple-workflow", make(map[string]any), nil)
 
 	assert.Equal(t, "simple_workflow", tool["name"], "Name should be normalized")
 
@@ -313,7 +313,7 @@ func TestGenerateDispatchWorkflowToolRequiredSorted(t *testing.T) {
 
 	// Run multiple times to catch non-determinism from map iteration
 	for i := range 10 {
-		tool := generateDispatchWorkflowTool("cleanup-worker", workflowInputs)
+		tool := generateDispatchWorkflowTool("cleanup-worker", workflowInputs, nil)
 
 		inputSchema, ok := tool["inputSchema"].(map[string]any)
 		require.True(t, ok, "inputSchema should be present (iteration %d)", i)
@@ -326,8 +326,75 @@ func TestGenerateDispatchWorkflowToolRequiredSorted(t *testing.T) {
 	}
 }
 
-// TestGenerateFilteredToolsJSONWithStandardOutputs tests that standard safe outputs produce
-// the expected tools in the filtered output (regression test for the completeness check).
+// TestGenerateDispatchWorkflowToolWithAllowedRefs tests that a 'ref' parameter is injected
+// into the tool schema when allowed-refs is configured. This ensures the agent can supply
+// a target ref that is validated against the configured glob patterns by the runtime handler.
+func TestGenerateDispatchWorkflowToolWithAllowedRefs(t *testing.T) {
+	workflowInputs := map[string]any{
+		"model": map[string]any{
+			"description": "Model to run",
+			"type":        "string",
+			"required":    true,
+		},
+	}
+	allowedRefs := []string{"silencer/*", "refs/heads/main"}
+
+	tool := generateDispatchWorkflowTool("t3000-unit-tests", workflowInputs, allowedRefs)
+
+	assert.Equal(t, "t3000_unit_tests", tool["name"], "Tool name should be normalized")
+
+	inputSchema, ok := tool["inputSchema"].(map[string]any)
+	require.True(t, ok, "inputSchema should be present")
+
+	properties, ok := inputSchema["properties"].(map[string]any)
+	require.True(t, ok, "properties should be present")
+
+	// ref property should be injected
+	refProp, ok := properties["ref"].(map[string]any)
+	require.True(t, ok, "ref property should exist when allowed-refs is configured")
+	assert.Equal(t, "string", refProp["type"], "ref property should be a string")
+	assert.Contains(t, refProp["description"].(string), "silencer/*", "ref description should mention allowed patterns")
+	assert.Contains(t, refProp["description"].(string), "refs/heads/main", "ref description should mention all allowed patterns")
+
+	// ref should not be in required (it is optional)
+	required, hasRequired := inputSchema["required"].([]string)
+	if hasRequired {
+		assert.NotContains(t, required, "ref", "ref should not be required")
+	}
+
+	// description should mention the allowed patterns
+	desc := tool["description"].(string)
+	assert.Contains(t, desc, "silencer/*", "tool description should mention allowed ref patterns")
+}
+
+// TestGenerateDispatchWorkflowToolNoRefWithoutAllowedRefs tests that no 'ref' property
+// is added when allowed-refs is not configured (nil or empty).
+func TestGenerateDispatchWorkflowToolNoRefWithoutAllowedRefs(t *testing.T) {
+	workflowInputs := map[string]any{
+		"platform": map[string]any{
+			"description": "Target platform",
+			"type":        "string",
+			"required":    true,
+		},
+	}
+
+	for _, allowedRefs := range [][]string{nil, {}} {
+		tool := generateDispatchWorkflowTool("build-workflow", workflowInputs, allowedRefs)
+
+		inputSchema, ok := tool["inputSchema"].(map[string]any)
+		require.True(t, ok, "inputSchema should be present")
+
+		properties, ok := inputSchema["properties"].(map[string]any)
+		require.True(t, ok, "properties should be present")
+
+		_, hasRef := properties["ref"]
+		assert.False(t, hasRef, "ref property should not be present when allowed-refs is not configured")
+
+		required, ok := inputSchema["required"].([]string)
+		require.True(t, ok, "required should be present for required workflow input")
+		assert.Equal(t, []string{"platform"}, required, "required should only include workflow inputs, not ref")
+	}
+}
 
 // TestComputeRequiredFieldRemovalsCloseDiscussion verifies that allow-body: false for
 // close-discussion produces a required field removal for the body field.

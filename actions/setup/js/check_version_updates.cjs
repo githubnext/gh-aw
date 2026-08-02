@@ -20,6 +20,7 @@ const { withRetry, isTransientError } = require("./error_recovery.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
 
 const CONFIG_URL = "https://raw.githubusercontent.com/github/gh-aw-actions/main/.github/aw/compat.json";
+const FETCH_TIMEOUT_MS = 120_000;
 
 /**
  * Parse an official version string (must be in vMAJOR.MINOR.PATCH format).
@@ -89,7 +90,7 @@ async function main() {
   try {
     config = await withRetry(
       async () => {
-        const res = await fetch(CONFIG_URL);
+        const res = await fetch(CONFIG_URL, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
         if (!res.ok) {
           const err = new Error(`HTTP ${res.status} fetching ${CONFIG_URL}`);
           // @ts-ignore - Attach status so the retry predicate can inspect it

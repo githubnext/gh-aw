@@ -1,5 +1,6 @@
 ---
 emoji: "📊"
+name: "Metrics Collector"
 description: Collects daily performance metrics for the agent ecosystem and stores them in repo-memory
 on: daily
 permissions:
@@ -57,6 +58,19 @@ As an infrastructure agent, you collect and persist performance data that enable
 - **Collection Date**: $(date +%Y-%m-%d)
 - **Collection Time**: $(date +%H:%M:%S) UTC
 - **Storage Path**: `/tmp/gh-aw/repo-memory/default/metrics/`
+
+#### Pre-flight: Clean Memory Directory
+
+**MANDATORY FIRST STEP** — Run this bash command before doing anything else. It removes any non-metrics files that may be present from previous failed runs and ensures only `metrics/**` files exist in your working directory:
+
+```bash
+# Remove any files at the root level that are NOT under metrics/
+find /tmp/gh-aw/repo-memory/default -maxdepth 1 -type f -delete 2>/dev/null || true
+# List what remains to confirm only metrics/ content is present
+ls -la /tmp/gh-aw/repo-memory/default/
+```
+
+If you see any `.md` files at the root (e.g. `agent-performance-latest.md`, `shared-alerts.md`) — **delete them now**. You are NOT the agent-performance or alerts workflow. You are the Metrics Collector. Your ONLY job is to write JSON files under `metrics/`.
 
 #### Metrics Collection Process
 
@@ -148,10 +162,12 @@ Create a JSON object following this schema:
 
 ### 3. Store Metrics in Repo Memory
 
-> ⚠️ **CRITICAL**: You MUST write ONLY JSON files inside the `metrics/` subdirectory. The repo-memory
+> ⚠️ **CRITICAL — FILE PATH CONSTRAINT**: You MUST write ONLY JSON files inside the `metrics/` subdirectory. The repo-memory
 > glob filter is set to `metrics/**`, which means **any file written outside this subdirectory will be
 > silently dropped and no data will be persisted**. Do NOT write files to the root of
 > `/tmp/gh-aw/repo-memory/default/` — they will be ignored.
+>
+> **If you write any file to a path that does NOT start with `/tmp/gh-aw/repo-memory/default/metrics/`, that file will NOT be saved. Do not waste effort writing to any other path.**
 
 **Daily Storage**:
 - Write metrics to: `/tmp/gh-aw/repo-memory/default/metrics/daily/YYYY-MM-DD.json`
@@ -162,7 +178,20 @@ Create a JSON object following this schema:
 - This provides quick access to most recent data without date calculations
 
 **Create Directory Structure**:
-- Ensure the directory exists: `mkdir -p /tmp/gh-aw/repo-memory/default/metrics/daily/`
+```bash
+mkdir -p /tmp/gh-aw/repo-memory/default/metrics/daily/
+```
+
+**Write and validate each file**:
+```bash
+# Write the daily metrics file (replace DATE and JSON_DATA with actual values)
+echo "$JSON_DATA" | jq . > /tmp/gh-aw/repo-memory/default/metrics/daily/$(date +%Y-%m-%d).json
+# Copy to latest
+cp /tmp/gh-aw/repo-memory/default/metrics/daily/$(date +%Y-%m-%d).json \
+   /tmp/gh-aw/repo-memory/default/metrics/latest.json
+# Validate JSON is correct
+jq . /tmp/gh-aw/repo-memory/default/metrics/latest.json >/dev/null && echo "JSON valid" || echo "JSON INVALID"
+```
 
 **File Constraint Summary** (glob filter: `metrics/**`):
 - ✅ `/tmp/gh-aw/repo-memory/default/metrics/latest.json` — allowed
@@ -220,6 +249,25 @@ find /tmp/gh-aw/repo-memory/default/metrics/daily/ -name "*.json" -mtime +30 -de
 - If a workflow has no safe outputs, set all safe output counts to 0
 - If token/cost data is unavailable, omit or set to null
 - Always include workflows in the metrics even if they have no activity (helps detect stalled workflows)
+- **If the agentic-workflows `logs` tool is unavailable**, collect what you can from the GitHub API directly (workflow runs via `list_workflow_runs`) and set `"data_source": "github_api_fallback"` in the JSON
+- **NEVER write a partial stub file like `{"date": "...", "status": "no-data"}`** — if you can't collect data, write a minimal valid metrics JSON with zeros instead:
+  ```json
+  {
+    "timestamp": "YYYY-MM-DDTHH:MM:SSZ",
+    "period": "daily",
+    "collection_status": "partial",
+    "collection_note": "Description of what could not be collected",
+    "workflows": {},
+    "ecosystem": {
+      "total_workflows": 0,
+      "active_workflows": 0,
+      "total_safe_outputs": 0,
+      "overall_success_rate": 0,
+      "total_tokens": 0,
+      "total_cost_usd": 0
+    }
+  }
+  ```
 
 ### Workflow Name Extraction
 
@@ -269,7 +317,8 @@ At the end of collection:
 #### Important Notes
 
 - **PRIMARY TOOL**: Use the agentic-workflows tool (`status`, `logs`) for all workflow run metrics
-- **SECONDARY TOOL**: Use GitHub MCP server only for engagement metrics (reactions, comments)
+- **SECONDARY TOOL**: Use GitHub MCP server for engagement metrics (reactions, comments)
+- **YOU ARE THE METRICS COLLECTOR, NOT THE AGENT-PERFORMANCE WORKFLOW** — do NOT update `agent-performance-latest.md`, `shared-alerts.md`, or any other `.md` file in the repo-memory root. Those files belong to other workflows.
 - **DO NOT** create issues, PRs, or comments - this is a data collection agent only
 - **DO NOT** analyze or interpret the metrics - that's the job of meta-orchestrators
 - **DO NOT** write any files to the root of `/tmp/gh-aw/repo-memory/default/` — the glob filter `metrics/**` will silently discard them
@@ -291,6 +340,43 @@ At the end of collection:
 ✅ Ecosystem aggregates calculated correctly
 ✅ Collection completed within timeout
 ✅ No errors or warnings in execution log
+
+#### Pre-noop Validation (MANDATORY)
+
+Before calling `noop`, you MUST run this validation. If it fails, you must fix the files before proceeding:
+
+```bash
+# Step 1: Verify no non-metrics files remain in the memory root
+ROOT_FILES=$(find /tmp/gh-aw/repo-memory/default -maxdepth 1 -type f 2>/dev/null)
+if [ -n "$ROOT_FILES" ]; then
+  echo "ERROR: Non-metrics files found at root level: $ROOT_FILES"
+  echo "Deleting them now..."
+  find /tmp/gh-aw/repo-memory/default -maxdepth 1 -type f -delete
+fi
+
+# Step 2: Verify metrics/latest.json exists and has valid JSON with today's timestamp
+if [ ! -f /tmp/gh-aw/repo-memory/default/metrics/latest.json ]; then
+  echo "ERROR: metrics/latest.json does not exist. You must write this file before calling noop."
+  exit 1
+fi
+
+# Step 3: Validate JSON syntax
+jq . /tmp/gh-aw/repo-memory/default/metrics/latest.json >/dev/null || {
+  echo "ERROR: metrics/latest.json contains invalid JSON"
+  exit 1
+}
+
+# Step 4: Confirm the timestamp is recent (today)
+STORED_DATE=$(jq -r '.timestamp' /tmp/gh-aw/repo-memory/default/metrics/latest.json | cut -c1-10)
+TODAY=$(date +%Y-%m-%d)
+echo "Stored date: $STORED_DATE | Today: $TODAY"
+
+# Step 5: List all metrics files that will be committed
+echo "Files to be committed:"
+find /tmp/gh-aw/repo-memory/default/metrics -type f | sort
+```
+
+If the validation passes, proceed with the `noop` call.
 
 After successfully collecting and storing all metrics data, you **MUST** call `noop` with a brief collection summary — this is a data-collection workflow that persists results to repo-memory, so `noop` is the expected safe-output for every successful run.
 
