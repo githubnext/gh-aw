@@ -69,19 +69,18 @@ Returns a JSON array where each element has the following structure:
 
 // compileArgs holds the input parameters for the compile tool.
 type compileArgs struct {
-	Workflows    []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
-	Strict       bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
-	Zizmor       bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
-	Poutine      bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
-	Actionlint   bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
-	RunnerGuard  bool     `json:"runner-guard,omitempty" jsonschema:"Run runner-guard taint analysis scanner on generated .lock.yml files"`
-	Syft         bool     `json:"syft,omitempty" jsonschema:"Run syft SBOM scanner on container images referenced in compiled .lock.yml files"`
-	Grype        bool     `json:"grype,omitempty" jsonschema:"Run grype vulnerability scanner on container images referenced in compiled .lock.yml files"`
-	Grant        bool     `json:"grant,omitempty" jsonschema:"Run grant license scanner on container images referenced in compiled .lock.yml files"`
-	Yamllint     bool     `json:"yamllint,omitempty" jsonschema:"Run yamllint YAML linter on generated .lock.yml files"`
-	NoShellcheck bool     `json:"no-shellcheck,omitempty" jsonschema:"Disable shellcheck linting of run step scripts (shellcheck runs by default when available)"`
-	Fix          bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
-	MaxTokens    int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
+	Workflows   []string `json:"workflows,omitempty" jsonschema:"Workflow files to compile (empty for all)"`
+	Strict      bool     `json:"strict,omitempty" jsonschema:"Override frontmatter to enforce strict mode validation for all workflows. Note: Workflows default to strict mode unless frontmatter sets strict: false"`
+	Zizmor      bool     `json:"zizmor,omitempty" jsonschema:"Run zizmor security scanner on generated .lock.yml files"`
+	Poutine     bool     `json:"poutine,omitempty" jsonschema:"Run poutine security scanner on generated .lock.yml files"`
+	Actionlint  bool     `json:"actionlint,omitempty" jsonschema:"Run actionlint linter on generated .lock.yml files"`
+	RunnerGuard bool     `json:"runner-guard,omitempty" jsonschema:"Run runner-guard taint analysis scanner on generated .lock.yml files"`
+	Syft        bool     `json:"syft,omitempty" jsonschema:"Run syft SBOM scanner on container images referenced in compiled .lock.yml files"`
+	Grype       bool     `json:"grype,omitempty" jsonschema:"Run grype vulnerability scanner on container images referenced in compiled .lock.yml files"`
+	Grant       bool     `json:"grant,omitempty" jsonschema:"Run grant license scanner on container images referenced in compiled .lock.yml files"`
+	Yamllint    bool     `json:"yamllint,omitempty" jsonschema:"Run yamllint YAML linter on generated .lock.yml files"`
+	Fix         bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
+	MaxTokens   int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 }
 
 // registerCompileTool registers the compile tool with the MCP server.
@@ -193,8 +192,10 @@ Returns JSON array with validation results for each workflow:
 		}
 
 		// Build command arguments
-		// Always validate workflows during compilation and use JSON output for MCP
-		cmdArgs := []string{"compile", "--validate", "--json"}
+		// Always validate workflows during compilation and use JSON output for MCP.
+		// Shellcheck output goes to stderr (captured in subprocess error buffer only) and
+		// therefore never reaches the LLM via the JSON response — always disable it.
+		cmdArgs := []string{"compile", "--validate", "--json", "--no-shellcheck"}
 
 		// Add fix flag if requested
 		if args.Fix {
@@ -231,9 +232,6 @@ Returns JSON array with validation results for each workflow:
 		if args.Yamllint {
 			cmdArgs = append(cmdArgs, "--yamllint")
 		}
-		if args.NoShellcheck {
-			cmdArgs = append(cmdArgs, "--no-shellcheck")
-		}
 
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
@@ -243,8 +241,8 @@ Returns JSON array with validation results for each workflow:
 			cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
 		}
 
-		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v, no-shellcheck=%v",
-			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint, args.NoShellcheck)
+		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
+			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint)
 
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
