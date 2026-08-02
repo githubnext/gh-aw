@@ -228,6 +228,14 @@ func buildAction(actionsDir, actionName string) error {
 		return nil
 	}
 
+	if err := buildJavaScriptAction(actionPath, actionName); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func buildJavaScriptAction(actionPath, actionName string) error {
 	srcPath := filepath.Join(actionPath, "src", "index.js")
 	outputPath := filepath.Join(actionPath, "index.js")
 

@@ -82,111 +82,25 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	// Set context on the config
 	config.Ctx = ctx
 
-	// Auto-detect GHES host from git remote if not already set
-	if os.Getenv("GH_HOST") == "" { //nolint:osgetenvlibrary
-		detectedHost := getHostFromOriginRemote()
-		if detectedHost != "github.com" {
-			addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
-			workflow.SetDefaultGHHost(detectedHost)
-			if config.Verbose {
-				fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
-			}
-		}
-	}
+	config.configureDefaultGHHostFromRemote()
 
-	// Step 1: Welcome message
-	console.ShowWelcomeBanner("This tool will walk you through adding an automated workflow to your repository.")
-
-	// Step 1b: Resolve workflows early to get descriptions and validate specs
-	if err := config.resolveWorkflows(); err != nil {
+	if err := config.runInitialAddInteractiveChecks(); err != nil {
 		return err
 	}
 
-	// Step 1c: Show workflow descriptions if available
-	config.showWorkflowDescriptions()
+	remainingBootstrapProfile := config.getRemainingBootstrapProfile()
 
-	// Step 2: Check gh auth status
-	if err := config.checkGHAuthStatus(); err != nil {
-		return err
-	}
-
-	// Step 3: Check git repository and get org/repo
-	if err := config.checkGitRepository(); err != nil {
-		return err
-	}
-
-	// Step 3b: Check working directory is clean (must be clean for PR creation later)
-	if err := config.checkCleanWorkingDirectory(); err != nil {
-		return err
-	}
-
-	// Step 4: Check GitHub Actions is enabled
-	if err := config.checkActionsEnabled(); err != nil {
-		return err
-	}
-
-	// Step 5: Check user permissions
-	if err := config.checkUserPermissions(); err != nil {
-		return err
-	}
-
-	var bootstrapProfile *resolvedBootstrapProfile
-	if config.resolvedWorkflows != nil {
-		bootstrapProfile = config.resolvedWorkflows.BootstrapProfile
-	}
-	// All config steps run post-install in the exact order they are declared in the
-	// manifest. We no longer split them into a pre-install and post-install phase so
-	// that the declared ordering is preserved.
-	remainingBootstrapProfile := bootstrapProfile
-
-	// Step 6: Select coding agent and collect API key
-	if err := config.selectAIEngineAndKey(); err != nil {
-		return err
-	}
-
-	initFiles, err := ensureAddRepositoryInitializedWithDetails(config.EngineOverride, config.Verbose, config.NoGitattributes)
+	filesToAdd, initFiles, secretName, secretValue, err := config.prepareAndConfirmAddInteractive()
 	if err != nil {
 		return err
 	}
 
-	// Step 7: Determine files to add
-	filesToAdd, _, err := config.determineFilesToAdd()
-	if err != nil {
-		return err
-	}
-
-	// Step 7b: Offer schedule frequency selection for scheduled workflows
-	if err := config.selectScheduleFrequency(); err != nil {
-		return err
-	}
-
-	// Step 8: Confirm with user
-	var secretName, secretValue string
-	if config.hasWriteAccess && !config.SkipSecret && !config.UseCopilotRequests {
-		secretName, secretValue, err = config.resolveEngineApiKeyCredential()
-		if err != nil {
-			return err
-		}
-	}
-
-	if err := config.confirmChanges(filesToAdd, initFiles, secretName, secretValue); err != nil {
-		return err
-	}
-
-	// Step 9: Apply changes (create PR, merge, add secret)
 	if err := config.createWorkflowPRAndConfigureSecret(ctx, filesToAdd, initFiles, secretName, secretValue); err != nil {
 		return err
 	}
 
-	// Step 9b: Apply bootstrap config steps interactively (if the package declares any)
-	if remainingBootstrapProfile != nil {
-		if config.hasWriteAccess {
-			if err := executeBootstrapConfigForAdd(ctx, config.RepoOverride, config.WorkflowSpecs, remainingBootstrapProfile, config.UseCopilotRequests, config.Verbose); err != nil {
-				return err
-			}
-		} else {
-			printBootstrapConfigTODO(os.Stderr, remainingBootstrapProfile)
-		}
+	if err := config.applyBootstrapConfigIfNeeded(ctx, remainingBootstrapProfile); err != nil {
+		return err
 	}
 
 	// Step 10: Check status and offer to run
@@ -195,6 +109,96 @@ func RunAddInteractive(ctx context.Context, config *AddInteractiveConfig) error 
 	}
 
 	return nil
+}
+
+func (c *AddInteractiveConfig) configureDefaultGHHostFromRemote() {
+	if os.Getenv("GH_HOST") != "" { //nolint:osgetenvlibrary
+		return
+	}
+	detectedHost := getHostFromOriginRemote()
+	if detectedHost == "github.com" {
+		return
+	}
+	addInteractiveLog.Printf("Auto-detected GHES host from git remote: %s", detectedHost)
+	workflow.SetDefaultGHHost(detectedHost)
+	if c.Verbose {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage("Auto-detected GitHub Enterprise host: "+detectedHost))
+	}
+}
+
+func (c *AddInteractiveConfig) getRemainingBootstrapProfile() *resolvedBootstrapProfile {
+	if c.resolvedWorkflows == nil {
+		return nil
+	}
+	// All config steps run post-install in the exact order they are declared in the
+	// manifest. We no longer split them into a pre-install and post-install phase so
+	// that the declared ordering is preserved.
+	return c.resolvedWorkflows.BootstrapProfile
+}
+
+func (c *AddInteractiveConfig) applyBootstrapConfigIfNeeded(ctx context.Context, profile *resolvedBootstrapProfile) error {
+	if profile == nil {
+		return nil
+	}
+	if c.hasWriteAccess {
+		return executeBootstrapConfigForAdd(ctx, c.RepoOverride, c.WorkflowSpecs, profile, c.UseCopilotRequests, c.Verbose)
+	}
+	printBootstrapConfigTODO(os.Stderr, profile)
+	return nil
+}
+
+func (c *AddInteractiveConfig) runInitialAddInteractiveChecks() error {
+	console.ShowWelcomeBanner("This tool will walk you through adding an automated workflow to your repository.")
+	if err := c.resolveWorkflows(); err != nil {
+		return err
+	}
+	c.showWorkflowDescriptions()
+	if err := c.checkGHAuthStatus(); err != nil {
+		return err
+	}
+	if err := c.checkGitRepository(); err != nil {
+		return err
+	}
+	if err := c.checkCleanWorkingDirectory(); err != nil {
+		return err
+	}
+	if err := c.checkActionsEnabled(); err != nil {
+		return err
+	}
+	return c.checkUserPermissions()
+}
+
+func (c *AddInteractiveConfig) prepareAndConfirmAddInteractive() (workflowFiles, initFiles []string, secretName, secretValue string, err error) {
+	if err := c.selectAIEngineAndKey(); err != nil {
+		return nil, nil, "", "", err
+	}
+
+	initFiles, err = ensureAddRepositoryInitializedWithDetails(c.EngineOverride, c.Verbose, c.NoGitattributes)
+	if err != nil {
+		return nil, nil, "", "", err
+	}
+
+	workflowFiles, _, err = c.determineFilesToAdd()
+	if err != nil {
+		return nil, nil, "", "", err
+	}
+
+	if err := c.selectScheduleFrequency(); err != nil {
+		return nil, nil, "", "", err
+	}
+
+	if c.hasWriteAccess && !c.SkipSecret && !c.UseCopilotRequests {
+		secretName, secretValue, err = c.resolveEngineApiKeyCredential()
+		if err != nil {
+			return nil, nil, "", "", err
+		}
+	}
+
+	if err := c.confirmChanges(workflowFiles, initFiles, secretName, secretValue); err != nil {
+		return nil, nil, "", "", err
+	}
+
+	return workflowFiles, initFiles, secretName, secretValue, nil
 }
 
 // resolveWorkflows resolves workflow specifications by installing repositories,

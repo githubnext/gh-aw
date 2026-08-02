@@ -5,6 +5,7 @@ package cli
 import (
 	"testing"
 
+	"charm.land/huh/v2"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -49,4 +50,19 @@ func TestApplyCopilotAuthMethodChoice_ReEntryClearsOldValue(t *testing.T) {
 	// User changes selection to PAT — old value must not persist
 	cfg.applyCopilotAuthMethodChoice("pat")
 	assert.False(t, cfg.UseCopilotRequests)
+}
+
+func TestPrioritizeEngineOption(t *testing.T) {
+	options := []huh.Option[string]{
+		huh.NewOption("B", "b"),
+		huh.NewOption("A", "a"),
+	}
+
+	prioritizeEngineOption(options, "a")
+	assert.Equal(t, "a", options[0].Value)
+	assert.Equal(t, "b", options[1].Value)
+
+	prioritizeEngineOption(options, "missing")
+	assert.Equal(t, "a", options[0].Value)
+	assert.Equal(t, "b", options[1].Value)
 }

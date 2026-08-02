@@ -24,56 +24,8 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 		return err
 	}
 
-	// Determine default engine based on existing secrets, workflow preference, then environment
-	// Priority order: flag override > existing secrets > workflow frontmatter > environment > default
-	defaultEngine := string(constants.DefaultEngine)
-	workflowSpecifiedEngine := ""
-
-	// Check if workflow specifies a preferred engine in frontmatter
-	if c.resolvedWorkflows != nil && len(c.resolvedWorkflows.Workflows) > 0 {
-		for _, wf := range c.resolvedWorkflows.Workflows {
-			if wf.Engine != "" {
-				workflowSpecifiedEngine = wf.Engine
-				addInteractiveLog.Printf("Workflow specifies engine in frontmatter: %s", wf.Engine)
-				break
-			}
-		}
-	}
-
-	// If engine is explicitly overridden via flag, use that
-	if c.EngineOverride != "" {
-		defaultEngine = c.EngineOverride
-	} else {
-		// Priority 1: Check existing repository secrets using EngineOptions
-		// This takes precedence over workflow preference since users should use what's already available
-		for _, opt := range constants.EngineOptions {
-			if setutil.Contains(c.existingSecrets, opt.SecretName) {
-				defaultEngine = opt.Value
-				addInteractiveLog.Printf("Found existing secret %s, recommending engine: %s", opt.SecretName, opt.Value)
-				break
-			}
-		}
-
-		// Priority 2: If no existing secret found, use workflow frontmatter preference
-		if defaultEngine == string(constants.DefaultEngine) && workflowSpecifiedEngine != "" {
-			defaultEngine = workflowSpecifiedEngine
-		}
-
-		// Priority 3: Check environment variables if no existing secret or workflow preference found
-		if defaultEngine == string(constants.DefaultEngine) && workflowSpecifiedEngine == "" {
-			for _, opt := range constants.EngineOptions {
-				envVar := opt.SecretName
-				if opt.EnvVarName != "" {
-					envVar = opt.EnvVarName
-				}
-				if lookupEnv(envVar) != "" {
-					defaultEngine = opt.Value
-					addInteractiveLog.Printf("Found env var %s, recommending engine: %s", envVar, opt.Value)
-					break
-				}
-			}
-		}
-	}
+	workflowSpecifiedEngine := c.getWorkflowSpecifiedEngine()
+	defaultEngine := c.determineDefaultEngine(workflowSpecifiedEngine)
 
 	// If engine is already overridden, skip selection
 	if c.EngineOverride != "" {
@@ -88,35 +40,11 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 
 	// Build engine options with notes about existing secrets and workflow specification.
 	// The list of engines is derived from the catalog to ensure all registered engines appear.
-	catalog := workflow.NewEngineCatalog(workflow.NewEngineRegistry())
-	engineOptions := sliceutil.Map(catalog.All(), func(def *workflow.EngineDefinition) huh.Option[string] {
-		opt := constants.GetEngineOption(def.ID)
-		label := fmt.Sprintf("%s - %s", def.DisplayName, def.Description)
-		// Add markers for secret availability and workflow specification.
-		// opt may be nil for catalog engines not yet represented in EngineOptions;
-		// in that case we conservatively show '[no secret]'.
-		if opt != nil && setutil.Contains(c.existingSecrets, opt.SecretName) {
-			label += " [secret exists]"
-		} else {
-			label += " [no secret]"
-		}
-		if def.ID == workflowSpecifiedEngine {
-			label += " [specified in workflow]"
-		}
-		return huh.NewOption(label, def.ID)
-	})
+	engineOptions := c.buildEngineOptions(workflowSpecifiedEngine)
 
 	var selectedEngine string
 
-	// Set the default selection by moving it to front
-	for i, opt := range engineOptions {
-		if opt.Value == defaultEngine {
-			if i > 0 {
-				engineOptions[0], engineOptions[i] = engineOptions[i], engineOptions[0]
-			}
-			break
-		}
-	}
+	prioritizeEngineOption(engineOptions, defaultEngine)
 
 	fmt.Fprintln(os.Stderr, "")
 	form := console.NewSelectForm(
@@ -135,6 +63,81 @@ func (c *AddInteractiveConfig) selectAIEngineAndKey() error {
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("Selected engine: "+selectedEngine))
 
 	return c.configureEngineAPISecret(selectedEngine)
+}
+
+func (c *AddInteractiveConfig) getWorkflowSpecifiedEngine() string {
+	if c.resolvedWorkflows == nil || len(c.resolvedWorkflows.Workflows) == 0 {
+		return ""
+	}
+
+	for _, wf := range c.resolvedWorkflows.Workflows {
+		if wf.Engine == "" {
+			continue
+		}
+		addInteractiveLog.Printf("Workflow specifies engine in frontmatter: %s", wf.Engine)
+		return wf.Engine
+	}
+	return ""
+}
+
+func (c *AddInteractiveConfig) determineDefaultEngine(workflowSpecifiedEngine string) string {
+	defaultEngine := string(constants.DefaultEngine)
+	if c.EngineOverride != "" {
+		return c.EngineOverride
+	}
+
+	for _, opt := range constants.EngineOptions {
+		if setutil.Contains(c.existingSecrets, opt.SecretName) {
+			addInteractiveLog.Printf("Found existing secret %s, recommending engine: %s", opt.SecretName, opt.Value)
+			return opt.Value
+		}
+	}
+
+	if workflowSpecifiedEngine != "" {
+		return workflowSpecifiedEngine
+	}
+
+	for _, opt := range constants.EngineOptions {
+		envVar := opt.SecretName
+		if opt.EnvVarName != "" {
+			envVar = opt.EnvVarName
+		}
+		if lookupEnv(envVar) != "" {
+			addInteractiveLog.Printf("Found env var %s, recommending engine: %s", envVar, opt.Value)
+			return opt.Value
+		}
+	}
+
+	return defaultEngine
+}
+
+func (c *AddInteractiveConfig) buildEngineOptions(workflowSpecifiedEngine string) []huh.Option[string] {
+	catalog := workflow.NewEngineCatalog(workflow.NewEngineRegistry())
+	return sliceutil.Map(catalog.All(), func(def *workflow.EngineDefinition) huh.Option[string] {
+		opt := constants.GetEngineOption(def.ID)
+		label := fmt.Sprintf("%s - %s", def.DisplayName, def.Description)
+		if opt != nil && setutil.Contains(c.existingSecrets, opt.SecretName) {
+			label += " [secret exists]"
+		} else {
+			label += " [no secret]"
+		}
+		if def.ID == workflowSpecifiedEngine {
+			label += " [specified in workflow]"
+		}
+		return huh.NewOption(label, def.ID)
+	})
+}
+
+func prioritizeEngineOption(engineOptions []huh.Option[string], defaultEngine string) {
+	for i, opt := range engineOptions {
+		if opt.Value != defaultEngine {
+			continue
+		}
+		if i > 0 {
+			engineOptions[0], engineOptions[i] = engineOptions[i], engineOptions[0]
+		}
+		return
+	}
 }
 
 // configureEngineAPISecret collects the API key for the selected engine using the unified engine secrets functions
