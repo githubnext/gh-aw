@@ -131,8 +131,8 @@ pre-agent-steps:
 
       # Check 2: count editable markdown files
       TOTAL=$(find docs/src/content/docs -path '*/blog*' -prune \
-        -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
-        | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
+        -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print0 \
+        | xargs -0 grep -rL 'disable-agentic-editing: true' 2>/dev/null \
         | wc -l)
       if [ "$TOTAL" -eq 0 ]; then
         echo '{"pass":false,"reason":"Pre-flight failed: no editable markdown files found in docs/src/content/docs (all files may be protected or excluded)."}' \
@@ -171,8 +171,8 @@ pre-agent-steps:
 
       # All checks passed — write candidate file list and preflight result
       find docs/src/content/docs -path '*/blog*' -prune \
-        -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print \
-        | xargs grep -rL 'disable-agentic-editing: true' 2>/dev/null \
+        -o -name '*.md' -type f ! -name 'frontmatter-full.md' -print0 \
+        | xargs -0 grep -rL 'disable-agentic-editing: true' 2>/dev/null \
         > /tmp/gh-aw/agent/candidate-files.txt
       printf '{"pass":true,"reason":"All pre-flight checks passed. %d uncleaned candidates available.","uncleaned":%d,"total":%d}\n' \
         "$UNCLEANED" "$UNCLEANED" "$TOTAL" \
