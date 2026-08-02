@@ -111,6 +111,8 @@ See [Imports](/gh-aw/reference/imports/) for complete documentation on syntax, s
 
 Add deterministic steps before or after agentic execution, or define full custom GitHub Actions jobs that run before the agent. See [Custom Steps and Jobs](/gh-aw/reference/steps-jobs/) for complete documentation.
 
+The `jobs:` map can also target compiler-generated built-in jobs such as `agent`, `activation`, and `safe_outputs` for additive customization. In particular, `jobs.agent.needs` and `jobs.agent.if` let you gate the generated agent job on a custom setup job while preserving compiler-managed dependencies.
+
 ### Cache Configuration (`cache:`)
 
 Cache configuration using standard GitHub Actions `actions/cache` syntax:

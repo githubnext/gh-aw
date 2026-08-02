@@ -156,6 +156,25 @@ Set `jobs.<job-id>.restore-memory: true` to restore any configured `cache-memory
 | `detection` | `jobs.detection.setup-steps` → compiler setup checkout/setup → `jobs.detection.pre-steps` → built-in detection steps |
 | `unlock` | `jobs.unlock.setup-steps` → compiler setup checkout/setup → `jobs.unlock.pre-steps` → built-in unlock steps |
 
+Built-in job sections also support additive `needs` and `if` overrides. For example, use `jobs.agent.needs` and `jobs.agent.if` to gate the generated agent job on a custom setup job without relying on `on.needs` plus a top-level workflow `if`:
+
+```yaml wrap
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      outcome: ${{ steps.result.outputs.outcome }}
+    steps:
+      - id: result
+        run: echo "outcome=failure" >> "$GITHUB_OUTPUT"
+
+  agent:
+    needs: [build]
+    if: needs.build.outputs.outcome == 'failure'
+```
+
+`jobs.<built-in>.needs` is merged with compiler-generated dependencies, and `jobs.<built-in>.if` is combined with compiler-generated conditions using logical `&&`.
+
 Example using `timeout-minutes` and `env`:
 
 ```yaml wrap
