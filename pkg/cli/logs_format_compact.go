@@ -137,7 +137,9 @@ func renderLogsCompactToWriter(w io.Writer, data LogsData) {
 			r.TokenUsage, formatCompactAIC(r.AIC), r.Turns, r.ErrorCount,
 			r.Event, actor, branch)
 	}
-	tw.Flush()
+	if err := tw.Flush(); err != nil {
+		logsCompactLog.Printf("flush error: %v", err)
+	}
 
 	// [errors] — aggregated error/warning messages
 	if len(data.ErrorsAndWarnings) > 0 {
@@ -317,7 +319,9 @@ func renderLogsCompactVerboseToWriter(w io.Writer, data LogsData) {
 			r.Event, actor, tbt, classification,
 			r.CreatedAt.Format("01-02 15:04"), r.Branch)
 	}
-	tw.Flush()
+	if err := tw.Flush(); err != nil {
+		logsCompactLog.Printf("flush error: %v", err)
+	}
 
 	// [errors]
 	if len(data.ErrorsAndWarnings) > 0 {
