@@ -94,21 +94,17 @@ func isShellcheckAvailable() bool {
 // GitHub Actions supports bash (default), sh, pwsh, powershell, python, and
 // custom shells. Only bash and sh are valid targets for shellcheck.
 func isShellcheckableShell(shell string) bool {
-	switch strings.ToLower(shell) {
-	case "", "bash":
+	if shell == "" || strings.EqualFold(shell, "bash") {
 		// Empty means GitHub Actions default (bash on Linux/macOS runners).
 		return true
-	case "sh":
-		return true
-	default:
-		return false
 	}
+	return strings.EqualFold(shell, "sh")
 }
 
 // shellcheckShell returns the value to pass to shellcheck's --shell flag.
 // When shell is empty the GitHub Actions default (bash) is used.
 func shellcheckShell(shell string) string {
-	if strings.ToLower(shell) == "sh" {
+	if strings.EqualFold(shell, "sh") {
 		return "sh"
 	}
 	return "bash"
