@@ -104,7 +104,11 @@ func (c *AddInteractiveConfig) runPRMergeLoop(prNumber int, prURL string) error 
 			mergeDone = done
 			mergeFailed = failed
 		case mergeActionEditTitle:
-			if err := c.promptAndEditPRTitle(prNumber); err == nil {
+			updated, err := c.promptAndEditPRTitle(prNumber)
+			if err != nil {
+				return err
+			}
+			if updated {
 				mergeFailed = false
 			}
 		case mergeActionReview:
@@ -172,7 +176,7 @@ func (c *AddInteractiveConfig) handleMergeAttempt(prNumber int, prURL string, me
 	return true, mergeFailed
 }
 
-func (c *AddInteractiveConfig) promptAndEditPRTitle(prNumber int) error {
+func (c *AddInteractiveConfig) promptAndEditPRTitle(prNumber int) (bool, error) {
 	var newTitle string
 	titleForm := console.NewInputForm(
 		huh.NewInput().
@@ -181,19 +185,19 @@ func (c *AddInteractiveConfig) promptAndEditPRTitle(prNumber int) error {
 			Value(&newTitle),
 	)
 	if err := titleForm.Run(); err != nil {
-		return fmt.Errorf("failed to get user input: %w", err)
+		return false, fmt.Errorf("failed to get user input: %w", err)
 	}
 	newTitle = strings.TrimSpace(newTitle)
 	if newTitle == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage("PR title cannot be empty, keeping current title"))
-		return errors.New("empty title")
+		return false, nil
 	}
 	if err := editPRTitle(prNumber, newTitle, c.RepoOverride); err != nil {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to update PR title: %v", err)))
-		return err
+		return false, nil
 	}
 	fmt.Fprintln(os.Stderr, console.FormatSuccessMessage("PR title updated to: "+newTitle))
-	return nil
+	return true, nil
 }
 
 func (c *AddInteractiveConfig) configureRepositorySecret(secretName, secretValue string) error {

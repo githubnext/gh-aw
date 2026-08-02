@@ -89,7 +89,12 @@ func (c *AddInteractiveConfig) determineDefaultEngine(workflowSpecifiedEngine st
 	for _, opt := range constants.EngineOptions {
 		if setutil.Contains(c.existingSecrets, opt.SecretName) {
 			addInteractiveLog.Printf("Found existing secret %s, recommending engine: %s", opt.SecretName, opt.Value)
-			return opt.Value
+			if opt.Value != string(constants.DefaultEngine) {
+				return opt.Value
+			}
+			// The secret maps to the default engine; fall through so that a
+			// workflow-specified engine or env-var credential can still override it.
+			break
 		}
 	}
 
