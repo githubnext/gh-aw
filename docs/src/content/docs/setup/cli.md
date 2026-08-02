@@ -126,6 +126,8 @@ The setup action installs the script at `/opt/gh-aw/actions/configure_gh_for_ghe
 | Flag | Description |
 |------|-------------|
 | `-h`, `--help` | Show help (`gh aw help [command]` for command-specific help) |
+
+For invalid nested command paths, `gh aw` now fails explicitly instead of falling back to parent help output. For example, `gh aw secrets gh --help` returns an unknown-command error rather than reprinting `gh aw secrets` help.
 | `-v`, `--verbose` | Enable verbose output showing detailed information |
 | `--banner` | Display ASCII logo banner with purple GitHub color theme |
 

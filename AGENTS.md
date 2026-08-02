@@ -56,6 +56,10 @@ When the relevant skill is not obvious, first discover candidates and then load 
 
 - Workflow create/update/debug/upgrade tasks → `.github/skills/agentic-workflows/SKILL.md`
 - Core engineering conventions, validation flow, and command playbooks → `.github/skills/developer/SKILL.md`
+- Code organization, file structure, WASM stubs, string patterns → `.github/skills/developer-code-organization/SKILL.md`
+- Security best practices, template injection, shell script safety, supply chain → `.github/skills/developer-security/SKILL.md`
+- Compiler internals, validation architecture, safe outputs, schema, MCP logs → `.github/skills/developer-internals/SKILL.md`
+- Release management, breaking CLI change rules, firewall log parsing → `.github/skills/developer-release/SKILL.md`
 - Error handling design/patterns → `.github/skills/error-recovery-patterns/SKILL.md`
 - GitHub MCP usage patterns → `.github/skills/github-mcp-server/SKILL.md`
 - Query helpers for issues/PRs/workflows/discussions/labels → matching `.github/skills/github-*-query/SKILL.md`
