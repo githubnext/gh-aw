@@ -1269,17 +1269,28 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	}
 
 	allSteps := strings.Join(job.Steps, "\n")
+
+	// Read the shell script that implements the collection logic.
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "collect_usage_artifact_files.sh")
+	scriptBytes, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("Failed to read collect_usage_artifact_files.sh: %v", err)
+	}
+	script := string(scriptBytes)
+
+	// --- YAML assertions: step names, script invocation, and upload artifact paths ---
+
 	if !strings.Contains(allSteps, "Collect usage artifact files") {
 		t.Errorf("Expected conclusion job to collect usage artifact files.\nGenerated steps:\n%s", allSteps)
+	}
+	if !strings.Contains(allSteps, `collect_usage_artifact_files.sh`) {
+		t.Errorf("Expected 'Collect usage artifact files' step to invoke collect_usage_artifact_files.sh.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "Upload usage artifact") {
 		t.Errorf("Expected conclusion job to upload usage artifact.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/aw_info.json") {
 		t.Errorf("Expected usage artifact to include aw_info.json path.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, "cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/usage/aw_info.json") {
-		t.Errorf("Expected usage artifact collection to include aw_info.json copy command.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/aw-info.jsonl") {
 		t.Errorf("Expected usage artifact to include aw-info.jsonl path.\nGenerated steps:\n%s", allSteps)
@@ -1290,9 +1301,6 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/agent_usage.json") {
 		t.Errorf("Expected usage artifact to include agent_usage.json path.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "cp /tmp/gh-aw/agent_usage.json /tmp/gh-aw/usage/agent_usage.json") {
-		t.Errorf("Expected usage artifact collection to copy agent_usage.json.\nGenerated steps:\n%s", allSteps)
-	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/detection_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include detection_usage.jsonl path.\nGenerated steps:\n%s", allSteps)
 	}
@@ -1302,49 +1310,8 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/agent/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include agent token usage path.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
-		t.Errorf("Expected usage artifact collection to include firewall audit token usage path for agent.\nGenerated steps:\n%s", allSteps)
-	}
-	// Verify non-empty check (-s) is used for token-usage copies so empty stub files from
-	// AWF's audit dir cannot zero out valid data written by the primary proxy-logs dir.
-	if !strings.Contains(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ]") {
-		t.Errorf("Expected usage artifact collection to use non-empty (-s) check for firewall/logs token-usage copy.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ]") {
-		t.Errorf("Expected usage artifact collection to use non-empty (-s) check for firewall/audit token-usage copy.\nGenerated steps:\n%s", allSteps)
-	}
-	// Verify firewall/logs/ copy appears after firewall/audit/ copy so it wins (last non-empty wins).
-	logsIdx := strings.Index(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ]")
-	auditIdx := strings.Index(allSteps, "[ -s /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ]")
-	if logsIdx > 0 && auditIdx > 0 && logsIdx <= auditIdx {
-		t.Errorf("Expected firewall/logs token-usage copy to appear AFTER firewall/audit copy (logs = higher priority).\nGenerated steps:\n%s", allSteps)
-	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/detection/token_usage.jsonl") {
 		t.Errorf("Expected usage artifact to include detection token usage path.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, "/tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
-		t.Errorf("Expected usage artifact collection to include firewall audit token usage path for detection.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, "Usage artifact source file status:") {
-		t.Errorf("Expected usage artifact collection to log source file status for diagnostics.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, ": > /tmp/gh-aw/usage/agent/token_usage.jsonl") {
-		t.Errorf("Expected usage artifact collection to ensure agent token usage file exists.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, ": > /tmp/gh-aw/usage/detection/token_usage.jsonl") {
-		t.Errorf("Expected usage artifact collection to ensure detection token usage file exists.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, "generate_usage_activity_summary.cjs") {
-		t.Errorf("Expected usage artifact collection to generate activity summary aggregates.\nGenerated steps:\n%s", allSteps)
-	}
-	if !strings.Contains(allSteps, `node "${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs"`) {
-		t.Errorf("Expected usage activity summary script path to use quoted shell-safe RUNNER_TEMP form to prevent word-splitting (SC2086).\nGenerated steps:\n%s", allSteps)
-	}
-	if strings.Contains(allSteps, "node ${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs") {
-		t.Errorf("Usage activity summary script path must use double-quoted RUNNER_TEMP to prevent word-splitting (SC2086).\nGenerated steps:\n%s", allSteps)
-	}
-	if strings.Contains(allSteps, "node ${{ runner.temp }}/gh-aw/actions/generate_usage_activity_summary.cjs") {
-		t.Errorf("Usage activity summary script path must not inline ${{ runner.temp }} in run block.\nGenerated steps:\n%s", allSteps)
 	}
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/activity/summary.json") {
 		t.Errorf("Expected usage artifact to include activity summary path.\nGenerated steps:\n%s", allSteps)
@@ -1364,6 +1331,56 @@ func TestConclusionJobIncludesUsageArtifactSteps(t *testing.T) {
 	collectIdx := strings.Index(allSteps, "Collect usage artifact files")
 	if downloadIdx == -1 || collectIdx == -1 || downloadIdx >= collectIdx {
 		t.Errorf("Expected 'Download safe outputs items manifest' to appear before 'Collect usage artifact files'.\ndownloadIdx=%d collectIdx=%d\nGenerated steps:\n%s", downloadIdx, collectIdx, allSteps)
+	}
+
+	// --- Script assertions: verify collection logic inside collect_usage_artifact_files.sh ---
+
+	if !strings.Contains(script, "cp /tmp/gh-aw/aw_info.json /tmp/gh-aw/usage/aw_info.json") {
+		t.Errorf("Expected collect script to include aw_info.json copy command.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "cp /tmp/gh-aw/agent_usage.json /tmp/gh-aw/usage/agent_usage.json") {
+		t.Errorf("Expected collect script to copy agent_usage.json.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "/tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
+		t.Errorf("Expected collect script to include firewall audit token usage path for agent.\nScript:\n%s", script)
+	}
+	// Verify non-empty check (-s) is used for token-usage copies so empty stub files from
+	// AWF's audit dir cannot zero out valid data written by the primary proxy-logs dir.
+	if !strings.Contains(script, "[ -s /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ]") {
+		t.Errorf("Expected collect script to use non-empty (-s) check for firewall/logs token-usage copy.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "[ -s /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ]") {
+		t.Errorf("Expected collect script to use non-empty (-s) check for firewall/audit token-usage copy.\nScript:\n%s", script)
+	}
+	// Verify firewall/logs/ copy appears after firewall/audit/ copy so it wins (last non-empty wins).
+	logsIdx := strings.Index(script, "[ -s /tmp/gh-aw/sandbox/firewall/logs/api-proxy-logs/token-usage.jsonl ]")
+	auditIdx := strings.Index(script, "[ -s /tmp/gh-aw/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl ]")
+	if logsIdx > 0 && auditIdx > 0 && logsIdx <= auditIdx {
+		t.Errorf("Expected firewall/logs token-usage copy to appear AFTER firewall/audit copy (logs = higher priority).\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "/tmp/gh-aw/threat-detection/sandbox/firewall/audit/api-proxy-logs/token-usage.jsonl") {
+		t.Errorf("Expected collect script to include firewall audit token usage path for detection.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "Usage artifact source file status:") {
+		t.Errorf("Expected collect script to log source file status for diagnostics.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, ": > /tmp/gh-aw/usage/agent/token_usage.jsonl") {
+		t.Errorf("Expected collect script to ensure agent token usage file exists.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, ": > /tmp/gh-aw/usage/detection/token_usage.jsonl") {
+		t.Errorf("Expected collect script to ensure detection token usage file exists.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, "generate_usage_activity_summary.cjs") {
+		t.Errorf("Expected collect script to generate activity summary aggregates.\nScript:\n%s", script)
+	}
+	if !strings.Contains(script, `node "${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs"`) {
+		t.Errorf("Expected collect script to use quoted shell-safe RUNNER_TEMP form to prevent word-splitting (SC2086).\nScript:\n%s", script)
+	}
+	if strings.Contains(script, "node ${RUNNER_TEMP}/gh-aw/actions/generate_usage_activity_summary.cjs") {
+		t.Errorf("Collect script must use double-quoted RUNNER_TEMP to prevent word-splitting (SC2086).\nScript:\n%s", script)
+	}
+	if strings.Contains(script, "node ${{ runner.temp }}/gh-aw/actions/generate_usage_activity_summary.cjs") {
+		t.Errorf("Collect script must not inline ${{ runner.temp }} in shell code.\nScript:\n%s", script)
 	}
 }
 
@@ -1400,9 +1417,17 @@ func TestConclusionJobIncludesEvalsInUsageArtifact(t *testing.T) {
 	if !strings.Contains(allSteps, "name: evals") {
 		t.Errorf("Expected evals artifact download step to use the evals artifact name.\nGenerated steps:\n%s", allSteps)
 	}
-	if !strings.Contains(allSteps, "cp /tmp/gh-aw/evals/evals.jsonl /tmp/gh-aw/usage/evals.jsonl") {
-		t.Errorf("Expected usage artifact collection to copy evals results.\nGenerated steps:\n%s", allSteps)
+
+	// The evals copy command lives in the shared script file.
+	scriptPath := filepath.Join("..", "..", "actions", "setup", "sh", "collect_usage_artifact_files.sh")
+	scriptBytes, err := os.ReadFile(scriptPath)
+	if err != nil {
+		t.Fatalf("Failed to read collect_usage_artifact_files.sh: %v", err)
 	}
+	if !strings.Contains(string(scriptBytes), "cp /tmp/gh-aw/evals/evals.jsonl /tmp/gh-aw/usage/evals.jsonl") {
+		t.Errorf("Expected collect script to copy evals results.\nScript:\n%s", string(scriptBytes))
+	}
+
 	if !strings.Contains(allSteps, "/tmp/gh-aw/usage/evals.jsonl") {
 		t.Errorf("Expected usage artifact upload to include evals results.\nGenerated steps:\n%s", allSteps)
 	}
