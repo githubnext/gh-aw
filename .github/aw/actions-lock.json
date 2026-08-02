@@ -235,11 +235,6 @@
       "digest": "sha256:9cb5f26d30b609a1d5560a090371cb9dba84fc32e7df10e5496aa22aa7b52658",
       "pinned_image": "mcp/markitdown@sha256:9cb5f26d30b609a1d5560a090371cb9dba84fc32e7df10e5496aa22aa7b52658"
     },
-    "mcp/memory": {
-      "image": "mcp/memory",
-      "digest": "sha256:db0c2db07a44b6797eba7a832b1bda142ffc899588aae82c92780cbb2252407f",
-      "pinned_image": "mcp/memory@sha256:db0c2db07a44b6797eba7a832b1bda142ffc899588aae82c92780cbb2252407f"
-    },
     "mcp/notion": {
       "image": "mcp/notion",
       "digest": "sha256:df0d6781d03f37bd5b962c85ae1f288382f31b7108c489473641ffc372f43dc9",

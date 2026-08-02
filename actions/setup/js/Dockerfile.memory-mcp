@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:1.7
+
+ARG NODE_IMAGE=node:lts-alpine
+FROM ${NODE_IMAGE}
+
+ARG NODE_IMAGE
+ARG NODE_IMAGE_DIGEST=""
+ARG NODE_IMAGE_UPDATED_AT=""
+ARG DOCKERFILE_HASH=""
+ARG NPM_VERSION=11.19.0
+ARG MCP_MEMORY_VERSION=2026.7.4
+
+WORKDIR /app
+
+# Intentional: upgrade all packages to pick up security fixes; downstream digest pins the result.
+# After upgrading npm, patch its bundled dependencies to meet minimum safe versions
+# (tar >= 7.5.22 for GHSA-23hp-3jrh-7fpw, brace-expansion >= 5.0.8 for GHSA-mh99-v99m-4gvg).
+RUN apk upgrade --no-cache \
+    && apk info -v | sort \
+    && npm install --global "npm@${NPM_VERSION}" \
+    && npm install --prefix "$(npm root -g)/npm" --no-save "tar@^7.5.22" "brace-expansion@^5.0.8" \
+    && npm cache clean --force
+
+# Install @modelcontextprotocol/server-memory from npm.
+# Using a pinned version ensures the image is reproducible and picks up
+# a fully-patched @modelcontextprotocol/sdk (>= 1.24.0).
+RUN npm install "@modelcontextprotocol/server-memory@${MCP_MEMORY_VERSION}" \
+    && npm cache clean --force
+
+# Persist memory to /app/dist/ so the existing Docker volume mount
+# (-v /tmp/gh-aw/cache-memory:/app/dist) continues to work.
+RUN mkdir -p /app/dist
+ENV MEMORY_FILE_PATH=/app/dist/memory.json
+ENV NODE_ENV=production
+
+LABEL org.opencontainers.image.source="https://github.com/github/gh-aw" \
+      org.opencontainers.image.description="Hardened MCP memory server built from node:lts-alpine with patched dependencies" \
+      org.opencontainers.image.base.name="${NODE_IMAGE}" \
+      org.opencontainers.image.base.digest="${NODE_IMAGE_DIGEST}" \
+      io.github.gh-aw.memory.node.updated-at="${NODE_IMAGE_UPDATED_AT}" \
+      io.github.gh-aw.memory.npm.version="${NPM_VERSION}" \
+      io.github.gh-aw.memory.server-memory.version="${MCP_MEMORY_VERSION}" \
+      io.github.gh-aw.memory.dockerfile-hash="${DOCKERFILE_HASH}"
+
+ENTRYPOINT ["node", "node_modules/@modelcontextprotocol/server-memory/dist/index.js"]

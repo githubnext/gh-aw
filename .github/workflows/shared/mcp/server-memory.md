@@ -4,7 +4,7 @@
 
 mcp-servers:
   memory:
-    container: "mcp/memory"
+    container: "ghcr.io/github/gh-aw-memory"
     args:
       - "-v"
       - "/tmp/gh-aw/cache-memory:/app/dist"
