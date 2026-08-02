@@ -876,6 +876,81 @@ Some content here.`;
       }
     });
 
+    test("detects ai_credits_rate_limit_error from stderr.log even when rpc-messages.jsonl contains only false-positive-like content", async () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
+      const stderrLogPath = path.join(tmpDir, "stderr.log");
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      try {
+        const rpcPayload = JSON.stringify({
+          timestamp: "2026-08-02T08:39:00Z",
+          event: "message",
+          direction: "IN",
+          server_id: "github",
+          payload: {
+            result: {
+              content: [{ type: "text", text: JSON.stringify([{ name: "schema-coverage-rate-limit-abc123" }]) }],
+            },
+          },
+        });
+        fs.writeFileSync(rpcMessagesPath, rpcPayload);
+        fs.writeFileSync(stderrLogPath, "CAPIError: 429 Too Many Requests");
+
+        const mockCore = {
+          info: vi.fn(),
+          debug: vi.fn(),
+          startGroup: vi.fn(),
+          endGroup: vi.fn(),
+          notice: vi.fn(),
+          warning: vi.fn(),
+          error: vi.fn(),
+          setFailed: vi.fn(),
+          exportVariable: vi.fn(),
+          setOutput: vi.fn(),
+          summary: {
+            addRaw: vi.fn().mockReturnThis(),
+            addDetails: vi.fn().mockReturnThis(),
+            write: vi.fn(),
+          },
+        };
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/stderr.log") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return false;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.jsonl") return false;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.log") return false;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") {
+            return originalReadFileSync(rpcMessagesPath, encoding);
+          }
+          if (filepath === "/tmp/gh-aw/mcp-logs/stderr.log") {
+            return originalReadFileSync(stderrLogPath, encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        global.core = mockCore;
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        const setOutputCalls = mockCore.setOutput.mock.calls;
+        const rateLimitCall = setOutputCalls.find(([name]) => name === "ai_credits_rate_limit_error");
+        expect(rateLimitCall).toBeDefined();
+        expect(rateLimitCall[1]).toBe("true");
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     test("calls setFailed when an unexpected error is thrown inside main", async () => {
       const originalExistsSync = fs.existsSync;
       const originalReadFileSync = fs.readFileSync;

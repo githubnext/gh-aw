@@ -76,6 +76,7 @@ const WATCHDOG_SIGTERM_PATTERN = /process closed[^\n]*signal=SIG(?:TERM|KILL|INT
 // (watchdogFired=false or watchdogFired field absent). This indicates a genuine external kill,
 // typically from the step timeout-minutes limit.
 const STEP_TIMEOUT_SIGTERM_PATTERN = /process closed[^\n]*signal=SIG(?:TERM|KILL|INT)(?![^\n]*watchdogFired=true)/;
+const PROCESS_CLOSED_SIGTERM_PATTERN = /process closed[^\n]*signal=SIG(?:TERM|KILL|INT)/;
 
 /**
  * Determines if the log content shows a genuine agentic engine timeout.
@@ -101,8 +102,8 @@ function isAgenticEngineTimeout(logContent) {
     return STEP_TIMEOUT_SIGTERM_PATTERN.test(logContent);
   }
 
-  // No watchdog-specific "process closed" found; any SIGTERM is treated as a step timeout.
-  return true;
+  // Only classify as timeout when the signal is on a "process closed" line.
+  return PROCESS_CLOSED_SIGTERM_PATTERN.test(logContent);
 }
 
 // Pattern: Configured model is invalid or unavailable.
@@ -370,6 +371,7 @@ module.exports = {
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
   WATCHDOG_SIGTERM_PATTERN,
   STEP_TIMEOUT_SIGTERM_PATTERN,
+  PROCESS_CLOSED_SIGTERM_PATTERN,
   MODEL_NOT_SUPPORTED_PATTERN,
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,

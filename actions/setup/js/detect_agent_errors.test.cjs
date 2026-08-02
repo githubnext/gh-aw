@@ -550,6 +550,15 @@ commentary" has no AI credits pricing`;
       expect(result.agenticEngineTimeout).toBe(true);
     });
 
+    it("reports engine timeout when both watchdog and step-timeout SIGTERMs are present", () => {
+      const log = [
+        "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=10m 0s hasOutput=true watchdogFired=true",
+        "[copilot-harness] attempt 2: process closed exitCode=1 signal=SIGTERM duration=20m 0s hasOutput=true watchdogFired=false",
+      ].join("\n");
+      const result = detectErrors(log);
+      expect(result.agenticEngineTimeout).toBe(true);
+    });
+
     it("detects max cache misses exceeded (JSON error type form)", () => {
       const result = detectErrors('{"error":{"type":"max_cache_misses_exceeded","message":"Maximum consecutive cache misses exceeded (6 / 5).","consecutive_cache_misses":6,"max_cache_misses":5}}');
       expect(result.maxCacheMissesExceeded).toBe(true);
@@ -666,8 +675,8 @@ commentary" has no AI credits pricing`;
       expect(isAgenticEngineTimeout(log)).toBe(true);
     });
 
-    it("returns true for SIGTERM in a non-process-closed context", () => {
-      expect(isAgenticEngineTimeout("Claude CLI terminated with signal=SIGTERM after timeout")).toBe(true);
+    it("returns false for SIGTERM in a non-process-closed context", () => {
+      expect(isAgenticEngineTimeout("Claude CLI terminated with signal=SIGTERM after timeout")).toBe(false);
     });
 
     it("returns true for SIGKILL", () => {

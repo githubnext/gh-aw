@@ -847,7 +847,6 @@ async function main() {
       // repository data (branch names, commit messages, file contents) that can false-positively
       // match the rate-limit patterns. Real AI credits rate limit errors from the inference API
       // appear in gateway.log / stderr.log / gateway.md, not in MCP RPC message logs.
-      unknownModelAICredits ||= hasUnknownModelAICreditsError([jsonlContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
       }
@@ -866,8 +865,7 @@ async function main() {
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
       modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(rpcMessagesContent);
-      // Do NOT scan rpc-messages.jsonl for AI credits rate limit errors (same reason as gateway.jsonl above).
-      unknownModelAICredits ||= hasUnknownModelAICreditsError([rpcMessagesContent]);
+      // Do NOT scan rpc-messages.jsonl for AI credits signals (same reason as gateway.jsonl above).
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
       }
@@ -879,6 +877,29 @@ async function main() {
       }
     } else {
       core.info(`No gateway.jsonl or rpc-messages.jsonl found for steering or DIFC_FILTERED scanning`);
+    }
+
+    // Always scan authoritative text logs for AI credits signals before selecting
+    // which format to render in the step summary.
+    let gatewayLogContent = "";
+    let stderrLogContent = "";
+
+    if (fs.existsSync(gatewayLogPath)) {
+      gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
+      core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
+      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([gatewayLogContent]);
+      unknownModelAICredits ||= hasUnknownModelAICreditsError([gatewayLogContent]);
+    } else {
+      core.info(`No gateway.log found at: ${gatewayLogPath}`);
+    }
+
+    if (fs.existsSync(stderrLogPath)) {
+      stderrLogContent = fs.readFileSync(stderrLogPath, "utf8");
+      core.info(`Found stderr.log (${stderrLogContent.length} bytes)`);
+      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([stderrLogContent]);
+      unknownModelAICredits ||= hasUnknownModelAICreditsError([stderrLogContent]);
+    } else {
+      core.info(`No stderr.log found at: ${stderrLogPath}`);
     }
 
     // Try to read gateway.md if it exists (preferred for general gateway summary)
@@ -949,30 +970,7 @@ async function main() {
       return;
     }
 
-    // Fallback to legacy log files
-    let gatewayLogContent = "";
-    let stderrLogContent = "";
-
-    // Read gateway.log if it exists
-    if (fs.existsSync(gatewayLogPath)) {
-      gatewayLogContent = fs.readFileSync(gatewayLogPath, "utf8");
-      core.info(`Found gateway.log (${gatewayLogContent.length} bytes)`);
-      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([gatewayLogContent]);
-      unknownModelAICredits ||= hasUnknownModelAICreditsError([gatewayLogContent]);
-    } else {
-      core.info(`No gateway.log found at: ${gatewayLogPath}`);
-    }
-
-    // Read stderr.log if it exists
-    if (fs.existsSync(stderrLogPath)) {
-      stderrLogContent = fs.readFileSync(stderrLogPath, "utf8");
-      core.info(`Found stderr.log (${stderrLogContent.length} bytes)`);
-      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([stderrLogContent]);
-      unknownModelAICredits ||= hasUnknownModelAICreditsError([stderrLogContent]);
-    } else {
-      core.info(`No stderr.log found at: ${stderrLogPath}`);
-    }
-
+    // Fallback to legacy log files for summary rendering.
     // If no legacy log content and no DIFC events, check if token usage is available
     if (
       (!gatewayLogContent || gatewayLogContent.trim().length === 0) &&
