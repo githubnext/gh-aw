@@ -92,6 +92,37 @@ func TestConfigureActivationNeedsAndCondition_EngineEnvJobReferences(t *testing.
 			"activation job must depend on token_provider referenced in engine.env (with pre_activation)")
 	})
 
+	t.Run("engine.env reference to custom job with explicit needs does not add activation dependency", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"COPILOT_GITHUB_TOKEN": "${{ needs.custom_token.outputs.token }}",
+				},
+			},
+			Jobs: map[string]any{
+				"custom_token": map[string]any{
+					"runs-on": "ubuntu-latest",
+					"needs":   "build_context",
+				},
+				"build_context": map[string]any{
+					"runs-on": "ubuntu-latest",
+				},
+			},
+		}
+		ctx := &activationJobBuildContext{
+			data:             data,
+			preActivationJob: false,
+		}
+
+		c.configureActivationNeedsAndCondition(ctx)
+
+		assert.NotContains(t, ctx.activationNeeds, "custom_token",
+			"custom_token with explicit needs must not be re-added to activation dependencies")
+		assert.NotContains(t, ctx.customJobsBeforeActivation, "custom_token",
+			"custom_token with explicit needs must not be added to customJobsBeforeActivation via engine.env scanning")
+	})
+
 	t.Run("engine.env with no needs references does not add extra deps", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{
@@ -185,5 +216,24 @@ func TestConfigureActivationNeedsAndCondition_EngineEnvJobReferences(t *testing.
 			}
 		}
 		assert.Equal(t, 1, count, "custom_token should appear exactly once in activationNeeds")
+	})
+
+	t.Run("engine.env helper returns referenced custom jobs in sorted order", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"FIRST":  "${{ needs.z_job.outputs.value }}",
+					"SECOND": "${{ needs.a_job.outputs.value }}",
+				},
+			},
+			Jobs: map[string]any{
+				"z_job": map[string]any{"runs-on": "ubuntu-latest"},
+				"a_job": map[string]any{"runs-on": "ubuntu-latest"},
+			},
+		}
+
+		referenced := c.getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data)
+		assert.Equal(t, []string{"a_job", "z_job"}, referenced)
 	})
 }

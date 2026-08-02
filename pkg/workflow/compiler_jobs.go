@@ -206,6 +206,7 @@ func (c *Compiler) getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data *Wor
 		result = append(result, jobName)
 		compilerJobsLog.Printf("Found custom job '%s' referenced in engine.env with no explicit needs: will run before activation", jobName)
 	}
+	sort.Strings(result)
 	return result
 }
 
