@@ -24,6 +24,6 @@ func TestPRCodeQualityReviewerWorkflowSubAgentModelContract(t *testing.T) {
 
 	text := string(content)
 	assert.Contains(t, text, "## agent: `grumpy-coder`", "Workflow should define the grumpy-coder sub-agent")
-	assert.Contains(t, text, "model: small", "Sub-agent should pin a supported model alias")
+	assert.Contains(t, text, "model: small", "Sub-agent should use the portable small alias")
 	assert.NotContains(t, text, "model: inherited", "Sub-agent should not inherit an unsupported tier-specific model")
 }

@@ -35,13 +35,14 @@ imports:
   - shared/mcp/ast-grep.md
   # Note: azure.md excluded due to schema validation issue with entrypointArgs
   # Note: brave.md excluded — docker.io/mcp/brave-search has Critical/High CVEs (see #48546)
+  # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/mcp/context7.md
   - shared/mcp/datadog.md
   - shared/mcp/deepwiki.md
   - shared/mcp/fabric-rti.md
-  - shared/mcp/markitdown.md
+  # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/mcp/microsoft-docs.md
-  - shared/mcp/notion.md
+  # Note: notion.md excluded — docker.io/mcp/notion has Critical/High CVEs (see #49517)
   - shared/mcp/sentry.md
   - shared/mcp/server-memory.md
   - shared/mcp/slack.md
