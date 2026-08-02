@@ -81,15 +81,6 @@ func NewPermissionsContentsReadIssuesWrite() *Permissions {
 	})
 }
 
-// NewPermissionsContentsReadIssuesWritePRWrite creates permissions with contents: read, issues: write, pull-requests: write
-func NewPermissionsContentsReadIssuesWritePRWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:     PermissionRead,
-		PermissionIssues:       PermissionWrite,
-		PermissionPullRequests: PermissionWrite,
-	})
-}
-
 // NewPermissionsActionsWrite creates permissions with actions: write
 // This is required for dispatching workflows via workflow_dispatch
 func NewPermissionsActionsWrite() *Permissions {
@@ -127,16 +118,6 @@ func NewPermissionsContentsWriteIssuesWritePRWrite() *Permissions {
 func NewPermissionsContentsReadDiscussionsWrite() *Permissions {
 	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
 		PermissionContents:    PermissionRead,
-		PermissionDiscussions: PermissionWrite,
-	})
-}
-
-// NewPermissionsContentsReadIssuesWriteDiscussionsWrite creates permissions with contents: read, issues: write, discussions: write
-// This is used for create-discussion jobs that support fallback-to-issue when discussion creation fails
-func NewPermissionsContentsReadIssuesWriteDiscussionsWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:    PermissionRead,
-		PermissionIssues:      PermissionWrite,
 		PermissionDiscussions: PermissionWrite,
 	})
 }
@@ -184,14 +165,6 @@ func (p *Permissions) Clone() *Permissions {
 		maps.Copy(clone.permissions, p.permissions)
 	}
 	return clone
-}
-
-// Note: organization-projects is only valid for GitHub App tokens, not workflow permissions
-func NewPermissionsContentsReadProjectsWrite() *Permissions {
-	return NewPermissionsFromMap(map[PermissionScope]PermissionLevel{
-		PermissionContents:         PermissionRead,
-		PermissionOrganizationProj: PermissionWrite,
-	})
 }
 
 // NewPermissionsIssuesWrite creates permissions with issues: write only.

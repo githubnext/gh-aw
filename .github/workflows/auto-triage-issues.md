@@ -37,8 +37,7 @@ tools:
       - issues
     min-integrity: approved
   bash:
-    - "jq *"
-    - "cat *"
+    - "*"
 steps:
   - name: Fetch unlabeled issues
     env:

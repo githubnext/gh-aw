@@ -29,25 +29,7 @@ tools:
     mode: gh-proxy
     toolsets: [default, pull_requests]
   bash:
-    - "git diff:*"
-    - "git grep:*"
-    - "git log:*"
-    - "git show:*"
-    - "go test:*"
-    - "npm test:*"
-    - "npm run:*"
-    - "node:*"
-    - "find:*"
-    - "grep:*"
-    - "sed:*"
-    - "awk:*"
-    - "cat:*"
-    - "head:*"
-    - "tail:*"
-    - "ls:*"
-    - "mkdir:*"
-    - "echo:*"
-    - "xargs:*"
+    - "*"
   edit:
 safe-outputs:
   push-to-pull-request-branch:

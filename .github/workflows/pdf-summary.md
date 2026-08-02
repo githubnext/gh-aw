@@ -38,7 +38,7 @@ engine:
 
 max-tool-denials: 3
 imports:
-  - shared/mcp/markitdown.md
+  # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/reporting.md
 
   - shared/otlp.md

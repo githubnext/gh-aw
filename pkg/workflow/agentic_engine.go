@@ -135,6 +135,13 @@ type EngineCapabilities struct {
 	// which suppresses automatic loading of context and custom instructions. When false,
 	// specifying bare: true emits a warning and has no effect.
 	BareMode bool
+
+	// BashCommandAllowlist reports whether the engine enforces a bash command allowlist
+	// derived from tools.bash: [cmd1, cmd2, ...]. When true, the engine maps the
+	// allowlist to its own CLI syntax (e.g. --allowed-tools Bash(cmd), run_shell_command(cmd)).
+	// When false, a restricted tools.bash allowlist is silently ignored at runtime,
+	// so the compiler emits an error to prevent the allowlist illusion.
+	BashCommandAllowlist bool
 }
 
 // CapabilityProvider detects what capabilities an engine supports.

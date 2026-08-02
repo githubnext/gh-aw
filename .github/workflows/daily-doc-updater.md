@@ -58,13 +58,7 @@ sandbox:
     sudo: false
 tools:
   bash:
-  - find docs -name "*.md" -o -name "*.mdx"
-  - find docs -maxdepth 1 -ls
-  - find docs -name "*.md" -exec cat {} +
-  - grep -r "*" docs
-  - git
-  - find pkg/parser/schemas -name "*.json"
-  - cat pkg/parser/schemas/*.json
+  - "*"
   cache-memory: true
   cli-proxy: true
   edit: null
