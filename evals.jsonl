@@ -1,2 +1,2 @@
-{"id":"git_scenarios_simulated","question":"Did the agent simulate git configurations for create-pull-request and push-to-pull-request-branch safe outputs?","answer":"YES","model":"small","timestamp":"2026-08-01T05:36:25.125Z","runid":"30685887012"}
-{"id":"simulator_findings_reported","question":"Did the agent report the simulator results and any systematic safe-output issues it found?","answer":"YES","model":"small","timestamp":"2026-08-01T05:36:25.125Z","runid":"30685887012"}
+{"id":"git_scenarios_simulated","question":"Did the agent simulate git configurations for create-pull-request and push-to-pull-request-branch safe outputs?","answer":"YES","model":"evals","timestamp":"2026-08-02T05:37:20.497Z","runid":"30734180878"}
+{"id":"simulator_findings_reported","question":"Did the agent report the simulator results and any systematic safe-output issues it found?","answer":"YES","model":"evals","timestamp":"2026-08-02T05:37:20.497Z","runid":"30734180878"}
