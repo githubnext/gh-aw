@@ -120,7 +120,7 @@ function hasExplicitTargetParameter(entry, fieldNames) {
 
 /**
  * @param {string} toolName
- * @returns {{primary?: string, anyOf?: string[]} | null}
+ * @returns {{primary?: string, anyOf?: string[], allOf?: string[]} | null}
  */
 function getWildcardTargetRequirement(toolName) {
   return safeOutputsToolMap.get(toolName)?.["x-safe-outputs-target-requirements"]?.["*"] || null;
@@ -315,15 +315,23 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       return null;
     }
 
+    const configKey = toolName.replace(/_/g, "-");
+
     const anyOf = Array.isArray(requirement.anyOf) ? requirement.anyOf : [];
-    if (anyOf.length === 0 || hasExplicitTargetParameter(entry, anyOf)) {
-      return null;
+    if (anyOf.length > 0 && !hasExplicitTargetParameter(entry, anyOf)) {
+      const primary = requirement.primary || anyOf[0];
+      const guidance = anyOf.length === 1 ? primary : `one of: ${anyOf.join(", ")}`;
+      return buildIntentErrorResponse(`${toolName} requires ${primary} when safe-outputs.${configKey}.target is '*'. Provide ${guidance} and retry.`);
     }
 
-    const configKey = toolName.replace(/_/g, "-");
-    const primary = requirement.primary || anyOf[0];
-    const guidance = anyOf.length === 1 ? primary : `one of: ${anyOf.join(", ")}`;
-    return buildIntentErrorResponse(`${toolName} requires ${primary} when safe-outputs.${configKey}.target is '*'. Provide ${guidance} and retry.`);
+    const allOf = Array.isArray(requirement.allOf) ? requirement.allOf : [];
+    for (const field of allOf) {
+      if (!hasExplicitTargetParameter(entry, [field])) {
+        return buildIntentErrorResponse(`${toolName} requires ${field} when safe-outputs.${configKey}.target is '*'. Provide ${field} and retry.`);
+      }
+    }
+
+    return null;
   };
 
   /**
