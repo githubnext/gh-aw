@@ -237,6 +237,11 @@ func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool)
 	}
 	args = append(args, tmpFile.Name())
 
+	if verbose {
+		shellcheckLog.Printf("Invoking: shellcheck %s", strings.Join(args, " "))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("shellcheck "+strings.Join(args[:len(args)-1], " ")+" <script>"))
+	}
+
 	// #nosec G204 -- shellcheck is a trusted system binary; args are built
 	// from controlled values (shell name and SC codes). The temp file path is
 	// OS-generated and not user-controlled.
@@ -288,7 +293,7 @@ func stepLabel(info runStepInfo) string {
 //
 // When strict is false, individual step failures are printed as warnings and
 // the function returns nil. When strict is true, the first step failure causes
-// an error to be returned.
+// an error to be returned immediately (fail fast).
 func runShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
@@ -312,6 +317,7 @@ func runShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) err
 	var totalSteps, totalIssues int
 	var firstErr error
 
+outer:
 	for _, lockFile := range lockFiles {
 		steps, err := extractRunStepsFromLockFile(lockFile)
 		if err != nil {
@@ -325,8 +331,9 @@ func runShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) err
 			if err := runShellcheckOnScript(step, shellcheckDefaultIgnoreCodes, verbose); err != nil {
 				totalIssues++
 				shellcheckLog.Printf("shellcheck issue in %s step %q: %v", lockFile, step.Name, err)
-				if strict && firstErr == nil {
+				if strict {
 					firstErr = err
+					break outer // fail fast in strict mode
 				}
 			}
 		}
