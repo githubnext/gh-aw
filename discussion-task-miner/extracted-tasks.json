@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-01T07:34:00Z",
+  "last_run": "2026-08-02T07:35:00Z",
   "tasks": [
     {
       "source_discussion": 48872,
@@ -222,6 +222,36 @@
       "title": "gh CLI wrapper context propagation Tasks 1/2/3/4 - largely superseded by closed #48436/#48488, remaining gap narrowed to RunGHWithHost issue created above",
       "status": "partially_created",
       "created_at": "2026-08-01T07:34:00Z"
+    },
+    {
+      "source_discussion": 49699,
+      "title": "Add dedicated unit test file for compiler_activation_steps.go",
+      "created_at": "2026-08-02T07:35:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 49703,
+      "title": "Fix leftover golint findings: cmd/gh-aw/main.go, stringsconcatloop, actionpins_internal_test",
+      "created_at": "2026-08-02T07:35:00Z",
+      "status": "created"
+    },
+    {
+      "source_discussion": 49699,
+      "title": "Add dedicated unit test file for compiler_safe_output_jobs.go",
+      "created_at": "2026-08-02T07:35:00Z",
+      "status": "duplicate_dropped_by_safeoutputs_similarity"
+    },
+    {
+      "source_discussion": 49716,
+      "title": "engine.id antigravity schema/docs sync",
+      "status": "skipped_already_tracked",
+      "note": "Open issue #49364 covers this; 15+ closed duplicates in history"
+    },
+    {
+      "source_discussion": 49716,
+      "title": "dispatch_repository deprecated alias in frontmatter-full.md",
+      "status": "skipped_already_tracked",
+      "note": "18+ closed duplicate issues found; high churn/rejection history"
     }
   ]
 }
