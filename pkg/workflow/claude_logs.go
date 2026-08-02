@@ -155,11 +155,11 @@ func (e *ClaudeEngine) parseClaudeLogEntries(logContent string, verbose bool) []
 	var logEntries []map[string]any
 	if err := json.Unmarshal([]byte(logContent), &logEntries); err == nil {
 		return logEntries
-	}
-
-	claudeLogsLog.Print("JSON array parse failed, trying JSONL format")
-	if verbose {
-		fmt.Fprintf(os.Stderr, "Failed to parse Claude log as JSON array, trying JSONL format\n")
+	} else {
+		claudeLogsLog.Print("JSON array parse failed, trying JSONL format")
+		if verbose {
+			fmt.Fprintf(os.Stderr, "Failed to parse Claude log as JSON array, trying JSONL format: %v\n", err)
+		}
 	}
 	logEntries = e.parseClaudeMixedLogEntries(logContent, verbose)
 	if len(logEntries) == 0 {
