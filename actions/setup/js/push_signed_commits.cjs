@@ -352,9 +352,26 @@ async function resolveLocalHeadSha(cwd) {
  * @param {Record<string, any>} [opts.resolvedTemporaryIds] - Resolved temporary IDs map
  * @param {string} [opts.currentRepo] - Repository slug used for same-repo temporary ID resolution
  * @param {Record<string, any>} [opts.validationConfig] - Optional safe-output policy config applied to synthesized GraphQL fileChanges
+ * @param {(context: {cwd: string, branch: string, output: string}) => (boolean|Promise<boolean>)} [opts.resolveRebaseConflict]
  * @returns {Promise<string | undefined>} SHA of the commit that landed on the target branch
  */
-async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, cwd, gitAuthEnv, pushRemoteUrl, pushToken, signedCommits = true, allowGitPushFallback = true, resolvedTemporaryIds, currentRepo, validationConfig }) {
+async function pushSignedCommits({
+  githubClient,
+  owner,
+  repo,
+  branch,
+  baseRef,
+  cwd,
+  gitAuthEnv,
+  pushRemoteUrl,
+  pushToken,
+  signedCommits = true,
+  allowGitPushFallback = true,
+  resolvedTemporaryIds,
+  currentRepo,
+  validationConfig,
+  resolveRebaseConflict,
+}) {
   const effectiveCurrentRepo = currentRepo || `${owner}/${repo}`;
   const temporaryIdMap = loadTemporaryIdMapFromResolved(resolvedTemporaryIds, {
     defaultRepo: effectiveCurrentRepo,
@@ -476,17 +493,40 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
     let rebaseResult = await runRebase();
     if (rebaseResult.exitCode !== 0) {
       const combinedOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
-      // Always abort the in-progress rebase before attempting any recovery.
-      try {
-        await exec.exec("git", ["rebase", "--abort"], { cwd });
-      } catch {
-        // Ignore cleanup failures.
+      let rebaseResolved = false;
+      if (!isPartialCloneObjectFailure(combinedOutput) && typeof resolveRebaseConflict === "function") {
+        try {
+          rebaseResolved = await resolveRebaseConflict({ cwd, branch, output: combinedOutput });
+        } catch (resolveError) {
+          core.warning(`pushSignedCommits: custom rebase conflict resolver failed: ${getErrorMessage(resolveError)}`);
+        }
       }
 
-      // Recovery: if the failure was caused by missing objects in a shallow/
-      // partial clone, backfill the exact commit objects this rebase needs and
-      // retry once.
-      if (isPartialCloneObjectFailure(combinedOutput)) {
+      if (rebaseResolved) {
+        rebaseResult = await exec.getExecOutput("git", ["rebase", "--continue"], {
+          cwd,
+          env: { ...process.env, ...(gitAuthEnv || {}), GIT_EDITOR: "true" },
+          ignoreReturnCode: true,
+        });
+        if (rebaseResult.exitCode !== 0) {
+          try {
+            await exec.exec("git", ["rebase", "--abort"], { cwd });
+          } catch {
+            // Ignore cleanup failures.
+          }
+          const continueOutput = `${rebaseResult.stdout || ""}\n${rebaseResult.stderr || ""}`;
+          throw new Error(`pushSignedCommits: resolved a rebase conflict for branch '${branch}' but could not continue the rebase. ` + `Root cause: ${continueOutput.trim()}`);
+        }
+      } else if (isPartialCloneObjectFailure(combinedOutput)) {
+        // Always abort the in-progress rebase before attempting recovery.
+        try {
+          await exec.exec("git", ["rebase", "--abort"], { cwd });
+        } catch {
+          // Ignore cleanup failures.
+        }
+        // Recovery: if the failure was caused by missing objects in a shallow/
+        // partial clone, backfill the exact commit objects this rebase needs and
+        // retry once.
         // Backfill the full object content (trees + blobs) of EXACTLY the
         // commits this rebase touches: the new GraphQL parent, the old replay
         // parent, and the current branch tip. Fetching these anchor commits
@@ -531,6 +571,11 @@ async function pushSignedCommits({ githubClient, owner, repo, branch, baseRef, c
           );
         }
       } else {
+        try {
+          await exec.exec("git", ["rebase", "--abort"], { cwd });
+        } catch {
+          // Ignore cleanup failures.
+        }
         throw new Error(`pushSignedCommits: failed to rebase commit range onto current GraphQL parent (${firstGraphqlParentOid}). ` + `Resolve conflicts by rebasing/cherry-picking locally and retry. Root cause: ${combinedOutput.trim()}`);
       }
     }

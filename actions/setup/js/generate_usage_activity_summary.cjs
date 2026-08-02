@@ -7,10 +7,12 @@
 //   session: aggregate Copilot session event counters
 //   gateway: total/failed tool-call counters with per-server breakdown
 //   safe_outputs: total item count and per-type breakdown from safe-output-items manifest
+//   experiments: A/B experiment variant assignments for the current run
 
 const fs = require("fs");
 const { globSync } = require("node:fs");
 const path = require("path");
+const { readExperimentAssignments } = require("./experiment_helpers.cjs");
 
 require("./shim.cjs");
 
@@ -433,6 +435,21 @@ function parseSafeOutputsManifest(manifestPath = MANIFEST_FILE_PATH) {
 }
 
 /**
+ * Parse A/B experiment assignments for the current run.
+ * Reads the assignments.json file written by pick_experiment.cjs.
+ * Returns null when no experiments are active for this run.
+ *
+ * @returns {{ assignments: Record<string, string> } | null}
+ */
+function parseExperimentsData() {
+  const assignments = readExperimentAssignments();
+  if (!assignments || Object.keys(assignments).length === 0) {
+    return null;
+  }
+  return { assignments };
+}
+
+/**
  * Main function to generate usage activity summary
  */
 function main() {
@@ -480,6 +497,12 @@ function main() {
     core.warning(`safe-output-items manifest could not be read from ${MANIFEST_FILE_PATH}: ${String(err)} — safe_outputs omitted from summary`);
   }
 
+  // Include A/B experiment assignments so the CLI can read them from the usage artifact.
+  const experiments = parseExperimentsData();
+  if (experiments) {
+    summary.experiments = experiments;
+  }
+
   // Write summary to file
   const outputPath = "/tmp/gh-aw/usage/activity/summary.json";
   try {
@@ -495,4 +518,4 @@ if (require.main === module) {
   main();
 }
 
-module.exports = { parseFirewallLogs, parseSessionLogs, parseGatewayLogs, parseSafeOutputsManifest, MANIFEST_FILE_PATH };
+module.exports = { parseFirewallLogs, parseSessionLogs, parseGatewayLogs, parseSafeOutputsManifest, parseExperimentsData, MANIFEST_FILE_PATH };

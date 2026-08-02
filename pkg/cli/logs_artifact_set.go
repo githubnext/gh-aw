@@ -63,7 +63,7 @@ const (
 	ArtifactSetGitHubAPI ArtifactSet = "github-api"
 
 	// ArtifactSetExperiment downloads the experiment artifact containing A/B experiment
-	// state (state.json) uploaded by the activation job when experiments are declared.
+	// state (state.jsonl or state.json) uploaded by the activation job when experiments are declared.
 	ArtifactSetExperiment ArtifactSet = "experiment"
 
 	// ArtifactSetUsage downloads the compact usage artifact produced by the
