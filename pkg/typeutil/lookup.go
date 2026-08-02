@@ -1,17 +1,3 @@
-// Package typeutil — map-extraction helpers.
-//
-// This file provides safe extraction functions for pulling typed values out of
-// map[string]any structures, such as those produced by JSON or YAML parsers.
-//
-// # Key Functions
-//
-// Bool Extraction:
-//   - ParseBool() - Extract a bool from map[string]any by key; returns false on missing, nil map, or non-bool.
-//
-// Map/String Extraction (return (value, ok) to signal missing/type mismatch):
-//   - LookupMap()        - Extract a map[string]any value from map[string]any by key.
-//   - LookupString()     - Extract a string value from map[string]any by key.
-//   - LookupStringPath() - Extract a nested string value by following a sequence of keys.
 package typeutil
 
 // ParseBool extracts a boolean value from a map[string]any by key.

@@ -1,11 +1,12 @@
-// Package typeutil — single-value numeric conversion utilities.
+// Package typeutil provides helpers for converting untyped values and extracting
+// typed data from map[string]any structures.
 //
-// This file provides safe conversion functions for working with heterogeneous
-// any values that represent a single numeric quantity, particularly those
-// arising from JSON/YAML parsing where types may vary at runtime.
+// The package includes numeric conversion utilities (in this file) and
+// map-extraction helpers (in lookup.go), plus related parsing helpers used by
+// the workflow engine.
 //
-// Map-extraction helpers (ParseBool, LookupMap, LookupString, LookupStringPath)
-// live in lookup.go.
+// This file specifically focuses on safe conversion of heterogeneous any values
+// that represent a single numeric quantity.
 //
 // # Key Functions
 //

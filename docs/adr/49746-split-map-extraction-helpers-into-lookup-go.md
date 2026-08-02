@@ -1,7 +1,7 @@
 # ADR-49746: Split Map-Extraction Helpers into lookup.go
 
 **Date**: 2026-08-02
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, copilot-swe-agent
 
 ---
@@ -42,5 +42,3 @@ Move the four functions into a child package, giving them their own import path.
 - The `docs/adr/` naming convention uses the PR number as the ADR number, consistent with other ADRs in this repository.
 
 ---
-
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
