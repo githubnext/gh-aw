@@ -17,7 +17,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:tolowerequalfold")
 
 // Analyzer is the tolower-equalfold analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -29,6 +32,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -77,6 +81,7 @@ func run(pass *analysis.Pass) (any, error) {
 			if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(expr.Pos(), false), noLintIndex, "tolowerequalfold") {
 				return
 			}
+			pkgLog.Printf("flagging case-insensitive comparison at %s", pass.Fset.PositionFor(expr.Pos(), false))
 			pass.Report(analysis.Diagnostic{
 				Pos:            expr.Pos(),
 				End:            expr.End(),
