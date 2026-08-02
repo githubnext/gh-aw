@@ -23,13 +23,14 @@ steps:
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
       # Create a virtual environment for proper package isolation (avoids --break-system-packages)
-      if [ ! -d /tmp/gh-aw/agent/venv ]; then
-        python3 -m venv /tmp/gh-aw/agent/venv
+      # Use /tmp/gh-aw/python/venv to avoid polluting the agent artifact upload path (/tmp/gh-aw/agent/)
+      if [ ! -d /tmp/gh-aw/python/venv ]; then
+        python3 -m venv /tmp/gh-aw/python/venv
       fi
-      echo "/tmp/gh-aw/agent/venv/bin" >> "$GITHUB_PATH"
+      echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
       # Reinstall chart libraries every run so chart generation never depends on stale state.
-      /tmp/gh-aw/agent/venv/bin/pip install --quiet --upgrade --force-reinstall numpy pandas matplotlib seaborn scipy
-      /tmp/gh-aw/agent/venv/bin/python3 -c "import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')"
+      /tmp/gh-aw/python/venv/bin/pip install --quiet --upgrade --force-reinstall numpy pandas matplotlib seaborn scipy
+      /tmp/gh-aw/python/venv/bin/python3 -c "import numpy,pandas,matplotlib,seaborn,scipy;print('chart-libraries-ready')"
 
   - name: Upload source files and data
     if: always()

@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"slices"
 	"strings"
@@ -14,7 +15,7 @@ var outcomeReviewLog = logger.New("cli:outcome_eval_review")
 var outcomeReviewGHAPIGet = ghAPIGet
 var outcomeReviewGHAPIGetArray = ghAPIGetArray
 
-func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalAddReviewer(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	report := OutcomeReport{
@@ -33,14 +34,14 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 	requestedReviewers := metadataStringSlice(item.Metadata, "requested_reviewers")
 	requestedTeams := metadataStringSlice(item.Metadata, "requested_team_reviewers")
 
-	reviews, err := outcomeReviewGHAPIGetArray(fmt.Sprintf("pulls/%d/reviews", num), repo)
+	reviews, err := outcomeReviewGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
 		return report
 	}
 
-	requested, err := outcomeReviewGHAPIGet(fmt.Sprintf("pulls/%d/requested_reviewers", num), repo)
+	requested, err := outcomeReviewGHAPIGet(ctx, fmt.Sprintf("pulls/%d/requested_reviewers", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -154,7 +155,7 @@ func evalAddReviewer(item CreatedItemReport, repoOverride string) OutcomeReport 
 	return report
 }
 
-func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalSubmitPullRequestReview(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	report := OutcomeReport{
@@ -170,13 +171,13 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 		return report
 	}
 
-	pr, err := outcomeReviewGHAPIGet(fmt.Sprintf("pulls/%d", num), repo)
+	pr, err := outcomeReviewGHAPIGet(ctx, fmt.Sprintf("pulls/%d", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
 		return report
 	}
-	reviews, err := outcomeReviewGHAPIGetArray(fmt.Sprintf("pulls/%d/reviews", num), repo)
+	reviews, err := outcomeReviewGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/reviews", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -226,7 +227,7 @@ func evalSubmitPullRequestReview(item CreatedItemReport, repoOverride string) Ou
 		}
 		return report
 	case prMerged && reviewState == "CHANGES_REQUESTED": //nolint:tolowerequalfold
-		commits, err := outcomeReviewGHAPIGetArray(fmt.Sprintf("pulls/%d/commits", num), repo)
+		commits, err := outcomeReviewGHAPIGetArray(ctx, fmt.Sprintf("pulls/%d/commits", num), repo)
 		if err == nil && hasCommitAfterTimestamp(commits, reviewSubmittedAt) {
 			report.Result = OutcomeAccepted
 			report.Detail = "changes requested, updated, and merged"

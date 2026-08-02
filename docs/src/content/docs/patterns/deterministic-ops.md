@@ -18,6 +18,8 @@ This workflow generates release highlights for new tags. It uses deterministic s
 
 When using `steps:` or `jobs:`, files placed in `/tmp/gh-aw/agent/` are automatically uploaded as artifacts and available to the AI agent.
 
+Keep large dependency caches and virtual environments outside `/tmp/gh-aw/agent/`. That directory is part of the agent artifact upload path, so placing a Python venv there can bloat artifacts and make observability downloads time out. Prefer a sibling path such as `/tmp/gh-aw/python/venv` for reusable environments, and keep `/tmp/gh-aw/agent/` for the smaller files the agent should read later.
+
 ```mermaid
 flowchart TD
     det[Deterministic steps] -- artifacts --> agent[AI agent]
@@ -76,6 +78,9 @@ steps:
 ```
 
 Setting `path: /tmp/gh-aw/agent` means the cache is restored directly into the directory that gh-aw uploads as artifacts for the agent — no extra copy step needed. The `mkdir -p` guard ensures the directory exists on the first run before any cache is available.
+
+> [!CAUTION]
+> Avoid caching bulky toolchains or virtual environments into `/tmp/gh-aw/agent/`. If you need to cache a Python environment, cache `/tmp/gh-aw/python/venv` or another sibling path instead, then write only analysis inputs and outputs into `/tmp/gh-aw/agent/`.
 
 ## Deterministic Trigger Filtering
 

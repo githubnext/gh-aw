@@ -316,6 +316,12 @@ If any failures were found, the `create_issue` calls from Phase 4 are sufficient
 - **Do NOT provide mitigations** in issue bodies — this workflow is purely diagnostic
 - **Engine is Claude** — use bash freely to build local git repos and generate patches
 
+## Reporting Guidelines
+
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks for progressive disclosure.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
+
 ---
 
 ## agent: `config-simulator`

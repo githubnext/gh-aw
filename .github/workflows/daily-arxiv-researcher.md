@@ -246,6 +246,14 @@ N papers screened, M relevant, K opportunities identified.
 **If no actionable opportunities were found** (but papers were processed and ledger updated):
 call `noop` with message: "Processed N papers (M relevant), no actionable gh-aw improvements identified today."
 
+## Completion Requirement
+
+You MUST call exactly one safe-output tool before finishing:
+- `create_discussion` when actionable opportunities are found.
+- `noop` when no actionable opportunities are found, when `new_count` is 0, or when analysis cannot produce actionable output.
+
+Do not end with a plain-text summary only. The final action in the run must be one safe-output call.
+
 ---
 
 ## agent: `paper-screener`

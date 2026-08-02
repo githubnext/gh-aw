@@ -73,7 +73,7 @@ async function downloadAgentArtifact(runId, destDir, repoSlug) {
   try {
     fs.mkdirSync(destDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${destDir}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${destDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   const args = ["run", "download", runId, "--name", "agent", "--dir", destDir];
@@ -107,7 +107,7 @@ function buildHandlerConfigFromOutput(agentOutputFile) {
   try {
     content = fs.readFileSync(agentOutputFile, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${agentOutputFile}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${agentOutputFile}: ${getErrorMessage(err)}`, { cause: err });
   }
   let validatedOutput;
   try {

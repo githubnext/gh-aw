@@ -209,7 +209,7 @@ async function writeStepSummaryWithTokenUsage(coreObj) {
     try {
       content = fs.readFileSync(TOKEN_USAGE_PATH, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${TOKEN_USAGE_PATH}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${TOKEN_USAGE_PATH}: ${getErrorMessage(err)}`, { cause: err });
     }
     if (content?.trim()) {
       coreObj.info(`Found token-usage.jsonl (${content.length} bytes)`);
@@ -1138,7 +1138,7 @@ if (typeof module !== "undefined" && module.exports) {
 // Run main if called directly
 if (require.main === module) {
   main().catch(err => {
-    console.error(err && err.stack ? err.stack : String(err));
+    console.error(err && err.stack ? err.stack : getErrorMessage(err));
     process.exitCode = 1;
   });
 }

@@ -191,7 +191,7 @@ Use today's date derived from the metadata.json timestamp.
 ### Body
 
 ```markdown
-## GEO Audit Report — ${{ github.repository }}
+### GEO Audit Report — ${{ github.repository }}
 
 **Audit Date**: [date from metadata]
 **Run**: [link to run]
@@ -263,7 +263,7 @@ If **all scores are already Excellent (90+/100)** and there are no actionable re
 ### Issue body
 
 ```markdown
-## GEO Improvement: <short title>
+### GEO Improvement: <short title>
 
 **Source audit**: [GEO Audit Report — YYYY-MM-DD](<link to the discussion you just created>)
 **Audit date**: <date from metadata>
@@ -292,5 +292,7 @@ If **all scores are already Excellent (90+/100)** and there are no actionable re
 
 
 ### Output Format
+
+Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body. Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks for progressive disclosure.
 
 Structure reports as: overview → key metrics/issues → collapsible detail → next actions.

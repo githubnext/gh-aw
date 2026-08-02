@@ -262,7 +262,7 @@ function mergeGithubFolder(sourcePath, destPath) {
         sourceContent = fs.readFileSync(sourceFile);
         destContent = fs.readFileSync(destFile);
       } catch (err) {
-        throw new Error(`Failed to read file for merge conflict detection: ${String(err)}`, { cause: err });
+        throw new Error(`Failed to read file for merge conflict detection: ${getErrorMessage(err)}`, { cause: err });
       }
 
       if (!sourceContent.equals(destContent)) {
@@ -278,7 +278,7 @@ function mergeGithubFolder(sourcePath, destPath) {
         try {
           fs.mkdirSync(destDir, { recursive: true });
         } catch (err) {
-          throw new Error(`Failed to create directory ${destDir}: ${String(err)}`, { cause: err });
+          throw new Error(`Failed to create directory ${destDir}: ${getErrorMessage(err)}`, { cause: err });
         }
         core.info(`Created directory: ${path.relative(destPath, destDir)}`);
       }
@@ -335,7 +335,7 @@ async function mergeRepositoryGithubFolder(owner, repo, ref, workspace) {
     try {
       fs.mkdirSync(destGithubFolder, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${destGithubFolder}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to create directory ${destGithubFolder}: ${getErrorMessage(err)}`, { cause: err });
     }
     core.info("Created .github folder in workspace");
   }
@@ -453,7 +453,7 @@ async function main() {
 // Run if executed directly (not imported)
 if (require.main === module) {
   main().catch(err => {
-    core.setFailed(err && err.stack ? err.stack : String(err));
+    core.setFailed(err && err.stack ? err.stack : getErrorMessage(err));
   });
 }
 

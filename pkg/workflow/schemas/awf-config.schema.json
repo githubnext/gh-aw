@@ -769,7 +769,7 @@
     },
     "boundedQueries": {
       "type": "object",
-      "description": "Bounded-query subsystem configuration. When present, enables the agent to answer finite, pre-approved questions about private repositories without receiving raw source content. The staging credential used to access private repositories must remain host-side and must not be written to the generated config or reach the agent environment.",
+      "description": "Bounded-query subsystem configuration. When present, enables the agent to answer finite, pre-approved questions about private repositories without receiving raw source content. Every query runs in a fresh backend-specific sandbox independently from the primary agent sandbox. The staging credential used to access private repositories must remain host-side and must not be written to the generated config or reach the agent environment.",
       "required": ["enabled"],
       "additionalProperties": false,
       "properties": {
@@ -801,8 +801,8 @@
         },
         "runtime": {
           "type": "string",
-          "description": "Container runtime used to execute bounded-query scripts. When omitted AWF uses its default.",
-          "enum": ["docker", "gvisor"]
+          "description": "Isolated backend used to execute each bounded-query script. The sbx backend is experimental and capability-gated: AWF performs a fail-closed host preflight and never falls back to docker or gvisor. When omitted AWF uses its default.",
+          "enum": ["docker", "gvisor", "sbx"]
         },
         "timeout": {
           "type": "integer",

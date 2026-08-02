@@ -9,7 +9,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const req = createRequire(import.meta.url);
-const { parseFirewallLogs, parseSafeOutputsManifest, parseExperimentsData } = req("./generate_usage_activity_summary.cjs");
+const { parseFirewallLogs, parseSafeOutputsManifest, parseExperimentsData, MANIFEST_FILE_PATH } = req("./generate_usage_activity_summary.cjs");
 
 describe("generate_usage_activity_summary.cjs", () => {
   /** Unique directory for each test to avoid cross-test interference */
@@ -117,16 +117,27 @@ describe("generate_usage_activity_summary.cjs", () => {
       expect(result).toBeNull();
     });
 
-    it("returns null when the manifest file is empty", () => {
+    it("returns zero-item result when the manifest file is empty", () => {
       fs.writeFileSync(manifestPath, "");
       const result = parseSafeOutputsManifest(manifestPath);
-      expect(result).toBeNull();
+      expect(result).toEqual({ total_items: 0, items_by_type: {} });
     });
 
-    it("returns null when the manifest contains only blank lines", () => {
+    it("returns zero-item result when the manifest contains only blank lines", () => {
       fs.writeFileSync(manifestPath, "\n\n\n");
       const result = parseSafeOutputsManifest(manifestPath);
-      expect(result).toBeNull();
+      expect(result).toEqual({ total_items: 0, items_by_type: {} });
+    });
+
+    it("throws when the manifest file exists but cannot be read", () => {
+      fs.writeFileSync(manifestPath, JSON.stringify({ type: "create_issue" }));
+      fs.chmodSync(manifestPath, 0o000);
+      try {
+        expect(() => parseSafeOutputsManifest(manifestPath)).toThrow();
+      } finally {
+        // Restore permissions so afterEach cleanup can remove the file.
+        fs.chmodSync(manifestPath, 0o644);
+      }
     });
 
     it("counts items by type from a valid manifest", () => {
@@ -158,6 +169,13 @@ describe("generate_usage_activity_summary.cjs", () => {
       expect(result).not.toBeNull();
       expect(result.total_items).toBe(1);
       expect(result.items_by_type).toEqual({ create_issue: 1 });
+    });
+
+    it("returns zero-item result when all lines are invalid JSON or have no type", () => {
+      const lines = ["not json at all", JSON.stringify({ url: "https://example.com" })].join("\n");
+      fs.writeFileSync(manifestPath, lines);
+      const result = parseSafeOutputsManifest(manifestPath);
+      expect(result).toEqual({ total_items: 0, items_by_type: {} });
     });
   });
 

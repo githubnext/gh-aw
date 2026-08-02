@@ -225,14 +225,34 @@ async function main(config = {}) {
         };
       }
 
-      const { data: review } = await githubClient.rest.pulls.getReview({
-        owner,
-        repo,
-        pull_number: pullRequestNumber,
-        review_id: reviewId,
-      });
+      let review;
+      try {
+        const { data } = await githubClient.rest.pulls.getReview({
+          owner,
+          repo,
+          pull_number: pullRequestNumber,
+          review_id: reviewId,
+        });
+        review = data;
+      } catch (getReviewError) {
+        if (getReviewError?.status === 404) {
+          return {
+            success: true,
+            skipped: true,
+            reason: "review no longer exists",
+            review_id: reviewId,
+            pull_request_number: pullRequestNumber,
+            repo: `${owner}/${repo}`,
+          };
+        }
+        if (getReviewError && typeof getReviewError.message === "string") {
+          getReviewError.message = `Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ` + getReviewError.message;
+        }
+        throw getReviewError;
+      }
 
       const reviewAuthorLogin = review?.user?.login;
+      const reviewAuthorType = typeof review?.user?.type === "string" ? review.user.type.trim() : "";
       if (typeof reviewAuthorLogin !== "string" || reviewAuthorLogin.trim() === "") {
         return {
           success: false,
@@ -241,6 +261,18 @@ async function main(config = {}) {
       }
       const reviewAuthor = reviewAuthorLogin.trim();
       if (reviewAuthor !== expectedAuthor) {
+        if (reviewAuthorType === "Bot") {
+          const warningMessage =
+            `Skipping dismiss_pull_request_review for review ${reviewId}: ` +
+            `review author (${reviewAuthor}) does not match dismisser (${dismisser}). ` +
+            `Actor-bound dismissal only permits dismissing reviews authored by the current workflow actor.`;
+          core.warning(warningMessage);
+          return {
+            success: false,
+            skipped: true,
+            error: warningMessage,
+          };
+        }
         return {
           success: false,
           error: `review author (${reviewAuthor || "unknown"}) must match dismisser (${dismisser})`,

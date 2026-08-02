@@ -137,7 +137,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     try {
       fs.mkdirSync(patchDir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${patchDir}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to create directory ${patchDir}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 
@@ -487,7 +487,7 @@ async function generateGitPatch(branchName, baseBranch, options = {}) {
     try {
       patchContent = fs.readFileSync(patchPath, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${patchPath}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${patchPath}: ${getErrorMessage(err)}`, { cause: err });
     }
     const patchSize = Buffer.byteLength(patchContent, "utf8");
     const patchLines = patchContent.split("\n").length;

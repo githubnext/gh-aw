@@ -41,6 +41,7 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 
 const DEFAULT_BASE_BRANCH = process.env.GH_AW_CUSTOM_BASE_BRANCH || process.env.GITHUB_BASE_REF || process.env.GITHUB_REF_NAME || "main";
 const PATCH_SIDECAR_TOOLS = new Set(["create_pull_request", "push_to_pull_request_branch"]);
+const FETCH_TIMEOUT_MS = 120_000;
 
 /**
  * @typedef {Object} SampleEntry
@@ -188,7 +189,7 @@ async function fetchPullRequestHeadRef({ owner, repo, pullNumber }) {
   const token = selectTokenForRepo(owner, repo);
   if (token) headers["Authorization"] = `Bearer ${token}`;
   try {
-    const resp = await fetch(url, { headers });
+    const resp = await fetch(url, { headers, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
     if (!resp.ok) {
       core.warning(`apply_samples: GET ${url} returned HTTP ${resp.status}`);
       return null;
@@ -458,7 +459,7 @@ async function preStagePatch(entry, index, workspace) {
   try {
     fs.writeFileSync(tmpPatch, patch.endsWith("\n") ? patch : patch + "\n");
   } catch (err) {
-    throw new Error(`Failed to write file ${tmpPatch}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to write file ${tmpPatch}: ${getErrorMessage(err)}`, { cause: err });
   }
   try {
     runGit(["apply", "--whitespace=nowarn", tmpPatch], repoCwd);
@@ -711,7 +712,7 @@ async function main() {
 
 if (require.main === module) {
   main().catch(err => {
-    core.setFailed(err && err.stack ? err.stack : String(err));
+    core.setFailed(err && err.stack ? err.stack : getErrorMessage(err));
   });
 }
 

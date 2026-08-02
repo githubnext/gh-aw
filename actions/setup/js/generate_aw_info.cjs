@@ -181,14 +181,14 @@ async function main(core, ctx) {
   try {
     fs.mkdirSync(TMP_GH_AW_PATH, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${TMP_GH_AW_PATH}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${TMP_GH_AW_PATH}: ${getErrorMessage(err)}`, { cause: err });
   }
   writeMergedModelsJSON(core);
   const tmpPath = TMP_GH_AW_PATH + "/aw_info.json";
   try {
     fs.writeFileSync(tmpPath, JSON.stringify(awInfo, null, 2));
   } catch (err) {
-    throw new Error(`Failed to write file ${tmpPath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to write file ${tmpPath}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   if (awInfo.staged) {

@@ -699,6 +699,76 @@ install-golangci-lint:
 	echo "Error: Failed to download a valid golangci-lint archive from $$DOWNLOAD_URL after $$MAX_ATTEMPTS attempts"; \
 	exit 1
 
+# Install shellcheck binary
+# Downloads pre-built binary from GitHub releases
+.PHONY: install-shellcheck
+install-shellcheck:
+	@echo "Installing shellcheck binary..."
+	@SHELLCHECK_VERSION="v0.11.0"; \
+	GOPATH=$$(go env GOPATH); \
+	GOOS=$$(go env GOOS); \
+	GOARCH=$$(go env GOARCH); \
+	BINARY_NAME="shellcheck"; \
+	if [ "$$GOOS" = "windows" ]; then \
+		BINARY_NAME="shellcheck.exe"; \
+	fi; \
+	if [ -x "$$GOPATH/bin/$$BINARY_NAME" ]; then \
+		INSTALLED_VERSION=$$("$$GOPATH/bin/$$BINARY_NAME" --version 2>/dev/null | sed -n 's/^version: //p' | head -n1 || echo "unknown"); \
+		if [ "$$INSTALLED_VERSION" = "$${SHELLCHECK_VERSION#v}" ]; then \
+			echo "✓ shellcheck $$SHELLCHECK_VERSION already installed"; \
+			exit 0; \
+		fi; \
+	fi; \
+	case "$$GOOS/$$GOARCH" in \
+		linux/amd64) ASSET_NAME="shellcheck-$$SHELLCHECK_VERSION.linux.x86_64.tar.gz" ;; \
+		linux/arm64) ASSET_NAME="shellcheck-$$SHELLCHECK_VERSION.linux.aarch64.tar.gz" ;; \
+		darwin/amd64) ASSET_NAME="shellcheck-$$SHELLCHECK_VERSION.darwin.x86_64.tar.gz" ;; \
+		darwin/arm64) ASSET_NAME="shellcheck-$$SHELLCHECK_VERSION.darwin.aarch64.tar.gz" ;; \
+		windows/amd64) ASSET_NAME="shellcheck-$$SHELLCHECK_VERSION.zip" ;; \
+		*) echo "Error: shellcheck $$SHELLCHECK_VERSION is not supported on $$GOOS/$$GOARCH"; exit 1 ;; \
+	esac; \
+	DOWNLOAD_URL="https://github.com/koalaman/shellcheck/releases/download/$$SHELLCHECK_VERSION/$$ASSET_NAME"; \
+	TEMP_DIR=$$(mktemp -d); \
+	ARCHIVE="$$TEMP_DIR/$$ASSET_NAME"; \
+	EXTRACT_DIR="$$TEMP_DIR/extract"; \
+	MAX_ATTEMPTS=3; \
+	RETRY_DELAY=2; \
+	trap "rm -rf $$TEMP_DIR" EXIT; \
+	echo "Downloading shellcheck $$SHELLCHECK_VERSION for $$GOOS/$$GOARCH..."; \
+	for attempt in $$(seq 1 $$MAX_ATTEMPTS); do \
+		rm -f "$$ARCHIVE"; \
+		rm -rf "$$EXTRACT_DIR"; \
+		mkdir -p "$$EXTRACT_DIR"; \
+		if curl --fail --silent --show-error --location "$$DOWNLOAD_URL" -o "$$ARCHIVE"; then \
+			if [ "$$GOOS" = "windows" ]; then \
+				if unzip -q "$$ARCHIVE" -d "$$EXTRACT_DIR" && \
+					mkdir -p "$$GOPATH/bin" && \
+					mv "$$EXTRACT_DIR/$$BINARY_NAME" "$$GOPATH/bin/$$BINARY_NAME" && \
+					chmod +x "$$GOPATH/bin/$$BINARY_NAME"; then \
+					echo "✓ shellcheck $$SHELLCHECK_VERSION installed to $$GOPATH/bin/$$BINARY_NAME"; \
+					exit 0; \
+				fi; \
+			elif tar -tzf "$$ARCHIVE" >/dev/null 2>&1 && \
+				tar -xzf "$$ARCHIVE" -C "$$EXTRACT_DIR" && \
+				mkdir -p "$$GOPATH/bin" && \
+				mv "$$EXTRACT_DIR/shellcheck-$$SHELLCHECK_VERSION/$$BINARY_NAME" "$$GOPATH/bin/$$BINARY_NAME" && \
+				chmod +x "$$GOPATH/bin/$$BINARY_NAME"; then \
+				echo "✓ shellcheck $$SHELLCHECK_VERSION installed to $$GOPATH/bin/$$BINARY_NAME"; \
+				exit 0; \
+			fi; \
+			echo "Warning: Failed to extract or install shellcheck archive (attempt $$attempt/$$MAX_ATTEMPTS)"; \
+		else \
+			echo "Warning: Failed to download shellcheck archive (attempt $$attempt/$$MAX_ATTEMPTS)"; \
+		fi; \
+		if [ "$$attempt" -lt "$$MAX_ATTEMPTS" ]; then \
+			echo "Retrying shellcheck download in $$RETRY_DELAY seconds..."; \
+			sleep $$RETRY_DELAY; \
+			RETRY_DELAY=$$((RETRY_DELAY * 2)); \
+		fi; \
+	done; \
+	echo "Error: Failed to download a valid shellcheck archive from $$DOWNLOAD_URL after $$MAX_ATTEMPTS attempts"; \
+	exit 1
+
 # License compliance checking
 .PHONY: license-check
 license-check: ## Check dependency licenses for compliance
@@ -723,7 +793,7 @@ deps: check-node-version
 
 # Install development tools (including linter)
 .PHONY: deps-dev
-deps-dev: check-node-version deps tools install-golangci-lint download-github-actions-schema
+deps-dev: check-node-version deps tools install-golangci-lint install-shellcheck download-github-actions-schema
 	@echo "✓ Development dependencies installed"
 
 # Download GitHub Actions workflow schema for embedded validation
@@ -1019,9 +1089,27 @@ lint-action-sh:
 	@echo "Checking action shell scripts for python/python3 invocations..."
 	@bash scripts/check-action-sh-no-python.sh
 
+# Run shellcheck on actions/setup/sh scripts at error severity
+.PHONY: shellcheck-setup-sh
+shellcheck-setup-sh:
+	@GOPATH=$$(go env GOPATH); \
+	GOOS=$$(go env GOOS); \
+	BINARY_NAME="shellcheck"; \
+	if [ "$$GOOS" = "windows" ]; then \
+		BINARY_NAME="shellcheck.exe"; \
+	fi; \
+	if command -v shellcheck >/dev/null 2>&1 || [ -x "$$GOPATH/bin/$$BINARY_NAME" ]; then \
+		echo "Running shellcheck on actions/setup/sh..."; \
+		PATH="$$GOPATH/bin:$$PATH" shellcheck --severity=error actions/setup/sh/*.sh; \
+		echo "✓ shellcheck passed"; \
+	else \
+		echo "shellcheck is not installed. Run 'make deps-dev' to install dependencies."; \
+		exit 1; \
+	fi
+
 # Validate all project files
 .PHONY: lint
-lint: check-stale-lock-files fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh check-stale-schema-binary
+lint: check-stale-lock-files fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh shellcheck-setup-sh check-stale-schema-binary
 	@echo "✓ All validations passed"
 
 # Install the binary locally
@@ -1285,6 +1373,7 @@ help:
 	@echo "  license-report   - Generate CSV license report"
 	@echo "  deps             - Install dependencies"
 	@echo "  deps-dev         - Install development dependencies (includes tools)"
+	@echo "  install-shellcheck - Install pinned shellcheck binary"
 	@echo "  check-node-version - Check Node.js version (20 or higher required)"
 	@echo "  golint           - Run golangci-lint (full repository scan)"
 	@echo "  golint-incremental - Run golangci-lint incrementally (only changed files, requires BASE_REF)"
@@ -1301,6 +1390,7 @@ help:
 	@echo "  lint-errors      - Lint error messages for quality compliance"
 	@echo "  validate-otel-contract - Validate the gh-aw OpenTelemetry compatibility contract"
 	@echo "  lint-action-sh   - Lint action shell scripts for python/python3 invocations"
+	@echo "  shellcheck-setup-sh - Run shellcheck on actions/setup/sh scripts"
 	@echo "  check-file-sizes - Check Go file sizes and function counts (informational)"
 	@echo "  check-validator-sizes - Check *_validation.go files against the 768-line hard limit"
 	@echo "  security-scan    - Run all security scans (gosec, govulncheck)"

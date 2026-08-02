@@ -38,7 +38,12 @@ steps:
   - name: Setup Python environment
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-      pip install --user --quiet numpy pandas matplotlib seaborn scipy
+      # Use /tmp/gh-aw/python/venv — keeps the venv out of /tmp/gh-aw/agent/ (the artifact upload path)
+      if [ ! -d /tmp/gh-aw/python/venv ]; then
+        python3 -m venv /tmp/gh-aw/python/venv
+      fi
+      echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
+      /tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
 safe-outputs:
   upload-asset:
     max: 3
@@ -74,7 +79,12 @@ steps:
   - name: Setup Python environment
     run: |
       mkdir -p /tmp/gh-aw/python/{data,charts,artifacts}
-      pip install --user --quiet numpy pandas matplotlib seaborn scipy
+      # Use /tmp/gh-aw/python/venv — keeps the venv out of /tmp/gh-aw/agent/ (the artifact upload path)
+      if [ ! -d /tmp/gh-aw/python/venv ]; then
+        python3 -m venv /tmp/gh-aw/python/venv
+      fi
+      echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
+      /tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
 ```
 
 Rules:

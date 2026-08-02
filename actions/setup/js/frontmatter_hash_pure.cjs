@@ -26,7 +26,7 @@ async function defaultFileReader(filePath) {
   try {
     return fs.readFileSync(filePath, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${filePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
   }
 }
 

@@ -50,7 +50,7 @@ describe("dismiss_pull_request_review", () => {
     mockGetReview.mockResolvedValue({
       data: {
         html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
-        user: { login: "github-actions[bot]" },
+        user: { login: "github-actions[bot]", type: "Bot" },
       },
     });
     mockDismissReview.mockResolvedValue({
@@ -118,7 +118,7 @@ describe("dismiss_pull_request_review", () => {
   it("rejects when fetched review author differs from current actor", async () => {
     mockGetReview.mockResolvedValueOnce({
       data: {
-        user: { login: "octocat" },
+        user: { login: "octocat", type: "User" },
       },
     });
 
@@ -130,6 +130,30 @@ describe("dismiss_pull_request_review", () => {
 
     expect(result.success).toBe(false);
     expect(result.error).toContain("review author");
+    expect(mockDismissReview).not.toHaveBeenCalled();
+  });
+
+  it("skips dismissal when review was authored by a bot and actor is a different user", async () => {
+    process.env.GITHUB_ACTOR = "pelikhan";
+    const { main } = require("./dismiss_pull_request_review.cjs");
+    handler = await main({ max: 10 });
+
+    mockGetReview.mockResolvedValueOnce({
+      data: {
+        html_url: "https://github.com/test-owner/test-repo/pull/42#pullrequestreview-123",
+        user: { login: "github-actions[bot]", type: "Bot" },
+      },
+    });
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: 123,
+      justification: "Dismissing stale github-actions review because all PR review threads are resolved.",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.skipped).toBe(true);
+    expect(result.error).toContain("Actor-bound dismissal only permits");
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
 
@@ -340,5 +364,40 @@ describe("dismiss_pull_request_review", () => {
     expect(result.success).toBe(false);
     expect(result.error).toContain("truncated");
     expect(mockListReviews).toHaveBeenCalledTimes(10);
+  });
+
+  it("returns skipped no-op when getReview returns 404 for an explicit review_id", async () => {
+    const notFoundError = Object.assign(new Error("Not Found"), { status: 404 });
+    mockGetReview.mockRejectedValueOnce(notFoundError);
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: 123,
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.skipped).toBe(true);
+    expect(result.reason).toContain("review no longer exists");
+    expect(result.review_id).toBe(123);
+    expect(result.pull_request_number).toBe(42);
+    expect(result.repo).toBe("test-owner/test-repo");
+    expect(mockDismissReview).not.toHaveBeenCalled();
+  });
+
+  it("fails with review context when getReview returns a non-404 error", async () => {
+    const serverError = Object.assign(new Error("Internal Server Error"), { status: 500 });
+    mockGetReview.mockRejectedValueOnce(serverError);
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: 123,
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Failed to fetch review 123 on test-owner/test-repo#42");
+    expect(result.error).toContain("Internal Server Error");
+    expect(mockDismissReview).not.toHaveBeenCalled();
   });
 });

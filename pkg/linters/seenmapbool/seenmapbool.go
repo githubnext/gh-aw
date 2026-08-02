@@ -13,7 +13,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:seenmapbool")
 
 // Analyzer is the seen-map-bool analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -25,6 +28,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	insp, err := astutil.Inspector(pass)
 	if err != nil {
 		return nil, err
@@ -84,6 +88,7 @@ func inspectBody(pass *analysis.Pass, body *ast.BlockStmt, noLintIndex nolint.Di
 		if nolint.HasDirectiveForLinter(pass.Fset.PositionFor(declNode.Pos(), false), noLintIndex, "seenmapbool") {
 			continue
 		}
+		pkgLog.Printf("flagging map[string]bool used as set: %s", obj.Name())
 		pass.ReportRangef(
 			declNode,
 			"map[string]bool %q used as a set; use map[string]struct{} to avoid allocating a bool per entry",

@@ -126,6 +126,7 @@ Any field with a non-null string value will be set or updated.`,
 
 	cmd.AddCommand(newDefaultsGetCommand())
 	cmd.AddCommand(newDefaultsUpdateCommand())
+	cmd.AddCommand(newLegacyGHGuardSubcommand())
 	return cmd
 }
 

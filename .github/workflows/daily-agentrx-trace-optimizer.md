@@ -97,8 +97,8 @@ Focus on:
 2. Use only pre-downloaded or MCP-downloaded run data and logs as the telemetry source, prioritizing `runs[]` session fields over OTEL spans.
 3. Use Python in `/tmp/gh-aw/agent/agentrx` to avoid polluting the repository.
 4. Install AgentRx from GitHub:
-   - `python -m venv /tmp/gh-aw/agent/agentrx/.venv`
-   - `source /tmp/gh-aw/agent/agentrx/.venv/bin/activate`
+   - `python -m venv /tmp/gh-aw/python/agentrx/.venv` (use `/tmp/gh-aw/python/` to keep the venv out of the agent artifact upload path)
+   - `source /tmp/gh-aw/python/agentrx/.venv/bin/activate`
    - `pip install --upgrade pip`
    - `pip install git+https://github.com/microsoft/AgentRx.git`
 

@@ -179,7 +179,7 @@ async function main() {
   try {
     fs.mkdirSync(skillsDst, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${skillsDst}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${skillsDst}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   core.info(`Installing frontmatter skills to ${skillsDst}`);
