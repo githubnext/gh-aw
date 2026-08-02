@@ -18,15 +18,6 @@ imports:
 max-daily-ai-credits: 10000
 model: claude-sonnet-4.6
 "on":
-  pull_request:
-    paths-ignore:
-    - "*.md"
-    - docs/**
-    - .changeset/**
-    - socials/**
-    - scratchpad/**
-    types:
-    - ready_for_review
   slash_command:
     events:
     - pull_request_comment
@@ -52,6 +43,7 @@ safe-outputs:
     run-failure: 🧠 [{workflow_name}]({run_url}) {status} during the skills-based review.
     run-started: 🧠 [{workflow_name}]({run_url}) is reviewing this {event_type} using Matt Pocock's engineering skills...
     run-success: 🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅
+  report-failure-as-issue: false
   submit-pull-request-review:
     max: 1
 features:
