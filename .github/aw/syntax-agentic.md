@@ -22,7 +22,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
 - **`strict:`** - Enable enhanced validation for production workflows (boolean, defaults to `true`; strongly recommended)
   - Prefer `strict: true`; `strict: false` is dangerous, should be extremely rare, and must be carefully security reviewed before use
 - **`model:`** - Top-level LLM model override applied to the agentic engine (string). Takes precedence over `engine.model` when both are set. Accepts full model IDs (e.g. `claude-3-5-sonnet-20241022`, `gpt-5.4`) and aliases (e.g. `small`, `large`). The engine-level `engine.model` is a deprecated alias — prefer this top-level field; run `gh aw fix` to migrate.
-- **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field. Not supported by the `gemini` engine.
+- **`max-turns:`** - AWF turn cap applied consistently across all agentic engines (integer or expression, e.g. `${{ inputs.max-turns }}`). The engine-level `engine.max-turns` is a deprecated alias kept for backward compatibility — prefer this top-level field.
 - **`max-runs:`** - Deprecated legacy alias for the AWF invocation cap (`apiProxy.maxRuns`, defaults to `500` when omitted). Use `max-turns` instead; run `gh aw fix` to migrate.
 - **`max-ai-credits:`** - Per-run AI Credits (AIC) budget enforced by the AWF firewall (integer or `K`/`M` short-form string like `100M`; default `1000`). Set a negative value to disable enforcement and token steering. See [token-optimization.md](token-optimization.md).
 - **`max-turn-cache-misses:`** - Maximum consecutive AWF cache misses allowed before the API proxy blocks further requests (integer, default `5`). Maps to `apiProxy.maxCacheMisses`; precedence is frontmatter → `GH_AW_DEFAULT_MAX_TURN_CACHE_MISSES` env override → built-in default.
@@ -317,7 +317,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
   - **Strict mode**: `sandbox.agent` blocks without an explicit `id: awf` are rejected in strict mode. Any non-nil, non-disabled agent config without `id`/`type` defaults to AWF at runtime.
 
 - **`tools:`** - Tool configuration for the coding agent (`github`, `agentic-workflows`, `edit`, `web-fetch`, `web-search`, `bash`, `playwright`, custom MCP server names, plus `timeout`/`startup-timeout`/`cli-proxy`). See [syntax-tools-imports.md](syntax-tools-imports.md#tool-configuration) for the full schema (GitHub `mode`/`toolsets`/integrity fields, bash allowlist decision rule, Playwright CLI mode).
-  - **`tools.github.bounded-queries`** (object, AWF v0.28.0+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. Requires the AWF sandbox (`sandbox.agent.id: awf`). All optional fields use AWF defaults when omitted.
+  - **`tools.github.bounded-queries`** (object, AWF v0.28.0+) configures the AWF bounded-query subsystem for cross-repository private data access. When present, the agent may answer finite, pre-approved questions about the listed repositories using the generated `bounded-query` skill — without receiving raw source code. This is the preferred pattern for cross-repository workflows. Requires the AWF sandbox (`sandbox.agent.id: awf`). The query runtime is independent from `sandbox.agent.runtime`, and every query runs in a fresh backend-specific sandbox. All optional fields use AWF defaults when omitted.
 
     ```yaml
     tools:
@@ -328,7 +328,7 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
               sensitivity: public         # public | internal | confidential | sealed
             - repo: my-org/internal-service
               sensitivity: internal
-          runtime: docker         # optional; docker | gvisor; default: AWF default
+          runtime: docker         # optional; docker | gvisor | sbx; default: AWF default
           timeout: 30             # optional; seconds; default: AWF default
           memory-limit: 512m      # optional; e.g. 512m, 2g; default: AWF default
           interpreter: python3    # optional; default: AWF default
@@ -345,6 +345,8 @@ description: Agentic workflow specific frontmatter fields for GitHub Agentic Wor
     - `sealed`: 0 bits/run; the query executes but cannot fund any answer — effectively a dry-run assertion. Do not use `sealed` when you need the agent to return information from the repository.
 
     The staging credential used to access private repositories must remain host-side and is never written to the lock file or exposed to the agent. Use bounded queries when the question has a finite, bounded answer; prefer this over granting a cross-repository token or checking out the private repository into the primary workspace.
+
+    The `sbx` query runtime is experimental and capability-gated. AWF performs a fail-closed host preflight and does not fall back to Docker or gVisor. Docker Sandboxes v0.37.1 currently lacks mandatory per-VM network-none, PID, disk, file-size, and explicit guest mount-target controls, and no digest-pinned AWF Python-only template is available, so current hosts are rejected until those capabilities are present. This does not affect the independently selected primary agent sandbox.
 
 - **`safe-outputs:`** - Safe output processing configuration. See [safe-outputs.md](safe-outputs.md) for complete documentation of all output types: `create-issue`, `create-discussion`, `add-comment`, `create-pull-request`, `push-to-pull-request-branch`, `close-issue`, `close-discussion`, `update-issue`, `update-pull-request`, `add-labels`, `remove-labels`, `replace-label`, `dispatch-workflow`, `call-workflow`, `create-code-scanning-alert`, `upload-asset`, `upload-artifact`, `assign-to-agent`, `assign-to-user`, and more.
 

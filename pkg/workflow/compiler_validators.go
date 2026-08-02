@@ -299,6 +299,13 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"environments where you trust the AI agent completely."))
 		c.IncrementWarningCount()
 	}
+	if usesSbxBoundedQueryRuntime(workflowData) {
+		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
+			"tools.github.bounded-queries.runtime: sbx is experimental and capability-gated. "+
+				"AWF runs every query in a separate sbx VM and performs a fail-closed host capability preflight. "+
+				"Unsupported hosts are rejected; gh-aw and AWF do not fall back to docker or gvisor."))
+		c.IncrementWarningCount()
+	}
 	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.AssignToAgent != nil &&
 		workflowData.SafeOutputs.GitHubApp != nil && workflowData.SafeOutputs.AssignToAgent.GitHubToken == "" {
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(
@@ -308,6 +315,7 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 				"Add github-token: to your assign-to-agent config to specify a different token."))
 		c.IncrementWarningCount()
 	}
+
 	c.emitExperimentalFeatureWarnings(workflowData)
 	if len(workflowData.Command) > 0 && len(workflowData.Bots) > 0 {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "warning",
@@ -321,6 +329,14 @@ func (c *Compiler) emitGeneralToolWarnings(workflowData *WorkflowData, markdownP
 	if workflowData.Redirect != "" {
 		fmt.Fprintln(os.Stderr, formatCompilerMessage(markdownPath, "info", "workflow redirect configured: updates move to "+workflowData.Redirect))
 	}
+}
+
+func usesSbxBoundedQueryRuntime(workflowData *WorkflowData) bool {
+	return workflowData != nil &&
+		workflowData.ParsedTools != nil &&
+		workflowData.ParsedTools.GitHub != nil &&
+		workflowData.ParsedTools.GitHub.BoundedQueries != nil &&
+		workflowData.ParsedTools.GitHub.BoundedQueries.Runtime == BoundedQueryRuntimeSbx
 }
 
 func (c *Compiler) emitExperimentalFeatureWarnings(workflowData *WorkflowData) {

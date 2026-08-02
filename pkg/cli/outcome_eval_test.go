@@ -4,6 +4,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -237,7 +238,7 @@ func TestEvaluateOutcomesSkipsNoopAndMetadata(t *testing.T) {
 		{Type: "report_incomplete", Timestamp: "2026-05-12T00:00:00Z"},
 	}
 
-	reports := EvaluateOutcomes(items, "owner/repo", github.DefaultObjectiveMapping())
+	reports := EvaluateOutcomes(context.Background(), items, "owner/repo", github.DefaultObjectiveMapping())
 	assert.Empty(t, reports, "noop and metadata types should be skipped")
 }
 
@@ -246,7 +247,7 @@ func TestEvaluateOutcomesErrorOnMissingData(t *testing.T) {
 		{Type: "create_pull_request", Timestamp: "2026-05-12T00:00:00Z"},
 	}
 
-	reports := EvaluateOutcomes(items, "", github.DefaultObjectiveMapping())
+	reports := EvaluateOutcomes(context.Background(), items, "", github.DefaultObjectiveMapping())
 	assert.Len(t, reports, 1, "should produce one report")
 	assert.Equal(t, OutcomeError, reports[0].Result, "should error on missing repo and number")
 }
@@ -259,7 +260,7 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(query string, repo string) (map[string]any, error) {
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"data": map[string]any{
 				"repository": map[string]any{
@@ -283,7 +284,7 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 			},
 		}, nil
 	}
-	objectiveMappingGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	objectiveMappingGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return nil, fmt.Errorf("unexpected fallback label fetch: %s", endpoint)
 	}
 
@@ -294,7 +295,7 @@ func TestEnrichOutcomeWithObjectiveValue_TracesPullRequestToRootIssue(t *testing
 		PriorityLabels:  []string{"agentic-campaign", "security"},
 	}
 
-	enrichOutcomeWithObjectiveValue(&report, "owner/repo", mapping)
+	enrichOutcomeWithObjectiveValue(context.Background(), &report, "owner/repo", mapping)
 
 	assert.Equal(t, 90, report.ObjectiveValue)
 	assert.Equal(t, []string{"agentic-campaign", "security"}, report.ObjectiveLabels)
@@ -311,17 +312,17 @@ func TestEnrichOutcomeWithObjectiveValue_FallsBackToDirectLabels(t *testing.T) {
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(query string, repo string) (map[string]any, error) {
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
 		return nil, errors.New("no linked issues")
 	}
-	objectiveMappingGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	objectiveMappingGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{{"name": "automation"}, {"name": "testing"}}, nil
 	}
 
 	report := OutcomeReport{Type: "create_issue", ObjectURL: "https://github.com/owner/repo/issues/42", ObjectNumber: 42}
 	mapping := &github.ObjectiveMapping{LabelToValue: map[string]int{"automation": 70, "testing": 65}, MultiLabelLogic: "max"}
 
-	enrichOutcomeWithObjectiveValue(&report, "owner/repo", mapping)
+	enrichOutcomeWithObjectiveValue(context.Background(), &report, "owner/repo", mapping)
 
 	assert.Equal(t, 70, report.ObjectiveValue)
 	assert.Equal(t, []string{"automation", "testing"}, report.ObjectiveLabels)
@@ -338,7 +339,7 @@ func TestEnrichOutcomeWithObjectiveValue_MultipleClosingIssuesRemainAmbiguous(t 
 		objectiveMappingGHAPIGetArray = oldGetArray
 	})
 
-	objectiveMappingGHAPIGraphQL = func(query string, repo string) (map[string]any, error) {
+	objectiveMappingGHAPIGraphQL = func(_ context.Context, query string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"data": map[string]any{
 				"repository": map[string]any{
@@ -367,7 +368,7 @@ func TestEnrichOutcomeWithObjectiveValue_MultipleClosingIssuesRemainAmbiguous(t 
 			},
 		}, nil
 	}
-	objectiveMappingGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	objectiveMappingGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{{"name": "automation"}}, nil
 	}
 
@@ -377,7 +378,7 @@ func TestEnrichOutcomeWithObjectiveValue_MultipleClosingIssuesRemainAmbiguous(t 
 		MultiLabelLogic: "max",
 	}
 
-	enrichOutcomeWithObjectiveValue(&report, "owner/repo", mapping)
+	enrichOutcomeWithObjectiveValue(context.Background(), &report, "owner/repo", mapping)
 
 	assert.Equal(t, "ambiguous", report.AttributionStatus)
 	assert.Equal(t, "closing_issue", report.AttributionSource)
@@ -404,11 +405,11 @@ func TestEvalGenericStickyTargetExistsOnlyFallback(t *testing.T) {
 	t.Cleanup(func() {
 		genericOutcomeGHAPIGet = old
 	})
-	genericOutcomeGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	genericOutcomeGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{"state": "open"}, nil
 	}
 
-	report := evalGenericSticky(
+	report := evalGenericSticky(context.Background(),
 		CreatedItemReport{Type: "add_labels", Number: 42, Repo: "owner/repo"},
 		"owner/repo",
 	)
@@ -484,10 +485,10 @@ func TestEvalAddReviewerAcceptedWithApproval(t *testing.T) {
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{"users": []any{}, "teams": []any{}}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{
 			{
 				"state":        "APPROVED",
@@ -497,7 +498,7 @@ func TestEvalAddReviewerAcceptedWithApproval(t *testing.T) {
 		}, nil
 	}
 
-	report := evalAddReviewer(CreatedItemReport{
+	report := evalAddReviewer(context.Background(), CreatedItemReport{
 		Type:      "add_reviewer",
 		Number:    42,
 		Repo:      "owner/repo",
@@ -521,14 +522,14 @@ func TestEvalAddReviewerRejectedWhenRequestRemoved(t *testing.T) {
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{"users": []any{}, "teams": []any{}}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{}, nil
 	}
 
-	report := evalAddReviewer(CreatedItemReport{
+	report := evalAddReviewer(context.Background(), CreatedItemReport{
 		Type:      "add_reviewer",
 		Number:    42,
 		Repo:      "owner/repo",
@@ -552,16 +553,16 @@ func TestEvalSubmitPullRequestReviewDismissed(t *testing.T) {
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{"state": "open", "merged": false}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{
 			{"id": float64(101), "state": "DISMISSED", "submitted_at": "2026-05-12T01:00:00Z"},
 		}, nil
 	}
 
-	report := evalSubmitPullRequestReview(CreatedItemReport{
+	report := evalSubmitPullRequestReview(context.Background(), CreatedItemReport{
 		Type:      "submit_pull_request_review",
 		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
 		Number:    42,
@@ -584,14 +585,14 @@ func TestEvalSubmitPullRequestReviewChangesRequestedMergedAfterPush(t *testing.T
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"state":     "closed",
 			"merged":    true,
 			"merged_at": "2026-05-12T05:00:00Z",
 		}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		switch endpoint {
 		case "pulls/42/reviews":
 			return []map[string]any{
@@ -606,7 +607,7 @@ func TestEvalSubmitPullRequestReviewChangesRequestedMergedAfterPush(t *testing.T
 		}
 	}
 
-	report := evalSubmitPullRequestReview(CreatedItemReport{
+	report := evalSubmitPullRequestReview(context.Background(), CreatedItemReport{
 		Type:      "submit_pull_request_review",
 		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
 		Number:    42,
@@ -629,17 +630,17 @@ func TestEvalSubmitPullRequestReviewPendingWhenLatestOnOpenPR(t *testing.T) {
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{"state": "open", "merged": false}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{
 			{"id": float64(100), "state": "COMMENTED", "submitted_at": "2026-05-12T00:30:00Z"},
 			{"id": float64(101), "state": "COMMENTED", "submitted_at": "2026-05-12T01:00:00Z"},
 		}, nil
 	}
 
-	report := evalSubmitPullRequestReview(CreatedItemReport{
+	report := evalSubmitPullRequestReview(context.Background(), CreatedItemReport{
 		Type:      "submit_pull_request_review",
 		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
 		Number:    42,
@@ -662,17 +663,17 @@ func TestEvalAddReviewerPendingWhenRequestStillOutstanding(t *testing.T) {
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"users": []any{map[string]any{"login": "reviewer1"}},
 			"teams": []any{},
 		}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{}, nil
 	}
 
-	report := evalAddReviewer(CreatedItemReport{
+	report := evalAddReviewer(context.Background(), CreatedItemReport{
 		Type:      "add_reviewer",
 		Number:    42,
 		Repo:      "owner/repo",
@@ -696,17 +697,17 @@ func TestEvalAddReviewerUsesLatestReviewerState(t *testing.T) {
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{"users": []any{}, "teams": []any{}}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{
 			{"state": "APPROVED", "submitted_at": "2026-05-12T01:00:00Z", "user": map[string]any{"login": "reviewer1"}},
 			{"state": "CHANGES_REQUESTED", "submitted_at": "2026-05-12T02:00:00Z", "user": map[string]any{"login": "reviewer1"}},
 		}, nil
 	}
 
-	report := evalAddReviewer(CreatedItemReport{
+	report := evalAddReviewer(context.Background(), CreatedItemReport{
 		Type:      "add_reviewer",
 		Number:    42,
 		Repo:      "owner/repo",
@@ -740,14 +741,14 @@ func TestEvalSubmitPullRequestReviewChangesRequestedMissingCommitDatesStaysUnkno
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"state":     "closed",
 			"merged":    true,
 			"merged_at": "2026-05-12T05:00:00Z",
 		}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		switch endpoint {
 		case "pulls/42/reviews":
 			return []map[string]any{
@@ -762,7 +763,7 @@ func TestEvalSubmitPullRequestReviewChangesRequestedMissingCommitDatesStaysUnkno
 		}
 	}
 
-	report := evalSubmitPullRequestReview(CreatedItemReport{
+	report := evalSubmitPullRequestReview(context.Background(), CreatedItemReport{
 		Type:      "submit_pull_request_review",
 		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
 		Number:    42,
@@ -785,20 +786,20 @@ func TestEvalSubmitPullRequestReviewApprovedMergedUsesSharedSignal(t *testing.T)
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{
 			"state":     "closed",
 			"merged":    true,
 			"merged_at": "2026-05-12T05:00:00Z",
 		}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{
 			{"id": float64(101), "state": "APPROVED", "submitted_at": "2026-05-12T02:00:00Z"},
 		}, nil
 	}
 
-	report := evalSubmitPullRequestReview(CreatedItemReport{
+	report := evalSubmitPullRequestReview(context.Background(), CreatedItemReport{
 		Type:      "submit_pull_request_review",
 		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
 		Number:    42,
@@ -821,17 +822,17 @@ func TestEvalSubmitPullRequestReviewPendingIgnoresUnsubmittedDrafts(t *testing.T
 		outcomeReviewGHAPIGetArray = oldGetArray
 	})
 
-	outcomeReviewGHAPIGet = func(endpoint string, repo string) (map[string]any, error) {
+	outcomeReviewGHAPIGet = func(_ context.Context, endpoint string, repo string) (map[string]any, error) {
 		return map[string]any{"state": "open", "merged": false}, nil
 	}
-	outcomeReviewGHAPIGetArray = func(endpoint string, repo string) ([]map[string]any, error) {
+	outcomeReviewGHAPIGetArray = func(_ context.Context, endpoint string, repo string) ([]map[string]any, error) {
 		return []map[string]any{
 			{"id": float64(101), "state": "COMMENTED", "submitted_at": "2026-05-12T01:00:00Z"},
 			{"id": float64(102), "state": "PENDING", "submitted_at": ""},
 		}, nil
 	}
 
-	report := evalSubmitPullRequestReview(CreatedItemReport{
+	report := evalSubmitPullRequestReview(context.Background(), CreatedItemReport{
 		Type:      "submit_pull_request_review",
 		URL:       "https://github.com/owner/repo/pull/42#pullrequestreview-101",
 		Number:    42,

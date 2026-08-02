@@ -269,7 +269,7 @@ func (c *Compiler) generateEngineInstallAndPreAgentSteps(yaml *strings.Builder, 
 	// with "fatal: not a git repository" otherwise.
 	compilerYamlLog.Printf("Git credential configuration needed: %t", needsGitConfig)
 	if needsGitConfig {
-		gitConfigSteps := c.generateGitConfigurationSteps()
+		gitConfigSteps := c.generateGitConfigurationStepsForData(data)
 		for _, line := range gitConfigSteps {
 			yaml.WriteString(line)
 		}
@@ -465,8 +465,10 @@ func (c *Compiler) generateAgentRunSteps(yaml *strings.Builder, data *WorkflowDa
 	// This allows safe-outputs operations (like create_pull_request) to work properly
 	// We regenerate the credentials rather than restoring from backup.
 	// Only emit these steps when a checkout was performed (requires a .git directory).
+	// When current: true targets a subdirectory, target that path so the step succeeds
+	// even if a pre-agent step removed the workspace-root git repository.
 	if needsGitConfig {
-		gitConfigStepsAfterAgent := c.generateGitConfigurationSteps()
+		gitConfigStepsAfterAgent := c.generateGitConfigurationStepsForData(data)
 		for _, line := range gitConfigStepsAfterAgent {
 			yaml.WriteString(line)
 		}

@@ -1411,7 +1411,8 @@ describe("messages.cjs", () => {
       const result = getDetectionCautionAlert("Test Workflow", "https://github.com/test/repo/actions/runs/123");
 
       expect(result).toContain("> [!WARNING]");
-      expect(result).toContain("threat detection engine error");
+      expect(result).toContain("**Threat Detection Engine Failure**");
+      expect(result).toContain("What happened");
       expect(result).toContain("<!-- gh-aw-threat-engine-error -->");
       expect(result).not.toContain("<!-- gh-aw-threat-detected -->");
       expect(result).not.toContain("> [!CAUTION]");

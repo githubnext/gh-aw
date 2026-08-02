@@ -3,6 +3,7 @@
 package cli
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -191,7 +192,7 @@ func TestBuildAuditDataWithMCPToolUsage(t *testing.T) {
 	}
 
 	// Build audit data
-	auditData := buildAuditData(processedRun, metrics, mcpData)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, mcpData)
 
 	// Verify MCP tool usage is included
 	require.NotNil(t, auditData.MCPToolUsage, "MCP tool usage should be included in audit data")
@@ -230,7 +231,7 @@ func TestBuildAuditDataUsesMCPToolUsageForToolTypes(t *testing.T) {
 		},
 	}
 
-	auditData := buildAuditData(processedRun, metrics, mcpData)
+	auditData := buildAuditData(context.Background(), processedRun, metrics, mcpData)
 
 	require.Len(t, auditData.ToolUsage, 2, "MCP tools should contribute to tool usage when metrics tool calls are empty")
 	require.NotNil(t, auditData.BehaviorFingerprint, "behavior fingerprint should be present")

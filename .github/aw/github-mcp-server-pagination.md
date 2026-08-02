@@ -44,6 +44,10 @@ Two built-in GitHub MCP tools ignore standard pagination parameters:
 - **`list_label`** — uses a hardcoded GraphQL `labels(first: 100)` query; `perPage` is silently ignored. Use the `shared/github-mcp-pagination-wrappers.md` wrapper instead.
 - **`list_workflows`** — uses snake_case `per_page` (inconsistent with every other list tool). Use the `shared/github-mcp-pagination-wrappers.md` wrapper for consistent camelCase `perPage` support.
 
+One built-in GitHub MCP tool ignores a search qualifier:
+
+- **`search_repositories` with `repo:`** — the `repo:owner/name` qualifier is silently ignored; results are ranked by star count and will return unrelated high-star repositories. Use `org:`, `user:`, `topic:`, or `stars:` to scope repository searches. To resolve a specific repository, use a `repos`-toolset call with explicit `owner` and `repo` parameters (e.g. `get_file_contents`) instead.
+
 ## Oversized-Response Errors
 
 If you encounter errors like:
