@@ -39,7 +39,6 @@ const { runProcess, formatDuration, sleep, MIN_POST_RESULT_WATCHDOG_TIMEOUT_MS, 
 const {
   AWF_API_PROXY_REFLECT_URL,
   AWF_REFLECT_OUTPUT_PATH,
-  AWF_REFLECT_TIMEOUT_MS,
   AWF_MODELS_URL_TIMEOUT_MS,
   GEMINI_MODEL_NAME_PREFIX,
   enrichReflectModels,
@@ -536,7 +535,10 @@ async function main() {
 
   // Fetch AWF API proxy reflection data before running the agent to capture initial proxy state.
   // This is best-effort: failures are logged but do not affect the agent run.
-  await fetchAWFReflect({ logger: log });
+  // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. no api-proxy running in sandbox or test mode).
+  if (process.env.AWF_REFLECT_ENABLED === "1") {
+    await fetchAWFReflect({ logger: log });
+  }
   const codexHome = process.env.CODEX_HOME || "";
   let codexEnv = codexChildEnv;
   const providerConfig = configureCodexProviderFromReflect({
@@ -752,7 +754,10 @@ async function main() {
   }
 
   // Fetch AWF API proxy reflection data and persist to disk for post-run step summary.
-  await fetchAWFReflect({ logger: log });
+  // Skip when AWF_REFLECT_ENABLED is not "1" (e.g. no api-proxy running in sandbox or test mode).
+  if (process.env.AWF_REFLECT_ENABLED === "1") {
+    await fetchAWFReflect({ logger: log });
+  }
 
   log(`done: exitCode=${lastExitCode} totalDuration=${formatDuration(Date.now() - driverStartTime)}`);
   process.exit(lastExitCode);

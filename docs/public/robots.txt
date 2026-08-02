@@ -19,10 +19,10 @@ Allow: /
 User-agent: Claude-SearchBot
 Allow: /
 
-User-agent: PerplexityBot
+User-agent: claude-web
 Allow: /
 
-User-agent: Googlebot
+User-agent: PerplexityBot
 Allow: /
 
 User-agent: Perplexity-User
@@ -37,13 +37,25 @@ Allow: /
 User-agent: Bingbot
 Allow: /
 
+User-agent: Applebot-Extended
+Allow: /
+
 User-agent: cohere-ai
 Allow: /
 
 User-agent: DuckAssistBot
 Allow: /
 
-User-agent: xAI-Bot
+User-agent: Bytespider
+Allow: /
+
+User-agent: meta-externalagent
+Allow: /
+
+User-agent: Meta-ExternalFetcher
+Allow: /
+
+User-agent: facebookexternalhit
 Allow: /
 
 User-agent: Amazonbot
@@ -52,13 +64,22 @@ Allow: /
 User-agent: AI2Bot
 Allow: /
 
+User-agent: AI2Bot-Dolma
+Allow: /
+
+User-agent: xAI-Bot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+User-agent: PetalBot
+Allow: /
+
 User-agent: YouBot
 Allow: /
 
 User-agent: CCBot
 Allow: /
 
-User-agent: Applebot-Extended
-Allow: /
-
-Sitemap: https://github.github.com/gh-aw/sitemap-index.xml
+Sitemap: https://github.github.com/gh-aw/sitemap.xml
