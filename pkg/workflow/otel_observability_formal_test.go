@@ -381,89 +381,31 @@ func TestFormal_MergeOfEmptyMapsYieldsNil(t *testing.T) {
 	assert.Nil(t, mergeOTLPStringMaps(map[string]string{}, map[string]string{}))
 }
 
-// metricAttributeRegistry is a forward-looking stub interface for P20.
-// Replace with the real implementation once a metrics-cardinality filter exists
-// in pkg/workflow.
-type metricAttributeRegistry interface {
-	// IsHighCardinality returns true for attribute keys that must be excluded
-	// from default metric dimensions to prevent unbounded label growth.
-	IsHighCardinality(key string) bool
-}
-
-// staticMetricAttributeRegistry is a test-only implementation of
-// metricAttributeRegistry that classifies keys based on a fixed allow-list.
-type staticMetricAttributeRegistry struct {
-	highCardinalityKeys map[string]bool
-}
-
-func (r *staticMetricAttributeRegistry) IsHighCardinality(key string) bool {
-	return r.highCardinalityKeys[key]
-}
-
 // P20 — MetricResourceCardinalityBound
-// High-cardinality per-run/per-user identifiers must be excluded from default
+// High-cardinality per-run/per-user identifiers (gh-aw.run.id, gh-aw.run.uuid,
+// user.id, session.id, trace.id, job.id, span.id, git.commit.sha, pr.number,
+// issue.number, actor.id, url, conversation.id) must be excluded from default
 // metric dimensions to prevent unbounded label growth. Stable, bounded
-// attributes such as service.name and workflow.name must be allowed.
+// attributes such as service.name and gh-aw.workflow.name must be allowed.
+//
+// Pending: no production metric-cardinality filter exists in pkg/workflow yet.
+// Wire this predicate to the real filter once
+// https://github.com/github/gh-aw/issues is addressed.
+// See also specs/otel-observability-spec.md §metric-cardinality and ADR-49809.
 func TestFormal_MetricResourceCardinalityBound(t *testing.T) {
-	var registry metricAttributeRegistry = &staticMetricAttributeRegistry{
-		highCardinalityKeys: map[string]bool{
-			"gh-aw.run.id":   true,
-			"gh-aw.run.uuid": true,
-			"user.id":        true,
-			"session.id":     true,
-			"trace.id":       true,
-		},
-	}
-
-	highCardinalityKeys := []string{
-		"gh-aw.run.id",
-		"gh-aw.run.uuid",
-		"user.id",
-		"session.id",
-		"trace.id",
-	}
-	for _, key := range highCardinalityKeys {
-		assert.True(t, registry.IsHighCardinality(key),
-			"expected %q to be classified as high-cardinality", key)
-	}
-
-	boundedKeys := []string{
-		"service.name",
-		"gh-aw.workflow.name",
-		"deployment.environment",
-		"gh-aw.repository",
-	}
-	for _, key := range boundedKeys {
-		assert.False(t, registry.IsHighCardinality(key),
-			"expected %q to be classified as bounded (not high-cardinality)", key)
-	}
+	t.Skip("pending: no production metricAttributeRegistry implementation in pkg/workflow; " +
+		"replace t.Skip with assertions against the real filter once it lands")
 }
-
-// instrumentationScopeResolver is a forward-looking stub interface for P21.
-// Replace with the real implementation once an instrumentation-scope resolver
-// exists in pkg/workflow.
-type instrumentationScopeResolver interface {
-	// CoreScope returns the instrumentation scope name for the gh-aw core runtime.
-	CoreScope() string
-	// GatewayScope returns the instrumentation scope name for the MCP gateway.
-	GatewayScope() string
-}
-
-// staticInstrumentationScopeResolver is a test-only implementation of
-// instrumentationScopeResolver with fixed scope names.
-type staticInstrumentationScopeResolver struct{}
-
-func (r *staticInstrumentationScopeResolver) CoreScope() string    { return "gh-aw" }
-func (r *staticInstrumentationScopeResolver) GatewayScope() string { return "gh-aw-mcpg" }
 
 // P21 — InstrumentationScopeNaming
 // The core instrumentation scope must be "gh-aw" and the MCP gateway scope
 // must be "gh-aw-mcpg". The two scopes must be distinct so traces from each
 // component can be filtered independently.
+//
+// Pending: no production instrumentation-scope resolver exists in pkg/workflow yet.
+// Wire this predicate to the real resolver once it is implemented.
+// See specs/otel-observability-spec.md §instrumentation-scope and ADR-49809.
 func TestFormal_InstrumentationScopeNaming(t *testing.T) {
-	var resolver instrumentationScopeResolver = &staticInstrumentationScopeResolver{}
-
-	assert.Equal(t, "gh-aw", resolver.CoreScope())
-	assert.Equal(t, "gh-aw-mcpg", resolver.GatewayScope())
-	assert.NotEqual(t, resolver.CoreScope(), resolver.GatewayScope())
+	t.Skip("pending: no production instrumentationScopeResolver implementation in pkg/workflow; " +
+		"replace t.Skip with assertions against the real resolver once it lands")
 }

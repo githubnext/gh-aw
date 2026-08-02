@@ -1,8 +1,7 @@
 # ADR-49809: Formalize OTLP Observability Spec with Executable Predicates P16–P21
 
 **Date**: 2026-08-02
-**Status**: Draft
-**Deciders**: Unknown
+**Status**: Accepted
 
 ---
 
@@ -12,7 +11,7 @@ The `gh-aw` workflow runtime has an OTLP observability integration (`pkg/workflo
 
 ### Decision
 
-We will extend the formal OTLP observability test suite by adding predicates P16–P21 to `pkg/workflow/otel_observability_formal_test.go`. P16–P19 test concrete behaviors already present in `observability_otlp.go` (secret-ref rejection, attribute independence, merge precedence, nil-as-sentinel). P20 and P21 are forward-looking stubs: they define `metricAttributeRegistry` and `instrumentationScopeResolver` interfaces with test-only implementations, establishing the interface contract before production code exists. This continues the established pattern of using numbered, named predicates as the authoritative, executable specification for the OTLP subsystem.
+We will extend the formal OTLP observability test suite by adding predicates P16–P21 to `pkg/workflow/otel_observability_formal_test.go`. P16–P19 test concrete behaviors already present in `observability_otlp.go` (secret-ref rejection, attribute independence, merge precedence, nil-as-sentinel). P20 and P21 are forward-looking pending predicates: each test function immediately calls `t.Skip("pending: ...")` with an explicit message explaining what production implementation is required before they can exercise real behavior. The stub interface types (`metricAttributeRegistry`, `instrumentationScopeResolver`) that were previously defined alongside test-only implementations have been removed; the expected contract is instead described in the pending-test comment. This avoids the tautological anti-pattern of a test that constructs its own oracle and validates against that same oracle. When production implementations of the cardinality filter and instrumentation-scope resolver land in `pkg/workflow`, the `t.Skip` calls will be replaced with assertions against those implementations.
 
 ### Alternatives Considered
 
@@ -36,8 +35,8 @@ Apply fuzz testing to `validateOTLPResourceAttributes` and `mergeOTLPStringMaps`
 - The numbered predicate style makes it straightforward to audit which invariants from `specs/otel-observability-spec.md` are machine-verified vs. not yet covered.
 
 #### Negative
-- P20 and P21 use test-only stub implementations; they always pass today but do not exercise real production code, creating a specification-implementation gap until the cardinality filter and instrumentation-scope resolver land in `pkg/workflow`.
-- The two stub interfaces (`metricAttributeRegistry`, `instrumentationScopeResolver`) are defined only inside the test file; when production implementations are built, these interfaces will need to be promoted to non-test code, which may require resolving naming or scope conflicts.
+- P20 and P21 are currently skipped (`t.Skip("pending: ...")`); they do not exercise real production code until the cardinality filter and instrumentation-scope resolver are implemented.
+- When those implementations land, contributors must remove the `t.Skip` calls and supply real assertions; this is enforced only by code-review discipline, not by tooling.
 
 #### Neutral
 - The formal test suite now spans P1–P21 across a single file; continued growth will require either continued sequential numbering or a decision to split the file by concern.
@@ -45,4 +44,4 @@ Apply fuzz testing to `validateOTLPResourceAttributes` and `mergeOTLPStringMaps`
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent], finalized in [PR #49809](https://github.com/github/gh-aw/pull/49809).*
