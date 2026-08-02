@@ -146,6 +146,12 @@ Before finishing, write:
 - Do not create duplicate issues for already-tracked feature IDs.
 - Prefer fewer high-confidence items over broad speculation.
 - Never finish without either `create_issue` or `noop`.
+
+## Reporting Guidelines
+
+- Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body.
+- Wrap long lists, tables, and detailed findings in `<details><summary><b>...</b></summary>...</details>` blocks for progressive disclosure.
+- Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 ## agent: `awf-change-detector`
 ---
 description: Extracts user-relevant feature candidates from schema/compiler diffs

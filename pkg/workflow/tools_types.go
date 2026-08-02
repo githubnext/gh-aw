@@ -381,6 +381,15 @@ type GitHubToolConfig struct {
 	BoundedQueries *BoundedQueriesConfig `yaml:"bounded-queries,omitempty"`
 }
 
+// BoundedQueryRuntime identifies the isolated backend used for each bounded-query invocation.
+type BoundedQueryRuntime = string
+
+const (
+	BoundedQueryRuntimeDocker BoundedQueryRuntime = "docker"
+	BoundedQueryRuntimeGVisor BoundedQueryRuntime = "gvisor"
+	BoundedQueryRuntimeSbx    BoundedQueryRuntime = "sbx"
+)
+
 // BoundedQueriesConfig configures the AWF bounded-query subsystem, which allows the agent
 // to answer finite, pre-approved questions about private repositories without receiving
 // raw source content. The presence of this block enables the feature.
@@ -406,8 +415,10 @@ type BoundedQueriesConfig struct {
 
 	// Runtime is the container runtime used to execute bounded-query scripts.
 	// Optional; when omitted AWF uses its default runtime.
-	// Supported values: "docker", "gvisor"
-	Runtime string `yaml:"runtime,omitempty"`
+	// Supported values: "docker", "gvisor", "sbx".
+	// This is independent from sandbox.agent.runtime. AWF creates a fresh
+	// backend-specific sandbox for every query and never falls back to another runtime.
+	Runtime BoundedQueryRuntime `yaml:"runtime,omitempty"`
 
 	// Timeout is the maximum execution time in seconds for a single bounded-query invocation.
 	// Optional; when omitted AWF uses its default timeout.
