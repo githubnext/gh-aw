@@ -79,6 +79,7 @@ type compileArgs struct {
 	Grype       bool     `json:"grype,omitempty" jsonschema:"Run grype vulnerability scanner on container images referenced in compiled .lock.yml files"`
 	Grant       bool     `json:"grant,omitempty" jsonschema:"Run grant license scanner on container images referenced in compiled .lock.yml files"`
 	Yamllint    bool     `json:"yamllint,omitempty" jsonschema:"Run yamllint YAML linter on generated .lock.yml files"`
+	Shellcheck  bool     `json:"shellcheck,omitempty" jsonschema:"Run shellcheck on run step scripts in generated .lock.yml files (requires shellcheck binary in PATH)"`
 	Fix         bool     `json:"fix,omitempty" jsonschema:"Apply automatic codemod fixes to workflows before compiling"`
 	MaxTokens   int      `json:"max_tokens,omitempty" jsonschema:"Deprecated: accepted for backward compatibility but ignored."`
 }
@@ -230,6 +231,9 @@ Returns JSON array with validation results for each workflow:
 		if args.Yamllint {
 			cmdArgs = append(cmdArgs, "--yamllint")
 		}
+		if args.Shellcheck {
+			cmdArgs = append(cmdArgs, "--shellcheck")
+		}
 
 		cmdArgs = append(cmdArgs, args.Workflows...)
 
@@ -239,8 +243,8 @@ Returns JSON array with validation results for each workflow:
 			cmdArgs = append(cmdArgs, "--prior-manifest-file", manifestCacheFile)
 		}
 
-		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v",
-			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint)
+		mcpLog.Printf("Executing compile tool: workflows=%v, strict=%v, fix=%v, zizmor=%v, poutine=%v, actionlint=%v, runner-guard=%v, syft=%v, grype=%v, grant=%v, yamllint=%v, shellcheck=%v",
+			args.Workflows, args.Strict, args.Fix, args.Zizmor, args.Poutine, args.Actionlint, args.RunnerGuard, args.Syft, args.Grype, args.Grant, args.Yamllint, args.Shellcheck)
 
 		// Execute the CLI command
 		// Use separate stdout/stderr capture instead of CombinedOutput because:

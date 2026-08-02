@@ -63,6 +63,11 @@ func CompileWorkflows(ctx context.Context, config CompileConfig) ([]*workflow.Wo
 		initActionlintStats()
 	}
 
+	// In validate mode, warn if shellcheck is requested but not installed.
+	if config.Shellcheck && config.Validate && !isShellcheckAvailable() {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr("shellcheck binary not found in PATH; run step linting will be skipped. Install shellcheck to enable run step linting."))
+	}
+
 	// Track compilation statistics
 	stats := &CompilationStats{}
 

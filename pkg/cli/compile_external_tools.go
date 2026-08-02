@@ -81,6 +81,14 @@ func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 	return runBatchLockFileTool("yamllint", lockFiles, verbose, strict, runYamllintOnFiles)
 }
 
+// RunShellcheckOnLockFiles runs shellcheck on the run: step scripts extracted
+// from the provided lock files. Shellcheck must be installed as a system binary;
+// unlike other tools it does not use Docker. When shellcheck is not available
+// the function returns nil (callers are responsible for warning the user).
+func RunShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+	return runBatchLockFileTool("shellcheck", lockFiles, verbose, strict, runShellcheckOnLockFiles)
+}
+
 // RunSyftOnLockFiles runs the syft SBOM scanner on container images extracted
 // from the gh-aw-manifest headers in the provided lock files.
 func RunSyftOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
