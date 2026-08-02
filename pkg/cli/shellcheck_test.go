@@ -3,8 +3,12 @@
 package cli
 
 import (
+	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -268,14 +272,162 @@ func TestRunShellcheckOnLockFilesSkipsWhenUnavailable(t *testing.T) {
 	t.Cleanup(func() { os.Setenv("PATH", orig) })
 	os.Setenv("PATH", "") // ensure neither shellcheck nor docker can be found
 
-	err := runShellcheckOnLockFiles([]string{"/fake/file.lock.yml"}, false, false)
+	err := runShellcheckOnLockFiles(context.Background(), []string{"/fake/file.lock.yml"}, false, false)
 	assert.NoError(t, err)
 }
 
 // TestRunShellcheckOnLockFilesEmpty returns nil for an empty list.
 func TestRunShellcheckOnLockFilesEmpty(t *testing.T) {
-	err := runShellcheckOnLockFiles(nil, false, false)
+	err := runShellcheckOnLockFiles(context.Background(), nil, false, false)
 	assert.NoError(t, err)
+}
+
+func TestRunShellcheckOnScriptViaDocker(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses shell script stub")
+	}
+
+	t.Run("success passes stdin and args", func(t *testing.T) {
+		restore := stubDockerCommand(t, `#!/bin/sh
+set -eu
+printf '%s\n' "$*" > "$DOCKER_ARGS_FILE"
+cat > "$DOCKER_STDIN_FILE"
+exit 0
+`)
+		defer restore()
+
+		info := runStepInfo{
+			Name:     "docker step",
+			Script:   `echo "${{ github.actor }}"`,
+			Shell:    "bash",
+			LockFile: "/tmp/test.lock.yml",
+		}
+		err := runShellcheckOnScriptViaDocker(context.Background(), info, []string{"SC2016"}, false)
+		require.NoError(t, err)
+
+		argsText, readErr := os.ReadFile(os.Getenv("DOCKER_ARGS_FILE"))
+		require.NoError(t, readErr)
+		assert.Contains(t, string(argsText), "run --rm -i "+ShellcheckImage)
+		assert.Contains(t, string(argsText), "--shell=bash")
+		assert.Contains(t, string(argsText), "--exclude=SC2016")
+		assert.True(t, strings.HasSuffix(strings.TrimSpace(string(argsText)), "-"))
+
+		stdinText, readErr := os.ReadFile(os.Getenv("DOCKER_STDIN_FILE"))
+		require.NoError(t, readErr)
+		assert.Equal(t, "echo \"__GHA_EXPR__\"", string(stdinText))
+	})
+
+	t.Run("shellcheck exit code one is reported as findings", func(t *testing.T) {
+		restore := stubDockerCommand(t, `#!/bin/sh
+echo "-:1:1: warning: test finding [SC1000]"
+exit 1
+`)
+		defer restore()
+
+		info := runStepInfo{
+			Name:     "docker step",
+			Script:   "echo hello",
+			Shell:    "bash",
+			LockFile: "/tmp/test.lock.yml",
+		}
+		err := runShellcheckOnScriptViaDocker(context.Background(), info, nil, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "shellcheck found issues")
+	})
+
+	t.Run("docker failure includes stderr", func(t *testing.T) {
+		restore := stubDockerCommand(t, `#!/bin/sh
+echo "cannot connect to daemon" 1>&2
+exit 2
+`)
+		defer restore()
+
+		info := runStepInfo{
+			Name:     "docker step",
+			Script:   "echo hello",
+			Shell:    "bash",
+			LockFile: "/tmp/test.lock.yml",
+		}
+		err := runShellcheckOnScriptViaDocker(context.Background(), info, nil, false)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "shellcheck (docker) failed")
+		assert.Contains(t, err.Error(), "cannot connect to daemon")
+	})
+}
+
+func TestRunShellcheckOnLockFiles_UsesDockerFallbackWhenBinaryMissing(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses shell script stub")
+	}
+
+	lockFile := writeTempLockFile(t, `
+jobs:
+  build:
+    steps:
+      - name: lint me
+        run: echo hello
+`)
+
+	restore := stubDockerCommand(t, `#!/bin/sh
+set -eu
+if [ "${1:-}" = "info" ]; then
+  exit 0
+fi
+if [ "${1:-}" = "run" ]; then
+  echo run >> "$DOCKER_CALLS_FILE"
+  cat >/dev/null
+  exit 0
+fi
+exit 2
+`)
+	defer restore()
+
+	origPath := os.Getenv("PATH")
+	t.Cleanup(func() { os.Setenv("PATH", origPath) })
+	// Ensure native shellcheck cannot be discovered.
+	require.NoError(t, os.Setenv("PATH", filepath.Dir(os.Getenv("DOCKER_BIN"))))
+
+	err := runShellcheckOnLockFiles(context.Background(), []string{lockFile}, false, false)
+	require.NoError(t, err)
+
+	calls, readErr := os.ReadFile(os.Getenv("DOCKER_CALLS_FILE"))
+	require.NoError(t, readErr)
+	assert.Contains(t, string(calls), "run")
+}
+
+func stubDockerCommand(t *testing.T, script string) func() {
+	t.Helper()
+	dir := t.TempDir()
+	bin := filepath.Join(dir, "docker")
+	require.NoError(t, os.WriteFile(bin, []byte(script), 0o755))
+
+	argsFile := filepath.Join(dir, "docker-args.txt")
+	stdinFile := filepath.Join(dir, "docker-stdin.txt")
+	callsFile := filepath.Join(dir, "docker-calls.txt")
+
+	origDocker := dockerCommandContext
+	dockerCommandContext = exec.CommandContext
+
+	origPath := os.Getenv("PATH")
+	origArgs := os.Getenv("DOCKER_ARGS_FILE")
+	origStdin := os.Getenv("DOCKER_STDIN_FILE")
+	origCalls := os.Getenv("DOCKER_CALLS_FILE")
+	origBin := os.Getenv("DOCKER_BIN")
+
+	require.NoError(t, os.Setenv("PATH", dir+string(os.PathListSeparator)+origPath))
+	require.NoError(t, os.Setenv("DOCKER_ARGS_FILE", argsFile))
+	require.NoError(t, os.Setenv("DOCKER_STDIN_FILE", stdinFile))
+	require.NoError(t, os.Setenv("DOCKER_CALLS_FILE", callsFile))
+	require.NoError(t, os.Setenv("DOCKER_BIN", bin))
+
+	return func() {
+		dockerCommandContext = origDocker
+		_ = os.Setenv("PATH", origPath)
+		_ = os.Setenv("DOCKER_ARGS_FILE", origArgs)
+		_ = os.Setenv("DOCKER_STDIN_FILE", origStdin)
+		_ = os.Setenv("DOCKER_CALLS_FILE", origCalls)
+		_ = os.Setenv("DOCKER_BIN", origBin)
+	}
 }
 
 // writeTempLockFile writes content to a temporary *.lock.yml file and returns its path.

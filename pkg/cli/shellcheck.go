@@ -30,6 +30,7 @@ import (
 )
 
 var shellcheckLog = logger.New("cli:shellcheck")
+var dockerCommandContext = exec.CommandContext
 
 // ghaExpressionRE matches GitHub Actions ${{ ... }} expression syntax so it can
 // be replaced with a shell-safe placeholder before linting.  The (?s) flag lets
@@ -327,7 +328,7 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 
 	// #nosec G204 -- ShellcheckImage is a SHA-pinned constant; all other args are
 	// built from controlled values (shell name, SC codes, and the literal "-").
-	cmd := exec.CommandContext(ctx, "docker", args...)
+	cmd := dockerCommandContext(ctx, "docker", args...)
 	cmd.Stdin = strings.NewReader(sanitizedScript)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout = &stdout
@@ -338,14 +339,10 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 	// In gcc format with stdin, shellcheck prefixes findings with "-:LINE:COL: ...".
 	// Replace the leading "-:" (stdin indicator) with "script:" so that reported
 	// positions are clearly relative to the run: script snippet.
-	output := strings.ReplaceAll(stdout.String(), "-:", "script:")
-	if stderr.Len() > 0 {
-		output += strings.ReplaceAll(stderr.String(), "-:", "script:")
-	}
-
-	if output != "" {
+	findings := strings.ReplaceAll(stdout.String(), "-:", "script:")
+	if findings != "" {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck findings in "+stepLabel(info)+":"))
-		fmt.Fprint(os.Stderr, output)
+		fmt.Fprint(os.Stderr, findings)
 	}
 
 	if err != nil {
@@ -355,6 +352,10 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 				// Exit code 1 means shellcheck found issues; already printed above.
 				return fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
 			}
+		}
+		stderrText := strings.TrimSpace(strings.ReplaceAll(stderr.String(), "-:", "script:"))
+		if stderrText != "" {
+			return fmt.Errorf("shellcheck (docker) failed: %w: %s", err, stderrText)
 		}
 		return fmt.Errorf("shellcheck (docker) failed: %w", err)
 	}
@@ -375,12 +376,10 @@ func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignor
 // When strict is false, individual step failures are printed as warnings and
 // the function returns nil. When strict is true, the first step failure causes
 // an error to be returned immediately (fail fast).
-func runShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
 	}
-
-	ctx := context.Background()
 	useDocker := false
 
 	if !isShellcheckAvailable() {

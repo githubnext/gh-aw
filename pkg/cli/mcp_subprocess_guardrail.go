@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"bytes"
 	"context"
 	"os/exec"
 
@@ -84,4 +85,20 @@ func runMCPExecOutput(ctx context.Context, execCmd execCmdFunc, args ...string) 
 
 func runMCPExecCombinedOutput(ctx context.Context, execCmd execCmdFunc, args ...string) ([]byte, error) {
 	return runMCPSubprocessCombinedOutput(ctx, execCmd(ctx, args...))
+}
+
+func runMCPExecOutputWithStderr(ctx context.Context, execCmd execCmdFunc, args ...string) ([]byte, []byte, error) {
+	cmd := execCmd(ctx, args...)
+
+	if err := defaultMCPSubprocessGuardrail.acquire(ctx); err != nil {
+		return nil, nil, err
+	}
+	defer defaultMCPSubprocessGuardrail.release()
+
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	return stdout.Bytes(), stderr.Bytes(), err
 }

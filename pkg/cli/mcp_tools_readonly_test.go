@@ -79,3 +79,38 @@ func TestInjectDockerUnavailableWarning_InvalidJSONReturnedUnchanged(t *testing.
 		t.Errorf("Expected original output to be returned unchanged for invalid JSON, got: %s", output)
 	}
 }
+
+func TestInjectShellcheckDiagnostics_AppendsWarnings(t *testing.T) {
+	inputJSON := `[{"workflow":"a.md","valid":true,"errors":[],"warnings":[]}]`
+	stderr := "shellcheck findings in a.lock.yml (step: lint):\nscript:1:1: warning: foo [SC1000]\n"
+
+	output := injectShellcheckDiagnostics(inputJSON, stderr)
+
+	var results []ValidationResult
+	if err := json.Unmarshal([]byte(output), &results); err != nil {
+		t.Fatalf("Failed to parse injected output: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(results))
+	}
+	if len(results[0].Warnings) != 1 {
+		t.Fatalf("Expected 1 warning, got %d", len(results[0].Warnings))
+	}
+	if results[0].Warnings[0].Type != "shellcheck" {
+		t.Fatalf("Expected warning type shellcheck, got %s", results[0].Warnings[0].Type)
+	}
+	if results[0].Warnings[0].Message == "" {
+		t.Fatal("Expected non-empty warning message")
+	}
+}
+
+func TestInjectShellcheckDiagnostics_IgnoresUnrelatedStderr(t *testing.T) {
+	inputJSON := `[{"workflow":"a.md","valid":true,"errors":[],"warnings":[]}]`
+	stderr := "diagnostic noise should not be returned"
+
+	output := injectShellcheckDiagnostics(inputJSON, stderr)
+
+	if output != inputJSON {
+		t.Fatalf("Expected unchanged output for unrelated stderr, got: %s", output)
+	}
+}
