@@ -75,22 +75,48 @@ Run with on.needs
 }
 
 // containsNeedsInOnSection checks whether the "needs:" key appears in the "on:" section
-// of a compiled workflow YAML string (as a non-comment, non-job-level line).
+// of a compiled workflow YAML string, including a commented-out "# needs:" line.
 func containsNeedsInOnSection(yamlContent string) bool {
 	inOnSection := false
+	onIndent := 0
+	childIndent := -1
 	for _, line := range strings.Split(yamlContent, "\n") {
 		trimmed := strings.TrimLeft(line, " \t")
 		// Track when we enter/leave the on: section
 		if trimmed == "on:" || strings.HasPrefix(trimmed, `"on":`) {
 			inOnSection = true
+			onIndent = len(line) - len(trimmed)
+			childIndent = -1
 			continue
 		}
 		// Leave on: section when we hit a top-level key
 		if inOnSection && len(line) > 0 && line[0] != ' ' && line[0] != '\t' && !strings.HasPrefix(trimmed, "#") {
 			inOnSection = false
 		}
-		// Check for needs: inside on: section (as a real key, not a job-level needs)
-		if inOnSection && strings.HasPrefix(trimmed, "needs:") && !strings.HasPrefix(trimmed, "#") {
+		if !inOnSection {
+			continue
+		}
+		indent := len(line) - len(trimmed)
+		if indent <= onIndent {
+			continue
+		}
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			normalized := strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
+			if childIndent != -1 && indent == childIndent && strings.HasPrefix(normalized, "needs:") {
+				return true
+			}
+			continue
+		}
+		if childIndent == -1 {
+			childIndent = indent
+		}
+		if indent != childIndent {
+			continue
+		}
+		normalized := strings.TrimSpace(strings.TrimPrefix(trimmed, "#"))
+		// Check for needs: inside on: section as a direct child key, even if it
+		// has been commented out.
+		if strings.HasPrefix(normalized, "needs:") {
 			return true
 		}
 	}
