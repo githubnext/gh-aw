@@ -180,3 +180,42 @@ func runGitIn(t *testing.T, dir string, args ...string) {
 	out, err := cmd.CombinedOutput()
 	require.NoError(t, err, "git %s failed: %s", strings.Join(args, " "), string(out))
 }
+
+func TestBuildMergeOptions(t *testing.T) {
+	tests := []struct {
+		name          string
+		mergeFailed   bool
+		userReviewing bool
+		wantValues    []mergeAction
+	}{
+		{
+			name:          "default options",
+			mergeFailed:   false,
+			userReviewing: false,
+			wantValues:    []mergeAction{mergeActionAttempt, mergeActionReview, mergeActionExit},
+		},
+		{
+			name:          "merge failed adds edit title",
+			mergeFailed:   true,
+			userReviewing: false,
+			wantValues:    []mergeAction{mergeActionAttempt, mergeActionEditTitle, mergeActionReview, mergeActionExit},
+		},
+		{
+			name:          "user reviewing shows confirmation path",
+			mergeFailed:   false,
+			userReviewing: true,
+			wantValues:    []mergeAction{mergeActionAttempt, mergeActionConfirmed, mergeActionExit},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			options := buildMergeOptions(tt.mergeFailed, tt.userReviewing)
+			values := make([]mergeAction, 0, len(options))
+			for _, opt := range options {
+				values = append(values, opt.Value)
+			}
+			assert.Equal(t, tt.wantValues, values)
+		})
+	}
+}
