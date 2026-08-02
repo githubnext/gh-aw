@@ -380,6 +380,24 @@ describe("dismiss_pull_request_review", () => {
     expect(result.skipped).toBe(true);
     expect(result.reason).toContain("review no longer exists");
     expect(result.review_id).toBe(123);
+    expect(result.pull_request_number).toBe(42);
+    expect(result.repo).toBe("test-owner/test-repo");
+    expect(mockDismissReview).not.toHaveBeenCalled();
+  });
+
+  it("fails with review context when getReview returns a non-404 error", async () => {
+    const serverError = Object.assign(new Error("Internal Server Error"), { status: 500 });
+    mockGetReview.mockRejectedValueOnce(serverError);
+
+    const result = await handler({
+      type: "dismiss_pull_request_review",
+      review_id: 123,
+      justification: "This stale review no longer reflects the updated implementation.",
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("Failed to fetch review 123 on test-owner/test-repo#42");
+    expect(result.error).toContain("Internal Server Error");
     expect(mockDismissReview).not.toHaveBeenCalled();
   });
 });

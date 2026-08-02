@@ -245,6 +245,9 @@ async function main(config = {}) {
             repo: `${owner}/${repo}`,
           };
         }
+        if (getReviewError && typeof getReviewError.message === "string") {
+          getReviewError.message = `Failed to fetch review ${reviewId} on ${owner}/${repo}#${pullRequestNumber}: ` + getReviewError.message;
+        }
         throw getReviewError;
       }
 
