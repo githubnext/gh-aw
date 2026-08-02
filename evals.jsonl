@@ -1,2 +1,2 @@
-{"id":"model_lists_queried","question":"Did the agent query model inventories from OpenAI, Anthropic, Google, and Copilot APIs?","answer":"UNKNOWN","model":"small","timestamp":"2026-08-01T00:21:45.757Z","runid":"30674888951"}
-{"id":"updates_proposed_or_noop","question":"Were updates to the builtin model alias mapping proposed, or was noop used when no changes were needed?","answer":"UNKNOWN","model":"small","timestamp":"2026-08-01T00:21:45.757Z","runid":"30674888951"}
+{"id":"model_lists_queried","question":"Did the agent query model inventories from OpenAI, Anthropic, Google, and Copilot APIs?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-02T00:24:03.019Z","runid":"30724768334"}
+{"id":"updates_proposed_or_noop","question":"Were updates to the builtin model alias mapping proposed, or was noop used when no changes were needed?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-02T00:24:03.019Z","runid":"30724768334"}
