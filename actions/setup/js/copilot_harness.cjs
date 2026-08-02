@@ -1272,7 +1272,11 @@ async function main() {
         // only armed after hasTerminalSafeOutput is true, so watchdogFired on a no-stdio-output
         // run means the agent completed its task (wrote safe-output) but produced no console
         // output before the watchdog terminated the idle process.
-        if ((failureClass === "partial_execution" || failureClass === "long_run_exit" || (failureClass === "no_output" && result.watchdogFired)) && safeOutputsPath && hasTerminalSafeOutput(safeOutputsPath)) {
+        if (
+          (failureClass === "partial_execution" || failureClass === "long_run_exit" || (failureClass === "no_output" && result.watchdogFired) || (failureClass === "authentication_failed" && result.watchdogFired)) &&
+          safeOutputsPath &&
+          hasTerminalSafeOutput(safeOutputsPath)
+        ) {
           const reason = result.watchdogFired ? "post-result watchdog fired after terminal safe-output was emitted" : "partial execution after terminal safe-output was already produced";
           log(`attempt ${attempt + 1}: ${reason} — treating as success (late-activity exit suppressed)`);
           lastExitCode = 0;
