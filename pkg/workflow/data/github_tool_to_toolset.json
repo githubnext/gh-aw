@@ -7,6 +7,7 @@
   "get_file_blame": "repos",
   "get_file_contents": "repos",
   "search_code": "repos",
+  "search_repositories": "repos",
   "list_commits": "repos",
   "get_commit": "repos",
   "get_latest_release": "repos",
@@ -24,6 +25,8 @@
   "create_issue": "issues",
   "update_issue": "issues",
   "search_issues": "issues",
+  "semantic_issue_similarity_search": "issues",
+  "semantic_issues_search": "issues",
   "add_reaction": "issues",
   "create_issue_comment": "issues",
 
@@ -48,7 +51,10 @@
   "get_code_scanning_alert": "code_security",
   "create_code_scanning_alert": "code_security",
 
+  "get_code_quality_finding": "code_quality",
+
   "assign_copilot_to_issue": "copilot",
+  "create_pull_request_with_copilot": "copilot",
   "request_copilot_review": "copilot",
 
   "list_dependabot_alerts": "dependabot",
@@ -81,10 +87,11 @@
 
   "list_secret_scanning_alerts": "secret_protection",
   "get_secret_scanning_alert": "secret_protection",
+  "run_secret_scanning": "secret_protection",
+
+  "check_dependency_vulnerabilities": "security_advisories",
 
   "get_user": "users",
   "list_users": "users",
-
-  "search_repositories": "search",
-  "search_users": "search"
+  "search_users": "users"
 }

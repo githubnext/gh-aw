@@ -63,7 +63,48 @@ const MCP_POLICY_BLOCKED_PATTERN = /MCP servers were blocked by policy:/;
 //      [sdk-driver] error: Timeout after 870000ms waiting for session.idle
 // The second form can occur even when the driver collected output, and should
 // still be classified as a timeout for conclusion/reporting purposes.
+// NOTE: use isAgenticEngineTimeout() for detection logic that excludes post-result
+// watchdog SIGTERMs (watchdogFired=true). This pattern is exported for direct tests only.
 const AGENTIC_ENGINE_TIMEOUT_PATTERN = /(?:signal=SIG(?:TERM|KILL|INT)|Timeout after \d+ms waiting for session\.idle)/;
+
+// Pattern: copilot-harness "process closed" line with SIGTERM and watchdogFired=true.
+// This indicates the post-result idle watchdog fired a SIGTERM — the agent completed
+// its work but the process did not exit cleanly in time. This is NOT a step timeout.
+const WATCHDOG_SIGTERM_PATTERN = /process closed[^\n]*signal=SIG(?:TERM|KILL|INT)[^\n]*watchdogFired=true/;
+
+// Pattern: copilot-harness "process closed" line with SIGTERM and watchdogFired NOT true
+// (watchdogFired=false or watchdogFired field absent). This indicates a genuine external kill,
+// typically from the step timeout-minutes limit.
+const STEP_TIMEOUT_SIGTERM_PATTERN = /process closed[^\n]*signal=SIG(?:TERM|KILL|INT)(?![^\n]*watchdogFired=true)/;
+const PROCESS_CLOSED_SIGTERM_PATTERN = /process closed[^\n]*signal=SIG(?:TERM|KILL|INT)/;
+
+/**
+ * Determines if the log content shows a genuine agentic engine timeout.
+ *
+ * Returns false when the only SIGTERM source is the post-result idle watchdog
+ * (watchdogFired=true on the "process closed" line). The watchdog fires when the
+ * process is idle after completing its work, which is NOT a step timeout.
+ *
+ * @param {string} logContent - Contents of the agent stdio log
+ * @returns {boolean}
+ */
+function isAgenticEngineTimeout(logContent) {
+  // Always detect SDK idle-timeout (distinct from the step timeout).
+  if (/Timeout after \d+ms waiting for session\.idle/.test(logContent)) return true;
+
+  // No signal-based termination at all.
+  if (!AGENTIC_ENGINE_TIMEOUT_PATTERN.test(logContent)) return false;
+
+  // If there is a "process closed" line with SIGTERM and watchdogFired=true, the post-result
+  // watchdog fired. Check whether there is also a "process closed" SIGTERM line that did NOT
+  // have watchdogFired=true (which would mean a genuine external kill happened too).
+  if (WATCHDOG_SIGTERM_PATTERN.test(logContent)) {
+    return STEP_TIMEOUT_SIGTERM_PATTERN.test(logContent);
+  }
+
+  // Only classify as timeout when the signal is on a "process closed" line.
+  return PROCESS_CLOSED_SIGTERM_PATTERN.test(logContent);
+}
 
 // Pattern: Configured model is invalid or unavailable.
 // Covers common engine/provider variants:
@@ -193,7 +234,7 @@ function detectErrors(logContent) {
   return {
     inferenceAccessError: INFERENCE_ACCESS_ERROR_PATTERN.test(logContent),
     mcpPolicyError: MCP_POLICY_BLOCKED_PATTERN.test(logContent),
-    agenticEngineTimeout: AGENTIC_ENGINE_TIMEOUT_PATTERN.test(logContent),
+    agenticEngineTimeout: isAgenticEngineTimeout(logContent),
     modelNotSupportedError: MODEL_NOT_SUPPORTED_PATTERN.test(logContent),
     http400ResponseError: HTTP_400_RESPONSE_ERROR_PATTERN.test(logContent),
     capiQuotaExceededError: isCAPIQuotaExceededError(logContent),
@@ -324,9 +365,13 @@ module.exports = {
   isCAPIQuotaExceededError,
   isInvocationCapExceededError,
   isMaxCacheMissesExceededError,
+  isAgenticEngineTimeout,
   INFERENCE_ACCESS_ERROR_PATTERN,
   MCP_POLICY_BLOCKED_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
+  WATCHDOG_SIGTERM_PATTERN,
+  STEP_TIMEOUT_SIGTERM_PATTERN,
+  PROCESS_CLOSED_SIGTERM_PATTERN,
   MODEL_NOT_SUPPORTED_PATTERN,
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,

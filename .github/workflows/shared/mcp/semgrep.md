@@ -1,12 +1,14 @@
 ---
 # Semgrep MCP Server
-# Container-based MCP server for static analysis and security scanning
+# SECURITY: semgrep/semgrep has Critical/High CVEs with no upstream fix available (issue #49520).
+# The container definition has been removed until a patched image is published upstream.
+# To re-enable, restore the mcp-servers block and update the pinned digest in actions-lock.json.
 #
 # Documentation: https://semgrep.dev/
 # MCP Server: https://github.com/semgrep/semgrep
 # Docker Image: https://hub.docker.com/r/semgrep/semgrep
 #
-# Available tools:
+# Available tools (when enabled):
 #   - semgrep_rule_schema: Get the schema for writing Semgrep rules
 #   - get_supported_languages: List languages supported by Semgrep
 #   - semgrep_scan: Scan code files for security vulnerabilities and bugs
@@ -17,22 +19,6 @@
 # Usage:
 #   imports:
 #     - shared/mcp/semgrep.md
-
-mcp-servers:
-  semgrep:
-    container: "semgrep/semgrep"
-    version: "latest"
-    entrypointArgs: ["semgrep", "mcp", "-t", "stdio"]
-    env:
-      SEMGREP_SEND_METRICS: "off"
-    # Security decision (2026-05-19): explicit Semgrep tool allowlist (no wildcard).
-    allowed:
-      - semgrep_rule_schema
-      - get_supported_languages
-      - semgrep_scan
-      - semgrep_scan_local
-      - semgrep_scan_with_custom_rule
-      - semgrep_findings
 ---
 
 <!--
