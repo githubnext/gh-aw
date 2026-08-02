@@ -38,7 +38,7 @@ imports:
   - shared/mcp/tavily.md
   - shared/mcp/microsoft-docs.md
   - shared/mcp/deepwiki.md
-  - shared/mcp/markitdown.md
+  # Note: markitdown.md excluded — docker.io/mcp/markitdown has Critical/High CVEs (see #49515)
   - shared/otlp.md
 tools:
   cli-proxy: true

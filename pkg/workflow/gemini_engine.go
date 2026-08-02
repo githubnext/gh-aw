@@ -27,11 +27,12 @@ func NewGeminiEngine() *GeminiEngine {
 			experimental:     false,
 			ghSkillAgentName: "gemini-cli",
 			capabilities: EngineCapabilities{
-				ToolsAllowlist:   true,
-				MaxTurns:         true,
-				MaxContinuations: false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
-				WebSearch:        false,
-				NativeAgentFile:  false, // Gemini does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				ToolsAllowlist:       true,
+				MaxTurns:             true,
+				MaxContinuations:     false, // Gemini CLI does not support --max-autopilot-continues-style continuation mode
+				WebSearch:            false,
+				NativeAgentFile:      false, // Gemini does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				BashCommandAllowlist: true,  // Gemini enforces tools.bash allowlist via tools.core: [run_shell_command(cmd)]
 			},
 			dedicatedLLMGatewayPort: constants.GeminiLLMGatewayPort,
 		},
