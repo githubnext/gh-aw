@@ -15,7 +15,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:stringsconcatloop")
 
 // Analyzer is the string-concat-in-loop analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -27,6 +30,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	root, err := astutil.Root(pass)
 	if err != nil {
 		return nil, err
@@ -114,6 +118,7 @@ func run(pass *analysis.Pass) (any, error) {
 			}
 		}
 
+		pkgLog.Printf("flagging string concatenation in loop at %s", pos)
 		pass.ReportRangef(assign,
 			"string concatenation inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
 	}

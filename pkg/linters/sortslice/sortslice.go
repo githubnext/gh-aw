@@ -13,7 +13,10 @@ import (
 	"github.com/github/gh-aw/pkg/linters/internal/astutil"
 	"github.com/github/gh-aw/pkg/linters/internal/filecheck"
 	"github.com/github/gh-aw/pkg/linters/internal/nolint"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var pkgLog = logger.New("linters:sortslice")
 
 // Analyzer is the sort-slice analysis pass.
 var Analyzer = &analysis.Analyzer{
@@ -25,6 +28,7 @@ var Analyzer = &analysis.Analyzer{
 }
 
 func run(pass *analysis.Pass) (any, error) {
+	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	root, err := astutil.Root(pass)
 	if err != nil {
 		return nil, err
@@ -76,8 +80,10 @@ func run(pass *analysis.Pass) (any, error) {
 		switch sel.Sel.Name {
 		case "Slice":
 			// Keep diagnostics on canonical stdlib names even for aliased imports.
+			pkgLog.Printf("flagging sort.Slice call at %s", pos)
 			pass.ReportRangef(call, "sort.Slice is not type-safe; use slices.SortFunc instead")
 		case "SliceStable":
+			pkgLog.Printf("flagging sort.SliceStable call at %s", pos)
 			pass.ReportRangef(call, "sort.SliceStable is not type-safe; use slices.SortStableFunc instead")
 		}
 	}
