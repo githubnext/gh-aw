@@ -392,19 +392,19 @@ func TestConfigureCustomJobSteps_InvalidSetupStepsType(t *testing.T) {
 }
 
 // ========================================
-// applyBuiltinJobNeedsAugmentations Tests
+// applyBuiltinJobAugmentations Tests
 // ========================================
 
 func TestApplyBuiltinJobNeedsAugmentations_NilData(t *testing.T) {
 	compiler := NewCompiler()
-	err := compiler.applyBuiltinJobNeedsAugmentations(nil)
+	err := compiler.applyBuiltinJobAugmentations(nil)
 	require.NoError(t, err)
 }
 
 func TestApplyBuiltinJobNeedsAugmentations_NilJobs(t *testing.T) {
 	compiler := NewCompiler()
 	data := &WorkflowData{Jobs: nil}
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.NoError(t, err)
 }
 
@@ -421,7 +421,7 @@ func TestApplyBuiltinJobNeedsAugmentations_NonBuiltinJobIgnored(t *testing.T) {
 	}
 
 	// Non-builtin job in Jobs map should be silently skipped
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.NoError(t, err)
 }
 
@@ -440,7 +440,7 @@ func TestApplyBuiltinJobNeedsAugmentations_BuiltinNoNeeds(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.NoError(t, err)
 	// Existing needs unchanged
 	assert.Equal(t, []string{"pre_activation"}, activationJob.Needs)
@@ -462,7 +462,7 @@ func TestApplyBuiltinJobNeedsAugmentations_AddsNeedsAsString(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.NoError(t, err)
 	assert.Contains(t, activationJob.Needs, "build")
 	assert.Contains(t, activationJob.Needs, "pre_activation", "existing needs should be preserved")
@@ -486,7 +486,7 @@ func TestApplyBuiltinJobNeedsAugmentations_AddsNeedsAsArray(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.NoError(t, err)
 	assert.Contains(t, activationJob.Needs, "build")
 	assert.Contains(t, activationJob.Needs, "test")
@@ -508,7 +508,7 @@ func TestApplyBuiltinJobNeedsAugmentations_DeduplicatesNeeds(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.NoError(t, err)
 	// Should only have "build" once
 	count := 0
@@ -534,7 +534,7 @@ func TestApplyBuiltinJobNeedsAugmentations_UnknownJobError(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "unknown job")
 }
@@ -553,7 +553,7 @@ func TestApplyBuiltinJobNeedsAugmentations_SelfReferenceError(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "cannot depend on itself")
 }
@@ -573,7 +573,7 @@ func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManagerError(t *testing
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "cannot augment")
 }
@@ -588,7 +588,7 @@ func TestApplyBuiltinJobNeedsAugmentations_InvalidConfigNotMap(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.Error(t, err)
 	require.ErrorContains(t, err, "must be an object")
 }
@@ -611,9 +611,222 @@ func TestApplyBuiltinJobNeedsAugmentations_HyphenAliasNormalized(t *testing.T) {
 		},
 	}
 
-	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	err := compiler.applyBuiltinJobAugmentations(data)
 	require.NoError(t, err)
 	assert.Contains(t, preActivationJob.Needs, "build")
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_AddsIfCondition(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{Name: string(constants.AgentJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"if": "needs.build.outputs.outcome == 'failure'",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.NoError(t, err)
+	assert.Equal(t, "needs.build.outputs.outcome == 'failure'", agentJob.If)
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_CombinesIfCondition(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{
+		Name: string(constants.AgentJobName),
+		If:   "${{ github.event_name == 'pull_request' }}",
+	}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"if": "needs.build.outputs.outcome == 'failure'",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.NoError(t, err)
+	assert.Equal(t, "(github.event_name == 'pull_request') && (needs.build.outputs.outcome == 'failure')", agentJob.If)
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_InvalidIfTypeError(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{Name: string(constants.AgentJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"if": true,
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "jobs.agent.if must be a string")
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_IfPrefixStripped(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{Name: string(constants.AgentJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				// Simulate a user writing "if: <expression>" inside the frontmatter value.
+				"if": "if: needs.build.outputs.outcome == 'failure'",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.NoError(t, err)
+	// The "if: " prefix must be stripped; Job.If holds only the bare expression.
+	assert.Equal(t, "needs.build.outputs.outcome == 'failure'", agentJob.If)
+	assert.NotContains(t, agentJob.If, "if: ", "Job.If must not contain the 'if: ' prefix")
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManager_IfOnlyReportsIfField(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	// Activation job is NOT in the manager; only a custom build job is.
+	buildJob := &Job{Name: "build"}
+	require.NoError(t, compiler.jobManager.AddJob(buildJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.ActivationJobName): map[string]any{
+				// Only "if" is configured, no "needs".
+				"if": "needs.build.outputs.outcome == 'failure'",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "jobs.activation.if")
+	require.ErrorContains(t, err, "cannot augment")
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_TargetJobNotInManager_NeedsOnlyReportsNeedsField(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	buildJob := &Job{Name: "build"}
+	require.NoError(t, compiler.jobManager.AddJob(buildJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.ActivationJobName): map[string]any{
+				// Only "needs" is configured, no "if".
+				"needs": "build",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "jobs.activation.needs")
+	require.ErrorContains(t, err, "cannot augment")
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_StatusFuncAddsSuccessGuards(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	// Simulate agent job with activation as a compiler-owned prerequisite.
+	agentJob := &Job{
+		Name:  string(constants.AgentJobName),
+		Needs: []string{string(constants.ActivationJobName)},
+	}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(activationJob))
+	buildJob := &Job{Name: "build"}
+	require.NoError(t, compiler.jobManager.AddJob(buildJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"needs": "build",
+				// failure() is a status function; without a guard, the implicit
+				// success() on "activation" would be silently dropped by GitHub Actions.
+				"if": "needs.build.outputs.outcome == 'failure'",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.NoError(t, err)
+	// The user condition does not contain a status function, so no extra guards are needed.
+	assert.Equal(t, "needs.build.outputs.outcome == 'failure'", agentJob.If)
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_StatusFuncFailureAddsSuccessGuards(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{
+		Name:  string(constants.AgentJobName),
+		Needs: []string{string(constants.ActivationJobName)},
+	}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(activationJob))
+	buildJob := &Job{Name: "build"}
+	require.NoError(t, compiler.jobManager.AddJob(buildJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"needs": "build",
+				// failure() is a status function; without a guard, the implicit
+				// success() on the compiler-owned "activation" job would be dropped.
+				"if": "failure()",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.NoError(t, err)
+	// Explicit success guard must be added for the compiler-owned activation prerequisite.
+	assert.Contains(t, agentJob.If, "needs.activation.result == 'success'")
+	assert.Contains(t, agentJob.If, "failure()")
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_StatusFuncAlwaysAddsSuccessGuards(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{
+		Name:  string(constants.AgentJobName),
+		Needs: []string{string(constants.ActivationJobName)},
+	}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+	activationJob := &Job{Name: string(constants.ActivationJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(activationJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"if": "always()",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobAugmentations(data)
+	require.NoError(t, err)
+	// always() must not bypass activation's implicit success check.
+	assert.Contains(t, agentJob.If, "needs.activation.result == 'success'")
+	assert.Contains(t, agentJob.If, "always()")
 }
 
 // ========================================
