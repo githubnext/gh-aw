@@ -1019,9 +1019,16 @@ lint-action-sh:
 	@echo "Checking action shell scripts for python/python3 invocations..."
 	@bash scripts/check-action-sh-no-python.sh
 
+# Run shellcheck on actions/setup/sh scripts at error severity
+.PHONY: shellcheck-setup-sh
+shellcheck-setup-sh:
+	@echo "Running shellcheck on actions/setup/sh..."
+	@shellcheck --severity=error actions/setup/sh/*.sh
+	@echo "✓ shellcheck passed"
+
 # Validate all project files
 .PHONY: lint
-lint: check-stale-lock-files fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh check-stale-schema-binary
+lint: check-stale-lock-files fmt-check fmt-check-json lint-cjs golint validate-model-alias-chains lint-action-sh shellcheck-setup-sh check-stale-schema-binary
 	@echo "✓ All validations passed"
 
 # Install the binary locally
