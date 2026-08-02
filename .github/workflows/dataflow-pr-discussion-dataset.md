@@ -42,9 +42,10 @@ tools:
 steps:
   - name: Install DataFlow
     run: |
-      python3 -m venv /tmp/gh-aw/agent/venv
-      /tmp/gh-aw/agent/venv/bin/pip install --quiet open-dataflow
-      /tmp/gh-aw/agent/venv/bin/python3 -c "
+      mkdir -p /tmp/gh-aw/python
+      python3 -m venv /tmp/gh-aw/python/venv
+      /tmp/gh-aw/python/venv/bin/pip install --quiet open-dataflow
+      /tmp/gh-aw/python/venv/bin/python3 -c "
       import dataflow
       print('DataFlow', getattr(dataflow, '__version__', 'installed'), 'ready')
       # Print available operators for reference
@@ -120,7 +121,7 @@ Inputs:
 - PRs: `/tmp/gh-aw/agent/dataflow/input/prs.json`
 
 Output: `/tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl`
-Venv: `/tmp/gh-aw/agent/venv/bin/python3`
+Venv: `/tmp/gh-aw/python/venv/bin/python3`
 
 Normalise both sources into unified JSONL (fields: id, source, text, url, author, created_at).
 Filter with min_len=50 and alpha_ratio>0.25.
@@ -143,7 +144,7 @@ Build a cleaned, quality-scored, and deduplicated JSONL dataset from this reposi
 - **Data available**:
   - Discussions: `/tmp/gh-aw/agent/discussions-data/discussions.json` (pre-fetched by shared component)
   - PRs: `/tmp/gh-aw/agent/dataflow/input/prs.json` (pre-fetched in `steps:`)
-- **DataFlow venv**: `/tmp/gh-aw/agent/venv/bin/python3`
+- **DataFlow venv**: `/tmp/gh-aw/python/venv/bin/python3`
 - **Output dir**: `/tmp/gh-aw/agent/dataflow/output/`
 
 ## Pipeline Overview
@@ -181,7 +182,7 @@ GitHub Discussions + PRs
 Before building the pipeline, discover which operators are installed:
 
 ```bash
-/tmp/gh-aw/agent/venv/bin/python3 -c "
+/tmp/gh-aw/python/venv/bin/python3 -c "
 import pkgutil, dataflow.operators as ops
 for m in pkgutil.iter_modules(ops.__path__):
     print(m.name)
@@ -191,7 +192,7 @@ for m in pkgutil.iter_modules(ops.__path__):
 Then list classes in the `filter` and `dedup` sub-modules (if present):
 
 ```bash
-/tmp/gh-aw/agent/venv/bin/python3 -c "
+/tmp/gh-aw/python/venv/bin/python3 -c "
 import inspect
 try:
     import dataflow.operators.filter as f
@@ -285,7 +286,7 @@ print(f"Total records written: {len(records)} → {OUT}")
 Run it:
 
 ```bash
-/tmp/gh-aw/agent/venv/bin/python3 /tmp/gh-aw/agent/dataflow/pipeline/01_normalise.py
+/tmp/gh-aw/python/venv/bin/python3 /tmp/gh-aw/agent/dataflow/pipeline/01_normalise.py
 ```
 
 ### Step 3: Build and Run the DataFlow Pipeline
@@ -447,7 +448,7 @@ print(json.dumps(stats, indent=2))
 Run it:
 
 ```bash
-/tmp/gh-aw/agent/venv/bin/python3 /tmp/gh-aw/agent/dataflow/pipeline/02_pipeline.py
+/tmp/gh-aw/python/venv/bin/python3 /tmp/gh-aw/agent/dataflow/pipeline/02_pipeline.py
 ```
 
 Verify output:
@@ -512,7 +513,7 @@ print('Run appended to history')
 Read the clean output and compute a per-source breakdown:
 
 ```bash
-/tmp/gh-aw/agent/venv/bin/python3 - << 'EOF'
+/tmp/gh-aw/python/venv/bin/python3 - << 'EOF'
 import json
 from collections import Counter
 from pathlib import Path
