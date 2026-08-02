@@ -78,10 +78,10 @@ async function ensureAgentRunsIssue() {
 }
 
 /**
- * Build the AIC suffix string for use in comment footers.
- * Includes agent, threat-detection, and evals AIC when available.
- * Returns a string like " · 0.001 AIC · ⌖ 0.002 AIC" or "" when not available.
- * @returns {string}
+ * Parse a raw AIC environment variable value and return it as a positive number.
+ * Returns undefined when the value is absent, non-numeric, or non-positive.
+ * @param {string|undefined} raw
+ * @returns {number|undefined}
  */
 function parsePositiveAIC(raw) {
   const parsed = raw ? Number.parseFloat(raw) : NaN;
