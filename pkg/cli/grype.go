@@ -27,6 +27,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"sync"
 
@@ -213,6 +214,24 @@ func runGrypeOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
 	return nil
 }
 
+// grypeConfigDockerArgs returns Docker arguments to mount the .grype.yaml config file
+// from the current working directory, if one exists. When mounted, grype inside the
+// container reads the config for ignore rules (e.g. CVEs pending upstream fixes).
+// Returns nil if no config file is found in the current directory.
+func grypeConfigDockerArgs() []string {
+	configPath, err := filepath.Abs(".grype.yaml")
+	if err != nil {
+		return nil
+	}
+	if _, err := os.Stat(configPath); err != nil {
+		return nil
+	}
+	return []string{
+		"-v", configPath + ":/grype-config.yaml:ro",
+		"-e", "GRYPE_CONFIG=/grype-config.yaml",
+	}
+}
+
 // grypeRunOnImage runs grype on a single container image reference via Docker,
 // using the result cache to avoid re-scanning images already checked in this run.
 func grypeRunOnImage(imageRef string, verbose bool) (*grypeOutput, error) {
@@ -224,17 +243,16 @@ func grypeRunOnImage(imageRef string, verbose bool) (*grypeOutput, error) {
 
 	grypeLog.Printf("Scanning %s with grype", imageRef)
 
+	// Build docker run arguments. If a .grype.yaml config exists in the current
+	// working directory, mount it into the container so grype respects its ignore rules.
+	dockerArgs := []string{"run", "--rm"}
+	dockerArgs = append(dockerArgs, grypeConfigDockerArgs()...)
+
 	// #nosec G204 -- imageRef is extracted from the gh-aw-manifest in compiled lock files,
 	// which are produced by this tool from trusted markdown sources. exec.Command passes
 	// args directly to the OS without shell interpretation, preventing command injection.
-	cmd := exec.Command(
-		"docker",
-		"run",
-		"--rm",
-		GrypeImage,
-		imageRef,
-		"-o", "json",
-	)
+	dockerArgs = append(dockerArgs, GrypeImage, imageRef, "-o", "json")
+	cmd := exec.Command("docker", dockerArgs...)
 
 	if verbose {
 		dockerCmd := fmt.Sprintf("docker run --rm %s %s -o json", GrypeImage, imageRef)

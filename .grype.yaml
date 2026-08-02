@@ -1,0 +1,55 @@
+# Grype vulnerability scan configuration for gh-aw.
+#
+# This file is automatically mounted into the grype Docker container when running
+# container image scans via `gh aw compile --grype`.
+#
+# Ignore rules suppress known CVEs that are pending upstream fixes. Each entry
+# should include a comment referencing the upstream tracking issue and expected
+# remediation path.
+ignore:
+  # bind-libs and bind-tools are installed in ghcr.io/github/gh-aw-firewall/squid
+  # but are NOT required by squid. The upstream fix is to remove bind-tools from
+  # the gh-aw-firewall/squid Dockerfile (or rebuild with a patched bind package).
+  # Tracking: github/gh-aw#49507
+  - vulnerability: CVE-2026-11331
+    package:
+      name: bind-libs
+  - vulnerability: CVE-2026-11331
+    package:
+      name: bind-tools
+  - vulnerability: CVE-2026-11605
+    package:
+      name: bind-libs
+  - vulnerability: CVE-2026-11605
+    package:
+      name: bind-tools
+  - vulnerability: CVE-2026-11622
+    package:
+      name: bind-libs
+  - vulnerability: CVE-2026-11622
+    package:
+      name: bind-tools
+  - vulnerability: CVE-2026-11721
+    package:
+      name: bind-libs
+  - vulnerability: CVE-2026-11721
+    package:
+      name: bind-tools
+  - vulnerability: CVE-2026-12617
+    package:
+      name: bind-libs
+  - vulnerability: CVE-2026-12617
+    package:
+      name: bind-tools
+  - vulnerability: CVE-2026-13204
+    package:
+      name: bind-libs
+  - vulnerability: CVE-2026-13204
+    package:
+      name: bind-tools
+  - vulnerability: CVE-2026-13321
+    package:
+      name: bind-libs
+  - vulnerability: CVE-2026-13321
+    package:
+      name: bind-tools

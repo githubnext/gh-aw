@@ -5,6 +5,7 @@ package cli
 import (
 	"errors"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -278,6 +279,73 @@ func TestCollectContainerImagesFromLockFiles_NoContainers(t *testing.T) {
 	images := collectContainerImagesFromLockFiles([]string{tmpFile.Name()})
 	if len(images) != 0 {
 		t.Errorf("Expected 0 images for manifest without containers, got %d", len(images))
+	}
+}
+
+func TestGrypeConfigDockerArgs_NoConfigFile(t *testing.T) {
+	// Change to a temp directory that has no .grype.yaml.
+	tmpDir, err := os.MkdirTemp("", "grype-test-no-config-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to chdir to temp dir: %v", err)
+	}
+	defer os.Chdir(origDir) //nolint:errcheck
+
+	args := grypeConfigDockerArgs()
+	if args != nil {
+		t.Errorf("Expected nil args when no .grype.yaml exists, got %v", args)
+	}
+}
+
+func TestGrypeConfigDockerArgs_WithConfigFile(t *testing.T) {
+	// Change to a temp directory and create a .grype.yaml.
+	tmpDir, err := os.MkdirTemp("", "grype-test-with-config-*")
+	if err != nil {
+		t.Fatalf("Failed to create temp dir: %v", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	configPath := tmpDir + "/.grype.yaml"
+	if err := os.WriteFile(configPath, []byte("ignore:\n  - vulnerability: CVE-TEST-0001\n"), 0600); err != nil {
+		t.Fatalf("Failed to write .grype.yaml: %v", err)
+	}
+
+	origDir, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get working directory: %v", err)
+	}
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatalf("Failed to chdir to temp dir: %v", err)
+	}
+	defer os.Chdir(origDir) //nolint:errcheck
+
+	args := grypeConfigDockerArgs()
+	if args == nil {
+		t.Fatal("Expected non-nil args when .grype.yaml exists")
+	}
+	// Should contain a volume mount and env var.
+	if len(args) < 4 {
+		t.Errorf("Expected at least 4 args (-v <path> -e <var>), got %v", args)
+	}
+	// First arg should be "-v".
+	if args[0] != "-v" {
+		t.Errorf("Expected first arg to be '-v', got %q", args[0])
+	}
+	// Third arg should be "-e".
+	if args[2] != "-e" {
+		t.Errorf("Expected third arg to be '-e', got %q", args[2])
+	}
+	// Env var should set GRYPE_CONFIG.
+	if !strings.HasPrefix(args[3], "GRYPE_CONFIG=") {
+		t.Errorf("Expected GRYPE_CONFIG env var, got %q", args[3])
 	}
 }
 
