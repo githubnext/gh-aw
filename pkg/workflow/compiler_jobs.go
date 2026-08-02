@@ -172,6 +172,43 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 	return result
 }
 
+// getEngineEnvReferencedCustomJobsWithNoExplicitNeeds returns custom job names referenced
+// in engine.env values via needs.<job>.outputs.* that have no explicit needs declaration.
+// These jobs must run before activation so their outputs are available in activation steps
+// (e.g. secret validation uses engine.env overrides at activation time).
+//
+// Only jobs with NO explicit needs are returned, matching the same filter applied to
+// markdown-body-referenced jobs. Jobs with explicit needs either already run before activation
+// (pre_activation dependency, picked up by getCustomJobsDependingOnPreActivation) or explicitly
+// depend on activation/agent and therefore cannot be activation prerequisites.
+func (c *Compiler) getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data *WorkflowData) []string {
+	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 || data.Jobs == nil {
+		return nil
+	}
+	var engineEnvBuilder strings.Builder
+	for _, envValue := range data.EngineConfig.Env {
+		engineEnvBuilder.WriteByte('\n')
+		engineEnvBuilder.WriteString(envValue)
+	}
+	referencedJobs := c.getReferencedCustomJobs(engineEnvBuilder.String(), data.Jobs)
+	var result []string
+	for _, jobName := range referencedJobs {
+		jobConfig, ok := data.Jobs[jobName].(map[string]any)
+		if !ok {
+			continue
+		}
+		// Only include jobs with no explicit needs - those get activation auto-added normally.
+		// Jobs with explicit needs either already run before activation (pre_activation dependency)
+		// or explicitly depend on activation/agent and must run after.
+		if _, hasNeeds := jobConfig["needs"]; hasNeeds {
+			continue
+		}
+		result = append(result, jobName)
+		compilerJobsLog.Printf("Found custom job '%s' referenced in engine.env with no explicit needs: will run before activation", jobName)
+	}
+	return result
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager.
 // This function orchestrates the building of all job types by delegating to focused helper functions.
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
