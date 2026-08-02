@@ -32,9 +32,7 @@ tools:
     toolsets:
       - issues
   bash:
-    - "cat *"
-    - "jq *"
-    - "./.github/skills/jqschema/jqschema.sh"
+    - "*"
 steps:
   - name: Fetch issues
     env:

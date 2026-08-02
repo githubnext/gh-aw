@@ -28,9 +28,7 @@ tools:
     mode: gh-proxy
     toolsets: [default, issues, discussions]
   bash:
-    - "cat /tmp/gh-aw/agent/eslint-factory.log"
-    - "cat /tmp/gh-aw/agent/eslint-diagnostics.txt"
-    - "cat /tmp/gh-aw/agent/skill-index.txt"
+    - "*"
 steps:
   - name: Run ESLint factory pre-check
     id: eslint_scan

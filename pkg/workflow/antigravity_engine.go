@@ -27,11 +27,12 @@ func NewAntigravityEngine() *AntigravityEngine {
 			experimental:     true,
 			ghSkillAgentName: "antigravity",
 			capabilities: EngineCapabilities{
-				ToolsAllowlist:   true,
-				MaxTurns:         true,
-				MaxContinuations: false, // Antigravity CLI does not support --max-autopilot-continues-style continuation mode
-				WebSearch:        false,
-				NativeAgentFile:  false, // Antigravity does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				ToolsAllowlist:       true,
+				MaxTurns:             true,
+				MaxContinuations:     false, // Antigravity CLI does not support --max-autopilot-continues-style continuation mode
+				WebSearch:            false,
+				NativeAgentFile:      false, // Antigravity does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				BashCommandAllowlist: true,  // Antigravity enforces tools.bash allowlist via tools.core: [run_shell_command(cmd)]
 			},
 			dedicatedLLMGatewayPort: constants.AntigravityLLMGatewayPort,
 		},
