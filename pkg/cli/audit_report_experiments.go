@@ -56,6 +56,10 @@ func findExperimentStatePath(logsPath string) string {
 // For legacy state files that only contain "counts" (no "runs" field), the selected
 // variant is inferred by the max-count heuristic: the variant with the highest cumulative
 // count is assumed to have been selected last (ties broken by sorted variant order).
+//
+// When no experiment state file is found, the function falls back to reading the usage
+// activity summary (summary.json written by the conclusion job), which also includes
+// experiment assignments since v2+.
 func extractExperimentData(logsPath string) *ExperimentData {
 	if logsPath == "" {
 		return nil
@@ -64,53 +68,60 @@ func extractExperimentData(logsPath string) *ExperimentData {
 	experimentDataLog.Printf("Extracting experiment data from: %s", logsPath)
 
 	statePath := findExperimentStatePath(logsPath)
-	if statePath == "" {
-		experimentDataLog.Print("No experiment state file found")
-		return nil
-	}
+	if statePath != "" {
+		experimentDataLog.Printf("Reading experiment state from: %s", statePath)
+		raw, err := os.ReadFile(statePath)
+		if err == nil {
+			state := parseExperimentState(raw)
+			if len(state.Counts) > 0 {
+				experimentDataLog.Printf("Found %d experiment(s) in state file", len(state.Counts))
 
-	experimentDataLog.Printf("Reading experiment state from: %s", statePath)
-	raw, err := os.ReadFile(statePath)
-	if err != nil {
-		return nil
-	}
+				// When per-run records are available, use the most recent run's assignments directly
+				// instead of inferring them from cumulative counts.
+				if len(state.Runs) > 0 {
+					lastRun := state.Runs[len(state.Runs)-1]
+					if len(lastRun.Assignments) > 0 {
+						experimentDataLog.Printf("Using run record from run_id=%s (timestamp=%s)", lastRun.RunID, lastRun.Timestamp)
+						return &ExperimentData{
+							Assignments:      lastRun.Assignments,
+							CumulativeCounts: state.Counts,
+						}
+					}
+				}
 
-	state := parseExperimentState(raw)
-	if len(state.Counts) == 0 {
-		return nil
-	}
-
-	experimentDataLog.Printf("Found %d experiment(s) in state file", len(state.Counts))
-
-	// When per-run records are available, use the most recent run's assignments directly
-	// instead of inferring them from cumulative counts.
-	if len(state.Runs) > 0 {
-		lastRun := state.Runs[len(state.Runs)-1]
-		if len(lastRun.Assignments) > 0 {
-			experimentDataLog.Printf("Using run record from run_id=%s (timestamp=%s)", lastRun.RunID, lastRun.Timestamp)
-			return &ExperimentData{
-				Assignments:      lastRun.Assignments,
-				CumulativeCounts: state.Counts,
+				// Derive this-run assignments: the variant selected on the most-recent run is
+				// the one with the maximum count (ties resolved by sorted order).
+				assignments := make(map[string]string, len(state.Counts))
+				names := sliceutil.SortedKeys(state.Counts)
+				for _, name := range names {
+					variantCounts := state.Counts[name]
+					selected := deriveLastSelectedVariant(variantCounts)
+					assignments[name] = selected
+					experimentDataLog.Printf("Experiment %q: selected variant=%q", name, selected)
+				}
+				return &ExperimentData{
+					Assignments:      assignments,
+					CumulativeCounts: state.Counts,
+				}
 			}
 		}
 	}
 
-	// Derive this-run assignments: the variant selected on the most-recent run is
-	// the one with the maximum count (ties resolved by sorted order).
-	assignments := make(map[string]string, len(state.Counts))
-	names := sliceutil.SortedKeys(state.Counts)
-
-	for _, name := range names {
-		variantCounts := state.Counts[name]
-		selected := deriveLastSelectedVariant(variantCounts)
-		assignments[name] = selected
-		experimentDataLog.Printf("Experiment %q: selected variant=%q", name, selected)
+	// Fall back to the usage activity summary (written by the conclusion job).
+	// This is available when the experiment artifact was not downloaded separately,
+	// and the conclusion job was run with pick_experiment.cjs v2+ (JSONL ledger).
+	usageSummary, err := loadUsageActivitySummary(logsPath)
+	if err == nil && usageSummary != nil && usageSummary.Experiments != nil {
+		if len(usageSummary.Experiments.Assignments) > 0 {
+			experimentDataLog.Printf("Loaded experiment assignments from usage activity summary (%d experiment(s))", len(usageSummary.Experiments.Assignments))
+			return &ExperimentData{
+				Assignments: usageSummary.Experiments.Assignments,
+			}
+		}
 	}
 
-	return &ExperimentData{
-		Assignments:      assignments,
-		CumulativeCounts: state.Counts,
-	}
+	experimentDataLog.Print("No experiment data found")
+	return nil
 }
 
 // formatExperimentLabel returns a compact, human-readable label summarising the

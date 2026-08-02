@@ -783,16 +783,14 @@ func parseExperimentStateJSONL(data []byte) *ExperimentState {
 
 		var snapshot ExperimentState
 		if err := json.Unmarshal([]byte(line), &snapshot); err == nil && snapshot.Counts != nil {
-			if snapshot.Counts == nil {
-				snapshot.Counts = map[string]map[string]int{}
-			}
 			state = &snapshot
 			continue
 		}
 
 		var run ExperimentRunRecord
 		if err := json.Unmarshal([]byte(line), &run); err != nil || run.RunID == "" || run.Timestamp == "" || len(run.Assignments) == 0 {
-			return emptyExperimentState()
+			experimentsLog.Printf("parseExperimentStateJSONL: skipping unrecognized line")
+			continue
 		}
 		appendExperimentRun(state, run)
 	}

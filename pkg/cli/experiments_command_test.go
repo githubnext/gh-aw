@@ -401,3 +401,30 @@ func TestExperimentsAnalyzeRequiresArg(t *testing.T) {
 	err := cmd.Args(cmd, []string{})
 	assert.Error(t, err, "analyze should require exactly 1 argument")
 }
+
+func TestParseExperimentStateJSONLSkipsInvalidLines(t *testing.T) {
+	// Valid records plus an unrecognized line: the valid records should still be parsed.
+	data := `{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"style":"concise"}}
+this is not valid json
+{"run_id":"2","timestamp":"2024-06-02T10:00:00Z","assignments":{"style":"detailed"}}`
+
+	state := parseExperimentState([]byte(data))
+
+	require.NotNil(t, state)
+	assert.Equal(t, map[string]map[string]int{
+		"style": {"concise": 1, "detailed": 1},
+	}, state.Counts, "should accumulate counts from valid lines despite invalid lines")
+	assert.Len(t, state.Runs, 2, "should have 2 run records")
+}
+
+func TestParseExperimentStateJSONLAllInvalid(t *testing.T) {
+	// When all lines are invalid, should return an empty state (not nil).
+	data := `not json at all
+also not json`
+
+	state := parseExperimentState([]byte(data))
+
+	require.NotNil(t, state)
+	assert.Empty(t, state.Counts, "should return empty counts for all-invalid input")
+	assert.Empty(t, state.Runs, "should return empty runs for all-invalid input")
+}

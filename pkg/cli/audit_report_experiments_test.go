@@ -466,3 +466,76 @@ func TestExtractExperimentDataWithRuns(t *testing.T) {
 		assert.Equal(t, "concise", got.Assignments["style"], "should fall back to heuristic for empty assignments")
 	})
 }
+
+func TestExtractExperimentDataFallsBackToUsageSummary(t *testing.T) {
+	t.Run("reads assignments from usage activity summary when no state file present", func(t *testing.T) {
+		dir := t.TempDir()
+		usageDir := filepath.Join(dir, "usage", "activity")
+		require.NoError(t, os.MkdirAll(usageDir, 0o755))
+
+		summary := map[string]any{
+			"schema": "usage-activity-summary/v1",
+			"experiments": map[string]any{
+				"assignments": map[string]string{"style": "concise", "caveman": "yes"},
+			},
+		}
+		raw, err := json.Marshal(summary)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "summary.json"), raw, 0o600))
+
+		got := extractExperimentData(dir)
+		require.NotNil(t, got, "should return non-nil ExperimentData from usage summary")
+		assert.Equal(t, "concise", got.Assignments["style"])
+		assert.Equal(t, "yes", got.Assignments["caveman"])
+		assert.Nil(t, got.CumulativeCounts, "usage summary fallback does not have cumulative counts")
+	})
+
+	t.Run("prefers state file over usage summary when both exist", func(t *testing.T) {
+		dir := t.TempDir()
+
+		// Write experiment state file
+		state := map[string]any{
+			"counts": map[string]any{
+				"style": map[string]int{"detailed": 3, "concise": 1},
+			},
+		}
+		stateRaw, err := json.Marshal(state)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "state.json"), stateRaw, 0o600))
+
+		// Write usage activity summary with different assignments
+		usageDir := filepath.Join(dir, "usage", "activity")
+		require.NoError(t, os.MkdirAll(usageDir, 0o755))
+		summary := map[string]any{
+			"schema": "usage-activity-summary/v1",
+			"experiments": map[string]any{
+				"assignments": map[string]string{"style": "concise"},
+			},
+		}
+		summaryRaw, err := json.Marshal(summary)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "summary.json"), summaryRaw, 0o600))
+
+		got := extractExperimentData(dir)
+		require.NotNil(t, got, "should return non-nil ExperimentData")
+		// Should use state file (highest count = detailed)
+		assert.Equal(t, "detailed", got.Assignments["style"], "should prefer state file over usage summary")
+	})
+
+	t.Run("returns nil when usage summary has no experiments field", func(t *testing.T) {
+		dir := t.TempDir()
+		usageDir := filepath.Join(dir, "usage", "activity")
+		require.NoError(t, os.MkdirAll(usageDir, 0o755))
+
+		summary := map[string]any{
+			"schema":   "usage-activity-summary/v1",
+			"firewall": map[string]any{"total_requests": 10},
+		}
+		raw, err := json.Marshal(summary)
+		require.NoError(t, err)
+		require.NoError(t, os.WriteFile(filepath.Join(usageDir, "summary.json"), raw, 0o600))
+
+		got := extractExperimentData(dir)
+		assert.Nil(t, got, "should return nil when usage summary has no experiments")
+	})
+}

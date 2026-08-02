@@ -9,20 +9,33 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const req = createRequire(import.meta.url);
-const { parseFirewallLogs, parseSafeOutputsManifest } = req("./generate_usage_activity_summary.cjs");
+const { parseFirewallLogs, parseSafeOutputsManifest, parseExperimentsData } = req("./generate_usage_activity_summary.cjs");
 
 describe("generate_usage_activity_summary.cjs", () => {
   /** Unique directory for each test to avoid cross-test interference */
   let squidLogDir;
+  let experimentStateDir;
+  const origExperimentStateDir = process.env.GH_AW_EXPERIMENT_STATE_DIR;
 
   beforeEach(() => {
     squidLogDir = path.join("/tmp/gh-aw", `squid-logs-unit-test-${Date.now()}`);
+    experimentStateDir = path.join("/tmp/gh-aw", `experiment-unit-test-${Date.now()}`);
     fs.mkdirSync(squidLogDir, { recursive: true });
+    fs.mkdirSync(experimentStateDir, { recursive: true });
+    process.env.GH_AW_EXPERIMENT_STATE_DIR = experimentStateDir;
   });
 
   afterEach(() => {
     if (fs.existsSync(squidLogDir)) {
       fs.rmSync(squidLogDir, { recursive: true, force: true });
+    }
+    if (fs.existsSync(experimentStateDir)) {
+      fs.rmSync(experimentStateDir, { recursive: true, force: true });
+    }
+    if (origExperimentStateDir === undefined) {
+      delete process.env.GH_AW_EXPERIMENT_STATE_DIR;
+    } else {
+      process.env.GH_AW_EXPERIMENT_STATE_DIR = origExperimentStateDir;
     }
   });
 
@@ -145,6 +158,34 @@ describe("generate_usage_activity_summary.cjs", () => {
       expect(result).not.toBeNull();
       expect(result.total_items).toBe(1);
       expect(result.items_by_type).toEqual({ create_issue: 1 });
+    });
+  });
+
+  describe("parseExperimentsData", () => {
+    it("returns null when no assignments file exists", () => {
+      // No assignments.json in experimentStateDir
+      const result = parseExperimentsData();
+      expect(result).toBeNull();
+    });
+
+    it("returns null when assignments file is empty object", () => {
+      fs.writeFileSync(path.join(experimentStateDir, "assignments.json"), JSON.stringify({}));
+      const result = parseExperimentsData();
+      expect(result).toBeNull();
+    });
+
+    it("returns assignments when file contains experiment data", () => {
+      const assignments = { style: "concise", caveman: "yes" };
+      fs.writeFileSync(path.join(experimentStateDir, "assignments.json"), JSON.stringify(assignments));
+      const result = parseExperimentsData();
+      expect(result).not.toBeNull();
+      expect(result.assignments).toEqual(assignments);
+    });
+
+    it("returns null when assignments file is invalid JSON", () => {
+      fs.writeFileSync(path.join(experimentStateDir, "assignments.json"), "not json");
+      const result = parseExperimentsData();
+      expect(result).toBeNull();
     });
   });
 });
