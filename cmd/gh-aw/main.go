@@ -732,12 +732,14 @@ func createCommandSet() commandSet {
 	return cmds
 }
 
-func configureNewAndCompileFlags() {
+func configureNewCmdFlags() {
 	newCmd.Flags().BoolP("force", "f", false, "Overwrite existing workflow files without confirmation")
 	newCmd.Flags().BoolP("interactive", "i", false, "Launch interactive workflow creation wizard")
 	newCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
 	cli.RegisterEngineFlagCompletion(newCmd)
+}
 
+func configureCompileBuildFlags() {
 	compileCmd.Flags().StringP("engine", "e", "", cli.EngineFlagOverrideUsage)
 	compileCmd.Flags().String("action-mode", "", "How gh-aw action scripts are referenced in compiled workflows: 'dev' uses local paths (for developing gh-aw itself), 'release' emits SHA-pinned remote refs from github/gh-aw, 'action' uses the github/gh-aw-actions repository. Auto-detected from the binary build type if not specified")
 	compileCmd.Flags().String("action-tag", "", "Pin compiled workflows to a specific version of gh-aw actions. Accepts a full commit SHA or a version tag (e.g. v1, v1.2.3). Sets --action-mode to 'release' unless --action-mode action is also specified. Cannot be combined with --gh-aw-ref; use --gh-aw-ref when you want to resolve a branch or tag name to its current SHA")
@@ -757,7 +759,7 @@ func configureNewAndCompileFlags() {
 	_ = compileCmd.Flags().MarkHidden("use-samples")
 }
 
-func configureCompileFlagsContinued() {
+func configureCompileToolFlags() {
 	compileCmd.Flags().Bool("dependabot", false, "Generate dependency manifests (package.json, requirements.txt, go.mod) and Dependabot config when dependencies are detected")
 	compileCmd.Flags().BoolP("force", "f", false, "Force overwrite of existing dependency files (only applies when --dependabot is set; e.g., dependabot.yml)")
 	compileCmd.Flags().Bool("refresh-stop-time", false, "Force regeneration of stop-after times instead of preserving existing values from lock files")
@@ -785,7 +787,7 @@ func configureCompileFlagsContinued() {
 	compileCmd.Flags().Bool("ghes", false, "Enable GitHub Enterprise Server (GHES) compatibility mode. Artifact actions continue using latest non-v3 pins (v3 is deprecated). Overrides the aw.json ghes field.")
 }
 
-func finalizeCompileFlagSetup() {
+func finalizeCompileFlags() {
 	if err := compileCmd.Flags().MarkHidden("prior-manifest-file"); err != nil {
 		_ = err
 	}
@@ -869,9 +871,10 @@ func init() {
 	configureRootCommand()
 	rootCmd.SetHelpCommand(newCustomHelpCmd())
 	cmds := createCommandSet()
-	configureNewAndCompileFlags()
-	configureCompileFlagsContinued()
-	finalizeCompileFlagSetup()
+	configureNewCmdFlags()
+	configureCompileBuildFlags()
+	configureCompileToolFlags()
+	finalizeCompileFlags()
 	configureOtherCommandFlags()
 	assignCommandGroups(cmds)
 	addCommandsToRoot(cmds)

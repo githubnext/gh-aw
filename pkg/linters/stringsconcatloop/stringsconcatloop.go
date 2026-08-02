@@ -29,6 +29,15 @@ var Analyzer = &analysis.Analyzer{
 	Run:      run,
 }
 
+// concatLoopMatch holds the components of a string-concatenation-in-loop
+// assignment identified by collectConcatLoopAssignment.
+type concatLoopMatch struct {
+	assign   *ast.AssignStmt
+	lhsExpr  ast.Expr
+	loopNode ast.Node
+	pos      token.Position
+}
+
 func run(pass *analysis.Pass) (any, error) {
 	pkgLog.Printf("analyzing package %s", pass.Pkg.Path())
 	root, err := astutil.Root(pass)
@@ -45,15 +54,15 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	for cur := range root.Preorder((*ast.AssignStmt)(nil)) {
-		assign, lhsExpr, loopNode, pos, ok := collectConcatLoopAssignment(pass, cur, noLintIndex, generatedFiles)
+		m, ok := collectConcatLoopAssignment(pass, cur, noLintIndex, generatedFiles)
 		if !ok {
 			continue
 		}
-		if !shouldReportLoopConcat(pass, loopNode, lhsExpr) {
+		if !shouldReportLoopConcat(pass, m.loopNode, m.lhsExpr) {
 			continue
 		}
-		pkgLog.Printf("flagging string concatenation in loop at %s", pos)
-		pass.ReportRangef(assign, "string concatenation inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
+		pkgLog.Printf("flagging string concatenation in loop at %s", m.pos)
+		pass.ReportRangef(m.assign, "string concatenation inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
 	}
 
 	return nil, nil
@@ -64,27 +73,27 @@ func collectConcatLoopAssignment(
 	cur inspector.Cursor,
 	noLintIndex nolint.DirectiveIndex,
 	generatedFiles filecheck.GeneratedIndex,
-) (*ast.AssignStmt, ast.Expr, ast.Node, token.Position, bool) {
+) (*concatLoopMatch, bool) {
 	assign, ok := cur.Node().(*ast.AssignStmt)
 	if !ok {
-		return nil, nil, nil, token.Position{}, false
+		return nil, false
 	}
 	lhsExpr, ok := concatAssignmentLHS(assign)
 	if !ok {
-		return nil, nil, nil, token.Position{}, false
+		return nil, false
 	}
 	pos := pass.Fset.PositionFor(assign.Pos(), false)
 	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-		return nil, nil, nil, token.Position{}, false
+		return nil, false
 	}
 	loopPos, loopNode, inLoop := enclosingLoop(pass, cur)
 	if !inLoop {
-		return nil, nil, nil, token.Position{}, false
+		return nil, false
 	}
 	if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringsconcatloop") || nolint.HasDirectiveForLinter(loopPos, noLintIndex, "stringsconcatloop") {
-		return nil, nil, nil, token.Position{}, false
+		return nil, false
 	}
-	return assign, lhsExpr, loopNode, pos, true
+	return &concatLoopMatch{assign: assign, lhsExpr: lhsExpr, loopNode: loopNode, pos: pos}, true
 }
 
 func concatAssignmentLHS(assign *ast.AssignStmt) (ast.Expr, bool) {

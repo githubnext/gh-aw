@@ -173,8 +173,7 @@ func TestInitWarnings_InitializesAndPreservesMap(t *testing.T) {
 		initWarnings(ctx)
 
 		require.NotNil(t, ctx.Warnings, "Expected warnings map to remain initialized")
-		assert.Len(t, ctx.Warnings, 1, "Expected existing warnings to be preserved unchanged")
-		assert.True(t, ctx.Warnings["actions/checkout@v5"], "Expected existing warnings to be preserved unchanged")
+		assert.Equal(t, map[string]bool{"actions/checkout@v5": true}, ctx.Warnings, "Expected existing warnings to be preserved unchanged")
 	})
 }
 
