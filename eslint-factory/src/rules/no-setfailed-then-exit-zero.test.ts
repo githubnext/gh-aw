@@ -45,6 +45,16 @@ describe("no-setfailed-then-exit-zero", () => {
         `const { setFailed } = other; function f() { setFailed("bad"); process.exit(0); }`,
         // Destructured setFailed with return is the correct pattern
         `const { setFailed } = core; function f() { setFailed("bad"); return; }`,
+        // process.exitCode = 0 without a preceding core.setFailed is fine
+        `process.exitCode = 0;`,
+        // core.setFailed followed by process.exitCode = 1 is fine — non-zero code preserves failure
+        `core.setFailed("bad"); process.exitCode = 1;`,
+        // core.setFailed followed by process.exitCode = variable — runtime value unknown, not flagged
+        `core.setFailed("bad"); process.exitCode = code;`,
+        // return between setFailed and process.exitCode = 0 stops scanning
+        `function f() { core.setFailed("bad"); return; process.exitCode = 0; }`,
+        // process.exitCode = "0" (string, not the number literal) — not matched
+        `core.setFailed("bad"); process.exitCode = "0";`,
       ],
       invalid: [
         // Adjacent: core.setFailed immediately followed by process.exit(0)
@@ -96,6 +106,21 @@ describe("no-setfailed-then-exit-zero", () => {
         {
           code: `const { setFailed: sf } = core; function f() { sf("bad"); process.exit(0); }`,
           errors: [{ messageId: "noSetFailedThenExitZero", suggestions: [{ messageId: "replaceWithReturn", output: `const { setFailed: sf } = core; function f() { sf("bad"); return; }` }] }],
+        },
+        // Adjacent: core.setFailed immediately followed by process.exitCode = 0
+        {
+          code: `core.setFailed("bad"); process.exitCode = 0;`,
+          errors: [{ messageId: "noSetFailedThenExitCodeZero", suggestions: [{ messageId: "removeExitCodeZero", output: `core.setFailed("bad"); ` }] }],
+        },
+        // Non-adjacent: intervening log statement does not stop detection for exitCode = 0
+        {
+          code: `core.setFailed("bad"); core.info("msg"); process.exitCode = 0;`,
+          errors: [{ messageId: "noSetFailedThenExitCodeZero", suggestions: [{ messageId: "removeExitCodeZero", output: `core.setFailed("bad"); core.info("msg"); ` }] }],
+        },
+        // Inside a function
+        {
+          code: `function f() { core.setFailed("bad"); process.exitCode = 0; }`,
+          errors: [{ messageId: "noSetFailedThenExitCodeZero", suggestions: [{ messageId: "removeExitCodeZero", output: `function f() { core.setFailed("bad");  }` }] }],
         },
       ],
     });

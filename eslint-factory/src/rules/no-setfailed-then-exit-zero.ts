@@ -72,6 +72,30 @@ function isProcessExitZero(node: TSESTree.Statement): node is TSESTree.Expressio
 }
 
 /**
+ * Returns true when `node` is `process.exitCode = 0` (literal zero assignment).
+ * Unlike `process.exit(0)`, this does not halt execution, but it still silently
+ * resets the exit code to success, hiding a failure declared via `core.setFailed()`.
+ */
+function isProcessExitCodeZero(node: TSESTree.Statement): node is TSESTree.ExpressionStatement {
+  if (node.type !== AST_NODE_TYPES.ExpressionStatement) return false;
+  const expr = node.expression;
+  if (expr.type !== AST_NODE_TYPES.AssignmentExpression || expr.operator !== "=") return false;
+  const left = expr.left;
+  if (
+    left.type !== AST_NODE_TYPES.MemberExpression ||
+    left.computed ||
+    left.object.type !== AST_NODE_TYPES.Identifier ||
+    left.object.name !== "process" ||
+    left.property.type !== AST_NODE_TYPES.Identifier ||
+    left.property.name !== "exitCode"
+  ) {
+    return false;
+  }
+  const right = expr.right;
+  return right.type === AST_NODE_TYPES.Literal && right.value === 0;
+}
+
+/**
  * Returns true when `node` is a control-transfer statement that definitively
  * exits the current block: return, throw, break, continue, or process.exit(...).
  */
@@ -109,15 +133,18 @@ export const noSetFailedThenExitZeroRule = createRule({
     hasSuggestions: true,
     docs: {
       description:
-        "Disallow `process.exit(0)` (or `process.exit()`) after `core.setFailed()` in GitHub Actions scripts. " +
+        "Disallow `process.exit(0)` (or `process.exit()`) or `process.exitCode = 0` after `core.setFailed()` in GitHub Actions scripts. " +
         "`core.setFailed()` marks the step as failed by scheduling a non-zero exit code at process end. " +
-        "Calling `process.exit(0)` immediately after overrides that exit code to success, silently hiding the failure " +
-        "and causing the GitHub Actions step to appear successful despite the declared error.",
+        "Resetting the exit code to 0 afterward, whether by exiting immediately or by assigning `process.exitCode = 0`, " +
+        "overrides that exit code to success, silently hiding the failure and causing the GitHub Actions step to appear " +
+        "successful despite the declared error.",
     },
     schema: [],
     messages: {
       noSetFailedThenExitZero: "`process.exit(0)` after `core.setFailed()` silently resets the exit code to success, hiding the failure. " + "Replace `process.exit(0)` with `return;` to preserve the failure signal.",
       replaceWithReturn: "Replace `process.exit(0)` with `return;` to preserve the failure exit code.",
+      noSetFailedThenExitCodeZero: "`process.exitCode = 0` after `core.setFailed()` silently resets the exit code to success, hiding the failure. " + "Remove the assignment (or set a non-zero value) to preserve the failure signal.",
+      removeExitCodeZero: "Remove `process.exitCode = 0;` to preserve the failure exit code.",
     },
   },
   defaultOptions: [],
@@ -150,6 +177,24 @@ export const noSetFailedThenExitZeroRule = createRule({
                 : [],
             });
             break;
+          }
+
+          if (isProcessExitCodeZero(candidate)) {
+            context.report({
+              node: candidate,
+              messageId: "noSetFailedThenExitCodeZero",
+              suggest: [
+                {
+                  messageId: "removeExitCodeZero",
+                  fix(fixer: TSESLint.RuleFixer) {
+                    return fixer.remove(candidate);
+                  },
+                },
+              ],
+            });
+            // process.exitCode = 0 does not halt execution, so keep scanning for
+            // further statements (e.g. a later process.exit(0) at the same level).
+            continue;
           }
 
           // Stop scanning at any control-transfer (return, throw, break, process.exit(nonzero), etc.)
