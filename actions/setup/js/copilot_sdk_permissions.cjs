@@ -355,10 +355,15 @@ function buildCopilotSDKPermissionHandler(permissionConfig, approveAll, logOptio
         // Always allow reads for paths at or under the workspace root (GITHUB_WORKSPACE).
         // Every workflow runs inside its own checkout and must be able to read its source tree
         // regardless of any narrower tool-permission scoping configured elsewhere.
+        //
+        // Use path.resolve + path.relative for containment rather than a string-prefix check so
+        // that ".." traversal paths (e.g. workspace/../../../../etc/passwd) are rejected and
+        // relative paths (e.g. "AGENTS.md") are correctly resolved inside the workspace.
         if (logOptions?.workspaceRoot && typeof request.path === "string" && request.path.length > 0) {
-          const normalizedWorkspace = normalizePermissionPath(logOptions.workspaceRoot);
-          const normalizedPath = normalizePermissionPath(request.path);
-          if (normalizedPath === normalizedWorkspace || normalizedPath.startsWith(normalizedWorkspace + "/")) {
+          const resolvedWorkspace = path.resolve(logOptions.workspaceRoot);
+          const resolvedPath = path.isAbsolute(request.path) ? path.resolve(request.path) : path.resolve(resolvedWorkspace, request.path);
+          const rel = path.relative(resolvedWorkspace, resolvedPath);
+          if (rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel))) {
             return true;
           }
         }
