@@ -43,7 +43,7 @@ steps:
       sleep 2
       ollama serve &
       echo "Waiting for Ollama service..."
-      for i in $(seq 1 30); do
+      for _ in $(seq 1 30); do
         if curl -sf http://localhost:11434/api/version > /dev/null 2>&1; then
           echo "Ollama is ready"
           break
@@ -65,7 +65,7 @@ steps:
 
       echo "Waiting for Ollama OpenAI-compatible endpoint..."
       MAX_WAIT_SECONDS=30
-      for i in $(seq 1 "$MAX_WAIT_SECONDS"); do
+      for _ in $(seq 1 "$MAX_WAIT_SECONDS"); do
         if curl -sf http://localhost:11434/v1/models > /dev/null 2>&1; then
           echo "Ollama /v1/models is ready"
           exit 0
