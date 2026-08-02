@@ -60,6 +60,7 @@ Available subcommands:
 	}
 
 	// Add subcommands
+	cmd.AddCommand(newLegacyGHGuardSubcommand())
 	cmd.AddCommand(NewPRTransferSubcommand())
 
 	return cmd
