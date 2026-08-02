@@ -768,6 +768,114 @@ Some content here.`;
       }
     });
 
+    test("does not false-positive ai_credits_rate_limit_error from rpc-messages.jsonl content with rate-limit branch names and ai-credits commit messages", async () => {
+      // Regression test: rpc-messages.jsonl contains MCP tool call responses that include
+      // arbitrary repository data (branch names, commit messages) which can contain keywords
+      // like "rate-limit" and "ai-credits". These must NOT be treated as real rate limit errors.
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-test-"));
+      const rpcMessagesPath = path.join(tmpDir, "rpc-messages.jsonl");
+      const originalExistsSync = fs.existsSync;
+      const originalReadFileSync = fs.readFileSync;
+
+      try {
+        // Simulate a list_branches MCP response with a branch that contains "rate-limit"
+        // followed later in the same response by a branch with "ai-credits" (pattern 2 match)
+        const branchesPayload = JSON.stringify({
+          timestamp: "2026-08-02T08:39:00Z",
+          event: "message",
+          direction: "IN",
+          server_id: "github",
+          payload: {
+            result: {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify([
+                    { name: "schema-coverage-rate-limit-6dc5507939c41e8a", sha: "abc123" },
+                    { name: "signed/jsweep/ai-credits-context-5df6a8a73adbb3c8", sha: "def456" },
+                  ]),
+                },
+              ],
+            },
+          },
+        });
+        // Simulate a list_workflow_runs MCP response with a commit message containing both
+        // "AI credits" and "rate-limit" (pattern 1 match)
+        const runsPayload = JSON.stringify({
+          timestamp: "2026-08-02T08:42:00Z",
+          event: "message",
+          direction: "IN",
+          server_id: "github",
+          payload: {
+            result: {
+              content: [
+                {
+                  type: "text",
+                  text: JSON.stringify([
+                    {
+                      id: 30740108209,
+                      head_commit: {
+                        message: "Fix AI credits throughput rate-limit errors being silently swallowed (#49360)",
+                      },
+                    },
+                  ]),
+                },
+              ],
+            },
+          },
+        });
+        fs.writeFileSync(rpcMessagesPath, [branchesPayload, runsPayload].join("\n"));
+
+        const mockCore = {
+          info: vi.fn(),
+          debug: vi.fn(),
+          startGroup: vi.fn(),
+          endGroup: vi.fn(),
+          notice: vi.fn(),
+          warning: vi.fn(),
+          error: vi.fn(),
+          setFailed: vi.fn(),
+          exportVariable: vi.fn(),
+          setOutput: vi.fn(),
+          summary: {
+            addRaw: vi.fn().mockReturnThis(),
+            addDetails: vi.fn().mockReturnThis(),
+            write: vi.fn(),
+          },
+        };
+
+        fs.existsSync = vi.fn(filepath => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") return true;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.md") return false;
+          if (filepath === "/tmp/gh-aw/mcp-logs/gateway.jsonl") return false;
+          return originalExistsSync(filepath);
+        });
+
+        fs.readFileSync = vi.fn((filepath, encoding) => {
+          if (filepath === "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl") {
+            return originalReadFileSync(rpcMessagesPath, encoding);
+          }
+          return originalReadFileSync(filepath, encoding);
+        });
+
+        global.core = mockCore;
+
+        const { main } = require("./parse_mcp_gateway_log.cjs");
+        await main();
+
+        // ai_credits_rate_limit_error must NOT be set to true from branch names / commit messages
+        const setOutputCalls = mockCore.setOutput.mock.calls;
+        const rateLimitCall = setOutputCalls.find(([name]) => name === "ai_credits_rate_limit_error");
+        expect(rateLimitCall).toBeDefined();
+        expect(rateLimitCall[1]).toBe("false");
+      } finally {
+        fs.existsSync = originalExistsSync;
+        fs.readFileSync = originalReadFileSync;
+        delete global.core;
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
     test("calls setFailed when an unexpected error is thrown inside main", async () => {
       const originalExistsSync = fs.existsSync;
       const originalReadFileSync = fs.readFileSync;

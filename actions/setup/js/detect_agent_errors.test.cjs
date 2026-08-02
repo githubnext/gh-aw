@@ -5,9 +5,12 @@ const {
   isCAPIQuotaExceededError,
   isInvocationCapExceededError,
   isMaxCacheMissesExceededError,
+  isAgenticEngineTimeout,
   INFERENCE_ACCESS_ERROR_PATTERN,
   MCP_POLICY_BLOCKED_PATTERN,
   AGENTIC_ENGINE_TIMEOUT_PATTERN,
+  WATCHDOG_SIGTERM_PATTERN,
+  STEP_TIMEOUT_SIGTERM_PATTERN,
   MODEL_NOT_SUPPORTED_PATTERN,
   HTTP_400_RESPONSE_ERROR_PATTERN,
   CAPI_QUOTA_EXCEEDED_PATTERN,
@@ -520,6 +523,33 @@ commentary" has no AI credits pricing`;
       expect(result.missingModelPricingModelName).toBe("");
     });
 
+    it("does not report engine timeout when post-result watchdog fired SIGTERM (watchdogFired=true)", () => {
+      // Mirrors the actual failing run: watchdog terminated idle process, not a step timeout
+      const log = [
+        "[copilot-harness] attempt 1: post-result watchdog terminating idle process after 20736ms (SIGTERM)",
+        "[copilot-harness] attempt 1: process exit event exitCode=1 signal=SIGTERM",
+        "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=12m 38s stdout=0B stderr=431678B hasOutput=true watchdogFired=true",
+        "[copilot-harness] attempt 1 failed: exitCode=1 failureClass=authentication_failed",
+      ].join("\n");
+      const result = detectErrors(log);
+      expect(result.agenticEngineTimeout).toBe(false);
+    });
+
+    it("reports engine timeout when SIGTERM is from step timeout (watchdogFired=false)", () => {
+      const log = [
+        "[copilot-harness] attempt 1: process exit event exitCode=1 signal=SIGTERM",
+        "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s stdout=1234B stderr=567B hasOutput=true watchdogFired=false",
+      ].join("\n");
+      const result = detectErrors(log);
+      expect(result.agenticEngineTimeout).toBe(true);
+    });
+
+    it("reports engine timeout when SIGTERM is from step timeout (no watchdogFired field)", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s stdout=1234B stderr=567B hasOutput=true";
+      const result = detectErrors(log);
+      expect(result.agenticEngineTimeout).toBe(true);
+    });
+
     it("detects max cache misses exceeded (JSON error type form)", () => {
       const result = detectErrors('{"error":{"type":"max_cache_misses_exceeded","message":"Maximum consecutive cache misses exceeded (6 / 5).","consecutive_cache_misses":6,"max_cache_misses":5}}');
       expect(result.maxCacheMissesExceeded).toBe(true);
@@ -579,6 +609,99 @@ commentary" has no AI credits pricing`;
 
     it("returns false for unrelated content", () => {
       expect(isMaxCacheMissesExceededError("Some unrelated error message")).toBe(false);
+    });
+  });
+
+  describe("WATCHDOG_SIGTERM_PATTERN", () => {
+    it("matches a process closed line with SIGTERM and watchdogFired=true", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=12m 38s hasOutput=true watchdogFired=true";
+      expect(WATCHDOG_SIGTERM_PATTERN.test(log)).toBe(true);
+    });
+
+    it("does not match a process closed line with SIGTERM and watchdogFired=false", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s hasOutput=true watchdogFired=false";
+      expect(WATCHDOG_SIGTERM_PATTERN.test(log)).toBe(false);
+    });
+
+    it("does not match a process closed line with SIGTERM and no watchdogFired field", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s hasOutput=true";
+      expect(WATCHDOG_SIGTERM_PATTERN.test(log)).toBe(false);
+    });
+
+    it("does not match a process exit event line (not process closed)", () => {
+      const log = "[copilot-harness] attempt 1: process exit event exitCode=1 signal=SIGTERM";
+      expect(WATCHDOG_SIGTERM_PATTERN.test(log)).toBe(false);
+    });
+  });
+
+  describe("STEP_TIMEOUT_SIGTERM_PATTERN", () => {
+    it("matches a process closed line with SIGTERM and no watchdogFired field", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s hasOutput=true";
+      expect(STEP_TIMEOUT_SIGTERM_PATTERN.test(log)).toBe(true);
+    });
+
+    it("matches a process closed line with SIGTERM and watchdogFired=false", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s hasOutput=true watchdogFired=false";
+      expect(STEP_TIMEOUT_SIGTERM_PATTERN.test(log)).toBe(true);
+    });
+
+    it("does not match a process closed line with SIGTERM and watchdogFired=true", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=12m 38s hasOutput=true watchdogFired=true";
+      expect(STEP_TIMEOUT_SIGTERM_PATTERN.test(log)).toBe(false);
+    });
+  });
+
+  describe("isAgenticEngineTimeout", () => {
+    it("returns true for SDK session.idle timeout", () => {
+      expect(isAgenticEngineTimeout("[sdk-driver] error: Timeout after 870000ms waiting for session.idle")).toBe(true);
+    });
+
+    it("returns true for step-timeout SIGTERM (no watchdogFired field)", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 12s hasOutput=true";
+      expect(isAgenticEngineTimeout(log)).toBe(true);
+    });
+
+    it("returns true for step-timeout SIGTERM (watchdogFired=false)", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=20m 0s hasOutput=true watchdogFired=false";
+      expect(isAgenticEngineTimeout(log)).toBe(true);
+    });
+
+    it("returns true for SIGTERM in a non-process-closed context", () => {
+      expect(isAgenticEngineTimeout("Claude CLI terminated with signal=SIGTERM after timeout")).toBe(true);
+    });
+
+    it("returns true for SIGKILL", () => {
+      const log = "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGKILL duration=20m 0s hasOutput=true";
+      expect(isAgenticEngineTimeout(log)).toBe(true);
+    });
+
+    it("returns false for post-result watchdog SIGTERM (watchdogFired=true)", () => {
+      // Mirrors the actual failing run: watchdog terminated idle process after authentication failure
+      const log = [
+        "[copilot-harness] attempt 1: post-result watchdog terminating idle process after 20736ms (SIGTERM)",
+        "[copilot-harness] attempt 1: process exit event exitCode=1 signal=SIGTERM",
+        "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=12m 38s stdout=0B stderr=431678B hasOutput=true watchdogFired=true",
+        "[copilot-harness] attempt 1 failed: exitCode=1 failureClass=authentication_failed",
+      ].join("\n");
+      expect(isAgenticEngineTimeout(log)).toBe(false);
+    });
+
+    it("returns true when both a watchdog SIGTERM and a step-timeout SIGTERM are present", () => {
+      // If there's a watchdog AND a non-watchdog "process closed" SIGTERM, it's still a timeout
+      const log = [
+        "[copilot-harness] attempt 1: process closed exitCode=1 signal=SIGTERM duration=10m 0s hasOutput=true watchdogFired=true",
+        "[copilot-harness] attempt 2: process closed exitCode=1 signal=SIGTERM duration=20m 0s hasOutput=true watchdogFired=false",
+      ].join("\n");
+      expect(isAgenticEngineTimeout(log)).toBe(true);
+    });
+
+    it("returns false for empty log", () => {
+      expect(isAgenticEngineTimeout("")).toBe(false);
+    });
+
+    it("returns false for unrelated content", () => {
+      expect(isAgenticEngineTimeout("CAPIError: 400 Bad Request")).toBe(false);
+      expect(isAgenticEngineTimeout("MCP server timeout")).toBe(false);
     });
   });
 

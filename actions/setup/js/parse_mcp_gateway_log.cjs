@@ -842,7 +842,11 @@ async function main() {
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(jsonlContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(jsonlContent);
       modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(jsonlContent);
-      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([jsonlContent]);
+      // Do NOT scan gateway.jsonl / rpc-messages.jsonl for AI credits rate limit errors.
+      // These files contain full MCP tool call request/response payloads including arbitrary
+      // repository data (branch names, commit messages, file contents) that can false-positively
+      // match the rate-limit patterns. Real AI credits rate limit errors from the inference API
+      // appear in gateway.log / stderr.log / gateway.md, not in MCP RPC message logs.
       unknownModelAICredits ||= hasUnknownModelAICreditsError([jsonlContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in gateway.jsonl`);
@@ -862,7 +866,7 @@ async function main() {
       difcFilteredEvents = parseGatewayJsonlForDifcFiltered(rpcMessagesContent);
       tokenSteeringEvents = parseGatewayJsonlForTokenSteering(rpcMessagesContent);
       modelAliasResolutionEvents = parseGatewayJsonlForModelAliasResolution(rpcMessagesContent);
-      aiCreditsRateLimitError ||= hasAICreditsRateLimitError([rpcMessagesContent]);
+      // Do NOT scan rpc-messages.jsonl for AI credits rate limit errors (same reason as gateway.jsonl above).
       unknownModelAICredits ||= hasUnknownModelAICreditsError([rpcMessagesContent]);
       if (difcFilteredEvents.length > 0) {
         core.info(`Found ${difcFilteredEvents.length} DIFC_FILTERED event(s) in rpc-messages.jsonl`);
