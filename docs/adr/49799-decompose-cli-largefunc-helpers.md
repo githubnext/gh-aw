@@ -1,7 +1,7 @@
 # ADR-49799: Decompose Oversized CLI Functions into Focused Helper Functions
 
 **Date**: 2026-08-02
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: pelikhan, app/copilot-swe-agent
 
 ---
@@ -41,4 +41,4 @@ Move the orchestration phases into new dedicated packages or types rather than i
 
 ---
 
-*ADR created by [adr-writer agent]. Review and finalize before changing status from Draft to Accepted.*
+*ADR created by [adr-writer agent]. Status: Accepted.*
