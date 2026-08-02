@@ -1,1 +1,1 @@
-{"id":"model_size_goal_met","question":"Does the agent output show that the objective for experiment model_size was successfully completed?","answer":"UNKNOWN","model":"claude-haiku-4.5","timestamp":"2026-08-02T14:09:49.362Z","runid":"30751208738"}
+{"id":"model_size_goal_met","question":"Does the agent output show that the objective for experiment model_size was successfully completed?","answer":"UNKNOWN","model":"claude-sonnet-4.6","timestamp":"2026-08-02T14:22:53.015Z","runid":"30751501825"}
