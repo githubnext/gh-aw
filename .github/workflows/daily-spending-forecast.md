@@ -145,7 +145,7 @@ Write the final GitHub-flavored markdown report to
 `/tmp/gh-aw/agent/spending-forecast/report.md`, then create one issue titled
 `Daily spending forecast - YYYY-MM-DD` with the same report body.
 
-Use `###` headings and include:
+Use `###` (h3) or lower for all report headers; never use `#` or `##` inside the report body. Include:
 
 - a concise executive summary with total observed AIC and weekly/monthly P10, P50, and
   P90 forecast totals;
@@ -158,6 +158,8 @@ Use `###` headings and include:
 - assumptions, forecast date, 30-day history window, and a link to
   `[§${{ github.run_id }}](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})`.
 
-Wrap verbose per-workflow evidence in `<details><summary>...</summary>`. If the initial
+Wrap verbose per-workflow evidence in `<details><summary><b>...</b></summary>...</details>`. If the initial
 forecast failed and follow-up cannot recover it, still create an operational report from
 the captured diagnostics rather than presenting fabricated projections.
+
+Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
