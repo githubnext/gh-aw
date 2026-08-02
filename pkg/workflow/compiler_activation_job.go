@@ -54,23 +54,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		return nil, fmt.Errorf("failed to add activation command and label outputs: %w", err)
 	}
 	ctx.steps = append(ctx.steps, buildRuntimeFeaturesSummaryStep()...)
-
-	// Generate experiment selection steps when experiments are declared in the frontmatter.
-	// These steps run before the prompt is built so that experiments.name expressions
-	// can be resolved by the substitute_placeholders step.
-	if experimentSteps := c.generateExperimentSteps(data); len(experimentSteps) > 0 {
-		compilerActivationJobLog.Printf("Adding %d experiment step(s) for %d experiment(s)", len(experimentSteps), len(data.Experiments))
-		ctx.steps = append(ctx.steps, experimentSteps...)
-		// Expose the combined experiment JSON as a job output so downstream jobs can access
-		// the variant assignments via needs.activation.outputs.experiments.
-		ctx.outputs["experiments"] = "${{ steps.pick-experiment.outputs.experiments }}"
-		// Also expose each experiment variant individually so downstream jobs can reference
-		// needs.activation.outputs.<name> in timeout-minutes or other expressions.
-		for _, name := range sortedExperimentNames(data.Experiments) {
-			ctx.outputs[name] = "${{ steps.pick-experiment.outputs." + name + " }}"
-		}
-	}
-
+	c.addActivationExperimentOutputs(ctx)
 	c.configureActivationNeedsAndCondition(ctx)
 	compilerActivationJobLog.Print("Generating prompt in activation job")
 	c.generatePromptInActivationJob(&ctx.steps, data, preActivationJobCreated, ctx.customJobsBeforeActivation)
@@ -79,15 +63,34 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		ctx.steps = append(ctx.steps, "      - run: echo \"Activation success\"\n")
 	}
 
-	if c.actionMode.IsScript() {
-		ctx.steps = append(ctx.steps, c.generateScriptModeCleanupStep())
-	}
-
 	permissions, err := c.buildActivationPermissions(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to build activation permissions: %w", err)
 	}
+	c.addActivationScriptCleanupIfNeeded(ctx)
+	return c.finalizeActivationJob(data, workflowRunRepoSafety, ctx, permissions), nil
+}
 
+func (c *Compiler) addActivationExperimentOutputs(ctx *activationJobBuildContext) {
+	experimentSteps := c.generateExperimentSteps(ctx.data)
+	if len(experimentSteps) == 0 {
+		return
+	}
+	compilerActivationJobLog.Printf("Adding %d experiment step(s) for %d experiment(s)", len(experimentSteps), len(ctx.data.Experiments))
+	ctx.steps = append(ctx.steps, experimentSteps...)
+	ctx.outputs["experiments"] = "${{ steps.pick-experiment.outputs.experiments }}"
+	for _, name := range sortedExperimentNames(ctx.data.Experiments) {
+		ctx.outputs[name] = "${{ steps.pick-experiment.outputs." + name + " }}"
+	}
+}
+
+func (c *Compiler) addActivationScriptCleanupIfNeeded(ctx *activationJobBuildContext) {
+	if c.actionMode.IsScript() {
+		ctx.steps = append(ctx.steps, c.generateScriptModeCleanupStep())
+	}
+}
+
+func (c *Compiler) finalizeActivationJob(data *WorkflowData, workflowRunRepoSafety string, ctx *activationJobBuildContext, permissions string) *Job {
 	return &Job{
 		Name:                       string(constants.ActivationJobName),
 		If:                         ctx.activationCondition,
@@ -99,7 +102,7 @@ func (c *Compiler) buildActivationJob(data *WorkflowData, preActivationJobCreate
 		Steps:                      ctx.steps,
 		Outputs:                    ctx.outputs,
 		Needs:                      ctx.activationNeeds,
-	}, nil
+	}
 }
 
 func addActivationInteractionPermissions(
@@ -392,46 +395,48 @@ func (c *Compiler) generateResolveHostRepoStep(data *WorkflowData) string {
 // runs before the agent job and needs independent access to workflow files for runtime imports during
 // prompt generation.
 func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData) []string {
-	// Check if action-tag is specified - if so, skip checkout
-	if data != nil && data.Features != nil {
-		if actionTagVal, exists := data.Features["action-tag"]; exists {
-			if actionTagStr, ok := actionTagVal.(string); ok && actionTagStr != "" {
-				// action-tag is set, no checkout needed
-				compilerActivationJobLog.Print("Skipping .github checkout in activation: action-tag specified")
-				return nil
-			}
-		}
+	if shouldSkipActivationGitHubFolderCheckout(data) {
+		compilerActivationJobLog.Print("Skipping .github checkout in activation: action-tag specified")
+		return nil
 	}
+	extraPaths := c.activationSparseCheckoutExtraPaths(data)
+	activationToken := c.resolveActivationToken(data)
+	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
+		return c.generateWorkflowCallActivationCheckout(activationToken, extraPaths)
+	}
+	compilerActivationJobLog.Print("Adding .github, .agents, and engine-specific dirs to sparse checkout for activation job")
+	return NewCheckoutManager(nil).GenerateGitHubFolderCheckoutStep("", "", activationToken, c.getActionPin, extraPaths...)
+}
 
-	// Note: We don't check data.Permissions for contents read access here because
-	// the activation job ALWAYS gets contents:read added to its permissions (see buildActivationJob
-	// around line 720). The workflow's original permissions may not include contents:read,
-	// but the activation job will always have it for GitHub API access and runtime imports.
-	// The agent job uses only the user-specified permissions (no automatic contents:read augmentation).
+func shouldSkipActivationGitHubFolderCheckout(data *WorkflowData) bool {
+	if data == nil || data.Features == nil {
+		return false
+	}
+	actionTagStr, _ := data.Features["action-tag"].(string)
+	return actionTagStr != ""
+}
 
-	// For workflow_call triggers, checkout the callee (platform) repository using the target_repo
-	// and target_checkout_ref outputs from the resolve-host-repo step. That step uses
-	// job.workflow_repository and job.workflow_sha to identify the platform repo and pin to the
-	// exact commit, correctly handling all relay patterns including cross-repo and cross-org scenarios.
-	// (target_checkout_ref carries the SHA; target_ref carries the dispatch-compatible branch/tag ref.)
-	//
-	// Skip when inlined-imports is enabled: content is embedded at compile time and no
-	// runtime-import macros are used, so the callee's .md files are not needed at runtime.
-	// In dev mode, actions/setup is referenced via a local workspace path (./actions/setup),
-	// so it must be included in the sparse-checkout to preserve it for the post step.
-	// In release/script/action modes, the action is in the runner cache and not the workspace.
+func (c *Compiler) activationSparseCheckoutExtraPaths(data *WorkflowData) []string {
 	var extraPaths []string
 	if c.actionMode.IsDev() {
 		compilerActivationJobLog.Print("Dev mode: adding actions/setup to sparse-checkout to preserve local action post step")
 		extraPaths = append(extraPaths, "actions/setup")
 	}
+	extraPaths = append(extraPaths, activationEngineSpecificSparseCheckoutDirs(data)...)
+	repoRoot := c.gitRoot
+	if repoRoot == "" {
+		if cwd, err := os.Getwd(); err == nil {
+			repoRoot = cwd
+		}
+	}
+	extraPaths = resolveSymlinkExtraPaths(repoRoot, extraPaths)
+	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
+	return extraPaths
+}
 
-	// Add engine-specific agent config directories to the sparse checkout.
-	// .github and .agents are already included in GenerateGitHubFolderCheckoutStep's hardcoded list.
-	// Root instruction files (AGENTS.md, CLAUDE.md, GEMINI.md) are excluded — they are not needed
-	// during activation and are omitted to keep the shallow checkout minimal.
-	defaultSparseCheckoutDirs := map[string]struct {
-	}{".github": {}, ".agents": {}}
+func activationEngineSpecificSparseCheckoutDirs(data *WorkflowData) []string {
+	defaultSparseCheckoutDirs := map[string]struct{}{".github": {}, ".agents": {}}
+	var extraPaths []string
 	registry := GetGlobalEngineRegistry()
 	for _, folder := range registry.GetAllAgentManifestFolders() {
 		if !setutil.Contains(defaultSparseCheckoutDirs, folder) {
@@ -443,50 +448,26 @@ func (c *Compiler) generateCheckoutGitHubFolderForActivation(data *WorkflowData)
 			extraPaths = append(extraPaths, folder)
 		}
 	}
-	compilerActivationJobLog.Printf("Adding %d engine-specific dirs to sparse-checkout: %v", len(extraPaths), extraPaths)
+	return extraPaths
+}
 
-	// Detect symlinks for well-known .github sub-paths and add their resolved targets
-	// so that sparse checkout fetches the target directory, not just the symlink blob.
-	// Use c.gitRoot so detection works regardless of the process CWD.
-	repoRoot := c.gitRoot
-	if repoRoot == "" {
-		if cwd, err := os.Getwd(); err == nil {
-			repoRoot = cwd
-		}
-	}
-	extraPaths = resolveSymlinkExtraPaths(repoRoot, extraPaths)
-
+func (c *Compiler) generateWorkflowCallActivationCheckout(activationToken string, extraPaths []string) []string {
+	compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
 	cm := NewCheckoutManager(nil)
-	activationToken := c.resolveActivationToken(data)
-	if data != nil && hasWorkflowCallTrigger(data.On) && !data.InlinedImports {
-		compilerActivationJobLog.Print("Adding cross-repo-aware .github checkout for workflow_call trigger")
-		cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
-		cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_checkout_ref }}")
-		checkoutSteps := cm.GenerateGitHubFolderCheckoutStep(
-			cm.GetCrossRepoTargetRepo(),
-			cm.GetCrossRepoTargetRef(),
-			activationToken,
-			c.getActionPin,
-			extraPaths...,
-		)
-		// When no custom token is configured, GITHUB_TOKEN is scoped to the calling
-		// repository and cannot read a private callee repository in cross-repo invocations
-		// (e.g. nbcnews/tvOS-App calling nbcnews/.github). Add an if: condition so the
-		// checkout is only attempted for same-repo invocations where GITHUB_TOKEN works.
-		// For cross-repo scenarios, users can enable the checkout by configuring
-		// activation-github-token or activation-github-app in the workflow frontmatter.
-		if activationToken == "${{ secrets.GITHUB_TOKEN }}" {
-			compilerActivationJobLog.Print("No custom activation token — restricting cross-repo checkout to same-repo invocations")
-			checkoutSteps = addSameRepoIfConditionToSteps(checkoutSteps)
-		}
-		return checkoutSteps
+	cm.SetCrossRepoTargetRepo("${{ steps.resolve-host-repo.outputs.target_repo }}")
+	cm.SetCrossRepoTargetRef("${{ steps.resolve-host-repo.outputs.target_checkout_ref }}")
+	checkoutSteps := cm.GenerateGitHubFolderCheckoutStep(
+		cm.GetCrossRepoTargetRepo(),
+		cm.GetCrossRepoTargetRef(),
+		activationToken,
+		c.getActionPin,
+		extraPaths...,
+	)
+	if activationToken == "${{ secrets.GITHUB_TOKEN }}" {
+		compilerActivationJobLog.Print("No custom activation token — restricting cross-repo checkout to same-repo invocations")
+		return addSameRepoIfConditionToSteps(checkoutSteps)
 	}
-
-	// For activation job, sparse checkout .github, .agents, and engine-specific config directories
-	// (plus actions/setup in dev mode). Root instruction files are excluded as they are not needed
-	// during activation. sparse-checkout-cone-mode: true ensures subdirectories are recursively included.
-	compilerActivationJobLog.Print("Adding .github, .agents, and engine-specific dirs to sparse checkout for activation job")
-	return cm.GenerateGitHubFolderCheckoutStep("", "", activationToken, c.getActionPin, extraPaths...)
+	return checkoutSteps
 }
 
 func localSkillSparseCheckoutTopLevelDirs(data *WorkflowData) []string {

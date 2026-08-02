@@ -91,131 +91,91 @@ func (c *Compiler) generateWorkflowBody(yaml *strings.Builder, data *WorkflowDat
 
 func (c *Compiler) generateYAML(data *WorkflowData, markdownPath string) (string, []string, []string, error) {
 	compilerYamlLog.Printf("Generating YAML for workflow: %s", data.Name)
-
-	// Compute frontmatter hash BEFORE building jobs so that the stable hash is
-	// available to heredoc-delimiter generation throughout job construction.
-	// Using the hex-encoded SHA-256 frontmatter hash string as an HMAC key keeps
-	// the compiled lock file identical across repeated compilations of the same workflow.
-	var frontmatterHash string
-	var bodyHash string
-	if markdownPath != "" {
-		baseDir := filepath.Dir(markdownPath)
-		cache := parser.NewImportCache(baseDir)
-
-		// computeWorkflowHash calls the parsed-content path when RawMarkdown is
-		// available (fast path), falling back to a disk read otherwise.
-		computeWorkflowHash := func(
-			fromParsed func() (string, error),
-			fromFile func() (string, error),
-		) (string, error) {
-			if data.RawMarkdown != "" {
-				return fromParsed()
-			}
-			compilerYamlLog.Printf("RawMarkdown not set; falling back to reading file from disk: %s", markdownPath)
-			return fromFile()
-		}
-
-		hash, err := computeWorkflowHash(
-			func() (string, error) {
-				return parser.ComputeFrontmatterHashFromParsedContent(data.FrontmatterYAML, data.RawMarkdown, data.RawFrontmatter, baseDir, cache, parser.DefaultFileReader)
-			},
-			func() (string, error) {
-				return parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
-			},
-		)
-		if err != nil {
-			return "", nil, nil, fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
-		}
-		frontmatterHash = hash
-		compilerYamlLog.Printf("Computed frontmatter hash: %s", hash)
-
-		// Compute body hash to cover changes to the markdown body that are not captured
-		// by the frontmatter hash. This enables stale-check: full detection.
-		bHash, bErr := computeWorkflowHash(
-			func() (string, error) {
-				return parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
-			},
-			func() (string, error) {
-				return parser.ComputeBodyHashFromFile(markdownPath)
-			},
-		)
-		if bErr != nil {
-			compilerYamlLog.Printf("Warning: could not compute body hash for %q: %v", markdownPath, bErr)
-			// Non-fatal: continue without body hash
-		} else {
-			bodyHash = bHash
-			compilerYamlLog.Printf("Computed body hash: %s", bodyHash)
-		}
+	frontmatterHash, bodyHash, err := c.computeWorkflowHashes(data, markdownPath)
+	if err != nil {
+		return "", nil, nil, err
 	}
-	// Store hash on WorkflowData so job-building helpers (MCP renderers, prompt
-	// step generators, etc.) can derive stable heredoc delimiters from it.
 	data.FrontmatterHash = frontmatterHash
-
-	// Build all jobs and validate dependencies
 	if err := c.buildJobsAndValidate(data, markdownPath); err != nil {
 		return "", nil, nil, fmt.Errorf("failed to build and validate jobs: %w", err)
 	}
+	yamlContent, secrets, actions := c.buildFinalWorkflowYAML(data, frontmatterHash, bodyHash)
+	yamlContent = c.finalizeGeneratedYAML(yamlContent, data)
 
-	// Pre-allocate builder capacity based on estimated workflow size.
-	// Copilot/Claude workflows with safe-outputs typically compile to ~70–90 KB.
-	// 96 KB avoids the first reallocation for the common case. The performance
-	// benefit of this function comes from eliminating the intermediate copies
-	// that RenderToYAML + WriteString used to incur, not from capacity reduction.
+	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
+	return yamlContent, secrets, actions, nil
+}
+
+func (c *Compiler) computeWorkflowHashes(data *WorkflowData, markdownPath string) (string, string, error) {
+	if markdownPath == "" {
+		return "", "", nil
+	}
+	baseDir := filepath.Dir(markdownPath)
+	cache := parser.NewImportCache(baseDir)
+	hash, err := c.computeWorkflowHashValue(data, markdownPath, func() (string, error) {
+		return parser.ComputeFrontmatterHashFromParsedContent(data.FrontmatterYAML, data.RawMarkdown, data.RawFrontmatter, baseDir, cache, parser.DefaultFileReader)
+	}, func() (string, error) {
+		return parser.ComputeFrontmatterHashFromFileWithParsedFrontmatter(markdownPath, data.RawFrontmatter, cache, parser.DefaultFileReader)
+	})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to generate workflow YAML: could not compute stable frontmatter hash for %q: %w", markdownPath, err)
+	}
+	bodyHash, bodyErr := c.computeWorkflowHashValue(data, markdownPath, func() (string, error) {
+		return parser.ComputeBodyHashFromParsedContent(data.RawMarkdown, data.FrontmatterYAML, baseDir, parser.DefaultFileReader)
+	}, func() (string, error) {
+		return parser.ComputeBodyHashFromFile(markdownPath)
+	})
+	if bodyErr != nil {
+		compilerYamlLog.Printf("Warning: could not compute body hash for %q: %v", markdownPath, bodyErr)
+		bodyHash = ""
+	}
+	return hash, bodyHash, nil
+}
+
+func (c *Compiler) computeWorkflowHashValue(data *WorkflowData, markdownPath string, fromParsed func() (string, error), fromFile func() (string, error)) (string, error) {
+	if data.RawMarkdown != "" {
+		return fromParsed()
+	}
+	compilerYamlLog.Printf("RawMarkdown not set; falling back to reading file from disk: %s", markdownPath)
+	return fromFile()
+}
+
+func (c *Compiler) buildFinalWorkflowYAML(data *WorkflowData, frontmatterHash, bodyHash string) (string, []string, []string) {
 	const initialBuilderCapacity = 96 * 1024
+	bodyContent, secrets, actions := c.renderWorkflowBodyWithMetadata(data, initialBuilderCapacity)
 	var yaml strings.Builder
 	yaml.Grow(initialBuilderCapacity)
+	c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions)
+	yaml.WriteString(bodyContent)
+	return yaml.String(), secrets, actions
+}
 
-	// Generate workflow body first so we can collect secrets and custom actions
-	// for inclusion in the header comment.
-	var body strings.Builder
-	body.Grow(initialBuilderCapacity)
-	c.generateWorkflowBody(&body, data)
-	bodyContent := body.String()
-
-	// Collect secrets and external action references from the generated body.
-	// These are returned to the caller so they can be used for safe update enforcement
-	// without requiring a second scan of the full YAML content.
+func (c *Compiler) renderWorkflowBodyWithMetadata(data *WorkflowData, capacity int) (string, []string, []string) {
+	bodyContent := c.renderWorkflowBody(data, capacity)
 	secrets := CollectSecretReferences(bodyContent)
 	actions := CollectActionReferences(bodyContent)
-
-	// If this workflow has a workflow_call trigger, inject on.workflow_call.secrets:
-	// declarations so callers can map secrets explicitly instead of using secrets: inherit.
-	// We update data.On and regenerate the body so the compiled output includes the
-	// declarations. The set of secrets does not change between the two passes (the
-	// injected declarations do not add new ${{ secrets.* }} references).
 	if hasWorkflowCallTrigger(data.On) && len(secrets) > 0 {
 		updatedOn := injectWorkflowCallSecretsSection(data.On, secrets)
 		if updatedOn != data.On {
 			data.On = updatedOn
-			body.Reset()
-			body.Grow(initialBuilderCapacity)
-			c.generateWorkflowBody(&body, data)
-			bodyContent = body.String()
+			bodyContent = c.renderWorkflowBody(data, capacity)
 			compilerYamlLog.Printf("Regenerated workflow body with on.workflow_call.secrets declarations")
 		}
 	}
+	return bodyContent, secrets, actions
+}
 
-	// Generate workflow header comments (including metadata as first line, plus secrets/actions lists)
-	c.generateWorkflowHeader(&yaml, data, frontmatterHash, bodyHash, secrets, actions)
+func (c *Compiler) renderWorkflowBody(data *WorkflowData, capacity int) string {
+	var body strings.Builder
+	body.Grow(capacity)
+	c.generateWorkflowBody(&body, data)
+	return body.String()
+}
 
-	// Append the workflow body
-	yaml.WriteString(bodyContent)
-
-	yamlContent := yaml.String()
-
-	// If we're in non-cloning trial mode and this workflow has issue triggers,
-	// replace github.event.issue.number with inputs.issue_number
+func (c *Compiler) finalizeGeneratedYAML(yamlContent string, data *WorkflowData) string {
 	if c.trialMode && c.hasIssueTrigger(data.On) {
 		compilerYamlLog.Print("Trial mode enabled, replacing issue number references")
 		yamlContent = c.replaceIssueNumberReferences(yamlContent)
 	}
-
-	// Normalize assembled YAML whitespace. This clears indentation-only blank lines
-	// everywhere, trims trailing whitespace on structural YAML lines, preserves
-	// block-scalar payload content, caps over-long structural blank runs, and
-	// ensures the file ends with exactly one trailing newline.
-	yamlContent = normalizeBlankLines(yamlContent)
-
-	compilerYamlLog.Printf("Successfully generated YAML for workflow: %s (%d bytes)", data.Name, len(yamlContent))
-	return yamlContent, secrets, actions, nil
+	return normalizeBlankLines(yamlContent)
 }

@@ -363,24 +363,7 @@ func injectProxyEnvIntoCustomSteps(customSteps string) string {
 	if customSteps == "" {
 		return customSteps
 	}
-
-	// Extract version comments from uses lines before unmarshaling.
-	// YAML treats "# comment" as a comment and strips it during Unmarshal, so we
-	// must capture them here and re-apply after processing to preserve annotations
-	// like "uses: actions/upload-artifact@sha # v7" in the compiled lock file.
-	// Without this, gh-aw-manifest falls back to recording the SHA as the version.
-	versionComments := make(map[string]string) // key: action@sha, value: " # vX"
-	for line := range strings.SplitSeq(customSteps, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, "uses:") && strings.Contains(trimmed, " # ") {
-			parts := strings.SplitN(trimmed, " # ", 2)
-			if len(parts) == 2 {
-				usesValue := strings.TrimSpace(strings.TrimPrefix(parts[0], "uses:"))
-				versionComments[usesValue] = " # " + parts[1]
-			}
-		}
-	}
-
+	versionComments := captureProxyStepVersionComments(customSteps)
 	var parsed struct {
 		Steps []map[string]any `yaml:"steps"`
 	}
@@ -388,34 +371,7 @@ func injectProxyEnvIntoCustomSteps(customSteps string) string {
 		difcProxyLog.Printf("injectProxyEnvIntoCustomSteps: could not parse custom steps, returning as-is: %v", err)
 		return customSteps
 	}
-
-	proxyEnv := proxyEnvVars()
-
-	// Convert each step to an ordered MapSlice with priority fields first so that
-	// name/uses stay ahead of env for stable diffs, then merge proxy env vars.
-	orderedSteps := make([]yaml.MapSlice, len(parsed.Steps))
-	for i, step := range parsed.Steps {
-		envMap, ok := step["env"].(map[string]any)
-		if !ok {
-			envMap = make(map[string]any)
-		}
-		for k, v := range proxyEnv {
-			envMap[k] = v
-		}
-		step["env"] = envMap
-
-		// Re-apply version comment to uses value so the comment survives re-serialization.
-		if usesVal, hasUses := step["uses"]; hasUses {
-			if usesStr, ok := usesVal.(string); ok {
-				if comment, hasComment := versionComments[usesStr]; hasComment {
-					step["uses"] = usesStr + comment
-				}
-			}
-		}
-
-		orderedSteps[i] = OrderMapFields(step, constants.PriorityStepFields)
-	}
-
+	orderedSteps := buildProxyInjectedOrderedSteps(parsed.Steps, versionComments)
 	resultBytes, err := yaml.MarshalWithOptions(
 		map[string]any{"steps": orderedSteps},
 		yaml.Indent(2),
@@ -429,6 +385,52 @@ func injectProxyEnvIntoCustomSteps(customSteps string) string {
 	// The YAML marshaller quotes strings containing "#" (version comments), but
 	// GitHub Actions expects unquoted uses values.
 	return unquoteUsesWithComments(strings.TrimRight(string(resultBytes), "\n"))
+}
+
+func captureProxyStepVersionComments(customSteps string) map[string]string {
+	versionComments := make(map[string]string)
+	for line := range strings.SplitSeq(customSteps, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "uses:") && strings.Contains(trimmed, " # ") {
+			parts := strings.SplitN(trimmed, " # ", 2)
+			if len(parts) == 2 {
+				versionComments[strings.TrimSpace(strings.TrimPrefix(parts[0], "uses:"))] = " # " + parts[1]
+			}
+		}
+	}
+	return versionComments
+}
+
+func buildProxyInjectedOrderedSteps(steps []map[string]any, versionComments map[string]string) []yaml.MapSlice {
+	proxyEnv := proxyEnvVars()
+	orderedSteps := make([]yaml.MapSlice, len(steps))
+	for i, step := range steps {
+		mergeProxyEnvIntoStep(step, proxyEnv)
+		reapplyProxyVersionComment(step, versionComments)
+		orderedSteps[i] = OrderMapFields(step, constants.PriorityStepFields)
+	}
+	return orderedSteps
+}
+
+func mergeProxyEnvIntoStep(step map[string]any, proxyEnv map[string]string) {
+	envMap, ok := step["env"].(map[string]any)
+	if !ok {
+		envMap = make(map[string]any)
+	}
+	for k, v := range proxyEnv {
+		envMap[k] = v
+	}
+	step["env"] = envMap
+}
+
+func reapplyProxyVersionComment(step map[string]any, versionComments map[string]string) {
+	usesStr, ok := step["uses"].(string)
+	if !ok {
+		return
+	}
+	if comment, hasComment := versionComments[usesStr]; hasComment {
+		step["uses"] = usesStr + comment
+	}
 }
 
 // generateStopDIFCProxyStep generates a step that stops the DIFC proxy container

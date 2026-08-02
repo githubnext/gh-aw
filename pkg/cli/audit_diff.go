@@ -66,28 +66,33 @@ type FirewallDiffSummary struct {
 // Either analysis may be nil, indicating no firewall data for that run.
 func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *FirewallDiff {
 	auditDiffLog.Printf("Computing firewall diff: run1=%d, run2=%d", run1ID, run2ID)
-	diff := &FirewallDiff{
-		Run1ID: run1ID,
-		Run2ID: run2ID,
-	}
-
-	// Handle nil cases
-	run1Stats := make(map[string]DomainRequestStats)
-	run2Stats := make(map[string]DomainRequestStats)
-
-	if run1 != nil {
-		run1Stats = run1.RequestsByDomain
-	}
-	if run2 != nil {
-		run2Stats = run2.RequestsByDomain
-	}
-
-	// If both are nil/empty, return empty diff
+	ctx := &firewallDiffContext{diff: &FirewallDiff{Run1ID: run1ID, Run2ID: run2ID}}
+	run1Stats := firewallRequestStats(run1)
+	run2Stats := firewallRequestStats(run2)
 	if len(run1Stats) == 0 && len(run2Stats) == 0 {
-		return diff
+		return ctx.diff
 	}
+	for _, domain := range collectFirewallDomains(run1Stats, run2Stats) {
+		stats1, inRun1 := run1Stats[domain]
+		stats2, inRun2 := run2Stats[domain]
+		processFirewallDomain(ctx, domain, stats1, inRun1, stats2, inRun2)
+	}
+	return finalizeFirewallDiff(ctx)
+}
 
-	// Collect all domains
+type firewallDiffContext struct {
+	diff         *FirewallDiff
+	anomalyCount int
+}
+
+func firewallRequestStats(analysis *FirewallAnalysis) map[string]DomainRequestStats {
+	if analysis == nil {
+		return map[string]DomainRequestStats{}
+	}
+	return analysis.RequestsByDomain
+}
+
+func collectFirewallDomains(run1Stats, run2Stats map[string]DomainRequestStats) []string {
 	allDomains := make(map[string]struct{})
 	for domain := range run1Stats {
 		allDomains[domain] = struct{}{}
@@ -95,122 +100,131 @@ func computeFirewallDiff(run1ID, run2ID int64, run1, run2 *FirewallAnalysis) *Fi
 	for domain := range run2Stats {
 		allDomains[domain] = struct{}{}
 	}
-
-	// Sorted domain list for deterministic output
-	sortedDomains := sliceutil.SortedKeys(allDomains)
-
-	anomalyCount := 0
-
-	for _, domain := range sortedDomains {
-		stats1, inRun1 := run1Stats[domain]
-		stats2, inRun2 := run2Stats[domain]
-
-		if !inRun1 && inRun2 {
-			// New domain in run 2
-			entry := DomainDiffEntry{
-				Domain:        domain,
-				DiffEntryBase: DiffEntryBase{Status: "new"},
-				Run2Allowed:   stats2.Allowed,
-				Run2Blocked:   stats2.Blocked,
-				Run2Status:    classifyFirewallDomainStatus(stats2),
-			}
-			// Anomaly: new denied domain
-			if stats2.Blocked > 0 {
-				entry.IsAnomaly = true
-				entry.AnomalyNote = "new denied domain"
-				anomalyCount++
-			}
-			diff.NewDomains = append(diff.NewDomains, entry)
-		} else if inRun1 && !inRun2 {
-			// Removed domain
-			entry := DomainDiffEntry{
-				Domain:        domain,
-				DiffEntryBase: DiffEntryBase{Status: "removed"},
-				Run1Allowed:   stats1.Allowed,
-				Run1Blocked:   stats1.Blocked,
-				Run1Status:    classifyFirewallDomainStatus(stats1),
-			}
-			// Anomaly: the removed domain was denied in the base run.  This indicates a
-			// transient firewall block that prevented the agent from reaching an MCP server
-			// (e.g. awmg-mcpg:8080) — even though the domain is absent from the comparison
-			// run (and therefore looks "normal"), its prior denial is worth surfacing so
-			// post-completion relaunch failures are detectable in audit diffs.
-			if stats1.Blocked > 0 {
-				entry.IsAnomaly = true
-				entry.AnomalyNote = "denied in base run — absent from comparison run"
-				anomalyCount++
-			}
-			diff.RemovedDomains = append(diff.RemovedDomains, entry)
-		} else {
-			// Domain exists in both runs - check for changes
-			status1 := classifyFirewallDomainStatus(stats1)
-			status2 := classifyFirewallDomainStatus(stats2)
-
-			if status1 != status2 {
-				// Status changed
-				entry := DomainDiffEntry{
-					Domain:        domain,
-					DiffEntryBase: DiffEntryBase{Status: "status_changed"},
-					Run1Allowed:   stats1.Allowed,
-					Run1Blocked:   stats1.Blocked,
-					Run2Allowed:   stats2.Allowed,
-					Run2Blocked:   stats2.Blocked,
-					Run1Status:    status1,
-					Run2Status:    status2,
-				}
-				// Anomaly: previously denied, now allowed
-				if status1 == "denied" && status2 == "allowed" {
-					entry.IsAnomaly = true
-					entry.AnomalyNote = "previously denied, now allowed"
-					anomalyCount++
-				}
-				// Anomaly: previously allowed, now denied
-				if status1 == "allowed" && status2 == "denied" {
-					entry.IsAnomaly = true
-					entry.AnomalyNote = "previously allowed, now denied"
-					anomalyCount++
-				}
-				diff.StatusChanges = append(diff.StatusChanges, entry)
-			} else {
-				// Check for significant volume changes (>100% threshold)
-				total1 := stats1.Allowed + stats1.Blocked
-				total2 := stats2.Allowed + stats2.Blocked
-
-				if total1 > 0 {
-					pctChange := (float64(total2-total1) / float64(total1)) * 100
-					if math.Abs(pctChange) > volumeChangeThresholdPercent {
-						entry := DomainDiffEntry{
-							Domain:        domain,
-							DiffEntryBase: DiffEntryBase{Status: "volume_changed"},
-							Run1Allowed:   stats1.Allowed,
-							Run1Blocked:   stats1.Blocked,
-							Run2Allowed:   stats2.Allowed,
-							Run2Blocked:   stats2.Blocked,
-							Run1Status:    status1,
-							Run2Status:    status2,
-							VolumeChange:  formatVolumeChange(total1, total2),
-						}
-						diff.VolumeChanges = append(diff.VolumeChanges, entry)
-					}
-				}
-			}
-		}
-	}
-
-	diff.Summary = FirewallDiffSummary{
-		NewDomainCount:     len(diff.NewDomains),
-		RemovedDomainCount: len(diff.RemovedDomains),
-		StatusChangeCount:  len(diff.StatusChanges),
-		VolumeChangeCount:  len(diff.VolumeChanges),
-		HasAnomalies:       anomalyCount > 0,
-		AnomalyCount:       anomalyCount,
-	}
-
-	auditDiffLog.Printf("Firewall diff complete: new=%d, removed=%d, status_changes=%d, volume_changes=%d, anomalies=%d",
-		len(diff.NewDomains), len(diff.RemovedDomains), len(diff.StatusChanges), len(diff.VolumeChanges), anomalyCount)
-	return diff
+	return sliceutil.SortedKeys(allDomains)
 }
 
+func processFirewallDomain(ctx *firewallDiffContext, domain string, stats1 DomainRequestStats, inRun1 bool, stats2 DomainRequestStats, inRun2 bool) {
+	switch {
+	case !inRun1 && inRun2:
+		ctx.diff.NewDomains = append(ctx.diff.NewDomains, buildNewFirewallDomainEntry(ctx, domain, stats2))
+	case inRun1 && !inRun2:
+		ctx.diff.RemovedDomains = append(ctx.diff.RemovedDomains, buildRemovedFirewallDomainEntry(ctx, domain, stats1))
+	default:
+		processSharedFirewallDomain(ctx, domain, stats1, stats2)
+	}
+}
+
+func buildNewFirewallDomainEntry(ctx *firewallDiffContext, domain string, stats DomainRequestStats) DomainDiffEntry {
+	entry := DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "new"},
+		Run2Allowed:   stats.Allowed,
+		Run2Blocked:   stats.Blocked,
+		Run2Status:    classifyFirewallDomainStatus(stats),
+	}
+	if stats.Blocked > 0 {
+		entry.IsAnomaly = true
+		entry.AnomalyNote = "new denied domain"
+		ctx.anomalyCount++
+	}
+	return entry
+}
+
+func buildRemovedFirewallDomainEntry(ctx *firewallDiffContext, domain string, stats DomainRequestStats) DomainDiffEntry {
+	entry := DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "removed"},
+		Run1Allowed:   stats.Allowed,
+		Run1Blocked:   stats.Blocked,
+		Run1Status:    classifyFirewallDomainStatus(stats),
+	}
+	if stats.Blocked > 0 {
+		entry.IsAnomaly = true
+		entry.AnomalyNote = "denied in base run — absent from comparison run"
+		ctx.anomalyCount++
+	}
+	return entry
+}
+
+func processSharedFirewallDomain(ctx *firewallDiffContext, domain string, stats1, stats2 DomainRequestStats) {
+	status1 := classifyFirewallDomainStatus(stats1)
+	status2 := classifyFirewallDomainStatus(stats2)
+	if maybeAppendFirewallStatusChange(ctx, domain, stats1, stats2, status1, status2) {
+		return
+	}
+	maybeAppendFirewallVolumeChange(ctx, domain, stats1, stats2, status1, status2)
+}
+
+func maybeAppendFirewallStatusChange(ctx *firewallDiffContext, domain string, stats1, stats2 DomainRequestStats, status1, status2 string) bool {
+	if status1 == status2 {
+		return false
+	}
+	entry := DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "status_changed"},
+		Run1Allowed:   stats1.Allowed,
+		Run1Blocked:   stats1.Blocked,
+		Run2Allowed:   stats2.Allowed,
+		Run2Blocked:   stats2.Blocked,
+		Run1Status:    status1,
+		Run2Status:    status2,
+	}
+	markFirewallStatusChangeAnomaly(ctx, &entry, status1, status2)
+	ctx.diff.StatusChanges = append(ctx.diff.StatusChanges, entry)
+	return true
+}
+
+func markFirewallStatusChangeAnomaly(ctx *firewallDiffContext, entry *DomainDiffEntry, status1, status2 string) {
+	switch {
+	case status1 == "denied" && status2 == "allowed":
+		entry.IsAnomaly = true
+		entry.AnomalyNote = "previously denied, now allowed"
+		ctx.anomalyCount++
+	case status1 == "allowed" && status2 == "denied":
+		entry.IsAnomaly = true
+		entry.AnomalyNote = "previously allowed, now denied"
+		ctx.anomalyCount++
+	}
+}
+
+func maybeAppendFirewallVolumeChange(ctx *firewallDiffContext, domain string, stats1, stats2 DomainRequestStats, status1, status2 string) {
+	total1 := stats1.Allowed + stats1.Blocked
+	total2 := stats2.Allowed + stats2.Blocked
+	if total1 == 0 {
+		return
+	}
+	pctChange := (float64(total2-total1) / float64(total1)) * 100
+	if math.Abs(pctChange) <= volumeChangeThresholdPercent {
+		return
+	}
+	ctx.diff.VolumeChanges = append(ctx.diff.VolumeChanges, DomainDiffEntry{
+		Domain:        domain,
+		DiffEntryBase: DiffEntryBase{Status: "volume_changed"},
+		Run1Allowed:   stats1.Allowed,
+		Run1Blocked:   stats1.Blocked,
+		Run2Allowed:   stats2.Allowed,
+		Run2Blocked:   stats2.Blocked,
+		Run1Status:    status1,
+		Run2Status:    status2,
+		VolumeChange:  formatVolumeChange(total1, total2),
+	})
+}
+
+func finalizeFirewallDiff(ctx *firewallDiffContext) *FirewallDiff {
+	ctx.diff.Summary = FirewallDiffSummary{
+		NewDomainCount:     len(ctx.diff.NewDomains),
+		RemovedDomainCount: len(ctx.diff.RemovedDomains),
+		StatusChangeCount:  len(ctx.diff.StatusChanges),
+		VolumeChangeCount:  len(ctx.diff.VolumeChanges),
+		HasAnomalies:       ctx.anomalyCount > 0,
+		AnomalyCount:       ctx.anomalyCount,
+	}
+	auditDiffLog.Printf("Firewall diff complete: new=%d, removed=%d, status_changes=%d, volume_changes=%d, anomalies=%d",
+		len(ctx.diff.NewDomains), len(ctx.diff.RemovedDomains), len(ctx.diff.StatusChanges), len(ctx.diff.VolumeChanges), ctx.anomalyCount)
+	return ctx.diff
+}
+
+// classifyFirewallDomainStatus returns "allowed", "denied", or "mixed" based on request stats
 // classifyFirewallDomainStatus returns "allowed", "denied", or "mixed" based on request stats
 func classifyFirewallDomainStatus(stats DomainRequestStats) string {
 	if stats.Allowed > 0 && stats.Blocked == 0 {
@@ -413,188 +427,227 @@ func mcpToolKey(serverName, toolName string) string {
 // computeMCPToolsDiff computes the diff between two runs' MCP tool usage.
 // run1 is the "before" (baseline) and run2 is the "after" (comparison target).
 func computeMCPToolsDiff(run1, run2 *MCPToolUsageData) *MCPToolsDiff {
-	run1Count, run2Count := 0, 0
-	if run1 != nil {
-		run1Count = len(run1.Summary)
+	run1Tools := mcpToolSummaryMap(run1)
+	run2Tools := mcpToolSummaryMap(run2)
+	auditDiffLog.Printf("Computing MCP tools diff: run1_tools=%d, run2_tools=%d", len(run1Tools), len(run2Tools))
+	ctx := &mcpToolsDiffContext{diff: &MCPToolsDiff{}}
+	for _, key := range collectMCPToolKeys(run1Tools, run2Tools) {
+		processMCPToolDiffKey(ctx, key, run1Tools, run2Tools)
 	}
-	if run2 != nil {
-		run2Count = len(run2.Summary)
+	ctx.diff.Summary = MCPToolsDiffSummary{
+		NewToolCount:     len(ctx.diff.NewTools),
+		RemovedToolCount: len(ctx.diff.RemovedTools),
+		ChangedToolCount: len(ctx.diff.ChangedTools),
+		HasAnomalies:     ctx.anomalyCount > 0,
+		AnomalyCount:     ctx.anomalyCount,
 	}
-	auditDiffLog.Printf("Computing MCP tools diff: run1_tools=%d, run2_tools=%d", run1Count, run2Count)
-	run1Tools := make(map[string]MCPToolSummary)
-	run2Tools := make(map[string]MCPToolSummary)
+	return ctx.diff
+}
 
-	if run1 != nil {
-		for _, s := range run1.Summary {
-			run1Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
-		}
-	}
-	if run2 != nil {
-		for _, s := range run2.Summary {
-			run2Tools[mcpToolKey(s.ServerName, s.ToolName)] = s
-		}
-	}
+type mcpToolsDiffContext struct {
+	diff         *MCPToolsDiff
+	anomalyCount int
+}
 
+func mcpToolSummaryMap(run *MCPToolUsageData) map[string]MCPToolSummary {
+	tools := make(map[string]MCPToolSummary)
+	if run == nil {
+		return tools
+	}
+	for _, summary := range run.Summary {
+		tools[mcpToolKey(summary.ServerName, summary.ToolName)] = summary
+	}
+	return tools
+}
+
+func collectMCPToolKeys(run1Tools, run2Tools map[string]MCPToolSummary) []string {
 	allKeys := make(map[string]struct{})
-	for k := range run1Tools {
-		allKeys[k] = struct{}{}
+	for key := range run1Tools {
+		allKeys[key] = struct{}{}
 	}
-	for k := range run2Tools {
-		allKeys[k] = struct{}{}
+	for key := range run2Tools {
+		allKeys[key] = struct{}{}
 	}
+	return sliceutil.SortedKeys(allKeys)
+}
 
-	sortedKeys := sliceutil.SortedKeys(allKeys)
-
-	diff := &MCPToolsDiff{}
-	anomalyCount := 0
-
-	for _, key := range sortedKeys {
-		s1, inRun1 := run1Tools[key]
-		s2, inRun2 := run2Tools[key]
-
-		if !inRun1 && inRun2 {
-			entry := MCPToolDiffEntry{
-				ServerName:     s2.ServerName,
-				ToolName:       s2.ToolName,
-				DiffEntryBase:  DiffEntryBase{Status: "new"},
-				Run2CallCount:  s2.CallCount,
-				Run2ErrorCount: s2.ErrorCount,
-			}
-			if s2.ErrorCount > 0 {
-				entry.IsAnomaly = true
-				entry.AnomalyNote = "new tool with errors"
-				anomalyCount++
-			}
-			diff.NewTools = append(diff.NewTools, entry)
-		} else if inRun1 && !inRun2 {
-			diff.RemovedTools = append(diff.RemovedTools, MCPToolDiffEntry{
-				ServerName:     s1.ServerName,
-				ToolName:       s1.ToolName,
-				DiffEntryBase:  DiffEntryBase{Status: "removed"},
-				Run1CallCount:  s1.CallCount,
-				Run1ErrorCount: s1.ErrorCount,
-			})
-		} else if s1.CallCount != s2.CallCount || s1.ErrorCount != s2.ErrorCount {
-			entry := MCPToolDiffEntry{
-				ServerName:      s1.ServerName,
-				ToolName:        s1.ToolName,
-				DiffEntryBase:   DiffEntryBase{Status: "changed"},
-				Run1CallCount:   s1.CallCount,
-				Run2CallCount:   s2.CallCount,
-				Run1ErrorCount:  s1.ErrorCount,
-				Run2ErrorCount:  s2.ErrorCount,
-				CallCountChange: formatCountChange(s1.CallCount, s2.CallCount),
-			}
-			if s2.ErrorCount > s1.ErrorCount {
-				entry.IsAnomaly = true
-				entry.AnomalyNote = "error count increased"
-				anomalyCount++
-			}
-			diff.ChangedTools = append(diff.ChangedTools, entry)
-		}
+func processMCPToolDiffKey(ctx *mcpToolsDiffContext, key string, run1Tools, run2Tools map[string]MCPToolSummary) {
+	s1, inRun1 := run1Tools[key]
+	s2, inRun2 := run2Tools[key]
+	switch {
+	case !inRun1 && inRun2:
+		ctx.diff.NewTools = append(ctx.diff.NewTools, buildNewMCPToolDiffEntry(ctx, s2))
+	case inRun1 && !inRun2:
+		ctx.diff.RemovedTools = append(ctx.diff.RemovedTools, buildRemovedMCPToolDiffEntry(s1))
+	case s1.CallCount != s2.CallCount || s1.ErrorCount != s2.ErrorCount:
+		ctx.diff.ChangedTools = append(ctx.diff.ChangedTools, buildChangedMCPToolDiffEntry(ctx, s1, s2))
 	}
+}
 
-	diff.Summary = MCPToolsDiffSummary{
-		NewToolCount:     len(diff.NewTools),
-		RemovedToolCount: len(diff.RemovedTools),
-		ChangedToolCount: len(diff.ChangedTools),
-		HasAnomalies:     anomalyCount > 0,
-		AnomalyCount:     anomalyCount,
+func buildNewMCPToolDiffEntry(ctx *mcpToolsDiffContext, summary MCPToolSummary) MCPToolDiffEntry {
+	entry := MCPToolDiffEntry{
+		ServerName:     summary.ServerName,
+		ToolName:       summary.ToolName,
+		DiffEntryBase:  DiffEntryBase{Status: "new"},
+		Run2CallCount:  summary.CallCount,
+		Run2ErrorCount: summary.ErrorCount,
 	}
+	if summary.ErrorCount > 0 {
+		entry.IsAnomaly = true
+		entry.AnomalyNote = "new tool with errors"
+		ctx.anomalyCount++
+	}
+	return entry
+}
 
-	return diff
+func buildRemovedMCPToolDiffEntry(summary MCPToolSummary) MCPToolDiffEntry {
+	return MCPToolDiffEntry{
+		ServerName:     summary.ServerName,
+		ToolName:       summary.ToolName,
+		DiffEntryBase:  DiffEntryBase{Status: "removed"},
+		Run1CallCount:  summary.CallCount,
+		Run1ErrorCount: summary.ErrorCount,
+	}
+}
+
+func buildChangedMCPToolDiffEntry(ctx *mcpToolsDiffContext, before, after MCPToolSummary) MCPToolDiffEntry {
+	entry := MCPToolDiffEntry{
+		ServerName:      before.ServerName,
+		ToolName:        before.ToolName,
+		DiffEntryBase:   DiffEntryBase{Status: "changed"},
+		Run1CallCount:   before.CallCount,
+		Run2CallCount:   after.CallCount,
+		Run1ErrorCount:  before.ErrorCount,
+		Run2ErrorCount:  after.ErrorCount,
+		CallCountChange: formatCountChange(before.CallCount, after.CallCount),
+	}
+	if after.ErrorCount > before.ErrorCount {
+		entry.IsAnomaly = true
+		entry.AnomalyNote = "error count increased"
+		ctx.anomalyCount++
+	}
+	return entry
 }
 
 // computeRunMetricsDiff computes the diff of run-level metrics between two runs.
+// computeRunMetricsDiff computes the diff of run-level metrics between two runs.
 // Returns nil if no meaningful metrics data is available.
 func computeRunMetricsDiff(summary1, summary2 *RunSummary) *RunMetricsDiff {
-	var run1Tokens, run2Tokens int
-	var run1Duration, run2Duration time.Duration
-	var run1Turns, run2Turns int
-	var tu1, tu2 *TokenUsageSummary
-	var rl1, rl2 *GitHubRateLimitUsage
-	var m1, m2 *LogMetrics
-
-	if summary1 != nil {
-		run1Tokens = summary1.Run.TokenUsage
-		run1Duration = summary1.Run.Duration
-		// Run.Turns may be zero on cached-summary paths; Metrics.Turns is authoritative.
-		run1Turns = summary1.Run.Turns
-		if run1Turns == 0 && summary1.Metrics.Turns > 0 {
-			run1Turns = summary1.Metrics.Turns
-		}
-		tu1 = summary1.TokenUsage
-		rl1 = summary1.GitHubRateLimitUsage
-		m1 = &summary1.Metrics
-	}
-	if summary2 != nil {
-		run2Tokens = summary2.Run.TokenUsage
-		run2Duration = summary2.Run.Duration
-		// Run.Turns may be zero on cached-summary paths; Metrics.Turns is authoritative.
-		run2Turns = summary2.Run.Turns
-		if run2Turns == 0 && summary2.Metrics.Turns > 0 {
-			run2Turns = summary2.Metrics.Turns
-		}
-		tu2 = summary2.TokenUsage
-		rl2 = summary2.GitHubRateLimitUsage
-		m2 = &summary2.Metrics
-	}
-
-	// Skip if there is no meaningful data
-	hasTokenDetails := tu1 != nil || tu2 != nil
-	hasRateLimitDetails := rl1 != nil || rl2 != nil
-	if run1Tokens == 0 && run2Tokens == 0 && run1Duration == 0 && run2Duration == 0 && run1Turns == 0 && run2Turns == 0 && !hasTokenDetails && !hasRateLimitDetails {
+	inputs := extractRunMetricsInputs(summary1, summary2)
+	if !hasRunMetricsData(inputs) {
 		return nil
 	}
+	diff := newRunMetricsDiff(inputs)
+	applyRunMetricsTokenUsage(diff)
+	applyRunMetricsDuration(diff, inputs)
+	applyRunMetricsTokensPerTurn(diff)
+	diff.TokenUsageDetails = computeTokenUsageDiff(inputs.tokenUsage1, inputs.tokenUsage2)
+	diff.GitHubRateLimitDetails = computeGitHubRateLimitDiff(inputs.rateLimit1, inputs.rateLimit2)
+	diff.ToolCallsDiff = computeToolCallsDiff(inputs.metrics1, inputs.metrics2)
+	auditDiffLog.Printf("Run metrics diff: tokens %d->%d, turns %d->%d, has_token_details=%t, has_rate_limit_details=%t",
+		inputs.run1Tokens, inputs.run2Tokens, inputs.run1Turns, inputs.run2Turns, inputs.tokenUsage1 != nil || inputs.tokenUsage2 != nil, inputs.rateLimit1 != nil || inputs.rateLimit2 != nil)
+	return diff
+}
 
-	diff := &RunMetricsDiff{
-		Run1TokenUsage: run1Tokens,
-		Run2TokenUsage: run2Tokens,
-		Run1Turns:      run1Turns,
-		Run2Turns:      run2Turns,
-		TurnsChange:    run2Turns - run1Turns,
-	}
+type runMetricsInputs struct {
+	run1Tokens   int
+	run2Tokens   int
+	run1Turns    int
+	run2Turns    int
+	run1Duration time.Duration
+	run2Duration time.Duration
+	tokenUsage1  *TokenUsageSummary
+	tokenUsage2  *TokenUsageSummary
+	rateLimit1   *GitHubRateLimitUsage
+	rateLimit2   *GitHubRateLimitUsage
+	metrics1     *LogMetrics
+	metrics2     *LogMetrics
+}
 
-	if run1Tokens > 0 || run2Tokens > 0 {
-		diff.TokenUsageChange = formatVolumeChange(run1Tokens, run2Tokens)
+func extractRunMetricsInputs(summary1, summary2 *RunSummary) runMetricsInputs {
+	inputs := runMetricsInputs{}
+	if summary1 != nil {
+		inputs.run1Tokens = summary1.Run.TokenUsage
+		inputs.run1Duration = summary1.Run.Duration
+		inputs.run1Turns = runSummaryTurnCount(summary1)
+		inputs.tokenUsage1 = summary1.TokenUsage
+		inputs.rateLimit1 = summary1.GitHubRateLimitUsage
+		inputs.metrics1 = &summary1.Metrics
 	}
+	if summary2 != nil {
+		inputs.run2Tokens = summary2.Run.TokenUsage
+		inputs.run2Duration = summary2.Run.Duration
+		inputs.run2Turns = runSummaryTurnCount(summary2)
+		inputs.tokenUsage2 = summary2.TokenUsage
+		inputs.rateLimit2 = summary2.GitHubRateLimitUsage
+		inputs.metrics2 = &summary2.Metrics
+	}
+	return inputs
+}
 
-	if run1Duration > 0 {
-		diff.Run1Duration = run1Duration.Round(time.Second).String()
+func runSummaryTurnCount(summary *RunSummary) int {
+	turns := summary.Run.Turns
+	if turns == 0 && summary.Metrics.Turns > 0 {
+		return summary.Metrics.Turns
 	}
-	if run2Duration > 0 {
-		diff.Run2Duration = run2Duration.Round(time.Second).String()
-	}
-	if run1Duration > 0 && run2Duration > 0 {
-		delta := run2Duration - run1Duration
-		if delta >= 0 {
-			diff.DurationChange = "+" + delta.Round(time.Second).String()
-		} else {
-			diff.DurationChange = delta.Round(time.Second).String()
-		}
-	}
+	return turns
+}
 
-	// Compute tokens per turn using engine-level token usage.
-	run1PerTurn := run1Tokens
-	run2PerTurn := run2Tokens
-	if run1Turns > 0 {
-		diff.Run1TokensPerTurn = run1PerTurn / run1Turns
+func hasRunMetricsData(inputs runMetricsInputs) bool {
+	return !(inputs.run1Tokens == 0 && inputs.run2Tokens == 0 &&
+		inputs.run1Duration == 0 && inputs.run2Duration == 0 &&
+		inputs.run1Turns == 0 && inputs.run2Turns == 0 &&
+		inputs.tokenUsage1 == nil && inputs.tokenUsage2 == nil &&
+		inputs.rateLimit1 == nil && inputs.rateLimit2 == nil)
+}
+
+func newRunMetricsDiff(inputs runMetricsInputs) *RunMetricsDiff {
+	return &RunMetricsDiff{
+		Run1TokenUsage: inputs.run1Tokens,
+		Run2TokenUsage: inputs.run2Tokens,
+		Run1Turns:      inputs.run1Turns,
+		Run2Turns:      inputs.run2Turns,
+		TurnsChange:    inputs.run2Turns - inputs.run1Turns,
 	}
-	if run2Turns > 0 {
-		diff.Run2TokensPerTurn = run2PerTurn / run2Turns
+}
+
+func applyRunMetricsTokenUsage(diff *RunMetricsDiff) {
+	if diff.Run1TokenUsage > 0 || diff.Run2TokenUsage > 0 {
+		diff.TokenUsageChange = formatVolumeChange(diff.Run1TokenUsage, diff.Run2TokenUsage)
+	}
+}
+
+func applyRunMetricsDuration(diff *RunMetricsDiff, inputs runMetricsInputs) {
+	if inputs.run1Duration > 0 {
+		diff.Run1Duration = inputs.run1Duration.Round(time.Second).String()
+	}
+	if inputs.run2Duration > 0 {
+		diff.Run2Duration = inputs.run2Duration.Round(time.Second).String()
+	}
+	if inputs.run1Duration == 0 || inputs.run2Duration == 0 {
+		return
+	}
+	delta := inputs.run2Duration - inputs.run1Duration
+	if delta >= 0 {
+		diff.DurationChange = "+" + delta.Round(time.Second).String()
+		return
+	}
+	diff.DurationChange = delta.Round(time.Second).String()
+}
+
+func applyRunMetricsTokensPerTurn(diff *RunMetricsDiff) {
+	if diff.Run1Turns > 0 {
+		diff.Run1TokensPerTurn = diff.Run1TokenUsage / diff.Run1Turns
+	}
+	if diff.Run2Turns > 0 {
+		diff.Run2TokensPerTurn = diff.Run2TokenUsage / diff.Run2Turns
 	}
 	if diff.Run1TokensPerTurn > 0 || diff.Run2TokensPerTurn > 0 {
 		diff.TokensPerTurnChange = formatVolumeChange(diff.Run1TokensPerTurn, diff.Run2TokensPerTurn)
 	}
-
-	diff.TokenUsageDetails = computeTokenUsageDiff(tu1, tu2)
-	diff.GitHubRateLimitDetails = computeGitHubRateLimitDiff(rl1, rl2)
-	diff.ToolCallsDiff = computeToolCallsDiff(m1, m2)
-
-	auditDiffLog.Printf("Run metrics diff: tokens %d->%d, turns %d->%d, has_token_details=%t, has_rate_limit_details=%t", run1Tokens, run2Tokens, run1Turns, run2Turns, hasTokenDetails, hasRateLimitDetails)
-	return diff
 }
 
+// isBashTool returns true if the tool name represents a bash/shell invocation.
 // isBashTool returns true if the tool name represents a bash/shell invocation.
 // It matches the generic "bash" / "Bash" tool names used by most engines and the
 // per-command "bash_*" entries generated by the Codex log parser.
@@ -606,139 +659,172 @@ func isBashTool(name string) bool {
 // computeToolCallsDiff diffs engine-level tool calls from two LogMetrics values.
 // Returns nil when both metrics have no tool call data.
 func computeToolCallsDiff(m1, m2 *LogMetrics) *ToolCallsDiff {
-	run1Tools := make(map[string]ToolCallInfo)
-	run2Tools := make(map[string]ToolCallInfo)
-
-	// aggregateToolCall merges a tool call entry into the map, summing call counts and
-	// taking the max of size fields to handle duplicate entries across log files.
-	aggregateToolCall := func(tools map[string]ToolCallInfo, tc ToolCallInfo) {
-		if existing, ok := tools[tc.Name]; ok {
-			existing.CallCount += tc.CallCount
-			if tc.MaxInputSize > existing.MaxInputSize {
-				existing.MaxInputSize = tc.MaxInputSize
-			}
-			if tc.MaxOutputSize > existing.MaxOutputSize {
-				existing.MaxOutputSize = tc.MaxOutputSize
-			}
-			if tc.MaxDuration > existing.MaxDuration {
-				existing.MaxDuration = tc.MaxDuration
-			}
-			tools[tc.Name] = existing
-			return
-		}
-		tools[tc.Name] = tc
-	}
-
-	if m1 != nil {
-		for _, tc := range m1.ToolCalls {
-			aggregateToolCall(run1Tools, tc)
-		}
-	}
-	if m2 != nil {
-		for _, tc := range m2.ToolCalls {
-			aggregateToolCall(run2Tools, tc)
-		}
-	}
-
+	run1Tools := aggregateToolCallMap(m1)
+	run2Tools := aggregateToolCallMap(m2)
 	if len(run1Tools) == 0 && len(run2Tools) == 0 {
 		return nil
 	}
-
-	allNames := make(map[string]struct{})
-	for k := range run1Tools {
-		allNames[k] = struct{}{}
+	state := newToolCallDiffState(run1Tools, run2Tools)
+	for _, name := range collectToolCallNames(run1Tools, run2Tools) {
+		processToolCallDiffEntry(state, name, run1Tools, run2Tools)
 	}
-	for k := range run2Tools {
-		allNames[k] = struct{}{}
-	}
-
-	sortedNames := sliceutil.SortedKeys(allNames)
-
-	diff := &ToolCallsDiff{}
-	var run1Total, run2Total int
-	// Collect bash tools during the main iteration to avoid a second traversal in computeBashCommandsDiff.
-	bashRun1 := make(map[string]ToolCallInfo)
-	bashRun2 := make(map[string]ToolCallInfo)
-
-	for _, name := range sortedNames {
-		tc1, inRun1 := run1Tools[name]
-		tc2, inRun2 := run2Tools[name]
-
-		if inRun1 {
-			run1Total += tc1.CallCount
-			if isBashTool(name) {
-				bashRun1[name] = tc1
-			}
-		}
-		if inRun2 {
-			run2Total += tc2.CallCount
-			if isBashTool(name) {
-				bashRun2[name] = tc2
-			}
-		}
-
-		var entry ToolCallDiffEntry
-		switch {
-		case !inRun1 && inRun2:
-			entry = ToolCallDiffEntry{
-				Name:              name,
-				DiffEntryBase:     DiffEntryBase{Status: "new"},
-				Run2CallCount:     tc2.CallCount,
-				Run2MaxInputSize:  tc2.MaxInputSize,
-				Run2MaxOutputSize: tc2.MaxOutputSize,
-			}
-			diff.NewTools = append(diff.NewTools, entry)
-		case inRun1 && !inRun2:
-			entry = ToolCallDiffEntry{
-				Name:              name,
-				DiffEntryBase:     DiffEntryBase{Status: "removed"},
-				Run1CallCount:     tc1.CallCount,
-				Run1MaxInputSize:  tc1.MaxInputSize,
-				Run1MaxOutputSize: tc1.MaxOutputSize,
-			}
-			diff.RemovedTools = append(diff.RemovedTools, entry)
-		case tc1.CallCount != tc2.CallCount:
-			entry = ToolCallDiffEntry{
-				Name:              name,
-				DiffEntryBase:     DiffEntryBase{Status: "changed"},
-				Run1CallCount:     tc1.CallCount,
-				Run2CallCount:     tc2.CallCount,
-				CallCountChange:   formatCountChange(tc1.CallCount, tc2.CallCount),
-				Run1MaxInputSize:  tc1.MaxInputSize,
-				Run2MaxInputSize:  tc2.MaxInputSize,
-				Run1MaxOutputSize: tc1.MaxOutputSize,
-				Run2MaxOutputSize: tc2.MaxOutputSize,
-			}
-			diff.ChangedTools = append(diff.ChangedTools, entry)
-		default:
-			entry = ToolCallDiffEntry{
-				Name:              name,
-				DiffEntryBase:     DiffEntryBase{Status: "unchanged"},
-				Run1CallCount:     tc1.CallCount,
-				Run2CallCount:     tc2.CallCount,
-				Run1MaxInputSize:  tc1.MaxInputSize,
-				Run2MaxInputSize:  tc2.MaxInputSize,
-				Run1MaxOutputSize: tc1.MaxOutputSize,
-				Run2MaxOutputSize: tc2.MaxOutputSize,
-			}
-		}
-		diff.AllTools = append(diff.AllTools, entry)
-	}
-
-	diff.BashDiff = computeBashCommandsDiff(bashRun1, bashRun2)
-	diff.Summary = ToolCallsDiffSummary{
-		NewToolCount:     len(diff.NewTools),
-		RemovedToolCount: len(diff.RemovedTools),
-		ChangedToolCount: len(diff.ChangedTools),
-		Run1TotalCalls:   run1Total,
-		Run2TotalCalls:   run2Total,
-	}
-
+	finalizeToolCallDiffState(state)
 	auditDiffLog.Printf("Tool calls diff: new=%d, removed=%d, changed=%d, run1_total=%d, run2_total=%d",
-		len(diff.NewTools), len(diff.RemovedTools), len(diff.ChangedTools), run1Total, run2Total)
-	return diff
+		len(state.diff.NewTools), len(state.diff.RemovedTools), len(state.diff.ChangedTools), state.run1Total, state.run2Total)
+	return state.diff
 }
 
+type toolCallDiffState struct {
+	diff      *ToolCallsDiff
+	run1Total int
+	run2Total int
+	bashRun1  map[string]ToolCallInfo
+	bashRun2  map[string]ToolCallInfo
+}
+
+func aggregateToolCallMap(metrics *LogMetrics) map[string]ToolCallInfo {
+	tools := make(map[string]ToolCallInfo)
+	if metrics == nil {
+		return tools
+	}
+	for _, call := range metrics.ToolCalls {
+		aggregateToolCallInfo(tools, call)
+	}
+	return tools
+}
+
+func aggregateToolCallInfo(tools map[string]ToolCallInfo, call ToolCallInfo) {
+	if existing, ok := tools[call.Name]; ok {
+		existing.CallCount += call.CallCount
+		if call.MaxInputSize > existing.MaxInputSize {
+			existing.MaxInputSize = call.MaxInputSize
+		}
+		if call.MaxOutputSize > existing.MaxOutputSize {
+			existing.MaxOutputSize = call.MaxOutputSize
+		}
+		if call.MaxDuration > existing.MaxDuration {
+			existing.MaxDuration = call.MaxDuration
+		}
+		tools[call.Name] = existing
+		return
+	}
+	tools[call.Name] = call
+}
+
+func newToolCallDiffState(run1Tools, run2Tools map[string]ToolCallInfo) *toolCallDiffState {
+	return &toolCallDiffState{
+		diff:     &ToolCallsDiff{},
+		bashRun1: make(map[string]ToolCallInfo),
+		bashRun2: make(map[string]ToolCallInfo),
+	}
+}
+
+func collectToolCallNames(run1Tools, run2Tools map[string]ToolCallInfo) []string {
+	allNames := make(map[string]struct{})
+	for name := range run1Tools {
+		allNames[name] = struct{}{}
+	}
+	for name := range run2Tools {
+		allNames[name] = struct{}{}
+	}
+	return sliceutil.SortedKeys(allNames)
+}
+
+func processToolCallDiffEntry(state *toolCallDiffState, name string, run1Tools, run2Tools map[string]ToolCallInfo) {
+	tc1, inRun1 := run1Tools[name]
+	tc2, inRun2 := run2Tools[name]
+	trackToolCallTotals(state, name, tc1, inRun1, tc2, inRun2)
+	entry := buildToolCallDiffEntry(name, tc1, inRun1, tc2, inRun2)
+	appendToolCallDiffEntry(state.diff, entry)
+	state.diff.AllTools = append(state.diff.AllTools, entry)
+}
+
+func trackToolCallTotals(state *toolCallDiffState, name string, tc1 ToolCallInfo, inRun1 bool, tc2 ToolCallInfo, inRun2 bool) {
+	if inRun1 {
+		state.run1Total += tc1.CallCount
+		if isBashTool(name) {
+			state.bashRun1[name] = tc1
+		}
+	}
+	if inRun2 {
+		state.run2Total += tc2.CallCount
+		if isBashTool(name) {
+			state.bashRun2[name] = tc2
+		}
+	}
+}
+
+func buildToolCallDiffEntry(name string, tc1 ToolCallInfo, inRun1 bool, tc2 ToolCallInfo, inRun2 bool) ToolCallDiffEntry {
+	entry := ToolCallDiffEntry{Name: name}
+	switch {
+	case !inRun1 && inRun2:
+		entry.DiffEntryBase = DiffEntryBase{Status: "new"}
+		entry.Run2CallCount = tc2.CallCount
+		entry.Run2MaxInputSize = tc2.MaxInputSize
+		entry.Run2MaxOutputSize = tc2.MaxOutputSize
+	case inRun1 && !inRun2:
+		entry.DiffEntryBase = DiffEntryBase{Status: "removed"}
+		entry.Run1CallCount = tc1.CallCount
+		entry.Run1MaxInputSize = tc1.MaxInputSize
+		entry.Run1MaxOutputSize = tc1.MaxOutputSize
+	case tc1.CallCount != tc2.CallCount:
+		entry = buildChangedToolCallDiffEntry(name, tc1, tc2)
+	default:
+		entry = buildUnchangedToolCallDiffEntry(name, tc1, tc2)
+	}
+	return entry
+}
+
+func buildChangedToolCallDiffEntry(name string, before, after ToolCallInfo) ToolCallDiffEntry {
+	return ToolCallDiffEntry{
+		Name:              name,
+		DiffEntryBase:     DiffEntryBase{Status: "changed"},
+		Run1CallCount:     before.CallCount,
+		Run2CallCount:     after.CallCount,
+		CallCountChange:   formatCountChange(before.CallCount, after.CallCount),
+		Run1MaxInputSize:  before.MaxInputSize,
+		Run2MaxInputSize:  after.MaxInputSize,
+		Run1MaxOutputSize: before.MaxOutputSize,
+		Run2MaxOutputSize: after.MaxOutputSize,
+	}
+}
+
+func buildUnchangedToolCallDiffEntry(name string, before, after ToolCallInfo) ToolCallDiffEntry {
+	return ToolCallDiffEntry{
+		Name:              name,
+		DiffEntryBase:     DiffEntryBase{Status: "unchanged"},
+		Run1CallCount:     before.CallCount,
+		Run2CallCount:     after.CallCount,
+		Run1MaxInputSize:  before.MaxInputSize,
+		Run2MaxInputSize:  after.MaxInputSize,
+		Run1MaxOutputSize: before.MaxOutputSize,
+		Run2MaxOutputSize: after.MaxOutputSize,
+	}
+}
+
+func appendToolCallDiffEntry(diff *ToolCallsDiff, entry ToolCallDiffEntry) {
+	switch entry.Status {
+	case "new":
+		diff.NewTools = append(diff.NewTools, entry)
+	case "removed":
+		diff.RemovedTools = append(diff.RemovedTools, entry)
+	case "changed":
+		diff.ChangedTools = append(diff.ChangedTools, entry)
+	}
+}
+
+func finalizeToolCallDiffState(state *toolCallDiffState) {
+	state.diff.BashDiff = computeBashCommandsDiff(state.bashRun1, state.bashRun2)
+	state.diff.Summary = ToolCallsDiffSummary{
+		NewToolCount:     len(state.diff.NewTools),
+		RemovedToolCount: len(state.diff.RemovedTools),
+		ChangedToolCount: len(state.diff.ChangedTools),
+		Run1TotalCalls:   state.run1Total,
+		Run2TotalCalls:   state.run2Total,
+	}
+}
+
+// computeBashCommandsDiff builds bash-specific analysis from pre-filtered bash tool call maps.
 // computeBashCommandsDiff builds bash-specific analysis from pre-filtered bash tool call maps.
 // The maps should contain only bash-related entries (generic "bash"/"Bash" and per-command "bash_*").
 // Returns nil when no bash tool calls are present in either map.
@@ -853,78 +939,92 @@ func computeTokenUsageDiff(tu1, tu2 *TokenUsageSummary) *TokenUsageDiff {
 	if tu1 == nil && tu2 == nil {
 		return nil
 	}
-
-	var (
-		run1Input, run2Input           int
-		run1Output, run2Output         int
-		run1CacheRead, run2CacheRead   int
-		run1CacheWrite, run2CacheWrite int
-		run1AIC, run2AIC               float64
-		run1Requests, run2Requests     int
-		run1CacheEff, run2CacheEff     float64
-	)
-
-	if tu1 != nil {
-		run1Input = tu1.TotalInputTokens
-		run1Output = tu1.TotalOutputTokens
-		run1CacheRead = tu1.TotalCacheReadTokens
-		run1CacheWrite = tu1.TotalCacheWriteTokens
-		run1AIC = tu1.TotalAIC
-		run1Requests = tu1.TotalRequests
-		run1CacheEff = tu1.CacheEfficiency
-	}
-	if tu2 != nil {
-		run2Input = tu2.TotalInputTokens
-		run2Output = tu2.TotalOutputTokens
-		run2CacheRead = tu2.TotalCacheReadTokens
-		run2CacheWrite = tu2.TotalCacheWriteTokens
-		run2AIC = tu2.TotalAIC
-		run2Requests = tu2.TotalRequests
-		run2CacheEff = tu2.CacheEfficiency
-	}
-
+	inputs := extractTokenUsageInputs(tu1, tu2)
 	diff := &TokenUsageDiff{
-		Run1InputTokens:      run1Input,
-		Run2InputTokens:      run2Input,
-		Run1OutputTokens:     run1Output,
-		Run2OutputTokens:     run2Output,
-		Run1CacheReadTokens:  run1CacheRead,
-		Run2CacheReadTokens:  run2CacheRead,
-		Run1CacheWriteTokens: run1CacheWrite,
-		Run2CacheWriteTokens: run2CacheWrite,
-		Run1AIC:              run1AIC,
-		Run2AIC:              run2AIC,
-		Run1TotalRequests:    run1Requests,
-		Run2TotalRequests:    run2Requests,
-		Run1CacheEfficiency:  run1CacheEff,
-		Run2CacheEfficiency:  run2CacheEff,
+		Run1InputTokens:      inputs.run1Input,
+		Run2InputTokens:      inputs.run2Input,
+		Run1OutputTokens:     inputs.run1Output,
+		Run2OutputTokens:     inputs.run2Output,
+		Run1CacheReadTokens:  inputs.run1CacheRead,
+		Run2CacheReadTokens:  inputs.run2CacheRead,
+		Run1CacheWriteTokens: inputs.run1CacheWrite,
+		Run2CacheWriteTokens: inputs.run2CacheWrite,
+		Run1AIC:              inputs.run1AIC,
+		Run2AIC:              inputs.run2AIC,
+		Run1TotalRequests:    inputs.run1Requests,
+		Run2TotalRequests:    inputs.run2Requests,
+		Run1CacheEfficiency:  inputs.run1CacheEff,
+		Run2CacheEfficiency:  inputs.run2CacheEff,
 	}
-
-	if run1Input > 0 || run2Input > 0 {
-		diff.InputTokensChange = formatVolumeChange(run1Input, run2Input)
-	}
-	if run1Output > 0 || run2Output > 0 {
-		diff.OutputTokensChange = formatVolumeChange(run1Output, run2Output)
-	}
-	if run1CacheRead > 0 || run2CacheRead > 0 {
-		diff.CacheReadTokensChange = formatVolumeChange(run1CacheRead, run2CacheRead)
-	}
-	if run1CacheWrite > 0 || run2CacheWrite > 0 {
-		diff.CacheWriteTokensChange = formatVolumeChange(run1CacheWrite, run2CacheWrite)
-	}
-	if run1AIC > 0 || run2AIC > 0 {
-		diff.AICChange = formatFloatDelta(run1AIC, run2AIC)
-	}
-	if run1Requests > 0 || run2Requests > 0 {
-		diff.RequestsDelta = formatCountChange(run1Requests, run2Requests)
-	}
-	if run1CacheEff > 0 || run2CacheEff > 0 {
-		diff.CacheEfficiencyChange = formatPercentagePointChange(run1CacheEff, run2CacheEff)
-	}
-
+	applyTokenUsageChanges(diff)
 	return diff
 }
 
+type tokenUsageInputs struct {
+	run1Input      int
+	run2Input      int
+	run1Output     int
+	run2Output     int
+	run1CacheRead  int
+	run2CacheRead  int
+	run1CacheWrite int
+	run2CacheWrite int
+	run1AIC        float64
+	run2AIC        float64
+	run1Requests   int
+	run2Requests   int
+	run1CacheEff   float64
+	run2CacheEff   float64
+}
+
+func extractTokenUsageInputs(tu1, tu2 *TokenUsageSummary) tokenUsageInputs {
+	inputs := tokenUsageInputs{}
+	if tu1 != nil {
+		inputs.run1Input = tu1.TotalInputTokens
+		inputs.run1Output = tu1.TotalOutputTokens
+		inputs.run1CacheRead = tu1.TotalCacheReadTokens
+		inputs.run1CacheWrite = tu1.TotalCacheWriteTokens
+		inputs.run1AIC = tu1.TotalAIC
+		inputs.run1Requests = tu1.TotalRequests
+		inputs.run1CacheEff = tu1.CacheEfficiency
+	}
+	if tu2 != nil {
+		inputs.run2Input = tu2.TotalInputTokens
+		inputs.run2Output = tu2.TotalOutputTokens
+		inputs.run2CacheRead = tu2.TotalCacheReadTokens
+		inputs.run2CacheWrite = tu2.TotalCacheWriteTokens
+		inputs.run2AIC = tu2.TotalAIC
+		inputs.run2Requests = tu2.TotalRequests
+		inputs.run2CacheEff = tu2.CacheEfficiency
+	}
+	return inputs
+}
+
+func applyTokenUsageChanges(diff *TokenUsageDiff) {
+	if diff.Run1InputTokens > 0 || diff.Run2InputTokens > 0 {
+		diff.InputTokensChange = formatVolumeChange(diff.Run1InputTokens, diff.Run2InputTokens)
+	}
+	if diff.Run1OutputTokens > 0 || diff.Run2OutputTokens > 0 {
+		diff.OutputTokensChange = formatVolumeChange(diff.Run1OutputTokens, diff.Run2OutputTokens)
+	}
+	if diff.Run1CacheReadTokens > 0 || diff.Run2CacheReadTokens > 0 {
+		diff.CacheReadTokensChange = formatVolumeChange(diff.Run1CacheReadTokens, diff.Run2CacheReadTokens)
+	}
+	if diff.Run1CacheWriteTokens > 0 || diff.Run2CacheWriteTokens > 0 {
+		diff.CacheWriteTokensChange = formatVolumeChange(diff.Run1CacheWriteTokens, diff.Run2CacheWriteTokens)
+	}
+	if diff.Run1AIC > 0 || diff.Run2AIC > 0 {
+		diff.AICChange = formatFloatDelta(diff.Run1AIC, diff.Run2AIC)
+	}
+	if diff.Run1TotalRequests > 0 || diff.Run2TotalRequests > 0 {
+		diff.RequestsDelta = formatCountChange(diff.Run1TotalRequests, diff.Run2TotalRequests)
+	}
+	if diff.Run1CacheEfficiency > 0 || diff.Run2CacheEfficiency > 0 {
+		diff.CacheEfficiencyChange = formatPercentagePointChange(diff.Run1CacheEfficiency, diff.Run2CacheEfficiency)
+	}
+}
+
+// loadRunSummaryForDiff loads or builds a RunSummary for a given run for use in diffing.
 // loadRunSummaryForDiff loads or builds a RunSummary for a given run for use in diffing.
 // It first tries to load from a cached RunSummary (which includes MCP tool usage and run
 // metrics); otherwise it downloads artifacts and analyzes firewall logs, returning a partial

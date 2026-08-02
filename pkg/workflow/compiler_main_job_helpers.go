@@ -256,69 +256,68 @@ func (c *Compiler) buildMainJobOutputs(data *WorkflowData) map[string]string {
 // buildMainJobEnv builds the job-level environment variable map for the main agent job.
 func (c *Compiler) buildMainJobEnv(data *WorkflowData) map[string]string {
 	var env map[string]string
+	env = applyPlaywrightMainJobEnv(env, data)
+	env = applySafeOutputsMainJobEnv(env, data)
+	env = applyWorkflowIDMainJobEnv(env, data)
+	env = applyProjectUTCMainJobEnv(env, c.getCompiledProjectUTCOffset())
+	return env
+}
 
-	// Disable the Chromium process sandbox for playwright CLI mode.
-	// GitHub Actions runners are containerised environments where kernel namespace
-	// sandboxing is unavailable, which causes playwright-cli to abort with
-	// "Playwright can't run in this sandbox environment".
-	if isPlaywrightCLIMode(data.Tools) {
-		if env == nil {
-			env = make(map[string]string)
-		}
-		env["PLAYWRIGHT_MCP_SANDBOX"] = "false"
+func applyPlaywrightMainJobEnv(env map[string]string, data *WorkflowData) map[string]string {
+	if !isPlaywrightCLIMode(data.Tools) {
+		return env
 	}
+	env = ensureStringMap(env)
+	env["PLAYWRIGHT_MCP_SANDBOX"] = "false"
+	return env
+}
 
-	if data.SafeOutputs != nil {
-		compilerMainJobLog.Printf("Configuring safe-outputs job env for main job (uploadAssets=%v)", data.SafeOutputs.UploadAssets != nil)
-		if env == nil {
-			env = make(map[string]string)
-		}
-
-		// Set GH_AW_MCP_LOG_DIR for safe outputs MCP server logging
-		// Store in mcp-logs directory so it's included in mcp-logs artifact
-		env["GH_AW_MCP_LOG_DIR"] = constants.TmpMcpLogsSafeOutputsDir
-
-		// Note: GH_AW_SAFE_OUTPUTS, GH_AW_SAFE_OUTPUTS_CONFIG_PATH, and
-		// GH_AW_SAFE_OUTPUTS_TOOLS_PATH are set via a run step (see generateSetRuntimePathsStep)
-		// because the runner context is not available in job-level env: blocks.
-
-		// Add asset-related environment variables
-		// These must always be set (even to empty) because awmg v0.0.12+ validates ${VAR} references
-		if data.SafeOutputs.UploadAssets != nil {
-			env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", data.SafeOutputs.UploadAssets.BranchName)
-			env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(data.SafeOutputs.UploadAssets.MaxSizeKB)
-			env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(data.SafeOutputs.UploadAssets.AllowedExts, ","))
-		} else {
-			// Set empty defaults when upload-assets is not configured
-			env["GH_AW_ASSETS_BRANCH"] = `""`
-			env["GH_AW_ASSETS_MAX_SIZE_KB"] = "0"
-			env["GH_AW_ASSETS_ALLOWED_EXTS"] = `""`
-		}
-
-		// DEFAULT_BRANCH is used by safeoutputs MCP server
-		// Use repository default branch from GitHub context
-		env["DEFAULT_BRANCH"] = "${{ github.event.repository.default_branch }}"
+func applySafeOutputsMainJobEnv(env map[string]string, data *WorkflowData) map[string]string {
+	if data.SafeOutputs == nil {
+		return env
 	}
+	compilerMainJobLog.Printf("Configuring safe-outputs job env for main job (uploadAssets=%v)", data.SafeOutputs.UploadAssets != nil)
+	env = ensureStringMap(env)
+	env["GH_AW_MCP_LOG_DIR"] = constants.TmpMcpLogsSafeOutputsDir
+	applySafeOutputsAssetEnv(env, data.SafeOutputs)
+	env["DEFAULT_BRANCH"] = "${{ github.event.repository.default_branch }}"
+	return env
+}
 
-	// Set GH_AW_WORKFLOW_ID_SANITIZED for cache-memory keys
-	// This contains the workflow ID with all hyphens removed and lowercased
-	// Used in cache keys to avoid spaces and special characters
-	if data.WorkflowID != "" {
-		if env == nil {
-			env = make(map[string]string)
-		}
-		env["GH_AW_WORKFLOW_ID_SANITIZED"] = SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+func applySafeOutputsAssetEnv(env map[string]string, safeOutputs *SafeOutputsConfig) {
+	if safeOutputs.UploadAssets == nil {
+		env["GH_AW_ASSETS_BRANCH"] = `""`
+		env["GH_AW_ASSETS_MAX_SIZE_KB"] = "0"
+		env["GH_AW_ASSETS_ALLOWED_EXTS"] = `""`
+		return
 	}
+	env["GH_AW_ASSETS_BRANCH"] = fmt.Sprintf("%q", safeOutputs.UploadAssets.BranchName)
+	env["GH_AW_ASSETS_MAX_SIZE_KB"] = strconv.Itoa(safeOutputs.UploadAssets.MaxSizeKB)
+	env["GH_AW_ASSETS_ALLOWED_EXTS"] = fmt.Sprintf("%q", strings.Join(safeOutputs.UploadAssets.AllowedExts, ","))
+}
 
-	// Bake the repository project UTC offset (from aw.json) into job env so runtime
-	// JavaScript helpers do not need to read aw.json on the runner.
-	if utcOffset := c.getCompiledProjectUTCOffset(); utcOffset != "" {
-		if env == nil {
-			env = make(map[string]string)
-		}
-		env["GH_AW_PROJECT_UTC"] = fmt.Sprintf("%q", utcOffset)
+func applyWorkflowIDMainJobEnv(env map[string]string, data *WorkflowData) map[string]string {
+	if data.WorkflowID == "" {
+		return env
 	}
+	env = ensureStringMap(env)
+	env["GH_AW_WORKFLOW_ID_SANITIZED"] = SanitizeWorkflowIDForCacheKey(data.WorkflowID)
+	return env
+}
 
+func applyProjectUTCMainJobEnv(env map[string]string, utcOffset string) map[string]string {
+	if utcOffset == "" {
+		return env
+	}
+	env = ensureStringMap(env)
+	env["GH_AW_PROJECT_UTC"] = fmt.Sprintf("%q", utcOffset)
+	return env
+}
+
+func ensureStringMap(env map[string]string) map[string]string {
+	if env == nil {
+		return make(map[string]string)
+	}
 	return env
 }
 

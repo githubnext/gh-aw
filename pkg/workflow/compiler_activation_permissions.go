@@ -38,61 +38,41 @@ func activationJobNeedsAppToken(ctx *activationJobBuildContext) bool {
 
 func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permissions {
 	appPerms := NewPermissions()
-	addActivationInteractionPermissions(
-		appPerms,
-		activationInteractionPermissionsOptions{
-			onSection:                         ctx.data.On,
-			hasReaction:                       ctx.hasReaction,
-			reactionIncludesIssues:            ctx.reactionIssues,
-			reactionIncludesPullRequests:      ctx.reactionPullRequests,
-			reactionIncludesDiscussions:       ctx.reactionDiscussions,
-			hasStatusComment:                  ctx.hasStatusComment,
-			statusCommentIncludesIssues:       ctx.statusCommentIssues,
-			statusCommentIncludesPullRequests: ctx.statusCommentPRs,
-			statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
-		},
-	)
+	addActivationAppTokenInteractionPermissions(appPerms, ctx)
+	addActivationAppTokenOperationalPermissions(appPerms, ctx)
+	addActivationAppTokenInferredPermissions(appPerms, ctx.activationInferredPerms)
+	return appPerms
+}
+
+func addActivationAppTokenInteractionPermissions(appPerms *Permissions, ctx *activationJobBuildContext) {
+	options := buildActivationInteractionPermissionOptions(ctx, ctx.data.On)
+	addActivationInteractionPermissions(appPerms, options)
 	if ctx.data.CommandCentralized && (ctx.hasReaction || ctx.hasStatusComment) {
-		syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents)
-		if syntheticOn != "" {
-			addActivationInteractionPermissions(
-				appPerms,
-				activationInteractionPermissionsOptions{
-					onSection:                         syntheticOn,
-					hasReaction:                       ctx.hasReaction,
-					reactionIncludesIssues:            ctx.reactionIssues,
-					reactionIncludesPullRequests:      ctx.reactionPullRequests,
-					reactionIncludesDiscussions:       ctx.reactionDiscussions,
-					hasStatusComment:                  ctx.hasStatusComment,
-					statusCommentIncludesIssues:       ctx.statusCommentIssues,
-					statusCommentIncludesPullRequests: ctx.statusCommentPRs,
-					statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
-				},
-			)
+		if syntheticOn := buildCentralizedCommandOnSection(ctx.data.CommandEvents); syntheticOn != "" {
+			addActivationInteractionPermissions(appPerms, buildActivationInteractionPermissionOptions(ctx, syntheticOn))
 		}
 	}
 	if hasWorkflowCallTrigger(ctx.data.On) && (ctx.hasReaction || ctx.hasStatusComment) {
-		addActivationInteractionPermissions(
-			appPerms,
-			activationInteractionPermissionsOptions{
-				hasReaction:                       ctx.hasReaction,
-				reactionIncludesIssues:            ctx.reactionIssues,
-				reactionIncludesPullRequests:      ctx.reactionPullRequests,
-				reactionIncludesDiscussions:       ctx.reactionDiscussions,
-				hasStatusComment:                  ctx.hasStatusComment,
-				statusCommentIncludesIssues:       ctx.statusCommentIssues,
-				statusCommentIncludesPullRequests: ctx.statusCommentPRs,
-				statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
-			},
-		)
+		options.onSection = ""
+		addActivationInteractionPermissions(appPerms, options)
 	}
-	// Keep this aligned with addActivationLabelPermissions: app-token scopes are
-	// computed separately from GITHUB_TOKEN scopes because app-token permissions
-	// only apply to steps using the minted app token, while label permissions in
-	// addActivationLabelPermissions are only for GITHUB_TOKEN execution paths.
-	// This intentionally mirrors addActivationLabelPermissions without the
-	// ActivationGitHubApp == nil guard because this function runs only when
-	// activationJobNeedsAppToken confirms app-token minting is enabled.
+}
+
+func buildActivationInteractionPermissionOptions(ctx *activationJobBuildContext, onSection string) activationInteractionPermissionsOptions {
+	return activationInteractionPermissionsOptions{
+		onSection:                         onSection,
+		hasReaction:                       ctx.hasReaction,
+		reactionIncludesIssues:            ctx.reactionIssues,
+		reactionIncludesPullRequests:      ctx.reactionPullRequests,
+		reactionIncludesDiscussions:       ctx.reactionDiscussions,
+		hasStatusComment:                  ctx.hasStatusComment,
+		statusCommentIncludesIssues:       ctx.statusCommentIssues,
+		statusCommentIncludesPullRequests: ctx.statusCommentPRs,
+		statusCommentIncludesDiscussions:  ctx.statusCommentDiscussions,
+	}
+}
+
+func addActivationAppTokenOperationalPermissions(appPerms *Permissions, ctx *activationJobBuildContext) {
 	if ctx.shouldRemoveLabel {
 		if slices.Contains(ctx.filteredLabelEvents, "issues") || slices.Contains(ctx.filteredLabelEvents, "pull_request") {
 			appPerms.Set(PermissionIssues, PermissionWrite)
@@ -107,15 +87,14 @@ func buildActivationAppTokenPermissions(ctx *activationJobBuildContext) *Permiss
 	if hasMaxDailyAICGuardrail(ctx.data) {
 		appPerms.Set(PermissionActions, PermissionRead)
 	}
-	// Add GitHub App-only permissions inferred from activation job gh CLI commands so the
-	// minted App token includes the scopes those commands require (e.g. codespaces: read
-	// for `gh codespace list`). Only App-only scopes are passed here.
-	for scope, level := range ctx.activationInferredPerms {
+}
+
+func addActivationAppTokenInferredPermissions(appPerms *Permissions, inferred map[PermissionScope]PermissionLevel) {
+	for scope, level := range inferred {
 		if IsGitHubAppOnlyScope(scope) {
 			appPerms.Set(scope, level)
 		}
 	}
-	return appPerms
 }
 
 // buildActivationPermissions builds activation job permissions from workflow features and selected interactions.

@@ -217,6 +217,12 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 		shellEscapeArg(string(ecosystemJSON))), nil
 }
 
+type awfArcDindRuntimeConfig struct {
+	dockerHostProbe string
+	prefixProbe     string
+	dockerHostRef   string
+}
+
 // BuildAWFCommand builds a complete AWF command with all arguments.
 // This consolidates the AWF command building logic that was duplicated across
 // Copilot, Claude, and Codex engines.
@@ -229,381 +235,303 @@ func buildWorkflowCallNetworkAllowedUpdateScript() (string, error) {
 func BuildAWFCommand(config AWFCommandConfig) string {
 	awfHelpersLog.Printf("Building AWF command for engine: %s", config.EngineName)
 	isArcDind := isArcDindTopology(config.WorkflowData)
-
-	// Get AWF command prefix (custom or standard)
-	awfCommand := GetAWFCommandPrefix(config.WorkflowData)
-
-	// Build AWF arguments. The returned list contains only args that are safe to pass
-	// through shellJoinArgs. Expandable-var args (--container-workdir "${GITHUB_WORKSPACE}"
-	// and --mount "${RUNNER_TEMP}/...") are appended raw below so that shell variable
-	// expansion is not suppressed by single-quoting.
-	awfArgs := BuildAWFArgs(config)
 	firewallConfig := getFirewallConfig(config.WorkflowData)
+	arcDind := buildAWFArcDindRuntimeConfig(config, firewallConfig)
+	expandableArgs, dockerHostProbe := buildAWFExpandableArgs(isArcDind, arcDind.dockerHostProbe)
+	arcDind.dockerHostProbe = dockerHostProbe
+	configFileSetup, expandableArgs := buildAWFConfigFileSetup(config, expandableArgs)
+	expandableArgs = addAWFUploadArtifactMount(expandableArgs, config.WorkflowData)
+	expandableArgs = addAWFServicePortArgs(expandableArgs, config.WorkflowData)
+	command := buildCompleteAWFCommand(
+		config,
+		GetAWFCommandPrefix(config.WorkflowData),
+		BuildAWFArgs(config),
+		expandableArgs,
+		configFileSetup,
+		arcDind,
+		buildModelsJSONPathExportScript(isArcDind),
+	)
+	awfHelpersLog.Print("Successfully built AWF command")
+	return command
+}
 
-	// Auto-detect ARC/DinD split daemon topology at runtime: probe DOCKER_HOST for a
-	// tcp:// scheme and pass it through to AWF via --docker-host.
-	// All behaviors avoid requiring workflow-authored sandbox.agent.args for standard ARC DinD setups.
-	// When AWF also supports chroot config (v0.27.1+), the Python patch body is embedded inside
-	// the same if-block so the script only contains one DOCKER_HOST condition check.
-	arcDindPrefixProbe := ""
-	arcDindDockerHostProbe := fmt.Sprintf(`%s=""
+func buildAWFArcDindRuntimeConfig(config AWFCommandConfig, firewallConfig *FirewallConfig) awfArcDindRuntimeConfig {
+	runtimeConfig := awfArcDindRuntimeConfig{
+		dockerHostProbe: fmt.Sprintf(`%s=""
 if [[ "${DOCKER_HOST:-}" =~ %s ]]; then
   %s="${DOCKER_HOST}"
-fi`,
-		awfDockerHostVarName,
-		awfArcDindDockerHostRegex,
-		awfDockerHostVarName,
-	)
-	arcDindDockerHostRef := fmt.Sprintf("${%s:+--docker-host \"$%s\"}", awfDockerHostVarName, awfDockerHostVarName)
-	if awfSupportsDockerHostPathPrefix(firewallConfig) {
-		chrootPatchBody := ""
-		if awfSupportsChrootConfig(firewallConfig) {
-			if config.WorkflowData != nil && config.WorkflowData.IsDetectionRun {
-				chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBodyBash()
-			} else {
-				chrootPatchBody = "\n" + buildArcDindChrootConfigPatchBody()
-			}
-		}
-		// NOTE: --docker-host-path-prefix is intentionally NOT passed. With sysroot-stage
-		// active, all bind-mount source paths are on the shared work volume and visible to
-		// the Docker daemon without translation. The prefix caused AWF to translate
-		// GITHUB_WORKSPACE to a non-existent path, resulting in an empty workspace (gh-aw#34896).
-		// The probe block is preserved for the chroot config patch which still requires the
-		// DOCKER_HOST guard.
-		if chrootPatchBody != "" {
-			arcDindPrefixProbe = fmt.Sprintf(`if [[ "${DOCKER_HOST:-}" =~ %s ]]; then%s
-fi`,
-				awfArcDindDockerHostRegex,
-				chrootPatchBody)
-		}
+fi`, awfDockerHostVarName, awfArcDindDockerHostRegex, awfDockerHostVarName),
+		dockerHostRef: fmt.Sprintf("${%s:+--docker-host \"$%s\"}", awfDockerHostVarName, awfDockerHostVarName),
 	}
-	toolCacheMountProbe := fmt.Sprintf(`%s=""
+	if !awfSupportsDockerHostPathPrefix(firewallConfig) {
+		return runtimeConfig
+	}
+	chrootPatchBody := buildAWFArcDindChrootPatchBody(config.WorkflowData, firewallConfig)
+	if chrootPatchBody == "" {
+		return runtimeConfig
+	}
+	runtimeConfig.prefixProbe = fmt.Sprintf(`if [[ "${DOCKER_HOST:-}" =~ %s ]]; then%s
+fi`, awfArcDindDockerHostRegex, chrootPatchBody)
+	return runtimeConfig
+}
+
+func buildAWFArcDindChrootPatchBody(workflowData *WorkflowData, firewallConfig *FirewallConfig) string {
+	if !awfSupportsChrootConfig(firewallConfig) {
+		return ""
+	}
+	if workflowData != nil && workflowData.IsDetectionRun {
+		return "\n" + buildArcDindChrootConfigPatchBodyBash()
+	}
+	return "\n" + buildArcDindChrootConfigPatchBody()
+}
+
+func buildAWFToolCacheMountSupport() (string, string) {
+	probe := fmt.Sprintf(`%s=""
 GH_AW_TOOL_CACHE="${RUNNER_TOOL_CACHE:?RUNNER_TOOL_CACHE must be set}"
 if [ -d "$GH_AW_TOOL_CACHE" ]; then
   if [[ "$GH_AW_TOOL_CACHE" != /opt/* ]]; then
     %s="$GH_AW_TOOL_CACHE:$GH_AW_TOOL_CACHE:ro"
   fi
-fi`,
-		awfToolCacheMountVarName,
-		awfToolCacheMountVarName,
-	)
-	toolCacheMountRef := fmt.Sprintf("${%s:+--mount \"$%s\"}", awfToolCacheMountVarName, awfToolCacheMountVarName)
+fi`, awfToolCacheMountVarName, awfToolCacheMountVarName)
+	ref := fmt.Sprintf("${%s:+--mount \"$%s\"}", awfToolCacheMountVarName, awfToolCacheMountVarName)
+	return probe, ref
+}
 
-	// Build the expandable args string for args that need shell variable expansion.
-	// These MUST be appended as raw (unescaped) strings because single-quoting would
-	// prevent the runner's shell from expanding ${GITHUB_WORKSPACE} and ${RUNNER_TEMP}.
+func buildAWFExpandableArgs(isArcDind bool, dockerHostProbe string) (string, string) {
 	ghAwDir := constants.GhAwRootDirShell
 	expandableArgs := fmt.Sprintf(
 		`--container-workdir "${GITHUB_WORKSPACE}" --mount "%s:%s:ro" --mount "%s:/host%s:ro"`,
 		ghAwDir, ghAwDir, ghAwDir, ghAwDir,
 	)
-	if isArcDind {
-		expandableArgs += fmt.Sprintf(
-			` --mount "%s:%s:rw" --mount "%s:%s:rw"`,
-			awfArcDindHomePathExpr, awfArcDindHomePathExpr,
-			awfArcDindRootPathExpr+"/sandbox/agent", awfArcDindRootPathExpr+"/sandbox/agent",
-		)
-		// Explicitly mount the workspace so AWF can see it without path-prefix translation.
-		// GITHUB_WORKSPACE is on the shared work volume, so the Docker daemon can access it.
-		expandableArgs += ` --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"`
-		// Pre-create the rw mount source directories. AWF validates that mount source
-		// paths exist before starting containers, so these must be created on the host
-		// before the AWF invocation. The parent ${RUNNER_TEMP}/gh-aw/ already exists
-		// (created by actions/setup), but the subdirectories may not.
-		arcDindDockerHostProbe += fmt.Sprintf("\nmkdir -p \"%s\" \"%s\"",
-			awfArcDindHomePathExpr,
-			awfArcDindRootPathExpr+"/sandbox/agent",
-		)
-		// Copy prompt files to daemon-visible path. On ARC/DinD, /tmp/gh-aw/ is NOT
-		// accessible to the Docker daemon. The activation job writes prompts to
-		// /tmp/gh-aw/aw-prompts/, so we copy them to ${RUNNER_TEMP}/gh-aw/aw-prompts/.
-		arcDindDockerHostProbe += fmt.Sprintf("\nif [ -d /tmp/gh-aw/aw-prompts ]; then cp -a /tmp/gh-aw/aw-prompts \"%s/aw-prompts\"; fi",
-			awfArcDindRootPathExpr,
-		)
+	if !isArcDind {
+		return expandableArgs, dockerHostProbe
 	}
+	expandableArgs += fmt.Sprintf(
+		` --mount "%s:%s:rw" --mount "%s:%s:rw"`,
+		awfArcDindHomePathExpr, awfArcDindHomePathExpr,
+		awfArcDindRootPathExpr+"/sandbox/agent", awfArcDindRootPathExpr+"/sandbox/agent",
+	)
+	expandableArgs += ` --mount "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}:rw"`
+	dockerHostProbe += fmt.Sprintf("\nmkdir -p \"%s\" \"%s\"",
+		awfArcDindHomePathExpr,
+		awfArcDindRootPathExpr+"/sandbox/agent",
+	)
+	dockerHostProbe += fmt.Sprintf("\nif [ -d /tmp/gh-aw/aw-prompts ]; then cp -a /tmp/gh-aw/aw-prompts \"%s/aw-prompts\"; fi",
+		awfArcDindRootPathExpr,
+	)
+	return expandableArgs, dockerHostProbe
+}
 
-	// Generate a JSON config file and reference it via --config "${RUNNER_TEMP}/gh-aw/awf-config.json".
-	// This replaces several verbose CLI flags (--allow-domains, --enable-api-proxy, --image-tag,
-	// API targets) with a structured JSON file that is easier to audit and extend.
-	//
-	// The config file is written at runtime (inside the run: step) immediately before the AWF
-	// invocation, using printf to a fixed path inside the pre-existing ${RUNNER_TEMP}/gh-aw/
-	// directory that is already set up by actions/setup.
-	var configFileSetup string
+func buildAWFConfigFileSetup(config AWFCommandConfig, expandableArgs string) (string, string) {
 	awfConfigJSON, err := BuildAWFConfigJSON(config)
 	if err != nil {
 		awfHelpersLog.Printf("Warning: failed to build AWF config JSON: %v", err)
-	} else {
-		// When max-ai-credits is not set by frontmatter/imports, export a local shell
-		// variable (GH_AW_MAX_AI_CREDITS) holding a GitHub Actions runtime expression,
-		// then inject a reference to that variable (${GH_AW_MAX_AI_CREDITS}) into the
-		// "maxAiCredits" field of the apiProxy JSON object. GitHub Actions evaluates
-		// the ${{ }} expression before the shell runs, so the variable is set to the
-		// resolved integer by the time printf writes the config file.
-		//
-		// Standard agent runs use vars.GH_AW_DEFAULT_MAX_AI_CREDITS with built-in
-		// fallback 1000. Threat-detection runs use
-		// vars.GH_AW_DEFAULT_DETECTION_MAX_AI_CREDITS with built-in fallback 400.
-		// Evals runs use vars.GH_AW_DEFAULT_EVALS_MAX_AI_CREDITS with built-in
-		// fallback 400 to align with detection budgets.
-		// EngineConfig.MaxAICredits is 0 when no compile-time value was set
-		// (neither frontmatter nor detection-engine config provided one).
-		// In that case, emit a runtime expression that lets the org variable
-		// or the built-in default resolve the budget at action run time.
-		// For detection runs, use the detection-specific variable/fallback;
-		// for standard agent runs, use the main-agent variable/fallback.
-		var maxAICreditsExportLine string
-		if config.WorkflowData == nil || config.WorkflowData.EngineConfig == nil || config.WorkflowData.EngineConfig.MaxAICredits == 0 {
-			defaultMaxAICredits := strconv.FormatInt(constants.DefaultMaxAICredits, 10)
-			if config.WorkflowData != nil {
-				switch {
-				case config.WorkflowData.IsEvalsRun:
-					defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
-				case config.WorkflowData.IsDetectionRun:
-					defaultMaxAICredits = strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
-				}
-			}
-			awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
-			if config.ResolveMaxAICreditsFromEnv {
-				maxAICreditsExportLine = fmt.Sprintf(`%s="${%s:-%s}"`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits)
-			} else {
-				expr := compilerenv.BuildDefaultMaxAICreditsExpression(defaultMaxAICredits)
-				if config.WorkflowData != nil {
-					switch {
-					case config.WorkflowData.IsEvalsRun:
-						expr = compilerenv.BuildDefaultEvalsMaxAICreditsExpression(defaultMaxAICredits)
-					case config.WorkflowData.IsDetectionRun:
-						expr = compilerenv.BuildDefaultDetectionMaxAICreditsExpression(defaultMaxAICredits)
-					}
-				}
-				maxAICreditsExportLine = fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, expr)
-			}
-			awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
-		}
-		// Write the config JSON to ${RUNNER_TEMP}/gh-aw/awf-config.json before AWF runs.
-		// When the generated JSON contains compiler-owned runtime variables such as
-		// ${GH_AW_MAX_AI_CREDITS} or ${RUNNER_TEMP}, use shellEscapeArgWithVarsPreserved
-		// which always uses double-quote wrapping: it escapes bare $ signs (e.g.
-		// "$schema" → "\$schema") while preserving both ${{ }} GitHub Actions expressions
-		// (e.g. in AllowedDomains) and approved shell variable references so bash expands
-		// them to runtime-resolved values. When no such variables are injected,
-		// shellEscapeArg handles escaping normally.
-		// Also copy it to /tmp/gh-aw/awf-config.json for the unified agent artifact upload.
-		var printfArg string
-		preservedVars := make([]string, 0, 2)
-		if maxAICreditsExportLine != "" {
-			preservedVars = append(preservedVars, awfMaxAICreditsVarName)
-		}
-		if strings.Contains(awfConfigJSON, awfArcDindRootPathExpr) {
-			preservedVars = append(preservedVars, "RUNNER_TEMP")
-		}
-		if len(preservedVars) > 0 {
-			printfArg = shellEscapeArgWithVarsPreserved(awfConfigJSON, preservedVars...)
-		} else {
-			printfArg = shellEscapeArg(awfConfigJSON)
-		}
-		// SC2016 ("Expressions don't expand in single quotes") is only triggered when
-		// printfArg is single-quoted (no runtime variables injected). Double-quoted args
-		// already escape bare $ signs as \$schema, so shellcheck does not warn there.
-		var printfLine string
-		if strings.HasPrefix(printfArg, "'") {
-			printfLine = "# shellcheck disable=SC2016\nprintf '%%s\\n' %s > %q"
-		} else {
-			printfLine = "printf '%%s\\n' %s > %q"
-		}
-		configFileSetup = fmt.Sprintf(printfLine, printfArg, awfConfigRuntimePathExpr)
-		if maxAICreditsExportLine != "" {
-			configFileSetup = maxAICreditsExportLine + "\n" + configFileSetup
-		}
-		if shouldUseWorkflowCallNetworkAllowedInput(config.WorkflowData) {
-			updateScript, updateErr := buildWorkflowCallNetworkAllowedUpdateScript()
-			if updateErr != nil {
-				awfHelpersLog.Printf("Warning: failed to build workflow_call network_allowed updater: %v", updateErr)
-			} else {
-				configFileSetup += "\n" + updateScript
-			}
-		}
-		configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
-		// Add --config as the first expandable arg so it appears before --container-workdir.
-		expandableArgs = fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
-		awfHelpersLog.Print("Using AWF config file (--config flag)")
+		return "", expandableArgs
 	}
-	modelsJSONPathExport := buildModelsJSONPathExportScript(isArcDind)
+	maxAICreditsExportLine, awfConfigJSON := buildAWFConfigRuntimeBudgetSetup(config, awfConfigJSON)
+	configFileSetup := buildAWFConfigPrintfScript(awfConfigJSON, maxAICreditsExportLine)
+	configFileSetup = appendAWFWorkflowCallNetworkUpdater(configFileSetup, config.WorkflowData)
+	configFileSetup += fmt.Sprintf("\ncp %q %s", awfConfigRuntimePathExpr, constants.AWFConfigFilePath)
+	awfHelpersLog.Print("Using AWF config file (--config flag)")
+	return configFileSetup, fmt.Sprintf("--config %q ", awfConfigRuntimePathExpr) + expandableArgs
+}
 
-	// When upload_artifact is configured, add a read-write mount for the staging directory
-	// so the model can copy files there from inside the container. The parent ${RUNNER_TEMP}/gh-aw
-	// is mounted :ro above; this child mount overrides access for the staging subdirectory only.
-	// The staging directory must already exist on the host (created in Generate Safe Outputs Config step).
-	if config.WorkflowData != nil && config.WorkflowData.SafeOutputs != nil && config.WorkflowData.SafeOutputs.UploadArtifact != nil {
-		stagingDir := SafeOutputsUploadArtifactsDir
-		expandableArgs += fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
-		awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
+func buildAWFConfigRuntimeBudgetSetup(config AWFCommandConfig, awfConfigJSON string) (string, string) {
+	if config.WorkflowData != nil && config.WorkflowData.EngineConfig != nil && config.WorkflowData.EngineConfig.MaxAICredits != 0 {
+		return "", awfConfigJSON
 	}
-
-	// Add --allow-host-service-ports for services with port mappings.
-	// This flag requires --legacy-security since it grants host network access.
-	// This is appended as a raw (expandable) arg because the value contains
-	// ${{ job.services.<id>.ports['<port>'] }} expressions that include single quotes.
-	// These expressions are resolved by the GitHub Actions runner before shell execution,
-	// so they must not be shell-escaped.
-	agentCfg := getAgentConfig(config.WorkflowData)
-	isLegacyMode := agentCfg != nil && agentCfg.LegacySecurity
-	if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" && isLegacyMode {
-		expandableArgs += fmt.Sprintf(` --allow-host-service-ports "%s"`, config.WorkflowData.ServicePortExpressions)
-		awfHelpersLog.Printf("Added --allow-host-service-ports with %s", config.WorkflowData.ServicePortExpressions)
-	} else if config.WorkflowData != nil && config.WorkflowData.ServicePortExpressions != "" {
-		awfHelpersLog.Print("Skipping --allow-host-service-ports: requires legacy-security mode")
+	defaultMaxAICredits := resolveAWFDefaultMaxAICredits(config.WorkflowData)
+	awfConfigJSON = injectMaxAICreditsExpression(awfConfigJSON, fmt.Sprintf("${%s}", awfMaxAICreditsVarName))
+	awfHelpersLog.Printf("Injected maxAiCredits local var reference into AWF config JSON")
+	if config.ResolveMaxAICreditsFromEnv {
+		return fmt.Sprintf(`%s="${%s:-%s}"`, awfMaxAICreditsVarName, awfMaxAICreditsVarName, defaultMaxAICredits), awfConfigJSON
 	}
+	return fmt.Sprintf(`%s="%s"`, awfMaxAICreditsVarName, buildAWFDefaultMaxAICreditsExpression(config.WorkflowData, defaultMaxAICredits)), awfConfigJSON
+}
 
-	engineCommand := config.EngineCommand
+func resolveAWFDefaultMaxAICredits(workflowData *WorkflowData) string {
+	switch {
+	case workflowData != nil && workflowData.IsEvalsRun:
+		return strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
+	case workflowData != nil && workflowData.IsDetectionRun:
+		return strconv.FormatInt(constants.DefaultDetectionMaxAICredits, 10)
+	default:
+		return strconv.FormatInt(constants.DefaultMaxAICredits, 10)
+	}
+}
+
+func buildAWFDefaultMaxAICreditsExpression(workflowData *WorkflowData, defaultMaxAICredits string) string {
+	switch {
+	case workflowData != nil && workflowData.IsEvalsRun:
+		return compilerenv.BuildDefaultEvalsMaxAICreditsExpression(defaultMaxAICredits)
+	case workflowData != nil && workflowData.IsDetectionRun:
+		return compilerenv.BuildDefaultDetectionMaxAICreditsExpression(defaultMaxAICredits)
+	default:
+		return compilerenv.BuildDefaultMaxAICreditsExpression(defaultMaxAICredits)
+	}
+}
+
+func buildAWFConfigPrintfScript(awfConfigJSON string, maxAICreditsExportLine string) string {
+	printfArg := buildAWFConfigPrintfArg(awfConfigJSON, maxAICreditsExportLine != "")
+	printfLine := "printf '%%s\\n' %s > %q"
+	if strings.HasPrefix(printfArg, "'") {
+		printfLine = "# shellcheck disable=SC2016\nprintf '%%s\\n' %s > %q"
+	}
+	configFileSetup := fmt.Sprintf(printfLine, printfArg, awfConfigRuntimePathExpr)
+	if maxAICreditsExportLine == "" {
+		return configFileSetup
+	}
+	return maxAICreditsExportLine + "\n" + configFileSetup
+}
+
+func buildAWFConfigPrintfArg(awfConfigJSON string, hasRuntimeBudget bool) string {
+	preservedVars := make([]string, 0, 2)
+	if hasRuntimeBudget {
+		preservedVars = append(preservedVars, awfMaxAICreditsVarName)
+	}
+	if strings.Contains(awfConfigJSON, awfArcDindRootPathExpr) {
+		preservedVars = append(preservedVars, "RUNNER_TEMP")
+	}
+	if len(preservedVars) == 0 {
+		return shellEscapeArg(awfConfigJSON)
+	}
+	return shellEscapeArgWithVarsPreserved(awfConfigJSON, preservedVars...)
+}
+
+func appendAWFWorkflowCallNetworkUpdater(configFileSetup string, workflowData *WorkflowData) string {
+	if !shouldUseWorkflowCallNetworkAllowedInput(workflowData) {
+		return configFileSetup
+	}
+	updateScript, err := buildWorkflowCallNetworkAllowedUpdateScript()
+	if err != nil {
+		awfHelpersLog.Printf("Warning: failed to build workflow_call network_allowed updater: %v", err)
+		return configFileSetup
+	}
+	return configFileSetup + "\n" + updateScript
+}
+
+func addAWFUploadArtifactMount(expandableArgs string, workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.SafeOutputs == nil || workflowData.SafeOutputs.UploadArtifact == nil {
+		return expandableArgs
+	}
+	stagingDir := SafeOutputsUploadArtifactsDir
+	awfHelpersLog.Print("Added read-write mount for upload_artifact staging directory")
+	return expandableArgs + fmt.Sprintf(` --mount "%s:%s:rw"`, stagingDir, stagingDir)
+}
+
+func addAWFServicePortArgs(expandableArgs string, workflowData *WorkflowData) string {
+	if workflowData == nil || workflowData.ServicePortExpressions == "" {
+		return expandableArgs
+	}
+	agentCfg := getAgentConfig(workflowData)
+	if agentCfg != nil && agentCfg.LegacySecurity {
+		awfHelpersLog.Printf("Added --allow-host-service-ports with %s", workflowData.ServicePortExpressions)
+		return expandableArgs + fmt.Sprintf(` --allow-host-service-ports "%s"`, workflowData.ServicePortExpressions)
+	}
+	awfHelpersLog.Print("Skipping --allow-host-service-ports: requires legacy-security mode")
+	return expandableArgs
+}
+
+func buildAWFEngineCommand(engineCommand string, isArcDind bool) string {
 	if isArcDind {
-		engineCommand = rewriteArcDindEngineCommand(engineCommand)
+		return rewriteArcDindEngineCommand(engineCommand)
 	}
+	return engineCommand
+}
 
-	// Wrap engine command in shell (command already includes any internal setup like npm PATH)
-	shellWrappedCommand := WrapCommandInShell(engineCommand)
-
-	// Pre-create the agent stdio log file with restrictive permissions (0600) before
-	// starting the AWF container.  tee would otherwise create it with the default
-	// umask (0644), leaving secrets (e.g. MCP gateway tokens) world-readable on the
-	// runner host until the secret-redaction step runs.
+func buildCompleteAWFCommand(
+	config AWFCommandConfig,
+	awfCommand string,
+	awfArgs []string,
+	expandableArgs string,
+	configFileSetup string,
+	arcDind awfArcDindRuntimeConfig,
+	modelsJSONPathExport string,
+) string {
+	toolCacheMountProbe, toolCacheMountRef := buildAWFToolCacheMountSupport()
+	shellWrappedCommand := WrapCommandInShell(buildAWFEngineCommand(config.EngineCommand, isArcDindTopology(config.WorkflowData)))
 	preCreateLog := fmt.Sprintf("(umask 177 && touch %s)", shellEscapeArg(config.LogFile))
-
-	// Capture the epoch-millisecond timestamp at the very start of the Execute Agent CLI
-	// step on the host, before the AWF container launches.  sendJobConclusionSpan reads
-	// this file to set the dedicated gh-aw.<job>.agent span start time, which excludes
-	// pre-agent overhead such as workspace audit and CLI proxy startup.
 	writeAgentCLIStartMs := "printf '%s' \"$(date +%s%3N)\" > " + shellEscapeArg(AgentCLIStartMsPath)
-
-	// Build the complete command with proper formatting.
-	// configFileSetup (if non-empty) writes the AWF config JSON immediately before the
-	// AWF invocation so the file is present when AWF parses --config.
-	//
-	// shellcheck directive rationale:
-	//   - SC1003 is expected because this generated block intentionally contains GitHub
-	//     expression literals (for example ${{ job.services.<id>.ports['<port>'] }})
-	//     that include single quotes and must survive into runtime unchanged.
-	//   - SC2086 is expected because a subset of AWF arguments are intentionally emitted
-	//     as expandable shell fragments (for example ${GH_AW_TOOL_CACHE_MOUNT:+...} and
-	//     ${GH_AW_DOCKER_HOST:+...}). These fragments are produced by trusted
-	//     compiler-owned probes above and are not user-provided free-form shell input.
-	//
-	// We keep normal quoting for all user-controlled values via shellEscapeArg/shellJoinArgs
-	// and scope this suppression to the generated AWF invocation line only.
-	var command string
-	if config.PathSetup != "" && configFileSetup != "" {
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			config.PathSetup,
-			preCreateLog,
-			configFileSetup,
-			modelsJSONPathExport,
-			arcDindDockerHostProbe,
-			arcDindPrefixProbe,
-			toolCacheMountProbe,
-			awfShellcheckDirective,
-			awfCommand,
-			expandableArgs,
-			toolCacheMountRef,
-			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
-	} else if config.PathSetup != "" {
-		// Include path setup before AWF command (runs on host before AWF)
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			config.PathSetup,
-			preCreateLog,
-			modelsJSONPathExport,
-			arcDindDockerHostProbe,
-			arcDindPrefixProbe,
-			toolCacheMountProbe,
-			awfShellcheckDirective,
-			awfCommand,
-			expandableArgs,
-			toolCacheMountRef,
-			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
-	} else if configFileSetup != "" {
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			preCreateLog,
-			configFileSetup,
-			modelsJSONPathExport,
-			arcDindDockerHostProbe,
-			arcDindPrefixProbe,
-			toolCacheMountProbe,
-			awfShellcheckDirective,
-			awfCommand,
-			expandableArgs,
-			toolCacheMountRef,
-			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
-	} else {
-		command = fmt.Sprintf(`set -o pipefail
-%s
-%s
-%s
-%s
-%s
-%s
-%s
-%s %s %s %s %s \
-  -- %s 2>&1 | tee -a %s`,
-			writeAgentCLIStartMs,
-			preCreateLog,
-			modelsJSONPathExport,
-			arcDindDockerHostProbe,
-			arcDindPrefixProbe,
-			toolCacheMountProbe,
-			awfShellcheckDirective,
-			awfCommand,
-			expandableArgs,
-			toolCacheMountRef,
-			arcDindDockerHostRef,
-			shellJoinArgs(awfArgs),
-			shellWrappedCommand,
-			shellEscapeArg(config.LogFile))
+	joinedArgs := shellJoinArgs(awfArgs)
+	logFileArg := shellEscapeArg(config.LogFile)
+	switch {
+	case config.PathSetup != "" && configFileSetup != "":
+		return formatAWFCommandWithPathSetupAndConfig(writeAgentCLIStartMs, config, preCreateLog, configFileSetup, modelsJSONPathExport, arcDind, toolCacheMountProbe, awfCommand, expandableArgs, toolCacheMountRef, joinedArgs, shellWrappedCommand, logFileArg)
+	case config.PathSetup != "":
+		return formatAWFCommandWithPathSetup(writeAgentCLIStartMs, config, preCreateLog, modelsJSONPathExport, arcDind, toolCacheMountProbe, awfCommand, expandableArgs, toolCacheMountRef, joinedArgs, shellWrappedCommand, logFileArg)
+	case configFileSetup != "":
+		return formatAWFCommandWithConfig(writeAgentCLIStartMs, preCreateLog, configFileSetup, modelsJSONPathExport, arcDind, toolCacheMountProbe, awfCommand, expandableArgs, toolCacheMountRef, joinedArgs, shellWrappedCommand, logFileArg)
+	default:
+		return formatAWFCommand(writeAgentCLIStartMs, preCreateLog, modelsJSONPathExport, arcDind, toolCacheMountProbe, awfCommand, expandableArgs, toolCacheMountRef, joinedArgs, shellWrappedCommand, logFileArg)
 	}
+}
 
-	awfHelpersLog.Print("Successfully built AWF command")
-	return command
+func formatAWFCommandWithPathSetupAndConfig(writeAgentCLIStartMs string, config AWFCommandConfig, preCreateLog string, configFileSetup string, modelsJSONPathExport string, arcDind awfArcDindRuntimeConfig, toolCacheMountProbe string, awfCommand string, expandableArgs string, toolCacheMountRef string, joinedArgs string, shellWrappedCommand string, logFileArg string) string {
+	return fmt.Sprintf(`set -o pipefail
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s %s %s %s %s \
+  -- %s 2>&1 | tee -a %s`,
+		writeAgentCLIStartMs, config.PathSetup, preCreateLog, configFileSetup, modelsJSONPathExport,
+		arcDind.dockerHostProbe, arcDind.prefixProbe, toolCacheMountProbe, awfShellcheckDirective,
+		awfCommand, expandableArgs, toolCacheMountRef, arcDind.dockerHostRef, joinedArgs, shellWrappedCommand, logFileArg)
+}
+
+func formatAWFCommandWithPathSetup(writeAgentCLIStartMs string, config AWFCommandConfig, preCreateLog string, modelsJSONPathExport string, arcDind awfArcDindRuntimeConfig, toolCacheMountProbe string, awfCommand string, expandableArgs string, toolCacheMountRef string, joinedArgs string, shellWrappedCommand string, logFileArg string) string {
+	return fmt.Sprintf(`set -o pipefail
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s %s %s %s %s \
+  -- %s 2>&1 | tee -a %s`,
+		writeAgentCLIStartMs, config.PathSetup, preCreateLog, modelsJSONPathExport, arcDind.dockerHostProbe,
+		arcDind.prefixProbe, toolCacheMountProbe, awfShellcheckDirective, awfCommand, expandableArgs,
+		toolCacheMountRef, arcDind.dockerHostRef, joinedArgs, shellWrappedCommand, logFileArg)
+}
+
+func formatAWFCommandWithConfig(writeAgentCLIStartMs string, preCreateLog string, configFileSetup string, modelsJSONPathExport string, arcDind awfArcDindRuntimeConfig, toolCacheMountProbe string, awfCommand string, expandableArgs string, toolCacheMountRef string, joinedArgs string, shellWrappedCommand string, logFileArg string) string {
+	return fmt.Sprintf(`set -o pipefail
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s %s %s %s %s \
+  -- %s 2>&1 | tee -a %s`,
+		writeAgentCLIStartMs, preCreateLog, configFileSetup, modelsJSONPathExport, arcDind.dockerHostProbe,
+		arcDind.prefixProbe, toolCacheMountProbe, awfShellcheckDirective, awfCommand, expandableArgs,
+		toolCacheMountRef, arcDind.dockerHostRef, joinedArgs, shellWrappedCommand, logFileArg)
+}
+
+func formatAWFCommand(writeAgentCLIStartMs string, preCreateLog string, modelsJSONPathExport string, arcDind awfArcDindRuntimeConfig, toolCacheMountProbe string, awfCommand string, expandableArgs string, toolCacheMountRef string, joinedArgs string, shellWrappedCommand string, logFileArg string) string {
+	return fmt.Sprintf(`set -o pipefail
+%s
+%s
+%s
+%s
+%s
+%s
+%s
+%s %s %s %s %s \
+  -- %s 2>&1 | tee -a %s`,
+		writeAgentCLIStartMs, preCreateLog, modelsJSONPathExport, arcDind.dockerHostProbe,
+		arcDind.prefixProbe, toolCacheMountProbe, awfShellcheckDirective, awfCommand, expandableArgs,
+		toolCacheMountRef, arcDind.dockerHostRef, joinedArgs, shellWrappedCommand, logFileArg)
 }
 
 // BuildAWFArgs constructs common AWF arguments from configuration.
@@ -629,68 +557,64 @@ fi`,
 //     --container-workdir and --mount are handled by BuildAWFCommand)
 func BuildAWFArgs(config AWFCommandConfig) []string {
 	awfHelpersLog.Printf("Building AWF args for engine: %s", config.EngineName)
-
 	firewallConfig := getFirewallConfig(config.WorkflowData)
 	agentConfig := getAgentConfig(config.WorkflowData)
+	awfArgs := appendAWFBaseArgs(nil, config, firewallConfig)
+	awfArgs = appendAWFEnvArgs(awfArgs, config, firewallConfig)
+	awfArgs = appendAWFMountArgs(awfArgs, agentConfig)
+	awfArgs = appendAWFLoggingArgs(awfArgs, config, firewallConfig)
+	awfArgs = appendAWFLegacySecurityArgs(awfArgs, config, firewallConfig, agentConfig)
+	awfArgs = appendAWFSkipPullAndCLIProxyArgs(awfArgs, config, firewallConfig)
+	awfArgs = appendAWFAPIBasePathArgs(awfArgs, config.WorkflowData)
+	awfArgs = append(awfArgs, getSSLBumpArgs(firewallConfig)...)
+	awfArgs = appendAWFCustomArgs(awfArgs, firewallConfig, agentConfig)
+	awfHelpersLog.Printf("Built %d AWF arguments", len(awfArgs))
+	return awfArgs
+}
 
-	var awfArgs []string
-
-	// Add TTY flag if needed (Claude requires this), except for docker-sbx where
-	// sbx exec --tty can terminate long-running Claude sessions prematurely.
+func appendAWFBaseArgs(awfArgs []string, config AWFCommandConfig, firewallConfig *FirewallConfig) []string {
 	if config.UsesTTY && !isDockerSbxRuntime(config.WorkflowData) {
 		awfArgs = append(awfArgs, "--tty")
 	}
-
-	// docker-sbx: tell AWF to launch the agent inside a Docker sbx microVM instead
-	// of as a standard Docker Compose service. Guard on the effective AWF version so
-	// older binaries do not receive an unknown flag.
-	if isDockerSbxRuntime(config.WorkflowData) && awfSupportsContainerRuntime(firewallConfig) {
-		awfArgs = append(awfArgs, "--container-runtime", "sbx")
+	if !isDockerSbxRuntime(config.WorkflowData) {
+		return awfArgs
+	}
+	if awfSupportsContainerRuntime(firewallConfig) {
 		awfHelpersLog.Print("Added --container-runtime sbx for docker-sbx microVM runtime")
-	} else if isDockerSbxRuntime(config.WorkflowData) {
-		awfHelpersLog.Printf("Skipping --container-runtime sbx: AWF version %q is older than required minimum %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
+		return append(awfArgs, "--container-runtime", "sbx")
 	}
+	awfHelpersLog.Printf("Skipping --container-runtime sbx: AWF version %q is older than required minimum %s", getAWFImageTag(firewallConfig), constants.AWFContainerRuntimeMinVersion)
+	return awfArgs
+}
 
-	// Pass all environment variables to the container, but exclude every variable whose
-	// step-env value comes from a GitHub Actions secret. AWF's API proxy (--enable-api-proxy)
-	// handles authentication for these tokens transparently, so the container does not need
-	// the raw values. Excluding them via --exclude-env prevents a prompt-injected agent from
-	// exfiltrating tokens through bash tools such as `env` or `printenv`.
-	// The caller computes ExcludeEnvVarNames from ComputeAWFExcludeEnvVarNames() so that every
-	// secret-bearing variable is covered — not just a hardcoded subset.
-	// --exclude-env requires AWF v0.25.3+; skip the flags for workflows that pin an older version.
+func appendAWFEnvArgs(awfArgs []string, config AWFCommandConfig, firewallConfig *FirewallConfig) []string {
 	awfArgs = append(awfArgs, "--env-all")
-	if awfSupportsExcludeEnv(firewallConfig) {
-		// Sort for deterministic output in compiled lock files.
-		sortedExclude := make([]string, len(config.ExcludeEnvVarNames))
-		copy(sortedExclude, config.ExcludeEnvVarNames)
-		sort.Strings(sortedExclude)
-		for _, excludedVar := range sortedExclude {
-			awfArgs = append(awfArgs, "--exclude-env", excludedVar)
-		}
-	} else {
+	if !awfSupportsExcludeEnv(firewallConfig) {
 		awfHelpersLog.Printf("Skipping --exclude-env: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFExcludeEnvMinVersion)
+		return awfArgs
 	}
-
-	// Note: --container-workdir "${GITHUB_WORKSPACE}" and --mount "${RUNNER_TEMP}/gh-aw:..."
-	// are intentionally NOT added here. They contain shell variable references that require
-	// double-quote expansion. These args are appended raw in BuildAWFCommand to ensure
-	// ${GITHUB_WORKSPACE} and ${RUNNER_TEMP} are expanded by the runner's shell.
-
-	// Add custom mounts from agent config if specified
-	if agentConfig != nil && len(agentConfig.Mounts) > 0 {
-		// Sort mounts for consistent output
-		sortedMounts := make([]string, len(agentConfig.Mounts))
-		copy(sortedMounts, agentConfig.Mounts)
-		sort.Strings(sortedMounts)
-
-		for _, mount := range sortedMounts {
-			awfArgs = append(awfArgs, "--mount", mount)
-		}
-		awfHelpersLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
+	sortedExclude := append([]string(nil), config.ExcludeEnvVarNames...)
+	sort.Strings(sortedExclude)
+	for _, excludedVar := range sortedExclude {
+		awfArgs = append(awfArgs, "--exclude-env", excludedVar)
 	}
+	return awfArgs
+}
 
-	// Set log level
+func appendAWFMountArgs(awfArgs []string, agentConfig *AgentSandboxConfig) []string {
+	if agentConfig == nil || len(agentConfig.Mounts) == 0 {
+		return awfArgs
+	}
+	sortedMounts := append([]string(nil), agentConfig.Mounts...)
+	sort.Strings(sortedMounts)
+	for _, mount := range sortedMounts {
+		awfArgs = append(awfArgs, "--mount", mount)
+	}
+	awfHelpersLog.Printf("Added %d custom mounts from agent config", len(sortedMounts))
+	return awfArgs
+}
+
+func appendAWFLoggingArgs(awfArgs []string, config AWFCommandConfig, firewallConfig *FirewallConfig) []string {
 	awfLogLevel := string(constants.AWFDefaultLogLevel)
 	if firewallConfig != nil && firewallConfig.LogLevel != "" {
 		awfLogLevel = firewallConfig.LogLevel
@@ -700,101 +624,87 @@ func BuildAWFArgs(config AWFCommandConfig) []string {
 		awfArgs = append(awfArgs, "--diagnostic-logs")
 		awfHelpersLog.Print("Added --diagnostic-logs because awf-diagnostic-logs feature flag is enabled")
 	}
+	return awfArgs
+}
 
-	// Legacy security mode: emit --legacy-security, --enable-host-access, and --allow-host-ports
-	isLegacy := agentConfig != nil && agentConfig.LegacySecurity
-	if isLegacy {
-		if awfSupportsLegacySecurity(firewallConfig) {
-			awfArgs = append(awfArgs, "--legacy-security")
-			awfHelpersLog.Print("Added --legacy-security (legacy-security: enable in frontmatter)")
-		} else {
-			// AWF versions older than v0.27.32 don't support --legacy-security;
-			// they run in legacy mode by default so the flag is unnecessary.
-			awfHelpersLog.Printf("Skipping --legacy-security: AWF version %q is older than minimum %s (legacy mode is the default for older versions)", getAWFImageTag(firewallConfig), constants.AWFLegacySecurityMinVersion)
-		}
-
-		awfArgs = append(awfArgs, "--enable-host-access")
-		awfHelpersLog.Print("Added --enable-host-access for legacy security mode")
-
-		if awfSupportsAllowHostPorts(firewallConfig) {
-			mcpGatewayPort := int(DefaultMCPGatewayPort)
-			if config.WorkflowData != nil && config.WorkflowData.SandboxConfig != nil &&
-				config.WorkflowData.SandboxConfig.MCP != nil && config.WorkflowData.SandboxConfig.MCP.Port > 0 {
-				mcpGatewayPort = config.WorkflowData.SandboxConfig.MCP.Port
-			}
-			hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
-			awfArgs = append(awfArgs, "--allow-host-ports", hostPorts)
-			awfHelpersLog.Printf("Added --allow-host-ports %s for legacy security mode", hostPorts)
-		}
-	} else {
+func appendAWFLegacySecurityArgs(awfArgs []string, config AWFCommandConfig, firewallConfig *FirewallConfig, agentConfig *AgentSandboxConfig) []string {
+	if agentConfig == nil || !agentConfig.LegacySecurity {
 		awfHelpersLog.Print("Strict security: skipping host-access flags (default)")
+		return awfArgs
 	}
+	awfArgs = appendAWFLegacySecurityModeArg(awfArgs, firewallConfig)
+	awfArgs = append(awfArgs, "--enable-host-access")
+	awfHelpersLog.Print("Added --enable-host-access for legacy security mode")
+	return appendAWFAllowHostPortsArg(awfArgs, config.WorkflowData, firewallConfig)
+}
 
-	// Skip pulling images since they are pre-downloaded
+func appendAWFLegacySecurityModeArg(awfArgs []string, firewallConfig *FirewallConfig) []string {
+	if awfSupportsLegacySecurity(firewallConfig) {
+		awfHelpersLog.Print("Added --legacy-security (legacy-security: enable in frontmatter)")
+		return append(awfArgs, "--legacy-security")
+	}
+	awfHelpersLog.Printf("Skipping --legacy-security: AWF version %q is older than minimum %s (legacy mode is the default for older versions)", getAWFImageTag(firewallConfig), constants.AWFLegacySecurityMinVersion)
+	return awfArgs
+}
+
+func appendAWFAllowHostPortsArg(awfArgs []string, workflowData *WorkflowData, firewallConfig *FirewallConfig) []string {
+	if !awfSupportsAllowHostPorts(firewallConfig) {
+		return awfArgs
+	}
+	mcpGatewayPort := int(DefaultMCPGatewayPort)
+	if workflowData != nil && workflowData.SandboxConfig != nil && workflowData.SandboxConfig.MCP != nil && workflowData.SandboxConfig.MCP.Port > 0 {
+		mcpGatewayPort = workflowData.SandboxConfig.MCP.Port
+	}
+	hostPorts := fmt.Sprintf("80,443,%d", mcpGatewayPort)
+	awfHelpersLog.Printf("Added --allow-host-ports %s for legacy security mode", hostPorts)
+	return append(awfArgs, "--allow-host-ports", hostPorts)
+}
+
+func appendAWFSkipPullAndCLIProxyArgs(awfArgs []string, config AWFCommandConfig, firewallConfig *FirewallConfig) []string {
 	awfArgs = append(awfArgs, "--skip-pull")
 	awfHelpersLog.Print("Using --skip-pull since images are pre-downloaded")
-
-	// Enable CLI proxy sidecar when GitHub mode is gh-proxy.
-	// Start the difc-proxy on the host and tell AWF where to connect
-	// (firewall v0.25.17+).
-	if isGitHubCLIModeEnabled(config.WorkflowData) {
-		if awfSupportsCliProxy(firewallConfig) {
-			difcProxyHost := "host.docker.internal:18443"
-			if isAWFNetworkIsolationEnabled(config.WorkflowData) {
-				difcProxyHost = "awmg-cli-proxy:18443"
-			}
-			awfArgs = append(awfArgs, "--difc-proxy-host", difcProxyHost)
-			awfArgs = append(awfArgs, "--difc-proxy-ca-cert", constants.TmpDIFCProxyTLSCACert)
-			awfHelpersLog.Print("Added --difc-proxy-host and --difc-proxy-ca-cert for CLI proxy sidecar")
-		} else {
-			awfHelpersLog.Printf("Skipping CLI proxy flags: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
-		}
+	if !isGitHubCLIModeEnabled(config.WorkflowData) {
+		return awfArgs
 	}
-
-	// Pass base path if URL contains a path component
-	// This is required for endpoints with path prefixes (e.g., Databricks /serving-endpoints,
-	// Azure OpenAI /openai/deployments/<name>, corporate LLM routers with path-based routing)
-	// Base paths remain as CLI flags — they are not yet represented in the config file schema.
-	openaiBasePath := extractAPIBasePath(config.WorkflowData, "OPENAI_BASE_URL")
-	if openaiBasePath != "" {
-		awfArgs = append(awfArgs, "--openai-api-base-path", openaiBasePath)
-		awfHelpersLog.Printf("Added --openai-api-base-path=%s", openaiBasePath)
+	if !awfSupportsCliProxy(firewallConfig) {
+		awfHelpersLog.Printf("Skipping CLI proxy flags: AWF version %q is older than minimum %s", getAWFImageTag(firewallConfig), constants.AWFCliProxyMinVersion)
+		return awfArgs
 	}
-
-	anthropicBasePath := extractAPIBasePath(config.WorkflowData, "ANTHROPIC_BASE_URL")
-	if anthropicBasePath != "" {
-		awfArgs = append(awfArgs, "--anthropic-api-base-path", anthropicBasePath)
-		awfHelpersLog.Printf("Added --anthropic-api-base-path=%s", anthropicBasePath)
+	difcProxyHost := "host.docker.internal:18443"
+	if isAWFNetworkIsolationEnabled(config.WorkflowData) {
+		difcProxyHost = "awmg-cli-proxy:18443"
 	}
+	awfHelpersLog.Print("Added --difc-proxy-host and --difc-proxy-ca-cert for CLI proxy sidecar")
+	return append(awfArgs, "--difc-proxy-host", difcProxyHost, "--difc-proxy-ca-cert", constants.TmpDIFCProxyTLSCACert)
+}
 
-	geminiBasePath := extractAPIBasePath(config.WorkflowData, "GEMINI_API_BASE_URL")
-	if geminiBasePath != "" {
-		awfArgs = append(awfArgs, "--gemini-api-base-path", geminiBasePath)
-		awfHelpersLog.Printf("Added --gemini-api-base-path=%s", geminiBasePath)
+func appendAWFAPIBasePathArgs(awfArgs []string, workflowData *WorkflowData) []string {
+	awfArgs = appendAWFAPIBasePathArg(awfArgs, workflowData, "OPENAI_BASE_URL", "--openai-api-base-path")
+	awfArgs = appendAWFAPIBasePathArg(awfArgs, workflowData, "ANTHROPIC_BASE_URL", "--anthropic-api-base-path")
+	return appendAWFAPIBasePathArg(awfArgs, workflowData, "GEMINI_API_BASE_URL", "--gemini-api-base-path")
+}
+
+func appendAWFAPIBasePathArg(awfArgs []string, workflowData *WorkflowData, envVar string, flagName string) []string {
+	basePath := extractAPIBasePath(workflowData, envVar)
+	if basePath == "" {
+		return awfArgs
 	}
+	awfHelpersLog.Printf("Added %s=%s", flagName, basePath)
+	return append(awfArgs, flagName, basePath)
+}
 
-	// Add SSL Bump support for HTTPS content inspection (v0.9.0+)
-	sslBumpArgs := getSSLBumpArgs(firewallConfig)
-	awfArgs = append(awfArgs, sslBumpArgs...)
-
-	// Add custom args if specified in firewall config
+func appendAWFCustomArgs(awfArgs []string, firewallConfig *FirewallConfig, agentConfig *AgentSandboxConfig) []string {
 	if firewallConfig != nil && len(firewallConfig.Args) > 0 {
 		awfArgs = append(awfArgs, firewallConfig.Args...)
 	}
-
-	// Add custom args from agent config if specified
 	if agentConfig != nil && len(agentConfig.Args) > 0 {
 		awfArgs = append(awfArgs, agentConfig.Args...)
 		awfHelpersLog.Printf("Added %d custom args from agent config", len(agentConfig.Args))
 	}
-
-	// Pass memory limit to AWF container if specified in agent config
 	if agentConfig != nil && agentConfig.Memory != "" {
 		awfArgs = append(awfArgs, "--memory-limit", agentConfig.Memory)
 		awfHelpersLog.Printf("Set AWF memory limit to %s", agentConfig.Memory)
 	}
-
-	awfHelpersLog.Printf("Built %d AWF arguments", len(awfArgs))
 	return awfArgs
 }
 
@@ -928,84 +838,85 @@ func WrapCommandInShell(command string) string {
 //   - agent.env var names whose values contain ${{ secrets.* }} or a job-output expression
 //   - names listed in the frontmatter excluded-env field (unconditionally)
 func ComputeAWFExcludeEnvVarNames(workflowData *WorkflowData, coreSecretVarNames []string) []string {
-	seen := make(map[string]struct {
-	})
-	var names []string
-
-	addUnique := func(name string) {
-		if !setutil.Contains(seen, name) {
-			seen[name] = struct {
-			}{}
-			names = append(names, name)
-		}
-	}
-
-	// Core secret vars for this engine (always contain secret references).
-	for _, name := range coreSecretVarNames {
-		addUnique(name)
-	}
-
-	// MCP gateway API key is always a secret when MCP servers are present.
-	if HasMCPServers(workflowData) {
-		addUnique("MCP_GATEWAY_API_KEY")
-	}
-
-	// GitHub MCP server token is always a secret when the GitHub tool is present.
-	if hasGitHubTool(workflowData.ParsedTools) {
-		addUnique("GITHUB_MCP_SERVER_TOKEN")
-	}
-
-	// HTTP MCP header secrets: values are always ${{ secrets.* }} references.
-	for varName := range collectHTTPMCPHeaderSecrets(workflowData.Tools) {
-		addUnique(varName)
-	}
-
-	// mcp-scripts env vars: only add those whose configured values contain a secret reference
-	// or a job-output expression (e.g. ${{ needs.fetch_token.outputs.token }}).
-	// (Non-secret vars like GH_DEBUG: "1" must NOT be excluded.)
-	if workflowData.MCPScripts != nil {
-		for _, toolConfig := range workflowData.MCPScripts.Tools {
-			for envName, envValue := range toolConfig.Env {
-				if strings.Contains(envValue, "${{ secrets.") || ContainsJobOutputExpr(envValue) {
-					addUnique(envName)
-				}
-			}
-		}
-	}
-
-	// engine.env vars that contain a secret reference or a job-output expression.
-	if workflowData.EngineConfig != nil {
-		for varName, varValue := range workflowData.EngineConfig.Env {
-			if strings.Contains(varValue, "${{ secrets.") || ContainsJobOutputExpr(varValue) {
-				addUnique(varName)
-			}
-		}
-	}
-
-	// agent.env vars that contain a secret reference or a job-output expression.
-	agentConfig := getAgentConfig(workflowData)
-	if agentConfig != nil {
-		for varName, varValue := range agentConfig.Env {
-			if strings.Contains(varValue, "${{ secrets.") || ContainsJobOutputExpr(varValue) {
-				addUnique(varName)
-			}
-		}
-	}
-
-	// GH_TOKEN when GitHub mode is gh-proxy: the token is passed in the AWF step env for the
-	// host difc-proxy but must be excluded from the agent container.
+	collector := newAWFExcludeEnvCollector()
+	collector.addAll(coreSecretVarNames)
+	collector.addRuntimeSecrets(workflowData)
+	collector.addMCPScriptEnv(workflowData)
+	collector.addWorkflowEnv(workflowData)
 	if isGitHubCLIModeEnabled(workflowData) {
-		addUnique("GH_TOKEN")
+		collector.add("GH_TOKEN")
 	}
-
-	// Explicitly excluded env vars from the frontmatter excluded-env field.
-	// These are always excluded regardless of their value content.
-	for _, name := range workflowData.ExcludedEnv {
-		addUnique(name)
+	if workflowData != nil {
+		collector.addAll(workflowData.ExcludedEnv)
 	}
+	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(collector.names))
+	return collector.names
+}
 
-	awfHelpersLog.Printf("Computed %d AWF env vars to exclude", len(names))
-	return names
+type awfExcludeEnvCollector struct {
+	seen  map[string]struct{}
+	names []string
+}
+
+func newAWFExcludeEnvCollector() *awfExcludeEnvCollector {
+	return &awfExcludeEnvCollector{seen: make(map[string]struct{})}
+}
+
+func (c *awfExcludeEnvCollector) add(name string) {
+	if !setutil.Contains(c.seen, name) {
+		c.seen[name] = struct{}{}
+		c.names = append(c.names, name)
+	}
+}
+
+func (c *awfExcludeEnvCollector) addAll(names []string) {
+	for _, name := range names {
+		c.add(name)
+	}
+}
+
+func (c *awfExcludeEnvCollector) addSecretLikeEnv(env map[string]string) {
+	for envName, envValue := range env {
+		if strings.Contains(envValue, "${{ secrets.") || ContainsJobOutputExpr(envValue) {
+			c.add(envName)
+		}
+	}
+}
+
+func (c *awfExcludeEnvCollector) addRuntimeSecrets(workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
+	}
+	if HasMCPServers(workflowData) {
+		c.add("MCP_GATEWAY_API_KEY")
+	}
+	if hasGitHubTool(workflowData.ParsedTools) {
+		c.add("GITHUB_MCP_SERVER_TOKEN")
+	}
+	for varName := range collectHTTPMCPHeaderSecrets(workflowData.Tools) {
+		c.add(varName)
+	}
+}
+
+func (c *awfExcludeEnvCollector) addMCPScriptEnv(workflowData *WorkflowData) {
+	if workflowData == nil || workflowData.MCPScripts == nil {
+		return
+	}
+	for _, toolConfig := range workflowData.MCPScripts.Tools {
+		c.addSecretLikeEnv(toolConfig.Env)
+	}
+}
+
+func (c *awfExcludeEnvCollector) addWorkflowEnv(workflowData *WorkflowData) {
+	if workflowData == nil {
+		return
+	}
+	if workflowData.EngineConfig != nil {
+		c.addSecretLikeEnv(workflowData.EngineConfig.Env)
+	}
+	if agentConfig := getAgentConfig(workflowData); agentConfig != nil {
+		c.addSecretLikeEnv(agentConfig.Env)
+	}
 }
 
 // addCliProxyGHTokenToEnv adds GH_TOKEN to the AWF step environment when GitHub

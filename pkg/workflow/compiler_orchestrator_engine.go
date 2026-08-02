@@ -258,67 +258,102 @@ func (c *Compiler) resolveEngineFromIncludesAndImports(
 	engineConfig *EngineConfig,
 	model string,
 ) (string, *EngineConfig, string, error) {
+	allEngines, err := c.collectResolvedEngines(result.Markdown, markdownDir, importsResult)
+	if err != nil {
+		return "", nil, "", err
+	}
+	engineSetting, err = c.validateAndRegisterResolvedEngines(engineSetting, allEngines)
+	if err != nil {
+		return "", nil, "", err
+	}
+	engineConfig, model, err = c.applyImportedEngineConfig(allEngines, engineConfig, model)
+	if err != nil {
+		return "", nil, "", err
+	}
+	engineSetting, engineConfig = c.finalizeResolvedEngineConfig(engineSetting, engineConfig)
+	return engineSetting, engineConfig, model, nil
+}
+
+func (c *Compiler) collectResolvedEngines(markdown string, markdownDir string, importsResult *parser.ImportsResult) ([]string, error) {
 	orchestratorEngineLog.Printf("Expanding includes for engine configurations")
-	includedEngines, err := parser.ExpandIncludesForEngines(result.Markdown, markdownDir)
+	includedEngines, err := parser.ExpandIncludesForEngines(markdown, markdownDir)
 	if err != nil {
 		orchestratorEngineLog.Printf("Failed to expand includes for engines: %v", err)
-		return "", nil, "", fmt.Errorf("failed to expand includes for engines: %w", err)
+		return nil, fmt.Errorf("failed to expand includes for engines: %w", err)
 	}
-	allEngines := append(importsResult.MergedEngines, includedEngines...)
+	return append(importsResult.MergedEngines, includedEngines...), nil
+}
+
+func (c *Compiler) validateAndRegisterResolvedEngines(engineSetting string, allEngines []string) (string, error) {
 	orchestratorEngineLog.Printf("Validating single engine specification")
 	finalEngineSetting, err := c.validateSingleEngineSpecification(engineSetting, allEngines)
 	if err != nil {
 		orchestratorEngineLog.Printf("Engine specification validation failed: %v", err)
-		return "", nil, "", err
+		return "", err
 	}
 	if finalEngineSetting != "" {
 		engineSetting = finalEngineSetting
 	}
 	for _, engineJSON := range allEngines {
 		if err := c.registerNamedEngineDefinitionFromJSON(engineJSON); err != nil {
-			return "", nil, "", fmt.Errorf("failed to register engine definition from included file: %w", err)
+			return "", fmt.Errorf("failed to register engine definition from included file: %w", err)
 		}
 	}
-	if engineConfig == nil && len(allEngines) > 0 {
-		orchestratorEngineLog.Printf("Extracting engine config from included file")
-		var extractedModel string
-		engineConfig, extractedModel, err = c.extractEngineConfigFromJSON(allEngines[0])
-		if err != nil {
-			orchestratorEngineLog.Printf("Failed to extract engine config: %v", err)
-			return "", nil, "", fmt.Errorf("failed to extract engine config from included file: %w", err)
-		}
-		// Preserve the model from the main workflow frontmatter if already set;
-		// only fall back to the imported/shared workflow's model when the main
-		// workflow does not specify one (main workflow model takes precedence).
-		if model == "" {
-			model = extractedModel
-		}
-		if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
-			return "", nil, "", err
-		}
-	} else if model == "" && len(allEngines) > 0 {
-		// engineConfig is non-nil (e.g. from top-level max-ai-credits or other
-		// budget fields) but model has not been set by the main workflow. Extract
-		// just the model from the imported engine config so that an engine.model
-		// pin in an imported file is not silently dropped.
-		_, extractedModel, extractErr := c.extractEngineConfigFromJSON(allEngines[0])
-		if extractErr == nil && extractedModel != "" {
-			model = extractedModel
-			orchestratorEngineLog.Printf("Applied model from imported engine config: %s", model)
-		}
+	return engineSetting, nil
+}
+
+func (c *Compiler) applyImportedEngineConfig(allEngines []string, engineConfig *EngineConfig, model string) (*EngineConfig, string, error) {
+	if len(allEngines) == 0 {
+		return engineConfig, model, nil
 	}
+	if engineConfig == nil {
+		return c.extractPrimaryImportedEngineConfig(allEngines[0], model)
+	}
+	if model != "" {
+		return engineConfig, model, nil
+	}
+	return engineConfig, c.extractImportedEngineModel(allEngines[0]), nil
+}
+
+func (c *Compiler) extractPrimaryImportedEngineConfig(engineJSON string, model string) (*EngineConfig, string, error) {
+	orchestratorEngineLog.Printf("Extracting engine config from included file")
+	engineConfig, extractedModel, err := c.extractEngineConfigFromJSON(engineJSON)
+	if err != nil {
+		orchestratorEngineLog.Printf("Failed to extract engine config: %v", err)
+		return nil, "", fmt.Errorf("failed to extract engine config from included file: %w", err)
+	}
+	if model == "" {
+		model = extractedModel
+	}
+	if err := c.validateAndRegisterInlineEngineConfig(engineConfig); err != nil {
+		return nil, "", err
+	}
+	return engineConfig, model, nil
+}
+
+func (c *Compiler) extractImportedEngineModel(engineJSON string) string {
+	_, extractedModel, err := c.extractEngineConfigFromJSON(engineJSON)
+	if err == nil && extractedModel != "" {
+		orchestratorEngineLog.Printf("Applied model from imported engine config: %s", extractedModel)
+		return extractedModel
+	}
+	return ""
+}
+
+func (c *Compiler) finalizeResolvedEngineConfig(engineSetting string, engineConfig *EngineConfig) (string, *EngineConfig) {
 	if engineSetting == "" {
 		defaultEngine := c.engineRegistry.GetDefaultEngine()
 		engineSetting = defaultEngine.GetID()
 		workflowLog.Printf("No 'engine:' setting found, defaulting to: %s", engineSetting)
 	}
 	if engineConfig == nil {
-		engineConfig = &EngineConfig{ID: engineSetting}
-	} else if engineConfig.ID == "" && engineSetting != "" {
+		return engineSetting, &EngineConfig{ID: engineSetting}
+	}
+	if engineConfig.ID == "" && engineSetting != "" {
 		engineConfig.ID = engineSetting
 		orchestratorEngineLog.Printf("Normalized engineConfig.ID from engineSetting: %s", engineSetting)
 	}
-	return engineSetting, engineConfig, model, nil
+	return engineSetting, engineConfig
 }
 
 // applyEngineImportDefaults merges import-derived engine defaults into engineConfig.
@@ -335,9 +370,25 @@ func (c *Compiler) applyEngineImportDefaults(
 	preservedMaxRuns int,
 	preservedMaxTurnCacheMisses int,
 ) (*EngineConfig, string) {
-	if engineConfig == nil {
-		engineConfig = &EngineConfig{ID: engineSetting}
+	engineConfig = ensureEngineImportConfig(engineConfig, engineSetting)
+	applyPreservedEngineBudgetLimits(engineConfig, preservedMaxTurns, preservedMaxAICredits, preservedMaxRuns, preservedMaxTurnCacheMisses)
+	applyImportedEngineExecutionDefaults(engineConfig, importsResult)
+	applyImportedEngineTimeoutDefaults(engineConfig, importsResult)
+	if model == "" && importsResult.MergedEngineModel != "" {
+		model = importsResult.MergedEngineModel
+		orchestratorEngineLog.Printf("Applied model preference from import: %s", model)
 	}
+	return engineConfig, model
+}
+
+func ensureEngineImportConfig(engineConfig *EngineConfig, engineSetting string) *EngineConfig {
+	if engineConfig != nil {
+		return engineConfig
+	}
+	return &EngineConfig{ID: engineSetting}
+}
+
+func applyPreservedEngineBudgetLimits(engineConfig *EngineConfig, preservedMaxTurns string, preservedMaxAICredits int64, preservedMaxRuns int, preservedMaxTurnCacheMisses int) {
 	if preservedMaxTurns != "" {
 		engineConfig.MaxTurns = preservedMaxTurns
 	}
@@ -350,51 +401,82 @@ func (c *Compiler) applyEngineImportDefaults(
 	if preservedMaxTurnCacheMisses > 0 {
 		engineConfig.MaxTurnCacheMisses = preservedMaxTurnCacheMisses
 	}
-	if engineConfig.MaxTurns == "" && importsResult.MergedMaxTurns != "" {
-		var importedMaxTurns any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurns), &importedMaxTurns); err == nil {
-			if parsed := parseMaxTurnsValue(importedMaxTurns); parsed != "" {
-				engineConfig.MaxTurns = parsed
-				orchestratorEngineLog.Printf("Applied max-turns from import")
-			}
+}
+
+func applyImportedEngineExecutionDefaults(engineConfig *EngineConfig, importsResult *parser.ImportsResult) {
+	applyImportedEngineMaxTurns(engineConfig, importsResult.MergedMaxTurns)
+	applyImportedEngineMaxToolDenials(engineConfig, importsResult.MergedMaxToolDenials)
+	applyImportedEngineMaxRuns(engineConfig, importsResult.MergedMaxRuns)
+	applyImportedEngineMaxAICredits(engineConfig, importsResult.MergedMaxAICredits)
+	applyImportedEngineMaxTurnCacheMisses(engineConfig, importsResult.MergedMaxTurnCacheMisses)
+}
+
+func applyImportedEngineMaxTurns(engineConfig *EngineConfig, raw string) {
+	if engineConfig.MaxTurns != "" || raw == "" {
+		return
+	}
+	var imported any
+	if err := json.Unmarshal([]byte(raw), &imported); err == nil {
+		if parsed := parseMaxTurnsValue(imported); parsed != "" {
+			engineConfig.MaxTurns = parsed
+			orchestratorEngineLog.Printf("Applied max-turns from import")
 		}
 	}
-	if engineConfig.MaxToolDenials == "" && importsResult.MergedMaxToolDenials != "" {
-		var importedMaxToolDenials any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxToolDenials), &importedMaxToolDenials); err == nil {
-			if parsed := parseMaxToolDenialsValue(importedMaxToolDenials); parsed != "" {
-				engineConfig.MaxToolDenials = parsed
-				orchestratorEngineLog.Printf("Applied max-tool-denials from import")
-			}
+}
+
+func applyImportedEngineMaxToolDenials(engineConfig *EngineConfig, raw string) {
+	if engineConfig.MaxToolDenials != "" || raw == "" {
+		return
+	}
+	var imported any
+	if err := json.Unmarshal([]byte(raw), &imported); err == nil {
+		if parsed := parseMaxToolDenialsValue(imported); parsed != "" {
+			engineConfig.MaxToolDenials = parsed
+			orchestratorEngineLog.Printf("Applied max-tool-denials from import")
 		}
 	}
-	if engineConfig.MaxRuns <= 0 && importsResult.MergedMaxRuns != "" {
-		var importedMaxRuns any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxRuns), &importedMaxRuns); err == nil {
-			if parsed := parseMaxRunsValue(importedMaxRuns); parsed > 0 {
-				engineConfig.MaxRuns = parsed
-				orchestratorEngineLog.Printf("Applied max-runs from import")
-			}
+}
+
+func applyImportedEngineMaxRuns(engineConfig *EngineConfig, raw string) {
+	if engineConfig.MaxRuns > 0 || raw == "" {
+		return
+	}
+	var imported any
+	if err := json.Unmarshal([]byte(raw), &imported); err == nil {
+		if parsed := parseMaxRunsValue(imported); parsed > 0 {
+			engineConfig.MaxRuns = parsed
+			orchestratorEngineLog.Printf("Applied max-runs from import")
 		}
 	}
-	if engineConfig.MaxAICredits == 0 && importsResult.MergedMaxAICredits != "" {
-		var importedMaxAICredits any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxAICredits), &importedMaxAICredits); err == nil {
-			if parsed := parseMaxAICreditsValue(importedMaxAICredits); parsed != 0 {
-				engineConfig.MaxAICredits = parsed
-				orchestratorEngineLog.Printf("Applied max-ai-credits from import")
-			}
+}
+
+func applyImportedEngineMaxAICredits(engineConfig *EngineConfig, raw string) {
+	if engineConfig.MaxAICredits != 0 || raw == "" {
+		return
+	}
+	var imported any
+	if err := json.Unmarshal([]byte(raw), &imported); err == nil {
+		if parsed := parseMaxAICreditsValue(imported); parsed != 0 {
+			engineConfig.MaxAICredits = parsed
+			orchestratorEngineLog.Printf("Applied max-ai-credits from import")
 		}
 	}
-	if engineConfig.MaxTurnCacheMisses <= 0 && importsResult.MergedMaxTurnCacheMisses != "" {
-		var importedMaxTurnCacheMisses any
-		if err := json.Unmarshal([]byte(importsResult.MergedMaxTurnCacheMisses), &importedMaxTurnCacheMisses); err == nil {
-			if parsed := parseMaxTurnCacheMissesValue(importedMaxTurnCacheMisses); parsed > 0 {
-				engineConfig.MaxTurnCacheMisses = parsed
-				orchestratorEngineLog.Printf("Applied max-turn-cache-misses from import")
-			}
+}
+
+func applyImportedEngineMaxTurnCacheMisses(engineConfig *EngineConfig, raw string) {
+	if engineConfig.MaxTurnCacheMisses > 0 || raw == "" {
+		return
+	}
+	var imported any
+	if err := json.Unmarshal([]byte(raw), &imported); err == nil {
+		if parsed := parseMaxTurnCacheMissesValue(imported); parsed > 0 {
+			engineConfig.MaxTurnCacheMisses = parsed
+			orchestratorEngineLog.Printf("Applied max-turn-cache-misses from import")
 		}
 	}
+}
+
+func applyImportedEngineTimeoutDefaults(engineConfig *EngineConfig, importsResult *parser.ImportsResult) {
 	if engineConfig.MCPToolTimeout == "" && importsResult.MergedEngineMCPToolTimeout != "" {
 		engineConfig.MCPToolTimeout = importsResult.MergedEngineMCPToolTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.tool-timeout from import: %s", engineConfig.MCPToolTimeout)
@@ -403,11 +485,6 @@ func (c *Compiler) applyEngineImportDefaults(
 		engineConfig.MCPSessionTimeout = importsResult.MergedEngineMCPSessionTimeout
 		orchestratorEngineLog.Printf("Applied engine.mcp.session-timeout from import: %s", engineConfig.MCPSessionTimeout)
 	}
-	if model == "" && importsResult.MergedEngineModel != "" {
-		model = importsResult.MergedEngineModel
-		orchestratorEngineLog.Printf("Applied model preference from import: %s", model)
-	}
-	return engineConfig, model
 }
 
 func (c *Compiler) resolveEngineRuntimeConfig(engineSetting string, engineConfig *EngineConfig) (CodingAgentEngine, []map[string]any, error) {

@@ -401,35 +401,42 @@ func (c *Compiler) extractAdditionalConfigurations(
 	safeOutputs *SafeOutputsConfig,
 ) error {
 	orchestratorWorkflowLog.Print("Extracting additional configurations")
-
-	// Extract cache-memory config and check for errors
-	cacheMemoryConfig, err := c.extractCacheMemoryConfigFromMap(tools)
+	toolsConfig, err := c.populateWorkflowMemoryConfigs(workflowData, tools)
 	if err != nil {
 		return err
 	}
-	workflowData.CacheMemoryConfig = cacheMemoryConfig
+	c.populateWorkflowTriggerConfigs(frontmatter, workflowData, importsResult)
+	if err := c.populateWorkflowSafeOutputConfigs(frontmatter, markdownDir, workflowData, importsResult, markdown, safeOutputs, toolsConfig); err != nil {
+		return err
+	}
+	return c.populateWorkflowExperimentsAndEvals(frontmatter, workflowData)
+}
 
-	// Extract repo-memory config and check for errors
+func (c *Compiler) populateWorkflowMemoryConfigs(workflowData *WorkflowData, tools map[string]any) (*ToolsConfig, error) {
+	cacheMemoryConfig, err := c.extractCacheMemoryConfigFromMap(tools)
+	if err != nil {
+		return nil, err
+	}
+	workflowData.CacheMemoryConfig = cacheMemoryConfig
 	toolsConfig, err := ParseToolsConfig(tools)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	repoMemoryConfig, err := c.extractRepoMemoryConfig(toolsConfig, workflowData.WorkflowID)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	workflowData.RepoMemoryConfig = repoMemoryConfig
+	return toolsConfig, nil
+}
 
-	// Extract and process mcp-scripts and safe-outputs
+func (c *Compiler) populateWorkflowTriggerConfigs(frontmatter map[string]any, workflowData *WorkflowData, importsResult *parser.ImportsResult) {
 	workflowData.Command, workflowData.CommandEvents, workflowData.CommandCentralized, workflowData.CommandPlaceholder = c.extractCommandConfig(frontmatter)
 	workflowData.LabelCommand, workflowData.LabelCommandEvents, workflowData.LabelCommandDecentralized, workflowData.LabelCommandRemoveLabel = c.extractLabelCommandConfig(frontmatter)
 	workflowData.Jobs = c.extractJobsFromFrontmatter(frontmatter)
-
-	// Merge jobs from imported YAML workflows
 	if importsResult.MergedJobs != "" && importsResult.MergedJobs != "{}" {
 		workflowData.Jobs = c.mergeJobsFromYAMLImports(workflowData.Jobs, importsResult.MergedJobs)
 	}
-
 	workflowData.Roles = c.extractRoles(frontmatter)
 	workflowData.Bots = expandBotNames(mergeBots(c.extractBots(frontmatter), importsResult.MergedBots))
 	workflowData.LabelNames = c.extractLabelNames(frontmatter)
@@ -441,111 +448,95 @@ func (c *Compiler) extractAdditionalConfigurations(
 	workflowData.ActivationGitHubToken = c.resolveActivationGitHubToken(frontmatter, importsResult)
 	workflowData.ActivationGitHubApp = c.resolveActivationGitHubApp(frontmatter, importsResult)
 	workflowData.TopLevelGitHubApp = resolveTopLevelGitHubApp(frontmatter, importsResult)
+}
 
-	// Use the already extracted output configuration
+func (c *Compiler) populateWorkflowSafeOutputConfigs(frontmatter map[string]any, markdownDir string, workflowData *WorkflowData, importsResult *parser.ImportsResult, markdown string, safeOutputs *SafeOutputsConfig, toolsConfig *ToolsConfig) error {
 	workflowData.SafeOutputs = safeOutputs
-
-	// Extract comment-memory from tools and attach to safe-outputs configuration.
-	// comment-memory now belongs under tools: next to cache-memory and repo-memory.
-	commentMemoryConfig := c.extractCommentMemoryConfig(toolsConfig)
-	if commentMemoryConfig != nil {
-		if workflowData.SafeOutputs == nil {
-			workflowData.SafeOutputs = &SafeOutputsConfig{}
-		}
-		workflowData.SafeOutputs.CommentMemory = commentMemoryConfig
-	}
-
-	// Extract mcp-scripts configuration
+	attachCommentMemoryConfig(workflowData, c.extractCommentMemoryConfig(toolsConfig))
 	workflowData.MCPScripts = c.extractMCPScriptsConfig(frontmatter)
-
-	// Merge mcp-scripts from imports
 	if len(importsResult.MergedMCPScripts) > 0 {
 		workflowData.MCPScripts = c.mergeMCPScripts(workflowData.MCPScripts, importsResult.MergedMCPScripts)
 	}
+	allSafeOutputsConfigs, err := c.collectSafeOutputsConfigs(markdownDir, importsResult, markdown)
+	if err != nil {
+		return err
+	}
+	if err := c.mergeWorkflowSafeOutputs(frontmatter, workflowData, safeOutputs, allSafeOutputsConfigs); err != nil {
+		return err
+	}
+	applyDefaultCreateIssue(workflowData)
+	applyTopLevelGitHubAppFallbacks(workflowData)
+	return nil
+}
 
-	// Extract safe-jobs from safe-outputs.jobs location
-	topSafeJobs := extractSafeJobsFromFrontmatter(frontmatter)
+func attachCommentMemoryConfig(workflowData *WorkflowData, commentMemoryConfig *CommentMemoryConfig) {
+	if commentMemoryConfig == nil {
+		return
+	}
+	if workflowData.SafeOutputs == nil {
+		workflowData.SafeOutputs = &SafeOutputsConfig{}
+	}
+	workflowData.SafeOutputs.CommentMemory = commentMemoryConfig
+}
 
-	// Process @include directives to extract additional safe-outputs configurations
+func (c *Compiler) collectSafeOutputsConfigs(markdownDir string, importsResult *parser.ImportsResult, markdown string) ([]string, error) {
 	includedSafeOutputsConfigs, err := parser.ExpandIncludesForSafeOutputs(markdown, markdownDir)
 	if err != nil {
-		return fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
+		return nil, fmt.Errorf("failed to expand includes for safe-outputs: %w", err)
 	}
+	allSafeOutputsConfigs := append([]string{}, importsResult.MergedSafeOutputs...)
+	allSafeOutputsConfigs = append(allSafeOutputsConfigs, includedSafeOutputsConfigs...)
+	return allSafeOutputsConfigs, nil
+}
 
-	// Combine imported safe-outputs with included safe-outputs
-	var allSafeOutputsConfigs []string
-	if len(importsResult.MergedSafeOutputs) > 0 {
-		allSafeOutputsConfigs = append(allSafeOutputsConfigs, importsResult.MergedSafeOutputs...)
-	}
-	if len(includedSafeOutputsConfigs) > 0 {
-		allSafeOutputsConfigs = append(allSafeOutputsConfigs, includedSafeOutputsConfigs...)
-	}
-
-	// Merge safe-jobs from all safe-outputs configurations (imported and included)
+func (c *Compiler) mergeWorkflowSafeOutputs(frontmatter map[string]any, workflowData *WorkflowData, safeOutputs *SafeOutputsConfig, allSafeOutputsConfigs []string) error {
+	topSafeJobs := extractSafeJobsFromFrontmatter(frontmatter)
 	includedSafeJobs, err := c.mergeSafeJobsFromIncludedConfigs(topSafeJobs, allSafeOutputsConfigs)
 	if err != nil {
 		return fmt.Errorf("failed to merge safe-jobs from includes: %w", err)
 	}
-
-	// Merge app configuration from included safe-outputs configurations
 	includedApp, err := c.mergeAppFromIncludedConfigs(workflowData.SafeOutputs, allSafeOutputsConfigs)
 	if err != nil {
 		return fmt.Errorf("failed to merge app from includes: %w", err)
 	}
-
-	// Ensure SafeOutputs exists and populate the Jobs field with merged jobs
-	if workflowData.SafeOutputs == nil && len(includedSafeJobs) > 0 {
-		workflowData.SafeOutputs = &SafeOutputsConfig{}
-	}
-	// Always use the merged includedSafeJobs as it contains both main and imported jobs
-	if workflowData.SafeOutputs != nil && len(includedSafeJobs) > 0 {
-		workflowData.SafeOutputs.Jobs = includedSafeJobs
-	}
-
-	// Populate the App field if it's not set in the top-level workflow but is in an included config
-	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.GitHubApp == nil && includedApp != nil {
-		workflowData.SafeOutputs.GitHubApp = includedApp
-	}
-
-	// Merge safe-outputs types from imports.
-	// Pass the raw safe-outputs map from frontmatter so MergeSafeOutputs can distinguish
-	// between types the user explicitly configured and types that were auto-defaulted by
-	// extractSafeOutputsConfig. Without this, auto-defaults (e.g. threat-detection) would
-	// prevent imported configurations for those types from being merged.
+	ensureWorkflowSafeOutputsTargets(workflowData, includedSafeJobs, includedApp)
 	rawSafeOutputsMap, _ := frontmatter["safe-outputs"].(map[string]any)
 	mergedSafeOutputs, err := c.MergeSafeOutputs(workflowData.SafeOutputs, allSafeOutputsConfigs, rawSafeOutputsMap)
 	if err != nil {
 		return fmt.Errorf("failed to merge safe-outputs from imports: %w", err)
 	}
 	workflowData.SafeOutputs = mergedSafeOutputs
+	applyImportedSafeOutputThreatDetectionDefault(workflowData, safeOutputs, allSafeOutputsConfigs)
+	return nil
+}
 
-	// Apply default threat detection when safe-outputs came entirely from imports/includes
-	// (i.e. the main frontmatter has no safe-outputs: section). In this case the merge
-	// produces a non-nil SafeOutputs but leaves ThreatDetection nil, which would suppress
-	// the detection gate on the safe_outputs job. Mirroring the behaviour of
-	// extractSafeOutputsConfig for direct frontmatter declarations, we enable detection by
-	// default unless any imported config explicitly sets threat-detection: false.
-	if safeOutputs == nil && workflowData.SafeOutputs != nil && workflowData.SafeOutputs.ThreatDetection == nil {
-		if !isThreatDetectionExplicitlyDisabledInConfigs(allSafeOutputsConfigs) {
-			orchestratorWorkflowLog.Print("Applying default threat-detection for safe-outputs assembled from imports/includes")
-			workflowData.SafeOutputs.ThreatDetection = &ThreatDetectionConfig{}
-		}
+func ensureWorkflowSafeOutputsTargets(workflowData *WorkflowData, includedSafeJobs map[string]*SafeJobConfig, includedApp *GitHubAppConfig) {
+	if workflowData.SafeOutputs == nil && len(includedSafeJobs) > 0 {
+		workflowData.SafeOutputs = &SafeOutputsConfig{}
 	}
+	if workflowData.SafeOutputs != nil && len(includedSafeJobs) > 0 {
+		workflowData.SafeOutputs.Jobs = includedSafeJobs
+	}
+	if workflowData.SafeOutputs != nil && workflowData.SafeOutputs.GitHubApp == nil && includedApp != nil {
+		workflowData.SafeOutputs.GitHubApp = includedApp
+	}
+}
 
-	// Auto-inject create-issues if safe-outputs is configured but has no non-builtin outputs.
-	// This ensures every workflow with safe-outputs has at least one meaningful action handler.
-	applyDefaultCreateIssue(workflowData)
+func applyImportedSafeOutputThreatDetectionDefault(workflowData *WorkflowData, safeOutputs *SafeOutputsConfig, allSafeOutputsConfigs []string) {
+	if safeOutputs != nil || workflowData.SafeOutputs == nil || workflowData.SafeOutputs.ThreatDetection != nil {
+		return
+	}
+	if isThreatDetectionExplicitlyDisabledInConfigs(allSafeOutputsConfigs) {
+		return
+	}
+	orchestratorWorkflowLog.Print("Applying default threat-detection for safe-outputs assembled from imports/includes")
+	workflowData.SafeOutputs.ThreatDetection = &ThreatDetectionConfig{}
+}
 
-	// Apply the top-level github-app as a fallback for all nested github-app token minting operations.
-	// This runs last so that all section-specific configurations have been resolved first.
-	applyTopLevelGitHubAppFallbacks(workflowData)
-
-	// Extract experiments configuration once; derive the simple variants map from the configs.
+func (c *Compiler) populateWorkflowExperimentsAndEvals(frontmatter map[string]any, workflowData *WorkflowData) error {
 	workflowData.ExperimentConfigs = extractExperimentConfigsFromFrontmatter(frontmatter)
 	workflowData.Experiments = experimentVariantsFromConfigs(workflowData.ExperimentConfigs)
 	workflowData.ExperimentsStorage = extractExperimentsStorageFromFrontmatter(frontmatter)
-
-	// Extract BinEval evals configuration.
 	evalsConfig, err := c.parseEvalsFromFrontmatter(frontmatter)
 	if err != nil {
 		return fmt.Errorf("invalid evals configuration: %w", err)
@@ -554,7 +545,6 @@ func (c *Compiler) extractAdditionalConfigurations(
 	if err := validateExperimentMetricReferences(workflowData.ExperimentConfigs, workflowData.Evals); err != nil {
 		return fmt.Errorf("invalid experiments configuration: %w", err)
 	}
-
 	return nil
 }
 
@@ -625,98 +615,81 @@ func (c *Compiler) processOnSectionAndFilters(
 	cleanPath string,
 ) error {
 	orchestratorWorkflowLog.Print("Processing on section and filters")
-
-	// Process stop-after configuration from the on: section
-	if err := c.processStopAfterConfiguration(frontmatter, workflowData, cleanPath); err != nil {
+	if err := c.processOnSectionCore(frontmatter, workflowData, cleanPath); err != nil {
 		return err
 	}
+	c.applyOnSectionFilters(workflowData, frontmatter)
+	return c.populateOnSectionDerivedFields(frontmatter, workflowData)
+}
 
-	// Process skip-if-match configuration from the on: section
-	if err := c.processSkipIfMatchConfiguration(frontmatter, workflowData); err != nil {
-		return err
+func (c *Compiler) processOnSectionCore(frontmatter map[string]any, workflowData *WorkflowData, cleanPath string) error {
+	checks := []func() error{
+		func() error { return c.processStopAfterConfiguration(frontmatter, workflowData, cleanPath) },
+		func() error { return c.processSkipIfMatchConfiguration(frontmatter, workflowData) },
+		func() error { return c.processSkipIfNoMatchConfiguration(frontmatter, workflowData) },
+		func() error { return c.processSkipIfCheckFailingConfiguration(frontmatter, workflowData) },
+		func() error { return c.processManualApprovalConfiguration(frontmatter, workflowData) },
+		func() error { return c.parseOnSection(frontmatter, workflowData, cleanPath) },
+		func() error { return c.applyDefaults(workflowData, cleanPath) },
 	}
-
-	// Process skip-if-no-match configuration from the on: section
-	if err := c.processSkipIfNoMatchConfiguration(frontmatter, workflowData); err != nil {
-		return err
+	for _, check := range checks {
+		if err := check(); err != nil {
+			return err
+		}
 	}
+	return nil
+}
 
-	// Process skip-if-check-failing configuration from the on: section
-	if err := c.processSkipIfCheckFailingConfiguration(frontmatter, workflowData); err != nil {
-		return err
-	}
-
-	// Process manual-approval configuration from the on: section
-	if err := c.processManualApprovalConfiguration(frontmatter, workflowData); err != nil {
-		return err
-	}
-
-	// Parse the "on" section for command triggers, reactions, and other events
-	if err := c.parseOnSection(frontmatter, workflowData, cleanPath); err != nil {
-		return err
-	}
-
-	// Apply defaults
-	if err := c.applyDefaults(workflowData, cleanPath); err != nil {
-		return err
-	}
-
-	// Apply pull request draft filter if specified
+func (c *Compiler) applyOnSectionFilters(workflowData *WorkflowData, frontmatter map[string]any) {
 	c.applyPullRequestDraftFilter(workflowData, frontmatter)
-
-	// Apply pull request fork filter if specified
 	c.applyPullRequestForkFilter(workflowData, frontmatter)
-
-	// Apply pull request stack filter (default: latest stacked PR only)
 	c.applyPullRequestStackFilter(workflowData, frontmatter)
-
-	// Apply label filter if specified
 	c.applyLabelFilter(workflowData, frontmatter)
+}
 
-	// Extract on.steps for pre-activation step injection
+func (c *Compiler) populateOnSectionDerivedFields(frontmatter map[string]any, workflowData *WorkflowData) error {
 	onSteps, err := extractOnSteps(frontmatter)
 	if err != nil {
 		return err
 	}
-
-	// Apply action pinning to on.steps
-	if len(onSteps) > 0 {
-		anySteps := make([]any, len(onSteps))
-		for i, s := range onSteps {
-			anySteps[i] = s
-		}
-		typedSteps, convErr := SliceToSteps(anySteps)
-		if convErr == nil {
-			typedSteps, convErr = applyActionPinsToTypedSteps(typedSteps, workflowData)
-			if convErr != nil {
-				return fmt.Errorf("on.steps: %w", convErr)
-			}
-			for i, s := range typedSteps {
-				onSteps[i] = s.ToMap()
-			}
-		} else {
-			orchestratorWorkflowLog.Printf("Failed to convert on.steps to typed steps for action pinning: %v", convErr)
-		}
+	onSteps, err = applyOnSectionStepPins(onSteps, workflowData)
+	if err != nil {
+		return err
 	}
-
 	workflowData.OnSteps = onSteps
-
-	// Extract on.permissions for pre-activation job permissions
 	workflowData.OnPermissions = extractOnPermissions(frontmatter)
-
-	// Extract on.needs for pre-activation/activation job dependencies
 	onNeeds, err := extractOnNeeds(frontmatter)
 	if err != nil {
 		return err
 	}
 	workflowData.OnNeeds = onNeeds
-
-	// Extract on.restore-memory to opt in to pre-activation memory restore for on.steps.
 	onRestoreMemory, err := extractOnRestoreMemory(frontmatter)
 	if err != nil {
 		return err
 	}
 	workflowData.OnRestoreMemory = onRestoreMemory
-
 	return nil
+}
+
+func applyOnSectionStepPins(onSteps []map[string]any, workflowData *WorkflowData) ([]map[string]any, error) {
+	if len(onSteps) == 0 {
+		return onSteps, nil
+	}
+	anySteps := make([]any, len(onSteps))
+	for i, s := range onSteps {
+		anySteps[i] = s
+	}
+	typedSteps, err := SliceToSteps(anySteps)
+	if err != nil {
+		orchestratorWorkflowLog.Printf("Failed to convert on.steps to typed steps for action pinning: %v", err)
+		return onSteps, nil
+	}
+	typedSteps, err = applyActionPinsToTypedSteps(typedSteps, workflowData)
+	if err != nil {
+		return nil, fmt.Errorf("on.steps: %w", err)
+	}
+	for i, s := range typedSteps {
+		onSteps[i] = s.ToMap()
+	}
+	return onSteps, nil
 }

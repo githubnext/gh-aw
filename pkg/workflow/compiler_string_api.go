@@ -56,19 +56,35 @@ func (c *Compiler) CompileToYAML(workflowData *WorkflowData, markdownPath string
 // The virtualPath is used for error messages and lock file naming (e.g., "workflow.md").
 func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*WorkflowData, error) {
 	workflowLog.Printf("ParseWorkflowString: parsing %d bytes with virtual path %s", len(content), virtualPath)
-
 	cleanPath := filepath.Clean(virtualPath)
 	contentBytes := []byte(content)
-
-	// Store content so downstream code can use it instead of reading from disk.
-	// Cleared in CompileToYAML after compilation completes.
 	c.contentOverride = content
-
-	// Enable inline prompt mode for string-based compilation (Wasm/browser)
-	// since runtime-import macros cannot resolve without filesystem access
 	c.inlinePrompt = true
+	parseResult, err := c.parseWorkflowStringFrontmatter(content, cleanPath, contentBytes)
+	if err != nil {
+		return nil, err
+	}
+	engineSetup, err := c.setupEngineAndImports(parseResult.frontmatterResult, parseResult.cleanPath, parseResult.content, parseResult.markdownDir)
+	if err != nil {
+		return nil, err
+	}
+	toolsResult, err := c.processToolsAndMarkdown(parseResult.frontmatterResult, parseResult.cleanPath, parseResult.markdownDir, engineSetup.agenticEngine, engineSetup.engineSetting, engineSetup.importsResult)
+	if err != nil {
+		return nil, err
+	}
+	workflowData := c.buildInitialWorkflowData(parseResult.frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
+	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
+	if err := c.validateParsedWorkflowString(workflowData, cleanPath); err != nil {
+		return nil, err
+	}
+	c.populateParsedWorkflowRuntime(workflowData)
+	if err := c.finalizeParsedWorkflowString(workflowData, parseResult, engineSetup.importsResult, cleanPath); err != nil {
+		return nil, err
+	}
+	return workflowData, nil
+}
 
-	// Parse frontmatter directly from content string
+func (c *Compiler) parseWorkflowStringFrontmatter(content, cleanPath string, contentBytes []byte) (*frontmatterParseResult, error) {
 	result, err := parser.ExtractFrontmatterFromContent(content)
 	if err != nil {
 		frontmatterStart := 2
@@ -77,118 +93,85 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		}
 		return nil, c.createFrontmatterError(cleanPath, content, err, frontmatterStart)
 	}
-
 	if len(result.Frontmatter) == 0 {
 		return nil, errors.New("no frontmatter found")
 	}
-
 	compilerStringAPILog.Printf("ParseWorkflowString: extracted frontmatter with %d fields", len(result.Frontmatter))
-
-	// Preprocess schedule fields
 	if err := c.preprocessScheduleFields(result.Frontmatter, cleanPath, content); err != nil {
 		return nil, err
 	}
-
 	frontmatterForValidation := c.copyFrontmatterWithoutInternalMarkers(result.Frontmatter)
-
-	// Check if "on" field is missing - distinguish redirect-only placeholders from shared workflows
-	_, hasOnField := frontmatterForValidation["on"]
-	if !hasOnField {
-		// Check if this is a redirect-only placeholder (has redirect field but no 'on' trigger).
-		// Redirect-only files are distinct from regular shared workflows: they are placeholders
-		// pointing to a workflow's new canonical location and should not be treated as importable components.
-		if redirectVal, hasRedirect := frontmatterForValidation["redirect"]; hasRedirect {
-			if redirectStr, ok := redirectVal.(string); ok {
-				if redirectTarget := strings.TrimSpace(redirectStr); redirectTarget != "" {
-					compilerStringAPILog.Printf("ParseWorkflowString: redirect-only workflow detected: redirect=%s", redirectTarget)
-					return nil, &RedirectOnlyWorkflowError{Path: cleanPath, Target: redirectTarget}
-				}
-			}
-		}
-		compilerStringAPILog.Printf("ParseWorkflowString: no 'on' field, treating as shared workflow: %s", cleanPath)
-		return nil, &SharedWorkflowError{Path: cleanPath}
-	}
-
-	if err := c.validateEngineBeforeSchema(cleanPath, contentBytes, result, frontmatterForValidation); err != nil {
-		compilerStringAPILog.Printf("ParseWorkflowString: string engine pre-validation failed for %s", cleanPath)
+	if err := c.validateWorkflowStringFrontmatter(cleanPath, contentBytes, result, frontmatterForValidation); err != nil {
 		return nil, err
 	}
-
-	// Validate frontmatter against schema
-	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
-		compilerStringAPILog.Printf("ParseWorkflowString: schema validation failed for %s", cleanPath)
-		return nil, err
-	}
-
-	compilerStringAPILog.Printf("ParseWorkflowString: frontmatter validated, frontmatter_fields=%d", len(frontmatterForValidation))
-
-	// Build parse result to reuse the rest of the orchestrator pipeline
-	parseResult := &frontmatterParseResult{
+	return &frontmatterParseResult{
 		cleanPath:                cleanPath,
 		content:                  contentBytes,
 		frontmatterResult:        result,
 		frontmatterForValidation: frontmatterForValidation,
 		markdownDir:              filepath.Dir(cleanPath),
 		isSharedWorkflow:         false,
+	}, nil
+}
+
+func (c *Compiler) validateWorkflowStringFrontmatter(cleanPath string, contentBytes []byte, result *parser.FrontmatterResult, frontmatterForValidation map[string]any) error {
+	if err := validateWorkflowStringOnField(cleanPath, frontmatterForValidation); err != nil {
+		return err
 	}
-
-	// Setup engine and process imports
-	engineSetup, err := c.setupEngineAndImports(parseResult.frontmatterResult, parseResult.cleanPath, parseResult.content, parseResult.markdownDir)
-	if err != nil {
-		return nil, err
+	if err := c.validateEngineBeforeSchema(cleanPath, contentBytes, result, frontmatterForValidation); err != nil {
+		compilerStringAPILog.Printf("ParseWorkflowString: string engine pre-validation failed for %s", cleanPath)
+		return err
 	}
-
-	// Process tools and markdown
-	toolsResult, err := c.processToolsAndMarkdown(parseResult.frontmatterResult, parseResult.cleanPath, parseResult.markdownDir, engineSetup.agenticEngine, engineSetup.engineSetting, engineSetup.importsResult)
-	if err != nil {
-		return nil, err
+	if err := parser.ValidateMainWorkflowFrontmatterWithSchemaAndLocation(frontmatterForValidation, cleanPath); err != nil {
+		compilerStringAPILog.Printf("ParseWorkflowString: schema validation failed for %s", cleanPath)
+		return err
 	}
+	compilerStringAPILog.Printf("ParseWorkflowString: frontmatter validated, frontmatter_fields=%d", len(frontmatterForValidation))
+	return nil
+}
 
-	// Build initial workflow data structure
-	workflowData := c.buildInitialWorkflowData(parseResult.frontmatterResult, toolsResult, engineSetup, engineSetup.importsResult)
-	workflowData.WorkflowID = GetWorkflowIDFromPath(cleanPath)
-
-	// Validate bash tool configuration
-	if err := validateBashToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+func validateWorkflowStringOnField(cleanPath string, frontmatterForValidation map[string]any) error {
+	if _, hasOnField := frontmatterForValidation["on"]; hasOnField {
+		return nil
 	}
-
-	// Validate optional engine.mcp.session-timeout configuration.
-	if err := c.validateEngineMCPSessionTimeout(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	if redirectVal, hasRedirect := frontmatterForValidation["redirect"]; hasRedirect {
+		if redirectStr, ok := redirectVal.(string); ok {
+			if redirectTarget := strings.TrimSpace(redirectStr); redirectTarget != "" {
+				compilerStringAPILog.Printf("ParseWorkflowString: redirect-only workflow detected: redirect=%s", redirectTarget)
+				return &RedirectOnlyWorkflowError{Path: cleanPath, Target: redirectTarget}
+			}
+		}
 	}
+	compilerStringAPILog.Printf("ParseWorkflowString: no 'on' field, treating as shared workflow: %s", cleanPath)
+	return &SharedWorkflowError{Path: cleanPath}
+}
 
-	// Validate optional engine.mcp.tool-timeout configuration.
-	if err := c.validateEngineMCPToolTimeout(workflowData); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+func (c *Compiler) validateParsedWorkflowString(workflowData *WorkflowData, cleanPath string) error {
+	validators := []func() error{
+		func() error { return validateBashToolConfig(workflowData.ParsedTools, workflowData.Name) },
+		func() error { return c.validateEngineMCPSessionTimeout(workflowData) },
+		func() error { return c.validateEngineMCPToolTimeout(workflowData) },
+		func() error { return validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name) },
+		func() error { return validateGitHubReadOnly(workflowData.ParsedTools, workflowData.Name) },
+		func() error { return validateGitHubGuardPolicy(workflowData.ParsedTools, workflowData.Name) },
 	}
-
-	// Validate GitHub tool configuration
-	if err := validateGitHubToolConfig(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate GitHub tool read-only configuration
-	if err := validateGitHubReadOnly(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
-	}
-
-	// Validate GitHub guard policy configuration
-	if err := validateGitHubGuardPolicy(workflowData.ParsedTools, workflowData.Name); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+	for _, validate := range validators {
+		if err := validate(); err != nil {
+			return fmt.Errorf("%s: %w", cleanPath, err)
+		}
 	}
 	emitGitHubLockdownGuardPolicyWarning(c, workflowData.ParsedTools, cleanPath)
-
-	// Validate integrity-reactions feature configuration
 	var gatewayConfig *MCPGatewayRuntimeConfig
 	if workflowData.SandboxConfig != nil {
 		gatewayConfig = workflowData.SandboxConfig.MCP
 	}
 	if err := validateIntegrityReactions(workflowData.ParsedTools, workflowData.Name, workflowData, gatewayConfig); err != nil {
-		return nil, fmt.Errorf("%s: %w", cleanPath, err)
+		return fmt.Errorf("%s: %w", cleanPath, err)
 	}
+	return nil
+}
 
-	// Setup action cache and resolver
+func (c *Compiler) populateParsedWorkflowRuntime(workflowData *WorkflowData) {
 	actionCache, actionResolver := c.getSharedActionResolver()
 	workflowData.Ctx = c.ctx
 	workflowData.ActionCache = actionCache
@@ -196,31 +179,22 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 	workflowData.ActionPinWarnings = c.actionPinWarnings
 	workflowData.ActionPinMappings = c.getActionPinMappings()
 	workflowData.ContainerPinMappings = c.getContainerPinMappings()
+}
 
-	// Extract YAML configuration sections
+func (c *Compiler) finalizeParsedWorkflowString(workflowData *WorkflowData, parseResult *frontmatterParseResult, importsResult *parser.ImportsResult, cleanPath string) error {
 	if err := c.extractYAMLSections(parseResult.frontmatterResult.Frontmatter, workflowData); err != nil {
-		return nil, fmt.Errorf("failed to extract YAML sections: %w", err)
+		return fmt.Errorf("failed to extract YAML sections: %w", err)
 	}
-
-	// Merge features from imports
-	if len(engineSetup.importsResult.MergedFeatures) > 0 {
-		compilerStringAPILog.Printf("ParseWorkflowString: merging %d features from imports", len(engineSetup.importsResult.MergedFeatures))
-		mergedFeatures, err := c.MergeFeatures(workflowData.Features, engineSetup.importsResult.MergedFeatures)
+	if len(importsResult.MergedFeatures) > 0 {
+		compilerStringAPILog.Printf("ParseWorkflowString: merging %d features from imports", len(importsResult.MergedFeatures))
+		mergedFeatures, err := c.MergeFeatures(workflowData.Features, importsResult.MergedFeatures)
 		if err != nil {
-			return nil, fmt.Errorf("failed to merge features from imports: %w", err)
+			return fmt.Errorf("failed to merge features from imports: %w", err)
 		}
 		workflowData.Features = mergedFeatures
 	}
-
-	// Process and merge custom steps
-	if err := c.processAndMergeSteps(parseResult.frontmatterResult.Frontmatter, workflowData, engineSetup.importsResult); err != nil {
-		return nil, err
+	if err := c.processAndMergeSteps(parseResult.frontmatterResult.Frontmatter, workflowData, importsResult); err != nil {
+		return err
 	}
-
-	// Apply defaults
-	if err := c.applyDefaults(workflowData, cleanPath); err != nil {
-		return nil, err
-	}
-
-	return workflowData, nil
+	return c.applyDefaults(workflowData, cleanPath)
 }

@@ -171,78 +171,104 @@ func (c *Compiler) addActivationVersionCheckStep(ctx *activationJobBuildContext)
 }
 
 func (c *Compiler) addActivationSkillInstallSteps(ctx *activationJobBuildContext) {
-	skillRefs := append([]SkillReference(nil), ctx.data.SkillReferences...)
-	if len(skillRefs) == 0 && len(ctx.data.Skills) > 0 {
-		skillRefs = make([]SkillReference, 0, len(ctx.data.Skills))
-		for _, skill := range ctx.data.Skills {
-			if strings.TrimSpace(skill) == "" {
-				continue
-			}
-			skillRefs = append(skillRefs, SkillReference{Skill: skill})
-		}
-	}
+	skillRefs := activationSkillReferences(ctx.data)
 	if len(skillRefs) == 0 {
 		return
 	}
 
 	engineID := resolveActivationEngineID(ctx.data)
-	skillDir := GetEngineSkillDir(engineID)
+	skillDir, skillInstallAgentName := activationSkillInstallMetadata(engineID)
+	ctx.steps = append(ctx.steps, buildActivationSkillInstallPrereqSteps()...)
+	for i, skillRef := range skillRefs {
+		ctx.steps = append(ctx.steps, c.buildActivationSkillInstallStep(ctx, i+1, skillRef, engineID, skillDir, skillInstallAgentName)...)
+	}
+	ctx.steps = append(ctx.steps, buildActivationSkillFailureCollectionSteps(ctx.data)...)
+	ctx.outputs["skill_install_failure_count"] = "${{ steps.collect-skill-install-failures.outputs.failure_count || '0' }}"
+	ctx.outputs["skill_install_errors"] = "${{ steps.collect-skill-install-failures.outputs.errors || '' }}"
+}
+
+func activationSkillReferences(data *WorkflowData) []SkillReference {
+	skillRefs := append([]SkillReference(nil), data.SkillReferences...)
+	if len(skillRefs) > 0 || len(data.Skills) == 0 {
+		return skillRefs
+	}
+	skillRefs = make([]SkillReference, 0, len(data.Skills))
+	for _, skill := range data.Skills {
+		if strings.TrimSpace(skill) != "" {
+			skillRefs = append(skillRefs, SkillReference{Skill: skill})
+		}
+	}
+	return skillRefs
+}
+
+func activationSkillInstallMetadata(engineID string) (string, string) {
 	skillInstallAgentName := ""
 	if engine, err := GetGlobalEngineRegistry().GetEngine(strings.ToLower(engineID)); err == nil {
 		skillInstallAgentName = engine.GetGHSkillAgentName()
 	}
+	return GetEngineSkillDir(engineID), skillInstallAgentName
+}
 
-	ctx.steps = append(ctx.steps, "      - name: Upgrade gh CLI for frontmatter skills\n")
-	ctx.steps = append(ctx.steps, fmt.Sprintf("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh\" \"%s\"\n", constants.GhSkillsMinVersion))
-
-	for i, skillRef := range skillRefs {
-		tokenExpr := c.resolveActivationToken(ctx.data)
-		if skillRef.GitHubToken != "" {
-			tokenExpr = skillRef.GitHubToken
-		}
-		if skillRef.GitHubApp != nil {
-			stepNumber := i + 1
-			stepID := fmt.Sprintf("frontmatter-skill-app-token-%d", stepNumber)
-			ctx.steps = append(ctx.steps, c.buildGitHubAppTokenMintStepWithMeta(
-				skillRef.GitHubApp,
-				nil,
-				"",
-				"",
-				fmt.Sprintf("Generate GitHub App token for frontmatter skill %d", stepNumber),
-				stepID,
-			)...)
-			stepTokenExpr := fmt.Sprintf("${{ steps.%s.outputs.token }}", stepID)
-			if skillRef.GitHubApp.shouldIgnoreMissingKey() {
-				tokenExpr = combineTokenExpressions(stepTokenExpr, c.resolveActivationToken(ctx.data))
-			} else {
-				tokenExpr = stepTokenExpr
-			}
-		}
-		ctx.steps = append(ctx.steps, fmt.Sprintf("      - name: Install frontmatter skill %d\n", i+1))
-		ctx.steps = append(ctx.steps, "        env:\n")
-		ctx.steps = append(ctx.steps, fmt.Sprintf("          GH_TOKEN: %s\n", tokenExpr))
-		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_INFO_ENGINE_ID", engineID))
-		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_GH_SKILL_AGENT_NAME", skillInstallAgentName))
-		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir))
-		ctx.steps = append(ctx.steps, formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", skillRef.Skill))
-		ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
-		ctx.steps = append(ctx.steps, "        with:\n")
-		ctx.steps = append(ctx.steps, "          script: |\n")
-		ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("install_frontmatter_skills.cjs"))
+func buildActivationSkillInstallPrereqSteps() []string {
+	return []string{
+		"      - name: Upgrade gh CLI for frontmatter skills\n",
+		fmt.Sprintf("        run: bash \"${RUNNER_TEMP}/gh-aw/actions/ensure_gh_cli_min_version.sh\" \"%s\"\n", constants.GhSkillsMinVersion),
 	}
+}
 
-	// Collect skill install failures written by each install step into a shared file.
-	// Runs with if: always() so failures are captured even if a prior step was unexpectedly hard-failed.
-	ctx.steps = append(ctx.steps, "      - name: Collect skill install failures\n")
-	ctx.steps = append(ctx.steps, "        id: collect-skill-install-failures\n")
-	ctx.steps = append(ctx.steps, "        if: always()\n")
-	ctx.steps = append(ctx.steps, fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)))
-	ctx.steps = append(ctx.steps, "        with:\n")
-	ctx.steps = append(ctx.steps, "          script: |\n")
-	ctx.steps = append(ctx.steps, generateGitHubScriptWithRequire("collect_skill_install_failures.cjs"))
+func (c *Compiler) buildActivationSkillInstallStep(ctx *activationJobBuildContext, stepNumber int, skillRef SkillReference, engineID string, skillDir string, skillInstallAgentName string) []string {
+	tokenExpr, mintSteps := c.resolveActivationSkillToken(ctx, stepNumber, skillRef)
+	steps := append([]string{}, mintSteps...)
+	steps = append(steps,
+		fmt.Sprintf("      - name: Install frontmatter skill %d\n", stepNumber),
+		"        env:\n",
+		fmt.Sprintf("          GH_TOKEN: %s\n", tokenExpr),
+		formatYAMLEnv("          ", "GH_AW_INFO_ENGINE_ID", engineID),
+		formatYAMLEnv("          ", "GH_AW_GH_SKILL_AGENT_NAME", skillInstallAgentName),
+		formatYAMLEnv("          ", "GH_AW_SKILL_DIR", skillDir),
+		formatYAMLEnv("          ", "GH_AW_FRONTMATTER_SKILLS", skillRef.Skill),
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", ctx.data)),
+		"        with:\n",
+		"          script: |\n",
+		generateGitHubScriptWithRequire("install_frontmatter_skills.cjs"),
+	)
+	return steps
+}
 
-	ctx.outputs["skill_install_failure_count"] = "${{ steps.collect-skill-install-failures.outputs.failure_count || '0' }}"
-	ctx.outputs["skill_install_errors"] = "${{ steps.collect-skill-install-failures.outputs.errors || '' }}"
+func (c *Compiler) resolveActivationSkillToken(ctx *activationJobBuildContext, stepNumber int, skillRef SkillReference) (string, []string) {
+	tokenExpr := c.resolveActivationToken(ctx.data)
+	if skillRef.GitHubToken != "" {
+		tokenExpr = skillRef.GitHubToken
+	}
+	if skillRef.GitHubApp == nil {
+		return tokenExpr, nil
+	}
+	stepID := fmt.Sprintf("frontmatter-skill-app-token-%d", stepNumber)
+	mintSteps := c.buildGitHubAppTokenMintStepWithMeta(
+		skillRef.GitHubApp,
+		nil,
+		"",
+		"",
+		fmt.Sprintf("Generate GitHub App token for frontmatter skill %d", stepNumber),
+		stepID,
+	)
+	stepTokenExpr := fmt.Sprintf("${{ steps.%s.outputs.token }}", stepID)
+	if skillRef.GitHubApp.shouldIgnoreMissingKey() {
+		return combineTokenExpressions(stepTokenExpr, c.resolveActivationToken(ctx.data)), mintSteps
+	}
+	return stepTokenExpr, mintSteps
+}
+
+func buildActivationSkillFailureCollectionSteps(data *WorkflowData) []string {
+	return []string{
+		"      - name: Collect skill install failures\n",
+		"        id: collect-skill-install-failures\n",
+		"        if: always()\n",
+		fmt.Sprintf("        uses: %s\n", getCachedActionPin("actions/github-script", data)),
+		"        with:\n",
+		"          script: |\n",
+		generateGitHubScriptWithRequire("collect_skill_install_failures.cjs"),
+	}
 }
 
 func (c *Compiler) addActivationTextOutputStep(ctx *activationJobBuildContext) error {

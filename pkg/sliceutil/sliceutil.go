@@ -64,6 +64,13 @@ func SortedKeys[K cmp.Ordered, V any](m map[K]V) []K {
 	return slices.Sorted(maps.Keys(m))
 }
 
+// SortedStrings returns a sorted copy of the provided string slice.
+func SortedStrings(values []string) []string {
+	sorted := append([]string(nil), values...)
+	slices.Sort(sorted)
+	return sorted
+}
+
 // Any returns true if at least one element in the slice satisfies the predicate.
 // Returns false for nil or empty slices.
 // This is a pure function that does not modify the input slice.

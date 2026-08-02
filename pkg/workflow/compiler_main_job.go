@@ -21,7 +21,31 @@ func isBuiltinJobName(jobName string) bool {
 func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (*Job, error) {
 	workflowLog.Printf("Building main job for workflow: %s", data.Name)
 	var steps []string
+	steps = append(steps, c.buildMainJobSetupAndRuntimeSteps(data)...)
+	jobCondition := c.buildMainJobCondition(data, activationJobCreated)
+	var stepBuilder strings.Builder
+	if err := c.generateMainJobSteps(&stepBuilder, data); err != nil {
+		return nil, fmt.Errorf("failed to generate main job steps: %w", err)
+	}
+	if stepsContent := stepBuilder.String(); stepsContent != "" {
+		steps = append(steps, stepsContent)
+	}
+	depends, engineEnvContent := c.buildMainJobDependencies(data, activationJobCreated)
+	c.warnBuiltinJobEnvReferences(depends, engineEnvContent)
+	outputs := c.buildMainJobOutputs(data)
+	env := c.buildMainJobEnv(data)
+	agentConcurrency := GenerateJobConcurrencyConfig(data)
+	permissions, err := c.buildMainJobPermissions(data)
+	if err != nil {
+		return nil, err
+	}
+	steps = c.appendMainJobScriptCleanup(steps)
+	compilerMainJobLog.Printf("Built main job: steps=%d, needs=%v, outputs=%d", len(steps), depends, len(outputs))
+	return c.finalizeMainJob(data, jobCondition, permissions, agentConcurrency, env, steps, depends, outputs), nil
+}
 
+func (c *Compiler) buildMainJobSetupAndRuntimeSteps(data *WorkflowData) []string {
+	var steps []string
 	setupActionRef := c.resolveActionReference("./actions/setup", data)
 	if setupActionRef != "" || c.actionMode.IsScript() {
 		compilerMainJobLog.Printf("Adding actions-folder checkout and setup steps (ref=%q, scriptMode=%v)", setupActionRef, c.actionMode.IsScript())
@@ -30,42 +54,22 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		agentParentSpanID := setupParentSpanNeedsExpr(constants.ActivationJobName)
 		steps = append(steps, c.generateSetupStep(data, setupActionRef, SetupActionDestination, false, agentTraceID, agentParentSpanID)...)
 	}
-	// Set runtime paths that depend on RUNNER_TEMP via $GITHUB_ENV.
-	// These cannot be set in job-level env: because the runner context is not
-	// available there (only in step-level env: and run: blocks).
 	if data.SafeOutputs != nil {
 		compilerMainJobLog.Print("Adding runtime-paths step for safe-outputs")
 		steps = append(steps, c.generateSetRuntimePathsStep()...)
 	}
+	return steps
+}
 
-	jobCondition := c.buildMainJobCondition(data, activationJobCreated)
-
-	// Build agent step content (checkout app tokens minted here to avoid masked-value drops).
-	var stepBuilder strings.Builder
-	if err := c.generateMainJobSteps(&stepBuilder, data); err != nil {
-		return nil, fmt.Errorf("failed to generate main job steps: %w", err)
-	}
-	if stepsContent := stepBuilder.String(); stepsContent != "" {
-		steps = append(steps, stepsContent)
-	}
-
-	depends, engineEnvContent := c.buildMainJobDependencies(data, activationJobCreated)
-	c.warnBuiltinJobEnvReferences(depends, engineEnvContent)
-
-	outputs := c.buildMainJobOutputs(data)
-	env := c.buildMainJobEnv(data)
-	agentConcurrency := GenerateJobConcurrencyConfig(data)
-	permissions, err := c.buildMainJobPermissions(data)
-	if err != nil {
-		return nil, err
-	}
-
+func (c *Compiler) appendMainJobScriptCleanup(steps []string) []string {
 	if c.actionMode.IsScript() {
 		compilerMainJobLog.Print("Adding script-mode cleanup step")
-		steps = append(steps, c.generateScriptModeCleanupStep())
+		return append(steps, c.generateScriptModeCleanupStep())
 	}
+	return steps
+}
 
-	compilerMainJobLog.Printf("Built main job: steps=%d, needs=%v, outputs=%d", len(steps), depends, len(outputs))
+func (c *Compiler) finalizeMainJob(data *WorkflowData, jobCondition string, permissions string, agentConcurrency string, env map[string]string, steps []string, depends []string, outputs map[string]string) *Job {
 	return &Job{
 		Name:        string(constants.AgentJobName),
 		If:          jobCondition,
@@ -79,5 +83,5 @@ func (c *Compiler) buildMainJob(data *WorkflowData, activationJobCreated bool) (
 		Steps:       steps,
 		Needs:       depends,
 		Outputs:     outputs,
-	}, nil
+	}
 }
