@@ -225,10 +225,10 @@
       "digest": "sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520",
       "pinned_image": "ghcr.io/github/github-mcp-server:v1.8.0@sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520"
     },
-    "ghcr.io/github/serena-mcp-server:latest": {
-      "image": "ghcr.io/github/serena-mcp-server:latest",
-      "digest": "sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5",
-      "pinned_image": "ghcr.io/github/serena-mcp-server:latest@sha256:bf343399e3725c45528f531a230f3a04521d4cdef29f9a5af6282ff0d3c393c5"
+    "ghcr.io/github/serena-mcp-server:sha-2491b68": {
+      "image": "ghcr.io/github/serena-mcp-server:sha-2491b68",
+      "digest": "sha256:2fc3fab11db8baca5b4fa760ec52f1010425c97edc8bf4c6437f0cdabd17fcb7",
+      "pinned_image": "ghcr.io/github/serena-mcp-server:sha-2491b68@sha256:2fc3fab11db8baca5b4fa760ec52f1010425c97edc8bf4c6437f0cdabd17fcb7"
     },
     "grafana/mcp-grafana": {
       "image": "grafana/mcp-grafana",
