@@ -48,6 +48,21 @@ function stableJSONStringify(value) {
   return JSON.stringify(value);
 }
 
+/** Maximum number of run-ledger records to retain per state.jsonl file. Keeps the file well under the load limit. */
+const MAX_LEDGER_RECORDS = 512;
+
+function sortRunsByTimestamp(runs) {
+  return runs.slice().sort((a, b) => {
+    const ta = isPlainObject(a) && typeof a.timestamp === "string" ? a.timestamp : "";
+    const tb = isPlainObject(b) && typeof b.timestamp === "string" ? b.timestamp : "";
+    if (ta < tb) return -1;
+    if (ta > tb) return 1;
+    const ra = isPlainObject(a) && typeof a.run_id === "string" ? a.run_id : "";
+    const rb = isPlainObject(b) && typeof b.run_id === "string" ? b.run_id : "";
+    return ra < rb ? -1 : ra > rb ? 1 : 0;
+  });
+}
+
 function mergeExperimentRuns(remoteRuns, localRuns) {
   const merged = [];
   const seen = new Set();
@@ -61,7 +76,7 @@ function mergeExperimentRuns(remoteRuns, localRuns) {
       merged.push(run);
     }
   }
-  return merged;
+  return sortRunsByTimestamp(merged);
 }
 
 function mergeExperimentStateValue(baseValue, remoteValue, localValue) {
@@ -126,6 +141,60 @@ function mergeExperimentStateJSONL(remoteContent, localContent) {
       }
     }
   }
+
+  // Sort entries chronologically so the ledger is always in timestamp order.
+  merged.sort((a, b) => {
+    const ta = isPlainObject(a) && typeof a.timestamp === "string" ? a.timestamp : "";
+    const tb = isPlainObject(b) && typeof b.timestamp === "string" ? b.timestamp : "";
+    if (ta < tb) return -1;
+    if (ta > tb) return 1;
+    const ra = isPlainObject(a) && typeof a.run_id === "string" ? a.run_id : "";
+    const rb = isPlainObject(b) && typeof b.run_id === "string" ? b.run_id : "";
+    return ra < rb ? -1 : ra > rb ? 1 : 0;
+  });
+
+  // Compact the ledger to avoid exceeding the loader file-size limit.
+  // Counts from pruned records are folded into the first remaining entry's baseline_counts
+  // so cumulative totals are preserved across compaction boundaries.
+  if (merged.length > MAX_LEDGER_RECORDS) {
+    const pruned = merged.splice(0, merged.length - MAX_LEDGER_RECORDS);
+    if (merged.length > 0) {
+      /** @type {Record<string, Record<string, number>>} */
+      const baseline = {};
+      for (const entry of pruned) {
+        if (!isPlainObject(entry)) continue;
+        if (isPlainObject(entry.baseline_counts)) {
+          for (const [name, variants] of Object.entries(entry.baseline_counts)) {
+            if (!baseline[name]) baseline[name] = {};
+            for (const [variant, count] of Object.entries(/** @type {Record<string,unknown>} */ variants)) {
+              baseline[name][variant] = (baseline[name][variant] || 0) + (typeof count === "number" ? count : 0);
+            }
+          }
+        }
+        if (isPlainObject(entry.assignments)) {
+          for (const [name, variant] of Object.entries(entry.assignments)) {
+            if (typeof variant !== "string") continue;
+            if (!baseline[name]) baseline[name] = {};
+            baseline[name][variant] = (baseline[name][variant] || 0) + 1;
+          }
+        }
+      }
+      if (Object.keys(baseline).length > 0) {
+        const first = merged[0];
+        const existing = isPlainObject(first) && isPlainObject(first.baseline_counts) ? first.baseline_counts : {};
+        /** @type {Record<string, Record<string, number>>} */
+        const mergedBaseline = Object.assign({}, /** @type {Record<string, Record<string, number>>} */ existing);
+        for (const [name, variants] of Object.entries(baseline)) {
+          if (!mergedBaseline[name]) mergedBaseline[name] = {};
+          for (const [variant, count] of Object.entries(variants)) {
+            mergedBaseline[name][variant] = (mergedBaseline[name][variant] || 0) + count;
+          }
+        }
+        merged[0] = Object.assign({}, first, { baseline_counts: mergedBaseline });
+      }
+    }
+  }
+
   return merged.length > 0 ? `${merged.map(entry => JSON.stringify(entry)).join("\n")}\n` : "";
 }
 
@@ -420,4 +489,4 @@ async function main() {
   }
 }
 
-module.exports = { main, checkoutOrCreateBranch, mergeExperimentStateJSON, resolveExperimentStateRebaseConflict };
+module.exports = { main, checkoutOrCreateBranch, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns, resolveExperimentStateRebaseConflict };

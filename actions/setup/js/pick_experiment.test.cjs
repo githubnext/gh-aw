@@ -120,6 +120,14 @@ describe("pick_experiment", () => {
       expect(state).toEqual({ counts: {}, runs: [] });
     });
 
+    it("falls back to state.json when state.jsonl is absent (cache-mode upgrade path)", () => {
+      const legacyJson = path.join(tmpDir, "state.json");
+      fs.writeFileSync(legacyJson, JSON.stringify({ counts: { f: { A: 2, B: 1 } }, runs: [] }), "utf8");
+      // state.jsonl does NOT exist – simulate a cache-mode cache hit that predates jsonl support.
+      const state = loadState(path.join(tmpDir, "state.jsonl"));
+      expect(state.counts).toEqual({ f: { A: 2, B: 1 } });
+    });
+
     it("round-trips state through save and load", () => {
       const file = path.join(tmpDir, "state.json");
       const orig = { counts: { f: { A: 3, B: 1 } }, runs: [] };

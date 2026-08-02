@@ -26,7 +26,7 @@ global.exec = mockExec;
 global.context = mockContext;
 global.github = {};
 
-const { main, mergeExperimentStateJSON } = await import("./push_experiment_state.cjs");
+const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns } = await import("./push_experiment_state.cjs");
 
 describe("push_experiment_state", () => {
   let tmpDir;
@@ -148,5 +148,74 @@ describe("push_experiment_state", () => {
     expect(mergedState.counts.prompt_style.detailed).toBe(1);
     expect(mergedState.runs).toHaveLength(3);
     expect(mergedState.runs.map(run => run.run_id)).toEqual(["100", "200", "300"]);
+  });
+
+  it("mergeExperimentRuns returns runs in timestamp order regardless of input order", () => {
+    const remote = [
+      { run_id: "R1", timestamp: "2026-08-01T12:02:00.000Z", assignments: { f: "A" } },
+      { run_id: "R2", timestamp: "2026-08-01T11:59:00.000Z", assignments: { f: "B" } },
+    ];
+    const local = [{ run_id: "L1", timestamp: "2026-08-01T12:01:00.000Z", assignments: { f: "A" } }];
+    const merged = mergeExperimentRuns(remote, local);
+    expect(merged.map(r => r.run_id)).toEqual(["R2", "L1", "R1"]);
+  });
+
+  it("mergeExperimentRuns deduplicates identical runs", () => {
+    const run = { run_id: "X1", timestamp: "2026-08-01T12:00:00.000Z", assignments: { f: "A" } };
+    const merged = mergeExperimentRuns([run], [run]);
+    expect(merged).toHaveLength(1);
+    expect(merged[0].run_id).toBe("X1");
+  });
+
+  it("mergeExperimentStateJSONL returns entries sorted by timestamp", () => {
+    const remote = ['{"run_id":"R1","timestamp":"2026-08-01T12:02:00.000Z","assignments":{"f":"A"}}', '{"run_id":"R2","timestamp":"2026-08-01T11:58:00.000Z","assignments":{"f":"B"}}'].join("\n") + "\n";
+    const local = '{"run_id":"L1","timestamp":"2026-08-01T12:01:00.000Z","assignments":{"f":"A"}}\n';
+
+    const result = mergeExperimentStateJSONL(remote, local);
+    const entries = result
+      .trim()
+      .split("\n")
+      .map(line => JSON.parse(line));
+    expect(entries.map(e => e.run_id)).toEqual(["R2", "L1", "R1"]);
+  });
+
+  it("mergeExperimentStateJSONL compacts ledger and preserves counts via baseline_counts", () => {
+    // Build 514 run records (over MAX_LEDGER_RECORDS = 512).
+    const baseMs = Date.UTC(2026, 0, 1);
+    const makeRun = i => ({
+      run_id: `run-${String(i).padStart(4, "0")}`,
+      timestamp: new Date(baseMs + i * 60000).toISOString(), // 1 min apart, all unique
+      assignments: { f: i % 2 === 0 ? "A" : "B" },
+    });
+
+    const remoteRuns = Array.from({ length: 513 }, (_, i) => makeRun(i));
+    const localRun = makeRun(513);
+
+    const remote = remoteRuns.map(r => JSON.stringify(r)).join("\n") + "\n";
+    const local = JSON.stringify(localRun) + "\n";
+
+    const result = mergeExperimentStateJSONL(remote, local);
+    const entries = result
+      .trim()
+      .split("\n")
+      .map(line => JSON.parse(line));
+
+    expect(entries).toHaveLength(512);
+    // First remaining entry should have baseline_counts accumulating pruned records.
+    // Pruned are run-0000 (f:A) and run-0001 (f:B).
+    expect(entries[0].baseline_counts).toBeDefined();
+    expect(entries[0].baseline_counts.f.A).toBeGreaterThan(0);
+    expect(entries[0].baseline_counts.f.B).toBeGreaterThan(0);
+  });
+
+  it("mergeExperimentStateJSONL deduplicates and handles empty inputs", () => {
+    const line = '{"run_id":"X1","timestamp":"2026-08-01T12:00:00.000Z","assignments":{"f":"A"}}\n';
+    const result = mergeExperimentStateJSONL(line, line);
+    const entries = result
+      .trim()
+      .split("\n")
+      .map(line => JSON.parse(line));
+    expect(entries).toHaveLength(1);
+    expect(entries[0].run_id).toBe("X1");
   });
 });

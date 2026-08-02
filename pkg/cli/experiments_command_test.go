@@ -99,6 +99,16 @@ func TestParseExperimentState(t *testing.T) {
 			wantLastRun:     "",
 		},
 		{
+			// A single-record JSONL is also valid standalone JSON.  parseExperimentState must
+			// not return it as an empty snapshot; it must fall through to JSONL parsing so the
+			// run record is properly loaded.
+			name:            "single-record jsonl is not treated as empty snapshot",
+			input:           []byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"}}`),
+			wantExperiments: 1,
+			wantTotalRuns:   1,
+			wantLastRun:     "2024-06-01",
+		},
+		{
 			name:            "invalid JSON returns empty state",
 			input:           []byte(`not json`),
 			wantExperiments: 0,

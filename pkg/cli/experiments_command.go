@@ -803,10 +803,7 @@ func parseExperimentStateJSONL(data []byte) *ExperimentState {
 // Returns an empty state when parsing fails or the data is invalid.
 func parseExperimentState(data []byte) *ExperimentState {
 	var state ExperimentState
-	if err := json.Unmarshal(data, &state); err == nil {
-		if state.Counts == nil {
-			state.Counts = map[string]map[string]int{}
-		}
+	if err := json.Unmarshal(data, &state); err == nil && state.Counts != nil {
 		return &state
 	}
 	return parseExperimentStateJSONL(data)

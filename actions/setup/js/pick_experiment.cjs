@@ -171,6 +171,7 @@ function loadState(stateFile) {
       }
     } catch {}
 
+    /** @type {{ counts: Record<string, Record<string, number>>, runs: ExperimentRunRecord[] }} */
     const state = { counts: {}, runs: [] };
     for (const line of raw.split(/\r?\n/)) {
       const trimmed = line.trim();
@@ -206,8 +207,13 @@ function loadState(stateFile) {
     }
     Object.defineProperty(state, STATE_SOURCE_FORMAT, { value: "jsonl", configurable: true });
     return state;
-  } catch {
-    // File missing, unreadable, or invalid JSON – start fresh.
+  } catch (err) {
+    // When state.jsonl is absent, fall back to state.json for cache-mode compatibility.
+    if (stateFile.endsWith(".jsonl") && err && /** @type {any} */ err.code === "ENOENT") {
+      const legacyFile = stateFile.replace(/\.jsonl$/, ".json");
+      return loadState(legacyFile);
+    }
+    // File unreadable or invalid – start fresh.
   }
   return { counts: {}, runs: [] };
 }
