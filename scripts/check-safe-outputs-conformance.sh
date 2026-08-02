@@ -1343,7 +1343,20 @@ check_wtd_reviewable_annotation() {
     fi
 
     # Check label string "agentic threat detected" (requirement 2)
-    if ! grep -q "agentic threat detected" "$footer_file"; then
+    # The footer may delegate to a centralised template (threat_detection_caution.md) or
+    # to threat_detection_warning.cjs, so accept those as equivalent evidence.
+    local label_found=0
+    if grep -q "agentic threat detected" "$footer_file" 2>/dev/null; then
+        label_found=1
+    elif grep -q "threat_detection_caution" "$footer_file" 2>/dev/null; then
+        local caution_template="actions/setup/md/threat_detection_caution.md"
+        if [ -f "$caution_template" ] && grep -q "agentic threat detected" "$caution_template" 2>/dev/null; then
+            label_found=1
+        elif [ -f "$threat_warning_file" ] && grep -q "agentic threat detected" "$threat_warning_file" 2>/dev/null; then
+            label_found=1
+        fi
+    fi
+    if [ $label_found -eq 0 ]; then
         log_critical "WTD-001: Footer generator missing 'agentic threat detected' label string (WTD1 requirement 2)"
         failed=1
     fi
@@ -1399,8 +1412,19 @@ check_wtd_convertible_fallback() {
             failed=1
         fi
 
-        # Check that the caution text is emitted in the fallback
-        if ! grep -q "agentic threat detected" "$push_handler"; then
+        # Check that the caution text is emitted in the fallback.
+        # The handler may delegate to threat_detection_warning.cjs via
+        # getThreatWarningPresentation(), so accept that as equivalent evidence.
+        local threat_label_found=0
+        if grep -q "agentic threat detected" "$push_handler" 2>/dev/null; then
+            threat_label_found=1
+        elif grep -q "getThreatWarningPresentation" "$push_handler" 2>/dev/null; then
+            local threat_warning_file="actions/setup/js/threat_detection_warning.cjs"
+            if [ -f "$threat_warning_file" ] && grep -q "agentic threat detected" "$threat_warning_file" 2>/dev/null; then
+                threat_label_found=1
+            fi
+        fi
+        if [ $threat_label_found -eq 0 ]; then
             log_high "WTD-002: push_to_pull_request_branch fallback missing 'agentic threat detected' text (WTD2 / WTD1)"
             failed=1
         fi
