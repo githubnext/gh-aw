@@ -19,6 +19,24 @@ function isInlineRejectionHandler(node: TSESTree.ArrowFunctionExpression | TSEST
 }
 
 /**
+ * Returns true when the function node is an inline listener passed as the
+ * second argument to an EventEmitter-style `.on('error', fn)`,
+ * `.once('error', fn)`, or `.addListener('error', fn)` call.
+ */
+function isInlineEventErrorHandler(node: TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression): boolean {
+  const parent = node.parent;
+  if (!parent || parent.type !== AST_NODE_TYPES.CallExpression) return false;
+  const callee = parent.callee;
+  if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed) return false;
+  const prop = callee.property;
+  if (prop.type !== AST_NODE_TYPES.Identifier) return false;
+  if (prop.name !== "on" && prop.name !== "once" && prop.name !== "addListener") return false;
+  if (parent.arguments[1] !== node) return false;
+  const eventArg = parent.arguments[0];
+  return eventArg?.type === AST_NODE_TYPES.Literal && eventArg.value === "error";
+}
+
+/**
  * Returns true when `node` is a bare `Identifier` expression — no member
  * access, no call, no unary/binary operation, no nullish coercion. Used to
  * identify direct `${someVar}` interpolations as opposed to safe forms such
@@ -44,13 +62,20 @@ function isCaughtErrorVariableDef(def: TSESLint.Scope.Definition): boolean {
   }
 
   // Inline rejection handler parameter (.catch(err => ...) / .then(_, err => ...))
+  // or inline EventEmitter 'error' event listener (.on('error', err => ...) etc.)
   // def.node is the function node for Parameter definitions
   if (def.type === "Parameter") {
     const fn = def.node as TSESTree.Node;
     if (fn.type !== AST_NODE_TYPES.ArrowFunctionExpression && fn.type !== AST_NODE_TYPES.FunctionExpression) {
       return false;
     }
-    return isInlineRejectionHandler(fn as TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression);
+    const fnNode = fn as TSESTree.ArrowFunctionExpression | TSESTree.FunctionExpression;
+    if (isInlineRejectionHandler(fnNode)) return true;
+    if (isInlineEventErrorHandler(fnNode)) {
+      // Only the first parameter receives the error object from an 'error' event
+      return fnNode.params[0] === def.name;
+    }
+    return false;
   }
 
   return false;
@@ -67,7 +92,8 @@ export const noCaughtErrorInterpolationRule = createRule({
         "For Error objects this produces the redundant 'Error: message' prefix; for non-Error throws (plain objects, strings, etc.) " +
         "it silently produces '[object Object]' or another useless string. " +
         "Use getErrorMessage(err) for consistent, safe formatting, or String(err) when getErrorMessage is unavailable. " +
-        "Detected scopes: try/catch bindings, .catch(fn) inline callbacks, and .then(onFulfilled, onRejected) inline rejection handlers.",
+        "Detected scopes: try/catch bindings, .catch(fn) inline callbacks, .then(onFulfilled, onRejected) inline rejection handlers, " +
+        "and inline EventEmitter 'error' event listeners (.on('error', fn) / .once('error', fn) / .addListener('error', fn)).",
     },
     schema: [],
     messages: {
