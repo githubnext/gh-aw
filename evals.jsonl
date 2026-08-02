@@ -1,2 +1,2 @@
-{"id":"workflow_runs_sampled","question":"Did the agent sample recent agentic workflow runs and inspect their ambient context?","answer":"YES","model":"small","timestamp":"2026-08-01T20:15:29.254Z","runid":"30715940308"}
-{"id":"recommendations_produced","question":"Were recommendations produced for prompt, skill, and agent changes to reduce ambient context size?","answer":"UNKNOWN","model":"small","timestamp":"2026-08-01T20:15:29.254Z","runid":"30715940308"}
+{"id":"workflow_runs_sampled","question":"Did the agent sample recent agentic workflow runs and inspect their ambient context?","answer":"YES","model":"evals","timestamp":"2026-08-02T20:16:37.473Z","runid":"30764548983"}
+{"id":"recommendations_produced","question":"Were recommendations produced for prompt, skill, and agent changes to reduce ambient context size?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-02T20:16:37.473Z","runid":"30764548983"}
