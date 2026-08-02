@@ -263,7 +263,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/issuearborist
         with:
@@ -277,7 +277,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"prompt_style":{"variants":["concise","detailed"],"description":"Compare concise vs. detailed agent instructions for issue relationship detection","hypothesis":"H0: no change in links_created. H1: detailed instructions produce ≥15% more correct links per run","metric":"links_created","secondary_metrics":["run_duration_ms","discussion_created"],"guardrail_metrics":[{"name":"empty_output_rate","threshold":"==0"}],"min_samples":30,"weight":[50,50],"issue":30015,"start_date":"2026-05-05","analysis_type":"mann_whitney","tags":["prompt-engineering","daily-workflow","issue-management"]}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |

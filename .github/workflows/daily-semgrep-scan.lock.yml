@@ -252,7 +252,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/dailysemgrepscan
         with:
@@ -266,7 +266,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"semgrep_output_format":{"variants":["bullet_list","structured_sections","prose"],"description":"Tests whether the structure of Semgrep findings output (bullet list vs. grouped sections vs. prose) affects code scanning alert creation rate and output completeness.","hypothesis":"H0: no change in alert creation rate across formats. H1: structured_sections produces ≥15% more alerts successfully created vs. baseline bullet_list.","metric":"alert_creation_rate","secondary_metrics":["run_duration_ms","output_length_chars","findings_reported"],"guardrail_metrics":[{"name":"run_success_rate","threshold":"\u003e=0.85"}],"min_samples":30,"weight":[34,33,33],"issue":32795,"start_date":"2026-05-17","analysis_type":"proportion_test","tags":["security","output-quality","semgrep"]}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |

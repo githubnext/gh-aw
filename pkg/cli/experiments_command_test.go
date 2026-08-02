@@ -99,11 +99,37 @@ func TestParseExperimentState(t *testing.T) {
 			wantLastRun:     "",
 		},
 		{
+			// A single-record JSONL is also valid standalone JSON.  parseExperimentState must
+			// not return it as an empty snapshot; it must fall through to JSONL parsing so the
+			// run record is properly loaded.
+			name:            "single-record jsonl is not treated as empty snapshot",
+			input:           []byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"}}`),
+			wantExperiments: 1,
+			wantTotalRuns:   1,
+			wantLastRun:     "2024-06-01",
+		},
+		{
 			name:            "invalid JSON returns empty state",
 			input:           []byte(`not json`),
 			wantExperiments: 0,
 			wantTotalRuns:   0,
 			wantLastRun:     "",
+		},
+		{
+			name: "jsonl run ledger",
+			input: []byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"}}
+{"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`),
+			wantExperiments: 1,
+			wantTotalRuns:   2,
+			wantLastRun:     "2024-06-15",
+		},
+		{
+			name: "jsonl run ledger with baseline counts",
+			input: []byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"},"baseline_counts":{"feature":{"A":2}}}
+{"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`),
+			wantExperiments: 1,
+			wantTotalRuns:   2,
+			wantLastRun:     "2024-06-15",
 		},
 	}
 
@@ -143,6 +169,17 @@ func TestExperimentDetailsFromState(t *testing.T) {
 	assert.Equal(t, 10, details.Experiments[0].Total, "feature total")
 	assert.Equal(t, "style", details.Experiments[1].Name, "second experiment sorted by name")
 	assert.Equal(t, 10, details.Experiments[1].Total, "style total")
+}
+
+func TestParseExperimentStateJSONLBaselineCounts(t *testing.T) {
+	state := parseExperimentState([]byte(`{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"feature":"A"},"baseline_counts":{"feature":{"A":2,"B":1}}}
+{"run_id":"2","timestamp":"2024-06-15T12:00:00Z","assignments":{"feature":"B"}}`))
+
+	require.NotNil(t, state)
+	assert.Equal(t, map[string]map[string]int{
+		"feature": {"A": 3, "B": 2},
+	}, state.Counts)
+	assert.Len(t, state.Runs, 2)
 }
 
 func TestExperimentTotalRunsFallback(t *testing.T) {
@@ -363,4 +400,31 @@ func TestExperimentsAnalyzeRequiresArg(t *testing.T) {
 
 	err := cmd.Args(cmd, []string{})
 	assert.Error(t, err, "analyze should require exactly 1 argument")
+}
+
+func TestParseExperimentStateJSONLSkipsInvalidLines(t *testing.T) {
+	// Valid records plus an unrecognized line: the valid records should still be parsed.
+	data := `{"run_id":"1","timestamp":"2024-06-01T10:00:00Z","assignments":{"style":"concise"}}
+this is not valid json
+{"run_id":"2","timestamp":"2024-06-02T10:00:00Z","assignments":{"style":"detailed"}}`
+
+	state := parseExperimentState([]byte(data))
+
+	require.NotNil(t, state)
+	assert.Equal(t, map[string]map[string]int{
+		"style": {"concise": 1, "detailed": 1},
+	}, state.Counts, "should accumulate counts from valid lines despite invalid lines")
+	assert.Len(t, state.Runs, 2, "should have 2 run records")
+}
+
+func TestParseExperimentStateJSONLAllInvalid(t *testing.T) {
+	// When all lines are invalid, should return an empty state (not nil).
+	data := `not json at all
+also not json`
+
+	state := parseExperimentState([]byte(data))
+
+	require.NotNil(t, state)
+	assert.Empty(t, state.Counts, "should return empty counts for all-invalid input")
+	assert.Empty(t, state.Runs, "should return empty runs for all-invalid input")
 }
