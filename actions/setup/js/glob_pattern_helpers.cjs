@@ -71,6 +71,7 @@ function globPatternToRegex(pattern, options) {
     regexPattern = `[^/]+/${regexPattern}`;
   }
 
+  // eslint-disable-next-line gh-aw-custom/require-escaped-regexp-interpolation -- regexPattern is intentionally built as a regex: * and ** are replaced with regex patterns after escaping all other metacharacters
   return new RegExp(`^${regexPattern}$`, caseSensitive ? "" : "i");
 }
 
