@@ -148,6 +148,34 @@ func TestConfigureActivationNeedsAndCondition_EngineEnvJobReferences(t *testing.
 			"some_job must NOT be in activation needs when not referenced in engine.env")
 	})
 
+	t.Run("engine.env references outside activation-rendered keys do not add activation deps", func(t *testing.T) {
+		c := NewCompiler()
+		data := &WorkflowData{
+			EngineConfig: &EngineConfig{
+				Env: map[string]string{
+					"FOO":                  "${{ needs.prepare.outputs.value }}",
+					"COPILOT_GITHUB_TOKEN": "${{ secrets.COPILOT_GITHUB_TOKEN }}",
+				},
+			},
+			Jobs: map[string]any{
+				"prepare": map[string]any{
+					"runs-on": "ubuntu-latest",
+				},
+			},
+		}
+		ctx := &activationJobBuildContext{
+			data:             data,
+			preActivationJob: false,
+		}
+
+		c.configureActivationNeedsAndCondition(ctx)
+
+		assert.NotContains(t, ctx.activationNeeds, "prepare",
+			"agent-only engine.env overrides should not force prepare before activation")
+		assert.NotContains(t, ctx.customJobsBeforeActivation, "prepare",
+			"agent-only engine.env overrides should not be treated as activation dependencies")
+	})
+
 	t.Run("engine.env reference to non-custom (built-in) job is not added to activation needs", func(t *testing.T) {
 		c := NewCompiler()
 		data := &WorkflowData{
@@ -223,8 +251,7 @@ func TestConfigureActivationNeedsAndCondition_EngineEnvJobReferences(t *testing.
 		data := &WorkflowData{
 			EngineConfig: &EngineConfig{
 				Env: map[string]string{
-					"FIRST":  "${{ needs.z_job.outputs.value }}",
-					"SECOND": "${{ needs.a_job.outputs.value }}",
+					"COPILOT_GITHUB_TOKEN": "${{ case(needs.z_job.outputs.value != '', needs.z_job.outputs.value, needs.a_job.outputs.value) }}",
 				},
 			},
 			Jobs: map[string]any{

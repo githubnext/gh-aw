@@ -173,7 +173,8 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 }
 
 // getEngineEnvReferencedCustomJobsWithNoExplicitNeeds returns custom job names referenced
-// in engine.env values via needs.<job>.outputs.* that have no explicit needs declaration.
+// by activation-rendered engine.env values via needs.<job>.outputs.* that have no explicit
+// needs declaration.
 // These jobs must run before activation so their outputs are available in activation steps
 // (e.g. secret validation uses engine.env overrides at activation time).
 //
@@ -185,8 +186,14 @@ func (c *Compiler) getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data *Wor
 	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 || data.Jobs == nil {
 		return nil
 	}
+
+	activationRenderedEnvValues := c.getActivationRenderedEngineEnvValues(data)
+	if len(activationRenderedEnvValues) == 0 {
+		return nil
+	}
+
 	var engineEnvBuilder strings.Builder
-	for _, envValue := range data.EngineConfig.Env {
+	for _, envValue := range activationRenderedEnvValues {
 		engineEnvBuilder.WriteByte('\n')
 		engineEnvBuilder.WriteString(envValue)
 	}
@@ -208,6 +215,40 @@ func (c *Compiler) getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data *Wor
 	}
 	sort.Strings(result)
 	return result
+}
+
+// getActivationRenderedEngineEnvValues returns the subset of engine.env values that are
+// rendered in activation steps: required secret validation env vars and COPILOT_GITHUB_TOKEN
+// (used by OAuth token checks).
+func (c *Compiler) getActivationRenderedEngineEnvValues(data *WorkflowData) []string {
+	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 {
+		return nil
+	}
+
+	envKeys := map[string]struct{}{
+		constants.CopilotGitHubToken: {},
+	}
+	engineID := strings.ToLower(resolveActivationEngineID(data))
+	if engine, err := GetGlobalEngineRegistry().GetEngine(engineID); err == nil {
+		for _, secretName := range engine.GetRequiredSecretNames(data) {
+			envKeys[secretName] = struct{}{}
+		}
+	}
+
+	keyList := make([]string, 0, len(envKeys))
+	for key := range envKeys {
+		keyList = append(keyList, key)
+	}
+	sort.Strings(keyList)
+
+	values := make([]string, 0, len(keyList))
+	for _, key := range keyList {
+		if value, ok := data.EngineConfig.Env[key]; ok {
+			values = append(values, value)
+		}
+	}
+
+	return values
 }
 
 // buildJobs creates all jobs for the workflow and adds them to the job manager.
