@@ -1,2 +1,2 @@
-{"id":"failures_investigated","question":"Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?","answer":"YES","model":"evals","timestamp":"2026-08-02T07:48:14.413Z","runid":"30738148113"}
-{"id":"issues_created_or_closed","question":"Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?","answer":"YES","model":"evals","timestamp":"2026-08-02T07:48:14.413Z","runid":"30738148113"}
+{"id":"failures_investigated","question":"Did the agent investigate agentic workflow failures from the last 6 hours and produce findings?","answer":"YES","model":"evals","timestamp":"2026-08-02T13:24:56.175Z","runid":"30749318436"}
+{"id":"issues_created_or_closed","question":"Were fix sub-issues created for unresolved failures, or were resolved tracking issues closed?","answer":"YES","model":"evals","timestamp":"2026-08-02T13:24:56.175Z","runid":"30749318436"}
