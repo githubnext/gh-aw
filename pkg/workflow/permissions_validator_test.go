@@ -325,7 +325,7 @@ func TestToolsetPermissionsMapping(t *testing.T) {
 	// Verify that all toolsets are properly defined
 	expectedToolsets := []string{
 		"context", "repos", "issues", "pull_requests", "actions",
-		"code_security", "dependabot", "discussions",
+		"code_quality", "code_security", "copilot", "dependabot", "discussions",
 		"gists", "labels", "notifications", "orgs", "projects",
 		"secret_protection", "security_advisories", "stargazers",
 		"users",
@@ -342,6 +342,48 @@ func TestToolsetPermissionsMapping(t *testing.T) {
 		if _, exists := toolsetPermissionsMap[toolset]; !exists {
 			t.Errorf("Default toolset %q not defined in toolsetPermissionsMap", toolset)
 		}
+	}
+}
+
+func TestToolsetPermissionsMapping_RestoredGitHubMCPTools(t *testing.T) {
+	toolsetPermissionsMap := getToolsetPermissionsMap()
+
+	tests := []struct {
+		toolset string
+		tools   []string
+	}{
+		{
+			toolset: "issues",
+			tools:   []string{"semantic_issue_similarity_search", "semantic_issues_search"},
+		},
+		{
+			toolset: "secret_protection",
+			tools:   []string{"run_secret_scanning"},
+		},
+		{
+			toolset: "security_advisories",
+			tools:   []string{"check_dependency_vulnerabilities"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.toolset, func(t *testing.T) {
+			permissions, exists := toolsetPermissionsMap[tt.toolset]
+			if !exists {
+				t.Fatalf("Toolset %q not defined in toolsetPermissionsMap", tt.toolset)
+			}
+
+			tools := make(map[string]struct{}, len(permissions.Tools))
+			for _, tool := range permissions.Tools {
+				tools[tool] = struct{}{}
+			}
+
+			for _, tool := range tt.tools {
+				if _, ok := tools[tool]; !ok {
+					t.Errorf("Expected tool %q in toolset %q", tool, tt.toolset)
+				}
+			}
+		})
 	}
 }
 
