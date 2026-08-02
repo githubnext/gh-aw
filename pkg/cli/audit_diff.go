@@ -594,11 +594,11 @@ func runSummaryTurnCount(summary *RunSummary) int {
 }
 
 func hasRunMetricsData(inputs runMetricsInputs) bool {
-	return !(inputs.run1Tokens == 0 && inputs.run2Tokens == 0 &&
-		inputs.run1Duration == 0 && inputs.run2Duration == 0 &&
-		inputs.run1Turns == 0 && inputs.run2Turns == 0 &&
-		inputs.tokenUsage1 == nil && inputs.tokenUsage2 == nil &&
-		inputs.rateLimit1 == nil && inputs.rateLimit2 == nil)
+	return inputs.run1Tokens != 0 || inputs.run2Tokens != 0 ||
+		inputs.run1Duration != 0 || inputs.run2Duration != 0 ||
+		inputs.run1Turns != 0 || inputs.run2Turns != 0 ||
+		inputs.tokenUsage1 != nil || inputs.tokenUsage2 != nil ||
+		inputs.rateLimit1 != nil || inputs.rateLimit2 != nil
 }
 
 func newRunMetricsDiff(inputs runMetricsInputs) *RunMetricsDiff {
