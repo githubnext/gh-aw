@@ -4,8 +4,11 @@
 # Use Alpine for minimal size (official distribution)
 FROM alpine:3.24
 
-# Install required dependencies
-RUN apk add --no-cache \
+# Upgrade all packages first to pick up security fixes, then install dependencies.
+# This ensures patched versions of base packages (busybox, ssl_client, gnupg, etc.)
+# and updated github-cli (which embeds sigstore/fulcio and opencontainers/runc).
+RUN apk upgrade --no-cache \
+    && apk add --no-cache \
     git \
     jq \
     bash \
