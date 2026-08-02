@@ -197,9 +197,10 @@ type AWFBoundedQueriesConfig struct {
 	// PrivateRepos is the list of private repositories approved for bounded-query access.
 	PrivateRepos []*AWFBoundedQueryPrivateRepo `json:"privateRepos,omitempty"`
 
-	// Runtime is the container runtime for bounded-query script execution (e.g. "docker").
-	// Optional; when omitted AWF uses its default.
-	Runtime string `json:"runtime,omitempty"`
+	// Runtime is the isolated backend for each bounded-query invocation.
+	// Optional; when omitted AWF uses its default. The value is emitted verbatim and
+	// remains independent from the primary agent container runtime.
+	Runtime BoundedQueryRuntime `json:"runtime,omitempty"`
 
 	// Timeout is the maximum execution time in seconds for a single invocation.
 	// Optional; when omitted AWF uses its default.

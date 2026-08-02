@@ -1695,6 +1695,44 @@
               "type": "string",
               "desc": "Comma-separated list of GitHub MCP server feature flags to enable.",
               "leaf": true
+            },
+            "bounded-queries": {
+              "type": "object",
+              "desc": "AWF bounded-query configuration for finite private-repository questions. Every query runs in a fresh backend-specific sandbox independently from the primary agent sandbox.",
+              "children": {
+                "private-repos": {
+                  "type": "array",
+                  "desc": "Private repositories approved for bounded-query access, each with repo and sensitivity fields.",
+                  "array": true
+                },
+                "runtime": {
+                  "type": "string",
+                  "desc": "Isolated query backend. sbx is experimental, capability-gated, fail-closed, and never falls back to docker or gvisor.",
+                  "enum": ["docker", "gvisor", "sbx"],
+                  "leaf": true
+                },
+                "timeout": {
+                  "type": "integer",
+                  "desc": "Maximum execution time in seconds for one bounded-query invocation.",
+                  "leaf": true
+                },
+                "memory-limit": {
+                  "type": "string",
+                  "desc": "Memory limit for bounded-query execution, such as 512m or 2g.",
+                  "leaf": true
+                },
+                "interpreter": {
+                  "type": "string",
+                  "desc": "Script interpreter for bounded-query execution.",
+                  "enum": ["python3"],
+                  "leaf": true
+                },
+                "max-invocations": {
+                  "type": "integer",
+                  "desc": "Maximum number of bounded-query invocations allowed per run.",
+                  "leaf": true
+                }
+              }
             }
           }
         },
