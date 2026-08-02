@@ -724,5 +724,13 @@ func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 			return v
 		}
 	}
+	if raw := strings.TrimSpace(workflowData.TimeoutMinutes); raw != "" {
+		if after, ok := strings.CutPrefix(raw, "timeout-minutes:"); ok {
+			raw = strings.TrimSpace(after)
+		}
+		if raw != "" {
+			return raw
+		}
+	}
 	return defaultValue
 }

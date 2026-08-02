@@ -266,6 +266,18 @@ func TestAllEnginesEmitTimeoutMinutes(t *testing.T) {
 			wantTimeout:  "${{ inputs.timeout }}",
 			description:  "engine should forward GitHub Actions expressions verbatim",
 		},
+		{
+			name:         "legacy timeout-minutes field (numeric)",
+			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: 30"},
+			wantTimeout:  "30",
+			description:  "engine should honor already-extracted timeout-minutes values",
+		},
+		{
+			name:         "legacy timeout-minutes field (expression)",
+			workflowData: &WorkflowData{Name: "test-workflow", TimeoutMinutes: "timeout-minutes: ${{ inputs.timeout }}"},
+			wantTimeout:  "${{ inputs.timeout }}",
+			description:  "engine should honor already-extracted expression timeout values",
+		},
 	}
 
 	registry := NewEngineRegistry()
