@@ -1,2 +1,2 @@
-{"id":"sessions_analyzed","question":"Did the agent analyze GitHub Copilot coding agent sessions?","answer":"YES","model":"small","timestamp":"2026-08-01T08:02:47.596Z","runid":"30689736570"}
-{"id":"insights_report_produced","question":"Was a report produced with usage patterns, success rates, and performance metrics?","answer":"YES","model":"small","timestamp":"2026-08-01T08:02:47.596Z","runid":"30689736570"}
+{"id":"sessions_analyzed","question":"Did the agent analyze GitHub Copilot coding agent sessions?","answer":"YES","model":"evals","timestamp":"2026-08-02T08:03:15.940Z","runid":"30737844544"}
+{"id":"insights_report_produced","question":"Was a report produced with usage patterns, success rates, and performance metrics?","answer":"YES","model":"evals","timestamp":"2026-08-02T08:03:15.940Z","runid":"30737844544"}
