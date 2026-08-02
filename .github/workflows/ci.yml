@@ -134,6 +134,29 @@ jobs:
         fi
 
         echo "validated $checked_images container pins across $checked_files workflow lock files"
+  shellcheck-setup-sh:
+    name: ShellCheck actions/setup/sh
+    if: ${{ needs.changes.outputs.has_changes == 'true' }}
+    needs:
+    - changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    concurrency:
+      group: ci-${{ github.ref }}-shellcheck-setup-sh
+      cancel-in-progress: true
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd   # v6.0.2
+
+    - name: Install shellcheck
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y shellcheck
+
+    - name: Run shellcheck on actions/setup/sh
+      run: make shellcheck-setup-sh
   integration:
     name: "Integration: ${{ matrix.test-group.name }}"
     if: ${{ needs.changes.outputs.has_changes == 'true' }}
