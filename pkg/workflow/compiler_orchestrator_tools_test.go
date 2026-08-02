@@ -674,6 +674,48 @@ tools:
 	assert.Contains(t, err.Error(), "does not support bash command allow-listing")
 }
 
+// TestProcessToolsAndMarkdown_CodexWildcardBashSucceeds tests that codex engine with bash: ["*"] compiles cleanly
+func TestProcessToolsAndMarkdown_CodexWildcardBashSucceeds(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "tools-codex-wildcard")
+
+	testContent := `---
+on: push
+engine: codex
+tools:
+  bash:
+    - "*"
+---
+
+# Test Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "test.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+
+	frontmatterResult, err := parser.ExtractFrontmatterFromContent(testContent)
+	require.NoError(t, err)
+
+	agenticEngine, err := compiler.getAgenticEngine("codex")
+	require.NoError(t, err)
+
+	importsResult := &parser.ImportsResult{}
+
+	result, err := compiler.processToolsAndMarkdown(
+		frontmatterResult,
+		testFile,
+		tmpDir,
+		agenticEngine,
+		"codex",
+		importsResult,
+	)
+
+	// Codex engine with wildcard bash should compile without error
+	require.NoError(t, err)
+	assert.NotNil(t, result)
+}
+
 // TestProcessToolsAndMarkdown_IncludeExpansionError tests include expansion errors
 func TestProcessToolsAndMarkdown_IncludeExpansionError(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tools-include-error")
