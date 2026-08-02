@@ -18,6 +18,12 @@ sidebar:
 > implementation guidance, refer to the canonical v1.21.0 specification linked above.
 >
 > **Archival Notice**: This file is scheduled for **deletion on or before 2026-09-21** (90 days from 2026-06-21 audit date). After that date, any remaining references to this scratchpad file in doc-site navigation, workflow files, or internal links **MUST** be updated to point to the canonical path `docs/src/content/docs/specs/safe-outputs-specification.md`. To request a deletion-date extension, open an issue with the `docs` label and tag `@gh-aw-team`.
+>
+> **Tracking**: Deletion is tracked in GitHub issue [#49811](https://github.com/github/gh-aw/issues/49811) under the `docs` label. The SPDD rotation review on 2026-08-02 confirmed this notice and the deletion deadline. Before the deletion date, run the following to find all remaining references to this scratchpad path:
+>
+> ```bash
+> grep -r "scratchpad/safe-outputs-specification" . --include="*.md" --include="*.yml" --include="*.yaml" --include="*.json"
+> ```
 
 # Safe Outputs System Specification
 

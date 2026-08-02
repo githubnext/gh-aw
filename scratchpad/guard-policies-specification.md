@@ -1,21 +1,24 @@
 ---
 title: Guard Policies Integration Specification
 description: Formal specification for the guard policies framework in the MCP Gateway
-version: 0.1.0
-status: Draft
+version: 0.2.0
+status: Implemented
 sidebar:
   order: 1450
 ---
 
-# Guard Policies Integration Proposal
+# Guard Policies Integration Specification
 
 ## Executive Summary
 
-This document proposes an extensible guard policies framework for the MCP Gateway, starting with GitHub-specific policies. Guard policies enable fine-grained access control at the MCP gateway level, restricting which repositories and operations AI agents can access through MCP servers.
+This document specifies an extensible guard policies framework for the MCP Gateway, starting with GitHub-specific policies. Guard policies enable fine-grained access control at the MCP gateway level, restricting which repositories and operations AI agents can access through MCP servers.
 
-**Version**: 0.1.0  
-**Status**: Draft  
+**Version**: 0.2.0
+**Status**: Implemented
 **Date**: 2026-06-21
+**Last Reviewed**: 2026-08-02
+
+> **Status Decision (2026-08-02)**: Promoted from Draft (v0.1.0) to Implemented (v0.2.0). All normative requirements in §Conformance (GP-01 through GP-11) are fully implemented and tested. See the [Sync Notes](#sync-notes) section for implementation file references. No outstanding open questions remain.
 
 ## Requirements Notation
 
@@ -474,6 +477,58 @@ The YAML key `repos` under `tools.github` is **deprecated** as of guard-policy s
 **Migration path**: Use `gh aw fix` to automatically migrate `repos:` to `allowed-repos:` in workflow frontmatter.
 
 **Removal target**: The `repos` alias SHOULD be removed in a future major version of the spec; tracking is managed in issue [#44357](https://github.com/github/gh-aw/issues/44357). When the alias is removed, implementations MUST reject `repos` as an unknown field with an error message that suggests `allowed-repos`.
+
+---
+
+## Structure
+
+This section documents the file and module layout of the guard policies type hierarchy in `pkg/workflow/`. Reviewers **MUST** consult these files when evaluating changes to normative requirements.
+
+### Type Definitions
+
+| Type | File | Description |
+|---|---|---|
+| `GitHubReposScope` | `pkg/workflow/tools_types.go` | Type alias for the `allowed-repos` field value (`string` or `[]any`) |
+| `GitHubIntegrityLevel` | `pkg/workflow/tools_types.go` | Enum for the `min-integrity` field (`"none"`, `"unapproved"`, `"approved"`, `"merged"`) |
+| `GitHubToolConfig` | `pkg/workflow/tools_types.go` | Struct carrying all GitHub-specific config including `AllowedRepos` and `MinIntegrity` guard-policy fields |
+| `MCPServerConfig` | `pkg/workflow/tools_types.go` | General MCP server config struct with `GuardPolicies map[string]any` extension point |
+
+### Validation
+
+| Function | File | Description |
+|---|---|---|
+| `validateGitHubGuardPolicy()` | `pkg/workflow/tools_validation_github.go` | Entry point: validates `allowed-repos` and `min-integrity` cross-field constraints |
+| `validateReposScope()` | `pkg/workflow/tools_validation_github.go` | Validates `allowed-repos` type and scalar/pattern values |
+| `validateRepoPattern()` | `pkg/workflow/tools_validation_github.go` | Validates individual repository pattern format (lowercase, wildcard placement) |
+| `isValidOwnerOrRepo()` | `pkg/workflow/tools_validation_github.go` | Helper: checks owner or repo name character set |
+| `emitGitHubLockdownGuardPolicyWarning()` | `pkg/workflow/tools_validation_github.go` | Emits a warning when `lockdown: true` and guard-policy fields co-exist |
+
+### Parsing
+
+| Function | File | Description |
+|---|---|---|
+| `parseGitHubTool()` | `pkg/workflow/tools_parser.go` | Extracts `allowed-repos` and `min-integrity` from the raw frontmatter map |
+
+### Compilation
+
+| Call site | File | Description |
+|---|---|---|
+| Guard policy validation call | `pkg/workflow/compiler_orchestrator_workflow.go` | Invokes `validateGitHubGuardPolicy()` during full workflow compilation |
+| Guard policy validation call | `pkg/workflow/compiler_string_api.go` | Invokes `validateGitHubGuardPolicy()` during single-string compilation |
+
+### Safe-Outputs Derivation
+
+| Function | File | Description |
+|---|---|---|
+| `deriveSafeOutputsGuardPolicyFromGitHub()` | `pkg/workflow/mcp_github_config.go` | Derives the safe-outputs `write-sink` guard policy from GitHub guard policy fields |
+| `normalizeGitHubRepositoryInReposScope()` | `pkg/workflow/mcp_github_config.go` | Transforms repository patterns to `private:`-prefixed accept entries |
+
+### Tests
+
+| Test File | Covers |
+|---|---|
+| `pkg/workflow/tools_validation_test.go` | Guard policy validation rules (GP-01–GP-11) |
+| `pkg/workflow/safeoutputs_guard_policy_test.go` | Safe-outputs derivation (GP-05–GP-08) |
 
 ---
 

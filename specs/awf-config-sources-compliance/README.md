@@ -37,16 +37,31 @@ The following test IDs cover the `DriftRecord` schema and its usage requirements
 
 ## Running Conformance Tests
 
-Conformance tests that validate `DriftRecord` schema compliance will be located in (or added to):
+Conformance tests that validate `DriftRecord` schema compliance are implemented in:
 
 ```
-pkg/workflow/awf_config_drift_test.go   — DriftRecord schema validation (T-DR-001 through T-DR-005)
+pkg/workflow/awf_config_drift_formal_test.go   — DriftRecord schema validation (T-DR-001 through T-DR-010)
 ```
 
-To run related tests (once implemented):
+The table below maps each conformance test ID to the implementing test function:
+
+| Test ID | Test Function(s) |
+|---------|-----------------|
+| T-DR-001 | `TestFormal_P3_DriftRecordStructuralValidity`, `TestFormal_P5_SchemaOnlyPropertyFlaggedAsDrift` |
+| T-DR-002 | `TestFormal_P4_DriftCategoryExhaustiveness` |
+| T-DR-003 | `TestFormal_TDR003_DetectedAtISO8601Format` |
+| T-DR-004 | `TestFormal_P3_DriftRecordStructuralValidity` |
+| T-DR-005 | `TestFormal_TDR005_NoAdditionalProperties` |
+| T-DR-006 | `TestFormal_P6_CorrectionPRForActionableDrift` |
+| T-DR-007 | `TestFormal_P7_SLARemediationWindow`, `TestFormal_P8_EscalationIssueStructure` |
+| T-DR-008 | `TestFormal_TDR008_CorrectionPREmbedsDriftRecords` |
+| T-DR-009 | `TestFormal_P10_DriftReportEmittedOnDetection` |
+| T-DR-010 | `TestFormal_P10_DriftReportEmittedOnDetection` |
+
+To run all DriftRecord conformance tests:
 
 ```bash
-go test -v -run "TestDriftRecord" ./pkg/workflow/
+go test -v -run "TestFormal_(P3_DriftRecord|P4_DriftCategory|TDR003|P5_Schema|P6_Correction|P7_SLA|P8_Escalation|TDR005|TDR008|P10_DriftReport)" ./pkg/workflow/
 ```
 
 ---
@@ -55,5 +70,5 @@ go test -v -run "TestDriftRecord" ./pkg/workflow/
 
 1. Assign a new `T-DR-xxx` identifier (increment from the last used ID).
 2. Add a row to the table above with the test ID, requirement reference (§ number), and description.
-3. Implement the test in the conformance test file listed above.
+3. Implement the test in `pkg/workflow/awf_config_drift_formal_test.go` and add the new test function to the T-DR mapping table in the "Running Conformance Tests" section above.
 4. Cross-reference the new test ID from the relevant subsection of `specs/awf-config-sources-spec.md`.
