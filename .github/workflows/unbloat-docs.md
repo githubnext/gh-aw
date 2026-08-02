@@ -119,7 +119,7 @@ pre-agent-steps:
 
       # Write a heartbeat timestamp so the cache always has fresh content to save,
       # even on noop runs where the agent writes nothing to the cache directory.
-      echo "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > /tmp/gh-aw/cache-memory/last-run.txt
+      date -u +%Y-%m-%dT%H:%M:%SZ > /tmp/gh-aw/cache-memory/last-run.txt
 
       # Check 1: verify docs directory structure exists
       DIR_COUNT=$(find docs/src/content/docs -maxdepth 1 -type d 2>/dev/null | wc -l)
@@ -156,7 +156,7 @@ pre-agent-steps:
       LATEST_ENTRY=$(awk 'NF>0{print $1}' "$CACHE_FILE" 2>/dev/null | sort | tail -1)
       if [ -n "$LATEST_ENTRY" ] && [ "$LATEST_ENTRY" \< "$STALE_CUTOFF" ]; then
         echo "Cache expiration: most recent entry $LATEST_ENTRY predates $STALE_CUTOFF — resetting cleaned-files.txt"
-        > "$CACHE_FILE"
+        : > "$CACHE_FILE"
       fi
 
       CLEANED=$(awk -v cutoff="$RECENT_CUTOFF" \

@@ -86,7 +86,7 @@ pre-agent-steps:
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
+      cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
       node ../scripts/ensure-docs-slide-pdf.js
   - name: Configure Playwright CLI launch options
     env:
@@ -110,8 +110,7 @@ pre-agent-steps:
     run: |
       PREFLIGHT_LOG="$EXPR_GITHUB_WORKSPACE/.playwright/preflight.log"
       set +e
-      cd "$EXPR_GITHUB_WORKSPACE"
-      playwright-cli open --config "$EXPR_GITHUB_WORKSPACE/.playwright/cli.config.json" about:blank > "$PREFLIGHT_LOG" 2>&1
+      cd "$EXPR_GITHUB_WORKSPACE" || exit 1 --config "$EXPR_GITHUB_WORKSPACE/.playwright/cli.config.json" about:blank > "$PREFLIGHT_LOG" 2>&1
       PREFLIGHT_STATUS=$?
       playwright-cli close >> "$PREFLIGHT_LOG" 2>&1 || true
       if [ $PREFLIGHT_STATUS -ne 0 ]; then
@@ -125,7 +124,7 @@ pre-agent-steps:
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      cd "$EXPR_GITHUB_WORKSPACE/docs"
+      cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
       npm install
       npm run build
 features:

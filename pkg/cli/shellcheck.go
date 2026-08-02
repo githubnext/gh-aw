@@ -56,7 +56,18 @@ func sanitizeGHAExpressions(script string) string {
 //	        sourced dynamically at runtime; the source path is not resolvable at
 //	        lint time.
 //	SC1091: "Not following: shell file doesn't exist" – same reason as SC1090.
-var shellcheckDefaultIgnoreCodes = []string{"SC2016", "SC1090", "SC1091"}
+//	SC2129: "Consider using { cmd1; cmd2; } >> file" – style note about
+//	        consecutive redirects; GITHUB_OUTPUT and GITHUB_STEP_SUMMARY commonly
+//	        require individual echo >> appends to handle conditional branches.
+//	SC2153: "Possible misspelling: VAR may not be assigned" – env: step-level
+//	        variables are set by the GHA runner and are invisible to shellcheck;
+//	        this fires as a false positive for every uppercase env: variable.
+//	SC2154: "variable is referenced but not assigned" – common false positive in
+//	        generated GHA scripts where variables are assigned inside trap strings
+//	        (e.g., `trap 'var=$?; ...; echo "$var"' EXIT`) or set by the Actions
+//	        runner environment. ShellCheck does not trace assignments inside trap
+//	        body strings.
+var shellcheckDefaultIgnoreCodes = []string{"SC2016", "SC1090", "SC1091", "SC2129", "SC2153", "SC2154"}
 
 // runStepInfo captures the information from a single run: step in a lock file
 // that is needed to run shellcheck on the script snippet.

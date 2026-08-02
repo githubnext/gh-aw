@@ -255,6 +255,9 @@ func TestDefaultIgnoreCodes(t *testing.T) {
 	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC2016")
 	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC1090")
 	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC1091")
+	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC2129")
+	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC2153")
+	assert.Contains(t, shellcheckDefaultIgnoreCodes, "SC2154")
 }
 
 // TestRunShellcheckOnLockFilesSkipsWhenUnavailable verifies that the function
