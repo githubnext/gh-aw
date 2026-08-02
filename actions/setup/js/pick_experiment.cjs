@@ -243,8 +243,25 @@ function saveState(stateFile, state) {
         Object.defineProperty(state, STATE_SOURCE_FORMAT, { value: "jsonl", configurable: true });
         return;
       }
-      const latestRun = runs[runs.length - 1];
-      fs.appendFileSync(stateFile, `${JSON.stringify(latestRun)}\n`, "utf8");
+      // Write all bounded runs (state.runs is already limited to MAX_RUN_HISTORY) using
+      // writeFileSync so the on-disk ledger never grows past MAX_RUN_HISTORY entries.
+      // Any cumulative counts from records that were trimmed by MAX_RUN_HISTORY slicing
+      // are preserved in runs[0].baseline_counts so no historical totals are lost.
+      const derivedCounts = deriveCountsFromRuns(runs);
+      const excess = diffBaselineCounts(state.counts || {}, derivedCounts);
+      if (hasCounts(excess)) {
+        const existingBaseline = isPlainObject(runs[0].baseline_counts) ? /** @type {Record<string, Record<string, number>>} */ runs[0].baseline_counts : {};
+        /** @type {Record<string, Record<string, number>>} */
+        const mergedBaseline = Object.assign({}, existingBaseline);
+        for (const [name, variants] of Object.entries(excess)) {
+          if (!mergedBaseline[name]) mergedBaseline[name] = {};
+          for (const [variant, count] of Object.entries(variants)) {
+            mergedBaseline[name][variant] = (mergedBaseline[name][variant] || 0) + count;
+          }
+        }
+        runs[0] = Object.assign({}, runs[0], { baseline_counts: mergedBaseline });
+      }
+      fs.writeFileSync(stateFile, `${runs.map(run => JSON.stringify(run)).join("\n")}\n`, "utf8");
       return;
     }
     fs.writeFileSync(stateFile, JSON.stringify(state, null, 2) + "\n", "utf8");

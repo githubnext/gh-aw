@@ -195,6 +195,67 @@ describe("pick_experiment", () => {
         runs: [{ run_id: "789", timestamp: "2026-01-03T00:00:00.000Z", assignments: { f: "A" }, baseline_counts: { f: { A: 2 } } }],
       });
     });
+
+    it("saveState writes all runs and preserves excess counts in baseline_counts when runs exceed MAX_RUN_HISTORY", () => {
+      // Simulate a JSONL file with 3 records, then load it, trim state.runs to 2, and save.
+      // The trimmed record's count must be folded into runs[0].baseline_counts.
+      const file = path.join(tmpDir, "state.jsonl");
+      const existingRuns = [
+        { run_id: "001", timestamp: "2026-01-01T00:00:00.000Z", assignments: { f: "A" } },
+        { run_id: "002", timestamp: "2026-01-01T01:00:00.000Z", assignments: { f: "B" } },
+        { run_id: "003", timestamp: "2026-01-01T02:00:00.000Z", assignments: { f: "A" } },
+      ];
+      fs.writeFileSync(file, `${existingRuns.map(r => JSON.stringify(r)).join("\n")}\n`, "utf8");
+
+      // Load the full state (state.counts = {f: {A: 2, B: 1}}, state.runs = all 3).
+      const state = loadState(file);
+      // Simulate MAX_RUN_HISTORY = 2 by manually slicing state.runs, as the real constant is 512.
+      state.runs = state.runs.slice(-2); // keeps runs[1] and runs[2]
+
+      // Save should write 2 runs and preserve run[0]'s count in baseline_counts.
+      saveState(file, state);
+
+      const lines = fs
+        .readFileSync(file, "utf8")
+        .trim()
+        .split("\n")
+        .map(line => JSON.parse(line));
+
+      // First retained entry (run "002") must carry baseline_counts for the pruned "001" (f:A→1).
+      expect(lines).toHaveLength(2);
+      expect(lines[0].run_id).toBe("002");
+      expect(lines[0].baseline_counts).toEqual({ f: { A: 1 } });
+      expect(lines[1].run_id).toBe("003");
+      expect(lines[1].baseline_counts).toBeUndefined();
+
+      // Round-trip: cumulative counts must equal the original totals.
+      const reloaded = loadState(file);
+      expect(reloaded.counts).toEqual({ f: { A: 2, B: 1 } });
+    });
+
+    it("saveState overwrites the file (bounded) instead of appending on normal JSONL writes", () => {
+      const file = path.join(tmpDir, "state.jsonl");
+      const run1 = { run_id: "r1", timestamp: "2026-01-01T00:00:00.000Z", assignments: { x: "A" } };
+      const run2 = { run_id: "r2", timestamp: "2026-01-01T01:00:00.000Z", assignments: { x: "B" } };
+      fs.writeFileSync(file, `${JSON.stringify(run1)}\n`, "utf8");
+
+      // Load (JSONL format), push a new run, save.
+      const state = loadState(file);
+      state.runs.push(run2);
+      state.counts.x.B = (state.counts.x.B || 0) + 1;
+      saveState(file, state);
+
+      const content = fs.readFileSync(file, "utf8");
+      const lines = content
+        .trim()
+        .split("\n")
+        .map(l => JSON.parse(l));
+
+      // File must contain BOTH runs (not just the latest append), with no duplication.
+      expect(lines).toHaveLength(2);
+      expect(lines[0].run_id).toBe("r1");
+      expect(lines[1].run_id).toBe("r2");
+    });
   });
 
   // ── statistical balance ────────────────────────────────────────────────────
