@@ -136,7 +136,7 @@ async function generateGitBundle(branchName, baseBranch, options = {}) {
     try {
       fs.mkdirSync(bundleDir, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${bundleDir}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to create directory ${bundleDir}: ${getErrorMessage(err)}`, { cause: err });
     }
   }
 

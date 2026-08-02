@@ -6,11 +6,17 @@ const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh
 // e.g. escapeRegExp, escapeRegex, regExpEscape. Requires both "escape" and "reg"
 // to be present, preventing false negatives from escapeHtml, unescape, etc.
 const ESCAPE_CALL_NAME_PATTERN = /escape.*reg|reg.*escape/i;
+const REGEXP_META_CHARS = new Set(["\\", "^", "$", ".", "*", "+", "?", "(", ")", "[", "]", "{", "}", "|"]);
 
 // Matches identifier/property names that signal a value has already been
 // regex-escaped, e.g. escapedValue, ESCAPED_NAME. Requires the name to START
 // with "escaped", so unescapedValue and escapeHelper are never whitelisted.
 const ESCAPED_IDENT_PATTERN = /^escaped/i;
+
+// Raw pattern (between regex delimiters) of the canonical inline metacharacter
+// escape regex: /[.*+?^${}()|[\]\\]/g  — the only search form accepted when
+// the replacement is the `"\\$&"` back-reference token.
+const CANONICAL_METACHAR_REGEX_PATTERN = "[.*+?^${}()|[\\]\\\\]";
 
 /**
  * Returns true when `node` is a call expression whose callee name looks like
@@ -29,6 +35,17 @@ function isEscapeHelperCall(node: TSESTree.Node): boolean {
 }
 
 /**
+ * Returns true when `node` is a regex literal that matches exactly
+ * `/[.*+?^${}()|[\]\\]/g` — the canonical form that escapes every regex
+ * metacharacter. Requires the global flag and rejects sticky (`y`) or any
+ * other flag combination so that narrower patterns are not accepted.
+ */
+function isCanonicalMetacharEscapeRegex(node: TSESTree.Node): boolean {
+  if (node.type !== AST_NODE_TYPES.Literal || !("regex" in node) || !node.regex) return false;
+  return node.regex.pattern === CANONICAL_METACHAR_REGEX_PATTERN && node.regex.flags === "g";
+}
+
+/**
  * Returns true when `node` is a call of the form
  * `value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")` — the standard inline
  * pattern for escaping all regex metacharacters before interpolation.
@@ -39,8 +56,71 @@ function isRegexEscapeReplaceCall(node: TSESTree.Node): boolean {
   if (callee.type !== AST_NODE_TYPES.MemberExpression || callee.computed) return false;
   if (callee.property.type !== AST_NODE_TYPES.Identifier || callee.property.name !== "replace") return false;
   if (args.length < 2) return false;
-  const replacement = args[1];
-  return replacement.type === AST_NODE_TYPES.Literal && typeof replacement.value === "string" && replacement.value === "\\$&";
+  const search = getFixedLiteralSearchText(args[0]);
+  const replacement = getStringLiteralValue(args[1]);
+  if (replacement === "\\$&") return isCanonicalMetacharEscapeRegex(args[0]);
+  return search !== null && replacement !== null && isLiteralRegexEscapeReplacement(search, replacement);
+}
+
+function getStringLiteralValue(node: TSESTree.Node): string | null {
+  return node.type === AST_NODE_TYPES.Literal && typeof node.value === "string" ? node.value : null;
+}
+
+function getFixedLiteralSearchText(node: TSESTree.Node): string | null {
+  const stringValue = getStringLiteralValue(node);
+  if (stringValue !== null) return stringValue;
+  if (node.type !== AST_NODE_TYPES.Literal || !("regex" in node) || !node.regex) return null;
+  return decodeFixedLiteralRegexPattern(node.regex.pattern);
+}
+
+function decodeFixedLiteralRegexPattern(pattern: string): string | null {
+  let decoded = "";
+
+  for (let index = 0; index < pattern.length; index++) {
+    const char = pattern[index];
+    if (char === "\\") {
+      index++;
+      const escapedChar = pattern[index];
+      if (escapedChar === undefined || !REGEXP_META_CHARS.has(escapedChar)) return null;
+      decoded += escapedChar;
+      continue;
+    }
+
+    if (REGEXP_META_CHARS.has(char)) return null;
+    decoded += char;
+  }
+
+  return decoded;
+}
+
+/**
+ * Returns true when `s` contains a replacement-string token (`$&`, `$'`,
+ * `` $` ``, `$<`, or `$1`–`$9`) that would expand to something other than
+ * the literal text that was matched. Such tokens make it impossible to
+ * guarantee that the replacement emits the intended escaped string.
+ */
+function containsReplacementToken(s: string): boolean {
+  for (let i = 0; i < s.length - 1; i++) {
+    if (s[i] === "$") {
+      const next = s[i + 1];
+      if (next === "&" || next === "'" || next === "`" || next === "<" || (next >= "0" && next <= "9")) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
+function isLiteralRegexEscapeReplacement(search: string, replacement: string): boolean {
+  if (search.length === 0 || replacement !== `\\${search}`) return false;
+  if (!REGEXP_META_CHARS.has(search[0])) return false;
+  if (containsReplacementToken(replacement)) return false;
+
+  for (const char of search.slice(1)) {
+    if (REGEXP_META_CHARS.has(char)) return false;
+  }
+
+  return true;
 }
 
 /**

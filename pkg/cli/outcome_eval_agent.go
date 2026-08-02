@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"strings"
 
@@ -10,7 +11,7 @@ import (
 var outcomeEvalAgentLog = logger.New("cli:outcome_eval_agent")
 
 // evalAssignToAgent checks whether an agent assignment led to a PR that was merged.
-func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeReport {
+func evalAssignToAgent(ctx context.Context, item CreatedItemReport, repoOverride string) OutcomeReport {
 	repo := resolveItemRepo(item, repoOverride)
 	num := resolveItemNumber(item)
 	outcomeEvalAgentLog.Printf("Evaluating assign_to_agent: repo=%s, num=%d, url=%s", repo, num, item.URL)
@@ -28,7 +29,7 @@ func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeRepor
 	}
 
 	// Check issue state first
-	issueData, err := ghAPIGet(fmt.Sprintf("issues/%d", num), repo)
+	issueData, err := ghAPIGet(ctx, fmt.Sprintf("issues/%d", num), repo)
 	if err != nil {
 		report.Result = OutcomeError
 		report.EvalError = err.Error()
@@ -39,7 +40,7 @@ func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeRepor
 	stateReason, _ := issueData["state_reason"].(string)
 
 	// Search for linked PRs from copilot-swe-agent via timeline events
-	events, err := ghAPIGetArray(fmt.Sprintf("issues/%d/timeline", num), repo)
+	events, err := ghAPIGetArray(ctx, fmt.Sprintf("issues/%d/timeline", num), repo)
 	var agentPR map[string]any
 	if err == nil {
 		for _, event := range events {
@@ -77,7 +78,7 @@ func evalAssignToAgent(item CreatedItemReport, repoOverride string) OutcomeRepor
 
 		// Fetch the actual PR to check merge status
 		if prNumber > 0 {
-			prData, perr := ghAPIGet(fmt.Sprintf("pulls/%d", prNumber), repo)
+			prData, perr := ghAPIGet(ctx, fmt.Sprintf("pulls/%d", prNumber), repo)
 			if perr == nil {
 				merged, _ := prData["merged"].(bool)
 				prState, _ := prData["state"].(string)

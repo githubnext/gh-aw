@@ -381,6 +381,19 @@ on:
     # (optional)
     draft: true
 
+    # Maximum number of top stack layers to run on for stacked pull requests. Default
+    # is 1 (only the latest/top pull request in the stack). Set to -1 to disable stack
+    # protection and run on every pull request in the stack. Value 0 is not allowed.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: Disable stack protection; run on every pull request in the stack.
+    max-stack: 1
+
+    # Format 2: Run only on the top N pull requests in the stack. Default is 1 (only
+    # the latest/top pull request).
+    max-stack: 1
+
     # When true, allows workflow to run on pull requests from forked repositories.
     # Security consideration: fork PRs have limited permissions.
     # (optional)
@@ -744,6 +757,21 @@ on:
     # (optional)
     types: []
       # Array of strings
+
+    # Maximum number of top stack layers to run on for stacked pull request review
+    # events. Default is 1 (only the latest/top pull request in the stack). Set to -1
+    # to disable stack protection and run on every pull request review in the stack.
+    # Value 0 is not allowed.
+    # (optional)
+    # Accepted formats:
+
+    # Format 1: Disable stack protection; run on every pull request review in the
+    # stack.
+    max-stack: 1
+
+    # Format 2: Run only on pull request reviews for the top N pull requests in the
+    # stack. Default is 1 (only the latest/top pull request).
+    max-stack: 1
 
   # Registry package event trigger that runs when a package is published or updated
   # (optional)
@@ -1869,7 +1897,7 @@ experiments:
   # Storage backend for experiment state. 'repo' (default) persists state to a git
   # branch named 'experiments/{sanitizedWorkflowID}' (workflow ID lowercased with
   # hyphens removed, e.g. 'my-workflow' -> 'experiments/myworkflow') for durability
-  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behaviour).
+  # across cache evictions. 'cache' uses GitHub Actions cache (legacy behavior).
   # Repo storage is recommended because experiment data is valuable and more durable
   # than cache.
   # (optional)
@@ -3685,7 +3713,9 @@ tools:
     features: "example-value"
 
     # AWF bounded-query configuration for cross-repository private data access (AWF
-    # v0.28.0+). Requires the AWF sandbox (sandbox.agent.id: awf).
+    # v0.28.0+). Requires the AWF sandbox (sandbox.agent.id: awf). Query execution is
+    # independent from the primary agent sandbox, and every query runs in a fresh
+    # backend-specific sandbox.
     # (optional)
     bounded-queries:
       # List of private repositories the agent may query via bounded queries.
@@ -3697,8 +3727,12 @@ tools:
           # Confidentiality classification for this repository.
           sensitivity: "public"
 
-      # Container runtime used to execute bounded-query scripts. When omitted AWF uses
-      # its default.
+      # Isolated backend used to execute each bounded-query script. Accepted values are
+      # docker, gvisor, and sbx. The sbx backend is experimental and capability-gated:
+      # AWF performs a fail-closed host preflight and never falls back to docker or
+      # gvisor. Current Docker Sandboxes v0.37.1 hosts do not provide all mandatory
+      # controls, so AWF rejects them unless the required capabilities become available.
+      # When omitted AWF uses its default.
       # (optional)
       runtime: "docker"
 
@@ -8593,7 +8627,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: request_review (default),
     # blocked, allowed, or fallback-to-issue — or a GitHub Actions expression for
-    # reusable workflows. Object form: { policy, exclude } to customise the
+    # reusable workflows. Object form: { policy, exclude } to customize the
     # protected-file set.
     # (optional)
     # Accepted formats:
@@ -8609,7 +8643,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed',
     # 'fallback-to-issue', or 'request_review' at runtime. Use in reusable
-    # workflow_call workflows to parameterise the policy per caller.
+    # workflow_call workflows to parameterize the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -8689,7 +8723,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterise the transport
+    # runtime. Use in reusable workflow_call workflows to parameterize the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -15056,7 +15090,7 @@ safe-outputs:
 
     # Controls protected-file protection. String form: blocked (default), allowed, or
     # fallback-to-issue — or a GitHub Actions expression for reusable workflows.
-    # Object form: { policy, exclude } to customise the protected-file set.
+    # Object form: { policy, exclude } to customize the protected-file set.
     # (optional)
     # Accepted formats:
 
@@ -15069,7 +15103,7 @@ safe-outputs:
 
     # Format 2: GitHub Actions expression that resolves to 'blocked', 'allowed', or
     # 'fallback-to-issue' at runtime. Use in reusable workflow_call workflows to
-    # parameterise the policy per caller.
+    # parameterize the policy per caller.
     protected-files: "example-value"
 
     # Format 3: Object form for granular control over the protected-file set. Use the
@@ -15131,7 +15165,7 @@ safe-outputs:
     patch-format: "am"
 
     # Format 2: GitHub Actions expression that resolves to 'am' or 'bundle' at
-    # runtime. Use in reusable workflow_call workflows to parameterise the transport
+    # runtime. Use in reusable workflow_call workflows to parameterize the transport
     # format per caller.
     patch-format: "example-value"
 
@@ -16065,17 +16099,9 @@ safe-outputs:
     # repository slugs (e.g. '${{ inputs['allowed-repos'] }}')
     allowed-repos: "example-value"
 
-    # Git ref (branch, tag, or SHA) to use when dispatching the workflow. For
-    # workflow_call relay scenarios this is auto-injected by the compiler from
-    # needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF.
-    # (optional)
-    target-ref: "example-value"
-
-    # List of ref glob patterns the agent is allowed to supply via message.ref at
-    # runtime. Branch shorthand (e.g. 'feature/*') expands to refs/heads/feature/*,
-    # 'tags/v*' expands to refs/tags/v*; full refs/ patterns are used as-is. When
-    # omitted, per-call message.ref overrides are rejected.
-    # Supports arrays and GitHub Actions expressions resolving to a comma-separated list.
+    # List of allowed ref glob patterns for per-call dispatch_workflow message.ref
+    # overrides. Supports arrays and GitHub Actions expressions resolving to a
+    # comma-separated list (e.g. '${{ inputs['allowed-refs'] }}').
     # (optional)
     # Accepted formats:
 
@@ -16083,9 +16109,15 @@ safe-outputs:
     allowed-refs: []
       # Array items: string
 
-    # Format 2: GitHub Actions expression resolving to a comma-separated list of
-    # ref glob patterns (e.g. '${{ inputs['allowed-refs'] }}')
+    # Format 2: GitHub Actions expression resolving to a comma-separated list of ref
+    # glob patterns (e.g. '${{ inputs['allowed-refs'] }}')
     allowed-refs: "example-value"
+
+    # Git ref (branch, tag, or SHA) to use when dispatching the workflow. For
+    # workflow_call relay scenarios this is auto-injected by the compiler from
+    # needs.activation.outputs.target_ref. Overrides the caller's GITHUB_REF.
+    # (optional)
+    target-ref: "example-value"
 
     # When true, emit step summary messages instead of making GitHub API calls for
     # this specific output type (preview mode)
@@ -18250,7 +18282,7 @@ safe-outputs:
     # Default values injected when the model omits a field
     # (optional)
     defaults:
-      # Behaviour when no files match: 'error' (default) or 'ignore'
+      # Behavior when no files match: 'error' (default) or 'ignore'
       # (optional)
       if-no-files: "error"
 

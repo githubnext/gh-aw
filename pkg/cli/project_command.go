@@ -52,6 +52,7 @@ Available subcommands:
 	}
 
 	// Add subcommands
+	cmd.AddCommand(newLegacyGHGuardSubcommand())
 	cmd.AddCommand(NewProjectNewCommand())
 
 	return cmd

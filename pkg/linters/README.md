@@ -132,6 +132,7 @@ This package currently provides custom Go analyzers in the following subpackages
 | `tolowerequalfold` | Custom `go/analysis` analyzer that flags case-insensitive comparisons via `strings.ToLower`/`ToUpper` that should use `strings.EqualFold` |
 | `trimleftright` | Custom `go/analysis` analyzer that flags `strings.TrimLeft`/`TrimRight` calls with a multi-character literal cutset where `TrimPrefix`/`TrimSuffix` was likely intended |
 | `uncheckedtypeassertion` | Custom `go/analysis` analyzer that flags unchecked single-value type assertions |
+| `walkfuncerrshadow` | Custom `go/analysis` analyzer that flags `filepath.Walk`/`filepath.WalkDir` callbacks whose `err` parameter shadows an outer `err` variable assigned from the walk call |
 | `wgdonenotdeferred` | Custom `go/analysis` analyzer that flags non-deferred `sync.WaitGroup.Done()` calls |
 | `writebytestring` | Custom `go/analysis` analyzer that flags `w.Write([]byte(s))` calls where `s` is a string that can be replaced with `io.WriteString` |
 | `internal` | Shared helper subpackages used by analyzers (`internal/filecheck`, `internal/nolint`) |
@@ -261,6 +262,7 @@ _ = trimleftright.Analyzer
 - `github.com/github/gh-aw/pkg/linters/tolowerequalfold` — to-lower-equal-fold analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/trimleftright` — trim-left-right analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/uncheckedtypeassertion` — unchecked-type-assertion analyzer subpackage
+- `github.com/github/gh-aw/pkg/linters/walkfuncerrshadow` — walk-func-err-shadow analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/wgdonenotdeferred` — wg-done-not-deferred analyzer subpackage
 - `github.com/github/gh-aw/pkg/linters/writebytestring` — write-byte-string analyzer subpackage
 

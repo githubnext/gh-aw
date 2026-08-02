@@ -42,6 +42,7 @@ Available subcommands:
 	}
 
 	// Add subcommands
+	cmd.AddCommand(newLegacyGHGuardSubcommand())
 	cmd.AddCommand(NewMCPAddSubcommand())
 	cmd.AddCommand(NewMCPListSubcommand())
 	cmd.AddCommand(NewMCPListToolsSubcommand())

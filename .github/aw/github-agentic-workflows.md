@@ -64,16 +64,11 @@ See also: [workflow-editing.md](workflow-editing.md)
 
 ## Core Rules
 
-- Keep the main agent job read-only.
-- Use `safe-outputs:` for GitHub writes.
-- Prefer `tools.github.mode: gh-proxy` and use `gh` for GitHub reads.
-- For non-GitHub MCP servers, prefer `tools.cli-proxy: true` and use mounted `mcp-clis` commands.
-- Use `${{ steps.sanitized.outputs.text }}` for untrusted user content.
 - Set `strict: true` for production workflows.
-- Limit network and bash access to what the workflow actually needs.
+- Limit `bash` access to what the workflow actually needs.
 - For visual regression workflows, explicitly name the baseline source (for example `cache-memory` key, artifact, or branch path). See [visual-regression.md](visual-regression.md).
 
-See [workflow-constraints.md](workflow-constraints.md) for the full security posture, safer-alternatives pattern, and common risk areas.
+See [workflow-constraints.md](workflow-constraints.md) for the security posture (read-only job, safe-outputs routing, gh-proxy/cli-proxy, network constraints, sanitized text), safer-alternatives pattern, and common risk areas.
 
 ## Repository-Specific Instructions
 
@@ -107,11 +102,13 @@ Installed gh-aw agents should support scenario evaluation requests that do not c
 
 ### Non-technical persona examples
 
-| Persona | Default trigger | Default output | Key prompt details |
-|---|---|---|---|
-| Program Manager | `schedule` (+ `workflow_dispatch` for previews/backfills) | `create-issue` with `close-older-issues: true` | Report window, grouping dimensions, stable dedup key, and `noop` for empty windows |
-| Designer | `pull_request` with `paths:` scoped to UI, design-token, copy, and asset files | `add-comment` | Review rubric (accessibility, token consistency, asset policy); `noop` when scoped files unchanged |
-| Legal / Compliance | `pull_request` with `paths:` scoped to dependency manifests or policy docs; `schedule` for recurring audits | `add-comment` for findings; `create-issue` for violations | Classify against policy tiers; dedup before escalating; `noop` when no in-scope change or violation |
+Trigger and write-path are the same as the [Persona-to-Pattern Quick Matrix](#persona-to-pattern-quick-matrix) above. For ad hoc evaluation, also gather:
+
+| Persona | Key prompt details |
+|---|---|
+| Program Manager | Report window, grouping dimensions, stable dedup key, and `noop` for empty windows |
+| Designer | Review rubric (accessibility, token consistency, asset policy); `noop` when scoped files unchanged |
+| Legal / Compliance | Classify against policy tiers; dedup before escalating; `noop` when no in-scope change or violation |
 
 ## PR Checks with Linked References
 

@@ -8,6 +8,8 @@ const AGENT_OUTPUT_PATH = "/tmp/gh-aw/agent_output.json";
 const OTLP_EXPORT_ERRORS_PATH = "/tmp/gh-aw/otlp-export-errors.count";
 const OTLP_EXPORT_ERROR_DETAILS_PATH = "/tmp/gh-aw/otlp-export-errors.jsonl";
 const gatewayEventPaths = ["/tmp/gh-aw/mcp-logs/gateway.jsonl", "/tmp/gh-aw/mcp-logs/rpc-messages.jsonl"];
+// Squid access log paths: current AWF layout (squid-logs/ subdirectory) and legacy layout (directly under logs/).
+const squidAccessLogPaths = ["/tmp/gh-aw/sandbox/firewall/logs/squid-logs/access.log", "/tmp/gh-aw/sandbox/firewall/logs/access.log"];
 
 function readJSONIfExists(path) {
   if (!fs.existsSync(path)) {
@@ -61,6 +63,15 @@ function uniqueCreatedItemTypes(items) {
   }
 
   return [...types].sort();
+}
+
+function checkSquidAccessLogPresent() {
+  for (const path of squidAccessLogPaths) {
+    if (fs.existsSync(path)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 function readOTLPExportErrorCount() {
@@ -117,12 +128,14 @@ function collectObservabilityData() {
   // Do NOT fall back to workflow_call_id — it is not a valid OTLP trace ID.
   const traceId = process.env.GITHUB_AW_OTEL_TRACE_ID || (awInfo.context ? awInfo.context.otel_trace_id || "" : "");
 
+  const firewallEnabled = awInfo.firewall_enabled === true;
   return {
     workflowName: awInfo.workflow_name || "",
     engineId: awInfo.engine_id || "",
     traceId,
     staged: awInfo.staged === true,
-    firewallEnabled: awInfo.firewall_enabled === true,
+    firewallEnabled,
+    squidAccessLogPresent: firewallEnabled ? checkSquidAccessLogPresent() : null,
     createdItemCount: items.length,
     createdItemTypes: uniqueCreatedItemTypes(items),
     outputErrorCount: errors.length,
@@ -156,6 +169,12 @@ function buildObservabilitySummary(data) {
   lines.push(`- **agent output errors**: ${data.outputErrorCount}`);
   lines.push(`- **otlp export errors**: ${data.otlpExportErrors}`);
   lines.push(`- **firewall enabled**: ${data.firewallEnabled}`);
+  if (data.firewallEnabled && data.squidAccessLogPresent !== null) {
+    lines.push(`- **squid access.log present**: ${data.squidAccessLogPresent}`);
+    if (!data.squidAccessLogPresent) {
+      lines.push("- Squid access.log not found; egress traffic for this run cannot be audited.");
+    }
+  }
   lines.push(`- **staged**: ${data.staged}`);
 
   if (data.otlpExportErrors > 0) {

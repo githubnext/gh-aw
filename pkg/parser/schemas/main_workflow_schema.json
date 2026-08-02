@@ -4276,7 +4276,7 @@
                 },
                 "bounded-queries": {
                   "type": "object",
-                  "description": "AWF bounded-query configuration for cross-repository private data access (AWF v0.28.0+). Requires the AWF sandbox (sandbox.agent.id: awf).",
+                  "description": "AWF bounded-query configuration for cross-repository private data access (AWF v0.28.0+). Requires the AWF sandbox (sandbox.agent.id: awf). Query execution is independent from the primary agent sandbox, and every query runs in a fresh backend-specific sandbox.",
                   "additionalProperties": false,
                   "required": ["private-repos"],
                   "properties": {
@@ -4305,8 +4305,8 @@
                     },
                     "runtime": {
                       "type": "string",
-                      "description": "Container runtime used to execute bounded-query scripts. When omitted AWF uses its default.",
-                      "enum": ["docker", "gvisor"]
+                      "description": "Isolated backend used to execute each bounded-query script. Accepted values are docker, gvisor, and sbx. The sbx backend is experimental and capability-gated: AWF performs a fail-closed host preflight and never falls back to docker or gvisor. Current Docker Sandboxes v0.37.1 hosts do not provide all mandatory controls, so AWF rejects them unless the required capabilities become available. When omitted AWF uses its default.",
+                      "enum": ["docker", "gvisor", "sbx"]
                     },
                     "timeout": {
                       "type": "integer",

@@ -323,7 +323,7 @@ class DefaultArtifactClient {
     try {
       fs.mkdirSync(destination, { recursive: true });
     } catch (err) {
-      throw new Error(`Failed to create directory ${destination}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to create directory ${destination}: ${getErrorMessage(err)}`, { cause: err });
     }
 
     const apiUrl = parseURL(

@@ -176,8 +176,7 @@ After all `run-analyzer` calls complete, build the report:
 
 ### Report Formatting
 
-Use `###` or lower for all headings inside the issue body.
-Wrap verbose tables in `<details><summary>…</summary>` blocks.
+Use `###` or lower for all headings inside the issue body; never use `#` or `##` inside the report body. Wrap verbose tables in `<details><summary>…</summary>` blocks. Structure reports as: overview → key metrics/issues → collapsible detail → next actions.
 
 ### Report Template
 

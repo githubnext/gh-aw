@@ -48,18 +48,19 @@ steps:
   - name: Install Python scientific libraries
     run: |
       # Create a virtual environment for proper package isolation (avoids --break-system-packages)
-      if [ ! -d /tmp/gh-aw/agent/venv ]; then
-        python3 -m venv /tmp/gh-aw/agent/venv
+      # Use /tmp/gh-aw/python/venv to avoid polluting the agent artifact upload path (/tmp/gh-aw/agent/)
+      if [ ! -d /tmp/gh-aw/python/venv ]; then
+        python3 -m venv /tmp/gh-aw/python/venv
       fi
-      echo "/tmp/gh-aw/agent/venv/bin" >> "$GITHUB_PATH"
-      /tmp/gh-aw/agent/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
+      echo "/tmp/gh-aw/python/venv/bin" >> "$GITHUB_PATH"
+      /tmp/gh-aw/python/venv/bin/pip install --quiet numpy pandas matplotlib seaborn scipy
       
       # Verify installations
-      /tmp/gh-aw/agent/venv/bin/python3 -c "import numpy; print(f'NumPy {numpy.__version__} installed')"
-      /tmp/gh-aw/agent/venv/bin/python3 -c "import pandas; print(f'Pandas {pandas.__version__} installed')"
-      /tmp/gh-aw/agent/venv/bin/python3 -c "import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')"
-      /tmp/gh-aw/agent/venv/bin/python3 -c "import seaborn; print(f'Seaborn {seaborn.__version__} installed')"
-      /tmp/gh-aw/agent/venv/bin/python3 -c "import scipy; print(f'SciPy {scipy.__version__} installed')"
+      /tmp/gh-aw/python/venv/bin/python3 -c "import numpy; print(f'NumPy {numpy.__version__} installed')"
+      /tmp/gh-aw/python/venv/bin/python3 -c "import pandas; print(f'Pandas {pandas.__version__} installed')"
+      /tmp/gh-aw/python/venv/bin/python3 -c "import matplotlib; print(f'Matplotlib {matplotlib.__version__} installed')"
+      /tmp/gh-aw/python/venv/bin/python3 -c "import seaborn; print(f'Seaborn {seaborn.__version__} installed')"
+      /tmp/gh-aw/python/venv/bin/python3 -c "import scipy; print(f'SciPy {scipy.__version__} installed')"
       
       echo "All scientific libraries installed successfully"
 
