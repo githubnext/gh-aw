@@ -69,6 +69,13 @@
       "notation": "TLA+ / Z3-style guard conjunction",
       "predicate_count": 7,
       "issue_number": null
+    },
+    "specs/otel-observability-spec.md": {
+      "slug": "otel-observability-spec",
+      "last_formalized": "2026-08-02-15-48-59",
+      "notation": "TLA+ / Z3-style guard conjunction / F*",
+      "predicate_count": 21,
+      "issue_number": null
     }
   }
 }
