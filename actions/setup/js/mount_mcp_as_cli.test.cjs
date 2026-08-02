@@ -232,17 +232,18 @@ describe("mount_mcp_as_cli.cjs", () => {
     expect(warnings[0]).toContain("safeoutputs");
   });
 
-  it("stops retrying after TOOLS_EMPTY_MAX_RETRIES and returns empty when always empty", async () => {
+  it("stops retrying after TOOLS_EMPTY_MAX_RETRIES, emits final warning, and returns empty when always empty", async () => {
     let callCount = 0;
     const fakeFetch = async () => {
       callCount++;
       return [];
     };
+    const warnings = [];
     const result = await fetchMCPToolsWithRetry(
       "http://localhost/mcp/safeoutputs",
       "key",
       "safeoutputs",
-      { warning: () => {} },
+      { warning: msg => warnings.push(msg) },
       {
         fetchFn: fakeFetch,
         sleep: async () => {},
@@ -251,6 +252,9 @@ describe("mount_mcp_as_cli.cjs", () => {
     expect(result).toEqual([]);
     // 1 initial attempt + TOOLS_EMPTY_MAX_RETRIES retries
     expect(callCount).toBe(1 + TOOLS_EMPTY_MAX_RETRIES);
+    expect(warnings).toHaveLength(TOOLS_EMPTY_MAX_RETRIES + 1);
+    expect(warnings[warnings.length - 1]).toContain("still returned 0 tools");
+    expect(warnings[warnings.length - 1]).toContain("after");
   });
 
   it("invokes sleep between retry attempts", async () => {
@@ -273,5 +277,54 @@ describe("mount_mcp_as_cli.cjs", () => {
       }
     );
     expect(sleepDelays).toEqual([TOOLS_EMPTY_RETRY_DELAY_MS]);
+  });
+
+  it("does not retry when fetchFn reports a non-successful tools/list fetch", async () => {
+    let callCount = 0;
+    const warnings = [];
+    const fakeFetch = async () => {
+      callCount++;
+      return { tools: [], emptyWasSuccessful: false };
+    };
+    const result = await fetchMCPToolsWithRetry(
+      "http://localhost/mcp/safeoutputs",
+      "key",
+      "safeoutputs",
+      { warning: msg => warnings.push(msg) },
+      {
+        fetchFn: fakeFetch,
+        sleep: async () => {},
+      }
+    );
+    expect(result).toEqual([]);
+    expect(callCount).toBe(1);
+    expect(warnings).toHaveLength(0);
+  });
+
+  it("stops further retries if a later fetchFn call is non-successful", async () => {
+    let callCount = 0;
+    const warnings = [];
+    const fakeFetch = async () => {
+      callCount++;
+      if (callCount === 1) {
+        return [];
+      }
+      return { tools: [], emptyWasSuccessful: false };
+    };
+    const result = await fetchMCPToolsWithRetry(
+      "http://localhost/mcp/safeoutputs",
+      "key",
+      "safeoutputs",
+      { warning: msg => warnings.push(msg) },
+      {
+        fetchFn: fakeFetch,
+        sleep: async () => {},
+      }
+    );
+    expect(result).toEqual([]);
+    expect(callCount).toBe(2);
+    expect(warnings).toHaveLength(2);
+    expect(warnings[0]).toContain("retrying");
+    expect(warnings[1]).toContain("stopping empty tools/list retries");
   });
 });

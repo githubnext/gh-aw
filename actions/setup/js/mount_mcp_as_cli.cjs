@@ -331,9 +331,9 @@ function parseMCPResponseBody(body) {
  * @param {string} serverUrl - HTTP URL of the MCP server endpoint
  * @param {string} apiKey - Bearer token for gateway authentication
  * @param {typeof import("@actions/core")} core - GitHub Actions core
- * @returns {Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>}
+ * @returns {Promise<{tools: Array<{name: string, description?: string, inputSchema?: unknown}>, emptyWasSuccessful: boolean}>}
  */
-async function fetchMCPTools(serverUrl, apiKey, core) {
+async function fetchMCPToolsResult(serverUrl, apiKey, core) {
   const authHeaders = { Authorization: apiKey };
 
   // Step 1: initialize – establish the session and capture Mcp-Session-Id if present
@@ -361,7 +361,7 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
     }
   } catch (err) {
     core.warning(`  initialize failed for ${serverUrl}: ${getErrorMessage(err)}`);
-    return [];
+    return { tools: [], emptyWasSuccessful: false };
   }
 
   // Step 2: notifications/initialized – required by MCP spec to complete the handshake.
@@ -379,14 +379,30 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
     if (respBody && typeof respBody === "object" && "result" in respBody && respBody.result && typeof respBody.result === "object") {
       const result = respBody.result;
       if ("tools" in result && Array.isArray(result.tools)) {
-        return /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */ result.tools;
+        return {
+          tools: /** @type {Array<{name: string, description?: string, inputSchema?: unknown}>} */ result.tools,
+          emptyWasSuccessful: true,
+        };
       }
     }
-    return [];
+    return { tools: [], emptyWasSuccessful: false };
   } catch (err) {
     core.warning(`  tools/list failed for ${serverUrl}: ${getErrorMessage(err)}`);
-    return [];
+    return { tools: [], emptyWasSuccessful: false };
   }
+}
+
+/**
+ * Query the tools list from an MCP server via JSON-RPC.
+ *
+ * @param {string} serverUrl - HTTP URL of the MCP server endpoint
+ * @param {string} apiKey - ****** for gateway authentication
+ * @param {typeof import("@actions/core")} core - GitHub Actions core
+ * @returns {Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>}
+ */
+async function fetchMCPTools(serverUrl, apiKey, core) {
+  const result = await fetchMCPToolsResult(serverUrl, apiKey, core);
+  return result.tools;
 }
 
 /**
@@ -397,8 +413,9 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
  * readiness and schema construction). This is more likely with large
  * dispatch-workflow configs where building tool definitions takes long enough
  * that tools/list can still return 0 tools immediately after the health check
- * passes. Retrying a handful of times with a short delay bridges that gap
- * without making a genuinely broken backend any slower to surface as an error.
+ * passes. Retrying a handful of times with a short delay bridges that gap, but
+ * only for successful empty tools/list responses; transport/protocol failures
+ * stop immediately so unavailable backends still fail fast.
  *
  * @param {string} serverUrl
  * @param {string} apiKey
@@ -406,19 +423,35 @@ async function fetchMCPTools(serverUrl, apiKey, core) {
  * @param {typeof import("@actions/core")} core
  * @param {object} [options]
  * @param {(ms: number) => Promise<void>} [options.sleep] - Delay function (injectable for tests)
- * @param {(url: string, key: string, c: typeof import("@actions/core")) => Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>} [options.fetchFn] - Fetch function (injectable for tests)
+ * @param {(url: string, key: string, c: typeof import("@actions/core")) => Promise<Array<{name: string, description?: string, inputSchema?: unknown}> | {tools: Array<{name: string, description?: string, inputSchema?: unknown}>, emptyWasSuccessful: boolean}>} [options.fetchFn] - Fetch function (injectable for tests)
  * @returns {Promise<Array<{name: string, description?: string, inputSchema?: unknown}>>}
  */
 async function fetchMCPToolsWithRetry(serverUrl, apiKey, serverName, core, { sleep = undefined, fetchFn = undefined } = {}) {
   const doSleep = sleep ?? (ms => new Promise(resolve => setTimeout(resolve, ms)));
-  const doFetch = fetchFn ?? ((url, key, c) => fetchMCPTools(url, key, c));
-  let tools = await doFetch(serverUrl, apiKey, core);
-  for (let attempt = 1; attempt <= TOOLS_EMPTY_MAX_RETRIES && tools.length === 0; attempt++) {
+  const doFetchResult = async (url, key, c) => {
+    if (!fetchFn) {
+      return fetchMCPToolsResult(url, key, c);
+    }
+    const result = await fetchFn(url, key, c);
+    if (Array.isArray(result)) {
+      return { tools: result, emptyWasSuccessful: true };
+    }
+    return result;
+  };
+  let result = await doFetchResult(serverUrl, apiKey, core);
+  for (let attempt = 1; attempt <= TOOLS_EMPTY_MAX_RETRIES && result.emptyWasSuccessful && result.tools.length === 0; attempt++) {
     core.warning(`  tools/list returned 0 tools for '${serverName}', retrying in ${TOOLS_EMPTY_RETRY_DELAY_MS}ms (attempt ${attempt}/${TOOLS_EMPTY_MAX_RETRIES})...`);
     await doSleep(TOOLS_EMPTY_RETRY_DELAY_MS);
-    tools = await doFetch(serverUrl, apiKey, core);
+    result = await doFetchResult(serverUrl, apiKey, core);
+    if (!result.emptyWasSuccessful) {
+      core.warning(`  stopping empty tools/list retries for '${serverName}' because tools/list did not complete successfully`);
+      break;
+    }
   }
-  return tools;
+  if (result.emptyWasSuccessful && result.tools.length === 0) {
+    core.warning(`  tools/list still returned 0 tools for '${serverName}' after ${TOOLS_EMPTY_MAX_RETRIES} retries; continuing with empty tool list`);
+  }
+  return result.tools;
 }
 
 /**
