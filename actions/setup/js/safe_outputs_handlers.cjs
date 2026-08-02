@@ -500,7 +500,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       try {
         fs.mkdirSync(assetsDir, { recursive: true });
       } catch (err) {
-        throw new Error(`Failed to create directory ${assetsDir}: ${String(err)}`, { cause: err });
+        throw new Error(`Failed to create directory ${assetsDir}: ${getErrorMessage(err)}`, { cause: err });
       }
     }
 
@@ -509,7 +509,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     try {
       fileContent = fs.readFileSync(filePath);
     } catch (err) {
-      throw new Error(`Failed to read file ${filePath}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
     }
     const sha = crypto.createHash("sha256").update(fileContent).digest("hex");
 
@@ -2096,7 +2096,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
       try {
         fs.mkdirSync(destDir, { recursive: true });
       } catch (err) {
-        throw new Error(`Failed to create directory ${destDir}: ${String(err)}`, { cause: err });
+        throw new Error(`Failed to create directory ${destDir}: ${getErrorMessage(err)}`, { cause: err });
       }
     }
     let entries;
@@ -2169,7 +2169,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
         try {
           fs.mkdirSync(stagingDir, { recursive: true });
         } catch (err) {
-          throw new Error(`Failed to create directory ${stagingDir}: ${String(err)}`, { cause: err });
+          throw new Error(`Failed to create directory ${stagingDir}: ${getErrorMessage(err)}`, { cause: err });
         }
       }
 

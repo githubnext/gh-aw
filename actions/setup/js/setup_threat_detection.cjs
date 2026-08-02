@@ -37,7 +37,7 @@ async function main() {
   try {
     templateContent = fs.readFileSync(templatePath, "utf-8");
   } catch (err) {
-    throw new Error(`Failed to read file ${templatePath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${templatePath}: ${getErrorMessage(err)}`, { cause: err });
   }
   // Check if prompt file exists (soft check; detection can continue with fallback context)
   // The agent artifact is downloaded to /tmp/gh-aw/threat-detection/
@@ -173,7 +173,7 @@ async function main() {
     fs.mkdirSync("/tmp/gh-aw/aw-prompts", { recursive: true });
     fs.writeFileSync("/tmp/gh-aw/aw-prompts/prompt.txt", promptContent);
   } catch (err) {
-    throw new Error(`Failed to prepare threat detection prompt file: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to prepare threat detection prompt file: ${getErrorMessage(err)}`, { cause: err });
   }
   core.exportVariable("GH_AW_PROMPT", "/tmp/gh-aw/aw-prompts/prompt.txt");
 

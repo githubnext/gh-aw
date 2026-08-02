@@ -713,7 +713,7 @@ async function handleRemoteBranchCollision(branchName, preserveBranchName, optio
         core.warning(`Remote branch "${branchName}" cannot be deleted due to branch protection rules (recreate-ref blocked). ` + `Falling back to rename with random suffix.`);
         deleteBlocked = true;
       } else {
-        throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with recreate-ref: ${message || String(err)}`, { cause: err });
+        throw new Error(`Failed to delete existing remote branch "${branchName}" for reuse with recreate-ref: ${message || getErrorMessage(err)}`, { cause: err });
       }
     }
     if (!deleteBlocked) {
@@ -1214,7 +1214,7 @@ async function main(config = {}) {
         try {
           patchContent = fs.readFileSync(patchFilePath, "utf8");
         } catch (err) {
-          throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+          throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
         }
         isEmpty = !patchContent || !patchContent.trim();
       }
@@ -1417,7 +1417,7 @@ async function main(config = {}) {
           try {
             patchStats = fs.readFileSync(patchFilePath, "utf8");
           } catch (err) {
-            throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+            throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
           }
           if (patchStats.trim()) {
             summaryContent += `**Changes:** Patch file exists with ${patchStats.split("\n").length} lines\n\n`;
@@ -1931,7 +1931,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
               try {
                 fs.writeFileSync(patchFilePath, patchContent, "utf8");
               } catch (err) {
-                throw new Error(`Failed to write file ${patchFilePath}: ${String(err)}`, { cause: err });
+                throw new Error(`Failed to write file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
               }
             }
           }
@@ -2175,7 +2175,7 @@ gh pr create --title '${title}' --base ${baseBranch} --head ${getPullRequestHead
                   try {
                     patchContent = fs.readFileSync(patchFilePath, "utf8");
                   } catch (err) {
-                    throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+                    throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
                   }
                   patchPreview = generatePatchPreview(patchContent);
                 }
@@ -2698,7 +2698,7 @@ ${patchPreview}`;
             try {
               patchContent = fs.readFileSync(patchFilePath, "utf8");
             } catch (err) {
-              throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+              throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
             }
             patchPreview = generatePatchPreview(patchContent);
           }
@@ -2763,7 +2763,7 @@ ${patchPreview}`;
           try {
             patchContent = fs.readFileSync(patchFilePath, "utf8");
           } catch (err) {
-            throw new Error(`Failed to read file ${patchFilePath}: ${String(err)}`, { cause: err });
+            throw new Error(`Failed to read file ${patchFilePath}: ${getErrorMessage(err)}`, { cause: err });
           }
           patchPreview = generatePatchPreview(patchContent);
         }

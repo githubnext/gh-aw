@@ -113,7 +113,7 @@ function buildCheckoutManifest(entries, options = {}) {
   try {
     fs.mkdirSync(manifestDir, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${manifestDir}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${manifestDir}: ${getErrorMessage(err)}`, { cause: err });
   }
   const manifestPath = path.join(manifestDir, "checkout-manifest.json");
   const manifest = {};
@@ -147,7 +147,7 @@ function buildCheckoutManifest(entries, options = {}) {
   try {
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   } catch (err) {
-    throw new Error(`Failed to write file ${manifestPath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to write file ${manifestPath}: ${getErrorMessage(err)}`, { cause: err });
   }
   core.info(`checkout-manifest written to ${manifestPath}`);
   return { manifestPath, manifest };

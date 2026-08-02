@@ -466,7 +466,7 @@ async function main() {
     fs.mkdirSync(CLI_BIN_DIR, { recursive: true });
     fs.mkdirSync(TOOLS_DIR, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create MCP CLI directories: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create MCP CLI directories: ${getErrorMessage(err)}`, { cause: err });
   }
 
   // The bridge script lives alongside mount_mcp_as_cli.cjs in the setup actions directory.

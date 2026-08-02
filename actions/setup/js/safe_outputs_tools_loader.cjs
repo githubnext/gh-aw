@@ -360,7 +360,7 @@ function registerDynamicTools(server, tools, config, outputFile, registerTool, n
         try {
           fs.appendFileSync(outputFile, `${JSON.stringify(entry)}\n`);
         } catch (err) {
-          throw new Error(`Failed to append to file ${outputFile}: ${String(err)}`, { cause: err });
+          throw new Error(`Failed to append to file ${outputFile}: ${getErrorMessage(err)}`, { cause: err });
         }
 
         // Use output from safe-job config if available

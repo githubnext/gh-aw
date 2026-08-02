@@ -100,7 +100,7 @@ async function fetchFileFromBranch(octokit, owner, repo, branch, filePath) {
     if (errAny.status === 404) {
       return null;
     }
-    throw new Error(`${ERR_API}: Failed to fetch file "${filePath}" from branch "${branch}": ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_API}: Failed to fetch file "${filePath}" from branch "${branch}": ${getErrorMessage(err)}`, { cause: err });
   }
 }
 
@@ -120,7 +120,7 @@ async function main() {
     try {
       fs.mkdirSync(stateDir, { recursive: true });
     } catch (err) {
-      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+      throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${getErrorMessage(err)}`, { cause: err });
     }
     return;
   }
@@ -144,7 +144,7 @@ async function main() {
   try {
     fs.mkdirSync(stateDir, { recursive: true });
   } catch (err) {
-    throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to create directory ${stateDir}: ${getErrorMessage(err)}`, { cause: err });
   }
 
   if (content === null) {
@@ -172,7 +172,7 @@ async function main() {
   try {
     fs.writeFileSync(stateFile, content, "utf8");
   } catch (err) {
-    throw new Error(`${ERR_SYSTEM}: Failed to write file ${stateFile}: ${String(err)}`, { cause: err });
+    throw new Error(`${ERR_SYSTEM}: Failed to write file ${stateFile}: ${getErrorMessage(err)}`, { cause: err });
   }
   core.info(`Experiment state written to ${stateFile}`);
 }
