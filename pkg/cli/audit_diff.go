@@ -172,6 +172,9 @@ func buildRemovedFirewallDomainEntry(domain string, stats1 DomainRequestStats) (
 	return entry, 0
 }
 
+// appendExistingFirewallDomainDiff appends a diff entry for a domain present in both runs.
+// Returns 1 if an anomaly was detected (a security-relevant status flip), 0 otherwise.
+// Volume changes are recorded in diff.VolumeChanges but are not counted as anomalies.
 func appendExistingFirewallDomainDiff(diff *FirewallDiff, domain string, stats1, stats2 DomainRequestStats) int {
 	status1 := classifyFirewallDomainStatus(stats1)
 	status2 := classifyFirewallDomainStatus(stats2)
@@ -190,26 +193,26 @@ func appendExistingFirewallDomainDiff(diff *FirewallDiff, domain string, stats1,
 			entry.IsAnomaly = true
 			entry.AnomalyNote = "previously denied, now allowed"
 			diff.StatusChanges = append(diff.StatusChanges, entry)
-			return 1
+			return 1 // anomaly: a previously-blocked domain is now allowed
 		}
 		if status1 == "allowed" && status2 == "denied" {
 			entry.IsAnomaly = true
 			entry.AnomalyNote = "previously allowed, now denied"
 			diff.StatusChanges = append(diff.StatusChanges, entry)
-			return 1
+			return 1 // anomaly: a previously-allowed domain is now blocked
 		}
 		diff.StatusChanges = append(diff.StatusChanges, entry)
-		return 0
+		return 0 // status changed (e.g. mixed ↔ allowed) but not a security-relevant flip
 	}
 
 	total1 := stats1.Allowed + stats1.Blocked
 	total2 := stats2.Allowed + stats2.Blocked
 	if total1 == 0 {
-		return 0
+		return 0 // no baseline traffic; nothing to compare
 	}
 	pctChange := (float64(total2-total1) / float64(total1)) * 100
 	if math.Abs(pctChange) <= volumeChangeThresholdPercent {
-		return 0
+		return 0 // volume within threshold; not noteworthy
 	}
 	diff.VolumeChanges = append(diff.VolumeChanges, DomainDiffEntry{
 		Domain:        domain,
@@ -222,7 +225,7 @@ func appendExistingFirewallDomainDiff(diff *FirewallDiff, domain string, stats1,
 		Run2Status:    status2,
 		VolumeChange:  formatVolumeChange(total1, total2),
 	})
-	return 0
+	return 0 // volume change recorded but not classified as an anomaly
 }
 
 // classifyFirewallDomainStatus returns "allowed", "denied", or "mixed" based on request stats

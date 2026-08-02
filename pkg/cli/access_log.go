@@ -103,9 +103,7 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		if err := processSquidAccessLogLine(strings.TrimSpace(scanner.Text()), verbose, analysis, allowedDomainsSet, blockedDomainsSet); err != nil {
-			return nil, err
-		}
+		processSquidAccessLogLine(strings.TrimSpace(scanner.Text()), verbose, analysis, allowedDomainsSet, blockedDomainsSet)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -122,9 +120,9 @@ func parseSquidAccessLog(logPath string, verbose bool) (*DomainAnalysis, error) 
 	return analysis, nil
 }
 
-func processSquidAccessLogLine(line string, verbose bool, analysis *DomainAnalysis, allowedDomainsSet, blockedDomainsSet map[string]struct{}) error {
+func processSquidAccessLogLine(line string, verbose bool, analysis *DomainAnalysis, allowedDomainsSet, blockedDomainsSet map[string]struct{}) {
 	if line == "" || strings.HasPrefix(line, "#") {
-		return nil
+		return
 	}
 
 	entry, err := parseSquidLogLine(line)
@@ -132,24 +130,23 @@ func processSquidAccessLogLine(line string, verbose bool, analysis *DomainAnalys
 		if verbose {
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to parse log line: %v", err)))
 		}
-		return nil
+		return
 	}
 
 	analysis.TotalRequests++
 	domain := stringutil.ExtractDomainFromURL(entry.URL)
 	if domain == "" {
-		return nil
+		return
 	}
 
 	if isAllowedSquidStatus(entry.Status) {
 		analysis.AllowedRequests++
 		addUniqueDomain(allowedDomainsSet, domain, &analysis.AllowedDomains)
-		return nil
+		return
 	}
 
 	analysis.BlockedRequests++
 	addUniqueDomain(blockedDomainsSet, domain, &analysis.BlockedDomains)
-	return nil
 }
 
 func isAllowedSquidStatus(statusCode string) bool {
