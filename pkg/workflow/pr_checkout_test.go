@@ -142,6 +142,27 @@ Test workflow with pull_request trigger only.
 			expectPRPrompt:   false,
 		},
 		{
+			name: "pull_request trigger with checkout disabled should not add PR checkout",
+			workflowContent: `---
+on:
+  pull_request:
+    types: [opened]
+permissions:
+  contents: read
+  issues: read
+  pull-requests: read
+engine: claude
+checkout: false
+strict: false
+---
+
+# Test Workflow
+Test workflow with pull_request trigger and checkout disabled.
+`,
+			expectPRCheckout: false,
+			expectPRPrompt:   false,
+		},
+		{
 			name: "no contents permission should NOT add PR checkout",
 			workflowContent: `---
 on:

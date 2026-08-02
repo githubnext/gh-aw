@@ -30,6 +30,8 @@
  * it only works with the PR from the triggering event.
  */
 
+const fs = require("fs");
+const path = require("path");
 const { getErrorMessage } = require("./error_helpers.cjs");
 const { renderTemplateFromFile, getPromptPath } = require("./messages_core.cjs");
 const { detectForkPR } = require("./pr_helpers.cjs");
@@ -115,6 +117,42 @@ function logCheckoutStrategy(eventName, strategy, reason) {
   core.info(`Strategy: ${strategy}`);
   core.info(`Reason: ${reason}`);
   core.endGroup();
+}
+
+/**
+ * Ensure git commands can run even when an earlier step removed the workspace's
+ * .git directory. This lazily re-initializes the repository metadata and
+ * reattaches origin so the existing fetch/checkout logic can proceed.
+ */
+async function ensureGitRepositoryAvailable() {
+  const repoSlug = `${context.repo.owner}/${context.repo.repo}`;
+  const serverUrl = (process.env.GITHUB_SERVER_URL || "https://github.com").replace(/\/+$/, "");
+  const remoteUrl = `${serverUrl}/${repoSlug}.git`;
+  const token = (process.env.GH_TOKEN || process.env.GITHUB_TOKEN || "").trim();
+  const workspaceRoot = process.env.GITHUB_WORKSPACE || process.cwd();
+  const gitMetadataPath = path.join(workspaceRoot, ".git");
+  let initializedRepository = false;
+  let addedOriginRemote = false;
+
+  if (!fs.existsSync(gitMetadataPath)) {
+    core.warning("No git repository found in workspace; bootstrapping repository metadata for PR checkout");
+    await exec.exec("git", ["init"]);
+    initializedRepository = true;
+  }
+
+  try {
+    await exec.exec("git", ["remote", "set-url", "origin", remoteUrl]);
+  } catch {
+    await exec.exec("git", ["remote", "add", "origin", remoteUrl]);
+    addedOriginRemote = true;
+  }
+
+  if ((initializedRepository || addedOriginRemote) && token) {
+    const tokenBase64 = Buffer.from(`x-access-token:${token}`).toString("base64");
+    await exec.exec("git", ["config", "--local", "--replace-all", `http.${serverUrl}/.extraheader`, `Authorization: basic ${tokenBase64}`]);
+  } else if ((initializedRepository || addedOriginRemote) && !token) {
+    core.warning("No GH_TOKEN or GITHUB_TOKEN available while bootstrapping git metadata; relying on ambient git authentication");
+  }
 }
 
 /**
@@ -250,6 +288,7 @@ async function main() {
 
     // Log detailed context for debugging
     const { isFork } = logPRContext(eventName, pullRequest);
+    await ensureGitRepositoryAvailable();
 
     if (eventName === "pull_request" && isFork === false) {
       // For non-fork pull_request events, we run in the merge commit context.

@@ -5,6 +5,7 @@ describe("checkout_pr_branch.cjs", () => {
   let mockExec;
   let mockContext;
   let mockGithub;
+  let mockFsExistsSync;
 
   beforeEach(() => {
     // Mock core actions methods
@@ -108,6 +109,7 @@ describe("checkout_pr_branch.cjs", () => {
       },
     };
     global.github = mockGithub;
+    mockFsExistsSync = vi.fn().mockReturnValue(true);
 
     process.env.GITHUB_TOKEN = "test-token";
     process.env.GITHUB_SERVER_URL = "https://github.com";
@@ -165,6 +167,7 @@ describe("checkout_pr_branch.cjs", () => {
       }
       if (module === "fs") {
         return {
+          existsSync: mockFsExistsSync,
           readFileSync: (path, encoding) => {
             // Return mock template for pr_checkout_failure.md
             if (path.includes("pr_checkout_failure.md")) {
@@ -193,6 +196,9 @@ If the pull request is still open, verify that:
             throw new Error(`Unexpected file read: ${path}`);
           },
         };
+      }
+      if (module === "path") {
+        return require("path");
       }
       if (module === "./error_codes.cjs") {
         return require("./error_codes.cjs");
@@ -327,7 +333,7 @@ If the pull request is still open, verify that:
     });
 
     it("should handle git fetch errors", async () => {
-      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("git fetch failed"));
 
       await runScript();
 
@@ -342,9 +348,23 @@ If the pull request is still open, verify that:
       expect(mockCore.setFailed).toHaveBeenCalledWith(`${ERR_API}: Failed to checkout PR branch: git fetch failed`);
     });
 
+    it("should bootstrap git metadata when the workspace is not a git repository", async () => {
+      mockFsExistsSync.mockReturnValue(false);
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("No such remote 'origin'")).mockResolvedValue(0);
+
+      await runScript();
+
+      expect(mockCore.warning).toHaveBeenCalledWith("No git repository found in workspace; bootstrapping repository metadata for PR checkout");
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["init"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["remote", "add", "origin", "https://github.com/test-owner/test-repo.git"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["config", "--local", "--replace-all", "http.https://github.com/.extraheader", expect.stringMatching(/^Authorization: basic /)]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["fetch", "origin", "feature-branch", "--depth=2"]);
+      expect(mockExec.exec).toHaveBeenCalledWith("git", ["checkout", "feature-branch"]);
+      expect(mockCore.setFailed).not.toHaveBeenCalled();
+    });
+
     it("should handle git checkout errors", async () => {
-      mockExec.exec.mockResolvedValueOnce(0); // fetch succeeds
-      mockExec.exec.mockRejectedValueOnce(new Error("git checkout failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("git checkout failed"));
 
       await runScript();
 
@@ -443,7 +463,7 @@ If the pull request is still open, verify that:
     });
 
     it("should handle git fetch errors for PR ref", async () => {
-      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("git fetch failed"));
 
       await runScript();
 
@@ -730,7 +750,7 @@ If the pull request is still open, verify that:
 
   describe("error handling", () => {
     it("should handle non-Error exceptions", async () => {
-      mockExec.exec.mockRejectedValueOnce("string error");
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce("string error");
 
       await runScript();
 
@@ -739,7 +759,7 @@ If the pull request is still open, verify that:
 
     it("should handle errors with custom messages", async () => {
       const customError = new Error("Permission denied: unable to access repository");
-      mockExec.exec.mockRejectedValueOnce(customError);
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(customError);
 
       await runScript();
 
@@ -796,7 +816,7 @@ If the pull request is still open, verify that:
     });
 
     it("should set output to false on checkout failure", async () => {
-      mockExec.exec.mockRejectedValueOnce(new Error("checkout failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("checkout failed"));
 
       await runScript();
 
@@ -927,7 +947,7 @@ If the pull request is still open, verify that:
 
   describe("enhanced error logging", () => {
     it("should log detailed error context on checkout failure", async () => {
-      mockExec.exec.mockRejectedValueOnce(new Error("checkout failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("checkout failed"));
 
       await runScript();
 
@@ -940,7 +960,7 @@ If the pull request is still open, verify that:
     });
 
     it("should attempt to log git status on error", async () => {
-      mockExec.exec.mockRejectedValueOnce(new Error("checkout failed")).mockResolvedValue(0); // Subsequent git commands succeed
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("checkout failed")).mockResolvedValue(0); // Subsequent git commands succeed
 
       await runScript();
 
@@ -951,7 +971,7 @@ If the pull request is still open, verify that:
     });
 
     it("should handle git diagnostic command failures gracefully", async () => {
-      mockExec.exec.mockRejectedValueOnce(new Error("checkout failed")).mockRejectedValue(new Error("git command not available"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("checkout failed")).mockRejectedValue(new Error("git command not available"));
 
       await runScript();
 
@@ -962,7 +982,7 @@ If the pull request is still open, verify that:
   describe("closed pull request handling", () => {
     it("should treat checkout failure as warning for closed PR (pull_request event)", async () => {
       mockContext.payload.pull_request.state = "closed";
-      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed - branch deleted"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("git fetch failed - branch deleted"));
 
       await runScript();
 
@@ -992,7 +1012,7 @@ If the pull request is still open, verify that:
     it("should treat checkout failure as warning for closed PR (refs/pull checkout)", async () => {
       mockContext.eventName = "issue_comment";
       mockContext.payload.pull_request.state = "closed";
-      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed - PR closed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("git fetch failed - PR closed"));
 
       await runScript();
 
@@ -1008,7 +1028,7 @@ If the pull request is still open, verify that:
     it("should still fail for open PR with checkout error", async () => {
       // PR is open (default state in mockContext)
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("network error"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("network error"));
 
       await runScript();
 
@@ -1037,7 +1057,7 @@ If the pull request is still open, verify that:
     it("should handle closed PR without head ref", async () => {
       mockContext.payload.pull_request.state = "closed";
       delete mockContext.payload.pull_request.head;
-      mockExec.exec.mockRejectedValueOnce(new Error("no branch info"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("no branch info"));
 
       await runScript();
 
@@ -1066,7 +1086,7 @@ If the pull request is still open, verify that:
     it("should treat checkout failure as warning when PR was merged after workflow triggered", async () => {
       // PR was "open" in webhook payload, but branch was deleted after merge
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("fatal: couldn't find remote ref feature-branch"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("fatal: couldn't find remote ref feature-branch"));
       // Non-fork pull_request uses fast path (no fetchPRDetails call).
       // Only the error handler re-check calls pulls.get → returns closed.
       mockGithub.rest.pulls.get.mockResolvedValueOnce({
@@ -1109,7 +1129,7 @@ If the pull request is still open, verify that:
 
     it("should still fail when PR is still open and checkout fails", async () => {
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("network error"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("network error"));
       // Non-fork pull_request: error handler re-check confirms still open (default mock)
 
       await runScript();
@@ -1123,7 +1143,7 @@ If the pull request is still open, verify that:
 
     it("should still fail when API re-check itself fails", async () => {
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("fetch failed"));
       // Non-fork pull_request: error handler re-check fails
       const apiError = new Error("API rate limited");
       apiError.status = 429;
@@ -1142,7 +1162,7 @@ If the pull request is still open, verify that:
 
     it("should include HTTP status code in API re-check failure warning", async () => {
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("fetch failed"));
       // Non-fork pull_request: error handler re-check fails with 404
       const apiError = new Error("Not Found");
       apiError.status = 404;
@@ -1155,7 +1175,7 @@ If the pull request is still open, verify that:
 
     it("should omit HTTP status suffix when API error has no status code", async () => {
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("fetch failed"));
       // Non-fork pull_request: error handler re-check fails without status
       mockGithub.rest.pulls.get.mockRejectedValueOnce(new Error("network timeout"));
 
@@ -1170,7 +1190,7 @@ If the pull request is still open, verify that:
 
     it("should call the GitHub API with the correct PR number and repo", async () => {
       mockContext.payload.pull_request.state = "open";
-      mockExec.exec.mockRejectedValueOnce(new Error("fetch failed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("fetch failed"));
       // Non-fork pull_request: error handler re-check returns closed
       mockGithub.rest.pulls.get.mockResolvedValueOnce({
         data: {
@@ -1203,7 +1223,7 @@ If the pull request is still open, verify that:
       };
       const closedPRData = { ...fullPRData, state: "closed" };
       mockGithub.rest.pulls.get.mockResolvedValueOnce({ data: fullPRData }).mockResolvedValueOnce({ data: closedPRData });
-      mockExec.exec.mockRejectedValueOnce(new Error("git fetch failed - PR closed"));
+      mockExec.exec.mockResolvedValueOnce(0).mockRejectedValueOnce(new Error("git fetch failed - PR closed"));
 
       await runScript();
 
