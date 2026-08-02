@@ -359,6 +359,80 @@ source: old/repo/workflow.md@v1.0.0
 	}
 }
 
+// TestMergeWorkflowContent_SourceInMiddle tests that source field position in current
+// (in the middle of frontmatter, before other fields) does not cause merge conflicts.
+// This replicates the ci-doctor.md scenario where source was committed before features/evals.
+func TestMergeWorkflowContent_SourceInMiddle(t *testing.T) {
+	// Upstream base: no source field, has features and evals at end of frontmatter
+	base := `---
+on: push
+engine: claude
+features:
+  gh-aw-detection: true
+evals:
+  - id: ci_failure_investigated
+    question: Did the agent investigate failed CI workflows?
+---
+
+# CI Doctor
+
+Test content.`
+
+	// Local current: source field is in the MIDDLE (before features/evals), as it was
+	// committed in a file where source was placed before other trailing fields.
+	current := `---
+on: push
+engine: claude
+source: test/repo/ci-doctor.md@v1.0.0
+features:
+  gh-aw-detection: true
+evals:
+  - id: ci_failure_investigated
+    question: Did the agent investigate failed CI workflows?
+---
+
+# CI Doctor
+
+Test content.`
+
+	// Upstream new: no source field, same structure but updated description
+	new := `---
+on: push
+engine: claude
+features:
+  gh-aw-detection: true
+evals:
+  - id: ci_failure_investigated
+    question: Did the agent investigate failed CI workflows?
+---
+
+# CI Doctor
+
+Test content updated upstream.`
+
+	oldSourceSpec := "test/repo/ci-doctor.md@v1.0.0"
+	newRef := "v1.1.0"
+
+	merged, hasConflicts, err := MergeWorkflowContent(base, current, new, oldSourceSpec, newRef, "", false)
+	if err != nil {
+		t.Fatalf("Expected no error, got: %v", err)
+	}
+
+	if hasConflicts {
+		t.Errorf("Expected no conflicts when source field is in a different position but content is otherwise unchanged, merged content:\n%s", merged)
+	}
+
+	// Source field should be updated to the new version
+	if !strings.Contains(merged, "source: test/repo/ci-doctor.md@v1.1.0") {
+		t.Errorf("Expected source field to be updated to v1.1.0, got:\n%s", merged)
+	}
+
+	// Upstream markdown change should be present
+	if !strings.Contains(merged, "Test content updated upstream.") {
+		t.Errorf("Expected upstream markdown change to be present, got:\n%s", merged)
+	}
+}
+
 // TestMergeWorkflowContent_Integration tests the merge with temporary files
 func TestMergeWorkflowContent_Integration(t *testing.T) {
 	// Create a temporary directory for test files
@@ -717,6 +791,39 @@ source: test/repo/workflow.md@v1.0.0
 			sourceSpec:     "test/repo/workflow.md@v1.0.0",
 			expectModified: false,
 			description:    "Both files minimal but identical",
+		},
+		{
+			name: "source field in different position - not a modification",
+			sourceContent: `---
+on: push
+engine: claude
+features:
+  gh-aw-detection: true
+evals:
+  - id: check_one
+    question: Did the agent do the thing?
+---
+
+# Test Workflow
+
+Test content.`,
+			localContent: `---
+on: push
+engine: claude
+source: test/repo/workflow.md@v1.0.0
+features:
+  gh-aw-detection: true
+evals:
+  - id: check_one
+    question: Did the agent do the thing?
+---
+
+# Test Workflow
+
+Test content.`,
+			sourceSpec:     "test/repo/workflow.md@v1.0.0",
+			expectModified: false,
+			description:    "Source field in a different position (before features/evals instead of at end) should not be treated as local modification",
 		},
 	}
 

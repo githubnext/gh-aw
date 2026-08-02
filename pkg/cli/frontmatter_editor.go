@@ -188,6 +188,119 @@ func addFieldToFrontmatter(content, fieldName, fieldValue string, trailingBlankL
 	return updateFieldInFrontmatterFallback(result, fieldName, fieldValue)
 }
 
+// RemoveTopLevelFieldFromFrontmatter removes a top-level field from the frontmatter.
+// If the field is not found, the content is returned unchanged.
+// It preserves the original formatting of all other frontmatter content.
+func RemoveTopLevelFieldFromFrontmatter(content, fieldName string) (string, error) {
+	frontmatterEditorLog.Printf("Removing top-level frontmatter field: %s", fieldName)
+
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		frontmatterEditorLog.Printf("Failed to parse frontmatter: %v", err)
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	if len(result.FrontmatterLines) == 0 {
+		return content, nil
+	}
+
+	skipChildren := false
+	fieldIndentLevel := 0
+	newFrontmatterLines := make([]string, 0, len(result.FrontmatterLines))
+
+	for _, line := range result.FrontmatterLines {
+		trimmedLine := strings.TrimSpace(line)
+
+		if skipChildren {
+			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			if currentIndent > fieldIndentLevel {
+				continue
+			}
+			skipChildren = false
+		}
+
+		if strings.HasPrefix(trimmedLine, fieldName+":") {
+			leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+			fieldIndentLevel = len(leadingSpace)
+			skipChildren = true
+			frontmatterEditorLog.Printf("Removed top-level field %s", fieldName)
+			continue
+		}
+
+		newFrontmatterLines = append(newFrontmatterLines, line)
+	}
+
+	var lines []string
+	lines = append(lines, "---")
+	lines = append(lines, newFrontmatterLines...)
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, "")
+		lines = append(lines, result.Markdown)
+	}
+
+	return strings.Join(lines, "\n"), nil
+}
+
+// MoveTopLevelFieldToEnd removes the named field from wherever it appears in the frontmatter
+// and re-inserts it at the end with the provided value, in a single reconstruction pass.
+// This is used to normalise the position of tool-managed fields (e.g. "source") so that
+// all three versions fed into a 3-way merge have the field at the same canonical position,
+// preventing spurious merge-conflict markers caused only by positional differences.
+// If the field is not present it is simply appended at the end (same as UpdateFieldInFrontmatter).
+func MoveTopLevelFieldToEnd(content, fieldName, fieldValue string) (string, error) {
+	frontmatterEditorLog.Printf("Moving top-level frontmatter field to end: %s = %s", fieldName, fieldValue)
+
+	result, err := parser.ExtractFrontmatterFromContent(content)
+	if err != nil {
+		frontmatterEditorLog.Printf("Failed to parse frontmatter: %v", err)
+		return "", fmt.Errorf("failed to parse frontmatter: %w", err)
+	}
+
+	if len(result.FrontmatterLines) == 0 {
+		return content, nil
+	}
+
+	skipChildren := false
+	fieldIndentLevel := 0
+	newFrontmatterLines := make([]string, 0, len(result.FrontmatterLines))
+
+	for _, line := range result.FrontmatterLines {
+		trimmedLine := strings.TrimSpace(line)
+
+		if skipChildren {
+			currentIndent := len(line) - len(strings.TrimLeft(line, " \t"))
+			if currentIndent > fieldIndentLevel {
+				continue
+			}
+			skipChildren = false
+		}
+
+		if strings.HasPrefix(trimmedLine, fieldName+":") {
+			leadingSpace := line[:len(line)-len(strings.TrimLeft(line, " \t"))]
+			fieldIndentLevel = len(leadingSpace)
+			skipChildren = true
+			continue
+		}
+
+		newFrontmatterLines = append(newFrontmatterLines, line)
+	}
+
+	// Append the field at the end with the given value.
+	newFrontmatterLines = append(newFrontmatterLines, fmt.Sprintf("%s: %s", fieldName, fieldValue))
+
+	var lines []string
+	lines = append(lines, "---")
+	lines = append(lines, newFrontmatterLines...)
+	lines = append(lines, "---")
+	if result.Markdown != "" {
+		lines = append(lines, "")
+		lines = append(lines, result.Markdown)
+	}
+
+	return strings.Join(lines, "\n"), nil
+}
+
 // RemoveFieldFromOnTrigger removes a field from the 'on' trigger object in the frontmatter.
 // This handles nested fields like "stop-after" which are located under the "on" key.
 // It preserves the original formatting of the frontmatter including comments and blank lines.
