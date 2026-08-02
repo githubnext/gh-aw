@@ -38,25 +38,7 @@ tools:
   playwright:
     mode: cli
   bash:
-    - "npm install*"
-    - "npm run build*"
-    - "npm run dev*"
-    - "npm run preview*"
-    - "npx astro*"
-    - "npx playwright*"
-    - "playwright-cli*"  # CLI-mode playwright commands
-    - "curl*"
-    - "kill*"
-    - "lsof*"
-    - "ls*"             # List files for directory navigation
-    - "pwd*"            # Print working directory
-    - "cd*"             # Change directory
-    - "nohup*"          # Start server in background
-    - "cat*"            # Read log files
-    - "echo*"           # Debug output and shell commands
-    - "sleep*"          # Wait between retries
-    - "rm*"             # Cleanup temp files
-    - "mkdir*"          # Create directories
+    - "*"
 safe-outputs:
   upload-artifact:
     max-uploads: 3
