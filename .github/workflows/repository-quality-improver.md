@@ -57,11 +57,11 @@ steps:
         echo ""
         echo "## Code Metrics"
         echo "### Largest Go source files (top 20)"
-        find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | sort -rn | head -21 | tail -20
+        find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" -print0 | xargs -0 wc -l 2>/dev/null | sort -rn | head -21 | tail -20
 
         echo "### Test ratio"
-        TEST_LOC=$(find . -type f -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
-        SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" | xargs wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+        TEST_LOC=$(find . -type f -name "*_test.go" ! -path "./.git/*" -print0 | xargs -0 wc -l 2>/dev/null | tail -1 | awk '{print $1}')
+        SRC_LOC=$(find . -type f -name "*.go" ! -name "*_test.go" ! -path "./.git/*" -print0 | xargs -0 wc -l 2>/dev/null | tail -1 | awk '{print $1}')
         echo "Test LOC: $TEST_LOC | Source LOC: $SRC_LOC"
 
         echo "### Directory file counts"
