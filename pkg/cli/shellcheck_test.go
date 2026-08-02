@@ -72,7 +72,7 @@ jobs:
 		require.Len(t, steps, 2)
 		assert.Equal(t, "bash step", steps[0].Name)
 		assert.Equal(t, "echo hello", steps[0].Script)
-		assert.Empty(t, steps[0].Shell) // no shell field → default bash
+		assert.Empty(t, steps[0].Shell) // no shell field or defaults → empty (=default bash)
 		assert.Equal(t, "sh step", steps[1].Name)
 		assert.Equal(t, "sh", steps[1].Shell)
 	})
@@ -116,6 +116,86 @@ jobs:
 		assert.Len(t, steps, 2)
 	})
 
+	t.Run("skips steps whose job-level default shell is pwsh", func(t *testing.T) {
+		content := `
+jobs:
+  windows-job:
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: ps step
+        run: Write-Host hi
+      - name: explicit bash step
+        shell: bash
+        run: echo hello
+`
+		tmpFile := writeTempLockFile(t, content)
+		steps, err := extractRunStepsFromLockFile(tmpFile)
+		require.NoError(t, err)
+		// ps step has effective shell=pwsh → skipped; explicit bash step is kept.
+		require.Len(t, steps, 1)
+		assert.Equal(t, "explicit bash step", steps[0].Name)
+		assert.Equal(t, "bash", steps[0].Shell)
+	})
+
+	t.Run("inherits workflow-level default shell", func(t *testing.T) {
+		content := `
+defaults:
+  run:
+    shell: sh
+jobs:
+  build:
+    steps:
+      - name: inherited sh step
+        run: echo sh
+`
+		tmpFile := writeTempLockFile(t, content)
+		steps, err := extractRunStepsFromLockFile(tmpFile)
+		require.NoError(t, err)
+		require.Len(t, steps, 1)
+		assert.Equal(t, "inherited sh step", steps[0].Name)
+		assert.Equal(t, "sh", steps[0].Shell)
+	})
+
+	t.Run("job default overrides workflow default", func(t *testing.T) {
+		content := `
+defaults:
+  run:
+    shell: bash
+jobs:
+  windows-job:
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: ps step
+        run: Write-Host hi
+`
+		tmpFile := writeTempLockFile(t, content)
+		steps, err := extractRunStepsFromLockFile(tmpFile)
+		require.NoError(t, err)
+		// job default (pwsh) overrides workflow default (bash) → step is skipped
+		assert.Empty(t, steps)
+	})
+
+	t.Run("skips steps whose workflow-level default shell is pwsh", func(t *testing.T) {
+		content := `
+defaults:
+  run:
+    shell: pwsh
+jobs:
+  build:
+    steps:
+      - name: ps step
+        run: Write-Host hi
+`
+		tmpFile := writeTempLockFile(t, content)
+		steps, err := extractRunStepsFromLockFile(tmpFile)
+		require.NoError(t, err)
+		assert.Empty(t, steps)
+	})
+
 	t.Run("returns error for non-existent file", func(t *testing.T) {
 		_, err := extractRunStepsFromLockFile("/nonexistent/file.lock.yml")
 		require.Error(t, err)
@@ -125,6 +205,33 @@ jobs:
 		tmpFile := writeTempLockFile(t, "{{invalid yaml: [")
 		_, err := extractRunStepsFromLockFile(tmpFile)
 		require.Error(t, err)
+	})
+}
+
+// TestSanitizeGHAExpressions verifies that ${{ ... }} expressions are replaced
+// with a shell-safe placeholder before shellcheck runs.
+func TestSanitizeGHAExpressions(t *testing.T) {
+	t.Run("replaces simple expression", func(t *testing.T) {
+		assert.Equal(t, `echo __GHA_EXPR__`, sanitizeGHAExpressions(`echo ${{ github.actor }}`))
+	})
+	t.Run("replaces expression in quoted string", func(t *testing.T) {
+		assert.Equal(t, `echo "__GHA_EXPR__"`, sanitizeGHAExpressions(`echo "${{ github.actor }}"`))
+	})
+	t.Run("replaces multiple expressions", func(t *testing.T) {
+		result := sanitizeGHAExpressions(`echo ${{ github.actor }} at ${{ github.ref }}`)
+		assert.Equal(t, `echo __GHA_EXPR__ at __GHA_EXPR__`, result)
+	})
+	t.Run("replaces expression in single-quoted string", func(t *testing.T) {
+		result := sanitizeGHAExpressions(`echo '${{ github.actor }}'`)
+		assert.Equal(t, `echo '__GHA_EXPR__'`, result)
+	})
+	t.Run("leaves plain shell script unchanged", func(t *testing.T) {
+		script := "echo hello\nls -la"
+		assert.Equal(t, script, sanitizeGHAExpressions(script))
+	})
+	t.Run("handles expression with nested braces", func(t *testing.T) {
+		result := sanitizeGHAExpressions(`echo ${{ fromJSON(steps.out.outputs.data)['key'] }}`)
+		assert.Equal(t, `echo __GHA_EXPR__`, result)
 	})
 }
 
