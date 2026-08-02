@@ -89,7 +89,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 			fileResult, err := findWorkflowFile(workflowName, markdownPath)
 			if err != nil {
 				safeOutputsConfigLog.Printf("Warning: error finding workflow %s: %v", workflowName, err)
-				dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, make(map[string]any)))
+				dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, make(map[string]any), data.SafeOutputs.DispatchWorkflow.AllowedRefs))
 				continue
 			}
 
@@ -108,7 +108,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				useMD = true
 			} else {
 				safeOutputsConfigLog.Printf("Warning: no workflow file found for %s (checked .lock.yml, .yml, .md)", workflowName)
-				dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, make(map[string]any)))
+				dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, make(map[string]any), data.SafeOutputs.DispatchWorkflow.AllowedRefs))
 				continue
 			}
 
@@ -126,7 +126,7 @@ func generateDynamicTools(data *WorkflowData, markdownPath string) ([]map[string
 				workflowInputs = make(map[string]any)
 			}
 
-			dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, workflowInputs))
+			dynamicTools = append(dynamicTools, generateDispatchWorkflowTool(workflowName, workflowInputs, data.SafeOutputs.DispatchWorkflow.AllowedRefs))
 		}
 	}
 

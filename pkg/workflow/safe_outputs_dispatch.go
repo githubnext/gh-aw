@@ -1,6 +1,8 @@
 package workflow
 
 import (
+	"fmt"
+
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -94,14 +96,36 @@ func workflowHasAwContextInput(fileResult *findWorkflowFileResult, workflowName 
 // generateDispatchWorkflowTool generates an MCP tool definition for a specific workflow.
 // The tool will be named after the workflow (normalized to underscores) and accept
 // the workflow's defined workflow_dispatch inputs as parameters.
-func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string]any) map[string]any {
-	safeOutputsDispatchWorkflowLog.Printf("Generating dispatch-workflow tool: workflow=%s, inputs=%d", workflowName, len(workflowInputs))
+// When allowedRefs is non-empty, a 'ref' parameter is added to let the agent
+// specify which branch/tag/SHA to dispatch to, validated against the configured globs.
+func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string]any, allowedRefs []string) map[string]any {
+	safeOutputsDispatchWorkflowLog.Printf("Generating dispatch-workflow tool: workflow=%s, inputs=%d, allowedRefs=%d", workflowName, len(workflowInputs), len(allowedRefs))
+
+	descriptionFormat := "Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in .github/workflows/ directory in the same repository."
+
 	tool := generateWorkflowToolDefinition(workflowToolDefinitionOptions{
 		workflowName:      workflowName,
 		workflowInputs:    workflowInputs,
-		descriptionFormat: "Dispatch the '%s' workflow with workflow_dispatch trigger. This workflow must support workflow_dispatch and be in .github/workflows/ directory in the same repository.",
+		descriptionFormat: descriptionFormat,
 		metadataKey:       "_workflow_name",
 	})
+
+	// When allowed-refs is configured, inject a 'ref' property so the agent can
+	// specify the target branch/tag/SHA. The runtime handler validates the value
+	// against the configured glob patterns before dispatching.
+	if len(allowedRefs) > 0 {
+		inputSchema, _ := tool["inputSchema"].(map[string]any)
+		properties, _ := inputSchema["properties"].(map[string]any)
+
+		refDesc := fmt.Sprintf("The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: %v. If omitted, the dispatching workflow's ref is used.", allowedRefs)
+		properties["ref"] = map[string]any{
+			"type":        "string",
+			"description": refDesc,
+		}
+
+		desc, _ := tool["description"].(string)
+		tool["description"] = desc + fmt.Sprintf(" Use the 'ref' parameter to target a specific branch or tag (allowed patterns: %v).", allowedRefs)
+	}
 
 	inputSchema, _ := tool["inputSchema"].(map[string]any)
 	properties, _ := inputSchema["properties"].(map[string]any)
