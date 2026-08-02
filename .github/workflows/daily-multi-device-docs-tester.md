@@ -92,7 +92,7 @@ pre-agent-steps:
     run: |
       PREFLIGHT_LOG="$EXPR_GITHUB_WORKSPACE/.playwright/preflight.log"
       set +e
-      cd "$EXPR_GITHUB_WORKSPACE" || exit 1 --config "$EXPR_GITHUB_WORKSPACE/.playwright/cli.config.json" about:blank > "$PREFLIGHT_LOG" 2>&1
+      playwright-cli open --config "$EXPR_GITHUB_WORKSPACE/.playwright/cli.config.json" about:blank > "$PREFLIGHT_LOG" 2>&1
       PREFLIGHT_STATUS=$?
       playwright-cli close >> "$PREFLIGHT_LOG" 2>&1 || true
       if [ $PREFLIGHT_STATUS -ne 0 ]; then
