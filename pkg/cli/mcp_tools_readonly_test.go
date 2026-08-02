@@ -114,3 +114,28 @@ func TestInjectShellcheckDiagnostics_IgnoresUnrelatedStderr(t *testing.T) {
 		t.Fatalf("Expected unchanged output for unrelated stderr, got: %s", output)
 	}
 }
+
+func TestBuildCompileErrorResults_NormalizesRequestedWorkflowNames(t *testing.T) {
+	results := buildCompileErrorResults([]string{"foo", "bar.md", "nested/baz"}, "compile failed")
+
+	if len(results) != 3 {
+		t.Fatalf("Expected 3 results, got %d", len(results))
+	}
+	if results[0].Workflow != "foo.md" {
+		t.Fatalf("Expected foo.md, got %s", results[0].Workflow)
+	}
+	if results[1].Workflow != "bar.md" {
+		t.Fatalf("Expected bar.md, got %s", results[1].Workflow)
+	}
+	if results[2].Workflow != "baz.md" {
+		t.Fatalf("Expected baz.md, got %s", results[2].Workflow)
+	}
+	for _, r := range results {
+		if r.Valid {
+			t.Fatalf("Expected workflow %s to be invalid", r.Workflow)
+		}
+		if len(r.Errors) != 1 || r.Errors[0].Type != "config_error" || r.Errors[0].Message != "compile failed" {
+			t.Fatalf("Unexpected error payload for workflow %s: %+v", r.Workflow, r.Errors)
+		}
+	}
+}

@@ -174,7 +174,7 @@ Returns JSON array with validation results for each workflow:
 					// Images are still downloading — ask the caller to retry.
 					// Build per-workflow validation errors instead of throwing an MCP protocol error,
 					// so callers always receive consistent JSON regardless of the failure mode.
-					results := buildDockerErrorResults(args.Workflows, err.Error())
+					results := buildCompileErrorResults(args.Workflows, err.Error())
 					jsonBytes, jsonErr := json.Marshal(results)
 					if jsonErr != nil {
 						return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal docker error results", jsonErr.Error())
@@ -278,7 +278,18 @@ Returns JSON array with validation results for each workflow:
 				if strings.TrimSpace(stderrText) == "" {
 					stderrText = string(stderr)
 				}
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to compile workflows", map[string]any{"error": err.Error(), "stderr": stderrText})
+				errMsg := strings.TrimSpace(stderrText)
+				if errMsg == "" {
+					errMsg = err.Error()
+				}
+				results := buildCompileErrorResults(args.Workflows, errMsg)
+				jsonBytes, jsonErr := json.Marshal(results)
+				if jsonErr != nil {
+					return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal compile error results", jsonErr.Error())
+				}
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+				}, nil, nil
 			}
 			// Otherwise, we have output (likely validation errors in JSON), so continue
 			// and return it to the LLM
@@ -451,11 +462,10 @@ Also returns pr_number, head_sha, check_runs, statuses, and total_count.`,
 	})
 }
 
-// buildDockerErrorResults builds a []ValidationResult with a config_error for each target
-// workflow. It is used when Docker images are still being downloaded (transient error) so
-// the compile tool returns consistent structured JSON instead of a protocol-level error.
-// For the persistent case where Docker is not available at all, see injectDockerUnavailableWarning.
-func buildDockerErrorResults(requestedWorkflows []string, errMsg string) []ValidationResult {
+// buildCompileErrorResults builds a []ValidationResult with a config_error for each target
+// workflow. It is used when the compile subprocess cannot return JSON output, so the compile
+// tool can still return consistent structured JSON instead of a protocol-level error.
+func buildCompileErrorResults(requestedWorkflows []string, errMsg string) []ValidationResult {
 	// Determine which workflow names to report
 	var workflowNames []string
 	if len(requestedWorkflows) > 0 {
