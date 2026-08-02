@@ -30,12 +30,13 @@ func NewClaudeEngine() *ClaudeEngine {
 			experimental:     false,
 			ghSkillAgentName: "claude-code",
 			capabilities: EngineCapabilities{
-				ToolsAllowlist:   true,
-				MaxTurns:         true,  // Claude supports max-turns feature
-				MaxContinuations: false, // Claude Code does not support --max-autopilot-continues-style continuation
-				WebSearch:        true,  // Claude has built-in WebSearch support
-				NativeAgentFile:  false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
-				BareMode:         true,  // Claude CLI supports --bare
+				ToolsAllowlist:       true,
+				MaxTurns:             true,  // Claude supports max-turns feature
+				MaxContinuations:     false, // Claude Code does not support --max-autopilot-continues-style continuation
+				WebSearch:            true,  // Claude has built-in WebSearch support
+				NativeAgentFile:      false, // Claude does not support agent file natively; the compiler prepends the agent file content to prompt.txt
+				BareMode:             true,  // Claude CLI supports --bare
+				BashCommandAllowlist: true,  // Claude enforces tools.bash allowlist via --allowed-tools Bash(cmd)
 			},
 			dedicatedLLMGatewayPort: constants.ClaudeLLMGatewayPort,
 		},

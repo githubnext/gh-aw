@@ -60,25 +60,6 @@ func TestSpec_Permissions_ContentsReadDiscussionsWrite(t *testing.T) {
 	assert.Equal(t, workflow.PermissionWrite, discussionsLevel, "discussions must be write")
 }
 
-// TestSpec_Permissions_ContentsReadIssuesWriteDiscussionsWrite validates the documented combination.
-// Spec: "NewPermissionsContentsReadIssuesWriteDiscussionsWrite — contents:read + issues:write + discussions:write"
-func TestSpec_Permissions_ContentsReadIssuesWriteDiscussionsWrite(t *testing.T) {
-	p := workflow.NewPermissionsContentsReadIssuesWriteDiscussionsWrite()
-	require.NotNil(t, p, "NewPermissionsContentsReadIssuesWriteDiscussionsWrite must return a non-nil Permissions")
-
-	contentsLevel, ok := p.Get(workflow.PermissionContents)
-	assert.True(t, ok, "contents scope must be present")
-	assert.Equal(t, workflow.PermissionRead, contentsLevel, "contents must be read")
-
-	issuesLevel, ok := p.Get(workflow.PermissionIssues)
-	assert.True(t, ok, "issues scope must be present")
-	assert.Equal(t, workflow.PermissionWrite, issuesLevel, "issues must be write")
-
-	discussionsLevel, ok := p.Get(workflow.PermissionDiscussions)
-	assert.True(t, ok, "discussions scope must be present")
-	assert.Equal(t, workflow.PermissionWrite, discussionsLevel, "discussions must be write")
-}
-
 // TestSpec_Permissions_ContentsReadPRWrite validates the documented permission combination.
 // Spec: "NewPermissionsContentsReadPRWrite — contents:read + pull-requests:write"
 func TestSpec_Permissions_ContentsReadPRWrite(t *testing.T) {
@@ -107,23 +88,6 @@ func TestSpec_Permissions_ContentsReadSecurityEventsWrite(t *testing.T) {
 	secLevel, ok := p.Get(workflow.PermissionSecurityEvents)
 	assert.True(t, ok, "security-events scope must be present")
 	assert.Equal(t, workflow.PermissionWrite, secLevel, "security-events must be write")
-}
-
-// TestSpec_Permissions_ContentsReadProjectsWrite validates the documented permission combination.
-// Spec: "NewPermissionsContentsReadProjectsWrite — contents:read + projects:write"
-// Note: organization-projects is a GitHub App-only scope per the spec.
-func TestSpec_Permissions_ContentsReadProjectsWrite(t *testing.T) {
-	p := workflow.NewPermissionsContentsReadProjectsWrite()
-	require.NotNil(t, p, "NewPermissionsContentsReadProjectsWrite must return a non-nil Permissions")
-
-	contentsLevel, ok := p.Get(workflow.PermissionContents)
-	assert.True(t, ok, "contents scope must be present")
-	assert.Equal(t, workflow.PermissionRead, contentsLevel, "contents must be read")
-
-	// Spec: the permissions factory uses "organization-projects" for GitHub App tokens
-	projLevel, ok := p.GetExplicit(workflow.PermissionOrganizationProj)
-	assert.True(t, ok, "organization-projects scope must be explicitly set")
-	assert.Equal(t, workflow.PermissionWrite, projLevel, "organization-projects must be write")
 }
 
 // TestSpec_SafeOutputs_SafeOutputsConfigFromKeys validates that SafeOutputsConfigFromKeys

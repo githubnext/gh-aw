@@ -68,26 +68,7 @@ tools:
     toolsets: [default]
   edit:
   bash:
-    - "find docs/src/content/docs *"
-    - "find /tmp/gh-aw/cache-memory *"
-    - "wc -l *"
-    - "wc"
-    - "grep -n *"
-    - "grep -rL *"
-    - "grep *"
-    - "xargs *"
-    - "date *"
-    - "date"
-    - "awk *"
-    - "git"
-    - "cat *"
-    - "head *"
-    - "tail *"
-    - "cd *"
-    - "echo *"
-    - "mkdir *"
-    - "cp *"
-    - "mv *"
+    - "*"
 
 # Safe outputs configuration
 safe-outputs:
