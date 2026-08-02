@@ -1440,20 +1440,61 @@ describe("safe_outputs_handlers", () => {
       }
     });
 
-    it("should require explicit pull_request_number when push_to_pull_request_branch target is '*'", async () => {
+    it("should require explicit repo when push_to_pull_request_branch target is '*'", async () => {
       const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
         push_to_pull_request_branch: {
           target: "*",
         },
       });
 
-      const result = await wildcardHandlers.pushToPullRequestBranchHandler({ message: "Apply requested changes." });
+      const result = await wildcardHandlers.pushToPullRequestBranchHandler({
+        message: "Apply requested changes.",
+        pull_request_number: 123,
+      });
+
+      expect(result.isError).toBe(true);
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.result).toBe("error");
+      expect(responseData.error).toContain("requires repo");
+      expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should require explicit pull_request_number when push_to_pull_request_branch target is '*' and only repo is supplied", async () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          target: "*",
+        },
+      });
+
+      const result = await wildcardHandlers.pushToPullRequestBranchHandler({
+        message: "Apply requested changes.",
+        repo: "owner/repo",
+      });
 
       expect(result.isError).toBe(true);
       const responseData = JSON.parse(result.content[0].text);
       expect(responseData.result).toBe("error");
       expect(responseData.error).toContain("requires pull_request_number");
       expect(mockAppendSafeOutput).not.toHaveBeenCalled();
+    });
+
+    it("should pass wildcard validation when push_to_pull_request_branch target is '*' and both repo and pull_request_number are supplied", async () => {
+      const wildcardHandlers = createHandlers(mockServer, mockAppendSafeOutput, {
+        push_to_pull_request_branch: {
+          target: "*",
+        },
+      });
+
+      const result = await wildcardHandlers.pushToPullRequestBranchHandler({
+        message: "Apply requested changes.",
+        repo: "owner/repo",
+        pull_request_number: 123,
+      });
+
+      // Wildcard validation passes; downstream failure (e.g. repo not found in workspace) is expected
+      const responseData = JSON.parse(result.content[0].text);
+      expect(responseData.error).not.toContain("requires repo");
+      expect(responseData.error).not.toContain("requires pull_request_number");
     });
 
     it("should reject obvious exploratory test payloads before recording a PR branch update intent", async () => {
