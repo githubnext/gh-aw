@@ -64,3 +64,14 @@ These features have been at 0 usage for multiple consecutive runs:
 - `--share` flag still only used in 1 workflow (copilot-cli-deep-research.md itself).
 - `engine.args` remains completely unused (0 workflows) - a real gap for exposing new upstream CLI flags.
 - Recommendation carried forward: convert these into a tracked PR/issue instead of leaving as recurring research findings.
+
+## Run 30732964595 (2026-08-02)
+- 268 total workflows; 134 reference `id: copilot` in engine block (99 files match `engine: copilot` shorthand pattern — counting methodology varies by pattern used).
+- `max-autopilot-continues` dropped to 0 this run (was 22-24 in recent runs) — needs verification, possible measurement/pattern change or real regression; flag as anomaly to double check next run.
+- `--share` flag usage still stuck at 1 (only the deep-research workflow itself) across 5+ consecutive runs. Recommend closing out this recommendation as "won't fix" or demonstrating a concrete example PR.
+- `engine.args` (custom CLI args) still 0 across all tracked runs — persistent, longest-standing real gap alongside orphaned agents.
+- `harness:` (retry tuning) still 0.
+- `max-tool-denials` now widely adopted: 66 workflows (up from long-stuck 0 in earlier tracked history) — major positive trend, recommendation resolved organically.
+- `block-domains`/`blocked:` still marginal: 2 workflows vs 143 using `network:` config — persistent security gap.
+- Orphaned custom agents unchanged: 5 of 9 agent files never referenced (create-safe-output-type, custom-engine-implementation, grumpy-reviewer, interactive-agent-designer, w3c-specification-writer). This has now persisted for 6+ runs — recommend either wiring them into workflows or deleting them.
+- `mcp-servers:` custom MCP usage down to 1 workflow (was higher in earlier runs at 8-13) — investigate whether this is a real decline or pattern-matching difference.
