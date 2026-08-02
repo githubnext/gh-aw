@@ -80,22 +80,38 @@ async function ensureAgentRunsIssue() {
 /**
  * Build the AIC suffix string for use in comment footers.
  * Includes agent, threat-detection, and evals AIC when available.
- * Returns a string like " · 0.001 AIC" or "" when not available.
+ * Returns a string like " · 0.001 AIC · ⌖ 0.002 AIC" or "" when not available.
  * @returns {string}
  */
-function buildAICSuffix() {
-  const agentRaw = process.env.GH_AW_AIC;
-  const detectionRaw = process.env.GH_AW_THREAT_DETECTION_AIC;
-  const evalsRaw = process.env.GH_AW_EVALS_AIC;
-  const agentAIC = agentRaw ? Number.parseFloat(agentRaw) : NaN;
-  const detectionAIC = detectionRaw ? Number.parseFloat(detectionRaw) : NaN;
-  const evalsAIC = evalsRaw ? Number.parseFloat(evalsRaw) : NaN;
-  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
-  const totalAIC = (Number.isFinite(agentAIC) && agentAIC > 0 ? agentAIC : 0) + (Number.isFinite(detectionAIC) && detectionAIC > 0 ? detectionAIC : 0) + (Number.isFinite(evalsAIC) && evalsAIC > 0 ? evalsAIC : 0);
-  if (totalAIC <= 0) {
+function parsePositiveAIC(raw) {
+  const parsed = raw ? Number.parseFloat(raw) : NaN;
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
+/**
+ * @param {string} label
+ * @param {number|undefined} value
+ * @param {string|undefined} [modelAlias]
+ * @returns {string}
+ */
+function buildAICEntry(label, value, modelAlias) {
+  const formatted = typeof value === "number" ? formatAIC(value) : "";
+  if (!formatted) {
     return "";
   }
-  return ` · ${compressedModelName ? `${compressedModelName} · ` : ""}${formatAIC(totalAIC)} AIC`;
+  const prefix = [label, modelAlias].filter(Boolean).join(" ");
+  return ` · ${prefix ? `${prefix}${modelAlias ? " · " : " "}` : ""}${formatted} AIC`;
+}
+
+function buildAICSuffix() {
+  const agentAIC = parsePositiveAIC(process.env.GH_AW_AIC);
+  const detectionAIC = parsePositiveAIC(process.env.GH_AW_THREAT_DETECTION_AIC);
+  const evalsAIC = parsePositiveAIC(process.env.GH_AW_EVALS_AIC);
+  const compressedModelName = reduceModelNameToIdentifier(process.env.GH_AW_PRIMARY_MODEL || process.env.GH_AW_ENGINE_MODEL);
+  const agentSuffix = buildAICEntry("", agentAIC, compressedModelName);
+  const detectionSuffix = buildAICEntry("⌖", detectionAIC);
+  const evalsSuffix = buildAICEntry("◇", evalsAIC);
+  return `${agentSuffix}${detectionSuffix}${evalsSuffix}`;
 }
 
 /**
