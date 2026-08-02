@@ -108,6 +108,7 @@ type ProcessedRun struct {
 	MissingData             []MissingDataReport
 	Noops                   []NoopReport
 	MCPFailures             []MCPFailureReport
+	SkillActivations        []SkillActivation
 	MCPToolUsage            *MCPToolUsageData
 	TokenUsage              *TokenUsageSummary
 	GitHubRateLimitUsage    *GitHubRateLimitUsage
@@ -150,6 +151,17 @@ type MissingDataReport struct {
 type MCPFailureReport struct {
 	ServerName string `json:"server_name"`
 	Status     string `json:"status"`
+	ReportProvenance
+}
+
+// SkillActivation records a detected skill invocation from agent logs.
+// Source indicates where the invocation was detected: "agent_output" for
+// items emitted by the workflow via safe-output, or "log_parse" for
+// patterns extracted from raw agent log files.
+type SkillActivation struct {
+	Name   string `json:"name"`
+	Status string `json:"status"`           // "invoked"
+	Source string `json:"source,omitempty"` // "agent_output" or "log_parse"
 	ReportProvenance
 }
 
@@ -228,6 +240,7 @@ type RunSummary struct {
 	MissingData             []MissingDataReport      `json:"missing_data"`                      // Missing data reports
 	Noops                   []NoopReport             `json:"noops"`                             // Noop messages
 	MCPFailures             []MCPFailureReport       `json:"mcp_failures"`                      // MCP server failures
+	SkillActivations        []SkillActivation        `json:"skill_activations,omitempty"`       // Detected skill invocations
 	MCPToolUsage            *MCPToolUsageData        `json:"mcp_tool_usage,omitempty"`          // MCP tool usage data
 	TokenUsage              *TokenUsageSummary       `json:"token_usage_summary,omitempty"`     // Token usage from firewall proxy
 	GitHubRateLimitUsage    *GitHubRateLimitUsage    `json:"github_rate_limit_usage,omitempty"` // GitHub API quota consumption
@@ -250,6 +263,7 @@ type DownloadResult struct {
 	MissingData             []MissingDataReport
 	Noops                   []NoopReport
 	MCPFailures             []MCPFailureReport
+	SkillActivations        []SkillActivation
 	MCPToolUsage            *MCPToolUsageData
 	TokenUsage              *TokenUsageSummary
 	GitHubRateLimitUsage    *GitHubRateLimitUsage

@@ -17,6 +17,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/github/gh-aw/pkg/console"
@@ -803,4 +804,248 @@ func processMCPFailureEntry(entry map[string]any, run WorkflowRun, verbose bool,
 			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Found MCP server failure: %s (status: %s)", serverName, status)))
 		}
 	}
+}
+
+// extractSkillActivationsFromRun extracts skill invocation records from a workflow run.
+// It first looks for explicit skill_invocation entries in the agent_output.json safe-output
+// artifact (Option 2 from the issue), then falls back to scanning raw agent log files for
+// engine-specific skill invocation patterns (e.g. Copilot's skill(name) form).
+// experimentName and variant are the pre-resolved experiment assignment for this run; pass
+// empty strings when no experiment context is available.
+func extractSkillActivationsFromRun(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]SkillActivation, error) {
+	logsMetricsLog.Printf("Extracting skill activations from run: %d", run.DatabaseID)
+	var activations []SkillActivation
+
+	// Phase 1 – look for explicit skill_invocation items in agent_output.json.
+	agentOutputActivations, err := extractSkillActivationsFromAgentOutput(runDir, run, verbose, experimentName, variant)
+	if err != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+			fmt.Sprintf("Failed to read skill activations from agent output for run %d: %v", run.DatabaseID, err),
+		))
+	}
+	activations = append(activations, agentOutputActivations...)
+
+	// Phase 2 – scan raw agent log files for engine-specific patterns.
+	// Skip if we already have explicit records from agent_output.json to avoid duplicates.
+	if len(activations) == 0 {
+		logActivations, logErr := extractSkillActivationsFromLogFiles(runDir, run, verbose, experimentName, variant)
+		if logErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Failed to parse skill activations from logs for run %d: %v", run.DatabaseID, logErr),
+			))
+		}
+		activations = append(activations, logActivations...)
+	}
+
+	if verbose && len(activations) > 0 {
+		fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+			fmt.Sprintf("Found %d skill activation(s) for run %d", len(activations), run.DatabaseID),
+		))
+	}
+	logsMetricsLog.Printf("Found %d skill activation(s)", len(activations))
+	return activations, nil
+}
+
+// extractSkillActivationsFromAgentOutput reads agent_output.json and returns any
+// items whose type is "skill_invocation".
+func extractSkillActivationsFromAgentOutput(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]SkillActivation, error) {
+	var activations []SkillActivation
+
+	resolvedFile := resolveAgentOutputFile(runDir, verbose)
+	if resolvedFile == "" {
+		return activations, nil
+	}
+
+	cleanPath := filepath.Clean(resolvedFile)
+	content, readErr := os.ReadFile(cleanPath)
+	if readErr != nil {
+		return activations, readErr
+	}
+
+	var safeOutput struct {
+		Items  []json.RawMessage `json:"items"`
+		Errors []string          `json:"errors,omitempty"`
+	}
+	if err := json.Unmarshal(content, &safeOutput); err != nil {
+		return activations, err
+	}
+
+	for _, itemRaw := range safeOutput.Items {
+		var item struct {
+			Type      string `json:"type"`
+			Name      string `json:"name,omitempty"`
+			Status    string `json:"status,omitempty"`
+			Timestamp string `json:"timestamp,omitempty"`
+		}
+		if err := json.Unmarshal(itemRaw, &item); err != nil {
+			continue
+		}
+		if item.Type != "skill_invocation" {
+			continue
+		}
+		if strings.TrimSpace(item.Name) == "" {
+			continue
+		}
+		status := item.Status
+		if status == "" {
+			status = "invoked"
+		}
+		act := SkillActivation{
+			Name:             item.Name,
+			Status:           status,
+			Source:           "agent_output",
+			ReportProvenance: buildReportProvenance(run, item.Timestamp, experimentName, variant),
+		}
+		activations = append(activations, act)
+		if verbose {
+			fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+				fmt.Sprintf("Found skill_invocation entry: %s (status: %s)", item.Name, status),
+			))
+		}
+	}
+
+	logsMetricsLog.Printf("Found %d skill activation(s) in agent output", len(activations))
+	return activations, nil
+}
+
+// resolveAgentOutputFile returns the path to agent_output.json in runDir, trying
+// the new flattened layout first and then the legacy nested layout.
+// Returns an empty string when no file is found.
+func resolveAgentOutputFile(runDir string, verbose bool) string {
+	agentOutputJSONPath := filepath.Join(runDir, constants.AgentOutputFilename)
+	if stat, err := os.Stat(agentOutputJSONPath); err == nil && !stat.IsDir() {
+		return agentOutputJSONPath
+	}
+
+	// Legacy: agent-output directory
+	agentOutputPath := filepath.Join(runDir, constants.AgentOutputArtifactName)
+	if stat, err := os.Stat(agentOutputPath); err == nil {
+		if stat.IsDir() {
+			nested := filepath.Join(agentOutputPath, constants.AgentOutputArtifactName)
+			if fileutil.FileExists(nested) {
+				return nested
+			}
+			return ""
+		}
+		return agentOutputPath
+	}
+
+	// Recursive fallback
+	if found, ok := findAgentOutputFile(runDir); ok {
+		return found
+	}
+	return ""
+}
+
+// skillInvocationPatterns holds the regular expressions used to detect skill
+// invocations in raw agent log lines.  They are compiled once at package init
+// to avoid repeated allocations on every log-file scan.
+//
+// Supported patterns:
+//  1. `skill(<name>)` — Copilot coding agent explicit invocation form.
+//  2. `[skills] invoked: <name>` — structured log prefix (future/custom engines).
+//  3. `Skill invoked: <name>` — human-readable form (future/custom engines).
+var skillInvocationPatterns = []*skillPattern{
+	{
+		re:   regexp.MustCompile(`(?i)\bskill\(([A-Za-z0-9][A-Za-z0-9_.-]*)\)`),
+		name: "skill(name)",
+	},
+	{
+		re:   regexp.MustCompile(`(?i)\[skills\]\s+invoked:\s+([A-Za-z0-9][A-Za-z0-9_. -]*\S)`),
+		name: "[skills] invoked: name",
+	},
+	{
+		re:   regexp.MustCompile(`(?i)\bskill\s+invoked\s*:\s+([A-Za-z0-9][A-Za-z0-9_. -]*\S)`),
+		name: "skill invoked: name",
+	},
+}
+
+type skillPattern struct {
+	re   *regexp.Regexp
+	name string
+}
+
+// extractSkillActivationsFromLogFiles walks agent log files in runDir and
+// returns SkillActivation records for every unique skill name found.
+func extractSkillActivationsFromLogFiles(runDir string, run WorkflowRun, verbose bool, experimentName, variant string) ([]SkillActivation, error) {
+	seen := make(map[string]struct{})
+	var activations []SkillActivation
+
+	walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+
+		// Only inspect agent log files; skip output artifacts.
+		fileName := strings.ToLower(info.Name())
+		isLogFile := strings.HasSuffix(fileName, ".log") ||
+			(strings.HasSuffix(fileName, ".txt") && strings.Contains(fileName, "log"))
+		isOutputArtifact := strings.Contains(fileName, "aw_output") ||
+			strings.Contains(fileName, "agent_output") ||
+			strings.Contains(fileName, "access")
+		if !isLogFile || isOutputArtifact {
+			return nil
+		}
+
+		found, parseErr := extractSkillActivationsFromLogFile(path, run, verbose, seen, experimentName, variant)
+		if parseErr != nil && verbose {
+			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(
+				fmt.Sprintf("Failed to parse skill activations from %s: %v", filepath.Base(path), parseErr),
+			))
+			return nil
+		}
+		activations = append(activations, found...)
+		return nil
+	})
+
+	return activations, walkErr
+}
+
+// extractSkillActivationsFromLogFile parses a single agent log file and returns
+// SkillActivation records for each unique skill name found.  seen is used as a
+// cross-file deduplication set so that the same skill is not reported twice.
+func extractSkillActivationsFromLogFile(logPath string, run WorkflowRun, verbose bool, seen map[string]struct{}, experimentName, variant string) ([]SkillActivation, error) {
+	content, err := os.ReadFile(logPath)
+	if err != nil {
+		return nil, err
+	}
+
+	var activations []SkillActivation
+	for line := range strings.SplitSeq(string(content), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		for _, pat := range skillInvocationPatterns {
+			matches := pat.re.FindStringSubmatch(line)
+			if len(matches) < 2 {
+				continue
+			}
+			skillName := strings.TrimSpace(matches[1])
+			if skillName == "" {
+				continue
+			}
+			if _, already := seen[skillName]; already {
+				continue
+			}
+			seen[skillName] = struct{}{}
+			act := SkillActivation{
+				Name:             skillName,
+				Status:           "invoked",
+				Source:           "log_parse",
+				ReportProvenance: buildReportProvenance(run, "", experimentName, variant),
+			}
+			activations = append(activations, act)
+			if verbose {
+				fmt.Fprintln(os.Stderr, console.FormatInfoMessage(
+					fmt.Sprintf("Detected skill invocation from log (%s): %s", pat.name, skillName),
+				))
+			}
+		}
+	}
+
+	return activations, nil
 }

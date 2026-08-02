@@ -311,6 +311,7 @@ func tryLoadCachedRunResult(
 		MissingData:             summary.MissingData,
 		Noops:                   summary.Noops,
 		MCPFailures:             summary.MCPFailures,
+		SkillActivations:        summary.SkillActivations,
 		MCPToolUsage:            summary.MCPToolUsage,
 		TokenUsage:              summary.TokenUsage,
 		GitHubRateLimitUsage:    summary.GitHubRateLimitUsage,
@@ -455,6 +456,12 @@ func applyRunBehavioralSignals(result *DownloadResult, runOutputDir string, verb
 	}
 	result.MCPFailures = mcpFailures
 
+	skillActivations, skillErr := extractSkillActivationsFromRun(runOutputDir, result.Run, verbose, expName, expVariant)
+	if skillErr != nil && verbose {
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to extract skill activations for run %d: %v", result.Run.DatabaseID, skillErr)))
+	}
+	result.SkillActivations = skillActivations
+
 	// MCP tool usage data lives in gateway.jsonl which is part of the agent artifact.
 	var mcpToolUsage *MCPToolUsageData
 	if hasFirewallArtifact {
@@ -522,6 +529,7 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 		MissingData:             result.MissingData,
 		Noops:                   result.Noops,
 		MCPFailures:             result.MCPFailures,
+		SkillActivations:        result.SkillActivations,
 		MCPToolUsage:            result.MCPToolUsage,
 		TokenUsage:              result.TokenUsage,
 		GitHubRateLimitUsage:    result.GitHubRateLimitUsage,
@@ -550,6 +558,7 @@ func finalizeAndSaveRunSummary(ctx context.Context, result *DownloadResult, runO
 		MissingData:             result.MissingData,
 		Noops:                   result.Noops,
 		MCPFailures:             result.MCPFailures,
+		SkillActivations:        result.SkillActivations,
 		MCPToolUsage:            result.MCPToolUsage,
 		TokenUsage:              result.TokenUsage,
 		GitHubRateLimitUsage:    result.GitHubRateLimitUsage,

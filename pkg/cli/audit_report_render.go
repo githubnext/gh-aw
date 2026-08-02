@@ -301,6 +301,7 @@ func renderConsoleWarnings(warnings []ErrorInfo) {
 }
 
 func renderConsoleOperationalSections(data AuditData) {
+	renderConsoleSkillActivations(data.SkillActivations)
 	renderConsoleMissingTools(data.MissingTools)
 	renderConsoleMCPFailures(data.MCPFailures)
 	renderCompactMCPHealth(data.MCPServerHealth)
@@ -310,6 +311,20 @@ func renderConsoleOperationalSections(data AuditData) {
 	renderConsoleMCPToolUsage(data.MCPToolUsage)
 	if data.FirewallAnalysis != nil && data.FirewallAnalysis.TotalRequests > 0 {
 		renderCompactFirewall(data.FirewallAnalysis)
+	}
+}
+
+func renderConsoleSkillActivations(activations []SkillActivation) {
+	if len(activations) == 0 {
+		return
+	}
+	fmt.Fprintln(os.Stderr, "  skill_activations:")
+	for _, act := range activations {
+		line := "    " + act.Name + ": " + act.Status
+		if act.Source != "" {
+			line += " (source: " + act.Source + ")"
+		}
+		fmt.Fprintln(os.Stderr, line)
 	}
 }
 

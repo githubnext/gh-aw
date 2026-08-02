@@ -342,6 +342,7 @@ type auditAnalysisResults struct {
 	missingData             []MissingDataReport
 	noops                   []NoopReport
 	mcpFailures             []MCPFailureReport
+	skillActivations        []SkillActivation
 	accessAnalysis          *DomainAnalysis
 	firewallAnalysis        *FirewallAnalysis
 	policyAnalysis          *PolicyAnalysis
@@ -709,6 +710,11 @@ func launchCoreAuditAnalyses(g *errgroup.Group, gctx context.Context, results *a
 	}, func() ([]MCPFailureReport, error) {
 		return extractMCPFailuresFromRun(runOutputDir, run, verbose, expName, expVariant)
 	})
+	runAuditAnalysis(g, gctx, verbose, "extractSkillActivationsFromRun", "Failed to extract skill activations", func(v []SkillActivation) {
+		results.skillActivations = v
+	}, func() ([]SkillActivation, error) {
+		return extractSkillActivationsFromRun(runOutputDir, run, verbose, expName, expVariant)
+	})
 	runAuditAnalysis(g, gctx, verbose, "analyzeAccessLogs", "Failed to analyze access logs", func(v *DomainAnalysis) {
 		results.accessAnalysis = v
 	}, func() (*DomainAnalysis, error) {
@@ -884,6 +890,7 @@ func buildProcessedAuditRun(run WorkflowRun, results auditAnalysisResults) Proce
 		MissingData:             results.missingData,
 		Noops:                   results.noops,
 		MCPFailures:             results.mcpFailures,
+		SkillActivations:        results.skillActivations,
 		TokenUsage:              results.tokenUsageSummary,
 		GitHubRateLimitUsage:    results.rateLimitUsage,
 		JobDetails:              results.jobDetails,
@@ -922,6 +929,7 @@ func buildAuditRunSummary(run WorkflowRun, processedRun ProcessedRun, results au
 		MissingData:             results.missingData,
 		Noops:                   results.noops,
 		MCPFailures:             results.mcpFailures,
+		SkillActivations:        results.skillActivations,
 		MCPToolUsage:            results.mcpToolUsage,
 		TokenUsage:              results.tokenUsageSummary,
 		GitHubRateLimitUsage:    results.rateLimitUsage,
