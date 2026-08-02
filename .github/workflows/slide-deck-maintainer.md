@@ -80,7 +80,7 @@ steps:
   
   - name: Install Marp dependencies
     run: |
-      cd docs
+      cd docs || exit 1
       npm ci
 
 ---

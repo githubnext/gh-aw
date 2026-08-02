@@ -38,11 +38,13 @@ All commands are run from the root of the project, from a terminal:
 
 ## ⚠️ Known Dev-Mode Limitations
 
-### Sitemap not available in dev mode
+### Sitemap behavior in dev and production
 
-The sitemap (`/gh-aw/sitemap-index.xml`) is **only generated during a production build** (`npm run build`). It is not available when running the local development server (`npm run dev`).
+The robots file references `/gh-aw/sitemap.xml`, which is the stable sitemap entrypoint for the docs site.
 
-If a CI pipeline or automated tool checks for the sitemap URL during a local preview, it will receive a 404 response. To verify the sitemap, run `npm run build` followed by `npm run preview`.
+During a production build (`npm run build`), Astro generates `/gh-aw/sitemap-index.xml`, and the static `/gh-aw/sitemap.xml` entrypoint points crawlers at that generated sitemap index. The generated sitemap index is not available when running the local development server (`npm run dev`).
+
+If a CI pipeline or automated tool checks the generated sitemap index URL during a local preview, it will receive a 404 response. To verify the production sitemap flow, run `npm run build` followed by `npm run preview`.
 
 ### Robots/AI discovery paths on GitHub Pages project sites
 
