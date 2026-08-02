@@ -83,7 +83,7 @@ func TestBuildAWFConfigJSON_BoundedQueries(t *testing.T) {
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/internal-service", Sensitivity: "internal"},
 			},
-			Runtime:        "docker",
+			Runtime:        BoundedQueryRuntimeDocker,
 			Timeout:        new(30),
 			MemoryLimit:    "512m",
 			Interpreter:    "python3",
@@ -200,7 +200,7 @@ func TestExtractBoundedQueriesConfig(t *testing.T) {
 		got := extractBoundedQueriesConfig(data)
 		require.NotNil(t, got)
 		assert.True(t, got.Enabled)
-		assert.Equal(t, "docker", got.Runtime)
+		assert.Equal(t, BoundedQueryRuntimeDocker, got.Runtime)
 		assert.Equal(t, 30, got.Timeout)
 		assert.Equal(t, "512m", got.MemoryLimit)
 		assert.Equal(t, "python3", got.Interpreter)
@@ -267,7 +267,7 @@ func TestValidateBoundedQueriesConfig(t *testing.T) {
 			PrivateRepos: []*BoundedQueryPrivateRepo{
 				{Repo: "my-org/my-repo", Sensitivity: "confidential"},
 			},
-			Runtime:        "docker",
+			Runtime:        BoundedQueryRuntimeDocker,
 			Timeout:        new(30),
 			MemoryLimit:    "512m",
 			Interpreter:    "python3",
@@ -605,7 +605,7 @@ func TestAWFBoundedQueriesJSONRoundtrip(t *testing.T) {
 			{Repo: "my-org/confidential-service", Sensitivity: "confidential"},
 			{Repo: "my-org/sealed-service", Sensitivity: "sealed"},
 		},
-		Runtime:        "docker",
+		Runtime:        BoundedQueryRuntimeSbx,
 		Timeout:        30,
 		MemoryLimit:    "512m",
 		Interpreter:    "python3",
@@ -620,7 +620,7 @@ func TestAWFBoundedQueriesJSONRoundtrip(t *testing.T) {
 	assert.Contains(t, jsonStr, `"privateRepos"`)
 	assert.Contains(t, jsonStr, `"my-org/public-docs"`)
 	assert.Contains(t, jsonStr, `"sealed"`)
-	assert.Contains(t, jsonStr, `"runtime":"docker"`)
+	assert.Contains(t, jsonStr, `"runtime":"sbx"`)
 	assert.Contains(t, jsonStr, `"timeout":30`)
 	assert.Contains(t, jsonStr, `"memoryLimit":"512m"`)
 	assert.Contains(t, jsonStr, `"interpreter":"python3"`)
@@ -635,6 +635,7 @@ func TestAWFBoundedQueriesJSONRoundtrip(t *testing.T) {
 	assert.Equal(t, "public", got.PrivateRepos[0].Sensitivity)
 	assert.Equal(t, "my-org/sealed-service", got.PrivateRepos[3].Repo)
 	assert.Equal(t, "sealed", got.PrivateRepos[3].Sensitivity)
+	assert.Equal(t, BoundedQueryRuntimeSbx, got.Runtime)
 }
 
 // TestParseBoundedQueriesConfig_MalformedInput verifies that parse errors are surfaced
@@ -688,6 +689,7 @@ func TestParseBoundedQueriesConfig_MalformedInput(t *testing.T) {
 			},
 			"timeout":         30,
 			"max-invocations": 5,
+			"runtime":         "sbx",
 		})
 		assert.Empty(t, result.ParseError)
 		require.Len(t, result.PrivateRepos, 1)
@@ -695,5 +697,6 @@ func TestParseBoundedQueriesConfig_MalformedInput(t *testing.T) {
 		assert.Equal(t, 30, *result.Timeout)
 		require.NotNil(t, result.MaxInvocations)
 		assert.Equal(t, 5, *result.MaxInvocations)
+		assert.Equal(t, BoundedQueryRuntimeSbx, result.Runtime)
 	})
 }
