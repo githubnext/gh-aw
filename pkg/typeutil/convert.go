@@ -1,8 +1,12 @@
-// Package typeutil provides general-purpose type conversion utilities.
+// Package typeutil provides helpers for converting untyped values and extracting
+// typed data from map[string]any structures.
 //
-// This package contains safe conversion functions for working with heterogeneous
-// any values, particularly those arising from JSON/YAML parsing where types may
-// vary at runtime.
+// The package includes numeric conversion utilities (in this file) and
+// map-extraction helpers (in lookup.go), plus related parsing helpers used by
+// the workflow engine.
+//
+// This file specifically focuses on safe conversion of heterogeneous any values
+// that represent a single numeric quantity.
 //
 // # Key Functions
 //
@@ -10,9 +14,6 @@
 //   - ParseIntValue() - Strictly parse numeric types to int; returns (value, ok). Use when
 //     the caller needs to distinguish "missing/invalid" from a zero value, or when string
 //     inputs are not expected (e.g. YAML config field parsing).
-//
-// Bool Extraction:
-//   - ParseBool() - Extract a bool from map[string]any by key; returns false on missing, nil map, or non-bool.
 //
 // Safe Conversions (return 0 on overflow or invalid input):
 //   - SafeUint64ToInt() - Convert uint64 to int, returning 0 on overflow
@@ -113,19 +114,6 @@ func ConvertToInt(val any) int {
 	return 0
 }
 
-// ParseBool extracts a boolean value from a map[string]any by key.
-// Returns false if the map is nil, the key is absent, or the value is not a bool.
-func ParseBool(m map[string]any, key string) bool {
-	if m == nil {
-		return false
-	}
-	if v, ok := m[key]; ok {
-		b, _ := v.(bool)
-		return b
-	}
-	return false
-}
-
 // ConvertToFloat safely converts any value to float64, returning 0 on failure.
 //
 // Supported input types: float64, int, int64, and string (parsed via strconv.ParseFloat).
@@ -144,74 +132,4 @@ func ConvertToFloat(val any) float64 {
 		}
 	}
 	return 0
-}
-
-// LookupMap extracts a map[string]any value from m by key.
-func LookupMap(m map[string]any, key string) (map[string]any, bool) {
-	if m == nil {
-		return nil, false
-	}
-
-	value, ok := m[key]
-	if !ok {
-		return nil, false
-	}
-
-	result, ok := value.(map[string]any)
-	if !ok {
-		return nil, false
-	}
-
-	return result, true
-}
-
-// LookupString extracts a string value from m by key.
-func LookupString(m map[string]any, key string) (string, bool) {
-	if m == nil {
-		return "", false
-	}
-
-	value, ok := m[key]
-	if !ok {
-		return "", false
-	}
-
-	result, ok := value.(string)
-	if !ok {
-		return "", false
-	}
-
-	return result, true
-}
-
-// LookupStringPath extracts a nested string value from m by path.
-// It returns ("", false) if any step in the path is missing or has an invalid type.
-func LookupStringPath(m map[string]any, path ...string) (string, bool) {
-	if len(path) == 0 {
-		return "", false
-	}
-
-	current := m
-	for i, key := range path {
-		value, ok := current[key]
-		if !ok {
-			return "", false
-		}
-
-		if i == len(path)-1 {
-			result, ok := value.(string)
-			if !ok {
-				return "", false
-			}
-			return result, true
-		}
-
-		next, ok := value.(map[string]any)
-		if !ok {
-			return "", false
-		}
-		current = next
-	}
-
-	return "", false
 }
