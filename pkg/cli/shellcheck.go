@@ -1,0 +1,355 @@
+// This file provides shellcheck integration for workflow run step linting.
+//
+// It extracts run: step scripts from compiled lock files and runs shellcheck
+// on each shell snippet, reporting issues and ignoring known false positives
+// introduced by GitHub Actions expression syntax.
+//
+// # Key Functions
+//
+//   - runShellcheckOnLockFiles() - Run shellcheck on run steps in multiple lock files
+//   - extractRunStepsFromLockFile() - Parse a lock file and extract run step info
+//   - isShellcheckAvailable() - Check whether the shellcheck binary is in PATH
+//   - isShellcheckableShell() - True for bash/sh steps; false for pwsh/python/etc.
+
+package cli
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+
+	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/logger"
+	"github.com/goccy/go-yaml"
+)
+
+var shellcheckLog = logger.New("cli:shellcheck")
+
+// ghaExpressionRE matches GitHub Actions ${{ ... }} expression syntax so it can
+// be replaced with a shell-safe placeholder before linting.  The (?s) flag lets
+// '.' cross newline boundaries; the non-greedy *? stops at the earliest '}}'.
+var ghaExpressionRE = regexp.MustCompile(`(?s)\$\{\{.*?\}\}`)
+
+// sanitizeGHAExpressions replaces every ${{ ... }} GitHub Actions expression in
+// script with the identifier __GHA_EXPR__.  This prevents shellcheck from
+// generating spurious parse errors (e.g. SC1073, SC1083) caused by the
+// otherwise-invalid dollar-brace-brace substitution syntax.
+func sanitizeGHAExpressions(script string) string {
+	return ghaExpressionRE.ReplaceAllString(script, "__GHA_EXPR__")
+}
+
+// shellcheckDefaultIgnoreCodes lists SC error codes that are false positives
+// in GitHub Actions run: scripts and are always suppressed.
+//
+// Rationale for each code:
+//
+//	SC2016: "${{ }}" GitHub Actions expression syntax appears in single-quoted
+//	        strings which shellcheck flags as unexpanded variable references.
+//	        sanitizeGHAExpressions handles most occurrences, but this code is
+//	        retained as a safety net for any edge cases the regex may miss.
+//	SC1090: "Can't follow non-constant source" – scripts are downloaded and
+//	        sourced dynamically at runtime; the source path is not resolvable at
+//	        lint time.
+//	SC1091: "Not following: shell file doesn't exist" – same reason as SC1090.
+//	SC2129: "Consider using { cmd1; cmd2; } >> file" – style note about
+//	        consecutive redirects; GITHUB_OUTPUT and GITHUB_STEP_SUMMARY commonly
+//	        require individual echo >> appends to handle conditional branches.
+//	SC2153: "Possible misspelling: VAR may not be assigned" – env: step-level
+//	        variables are set by the GHA runner and are invisible to shellcheck;
+//	        this fires as a false positive for every uppercase env: variable.
+//	SC2154: "variable is referenced but not assigned" – common false positive in
+//	        generated GHA scripts where variables are assigned inside trap strings
+//	        (e.g., `trap 'var=$?; ...; echo "$var"' EXIT`) or set by the Actions
+//	        runner environment. ShellCheck does not trace assignments inside trap
+//	        body strings.
+var shellcheckDefaultIgnoreCodes = []string{"SC2016", "SC1090", "SC1091", "SC2129", "SC2153", "SC2154"}
+
+// runStepInfo captures the information from a single run: step in a lock file
+// that is needed to run shellcheck on the script snippet.
+type runStepInfo struct {
+	// Name is the step's "name" field, used only for diagnostic messages.
+	Name string
+	// Script is the raw content of the run: field.
+	Script string
+	// Shell is the effective shell for the step, resolved from the step field,
+	// job-level defaults, and workflow-level defaults (in that priority order).
+	// An empty string means the GitHub Actions default (bash on Linux runners).
+	Shell string
+	// LockFile is the absolute path of the lock file that contains this step.
+	LockFile string
+}
+
+// isShellcheckAvailable returns true when the shellcheck binary can be found in PATH.
+func isShellcheckAvailable() bool {
+	_, err := exec.LookPath("shellcheck")
+	return err == nil
+}
+
+// isShellcheckableShell returns true for shell values that shellcheck can lint.
+// GitHub Actions supports bash (default), sh, pwsh, powershell, python, and
+// custom shells. Only bash and sh are valid targets for shellcheck.
+func isShellcheckableShell(shell string) bool {
+	if shell == "" || strings.EqualFold(shell, "bash") {
+		// Empty means GitHub Actions default (bash on Linux/macOS runners).
+		return true
+	}
+	return strings.EqualFold(shell, "sh")
+}
+
+// shellcheckShell returns the value to pass to shellcheck's --shell flag.
+// When shell is empty the GitHub Actions default (bash) is used.
+func shellcheckShell(shell string) string {
+	if strings.EqualFold(shell, "sh") {
+		return "sh"
+	}
+	return "bash"
+}
+
+// resolveDefaultShell extracts the shell value from a defaults.run block, if
+// present.  It returns the shell string (e.g. "bash", "pwsh") or "" when the
+// block is absent or the shell field is not set.
+func resolveDefaultShell(defaults map[string]any) string {
+	if defaults == nil {
+		return ""
+	}
+	run, ok := defaults["run"].(map[string]any)
+	if !ok {
+		return ""
+	}
+	shell, _ := run["shell"].(string)
+	return shell
+}
+
+// extractRunStepsFromLockFile parses a compiled lock file and returns all
+// run: steps whose effective shell is lintable by shellcheck.
+//
+// The effective shell for a step is resolved in priority order:
+//  1. Step-level "shell" field
+//  2. Job-level "defaults.run.shell"
+//  3. Workflow-level "defaults.run.shell"
+//  4. Empty string (GitHub Actions default: bash on Linux/macOS runners)
+func extractRunStepsFromLockFile(lockFile string) ([]runStepInfo, error) {
+	shellcheckLog.Printf("Extracting run steps from %s", lockFile)
+
+	content, err := os.ReadFile(lockFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read lock file %s: %w", lockFile, err)
+	}
+
+	var workflowYAML map[string]any
+	if err := yaml.Unmarshal(content, &workflowYAML); err != nil {
+		return nil, fmt.Errorf("failed to parse YAML in %s: %w", lockFile, err)
+	}
+
+	var steps []runStepInfo
+
+	jobs, ok := workflowYAML["jobs"].(map[string]any)
+	if !ok {
+		return steps, nil
+	}
+
+	// Resolve workflow-level default shell (lowest priority).
+	workflowDefaultShell := resolveDefaultShell(func() map[string]any {
+		d, _ := workflowYAML["defaults"].(map[string]any)
+		return d
+	}())
+
+	for _, jobData := range jobs {
+		job, ok := jobData.(map[string]any)
+		if !ok {
+			continue
+		}
+
+		// Resolve job-level default shell, falling back to workflow default.
+		jobDefaultShell := workflowDefaultShell
+		if jobDefaults, ok := job["defaults"].(map[string]any); ok {
+			if s := resolveDefaultShell(jobDefaults); s != "" {
+				jobDefaultShell = s
+			}
+		}
+
+		rawSteps, ok := job["steps"].([]any)
+		if !ok {
+			continue
+		}
+		for _, stepData := range rawSteps {
+			step, ok := stepData.(map[string]any)
+			if !ok {
+				continue
+			}
+			runScript, ok := step["run"].(string)
+			if !ok || runScript == "" {
+				continue
+			}
+
+			// Resolve effective shell: step > job default > workflow default.
+			shell, _ := step["shell"].(string)
+			effectiveShell := shell
+			if effectiveShell == "" {
+				effectiveShell = jobDefaultShell
+			}
+
+			if !isShellcheckableShell(effectiveShell) {
+				continue
+			}
+			name, _ := step["name"].(string)
+			steps = append(steps, runStepInfo{
+				Name:     name,
+				Script:   runScript,
+				Shell:    effectiveShell,
+				LockFile: lockFile,
+			})
+		}
+	}
+
+	shellcheckLog.Printf("Found %d shellcheckable run steps in %s", len(steps), lockFile)
+	return steps, nil
+}
+
+// runShellcheckOnScript writes script to a temporary file and invokes shellcheck.
+// It prints any findings to stderr and returns a non-nil error when shellcheck
+// reports one or more issues.
+func runShellcheckOnScript(info runStepInfo, ignoreCodes []string, verbose bool) error {
+	shellcheckLog.Printf("Running shellcheck on step %q (shell=%s)", info.Name, info.Shell)
+
+	// Sanitize GitHub Actions ${{ ... }} expressions before writing the script.
+	// Without this, shellcheck emits parse errors (SC1073, SC1083) because
+	// ${{ is not valid POSIX/bash substitution syntax.
+	sanitizedScript := sanitizeGHAExpressions(info.Script)
+
+	// Write script to a temp file so shellcheck can lint it.
+	tmpFile, err := os.CreateTemp("", "gh-aw-shellcheck-*.sh")
+	if err != nil {
+		return fmt.Errorf("failed to create temp file for shellcheck: %w", err)
+	}
+	defer os.Remove(tmpFile.Name())
+
+	if _, err := tmpFile.WriteString(sanitizedScript); err != nil {
+		tmpFile.Close()
+		return fmt.Errorf("failed to write shellcheck temp file: %w", err)
+	}
+	tmpFile.Close()
+
+	args := []string{
+		"--shell=" + shellcheckShell(info.Shell),
+		"--format=gcc",
+	}
+	for _, code := range ignoreCodes {
+		args = append(args, "--exclude="+code)
+	}
+	args = append(args, tmpFile.Name())
+
+	if verbose {
+		shellcheckLog.Printf("Invoking: shellcheck %s", strings.Join(args, " "))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("shellcheck "+strings.Join(args[:len(args)-1], " ")+" <script>"))
+	}
+
+	// #nosec G204 -- shellcheck is a trusted system binary; args are built
+	// from controlled values (shell name and SC codes). The temp file path is
+	// OS-generated and not user-controlled.
+	cmd := exec.Command("shellcheck", args...)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err = cmd.Run()
+
+	// Replace the temp file path with "script" so that reported line numbers
+	// are clearly relative to the run: script snippet rather than the lock
+	// file.  The enclosing header message ("shellcheck findings in <lock>")
+	// already identifies the originating file and step.
+	output := strings.ReplaceAll(stdout.String(), tmpFile.Name(), "script")
+	if stderr.Len() > 0 {
+		output += strings.ReplaceAll(stderr.String(), tmpFile.Name(), "script")
+	}
+
+	if output != "" {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck findings in "+stepLabel(info)+":"))
+		fmt.Fprint(os.Stderr, output)
+	}
+
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			if exitErr.ExitCode() == 1 {
+				// Exit code 1 means shellcheck found issues; already printed above.
+				return fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
+			}
+		}
+		return fmt.Errorf("shellcheck failed: %w", err)
+	}
+
+	return nil
+}
+
+func stepLabel(info runStepInfo) string {
+	if info.Name != "" {
+		return filepath.Base(info.LockFile) + " (step: " + info.Name + ")"
+	}
+	return filepath.Base(info.LockFile)
+}
+
+// runShellcheckOnLockFiles extracts run: steps from each lock file and runs
+// shellcheck on the shell snippets. It uses shellcheckDefaultIgnoreCodes to
+// suppress known false positives from GitHub Actions expression syntax.
+//
+// When strict is false, individual step failures are printed as warnings and
+// the function returns nil. When strict is true, the first step failure causes
+// an error to be returned immediately (fail fast).
+func runShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		return nil
+	}
+
+	// Silently skip when shellcheck is not installed. The orchestrator is responsible
+	// for warning the user in --validate mode.
+	if !isShellcheckAvailable() {
+		shellcheckLog.Print("shellcheck binary not found in PATH; skipping run step linting")
+		return nil
+	}
+
+	shellcheckLog.Printf("Running shellcheck on run steps in %d lock file(s) (strict=%t)", len(lockFiles), strict)
+
+	if len(lockFiles) == 1 {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running shellcheck on run steps in "+filepath.Base(lockFiles[0])))
+	} else {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage(fmt.Sprintf("Running shellcheck on run steps in %d files", len(lockFiles))))
+	}
+
+	var totalSteps, totalIssues int
+	var firstErr error
+
+outer:
+	for _, lockFile := range lockFiles {
+		steps, err := extractRunStepsFromLockFile(lockFile)
+		if err != nil {
+			shellcheckLog.Printf("Failed to extract run steps from %s: %v", lockFile, err)
+			fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck: could not parse "+filepath.Base(lockFile)+": "+err.Error()))
+			continue
+		}
+
+		for _, step := range steps {
+			totalSteps++
+			if err := runShellcheckOnScript(step, shellcheckDefaultIgnoreCodes, verbose); err != nil {
+				totalIssues++
+				shellcheckLog.Printf("shellcheck issue in %s step %q: %v", lockFile, step.Name, err)
+				if strict {
+					firstErr = err
+					break outer // fail fast in strict mode
+				}
+			}
+		}
+	}
+
+	shellcheckLog.Printf("shellcheck complete: steps=%d, issues=%d", totalSteps, totalIssues)
+
+	if firstErr != nil {
+		return fmt.Errorf("strict mode: shellcheck found issues in run steps: %w", firstErr)
+	}
+	return nil
+}

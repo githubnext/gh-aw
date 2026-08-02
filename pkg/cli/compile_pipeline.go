@@ -74,7 +74,8 @@ func compileSpecificFiles(
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForGrant []string    // lock files for grant container image license scanning
 	var strictGrantErr error
-	var lockFilesForYamllint []string // lock files for yamllint YAML linter
+	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
+	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
 
 	// Compile each specified file
 	for _, markdownFile := range config.MarkdownFiles {
@@ -172,6 +173,9 @@ func compileSpecificFiles(
 					}
 					if config.Yamllint {
 						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
+					}
+					if !config.NoShellcheck {
+						lockFilesForShellcheck = append(lockFilesForShellcheck, fileResult.lockFile)
 					}
 				}
 			}
@@ -292,6 +296,18 @@ func compileSpecificFiles(
 		}
 	}
 
+	// Run shellcheck on run step scripts in all collected lock files.
+	if !config.NoShellcheck && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunShellcheckOnLockFiles(lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
 	// Get warning count from compiler
 	stats.Warnings = compiler.GetWarningCount()
 
@@ -401,7 +417,8 @@ func compileAllFilesInDirectory(
 	var lockFilesForGrype []string    // lock files for grype container image vulnerability scanning
 	var lockFilesForGrant []string    // lock files for grant container image license scanning
 	var strictGrantErr error
-	var lockFilesForYamllint []string // lock files for yamllint YAML linter
+	var lockFilesForYamllint []string   // lock files for yamllint YAML linter
+	var lockFilesForShellcheck []string // lock files for shellcheck run step linting
 
 	for _, file := range mdFiles {
 		// Respect context cancellation between files (e.g. Ctrl+C)
@@ -468,6 +485,9 @@ func compileAllFilesInDirectory(
 					}
 					if config.Yamllint {
 						lockFilesForYamllint = append(lockFilesForYamllint, fileResult.lockFile)
+					}
+					if !config.NoShellcheck {
+						lockFilesForShellcheck = append(lockFilesForShellcheck, fileResult.lockFile)
 					}
 				}
 			}
@@ -578,6 +598,18 @@ func compileAllFilesInDirectory(
 			return workflowDataList, err
 		}
 		if err := runBatchYamllintOnFiles(lockFilesForYamllint, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+			if config.Strict {
+				return workflowDataList, err
+			}
+		}
+	}
+
+	// Run shellcheck on run step scripts in all collected lock files.
+	if !config.NoShellcheck && !config.NoEmit && len(lockFilesForShellcheck) > 0 {
+		if err := ctx.Err(); err != nil {
+			return workflowDataList, err
+		}
+		if err := RunShellcheckOnLockFiles(lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}

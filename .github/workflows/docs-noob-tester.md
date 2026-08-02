@@ -53,8 +53,7 @@ pre-agent-steps:
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      cd "$EXPR_GITHUB_WORKSPACE"
-      nohup make dev-docs > /tmp/gh-aw/agent/preview.log 2>&1 &
+      cd "$EXPR_GITHUB_WORKSPACE" || exit 1 > /tmp/gh-aw/agent/preview.log 2>&1 &
       PID=$!
       echo $PID > /tmp/gh-aw/agent/server.pid
       echo "Server PID: $PID"
