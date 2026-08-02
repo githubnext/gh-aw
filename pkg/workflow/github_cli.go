@@ -224,32 +224,6 @@ func RunGHCombinedContext(ctx context.Context, spinnerMessage string, args ...st
 	return runGHWithSpinnerContext(ctx, spinnerMessage, true, nil, args...)
 }
 
-// RunGHWithHost executes a gh CLI command with a spinner, targeting a specific GitHub host.
-// For non-github.com hosts (GHES, Proxima/data residency), the GH_HOST environment variable
-// is set on the command. This is necessary because most gh subcommands (repo, pr, run, etc.)
-// do not accept a --hostname flag — only `gh api` does.
-//
-// Deprecated: Use RunGHContextWithHost to support context cancellation and timeouts.
-//
-// Usage:
-//
-//	output, err := RunGHWithHost("Fetching repo info...", "myorg.ghe.com", "repo", "view", "--json", "owner,name")
-func RunGHWithHost(spinnerMessage string, host string, args ...string) ([]byte, error) {
-	cmd := ExecGH(args...)
-	SetGHHostEnv(cmd, host)
-
-	if tty.IsStderrTerminal() {
-		spinner := console.NewSpinner(spinnerMessage)
-		spinner.Start()
-		defer spinner.Stop()
-		output, err := cmd.Output()
-		return output, enrichGHError(err)
-	}
-
-	output, err := cmd.Output()
-	return output, enrichGHError(err)
-}
-
 // RunGHContextWithHost executes a gh CLI command with context support, a spinner,
 // and an explicit GitHub host.
 func RunGHContextWithHost(ctx context.Context, spinnerMessage string, host string, args ...string) ([]byte, error) {

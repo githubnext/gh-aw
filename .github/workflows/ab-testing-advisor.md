@@ -40,29 +40,7 @@ strict: true
 timeout-minutes: 30
 tools:
   bash:
-  - find .github/workflows -maxdepth 1 -name "*.md" ! -name "shared" -type f
-  - grep -l "experiments:" .github/workflows/*.md
-  - grep -rL "experiments:" .github/workflows/*.md
-  - grep -rn "experiments:" .github/workflows/*.md
-  - cat .github/workflows/
-  - shuf -n 1
-  - awk
-  - wc -l
-  - ls .github/workflows/
-  - head -200
-  - grep -c
-  - grep
-  - echo
-  - date
-  - python3
-  - jq
-  - find
-  - cat
-  - sort
-  - basename
-  - tail
-  - uniq
-  - mkdir
+  - "*"
   cache-memory: true
   cli-proxy: true
   github:

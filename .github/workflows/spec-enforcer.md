@@ -41,25 +41,7 @@ strict: true
 timeout-minutes: 30
 tools:
   bash:
-  - cat pkg/*/README.md
-  - find pkg -maxdepth 1 -type d
-  - find pkg/* -maxdepth 0 -type d
-  - find pkg -name "*_test.go" -type f
-  - find pkg -name "README.md" -type f
-  - ls pkg/*/
-  - head -n * pkg/*/*.go
-  - cat pkg/*/*.go
-  - wc -l pkg/*/*.go
-  - grep -rn "func Test" pkg --include="*_test.go"
-  - grep -rn "func [A-Z]" pkg --include="*.go"
-  - grep -rn "type [A-Z]" pkg --include="*.go"
-  - grep -rn "package " pkg --include="*.go"
-  - "git log --oneline --since=\"7 days ago\" -- pkg/*/README.md"
-  - "git diff HEAD -- pkg/*"
-  - git status
-  - go test -v -run "TestSpec" ./pkg/...
-  - go test -v -list "TestSpec" ./pkg/...
-  - go build ./pkg/...
+  - "*"
   cache-memory: true
   cli-proxy: true
   edit: null
