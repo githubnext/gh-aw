@@ -616,6 +616,66 @@ func TestApplyBuiltinJobNeedsAugmentations_HyphenAliasNormalized(t *testing.T) {
 	assert.Contains(t, preActivationJob.Needs, "build")
 }
 
+func TestApplyBuiltinJobNeedsAugmentations_AddsIfCondition(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{Name: string(constants.AgentJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"if": "needs.build.outputs.outcome == 'failure'",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	require.NoError(t, err)
+	assert.Equal(t, "needs.build.outputs.outcome == 'failure'", agentJob.If)
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_CombinesIfCondition(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{
+		Name: string(constants.AgentJobName),
+		If:   "${{ github.event_name == 'pull_request' }}",
+	}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"if": "needs.build.outputs.outcome == 'failure'",
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	require.NoError(t, err)
+	assert.Equal(t, "(github.event_name == 'pull_request') && (needs.build.outputs.outcome == 'failure')", agentJob.If)
+}
+
+func TestApplyBuiltinJobNeedsAugmentations_InvalidIfTypeError(t *testing.T) {
+	compiler := NewCompiler()
+	compiler.jobManager = NewJobManager()
+	agentJob := &Job{Name: string(constants.AgentJobName)}
+	require.NoError(t, compiler.jobManager.AddJob(agentJob))
+
+	data := &WorkflowData{
+		Jobs: map[string]any{
+			string(constants.AgentJobName): map[string]any{
+				"if": true,
+			},
+		},
+	}
+
+	err := compiler.applyBuiltinJobNeedsAugmentations(data)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "jobs.agent.if must be a string")
+}
+
 // ========================================
 // normalizeBuiltinJobAlias Tests
 // ========================================

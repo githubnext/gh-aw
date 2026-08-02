@@ -684,8 +684,23 @@ func extractBuiltinJobNeedsAugmentation(jobName string, configMap map[string]any
 	}
 }
 
+func extractBuiltinJobIfAugmentation(jobName string, configMap map[string]any) (string, error) {
+	ifValue, exists := configMap["if"]
+	if !exists || ifValue == nil {
+		return "", nil
+	}
+
+	ifCondition, ok := ifValue.(string)
+	if !ok {
+		return "", fmt.Errorf("jobs.%s.if must be a string, got %T", jobName, ifValue)
+	}
+
+	return ifCondition, nil
+}
+
 // applyBuiltinJobNeedsAugmentations merges jobs.<built-in>.needs into compiler-generated job needs.
-// This is additive-only and de-duplicated, and never removes compiler-computed dependencies.
+// It also combines jobs.<built-in>.if with compiler-generated job conditions using logical AND.
+// Both augmentations are additive-only and never remove compiler-computed behavior.
 func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 	if data == nil || data.Jobs == nil {
 		return nil
@@ -707,7 +722,11 @@ func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 		if err != nil {
 			return err
 		}
-		if len(augmentedNeeds) == 0 {
+		augmentedIf, err := extractBuiltinJobIfAugmentation(configuredJobName, configMap)
+		if err != nil {
+			return err
+		}
+		if len(augmentedNeeds) == 0 && augmentedIf == "" {
 			continue
 		}
 
@@ -745,7 +764,13 @@ func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 			mergedNeeds = append(mergedNeeds, need)
 		}
 		targetJob.Needs = mergedNeeds
-		compilerJobsLog.Printf("Applied jobs.%s.needs augmentation to %q: %v", configuredJobName, targetJobName, normalizedNeeds)
+		if augmentedIf != "" {
+			targetJob.If = c.combineJobIfConditions(targetJob.If, augmentedIf)
+			compilerJobsLog.Printf("Applied jobs.%s.if augmentation to %q", configuredJobName, targetJobName)
+		}
+		if len(normalizedNeeds) > 0 {
+			compilerJobsLog.Printf("Applied jobs.%s.needs augmentation to %q: %v", configuredJobName, targetJobName, normalizedNeeds)
+		}
 	}
 
 	return nil
