@@ -44,7 +44,7 @@ function loadConfig(configPath) {
   try {
     configContent = fs.readFileSync(configPath, "utf-8");
   } catch (err) {
-    throw new Error(`Failed to read file ${configPath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${configPath}: ${getErrorMessage(err)}`, { cause: err });
   }
   let config;
   try {

@@ -158,7 +158,7 @@ function writeSecureOutput(outputPath, output) {
     fs.writeFileSync(outputPath, output, { mode: 0o600 });
     fs.chmodSync(outputPath, 0o600);
   } catch (err) {
-    throw new Error(`Failed to write file ${outputPath}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to write file ${outputPath}: ${getErrorMessage(err)}`, { cause: err });
   }
 }
 

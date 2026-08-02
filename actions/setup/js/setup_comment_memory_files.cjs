@@ -144,7 +144,7 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
   try {
     fs.mkdirSync(COMMENT_MEMORY_DIR, { recursive: true });
   } catch (err) {
-    throw new Error(`Failed to create directory ${COMMENT_MEMORY_DIR}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to create directory ${COMMENT_MEMORY_DIR}: ${getErrorMessage(err)}`, { cause: err });
   }
   let totalBytes = 0;
   for (const [memoryId, content] of memoryMap.entries()) {
@@ -165,7 +165,7 @@ async function collectCommentMemoryFiles(githubClient, commentMemoryConfig) {
     try {
       fs.writeFileSync(filePath, `${content}\n`);
     } catch (err) {
-      throw new Error(`Failed to write file ${filePath}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to write file ${filePath}: ${getErrorMessage(err)}`, { cause: err });
     }
     writtenFiles.push(filePath);
   }
@@ -195,7 +195,7 @@ ${COMMENT_MEMORY_PROMPT_END_MARKER}`;
   try {
     promptContent = fs.readFileSync(PROMPT_PATH, "utf8");
   } catch (err) {
-    throw new Error(`Failed to read file ${PROMPT_PATH}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to read file ${PROMPT_PATH}: ${getErrorMessage(err)}`, { cause: err });
   }
   const start = promptContent.indexOf(COMMENT_MEMORY_PROMPT_START_MARKER);
   const end = promptContent.indexOf(COMMENT_MEMORY_PROMPT_END_MARKER);
@@ -208,7 +208,7 @@ ${COMMENT_MEMORY_PROMPT_END_MARKER}`;
   try {
     fs.writeFileSync(PROMPT_PATH, promptContent);
   } catch (err) {
-    throw new Error(`Failed to write file ${PROMPT_PATH}: ${String(err)}`, { cause: err });
+    throw new Error(`Failed to write file ${PROMPT_PATH}: ${getErrorMessage(err)}`, { cause: err });
   }
   core.info("comment_memory setup: injected comment-memory prompt guidance");
 }

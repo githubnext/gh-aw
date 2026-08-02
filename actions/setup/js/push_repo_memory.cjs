@@ -89,7 +89,7 @@ async function main() {
     try {
       raw = fs.readFileSync(absPath, "utf8");
     } catch (err) {
-      throw new Error(`Failed to read file ${absPath}: ${String(err)}`, { cause: err });
+      throw new Error(`Failed to read file ${absPath}: ${getErrorMessage(err)}`, { cause: err });
     }
     if (!raw.trim()) {
       throw new Error(`Empty JSON file: ${absPath}`);
