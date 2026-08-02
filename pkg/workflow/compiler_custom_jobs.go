@@ -684,9 +684,31 @@ func extractBuiltinJobNeedsAugmentation(jobName string, configMap map[string]any
 	}
 }
 
-// applyBuiltinJobNeedsAugmentations merges jobs.<built-in>.needs into compiler-generated job needs.
-// This is additive-only and de-duplicated, and never removes compiler-computed dependencies.
-func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
+func extractBuiltinJobIfAugmentation(jobName string, configMap map[string]any) (string, error) {
+	ifValue, exists := configMap["if"]
+	if !exists || ifValue == nil {
+		return "", nil
+	}
+
+	ifCondition, ok := ifValue.(string)
+	if !ok {
+		return "", fmt.Errorf("jobs.%s.if must be a string, got %T", jobName, ifValue)
+	}
+
+	// Strip "if: " prefix to match the Job.If contract (bare expression, no prefix).
+	// This mirrors how custom jobs normalize their if fields via extractExpressionFromIfString.
+	if strings.HasPrefix(ifCondition, "if: ") {
+		ifCondition = strings.TrimSpace(ifCondition[4:])
+	}
+
+	return ifCondition, nil
+}
+
+// applyBuiltinJobAugmentations merges jobs.<built-in>.needs and jobs.<built-in>.if into
+// compiler-generated jobs. needs entries are added additively; if conditions are combined
+// with compiler-generated conditions via logical AND. Both augmentations are additive-only
+// and never remove compiler-computed behavior.
+func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 	if data == nil || data.Jobs == nil {
 		return nil
 	}
@@ -707,13 +729,24 @@ func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 		if err != nil {
 			return err
 		}
-		if len(augmentedNeeds) == 0 {
+		augmentedIf, err := extractBuiltinJobIfAugmentation(configuredJobName, configMap)
+		if err != nil {
+			return err
+		}
+		if len(augmentedNeeds) == 0 && augmentedIf == "" {
 			continue
 		}
 
 		targetJob, exists := c.jobManager.GetJob(targetJobName)
 		if !exists {
-			return fmt.Errorf("jobs.%s.needs: cannot augment %q because this workflow does not generate that job", configuredJobName, targetJobName)
+			// Report the actual field(s) the author configured so they can identify the problem.
+			augmentedField := configuredJobName + ".needs"
+			if len(augmentedNeeds) == 0 {
+				augmentedField = configuredJobName + ".if"
+			} else if augmentedIf != "" {
+				augmentedField = configuredJobName
+			}
+			return fmt.Errorf("jobs.%s: cannot augment %q because this workflow does not generate that job", augmentedField, targetJobName)
 		}
 
 		normalizedNeeds := make([]string, 0, len(augmentedNeeds))
@@ -727,6 +760,12 @@ func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 			}
 			normalizedNeeds = append(normalizedNeeds, need)
 		}
+
+		// Capture compiler-owned needs before adding user-supplied ones.
+		// These are the prerequisites the compiler established (e.g. activation) and
+		// must be guarded explicitly when the user condition contains a status function.
+		compilerOwnedNeeds := make([]string, len(targetJob.Needs))
+		copy(compilerOwnedNeeds, targetJob.Needs)
 
 		seen := make(map[string]struct{}, len(targetJob.Needs)+len(normalizedNeeds))
 		mergedNeeds := make([]string, 0, len(targetJob.Needs)+len(normalizedNeeds))
@@ -745,10 +784,68 @@ func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
 			mergedNeeds = append(mergedNeeds, need)
 		}
 		targetJob.Needs = mergedNeeds
-		compilerJobsLog.Printf("Applied jobs.%s.needs augmentation to %q: %v", configuredJobName, targetJobName, normalizedNeeds)
+		if augmentedIf != "" {
+			// Guard against status-function bypasses: when the user condition contains a
+			// status function (always, failure, cancelled, success), GitHub Actions removes
+			// the implicit success() check for all needs. Compiler-owned prerequisites such
+			// as activation perform security and permission checks and must always succeed,
+			// so we add explicit result == 'success' guards for those jobs only.
+			guardedIf := c.guardIfAgainstStatusFuncBypass(augmentedIf, compilerOwnedNeeds)
+			targetJob.If = c.combineJobIfConditions(targetJob.If, guardedIf)
+			compilerJobsLog.Printf("Applied jobs.%s.if augmentation to %q", configuredJobName, targetJobName)
+		}
+		if len(normalizedNeeds) > 0 {
+			compilerJobsLog.Printf("Applied jobs.%s.needs augmentation to %q: %v", configuredJobName, targetJobName, normalizedNeeds)
+		}
 	}
 
 	return nil
+}
+
+// guardIfAgainstStatusFuncBypass returns userCondition augmented with explicit
+// needs.<need>.result == 'success' guards for each compiler-owned prerequisite, but only
+// when userCondition contains a GitHub Actions status function (always, failure, cancelled,
+// success).
+//
+// GitHub Actions removes the implicit success() check for ALL needs entries the moment any
+// status function appears in a job's if expression. Compiler-owned prerequisites such as
+// activation perform security and permission checks; they must always succeed before the
+// target job runs. This function makes those guards explicit so user-supplied status functions
+// cannot inadvertently (or intentionally) bypass them. User-supplied needs are intentionally
+// excluded: authors choose their own result semantics for setup jobs they own.
+func (c *Compiler) guardIfAgainstStatusFuncBypass(userCondition string, compilerNeeds []string) string {
+	if len(compilerNeeds) == 0 {
+		return userCondition
+	}
+
+	// Use string-based detection: the expression parser tokenises status function calls such as
+	// failure() as single ExpressionNode literals, so AST-based containsStatusFunc cannot be used
+	// here. A substring check is sufficient since GitHub Actions has a fixed, well-known set of
+	// status functions and user-defined functions are not supported in the expression language.
+	bare := stripExpressionWrapper(userCondition)
+	if !ifExpressionContainsStatusFunc(bare) {
+		return userCondition
+	}
+
+	// Build explicit success guards for each compiler-owned prerequisite.
+	compilerJobsLog.Printf("Status function detected in user if condition; adding explicit success guards for compiler needs: %v", compilerNeeds)
+	combined := ConditionNode(&ExpressionNode{Expression: bare})
+	for _, need := range compilerNeeds {
+		guard := &ExpressionNode{Expression: fmt.Sprintf("needs.%s.result == 'success'", need)}
+		combined = BuildAnd(combined, guard)
+	}
+	return RenderCondition(combined)
+}
+
+// ifExpressionContainsStatusFunc reports whether the GitHub Actions expression string
+// contains a call to any of the four status check functions (always, success, failure,
+// cancelled). When present, GitHub Actions removes the implicit success() gate that would
+// otherwise be applied to all needs entries.
+func ifExpressionContainsStatusFunc(expr string) bool {
+	return strings.Contains(expr, "always(") ||
+		strings.Contains(expr, "success(") ||
+		strings.Contains(expr, "failure(") ||
+		strings.Contains(expr, "cancelled(")
 }
 
 func validateRestrictedBuiltinSetupSteps(jobName string, hasSetupSteps bool) error {
