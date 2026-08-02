@@ -632,7 +632,7 @@ tracker-id: TEST-123
 	assert.Equal(t, "TEST-123", result.trackerID, "Tracker ID should be extracted")
 }
 
-// TestProcessToolsAndMarkdown_CustomEngineNoTools tests codex engine tool processing
+// TestProcessToolsAndMarkdown_CustomEngineNoTools tests that codex engine rejects restricted bash allowlists
 func TestProcessToolsAndMarkdown_CustomEngineNoTools(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "tools-codex-engine")
 
@@ -660,7 +660,7 @@ tools:
 
 	importsResult := &parser.ImportsResult{}
 
-	result, err := compiler.processToolsAndMarkdown(
+	_, err = compiler.processToolsAndMarkdown(
 		frontmatterResult,
 		testFile,
 		tmpDir,
@@ -669,11 +669,9 @@ tools:
 		importsResult,
 	)
 
-	require.NoError(t, err)
-	require.NotNil(t, result)
-
-	// Codex engine supports tool allowlists - tools should be processed
-	assert.NotEmpty(t, result.tools)
+	// Codex engine does not support restricted bash allowlists - should produce a compile error
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "does not support bash command allow-listing")
 }
 
 // TestProcessToolsAndMarkdown_IncludeExpansionError tests include expansion errors

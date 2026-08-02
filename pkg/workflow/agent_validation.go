@@ -16,6 +16,7 @@
 //   - validateMaxToolDenialsSupport() - Validates max-tool-denials support for Copilot SDK mode
 //   - validateWebSearchSupport() - Validates web-search feature support (warning)
 //   - validateBareModeSupport() - Validates bare mode feature support (warning)
+//   - validateBashCommandAllowlistSupport() - Errors when restricted bash allowlist is unsupported
 //   - validateWorkflowRunBranches() - Validates workflow_run has branch restrictions
 //
 // # Validation Patterns
@@ -249,6 +250,25 @@ func (c *Compiler) validateBareModeSupport(frontmatter map[string]any, engine Co
 		fmt.Fprintln(os.Stderr, console.FormatWarningMessageStderr(fmt.Sprintf("Engine '%s' does not support bare mode (engine.bare: true). Bare mode is only supported for the 'copilot' and 'claude' engines. The setting will be ignored.", engine.GetID())))
 		c.IncrementWarningCount()
 	}
+}
+
+// validateBashCommandAllowlistSupport errors when a restricted tools.bash allowlist is used
+// with an engine that cannot enforce it. A restricted allowlist is any non-wildcard list
+// (e.g. bash: [git, npm]) that the user expects to limit which shell commands the agent may run.
+// Engines that do not map this list to their own CLI syntax silently ignore it at runtime,
+// creating the dangerous illusion of restriction where none exists.
+func (c *Compiler) validateBashCommandAllowlistSupport(tools map[string]any, engine CodingAgentEngine) error {
+	if engine.GetCapabilities().BashCommandAllowlist {
+		return nil
+	}
+	if !hasBashRestrictedAllowlist(tools) {
+		return nil
+	}
+	agentValidationLog.Printf("Engine %s does not support bash command allowlist, emitting error", engine.GetID())
+	return fmt.Errorf("engine '%s' does not support bash command allow-listing: tools.bash with specific commands is silently ignored at runtime for this engine. "+
+		"Use 'bash: [\"*\"]' to allow all commands or remove the tools.bash entry. "+
+		"To restrict bash commands, switch to an engine that supports this feature (copilot, claude, gemini, or antigravity)",
+		engine.GetID())
 }
 
 // validateWorkflowRunBranches validates workflow_run trigger requirements.
