@@ -13,6 +13,11 @@ const REGEXP_META_CHARS = new Set(["\\", "^", "$", ".", "*", "+", "?", "(", ")",
 // with "escaped", so unescapedValue and escapeHelper are never whitelisted.
 const ESCAPED_IDENT_PATTERN = /^escaped/i;
 
+// Raw pattern (between regex delimiters) of the canonical inline metacharacter
+// escape regex: /[.*+?^${}()|[\]\\]/g  — the only search form accepted when
+// the replacement is the `"\\$&"` back-reference token.
+const CANONICAL_METACHAR_REGEX_PATTERN = "[.*+?^${}()|[\\]\\\\]";
+
 /**
  * Returns true when `node` is a call expression whose callee name looks like
  * a regex-escaping helper (e.g. `escapeRegExp(value)`, `utils.escapeRegex(value)`).
@@ -30,6 +35,17 @@ function isEscapeHelperCall(node: TSESTree.Node): boolean {
 }
 
 /**
+ * Returns true when `node` is a regex literal that matches exactly
+ * `/[.*+?^${}()|[\]\\]/g` — the canonical form that escapes every regex
+ * metacharacter. Requires the global flag and rejects sticky (`y`) or any
+ * other flag combination so that narrower patterns are not accepted.
+ */
+function isCanonicalMetacharEscapeRegex(node: TSESTree.Node): boolean {
+  if (node.type !== AST_NODE_TYPES.Literal || !("regex" in node) || !node.regex) return false;
+  return node.regex.pattern === CANONICAL_METACHAR_REGEX_PATTERN && node.regex.flags === "g";
+}
+
+/**
  * Returns true when `node` is a call of the form
  * `value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")` — the standard inline
  * pattern for escaping all regex metacharacters before interpolation.
@@ -42,7 +58,7 @@ function isRegexEscapeReplaceCall(node: TSESTree.Node): boolean {
   if (args.length < 2) return false;
   const search = getFixedLiteralSearchText(args[0]);
   const replacement = getStringLiteralValue(args[1]);
-  if (replacement === "\\$&") return true;
+  if (replacement === "\\$&") return isCanonicalMetacharEscapeRegex(args[0]);
   return search !== null && replacement !== null && isLiteralRegexEscapeReplacement(search, replacement);
 }
 
@@ -77,9 +93,28 @@ function decodeFixedLiteralRegexPattern(pattern: string): string | null {
   return decoded;
 }
 
+/**
+ * Returns true when `s` contains a replacement-string token (`$&`, `$'`,
+ * `` $` ``, `$<`, or `$1`–`$9`) that would expand to something other than
+ * the literal text that was matched. Such tokens make it impossible to
+ * guarantee that the replacement emits the intended escaped string.
+ */
+function containsReplacementToken(s: string): boolean {
+  for (let i = 0; i < s.length - 1; i++) {
+    if (s[i] === "$") {
+      const next = s[i + 1];
+      if (next === "&" || next === "'" || next === "`" || next === "<" || (next >= "0" && next <= "9")) {
+        return true;
+      }
+    }
+  }
+  return false;
+}
+
 function isLiteralRegexEscapeReplacement(search: string, replacement: string): boolean {
   if (search.length === 0 || replacement !== `\\${search}`) return false;
   if (!REGEXP_META_CHARS.has(search[0])) return false;
+  if (containsReplacementToken(replacement)) return false;
 
   for (const char of search.slice(1)) {
     if (REGEXP_META_CHARS.has(char)) return false;

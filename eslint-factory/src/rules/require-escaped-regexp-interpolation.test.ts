@@ -36,7 +36,7 @@ describe("require-escaped-regexp-interpolation", () => {
 
   it('valid: standard inline .replace(…, "\\\\$&") escape form is accepted', () => {
     cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
-      valid: ['new RegExp(`^${varName.replace(/[.*+?^${}()|[\\\\]\\\\\\\\]/g, "\\\\$&")}$`);', 'new RegExp(`^${qualifier.replace(/[.*+?^${}()|[\\\\]\\\\\\\\]/g, "\\\\$&")}($|[-_\\\\s])`);'],
+      valid: ['new RegExp(`^${varName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}$`);', 'new RegExp(`^${qualifier.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}($|[-_\\\\s])`);'],
       invalid: [],
     });
   });
@@ -133,6 +133,42 @@ describe("require-escaped-regexp-interpolation", () => {
       invalid: [
         {
           code: 'new RegExp(`^${varName.replace(".", ".")}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it('invalid: .replace() with "\\\\$&" but non-canonical search pattern is not treated as an escape', () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace(/./, "\\\\$&")}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it('invalid: .replace() with "\\\\$&" and sticky-flag regex is not treated as an escape', () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace(/[.*+?^${}()|[\\]\\\\]/y, "\\\\$&")}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: .replace() with a $' replacement token is not treated as an escape", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'new RegExp(`^${varName.replace("$\'", "\\\\$\'")}$`);',
           errors: [{ messageId: "unescapedInterpolation" }],
         },
       ],
