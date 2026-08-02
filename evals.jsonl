@@ -1,2 +1,2 @@
-{"id":"prs-evaluated","question":"Did the agent dispatch PRs to the contribution-checker subagent and produce evaluation results for each PR?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-02T13:22:34.311Z","runid":"30749492417"}
-{"id":"report-created","question":"Was a report issue created summarizing PR compliance with the contributing guidelines?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-02T13:22:34.311Z","runid":"30749492417"}
+{"id":"prs-evaluated","question":"Did the agent dispatch PRs to the contribution-checker subagent and produce evaluation results for each PR?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-02T17:17:53.217Z","runid":"30758282262"}
+{"id":"report-created","question":"Was a report issue created summarizing PR compliance with the contributing guidelines?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-02T17:17:53.217Z","runid":"30758282262"}
