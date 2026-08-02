@@ -3,7 +3,25 @@
     "actions-ecosystem/action-add-labels@v1.1.3": {
       "repo": "actions-ecosystem/action-add-labels",
       "version": "v1.1.3",
-      "sha": "c96b68fec76a0987cd93957189e9abd0b9a72ff1"
+      "sha": "c96b68fec76a0987cd93957189e9abd0b9a72ff1",
+      "inputs": {
+        "github_token": {
+          "description": "A GitHub token.",
+          "default": "${{ github.token }}"
+        },
+        "labels": {
+          "description": "The labels' name to be added. Must be separated with line breaks if there're multiple labels.",
+          "required": true
+        },
+        "number": {
+          "description": "The number of the issue or pull request."
+        },
+        "repo": {
+          "description": "The owner and repository name. e.g.) Codertocat/Hello-World",
+          "default": "${{ github.repository }}"
+        }
+      },
+      "action_description": "Add labels to an issue or a pull request."
     },
     "actions/cache/restore@v6.1.0": {
       "repo": "actions/cache/restore",
