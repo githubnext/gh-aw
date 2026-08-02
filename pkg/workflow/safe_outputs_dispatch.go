@@ -2,6 +2,7 @@ package workflow
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/github/gh-aw/pkg/logger"
 )
@@ -116,15 +117,16 @@ func generateDispatchWorkflowTool(workflowName string, workflowInputs map[string
 	if len(allowedRefs) > 0 {
 		inputSchema, _ := tool["inputSchema"].(map[string]any)
 		properties, _ := inputSchema["properties"].(map[string]any)
+		allowedRefsDesc := strings.Join(allowedRefs, ", ")
 
-		refDesc := fmt.Sprintf("The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: %v. If omitted, the dispatching workflow's ref is used.", allowedRefs)
+		refDesc := fmt.Sprintf("The git ref (branch, tag, or SHA) to dispatch the workflow on. Must match one of the configured allowed ref patterns: %s. If omitted, the dispatching workflow's ref is used.", allowedRefsDesc)
 		properties["ref"] = map[string]any{
 			"type":        "string",
 			"description": refDesc,
 		}
 
 		desc, _ := tool["description"].(string)
-		tool["description"] = desc + fmt.Sprintf(" Use the 'ref' parameter to target a specific branch or tag (allowed patterns: %v).", allowedRefs)
+		tool["description"] = desc + fmt.Sprintf(" Use the 'ref' parameter to target a specific branch or tag (allowed patterns: %s).", allowedRefsDesc)
 	}
 
 	inputSchema, _ := tool["inputSchema"].(map[string]any)

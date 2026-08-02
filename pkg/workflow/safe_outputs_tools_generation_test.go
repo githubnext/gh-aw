@@ -374,6 +374,7 @@ func TestGenerateDispatchWorkflowToolNoRefWithoutAllowedRefs(t *testing.T) {
 		"platform": map[string]any{
 			"description": "Target platform",
 			"type":        "string",
+			"required":    true,
 		},
 	}
 
@@ -388,6 +389,10 @@ func TestGenerateDispatchWorkflowToolNoRefWithoutAllowedRefs(t *testing.T) {
 
 		_, hasRef := properties["ref"]
 		assert.False(t, hasRef, "ref property should not be present when allowed-refs is not configured")
+
+		required, ok := inputSchema["required"].([]string)
+		require.True(t, ok, "required should be present for required workflow input")
+		assert.Equal(t, []string{"platform"}, required, "required should only include workflow inputs, not ref")
 	}
 }
 
