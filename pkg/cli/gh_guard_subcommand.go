@@ -13,7 +13,7 @@ func newLegacyGHGuardSubcommand() *cobra.Command {
 		Use:                "gh",
 		Hidden:             true,
 		DisableFlagParsing: true,
-		RunE: func(cmd *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, _ []string) error {
 			return fmt.Errorf("unknown command %q for %q", cmd.Name(), cmd.Parent().CommandPath())
 		},
 	}

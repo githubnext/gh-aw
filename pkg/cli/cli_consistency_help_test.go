@@ -123,12 +123,14 @@ func TestLegacyNestedGHHelpIsRejected(t *testing.T) {
 		name    string
 		newCmd  func() *cobra.Command
 		cmdName string
+		args    []string
 	}{
-		{name: "secrets", newCmd: NewSecretsCommand, cmdName: "secrets"},
-		{name: "mcp", newCmd: NewMCPCommand, cmdName: "mcp"},
-		{name: "project", newCmd: NewProjectCommand, cmdName: "project"},
-		{name: "pr", newCmd: NewPRCommand, cmdName: "pr"},
-		{name: "env", newCmd: NewEnvCommand, cmdName: "env"},
+		{name: "secrets", newCmd: NewSecretsCommand, cmdName: "secrets", args: []string{"gh", "--help"}},
+		{name: "secrets gh with args", newCmd: NewSecretsCommand, cmdName: "secrets", args: []string{"gh", "set", "--help"}},
+		{name: "mcp", newCmd: NewMCPCommand, cmdName: "mcp", args: []string{"gh", "--help"}},
+		{name: "project", newCmd: NewProjectCommand, cmdName: "project", args: []string{"gh", "--help"}},
+		{name: "pr", newCmd: NewPRCommand, cmdName: "pr", args: []string{"gh", "--help"}},
+		{name: "env", newCmd: NewEnvCommand, cmdName: "env", args: []string{"gh", "--help"}},
 	}
 
 	for _, tt := range tests {
@@ -136,7 +138,7 @@ func TestLegacyNestedGHHelpIsRejected(t *testing.T) {
 			cmd := tt.newCmd()
 			cmd.SilenceUsage = true
 			cmd.SilenceErrors = true
-			cmd.SetArgs([]string{"gh", "--help"})
+			cmd.SetArgs(tt.args)
 
 			err := cmd.Execute()
 			require.Error(t, err)
