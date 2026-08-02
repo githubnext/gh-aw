@@ -34,6 +34,31 @@ describe("require-escaped-regexp-interpolation", () => {
     });
   });
 
+  it("valid: const variable assigned from escape-helper call (name not starting with 'escaped')", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [
+        "const regexPattern = escapeRegExpChars(pattern); new RegExp(`^${regexPattern}$`);",
+        "const safeStr = utils.escapeRegex(input); new RegExp(`prefix-${safeStr}-suffix`);",
+        'const normalized = value.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&"); new RegExp(`^${normalized}$`);',
+      ],
+      invalid: [],
+    });
+  });
+
+  it("valid: const string literal with no metacharacters is accepted when interpolated", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: ['const TAG = "gh-aw-comment-memory"; new RegExp(`${TAG}:([^\\\\n]+)`);', 'const PREFIX = "v"; new RegExp(`^${PREFIX}\\\\d+`);'],
+      invalid: [],
+    });
+  });
+
+  it("valid: const numeric literal is accepted when interpolated", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: ["const MAX_LENGTH = 128; new RegExp(`([^\\\\n]{1,${MAX_LENGTH}})`);", "const COUNT = 3; new RegExp(`a{${COUNT}}`);"],
+      invalid: [],
+    });
+  });
+
   it('valid: standard inline .replace(…, "\\\\$&") escape form is accepted', () => {
     cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
       valid: ['new RegExp(`^${varName.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}$`);', 'new RegExp(`^${qualifier.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&")}($|[-_\\\\s])`);'],
@@ -169,6 +194,58 @@ describe("require-escaped-regexp-interpolation", () => {
       invalid: [
         {
           code: 'new RegExp(`^${varName.replace("$\'", "\\\\$\'")}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: let variable (even with escape-helper initializer) is flagged", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "let regexPattern = escapeRegExpChars(pattern); new RegExp(`^${regexPattern}$`);",
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: reassigned const variable is flagged even when initializer is an escape-helper call", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "const regexPattern = escapeRegExpChars(pattern); regexPattern = 'overwritten'; new RegExp(`^${regexPattern}$`);",
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: const string literal containing regex metacharacters is flagged", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: 'const PATTERN = "file.*txt"; new RegExp(`^${PATTERN}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+        {
+          code: 'const SUFFIX = ".md"; new RegExp(`${SUFFIX}$`);',
+          errors: [{ messageId: "unescapedInterpolation" }],
+        },
+      ],
+    });
+  });
+
+  it("invalid: const variable assigned from a non-escape function is flagged", () => {
+    cjsRuleTester.run("require-escaped-regexp-interpolation", requireEscapedRegexpInterpolationRule, {
+      valid: [],
+      invalid: [
+        {
+          code: "const processed = someOtherFunction(pattern); new RegExp(`^${processed}$`);",
           errors: [{ messageId: "unescapedInterpolation" }],
         },
       ],

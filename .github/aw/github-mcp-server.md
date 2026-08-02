@@ -2,7 +2,7 @@
 
 **Source**: [github/github-mcp-server](https://github.com/github/github-mcp-server/tree/main/pkg/github)
 **Mapping File**: [pkg/workflow/data/github_toolsets_permissions.json](https://github.com/github/gh-aw/blob/main/pkg/workflow/data/github_toolsets_permissions.json)
-**Last Updated**: 2026-05-24
+**Last Updated**: 2026-08-02
 
 ## Overview
 
@@ -66,23 +66,23 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | Toolset | When to Enable |
 |---------|---------------|
 | `actions` | Workflow introspection, triggering runs |
+| `code_quality` | Code quality finding lookups |
 | `code_security` | Code scanning alert management |
+| `copilot` | Copilot assignment, PR creation, and review requests |
 | `copilot_spaces` | GitHub Copilot Spaces (remote mode only) |
 | `dependabot` | Dependency vulnerability management |
 | `discussions` | Community discussion workflows |
-| `experiments` | Dynamic toolset management |
 | `gists` | Gist creation and management |
 | `git` | Git API operations (tree, refs) |
 | `github_support_docs_search` | GitHub support documentation search (remote mode only) |
 | `labels` | Label management automation |
 | `notifications` | Notification processing agents |
-| `orgs` | Organization-level security advisories |
+| `orgs` | Organization search operations |
 | `projects` | GitHub Projects automation (requires PAT) |
-| `search` | Cross-repository search operations |
 | `secret_protection` | Secret scanning alert management |
 | `security_advisories` | Advisory database queries |
 | `stargazers` | Star/unstar repository operations |
-| `users` | (currently empty — no tools registered) |
+| `users` | User search operations |
 
 ## Tools by Toolset
 
@@ -94,6 +94,26 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `get_me` | Get details of the authenticated user | ⚠️ Do not use for workflow identity; read `<github-context>` instead |
 | `get_team_members` | List members of a GitHub team | `org`, `team_slug` |
 | `get_teams` | List teams the authenticated user belongs to | `org` |
+
+---
+
+### code_quality
+**Description**: Code quality findings
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `get_code_quality_finding` | Get details of a specific code quality finding | `owner`, `repo`, `alert_number` |
+
+---
+
+### copilot
+**Description**: GitHub Copilot assignment, review, and coding agent tools
+
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `assign_copilot_to_issue` | Assign GitHub Copilot to an issue | `owner`, `repo`, `issue_number` |
+| `create_pull_request_with_copilot` | Ask Copilot to create a pull request | `owner`, `repo`, `issue_number` |
+| `request_copilot_review` | Request a Copilot review on a pull request | `owner`, `repo`, `pullNumber` |
 
 ---
 
@@ -129,7 +149,15 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `list_releases` | List all releases for a repository | `owner`, `repo`, `page`, `per_page` |
 | `list_repository_collaborators` | List collaborators of a repository | `owner`, `repo`, `affiliation`, `page`, `per_page` |
 | `list_tags` | List tags in a repository | `owner`, `repo`, `page`, `per_page` |
+| `search_code` | Search code across repositories | `query`, `page`, `per_page` |
+| `search_commits` | Search commits across GitHub | `query`, `page`, `per_page` |
+| `search_repositories` | Search for repositories | `query`, `page`, `per_page` |
 | `push_files` | Push multiple files in a single commit | `owner`, `repo`, `branch`, `files`, `message` |
+
+> **`search_repositories` known limitation — `repo:` qualifier is ignored**: The `repo:owner/name` qualifier has no effect in `search_repositories` queries. Instead of scoping results to the named repository, the API ranks by star count and may return a completely unrelated high-star repository as the top hit (e.g. querying `repo:github/gh-aw` may return `github/gitignore`). **Do not use `repo:` with `search_repositories`.**
+>
+> - To check whether a specific repository exists or to fetch its metadata, use `get_file_contents` (with explicit `owner` and `repo`) or any other `repos`-toolset call that takes `owner`/`repo` directly.
+> - To discover repositories in a scope, use supported qualifiers such as `org:`, `user:`, `topic:`, `language:`, or `stars:`.
 
 ---
 
@@ -166,6 +194,8 @@ When the GitHub tool is configured, gh-aw injects a separate `<github-context>` 
 | `list_issue_types` | List available issue types for a repository | `owner`, `repo` |
 | `list_issues` | List issues in a repository | `owner`, `repo`, `state`, `labels`, `page` |
 | `search_issues` | Search issues across GitHub | `query`, `page`, `per_page` |
+| `semantic_issue_similarity_search` | Find GitHub issues semantically similar to a given issue | `owner`, `repo`, `issue_number` |
+| `semantic_issues_search` | Search issues using natural language queries | `query`, `owner`, `repo` |
 | `sub_issue_write` | Create or manage sub-issues | `owner`, `repo`, `issue_number` |
 
 ---
@@ -234,17 +264,6 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 
 ---
 
-### experiments
-**Description**: Experimental features — dynamic toolset management
-
-| Tool | Purpose | Key Parameters |
-|------|---------|----------------|
-| `enable_toolset` | Dynamically enable a toolset | `toolset` |
-| `get_toolset_tools` | Get tools available in a specific toolset | `toolset` |
-| `list_available_toolsets` | List all available toolsets | — |
-
----
-
 ### gists
 **Description**: Gist operations
 
@@ -287,7 +306,7 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 
 | Tool | Purpose | Key Parameters |
 |------|---------|----------------|
-| `list_org_repository_security_advisories` | List security advisories for all repos in an org | `org`, `state` |
+| `search_orgs` | Search GitHub organizations | `query`, `page`, `per_page` |
 
 ---
 
@@ -299,25 +318,6 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 | `projects_get` | Get details of a specific project | `owner`, `project_number` |
 | `projects_list` | List GitHub Projects for a user or organization | `owner`, `per_page` |
 | `projects_write` | Create or update project items/fields | `owner`, `project_number` |
-
----
-
-### search
-**Description**: Advanced search across GitHub
-
-| Tool | Purpose | Key Parameters |
-|------|---------|----------------|
-| `search_code` | Search code across repositories | `query`, `page`, `per_page` |
-| `search_orgs` | Search GitHub organizations | `query`, `page`, `per_page` |
-| `search_repositories` | Search for repositories | `query`, `page`, `per_page` |
-| `search_users` | Search GitHub users | `query`, `page`, `per_page` |
-| `semantic_issue_similarity_search` | Find GitHub issues semantically similar to a given issue | `owner`, `repo`, `issue_number` |
-| `semantic_issues_search` | Search issues using natural language queries | `query`, `owner`, `repo` |
-
-> **`search_repositories` known limitation — `repo:` qualifier is ignored**: The `repo:owner/name` qualifier has no effect in `search_repositories` queries. Instead of scoping results to the named repository, the API ranks by star count and may return a completely unrelated high-star repository as the top hit (e.g. querying `repo:github/gh-aw` may return `github/gitignore`). **Do not use `repo:` with `search_repositories`.**
->
-> - To check whether a specific repository exists or to fetch its metadata, use `get_file_contents` (with explicit `owner` and `repo`) or any other `repos`-toolset call that takes `owner`/`repo` directly.
-> - To discover repositories in a scope, use supported qualifiers such as `org:`, `user:`, `topic:`, `language:`, or `stars:`.
 
 ---
 
@@ -340,6 +340,7 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 | `check_dependency_vulnerabilities` | Check dependencies against known vulnerabilities in the GitHub Advisory Database | `owner`, `repo`, `dependencies` |
 | `get_global_security_advisory` | Get a specific global security advisory | `ghsa_id` |
 | `list_global_security_advisories` | List advisories from the GitHub Advisory Database | `type`, `severity`, `ecosystem` |
+| `list_org_repository_security_advisories` | List security advisories for all repos in an org | `org`, `state` |
 | `list_repository_security_advisories` | List security advisories for a specific repository | `owner`, `repo`, `state` |
 
 ---
@@ -358,7 +359,9 @@ When calling `list_code_scanning_alerts` in workflow prompts/templates, always b
 ### users
 **Description**: User information
 
-> **Note**: No tools are currently registered in the `users` toolset. User search is available via the `search` toolset (`search_users`).
+| Tool | Purpose | Key Parameters |
+|------|---------|----------------|
+| `search_users` | Search GitHub users | `query`, `page`, `per_page` |
 
 ---
 
