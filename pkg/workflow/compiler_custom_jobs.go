@@ -704,10 +704,11 @@ func extractBuiltinJobIfAugmentation(jobName string, configMap map[string]any) (
 	return ifCondition, nil
 }
 
-// applyBuiltinJobNeedsAugmentations merges jobs.<built-in>.needs into compiler-generated job needs.
-// It also combines jobs.<built-in>.if with compiler-generated job conditions using logical AND.
-// Both augmentations are additive-only and never remove compiler-computed behavior.
-func (c *Compiler) applyBuiltinJobNeedsAugmentations(data *WorkflowData) error {
+// applyBuiltinJobAugmentations merges jobs.<built-in>.needs and jobs.<built-in>.if into
+// compiler-generated jobs. needs entries are added additively; if conditions are combined
+// with compiler-generated conditions via logical AND. Both augmentations are additive-only
+// and never remove compiler-computed behavior.
+func (c *Compiler) applyBuiltinJobAugmentations(data *WorkflowData) error {
 	if data == nil || data.Jobs == nil {
 		return nil
 	}

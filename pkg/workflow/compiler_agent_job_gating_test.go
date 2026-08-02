@@ -55,5 +55,7 @@ Run only when the build fails.
 	require.NotNil(t, agentJob)
 	assert.Contains(t, agentJob["needs"], "activation")
 	assert.Contains(t, agentJob["needs"], "build")
-	assert.Equal(t, "needs.build.outputs.outcome == 'failure'", agentJob["if"])
+	// Use Contains rather than Equal so the assertion holds even if the compiler
+	// prepends additional generated conditions (e.g. label filters) in the future.
+	assert.Contains(t, agentJob["if"], "needs.build.outputs.outcome == 'failure'")
 }
