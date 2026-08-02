@@ -1,4 +1,4 @@
-import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, ESLintUtils, TSESLint, TSESTree } from "@typescript-eslint/utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -138,12 +138,85 @@ function isEscapedNameReference(node: TSESTree.Node): boolean {
 }
 
 /**
+ * Returns true when `node` is a literal value that can never introduce a regex
+ * metacharacter — specifically a number or boolean literal, or a string literal
+ * whose characters are all outside the regex metacharacter set.
+ */
+function isLiteralSafeForRegexp(node: TSESTree.Node): boolean {
+  if (node.type !== AST_NODE_TYPES.Literal) return false;
+  const { value } = node;
+  if (typeof value === "number" || typeof value === "boolean") return true;
+  if (typeof value === "string") {
+    for (const char of value) {
+      if (REGEXP_META_CHARS.has(char)) return false;
+    }
+    return true;
+  }
+  return false;
+}
+
+type ScopeType = ReturnType<TSESLint.SourceCode["getScope"]>;
+
+/**
+ * Given an `Identifier` reference, walks the scope chain to find the variable.
+ * If the variable is bound by a single `const` declarator that has no write
+ * references other than the initialization, returns the initializer expression.
+ * Returns null for reassigned bindings, `let`/`var` declarations, parameters,
+ * destructuring, and any other shape we cannot statically resolve.
+ */
+function findConstInitializer(sourceCode: Readonly<TSESLint.SourceCode>, node: TSESTree.Identifier): TSESTree.Expression | null {
+  let scope: ScopeType | null = sourceCode.getScope(node);
+  let variable: ScopeType["variables"][number] | undefined;
+  while (scope) {
+    variable = scope.set.get(node.name);
+    if (variable) break;
+    scope = scope.upper;
+  }
+  if (!variable) return null;
+
+  // Must have exactly one definition
+  if (variable.defs.length !== 1) return null;
+  const def = variable.defs[0];
+
+  // Must be a variable declarator (not a parameter, catch clause, import, etc.)
+  if (def.type !== "Variable") return null;
+
+  // def.node is VariableDeclarator, def.parent is VariableDeclaration for Variable defs
+  const declarator = def.node as TSESTree.VariableDeclarator;
+  const declaration = def.parent as TSESTree.VariableDeclaration;
+
+  // Only const declarations — let/var can be reassigned elsewhere
+  if (declaration.kind !== "const") return null;
+
+  // Must have an initializer
+  if (!declarator.init) return null;
+
+  // Reject any write that is not the initialization (guards against const in loops, etc.)
+  if (variable.references.some(ref => ref.isWrite() && !ref.init)) return null;
+
+  return declarator.init;
+}
+
+/**
  * Returns true when the interpolated expression is recognized as already
  * escaped — via a named regex-escape helper call, the standard inline
- * `.replace()` form, or a variable name that starts with "escaped".
+ * `.replace()` form, a variable name that starts with "escaped", or a
+ * `const` identifier whose initializer is itself recognized as escaped or
+ * is a literal value that can never contain regex metacharacters.
  */
-function isRecognizedAsEscaped(node: TSESTree.Node): boolean {
-  return isEscapeHelperCall(node) || isRegexEscapeReplaceCall(node) || isEscapedNameReference(node);
+function isRecognizedAsEscaped(node: TSESTree.Node, sourceCode?: Readonly<TSESLint.SourceCode>): boolean {
+  if (isEscapeHelperCall(node) || isRegexEscapeReplaceCall(node) || isEscapedNameReference(node)) return true;
+
+  // One level of const-binding resolution: look up the variable's initializer
+  // and check whether it is itself safe.
+  if (sourceCode && node.type === AST_NODE_TYPES.Identifier) {
+    const init = findConstInitializer(sourceCode, node);
+    if (init !== null) {
+      if (isEscapeHelperCall(init) || isRegexEscapeReplaceCall(init) || isLiteralSafeForRegexp(init)) return true;
+    }
+  }
+
+  return false;
 }
 
 export const requireEscapedRegexpInterpolationRule = createRule({
@@ -175,7 +248,7 @@ export const requireEscapedRegexpInterpolationRule = createRule({
         if (patternArg.expressions.length === 0) return;
 
         for (const expr of patternArg.expressions) {
-          if (isRecognizedAsEscaped(expr)) continue;
+          if (isRecognizedAsEscaped(expr, sourceCode)) continue;
 
           context.report({
             node: expr,

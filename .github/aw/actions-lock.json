@@ -254,11 +254,6 @@
       "image": "python:alpine",
       "digest": "sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92",
       "pinned_image": "python:alpine@sha256:26730869004e2b9c4b9ad09cab8625e81d256d1ce97e72df5520e806b1709f92"
-    },
-    "semgrep/semgrep:latest": {
-      "image": "semgrep/semgrep:latest",
-      "digest": "sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8",
-      "pinned_image": "semgrep/semgrep:latest@sha256:bdf7013b2c3634a487671158da77c554f531742326b543a9464d2adf6c433ac8"
     }
   }
 }

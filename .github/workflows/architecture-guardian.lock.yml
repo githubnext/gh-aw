@@ -291,7 +291,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/architectureguardian
         with:
@@ -305,7 +305,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"sub_agent_strategy":{"variants":["sub_agents","single_agent"],"description":"Test whether inlining violation classification in the main agent reduces AI credit spend vs using a Rig custom harness","hypothesis":"H0: single_agent does not change ai_credits_spent vs sub_agents. H1: single_agent reduces ai_credits_spent by ≥15% by eliminating Rig harness overhead","metric":"ai_credits_spent","secondary_metrics":["run_duration_ms","violation_count_delta"],"guardrail_metrics":[{"name":"run_failure_rate","direction":"min","threshold":"0.1"},{"name":"empty_output_rate","direction":"min","threshold":"0.05"}],"min_samples":30,"weight":[50,50],"issue":39062,"start_date":"2026-06-13"}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |

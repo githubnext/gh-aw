@@ -1,6 +1,6 @@
 {
-  "version": "2.3",
-  "description": "GitHub MCP server toolsets and their required permissions (synced to github/github-mcp-server main: search toolset removed and search tools redistributed to repos/orgs/users, experiments toolset removed, semantic search + check_dependency_vulnerabilities + run_secret_scanning removed upstream, list_org_repository_security_advisories moved orgs->security_advisories, get_label dual-registered in issues, create_pull_request_with_copilot added)",
+  "version": "2.4",
+  "description": "GitHub MCP server toolsets and their required permissions (synced to github/github-mcp-server main: restored semantic search, advisory, and secret scanning tools; search tools remain redistributed to repos/orgs/users/issues; experiments toolset removed; list_org_repository_security_advisories moved orgs->security_advisories; get_label dual-registered in issues; create_pull_request_with_copilot added)",
   "toolsets": {
     "actions": {
       "description": "GitHub Actions workflows",
@@ -72,7 +72,21 @@
       "description": "Issue management (get_label is also registered here alongside labels)",
       "read_permissions": ["issues"],
       "write_permissions": ["issues"],
-      "tools": ["add_issue_comment", "get_label", "issue_dependency_read", "issue_dependency_write", "issue_read", "issue_write", "list_issue_fields", "list_issue_types", "list_issues", "search_issues", "sub_issue_write"]
+      "tools": [
+        "add_issue_comment",
+        "get_label",
+        "issue_dependency_read",
+        "issue_dependency_write",
+        "issue_read",
+        "issue_write",
+        "list_issue_fields",
+        "list_issue_types",
+        "list_issues",
+        "search_issues",
+        "semantic_issue_similarity_search",
+        "semantic_issues_search",
+        "sub_issue_write"
+      ]
     },
     "labels": {
       "description": "Label management",
@@ -146,13 +160,13 @@
       "description": "Secret scanning",
       "read_permissions": ["security-events"],
       "write_permissions": [],
-      "tools": ["get_secret_scanning_alert", "list_secret_scanning_alerts"]
+      "tools": ["get_secret_scanning_alert", "list_secret_scanning_alerts", "run_secret_scanning"]
     },
     "security_advisories": {
       "description": "Security advisories",
       "read_permissions": ["security-events"],
       "write_permissions": ["security-events"],
-      "tools": ["get_global_security_advisory", "list_global_security_advisories", "list_org_repository_security_advisories", "list_repository_security_advisories"]
+      "tools": ["check_dependency_vulnerabilities", "get_global_security_advisory", "list_global_security_advisories", "list_org_repository_security_advisories", "list_repository_security_advisories"]
     },
     "stargazers": {
       "description": "Repository stars",

@@ -266,7 +266,7 @@ jobs:
         id: restore-experiment-state
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
           GH_AW_EXPERIMENT_BRANCH: experiments/copilotagentanalysis
         with:
@@ -280,7 +280,7 @@ jobs:
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         env:
           GH_AW_EXPERIMENT_SPEC: '{"output_format":{"variants":["structured","prose"],"description":"Test whether a prose-style discussion summary reduces AI credit consumption vs. the current table-centric structured format without sacrificing completeness.","hypothesis":"H0: no change in ai_credits_used. H1: prose format reduces ai_credits_used by \u003e=15% while keeping empty_discussion_rate \u003c=5%","metric":"ai_credits_used","secondary_metrics":["run_duration_seconds","output_length_chars"],"guardrail_metrics":[{"name":"empty_discussion_rate","direction":"min","threshold":"0.05"}],"min_samples":30,"weight":[50,50],"start_date":"2026-06-08","analysis_type":"t_test","tags":["cost-efficiency","output-quality","daily-report"]}}'
-          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.json
+          GH_AW_EXPERIMENT_STATE_FILE: /tmp/gh-aw/experiments/state.jsonl
           GH_AW_EXPERIMENT_STATE_DIR: /tmp/gh-aw/experiments
         with:
           script: |
