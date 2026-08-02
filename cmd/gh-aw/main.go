@@ -326,7 +326,7 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
 		grype, _ := cmd.Flags().GetBool("grype")
 		grant, _ := cmd.Flags().GetBool("grant")
 		yamllint, _ := cmd.Flags().GetBool("yamllint")
-		shellcheck, _ := cmd.Flags().GetBool("shellcheck")
+		noShellcheck, _ := cmd.Flags().GetBool("no-shellcheck")
 		jsonOutput, _ := cmd.Flags().GetBool("json")
 		showAllErrors, _ := cmd.Flags().GetBool("show-all")
 		fix, _ := cmd.Flags().GetBool("fix")
@@ -395,7 +395,7 @@ Unlike ` + "`gh aw upgrade`" + `, ` + "`gh aw compile`" + ` only applies codemod
 			Grype:                  grype,
 			Grant:                  grant,
 			Yamllint:               yamllint,
-			Shellcheck:             shellcheck,
+			NoShellcheck:           noShellcheck,
 			JSONOutput:             jsonOutput,
 			ShowAllErrors:          showAllErrors,
 			Stats:                  stats,
@@ -766,7 +766,7 @@ Use "` + string(constants.CLIExtensionPrefix) + ` help all" to show help for all
 	compileCmd.Flags().Bool("grype", false, "Run grype vulnerability scanner on container images referenced in compiled .lock.yml files (uses Docker image "+cli.GrypeImage+")")
 	compileCmd.Flags().Bool("grant", false, "Run grant license scanner on container images referenced in compiled .lock.yml files (uses Docker image "+cli.GrantImage+")")
 	compileCmd.Flags().Bool("yamllint", false, "Run yamllint YAML linter on generated .lock.yml files (uses Docker image "+cli.YamllintImage+")")
-	compileCmd.Flags().Bool("shellcheck", false, "Run shellcheck on run step scripts in generated .lock.yml files (requires shellcheck binary in PATH)")
+	compileCmd.Flags().Bool("no-shellcheck", false, "Disable shellcheck linting of run step scripts (shellcheck runs by default when available)")
 	compileCmd.Flags().Bool("fix", false, "Apply automatic codemod fixes to workflows before compiling")
 	compileCmd.Flags().BoolP("json", "j", false, "Output results in JSON format")
 	compileCmd.Flags().Bool("show-all", false, "Display all compilation errors instead of only the highest-priority subset (default: top 5)")
