@@ -113,6 +113,9 @@ func TestDockerImageConstants(t *testing.T) {
 	if GrantImage == "" {
 		t.Error("GrantImage constant should not be empty")
 	}
+	if ShellcheckImage == "" {
+		t.Error("ShellcheckImage constant should not be empty")
+	}
 
 	// Verify they are docker image references
 	expectedImages := map[string]string{
@@ -123,6 +126,7 @@ func TestDockerImageConstants(t *testing.T) {
 		"syft":         SyftImage,
 		"grype":        GrypeImage,
 		"grant":        GrantImage,
+		"shellcheck":   ShellcheckImage,
 	}
 
 	for name, image := range expectedImages {

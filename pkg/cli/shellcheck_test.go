@@ -261,12 +261,12 @@ func TestDefaultIgnoreCodes(t *testing.T) {
 }
 
 // TestRunShellcheckOnLockFilesSkipsWhenUnavailable verifies that the function
-// returns nil (no error) and does not panic when shellcheck is not in PATH.
-// We use a PATH override to hide any real shellcheck binary.
+// returns nil (no error) and does not panic when shellcheck is not in PATH and
+// Docker is also unavailable. We use a PATH override to hide both binaries.
 func TestRunShellcheckOnLockFilesSkipsWhenUnavailable(t *testing.T) {
 	orig := os.Getenv("PATH")
 	t.Cleanup(func() { os.Setenv("PATH", orig) })
-	os.Setenv("PATH", "") // ensure shellcheck cannot be found
+	os.Setenv("PATH", "") // ensure neither shellcheck nor docker can be found
 
 	err := runShellcheckOnLockFiles([]string{"/fake/file.lock.yml"}, false, false)
 	assert.NoError(t, err)
