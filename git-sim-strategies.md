@@ -244,6 +244,22 @@ content there could realistically breach 4096 KB).
   disjoint-multi commits add negligible (~590B total) overhead vs same-file re-append's ~3x.
 - **Zero real fail/error/rejected across 164 cells.** Rejection candidate still SIZE>tiny
   (idx720+, first real stuff.md/history.md payload in the diff) or same-file re-append shape.
-- **Next index: 164** = tiny-none-batch-large-clean-merge_msg (closes batch-large clean tier;
-  ahead/diverged sub-tiers of batch-large remain after that, then batch-xlarge under the
-  corrected 5120KB cap — prior xlarge-vs-4096 margin analysis needs re-derivation vs 5120).
+
+## Run 2026-08-02: idx164-167 (batch-large clean tier CLOSED + batch-large ahead tier CLOSED)
+
+- **idx164 clean-merge_msg: PASS.** 100f/1043.21KB/1c. Filename leak reconfirmed
+  (`0001-Merge-branch-topic-xyz-into-feature.patch`), parent=1/merges=empty. **batch-large
+  clean tier now fully closed (162-164, 3/3 pass).**
+- **idx165 ahead-single: PASS.** 101f/1045.71KB/2c. Isolated follow-up-push delta measured
+  separately: 1 patch/2.54KB — incremental push cost stays tiny regardless of the large
+  initial payload already on the branch. ff rc0, merges=0/parent=1.
+- **idx166 ahead-multi: PASS.** 4 commits (3 disjoint initial + 1 followup)/1046.33KB. Same-run
+  single-commit baseline 1043.17KB → disjoint-multi ratio 1.003x, reconfirming disjoint ~1x
+  law at ahead+batch+large scale. ff rc0, merges=0.
+- **idx167 ahead-merge_msg: PASS.** 101f/1045.78KB/2c. Filename leak + ff rc0 + parent=1
+  reconfirmed together (merge-worded initial commit, then a normal followup push).
+- **batch-large ahead tier now fully closed (165-167, 3/3 pass).** batch-large tier overall:
+  clean+ahead closed (6/9); diverged sub-tier (3 cells) remains.
+- **Zero real fail/error/rejected across 168 cells.**
+- **Next index: 168** = tiny-none-batch-large-diverged-single (closes batch-large tier fully),
+  then batch-xlarge (idx171+) under the corrected 5120KB cap.
