@@ -42,11 +42,12 @@ func NewCopilotEngine() *CopilotEngine {
 			experimental:     false,
 			ghSkillAgentName: "github-copilot",
 			capabilities: EngineCapabilities{
-				ToolsAllowlist:   true,
-				MaxTurns:         true,  // AWF max-turns is supported for Copilot runs
-				MaxContinuations: true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
-				WebSearch:        false, // Copilot CLI does not have built-in web-search support
-				BareMode:         true,  // Copilot CLI supports --no-custom-instructions
+				ToolsAllowlist:       true,
+				MaxTurns:             true,  // AWF max-turns is supported for Copilot runs
+				MaxContinuations:     true,  // Copilot CLI supports --autopilot with --max-autopilot-continues
+				WebSearch:            false, // Copilot CLI does not have built-in web-search support
+				BareMode:             true,  // Copilot CLI supports --no-custom-instructions
+				BashCommandAllowlist: true,  // Copilot enforces tools.bash allowlist via --allow-tool shell(cmd)
 			},
 			dedicatedLLMGatewayPort: constants.CopilotLLMGatewayPort,
 		},

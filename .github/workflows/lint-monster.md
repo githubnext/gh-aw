@@ -28,10 +28,7 @@ tools:
     mode: gh-proxy
     toolsets: [default, issues, discussions]
   bash:
-    - "cat /tmp/gh-aw/agent/golint-custom.log"
-    - "cat /tmp/gh-aw/agent/lint-diagnostics.txt"
-    - "cat /tmp/gh-aw/agent/skill-index.txt"
-    - "cat .github/skills/go-linters/SKILL.md"
+    - "*"
 steps:
   - name: Run custom lint pre-check
     id: lint_scan
