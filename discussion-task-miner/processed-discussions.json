@@ -1,5 +1,5 @@
 {
-  "last_run": "2026-08-02T07:35:00Z",
+  "last_run": "2026-08-02T13:08:00Z",
   "discussions_processed": [
     {
       "id": 49032,
@@ -415,6 +415,56 @@
       "id": 49607,
       "title": "Cache Strategy Analysis - 2026-08-01",
       "processed_at": "2026-08-02T07:35:00Z"
+    },
+    {
+      "id": 49711,
+      "title": "[sergo] Sergo Report R61 - already filed own bundled CI-enforcement issue",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49717,
+      "title": "[auth-test] GitHub Remote MCP Tools Not Available - infra/tooling failure, not code quality",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49719,
+      "title": "Artifacts Usage Report - descriptive stats, no code-quality task",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49722,
+      "title": "eslint-factory review - already filed 2 findings itself, duplicates of open #49281/#49282 avoided",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49734,
+      "title": "[copilot-session-insights] Daily Copilot Agent Session Analysis - stats/trends only",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49738,
+      "title": "[terminal-stylist] Console Output Consistency Report - zero gaps found, no actionable finding",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49764,
+      "title": "[api-consumption] GitHub API Consumption Report - descriptive stats, not code quality",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49772,
+      "title": "[Auto-Triage] Auto-triage report - labeling only, no code-quality tasks",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49775,
+      "title": "[claude-code-user-docs-review] Claude Code User Documentation Review - docs findings, not code quality",
+      "processed_at": "2026-08-02T13:08:00Z"
+    },
+    {
+      "id": 49777,
+      "title": "[mcp-tools-report] GitHub MCP Remote Server Tools Report - descriptive inventory, no code-quality task",
+      "processed_at": "2026-08-02T13:08:00Z"
     }
   ]
 }
