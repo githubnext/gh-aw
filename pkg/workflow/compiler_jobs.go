@@ -242,7 +242,7 @@ func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
 
 	// Apply additive jobs.<built-in>.needs augmentations once all jobs are created,
 	// so referenced custom/imported jobs can be validated against the final job set.
-	if err := c.applyBuiltinJobNeedsAugmentations(data); err != nil {
+	if err := c.applyBuiltinJobAugmentations(data); err != nil {
 		return fmt.Errorf("failed to apply built-in job needs augmentations: %w", err)
 	}
 
