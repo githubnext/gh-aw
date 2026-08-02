@@ -39,6 +39,8 @@ features:
   gh-aw-detection: true
 
 tools:
+  bash:
+    - "*"
   cli-proxy: true
 
 evals:

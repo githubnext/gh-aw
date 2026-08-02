@@ -32,6 +32,21 @@ func TestValidateBashCommandAllowlistSupport(t *testing.T) {
 			shouldError: true,
 			errorMsg:    "does not support bash command allow-listing",
 		},
+		// Codex engine - explicit deny configs should also error
+		{
+			name:        "codex with bash: false should error",
+			engineID:    "codex",
+			tools:       map[string]any{"bash": false},
+			shouldError: true,
+			errorMsg:    "does not support bash command allow-listing",
+		},
+		{
+			name:        "codex with empty bash list should error",
+			engineID:    "codex",
+			tools:       map[string]any{"bash": []any{}},
+			shouldError: true,
+			errorMsg:    "does not support bash command allow-listing",
+		},
 		// Codex engine - wildcard or absent should succeed
 		{
 			name:        "codex with wildcard bash should succeed",
@@ -86,6 +101,19 @@ func TestValidateBashCommandAllowlistSupport(t *testing.T) {
 			name:        "antigravity with restricted bash allowlist should succeed",
 			engineID:    "antigravity",
 			tools:       map[string]any{"bash": []any{"npm"}},
+			shouldError: false,
+		},
+		// Engines that support bash allowlists - deny configs should succeed (engine enforces them)
+		{
+			name:        "claude with bash: false should succeed",
+			engineID:    "claude",
+			tools:       map[string]any{"bash": false},
+			shouldError: false,
+		},
+		{
+			name:        "copilot with empty bash list should succeed",
+			engineID:    "copilot",
+			tools:       map[string]any{"bash": []any{}},
 			shouldError: false,
 		},
 	}
