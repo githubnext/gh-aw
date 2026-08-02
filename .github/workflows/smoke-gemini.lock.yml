@@ -982,7 +982,7 @@ jobs:
           GH_AW_GEMINI_BASE_CONFIG: '{"context":{"includeDirectories":["/tmp/"]},"tools":{"core":["glob","grep_search","list_directory","read_file","read_many_files","replace","run_shell_command","web_fetch","write_file"]}}'
       - name: Execute Gemini CLI
         id: agentic_execution
-        timeout-minutes: 20
+        timeout-minutes: 10
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

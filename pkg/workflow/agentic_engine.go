@@ -716,9 +716,10 @@ func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, er
 //     both integer literals and GitHub Actions expressions.
 //  2. WorkflowData.TimeoutMinutes — the raw extracted YAML string (e.g.
 //     "timeout-minutes: 30"); the "timeout-minutes:" prefix is stripped before
-//     use.  This fallback handles workflows where ParsedFrontmatter is absent.
+//     use.  Only positive integers and GitHub Actions expressions are accepted;
+//     any other value is rejected to prevent malformed YAML output.
 //  3. DefaultAgenticWorkflowTimeout — used when workflowData is nil or neither
-//     of the above sources yields a non-empty value.
+//     of the above sources yields a valid non-empty value.
 func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 	defaultValue := strconv.Itoa(int(constants.DefaultAgenticWorkflowTimeout / time.Minute))
 	if workflowData == nil {
@@ -733,8 +734,14 @@ func resolveStepTimeoutValue(workflowData *WorkflowData) string {
 		if after, ok := strings.CutPrefix(raw, "timeout-minutes:"); ok {
 			raw = strings.TrimSpace(after)
 		}
-		if raw != "" {
+		if n, err := strconv.Atoi(raw); err == nil && n > 0 {
 			return raw
+		}
+		if isExpression(raw) {
+			return raw
+		}
+		if raw != "" {
+			agenticEngineLog.Printf("resolveStepTimeoutValue: ignoring non-integer, non-expression timeout-minutes %q; using default %s", raw, defaultValue)
 		}
 	}
 	return defaultValue
