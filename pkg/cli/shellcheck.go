@@ -15,6 +15,7 @@ package cli
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -29,6 +30,7 @@ import (
 )
 
 var shellcheckLog = logger.New("cli:shellcheck")
+var dockerCommandContext = exec.CommandContext
 
 // ghaExpressionRE matches GitHub Actions ${{ ... }} expression syntax so it can
 // be replaced with a shell-safe placeholder before linting.  The (?s) flag lets
@@ -294,26 +296,102 @@ func stepLabel(info runStepInfo) string {
 	return filepath.Base(info.LockFile)
 }
 
+// runShellcheckOnScriptViaDocker runs shellcheck on a script snippet using the Docker
+// container image (ShellcheckImage). The script is piped to the container via stdin,
+// so no temporary file or volume mount is required.
+//
+// This is the fallback path when the shellcheck binary is not installed locally
+// (e.g. on Windows). It mirrors the behaviour of runShellcheckOnScript: findings are
+// printed to stderr and an error is returned when shellcheck reports issues.
+func runShellcheckOnScriptViaDocker(ctx context.Context, info runStepInfo, ignoreCodes []string, verbose bool) error {
+	shellcheckLog.Printf("Running shellcheck via Docker on step %q (shell=%s)", info.Name, info.Shell)
+
+	sanitizedScript := sanitizeGHAExpressions(info.Script)
+
+	args := []string{
+		"run",
+		"--rm",
+		"-i",
+		ShellcheckImage,
+		"--shell=" + shellcheckShell(info.Shell),
+		"--format=gcc",
+	}
+	for _, code := range ignoreCodes {
+		args = append(args, "--exclude="+code)
+	}
+	args = append(args, "-") // read script from stdin
+
+	if verbose {
+		shellcheckLog.Printf("Invoking: docker %s", strings.Join(args, " "))
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("docker run --rm -i "+ShellcheckImage+" <shellcheck flags> <script>"))
+	}
+
+	// #nosec G204 -- ShellcheckImage is a SHA-pinned constant; all other args are
+	// built from controlled values (shell name, SC codes, and the literal "-").
+	cmd := dockerCommandContext(ctx, "docker", args...)
+	cmd.Stdin = strings.NewReader(sanitizedScript)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+
+	// In gcc format with stdin, shellcheck prefixes findings with "-:LINE:COL: ...".
+	// Replace the leading "-:" (stdin indicator) with "script:" so that reported
+	// positions are clearly relative to the run: script snippet.
+	findings := strings.ReplaceAll(stdout.String(), "-:", "script:")
+	if findings != "" {
+		fmt.Fprintf(os.Stderr, "%s\n", console.FormatWarningMessage("shellcheck findings in "+stepLabel(info)+":"))
+		fmt.Fprint(os.Stderr, findings)
+	}
+
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			if exitErr.ExitCode() == 1 {
+				// Exit code 1 means shellcheck found issues; already printed above.
+				return fmt.Errorf("shellcheck found issues in %s", stepLabel(info))
+			}
+		}
+		stderrText := strings.TrimSpace(strings.ReplaceAll(stderr.String(), "-:", "script:"))
+		if stderrText != "" {
+			return fmt.Errorf("shellcheck (docker) failed: %w: %s", err, stderrText)
+		}
+		return fmt.Errorf("shellcheck (docker) failed: %w", err)
+	}
+
+	return nil
+}
+
 // runShellcheckOnLockFiles extracts run: steps from each lock file and runs
 // shellcheck on the shell snippets. It uses shellcheckDefaultIgnoreCodes to
 // suppress known false positives from GitHub Actions expression syntax.
 //
+// When the shellcheck binary is not installed, it falls back to the Docker
+// container (ShellcheckImage) if Docker is available. This allows shellcheck
+// to run on systems without a native shellcheck installation (e.g. Windows).
+// The fallback is lazy: the Docker image is only invoked when there are scripts
+// to lint and the binary is absent.
+//
 // When strict is false, individual step failures are printed as warnings and
 // the function returns nil. When strict is true, the first step failure causes
 // an error to be returned immediately (fail fast).
-func runShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
+func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
 	if len(lockFiles) == 0 {
 		return nil
 	}
+	useDocker := false
 
-	// Silently skip when shellcheck is not installed. The orchestrator is responsible
-	// for warning the user in --validate mode.
 	if !isShellcheckAvailable() {
-		shellcheckLog.Print("shellcheck binary not found in PATH; skipping run step linting")
-		return nil
+		if !IsDockerAvailable(ctx) {
+			shellcheckLog.Print("shellcheck binary not found and Docker is unavailable; skipping run step linting")
+			return nil
+		}
+		useDocker = true
+		shellcheckLog.Print("shellcheck binary not found in PATH; using Docker container fallback")
 	}
 
-	shellcheckLog.Printf("Running shellcheck on run steps in %d lock file(s) (strict=%t)", len(lockFiles), strict)
+	shellcheckLog.Printf("Running shellcheck on run steps in %d lock file(s) (strict=%t, docker=%t)", len(lockFiles), strict, useDocker)
 
 	if len(lockFiles) == 1 {
 		fmt.Fprintf(os.Stderr, "%s\n", console.FormatInfoMessage("Running shellcheck on run steps in "+filepath.Base(lockFiles[0])))
@@ -335,11 +413,17 @@ outer:
 
 		for _, step := range steps {
 			totalSteps++
-			if err := runShellcheckOnScript(step, shellcheckDefaultIgnoreCodes, verbose); err != nil {
+			var stepErr error
+			if useDocker {
+				stepErr = runShellcheckOnScriptViaDocker(ctx, step, shellcheckDefaultIgnoreCodes, verbose)
+			} else {
+				stepErr = runShellcheckOnScript(step, shellcheckDefaultIgnoreCodes, verbose)
+			}
+			if stepErr != nil {
 				totalIssues++
-				shellcheckLog.Printf("shellcheck issue in %s step %q: %v", lockFile, step.Name, err)
+				shellcheckLog.Printf("shellcheck issue in %s step %q: %v", lockFile, step.Name, stepErr)
 				if strict {
-					firstErr = err
+					firstErr = stepErr
 					break outer // fail fast in strict mode
 				}
 			}

@@ -37,6 +37,9 @@ const (
 	GrypeImage       = "anchore/grype:v0.116.1@sha256:1e71065c0a4cff3e6bd3b8add525ffac4343eb4971694eb90a31cf6d4d3e85db"
 	GrantImage       = "anchore/grant:v0.6.8@sha256:172463611795f43b77302cdfbd7b3f81295492a7330e0820cfe41c3674920237"
 	YamllintImage    = "pipelinecomponents/yamllint:latest@sha256:5ab5eb7da0ed5e606b07c1723fc8b275e925189f70ac259b26b7329cb5f8f44d"
+	// ShellcheckImage is the Docker fallback for shellcheck when the binary is not installed.
+	// Used automatically when the shellcheck binary is not found in PATH (e.g. on Windows).
+	ShellcheckImage = "koalaman/shellcheck:v0.10.0@sha256:2097951f02e735b613f4a34de20c40f937a6c8f18ecb170612c88c34517221fb"
 )
 
 // inflightDownload holds the join channel and result for an in-progress pull.

@@ -79,3 +79,63 @@ func TestInjectDockerUnavailableWarning_InvalidJSONReturnedUnchanged(t *testing.
 		t.Errorf("Expected original output to be returned unchanged for invalid JSON, got: %s", output)
 	}
 }
+
+func TestInjectShellcheckDiagnostics_AppendsWarnings(t *testing.T) {
+	inputJSON := `[{"workflow":"a.md","valid":true,"errors":[],"warnings":[]}]`
+	stderr := "shellcheck findings in a.lock.yml (step: lint):\nscript:1:1: warning: foo [SC1000]\n"
+
+	output := injectShellcheckDiagnostics(inputJSON, stderr)
+
+	var results []ValidationResult
+	if err := json.Unmarshal([]byte(output), &results); err != nil {
+		t.Fatalf("Failed to parse injected output: %v", err)
+	}
+	if len(results) != 1 {
+		t.Fatalf("Expected 1 result, got %d", len(results))
+	}
+	if len(results[0].Warnings) != 1 {
+		t.Fatalf("Expected 1 warning, got %d", len(results[0].Warnings))
+	}
+	if results[0].Warnings[0].Type != "shellcheck" {
+		t.Fatalf("Expected warning type shellcheck, got %s", results[0].Warnings[0].Type)
+	}
+	if results[0].Warnings[0].Message == "" {
+		t.Fatal("Expected non-empty warning message")
+	}
+}
+
+func TestInjectShellcheckDiagnostics_IgnoresUnrelatedStderr(t *testing.T) {
+	inputJSON := `[{"workflow":"a.md","valid":true,"errors":[],"warnings":[]}]`
+	stderr := "diagnostic noise should not be returned"
+
+	output := injectShellcheckDiagnostics(inputJSON, stderr)
+
+	if output != inputJSON {
+		t.Fatalf("Expected unchanged output for unrelated stderr, got: %s", output)
+	}
+}
+
+func TestBuildCompileErrorResults_NormalizesRequestedWorkflowNames(t *testing.T) {
+	results := buildCompileErrorResults([]string{"foo", "bar.md", "nested/baz"}, "compile failed")
+
+	if len(results) != 3 {
+		t.Fatalf("Expected 3 results, got %d", len(results))
+	}
+	if results[0].Workflow != "foo.md" {
+		t.Fatalf("Expected foo.md, got %s", results[0].Workflow)
+	}
+	if results[1].Workflow != "bar.md" {
+		t.Fatalf("Expected bar.md, got %s", results[1].Workflow)
+	}
+	if results[2].Workflow != "baz.md" {
+		t.Fatalf("Expected baz.md, got %s", results[2].Workflow)
+	}
+	for _, r := range results {
+		if r.Valid {
+			t.Fatalf("Expected workflow %s to be invalid", r.Workflow)
+		}
+		if len(r.Errors) != 1 || r.Errors[0].Type != "config_error" || r.Errors[0].Message != "compile failed" {
+			t.Fatalf("Unexpected error payload for workflow %s: %+v", r.Workflow, r.Errors)
+		}
+	}
+}

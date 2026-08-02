@@ -6,6 +6,7 @@ import (
 	"errors"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	"github.com/modelcontextprotocol/go-sdk/jsonrpc"
 	"github.com/modelcontextprotocol/go-sdk/mcp"
@@ -140,6 +141,7 @@ Returns JSON array with validation results for each workflow:
 		// the caller knows linting was skipped, while preserving each workflow's
 		// valid/invalid status.
 		var dockerUnavailableWarning string
+		var shellcheckUnavailableWarning string
 
 		// Check if any static analysis tools are requested that require Docker images
 		if args.Zizmor || args.Poutine || args.Actionlint || args.RunnerGuard || args.Syft || args.Grype || args.Grant || args.Yamllint {
@@ -172,7 +174,7 @@ Returns JSON array with validation results for each workflow:
 					// Images are still downloading — ask the caller to retry.
 					// Build per-workflow validation errors instead of throwing an MCP protocol error,
 					// so callers always receive consistent JSON regardless of the failure mode.
-					results := buildDockerErrorResults(args.Workflows, err.Error())
+					results := buildCompileErrorResults(args.Workflows, err.Error())
 					jsonBytes, jsonErr := json.Marshal(results)
 					if jsonErr != nil {
 						return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal docker error results", jsonErr.Error())
@@ -193,9 +195,15 @@ Returns JSON array with validation results for each workflow:
 
 		// Build command arguments
 		// Always validate workflows during compilation and use JSON output for MCP.
-		// Shellcheck output goes to stderr (captured in subprocess error buffer only) and
-		// therefore never reaches the LLM via the JSON response — always disable it.
-		cmdArgs := []string{"compile", "--validate", "--json", "--no-shellcheck"}
+		cmdArgs := []string{"compile", "--validate", "--json"}
+
+		// Keep compile JSON responses usable in MCP on hosts without shellcheck support.
+		// When neither a native shellcheck binary nor Docker fallback is available,
+		// skip shellcheck for this subprocess and return a structured warning.
+		if !isShellcheckAvailable() && !IsDockerAvailable(ctx) {
+			cmdArgs = append(cmdArgs, "--no-shellcheck")
+			shellcheckUnavailableWarning = "shellcheck binary not found in PATH and Docker is not running; run step linting was skipped"
+		}
 
 		// Add fix flag if requested
 		if args.Fix {
@@ -248,7 +256,7 @@ Returns JSON array with validation results for each workflow:
 		// Use separate stdout/stderr capture instead of CombinedOutput because:
 		// - Stdout contains JSON output (--json flag)
 		// - Stderr contains console messages that shouldn't be mixed with JSON
-		stdout, err := runMCPExecOutput(ctx, execCmd, cmdArgs...)
+		stdout, stderr, err := runMCPExecOutputWithStderr(ctx, execCmd, cmdArgs...)
 
 		// The compile command always outputs JSON to stdout when --json flag is used, even on error.
 		// We should return the JSON output to the LLM so it can see validation errors.
@@ -262,12 +270,26 @@ Returns JSON array with validation results for each workflow:
 			// If we have no output, this is a real execution failure
 			if outputStr == "" {
 				// Try to get stderr for error details
-				var stderr string
+				var stderrText string
 				var exitErr *exec.ExitError
 				if errors.As(err, &exitErr) {
-					stderr = string(exitErr.Stderr)
+					stderrText = string(exitErr.Stderr)
 				}
-				return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to compile workflows", map[string]any{"error": err.Error(), "stderr": stderr})
+				if strings.TrimSpace(stderrText) == "" {
+					stderrText = string(stderr)
+				}
+				errMsg := strings.TrimSpace(stderrText)
+				if errMsg == "" {
+					errMsg = err.Error()
+				}
+				results := buildCompileErrorResults(args.Workflows, errMsg)
+				jsonBytes, jsonErr := json.Marshal(results)
+				if jsonErr != nil {
+					return nil, nil, newMCPError(jsonrpc.CodeInternalError, "failed to marshal compile error results", jsonErr.Error())
+				}
+				return &mcp.CallToolResult{
+					Content: []mcp.Content{&mcp.TextContent{Text: string(jsonBytes)}},
+				}, nil, nil
 			}
 			// Otherwise, we have output (likely validation errors in JSON), so continue
 			// and return it to the LLM
@@ -279,6 +301,10 @@ Returns JSON array with validation results for each workflow:
 		if dockerUnavailableWarning != "" {
 			outputStr = injectDockerUnavailableWarning(outputStr, dockerUnavailableWarning)
 		}
+		if shellcheckUnavailableWarning != "" {
+			outputStr = injectShellcheckUnavailableWarning(outputStr, shellcheckUnavailableWarning)
+		}
+		outputStr = injectShellcheckDiagnostics(outputStr, string(stderr))
 
 		return &mcp.CallToolResult{
 			Content: []mcp.Content{
@@ -436,11 +462,10 @@ Also returns pr_number, head_sha, check_runs, statuses, and total_count.`,
 	})
 }
 
-// buildDockerErrorResults builds a []ValidationResult with a config_error for each target
-// workflow. It is used when Docker images are still being downloaded (transient error) so
-// the compile tool returns consistent structured JSON instead of a protocol-level error.
-// For the persistent case where Docker is not available at all, see injectDockerUnavailableWarning.
-func buildDockerErrorResults(requestedWorkflows []string, errMsg string) []ValidationResult {
+// buildCompileErrorResults builds a []ValidationResult with a config_error for each target
+// workflow. It is used when the compile subprocess cannot return JSON output, so the compile
+// tool can still return consistent structured JSON instead of a protocol-level error.
+func buildCompileErrorResults(requestedWorkflows []string, errMsg string) []ValidationResult {
 	// Determine which workflow names to report
 	var workflowNames []string
 	if len(requestedWorkflows) > 0 {
@@ -491,18 +516,81 @@ func buildDockerErrorResults(requestedWorkflows []string, errMsg string) []Valid
 // the compile-time valid/invalid status of each workflow.
 // If the JSON cannot be parsed the original output is returned unchanged.
 func injectDockerUnavailableWarning(outputStr, warningMsg string) string {
+	return injectValidationWarning(outputStr, CompileValidationError{
+		Type:    "docker_unavailable",
+		Message: warningMsg,
+	})
+}
+
+func injectShellcheckUnavailableWarning(outputStr, warningMsg string) string {
+	return injectValidationWarning(outputStr, CompileValidationError{
+		Type:    "shellcheck_unavailable",
+		Message: warningMsg,
+	})
+}
+
+func injectShellcheckDiagnostics(outputStr, stderrOutput string) string {
+	diagnostics := extractShellcheckDiagnostics(stderrOutput)
+	if len(diagnostics) == 0 {
+		return outputStr
+	}
+
+	warnings := make([]CompileValidationError, 0, len(diagnostics))
+	for _, diagnostic := range diagnostics {
+		warnings = append(warnings, CompileValidationError{
+			Type:    "shellcheck",
+			Message: diagnostic,
+		})
+	}
+	return injectValidationWarnings(outputStr, warnings)
+}
+
+func extractShellcheckDiagnostics(stderrOutput string) []string {
+	if stderrOutput == "" || !strings.Contains(stderrOutput, "shellcheck findings in ") {
+		return nil
+	}
+
+	lines := strings.Split(stderrOutput, "\n")
+	diagnostics := make([]string, 0)
+	current := ""
+
+	flush := func() {
+		if strings.TrimSpace(current) != "" {
+			diagnostics = append(diagnostics, strings.TrimSpace(current))
+		}
+		current = ""
+	}
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		switch {
+		case strings.Contains(trimmed, "shellcheck findings in "):
+			flush()
+			current = trimmed
+		case current != "" && (strings.Contains(trimmed, "script:") || strings.HasPrefix(trimmed, "script ")):
+			current += "\n" + trimmed
+		case current != "" && trimmed == "":
+			flush()
+		}
+	}
+	flush()
+
+	return diagnostics
+}
+
+func injectValidationWarnings(outputStr string, warnings []CompileValidationError) string {
+	if len(warnings) == 0 {
+		return outputStr
+	}
+
 	var results []ValidationResult
 	if err := json.Unmarshal([]byte(outputStr), &results); err != nil {
 		// Can't parse — return original output so we don't lose information.
 		return outputStr
 	}
 
-	warning := CompileValidationError{
-		Type:    "docker_unavailable",
-		Message: warningMsg,
-	}
 	for i := range results {
-		results[i].Warnings = append(results[i].Warnings, warning)
+		results[i].Warnings = append(results[i].Warnings, warnings...)
 	}
 
 	jsonBytes, err := json.Marshal(results)
@@ -510,4 +598,8 @@ func injectDockerUnavailableWarning(outputStr, warningMsg string) string {
 		return outputStr
 	}
 	return string(jsonBytes)
+}
+
+func injectValidationWarning(outputStr string, warning CompileValidationError) string {
+	return injectValidationWarnings(outputStr, []CompileValidationError{warning})
 }

@@ -85,8 +85,14 @@ func RunYamllintOnFiles(lockFiles []string, verbose bool, strict bool) error {
 // from the provided lock files. Shellcheck must be installed as a system binary;
 // unlike other tools it does not use Docker. When shellcheck is not available
 // the function returns nil (callers are responsible for warning the user).
-func RunShellcheckOnLockFiles(lockFiles []string, verbose bool, strict bool) error {
-	return runBatchLockFileTool("shellcheck", lockFiles, verbose, strict, runShellcheckOnLockFiles)
+func RunShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose bool, strict bool) error {
+	if len(lockFiles) == 0 {
+		compileExternalToolsLog.Printf("No lock files to process with shellcheck")
+		return nil
+	}
+
+	compileExternalToolsLog.Printf("Running batch shellcheck on %d lock files", len(lockFiles))
+	return handleBatchToolError("shellcheck", runShellcheckOnLockFiles(ctx, lockFiles, verbose, strict), strict, verbose)
 }
 
 // RunSyftOnLockFiles runs the syft SBOM scanner on container images extracted

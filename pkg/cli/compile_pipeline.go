@@ -301,7 +301,7 @@ func compileSpecificFiles(
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}
-		if err := RunShellcheckOnLockFiles(lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunShellcheckOnLockFiles(ctx, lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
@@ -609,7 +609,7 @@ func compileAllFilesInDirectory(
 		if err := ctx.Err(); err != nil {
 			return workflowDataList, err
 		}
-		if err := RunShellcheckOnLockFiles(lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
+		if err := RunShellcheckOnLockFiles(ctx, lockFilesForShellcheck, config.Verbose && !config.JSONOutput, config.Strict); err != nil {
 			if config.Strict {
 				return workflowDataList, err
 			}
