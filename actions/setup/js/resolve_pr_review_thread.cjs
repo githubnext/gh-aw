@@ -22,13 +22,19 @@ const HANDLER_TYPE = "resolve_pull_request_review_thread";
  * Used to validate the thread before resolving.
  * @param {any} github - GitHub GraphQL instance
  * @param {string} threadId - Review thread node ID (e.g., 'PRRT_kwDOABCD...')
- * @returns {Promise<{prNumber: number, repoNameWithOwner: string|null}|null>} The PR number and repo, or null if not found
+ * @returns {Promise<
+ *   | {status: "missing"}
+ *   | {status: "thread", prNumber: number, repoNameWithOwner: string|null, isResolved: boolean}
+ *   | {status: "invalid_type", nodeType: string}
+ * >} Thread lookup result
  */
 async function getThreadPullRequestInfo(github, threadId) {
   const query = /* GraphQL */ `
     query ($threadId: ID!) {
       node(id: $threadId) {
+        __typename
         ... on PullRequestReviewThread {
+          isResolved
           pullRequest {
             number
             repository {
@@ -42,14 +48,23 @@ async function getThreadPullRequestInfo(github, threadId) {
 
   const result = await github.graphql(query, { threadId });
 
-  const pullRequest = result?.node?.pullRequest;
-  if (!pullRequest) {
-    return null;
+  const threadNode = result?.node;
+  if (!threadNode) {
+    return { status: "missing" };
   }
+  if (threadNode.__typename !== "PullRequestReviewThread") {
+    return {
+      status: "invalid_type",
+      nodeType: threadNode.__typename || "unknown",
+    };
+  }
+  const pullRequest = threadNode.pullRequest;
 
   return {
+    status: "thread",
     prNumber: pullRequest.number,
     repoNameWithOwner: pullRequest.repository?.nameWithOwner ?? null,
+    isResolved: threadNode?.isResolved === true,
   };
 }
 
@@ -174,15 +189,24 @@ async function main(config = {}) {
 
       // Look up the thread's PR number and repository
       const threadInfo = await getThreadPullRequestInfo(githubClient, threadId);
-      if (threadInfo === null) {
-        core.warning(`Review thread not found or not a PullRequestReviewThread: ${threadId}`);
+      if (threadInfo.status === "missing") {
+        core.info(`Review thread ${threadId} not found — already resolved or stale; skipping`);
         return {
-          success: false,
-          error: `Review thread not found: ${threadId}`,
+          success: true,
+          thread_id: threadId,
+          is_resolved: true,
+          skipped: true,
         };
       }
 
-      const { prNumber: threadPRNumber, repoNameWithOwner: threadRepo } = threadInfo;
+      if (threadInfo.status !== "thread") {
+        return {
+          success: false,
+          error: `thread_id must reference a PullRequestReviewThread node ID (PRRT_...); received ${threadInfo.nodeType} for ${threadId}`,
+        };
+      }
+
+      const { prNumber: threadPRNumber, repoNameWithOwner: threadRepo, isResolved } = threadInfo;
 
       // When the user explicitly configured target-repo or allowed-repos, validate the thread's
       // repository using validateTargetRepo (supports wildcards like "*", "org/*").
@@ -281,6 +305,16 @@ async function main(config = {}) {
       const repoParts = { owner: threadOwner, repo: threadRepoName };
       const filterResult = await checkRequiredFilter(githubClient, repoParts, threadPRNumber, requiredLabels, requiredTitlePrefix, "resolve_pull_request_review_thread");
       if (filterResult) return filterResult;
+
+      if (isResolved) {
+        core.info(`Review thread ${threadId} is already resolved; skipping`);
+        return {
+          success: true,
+          thread_id: threadId,
+          is_resolved: true,
+          skipped: true,
+        };
+      }
 
       // If in staged mode, preview without executing
       if (isStaged) {

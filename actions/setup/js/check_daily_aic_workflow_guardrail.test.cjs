@@ -478,7 +478,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
     }
   });
 
-  it("main() marks the step failed when the daily AI Credits guardrail is exceeded", async () => {
+  it("main() does not mark the step failed when the daily AI Credits guardrail is exceeded", async () => {
     const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(200);
 
     const coreOutputs = {};
@@ -558,8 +558,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
       expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("true");
       expect(coreOutputs["daily_ai_credits_total_effective_tokens"]).toBe("200");
       expect(coreOutputs["daily_ai_credits_threshold"]).toBe("100");
-      expect(setFailed).toHaveBeenCalledTimes(1);
-      expect(setFailed.mock.calls[0][0]).toMatch(/guardrail exceeded/i);
+      expect(setFailed).not.toHaveBeenCalled();
     } finally {
       delete global.core;
       delete global.github;
