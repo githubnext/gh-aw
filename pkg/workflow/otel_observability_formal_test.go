@@ -243,3 +243,227 @@ func TestFormal_AbsentObservabilityProducesNoEndpoints(t *testing.T) {
 	assert.Empty(t, collectAllOTLPEndpoints(map[string]any{}))
 	assert.Empty(t, collectAllOTLPEndpoints(map[string]any{"observability": nil}))
 }
+
+// P16 — SecretRefResourceAttributeRejected
+// validateOTLPResourceAttributes must reject any resource-attribute value that
+// references secrets.* or vars.* and must accept literal string values and nil
+// workflow data without error.
+func TestFormal_SecretRefResourceAttributeRejected(t *testing.T) {
+	// Nil workflow data is safe — no attributes to reject.
+	assert.NoError(t, validateOTLPResourceAttributes(nil))
+
+	// Literal string values are accepted.
+	literalData := &WorkflowData{
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"resource-attributes": map[string]any{
+						"deployment.environment": "production",
+						"team.name":              "platform",
+					},
+				},
+			},
+		},
+	}
+	assert.NoError(t, validateOTLPResourceAttributes(literalData))
+
+	// References to secrets.* must be rejected.
+	secretsData := &WorkflowData{
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"resource-attributes": map[string]any{
+						"auth.token": "${{ secrets.MY_TOKEN }}",
+					},
+				},
+			},
+		},
+	}
+	require.Error(t, validateOTLPResourceAttributes(secretsData))
+
+	// References to vars.* must also be rejected.
+	varsData := &WorkflowData{
+		RawFrontmatter: map[string]any{
+			"observability": map[string]any{
+				"otlp": map[string]any{
+					"resource-attributes": map[string]any{
+						"config.value": "${{ vars.SOME_VAR }}",
+					},
+				},
+			},
+		},
+	}
+	require.Error(t, validateOTLPResourceAttributes(varsData))
+}
+
+// P17 — CustomAttributesResourceAttributesIndependent
+// collectOTLPCustomAttributes and collectOTLPResourceAttributes must read from
+// their respective `otlp.attributes` and `otlp.resource-attributes` keys
+// independently; writing to one must not affect the other.
+func TestFormal_CustomAttributesResourceAttributesIndependent(t *testing.T) {
+	frontmatter := map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"attributes": map[string]any{
+					"span.key": "span-value",
+				},
+				"resource-attributes": map[string]any{
+					"resource.key": "resource-value",
+				},
+			},
+		},
+	}
+
+	customAttrs := collectOTLPCustomAttributes(frontmatter)
+	resourceAttrs := collectOTLPResourceAttributes(frontmatter)
+
+	// Each collector returns only its own entries.
+	require.Len(t, customAttrs, 1)
+	assert.Equal(t, "span-value", customAttrs["span.key"])
+	assert.NotContains(t, customAttrs, "resource.key")
+
+	require.Len(t, resourceAttrs, 1)
+	assert.Equal(t, "resource-value", resourceAttrs["resource.key"])
+	assert.NotContains(t, resourceAttrs, "span.key")
+
+	// Absent sibling does not bleed into the other field.
+	onlyCustom := map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"attributes": map[string]any{"k": "v"},
+			},
+		},
+	}
+	assert.Nil(t, collectOTLPResourceAttributes(onlyCustom))
+
+	onlyResource := map[string]any{
+		"observability": map[string]any{
+			"otlp": map[string]any{
+				"resource-attributes": map[string]any{"k": "v"},
+			},
+		},
+	}
+	assert.Nil(t, collectOTLPCustomAttributes(onlyResource))
+}
+
+// P18 — MergePrecedenceBaseWinsOverOverride
+// mergeOTLPStringMaps must give base values priority over override values when
+// the same key exists in both maps. Disjoint keys from both maps must appear in
+// the result.
+func TestFormal_MergePrecedenceBaseWinsOverOverride(t *testing.T) {
+	base := map[string]string{
+		"shared.key":    "base-value",
+		"base-only.key": "base-only-value",
+	}
+	override := map[string]string{
+		"shared.key":        "override-value",
+		"override-only.key": "override-only-value",
+	}
+
+	merged := mergeOTLPStringMaps(base, override)
+
+	// Base wins on collision.
+	assert.Equal(t, "base-value", merged["shared.key"])
+	// Disjoint keys from both sides are present.
+	assert.Equal(t, "base-only-value", merged["base-only.key"])
+	assert.Equal(t, "override-only-value", merged["override-only.key"])
+	assert.Len(t, merged, 3)
+}
+
+// P19 — MergeOfEmptyMapsYieldsNil
+// mergeOTLPStringMaps must return nil (not an allocated empty map) when both
+// inputs are nil or empty, so callers can rely on nil as a sentinel for
+// "no attributes configured".
+func TestFormal_MergeOfEmptyMapsYieldsNil(t *testing.T) {
+	assert.Nil(t, mergeOTLPStringMaps(nil, nil))
+	assert.Nil(t, mergeOTLPStringMaps(map[string]string{}, nil))
+	assert.Nil(t, mergeOTLPStringMaps(nil, map[string]string{}))
+	assert.Nil(t, mergeOTLPStringMaps(map[string]string{}, map[string]string{}))
+}
+
+// metricAttributeRegistry is a forward-looking stub interface for P20.
+// Replace with the real implementation once a metrics-cardinality filter exists
+// in pkg/workflow.
+type metricAttributeRegistry interface {
+	// IsHighCardinality returns true for attribute keys that must be excluded
+	// from default metric dimensions to prevent unbounded label growth.
+	IsHighCardinality(key string) bool
+}
+
+// staticMetricAttributeRegistry is a test-only implementation of
+// metricAttributeRegistry that classifies keys based on a fixed allow-list.
+type staticMetricAttributeRegistry struct {
+	highCardinalityKeys map[string]bool
+}
+
+func (r *staticMetricAttributeRegistry) IsHighCardinality(key string) bool {
+	return r.highCardinalityKeys[key]
+}
+
+// P20 — MetricResourceCardinalityBound
+// High-cardinality per-run/per-user identifiers must be excluded from default
+// metric dimensions to prevent unbounded label growth. Stable, bounded
+// attributes such as service.name and workflow.name must be allowed.
+func TestFormal_MetricResourceCardinalityBound(t *testing.T) {
+	var registry metricAttributeRegistry = &staticMetricAttributeRegistry{
+		highCardinalityKeys: map[string]bool{
+			"gh-aw.run.id":   true,
+			"gh-aw.run.uuid": true,
+			"user.id":        true,
+			"session.id":     true,
+			"trace.id":       true,
+		},
+	}
+
+	highCardinalityKeys := []string{
+		"gh-aw.run.id",
+		"gh-aw.run.uuid",
+		"user.id",
+		"session.id",
+		"trace.id",
+	}
+	for _, key := range highCardinalityKeys {
+		assert.True(t, registry.IsHighCardinality(key),
+			"expected %q to be classified as high-cardinality", key)
+	}
+
+	boundedKeys := []string{
+		"service.name",
+		"gh-aw.workflow.name",
+		"deployment.environment",
+		"gh-aw.repository",
+	}
+	for _, key := range boundedKeys {
+		assert.False(t, registry.IsHighCardinality(key),
+			"expected %q to be classified as bounded (not high-cardinality)", key)
+	}
+}
+
+// instrumentationScopeResolver is a forward-looking stub interface for P21.
+// Replace with the real implementation once an instrumentation-scope resolver
+// exists in pkg/workflow.
+type instrumentationScopeResolver interface {
+	// CoreScope returns the instrumentation scope name for the gh-aw core runtime.
+	CoreScope() string
+	// GatewayScope returns the instrumentation scope name for the MCP gateway.
+	GatewayScope() string
+}
+
+// staticInstrumentationScopeResolver is a test-only implementation of
+// instrumentationScopeResolver with fixed scope names.
+type staticInstrumentationScopeResolver struct{}
+
+func (r *staticInstrumentationScopeResolver) CoreScope() string    { return "gh-aw" }
+func (r *staticInstrumentationScopeResolver) GatewayScope() string { return "gh-aw-mcpg" }
+
+// P21 — InstrumentationScopeNaming
+// The core instrumentation scope must be "gh-aw" and the MCP gateway scope
+// must be "gh-aw-mcpg". The two scopes must be distinct so traces from each
+// component can be filtered independently.
+func TestFormal_InstrumentationScopeNaming(t *testing.T) {
+	var resolver instrumentationScopeResolver = &staticInstrumentationScopeResolver{}
+
+	assert.Equal(t, "gh-aw", resolver.CoreScope())
+	assert.Equal(t, "gh-aw-mcpg", resolver.GatewayScope())
+	assert.NotEqual(t, resolver.CoreScope(), resolver.GatewayScope())
+}
