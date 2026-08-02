@@ -1,2 +1,2 @@
-{"id":"copilot_usage_analyzed","question":"Did the agent analyze GitHub Copilot coding agent usage patterns in pull requests?","answer":"YES","model":"small","timestamp":"2026-08-01T18:36:38.970Z","runid":"30712629165"}
-{"id":"insights_report_produced","question":"Was a report produced with insights on agent effectiveness and behavior patterns?","answer":"YES","model":"small","timestamp":"2026-08-01T18:36:38.970Z","runid":"30712629165"}
+{"id":"copilot_usage_analyzed","question":"Did the agent analyze GitHub Copilot coding agent usage patterns in pull requests?","answer":"YES","model":"evals","timestamp":"2026-08-02T18:37:13.946Z","runid":"30761224771"}
+{"id":"insights_report_produced","question":"Was a report produced with insights on agent effectiveness and behavior patterns?","answer":"YES","model":"evals","timestamp":"2026-08-02T18:37:13.946Z","runid":"30761224771"}
