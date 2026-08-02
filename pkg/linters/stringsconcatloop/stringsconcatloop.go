@@ -45,85 +45,93 @@ func run(pass *analysis.Pass) (any, error) {
 	}
 
 	for cur := range root.Preorder((*ast.AssignStmt)(nil)) {
-		assign, ok := cur.Node().(*ast.AssignStmt)
+		assign, lhsExpr, loopNode, pos, ok := collectConcatLoopAssignment(pass, cur, noLintIndex, generatedFiles)
 		if !ok {
 			continue
 		}
-
-		// Match both `x += y` (ADD_ASSIGN) and `x = x + y` (ASSIGN with a
-		// self-referential binary addition on a plain identifier).
-		var lhsExpr ast.Expr
-
-		switch assign.Tok {
-		case token.ADD_ASSIGN:
-			if len(assign.Lhs) != 1 {
-				continue
-			}
-			lhsExpr = assign.Lhs[0]
-		case token.ASSIGN:
-			if len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
-				continue
-			}
-			lhsIdent, ok := assign.Lhs[0].(*ast.Ident)
-			if !ok {
-				continue
-			}
-			binExpr, ok := assign.Rhs[0].(*ast.BinaryExpr)
-			if !ok || binExpr.Op != token.ADD {
-				continue
-			}
-			// Only match the direct self-referential form: x = x + rhs,
-			// where x is the same identifier on both sides (not chained
-			// forms like x = x + a + b which parse with a BinaryExpr on
-			// the left of the outer add, not an Ident).
-			rhsLeft, ok := binExpr.X.(*ast.Ident)
-			if !ok || rhsLeft.Name != lhsIdent.Name {
-				continue
-			}
-			lhsExpr = lhsIdent
-		default:
+		if !shouldReportLoopConcat(pass, loopNode, lhsExpr) {
 			continue
 		}
-
-		pos := pass.Fset.PositionFor(assign.Pos(), false)
-		if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
-			continue
-		}
-
-		loopPos, loopNode, inLoop := enclosingLoop(pass, cur)
-		if !inLoop {
-			continue
-		}
-		if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringsconcatloop") {
-			continue
-		}
-		if nolint.HasDirectiveForLinter(loopPos, noLintIndex, "stringsconcatloop") {
-			continue
-		}
-
-		if !astutil.IsStringType(pass, lhsExpr) {
-			continue
-		}
-
-		// Skip variables that are per-iteration rather than cross-iteration
-		// accumulators. These checks apply only when the LHS is a plain
-		// identifier (the ADD_ASSIGN form also accepts field/index lvalues,
-		// but those can only be tested via the ASSIGN form which requires Ident).
-		if lhsIdent, ok := lhsExpr.(*ast.Ident); ok {
-			if isLoopScopedIdent(loopNode, lhsIdent.Name) {
-				continue
-			}
-			if isLoopBodyLocal(pass, loopNode, lhsIdent) {
-				continue
-			}
-		}
-
 		pkgLog.Printf("flagging string concatenation in loop at %s", pos)
-		pass.ReportRangef(assign,
-			"string concatenation inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
+		pass.ReportRangef(assign, "string concatenation inside a loop allocates O(n) strings and O(n²) total bytes; use strings.Builder instead")
 	}
 
 	return nil, nil
+}
+
+func collectConcatLoopAssignment(
+	pass *analysis.Pass,
+	cur inspector.Cursor,
+	noLintIndex nolint.DirectiveIndex,
+	generatedFiles filecheck.GeneratedIndex,
+) (*ast.AssignStmt, ast.Expr, ast.Node, token.Position, bool) {
+	assign, ok := cur.Node().(*ast.AssignStmt)
+	if !ok {
+		return nil, nil, nil, token.Position{}, false
+	}
+	lhsExpr, ok := concatAssignmentLHS(assign)
+	if !ok {
+		return nil, nil, nil, token.Position{}, false
+	}
+	pos := pass.Fset.PositionFor(assign.Pos(), false)
+	if filecheck.ShouldSkipFilename(pos.Filename, generatedFiles) {
+		return nil, nil, nil, token.Position{}, false
+	}
+	loopPos, loopNode, inLoop := enclosingLoop(pass, cur)
+	if !inLoop {
+		return nil, nil, nil, token.Position{}, false
+	}
+	if nolint.HasDirectiveForLinter(pos, noLintIndex, "stringsconcatloop") || nolint.HasDirectiveForLinter(loopPos, noLintIndex, "stringsconcatloop") {
+		return nil, nil, nil, token.Position{}, false
+	}
+	return assign, lhsExpr, loopNode, pos, true
+}
+
+func concatAssignmentLHS(assign *ast.AssignStmt) (ast.Expr, bool) {
+	switch assign.Tok {
+	case token.ADD_ASSIGN:
+		if len(assign.Lhs) != 1 {
+			return nil, false
+		}
+		return assign.Lhs[0], true
+	case token.ASSIGN:
+		return selfReferentialConcatLHS(assign)
+	default:
+		return nil, false
+	}
+}
+
+func selfReferentialConcatLHS(assign *ast.AssignStmt) (ast.Expr, bool) {
+	if len(assign.Lhs) != 1 || len(assign.Rhs) != 1 {
+		return nil, false
+	}
+	lhsIdent, ok := assign.Lhs[0].(*ast.Ident)
+	if !ok {
+		return nil, false
+	}
+	binExpr, ok := assign.Rhs[0].(*ast.BinaryExpr)
+	if !ok || binExpr.Op != token.ADD {
+		return nil, false
+	}
+	rhsLeft, ok := binExpr.X.(*ast.Ident)
+	if !ok || rhsLeft.Name != lhsIdent.Name {
+		return nil, false
+	}
+	return lhsIdent, true
+}
+
+func shouldReportLoopConcat(pass *analysis.Pass, loopNode ast.Node, lhsExpr ast.Expr) bool {
+	if !astutil.IsStringType(pass, lhsExpr) {
+		return false
+	}
+	lhsIdent, ok := lhsExpr.(*ast.Ident)
+	if !ok {
+		return true
+	}
+	if isLoopScopedIdent(loopNode, lhsIdent.Name) {
+		return false
+	}
+	return !isLoopBodyLocal(pass, loopNode, lhsIdent)
 }
 
 // enclosingLoop returns the nearest enclosing for/range statement, its source
