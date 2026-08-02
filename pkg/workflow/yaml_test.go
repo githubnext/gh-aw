@@ -400,6 +400,34 @@ func TestMarshalWithFieldOrder_OrdersNestedEnvWithSecretsRecursively(t *testing.
 	assertOrder("    ALPHA_STEP:", "    ZETA_STEP:")
 }
 
+func TestExtractTopLevelYAMLSectionExcludesOnNeeds(t *testing.T) {
+	compiler := NewCompiler()
+
+	frontmatter := map[string]any{
+		"on": map[string]any{
+			"needs":             []any{"custom_job"},
+			"workflow_dispatch": nil,
+		},
+	}
+
+	result := compiler.extractTopLevelYAMLSection(frontmatter, "on")
+
+	if strings.Contains(result, "needs:") {
+		t.Errorf("on.needs must not appear in compiled on: section, but found it in:\n%s", result)
+	}
+	if !strings.Contains(result, "workflow_dispatch") {
+		t.Errorf("workflow_dispatch should be present in the compiled on: section:\n%s", result)
+	}
+	// Verify the original frontmatter["on"] map is not mutated
+	onMap, ok := frontmatter["on"].(map[string]any)
+	if !ok {
+		t.Fatal("frontmatter[\"on\"] should remain a map[string]any")
+	}
+	if _, hasNeeds := onMap["needs"]; !hasNeeds {
+		t.Error("extractTopLevelYAMLSection must not mutate the original frontmatter[\"on\"] map")
+	}
+}
+
 func TestExtractTopLevelYAMLSectionWithOrdering(t *testing.T) {
 	compiler := NewCompiler()
 

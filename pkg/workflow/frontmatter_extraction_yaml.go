@@ -57,6 +57,13 @@ func (c *Compiler) extractTopLevelYAMLSection(frontmatter map[string]any, key st
 
 	// Check if value is a map that we should order alphabetically
 	if valueMap, ok := value.(map[string]any); ok {
+		// For the "on" section, exclude gh-aw-specific keys that are processed
+		// separately and must not appear in the compiled GitHub Actions workflow.
+		// The "needs" key (on.needs) controls job dependency wiring and is invalid
+		// as a top-level on: trigger key in GitHub Actions.
+		if key == "on" {
+			valueMap = excludeMapKeys(valueMap, "needs")
+		}
 		// Use OrderMapFields for alphabetical sorting (empty priority list = all alphabetical)
 		orderedValue := OrderMapFields(valueMap, []string{})
 		// Wrap the ordered value with the key using MapSlice
