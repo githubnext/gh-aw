@@ -27,6 +27,7 @@ tools:
   repo-memory:
     branch-name: memory/meta-orchestrators
     file-glob: "metrics/**"
+    max-patch-size: 131072 # 128KB - handles large daily metrics snapshots without patch-size gate failures
 timeout-minutes: 15
 safe-outputs:
   noop:
