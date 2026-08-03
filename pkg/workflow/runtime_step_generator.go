@@ -135,8 +135,16 @@ func generateSetupStep(req *RuntimeRequirement, data *WorkflowData) GitHubAction
 
 	step := GitHubActionStep{
 		"      - name: Setup " + runtime.Name,
-		"        uses: " + actionRef,
 	}
+
+	// Add zizmor suppression for actions from creators not GitHub-verified on the Marketplace.
+	// SHA-pinning mitigates mutable-ref risk, but publisher-identity risk remains; suppress
+	// the informational finding since no verified-creator alternative exists.
+	if runtime.UnverifiedCreator {
+		step = append(step, "        # zizmor: ignore[github_action_from_unverified_creator_used]")
+	}
+
+	step = append(step, "        uses: "+actionRef)
 
 	// Add if condition if specified
 	if req.IfCondition != "" {

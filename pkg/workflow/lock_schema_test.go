@@ -625,10 +625,11 @@ func TestLockMetadataToJSONWithoutStopTime(t *testing.T) {
 func TestGenerateLockMetadataWithAgentInfo(t *testing.T) {
 	hash := "abcd1234"
 	agentInfo := AgentMetadataInfo{
-		AgentID:             "copilot",
-		AgentModel:          "gpt-5",
-		DetectionAgentID:    "copilot",
-		DetectionAgentModel: "gpt-5.1-codex-mini",
+		AgentID:                 "copilot",
+		AgentModel:              "gpt-5",
+		DetectionAgentID:        "copilot",
+		DetectionAgentModel:     "gpt-5.1-codex-mini",
+		EngineBaseURLCustomized: true,
 		EngineVersions: map[string]string{
 			"copilot": "1.0.57",
 			"claude":  "2.1.160",
@@ -643,6 +644,7 @@ func TestGenerateLockMetadataWithAgentInfo(t *testing.T) {
 	assert.Equal(t, "gpt-5", metadata.AgentModel, "Should preserve agent model")
 	assert.Equal(t, "copilot", metadata.DetectionAgentID, "Should preserve detection agent ID")
 	assert.Equal(t, "gpt-5.1-codex-mini", metadata.DetectionAgentModel, "Should preserve detection agent model")
+	assert.True(t, metadata.EngineBaseURLCustomized, "Should preserve Copilot custom base URL signal")
 	assert.Equal(t, "1.0.57", metadata.EngineVersions["copilot"], "Should preserve engine versions")
 	assert.Equal(t, "ubuntu-latest", metadata.AgentImageRunner, "Should preserve agent image runner")
 }
@@ -657,17 +659,19 @@ func TestGenerateLockMetadataAgentFieldsOmittedWhenEmpty(t *testing.T) {
 	assert.NotContains(t, json, `"agent_model"`, "Empty agent_model should be omitted")
 	assert.NotContains(t, json, `"detection_agent_id"`, "Empty detection_agent_id should be omitted")
 	assert.NotContains(t, json, `"detection_agent_model"`, "Empty detection_agent_model should be omitted")
+	assert.NotContains(t, json, `"engine_base_url_customized"`, "Empty engine_base_url_customized should be omitted")
 }
 
 func TestLockMetadataToJSONWithAgentFields(t *testing.T) {
 	metadata := &LockMetadata{
-		SchemaVersion:       LockSchemaV3,
-		FrontmatterHash:     "test123",
-		Strict:              true,
-		AgentID:             "claude",
-		AgentModel:          "claude-sonnet-4.5",
-		DetectionAgentID:    "copilot",
-		DetectionAgentModel: "gpt-5.1-codex-mini",
+		SchemaVersion:           LockSchemaV3,
+		FrontmatterHash:         "test123",
+		Strict:                  true,
+		EngineBaseURLCustomized: true,
+		AgentID:                 "claude",
+		AgentModel:              "claude-sonnet-4.5",
+		DetectionAgentID:        "copilot",
+		DetectionAgentModel:     "gpt-5.1-codex-mini",
 		EngineVersions: map[string]string{
 			"claude":      "2.1.160",
 			"copilot":     "1.0.57",
@@ -681,6 +685,7 @@ func TestLockMetadataToJSONWithAgentFields(t *testing.T) {
 	assert.Contains(t, json, `"schema_version":"v3"`)
 	assert.Contains(t, json, `"frontmatter_hash":"test123"`)
 	assert.Contains(t, json, `"strict":true`)
+	assert.Contains(t, json, `"engine_base_url_customized":true`)
 	assert.Contains(t, json, `"agent_id":"claude"`)
 	assert.Contains(t, json, `"agent_model":"claude-sonnet-4.5"`)
 	assert.Contains(t, json, `"detection_agent_id":"copilot"`)
