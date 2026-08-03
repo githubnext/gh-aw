@@ -286,12 +286,16 @@ func TestMockImageAvailability(t *testing.T) {
 	ResetDockerPullState()
 }
 
-func TestNormalizeDockerContext_NilContextReturnsTODO(t *testing.T) {
+func TestNormalizeDockerContext_NilContextReturnsBackground(t *testing.T) {
 	//nolint:staticcheck // Intentionally validating nil context normalization behavior.
 	ctx := normalizeDockerContext(nil)
 
 	if ctx == nil {
 		t.Fatal("Expected nil context to be replaced")
+	}
+
+	if ctx != context.Background() {
+		t.Fatal("Expected nil context to be replaced with context.Background()")
 	}
 
 	if err := ctx.Err(); err != nil {
