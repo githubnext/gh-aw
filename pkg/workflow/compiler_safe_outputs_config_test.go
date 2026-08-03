@@ -3690,3 +3690,80 @@ func TestReportFailureAsIssueWithCategoriesFilter(t *testing.T) {
 		})
 	}
 }
+
+// TestReportFailedJobsConfig tests parsing of the report-failed-jobs global flag
+func TestReportFailedJobsConfig(t *testing.T) {
+	tests := []struct {
+		name       string
+		value      any
+		expectNil  bool
+		expectBool bool
+	}{
+		{
+			name:       "explicit false",
+			value:      false,
+			expectBool: false,
+		},
+		{
+			name:       "explicit true",
+			value:      true,
+			expectBool: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			frontmatter := map[string]any{
+				"safe-outputs": map[string]any{
+					"report-failed-jobs": tt.value,
+					"create-issue":       nil, // Enable safe outputs
+				},
+			}
+
+			config := compiler.extractSafeOutputsConfig(frontmatter)
+			require.NotNil(t, config, "SafeOutputsConfig should be created")
+			require.NotNil(t, config.ReportFailedJobs, "ReportFailedJobs should be set")
+			assert.Equal(t, tt.expectBool, *config.ReportFailedJobs, "ReportFailedJobs value should match")
+		})
+	}
+}
+
+// TestDataModeConfig tests parsing of the data structured-output global field
+func TestDataModeConfig(t *testing.T) {
+	tests := []struct {
+		name  string
+		value any
+	}{
+		{
+			name:  "boolean true enables any object",
+			value: true,
+		},
+		{
+			name:  "boolean false disables data mode",
+			value: false,
+		},
+		{
+			name:  "templatable expression",
+			value: "${{ inputs.enable-data }}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			compiler := NewCompiler()
+
+			frontmatter := map[string]any{
+				"safe-outputs": map[string]any{
+					"data":         tt.value,
+					"create-issue": nil, // Enable safe outputs
+				},
+			}
+
+			config := compiler.extractSafeOutputsConfig(frontmatter)
+			require.NotNil(t, config, "SafeOutputsConfig should be created")
+			assert.Equal(t, tt.value, config.Data, "Data value should match")
+		})
+	}
+}

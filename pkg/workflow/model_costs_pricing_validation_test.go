@@ -5,6 +5,7 @@ package workflow
 import (
 	"testing"
 
+	"github.com/github/gh-aw/pkg/constants"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -20,6 +21,57 @@ func TestValidateDefaultAiCreditsPricing(t *testing.T) {
 			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
 				Input:  3.0,
 				Output: 15.0,
+			},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("pinned AWF version with config resolution bug is rejected", func(t *testing.T) {
+		err := validateDefaultAiCreditsPricing(&WorkflowData{
+			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+				Input:  3.0,
+				Output: 15.0,
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: "v0.27.42",
+				},
+			},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), string(constants.AWFDefaultAiCreditsPricingMinVersion))
+		assert.Contains(t, err.Error(), "drops apiProxy.defaultAiCreditsPricing")
+	})
+
+	t.Run("sandbox agent AWF version override with config resolution bug is rejected", func(t *testing.T) {
+		err := validateDefaultAiCreditsPricing(&WorkflowData{
+			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+				Input:  3.0,
+				Output: 15.0,
+			},
+			SandboxConfig: &SandboxConfig{
+				Agent: &AgentSandboxConfig{
+					Version: "v0.27.42",
+				},
+			},
+		})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), string(constants.AWFDefaultAiCreditsPricingMinVersion))
+		assert.Contains(t, err.Error(), "0.27.42")
+	})
+
+	t.Run("minimum AWF version is valid", func(t *testing.T) {
+		err := validateDefaultAiCreditsPricing(&WorkflowData{
+			DefaultAiCreditsPricing: &AiCreditsPricingConfig{
+				Input:  3.0,
+				Output: 15.0,
+			},
+			NetworkPermissions: &NetworkPermissions{
+				Firewall: &FirewallConfig{
+					Enabled: true,
+					Version: string(constants.AWFDefaultAiCreditsPricingMinVersion),
+				},
 			},
 		})
 		require.NoError(t, err)
