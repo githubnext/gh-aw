@@ -57,7 +57,6 @@ safe-outputs:
   noop:
 timeout-minutes: 60
 imports:
-  - shared/mcp-pagination.md
   - uses: shared/meta-analysis-base.md
     with:
       toolsets: [default, actions]
