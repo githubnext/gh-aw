@@ -225,6 +225,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 
 	// List prompts with full cursor-based pagination (best-effort)
 	listPromptsCtx, listPromptsCancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer listPromptsCancel()
 	promptsCursor := ""
 	for {
 		promptsParams := &mcp.ListPromptsParams{Cursor: promptsCursor}
@@ -241,7 +242,6 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 		}
 		promptsCursor = promptsResult.NextCursor
 	}
-	listPromptsCancel()
 
 	// Note: Roots are not directly available via MCP protocol in the current spec,
 	// so we'll keep an empty list or try to infer from resources
@@ -337,6 +337,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 
 	// List prompts with full cursor-based pagination (best-effort)
 	listPromptsCtx, listPromptsCancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer listPromptsCancel()
 	promptsCursor := ""
 	for {
 		promptsParams := &mcp.ListPromptsParams{Cursor: promptsCursor}
@@ -353,7 +354,6 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 		}
 		promptsCursor = promptsResult.NextCursor
 	}
-	listPromptsCancel()
 
 	// Extract root URIs from resources (simple heuristic)
 	info.Roots = extractRootsFromResources(info.Resources)
