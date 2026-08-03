@@ -498,14 +498,18 @@ async function main() {
     }
   }
 
-  const changedPathspecs = Array.from(new Set(filesToCopy.map(file => file.relativePath))).sort();
+  // Build literal pathspecs from the relative paths of files to copy.
+  // The :(literal) magic prefix tells Git to treat each entry as a plain string,
+  // preventing glob expansion or pathspec-magic interpretation (e.g. :(top),
+  // wildcards) even when a filename happens to contain those characters.
+  const literalPathspecs = Array.from(new Set(filesToCopy.map(file => `:(literal)${file.relativePath}`))).sort();
 
   // Check if we have any changes to commit, scoped to managed memory files only.
   let changedFileCount = 0;
   try {
     const statusArgs = ["status", "--porcelain"];
-    if (changedPathspecs.length > 0) {
-      statusArgs.push("--", ...changedPathspecs);
+    if (literalPathspecs.length > 0) {
+      statusArgs.push("--", ...literalPathspecs);
     }
     const status = execGitSync(statusArgs, { cwd: workspaceDir });
     const changedEntries = status
@@ -541,8 +545,8 @@ async function main() {
   // files on the first run for a new memory branch.
   try {
     const addArgs = ["add", "--sparse"];
-    if (changedPathspecs.length > 0) {
-      addArgs.push("--", ...changedPathspecs);
+    if (literalPathspecs.length > 0) {
+      addArgs.push("--", ...literalPathspecs);
     } else {
       addArgs.push(".");
     }
