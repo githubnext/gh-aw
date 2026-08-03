@@ -453,6 +453,13 @@ func runShellcheckOnLockFiles(ctx context.Context, lockFiles []string, verbose b
 		wg.Add(1)
 		go func(idx int, s runStepInfo) {
 			defer wg.Done()
+			defer func() {
+				if r := recover(); r != nil {
+					results[idx] = result{
+						err: fmt.Errorf("shellcheck worker panic in step %q: %v", s.Name, r),
+					}
+				}
+			}()
 			// Acquire semaphore slot; abort if context is cancelled while waiting.
 			select {
 			case sem <- struct{}{}:
