@@ -22,6 +22,9 @@ func TestApplyContainerPins(t *testing.T) {
 	nodeLtsAlpinePin, ok := getEmbeddedContainerPin("node:lts-alpine")
 	require.True(t, ok, "embedded pin must exist for node:lts-alpine")
 
+	ghAwNodePin, ok := getEmbeddedContainerPin(constants.DefaultGhAwNodeImage)
+	require.True(t, ok, "embedded pin must exist for %s", constants.DefaultGhAwNodeImage)
+
 	tests := []struct {
 		name            string
 		images          []string
@@ -54,8 +57,8 @@ func TestApplyContainerPins(t *testing.T) {
 			name:            "embedded gh-aw-node pin used when cache is absent",
 			images:          []string{constants.DefaultGhAwNodeImage},
 			pins:            nil,
-			expectedRefs:    []string{"ghcr.io/github/gh-aw-node@sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748"},
-			expectedDigests: []string{"sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748"},
+			expectedRefs:    []string{ghAwNodePin.PinnedImage},
+			expectedDigests: []string{ghAwNodePin.Digest},
 		},
 		{
 			name:   "pinned image replaced with digest reference",
@@ -178,13 +181,15 @@ func TestCollectDockerImages_SafeOutputsAddsGhAwNodeImage(t *testing.T) {
 	images := collectDockerImages(map[string]any{}, workflowData, ActionModeRelease)
 
 	pinnedGhAwNodeImage := resolveContainerImage(constants.DefaultGhAwNodeImage, nil)
+	ghAwNodePin, ok := getEmbeddedContainerPin(constants.DefaultGhAwNodeImage)
+	require.True(t, ok, "embedded pin must exist for %s", constants.DefaultGhAwNodeImage)
 	assert.Contains(t, images, pinnedGhAwNodeImage,
 		"safe-outputs should add the gh-aw-node container image to the Docker pull list")
 	require.NotEmpty(t, workflowData.DockerImagePins, "DockerImagePins should be populated")
 	assert.Contains(t, workflowData.DockerImagePins, GHAWManifestContainer{
 		Image:       constants.DefaultGhAwNodeImage,
-		Digest:      "sha256:a8082161d7dceda14b68f32eb39d0eaa96b825d07f5895b096afab9d9e0c7748",
-		PinnedImage: pinnedGhAwNodeImage,
+		Digest:      ghAwNodePin.Digest,
+		PinnedImage: ghAwNodePin.PinnedImage,
 	}, "safe-outputs should add gh-aw-node to manifest container pins")
 
 	for _, img := range images {
