@@ -76,6 +76,13 @@
       "notation": "TLA+ / Z3-style guard conjunction / F*",
       "predicate_count": 21,
       "issue_number": null
+    },
+    "specs/replace-label-compliance/README.md": {
+      "slug": "replace-label-compliance-README",
+      "last_formalized": "2026-08-03-16-14-02",
+      "notation": "TLA+ / Z3-style guard conjunction",
+      "predicate_count": 9,
+      "issue_number": null
     }
   }
 }
