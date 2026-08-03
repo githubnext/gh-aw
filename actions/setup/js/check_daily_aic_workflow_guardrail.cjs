@@ -638,6 +638,7 @@ async function main() {
     const candidateRuns = [];
     let page = 1;
     let truncatedByRateLimit = false;
+    /** @type {WorkflowRunLookupMode} */
     let workflowRunLookupMode = "workflow_id";
     // listWorkflowRuns returns runs in descending creation order (newest first).
     // The first run whose created_at falls before the cutoff means all remaining
