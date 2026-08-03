@@ -1,11 +1,44 @@
-# License allowlist from CONTRIBUTING.md.
+# License allowlist used by `gh aw compile --grant` to validate container images.
+# The allow list covers licenses found in the Alpine Linux base image and common
+# npm/Node.js packages included in the gh-aw-firewall images, in addition to
+# the standard CONTRIBUTING.md approved licenses for Go/JS code dependencies.
 require-license: true
-require-known-license: true
+# Allow non-SPDX license identifiers (e.g. "curl", "Apache 2.0") found in
+# some Alpine and npm packages that predate SPDX normalization.
+require-known-license: false
 
 allow:
   - MIT
   - Apache-2.0
+  - "Apache 2.0"    # Non-SPDX variant found in some npm packages
   - BSD-2-Clause
   - BSD-3-Clause
   - ISC
+  - BlueOak-1.0.0   # Permissive license widely used in the npm ecosystem
+  - CC0-1.0         # Public domain dedication
+  - CC-BY-3.0       # Creative Commons Attribution (used for SPDX metadata packages)
+  - Zlib            # zlib/libpng license (permissive)
+  - curl            # curl license (permissive, non-SPDX)
+  - MPL-2.0         # Mozilla Public License 2.0 (weak copyleft, ca-certificates)
+  - Artistic-2.0    # Artistic License 2.0 (used by npm)
+
+# Packages excluded from license scanning.
+# These are either Alpine Linux OS utilities whose GPL licenses are standard
+# system infrastructure (not application code linked into the binary) or
+# internal packages whose license metadata is not detectable by Syft.
+ignore-packages:
+  - awf-api-proxy*    # Internal application; proprietary
+  - node*             # Node.js runtime; MIT but license not detectable from binary
+  - libgcc*           # GCC runtime (LGPL/GPL system library)
+  - libstdc++*        # C++ standard library (LGPL/GPL system library)
+  - musl-utils*       # Alpine musl utilities (GPL-2.0)
+  - zstd-libs*        # Zstandard compression library (GPL-2.0)
+  - busybox*          # Alpine BusyBox system utility (GPL-2.0)
+  - ssl_client*       # Alpine SSL client (GPL-2.0, part of BusyBox)
+  - apk-tools*        # Alpine package manager (GPL-2.0)
+  - libapk*           # Alpine package manager library (GPL-2.0)
+  - alpine-baselayout*  # Alpine OS base layout (GPL-2.0)
+  - scanelf*          # Alpine ELF scanner (GPL-2.0)
+  - libunistring*     # GNU Unicode library (LGPL/GPL)
+  - libidn2*          # GNU IDN2 library (LGPL/GPL)
 
