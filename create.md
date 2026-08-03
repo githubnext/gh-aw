@@ -40,10 +40,9 @@ You should see version information displayed. If you encounter an error, check t
 
 Fetch (download) the full content of the appropriate prompt file based on the user's request, then follow its instructions carefully. Read ALL the instructions in the prompt file before taking any action.
 
-Below, ROOT is the location where you found this file. For example,
+Below, ROOT is the location where you found this file. Always use the main branch, regardless of the URL you fetched this file from:
 
-- if this file is at `https://raw.githubusercontent.com/github/gh-aw/main/create.md` then the ROOT is `https://raw.githubusercontent.com/github/gh-aw/main`
-- if this file is at `https://raw.githubusercontent.com/github/gh-aw/v0.35.1/create.md` then the ROOT is `https://raw.githubusercontent.com/github/gh-aw/v0.35.1`
+- ROOT is `https://raw.githubusercontent.com/github/gh-aw/main`
 
 Prompt files under `ROOT/.github/aw/` may reference other files in that same directory using relative links (e.g. `[designer.md](designer.md)`). Resolve those links against `ROOT/.github/aw/` as well, and fetch and read them before proceeding if they are relevant to the task.
 
