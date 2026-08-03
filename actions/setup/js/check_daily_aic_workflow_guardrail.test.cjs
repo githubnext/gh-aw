@@ -5,6 +5,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 let exports;
 
+function httpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  error.response = { status };
+  return error;
+}
+
 describe("check_daily_aic_workflow_guardrail", () => {
   beforeEach(async () => {
     vi.resetModules();
@@ -278,6 +285,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
       await expect(exports.main()).resolves.toBeUndefined();
       // The default "false" output must be set
       expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("transient_error");
       // A warning must be emitted describing the error
       expect(coreWarnings.some(w => /unexpected error.*skipped/i.test(w))).toBe(true);
     } finally {
@@ -370,6 +378,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
         rateLimitAfterInspection: 5000,
         consumed: 0,
       });
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("under_budget");
 
       // fetchAndLogRateLimit must have been called at least twice (start + end).
       expect(rateLimitCallCount).toBe(2);
@@ -467,6 +476,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
 
       // Guardrail not exceeded (50 < 1000).
       expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("under_budget");
     } finally {
       delete global.core;
       delete global.github;
@@ -556,6 +566,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
     try {
       await expect(exports.main()).resolves.toBeUndefined();
       expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("true");
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("exceeded");
       expect(coreOutputs["daily_ai_credits_total_effective_tokens"]).toBe("200");
       expect(coreOutputs["daily_ai_credits_threshold"]).toBe("100");
       expect(setFailed).not.toHaveBeenCalled();
@@ -662,6 +673,7 @@ describe("check_daily_aic_workflow_guardrail", () => {
 
       // Guardrail not exceeded (5 × 10 = 50 < 1000000).
       expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("under_budget");
     } finally {
       delete global.core;
       delete global.github;
@@ -670,6 +682,352 @@ describe("check_daily_aic_workflow_guardrail", () => {
       delete process.env.GH_AW_GITHUB_TOKEN;
       delete process.env.GITHUB_EVENT_NAME;
       getRunAICSpy.mockRestore();
+    }
+  });
+
+  it("falls back to repository run history when workflow-specific run lookup 404s under required workflows", async () => {
+    const getRunAICSpy = vi.spyOn(exports, "getRunAIC").mockResolvedValue(25);
+    const workflowName = "PR Quality Review";
+    const nowIso = new Date().toISOString();
+    let listWorkflowRunsCalls = 0;
+    let listWorkflowRunsForRepoCalls = 0;
+
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: {
+              workflow_id: 324645976,
+              actor: { login: "octocat" },
+              triggering_actor: { login: "octocat" },
+            },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => {
+            listWorkflowRunsCalls += 1;
+            throw httpError(404, "Not Found");
+          },
+          listWorkflowRunsForRepo: async ({ page }) => {
+            listWorkflowRunsForRepoCalls += 1;
+            if (page === 1) {
+              return {
+                data: {
+                  workflow_runs: Array.from({ length: 100 }, (_, index) => ({
+                    id: 1000 + index,
+                    name: "Unrelated Workflow",
+                    html_url: `https://example.test/runs/${1000 + index}`,
+                    created_at: nowIso,
+                    conclusion: "success",
+                  })),
+                },
+                headers: {},
+              };
+            }
+            return {
+              data: {
+                workflow_runs: [
+                  {
+                    id: 41,
+                    name: workflowName,
+                    html_url: "https://example.test/runs/41",
+                    created_at: nowIso,
+                    conclusion: "success",
+                  },
+                ],
+              },
+              headers: {},
+            };
+          },
+        },
+      },
+    };
+
+    const coreInfos = [];
+    const coreOutputs = {};
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: msg => coreInfos.push(msg),
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "100";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GH_AW_WORKFLOW_NAME = workflowName;
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+
+      expect(listWorkflowRunsCalls).toBe(1);
+      expect(listWorkflowRunsForRepoCalls).toBe(2);
+      expect(getRunAICSpy).toHaveBeenCalledTimes(1);
+      expect(getRunAICSpy.mock.calls[0][1]).toBe(41);
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("under_budget");
+      expect(coreInfos.some(msg => msg.includes("falling back to repository run listing by workflow name"))).toBe(true);
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GITHUB_EVENT_NAME;
+      getRunAICSpy.mockRestore();
+    }
+  });
+
+  it("marks permanent 404 guardrail failures as structural errors distinct from transient failures", async () => {
+    const coreOutputs = {};
+    const coreWarnings = [];
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: () => {},
+      warning: msg => coreWarnings.push(msg),
+    };
+
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: {
+              workflow_id: 324645976,
+              actor: { login: "octocat" },
+              triggering_actor: { login: "octocat" },
+            },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => {
+            throw httpError(404, "Not Found");
+          },
+          listWorkflowRunsForRepo: async () => {
+            throw httpError(404, "Not Found");
+          },
+        },
+      },
+    };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "10";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GH_AW_WORKFLOW_NAME = "PR Quality Review";
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("structural_error");
+      expect(coreWarnings.some(w => /unexpected error.*skipped/i.test(w))).toBe(true);
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GITHUB_EVENT_NAME;
+    }
+  });
+
+  it("fallback stops immediately when a page returns zero unfiltered repository runs (sourceRunCount === 0 fast-exit)", async () => {
+    const workflowName = "My Workflow";
+    let listWorkflowRunsForRepoCalls = 0;
+    const nowIso = new Date().toISOString();
+
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: {
+              workflow_id: 324645976,
+              actor: { login: "octocat" },
+              triggering_actor: { login: "octocat" },
+            },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => {
+            throw httpError(404, "Not Found");
+          },
+          listWorkflowRunsForRepo: async ({ page }) => {
+            listWorkflowRunsForRepoCalls += 1;
+            if (page === 1) {
+              // 100 unrelated runs — causes the loop to continue to page 2
+              return {
+                data: {
+                  workflow_runs: Array.from({ length: 100 }, (_, i) => ({
+                    id: 100 + i,
+                    name: "Other Workflow",
+                    html_url: `https://example.test/runs/${100 + i}`,
+                    created_at: nowIso,
+                    conclusion: "success",
+                  })),
+                },
+                headers: {},
+              };
+            }
+            // page 2: empty — signals exhaustion of repository run history
+            return { data: { workflow_runs: [] }, headers: {} };
+          },
+        },
+      },
+    };
+
+    const coreOutputs = {};
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: () => {},
+      warning: () => {},
+      summary: {
+        addDetails: function () {
+          return this;
+        },
+        write: async () => {},
+      },
+    };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "100";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    process.env.GH_AW_WORKFLOW_NAME = workflowName;
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+      // page 1 has 100 unrelated runs → loop must continue; page 2 is empty →
+      // sourceRunCount === 0 fast-exit fires, page 3 must never be queried.
+      expect(listWorkflowRunsForRepoCalls).toBe(2);
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("under_budget");
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GH_AW_WORKFLOW_NAME;
+      delete process.env.GITHUB_EVENT_NAME;
+    }
+  });
+
+  it("treats 404 as structural error without calling listWorkflowRunsForRepo when GH_AW_WORKFLOW_NAME is absent", async () => {
+    let listWorkflowRunsForRepoCalls = 0;
+
+    const mockGithub = {
+      rest: {
+        rateLimit: {
+          get: async () => ({
+            data: {
+              resources: {
+                core: { limit: 5000, remaining: 4990, used: 10, reset: Math.floor(Date.now() / 1000) + 3600 },
+              },
+            },
+            headers: {},
+          }),
+        },
+        actions: {
+          getWorkflowRun: async () => ({
+            data: {
+              workflow_id: 324645976,
+              actor: { login: "octocat" },
+              triggering_actor: { login: "octocat" },
+            },
+            headers: {},
+          }),
+          listWorkflowRuns: async () => {
+            throw httpError(404, "Not Found");
+          },
+          listWorkflowRunsForRepo: async () => {
+            listWorkflowRunsForRepoCalls += 1;
+            return { data: { workflow_runs: [] }, headers: {} };
+          },
+        },
+      },
+    };
+
+    const coreOutputs = {};
+    const coreWarnings = [];
+    const mockCore = {
+      setOutput: (key, value) => {
+        coreOutputs[key] = value;
+      },
+      info: () => {},
+      warning: msg => coreWarnings.push(msg),
+    };
+
+    global.core = mockCore;
+    global.github = mockGithub;
+    global.context = { repo: { owner: "test-owner", repo: "test-repo" }, runId: 42 };
+
+    process.env.GH_AW_MAX_DAILY_AI_CREDITS = "10";
+    process.env.GH_AW_GITHUB_TOKEN = "fake-token";
+    // GH_AW_WORKFLOW_NAME intentionally not set — workflowFilterName will be "" so
+    // the !workflowName branch re-throws the 404 without attempting the fallback.
+    process.env.GITHUB_EVENT_NAME = "pull_request";
+
+    try {
+      await expect(exports.main()).resolves.toBeUndefined();
+      expect(coreOutputs["daily_ai_credits_exceeded"]).toBe("false");
+      expect(coreOutputs["daily_ai_credits_guardrail_status"]).toBe("structural_error");
+      expect(listWorkflowRunsForRepoCalls).toBe(0);
+    } finally {
+      delete global.core;
+      delete global.github;
+      delete global.context;
+      delete process.env.GH_AW_MAX_DAILY_AI_CREDITS;
+      delete process.env.GH_AW_GITHUB_TOKEN;
+      delete process.env.GITHUB_EVENT_NAME;
     }
   });
 

@@ -137,6 +137,9 @@ Guardrail test workflow`
 	if !strings.Contains(lockStr, "daily_ai_credits_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_exceeded == 'true' }}") {
 		t.Fatal("expected activation job to expose daily_ai_credits_exceeded output")
 	}
+	if !strings.Contains(lockStr, "daily_ai_credits_guardrail_status: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_guardrail_status || '' }}") {
+		t.Fatal("expected activation job to expose daily_ai_credits_guardrail_status output for structural vs transient failure distinction")
+	}
 	if !strings.Contains(lockStr, "daily_ai_credits_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_total_effective_tokens || '' }}") {
 		t.Fatal("expected activation job to expose the aggregated AI Credits total output")
 	}
