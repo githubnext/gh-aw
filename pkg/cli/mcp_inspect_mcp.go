@@ -223,18 +223,25 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 		info.Resources = append(info.Resources, resourcesResult.Resources...)
 	}
 
-	// List prompts
-	listPromptsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-	promptsResult, err := session.ListPrompts(listPromptsCtx, &mcp.ListPromptsParams{})
-	cancel()
-	if err != nil {
-		if verbose {
-			console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+	// List prompts with full cursor-based pagination (best-effort)
+	listPromptsCtx, listPromptsCancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	promptsCursor := ""
+	for {
+		promptsParams := &mcp.ListPromptsParams{Cursor: promptsCursor}
+		promptsResult, err := session.ListPrompts(listPromptsCtx, promptsParams)
+		if err != nil {
+			if verbose {
+				console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+			}
+			break
 		}
-	} else {
 		info.Prompts = append(info.Prompts, promptsResult.Prompts...)
+		if promptsResult.NextCursor == "" {
+			break
+		}
+		promptsCursor = promptsResult.NextCursor
 	}
+	listPromptsCancel()
 
 	// Note: Roots are not directly available via MCP protocol in the current spec,
 	// so we'll keep an empty list or try to infer from resources
@@ -328,18 +335,25 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 		info.Resources = append(info.Resources, resourcesResult.Resources...)
 	}
 
-	// List prompts
-	listPromptsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
-	defer cancel()
-	promptsResult, err := session.ListPrompts(listPromptsCtx, &mcp.ListPromptsParams{})
-	cancel()
-	if err != nil {
-		if verbose {
-			console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+	// List prompts with full cursor-based pagination (best-effort)
+	listPromptsCtx, listPromptsCancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	promptsCursor := ""
+	for {
+		promptsParams := &mcp.ListPromptsParams{Cursor: promptsCursor}
+		promptsResult, err := session.ListPrompts(listPromptsCtx, promptsParams)
+		if err != nil {
+			if verbose {
+				console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+			}
+			break
 		}
-	} else {
 		info.Prompts = append(info.Prompts, promptsResult.Prompts...)
+		if promptsResult.NextCursor == "" {
+			break
+		}
+		promptsCursor = promptsResult.NextCursor
 	}
+	listPromptsCancel()
 
 	// Extract root URIs from resources (simple heuristic)
 	info.Roots = extractRootsFromResources(info.Resources)

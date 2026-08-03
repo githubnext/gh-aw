@@ -393,7 +393,7 @@ func TestDisplayServerCapabilities_WithPrompts(t *testing.T) {
 		Prompts: []*mcp.Prompt{
 			{
 				Name:        "summarize",
-				Title:       "Summarize",
+				Title:       "Quick Summary",
 				Description: "Summarize the current workflow",
 				Arguments: []*mcp.PromptArgument{
 					{Name: "topic", Required: true},
@@ -413,7 +413,7 @@ func TestDisplayServerCapabilities_WithPrompts(t *testing.T) {
 	if !strings.Contains(stdout, "summarize") {
 		t.Fatalf("expected prompt name in stdout, got %q", stdout)
 	}
-	if !strings.Contains(stdout, "Summarize") {
+	if !strings.Contains(stdout, "Quick Summary") {
 		t.Fatalf("expected prompt title in stdout, got %q", stdout)
 	}
 	if !strings.Contains(stdout, "Arguments") {
