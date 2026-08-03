@@ -24,10 +24,6 @@ network:
 imports:
   - shared/pmg.md
   - uses: shared/discussions-data-fetch.md
-  - uses: shared/repo-memory-standard.md
-    with:
-      branch-name: memory/dataflow-dataset
-      description: Tracks dataset build statistics and run metadata for the DataFlow pipeline
   - shared/reporting.md
   - shared/otlp.md
 tools:
@@ -42,18 +38,89 @@ tools:
 steps:
   - name: Install DataFlow
     run: |
+      mkdir -p /tmp/gh-aw/agent/dataflow/{input,output,pipeline,reports}
       mkdir -p /tmp/gh-aw/python
       python3 -m venv /tmp/gh-aw/python/venv
-      /tmp/gh-aw/python/venv/bin/pip install --quiet open-dataflow
-      /tmp/gh-aw/python/venv/bin/python3 -c "
-      import dataflow
-      print('DataFlow', getattr(dataflow, '__version__', 'installed'), 'ready')
-      # Print available operators for reference
-      import pkgutil, dataflow.operators as ops
-      available = [m.name for m in pkgutil.iter_modules(ops.__path__)]
-      print('Operator modules:', available)
-      "
-      mkdir -p /tmp/gh-aw/agent/dataflow/{input,output,pipeline,reports}
+
+      VENV=/tmp/gh-aw/python/venv
+      STATUS=/tmp/gh-aw/agent/dataflow/output/dataflow_runtime.json
+      LOG=/tmp/gh-aw/agent/dataflow/output/dataflow_install.log
+      : > "$LOG"
+
+      dataflow_ready=false
+      if timeout 5m "$VENV/bin/pip" install --quiet --disable-pip-version-check --retries 3 --timeout 60 "uv==0.8.3" >>"$LOG" 2>&1 &&
+         timeout 20m env UV_HTTP_TIMEOUT=60 UV_HTTP_RETRIES=3 \
+           "$VENV/bin/uv" pip install --python "$VENV/bin/python3" "open-dataflow==1.0.10" >>"$LOG" 2>&1 &&
+         timeout 2m "$VENV/bin/python3" - <<'PY' >>"$LOG" 2>&1
+      import json
+      from pathlib import Path
+      from dataflow.utils.storage import FileStorage
+      from dataflow.operators.general_text import (
+          CharNumberFilter,
+          HashDeduplicateFilter,
+          MinHashDeduplicateFilter,
+      )
+
+      fixture_dir = Path("/tmp/gh-aw/agent/dataflow/smoke")
+      fixture_dir.mkdir(parents=True, exist_ok=True)
+      fixture = fixture_dir / "fixture.jsonl"
+      fixture.write_text(
+          "\n".join(
+              json.dumps(record)
+              for record in [
+                  {"id": "valid-1", "text": "Alpha words " * 8},
+                  {"id": "short", "text": "tiny"},
+                  {"id": "valid-1-dup", "text": "Alpha words " * 8},
+              ]
+          )
+          + "\n"
+      )
+
+      storage = FileStorage(first_entry_file_name=str(fixture), cache_path=str(fixture_dir / "cache"))
+      storage.step()
+      CharNumberFilter(threshold=50).run(storage=storage, input_key="text")
+      after_length = storage.step().read("dict")
+      if len(after_length) != 2:
+          raise RuntimeError(f"unexpected CharNumberFilter result: {len(after_length)}")
+
+      _ = MinHashDeduplicateFilter(threshold=0.85)
+      storage.write(after_length)
+      storage.step()
+      HashDeduplicateFilter().run(storage=storage, input_key="text")
+      after_dedup = storage.step().read("dict")
+      if len(after_dedup) != 1:
+          raise RuntimeError(f"unexpected HashDeduplicateFilter result: {len(after_dedup)}")
+
+      print("DataFlow API smoke test passed")
+      PY
+      then
+        dataflow_ready=true
+      else
+        echo "::warning::DataFlow installation or API validation failed; the workflow will use the pure-Python or mixed fallback path."
+      fi
+
+      "$VENV/bin/python3" - <<PY
+      import json
+      runtime = {
+          "dataflow_ready": "${dataflow_ready}" == "true",
+          "dataflow_version": "",
+          "selected_operators": [
+              "CharNumberFilter",
+              "MinHashDeduplicateFilter",
+              "HashDeduplicateFilter",
+          ],
+          "install_log": "$LOG",
+          "warning": "",
+      }
+      if runtime["dataflow_ready"]:
+          import dataflow
+          runtime["dataflow_version"] = getattr(dataflow, "__version__", "installed")
+      else:
+          runtime["warning"] = "DataFlow installation or API validation failed; the workflow must report fallback mode honestly."
+      with open("$STATUS", "w") as fh:
+          json.dump(runtime, fh, indent=2)
+      print(json.dumps(runtime, indent=2))
+      PY
 
   - name: Fetch merged PRs
     env:
@@ -124,10 +191,10 @@ Output: `/tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl`
 Venv: `/tmp/gh-aw/python/venv/bin/python3`
 
 Normalise both sources into unified JSONL (fields: id, source, text, url, author, created_at).
-Filter with min_len=50 and alpha_ratio>0.25.
-Deduplicate with MinHash threshold=0.85, or exact-hash fallback.
-If DataFlow is unavailable, use pure Python fallback.
-Compute retention_rate = output/input, upload `dataset_clean.jsonl` as artifact, post a stats table (input count, output count, retention rate, operators used) to a GitHub Discussion in category `audits`, and update the memory branch with run metadata.
+Use the runtime status from `/tmp/gh-aw/agent/dataflow/output/dataflow_runtime.json`.
+Keep the 50–100,000 character bound and 0.25 alphabetic-character ratio.
+Use current DataFlow operators from `dataflow.operators.general_text` for supported stages, skip `AlphaWordsFilter`, and fall back to Python where needed so the report can distinguish `mixed` from `fallback`.
+Compute retention_rate = output/input, upload `dataset_clean.jsonl` as artifact, and post a stats table (including execution mode and operators actually used) to a GitHub Discussion in category `audits`.
 {{else}}
 # DataFlow PR & Discussion Dataset Builder
 
@@ -159,13 +226,13 @@ GitHub Discussions + PRs
          │
          ▼
   ┌─────────────┐
-  │ DataFlow    │  Text length filter → alpha-ratio filter → stop-word filter
+  │ Mixed       │  DataFlow char-length filter → Python alpha-ratio filter
   │ Filters     │
   └──────┬──────┘
          │
          ▼
   ┌─────────────┐
-  │ DataFlow    │  Near-duplicate removal (MinHash or exact-hash)
+  │ DataFlow    │  Near-duplicate removal (MinHash or exact-hash fallback)
   │ Dedup       │
   └──────┬──────┘
          │
@@ -177,38 +244,17 @@ GitHub Discussions + PRs
 
 ## Step-by-Step Instructions
 
-### Step 1: Inspect Available DataFlow Operators
+### Step 1: Inspect the DataFlow Runtime Status
 
-Before building the pipeline, discover which operators are installed:
+Read `/tmp/gh-aw/agent/dataflow/output/dataflow_runtime.json` first.
 
-```bash
-/tmp/gh-aw/python/venv/bin/python3 -c "
-import pkgutil, dataflow.operators as ops
-for m in pkgutil.iter_modules(ops.__path__):
-    print(m.name)
-"
-```
-
-Then list classes in the `filter` and `dedup` sub-modules (if present):
-
-```bash
-/tmp/gh-aw/python/venv/bin/python3 -c "
-import inspect
-try:
-    import dataflow.operators.filter as f
-    print('filter:', [n for n, _ in inspect.getmembers(f, inspect.isclass)])
-except Exception as e:
-    print('filter module error:', e)
-
-try:
-    import dataflow.operators.dedup as d
-    print('dedup:', [n for n, _ in inspect.getmembers(d, inspect.isclass)])
-except Exception as e:
-    print('dedup module error:', e)
-"
-```
-
-Use the discovered class names throughout the pipeline below.
+- If `dataflow_ready` is `true`, use the smoke-tested current API:
+  - `dataflow.utils.storage.FileStorage`
+  - `dataflow.operators.general_text.CharNumberFilter`
+  - `dataflow.operators.general_text.MinHashDeduplicateFilter`
+  - `dataflow.operators.general_text.HashDeduplicateFilter`
+- If `dataflow_ready` is `false`, print the recorded warning and use the pure-Python fallback pipeline.
+- Never use `AlphaWordsFilter`; it can trigger an implicit NLTK download.
 
 ### Step 2: Normalise Raw Data into JSONL
 
@@ -296,31 +342,32 @@ Write `/tmp/gh-aw/agent/dataflow/pipeline/02_pipeline.py`:
 ```python
 #!/usr/bin/env python3
 """
-DataFlow text processing pipeline:
-  1. Load JSONL into FileStorage
-  2. Text length filter   (heuristic — no LLM required)
-  3. Alpha-ratio filter   (heuristic — no LLM required)
-  4. Near-duplicate removal (MinHash or exact-hash — no LLM required)
-  5. Save clean output
+Dataset cleaning pipeline:
+  1. Load JSONL records and the runtime status file
+  2. DataFlow char-length filter when the validated API is available
+  3. Deterministic Python alpha-ratio filter (to avoid NLTK downloads)
+  4. DataFlow near-deduplication (MinHash, then exact-hash fallback) when available
+  5. Pure-Python exact-hash fallback when DataFlow is unavailable
+  6. Save clean output and honest execution-mode statistics
 """
 
-import json, sys, inspect, traceback
+import json
 from pathlib import Path
 
 INPUT  = "/tmp/gh-aw/agent/dataflow/input/combined_raw.jsonl"
 OUTPUT = "/tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl"
 STATS  = "/tmp/gh-aw/agent/dataflow/output/pipeline_stats.json"
+RUNTIME = "/tmp/gh-aw/agent/dataflow/output/dataflow_runtime.json"
 
 Path("/tmp/gh-aw/agent/dataflow/output").mkdir(parents=True, exist_ok=True)
 
-# ── Load DataFlow storage ─────────────────────────────────────────────────────
-try:
-    from dataflow.utils.storage import FileStorage
-    storage = FileStorage(first_entry_file_name=INPUT)
-    print(f"FileStorage loaded with {len(storage)} records")
-except Exception as e:
-    print(f"FileStorage error: {e} — falling back to raw JSONL processing")
-    storage = None
+runtime = {}
+if Path(RUNTIME).exists():
+    runtime = json.loads(Path(RUNTIME).read_text())
+
+dataflow_ready = bool(runtime.get("dataflow_ready"))
+if not dataflow_ready and runtime.get("warning"):
+    print(f"Runtime warning: {runtime['warning']}")
 
 stats = {
     "input_count": 0,
@@ -328,117 +375,110 @@ stats = {
     "after_alpha_filter": 0,
     "after_dedup": 0,
     "operators_used": [],
-    "fallback_mode": storage is None,
+    "execution_mode": "fallback",
+    "fallback_mode": True,
+    "dataflow_ready": dataflow_ready,
+    "dataflow_version": runtime.get("dataflow_version", ""),
+    "warnings": [],
 }
+if runtime.get("warning"):
+    stats["warnings"].append(runtime["warning"])
 
-# ── Helper: count records in a JSONL file ────────────────────────────────────
-def count_jsonl(path: str) -> int:
+def alpha_ratio(text: str) -> float:
+    letters = sum(1 for c in text if c.isalpha())
+    return letters / max(len(text), 1)
+
+def exact_hash_dedup(records):
+    import hashlib
+
+    seen_hashes = set()
+    kept = []
+    for record in records:
+        digest = hashlib.sha256(record.get("text", "").encode("utf-8")).hexdigest()
+        if digest in seen_hashes:
+            continue
+        seen_hashes.add(digest)
+        kept.append(record)
+    return kept
+
+with open(INPUT) as fh:
+    raw_records = [json.loads(line) for line in fh if line.strip()]
+
+stats["input_count"] = len(raw_records)
+records_after_length = raw_records
+dataflow_ops_used = []
+python_ops_used = []
+
+if dataflow_ready:
     try:
-        return sum(1 for _ in open(path))
-    except FileNotFoundError:
-        return 0
+        from dataflow.utils.storage import FileStorage
+        from dataflow.operators.general_text import CharNumberFilter, HashDeduplicateFilter, MinHashDeduplicateFilter
 
-# ── If FileStorage is available, attempt DataFlow operators ──────────────────
-if storage is not None:
-    stats["input_count"] = len(storage)
-    current_file = INPUT
-
-    # ── 1. Text length filter ─────────────────────────────────────────────────
-    try:
-        from dataflow.operators.filter import TextLengthFilter
-        op = TextLengthFilter(min_len=50, max_len=100_000)
-        op.run(storage=storage.step(), input_key="text")
-        stats["after_length_filter"] = len(storage)
-        stats["operators_used"].append("TextLengthFilter")
-        print(f"After TextLengthFilter: {stats['after_length_filter']} records")
+        storage = FileStorage(
+            first_entry_file_name=INPUT,
+            cache_path="/tmp/gh-aw/agent/dataflow/cache",
+        )
+        storage.step()  # step 0 = INPUT
+        CharNumberFilter(threshold=50).run(storage=storage, input_key="text")
+        storage.step()  # step 1 = length-filter output
+        records_after_length = storage.read("dict")
+        dataflow_ops_used.append("CharNumberFilter")
+        print(f"After CharNumberFilter: {len(records_after_length)} records")
     except Exception as e:
-        print(f"TextLengthFilter skipped: {e}")
-        stats["after_length_filter"] = len(storage)
-
-    # ── 2. Alpha-ratio filter ─────────────────────────────────────────────────
-    try:
-        from dataflow.operators.filter import AlphaRatioFilter
-        op = AlphaRatioFilter(min_ratio=0.25)
-        op.run(storage=storage.step(), input_key="text")
-        stats["after_alpha_filter"] = len(storage)
-        stats["operators_used"].append("AlphaRatioFilter")
-        print(f"After AlphaRatioFilter: {stats['after_alpha_filter']} records")
-    except Exception as e:
-        print(f"AlphaRatioFilter skipped: {e}")
-        stats["after_alpha_filter"] = len(storage)
-
-    # ── 3. Near-duplicate removal ─────────────────────────────────────────────
-    for module_path, class_name, kwargs in [
-        ("dataflow.operators.dedup", "MinHashDeduplicator", {"threshold": 0.85}),
-        ("dataflow.operators.dedup", "HashDeduplicator",    {}),
-    ]:
-        try:
-            mod = __import__(module_path, fromlist=[class_name])
-            cls = getattr(mod, class_name)
-            op = cls(**kwargs)
-            op.run(storage=storage.step(), input_key="text")
-            stats["after_dedup"] = len(storage)
-            stats["operators_used"].append(class_name)
-            print(f"After {class_name}: {stats['after_dedup']} records")
-            break
-        except Exception as e:
-            print(f"{class_name} skipped: {e}")
-    else:
-        stats["after_dedup"] = len(storage)
-
-    # ── Save output ───────────────────────────────────────────────────────────
-    try:
-        storage.save(OUTPUT)
-        print(f"DataFlow output saved to {OUTPUT}")
-    except Exception as e:
-        # Fallback: write current data directly
-        print(f"storage.save failed ({e}), writing manually")
-        records = list(storage)
-        with open(OUTPUT, "w") as fh:
-            for r in records:
-                fh.write(json.dumps(r, ensure_ascii=False) + "\n")
-
-# ── Fallback: lightweight Python pipeline (no DataFlow operators) ─────────────
+        stats["warnings"].append(f"CharNumberFilter failed: {e}")
+        print(f"CharNumberFilter failed: {e} — falling back to Python length filter")
+        records_after_length = [r for r in raw_records if 50 <= len(r.get('text', '')) <= 100_000]
+        python_ops_used.append("python_length_filter")
 else:
-    print("Running fallback pipeline (pure Python)...")
-    import unicodedata, re
+    records_after_length = [r for r in raw_records if 50 <= len(r.get('text', '')) <= 100_000]
+    python_ops_used.append("python_length_filter")
 
-    def alpha_ratio(text: str) -> float:
-        letters = sum(1 for c in text if c.isalpha())
-        return letters / max(len(text), 1)
+stats["after_length_filter"] = len(records_after_length)
 
-    seen_hashes: set = set()
-    kept: list = []
+records_after_alpha = [r for r in records_after_length if alpha_ratio(r.get("text", "")) >= 0.25]
+stats["after_alpha_filter"] = len(records_after_alpha)
+python_ops_used.append("python_alpha_ratio_filter")
 
-    with open(INPUT) as fh:
-        raw_records = [json.loads(line) for line in fh if line.strip()]
+records_after_dedup = records_after_alpha
+if dataflow_ready:
+    try:
+        storage.write(records_after_alpha)  # writes step 2
+        storage.step()  # step 2 = alpha-filter output
+        try:
+            MinHashDeduplicateFilter(threshold=0.85).run(storage=storage, input_key="text")
+            dataflow_ops_used.append("MinHashDeduplicateFilter")
+        except Exception as minhash_error:
+            stats["warnings"].append(f"MinHashDeduplicateFilter failed: {minhash_error}")
+            print(f"MinHashDeduplicateFilter failed: {minhash_error} — trying HashDeduplicateFilter")
+            HashDeduplicateFilter().run(storage=storage, input_key="text")
+            dataflow_ops_used.append("HashDeduplicateFilter")
+        storage.step()  # step 3 = dedup output
+        records_after_dedup = storage.read("dict")
+        print(f"After DataFlow deduplication: {len(records_after_dedup)} records")
+    except Exception as e:
+        stats["warnings"].append(f"DataFlow dedup failed: {e}")
+        print(f"DataFlow dedup failed: {e} — falling back to Python exact-hash dedup")
+        records_after_dedup = exact_hash_dedup(records_after_alpha)
+        python_ops_used.append("python_exact_hash_dedup")
+else:
+    records_after_dedup = exact_hash_dedup(records_after_alpha)
+    python_ops_used.append("python_exact_hash_dedup")
 
-    stats["input_count"] = len(raw_records)
+stats["after_dedup"] = len(records_after_dedup)
+stats["operators_used"] = dataflow_ops_used + python_ops_used
 
-    for r in raw_records:
-        text = r.get("text", "")
-        # Length filter
-        if not (50 <= len(text) <= 100_000):
-            continue
-        stats["after_length_filter"] = stats.get("after_length_filter", 0) + 1
-        # Alpha-ratio filter
-        if alpha_ratio(text) < 0.25:
-            continue
-        stats["after_alpha_filter"] = stats.get("after_alpha_filter", 0) + 1
-        # Exact dedup
-        h = hash(text[:500])
-        if h in seen_hashes:
-            continue
-        seen_hashes.add(h)
-        kept.append(r)
+if dataflow_ops_used and python_ops_used:
+    stats["execution_mode"] = "mixed"
+elif dataflow_ops_used:
+    stats["execution_mode"] = "dataflow"
+else:
+    stats["execution_mode"] = "fallback"
+stats["fallback_mode"] = stats["execution_mode"] == "fallback"
 
-    stats["after_dedup"] = len(kept)
-    stats["operators_used"].append("fallback_python_pipeline")
-
-    with open(OUTPUT, "w") as fh:
-        for r in kept:
-            fh.write(json.dumps(r, ensure_ascii=False) + "\n")
-    print(f"Fallback pipeline output: {len(kept)} records → {OUTPUT}")
+with open(OUTPUT, "w") as fh:
+    for record in records_after_dedup:
+        fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+print(f"{stats['execution_mode']} pipeline output: {len(records_after_dedup)} records → {OUTPUT}")
 
 # ── Write stats ───────────────────────────────────────────────────────────────
 Path(STATS).write_text(json.dumps(stats, indent=2))
@@ -454,8 +494,23 @@ Run it:
 Verify output:
 
 ```bash
-echo "Output records: $(wc -l < /tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl)"
-cat /tmp/gh-aw/agent/dataflow/output/pipeline_stats.json
+/tmp/gh-aw/python/venv/bin/python3 - << 'EOF'
+import json
+from pathlib import Path
+
+output = Path("/tmp/gh-aw/agent/dataflow/output/dataset_clean.jsonl")
+stats = json.loads(Path("/tmp/gh-aw/agent/dataflow/output/pipeline_stats.json").read_text())
+
+if not output.exists():
+    raise SystemExit("data-processing-error: dataset_clean.jsonl was not created")
+
+records = [json.loads(line) for line in output.read_text().splitlines() if line.strip()]
+print(f"Output records: {len(records)}")
+print(json.dumps(stats, indent=2))
+
+if stats.get("input_count", 0) > 0 and not records:
+    raise SystemExit("data-processing-error: filtering and deduplication produced an empty dataset")
+EOF
 ```
 
 ### Step 4: Upload Dataset Artifact
@@ -480,33 +535,10 @@ Then call the `upload_artifact` safe-output tool:
 
 Record the returned artifact URL for use in the discussion report.
 
-### Step 5: Update Repo-Memory
+### Step 5: Keep Repo-Memory Out of the Success Path
 
-Save pipeline statistics for trend tracking across runs:
-
-```bash
-DATE=$(date '+%Y-%m-%d')
-RUN_ID="${GITHUB_RUN_ID}"
-STATS=$(cat /tmp/gh-aw/agent/dataflow/output/pipeline_stats.json)
-
-# Load existing history (or start fresh)
-HISTORY_FILE="/tmp/gh-aw/repo-memory/default/dataflow-runs.jsonl"
-mkdir -p "$(dirname "$HISTORY_FILE")"
-touch "$HISTORY_FILE"
-
-# Append this run
-python3 -c "
-import json, sys, os
-entry = {
-    'date': '$DATE',
-    'run_id': '$RUN_ID',
-    **json.loads('''$STATS''')
-}
-with open('$HISTORY_FILE', 'a') as fh:
-    fh.write(json.dumps(entry) + '\n')
-print('Run appended to history')
-"
-```
+Do not add repo-memory initialization or signed-commit setup to this workflow run.
+Report the dataset result directly from the generated artifact and `pipeline_stats.json`.
 
 ### Step 6: Compute Quality Breakdown
 
@@ -530,6 +562,10 @@ report = {
     "avg_text_length_chars": round(avg_len, 1),
     "operators_used": stats.get("operators_used", []),
     "input_count": stats.get("input_count", 0),
+    "execution_mode": stats.get("execution_mode", "fallback"),
+    "fallback_mode": stats.get("fallback_mode", True),
+    "dataflow_version": stats.get("dataflow_version", ""),
+    "warnings": stats.get("warnings", []),
     "retention_rate_pct": round(len(records) / max(stats.get("input_count", 1), 1) * 100, 1),
 }
 
@@ -572,19 +608,34 @@ artifact_section = ""
 if artifact_url:
     artifact_section = f"\n### 📦 Dataset Artifact\n\n[Download dataset_clean.jsonl]({artifact_url})\n"
 
+execution_mode = quality.get("execution_mode", "fallback")
+mode_summary = {
+    "dataflow": "All filtering and deduplication stages used the current DataFlow operators.",
+    "mixed": "DataFlow handled the supported stages while deterministic Python fallbacks preserved the existing alpha-ratio contract.",
+    "fallback": "The workflow used the pure-Python fallback because DataFlow installation or API validation did not succeed.",
+}.get(execution_mode, "Execution mode unavailable.")
+
+warnings = quality.get("warnings", [])
+warning_section = ""
+if warnings:
+    warning_section = "### Runtime Warnings\n\n" + "\n".join(f"- {warning}" for warning in warnings) + "\n\n"
+
 operators_str = ", ".join(quality.get("operators_used", ["none"])) or "none"
 
 body = f"""### Summary
 
-Built a cleaned, deduplicated dataset from GitHub discussions and PRs using [OpenDCAI/DataFlow](https://github.com/OpenDCAI/DataFlow).
+Built a cleaned, deduplicated dataset from GitHub discussions and PRs.
 
 | Metric | Value |
 |--------|-------|
+| Execution mode | `{execution_mode}` |
 | Input records | {quality.get("input_count", 0):,} |
 | Output (clean) records | {quality.get("total_clean_records", 0):,} |
 | Retention rate | {quality.get("retention_rate_pct", 0)}% |
 | Average text length | {quality.get("avg_text_length_chars", 0):,.0f} chars |
-| DataFlow operators | `{operators_str}` |
+| Operators used | `{operators_str}` |
+
+{mode_summary}
 
 ### Records by Source
 
@@ -592,19 +643,20 @@ Built a cleaned, deduplicated dataset from GitHub discussions and PRs using [Ope
 |--------|-------|
 {by_source_rows}
 
-### DataFlow Pipeline
+{warning_section}### Pipeline
 
 The pipeline applied these processing stages:
 
 1. **Normalise** — Merged discussions and PRs into unified JSONL (`title + body` → `text`)
 2. **Text length filter** — Kept records with 50–100,000 characters
-3. **Alpha-ratio filter** — Removed records with fewer than 25% alphabetic characters
-4. **Near-duplicate removal** — Eliminated near-identical records using MinHash or exact-hash
+3. **Alpha-ratio filter** — Removed records with fewer than 25% alphabetic characters using a deterministic Python stage
+4. **Near-duplicate removal** — Eliminated near-identical records using DataFlow MinHash or exact-hash fallback
 {artifact_section}
 ### Pipeline Configuration
 
 ```yaml
-DataFlow package: open-dataflow (PyPI)
+Execution mode: {execution_mode}
+DataFlow package: open-dataflow=={quality.get("dataflow_version", "not-installed") or "not-installed"}
 Source: https://github.com/OpenDCAI/DataFlow
 Input: GitHub Discussions + merged PRs from {repo}
 Output: JSONL — one record per item, text field for LLM use
@@ -635,37 +687,35 @@ Then emit:
 ```json
 {
   "type": "create_discussion",
-  "title": "🌊 DataFlow Dataset Build Report — [DATE]",
+  "title": "DataFlow Dataset Build Report ([MODE]) — [DATE]",
   "body": "[contents of /tmp/gh-aw/agent/discussion_body.md]",
   "category": "audits"
 }
 ```
 
-Replace `[DATE]` with today's ISO date and `[contents of ...]` with the actual text read
-from `/tmp/gh-aw/agent/discussion_body.md`.
+Replace `[MODE]` with the actual `execution_mode` value (`dataflow`, `mixed`, or `fallback`), replace `[DATE]` with today's ISO date, and replace `[contents of ...]` with the actual text read from `/tmp/gh-aw/agent/discussion_body.md`.
 
 ## Success Criteria
 
 - ✅ Both discussions and PRs loaded and normalised into unified JSONL
-- ✅ DataFlow pipeline applied (with graceful fallback if operator API changes)
+- ✅ Execution mode reported honestly as `dataflow`, `mixed`, or `fallback`
 - ✅ Clean JSONL artifact uploaded
 - ✅ Quality breakdown computed (input/output counts, retention rate, source split)
 - ✅ Discussion posted in `audits` category with full pipeline stats
-- ✅ Run metadata appended to repo-memory for trend tracking
 
 ## Edge Cases
 
 ### DataFlow API Changes
-DataFlow is actively developed — operator class names may change between releases.
-Always `import inspect` and list class names before use; adapt the import paths at runtime.
+Use the pinned, smoke-tested current API from `dataflow.operators.general_text`.
+Do not fall back to obsolete modules such as `dataflow.operators.filter` or `dataflow.operators.dedup`.
 
 ### No Data Available
 If both input files are empty or missing, post a short discussion noting:
 "No discussions or PRs found to process in this run."
 
 ### Insufficient Text
-If all records are filtered out by the length or alpha-ratio filter, relax thresholds:
-`min_len=20`, `min_ratio=0.1`, and skip dedup. Note the relaxed thresholds in the report.
+Do not relax the 50–100,000 character or 0.25 alphabetic-character thresholds.
+If those thresholds remove every record, fail with a `data-processing-error` instead of silently widening the filter.
 
 ## Usage
 
@@ -678,4 +728,5 @@ gh aw run dataflow-pr-discussion-dataset
 The resulting JSONL dataset is suitable for:
 - **LLM fine-tuning**: Supervised fine-tuning (SFT) datasets from real developer discussions
 - **RAG indexing**: Embedding-ready clean text chunks from the repository's knowledge base
-- **Analytics**: Deduplicated corpus for topic modelling, sentiment analysis, clustering{{/if}}
+- **Analytics**: Deduplicated corpus for topic modelling, sentiment analysis, clustering
+{{/if}}
