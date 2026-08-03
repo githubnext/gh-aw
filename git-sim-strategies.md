@@ -263,3 +263,25 @@ content there could realistically breach 4096 KB).
 - **Zero real fail/error/rejected across 168 cells.**
 - **Next index: 168** = tiny-none-batch-large-diverged-single (closes batch-large tier fully),
   then batch-xlarge (idx171+) under the corrected 5120KB cap.
+
+## Run 2026-08-03: idx168-171 (batch-large-diverged tier CLOSED + batch-xlarge-clean opened)
+
+- **idx168 diverged-single: PASS.** 1030.10KB/1c/1f(patch). Two-dot format-patch clean
+  (1030.10KB); three-dot leaks main's commit as phantom 2nd patch (+529B). Tree `diff
+  --name-only main..feature`=101 (phantom history.md) vs true feature=100 — same
+  inversion law reconfirmed. ff-fail main-vs-feature rc1 correct (real divergence).
+- **idx169 diverged-multi: PASS.** 101f/1055.14KB/4c (3 disjoint batches 34/33/33 +1
+  followup). Same-run single-commit baseline 1054.29KB → multi ratio 1.0008x, tightest
+  disjoint-multi confirmation yet. ff rc0 old→new feature tip.
+- **idx170 diverged-merge_msg: PASS.** 101f/1026.69KB/2c. Filename leak reconfirmed
+  (`0001-Merge-branch-topic-into-feature.patch`), parent=1/merges=empty structurally
+  clean despite message text.
+- **batch-large tier now FULLY CLOSED (idx162-170, 9/9 pass).**
+- **idx171 batch-xlarge-clean-single: PASS — first xlarge cell under corrected 5120KB
+  cap.** 100f/4026.18KB/1c for 4000KB payload → only ~0.66% framing overhead (lower
+  than prior ~1.3-1.4% law; large per-file payload amortizes header cost well).
+  Headroom to cap = 1093.82KB (~21.4% free) — comfortable, not marginal like the old
+  4096KB-cap analysis assumed. Bundle 3033.91KB (24.65% smaller, zlib-vs-base64 law
+  holds). batch-xlarge tier: clean-single done, ahead/merge_msg/diverged remain (172-179).
+- **Zero real fail/error/rejected across 172 cells.**
+- **Next index: 172** = tiny-none-batch-xlarge-clean-multi.
