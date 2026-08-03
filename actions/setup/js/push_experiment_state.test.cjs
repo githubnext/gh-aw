@@ -26,7 +26,7 @@ global.exec = mockExec;
 global.context = mockContext;
 global.github = {};
 
-const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns } = await import("./push_experiment_state.cjs");
+const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns, checkoutOrCreateBranch } = await import("./push_experiment_state.cjs");
 
 describe("push_experiment_state", () => {
   let tmpDir;
@@ -231,5 +231,78 @@ describe("push_experiment_state", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].run_id).toBe("V1");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("skipping unparseable line"));
+  });
+
+  describe("checkoutOrCreateBranch", () => {
+    let repoDir;
+
+    beforeEach(() => {
+      const { spawnSync } = require("child_process");
+      repoDir = fs.mkdtempSync(path.join(os.tmpdir(), "push-exp-repo-"));
+      spawnSync("git", ["init", "-b", "main"], { cwd: repoDir });
+      spawnSync("git", ["config", "user.email", "test@example.com"], { cwd: repoDir });
+      spawnSync("git", ["config", "user.name", "Test"], { cwd: repoDir });
+      fs.writeFileSync(path.join(repoDir, "seed.txt"), "seed\n");
+      spawnSync("git", ["add", "."], { cwd: repoDir });
+      spawnSync("git", ["commit", "-m", "seed"], { cwd: repoDir });
+    });
+
+    afterEach(() => {
+      fs.rmSync(repoDir, { recursive: true, force: true });
+    });
+
+    it("retries only the fetch on transient failures and then checks out", async () => {
+      const fetchFn = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Git command timed out: git fetch ...");
+        })
+        .mockImplementationOnce(() => {
+          throw new Error("error: RPC failed; HTTP 502 curl 22 The requested URL returned error: 502");
+        })
+        .mockImplementation(() => {
+          // Simulate a successful fetch creating the local branch ref.
+          require("child_process").spawnSync("git", ["branch", "evals/myworkflow"], { cwd: repoDir });
+        });
+
+      const result = await checkoutOrCreateBranch("evals/myworkflow", "https://x@github.com/o/r.git", repoDir, {
+        fetchFn,
+        baseDelayMs: 0,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(3);
+      expect(mockCore.warning).toHaveBeenCalledTimes(2);
+      expect(result).toMatch(/^[0-9a-f]{40}$/);
+    });
+
+    it("does not retry deterministic fetch failures", async () => {
+      const fetchFn = vi.fn().mockImplementation(() => {
+        throw new Error("fatal: Authentication failed for 'https://github.com/o/r.git/'");
+      });
+
+      await expect(
+        checkoutOrCreateBranch("evals/myworkflow", "https://x@github.com/o/r.git", repoDir, {
+          fetchFn,
+          baseDelayMs: 0,
+        })
+      ).rejects.toThrow("Authentication failed");
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("does not retry the orphan-branch path when the remote ref is missing", async () => {
+      const fetchFn = vi.fn().mockImplementation(() => {
+        throw new Error("fatal: couldn't find remote ref evals/myworkflow");
+      });
+
+      const result = await checkoutOrCreateBranch("evals/myworkflow", "https://x@github.com/o/r.git", repoDir, {
+        fetchFn,
+        baseDelayMs: 0,
+      });
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+      expect(result).toBe("");
+    });
   });
 });

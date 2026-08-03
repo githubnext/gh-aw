@@ -28,7 +28,7 @@ const fs = require("fs");
 const path = require("path");
 
 const { getErrorMessage } = require("./error_helpers.cjs");
-const { execGitSync, getGitAuthEnv } = require("./git_helpers.cjs");
+const { execGitSync, getGitAuthEnv, withGitRetry } = require("./git_helpers.cjs");
 const { pushSignedCommits } = require("./push_signed_commits.cjs");
 
 function isPlainObject(value) {
@@ -271,24 +271,35 @@ function resolveExperimentStateRebaseConflict({ cwd }) {
  * Checkout or create an orphan git branch for experiment state.
  * Returns the remote HEAD SHA (empty string for a new branch).
  *
+ * Only the network `git fetch` is retried (via withGitRetry), and only for
+ * transient transport failures. Everything after it — the local checkout, the
+ * missing-ref classification, and the non-idempotent orphan-branch path
+ * (`checkout --orphan`, `read-tree --empty`, working-tree cleanup) — runs
+ * exactly once, so a partial failure can never be replayed against a
+ * half-mutated workspace.
+ *
  * @param {string} branchName - Target branch name (e.g. "experiments/myworkflow")
  * @param {string} repoUrl    - Authenticated HTTPS URL of the target repo
  * @param {string} workspaceDir - Local git workspace directory
- * @returns {string} baseRef (empty string when branch is brand new)
+ * @param {{maxRetries?: number, baseDelayMs?: number, fetchFn?: () => void}} [options]
+ * @returns {Promise<string>} baseRef (empty string when branch is brand new)
  */
-function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
+async function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir, options = {}) {
+  const { maxRetries, baseDelayMs, fetchFn = () => execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe", cwd: workspaceDir, suppressLogs: true }) } = options;
+
   try {
-    execGitSync(["fetch", repoUrl, `${branchName}:${branchName}`], { stdio: "pipe", cwd: workspaceDir, suppressLogs: true });
-    execGitSync(["checkout", branchName], { stdio: "inherit", cwd: workspaceDir });
-    const baseRef = execGitSync(["rev-parse", "HEAD"], { cwd: workspaceDir }).trim();
-    core.info(`Checked out existing branch ${branchName}, baseRef=${baseRef}`);
-    return baseRef;
+    await withGitRetry(fetchFn, {
+      maxRetries,
+      baseDelayMs,
+      operationName: `Fetch of branch "${branchName}"`,
+    });
   } catch (fetchErr) {
     const msg = getErrorMessage(fetchErr);
     const isMissing = /couldn't find remote ref/i.test(msg) || /remote branch .* not found/i.test(msg);
     if (!isMissing) throw fetchErr;
 
-    // Branch does not exist yet – create an orphan branch.
+    // Branch does not exist yet – create an orphan branch. This path performs
+    // non-idempotent local mutations and is deliberately never retried.
     core.info(`Branch ${branchName} does not exist, creating orphan branch...`);
     execGitSync(["checkout", "--orphan", branchName], { stdio: "inherit", cwd: workspaceDir });
     execGitSync(["read-tree", "--empty"], { stdio: "pipe", cwd: workspaceDir });
@@ -310,6 +321,11 @@ function checkoutOrCreateBranch(branchName, repoUrl, workspaceDir) {
     }
     return "";
   }
+
+  execGitSync(["checkout", branchName], { stdio: "inherit", cwd: workspaceDir });
+  const baseRef = execGitSync(["rev-parse", "HEAD"], { cwd: workspaceDir }).trim();
+  core.info(`Checked out existing branch ${branchName}, baseRef=${baseRef}`);
+  return baseRef;
 }
 
 /**
@@ -391,11 +407,14 @@ async function main() {
   const repoUrl = `https://x-access-token:${ghToken}@${serverHost}/${targetRepo}.git`;
 
   // Checkout the target branch (or create it as an orphan on first run).
+  // Retries with exponential backoff since the initial `git fetch` can hit
+  // transient network failures (e.g. HTTP 502s or timeouts against the git
+  // remote) that are unrelated to genuine push conflicts.
   let baseRef;
   try {
-    baseRef = checkoutOrCreateBranch(branchName, repoUrl, workspaceDir);
+    baseRef = await checkoutOrCreateBranch(branchName, repoUrl, workspaceDir);
   } catch (err) {
-    core.setFailed(`Failed to checkout branch "${branchName}": ${getErrorMessage(err)}`);
+    core.setFailed(`Failed to checkout branch "${branchName}" after retries: ${getErrorMessage(err)}`);
     return;
   }
 
@@ -492,4 +511,11 @@ async function main() {
   }
 }
 
-module.exports = { main, checkoutOrCreateBranch, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns, resolveExperimentStateRebaseConflict };
+module.exports = {
+  main,
+  checkoutOrCreateBranch,
+  mergeExperimentStateJSON,
+  mergeExperimentStateJSONL,
+  mergeExperimentRuns,
+  resolveExperimentStateRebaseConflict,
+};

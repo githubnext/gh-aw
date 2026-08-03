@@ -337,6 +337,7 @@ SAFE_OUTPUTS_FILES=(
   "error_codes.cjs"
   "constants.cjs"
   "git_helpers.cjs"
+  "error_recovery.cjs"
   "checkout_manifest.cjs"
   "github_api_helpers.cjs"
   "find_repo_checkout.cjs"

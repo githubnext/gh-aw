@@ -4,6 +4,7 @@
 const { spawnSync } = require("child_process");
 const { ERR_SYSTEM } = require("./error_codes.cjs");
 const { getErrorMessage } = require("./error_helpers.cjs");
+const { isTransientError } = require("./error_recovery.cjs");
 
 /**
  * Build GIT_CONFIG_* environment variables that inject an Authorization header
@@ -199,6 +200,70 @@ function execGitSync(args, options = {}) {
   }
 
   return result.stdout;
+}
+
+/**
+ * Git transport failures that are transient but not covered by the generic
+ * network patterns in isTransientError (git reports them with its own wording).
+ * Matched case-insensitively against the error message.
+ * @type {string[]}
+ */
+const TRANSIENT_GIT_PATTERNS = [
+  "the remote end hung up",
+  "early eof",
+  "rpc failed",
+  "http 5",
+  "unable to access",
+  "could not resolve host",
+  "connection reset",
+  "timed out",
+  "ssl_error",
+  "gnutls_handshake",
+  "failed to connect",
+  "server hung up",
+];
+
+/**
+ * Determine whether a git failure is a transient transport error worth
+ * retrying. Deterministic failures (authentication/permission errors, invalid
+ * refs, local git errors, filesystem errors) return false so callers fail fast.
+ *
+ * @param {any} error - The error thrown by a git operation
+ * @returns {boolean} True when the failure looks like a transient transport error
+ */
+function isTransientGitError(error) {
+  if (isTransientError(error)) return true;
+  const msg = getErrorMessage(error).toLowerCase();
+  return TRANSIENT_GIT_PATTERNS.some(pattern => msg.includes(pattern));
+}
+
+/**
+ * Run a git operation, retrying only transient transport failures with
+ * exponential backoff. Non-transient failures are rethrown immediately.
+ *
+ * @template T
+ * @param {() => T | Promise<T>} operation - The git operation to run
+ * @param {{maxRetries?: number, baseDelayMs?: number, operationName?: string}} [options]
+ * @returns {Promise<T>} The operation result
+ * @throws {any} The last error when retries are exhausted, or the first non-transient error
+ */
+async function withGitRetry(operation, options = {}) {
+  const { maxRetries = 3, baseDelayMs = 1000, operationName = "git operation" } = options;
+  let lastError;
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await operation();
+    } catch (err) {
+      lastError = err;
+      if (!isTransientGitError(err)) throw err;
+      if (attempt < maxRetries) {
+        const delay = baseDelayMs * Math.pow(2, attempt);
+        core.warning(`${operationName} failed (attempt ${attempt + 1}/${maxRetries + 1}), retrying in ${delay}ms: ${getErrorMessage(err)}`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  throw lastError;
 }
 
 /**
@@ -832,6 +897,8 @@ async function linearizeRangeAsCommit(baseRef, commitMessage, execApi, opts = {}
 
 module.exports = {
   ensureSafeDirectoryTrust,
+  isTransientGitError,
+  withGitRetry,
   execGitSync,
   backfillCommitObjects,
   checkImplausibleShallowRange,
