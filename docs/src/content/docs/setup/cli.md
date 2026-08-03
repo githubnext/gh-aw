@@ -126,10 +126,10 @@ The setup action installs the script at `/opt/gh-aw/actions/configure_gh_for_ghe
 | Flag | Description |
 |------|-------------|
 | `-h`, `--help` | Show help (`gh aw help [command]` for command-specific help) |
-
-For invalid nested command paths, `gh aw` now fails explicitly instead of falling back to parent help output. For example, `gh aw secrets gh --help` returns an unknown-command error rather than reprinting `gh aw secrets` help.
 | `-v`, `--verbose` | Enable verbose output showing detailed information |
 | `--banner` | Display ASCII logo banner with purple GitHub color theme |
+
+For invalid nested command paths, `gh aw` now fails explicitly instead of falling back to parent help output. For example, `gh aw secrets gh --help` returns an unknown-command error rather than reprinting `gh aw secrets` help.
 
 Use `gh aw version` to print the current version.
 
@@ -285,6 +285,8 @@ gh aw doctor --repo github/gh-aw --dir ./gh-aw --require-owner-type org
 **Options:** `--repo/-r`, `--dir/-d`, `--require-owner-type`, `--json/-j`
 
 Use `--repo` to verify a specific repository exists and inspect the local checkout that should correspond to it. `--require-owner-type` accepts `any`, `user`, or `org` and defaults to `any`; `--dir` and `--require-owner-type` require `--repo`.
+
+`doctor --repo` currently accepts `owner/repo` only. To target GitHub Enterprise Server, select the host via `GH_HOST` rather than prefixing the repository with `[HOST/]`.
 
 ### Building
 
@@ -658,7 +660,7 @@ gh aw forecast --repo owner/repo            # Forecast in another repository
 gh aw forecast --eval                       # Backtest forecast quality against past data
 ```
 
-**Options:** `--days`, `--period`, `--sample`, `--eval`, `--timeout`, `--repo/-r`, `--json/-j`
+**Options:** `--concurrency`, `--days`, `--period`, `--sample`, `--eval`, `--timeout`, `--repo/-r`, `--json/-j`
 
 The `--days` flag accepts only `7` or `30` (default: `30`). Other values produce an error.
 
@@ -800,6 +802,8 @@ gh aw env get ent-defaults.yml --scope ent --enterprise my-enterprise
 
 **Options:** `--scope`, `--repo/-r`, `--org`, `--enterprise`
 
+For repository scope, `--repo` currently accepts `owner/repo` only. To target GitHub Enterprise Server, select the host via `GH_HOST` rather than prefixing the repository with `[HOST/]`.
+
 ##### `env update [file]`
 
 Upload default compiler variables from a YAML file (`file.yml` by default). Use `null` (or omit a field) to delete that variable in the selected scope.
@@ -811,6 +815,8 @@ gh aw env update defaults.yml --scope ent --enterprise my-enterprise --yes
 ```
 
 **Options:** `--scope` (required), `--repo/-r`, `--org`, `--enterprise`, `--yes/-y`, `--dry-run`
+
+For repository scope, `--repo` currently accepts `owner/repo` only. To target GitHub Enterprise Server, select the host via `GH_HOST` rather than prefixing the repository with `[HOST/]`.
 
 ### Advanced
 

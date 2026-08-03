@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"0442a494289950abde81e098ef655239847438fd679784ffe31e5290f1468528","body_hash":"421b26ff01056f750ef268a35325e6b4a64a8992f21253b54d9f1e8eea4bcba2","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.77"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"safedep/pmg","sha":"5ac0f275b83d9d5a9342c6aae977ec32fa330daa","version":"v1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43","digest":"sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43@sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43","digest":"sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43@sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43","digest":"sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43@sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43","digest":"sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43@sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.7","digest":"sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.7@sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.8.0","digest":"sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520","pinned_image":"ghcr.io/github/github-mcp-server:v1.8.0@sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520"}]}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"905bd34278b42598e78925c37617ee3eeaf01bb54a55cbf77711c0b0d84f818d","body_hash":"53eab465d720bf4387a7432ded7958daddbb5da3332d9c36f65737fcfff87673","strict":true,"agent_id":"copilot","engine_versions":{"copilot":"1.0.77"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/setup-node","sha":"820762786026740c76f36085b0efc47a31fe5020","version":"v7.0.0"},{"repo":"actions/setup-python","sha":"5fda3b95a4ea91299a34e894583c3862153e4b97","version":"v7.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"},{"repo":"safedep/pmg","sha":"5ac0f275b83d9d5a9342c6aae977ec32fa330daa","version":"v1"}],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43","digest":"sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43@sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43","digest":"sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43@sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43","digest":"sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43@sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43","digest":"sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43@sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.7","digest":"sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.7@sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.8.0","digest":"sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520","pinned_image":"ghcr.io/github/github-mcp-server:v1.8.0@sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520"}]}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -30,7 +30,6 @@
 #     - shared/discussions-data-fetch.md
 #     - shared/otlp.md
 #     - shared/pmg.md
-#     - shared/repo-memory-standard.md
 #     - shared/reporting.md
 #
 # Secrets used:
@@ -51,6 +50,7 @@
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0 (source v9)
 #   - actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+#   - actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #   - safedep/pmg@5ac0f275b83d9d5a9342c6aae977ec32fa330daa # v1
 #
@@ -104,6 +104,7 @@ jobs:
       comment_id: ""
       comment_repo: ""
       daily_ai_credits_exceeded: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_exceeded == 'true' }}
+      daily_ai_credits_guardrail_status: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_guardrail_status || '' }}
       daily_ai_credits_threshold: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_threshold || '' }}
       daily_ai_credits_total_effective_tokens: ${{ steps.daily-effective-workflow-guardrail.outputs.daily_ai_credits_total_effective_tokens || '' }}
       engine_id: ${{ steps.generate_aw_info.outputs.engine_id }}
@@ -307,27 +308,25 @@ jobs:
           GH_AW_GITHUB_RUN_ID: ${{ github.run_id }}
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
-          GH_AW_WIKI_NOTE: ${{ '' }}
         # poutine:ignore untrusted_checkout_exec
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/create_prompt_first.sh"
           {
-          cat << 'GH_AW_PROMPT_4618c422275e1a44_EOF'
+          cat << 'GH_AW_PROMPT_2fab087bd0af0f8a_EOF'
           <system>
-          GH_AW_PROMPT_4618c422275e1a44_EOF
+          GH_AW_PROMPT_2fab087bd0af0f8a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/xpia.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/temp_folder_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/markdown.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/cache_memory_prompt.md"
-          cat "${RUNNER_TEMP}/gh-aw/prompts/repo_memory_prompt.md"
           cat "${RUNNER_TEMP}/gh-aw/prompts/safe_outputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4618c422275e1a44_EOF'
+          cat << 'GH_AW_PROMPT_2fab087bd0af0f8a_EOF'
           <safe-output-tools>
           Tools: create_discussion, missing_tool, missing_data, noop
           </safe-output-tools>
-          GH_AW_PROMPT_4618c422275e1a44_EOF
+          GH_AW_PROMPT_2fab087bd0af0f8a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/mcp_cli_tools_prompt.md"
-          cat << 'GH_AW_PROMPT_4618c422275e1a44_EOF'
+          cat << 'GH_AW_PROMPT_2fab087bd0af0f8a_EOF'
           <github-context>
           The following GitHub context information is available for this workflow:
           {{#if github.actor}}
@@ -356,16 +355,16 @@ jobs:
           {{/if}}
           </github-context>
 
-          GH_AW_PROMPT_4618c422275e1a44_EOF
+          GH_AW_PROMPT_2fab087bd0af0f8a_EOF
           cat "${RUNNER_TEMP}/gh-aw/prompts/cli_proxy_with_safeoutputs_prompt.md"
-          cat << 'GH_AW_PROMPT_4618c422275e1a44_EOF'
+          cat << 'GH_AW_PROMPT_2fab087bd0af0f8a_EOF'
           </system>
           {{#runtime-import .github/workflows/shared/pmg.md}}
           {{#runtime-import .github/workflows/shared/discussions-data-fetch.md}}
           {{#runtime-import .github/workflows/shared/reporting.md}}
           {{#runtime-import .github/workflows/shared/otlp.md}}
           {{#runtime-import .github/workflows/dataflow-pr-discussion-dataset.md}}
-          GH_AW_PROMPT_4618c422275e1a44_EOF
+          GH_AW_PROMPT_2fab087bd0af0f8a_EOF
           } > "$GH_AW_PROMPT"
       - name: Interpolate variables and render templates
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
@@ -400,12 +399,6 @@ jobs:
           GH_AW_GITHUB_SERVER_URL: ${{ github.server_url }}
           GH_AW_GITHUB_WORKSPACE: ${{ github.workspace }}
           GH_AW_MCP_CLI_SERVERS_LIST: '- `safeoutputs` — run `safeoutputs --help` to see available tools'
-          GH_AW_MEMORY_BRANCH_NAME: 'memory/dataflow-dataset'
-          GH_AW_MEMORY_CONSTRAINTS: "\n\n**Constraints:**\n- **Allowed Files**: Only files matching patterns: *.json, *.jsonl, *.csv, *.md\n- **Max File Size**: 102400 bytes (0.10 MB) per file\n- **Max File Count**: 100 files per commit\n- **Max Patch Size**: 10240 bytes (10 KB) total per push (max: 1024 KB)\n"
-          GH_AW_MEMORY_DESCRIPTION: ' Tracks dataset build statistics and run metadata for the DataFlow pipeline'
-          GH_AW_MEMORY_DIR: '/tmp/gh-aw/repo-memory/default/'
-          GH_AW_MEMORY_TARGET_REPO: ' of the current repository'
-          GH_AW_WIKI_NOTE: ''
         with:
           script: |
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
@@ -430,13 +423,7 @@ jobs:
                 GH_AW_GITHUB_RUN_ID: process.env.GH_AW_GITHUB_RUN_ID,
                 GH_AW_GITHUB_SERVER_URL: process.env.GH_AW_GITHUB_SERVER_URL,
                 GH_AW_GITHUB_WORKSPACE: process.env.GH_AW_GITHUB_WORKSPACE,
-                GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST,
-                GH_AW_MEMORY_BRANCH_NAME: process.env.GH_AW_MEMORY_BRANCH_NAME,
-                GH_AW_MEMORY_CONSTRAINTS: process.env.GH_AW_MEMORY_CONSTRAINTS,
-                GH_AW_MEMORY_DESCRIPTION: process.env.GH_AW_MEMORY_DESCRIPTION,
-                GH_AW_MEMORY_DIR: process.env.GH_AW_MEMORY_DIR,
-                GH_AW_MEMORY_TARGET_REPO: process.env.GH_AW_MEMORY_TARGET_REPO,
-                GH_AW_WIKI_NOTE: process.env.GH_AW_WIKI_NOTE
+                GH_AW_MCP_CLI_SERVERS_LIST: process.env.GH_AW_MCP_CLI_SERVERS_LIST
               }
             });
       - name: Validate prompt placeholders
@@ -554,6 +541,10 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Setup Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
       - name: Create gh-aw temp directory
         run: bash "${RUNNER_TEMP}/gh-aw/actions/create_gh_aw_tmp_dir.sh"
       - name: Configure gh CLI for GitHub Enterprise
@@ -596,16 +587,6 @@ jobs:
           GH_AW_CACHE_DIR: /tmp/gh-aw/cache-memory
           GH_AW_MIN_INTEGRITY: approved
         run: bash "${RUNNER_TEMP}/gh-aw/actions/setup_cache_memory_git.sh"
-      # Repo memory git-based storage configuration from frontmatter processed below
-      - name: Clone repo-memory branch (default)
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          BRANCH_NAME: memory/dataflow-dataset
-          TARGET_REPO: ${{ github.repository }}
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-          CREATE_ORPHAN: true
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/clone_repo_memory_branch.sh"
       - name: Install gh CLI
         run: |
           bash "${RUNNER_TEMP}/gh-aw/actions/install_gh_cli.sh"
@@ -761,18 +742,86 @@ jobs:
           REPO_OWNER: ${{ github.repository_owner }}
       - name: Install DataFlow
         run: |
+          mkdir -p /tmp/gh-aw/agent/dataflow/{input,output,pipeline,reports}
           mkdir -p /tmp/gh-aw/python
           python3 -m venv /tmp/gh-aw/python/venv
-          /tmp/gh-aw/python/venv/bin/pip install --quiet open-dataflow
-          /tmp/gh-aw/python/venv/bin/python3 -c "
-          import dataflow
-          print('DataFlow', getattr(dataflow, '__version__', 'installed'), 'ready')
-          # Print available operators for reference
-          import pkgutil, dataflow.operators as ops
-          available = [m.name for m in pkgutil.iter_modules(ops.__path__)]
-          print('Operator modules:', available)
-          "
-          mkdir -p /tmp/gh-aw/agent/dataflow/{input,output,pipeline,reports}
+
+          VENV=/tmp/gh-aw/python/venv
+          STATUS=/tmp/gh-aw/agent/dataflow/output/dataflow_runtime.json
+          LOG=/tmp/gh-aw/agent/dataflow/output/dataflow_install.log
+          : > "$LOG"
+
+          dataflow_ready=false
+          if timeout 5m "$VENV/bin/pip" install --quiet --disable-pip-version-check --retries 3 --timeout 60 "uv==0.8.3" >>"$LOG" 2>&1 &&
+             timeout 20m env UV_HTTP_TIMEOUT=60 UV_HTTP_RETRIES=3 \
+               "$VENV/bin/uv" pip install --python "$VENV/bin/python3" "open-dataflow==1.0.10" >>"$LOG" 2>&1 &&
+             timeout 2m "$VENV/bin/python3" - <<'PY' >>"$LOG" 2>&1
+          import json
+          from pathlib import Path
+          from dataflow.utils.storage import FileStorage
+          from dataflow.operators.general_text import (
+              CharNumberFilter,
+              HashDeduplicateFilter,
+          )
+
+          fixture_dir = Path("/tmp/gh-aw/agent/dataflow/smoke")
+          fixture_dir.mkdir(parents=True, exist_ok=True)
+          fixture = fixture_dir / "fixture.jsonl"
+          fixture.write_text(
+              "\n".join(
+                  json.dumps(record)
+                  for record in [
+                      {"id": "valid-1", "text": "Alpha words " * 8},
+                      {"id": "short", "text": "tiny"},
+                      {"id": "valid-1-dup", "text": "Alpha words " * 8},
+                  ]
+              )
+              + "\n"
+          )
+
+          storage = FileStorage(first_entry_file_name=str(fixture), cache_path=str(fixture_dir / "cache"))
+          storage.step()
+          CharNumberFilter(threshold=50).run(storage=storage, input_key="text")
+          after_length = storage.step().read("dict")
+          if len(after_length) != 2:
+              raise RuntimeError(f"unexpected CharNumberFilter result: {len(after_length)}")
+
+          storage.write(after_length)
+          storage.step()
+          HashDeduplicateFilter().run(storage=storage, input_key="text")
+          after_dedup = storage.step().read("dict")
+          if len(after_dedup) != 1:
+              raise RuntimeError(f"unexpected HashDeduplicateFilter result: {len(after_dedup)}")
+
+          print("DataFlow API smoke test passed")
+          PY
+          then
+            dataflow_ready=true
+          else
+            echo "::warning::DataFlow installation or API validation failed; the workflow will use the pure-Python or mixed fallback path."
+          fi
+
+          "$VENV/bin/python3" - <<PY
+          import json
+          runtime = {
+              "dataflow_ready": "${dataflow_ready}" == "true",
+              "dataflow_version": "",
+              "selected_operators": [
+                  "CharNumberFilter",
+                  "HashDeduplicateFilter",
+              ],
+              "install_log": "$LOG",
+              "warning": "",
+          }
+          if runtime["dataflow_ready"]:
+              import dataflow
+              runtime["dataflow_version"] = getattr(dataflow, "__version__", "installed")
+          else:
+              runtime["warning"] = "DataFlow installation or API validation failed; the workflow must report fallback mode honestly."
+          with open("$STATUS", "w") as fh:
+              json.dump(runtime, fh, indent=2)
+          print(json.dumps(runtime, indent=2))
+          PY
         env:
           GH_HOST: ${{ env.GH_HOST || 'github.com' }}
           GH_REPO: ${{ github.repository }}
@@ -872,9 +921,9 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_66ea2c9eeeebad01_EOF'
-          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1,"title_prefix":"[dataflow-dataset] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"push_repo_memory":{"memories":[{"dir":"/tmp/gh-aw/repo-memory/default","id":"default","max_file_count":100,"max_file_size":102400,"max_patch_size":10240}]},"report_incomplete":{},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":3,"retention-days":30,"skip-archive":false}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_66ea2c9eeeebad01_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_85dfe4c486f56ca8_EOF'
+          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":168,"fallback_to_issue":true,"max":1,"title_prefix":"[dataflow-dataset] "},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"upload_artifact":{"max-size-bytes":104857600,"max-uploads":3,"retention-days":30,"skip-archive":false}}
+          GH_AW_SAFE_OUTPUTS_CONFIG_85dfe4c486f56ca8_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1339,21 +1388,6 @@ jobs:
           if [ ! -f /tmp/gh-aw/agent_output.json ]; then
             echo '{"items":[]}' > /tmp/gh-aw/agent_output.json
           fi
-      # Upload repo memory as artifacts for push job
-      - name: Sanitize repo-memory filenames (default)
-        if: always()
-        continue-on-error: true
-        env:
-          MEMORY_DIR: /tmp/gh-aw/repo-memory/default
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/sanitize_repo_memory_filenames.sh"
-      - name: Upload repo-memory artifact (default)
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-          retention-days: 1
-          if-no-files-found: ignore
       - name: Commit cache-memory changes
         if: always()
         env:
@@ -1419,7 +1453,6 @@ jobs:
       - evals
       - push_evals_state
       - push_experiments_state
-      - push_repo_memory
       - safe_outputs
       - update_cache_memory
     if: >
@@ -1672,10 +1705,6 @@ jobs:
           GH_AW_DAILY_AI_CREDITS_TOTAL_EFFECTIVE_TOKENS: ${{ needs.activation.outputs.daily_ai_credits_total_effective_tokens }}
           GH_AW_DAILY_AI_CREDITS_THRESHOLD: ${{ needs.activation.outputs.daily_ai_credits_threshold }}
           GH_AW_SAFE_OUTPUT_MESSAGES: "{\"footer\":\"\\u003e 🌊 *Dataset built by [{workflow_name}]({run_url})*{ai_credits_suffix}{history_link}\",\"runStarted\":\"🌊 DataFlow Dataset Builder starting! [{workflow_name}]({run_url}) is processing discussions and PRs with OpenDCAI/DataFlow...\",\"runSuccess\":\"✅ DataFlow dataset ready! [{workflow_name}]({run_url}) produced a cleaned, deduplicated dataset. Artifacts uploaded. 📊\",\"runFailure\":\"⚠️ DataFlow pipeline failed! [{workflow_name}]({run_url}) {status}. Check the run logs.\"}"
-          GH_AW_PUSH_REPO_MEMORY_RESULT: ${{ needs.push_repo_memory.result }}
-          GH_AW_REPO_MEMORY_VALIDATION_FAILED_default: ${{ needs.push_repo_memory.outputs.validation_failed_default }}
-          GH_AW_REPO_MEMORY_VALIDATION_ERROR_default: ${{ needs.push_repo_memory.outputs.validation_error_default }}
-          GH_AW_REPO_MEMORY_PATCH_SIZE_EXCEEDED_default: ${{ needs.push_repo_memory.outputs.patch_size_exceeded_default }}
           GH_AW_GROUP_REPORTS: "false"
           GH_AW_FAILURE_REPORT_AS_ISSUE: "true"
           GH_AW_MISSING_TOOL_REPORT_AS_FAILURE: "true"
@@ -2333,100 +2362,6 @@ jobs:
             const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
             setupGlobals(core, github, context, exec, io, getOctokit);
             const { main } = require('${{ runner.temp }}/gh-aw/actions/push_experiment_state.cjs');
-            await main();
-      - name: Restore actions folder
-        if: always()
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions/setup
-          sparse-checkout-cone-mode: true
-          clean: false
-          persist-credentials: false
-
-  push_repo_memory:
-    needs:
-      - activation
-      - agent
-      - detection
-    if: >
-      always() && (!cancelled()) && (needs.detection.result == 'success' || needs.detection.result == 'skipped') &&
-      needs.agent.result == 'success'
-    runs-on: ubuntu-slim
-    permissions:
-      contents: write
-    concurrency:
-      group: "push-repo-memory-${{ github.repository }}|memory/dataflow-dataset"
-      cancel-in-progress: false
-    env:
-      GH_AW_RUNTIME_FEATURES: ${{ vars.GH_AW_RUNTIME_FEATURES }}
-    outputs:
-      patch_size_exceeded_default: ${{ steps.push_repo_memory_default.outputs.patch_size_exceeded }}
-      validation_error_default: ${{ steps.push_repo_memory_default.outputs.validation_error }}
-      validation_failed_default: ${{ steps.push_repo_memory_default.outputs.validation_failed }}
-    steps:
-      - name: Checkout actions folder
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: github/gh-aw
-          sparse-checkout: |
-            actions
-          clean: false
-          persist-credentials: false
-      - name: Setup Scripts
-        id: setup
-        uses: ./actions/setup
-        with:
-          destination: ${{ runner.temp }}/gh-aw/actions
-          job-name: ${{ github.job }}
-          trace-id: ${{ needs.activation.outputs.setup-trace-id }}
-          parent-span-id: ${{ needs.activation.outputs.setup-parent-span-id || needs.activation.outputs.setup-span-id }}
-        env:
-          GH_AW_SETUP_WORKFLOW_NAME: "DataFlow PR & Discussion Dataset Builder"
-          GH_AW_CURRENT_WORKFLOW_REF: ${{ github.repository }}/.github/workflows/dataflow-pr-discussion-dataset.lock.yml@${{ github.ref }}
-          GH_AW_INFO_VERSION: "1.0.77"
-          GH_AW_INFO_AWF_VERSION: "v0.27.43"
-          GH_AW_INFO_ENGINE_ID: "copilot"
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-          sparse-checkout: .
-      - name: Configure Git credentials
-        env:
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          GITHUB_TOKEN: ${{ github.token }}
-        run: bash "${RUNNER_TEMP}/gh-aw/actions/configure_git_credentials.sh"
-      - name: Download repo-memory artifact (default)
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        continue-on-error: true
-        with:
-          name: repo-memory-default
-          path: /tmp/gh-aw/repo-memory/default
-      - name: Push repo-memory changes (default)
-        id: push_repo_memory_default
-        if: always()
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GITHUB_RUN_ID: ${{ github.run_id }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-          ARTIFACT_DIR: /tmp/gh-aw/repo-memory/default
-          MEMORY_ID: default
-          TARGET_REPO: ${{ github.repository }}
-          BRANCH_NAME: memory/dataflow-dataset
-          MAX_FILE_SIZE: 102400
-          MAX_FILE_COUNT: 100
-          MAX_PATCH_SIZE: 10240
-          ALLOWED_EXTENSIONS: '[]'
-          FILE_GLOB_FILTER: "*.json *.jsonl *.csv *.md"
-        with:
-          script: |
-            const { setupGlobals } = require('${{ runner.temp }}/gh-aw/actions/setup_globals.cjs');
-            setupGlobals(core, github, context, exec, io, getOctokit);
-            const { main } = require('${{ runner.temp }}/gh-aw/actions/push_repo_memory.cjs');
             await main();
       - name: Restore actions folder
         if: always()
