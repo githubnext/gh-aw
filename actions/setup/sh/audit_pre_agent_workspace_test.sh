@@ -108,6 +108,38 @@ assert "node_modules excluded from listing" "! grep -q 'node_modules/some-pkg' /
 assert "agent.md still listed despite node_modules sibling" "grep -q 'agent.md' /tmp/gh-aw/pre-agent-audit.txt"
 echo ""
 
+# ── Test 8: Step summary table is rendered ─────────────────────────────────
+echo "Test 8: Step summary contains a collapsible table"
+WORKSPACE="${TEST_ROOT}/workspace-8"
+mkdir -p "${WORKSPACE}/.github/agents"
+echo "agent" > "${WORKSPACE}/.github/agents/agent.md"
+TMPDIR="${TEST_ROOT}/tmp8"
+mkdir -p "${TMPDIR}/gh-aw"
+GH_OUT8="${TEST_ROOT}/github_output8"
+SUMMARY8="${TEST_ROOT}/step_summary8"
+touch "${GH_OUT8}" "${SUMMARY8}"
+GITHUB_WORKSPACE="${WORKSPACE}" HOME="${TEST_ROOT}/home8" RUNNER_TEMP="${TMPDIR}" GITHUB_OUTPUT="${GH_OUT8}" GITHUB_STEP_SUMMARY="${SUMMARY8}" bash "${SCRIPT_PATH}" >/dev/null 2>&1
+assert "Summary has heading" "grep -q '### Pre-agent workspace audit' '${SUMMARY8}'"
+assert "Summary uses details tag" "grep -q '<details>' '${SUMMARY8}'"
+assert "Summary closes details tag" "grep -q '</details>' '${SUMMARY8}'"
+assert "Summary has table header" "grep -q '| Section | Path | Size |' '${SUMMARY8}'"
+assert "Summary lists agent.md row" "grep -q 'agent.md' '${SUMMARY8}'"
+assert "Summary omits section marker lines" "! grep -q -- '--- Workspace agents' '${SUMMARY8}'"
+echo ""
+
+# ── Test 9: Works without GITHUB_STEP_SUMMARY set ──────────────────────────
+echo "Test 9: Script succeeds when GITHUB_STEP_SUMMARY is unset"
+TMPDIR="${TEST_ROOT}/tmp9"
+mkdir -p "${TMPDIR}/gh-aw"
+GH_OUT9="${TEST_ROOT}/github_output9"
+touch "${GH_OUT9}"
+if GITHUB_WORKSPACE="${TEST_ROOT}/workspace-8" HOME="${TEST_ROOT}/home9" RUNNER_TEMP="${TMPDIR}" GITHUB_OUTPUT="${GH_OUT9}" bash "${SCRIPT_PATH}" >/dev/null 2>&1; then
+  assert "Script succeeds without GITHUB_STEP_SUMMARY" "true"
+else
+  assert "Script succeeds without GITHUB_STEP_SUMMARY" "false"
+fi
+echo ""
+
 # ── Summary ──────────────────────────────────────────────────────────────────
 echo "Results: ${TESTS_PASSED} passed, ${TESTS_FAILED} failed"
 if [ "${TESTS_FAILED}" -gt 0 ]; then
