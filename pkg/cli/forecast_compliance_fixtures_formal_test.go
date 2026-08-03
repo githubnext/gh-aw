@@ -32,6 +32,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"testing"
 	"time"
 
@@ -649,4 +650,44 @@ func TestFormal_FC_P10_MonteCarloInputCompleteness(t *testing.T) {
 			}
 		})
 	}
+}
+
+// documentedForecastFixtures mirrors the baseline fixture ("Fixture Files" section)
+// plus the "Available Additional Fixtures" table in
+// specs/forecast-compliance-fixtures/README.md. This list MUST be kept in sync with
+// the JSON files present in the fixture directory; a mismatch signals that the
+// README, the fixture directory, or this test has drifted out of sync.
+var documentedForecastFixtures = []string{
+	"run_summary_minimal.json",
+	"run_summary_zero_et.json",
+	"run_summary_failed.json",
+	"run_summary_high_et.json",
+	"run_summary_cancelled.json",
+}
+
+// TestFormal_FixtureCountConsistency verifies that the fixture files documented in
+// specs/forecast-compliance-fixtures/README.md exactly match the `.json` files
+// present in the fixture directory, so the README table cannot silently drift from
+// the fixtures actually exercised by the tests above.
+func TestFormal_FixtureCountConsistency(t *testing.T) {
+	dir := fixtureDir(t)
+	entries, err := os.ReadDir(dir)
+	require.NoError(t, err, "failed to read forecast compliance fixture directory")
+
+	var onDisk []string
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".json" {
+			continue
+		}
+		onDisk = append(onDisk, entry.Name())
+	}
+
+	documented := append([]string(nil), documentedForecastFixtures...)
+	sort.Strings(documented)
+	sort.Strings(onDisk)
+
+	assert.Equal(t, documented, onDisk,
+		"fixture files on disk in %s must match the README's documented fixture list exactly "+
+			"(update both the README and documentedForecastFixtures when fixtures change)",
+		dir)
 }
