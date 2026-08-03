@@ -7,7 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -458,6 +458,13 @@ func updateCopilotArtifacts(ctx context.Context, verbose bool) error {
 // path because os.Executable() returns a "(deleted)"-suffixed path after the binary
 // has been renamed out of the way during the upgrade.
 func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
+	allowedExtraFlags := map[string]struct{}{
+		"--skip-extension-upgrade": {},
+	}
+	if _, ok := allowedExtraFlags[extraFlag]; !ok {
+		return fmt.Errorf("invalid relaunch flag %q: expected --skip-extension-upgrade", extraFlag)
+	}
+
 	var exe string
 	if exeOverride != "" {
 		exe = exeOverride
@@ -479,10 +486,8 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	// Explicitly copy os.Args[1:] so appending the extra flag does not modify
 	// the original slice backing array.
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
-	for _, arg := range newArgs {
-		if strings.ContainsRune(arg, '\x00') {
-			return errors.New("invalid relaunch arguments: argument contains NUL byte. Example: compile .github/workflows/example.md")
-		}
+	if slices.ContainsFunc(newArgs, containsControlCharacters) {
+		return errors.New("invalid relaunch arguments: argument contains invalid control characters. Example: compile .github/workflows/example.md")
 	}
 	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
 
