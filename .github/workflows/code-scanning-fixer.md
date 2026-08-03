@@ -43,6 +43,12 @@ safe-outputs:
     allowed:
       - agentic-campaign
       - z_campaign_security-alert-burndown
+  create-pull-request:
+    title-prefix: "[code-scanning-fix] "
+    expires: "2d"
+    labels: [security, automated-fix, agentic-campaign, z_campaign_security-alert-burndown]
+    reviewers: [copilot]
+    max-patch-size: 10240
 timeout-minutes: 20
 features:
   gh-aw-detection: true
@@ -142,13 +148,16 @@ Create code changes to address the security issue:
 - Develop a secure implementation that fixes the vulnerability
 - Ensure the fix follows security best practices
 - Make minimal, surgical changes to the code
+- If the remediation would require a very large diff (for example removing large tracked binaries or other generated artifacts), do not continue with an automated PR. Log that the fix needs manual follow-up because it would exceed workflow patch limits, then exit gracefully with `noop`
 - Use the `edit` tool to modify the affected file(s)
 - Validate that your fix addresses the root cause
 - Consider edge cases and potential side effects
 
 ### 7. Create Pull Request
 
-After making the code changes using the `edit` tool, emit a `create-pull-request` safe output:
+After making the code changes using the `edit` tool, emit a `create-pull-request` safe output only when the resulting change is small enough for workflow patch limits. If the patch would still be too large, do not emit `create-pull-request`; use `noop` with a clear explanation instead.
+
+When creating a PR, emit a `create-pull-request` safe output:
 
 ```yaml
 create-pull-request:
