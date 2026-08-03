@@ -285,6 +285,41 @@ func TestScanWorkflowsForExpires_TriggerReason(t *testing.T) {
 		require.Contains(t, triggerReason, "safe_outputs.create_issues.expires=72h")
 		require.NotContains(t, triggerReason, "second-trigger")
 	})
+
+	t.Run("implicit noop does not trigger maintenance", func(t *testing.T) {
+		trueVal := "true"
+		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires([]*WorkflowData{
+			{
+				Name: "implicit-noop",
+				SafeOutputs: &SafeOutputsConfig{
+					NoOp: &NoOpConfig{
+						ReportAsIssue: &trueVal,
+						Implicit:      true,
+					},
+				},
+			},
+		})
+		require.False(t, hasExpires)
+		require.Equal(t, 0, minExpires)
+		require.Empty(t, triggerReason)
+	})
+
+	t.Run("explicit noop triggers maintenance", func(t *testing.T) {
+		trueVal := "true"
+		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires([]*WorkflowData{
+			{
+				Name: "explicit-noop",
+				SafeOutputs: &SafeOutputsConfig{
+					NoOp: &NoOpConfig{
+						ReportAsIssue: &trueVal,
+					},
+				},
+			},
+		})
+		require.True(t, hasExpires)
+		require.Equal(t, defaultNoOpIssueExpirationHours, minExpires)
+		require.Contains(t, triggerReason, "explicit-noop")
+	})
 }
 
 func TestGenerateMaintenanceWorkflow_CreatesWorkflowDirRecursively(t *testing.T) {

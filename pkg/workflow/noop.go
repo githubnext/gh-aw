@@ -10,6 +10,12 @@ var noopLog = logger.New("workflow:noop")
 type NoOpConfig struct {
 	BaseSafeOutputConfig `yaml:",inline"`
 	ReportAsIssue        *string `yaml:"report-as-issue,omitempty"` // Controls whether noop runs are reported as issue comments (default: true)
+	// Implicit is true when this configuration was injected by default because
+	// `safe-outputs` was present but no `noop` entry was authored. Implicit noop
+	// configurations do not require the agentics-maintenance workflow, so that
+	// compilation stays lazy and does not add maintenance files to repositories
+	// that never opted into expiring safe outputs.
+	Implicit bool `yaml:"-"`
 }
 
 // parseNoOpConfig handles noop configuration

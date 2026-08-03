@@ -356,6 +356,7 @@ func (c *Compiler) extractSafeOutputsConfig(frontmatter map[string]any) *SafeOut
 					config.NoOp.Max = defaultIntStr(1) // Default max
 					trueVal := "true"
 					config.NoOp.ReportAsIssue = &trueVal // Default to reporting to issue
+					config.NoOp.Implicit = true          // Not authored by the user
 				}
 			}
 

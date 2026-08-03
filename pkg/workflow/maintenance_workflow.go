@@ -447,8 +447,11 @@ func scanWorkflowsForExpires(workflowDataList []*WorkflowData) (bool, int, strin
 				}
 			}
 		}
-		// Check for no-op runs issue expiration (runtime defaults to 30 days)
-		if workflowData.SafeOutputs.NoOp != nil {
+		// Check for no-op runs issue expiration (runtime defaults to 30 days).
+		// Only explicitly configured noop outputs trigger maintenance generation:
+		// the implicit default must not pollute repositories with a maintenance
+		// workflow they never asked for.
+		if workflowData.SafeOutputs.NoOp != nil && !workflowData.SafeOutputs.NoOp.Implicit {
 			if isNoOpReportAsIssueEnabled(workflowData.SafeOutputs.NoOp.ReportAsIssue) {
 				hasExpires = true
 				expires := defaultNoOpIssueExpirationHours
