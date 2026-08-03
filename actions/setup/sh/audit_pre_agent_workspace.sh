@@ -37,6 +37,7 @@ set +o histexpand
 #   HOME               - agent user home directory
 #   RUNNER_TEMP        - runner temporary directory
 #   GITHUB_OUTPUT      - path to the GitHub Actions output file
+#   GITHUB_STEP_SUMMARY- path to the GitHub Actions step summary file (optional)
 #
 # GitHub Actions outputs written:
 #   pre-agent-audit-file        - path to the audit file
@@ -99,7 +100,46 @@ list_dir() {
   list_dir "gh-aw temp directory"    "${RUNNER_TEMP}/gh-aw"
 } > "${AUDIT_FILE}"
 
+# Render the audit listing as a collapsed markdown table in the step summary.
+# Section headers written above ("--- label: dir ---") become the Section column;
+# every other line is a file or directory path. Sizes are reported for regular files.
+render_summary_table() {
+  local section=""
+  local line
+  local rows=""
+  local count=0
+  while IFS= read -r line; do
+    case "${line}" in
+      "=== "*) continue ;;
+      "--- "*": "*" ---")
+        section="${line#--- }"
+        section="${section%%:*}"
+        continue
+        ;;
+      "--- "*" ---") continue ;;
+      "(not found)"|"") continue ;;
+    esac
+    local size="-"
+    if [ -f "${line}" ]; then
+      size="$(wc -c < "${line}" 2>/dev/null | tr -d ' ')"
+    elif [ -d "${line}" ]; then
+      size="dir"
+    fi
+    rows+="| ${section} | \`${line}\` | ${size} |"$'\n'
+    count=$((count + 1))
+  done < "${AUDIT_FILE}"
+  echo "<details>"
+  echo "<summary>Pre-agent workspace audit (${count} entries)</summary>"
+  echo
+  echo "| Section | Path | Size |"
+  echo "| --- | --- | --- |"
+  printf '%s' "${rows}"
+  echo
+  echo "</details>"
+}
+
 LINE_COUNT="$(wc -l < "${AUDIT_FILE}" | tr -d ' ')"
+render_summary_table >> "${GITHUB_STEP_SUMMARY:-/dev/null}"
 echo "pre-agent-audit-file=${AUDIT_FILE}" >> "${GITHUB_OUTPUT}"
 echo "pre-agent-audit-line-count=${LINE_COUNT}" >> "${GITHUB_OUTPUT}"
 echo "Pre-agent audit written to ${AUDIT_FILE} (${LINE_COUNT} lines)"
