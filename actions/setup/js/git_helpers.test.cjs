@@ -2004,4 +2004,78 @@ describe("git_helpers.cjs - integration (real git repo)", () => {
       expect(headAfter).toBe(headBeforeLinearize);
     });
   });
+
+  describe("withGitRetry", () => {
+    function mockWarning() {
+      global.core = { ...global.core, warning: vi.fn() };
+      return global.core.warning;
+    }
+
+    it("returns immediately on success without warnings", async () => {
+      const { withGitRetry } = await import("./git_helpers.cjs");
+      const warning = mockWarning();
+      const operation = vi.fn().mockReturnValue("ok");
+
+      await expect(withGitRetry(operation, { baseDelayMs: 0 })).resolves.toBe("ok");
+      expect(operation).toHaveBeenCalledTimes(1);
+      expect(warning).not.toHaveBeenCalled();
+    });
+
+    it("retries transient transport failures and eventually succeeds", async () => {
+      const { withGitRetry } = await import("./git_helpers.cjs");
+      const warning = mockWarning();
+      const operation = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Git command timed out: git fetch ...");
+        })
+        .mockImplementationOnce(() => {
+          throw new Error("error: RPC failed; HTTP 502 curl 22 The requested URL returned error: 502");
+        })
+        .mockReturnValue("ok");
+
+      await expect(withGitRetry(operation, { baseDelayMs: 0 })).resolves.toBe("ok");
+      expect(operation).toHaveBeenCalledTimes(3);
+      expect(warning).toHaveBeenCalledTimes(2);
+    });
+
+    it("does not retry deterministic failures", async () => {
+      const { withGitRetry } = await import("./git_helpers.cjs");
+      const warning = mockWarning();
+      const operation = vi.fn().mockImplementation(() => {
+        throw new Error("fatal: Authentication failed for 'https://github.com/o/r.git/'");
+      });
+
+      await expect(withGitRetry(operation, { baseDelayMs: 0 })).rejects.toThrow("Authentication failed");
+      expect(operation).toHaveBeenCalledTimes(1);
+      expect(warning).not.toHaveBeenCalled();
+    });
+
+    it("throws the last error after exhausting all retries", async () => {
+      const { withGitRetry } = await import("./git_helpers.cjs");
+      mockWarning();
+      const operation = vi.fn().mockImplementation(() => {
+        throw new Error("persistent network failure");
+      });
+
+      await expect(withGitRetry(operation, { baseDelayMs: 0, maxRetries: 2 })).rejects.toThrow("persistent network failure");
+      expect(operation).toHaveBeenCalledTimes(3);
+    });
+  });
+
+  describe("isTransientGitError", () => {
+    it("classifies git transport failures as transient", async () => {
+      const { isTransientGitError } = await import("./git_helpers.cjs");
+      expect(isTransientGitError(new Error("fatal: unable to access 'https://github.com/o/r.git/': Failed to connect"))).toBe(true);
+      expect(isTransientGitError(new Error("fatal: the remote end hung up unexpectedly"))).toBe(true);
+      expect(isTransientGitError(new Error("error: RPC failed; HTTP 502"))).toBe(true);
+    });
+
+    it("classifies deterministic failures as non-transient", async () => {
+      const { isTransientGitError } = await import("./git_helpers.cjs");
+      expect(isTransientGitError(new Error("fatal: Authentication failed"))).toBe(false);
+      expect(isTransientGitError(new Error("fatal: couldn't find remote ref evals/foo"))).toBe(false);
+      expect(isTransientGitError(new Error("error: pathspec 'x' did not match any file(s) known to git"))).toBe(false);
+    });
+  });
 });
