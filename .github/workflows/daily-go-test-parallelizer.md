@@ -35,7 +35,7 @@ safe-outputs:
     protected-files: blocked
     allowed-files:
       - "**/*_test.go"
-    max-patch-files: 1
+    max-patch-files: 5
     max-patch-size: 2048
   noop:
 evals:
@@ -47,15 +47,16 @@ evals:
 
 # Daily Go Test Parallelizer
 
-Analyze one Go test file per run and add `t.Parallel()` only where parallel execution is demonstrably safe.
+Analyze up to five Go test files per run and add `t.Parallel()` only where parallel execution is demonstrably safe.
 
 ## Select a file
 
 1. Use `grep` to list tracked `*_test.go` files containing top-level `Test` functions. Exclude `vendor/` and generated files, then sort paths lexicographically.
 2. Read `/tmp/gh-aw/cache-memory/go-test-parallelizer/state.json` when it exists. It has this shape:
    `{"last_file":"path/to/file_test.go"}`.
-3. Select the path after `last_file`, wrapping to the first path. If the cache is absent, malformed, or names a removed file, select the first path.
-4. Analyze and modify at most that one file.
+3. Select up to 5 consecutive paths starting after `last_file`, wrapping to the first path. If the cache is absent, malformed, or names a removed file, start from the first path.
+4. Analyze and modify only this selected batch (maximum 5 files).
+5. Minimize token usage: avoid re-reading files you already analyzed, and do not paste full file contents into notes or outputs.
 
 ## Analyze safety
 
@@ -72,15 +73,15 @@ Do not change assertions, test behavior, production code, dependencies, generate
 
 ## Validate
 
-After editing:
+After editing the selected batch:
 
-1. Run the selected package with the race detector.
-2. Run `go test ./...`.
-3. Inspect the diff and confirm it contains only safe `t.Parallel()` additions in the selected file.
-4. Revert the edit and use `noop` if either test command fails or the diff contains any other change.
+1. Run `go test -race` once per unique modified package (deduplicate package paths across edited files).
+2. Run `go test ./...` once after all candidate edits.
+3. Inspect the diff and confirm it contains only safe `t.Parallel()` additions in selected files.
+4. Revert the edit and use `noop` if any test command fails or the diff contains any other change.
 
 ## Persist and report
 
-Always create `/tmp/gh-aw/cache-memory/go-test-parallelizer/` and write the selected path to `state.json`, even when no edit is safe, so the next daily run advances round-robin.
+Always create `/tmp/gh-aw/cache-memory/go-test-parallelizer/` and write the last path from the selected batch to `state.json`, even when no edit is safe, so the next daily run advances round-robin.
 
 If validation succeeds with a change, create one draft pull request describing the safety analysis and test results. Otherwise use `noop` with the selected path and a short reason.
