@@ -1715,7 +1715,7 @@ jobs:
         # - mcp__playwright__browser_wait_for
         # - mcp__safeoutputs
         # - mcp__tavily
-        timeout-minutes: 20
+        timeout-minutes: 10
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

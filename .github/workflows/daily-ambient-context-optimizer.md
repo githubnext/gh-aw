@@ -318,6 +318,7 @@ Assess whether the request size is likely driven by:
 - too many inline agents or agent definitions that are not justified
 - duplicated guardrails, examples, or formatting rules
 - context that should be moved to deterministic `steps:` or smaller sub-agents
+- large output templates (issue body, discussion body, report formats) embedded inline in the prompt body rather than in `## skill:` blocks
 
 Review `prompt.txt` only as a compiler cross-check artifact:
 
@@ -379,6 +380,7 @@ Prioritize recommendations that:
 3. simplify or remove low-value inline agents
 4. move deterministic data gathering out of the main prompt
 5. enable `gh-proxy` and `cli-proxy` when missing, then rewrite raw CLI-oriented problem wording to explicit `agentic-workflows` MCP-tool calls
+6. move large inline output templates (issue body, discussion body, report formats) into `## skill:` blocks so they are loaded on demand rather than unconditionally inflating the first request
 
 Do not recommend changes that would obviously weaken safety or remove necessary task context.
 

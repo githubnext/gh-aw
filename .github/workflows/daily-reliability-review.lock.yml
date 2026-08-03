@@ -946,7 +946,7 @@ jobs:
         # - mcp__sentry__search_events
         # - mcp__sentry__search_issues
         # - mcp__sentry__whoami
-        timeout-minutes: 20
+        timeout-minutes: 30
         run: |
           set -o pipefail
           printf '%s' "$(date +%s%3N)" > /tmp/gh-aw/agent_cli_start_ms.txt

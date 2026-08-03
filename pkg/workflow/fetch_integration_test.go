@@ -98,9 +98,6 @@ permissions:
   issues: read
   pull-requests: read
 engine: codex
-tools:
-  bash:
-    - echo
 ---
 
 # Test Workflow
@@ -151,9 +148,6 @@ permissions:
   issues: read
   pull-requests: read
 engine: codex
-tools:
-  bash:
-    - echo
 ---
 
 # Test Workflow
