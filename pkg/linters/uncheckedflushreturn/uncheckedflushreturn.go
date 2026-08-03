@@ -42,7 +42,7 @@ func run(pass *analysis.Pass) (any, error) {
 		return nil, err
 	}
 
-	nodeFilter := []ast.Node{(*ast.ExprStmt)(nil), (*ast.AssignStmt)(nil)}
+	nodeFilter := []ast.Node{(*ast.ExprStmt)(nil), (*ast.AssignStmt)(nil), (*ast.DeferStmt)(nil)}
 	insp.Preorder(nodeFilter, func(n ast.Node) {
 		switch stmt := n.(type) {
 		case *ast.ExprStmt:
@@ -57,6 +57,12 @@ func run(pass *analysis.Pass) (any, error) {
 				return
 			}
 			checkDiscardedFlushAssign(pass, stmt, noLintIndex)
+		case *ast.DeferStmt:
+			position := pass.Fset.PositionFor(stmt.Pos(), false)
+			if filecheck.ShouldSkipFilename(position.Filename, generatedFiles) {
+				return
+			}
+			checkDiscardedFlushDefer(pass, stmt, noLintIndex)
 		}
 	})
 	return nil, nil
@@ -93,6 +99,18 @@ func checkDiscardedFlushAssign(pass *analysis.Pass, assign *ast.AssignStmt, noLi
 		return
 	}
 	reportUncheckedFlush(pass, call, noLintIndex)
+}
+
+// checkDiscardedFlushDefer flags defer x.Flush() statements where the error
+// return is dropped when the deferred call executes.
+func checkDiscardedFlushDefer(pass *analysis.Pass, stmt *ast.DeferStmt, noLintIndex nolint.DirectiveIndex) {
+	if stmt.Call == nil {
+		return
+	}
+	if !isFlushCallReturningError(pass, stmt.Call) {
+		return
+	}
+	reportUncheckedFlush(pass, stmt.Call, noLintIndex)
 }
 
 func reportUncheckedFlush(pass *analysis.Pass, call *ast.CallExpr, noLintIndex nolint.DirectiveIndex) {
