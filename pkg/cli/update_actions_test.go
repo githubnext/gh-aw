@@ -657,6 +657,26 @@ func TestGetLatestActionRelease_FallsBackToGitWhenNoReleases(t *testing.T) {
 	}
 }
 
+func TestParseActionTagRefs_PrefersPeeledCommitSHA(t *testing.T) {
+	output := strings.Join([]string{
+		"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa refs/tags/v1",
+		"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb refs/tags/v1^{}",
+		"cccccccccccccccccccccccccccccccccccccccc refs/tags/v2",
+	}, "\n")
+
+	releases, tagToSHA := parseActionTagRefs(output)
+
+	if len(releases) != 2 || releases[0] != "v1" || releases[1] != "v2" {
+		t.Fatalf("releases = %v, want [v1 v2]", releases)
+	}
+	if got := tagToSHA["v1"]; got != "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb" {
+		t.Errorf("v1 SHA = %q, want peeled commit SHA", got)
+	}
+	if got := tagToSHA["v2"]; got != "cccccccccccccccccccccccccccccccccccccccc" {
+		t.Errorf("v2 SHA = %q, want lightweight tag SHA", got)
+	}
+}
+
 // TestGetLatestActionRelease_FallbackReturnsErrorWhenBothFail verifies that when the
 // GitHub Releases API returns an empty list and the git fallback also fails, the
 // function returns an error rather than silently succeeding.
@@ -812,12 +832,10 @@ func TestIsGhAwNativeAction(t *testing.T) {
 	}
 }
 
-// TestUpdateActions_NeverDowngrades verifies that UpdateActions never replaces an action
-// with an older version. This can happen when an action has tags that were not published
-// as formal GitHub Releases: the Releases API only returns formally published releases,
-// so if the current version (e.g. v1.1.3) was tag-only, the API may return an older
-// release (e.g. v1.1.0) as the "latest". The update logic must detect this and skip.
-func TestUpdateActions_NeverDowngrades(t *testing.T) {
+// TestUpdateActions_NeverDowngradesRefreshesCurrentTagSHA verifies that UpdateActions
+// preserves a tag-only current version while repairing its SHA when the Releases API
+// only reports an older formal release.
+func TestUpdateActions_NeverDowngradesRefreshesCurrentTagSHA(t *testing.T) {
 	deps := newTestActionUpdateDeps()
 	// Simulate the Releases API returning a lower version than what is already pinned
 	// in actions-lock.json (e.g. actions-ecosystem/action-add-labels: v1.1.3 → v1.1.0).
@@ -828,6 +846,13 @@ func TestUpdateActions_NeverDowngrades(t *testing.T) {
 		}
 		// Other actions are already at their latest version
 		return currentVersion, "somesha12345678901234567890123456789012b", nil
+	}
+	const refreshedSHA = "18f1af5e3544586314bbe15c0273249c770b2daf"
+	deps.getActionSHAForTag = func(_ context.Context, repo, tag string) (string, error) {
+		if repo != "actions-ecosystem/action-add-labels" || tag != "v1.1.3" {
+			t.Fatalf("getActionSHAForTag(%q, %q), want actions-ecosystem/action-add-labels@v1.1.3", repo, tag)
+		}
+		return refreshedSHA, nil
 	}
 
 	tmpDir := testutil.TempDir(t, "test-*")
@@ -860,12 +885,12 @@ func TestUpdateActions_NeverDowngrades(t *testing.T) {
 		t.Fatalf("failed to reload cache: %v", err)
 	}
 
-	// The action must still be pinned at v1.1.3, not downgraded to v1.1.0.
+	// The action must remain at v1.1.3, but its SHA must be refreshed.
 	entry, ok := saved.Entries["actions-ecosystem/action-add-labels@v1.1.3"]
 	if !ok {
 		t.Errorf("expected entry actions-ecosystem/action-add-labels@v1.1.3 to be preserved; got entries: %v", savedEntryKeys(saved))
-	} else if entry.SHA != currentSHA {
-		t.Errorf("SHA changed unexpectedly: got %q, want %q", entry.SHA, currentSHA)
+	} else if entry.SHA != refreshedSHA {
+		t.Errorf("SHA = %q, want refreshed SHA %q", entry.SHA, refreshedSHA)
 	}
 
 	// The downgraded entry must NOT appear.

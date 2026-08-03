@@ -9,6 +9,8 @@ emoji: 🔍
 engine:
   id: copilot
   max-continuations: 6
+features:
+  gh-aw-detection: true
 imports:
 - uses: shared/pr-review-base.md
   with:
@@ -54,19 +56,17 @@ safe-outputs:
     run-success: 🧠 [{workflow_name}]({run_url}) has completed the skills-based review. ✅
   submit-pull-request-review:
     max: 1
-features:
-  gh-aw-detection: true
 sandbox:
   agent:
     sudo: false
 skills:
-- mattpocock/skills/diagnosing-bugs@ed37663cc5fbef691ddfecd080dff42f7e7e350d
-- mattpocock/skills/tdd@ed37663cc5fbef691ddfecd080dff42f7e7e350d
-- mattpocock/skills/improve-codebase-architecture@ed37663cc5fbef691ddfecd080dff42f7e7e350d
-- mattpocock/skills/grill-with-docs@ed37663cc5fbef691ddfecd080dff42f7e7e350d
-- mattpocock/skills/to-prd@ed37663cc5fbef691ddfecd080dff42f7e7e350d
-- mattpocock/skills/codebase-design@ed37663cc5fbef691ddfecd080dff42f7e7e350d
-- mattpocock/skills/domain-modeling@ed37663cc5fbef691ddfecd080dff42f7e7e350d
+- mattpocock/skills/diagnosing-bugs@2ab958093e83e0ec752e6c1c5932da465bf23e0c
+- mattpocock/skills/tdd@2ab958093e83e0ec752e6c1c5932da465bf23e0c
+- mattpocock/skills/improve-codebase-architecture@2ab958093e83e0ec752e6c1c5932da465bf23e0c
+- mattpocock/skills/grill-with-docs@2ab958093e83e0ec752e6c1c5932da465bf23e0c
+- mattpocock/skills/to-prd@2ab958093e83e0ec752e6c1c5932da465bf23e0c
+- mattpocock/skills/codebase-design@2ab958093e83e0ec752e6c1c5932da465bf23e0c
+- mattpocock/skills/domain-modeling@2ab958093e83e0ec752e6c1c5932da465bf23e0c
 timeout-minutes: 15
 tools:
   cli-proxy: true
