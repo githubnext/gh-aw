@@ -960,7 +960,7 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 
-  it("should treat head-ref-missing as fatal when updateBranch returns a non-422 status", async () => {
+  it("should treat head-ref-missing as non-fatal regardless of updateBranch status", async () => {
     const unexpectedStatusError = new Error("head ref does not exist - https://docs.github.com/rest/pulls/pulls#update-a-pull-request-branch");
     unexpectedStatusError.status = 404;
     mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(unexpectedStatusError);
@@ -968,9 +968,10 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     const handler = await updatePRModule.main({ update_branch: true });
     const result = await handler({ pull_request_number: 100 });
 
-    expect(result.success).toBe(false);
+    expect(result.success).toBe(true);
     expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
     expect(mockGithub.rest.pulls.update).not.toHaveBeenCalled();
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 
   it("should continue title/body updates when updateBranch gets workflows-permission 403", async () => {

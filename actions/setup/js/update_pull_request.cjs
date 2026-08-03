@@ -52,7 +52,7 @@ function isNonFatalUpdateBranchError(error) {
     if (status === 403 && (hasWorkflowsPermissionError || hasWorkflowsScopeRequired)) {
       return true;
     }
-    if (status !== 422) {
+    if (status !== 422 && !message.includes("head ref does not exist")) {
       return false;
     }
   }
@@ -62,12 +62,14 @@ function isNonFatalUpdateBranchError(error) {
   // - cannot auto-update due to conflict ("merge conflict between base and head")
   // - stale merged targets where the head branch was deleted ("head ref does not exist")
   // These should not fail safe output processing.
-  // Restrict to status === 422 to avoid silently swallowing the same phrases from proxy/network
-  // errors that lack a numeric status. hasWorkflowsPermissionError / hasWorkflowsScopeRequired
-  // are only checked for errors with no numeric status (status === undefined); the explicit 403
-  // case is already handled by the if-block above.
+  // A deleted head ref is a stale target regardless of how the API/proxy reports its status.
+  // Restrict the other phrases to status === 422 to avoid silently swallowing proxy/network
+  // errors. hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked for errors
+  // with no numeric status (status === undefined); the explicit 403 case is already handled by
+  // the if-block above.
   return (
-    (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head") || message.includes("head ref does not exist"))) ||
+    message.includes("head ref does not exist") ||
+    (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head"))) ||
     ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
   );
 }
