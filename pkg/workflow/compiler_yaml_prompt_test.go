@@ -14,13 +14,14 @@ import (
 // TestProcessOrderedPromptImports tests the processOrderedPromptImports function.
 func TestProcessOrderedPromptImports(t *testing.T) {
 	tests := []struct {
-		name             string
-		promptImports    []parser.PromptImportEntry
-		importInputs     map[string]any
-		inlinedImports   bool
-		markdownPath     string
-		wantChunkCount   int
-		wantChunkContain []string // substrings that must appear in at least one chunk
+		name              string
+		promptImports     []parser.PromptImportEntry
+		importInputs      map[string]any
+		inlinedImports    bool
+		markdownPath      string
+		wantChunkCount    int
+		wantChunkContain  []string // substrings that must appear in at least one chunk
+		wantChunkSequence []string // if set, chunks[i] must contain wantChunkSequence[i] (exact order)
 	}{
 		{
 			name: "single inline markdown entry",
@@ -43,14 +44,16 @@ func TestProcessOrderedPromptImports(t *testing.T) {
 				{Markdown: "# Inline Content"},
 				{ImportPath: ".github/workflows/extra.md"},
 			},
-			wantChunkContain: []string{"# Inline Content", "{{#runtime-import .github/workflows/extra.md}}"},
+			// Must preserve interleaving: inline chunk first, runtime-import macro second.
+			wantChunkSequence: []string{"# Inline Content", "{{#runtime-import .github/workflows/extra.md}}"},
 		},
 		{
 			name: "markdown with import inputs substitution",
 			promptImports: []parser.PromptImportEntry{
-				{Markdown: "Hello {{ github.aw.inputs.name }}!"},
+				{Markdown: "Hello ${{ github.aw.inputs.name }}!"},
 			},
-			importInputs: map[string]any{"name": "World"},
+			importInputs:     map[string]any{"name": "World"},
+			wantChunkContain: []string{"Hello World!"},
 		},
 		{
 			name:           "empty prompt imports list",
@@ -99,6 +102,16 @@ func TestProcessOrderedPromptImports(t *testing.T) {
 					t.Errorf("processOrderedPromptImports() expected chunks to contain %q; got: %v", sub, chunks)
 				}
 			}
+			if len(tt.wantChunkSequence) > 0 {
+				if len(chunks) != len(tt.wantChunkSequence) {
+					t.Fatalf("processOrderedPromptImports() got %d chunks, want %d for sequence check; chunks: %v", len(chunks), len(tt.wantChunkSequence), chunks)
+				}
+				for i, want := range tt.wantChunkSequence {
+					if !strings.Contains(chunks[i], want) {
+						t.Errorf("processOrderedPromptImports() chunks[%d] = %q, want it to contain %q", i, chunks[i], want)
+					}
+				}
+			}
 		})
 	}
 }
@@ -137,12 +150,13 @@ func TestProcessOrderedPromptImportsFileReadFallback(t *testing.T) {
 // TestProcessLegacyPromptImports tests the processLegacyPromptImports function.
 func TestProcessLegacyPromptImports(t *testing.T) {
 	tests := []struct {
-		name             string
-		importedMarkdown string
-		importPaths      []string
-		importInputs     map[string]any
-		inlinedImports   bool
-		wantChunkContain []string
+		name              string
+		importedMarkdown  string
+		importPaths       []string
+		importInputs      map[string]any
+		inlinedImports    bool
+		wantChunkContain  []string
+		wantChunkSequence []string // if set, chunks[i] must contain wantChunkSequence[i] (exact order)
 	}{
 		{
 			name:             "no imported markdown, no paths",
@@ -157,13 +171,15 @@ func TestProcessLegacyPromptImports(t *testing.T) {
 		},
 		{
 			name:             "inline markdown with import inputs substitution",
-			importedMarkdown: "Role: {{ github.aw.inputs.role }}",
+			importedMarkdown: "Role: ${{ github.aw.inputs.role }}",
 			importInputs:     map[string]any{"role": "engineer"},
+			wantChunkContain: []string{"Role: engineer"},
 		},
 		{
-			name:             "import paths generate runtime-import macros",
-			importPaths:      []string{".github/workflows/shared.md", ".github/workflows/extra.md"},
-			wantChunkContain: []string{"{{#runtime-import .github/workflows/shared.md}}", "{{#runtime-import .github/workflows/extra.md}}"},
+			name:        "import paths generate runtime-import macros",
+			importPaths: []string{".github/workflows/shared.md", ".github/workflows/extra.md"},
+			// Must preserve import order: shared.md first, extra.md second.
+			wantChunkSequence: []string{"{{#runtime-import .github/workflows/shared.md}}", "{{#runtime-import .github/workflows/extra.md}}"},
 		},
 		{
 			name:             "multiple import paths without inlined imports use runtime macros",
@@ -194,6 +210,16 @@ func TestProcessLegacyPromptImports(t *testing.T) {
 				}
 				if !found {
 					t.Errorf("processLegacyPromptImports() expected chunks to contain %q; got: %v", sub, chunks)
+				}
+			}
+			if len(tt.wantChunkSequence) > 0 {
+				if len(chunks) != len(tt.wantChunkSequence) {
+					t.Fatalf("processLegacyPromptImports() got %d chunks, want %d for sequence check; chunks: %v", len(chunks), len(tt.wantChunkSequence), chunks)
+				}
+				for i, want := range tt.wantChunkSequence {
+					if !strings.Contains(chunks[i], want) {
+						t.Errorf("processLegacyPromptImports() chunks[%d] = %q, want it to contain %q", i, chunks[i], want)
+					}
 				}
 			}
 		})
@@ -272,7 +298,7 @@ func TestEnrichExpressionMappings(t *testing.T) {
 		experiments          map[string][]string
 		initialMappings      []*ExpressionMapping
 		beforeActivationJobs []string
-		wantMinMappings      int
+		wantMappingCount     int
 		wantContainsEnvVar   []string
 	}{
 		{
@@ -282,7 +308,7 @@ func TestEnrichExpressionMappings(t *testing.T) {
 			mainWorkflowMarkdown: "",
 			experiments:          nil,
 			initialMappings:      nil,
-			wantMinMappings:      0,
+			wantMappingCount:     0,
 		},
 		{
 			name:                 "experiment mappings are appended",
@@ -291,7 +317,7 @@ func TestEnrichExpressionMappings(t *testing.T) {
 			mainWorkflowMarkdown: "",
 			experiments:          map[string][]string{"ab-test": {"control", "variant"}},
 			initialMappings:      nil,
-			wantMinMappings:      1,
+			wantMappingCount:     1,
 		},
 		{
 			name:                 "existing mappings are preserved",
@@ -302,7 +328,7 @@ func TestEnrichExpressionMappings(t *testing.T) {
 			initialMappings: []*ExpressionMapping{
 				{EnvVar: "GH_AW_EXISTING", Content: "github.actor", Original: "${{ github.actor }}"},
 			},
-			wantMinMappings:    1,
+			wantMappingCount:   1,
 			wantContainsEnvVar: []string{"GH_AW_EXISTING"},
 		},
 		{
@@ -314,7 +340,7 @@ func TestEnrichExpressionMappings(t *testing.T) {
 			initialMappings:      nil,
 			// In inline mode, expressions from main markdown are NOT extracted here
 			// (they're handled in buildMainWorkflowPromptChunks instead)
-			wantMinMappings: 0,
+			wantMappingCount: 0,
 		},
 		{
 			name:                 "non-inline mode extracts expressions from main markdown",
@@ -323,7 +349,7 @@ func TestEnrichExpressionMappings(t *testing.T) {
 			mainWorkflowMarkdown: "Issue: ${{ github.event.issue.number }}",
 			experiments:          nil,
 			initialMappings:      nil,
-			wantMinMappings:      1,
+			wantMappingCount:     1,
 		},
 	}
 
@@ -340,8 +366,8 @@ func TestEnrichExpressionMappings(t *testing.T) {
 
 			result := c.enrichExpressionMappings(data, tt.initialMappings, tt.beforeActivationJobs)
 
-			if len(result) < tt.wantMinMappings {
-				t.Errorf("enrichExpressionMappings() got %d mappings, want at least %d", len(result), tt.wantMinMappings)
+			if len(result) != tt.wantMappingCount {
+				t.Errorf("enrichExpressionMappings() got %d mappings, want %d", len(result), tt.wantMappingCount)
 			}
 			for _, envVar := range tt.wantContainsEnvVar {
 				found := false
@@ -640,10 +666,12 @@ func TestResolveWorkspaceRoot(t *testing.T) {
 // TestExtractPromptChunksFromMarkdown tests the extractPromptChunksFromMarkdown function.
 func TestExtractPromptChunksFromMarkdown(t *testing.T) {
 	tests := []struct {
-		name             string
-		body             string
-		wantChunks       int
-		wantChunkContain []string
+		name                string
+		body                string
+		wantChunks          int
+		wantMappingCount    int
+		wantChunkContain    []string
+		wantChunkNotContain []string // substrings that must NOT appear in any chunk
 	}{
 		{
 			name:       "empty body",
@@ -657,24 +685,31 @@ func TestExtractPromptChunksFromMarkdown(t *testing.T) {
 			wantChunkContain: []string{"# Simple Heading"},
 		},
 		{
-			name:             "body with XML comments stripped",
-			body:             "<!-- hidden -->\n# Visible",
-			wantChunks:       1,
-			wantChunkContain: []string{"# Visible"},
+			name:                "body with XML comments stripped",
+			body:                "<!-- hidden -->\n# Visible",
+			wantChunks:          1,
+			wantChunkContain:    []string{"# Visible"},
+			wantChunkNotContain: []string{"hidden"},
 		},
 		{
 			name:             "body with GitHub expression",
 			body:             "Issue: ${{ github.event.issue.number }}",
 			wantChunks:       1,
+			wantMappingCount: 1,
 			wantChunkContain: []string{"Issue:"},
+			// The raw expression must be replaced by an env-var placeholder in the chunk.
+			wantChunkNotContain: []string{"${{ github.event.issue.number }}"},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			chunks, _ := extractPromptChunksFromMarkdown(tt.body)
+			chunks, mappings := extractPromptChunksFromMarkdown(tt.body)
 			if len(chunks) != tt.wantChunks {
 				t.Errorf("extractPromptChunksFromMarkdown() got %d chunks, want %d", len(chunks), tt.wantChunks)
+			}
+			if len(mappings) != tt.wantMappingCount {
+				t.Errorf("extractPromptChunksFromMarkdown() got %d mappings, want %d", len(mappings), tt.wantMappingCount)
 			}
 			for _, sub := range tt.wantChunkContain {
 				found := false
@@ -686,6 +721,12 @@ func TestExtractPromptChunksFromMarkdown(t *testing.T) {
 				}
 				if !found {
 					t.Errorf("extractPromptChunksFromMarkdown() expected chunk to contain %q", sub)
+				}
+			}
+			combined := strings.Join(chunks, "\n")
+			for _, sub := range tt.wantChunkNotContain {
+				if strings.Contains(combined, sub) {
+					t.Errorf("extractPromptChunksFromMarkdown() expected chunks NOT to contain %q", sub)
 				}
 			}
 		})
