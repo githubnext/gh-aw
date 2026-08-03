@@ -20,10 +20,13 @@
 #
 # Optional custom Squad CLI version (defaults to 0.11.0):
 #   vars.SQUAD_CLI_VERSION
+#
+# No `copilot-sdk` sidecar is needed here: Copilot's `--agent squad` flag runs
+# through the standard CLI harness, and the Squad CLI itself only ever runs in
+# the activation job.
 engine:
   id: copilot
   agent: squad
-  copilot-sdk: true
 
 jobs:
   activation:
