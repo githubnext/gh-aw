@@ -57,6 +57,7 @@ type MCPServerInfo struct {
 	Error     error
 	Tools     []*mcp.Tool
 	Resources []*mcp.Resource
+	Prompts   []*mcp.Prompt
 	Roots     []*MCPRootInfo
 }
 

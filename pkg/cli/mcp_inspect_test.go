@@ -381,3 +381,59 @@ func TestFilterOutSafeOutputs(t *testing.T) {
 		})
 	}
 }
+
+func TestDisplayServerCapabilities_WithPrompts(t *testing.T) {
+	info := &parser.MCPServerInfo{
+		Tools: []*mcp.Tool{
+			{Name: "example-tool", Description: "Example tool"},
+		},
+		Resources: []*mcp.Resource{
+			{URI: "file:///repo/workflow.md", Name: "workflow", Description: "Workflow resource"},
+		},
+		Prompts: []*mcp.Prompt{
+			{
+				Name:        "summarize",
+				Title:       "Summarize",
+				Description: "Summarize the current workflow",
+				Arguments: []*mcp.PromptArgument{
+					{Name: "topic", Required: true},
+				},
+			},
+		},
+		Roots: []*parser.MCPRootInfo{
+			{URI: "file://", Name: "file"},
+		},
+	}
+
+	stdout, _ := captureOutput(t, func() error {
+		displayServerCapabilities(info, "")
+		return nil
+	})
+
+	if !strings.Contains(stdout, "summarize") {
+		t.Fatalf("expected prompt name in stdout, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Summarize") {
+		t.Fatalf("expected prompt title in stdout, got %q", stdout)
+	}
+	if !strings.Contains(stdout, "Arguments") {
+		t.Fatalf("expected prompts table headers in stdout, got %q", stdout)
+	}
+}
+
+func TestDisplayServerCapabilities_WithoutPrompts(t *testing.T) {
+	info := &parser.MCPServerInfo{
+		Tools: []*mcp.Tool{
+			{Name: "example-tool", Description: "Example tool"},
+		},
+	}
+
+	stdout, _ := captureOutput(t, func() error {
+		displayServerCapabilities(info, "")
+		return nil
+	})
+
+	if strings.Contains(stdout, "Arguments") {
+		t.Fatalf("did not expect prompts table headers in stdout, got %q", stdout)
+	}
+}

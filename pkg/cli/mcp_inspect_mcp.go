@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -25,7 +26,7 @@ var mcpInspectServerLog = logger.New("cli:mcp_inspect_server")
 // MCP timeout constants
 const (
 	MCPConnectTimeout    = 10 * time.Second // Timeout for establishing MCP server connections
-	MCPOperationTimeout  = 5 * time.Second  // Timeout for MCP operations (ListTools, ListResources)
+	MCPOperationTimeout  = 5 * time.Second  // Timeout for MCP operations (ListTools, ListResources, ListPrompts)
 	MCPServerHTTPTimeout = 30 * time.Minute // Timeout for HTTP server session
 )
 
@@ -192,6 +193,7 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 		Connected: true,
 		Tools:     []*mcp.Tool{},
 		Resources: []*mcp.Resource{},
+		Prompts:   []*mcp.Prompt{},
 		Roots:     []*parser.MCPRootInfo{},
 	}
 
@@ -219,6 +221,19 @@ func connectStdioMCPServer(ctx context.Context, config parser.RegistryMCPServerC
 		}
 	} else {
 		info.Resources = append(info.Resources, resourcesResult.Resources...)
+	}
+
+	// List prompts
+	listPromptsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer cancel()
+	promptsResult, err := session.ListPrompts(listPromptsCtx, &mcp.ListPromptsParams{})
+	cancel()
+	if err != nil {
+		if verbose {
+			console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+		}
+	} else {
+		info.Prompts = append(info.Prompts, promptsResult.Prompts...)
 	}
 
 	// Note: Roots are not directly available via MCP protocol in the current spec,
@@ -283,6 +298,7 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 		Connected: true,
 		Tools:     []*mcp.Tool{},
 		Resources: []*mcp.Resource{},
+		Prompts:   []*mcp.Prompt{},
 		Roots:     []*parser.MCPRootInfo{},
 	}
 
@@ -310,6 +326,19 @@ func connectHTTPMCPServer(ctx context.Context, config parser.RegistryMCPServerCo
 		}
 	} else {
 		info.Resources = append(info.Resources, resourcesResult.Resources...)
+	}
+
+	// List prompts
+	listPromptsCtx, cancel := context.WithTimeout(ctx, MCPOperationTimeout)
+	defer cancel()
+	promptsResult, err := session.ListPrompts(listPromptsCtx, &mcp.ListPromptsParams{})
+	cancel()
+	if err != nil {
+		if verbose {
+			console.PrintWarningMessage(fmt.Sprintf("Failed to list prompts: %v", err))
+		}
+	} else {
+		info.Prompts = append(info.Prompts, promptsResult.Prompts...)
 	}
 
 	// Extract root URIs from resources (simple heuristic)
@@ -356,7 +385,7 @@ func mcpInspectClientImplementation() *mcp.Implementation {
 
 // displayServerCapabilities shows the server's tools, resources, and roots in formatted tables
 func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
-	mcpInspectServerLog.Printf("Displaying server capabilities: tools=%d, resources=%d, toolFilter=%q", len(info.Tools), len(info.Resources), toolFilter)
+	mcpInspectServerLog.Printf("Displaying server capabilities: tools=%d, resources=%d, prompts=%d, toolFilter=%q", len(info.Tools), len(info.Resources), len(info.Prompts), toolFilter)
 	// Display tools with allowed/not allowed status
 	if len(info.Tools) > 0 {
 		// If a specific tool is requested, show detailed information
@@ -417,6 +446,37 @@ func displayServerCapabilities(info *parser.MCPServerInfo, toolFilter string) {
 	} else if toolFilter == "" {
 		fmt.Fprintln(os.Stderr)
 		console.PrintWarningMessage("No resources available")
+	}
+
+	// Display prompts (skip if showing specific tool details)
+	if toolFilter == "" && len(info.Prompts) > 0 {
+		fmt.Fprintln(os.Stderr)
+		console.PrintSectionHeader("💬 Available Prompts")
+
+		headers := []string{"Name", "Title", "Description", "Arguments"}
+		rows := make([][]string, 0, len(info.Prompts))
+
+		for _, prompt := range info.Prompts {
+			title := prompt.Title
+			if title == "" {
+				title = "N/A"
+			}
+
+			rows = append(rows, []string{
+				prompt.Name,
+				title,
+				stringutil.Truncate(prompt.Description, 40),
+				strconv.Itoa(len(prompt.Arguments)),
+			})
+		}
+
+		fmt.Fprint(os.Stdout, console.RenderTable(console.TableConfig{
+			Headers: headers,
+			Rows:    rows,
+		}))
+	} else if toolFilter == "" {
+		fmt.Fprintln(os.Stderr)
+		console.PrintWarningMessage("No prompts available")
 	}
 
 	// Display roots (skip if showing specific tool details)
