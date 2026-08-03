@@ -2720,7 +2720,7 @@ describe("safe_outputs_handlers", () => {
       expect(result.isError).toBeUndefined();
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("success");
-      expect(data.message).toContain("patch additions");
+      expect(data.message).toContain("patch diff");
     });
 
     it("should use 'default' memory_id when memory_id is not specified", () => {
@@ -2733,7 +2733,7 @@ describe("safe_outputs_handlers", () => {
       expect(data.result).toBe("success");
     });
 
-    it("should fail when staged patch additions exceed effective max_patch_size", () => {
+    it("should fail when staged patch diff size exceeds effective max_patch_size", () => {
       // max_patch_size = 500 bytes, effective limit = 600 bytes
       const h = makeHandlersWithMemory({ max_patch_size: 500, max_file_size: 1024 * 1024 });
       fs.mkdirSync(memoryDir, { recursive: true });
@@ -2745,7 +2745,7 @@ describe("safe_outputs_handlers", () => {
       expect(result.isError).toBe(true);
       const data = JSON.parse(result.content[0].text);
       expect(data.result).toBe("error");
-      expect(data.error).toContain("Patch additions size");
+      expect(data.error).toContain("Patch diff size");
       expect(data.error).toContain("exceeds the allowed limit");
     });
 
