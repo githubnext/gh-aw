@@ -1,7 +1,7 @@
 # ADR-49633: Add walkfuncerrshadow Linter for filepath.Walk/WalkDir err Parameter Shadowing
 
 **Date**: 2026-08-01
-**Status**: Draft
+**Status**: Accepted
 **Deciders**: Unknown
 
 ---

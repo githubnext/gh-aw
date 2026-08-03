@@ -219,7 +219,7 @@ func cleanupOrphanedIncludes(verbose bool) error {
 	workflowsDir := constants.GetWorkflowDir()
 	var allIncludes []string
 
-	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -240,8 +240,8 @@ func cleanupOrphanedIncludes(verbose bool) error {
 		return nil
 	})
 
-	if err != nil {
-		return fmt.Errorf("failed to scan include files: %w", err)
+	if walkErr != nil {
+		return fmt.Errorf("failed to scan include files: %w", walkErr)
 	}
 
 	// Remove unused includes
@@ -339,7 +339,7 @@ func getAllIncludeFiles() ([]string, error) {
 	workflowsDir := constants.GetWorkflowDir()
 	var allIncludes []string
 
-	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -360,14 +360,14 @@ func getAllIncludeFiles() ([]string, error) {
 		return nil
 	})
 
-	return allIncludes, err
+	return allIncludes, walkErr
 }
 
 // cleanupAllIncludes removes all include files when no workflows remain
 func cleanupAllIncludes(verbose bool) error {
 	workflowsDir := constants.GetWorkflowDir()
 
-	err := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -391,7 +391,7 @@ func cleanupAllIncludes(verbose bool) error {
 		return nil
 	})
 
-	return err
+	return walkErr
 }
 
 // findIncludesInContent finds all import references in content

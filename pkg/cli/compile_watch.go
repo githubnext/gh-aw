@@ -79,7 +79,7 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 	}
 
 	// Also watch subdirectories for include files (recursive watching)
-	err = filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(workflowsDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return nil // Skip errors but continue walking
 		}
@@ -93,8 +93,8 @@ func watchAndCompileWorkflows(ctx context.Context, markdownFile string, compiler
 		}
 		return nil
 	})
-	if err != nil {
-		compileWatchLog.Printf("Failed to walk subdirectories: %v", err)
+	if walkErr != nil {
+		compileWatchLog.Printf("Failed to walk subdirectories: %v", walkErr)
 	}
 
 	// Always emit the begin pattern for task integration
