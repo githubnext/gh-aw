@@ -102,6 +102,20 @@ func (c *Compiler) configureActivationNeedsAndCondition(ctx *activationJobBuildC
 			compilerActivationJobLog.Printf("Added '%s' to activation dependencies: referenced in markdown body and has no explicit needs", jobName)
 		}
 	}
+
+	// Also scan engine.env values for needs.<job>.outputs.* expressions.
+	// This ensures custom jobs referenced in engine.env (e.g. to override COPILOT_GITHUB_TOKEN)
+	// are added as activation job dependencies so their outputs are available at activation time.
+	// Only jobs with NO explicit needs are added here; jobs with explicit needs that depend on
+	// pre_activation are already captured by getCustomJobsDependingOnPreActivation above.
+	engineEnvJobs := c.getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data)
+	for _, jobName := range engineEnvJobs {
+		if !slices.Contains(customJobsBeforeActivation, jobName) {
+			customJobsBeforeActivation = append(customJobsBeforeActivation, jobName)
+			compilerActivationJobLog.Printf("Added '%s' to activation dependencies: referenced in engine.env", jobName)
+		}
+	}
+
 	ctx.customJobsBeforeActivation = customJobsBeforeActivation
 
 	if ctx.preActivationJob {

@@ -63,18 +63,22 @@ func (c *Compiler) getCustomJobDependencySets(data *WorkflowData) (map[string]st
 	// Pre-compute jobs referenced in the markdown body with no explicit needs.
 	// These run before activation (not after), so we must not auto-add activation to them.
 	promptReferencedJobsSlice := c.getCustomJobsReferencedInPromptWithNoActivationDep(data)
-	promptReferencedJobs := make(map[string]struct {
-	}, len(promptReferencedJobsSlice))
+	promptReferencedJobs := make(map[string]struct{}, len(promptReferencedJobsSlice))
 	for _, j := range promptReferencedJobsSlice {
-		promptReferencedJobs[j] = struct {
-		}{}
+		promptReferencedJobs[j] = struct{}{}
 	}
 
-	onNeedsJobs := make(map[string]struct {
-	}, len(data.OnNeeds))
+	// Also include jobs with no explicit needs that are referenced in engine.env.
+	// These run before activation (activation depends on them for secret validation etc.),
+	// so we must not auto-add activation to them either — doing so would create a cycle
+	// (activation → job → activation).
+	for _, j := range c.getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data) {
+		promptReferencedJobs[j] = struct{}{}
+	}
+
+	onNeedsJobs := make(map[string]struct{}, len(data.OnNeeds))
 	for _, j := range data.OnNeeds {
-		onNeedsJobs[j] = struct {
-		}{}
+		onNeedsJobs[j] = struct{}{}
 	}
 
 	return promptReferencedJobs, onNeedsJobs

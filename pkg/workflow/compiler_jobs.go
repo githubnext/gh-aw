@@ -172,6 +172,85 @@ func (c *Compiler) getCustomJobsReferencedInPromptWithNoActivationDep(data *Work
 	return result
 }
 
+// getEngineEnvReferencedCustomJobsWithNoExplicitNeeds returns custom job names referenced
+// by activation-rendered engine.env values via needs.<job>.outputs.* that have no explicit
+// needs declaration.
+// These jobs must run before activation so their outputs are available in activation steps
+// (e.g. secret validation uses engine.env overrides at activation time).
+//
+// Only jobs with NO explicit needs are returned, matching the same filter applied to
+// markdown-body-referenced jobs. Jobs with explicit needs either already run before activation
+// (pre_activation dependency, picked up by getCustomJobsDependingOnPreActivation) or explicitly
+// depend on activation/agent and therefore cannot be activation prerequisites.
+func (c *Compiler) getEngineEnvReferencedCustomJobsWithNoExplicitNeeds(data *WorkflowData) []string {
+	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 || data.Jobs == nil {
+		return nil
+	}
+
+	activationRenderedEnvValues := c.getActivationRenderedEngineEnvValues(data)
+	if len(activationRenderedEnvValues) == 0 {
+		return nil
+	}
+
+	var engineEnvBuilder strings.Builder
+	for _, envValue := range activationRenderedEnvValues {
+		engineEnvBuilder.WriteByte('\n')
+		engineEnvBuilder.WriteString(envValue)
+	}
+	referencedJobs := c.getReferencedCustomJobs(engineEnvBuilder.String(), data.Jobs)
+	var result []string
+	for _, jobName := range referencedJobs {
+		jobConfig, ok := data.Jobs[jobName].(map[string]any)
+		if !ok {
+			continue
+		}
+		// Only include jobs with no explicit needs - those get activation auto-added normally.
+		// Jobs with explicit needs either already run before activation (pre_activation dependency)
+		// or explicitly depend on activation/agent and must run after.
+		if _, hasNeeds := jobConfig["needs"]; hasNeeds {
+			continue
+		}
+		result = append(result, jobName)
+		compilerJobsLog.Printf("Found custom job '%s' referenced in engine.env with no explicit needs: will run before activation", jobName)
+	}
+	sort.Strings(result)
+	return result
+}
+
+// getActivationRenderedEngineEnvValues returns the subset of engine.env values that are
+// rendered in activation steps: required secret validation env vars and COPILOT_GITHUB_TOKEN
+// (used by OAuth token checks).
+func (c *Compiler) getActivationRenderedEngineEnvValues(data *WorkflowData) []string {
+	if data == nil || data.EngineConfig == nil || len(data.EngineConfig.Env) == 0 {
+		return nil
+	}
+
+	envKeys := map[string]struct{}{
+		constants.CopilotGitHubToken: {},
+	}
+	engineID := strings.ToLower(resolveActivationEngineID(data))
+	if engine, err := GetGlobalEngineRegistry().GetEngine(engineID); err == nil {
+		for _, secretName := range engine.GetRequiredSecretNames(data) {
+			envKeys[secretName] = struct{}{}
+		}
+	}
+
+	keyList := make([]string, 0, len(envKeys))
+	for key := range envKeys {
+		keyList = append(keyList, key)
+	}
+	sort.Strings(keyList)
+
+	values := make([]string, 0, len(keyList))
+	for _, key := range keyList {
+		if value, ok := data.EngineConfig.Env[key]; ok {
+			values = append(values, value)
+		}
+	}
+
+	return values
+}
+
 // buildJobs creates all jobs for the workflow and adds them to the job manager.
 // This function orchestrates the building of all job types by delegating to focused helper functions.
 func (c *Compiler) buildJobs(data *WorkflowData, markdownPath string) error {
