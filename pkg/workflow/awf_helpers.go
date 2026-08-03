@@ -1093,6 +1093,12 @@ func awfSupportsLegacySecurity(firewallConfig *FirewallConfig) bool {
 	return awfVersionAtLeast(firewallConfig, constants.AWFLegacySecurityMinVersion)
 }
 
+// awfSupportsDefaultAiCreditsPricing returns true when apiProxy.defaultAiCreditsPricing
+// survives AWF config resolution and reaches the api-proxy container.
+func awfSupportsDefaultAiCreditsPricing(firewallConfig *FirewallConfig) bool {
+	return awfVersionAtLeast(firewallConfig, constants.AWFDefaultAiCreditsPricingMinVersion)
+}
+
 // awfSupportsAPIProxyProviders returns true when the effective AWF version supports
 // apiProxy.providers in awf-config.json.
 func awfSupportsAPIProxyProviders(firewallConfig *FirewallConfig) bool {

@@ -1,6 +1,10 @@
 package workflow
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/github/gh-aw/pkg/constants"
+)
 
 // validateDefaultAiCreditsPricing returns an error when the workflow's
 // models.default-ai-credits-pricing frontmatter is present and any price field
@@ -13,6 +17,10 @@ func validateDefaultAiCreditsPricing(workflowData *WorkflowData) error {
 	p := workflowData.DefaultAiCreditsPricing
 	if p == nil {
 		return nil
+	}
+	firewallConfig := getFirewallConfig(workflowData)
+	if !awfSupportsDefaultAiCreditsPricing(firewallConfig) {
+		return fmt.Errorf("models.default-ai-credits-pricing requires AWF %s or newer; pinned AWF version %q drops apiProxy.defaultAiCreditsPricing during config resolution", constants.AWFDefaultAiCreditsPricingMinVersion, getAWFImageTag(firewallConfig))
 	}
 	if p.Input <= 0 {
 		return fmt.Errorf("models.default-ai-credits-pricing: input must be a positive value (got %g); use a small positive rate such as 0.000001 for effectively-free self-hosted models", p.Input)
