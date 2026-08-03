@@ -1,2 +1,2 @@
-{"id":"architecture_analyzed","question":"Did the agent analyze repository changes to produce an updated architecture diagram?","answer":"YES","model":"small","timestamp":"2026-07-27T10:05:10.995Z","runid":"30256060827"}
-{"id":"diagram_created_or_noop","question":"Was an ASCII architecture diagram created or updated, or was noop used when no significant changes were detected?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-27T10:05:10.995Z","runid":"30256060827"}
+{"id":"architecture_analyzed","question":"Did the agent analyze repository changes to produce an updated architecture diagram?","answer":"YES","model":"evals","timestamp":"2026-08-03T10:03:07.363Z","runid":"30803502333"}
+{"id":"diagram_created_or_noop","question":"Was an ASCII architecture diagram created or updated, or was noop used when no significant changes were detected?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-03T10:03:07.363Z","runid":"30803502333"}
