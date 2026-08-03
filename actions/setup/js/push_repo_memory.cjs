@@ -498,10 +498,16 @@ async function main() {
     }
   }
 
-  // Check if we have any changes to commit
+  const changedPathspecs = Array.from(new Set(filesToCopy.map(file => file.relativePath))).sort();
+
+  // Check if we have any changes to commit, scoped to managed memory files only.
   let changedFileCount = 0;
   try {
-    const status = execGitSync(["status", "--porcelain"]);
+    const statusArgs = ["status", "--porcelain"];
+    if (changedPathspecs.length > 0) {
+      statusArgs.push("--", ...changedPathspecs);
+    }
+    const status = execGitSync(statusArgs, { cwd: workspaceDir });
     const changedEntries = status
       .split("\n")
       .map(line => line.trim())
@@ -534,7 +540,13 @@ async function main() {
   // sparse-checkout, causing a plain "git add ." to silently skip or reject
   // files on the first run for a new memory branch.
   try {
-    execGitSync(["add", "--sparse", "."], { stdio: "inherit" });
+    const addArgs = ["add", "--sparse"];
+    if (changedPathspecs.length > 0) {
+      addArgs.push("--", ...changedPathspecs);
+    } else {
+      addArgs.push(".");
+    }
+    execGitSync(addArgs, { stdio: "inherit", cwd: workspaceDir });
   } catch (error) {
     core.setFailed(`Failed to stage changes: ${getErrorMessage(error)}`);
     return;
@@ -546,7 +558,7 @@ async function main() {
   // (e.g. a regenerated JSON object) from being counted as "entire source code size"
   // even though only a small portion of the data actually changed.
   try {
-    const patchSizeBytes = getStagedPatchDiffSizeBytes({ execGitSyncFn: execGitSync });
+    const patchSizeBytes = getStagedPatchDiffSizeBytes({ execGitSyncFn: execGitSync, cwd: workspaceDir });
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
     const maxPatchSizeKb = Math.floor(maxPatchSize / 1024);
     // Allow 20% overhead to account for git diff format (headers, context lines, etc.)
@@ -559,7 +571,7 @@ async function main() {
       // Add per-file diff stats to diagnose what's causing the large patch
       // (e.g. a full rewrite of an accumulated history file shows old + new content in the diff)
       try {
-        const diffStat = execGitSync(["diff", "--cached", "--stat"], { stdio: "pipe" });
+        const diffStat = execGitSync(["diff", "--cached", "--stat"], { stdio: "pipe", cwd: workspaceDir });
         core.warning(`Patch content breakdown (git diff --stat):\n${diffStat}`);
       } catch (statError) {
         core.warning(`Could not retrieve diff stat: ${getErrorMessage(statError)}`);

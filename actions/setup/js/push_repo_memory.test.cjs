@@ -1073,8 +1073,9 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-      // Must use "git add --sparse ." to stage files regardless of sparse-checkout state.
-      expect(scriptContent).toContain('"add", "--sparse", "."');
+      // Must use git add --sparse with pathspec staging so only managed memory paths are included.
+      expect(scriptContent).toContain('"add", "--sparse"');
+      expect(scriptContent).toContain('addArgs.push("--", ...changedPathspecs)');
 
       // Must NOT use plain "git add ." which breaks under sparse-checkout.
       expect(scriptContent).not.toContain('"add", "."');
@@ -1562,7 +1563,8 @@ describe("push_repo_memory.cjs - changed-file limit checks", () => {
     const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
 
     expect(scriptContent).toContain("changedFileCount");
-    expect(scriptContent).toContain('execGitSync(["status", "--porcelain"])');
+    expect(scriptContent).toContain('["status", "--porcelain"]');
+    expect(scriptContent).toContain('statusArgs.push("--", ...changedPathspecs)');
     expect(scriptContent).toContain("Too many changed files");
     expect(scriptContent).not.toContain("if (filesToCopy.length > maxFileCount)");
     expect(scriptContent).toContain("if (changedFileCount > maxFileCount)");
