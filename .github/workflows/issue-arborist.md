@@ -49,19 +49,21 @@ steps:
       gh issue list --repo "$GITHUB_REPOSITORY" \
         --search "-parent-issue:*" \
         --state open \
-        --json number,title,author,createdAt,state,url,body,labels,updatedAt,closedAt,milestone,assignees \
+        --json number,title,url,createdAt,updatedAt,body,labels \
         --limit 100 \
+        | jq 'map({
+            number,
+            title,
+            url,
+            createdAt,
+            updatedAt,
+            labels: ((.labels // []) | map(.name)),
+            body_excerpt: ((.body // "") | gsub("\\s+"; " ") | .[0:800])
+          })' \
         > /tmp/gh-aw/agent/issues-data/issues.json
 
-      # Generate schema for reference using jqschema
-      ./.github/skills/jqschema/jqschema.sh < /tmp/gh-aw/agent/issues-data/issues.json > /tmp/gh-aw/agent/issues-data/issues-schema.json
-
       echo "✓ Issues data saved to /tmp/gh-aw/agent/issues-data/issues.json"
-      echo "✓ Schema saved to /tmp/gh-aw/agent/issues-data/issues-schema.json"
       echo "Total issues fetched: $(jq 'length' /tmp/gh-aw/agent/issues-data/issues.json)"
-      echo ""
-      echo "Schema of the issues data:"
-      cat /tmp/gh-aw/agent/issues-data/issues-schema.json | jq .
 safe-outputs:
   create-issue:
     expires: 2d
@@ -113,8 +115,7 @@ Analyze the last 100 open issues in repository $GITHUB_REPOSITORY (see `issues_a
 ## Pre-Downloaded Data
 
 The issue data has been pre-downloaded and is available at:
-- **Issues data**: `/tmp/gh-aw/agent/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues)
-- **Schema**: `/tmp/gh-aw/agent/issues-data/issues-schema.json` - JSON schema showing the structure of the data
+- **Issues data**: `/tmp/gh-aw/agent/issues-data/issues.json` - Contains the last 100 open issues (excluding those that are already sub-issues) with compact fields and `body_excerpt` snippets
 
 Use `cat /tmp/gh-aw/agent/issues-data/issues.json | jq ...` to query and analyze the issues.
 
@@ -125,21 +126,17 @@ Use `cat /tmp/gh-aw/agent/issues-data/issues.json | jq ...` to query and analyze
 Read the pre-downloaded issues data from `/tmp/gh-aw/agent/issues-data/issues.json`. The data includes:
 - Issue number
 - Title
-- Body/description
+- Body excerpt (first 800 normalized characters)
 - Labels
-- State (open/closed)
-- Author, assignees, milestone, timestamps
+- URL and timestamps
 
 Use `jq` to filter and analyze the data. Example queries:
 ```bash
 # Get count of issues
 jq 'length' /tmp/gh-aw/agent/issues-data/issues.json
 
-# Get open issues only
-jq '[.[] | select(.state == "OPEN")]' /tmp/gh-aw/agent/issues-data/issues.json
-
 # Get issues with specific label
-jq '[.[] | select(.labels | any(.name == "bug"))]' /tmp/gh-aw/agent/issues-data/issues.json
+jq '[.[] | select(.labels | any(. == "bug"))]' /tmp/gh-aw/agent/issues-data/issues.json
 ```
 
 ### Step 2: Analyze Relationships

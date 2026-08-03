@@ -158,7 +158,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 	// Try events.jsonl first – it provides a precise, structured event list from the Copilot CLI
 	// session state and is the most reliable source for tool calls, turns, and usage metrics.
 	// Fall back to walking .log files if events.jsonl is not present or cannot be parsed.
-	var err error
+	var walkErr error
 	eventsJSONLParsed := false
 	if eventsJSONLPath := findEventsJSONLFile(logDir); eventsJSONLPath != "" {
 		if verbose {
@@ -185,7 +185,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 
 	// Walk through all .log files when events.jsonl was not available or failed to parse
 	if !eventsJSONLParsed {
-		err = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
+		walkErr = filepath.Walk(logDir, func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
 			}
@@ -256,7 +256,7 @@ func extractLogMetrics(logDir string, verbose bool, workflowPath ...string) (Log
 		logsMetricsLog.Printf("Metrics extraction completed: tokens=%d, cost=%.4f, turns=%d",
 			metrics.TokenUsage, metrics.EstimatedCost, metrics.Turns)
 	}
-	return metrics, err
+	return metrics, walkErr
 }
 
 // ExtractLogMetricsFromRun extracts log metrics from a processed run's log directory
@@ -678,7 +678,7 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool, exp
 
 	// Look for agent output logs that contain the system init entry with MCP server status
 	// This information is available in the raw log files, typically with names containing "log"
-	err := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
+	walkErr := filepath.Walk(runDir, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			return err
 		}
@@ -709,8 +709,8 @@ func extractMCPFailuresFromRun(runDir string, run WorkflowRun, verbose bool, exp
 		return nil
 	})
 
-	if err != nil {
-		return mcpFailures, fmt.Errorf("error walking run directory: %w", err)
+	if walkErr != nil {
+		return mcpFailures, fmt.Errorf("error walking run directory: %w", walkErr)
 	}
 
 	if verbose && len(mcpFailures) > 0 {
