@@ -357,6 +357,11 @@ function hasHttpStatus(error, status) {
 }
 
 /**
+ * Returns true when the error is a permanent HTTP 404 — the only status
+ * treated as structural. Other 4xx errors (e.g. 403 permission failures,
+ * 422 validation errors) are treated as transient because they may resolve
+ * on retry or credential refresh, and should not permanently fail the guardrail.
+ *
  * @param {unknown} error
  * @returns {boolean}
  */
@@ -365,9 +370,13 @@ function isStructuralGuardrailError(error) {
 }
 
 /**
+ * @typedef {'workflow_id' | 'repo_workflow_name_fallback'} WorkflowRunLookupMode
+ */
+
+/**
  * @param {any} githubClient
- * @param {{ owner: string, repo: string, workflowId: number, workflowName: string, page: number, perPage: number, lookupMode: string }} params
- * @returns {Promise<{ response: any, lookupMode: string, sourceRunCount: number }>}
+ * @param {{ owner: string, repo: string, workflowId: number, workflowName: string, page: number, perPage: number, lookupMode: WorkflowRunLookupMode }} params
+ * @returns {Promise<{ response: any, lookupMode: WorkflowRunLookupMode, sourceRunCount: number, oldestUnfilteredCreatedAt?: string | null }>}
  */
 async function listCompletedWorkflowRunsPage(githubClient, params) {
   const { owner, repo, workflowId, workflowName, page, perPage, lookupMode } = params;
@@ -387,6 +396,10 @@ async function listCompletedWorkflowRunsPage(githubClient, params) {
       totalRunsInPage: allRuns.length,
       matchedRunsInPage: filteredRuns.length,
     });
+    // Return the oldest unfiltered run's timestamp so the outer pagination loop
+    // can stop early when all remaining runs predate the 24h window, even when
+    // none of the runs on this page match the workflow name.
+    const lastUnfilteredRun = allRuns[allRuns.length - 1];
     return {
       response: {
         ...response,
@@ -397,6 +410,7 @@ async function listCompletedWorkflowRunsPage(githubClient, params) {
       },
       lookupMode,
       sourceRunCount: allRuns.length,
+      oldestUnfilteredCreatedAt: lastUnfilteredRun?.created_at ?? null,
     };
   }
 
@@ -415,7 +429,13 @@ async function listCompletedWorkflowRunsPage(githubClient, params) {
       sourceRunCount: response?.data?.workflow_runs?.length || 0,
     };
   } catch (error) {
-    if (!hasHttpStatus(error, 404) || !workflowName) {
+    if (!hasHttpStatus(error, 404)) {
+      throw error;
+    }
+    if (!workflowName) {
+      // A 404 with no explicit workflow name means we have no meaningful name
+      // to filter by in the fallback lookup — rethrow so the outer catch can
+      // classify this as a structural error rather than silently failing open.
       throw error;
     }
     logDailyGuardrail("Workflow-specific run history query returned 404; falling back to repository run listing by workflow name", {
@@ -584,6 +604,10 @@ async function main() {
 
     const workflowID = process.env.GH_AW_WORKFLOW_ID || "";
     const workflowName = process.env.GH_AW_WORKFLOW_NAME || workflowID || "workflow";
+    // Use only the explicitly configured workflow name for the name-based fallback
+    // lookup; the workflowID and "workflow" defaults are display-only values and
+    // would never match run.name in the API response.
+    const workflowFilterName = process.env.GH_AW_WORKFLOW_NAME || "";
     const actorLogin = process.env.GITHUB_TRIGGERING_ACTOR || currentRun.data.triggering_actor?.login || currentRun.data.actor?.login || process.env.GITHUB_ACTOR || "";
 
     if (!currentRun.data.workflow_id) {
@@ -629,11 +653,11 @@ async function main() {
         perPage: 100,
         cutoff: new Date(cutoffMs).toISOString(),
       });
-      const { response, lookupMode, sourceRunCount } = await listCompletedWorkflowRunsPage(githubClient, {
+      const { response, lookupMode, sourceRunCount, oldestUnfilteredCreatedAt } = await listCompletedWorkflowRunsPage(githubClient, {
         owner,
         repo,
         workflowId: currentRun.data.workflow_id,
-        workflowName,
+        workflowName: workflowFilterName,
         page,
         perPage: 100,
         lookupMode: workflowRunLookupMode,
@@ -666,6 +690,16 @@ async function main() {
         if (candidateRuns.length >= maxInspectableRuns) {
           truncatedByRateLimit = true;
           break;
+        }
+      }
+      // In fallback mode the filtered page may contain no matching runs while
+      // the unfiltered page had runs that predate the cutoff. Check the oldest
+      // unfiltered run so we stop paginating once all remaining runs are outside
+      // the 24h window, even when none of them match the workflow name.
+      if (!reachedCutoff && oldestUnfilteredCreatedAt != null) {
+        const oldestMs = Date.parse(oldestUnfilteredCreatedAt);
+        if (!Number.isFinite(oldestMs) || oldestMs < cutoffMs) {
+          reachedCutoff = true;
         }
       }
       if (reachedCutoff || candidateRuns.length >= maxInspectableRuns || sourceRunCount < 100) {
