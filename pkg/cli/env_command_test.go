@@ -47,10 +47,12 @@ func TestNewEnvCommand(t *testing.T) {
 	getRepoFlag := getCmd.Flags().Lookup("repo")
 	require.NotNil(t, getRepoFlag)
 	assert.Equal(t, "r", getRepoFlag.Shorthand)
+	assert.Contains(t, getRepoFlag.Usage, "owner/repo format only", "env get --repo help should explicitly document its narrower repo format")
 
 	updateRepoFlag := updateCmd.Flags().Lookup("repo")
 	require.NotNil(t, updateRepoFlag)
 	assert.Equal(t, "r", updateRepoFlag.Shorthand)
+	assert.Contains(t, updateRepoFlag.Usage, "owner/repo format only", "env update --repo help should explicitly document its narrower repo format")
 }
 
 func TestResolveDefaultsTarget(t *testing.T) {
