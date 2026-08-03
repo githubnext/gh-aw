@@ -178,9 +178,6 @@ gh aw new <workflow-name>
 # Compile workflows
 gh aw compile [workflow-name]
 
-# Compile and auto-recompile on file changes while iterating
-gh aw compile [workflow-name] --watch
-
 # Debug workflow runs
 gh aw logs [workflow-name]
 gh aw audit <run-id>
