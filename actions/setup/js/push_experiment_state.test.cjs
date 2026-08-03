@@ -26,7 +26,7 @@ global.exec = mockExec;
 global.context = mockContext;
 global.github = {};
 
-const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns } = await import("./push_experiment_state.cjs");
+const { main, mergeExperimentStateJSON, mergeExperimentStateJSONL, mergeExperimentRuns, checkoutOrCreateBranchWithRetry } = await import("./push_experiment_state.cjs");
 
 describe("push_experiment_state", () => {
   let tmpDir;
@@ -231,5 +231,60 @@ describe("push_experiment_state", () => {
     expect(entries).toHaveLength(1);
     expect(entries[0].run_id).toBe("V1");
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("skipping unparseable line"));
+  });
+
+  describe("checkoutOrCreateBranchWithRetry", () => {
+    it("returns immediately on success without warnings", async () => {
+      const checkoutFn = vi.fn().mockReturnValue("abc123");
+
+      const result = await checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
+        checkoutFn,
+        baseDelayMs: 0,
+      });
+
+      expect(result).toBe("abc123");
+      expect(checkoutFn).toHaveBeenCalledTimes(1);
+      expect(mockCore.warning).not.toHaveBeenCalled();
+    });
+
+    it("retries transient failures (e.g. fetch timeouts/502s) and eventually succeeds", async () => {
+      const checkoutFn = vi
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error("Git command timed out: git fetch ...");
+        })
+        .mockImplementationOnce(() => {
+          throw new Error("error: RPC failed; HTTP 502 curl 22 The requested URL returned error: 502");
+        })
+        .mockReturnValue("def456");
+
+      const result = await checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
+        checkoutFn,
+        baseDelayMs: 0,
+      });
+
+      expect(result).toBe("def456");
+      expect(checkoutFn).toHaveBeenCalledTimes(3);
+      expect(mockCore.warning).toHaveBeenCalledTimes(2);
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("attempt 1/4"));
+      expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("attempt 2/4"));
+    });
+
+    it("throws the last error after exhausting all retries", async () => {
+      const checkoutFn = vi.fn().mockImplementation(() => {
+        throw new Error("persistent network failure");
+      });
+
+      await expect(
+        checkoutOrCreateBranchWithRetry("evals/myworkflow", "******github.com/o/r.git", "/tmp/workdir", {
+          checkoutFn,
+          baseDelayMs: 0,
+          maxRetries: 2,
+        })
+      ).rejects.toThrow("persistent network failure");
+
+      expect(checkoutFn).toHaveBeenCalledTimes(3);
+      expect(mockCore.warning).toHaveBeenCalledTimes(2);
+    });
   });
 });
