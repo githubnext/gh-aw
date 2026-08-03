@@ -297,6 +297,8 @@ func TestScanWorkflowsForExpires_TriggerReason(t *testing.T) {
 		require.NotNil(t, safeOutputs)
 		require.NotNil(t, safeOutputs.NoOp)
 		require.True(t, safeOutputs.NoOp.Implicit, "noop should be implicit when not authored")
+		require.NotNil(t, safeOutputs.NoOp.ReportAsIssue)
+		require.Equal(t, "false", *safeOutputs.NoOp.ReportAsIssue, "implicit noop must not create issues without a maintenance workflow to expire them")
 
 		hasExpires, minExpires, triggerReason := scanWorkflowsForExpires([]*WorkflowData{
 			{
@@ -331,6 +333,7 @@ func TestScanWorkflowsForExpires_TriggerReason(t *testing.T) {
 		require.True(t, hasExpires)
 		require.Equal(t, defaultNoOpIssueExpirationHours, minExpires)
 		require.Contains(t, triggerReason, "explicit-noop")
+		require.Contains(t, triggerReason, "no-op issue reporting")
 	})
 }
 

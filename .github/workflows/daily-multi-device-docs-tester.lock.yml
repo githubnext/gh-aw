@@ -607,9 +607,9 @@ jobs:
           mkdir -p /tmp/gh-aw/safeoutputs
           mkdir -p /tmp/gh-aw/mcp-logs/safeoutputs
           mkdir -p "${RUNNER_TEMP}/gh-aw/safeoutputs/upload-artifacts"
-          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_3b3f1a9eb2d40a49_EOF'
-          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[multi-device-docs] "},"create_issue":{"expires":48,"labels":["cookie"],"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"true"},"report_incomplete":{},"upload_artifact":{"default-if-no-files":"ignore","max-size-bytes":104857600,"max-uploads":3,"retention-days":30,"skip-archive":true}}
-          GH_AW_SAFE_OUTPUTS_CONFIG_3b3f1a9eb2d40a49_EOF
+          cat > "${RUNNER_TEMP}/gh-aw/safeoutputs/config.json" << 'GH_AW_SAFE_OUTPUTS_CONFIG_4f41899562c4e1c0_EOF'
+          {"create_discussion":{"category":"audits","close_older_discussions":true,"expires":72,"fallback_to_issue":true,"max":1,"title_prefix":"[multi-device-docs] "},"create_issue":{"expires":48,"labels":["cookie"],"max":1},"create_report_incomplete_issue":{},"missing_data":{},"missing_tool":{},"noop":{"max":1,"report-as-issue":"false"},"report_incomplete":{},"upload_artifact":{"default-if-no-files":"ignore","max-size-bytes":104857600,"max-uploads":3,"retention-days":30,"skip-archive":true}}
+          GH_AW_SAFE_OUTPUTS_CONFIG_4f41899562c4e1c0_EOF
       - name: Generate Safe Outputs Tools
         env:
           GH_AW_TOOLS_META_JSON: |
@@ -1251,7 +1251,7 @@ jobs:
           GH_AW_TRACKER_ID: "daily-multi-device-docs-tester"
           GH_AW_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           GH_AW_AGENT_CONCLUSION: ${{ needs.agent.result }}
-          GH_AW_NOOP_REPORT_AS_ISSUE: "true"
+          GH_AW_NOOP_REPORT_AS_ISSUE: "false"
           GH_AW_AIC: ${{ needs.agent.outputs.aic }}
           GH_AW_THREAT_DETECTION_AIC: ${{ needs.detection.outputs.aic }}
           GH_AW_EVALS_AIC: ${{ needs.evals.outputs.aic }}
@@ -1982,7 +1982,7 @@ jobs:
           GH_AW_ALLOWED_DOMAINS: "*.google.com,*.googleapis.com,*.grafana.net,*.gvt1.com,*.sentry.io,api.githubcopilot.com,api.npms.io,bun.sh,cdn.jsdelivr.net,cdn.playwright.dev,deb.nodesource.com,deno.land,esm.sh,get.pnpm.io,github.com,googleapis.deno.dev,googlechromelabs.github.io,host.docker.internal,jsr.io,nodejs.org,npm.pkg.github.com,npmjs.com,npmjs.org,playwright.download.prss.microsoft.com,raw.githubusercontent.com,registry.bower.io,registry.npmjs.com,registry.npmjs.org,registry.yarnpkg.com,repo.yarnpkg.com,skimdb.npmjs.com,storage.googleapis.com,telemetry.vercel.com,www.npmjs.com,www.npmjs.org,yarnpkg.com"
           GITHUB_SERVER_URL: ${{ github.server_url }}
           GITHUB_API_URL: ${{ github.api_url }}
-          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[multi-device-docs] \"},\"create_issue\":{\"expires\":48,\"labels\":[\"cookie\"],\"max\":1},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"true\"},\"report_incomplete\":{},\"upload_artifact\":{\"default-if-no-files\":\"ignore\",\"max-size-bytes\":104857600,\"max-uploads\":3,\"retention-days\":30,\"skip-archive\":true}}"
+          GH_AW_SAFE_OUTPUTS_HANDLER_CONFIG: "{\"create_discussion\":{\"category\":\"audits\",\"close_older_discussions\":true,\"expires\":72,\"fallback_to_issue\":true,\"max\":1,\"title_prefix\":\"[multi-device-docs] \"},\"create_issue\":{\"expires\":48,\"labels\":[\"cookie\"],\"max\":1},\"create_report_incomplete_issue\":{},\"missing_data\":{},\"missing_tool\":{},\"noop\":{\"max\":1,\"report-as-issue\":\"false\"},\"report_incomplete\":{},\"upload_artifact\":{\"default-if-no-files\":\"ignore\",\"max-size-bytes\":104857600,\"max-uploads\":3,\"retention-days\":30,\"skip-archive\":true}}"
         with:
           github-token: ${{ secrets.GH_AW_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
           script: |
