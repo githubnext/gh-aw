@@ -37,6 +37,9 @@ func (c *Compiler) generateWorkflowHeader(yaml *strings.Builder, data *WorkflowD
 		if data.Model != "" {
 			agentInfo.AgentModel = data.Model
 		}
+		if agentInfo.AgentID == "copilot" {
+			agentInfo.EngineBaseURLCustomized = isCopilotCustomConfig(data)
+		}
 		// Detection agent info: only if threat detection has its own engine config
 		if data.SafeOutputs != nil && data.SafeOutputs.ThreatDetection != nil && data.SafeOutputs.ThreatDetection.EngineConfig != nil {
 			agentInfo.DetectionAgentID = data.SafeOutputs.ThreatDetection.EngineConfig.ID
