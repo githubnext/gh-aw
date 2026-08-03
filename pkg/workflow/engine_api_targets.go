@@ -181,10 +181,14 @@ func GetCopilotAPITarget(workflowData *WorkflowData) string {
 // isCopilotBYOKMode returns true when Copilot execution is configured to use BYOK routing.
 // BYOK mode is active when either:
 //   - a non-GitHub model-provider gateway is in use (only when sandbox/firewall is enabled), or
-//   - COPILOT_PROVIDER_BASE_URL is present in engine.env.
+//   - COPILOT_PROVIDER_BASE_URL is present in engine.env with a non-empty value.
+//
+// Note that this intentionally checks whether BYOK routing is configured, not whether
+// a literal hostname can be extracted. Literal host extraction is handled separately by
+// GetCopilotAPITarget().
 func isCopilotBYOKMode(workflowData *WorkflowData, sandboxEnabled bool) bool {
 	providerOverrideBYOK := resolveEngineLLMProvider(workflowData, LLMProviderGitHub) != LLMProviderGitHub && sandboxEnabled
-	return providerOverrideBYOK || engineEnvHasKey(workflowData, constants.CopilotProviderBaseURL)
+	return providerOverrideBYOK || engineEnvHasNonEmptyValue(workflowData, constants.CopilotProviderBaseURL)
 }
 
 // isCopilotCustomConfig returns true when Copilot is configured away from the default

@@ -1001,6 +1001,76 @@ func TestGetCopilotAPITarget(t *testing.T) {
 	}
 }
 
+func TestIsCopilotBYOKMode(t *testing.T) {
+	tests := []struct {
+		name           string
+		workflowData   *WorkflowData
+		sandboxEnabled bool
+		expected       bool
+	}{
+		{
+			name:           "false when no BYOK signals with sandbox enabled",
+			workflowData:   &WorkflowData{EngineConfig: &EngineConfig{ID: "copilot"}},
+			sandboxEnabled: true,
+			expected:       false,
+		},
+		{
+			name: "true via COPILOT_PROVIDER_BASE_URL when non-empty even with sandbox disabled",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "https://api.openai.com/v1",
+					},
+				},
+			},
+			sandboxEnabled: false,
+			expected:       true,
+		},
+		{
+			name: "false when COPILOT_PROVIDER_BASE_URL is empty",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "",
+					},
+				},
+			},
+			sandboxEnabled: true,
+			expected:       false,
+		},
+		{
+			name: "true for non-github provider when sandbox enabled",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:          "copilot",
+					LLMProvider: LLMProviderAnthropic,
+				},
+			},
+			sandboxEnabled: true,
+			expected:       true,
+		},
+		{
+			name: "false for non-github provider when sandbox disabled",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID:          "copilot",
+					LLMProvider: LLMProviderAnthropic,
+				},
+			},
+			sandboxEnabled: false,
+			expected:       false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, isCopilotBYOKMode(tt.workflowData, tt.sandboxEnabled))
+		})
+	}
+}
+
 func TestIsCopilotCustomConfig(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -1025,6 +1095,18 @@ func TestIsCopilotCustomConfig(t *testing.T) {
 				},
 			},
 			expected: true,
+		},
+		{
+			name: "not customized when COPILOT_PROVIDER_BASE_URL is empty",
+			workflowData: &WorkflowData{
+				EngineConfig: &EngineConfig{
+					ID: "copilot",
+					Env: map[string]string{
+						constants.CopilotProviderBaseURL: "",
+					},
+				},
+			},
+			expected: false,
 		},
 		{
 			name: "customized when model-provider gateway is enabled with firewall",
