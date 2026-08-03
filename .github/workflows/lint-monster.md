@@ -67,6 +67,7 @@ safe-outputs:
   update-issue:
     max: 10
     title-prefix: "[lint-monster] "
+    target: "*"
   assign-to-agent:
     max: 3
     target: "*"
@@ -124,7 +125,7 @@ Convert fused guidance into clear, actionable instructions that Copilot can exec
    - Use the current lint run as the single source of truth for the current function-length finding count.
    - Search open and recent closed `lint-monster` issues for matching function-length tracking work before creating anything new.
    - Pick one authoritative issue (prefer an existing open issue if it already tracks the same backlog); otherwise create one new consolidated tracking issue.
-   - If an authoritative issue already exists, use `update_issue` to refresh it with the current count, affected paths, and a checklist of next slices to refactor.
+   - If an authoritative issue already exists, use `update_issue` (passing its `issue_number` explicitly, since this workflow is schedule-triggered and has no triggering issue context) to refresh it with the current count, affected paths, and a checklist of next slices to refactor.
    - For any older open duplicates that cover the same function-length backlog, close them with `close_issue` using a pointer comment to the authoritative issue.
 4. For each selected group:
    - Create or update one issue summarizing findings (paths, representative diagnostics, expected outcome).
