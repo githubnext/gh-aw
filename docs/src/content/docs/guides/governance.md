@@ -166,6 +166,30 @@ for the complete list of `GH_AW_POLICY_*` variables.
 
 ---
 
+## Pull request rulesets for agentic workflow injection
+
+Use repository or organization rulesets to require one or more checks produced by
+agentic workflows (for example PR review, security review, or policy checks). This
+lets platform teams inject review automation into many repositories without asking
+each repository to manually wire branch protection settings.
+
+Recommended pattern:
+
+1. Keep the workflow `name:` and reviewer job names stable so required checks do not
+   drift between updates.
+2. If the workflow uses imports, set `inlined-imports: true` so required-check runs
+   do not fail with runtime import resolution errors in ruleset contexts.
+3. Trigger reviewer workflows on PR lifecycle events that matter to rulesets
+   (`opened`, `synchronize`, `reopened`, and optionally `ready_for_review`).
+4. For review bots, restrict `submit-pull-request-review.allowed-events` to
+   `COMMENT` and/or `REQUEST_CHANGES` unless you intentionally provide a token that
+   can approve pull requests.
+
+For runtime import failures under rulesets, see the FAQ entry
+["Runtime import file not found" in rulesets](/gh-aw/reference/faq/#my-workflow-fails-with-runtime-import-file-not-found-when-used-in-a-repository-ruleset).
+
+---
+
 ## Troubleshooting
 
 If `gh aw env update` fails validation, make sure turn and
