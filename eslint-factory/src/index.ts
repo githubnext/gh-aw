@@ -35,6 +35,7 @@ import { noCoreErrorThenSetFailedRule } from "./rules/no-core-error-then-setfail
 import { noDuplicateConstantValuesRule } from "./rules/no-duplicate-constant-values";
 import { requireEscapedRegexpInterpolationRule } from "./rules/require-escaped-regexp-interpolation";
 import { requireFetchTimeoutRule } from "./rules/require-fetch-timeout";
+import { requireNanCheckAfterEnvNumericParseRule } from "./rules/require-nan-check-after-env-numeric-parse";
 
 const plugin = {
   meta: {
@@ -79,6 +80,7 @@ const plugin = {
     "no-duplicate-constant-values": noDuplicateConstantValuesRule,
     "require-escaped-regexp-interpolation": requireEscapedRegexpInterpolationRule,
     "require-fetch-timeout": requireFetchTimeoutRule,
+    "require-nan-check-after-env-numeric-parse": requireNanCheckAfterEnvNumericParseRule,
   },
 };
 

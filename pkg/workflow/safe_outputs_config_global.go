@@ -209,6 +209,14 @@ func (c *Compiler) extractGlobalConfigFields(outputMap map[string]any, config *S
 		}
 	}
 
+	// Handle report-failed-jobs flag (bool, default true)
+	if reportFailedJobs, exists := outputMap["report-failed-jobs"]; exists {
+		if reportFailedJobsBool, ok := reportFailedJobs.(bool); ok {
+			config.ReportFailedJobs = &reportFailedJobsBool
+			safeOutputsConfigLog.Printf("Report failed jobs: %t", reportFailedJobsBool)
+		}
+	}
+
 	// Handle max-bot-mentions (templatable integer)
 	if err := preprocessIntFieldAsString(outputMap, "max-bot-mentions", safeOutputsConfigLog); err != nil {
 		safeOutputsConfigLog.Printf("max-bot-mentions: %v", err)

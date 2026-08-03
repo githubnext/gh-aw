@@ -49,6 +49,7 @@ module.exports = [
       "gh-aw-custom/no-duplicate-constant-values": "warn",
       "gh-aw-custom/require-escaped-regexp-interpolation": "warn",
       "gh-aw-custom/require-fetch-timeout": "warn",
+      "gh-aw-custom/require-nan-check-after-env-numeric-parse": "warn",
     },
   },
   {
