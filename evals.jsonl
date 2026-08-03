@@ -1,1 +1,1 @@
-{"id":"tone_style_goal_met","question":"Does the agent output show that the objective for experiment tone_style was successfully completed?","answer":"UNKNOWN","model":"small","timestamp":"2026-07-31T12:14:13.128Z","runid":"30628911747"}
+{"id":"tone_style_goal_met","question":"Does the agent output show that the objective for experiment tone_style was successfully completed?","answer":"UNKNOWN","model":"evals","timestamp":"2026-08-03T12:45:09.229Z","runid":"30813687231"}
