@@ -13,6 +13,8 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 	compiler := NewCompiler()
 	opencodeEngine, err := newBuiltinBehaviorDefinedEngine("opencode")
 	require.NoError(t, err)
+	cursorEngine, err := newBuiltinBehaviorDefinedEngine("cursor")
+	require.NoError(t, err)
 
 	t.Run("non universal engine skips validation", func(t *testing.T) {
 		err := compiler.validateUniversalLLMConsumerModel(
@@ -37,6 +39,19 @@ func TestValidateUniversalLLMConsumerModel(t *testing.T) {
 		)
 		require.Error(t, err, "Missing model should fail for opencode")
 		require.ErrorContains(t, err, "engine.model is required for engine 'opencode'")
+	})
+
+	t.Run("cursor requires model", func(t *testing.T) {
+		err := compiler.validateUniversalLLMConsumerModel(
+			map[string]any{
+				"engine": map[string]any{
+					"id": "cursor",
+				},
+			},
+			cursorEngine,
+		)
+		require.Error(t, err, "Missing model should fail for cursor")
+		require.ErrorContains(t, err, "engine.model is required for engine 'cursor'")
 	})
 
 	t.Run("opencode requires provider/model format", func(t *testing.T) {

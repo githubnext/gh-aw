@@ -77,6 +77,8 @@ func (c *Compiler) generateCreateAwInfo(yaml *strings.Builder, data *WorkflowDat
 			modelEnvVar = constants.EnvVarModelAgentCodex
 		case "opencode":
 			modelEnvVar = constants.EnvVarModelAgentOpenCode
+		case "cursor":
+			modelEnvVar = constants.EnvVarModelAgentCursor
 		case "custom":
 			modelEnvVar = constants.EnvVarModelAgentCustom
 		default:

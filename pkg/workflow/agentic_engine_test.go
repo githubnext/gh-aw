@@ -19,7 +19,7 @@ func TestEngineRegistry(t *testing.T) {
 		registry := NewEngineRegistry()
 		supportedEngines := registry.GetSupportedEngines()
 
-		expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini", "opencode"}
+		expectedEngineIDs := []string{"claude", "codex", "copilot", "cursor", "gemini", "opencode"}
 		for _, engineID := range expectedEngineIDs {
 			assert.True(t, slices.Contains(supportedEngines, engineID), "expected engine %q to be registered", engineID)
 		}
@@ -34,6 +34,7 @@ func TestEngineRegistry(t *testing.T) {
 			{engineID: "copilot"},
 			{engineID: "gemini"},
 			{engineID: "opencode"},
+			{engineID: "cursor"},
 		}
 
 		for _, tt := range tests {
@@ -55,7 +56,7 @@ func TestEngineRegistry(t *testing.T) {
 	t.Run("IsValidEngine", func(t *testing.T) {
 		registry := NewEngineRegistry()
 
-		validEngines := []string{"claude", "codex", "copilot", "gemini", "opencode"}
+		validEngines := []string{"claude", "codex", "copilot", "cursor", "gemini", "opencode"}
 		for _, id := range validEngines {
 			assert.True(t, registry.IsValidEngine(id), "IsValidEngine(%q) should return true", id)
 		}
@@ -146,7 +147,7 @@ func TestGetGlobalEngineRegistry(t *testing.T) {
 
 	t.Run("singleton contains expected built-in engines", func(t *testing.T) {
 		registry := GetGlobalEngineRegistry()
-		expectedEngineIDs := []string{"claude", "codex", "copilot", "gemini", "opencode"}
+		expectedEngineIDs := []string{"claude", "codex", "copilot", "cursor", "gemini", "opencode"}
 		supportedEngines := registry.GetSupportedEngines()
 		for _, engineID := range expectedEngineIDs {
 			assert.True(t, slices.Contains(supportedEngines, engineID), "global registry should contain built-in engine %q", engineID)

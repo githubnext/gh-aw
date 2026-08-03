@@ -127,6 +127,11 @@ func TestEngineSupportsMaxTurns(t *testing.T) {
 			expectedSupport: true,
 		},
 		{
+			name:            "cursor engine supports max-turns",
+			engineID:        "cursor",
+			expectedSupport: true,
+		},
+		{
 			name:            "pi engine supports max-turns",
 			engineID:        "pi",
 			expectedSupport: true,

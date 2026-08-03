@@ -33,6 +33,8 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 		{name: "AntigravityEngine value", constant: constants.AntigravityEngine, expected: "antigravity"},
 		// From spec: constants.OpenCodeEngine // "opencode"
 		{name: "OpenCodeEngine value", constant: constants.OpenCodeEngine, expected: "opencode"},
+		// From spec: constants.CursorEngine // "cursor"
+		{name: "CursorEngine value", constant: constants.CursorEngine, expected: "cursor"},
 		// From spec: constants.PiEngine // "pi" (experimental)
 		{name: "PiEngine value", constant: constants.PiEngine, expected: "pi"},
 		// From spec: constants.DefaultEngine // "copilot"
@@ -50,14 +52,14 @@ func TestSpec_EngineConstants_NameValues(t *testing.T) {
 
 // TestSpec_EngineConstants_AgenticEngines validates the documented AgenticEngines list.
 // Spec section: "// All supported engine names"
-// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
+// Spec documents: constants.AgenticEngines // []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "cursor", "pi"}
 func TestSpec_EngineConstants_AgenticEngines(t *testing.T) {
 	t.Parallel()
 	engines := constants.AgenticEngines
 	require.NotEmpty(t, engines, "AgenticEngines should be non-empty")
 
-	// Spec documents all seven engines, including antigravity and pi (experimental).
-	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "pi"}
+	// Spec documents all eight engines, including antigravity and pi (experimental).
+	documentedEngines := []string{"claude", "codex", "copilot", "gemini", "antigravity", "opencode", "cursor", "pi"}
 	for _, expected := range documentedEngines {
 		assert.Contains(t, engines, expected,
 			"AgenticEngines should contain documented engine %q", expected)
@@ -436,6 +438,30 @@ func TestSpec_ModelEnvVars_OpenCode(t *testing.T) {
 		{name: "EnvVarModelDetectionOpenCode", actual: constants.EnvVarModelDetectionOpenCode, expected: "GH_AW_MODEL_DETECTION_OPENCODE"},
 		// From spec: constants.OpenCodeCLIModelEnvVar // "OPENCODE_MODEL"
 		{name: "OpenCodeCLIModelEnvVar", actual: constants.OpenCodeCLIModelEnvVar, expected: "OPENCODE_MODEL"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tt.expected, tt.actual,
+				"model env var %s should have documented value %q", tt.name, tt.expected)
+		})
+	}
+}
+
+// TestSpec_ModelEnvVars_Cursor validates the documented model env var constants
+// for the Cursor engine.
+// Spec section: "### Model Environment Variables"
+func TestSpec_ModelEnvVars_Cursor(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		actual   string
+		expected string
+	}{
+		{name: "EnvVarModelAgentCursor", actual: constants.EnvVarModelAgentCursor, expected: "GH_AW_MODEL_AGENT_CURSOR"},
+		{name: "EnvVarModelDetectionCursor", actual: constants.EnvVarModelDetectionCursor, expected: "GH_AW_MODEL_DETECTION_CURSOR"},
+		{name: "CursorCLIModelEnvVar", actual: constants.CursorCLIModelEnvVar, expected: "CURSOR_MODEL"},
 	}
 
 	for _, tt := range tests {

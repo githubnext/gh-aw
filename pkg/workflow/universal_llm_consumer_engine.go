@@ -37,12 +37,12 @@ func resolveUniversalLLMBackendFromModel(model string) (UniversalLLMBackend, err
 	universalLLMConsumerLog.Printf("Resolving LLM backend from model: %q", model)
 	model = strings.TrimSpace(model)
 	if model == "" {
-		return "", errors.New("for universal consumer engines (OpenCode), engine.model is required and must use provider/model format (supported providers: copilot, anthropic, openai, codex)")
+		return "", errors.New("for universal consumer engines (OpenCode/Cursor), engine.model is required and must use provider/model format (supported providers: copilot, anthropic, openai, codex)")
 	}
 
 	parts := strings.SplitN(model, "/", 2)
 	if len(parts) != 2 || strings.TrimSpace(parts[0]) == "" || strings.TrimSpace(parts[1]) == "" {
-		return "", errors.New("for universal consumer engines (OpenCode), engine.model must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)")
+		return "", errors.New("for universal consumer engines (OpenCode/Cursor), engine.model must use provider/model format (for example: copilot/gpt-5, anthropic/claude-sonnet-4, openai/gpt-4.1)")
 	}
 
 	switch strings.ToLower(strings.TrimSpace(parts[0])) {

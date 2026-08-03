@@ -26,6 +26,8 @@ const (
 	AntigravityEngine EngineName = "antigravity"
 	// OpenCodeEngine is the OpenCode engine identifier
 	OpenCodeEngine EngineName = "opencode"
+	// CursorEngine is the Cursor engine identifier
+	CursorEngine EngineName = "cursor"
 	// PiEngine is the Pi engine identifier (experimental)
 	PiEngine EngineName = "pi"
 
@@ -38,7 +40,7 @@ const (
 // Deprecated: Use workflow.NewEngineCatalog(workflow.NewEngineRegistry()).IDs() for a
 // catalog-derived list. This slice is maintained for backward compatibility and must
 // stay in sync with the built-in engines registered in NewEngineCatalog.
-var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(OpenCodeEngine), string(PiEngine)}
+var AgenticEngines = []string{string(ClaudeEngine), string(CodexEngine), string(CopilotEngine), string(GeminiEngine), string(AntigravityEngine), string(OpenCodeEngine), string(CursorEngine), string(PiEngine)}
 
 // EngineOption represents a selectable AI engine with its display metadata and secret configuration
 type EngineOption struct {
@@ -107,6 +109,15 @@ var EngineOptions = []EngineOption{
 		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
 		KeyURL:             "https://github.com/anomalyco/opencode",
 		WhenNeeded:         "OpenCode engine workflows (default: Copilot routing)",
+	},
+	{
+		Value:              string(CursorEngine),
+		Label:              "Cursor",
+		Description:        "Cursor CLI coding agent",
+		SecretName:         CopilotGitHubToken,
+		AlternativeSecrets: []string{AnthropicAPIKey, OpenAIAPIKey, CodexAPIKey},
+		KeyURL:             "https://cursor.com/docs/cli/headless",
+		WhenNeeded:         "Cursor engine workflows (default: Copilot routing)",
 	},
 	{
 		Value:              string(PiEngine),
@@ -228,6 +239,8 @@ const (
 	EnvVarModelAgentAntigravity = "GH_AW_MODEL_AGENT_ANTIGRAVITY"
 	// EnvVarModelAgentOpenCode configures the default OpenCode model for agent execution
 	EnvVarModelAgentOpenCode = "GH_AW_MODEL_AGENT_OPENCODE"
+	// EnvVarModelAgentCursor configures the default Cursor model for agent execution
+	EnvVarModelAgentCursor = "GH_AW_MODEL_AGENT_CURSOR"
 	// EnvVarModelDetectionCopilot configures the default Copilot model for detection
 	EnvVarModelDetectionCopilot = "GH_AW_MODEL_DETECTION_COPILOT"
 	// EnvVarModelDetectionClaude configures the default Claude model for detection
@@ -240,6 +253,8 @@ const (
 	EnvVarModelDetectionAntigravity = "GH_AW_MODEL_DETECTION_ANTIGRAVITY"
 	// EnvVarModelDetectionOpenCode configures the default OpenCode model for detection
 	EnvVarModelDetectionOpenCode = "GH_AW_MODEL_DETECTION_OPENCODE"
+	// EnvVarModelDetectionCursor configures the default Cursor model for detection
+	EnvVarModelDetectionCursor = "GH_AW_MODEL_DETECTION_CURSOR"
 	// EnvVarModelEvalsCopilot configures the default Copilot model for evals execution
 	EnvVarModelEvalsCopilot = "GH_AW_MODEL_EVALS_COPILOT"
 	// EnvVarModelEvalsClaude configures the default Claude model for evals execution
@@ -252,6 +267,8 @@ const (
 	EnvVarModelEvalsAntigravity = "GH_AW_MODEL_EVALS_ANTIGRAVITY"
 	// EnvVarModelEvalsOpenCode configures the default OpenCode model for evals execution
 	EnvVarModelEvalsOpenCode = "GH_AW_MODEL_EVALS_OPENCODE"
+	// EnvVarModelEvalsCursor configures the default Cursor model for evals execution
+	EnvVarModelEvalsCursor = "GH_AW_MODEL_EVALS_CURSOR"
 	// EnvVarModelAgentPi configures the default Pi model for agent execution
 	EnvVarModelAgentPi = "GH_AW_MODEL_AGENT_PI"
 	// EnvVarModelEvalsPi configures the default Pi model for evals execution
@@ -365,6 +382,9 @@ const (
 	// OpenCodeCLIModelEnvVar is the native environment variable name for OpenCode model selection.
 	// OpenCode uses provider/model format (e.g., "anthropic/claude-sonnet-4-20250514").
 	OpenCodeCLIModelEnvVar = "OPENCODE_MODEL"
+
+	// CursorCLIModelEnvVar is the native environment variable name for Cursor model selection.
+	CursorCLIModelEnvVar = "CURSOR_MODEL"
 
 	// PiCLIModelEnvVar is the native environment variable name for Pi model selection.
 	// Setting PI_MODEL is equivalent to passing --model to the Pi CLI.

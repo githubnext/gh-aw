@@ -636,6 +636,7 @@ func TestGetModelEnvVarName(t *testing.T) {
 		{"codex", ""}, // no native model env var
 		{"gemini", constants.GeminiCLIModelEnvVar},     // "GEMINI_MODEL"
 		{"opencode", constants.OpenCodeCLIModelEnvVar}, // "OPENCODE_MODEL"
+		{"cursor", constants.CursorCLIModelEnvVar},     // "CURSOR_MODEL"
 	}
 
 	for _, tt := range tests {

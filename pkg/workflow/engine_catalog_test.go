@@ -21,7 +21,7 @@ func TestEngineCatalog_IDs(t *testing.T) {
 	require.NotEmpty(t, ids, "IDs() should return a non-empty list")
 
 	// Verify all built-in engines are present
-	expectedIDs := []string{"antigravity", "claude", "codex", "copilot", "gemini", "opencode", "pi"}
+	expectedIDs := []string{"antigravity", "claude", "codex", "copilot", "cursor", "gemini", "opencode", "pi"}
 	assert.Equal(t, expectedIDs, ids, "IDs() should return all built-in engines in sorted order")
 
 	// Verify the list is sorted
@@ -82,7 +82,7 @@ func TestEngineCatalog_BuiltInsPresent(t *testing.T) {
 	registry := NewEngineRegistry()
 	catalog := NewEngineCatalog(registry)
 
-	expected := []string{"claude", "codex", "copilot", "gemini", "opencode", "pi"}
+	expected := []string{"claude", "codex", "copilot", "cursor", "gemini", "opencode", "pi"}
 	catalogIDs := catalog.IDs()
 	for _, id := range expected {
 		assert.Contains(t, catalogIDs, id,

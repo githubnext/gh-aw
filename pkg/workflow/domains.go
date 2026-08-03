@@ -700,13 +700,16 @@ var engineDefaultDomains = map[constants.EngineName][]string{
 }
 
 // GetDefaultDomainsForEngine returns the engine's default required domains.
-// OpenCode and Pi domains are model/provider-specific, so they are
+// OpenCode, Cursor, and Pi domains are model/provider-specific, so they are
 // resolved dynamically from the model's provider prefix rather than the static
 // engineDefaultDomains map.
 // Falls back to an empty default domain list for unknown engines.
 // Returns an error if the model string is malformed (e.g. a leading slash).
 func GetDefaultDomainsForEngine(engine constants.EngineName, model string) ([]string, error) {
 	if engine == constants.OpenCodeEngine {
+		return getOpenCodeDefaultDomains(model)
+	}
+	if engine == constants.CursorEngine {
 		return getOpenCodeDefaultDomains(model)
 	}
 	if engine == constants.PiEngine {
@@ -916,7 +919,7 @@ func (c *Compiler) computeAllowedDomainsForSanitization(data *WorkflowData) (str
 	engine := constants.EngineName(engineID)
 	switch engine {
 	case constants.CopilotEngine, constants.CodexEngine, constants.ClaudeEngine, constants.GeminiEngine, constants.AntigravityEngine,
-		constants.PiEngine, constants.OpenCodeEngine:
+		constants.PiEngine, constants.OpenCodeEngine, constants.CursorEngine:
 		model := ""
 		if data.EngineConfig != nil {
 			model = data.Model

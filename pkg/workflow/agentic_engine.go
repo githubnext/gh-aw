@@ -520,7 +520,7 @@ func NewEngineRegistry() *EngineRegistry {
 		NewAntigravityEngine(),
 		NewPiEngine(),
 	}
-	for _, id := range []string{"opencode"} {
+	for _, id := range []string{"opencode", "cursor"} {
 		engine, err := newBuiltinBehaviorDefinedEngine(id)
 		if err != nil {
 			panic(fmt.Sprintf("BUG: failed to load built-in behavior engine %q: %v", id, err))

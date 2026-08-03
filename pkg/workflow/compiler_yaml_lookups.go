@@ -43,6 +43,8 @@ func getVersionForSetup(data *WorkflowData) string {
 		return string(constants.DefaultGeminiVersion)
 	case string(constants.OpenCodeEngine):
 		return string(constants.DefaultOpenCodeVersion)
+	case string(constants.CursorEngine):
+		return string(constants.DefaultCursorVersion)
 	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
 	default:
@@ -89,6 +91,8 @@ func getInstallationVersion(data *WorkflowData, engine CodingAgentEngine) string
 		return string(constants.DefaultCodexVersion)
 	case string(constants.OpenCodeEngine):
 		return string(constants.DefaultOpenCodeVersion)
+	case string(constants.CursorEngine):
+		return string(constants.DefaultCursorVersion)
 	case string(constants.PiEngine):
 		return string(constants.DefaultPiVersion)
 	default:
@@ -107,7 +111,7 @@ func getDefaultAgentModel(engineID string) string {
 	switch engineID {
 	case string(constants.CopilotEngine):
 		return constants.CopilotBYOKDefaultModel
-	case string(constants.ClaudeEngine), string(constants.GeminiEngine), string(constants.OpenCodeEngine), string(constants.PiEngine):
+	case string(constants.ClaudeEngine), string(constants.GeminiEngine), string(constants.OpenCodeEngine), string(constants.CursorEngine), string(constants.PiEngine):
 		return constants.AgentDefaultModel
 	case string(constants.CodexEngine):
 		return constants.CodexDefaultModel
@@ -174,6 +178,7 @@ func collectEngineVersionsForMetadata(data *WorkflowData) map[string]string {
 		string(constants.GeminiEngine):      string(constants.DefaultGeminiVersion),
 		string(constants.AntigravityEngine): string(constants.DefaultAntigravityVersion),
 		string(constants.OpenCodeEngine):    string(constants.DefaultOpenCodeVersion),
+		string(constants.CursorEngine):      string(constants.DefaultCursorVersion),
 		string(constants.PiEngine):          string(constants.DefaultPiVersion),
 	}
 

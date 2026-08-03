@@ -34,6 +34,10 @@ func TestGetDefaultAgentModel(t *testing.T) {
 			expectedModel: constants.AgentDefaultModel,
 		},
 		{
+			engineID:      string(constants.CursorEngine),
+			expectedModel: constants.AgentDefaultModel,
+		},
+		{
 			engineID:      string(constants.PiEngine),
 			expectedModel: constants.AgentDefaultModel,
 		},
@@ -90,6 +94,10 @@ func TestGetDefaultModelOverrideVar(t *testing.T) {
 		},
 		{
 			engineID:    string(constants.OpenCodeEngine),
+			expectedVar: "",
+		},
+		{
+			engineID:    string(constants.CursorEngine),
 			expectedVar: "",
 		},
 		{
