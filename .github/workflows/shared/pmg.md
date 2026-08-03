@@ -1,6 +1,7 @@
 ---
 pre-steps:
   - name: Install PMG (Package Manager Guard)
+    # zizmor: ignore[github_action_from_unverified_creator_used]
     uses: safedep/pmg@v1
 ---
 <!--

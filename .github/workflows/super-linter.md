@@ -40,6 +40,7 @@ jobs:
           persist-credentials: false
       
       - name: Run super-linter
+        # zizmor: ignore[github_action_from_unverified_creator_used]
         uses: super-linter/super-linter@v8.7.0 # x-release-please-version
         id: super-linter
         env:

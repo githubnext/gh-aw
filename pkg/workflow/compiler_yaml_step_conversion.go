@@ -15,6 +15,49 @@ import (
 
 var stepConversionLog = logger.New("workflow:compiler_yaml_step_conversion")
 
+// unverifiedCreatorActionPrefixes lists action owner/repo prefixes whose publishers are not
+// GitHub-verified on the Marketplace. The compiler injects a zizmor suppression comment before
+// any uses: line whose action reference starts with one of these prefixes so that the
+// informational github_action_from_unverified_creator_used finding is acknowledged in the
+// compiled output. All such actions are already SHA-pinned by the compiler, so the residual
+// risk is publisher-identity compromise rather than mutable-ref tampering.
+//
+// Runtimes handled in generateSetupStep (erlef/, astral-sh/) emit the annotation inline in
+// the GitHubActionStep slice and do not rely on this list; they are included here as a
+// belt-and-suspenders fallback for any code path that emits those uses: lines outside of
+// generateSetupStep.
+var unverifiedCreatorActionPrefixes = []string{
+	"safedep/",
+	"super-linter/",
+	"actions-ecosystem/",
+	"erlef/",
+	"astral-sh/",
+}
+
+// injectZizmorUnverifiedCreatorAnnotations scans a YAML string for uses: lines that reference
+// actions from known unverified creators and inserts a
+// "# zizmor: ignore[github_action_from_unverified_creator_used]" comment on the preceding line.
+// This is needed because YAML comments are stripped during parse/marshal round-trips, so the
+// annotation cannot be preserved from source .md files — it must be re-injected here.
+func injectZizmorUnverifiedCreatorAnnotations(yamlStr string) string {
+	lines := strings.Split(yamlStr, "\n")
+	result := make([]string, 0, len(lines)+4)
+	for _, line := range lines {
+		trimmed := strings.TrimLeft(line, " \t")
+		if actionRef, ok := strings.CutPrefix(trimmed, "uses: "); ok {
+			for _, prefix := range unverifiedCreatorActionPrefixes {
+				if strings.HasPrefix(actionRef, prefix) {
+					indent := line[:len(line)-len(trimmed)]
+					result = append(result, indent+"# zizmor: ignore[github_action_from_unverified_creator_used]")
+					break
+				}
+			}
+		}
+		result = append(result, line)
+	}
+	return strings.Join(result, "\n")
+}
+
 // ConvertStepToYAML converts a step map to YAML string with proper indentation.
 // This is a shared utility function used by all engines and the compiler.
 func ConvertStepToYAML(stepMap map[string]any) (string, error) {
@@ -35,6 +78,9 @@ func ConvertStepToYAML(stepMap map[string]any) (string, error) {
 	// Post-process to move version comments outside of quoted uses values
 	// This handles cases like: uses: "slug@sha # v1"  ->  uses: slug@sha # v1
 	yamlStr = unquoteUsesWithComments(yamlStr)
+	// Inject zizmor ignore annotations before uses: lines from unverified creators.
+	// YAML comments are stripped during parse/marshal, so they must be re-injected here.
+	yamlStr = injectZizmorUnverifiedCreatorAnnotations(yamlStr)
 	yamlStr = quoteEnvValuesContainingColonSpace(yamlStr)
 
 	// Add 6 spaces to the beginning of each line to match GitHub Actions step indentation
