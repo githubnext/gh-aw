@@ -1762,6 +1762,9 @@ Test prompt.
 	if got := metadata.EngineVersions["copilot-sdk"]; got == "" {
 		t.Fatal("Expected copilot-sdk version in metadata engine_versions when copilot-sdk is enabled")
 	}
+	if metadata.EngineBaseURLCustomized {
+		t.Fatal("Expected engine_base_url_customized=false for default copilot configuration")
+	}
 	if metadata.AgentImageRunner != `["self-hosted","linux"]` {
 		t.Fatalf("Expected serialized array runner identifier, got: %q", metadata.AgentImageRunner)
 	}
@@ -1781,6 +1784,55 @@ Test prompt.
 	}
 	if _, exists := manifest["agent_image_runner"]; exists {
 		t.Fatal("gh-aw-manifest must not duplicate agent_image_runner metadata")
+	}
+}
+
+func TestCompileWorkflowMetadataMarksCopilotCustomConfig(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "lock-metadata-copilot-custom-config")
+
+	workflowContent := `---
+engine:
+  id: copilot
+  api-target: api.acme.ghe.com
+on: issues
+---
+# Test Workflow
+
+Test prompt.
+`
+	workflowPath := filepath.Join(tmpDir, "metadata-copilot-custom-config.md")
+	if err := os.WriteFile(workflowPath, []byte(workflowContent), 0o644); err != nil {
+		t.Fatalf("Failed to write workflow file: %v", err)
+	}
+
+	compiler := NewCompiler()
+	if err := compiler.CompileWorkflow(workflowPath); err != nil {
+		t.Fatalf("Failed to compile workflow: %v", err)
+	}
+
+	lockFile := strings.TrimSuffix(workflowPath, ".md") + ".lock.yml"
+	lockContent, err := os.ReadFile(lockFile)
+	if err != nil {
+		t.Fatalf("Failed to read lock file: %v", err)
+	}
+
+	var metadataLine string
+	for line := range strings.SplitSeq(string(lockContent), "\n") {
+		if trimmed, ok := strings.CutPrefix(line, "# gh-aw-metadata: "); ok {
+			metadataLine = trimmed
+		}
+	}
+	if metadataLine == "" {
+		t.Fatal("Could not find gh-aw-metadata in lock file")
+	}
+
+	var metadata LockMetadata
+	if err := json.Unmarshal([]byte(metadataLine), &metadata); err != nil {
+		t.Fatalf("Failed to parse lock metadata JSON: %v", err)
+	}
+
+	if !metadata.EngineBaseURLCustomized {
+		t.Fatal("Expected engine_base_url_customized=true when copilot api-target is customized")
 	}
 }
 
