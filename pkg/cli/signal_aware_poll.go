@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/logger"
 )
 
@@ -63,10 +64,7 @@ func PollWithSignalHandling(options PollOptions) error {
 	}
 
 	// Use provided context or fall back to background context
-	ctx := options.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := ctxutil.OrBackground(options.Ctx)
 
 	// Set up signal handling for graceful shutdown
 	// Signal channel provides a fallback when no context is provided or for direct OS signals

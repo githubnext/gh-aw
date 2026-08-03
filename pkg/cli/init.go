@@ -12,6 +12,7 @@ import (
 	"github.com/github/gh-aw/pkg/constants"
 
 	"github.com/github/gh-aw/pkg/console"
+	"github.com/github/gh-aw/pkg/ctxutil"
 	"github.com/github/gh-aw/pkg/fileutil"
 	"github.com/github/gh-aw/pkg/gitutil"
 	"github.com/github/gh-aw/pkg/logger"
@@ -40,10 +41,7 @@ type InitOptions struct {
 func InitRepository(opts InitOptions) error {
 	initLog.Print("Starting repository initialization for agentic workflows")
 
-	ctx := opts.Ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := ctxutil.OrBackground(opts.Ctx)
 	copilotArtifactsEnabled := opts.Engine == "" || opts.Engine == "copilot"
 
 	// Show welcome banner for interactive mode
