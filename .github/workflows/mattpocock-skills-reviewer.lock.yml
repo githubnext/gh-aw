@@ -1,5 +1,5 @@
-# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"1a1ccf3c1c4539ecef9438fd80d1e4faefa2b556b00b80f71bce574b954a0cae","body_hash":"c3f13ade4281614d5d35cd7ef735b734cbaa16e58f505b5b3e6670f75b405b42","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-4.6","engine_versions":{"copilot":"1.0.77"}}
-# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"skills":["mattpocock/skills/codebase-design@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/diagnosing-bugs@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/domain-modeling@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/grill-with-docs@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/improve-codebase-architecture@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/tdd@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/to-prd@ed37663cc5fbef691ddfecd080dff42f7e7e350d"],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43","digest":"sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43@sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43","digest":"sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43@sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43","digest":"sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43@sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43","digest":"sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43@sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.7","digest":"sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.7@sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.8.0","digest":"sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520","pinned_image":"ghcr.io/github/github-mcp-server:v1.8.0@sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520"}],"has_pull_request":true}
+# gh-aw-metadata: {"schema_version":"v4","frontmatter_hash":"107054385414e99ea2eb9b1e9288f080dcbd66d0533af02f9fcb4001359de64a","body_hash":"c3f13ade4281614d5d35cd7ef735b734cbaa16e58f505b5b3e6670f75b405b42","strict":true,"agent_id":"copilot","agent_model":"claude-sonnet-4.6","engine_versions":{"copilot":"1.0.77"}}
+# gh-aw-manifest: {"version":1,"secrets":["COPILOT_GITHUB_TOKEN","GH_AW_GITHUB_MCP_SERVER_TOKEN","GH_AW_GITHUB_TOKEN","GH_AW_OTEL_GRAFANA_AUTHORIZATION","GH_AW_OTEL_GRAFANA_ENDPOINT","GH_AW_OTEL_SENTRY_AUTHORIZATION","GH_AW_OTEL_SENTRY_ENDPOINT","GITHUB_TOKEN"],"actions":[{"repo":"actions/cache","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/restore","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/cache/save","sha":"55cc8345863c7cc4c66a329aec7e433d2d1c52a9","version":"v6.1.0"},{"repo":"actions/checkout","sha":"3d3c42e5aac5ba805825da76410c181273ba90b1","version":"v7.0.1"},{"repo":"actions/download-artifact","sha":"3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c","version":"v8.0.1"},{"repo":"actions/github-script","sha":"373c709c69115d41ff229c7e5df9f8788daa9553","version":"v9"},{"repo":"actions/github-script","sha":"3a2844b7e9c422d3c10d287c895573f7108da1b3","version":"v9.0.0"},{"repo":"actions/upload-artifact","sha":"043fb46d1a93c77aae656e7c1c64a875d1fc6a0a","version":"v7.0.1"}],"skills":["mattpocock/skills/codebase-design@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/diagnosing-bugs@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/domain-modeling@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/grill-with-docs@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/improve-codebase-architecture@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/tdd@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/to-prd@2ab958093e83e0ec752e6c1c5932da465bf23e0c"],"containers":[{"image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43","digest":"sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6","pinned_image":"ghcr.io/github/gh-aw-firewall/agent:0.27.43@sha256:04e2d1987a565000a8f114b89d806ae7a3864dd4f944be65275b28c93d8690e6"},{"image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43","digest":"sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1","pinned_image":"ghcr.io/github/gh-aw-firewall/api-proxy:0.27.43@sha256:d85f57975af5ea23af4996e41ed73fbc8f5b4a47402472bfe82e508f352cb0c1"},{"image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43","digest":"sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab","pinned_image":"ghcr.io/github/gh-aw-firewall/cli-proxy:0.27.43@sha256:65c45ea2967984d0024f3df61bc71335658a77ede96c8d9665da7a5f33a795ab"},{"image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43","digest":"sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d","pinned_image":"ghcr.io/github/gh-aw-firewall/squid:0.27.43@sha256:26be5e0b8c8f4c41c8a59126b29bb5d80b07253597472ded2a16bdd75abcbf9d"},{"image":"ghcr.io/github/gh-aw-mcpg:v0.4.7","digest":"sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00","pinned_image":"ghcr.io/github/gh-aw-mcpg:v0.4.7@sha256:7545220a9aca134b71e51193ee0eaf4c50756ebf8fbd25a63ae7556e62815c00"},{"image":"ghcr.io/github/gh-aw-node","digest":"sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196","pinned_image":"ghcr.io/github/gh-aw-node@sha256:0d9f1fb5fd6610c0ac1f5194a38e45a8a1e81f8a390d5142d8e4e6f26a4b3196"},{"image":"ghcr.io/github/github-mcp-server:v1.8.0","digest":"sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520","pinned_image":"ghcr.io/github/github-mcp-server:v1.8.0@sha256:d5a18c04b92714c309eb46a2305087e91a4dbd80420f6e462656699f95093520"}],"has_pull_request":true}
 # This file was automatically generated by gh-aw. DO NOT EDIT. To debug this workflow, load the skill at https://github.com/github/gh-aw/blob/main/debug.md
 #
 #    ___                   _   _
@@ -50,6 +50,7 @@
 #   - actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 #   - actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
 #   - actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+#   - actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
 #   - actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
 #
 # Container images used:
@@ -180,7 +181,7 @@ jobs:
           GH_AW_INFO_FRONTMATTER_EMOJI: "🔍"
           GH_AW_COMPILED_STRICT: "true"
           GH_AW_INFO_FEATURES: '{"gh-aw-detection":true}'
-          GH_AW_INFO_SKILLS: '["mattpocock/skills/diagnosing-bugs@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/tdd@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/improve-codebase-architecture@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/grill-with-docs@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/to-prd@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/codebase-design@ed37663cc5fbef691ddfecd080dff42f7e7e350d","mattpocock/skills/domain-modeling@ed37663cc5fbef691ddfecd080dff42f7e7e350d"]'
+          GH_AW_INFO_SKILLS: '["mattpocock/skills/diagnosing-bugs@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/tdd@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/improve-codebase-architecture@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/grill-with-docs@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/to-prd@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/codebase-design@2ab958093e83e0ec752e6c1c5932da465bf23e0c","mattpocock/skills/domain-modeling@2ab958093e83e0ec752e6c1c5932da465bf23e0c"]'
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -318,7 +319,7 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_GH_SKILL_AGENT_NAME: "github-copilot"
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/diagnosing-bugs@ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/diagnosing-bugs@2ab958093e83e0ec752e6c1c5932da465bf23e0c"
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -332,7 +333,7 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_GH_SKILL_AGENT_NAME: "github-copilot"
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/tdd@ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/tdd@2ab958093e83e0ec752e6c1c5932da465bf23e0c"
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -346,7 +347,7 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_GH_SKILL_AGENT_NAME: "github-copilot"
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/improve-codebase-architecture@ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/improve-codebase-architecture@2ab958093e83e0ec752e6c1c5932da465bf23e0c"
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -360,7 +361,7 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_GH_SKILL_AGENT_NAME: "github-copilot"
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/grill-with-docs@ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/grill-with-docs@2ab958093e83e0ec752e6c1c5932da465bf23e0c"
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -374,7 +375,7 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_GH_SKILL_AGENT_NAME: "github-copilot"
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/to-prd@ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/to-prd@2ab958093e83e0ec752e6c1c5932da465bf23e0c"
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -388,7 +389,7 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_GH_SKILL_AGENT_NAME: "github-copilot"
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/codebase-design@ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/codebase-design@2ab958093e83e0ec752e6c1c5932da465bf23e0c"
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -402,7 +403,7 @@ jobs:
           GH_AW_INFO_ENGINE_ID: "copilot"
           GH_AW_GH_SKILL_AGENT_NAME: "github-copilot"
           GH_AW_SKILL_DIR: ".github/skills"
-          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/domain-modeling@ed37663cc5fbef691ddfecd080dff42f7e7e350d"
+          GH_AW_FRONTMATTER_SKILLS: "mattpocock/skills/domain-modeling@2ab958093e83e0ec752e6c1c5932da465bf23e0c"
         uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
         with:
           script: |
@@ -1405,7 +1406,7 @@ jobs:
         id: write-daily-aic-cache
         if: always()
         continue-on-error: true
-        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553 # v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           github-token: ${{ github.token }}
           script: |

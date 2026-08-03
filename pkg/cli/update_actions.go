@@ -201,6 +201,7 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 			return ctx.Err()
 		}
 		entry := s.entry
+		refreshingCurrentVersion := false
 		updateLog.Printf("Checking action: %s@%s", entry.Repo, entry.Version)
 
 		// By default all actions are force-updated to the latest major version.
@@ -253,12 +254,18 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 		currentVer := parseVersion(entry.Version)
 		latestVer := parseVersion(latestVersion)
 		if currentVer != nil && latestVer != nil && currentVer.IsNewer(latestVer) {
-			updateLog.Printf("Skipping %s: proposed version %s is older than current %s (would be a downgrade)", entry.Repo, latestVersion, entry.Version)
-			msg := fmt.Sprintf("%s: skipping proposed update from %s to %s (would be a downgrade)",
-				entry.Repo, entry.Version, latestVersion)
-			fmt.Fprintln(os.Stderr, console.FormatWarningMessage(msg))
-			skippedActions = append(skippedActions, entry.Repo)
-			continue
+			updateLog.Printf("Proposed version %s for %s is older than current %s; refreshing the current tag SHA instead", latestVersion, entry.Repo, entry.Version)
+			currentSHA, shaErr := deps.getActionSHAForTag(ctx, gitutil.ExtractBaseRepo(entry.Repo), entry.Version)
+			if shaErr != nil {
+				skipErr := fmt.Sprintf("cannot refresh current tag %s: %v", entry.Version, shaErr)
+				updateLog.Printf("Skipping %s: %s", entry.Repo, skipErr)
+				fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Skipping %s: %s", entry.Repo, skipErr)))
+				failedActions = append(failedActions, actionUpdateFailure{name: entry.Repo, err: skipErr})
+				continue
+			}
+			latestVersion = entry.Version
+			latestSHA = currentSHA
+			refreshingCurrentVersion = true
 		}
 
 		// Check if update is available
@@ -271,7 +278,7 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 		}
 
 		// Apply cooldown: if the repo is not exempt and the release is too recent, skip.
-		if !isExemptFromCoolDown(entry.Repo) {
+		if !refreshingCurrentVersion && !isExemptFromCoolDown(entry.Repo) {
 			var coolDownResult coolDownCheckResult
 			if cachedDate, ok := actionCache.GetReleasedAt(entry.Repo, latestVersion); ok {
 				// Use cached release date to avoid an extra API call.
@@ -324,8 +331,13 @@ func updateActions(ctx context.Context, deps actionUpdateDeps, allowMajor, verbo
 		if len(newSHAStr) > 7 {
 			newSHAStr = newSHAStr[:7]
 		}
-		updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, oldSHAStr, latestVersion, newSHAStr)
-		fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
+		if refreshingCurrentVersion {
+			updateLog.Printf("Refreshing %s@%s SHA from %s to %s", entry.Repo, entry.Version, oldSHAStr, newSHAStr)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Refreshed %s@%s SHA", entry.Repo, entry.Version)))
+		} else {
+			updateLog.Printf("Updating %s from %s (%s) to %s (%s)", entry.Repo, entry.Version, oldSHAStr, latestVersion, newSHAStr)
+			fmt.Fprintln(os.Stderr, console.FormatSuccessMessage(fmt.Sprintf("Updated %s from %s to %s", entry.Repo, entry.Version, latestVersion)))
+		}
 
 		// Set the new entry first; ActionCache.Set handles inputs/description preservation.
 		// If the write is rejected (e.g. empty SHA), keep the old entry untouched.
@@ -544,25 +556,7 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 		return "", "", fmt.Errorf("failed to fetch releases via git ls-remote: %w", err)
 	}
 
-	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
-	var releases []string
-	tagToSHA := make(map[string]string)
-
-	for _, line := range lines {
-		// Parse: "<sha> refs/tags/<tag>"
-		parts := strings.Fields(line)
-		if len(parts) >= 2 {
-			sha := parts[0]
-			tagRef := parts[1]
-			// Skip ^{} annotations (they point to the commit object)
-			if strings.HasSuffix(tagRef, "^{}") {
-				continue
-			}
-			tag := strings.TrimPrefix(tagRef, "refs/tags/")
-			releases = append(releases, tag)
-			tagToSHA[tag] = sha
-		}
-	}
+	releases, tagToSHA := parseActionTagRefs(string(output))
 
 	if len(releases) == 0 {
 		return "", "", errors.New("no releases found")
@@ -654,6 +648,38 @@ func getLatestActionReleaseViaGit(ctx context.Context, repo, currentVersion stri
 	}
 
 	return latestCompatible, sha, nil
+}
+
+// parseActionTagRefs parses git ls-remote --tags output, preferring peeled commit
+// SHAs over annotated tag-object SHAs while retaining lightweight tag SHAs.
+func parseActionTagRefs(output string) ([]string, map[string]string) {
+	var releases []string
+	tagToSHA := make(map[string]string)
+	seenTags := make(map[string]struct{})
+
+	for _, line := range strings.Split(strings.TrimSpace(output), "\n") {
+		parts := strings.Fields(line)
+		if len(parts) < 2 || !strings.HasPrefix(parts[1], "refs/tags/") {
+			continue
+		}
+
+		sha := parts[0]
+		tagRef := strings.TrimPrefix(parts[1], "refs/tags/")
+		peeled := strings.HasSuffix(tagRef, "^{}")
+		tag := strings.TrimSuffix(tagRef, "^{}")
+
+		if _, seen := seenTags[tag]; !seen {
+			releases = append(releases, tag)
+			seenTags[tag] = struct{}{}
+		}
+		if peeled {
+			tagToSHA[tag] = sha
+		} else if _, exists := tagToSHA[tag]; !exists {
+			tagToSHA[tag] = sha
+		}
+	}
+
+	return releases, tagToSHA
 }
 
 // findCooledDownActionVersion searches for the newest release that is strictly
