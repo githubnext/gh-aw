@@ -21,6 +21,12 @@ func badBlankAssign() {
 	_ = bw.Flush() // want `error return from Flush\(\) is discarded`
 }
 
+func deferBad() {
+	var sb strings.Builder
+	bw := bufio.NewWriter(&sb)
+	defer bw.Flush() // want `error return from Flush\(\) is discarded`
+}
+
 func good() {
 	var sb strings.Builder
 	bw := bufio.NewWriter(&sb)
@@ -43,4 +49,10 @@ func suppressed() {
 
 	tw := tabwriter.NewWriter(&sb, 0, 0, 1, ' ', 0)
 	tw.Flush() //nolint:uncheckedflushreturn
+}
+
+func deferSuppressed() {
+	var sb strings.Builder
+	bw := bufio.NewWriter(&sb)
+	defer bw.Flush() //nolint:uncheckedflushreturn
 }
