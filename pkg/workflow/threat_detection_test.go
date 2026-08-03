@@ -1101,6 +1101,12 @@ func TestPrepareDetectionFilesStepWarnsWhenPromptContextMissingOrEmpty(t *testin
 	if !strings.Contains(joined, "Detection will continue with fallback workflow context.") {
 		t.Error("Expected prepare step warning to document fallback behavior")
 	}
+	if strings.Contains(joined, `] && cp "$f"`) {
+		t.Error("Expected prepare step to avoid ambiguous A && B || C copy commands")
+	}
+	if strings.Count(joined, `if [ -f "$f" ]; then`) != 2 {
+		t.Error("Expected prepare step to guard patch and bundle copies with explicit if statements")
+	}
 }
 
 // TestDetectionJobLevelCondition verifies that the detection job-level `if:` condition
