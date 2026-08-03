@@ -974,6 +974,19 @@ describe("update_pull_request.cjs - update_branch behavior", () => {
     expect(mockCore.warning).toHaveBeenCalledWith(expect.stringContaining("branch from base (non-fatal)"));
   });
 
+  it("should keep head-ref-missing fatal when updateBranch has no numeric status", async () => {
+    const missingStatusError = new Error("head ref does not exist - https://docs.github.com/rest/pulls/pulls#update-a-pull-request-branch");
+    mockGithub.rest.pulls.updateBranch.mockRejectedValueOnce(missingStatusError);
+
+    const handler = await updatePRModule.main({ update_branch: true });
+    const result = await handler({ pull_request_number: 100 });
+
+    expect(result.success).toBe(false);
+    expect(result.error).toContain("update pull request #100 branch from base failed");
+    expect(mockGithub.rest.pulls.updateBranch).toHaveBeenCalledTimes(1);
+    expect(mockCore.warning).toHaveBeenCalledWith(expect.not.stringContaining("(non-fatal)"));
+  });
+
   it("should continue title/body updates when updateBranch gets workflows-permission 403", async () => {
     const permissionError = new Error("refusing to allow a GitHub App to create or update workflow `.github/workflows/test.lock.yml` without `workflows` permission");
     permissionError.status = 403;

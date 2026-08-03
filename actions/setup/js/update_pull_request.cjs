@@ -62,13 +62,14 @@ function isNonFatalUpdateBranchError(error) {
   // - cannot auto-update due to conflict ("merge conflict between base and head")
   // - stale merged targets where the head branch was deleted ("head ref does not exist")
   // These should not fail safe output processing.
-  // A deleted head ref is a stale target regardless of how the API/proxy reports its status.
+  // A deleted head ref is a stale target regardless of which numeric status the API/proxy reports.
+  // Keep requiring some numeric status so transport/proxy failures with no HTTP response still fail.
   // Restrict the other phrases to status === 422 to avoid silently swallowing proxy/network
   // errors. hasWorkflowsPermissionError / hasWorkflowsScopeRequired are only checked for errors
   // with no numeric status (status === undefined); the explicit 403 case is already handled by
   // the if-block above.
   return (
-    message.includes("head ref does not exist") ||
+    (status !== undefined && message.includes("head ref does not exist")) ||
     (status === 422 && (message.includes("there are no new commits on the base branch") || message.includes("merge conflict between base and head"))) ||
     ((hasWorkflowsPermissionError || hasWorkflowsScopeRequired) && status === undefined)
   );
