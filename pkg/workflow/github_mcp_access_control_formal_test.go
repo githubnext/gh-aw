@@ -493,3 +493,49 @@ func TestFormal_FixtureRunner(t *testing.T) {
 
 	require.Positive(t, totalScenarios, "fixture runner found no scenarios — check fixture directory path")
 }
+
+// documentedComplianceFixtures mirrors the "Compliance Fixtures" table in
+// specs/github-mcp-access-control-compliance/README.md. This list MUST be kept in
+// sync with both the README table and the fixture files present on disk; a
+// mismatch here signals that the spec, the fixture directory, or this test has
+// drifted out of sync with one of the others.
+var documentedComplianceFixtures = []string{
+	"exact-match-allow.yaml",
+	"wildcard-deny.yaml",
+	"empty-repos-block.yaml",
+	"role-deny.yaml",
+	"tool-name-filter.yaml",
+	"blocked-user-deny.yaml",
+	"private-repo-block.yaml",
+	"integrity-level-block.yaml",
+	"combined-filter-allow.yaml",
+	"combined-blocked-integrity.yaml",
+}
+
+// TestFormal_FixtureCountConsistency verifies that the fixture files documented in
+// specs/github-mcp-access-control-compliance/README.md's "Compliance Fixtures" table
+// exactly match the `.yaml` files present in the fixture directory, so the README
+// table cannot silently drift from the fixtures actually exercised by
+// TestFormal_FixtureRunner.
+func TestFormal_FixtureCountConsistency(t *testing.T) {
+	fixtureDir := filepath.Join("..", "..", "specs", "github-mcp-access-control-compliance")
+	entries, err := os.ReadDir(fixtureDir)
+	require.NoError(t, err, "failed to read compliance fixture directory")
+
+	var onDisk []string
+	for _, entry := range entries {
+		if entry.IsDir() || filepath.Ext(entry.Name()) != ".yaml" {
+			continue
+		}
+		onDisk = append(onDisk, entry.Name())
+	}
+
+	documented := slices.Clone(documentedComplianceFixtures)
+	slices.Sort(documented)
+	slices.Sort(onDisk)
+
+	assert.Equal(t, documented, onDisk,
+		"fixture files on disk in %s must match the README's documented fixture list exactly "+
+			"(add/remove entries in both the README table and documentedComplianceFixtures when fixtures change)",
+		fixtureDir)
+}
