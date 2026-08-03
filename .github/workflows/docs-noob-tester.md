@@ -49,11 +49,19 @@ imports:
   - shared/keep-it-short.md
   - shared/otlp.md
 pre-agent-steps:
+  - name: Install docs dependencies
+    env:
+      EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
+    run: |
+      cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
+      npm ci
   - name: Start docs server
     env:
       EXPR_GITHUB_WORKSPACE: ${{ github.workspace }}
     run: |
-      cd "$EXPR_GITHUB_WORKSPACE" || exit 1 > /tmp/gh-aw/agent/preview.log 2>&1 &
+      mkdir -p /tmp/gh-aw/agent
+      cd "$EXPR_GITHUB_WORKSPACE/docs" || exit 1
+      nohup npm run dev -- --host 0.0.0.0 --port 4321 > /tmp/gh-aw/agent/preview.log 2>&1 &
       PID=$!
       echo $PID > /tmp/gh-aw/agent/server.pid
       echo "Server PID: $PID"

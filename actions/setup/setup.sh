@@ -364,7 +364,6 @@ SAFE_OUTPUTS_FILES=(
   "markdown_code_region_balancer.cjs"
   "temporary_id.cjs"
   "invocation_context_helpers.cjs"
-  "repo_memory_patch_size.cjs"
   "data_schema_normalizer.cjs"
 )
 

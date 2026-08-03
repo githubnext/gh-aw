@@ -12,10 +12,12 @@ import (
 )
 
 func TestHelpExamplesAreValid(t *testing.T) {
+	t.Parallel()
 	var checkExamples func(cmd *cobra.Command)
 	checkExamples = func(cmd *cobra.Command) {
 		for _, example := range extractCommandExamples(cmd) {
 			t.Run(cmd.CommandPath()+" example "+example, func(t *testing.T) {
+				t.Parallel()
 				validateExample(t, example)
 			})
 		}

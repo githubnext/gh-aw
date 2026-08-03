@@ -1,4 +1,5 @@
 import { AST_NODE_TYPES, ESLintUtils, TSESTree } from "@typescript-eslint/utils";
+import { resolveWriteOnceInitializerChain } from "./command-initializer-utils";
 
 const createRule = ESLintUtils.RuleCreator(name => `https://github.com/github/gh-aw/tree/main/eslint-factory#${name}`);
 
@@ -219,12 +220,14 @@ export const noGithubRequestInterpolatedRouteRule = createRule({
         if (!clientName) return;
 
         const firstArg = node.arguments[0];
-        if (!firstArg) return;
+        if (!firstArg || firstArg.type === AST_NODE_TYPES.SpreadElement) return;
 
-        const routeKind = getInterpolatedRouteKind(firstArg);
+        const routeExpr = resolveWriteOnceInitializerChain(firstArg as TSESTree.Expression, context.sourceCode);
+
+        const routeKind = getInterpolatedRouteKind(routeExpr);
         if (!routeKind) return;
 
-        if (isOpaqueWholeRouteInterpolation(firstArg)) {
+        if (isOpaqueWholeRouteInterpolation(routeExpr)) {
           context.report({
             node: firstArg,
             messageId: "opaqueWholeRoute",

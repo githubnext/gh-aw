@@ -21,7 +21,7 @@ const { findRepoCheckout } = require("./find_repo_checkout.cjs");
 const { resolveTargetRepoConfig, resolveAndValidateRepo } = require("./repo_helpers.cjs");
 const { getOrGenerateTemporaryId } = require("./temporary_id.cjs");
 const { parseAllowedExtensionsEnv } = require("./allowed_extensions_helpers.cjs");
-const { getStagedPatchAdditionsSizeBytes } = require("./repo_memory_patch_size.cjs");
+const { getStagedPatchDiffSizeBytes } = require("./git_patch_utils.cjs");
 const { sanitizeTitle, applyTitlePrefix } = require("./sanitize_title.cjs");
 const { parseDeduplicateByTitle, normalizeTitleForDedup, findDuplicateByTitle } = require("./issue_title_dedup.cjs");
 const { validateCreatePullRequestIntent, validatePushToPullRequestBranchIntent, validateCreateIssueIntent, validateAddCommentIntent } = require("./intent_probe.cjs");
@@ -1701,7 +1701,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     try {
       ensureSafeDirectoryTrust(memoryDir, server);
       execGitSync(["add", "--sparse", "."], { cwd: memoryDir, stdio: "pipe" });
-      patchSizeBytes = getStagedPatchAdditionsSizeBytes({ execGitSyncFn: execGitSync, cwd: memoryDir });
+      patchSizeBytes = getStagedPatchDiffSizeBytes({ execGitSyncFn: execGitSync, cwd: memoryDir });
     } catch (/** @type {any} */ error) {
       return {
         content: [
@@ -1709,7 +1709,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             type: "text",
             text: JSON.stringify({
               result: "error",
-              error: `Failed to compute staged patch additions size for '${memoryDir}': ${getErrorMessage(error)}`,
+              error: `Failed to compute staged patch diff size for '${memoryDir}': ${getErrorMessage(error)}`,
             }),
           },
         ],
@@ -1718,7 +1718,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
     }
     const patchSizeKb = Math.ceil(patchSizeBytes / 1024);
 
-    core.debug(`push_repo_memory validation: ${files.length} files, total ${totalSize} bytes, patch additions ${patchSizeBytes} bytes, effective limit ${effectiveMaxPatchSize} bytes`);
+    core.debug(`push_repo_memory validation: ${files.length} files, total ${totalSize} bytes, patch diff ${patchSizeBytes} bytes, effective limit ${effectiveMaxPatchSize} bytes`);
 
     if (patchSizeBytes > effectiveMaxPatchSize) {
       return {
@@ -1728,7 +1728,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
             text: JSON.stringify({
               result: "error",
               error:
-                `Patch additions size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds the allowed limit of ${effectiveMaxKb} KB ` +
+                `Patch diff size (${patchSizeKb} KB, ${patchSizeBytes} bytes) exceeds the allowed limit of ${effectiveMaxKb} KB ` +
                 `(${effectiveMaxPatchSize} bytes, configured max-patch-size: ${maxPatchSizeKb} KB / ${maxPatchSize} bytes with 20% overhead).\n\n` +
                 `Please reduce the size of staged changes in '${memoryDir}' before the workflow completes. ` +
                 `Then call push_repo_memory again to verify the patch size is within limits.`,
@@ -1745,7 +1745,7 @@ function createHandlers(server, appendSafeOutput, config = {}) {
           type: "text",
           text: JSON.stringify({
             result: "success",
-            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total content, ` + `${patchSizeKb} KB patch additions (${patchSizeBytes} bytes) (limit: ${effectiveMaxKb} KB / ${effectiveMaxPatchSize} bytes).`,
+            message: `Memory validation passed: ${files.length} file(s), ${totalSizeKb} KB total content, ` + `${patchSizeKb} KB patch diff (${patchSizeBytes} bytes) (limit: ${effectiveMaxKb} KB / ${effectiveMaxPatchSize} bytes).`,
           }),
         },
       ],
