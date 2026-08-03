@@ -35,7 +35,7 @@ safe-outputs:
     protected-files: blocked
     allowed-files:
       - "**/*_test.go"
-    max-patch-files: 5
+    max-patch-files: 25
     max-patch-size: 2048
   noop:
 evals:
@@ -47,20 +47,28 @@ evals:
 
 # Daily Go Test Parallelizer
 
-Analyze up to five Go test files per run and add `t.Parallel()` only where parallel execution is demonstrably safe.
+Analyze up to twenty-five Go test files per run and add `t.Parallel()` only where parallel execution is demonstrably safe.
 
 ## Select a file
 
 1. Use `grep` to list tracked `*_test.go` files containing top-level `Test` functions. Exclude `vendor/` and generated files, then sort paths lexicographically.
 2. Read `/tmp/gh-aw/cache-memory/go-test-parallelizer/state.json` when it exists. It has this shape:
    `{"last_file":"path/to/file_test.go"}`.
-3. Select up to 5 consecutive paths starting after `last_file`, wrapping to the first path. If the cache is absent, malformed, or names a removed file, start from the first path.
-4. Analyze and modify only this selected batch (maximum 5 files).
+3. Select up to 25 consecutive paths starting after `last_file`, wrapping to the first path. If the cache is absent, malformed, or names a removed file, start from the first path.
+4. Analyze and modify only this selected batch (maximum 25 files).
 5. Minimize token usage: avoid re-reading files you already analyzed, and do not paste full file contents into notes or outputs.
 
 ## Analyze safety
 
 Add `t.Parallel()` at the start of eligible top-level tests. Also add it to eligible table-driven subtests when loop variables are safely captured.
+
+## Inline analysis agents (small context)
+
+1. For each selected path, call `parallel-safety-checker` exactly once with only that file path and the safety rules from this workflow.
+2. Dispatch these inline agent calls in one parallel tool-use block when possible. If not possible, dispatch in small batches of 5.
+3. Require compact JSON output from each sub-agent:
+   `{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}`.
+4. Use the JSON results to decide which files to edit. Keep aggregation notes short and avoid repeating unchanged rule text.
 
 Do not parallelize tests that use or may conflict through:
 
@@ -85,3 +93,13 @@ After editing the selected batch:
 Always create `/tmp/gh-aw/cache-memory/go-test-parallelizer/` and write the last path from the selected batch to `state.json`, even when no edit is safe, so the next daily run advances round-robin.
 
 If validation succeeds with a change, create one draft pull request describing the safety analysis and test results. Otherwise use `noop` with the selected path and a short reason.
+
+## agent: `parallel-safety-checker`
+---
+description: Review one Go test file for safe t.Parallel additions with minimal context
+model: gpt-5-mini
+---
+Given one `*_test.go` file path, read only that file and apply this workflow's safety rules.
+Return compact JSON only in this exact shape:
+`{"file":"...","safe":true|false,"reasons":["..."],"candidate_tests":["TestName"]}`.
+Set `safe` to false when uncertain.
