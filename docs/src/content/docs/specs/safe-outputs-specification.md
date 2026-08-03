@@ -3777,7 +3777,7 @@ safe-outputs:
 
 **Purpose**: Trigger workflow_dispatch events to invoke other workflows.
 
-**Default Max**: 3  
+**Default Max**: 1  
 **Cross-Repository Support**: Yes (via `target-repo`)  
 **Mandatory**: No
 
@@ -3794,7 +3794,7 @@ safe-outputs:
 
 **Configuration Parameters**:
 
-- `max`: Operation limit (default: 3)
+- `max`: Operation limit (default: 1)
 - `workflows`: Allowlist of workflow names that may be dispatched
 - `target-repo`: Cross-repository target (owner/repo)
 - `target-ref`: Git ref (branch, tag, or SHA) to use when dispatching the workflow. In `workflow_call` relay scenarios this is auto-injected by the compiler from `needs.activation.outputs.target_ref`, ensuring the correct platform branch is used instead of the caller's `GITHUB_REF`.
