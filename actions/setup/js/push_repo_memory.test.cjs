@@ -1073,11 +1073,34 @@ describe("push_repo_memory.cjs - shell injection security tests", () => {
       const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
       const scriptContent = fs.readFileSync(scriptPath, "utf8");
 
-      // Must use "git add --sparse ." to stage files regardless of sparse-checkout state.
-      expect(scriptContent).toContain('"add", "--sparse", "."');
+      // Must use git add --sparse with literal pathspec staging so only managed memory paths are included.
+      expect(scriptContent).toContain('"add", "--sparse"');
+      expect(scriptContent).toContain('addArgs.push("--", ...literalPathspecs)');
 
       // Must NOT use plain "git add ." which breaks under sparse-checkout.
       expect(scriptContent).not.toContain('"add", "."');
+    });
+
+    it("should encode pathspecs as :(literal) to prevent Git glob/magic interpretation (source check)", () => {
+      // Regression test for: filenames with glob metacharacters or pathspec-magic prefixes
+      // (e.g. ":(top)foo", "metrics/*.json") being interpreted as Git pathspecs rather
+      // than literal paths, which could cause git status/add to match files outside the
+      // managed memory scope.
+      //
+      // Fix: all artifact-derived paths are wrapped with the :(literal) magic prefix so
+      // Git treats them as plain strings regardless of their content.
+
+      const fs = require("fs");
+      const path = require("path");
+
+      const scriptPath = path.join(import.meta.dirname, "push_repo_memory.cjs");
+      const scriptContent = fs.readFileSync(scriptPath, "utf8");
+
+      // Must build literalPathspecs using the :(literal) magic prefix.
+      expect(scriptContent).toContain("`:(literal)${");
+      // Must pass literalPathspecs (not raw paths) to git status and git add.
+      expect(scriptContent).toContain("literalPathspecs");
+      expect(scriptContent).not.toContain("changedPathspecs");
     });
 
     it("should safely handle malicious branch names", () => {
@@ -1562,7 +1585,8 @@ describe("push_repo_memory.cjs - changed-file limit checks", () => {
     const scriptContent = nodeFs.readFileSync(scriptPath, "utf8");
 
     expect(scriptContent).toContain("changedFileCount");
-    expect(scriptContent).toContain('execGitSync(["status", "--porcelain"])');
+    expect(scriptContent).toContain('["status", "--porcelain"]');
+    expect(scriptContent).toContain('statusArgs.push("--", ...literalPathspecs)');
     expect(scriptContent).toContain("Too many changed files");
     expect(scriptContent).not.toContain("if (filesToCopy.length > maxFileCount)");
     expect(scriptContent).toContain("if (changedFileCount > maxFileCount)");
