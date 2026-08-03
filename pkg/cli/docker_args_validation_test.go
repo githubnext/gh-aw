@@ -88,6 +88,12 @@ func TestValidateDockerImageRefRejectsUnsafeCharacters(t *testing.T) {
 		{name: "trailing newline", imageRef: "alpine:latest\n", wantErr: "invalid whitespace/control characters"},
 		{name: "unicode line separator", imageRef: "alpine\u2028latest", wantErr: "invalid whitespace/control characters"},
 		{name: "unicode bidi override", imageRef: "alpine\u202elatest", wantErr: "invalid whitespace/control characters"},
+		{name: "multiple digests", imageRef: "ghcr.io/org/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", wantErr: "multiple digest separators"},
+		{name: "invalid digest", imageRef: "ghcr.io/org/image@sha256:nothex", wantErr: "invalid digest format"},
+		{name: "invalid digest algorithm", imageRef: "ghcr.io/org/image@sha1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", wantErr: "invalid digest format"},
+		{name: "invalid sha256 digest length", imageRef: "ghcr.io/org/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", wantErr: "invalid digest format"},
+		{name: "invalid tag", imageRef: "ghcr.io/org/image:-tag", wantErr: "invalid tag format"},
+		{name: "invalid image name characters", imageRef: "ghcr.io/org/im;age:latest", wantErr: "allow-listed image pattern"},
 	}
 
 	for _, tt := range testCases {
@@ -95,6 +101,26 @@ func TestValidateDockerImageRefRejectsUnsafeCharacters(t *testing.T) {
 			_, err := validateDockerImageRef(tt.imageRef)
 			require.Error(t, err)
 			require.ErrorContains(t, err, tt.wantErr)
+		})
+	}
+}
+
+func TestValidateDockerImageRefAcceptsCommonReferences(t *testing.T) {
+	testCases := []string{
+		"alpine:latest",
+		"ghcr.io/github/gh-aw:1.2.3",
+		"localhost:5000/org/image_name:tag-1",
+		"registry.example.com/team/my__image:latest",
+		"team/my--image:latest",
+		"ghcr.io/org/image@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+		"ghcr.io/org/image@sha512:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+	}
+
+	for _, imageRef := range testCases {
+		t.Run(imageRef, func(t *testing.T) {
+			validated, err := validateDockerImageRef(imageRef)
+			require.NoError(t, err)
+			require.Equal(t, imageRef, validated)
 		})
 	}
 }

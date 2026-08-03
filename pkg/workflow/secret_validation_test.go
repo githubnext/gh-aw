@@ -197,6 +197,22 @@ func TestCopilotEngineSkipsSecretValidationWhenBYOKBaseURLOnlySet(t *testing.T) 
 	}
 }
 
+func TestCopilotEngineDoesNotSkipSecretValidationWhenBYOKBaseURLEmpty(t *testing.T) {
+	engine := NewCopilotEngine()
+	workflowData := &WorkflowData{
+		EngineConfig: &EngineConfig{
+			Env: map[string]string{
+				"COPILOT_PROVIDER_BASE_URL": "",
+			},
+		},
+	}
+
+	step := engine.GetSecretValidationStep(workflowData)
+	if len(step) == 0 {
+		t.Fatal("Expected non-empty validation step when COPILOT_PROVIDER_BASE_URL is empty")
+	}
+}
+
 func TestCodexEngineHasSecretValidation(t *testing.T) {
 	engine := NewCodexEngine()
 	workflowData := &WorkflowData{}

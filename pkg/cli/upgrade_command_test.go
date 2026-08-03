@@ -141,7 +141,7 @@ func TestUpgradeCommandRepoDispatchWithPR(t *testing.T) {
 }
 
 func TestRelaunchWithSameArgsRejectsRelativeExecutableOverride(t *testing.T) {
-	err := relaunchWithSameArgs("--post-upgrade", "relative/gh-aw")
+	err := relaunchWithSameArgs("--skip-extension-upgrade", "relative/gh-aw")
 	require.Error(t, err)
 	require.ErrorContains(t, err, "invalid executable path")
 }
@@ -151,7 +151,22 @@ func TestRelaunchWithSameArgsRejectsNullByteArgument(t *testing.T) {
 	t.Cleanup(func() { os.Args = origArgs })
 	os.Args = []string{"gh-aw", "compile", "bad\x00arg"}
 
-	err := relaunchWithSameArgs("--post-upgrade", "/bin/echo")
+	err := relaunchWithSameArgs("--skip-extension-upgrade", "/bin/echo")
 	require.Error(t, err)
-	require.ErrorContains(t, err, "argument contains NUL byte")
+	require.ErrorContains(t, err, "argument contains invalid control characters")
+}
+
+func TestRelaunchWithSameArgsAllowsEmptyForwardedArgument(t *testing.T) {
+	origArgs := os.Args
+	t.Cleanup(func() { os.Args = origArgs })
+	os.Args = []string{"gh-aw", "compile", ""}
+
+	err := relaunchWithSameArgs("--skip-extension-upgrade", "/bin/echo")
+	require.NoError(t, err)
+}
+
+func TestRelaunchWithSameArgsRejectsUnknownExtraFlag(t *testing.T) {
+	err := relaunchWithSameArgs("--unknown-flag", "/bin/echo")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid relaunch flag")
 }

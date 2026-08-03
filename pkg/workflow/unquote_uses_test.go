@@ -227,3 +227,54 @@ func TestUnquoteUsesWithCommentsRealWorldExamples(t *testing.T) {
 		})
 	}
 }
+
+func TestInjectZizmorUnverifiedCreatorAnnotations(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name: "injects before matching uses line",
+			input: `- name: Install PMG
+  uses: safedep/pmg@5ac0f275b83d9d5a9342c6aae977ec32fa330daa # v1`,
+			expected: `- name: Install PMG
+  # zizmor: ignore[github_action_from_unverified_creator_used]
+  uses: safedep/pmg@5ac0f275b83d9d5a9342c6aae977ec32fa330daa # v1`,
+		},
+		{
+			name: "does not inject inside block scalar payload",
+			input: `- name: Write script
+  run: |
+    cat <<'EOF' > example.yml
+    uses: astral-sh/setup-uv@abc123
+    EOF`,
+			expected: `- name: Write script
+  run: |
+    cat <<'EOF' > example.yml
+    uses: astral-sh/setup-uv@abc123
+    EOF`,
+		},
+		{
+			name: "still injects after block scalar ends",
+			input: `- name: Write script
+  run: |
+    echo hello
+  uses: safedep/pmg@5ac0f275b83d9d5a9342c6aae977ec32fa330daa # v1`,
+			expected: `- name: Write script
+  run: |
+    echo hello
+  # zizmor: ignore[github_action_from_unverified_creator_used]
+  uses: safedep/pmg@5ac0f275b83d9d5a9342c6aae977ec32fa330daa # v1`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := injectZizmorUnverifiedCreatorAnnotations(tt.input)
+			if got != tt.expected {
+				t.Errorf("injectZizmorUnverifiedCreatorAnnotations() failed for %s\nGot:\n%s\n\nWant:\n%s", tt.name, got, tt.expected)
+			}
+		})
+	}
+}
