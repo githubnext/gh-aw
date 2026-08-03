@@ -56,6 +56,9 @@ tools:
   - cd * && git add * && git status
   - git diff scratchpad/layout.md
   - cat scratchpad/layout.md
+  - sed -n
+  - git status --short
+  - git checkout -b * && git add scratchpad/layout.md && git status --short
   cli-proxy: true
   edit: null
   github:
