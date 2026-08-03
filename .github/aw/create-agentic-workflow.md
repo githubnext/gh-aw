@@ -86,9 +86,38 @@ Use this mode for exploratory testing, persona walkthroughs, and "what workflow 
 - Do not create or edit workflow files.
 - Return a compact recommendation covering trigger, any scoped `paths:` filters for file-event triggers, read tools, safe outputs, permissions, and explicit `noop` criteria.
 - For recurring reports or digests, always include the report window, grouping dimensions, and deduplication key. See [triggers.md](triggers.md) for key-format examples.
-- If custom-agent invocation is unavailable in the environment, use fallback evaluation mode: provide the recommendation directly from local gh-aw guidance, record scoring/response quality as unavailable, and continue with partial-results reporting.
 - Exit ad hoc evaluation mode only when the user explicitly asks to create, implement, or write the workflow file.
 - End by offering to turn the recommendation into `.github/workflows/<workflow-id>.md` if the user wants to proceed.
+
+### Multi-Scenario Evaluation Example
+
+To compare multiple persona or task slices in a single request, use the following prompt format:
+
+> agentic-workflows evaluate these scenarios without creating files:
+> 1. Information Worker — weekly digest of open issues and PRs assigned to me
+> 2. Product Manager — recurring backlog triage report sorted by staleness
+> 3. Backend Engineer — API contract diff review on every pull request
+
+For each scenario, return a compact recommendation table covering:
+
+| Field | Value |
+|---|---|
+| Trigger | event + key options |
+| Scope | paths filter or scheduling window |
+| Read tools | gh-proxy toolsets or optional tools |
+| Safe outputs | add-comment / create-issue / noop |
+| Permissions | read-only scopes required |
+| Noop condition | when no action is needed |
+
+### Failure Classification
+
+When evaluating scenarios, classify any failure before stopping:
+
+| Failure type | Symptom | Action |
+|---|---|---|
+| Transient issue | Network error, timeout, or quota exceeded | Retry once; if it persists, record `invocation_unavailable` and continue with partial results |
+| Unsupported command | Unknown subcommand or unrecognized option | Record `command_not_supported`, document the gap, and fall back to providing the recommendation directly from local gh-aw guidance |
+| Product gap | Invocation succeeds but returns no workflow-design guidance | Record `response_unavailable`, note the scenario, and surface it as a missing capability rather than treating it as an error |
 
 ## Design Checklist
 
