@@ -28,6 +28,7 @@ func TestNewDoctorCommand(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("dir"), "should expose --dir flag")
 	assert.NotNil(t, cmd.Flags().Lookup("require-owner-type"), "should expose --require-owner-type flag")
 	assert.False(t, cmd.HasSubCommands())
+	assert.Contains(t, cmd.Flags().Lookup("repo").Usage, "owner/repo format only", "doctor --repo help should explicitly document its narrower repo format")
 }
 
 func TestDoctorCommandUsesNoArgs(t *testing.T) {
