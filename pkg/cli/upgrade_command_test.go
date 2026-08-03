@@ -153,5 +153,11 @@ func TestRelaunchWithSameArgsRejectsNullByteArgument(t *testing.T) {
 
 	err := relaunchWithSameArgs("--post-upgrade", "/bin/echo")
 	require.Error(t, err)
-	require.ErrorContains(t, err, "argument contains NUL byte")
+	require.ErrorContains(t, err, "argument contains invalid control characters")
+}
+
+func TestRelaunchWithSameArgsRejectsUnknownExtraFlag(t *testing.T) {
+	err := relaunchWithSameArgs("--unknown-flag", "/bin/echo")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "invalid relaunch flag")
 }

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"regexp"
 	"strings"
 	"unicode"
 
@@ -13,6 +14,12 @@ import (
 )
 
 var dockerArgsValidationLog = logger.New("cli:docker_args_validation")
+
+var (
+	dockerImageNamePattern = regexp.MustCompile(`^(?:[a-zA-Z0-9.-]+(?::[0-9]+)?/)?[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*$`)
+	dockerImageTagPattern  = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
+	dockerImageDigestRef   = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*:[0-9a-fA-F]{32,}$`)
+)
 
 func containsControlCharacters(value string) bool {
 	return strings.IndexFunc(value, func(r rune) bool {
@@ -62,6 +69,34 @@ func validateDockerImageRef(imageRef string) (string, error) {
 	}
 	if strings.HasPrefix(imageRef, "-") {
 		return "", fmt.Errorf("grant image reference cannot start with '-'. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+	}
+
+	imageRefWithoutDigest := imageRef
+	if strings.Count(imageRef, "@") > 1 {
+		return "", fmt.Errorf("grant image reference has multiple digest separators. Example: ghcr.io/example/image@sha256:<digest>. Got: %q", imageRef)
+	}
+	nameWithOptionalTag, digest, hasDigest := strings.Cut(imageRef, "@")
+	if hasDigest {
+		if digest == "" || !dockerImageDigestRef.MatchString(digest) {
+			return "", fmt.Errorf("grant image reference has an invalid digest format. Example: ghcr.io/example/image@sha256:<digest>. Got: %q", imageRef)
+		}
+		imageRefWithoutDigest = nameWithOptionalTag
+	}
+	if imageRefWithoutDigest == "" {
+		return "", fmt.Errorf("grant image reference is missing an image name. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+	}
+
+	imageName := imageRefWithoutDigest
+	if colon := strings.LastIndex(imageRefWithoutDigest, ":"); colon > strings.LastIndex(imageRefWithoutDigest, "/") {
+		tag := imageRefWithoutDigest[colon+1:]
+		if !dockerImageTagPattern.MatchString(tag) {
+			return "", fmt.Errorf("grant image reference has an invalid tag format. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
+		}
+		imageName = imageRefWithoutDigest[:colon]
+	}
+
+	if imageName == "" || strings.HasSuffix(imageName, "/") || !dockerImageNamePattern.MatchString(imageName) {
+		return "", fmt.Errorf("grant image reference must match an allow-listed image pattern. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
 	return imageRef, nil
 }
