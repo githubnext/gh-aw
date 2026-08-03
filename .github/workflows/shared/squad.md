@@ -26,38 +26,23 @@
 # the activation job.
 engine:
   id: copilot
-  agent: squad
 
 jobs:
   activation:
     pre-steps:
-      - name: Setup Node.js for Squad
-        uses: actions/setup-node@v7.0.0
-        with:
-          node-version: "22"
-
       - name: Mint Squad GitHub App token
         id: squad-app-token
         if: ${{ vars.SQUAD_GITHUB_APP_ID != '' }}
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3.2.0
         with:
           app-id: ${{ vars.SQUAD_GITHUB_APP_ID }}
           private-key: ${{ secrets.SQUAD_GITHUB_APP_PRIVATE_KEY }}
           owner: ${{ vars.SQUAD_GITHUB_APP_OWNER }}
-
-      - name: Install Squad CLI
-        env:
-          SQUAD_CLI_VERSION: ${{ vars.SQUAD_CLI_VERSION }}
-        run: |
-          set -euo pipefail
-          npm install -g "@bradygaster/squad-cli@${SQUAD_CLI_VERSION:-0.11.0}"
-
       - name: Initialize Squad team
         env:
+          SQUAD_CLI_VERSION: ${{ vars.SQUAD_CLI_VERSION }}
           GH_TOKEN: ${{ steps.squad-app-token.outputs.token || secrets.SQUAD_GITHUB_TOKEN || github.token }}
-        run: |
-          set -euo pipefail
-          squad init --preset default
+        run: npx --yes "@bradygaster/squad-cli@${SQUAD_CLI_VERSION:-0.11.0}" init --preset default
 
       - name: Upload Squad state artifact
         if: success()
@@ -70,7 +55,6 @@ jobs:
             .github/agents/squad.agent.md
           if-no-files-found: ignore
           retention-days: 1
-
 steps:
   - name: Restore Squad state from activation artifact
     continue-on-error: true
