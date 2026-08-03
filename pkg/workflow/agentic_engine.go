@@ -670,6 +670,60 @@ func (r *EngineRegistry) computeAllAgentManifestFiles() []string {
 	return result
 }
 
+func (c *Compiler) getActiveAgentManifestFoldersAndFiles(data *WorkflowData) ([]string, []string) {
+	foldersSeen := map[string]struct{}{
+		".agents": {},
+	}
+	folders := []string{".agents"}
+	filesSeen := map[string]struct{}{}
+	var files []string
+
+	engineID := resolveActivationEngineID(data)
+	if c == nil || c.engineCatalog == nil {
+		agenticEngineLog.Printf("Engine catalog unavailable while resolving active agent manifest files for %q", engineID)
+		return folders, files
+	}
+	resolved, err := c.engineCatalog.Resolve(engineID, activeEngineConfig(data, engineID))
+	if err != nil {
+		agenticEngineLog.Printf("Engine lookup failed for %q while resolving active agent manifest files: %v", engineID, err)
+		return folders, files
+	}
+	if _, ok := resolved.Runtime.(*BehaviorDefinedEngine); !ok {
+		return c.engineRegistry.GetAllAgentManifestFolders(), c.engineRegistry.GetAllAgentManifestFiles()
+	}
+	provider, ok := resolved.Runtime.(AgentFileProvider)
+	if !ok {
+		sort.Strings(folders)
+		return folders, files
+	}
+	for _, prefix := range provider.GetAgentManifestPathPrefixes() {
+		folder := strings.TrimSuffix(strings.TrimSpace(prefix), "/")
+		if folder == "" || setutil.Contains(foldersSeen, folder) {
+			continue
+		}
+		foldersSeen[folder] = struct{}{}
+		folders = append(folders, folder)
+	}
+	for _, file := range provider.GetAgentManifestFiles() {
+		file = strings.TrimSpace(file)
+		if file == "" || setutil.Contains(filesSeen, file) {
+			continue
+		}
+		filesSeen[file] = struct{}{}
+		files = append(files, file)
+	}
+	sort.Strings(folders)
+	sort.Strings(files)
+	return folders, files
+}
+
+func activeEngineConfig(data *WorkflowData, engineID string) *EngineConfig {
+	if data != nil && data.EngineConfig != nil {
+		return data.EngineConfig
+	}
+	return &EngineConfig{ID: engineID}
+}
+
 // GetEngineByPrefix returns an engine that matches the given prefix
 // This is useful for backward compatibility with strings like "codex-experimental"
 func (r *EngineRegistry) GetEngineByPrefix(prefix string) (CodingAgentEngine, error) {

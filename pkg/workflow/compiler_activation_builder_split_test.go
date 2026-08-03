@@ -21,6 +21,51 @@ func TestResolveActivationEngineID(t *testing.T) {
 	})
 }
 
+func TestGetActiveAgentManifestFoldersAndFiles(t *testing.T) {
+	t.Run("keeps existing built-in engine manifest union", func(t *testing.T) {
+		c := NewCompiler(WithVersion("dev"))
+		folders, files := c.getActiveAgentManifestFoldersAndFiles(&WorkflowData{
+			EngineConfig: &EngineConfig{ID: "claude"},
+		})
+
+		assert.Contains(t, folders, ".agents")
+		assert.Contains(t, folders, ".claude")
+		assert.Contains(t, folders, ".codex")
+		assert.Contains(t, folders, ".gemini")
+		assert.Contains(t, files, "AGENTS.md")
+		assert.Contains(t, files, "CLAUDE.md")
+		assert.Contains(t, files, "GEMINI.md")
+	})
+
+	t.Run("uses declarative behavior manifest", func(t *testing.T) {
+		c := NewCompiler(WithVersion("dev"))
+		def := &EngineDefinition{
+			ID:          "opencode-test",
+			DisplayName: "OpenCode Test",
+			Behaviors: &EngineBehaviorDefinition{
+				Manifest: &EngineManifestDefinition{
+					Files:        []string{"opencode.jsonc", "AGENTS.md"},
+					PathPrefixes: []string{".opencode/"},
+				},
+			},
+		}
+		engine, err := NewBehaviorDefinedEngine(def)
+		require.NoError(t, err)
+		require.NoError(t, c.engineRegistry.Register(engine))
+		def.RuntimeID = engine.GetID()
+		c.engineCatalog.Register(def)
+
+		folders, files := c.getActiveAgentManifestFoldersAndFiles(&WorkflowData{
+			EngineConfig: &EngineConfig{ID: "opencode-test"},
+		})
+
+		assert.Equal(t, []string{".agents", ".opencode"}, folders)
+		assert.ElementsMatch(t, []string{"AGENTS.md", "opencode.jsonc"}, files)
+		assert.NotContains(t, folders, ".claude")
+		assert.NotContains(t, folders, ".codex")
+	})
+}
+
 func TestBuildDailyAICActivationJobEnv(t *testing.T) {
 	data := &WorkflowData{
 		MaxDailyAICredits: strPtr("25"),
