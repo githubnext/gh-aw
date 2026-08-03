@@ -255,6 +255,11 @@ func validateOIDCPermissions(workflowData *WorkflowData, workflowPermissions *Pe
 		errorPrefix = "engine.auth.type: github-oidc"
 	}
 
+	if !requiresIDTokenWrite && hasGitHubOIDCAuthInTools(workflowData.Tools) {
+		requiresIDTokenWrite = true
+		errorPrefix = "mcp-servers.<name>.auth.type: github-oidc"
+	}
+
 	if !requiresIDTokenWrite && hasOTLPGitHubOIDCAuth(workflowData.ParsedFrontmatter, workflowData.RawFrontmatter) {
 		requiresIDTokenWrite = true
 		errorPrefix = "observability.otlp.github-app"

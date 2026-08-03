@@ -323,6 +323,48 @@ func TestValidatePermissions(t *testing.T) {
 			wantPermissions: true,
 		},
 		{
+			name: "http mcp github-oidc requires id-token write",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n",
+				Tools: map[string]any{
+					"oidc-server": map[string]any{
+						"type": "http",
+						"url":  "https://my-server.example.com/mcp",
+						"auth": map[string]any{
+							"type": "github-oidc",
+						},
+					},
+				},
+			},
+			shouldError:     true,
+			errorContains:   "mcp-servers.<name>.auth.type: github-oidc requires permissions.id-token: write",
+			wantPermissions: false,
+		},
+		{
+			name: "http mcp github-oidc with id-token write succeeds",
+			workflowData: &WorkflowData{
+				Name:            "Test",
+				MarkdownContent: "# Test",
+				AI:              "copilot",
+				Permissions:     "permissions:\n  contents: read\n  id-token: write\n",
+				Tools: map[string]any{
+					"oidc-server": map[string]any{
+						"type": "http",
+						"url":  "https://my-server.example.com/mcp",
+						"auth": map[string]any{
+							"type":     "github-oidc",
+							"audience": "https://my-server.example.com",
+						},
+					},
+				},
+			},
+			shouldError:     false,
+			wantPermissions: true,
+		},
+		{
 			name: "observability otlp GitHub App credentials do not require id-token write",
 			workflowData: &WorkflowData{
 				Name:            "Test",

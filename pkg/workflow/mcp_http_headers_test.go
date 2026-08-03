@@ -378,6 +378,9 @@ func TestRenderSharedMCPConfig_WithAuth(t *testing.T) {
 		if !strings.Contains(result, `"audience": "https://my-server.example.com"`) {
 			t.Errorf("Expected auth.audience not found in output:\n%s", result)
 		}
+		if strings.Contains(result, "ACTIONS_ID_TOKEN_REQUEST_URL") || strings.Contains(result, "ACTIONS_ID_TOKEN_REQUEST_TOKEN") {
+			t.Errorf("Auth config should contain OIDC metadata only and must not embed Actions OIDC runtime vars:\n%s", result)
+		}
 
 		// Property order: type < url < headers < auth < tools
 		typeIdx := strings.Index(result, `"type": "http"`)
@@ -426,6 +429,9 @@ func TestRenderSharedMCPConfig_WithAuth(t *testing.T) {
 		}
 		if strings.Contains(result, `"audience"`) {
 			t.Errorf("Unexpected audience field in output:\n%s", result)
+		}
+		if strings.Contains(result, "ACTIONS_ID_TOKEN_REQUEST_URL") || strings.Contains(result, "ACTIONS_ID_TOKEN_REQUEST_TOKEN") {
+			t.Errorf("Auth config should contain OIDC metadata only and must not embed Actions OIDC runtime vars:\n%s", result)
 		}
 	})
 
