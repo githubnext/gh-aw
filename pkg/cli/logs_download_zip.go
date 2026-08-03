@@ -1,7 +1,7 @@
 // This file provides command-line interface functionality for gh-aw.
 // This file (logs_download_zip.go) contains functions for extracting zip
 // archives downloaded from GitHub Actions, including protections against
-// path traversal (zip slip), case-collision, and decompression bombs.
+// path traversal (zip slip) and decompression bombs.
 
 package cli
 
@@ -96,17 +96,20 @@ func extractZipFile(f *zip.File, destDir string, verbose bool) (extractErr error
 		}
 	}()
 
-	// Copy the content with size limit enforcement
-	// Use LimitReader to prevent reading more than declared size
-	limitedReader := io.LimitReader(srcFile, int64(maxFileSize))
+	// Copy the content with size limit enforcement.
+	// Limit to maxFileSize+1 bytes: if exactly maxFileSize+1 bytes can be read
+	// the archive is over the limit and must be rejected.
+	limitedReader := io.LimitReader(srcFile, int64(maxFileSize)+1)
 	written, err := io.Copy(destFile, limitedReader)
 	if err != nil {
 		extractErr = fmt.Errorf("failed to extract file: %w", err)
 		return extractErr
 	}
 
-	// Verify we didn't exceed the size limit
-	if uint64(written) > maxFileSize {
+	// Verify we didn't exceed the size limit.
+	// written == maxFileSize+1 means the reader was not exhausted, i.e. the
+	// actual content is larger than maxFileSize.
+	if written > int64(maxFileSize) {
 		extractErr = fmt.Errorf("file extraction exceeded size limit: %s", f.Name)
 		return extractErr
 	}

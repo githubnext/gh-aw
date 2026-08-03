@@ -18,6 +18,19 @@ import (
 	"github.com/github/gh-aw/pkg/workflow"
 )
 
+// buildRepoFlag returns the "-R" flag value for gh commands given the owner,
+// repo, and optional hostname. Returns an empty string when owner or repo is
+// unset (the gh CLI will infer the repository from git context in that case).
+func buildRepoFlag(owner, repo, hostname string) string {
+	if owner == "" || repo == "" {
+		return ""
+	}
+	if hostname != "" && hostname != "github.com" {
+		return hostname + "/" + owner + "/" + repo
+	}
+	return owner + "/" + repo
+}
+
 // listArtifacts creates a list of all artifact files in the output directory
 func listArtifacts(outputDir string) ([]string, error) {
 	var artifacts []string
@@ -113,15 +126,8 @@ func listRunArtifactNames(ctx context.Context, runID int64, owner, repo, hostnam
 // This is used when some artifacts (e.g. .dockerbuild) need to be skipped and
 // only a subset of the run's artifacts should be downloaded.
 func downloadArtifactsByName(ctx context.Context, opts downloadArtifactsOptions, names []string) error {
-	var repoFlag string
+	repoFlag := buildRepoFlag(opts.owner, opts.repo, opts.hostname)
 	shouldLogProgress := IsRunningInCI() || opts.verbose
-	if opts.owner != "" && opts.repo != "" {
-		if opts.hostname != "" && opts.hostname != "github.com" {
-			repoFlag = opts.hostname + "/" + opts.owner + "/" + opts.repo
-		} else {
-			repoFlag = opts.owner + "/" + opts.repo
-		}
-	}
 
 	for _, name := range names {
 		args := []string{"run", "download", strconv.FormatInt(opts.runID, 10), "--name", name, "--dir", opts.outputDir}
@@ -164,14 +170,7 @@ var criticalArtifactNames = []string{"activation", "agent"}
 // artifactFilter limits which critical artifacts are retried; nil means retry all.
 func retryCriticalArtifacts(ctx context.Context, opts downloadArtifactsOptions) {
 	// Build the repo flag once for reuse across retries
-	var repoFlag string
-	if opts.owner != "" && opts.repo != "" {
-		if opts.hostname != "" && opts.hostname != "github.com" {
-			repoFlag = opts.hostname + "/" + opts.owner + "/" + opts.repo
-		} else {
-			repoFlag = opts.owner + "/" + opts.repo
-		}
-	}
+	repoFlag := buildRepoFlag(opts.owner, opts.repo, opts.hostname)
 
 	for _, name := range criticalArtifactNames {
 		// Skip artifacts not included in the active filter.
