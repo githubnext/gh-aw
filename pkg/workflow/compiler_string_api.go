@@ -78,7 +78,7 @@ func (c *Compiler) ParseWorkflowString(content string, virtualPath string) (*Wor
 		return nil, c.createFrontmatterError(cleanPath, content, err, frontmatterStart)
 	}
 
-	if len(result.Frontmatter) == 0 {
+	if !hasMeaningfulFrontmatter(result) {
 		return nil, errors.New("no frontmatter found")
 	}
 

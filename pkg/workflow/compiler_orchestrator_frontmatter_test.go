@@ -567,6 +567,30 @@ func TestParseFrontmatterSection_CommentOnlyFrontmatter(t *testing.T) {
 	assert.Empty(t, result.frontmatterForValidation, "Comment-only frontmatter should parse to an empty map")
 }
 
+// TestParseFrontmatterSection_WhitespaceOnlyFrontmatter ensures blank frontmatter
+// blocks remain rejected as missing frontmatter.
+func TestParseFrontmatterSection_WhitespaceOnlyFrontmatter(t *testing.T) {
+	tmpDir := testutil.TempDir(t, "frontmatter-whitespace-only")
+
+	testContent := `---
+   
+	
+---
+
+# Workflow
+`
+
+	testFile := filepath.Join(tmpDir, "whitespace-only.md")
+	require.NoError(t, os.WriteFile(testFile, []byte(testContent), 0644))
+
+	compiler := NewCompiler()
+	result, err := compiler.parseFrontmatterSection(testFile)
+
+	require.Error(t, err, "Whitespace-only frontmatter should cause error")
+	assert.Nil(t, result)
+	require.ErrorContains(t, err, "no frontmatter found")
+}
+
 // TestParseFrontmatterSection_MarkdownDirectory tests directory extraction
 func TestParseFrontmatterSection_MarkdownDirectory(t *testing.T) {
 	tmpDir := testutil.TempDir(t, "frontmatter-dir")
