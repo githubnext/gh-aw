@@ -9,7 +9,10 @@ import (
 	"unicode"
 
 	"github.com/github/gh-aw/pkg/fileutil"
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var dockerArgsValidationLog = logger.New("cli:docker_args_validation")
 
 func containsControlCharacters(value string) bool {
 	return strings.IndexFunc(value, func(r rune) bool {
@@ -22,6 +25,7 @@ func validateContainerMountPath(containerPath string) (string, error) {
 		return "", errors.New("container path cannot be empty. Example: /workdir")
 	}
 	if containsControlCharacters(containerPath) || strings.Contains(containerPath, ":") {
+		dockerArgsValidationLog.Printf("rejected container mount path with control/reserved characters: %q", containerPath)
 		return "", errors.New("container path contains invalid control characters or reserved characters. Example: /workdir")
 	}
 	if !path.IsAbs(containerPath) {
@@ -37,6 +41,7 @@ func validateContainerMountPath(containerPath string) (string, error) {
 func validateHostMountPath(hostPath string) (string, error) {
 	cleanHostPath, err := fileutil.ValidateAbsolutePath(hostPath)
 	if err != nil {
+		dockerArgsValidationLog.Printf("host mount path %q failed validation: %v", hostPath, err)
 		return "", fmt.Errorf("invalid host path %q: %w", hostPath, err)
 	}
 	if strings.Contains(cleanHostPath[2:], ":") || (!isWindowsDrivePath(cleanHostPath) && strings.Contains(cleanHostPath, ":")) {
@@ -52,6 +57,7 @@ func validateDockerImageRef(imageRef string) (string, error) {
 	// Image refs disallow all Unicode whitespace, while containsControlCharacters also rejects
 	// non-whitespace spoofing characters such as bidi overrides and other format controls.
 	if containsControlCharacters(imageRef) || strings.IndexFunc(imageRef, unicode.IsSpace) >= 0 {
+		dockerArgsValidationLog.Printf("rejected grant image reference with invalid whitespace/control characters: %q", imageRef)
 		return "", fmt.Errorf("grant image reference contains invalid whitespace/control characters. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
 	if strings.HasPrefix(imageRef, "-") {
@@ -89,6 +95,7 @@ func buildDockerReadonlyFileMount(hostFile, containerPath string) (string, error
 	}
 	info, err := os.Stat(cleanHostFile)
 	if err != nil {
+		dockerArgsValidationLog.Printf("failed to stat host file %q: %v", cleanHostFile, err)
 		return "", fmt.Errorf("failed to stat host file %q: %w", cleanHostFile, err)
 	}
 	if !info.Mode().IsRegular() {

@@ -4,7 +4,11 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/github/gh-aw/pkg/logger"
 )
+
+var safeOutputAliasLog = logger.New("parser:schema_safe_output_aliases")
 
 // safeOutputsSchemaPath is the JSON schema path for the safe-outputs section.
 const safeOutputsSchemaPath = "/safe-outputs"
@@ -43,6 +47,7 @@ func safeOutputAliasSuggestion(errorMessage, jsonPath string) string {
 
 	invalidProps := extractAdditionalPropertyNames(errorMessage)
 	if len(invalidProps) == 0 {
+		safeOutputAliasLog.Print("additional-properties error under /safe-outputs but no property names could be extracted")
 		return ""
 	}
 
@@ -61,10 +66,12 @@ func safeOutputAliasSuggestion(errorMessage, jsonPath string) string {
 	}
 
 	if len(suggestions) == 0 {
+		safeOutputAliasLog.Printf("none of %d invalid propert(y/ies) matched a known safe-output alias", len(invalidProps))
 		return ""
 	}
 
 	sort.Strings(suggestions)
+	safeOutputAliasLog.Printf("suggesting %d safe-output alias correction(s): %s", len(suggestions), strings.Join(suggestions, ", "))
 
 	if len(suggestions) == 1 {
 		return fmt.Sprintf("Did you mean %s?", suggestions[0])
