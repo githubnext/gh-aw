@@ -112,7 +112,9 @@ func (c *Compiler) parseFrontmatterSection(markdownPath string) (*frontmatterPar
 		return nil, c.createFrontmatterError(cleanPath, contentString, err, frontmatterStart)
 	}
 
-	if len(result.Frontmatter) == 0 {
+	// Treat comment-only frontmatter as present, but keep whitespace-only
+	// and missing blocks rejected as "no frontmatter found".
+	if !hasMeaningfulFrontmatter(result) {
 		orchestratorFrontmatterLog.Print("No frontmatter found in file")
 		return nil, errors.New("no frontmatter found")
 	}

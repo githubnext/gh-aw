@@ -92,6 +92,46 @@ tools:
 	assert.ErrorAs(t, err, &sharedErr, "expected SharedWorkflowError")
 }
 
+func TestParseWorkflowString_CommentOnlyFrontmatter_IsSharedWorkflow(t *testing.T) {
+	markdown := `---
+# Shared workflow guidance
+# comment-only frontmatter
+---
+
+# Shared tools component
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "shared/comment-only.md")
+	require.Error(t, err)
+
+	var sharedErr *SharedWorkflowError
+	assert.ErrorAs(t, err, &sharedErr, "expected SharedWorkflowError")
+}
+
+func TestParseWorkflowString_WhitespaceOnlyFrontmatter_IsMissing(t *testing.T) {
+	markdown := `---
+   
+	
+---
+
+# Shared tools component
+`
+
+	compiler := NewCompiler(
+		WithNoEmit(true),
+		WithSkipValidation(true),
+	)
+
+	_, err := compiler.ParseWorkflowString(markdown, "shared/whitespace-only.md")
+	require.Error(t, err)
+	require.ErrorContains(t, err, "no frontmatter found")
+}
+
 func TestParseWorkflowString_RedirectOnlyDetection(t *testing.T) {
 	// Redirect-only workflows have a redirect field but no 'on' trigger field.
 	// ParseWorkflowString should return RedirectOnlyWorkflowError, not SharedWorkflowError.
