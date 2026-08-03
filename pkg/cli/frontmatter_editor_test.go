@@ -212,3 +212,203 @@ permissions:
 		})
 	}
 }
+
+func TestRemoveTopLevelFieldFromFrontmatter(t *testing.T) {
+	tests := []struct {
+		name      string
+		content   string
+		fieldName string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name: "removes existing top-level field",
+			content: `---
+name: my-workflow
+source: owner/repo/workflow.md@abc123
+features:
+  - foo
+---
+
+# Body`,
+			fieldName: "source",
+			want: `---
+name: my-workflow
+features:
+  - foo
+---
+
+# Body`,
+		},
+		{
+			name: "field absent returns content unchanged",
+			content: `---
+name: my-workflow
+features:
+  - foo
+---
+
+# Body`,
+			fieldName: "source",
+			want: `---
+name: my-workflow
+features:
+  - foo
+---
+
+# Body`,
+		},
+		{
+			name: "field name prefix does not match other fields",
+			content: `---
+source: owner/repo@abc
+source-extra: other
+---
+
+# Body`,
+			fieldName: "source",
+			want: `---
+source-extra: other
+---
+
+# Body`,
+		},
+		{
+			name: "no frontmatter returns content unchanged",
+			content: `# Just a heading
+
+Some text.`,
+			fieldName: "source",
+			want: `# Just a heading
+
+Some text.`,
+		},
+		{
+			name: "removes field with child lines",
+			content: `---
+name: wf
+source:
+  repo: owner/repo
+  ref: abc123
+evals:
+  - test
+---
+
+# Body`,
+			fieldName: "source",
+			want: `---
+name: wf
+evals:
+  - test
+---
+
+# Body`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := RemoveTopLevelFieldFromFrontmatter(tt.content, tt.fieldName)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("RemoveTopLevelFieldFromFrontmatter() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("RemoveTopLevelFieldFromFrontmatter() mismatch\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMoveTopLevelFieldToEnd(t *testing.T) {
+	tests := []struct {
+		name       string
+		content    string
+		fieldName  string
+		fieldValue string
+		want       string
+		wantErr    bool
+	}{
+		{
+			name: "moves existing field to end with new value",
+			content: `---
+source: owner/repo@old
+name: my-workflow
+features:
+  - foo
+---
+
+# Body`,
+			fieldName:  "source",
+			fieldValue: "owner/repo@new",
+			want: `---
+name: my-workflow
+features:
+  - foo
+source: owner/repo@new
+---
+
+# Body`,
+		},
+		{
+			name: "appends field when absent",
+			content: `---
+name: my-workflow
+features:
+  - foo
+---
+
+# Body`,
+			fieldName:  "source",
+			fieldValue: "owner/repo@abc",
+			want: `---
+name: my-workflow
+features:
+  - foo
+source: owner/repo@abc
+---
+
+# Body`,
+		},
+		{
+			name: "field name prefix does not match other fields",
+			content: `---
+source-extra: other
+name: wf
+---
+
+# Body`,
+			fieldName:  "source",
+			fieldValue: "owner/repo@abc",
+			want: `---
+source-extra: other
+name: wf
+source: owner/repo@abc
+---
+
+# Body`,
+		},
+		{
+			name: "no frontmatter returns content unchanged",
+			content: `# Just a heading
+
+Some text.`,
+			fieldName:  "source",
+			fieldValue: "owner/repo@abc",
+			want: `# Just a heading
+
+Some text.`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := MoveTopLevelFieldToEnd(tt.content, tt.fieldName, tt.fieldValue)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("MoveTopLevelFieldToEnd() error = %v, wantErr %v", err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("MoveTopLevelFieldToEnd() mismatch\ngot:\n%s\nwant:\n%s", got, tt.want)
+			}
+		})
+	}
+}

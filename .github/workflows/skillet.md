@@ -50,7 +50,7 @@ jobs:
     steps:
       - name: Match requested skill
         id: match_skill
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@373c709c69115d41ff229c7e5df9f8788daa9553  # v9
         with:
           script: |
             const fs = require('fs');

@@ -70,13 +70,19 @@ func hasLocalModifications(sourceContent, localContent, sourceSpec, localWorkflo
 		sourceResolved = sourceWithSource
 	}
 
-	// Normalize again after processing
+	// Normalize again after processing.
+	// Remove the source field from both before comparing: it is managed by the update
+	// tool (not user-editable content), and its position in the local file may differ
+	// from where the tool would place it (at the end of frontmatter).  Retaining it
+	// causes false-positive "local modifications" detections when the only difference
+	// is source field position, which in turn triggers merge mode and can produce
+	// spurious merge conflict markers.
 	sourceResolvedNormalized := stringutil.NormalizeWhitespace(sourceResolved)
-	if normalized, normalizeErr := UpdateFieldInFrontmatter(sourceResolvedNormalized, "source", "__gh_aw_source__"); normalizeErr == nil {
-		sourceResolvedNormalized = normalized
+	if withoutSource, removeErr := RemoveTopLevelFieldFromFrontmatter(sourceResolvedNormalized, "source"); removeErr == nil {
+		sourceResolvedNormalized = withoutSource
 	}
-	if normalized, normalizeErr := UpdateFieldInFrontmatter(localNormalized, "source", "__gh_aw_source__"); normalizeErr == nil {
-		localNormalized = normalized
+	if withoutSource, removeErr := RemoveTopLevelFieldFromFrontmatter(localNormalized, "source"); removeErr == nil {
+		localNormalized = withoutSource
 	}
 
 	// Compare the normalized contents
@@ -147,11 +153,26 @@ func MergeWorkflowContent(base, current, new, oldSourceSpec, newRefOrSourceSpec,
 	baseNormalized := stringutil.NormalizeWhitespace(baseWithSource)
 	currentNormalized := stringutil.NormalizeWhitespace(current)
 	newNormalized := stringutil.NormalizeWhitespace(newWithUpdatedSource)
-	if normalizedCurrent, normalizeErr := UpdateFieldInFrontmatter(currentNormalized, "source", currentSourceSpec); normalizeErr == nil {
+
+	// Normalize source field position in current to match base and new (at end of frontmatter).
+	// base and new both have source added at the end by UpdateFieldInFrontmatter above, but
+	// current may have source at a different position (e.g. before features/evals) if the
+	// file was committed with source in the middle. This positional mismatch causes git
+	// merge-file to produce conflict markers even when the only change is the source SHA.
+	// MoveTopLevelFieldToEnd performs the reposition and value update in a single reconstruction
+	// pass, superseding any need for a separate UpdateFieldInFrontmatter call on current.
+	if normalizedCurrent, moveErr := MoveTopLevelFieldToEnd(currentNormalized, "source", currentSourceSpec); moveErr == nil {
 		currentNormalized = normalizedCurrent
 	} else if verbose {
-		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to normalize source in current content: %v", normalizeErr)))
+		fmt.Fprintln(os.Stderr, console.FormatWarningMessage(fmt.Sprintf("Failed to normalise source field position in current content: %v", moveErr)))
 	}
+	// Re-normalize whitespace: the parser's TrimSpace strips the trailing newline that the
+	// NormalizeWhitespace call above added to currentNormalized, whereas baseNormalized and
+	// newNormalized both had their UpdateFieldInFrontmatter pass run before NormalizeWhitespace
+	// and therefore retain the trailing newline. A one-byte mismatch here causes git merge-file
+	// to treat base and current as different even when the content is otherwise identical,
+	// producing spurious merge conflict markers in the markdown section.
+	currentNormalized = stringutil.NormalizeWhitespace(currentNormalized)
 
 	// Create temporary directory for merge files
 	tmpDir, err := os.MkdirTemp("", "gh-aw-merge-*")
