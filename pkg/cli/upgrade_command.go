@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 
 	"github.com/github/gh-aw/pkg/console"
 	"github.com/github/gh-aw/pkg/constants"
@@ -459,10 +460,9 @@ func updateCopilotArtifacts(ctx context.Context, verbose bool) error {
 func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	allowedExtraFlags := map[string]struct{}{
 		"--skip-extension-upgrade": {},
-		"--post-upgrade":           {},
 	}
 	if _, ok := allowedExtraFlags[extraFlag]; !ok {
-		return fmt.Errorf("invalid relaunch flag %q: expected one of --skip-extension-upgrade or --post-upgrade", extraFlag)
+		return fmt.Errorf("invalid relaunch flag %q: expected --skip-extension-upgrade", extraFlag)
 	}
 
 	var exe string
@@ -486,13 +486,8 @@ func relaunchWithSameArgs(extraFlag string, exeOverride string) error {
 	// Explicitly copy os.Args[1:] so appending the extra flag does not modify
 	// the original slice backing array.
 	newArgs := append(append([]string(nil), os.Args[1:]...), extraFlag)
-	for _, arg := range newArgs {
-		if arg == "" {
-			return errors.New("invalid relaunch arguments: argument cannot be empty. Example: compile .github/workflows/example.md")
-		}
-		if containsControlCharacters(arg) {
-			return errors.New("invalid relaunch arguments: argument contains invalid control characters. Example: compile .github/workflows/example.md")
-		}
+	if slices.ContainsFunc(newArgs, containsControlCharacters) {
+		return errors.New("invalid relaunch arguments: argument contains invalid control characters. Example: compile .github/workflows/example.md")
 	}
 	upgradeLog.Printf("Re-launching with new binary: %s %v", exe, newArgs)
 

@@ -16,10 +16,14 @@ import (
 var dockerArgsValidationLog = logger.New("cli:docker_args_validation")
 
 var (
-	dockerImageNamePattern = regexp.MustCompile(`^(?:[a-zA-Z0-9.-]+(?::[0-9]+)?/)?[a-z0-9]+(?:[._-][a-z0-9]+)*(?:/[a-z0-9]+(?:[._-][a-z0-9]+)*)*$`)
+	dockerImageNamePattern = regexp.MustCompile(`^(?:[a-zA-Z0-9.-]+(?::[0-9]+)?/)?[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*(?:/[a-z0-9]+(?:(?:[._]|__|-+)[a-z0-9]+)*)*$`)
 	dockerImageTagPattern  = regexp.MustCompile(`^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$`)
-	dockerImageDigestRef   = regexp.MustCompile(`^[A-Za-z][A-Za-z0-9]*:[0-9a-fA-F]{32,}$`)
 )
+
+var dockerImageDigestAlgorithms = map[string]int{
+	"sha256": 64,
+	"sha512": 128,
+}
 
 func containsControlCharacters(value string) bool {
 	return strings.IndexFunc(value, func(r rune) bool {
@@ -77,7 +81,7 @@ func validateDockerImageRef(imageRef string) (string, error) {
 	}
 	nameWithOptionalTag, digest, hasDigest := strings.Cut(imageRef, "@")
 	if hasDigest {
-		if digest == "" || !dockerImageDigestRef.MatchString(digest) {
+		if digest == "" || !isAllowedDockerImageDigest(digest) {
 			return "", fmt.Errorf("grant image reference has an invalid digest format. Example: ghcr.io/example/image@sha256:<digest>. Got: %q", imageRef)
 		}
 		imageRefWithoutDigest = nameWithOptionalTag
@@ -99,6 +103,29 @@ func validateDockerImageRef(imageRef string) (string, error) {
 		return "", fmt.Errorf("grant image reference must match an allow-listed image pattern. Example: ghcr.io/example/image:tag. Got: %q", imageRef)
 	}
 	return imageRef, nil
+}
+
+func isAllowedDockerImageDigest(digest string) bool {
+	algorithm, hexDigest, ok := strings.Cut(digest, ":")
+	if !ok {
+		return false
+	}
+
+	expectedLength, ok := dockerImageDigestAlgorithms[algorithm]
+	if !ok || len(hexDigest) != expectedLength {
+		return false
+	}
+
+	for _, r := range hexDigest {
+		switch {
+		case r >= '0' && r <= '9':
+		case r >= 'a' && r <= 'f':
+		case r >= 'A' && r <= 'F':
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func isWindowsDrivePath(hostPath string) bool {
