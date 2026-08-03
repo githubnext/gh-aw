@@ -20,6 +20,10 @@ on:
 
 `ready_for_review` starts review when drafts become reviewable. Centralized routing handles both PR comments and review comments via one entrypoint.
 
+When workflows are attached to repository rulesets as required checks, also include
+`opened`, `synchronize`, and `reopened` to ensure the check reruns on new commits
+and stays green as code changes.
+
 ## Safe Outputs
 
 - `create-pull-request-review-comment` — line-level feedback
@@ -56,6 +60,12 @@ tools:
 - Prefer `pull_requests` for reviewer operations.
 - Add `issues` only when interacting with issue-style comment surfaces or cross-links.
 - Use the lowest `min-integrity` that supports the required actions.
+
+## Ruleset Compatibility
+
+- Keep workflow and job names stable so required-check rulesets keep matching after updates.
+- If imports are used, set `inlined-imports: true` to avoid runtime import failures in ruleset execution contexts.
+- For bot-based reviewers, prefer `allowed-events: [COMMENT, REQUEST_CHANGES]` unless you intentionally provide elevated approval credentials.
 
 ## Examples
 
