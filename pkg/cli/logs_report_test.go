@@ -1154,6 +1154,14 @@ func TestBuildLogsDataDriverExitFailureClassification(t *testing.T) {
 		{Run: WorkflowRun{DatabaseID: 3, WorkflowName: "wf", Conclusion: "failure", Turns: 0, TurnsAvailable: true}},
 		// agent-logic: failed, agent ran
 		{Run: WorkflowRun{DatabaseID: 4, WorkflowName: "wf", Conclusion: "failure", Turns: 3, TurnsAvailable: true}},
+		// safe_outputs failed after successful agent execution, so this is not a driver exit.
+		{
+			Run: WorkflowRun{DatabaseID: 5, WorkflowName: "wf", Conclusion: "failure", Turns: 0, TurnsAvailable: true},
+			JobDetails: []JobInfoWithDuration{
+				{JobInfo: JobInfo{Name: "agent", Conclusion: "success"}},
+				{JobInfo: JobInfo{Name: "safe_outputs", Conclusion: "failure"}},
+			},
+		},
 	}
 
 	data := buildLogsData(processedRuns, "/tmp/logs", nil)
@@ -1161,8 +1169,8 @@ func TestBuildLogsDataDriverExitFailureClassification(t *testing.T) {
 	if data.Summary.TotalDriverExitFailures != 2 {
 		t.Errorf("Expected TotalDriverExitFailures = 2, got %d", data.Summary.TotalDriverExitFailures)
 	}
-	if data.Summary.TotalAgentLogicFailures != 1 {
-		t.Errorf("Expected TotalAgentLogicFailures = 1, got %d", data.Summary.TotalAgentLogicFailures)
+	if data.Summary.TotalAgentLogicFailures != 2 {
+		t.Errorf("Expected TotalAgentLogicFailures = 2, got %d", data.Summary.TotalAgentLogicFailures)
 	}
 
 	// Verify per-run FailureKind
@@ -1181,6 +1189,9 @@ func TestBuildLogsDataDriverExitFailureClassification(t *testing.T) {
 	}
 	if byID[4].FailureKind != "agent_logic" {
 		t.Errorf("run 4 (failure, 3 turns): expected FailureKind=agent_logic, got %q", byID[4].FailureKind)
+	}
+	if byID[5].FailureKind != "agent_logic" {
+		t.Errorf("run 5 (safe_outputs failure after successful agent): expected FailureKind=agent_logic, got %q", byID[5].FailureKind)
 	}
 }
 

@@ -249,7 +249,10 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		// Agent-logic requires either reliable turn data (TurnsAvailable) or a confirmed
 		// non-zero turn count (e.g. backfilled from the usage-activity summary).
 		failureKind := ""
-		if isDriverExitFailure(run) {
+		if isSafeOutputsFailureAfterSuccessfulAgent(pr.JobDetails) {
+			failureKind = "agent_logic"
+			totalAgentLogicFailures++
+		} else if isDriverExitFailure(run) {
 			failureKind = "driver_exit"
 			totalDriverExitFailures++
 		} else if isFailureConclusion(run.Conclusion) && (run.TurnsAvailable || run.Turns > 0) {
@@ -496,6 +499,29 @@ func buildLogsData(processedRuns []ProcessedRun, outputDir string, continuation 
 		Continuation:      continuation,
 		LogsLocation:      absOutputDir,
 	}
+}
+
+func isSafeOutputsFailureAfterSuccessfulAgent(jobDetails []JobInfoWithDuration) bool {
+	agentSucceeded := false
+	safeOutputsFailed := false
+
+	for _, job := range jobDetails {
+		normalizedName := normalizeJobName(job.Name)
+		if normalizedName == "agent" && strings.EqualFold(job.Conclusion, "success") {
+			agentSucceeded = true
+		}
+		if normalizedName == "safe_outputs" && isFailureConclusion(job.Conclusion) {
+			safeOutputsFailed = true
+		}
+	}
+
+	return agentSucceeded && safeOutputsFailed
+}
+
+func normalizeJobName(name string) string {
+	normalized := strings.ToLower(strings.TrimSpace(name))
+	normalized = strings.ReplaceAll(normalized, " ", "_")
+	return strings.ReplaceAll(normalized, "-", "_")
 }
 
 // deriveRunClassification maps a run's AuditComparisonData to one of four
