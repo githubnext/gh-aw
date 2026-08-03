@@ -119,7 +119,7 @@ GH_OUT8="${TEST_ROOT}/github_output8"
 SUMMARY8="${TEST_ROOT}/step_summary8"
 touch "${GH_OUT8}" "${SUMMARY8}"
 GITHUB_WORKSPACE="${WORKSPACE}" HOME="${TEST_ROOT}/home8" RUNNER_TEMP="${TMPDIR}" GITHUB_OUTPUT="${GH_OUT8}" GITHUB_STEP_SUMMARY="${SUMMARY8}" bash "${SCRIPT_PATH}" >/dev/null 2>&1
-assert "Summary has heading" "grep -q '### Pre-agent workspace audit' '${SUMMARY8}'"
+assert "Summary title is in the details summary" "grep -q '<summary>Pre-agent workspace audit' '${SUMMARY8}'"
 assert "Summary uses details tag" "grep -q '<details>' '${SUMMARY8}'"
 assert "Summary closes details tag" "grep -q '</details>' '${SUMMARY8}'"
 assert "Summary has table header" "grep -q '| Section | Path | Size |' '${SUMMARY8}'"

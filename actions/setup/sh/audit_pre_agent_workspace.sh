@@ -128,10 +128,8 @@ render_summary_table() {
     rows+="| ${section} | \`${line}\` | ${size} |"$'\n'
     count=$((count + 1))
   done < "${AUDIT_FILE}"
-  echo "### Pre-agent workspace audit"
-  echo
   echo "<details>"
-  echo "<summary>Show ${count} audited entries</summary>"
+  echo "<summary>Pre-agent workspace audit (${count} entries)</summary>"
   echo
   echo "| Section | Path | Size |"
   echo "| --- | --- | --- |"
