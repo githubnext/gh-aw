@@ -17,7 +17,8 @@ engine:
 network:
   allowed:
     - defaults
-    - node
+imports:
+  - uses: shared/squad.md
 tools:
   bash: true
   github:
@@ -32,21 +33,12 @@ safe-outputs:
     expires: 1
     close-older-issues: true
     close-older-key: squad-game-planner
-steps:
-  - name: Setup Node.js
-    uses: actions/setup-node@v7.0.0
-    with:
-      node-version: "22"
-
-  - name: Setup Squad
-    run: .github/scripts/setup-squad.sh
 ---
 
 # Squad Game Planner
 
-Use the installed [Squad](https://github.com/bradygaster/squad) team (already
-scaffolded by the `Setup Squad` step, which ran `squad init` before this agent
-started) to plan a brand-new, original game concept today.
+Use the Squad (https://github.com/bradygaster/squad) team to plan a
+brand-new, original game concept today.
 
 ## Task
 
